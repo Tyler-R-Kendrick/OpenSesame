@@ -256,13 +256,30 @@ describe("tier separation", () => {
     expect(resolution.reason).toBe(BLOCKED_REASONS.stackNotConfigured);
   });
 
-  it("records an unsupported scenario with what would lift it", () => {
-    const unsupported = scenarios.find(
-      (scenario) => scenario.tier === "unsupported",
-    );
+  it("resolves a declared unsupported scenario with what would lift it", () => {
+    const unsupported = {
+      id: "GA-V-SYNTH",
+      workItem: "TEST-REPORT",
+      area: "DOMAIN",
+      tier: "unsupported",
+      invariant: "INV-GA-06",
+      title: "Synthetic unsupported for resolve coverage",
+      unsupported: {
+        reason:
+          "No live scenario remains unsupported; this fixture covers resolve.",
+        wouldRequire: "Delete this fixture if a real unsupported row returns.",
+      },
+    };
     const resolution = resolveScenario(unsupported, emptyFacts);
     expect(resolution.status).toBe("unsupported");
     expect(resolution.detail).toBeTruthy();
+  });
+
+  it("keeps the live catalog free of research-only unsupported rows", () => {
+    const residual = scenarios.filter(
+      (scenario) => scenario.tier === "unsupported",
+    );
+    expect(residual.map((scenario) => scenario.id)).toEqual([]);
   });
 
   it("settles INV-GA-05 via the lifecycle unit test, not live-stack", () => {

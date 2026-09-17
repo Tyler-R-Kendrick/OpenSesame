@@ -307,4 +307,20 @@ export const hostPlaneScenarios = Object.freeze([
       "descriptor::tests::a_dimension_left_out_is_not_a_descriptor",
     ),
   },
+  {
+    id: "GA-V-33b",
+    workItem: "TEST-STACK",
+    area: "DOMAIN",
+    tier: "integration",
+    invariant: "INV-GA-05",
+    title:
+      "An authority expiry reaches the lifecycle.* feed from a running gateway",
+    target: {
+      kind: "cargo",
+      crate: "opensesame-gateway",
+      module: "lifecycle::authority_grant_scan",
+      test: "lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan",
+      bin: "opensesame-gateway",
+    },
+  },
 ]);

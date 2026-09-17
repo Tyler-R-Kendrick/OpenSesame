@@ -1,6 +1,4 @@
-import { SUPPORT_LIMITS } from "@opensesame/support-agent";
 import {
-  type FormEvent,
   type ReactElement,
   useCallback,
   useId,
@@ -20,6 +18,7 @@ import {
 import { guideRouteWithin } from "../registry/routes.js";
 import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
+import { SupportComposer, useSupportAskSlot } from "./SupportComposer.js";
 import "../support.css";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
 import {
@@ -81,10 +80,9 @@ export function SupportPanel(): ReactElement {
   const close = useCallback(() => support.close(), [support]);
   useModalFocus(true, sheetRef, closeRef, close);
 
-  const askId = useId();
   const searchId = useId();
-  const [question, setQuestion] = useState("");
   const [query, setQuery] = useState("");
+  const askSlot = useSupportAskSlot();
 
   const topics = useMemo(
     () =>
@@ -104,13 +102,6 @@ export function SupportPanel(): ReactElement {
       : questionsFromGoals(goals, covered, support, canAsk);
     return [...fromTopics, ...fromGoals];
   }, [topics, goals, support, canAsk, query]);
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const asked = question;
-    setQuestion("");
-    void support.ask(asked);
-  };
 
   return (
     <div className="sheet-layer">
@@ -278,35 +269,11 @@ export function SupportPanel(): ReactElement {
 
           <WebMcpStatus />
         </div>
-
-        <div className="sheet__foot">
-          <form className="support__composer" onSubmit={submit}>
-            <label className="visually-hidden" htmlFor={askId}>
-              Ask about this screen
-            </label>
-            <div className="f__shell">
-              <input
-                id={askId}
-                className="f__input"
-                type="text"
-                value={question}
-                maxLength={SUPPORT_LIMITS.maxQuestionChars}
-                placeholder={
-                  canAsk ? "Ask about this screen" : "Questions only"
-                }
-                disabled={!canAsk}
-                onChange={(event) => setQuestion(event.target.value)}
-              />
-            </div>
-            <button
-              type="submit"
-              className="btn btn--primary"
-              disabled={!canAsk || question.trim().length === 0}
-            >
-              Ask
-            </button>
-          </form>
-        </div>
+        {askSlot ? null : (
+          <div className="sheet__foot">
+            <SupportComposer slot={null} />
+          </div>
+        )}
       </section>
     </div>
   );

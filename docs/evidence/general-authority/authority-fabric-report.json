@@ -10,10 +10,10 @@
     "TEST-PARITY",
     "TEST-REPORT"
   ],
-  "generatedAt": "2026-09-16T02:36:33.470Z",
-  "head": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+  "generatedAt": "2026-09-17T14:44:37.336Z",
+  "head": "7a3a06e2c04998381b27fcc3877e372f0ae3288c",
   "treeDirty": true,
-  "treeChangedDuringRun": false,
+  "treeChangedDuringRun": true,
   "executed": true,
   "command": "pnpm test:authority-fabric",
   "cargoExecution": "one `cargo test -p <crate> --lib -- --format terse` per crate; each scenario reads its own test's line",
@@ -22,28 +22,28 @@
   "summary": {
     "total": 56,
     "byStatus": {
-      "pass": 53,
+      "pass": 55,
       "fail": 0,
-      "blocked": 0,
-      "unsupported": 3
+      "blocked": 1,
+      "unsupported": 0
     },
     "byTier": {
       "unit": {
-        "pass": 33,
+        "pass": 34,
         "fail": 0,
         "blocked": 0,
         "unsupported": 0
       },
       "integration": {
-        "pass": 19,
+        "pass": 21,
         "fail": 0,
         "blocked": 0,
         "unsupported": 0
       },
       "provider": {
-        "pass": 1,
+        "pass": 0,
         "fail": 0,
-        "blocked": 0,
+        "blocked": 1,
         "unsupported": 0
       },
       "live": {
@@ -56,10 +56,10 @@
         "pass": 0,
         "fail": 0,
         "blocked": 0,
-        "unsupported": 3
+        "unsupported": 0
       }
     },
-    "gate": "pass"
+    "gate": "blocked"
   },
   "scenarios": [
     {
@@ -327,6 +327,18 @@
       "reproduce": "cargo +1.88.0 test -p opensesame-enforcement --lib -- --exact descriptor::tests::a_dimension_left_out_is_not_a_descriptor"
     },
     {
+      "id": "GA-V-33b",
+      "workItem": "TEST-STACK",
+      "area": "DOMAIN",
+      "tier": "integration",
+      "invariant": "INV-GA-05",
+      "title": "An authority expiry reaches the lifecycle.* feed from a running gateway",
+      "status": "pass",
+      "reason": null,
+      "detail": "lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan ran and passed",
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan"
+    },
+    {
       "id": "GA-V-23",
       "workItem": "TEST-SCENARIOS",
       "area": "CLIENT",
@@ -402,13 +414,13 @@
       "id": "GA-V-29",
       "workItem": "TEST-RACES",
       "area": "DOMAIN",
-      "tier": "unsupported",
+      "tier": "integration",
       "invariant": "INV-GA-06",
       "title": "Evaluation cannot loop under an adversarial interleaving",
-      "status": "unsupported",
-      "reason": "Interleaving coverage needs a model checker, not a test that happens to pass once. cargo-shuttle runs behind pnpm audit:shuttle and no authority evaluator is registered with it.",
-      "detail": "GA-H-01 lands an evaluator, then scripts/shuttle-gate.sh gains an authority target.",
-      "reproduce": null
+      "status": "pass",
+      "reason": null,
+      "detail": "evaluation_cannot_loop_under_adversarial_interleaving ran and passed",
+      "reproduce": "cargo +1.88.0 test -p opensesame-domain --test shuttle_authority --features concurrency-test -- --exact evaluation_cannot_loop_under_adversarial_interleaving"
     },
     {
       "id": "GA-V-30",
@@ -441,10 +453,10 @@
       "tier": "provider",
       "invariant": "INV-GA-03",
       "title": "No check true against the baseline OpenFGA model returns false against the delta",
-      "status": "pass",
-      "reason": null,
-      "detail": "\"No check true against the baseline OpenFGA model returns false against the delta\" ran and passed",
-      "reproduce": "pnpm --filter @opensesame/policy exec vitest run --reporter=json src/__tests__/authority-additivity.test.ts"
+      "status": "blocked",
+      "reason": "live-stack-not-configured",
+      "detail": "OPENSESAME_OPENFGA_URL is unset; GA-V-32 needs a live OpenFGA to replay baseline allows against the delta",
+      "reproduce": null
     },
     {
       "id": "GA-V-33",
@@ -459,28 +471,16 @@
       "reproduce": "cargo +1.88.0 test -p opensesame-lifecycle --lib -- --exact authority_grant_expiry::authority_grant_expiry_reaches_the_lifecycle_feed"
     },
     {
-      "id": "GA-V-33b",
-      "workItem": "TEST-STACK",
-      "area": "DOMAIN",
-      "tier": "unsupported",
-      "invariant": "INV-GA-05",
-      "title": "An authority expiry reaches the lifecycle.* feed from a running gateway",
-      "status": "unsupported",
-      "reason": "OpenBao is available locally, but no live gateway harness yet asserts AuthorityGrant → lifecycle.expiry.expired; live-stack-test.sh still only covers connections/intents.",
-      "detail": "Gateway integration test: issue AuthorityGrant, advance clock/scanner, observe lifecycle.expiry.expired on the running feed (not live-stack-test.sh).",
-      "reproduce": null
-    },
-    {
       "id": "GA-V-34",
       "workItem": "TEST-REPORT",
       "area": "DOMAIN",
-      "tier": "unsupported",
+      "tier": "unit",
       "invariant": "INV-GA-08",
       "title": "Two product names never become two models or two ledgers",
-      "status": "unsupported",
-      "reason": "A naming decision is a review contract over a stored record. GA-V-31 covers the mechanical half (one ledger); the presentation half has no executable form.",
-      "detail": "GA-O-03 closes the naming decision, after which the stored record can be asserted single-valued in a type test.",
-      "reproduce": null
+      "status": "pass",
+      "reason": null,
+      "detail": "\"does not export an AccessLease domain type beside AuthorityGrant\" ran and passed",
+      "reproduce": "pnpm --filter @opensesame/os-domain exec vitest run --reporter=json src/__tests__/authority-naming.test.ts"
     },
     {
       "id": "GA-V-35",

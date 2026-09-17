@@ -42,11 +42,17 @@ export function crateFacts(root, crateNames, members) {
       continue;
     }
     const libPath = libTargetPath(found.manifest);
+    const binPath = binTargetPath(found.manifest);
     facts[crate] = {
       inWorkspace: true,
       member: found.member,
       libPath,
       libExists: existsSync(join(root, found.member, libPath)),
+      binPath,
+      binExists:
+        binPath === null
+          ? false
+          : existsSync(join(root, found.member, binPath)),
     };
   }
   return facts;
@@ -59,6 +65,13 @@ function libTargetPath(manifest) {
     if (path !== null) return path[1];
   }
   return "src/lib.rs";
+}
+
+function binTargetPath(manifest) {
+  const bin = /\[\[bin\]\][\s\S]*?(?=\n\[|$)/.exec(manifest);
+  if (bin === null) return null;
+  const path = /^path\s*=\s*"([^"]+)"/m.exec(bin[0]);
+  return path !== null ? path[1] : "src/main.rs";
 }
 
 /**
@@ -122,10 +135,33 @@ export function moduleFacts(root, crates, targets) {
     }
     return sources.get(path);
   };
-  for (const { crate, module } of targets) {
+  for (const target of targets) {
+    const { crate, module } = target;
     const crateFact = crates[crate];
     const key = `${crate}:${module}`;
-    if (crateFact === undefined || crateFact.libExists !== true) {
+    const bin = typeof target.bin === "string" ? target.bin : null;
+    const integration =
+      typeof target.integration === "string" ? target.integration : null;
+    if (crateFact === undefined) {
+      facts[key] = false;
+      continue;
+    }
+    if (integration !== null) {
+      facts[key] = existsSync(
+        join(root, crateFact.member, "tests", `${integration}.rs`),
+      );
+      continue;
+    }
+    if (bin !== null) {
+      if (crateFact.binExists !== true) {
+        facts[key] = false;
+        continue;
+      }
+      const crateRoot = join(root, crateFact.member, crateFact.binPath);
+      facts[key] = declaresChain(read, crateRoot, module.split("::"));
+      continue;
+    }
+    if (crateFact.libExists !== true) {
       facts[key] = false;
       continue;
     }
@@ -158,7 +194,23 @@ function declaresChain(read, parentPath, chain) {
  * does not compile is distinguishable from one that has no tests — the verdict
  * logic treats neither as an empty set.
  */
-export function enumerateCargoTests(root, crate) {
+export function enumerateCargoTests(
+  root,
+  crate,
+  bin = null,
+  features = null,
+  integration = null,
+) {
+  const featureArgs =
+    Array.isArray(features) && features.length > 0
+      ? ["--features", features.join(",")]
+      : [];
+  const suiteArgs =
+    typeof integration === "string"
+      ? ["--test", integration]
+      : bin
+        ? ["--bin", bin]
+        : ["--lib"];
   const result = spawnSync(
     "cargo",
     [
@@ -166,7 +218,8 @@ export function enumerateCargoTests(root, crate) {
       "test",
       "-p",
       crate,
-      "--lib",
+      ...suiteArgs,
+      ...featureArgs,
       "--",
       "--list",
       "--format",

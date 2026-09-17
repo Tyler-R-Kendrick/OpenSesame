@@ -3859,6 +3859,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "shuttle",
  "thiserror 2.0.19",
  "url",
  "uuid",

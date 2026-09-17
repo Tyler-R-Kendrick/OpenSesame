@@ -31,6 +31,7 @@ import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
 import { IconLock } from "./Icons.js";
 import { IdentityTree } from "./IdentityTree.js";
+import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
 import { MoreMenu } from "./MoreMenu.js";
 import { NavDrawer } from "./NavDrawer.js";
@@ -271,6 +272,7 @@ function Shell({ children }: { children?: ReactNode }) {
       <aside className="rail">
         <div className="rail__brand">
           <Wordmark className="rail__wordmark" />
+          <InstallMark />
         </div>
 
         <SessionPrompt />
@@ -290,6 +292,7 @@ function Shell({ children }: { children?: ReactNode }) {
               Between them the bar a phone already had is the whole chrome. */}
           <NavDrawer />
           <SessionPrompt />
+          <InstallMark />
           <ThemeToggle />
           <MoreMenu />
         </header>

@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 description = "Pure domain resources, invariants, IDs, and errors for OpenSesame"
 
+[features]
+concurrency-test = ["dep:shuttle"]
+
 [dependencies]
 chrono = { workspace = true }
 serde = { workspace = true }
@@ -14,9 +17,15 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 blake3 = { workspace = true }
 url = { workspace = true }
+shuttle = { version = "0.9.1", optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
+
+[[test]]
+name = "shuttle_authority"
+path = "tests/shuttle_authority.rs"
+required-features = ["concurrency-test"]
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }

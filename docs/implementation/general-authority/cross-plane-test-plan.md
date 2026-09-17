@@ -42,7 +42,7 @@ pnpm test:authority-fabric:report
 ```
 
 Writes `docs/evidence/general-authority/authority-fabric-report.{json,md}`.
-Unsupported rows (live Discord / OpenBao / shuttle) stay named unsupported —
+Live Discord / OpenBao remain env-gated provider rows; shuttle interleaving (GA-V-29) is wired —
 they do not greenwash the gate.
 
 ## 5. Still outside this plan
