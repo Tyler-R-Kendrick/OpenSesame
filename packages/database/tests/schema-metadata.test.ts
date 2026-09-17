@@ -265,11 +265,20 @@ describe("schema metadata contract", () => {
         "interaction_proof_attempts_outcome_check",
       ]),
     );
-    const mechanismSql = JSON.stringify(
-      getTableConfig(walletSchema.interactionProofAttempts).checks.find(
-        (c) => c.name === "interaction_proof_attempts_mechanism_check",
-      ),
+    const mechanismCheck = getTableConfig(
+      walletSchema.interactionProofAttempts,
+    ).checks.find(
+      (c) => c.name === "interaction_proof_attempts_mechanism_check",
     );
+    expect(mechanismCheck).toBeDefined();
+    const seen = new WeakSet<object>();
+    const mechanismSql = JSON.stringify(mechanismCheck, (_key, value) => {
+      if (value && typeof value === "object") {
+        if (seen.has(value)) return "[Circular]";
+        seen.add(value);
+      }
+      return value;
+    });
     expect(mechanismSql).toContain("session_reauth");
     expect(mechanismSql).toContain("out_of_band");
   });
