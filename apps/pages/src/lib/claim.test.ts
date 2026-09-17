@@ -114,8 +114,6 @@ describe("claim client", () => {
     if (error instanceof AccessError) {
       expect(error.code).toBe("unreachable");
     }
-    expect(error.message).toMatch(
-      /Couldn't reach http:\/\/127\.0\.0\.1:8787/,
-    );
+    expect(error.message).toMatch(/Couldn't reach http:\/\/127\.0\.0\.1:8787/);
   });
 });

@@ -537,8 +537,8 @@ export function GithubBackupPanel() {
 
             {!hostLive ? (
               <output className="note note--warn">
-                This service is not reachable from this tab yet. Pair or start the
-                local Host so GitHub App setup can complete.
+                This service is not reachable from this tab yet. Pair or start
+                the local Host so GitHub App setup can complete.
               </output>
             ) : null}
 

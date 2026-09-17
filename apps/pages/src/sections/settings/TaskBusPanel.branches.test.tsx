@@ -79,7 +79,9 @@ describe("TaskBusPanel edges", () => {
     planes.value = { host: "degraded", identity: "live" };
     render(<TaskBusPanel />);
     expect(
-      screen.getByText(/This service is not reachable\. Pair or start it first/),
+      screen.getByText(
+        /This service is not reachable\. Pair or start it first/,
+      ),
     ).toBeTruthy();
   });
 

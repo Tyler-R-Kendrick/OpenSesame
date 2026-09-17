@@ -15,8 +15,16 @@ import {
   statusSentence,
 } from "./shared.js";
 
-/** Everything currently enabled on this Host: managed authorizations plus
- *  the local storage providers that only need a switch. */
+function nothingConnected() {
+  return (
+    <div className="empty">
+      <h3>Nothing connected</h3>
+      <EmptyTip>{emptyTips.rail}</EmptyTip>
+    </div>
+  );
+}
+
+/** Managed authorizations plus local storage providers that only need a switch. */
 export function ConnectedPanel({
   connections,
   providers,
@@ -39,11 +47,6 @@ export function ConnectedPanel({
     connection: Connection;
   }) => void;
   setupRequired: boolean;
-  /**
-   * Whether a Host is configured at all. Without one nothing is ever asked,
-   * so "could not be read" was a report of a failure that never happened
-   * (ADR 0090) — the panel says what a Host would hold instead.
-   */
   hostConfigured: boolean;
 }) {
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
@@ -65,10 +68,7 @@ export function ConnectedPanel({
           connections !== null &&
           automatic.length === 0 &&
           managed.length === 0) ? (
-          <div className="empty">
-            <h3>Nothing connected</h3>
-            <EmptyTip>{emptyTips.rail}</EmptyTip>
-          </div>
+          nothingConnected()
         ) : setupRequired ? (
           <div className="empty conn-gate">
             <h3>Choose an organization</h3>

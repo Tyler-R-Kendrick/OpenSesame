@@ -25,7 +25,6 @@ const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
     error: null,
   }),
 );
-
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
@@ -266,7 +265,6 @@ const catalog = vi.hoisted(() => {
     betterAuthProvider,
   ];
 });
-
 const bundledRef: { current: Provider[] } = vi.hoisted(() => ({ current: [] }));
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
@@ -1052,7 +1050,6 @@ describe("ConnectionsSection deeper branches", () => {
     expect(await screen.findByText("2 authorizations")).toBeTruthy();
     expect(screen.getByText("Linear work")).toBeTruthy();
     expect(screen.getByText("Linear personal")).toBeTruthy();
-    // Adding another authorization is offered for configured providers.
     expect(screen.getByText("Add another authorization")).toBeTruthy();
   });
 

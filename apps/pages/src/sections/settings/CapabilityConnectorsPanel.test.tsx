@@ -603,7 +603,6 @@ describe("CapabilityConnectorsPanel", () => {
     ).toBeGreaterThan(0);
   });
 });
-
 describe("CapabilityConnectorsPanel edge branches", () => {
   beforeEach(() => {
     online.value = true;

@@ -121,9 +121,7 @@ describe("PagesCannotHostNote", () => {
 
   it("does not report a down Host as a notification", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "https://h.example" };
-    const { container } = withRouter(
-      <PagesCannotHostNote ceremony="Backup" />,
-    );
+    const { container } = withRouter(<PagesCannotHostNote ceremony="Backup" />);
     expect(container.firstChild).toBeNull();
     expect(listNotices().find((item) => item.id === "host-down")).toBe(
       undefined,
@@ -133,9 +131,7 @@ describe("PagesCannotHostNote", () => {
 
   it("stays quiet when no Host is configured", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "" };
-    const { container } = withRouter(
-      <PagesCannotHostNote ceremony="Sync" />,
-    );
+    const { container } = withRouter(<PagesCannotHostNote ceremony="Sync" />);
     expect(container.firstChild).toBeNull();
     expect(listNotices().find((item) => item.id === "host-down")).toBe(
       undefined,
@@ -151,7 +147,11 @@ describe("PagesCannotHostNote", () => {
 
   it("offers the pairing ceremony only when pairing is already in progress", () => {
     env.needsPairing = true;
-    env.plane = { ...env.plane, host: "loopback", hostBase: "http://127.0.0.1:8787" };
+    env.plane = {
+      ...env.plane,
+      host: "loopback",
+      hostBase: "http://127.0.0.1:8787",
+    };
     withRouter(<PagesCannotHostNote ceremony="Backup" />);
     expect(
       screen.getByRole("heading", { name: "Connect this machine" }),
