@@ -155,7 +155,11 @@ function ProviderTile({
       className={`conn-tile${hash === `#catalog-${encodeURIComponent(provider.id)}` ? " is-selected" : ""}`}
       id={`catalog-${encodeURIComponent(provider.id)}`}
     >
-      <Link className="conn-tile__link" to={connectorPath(provider.id)}>
+      <Link
+        className="conn-tile__link"
+        tabIndex={-1}
+        to={connectorPath(provider.id)}
+      >
         <ConnectorMark
           providerId={provider.id}
           displayName={provider.displayName}
