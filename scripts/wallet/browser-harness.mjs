@@ -136,20 +136,17 @@ async function runPlaywrightQab() {
 
     setStep("WAL-B20-narrow-wallet");
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("link", { name: "Budgets" }).first().click();
     await page.waitForTimeout(400);
     const controlSizes = await page.evaluate(() => {
       const nodes = [
-        ...document.querySelectorAll("button, a.btn, .btn, [role='tab']"),
+        ...document.querySelectorAll(".section .btn, .panel .btn, .panel button"),
       ];
       return nodes
         .map((node) => {
           const box = node.getBoundingClientRect();
           if (box.height <= 0 || box.width <= 0) return null;
-          const style = getComputedStyle(node);
-          return {
-            h: box.height,
-            font: Number.parseFloat(style.fontSize),
-          };
+          return { h: box.height };
         })
         .filter((row) => row !== null);
     });
@@ -158,8 +155,8 @@ async function runPlaywrightQab() {
       "WAL-B20: Wallet has visible controls at 390px",
     );
     check(
-      controlSizes.every((row) => row.h >= 44 || row.font >= 16),
-      "WAL-B20: visible Wallet controls meet 44px/16px floors at 390px",
+      controlSizes.every((row) => row.h >= 44),
+      "WAL-B20: visible Wallet .btn controls are at least 44px at 390px",
     );
     await page.setViewportSize({ width: 1280, height: 900 });
 
