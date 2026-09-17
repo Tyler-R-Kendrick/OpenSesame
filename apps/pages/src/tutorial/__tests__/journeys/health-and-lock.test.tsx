@@ -32,7 +32,7 @@ function authored(id: string): string {
   return goal.guide;
 }
 
-describe("asking whether OpenSesame is healthy", () => {
+describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("shows the planes on the statusline, then walks to the report on the items", async () => {

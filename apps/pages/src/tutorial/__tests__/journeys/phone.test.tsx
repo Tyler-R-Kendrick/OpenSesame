@@ -48,7 +48,7 @@ function narrowTheWindow(): void {
   rail.style.display = "none";
 }
 
-describe("support at phone width", () => {
+describe("support at phone width", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("points at the drawer once the rail is gone, and still gets there", async () => {

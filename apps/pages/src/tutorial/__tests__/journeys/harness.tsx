@@ -382,9 +382,14 @@ export async function askSupport(
   const field = await screen.findByLabelText<HTMLInputElement>(
     "Ask about this screen",
   );
-  await waitFor(() => expect(field.disabled).toBe(false));
+  const ask = () => screen.getByRole("button", { name: "Ask" });
+  await waitFor(() => {
+    expect(field.disabled).toBe(false);
+    expect(ask()).not.toBeDisabled();
+  });
   await user.type(field, question);
-  await user.click(screen.getByRole("button", { name: "Ask" }));
+  await waitFor(() => expect(ask()).not.toBeDisabled());
+  await user.click(ask());
 }
 
 /** Counts clicks on one element, so "nothing activated it" can be asserted. */
