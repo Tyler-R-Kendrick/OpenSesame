@@ -142,6 +142,14 @@ impl Db {
         Ok(true)
     }
 
+    pub async fn authority_sidecar_present(
+        &self,
+        organization_id: &str,
+        grant_id: &str,
+    ) -> anyhow::Result<bool> {
+        self.exists(SIDECAR_PRESENT_SQL, grant_id, organization_id)
+            .await
+    }
     /// Read authority only if it currently passes every fence.
     ///
     /// # Errors
@@ -363,14 +371,15 @@ async fn insert_entries(
     Ok(())
 }
 
+const SIDECAR_PRESENT_SQL: &str =
+    "SELECT 1 AS live FROM grant_authority WHERE grant_id = ? AND organization_id = ?";
+
 const GRANT_LIVE_SQL: &str = "SELECT 1 AS live FROM grants \
      WHERE id = ? AND organization_id = ? AND revoked_at IS NULL";
 
 const DOMAIN_ACTIVE_SQL: &str = "SELECT 1 AS active FROM access_domains \
      WHERE id = ? AND organization_id = ? AND lifecycle = 'active'";
 
-/// The fence, as one statement. Read it as a list of refusals: each clause is a
-/// way authority stops being usable, and none of them waits for a background job.
 const FENCED_AUTHORITY_SQL: &str = "\
 SELECT a.grant_id, a.organization_id, a.domain_id, a.root_grant_id, a.revision, \
        a.delegation_depth_remaining, a.policy_digest, a.lineage_digest \

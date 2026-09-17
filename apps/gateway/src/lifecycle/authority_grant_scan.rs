@@ -5,7 +5,7 @@
 //! the running-gateway half of INV-GA-05 (unit half is GA-V-33).
 
 use chrono::{Duration, Utc};
-use opensesame_lifecycle::{ExpiryStage, SubjectKind};
+use opensesame_lifecycle::{ExpiryStage, SubjectKind, EVENT_EXPIRY_EXPIRED};
 use opensesame_storage::authority::{AuthorityIssue, NewAccessDomain, PermissionEntry};
 use serde_json::json;
 
@@ -103,6 +103,6 @@ async fn authority_grant_expiry_reaches_lifecycle_feed_via_scan() {
     });
     assert!(
         expired.is_some(),
-        "expected lifecycle.expiry.expired watermark for grant:expired, got {marks:?}"
+        "expected {EVENT_EXPIRY_EXPIRED} watermark for grant:expired, got {marks:?}"
     );
 }

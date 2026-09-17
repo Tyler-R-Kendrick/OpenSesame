@@ -19,7 +19,9 @@ blake3 = { workspace = true }
 base64 = { workspace = true }
 
 [dev-dependencies]
+chrono = { workspace = true }
 insta = { workspace = true, features = ["redactions"] }
+opensesame-domain = { path = "../domain" }
 proptest = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

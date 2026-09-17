@@ -41,6 +41,8 @@ mod fix_support;
 #[cfg(test)]
 mod fix_workcell;
 #[cfg(test)]
+mod offers_live;
+#[cfg(test)]
 mod outbox_tests;
 #[cfg(test)]
 mod tests;

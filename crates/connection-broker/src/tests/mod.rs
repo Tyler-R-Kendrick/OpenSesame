@@ -27,6 +27,7 @@ mod github_app_minting;
 mod legacy_connections;
 mod org_integrations;
 mod revocation_cleanup;
+mod rotation_leftover;
 mod web_rotation;
 
 const KEY: [u8; 32] = [42u8; 32];

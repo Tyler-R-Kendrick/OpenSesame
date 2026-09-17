@@ -3,8 +3,9 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T14:34:53Z",
-  "generatedBy": "feat/ga-v-34-naming",
+  "generatedAt": "2026-09-17T19:40:00Z",
+  "generatedBy": "feat/general-authority",
+  "startingSha": "669e89f68a058056867a797bb73071268c804d8c",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
   "rules": [
@@ -19,9 +20,16 @@
     "inProgress": 0,
     "blocked": 0,
     "verified": 47,
-    "testsRun": 55,
-    "gatesRun": 1,
-    "authorityFabric": "55 pass / 1 blocked / 0 unsupported",
+    "testsRun": 117,
+    "gatesRun": 5,
+    "authorityFabric": "117 pass / 0 fail / 0 blocked / 1 unsupported",
+    "domainLib": "cargo +1.88.0 test -p opensesame-domain --lib — 400 passed (theater copied_key + PermissionSet control-role tests removed)",
+    "grantRsRatchet": "crates/domain/src/grant.rs 434 → 264 (Grant::recalls_delivered_material theater helper removed; baseline lowered, not raised)",
+    "skepticTheaterClosed": {
+      "AT-CONTROL-ROLE": "Admin POST /grants/{id}/authority with credential.export|policy.edit is 403; Owner 201. cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::local_authority_routes::authority_grants::tests::at_control_role_admin_cannot_issue_export_or_policy_edit",
+      "AT-ROTATION": "execute_connection_rotation completes; connection stays Active; leftover provider cookie still 200. cargo +1.88.0 test -p opensesame-connection-broker --lib -- --exact tests::rotation_leftover::rotation_leaves_leftover_provider_session",
+      "AT-COPIED-KEY": "SessionGrant::permits denies after expiry; encrypt_item/decrypt_item still opens copied ciphertext. cargo +1.88.0 test -p opensesame-human-vault --test copied_key_residual -- --exact expiry_denies_fetch_copied_key_still_decrypts"
+    },
     "in-progress": 0
   },
   "workItems": [
@@ -116,9 +124,9 @@
       "title": "Additivity test harness",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "packages/policy authority-additivity.test.ts + GA-V-32 pass",
+      "evidence": "OPENSESAME_OPENFGA_URL=http://127.0.0.1:18081 pnpm --filter @opensesame/policy exec vitest run src/__tests__/authority-additivity.test.ts (1 passed, live PDP); pnpm test:authority-fabric twice \u2192 GA-V-32 pass",
       "blockedBy": [],
-      "notes": "packages/policy authority-additivity.test.ts + GA-V-32 pass"
+      "notes": "Live replay against pinned OpenFGA v1.8.12 (compose pin) + fga CLI v0.6.6 model transform. Structural half still runs without a URL."
     },
     {
       "id": "GA-F-04",
@@ -182,7 +190,7 @@
       "title": "Lifecycle hook publication for expiry",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "SubjectKind::AuthorityGrant; crates/lifecycle/src/authority_grant_expiry.rs; storage authority/expiry.rs + gateway subjects absorb; cargo +1.88.0 test -p opensesame-lifecycle authority_grant_expiry; fabric GA-V-33 retargeted off dishonest live-stack-test.sh",
+      "evidence": "SubjectKind::AuthorityGrant; crates/lifecycle/src/authority_grant_expiry.rs; storage authority/expiry.rs + gateway scan; cargo +1.88.0 test -p opensesame-lifecycle authority_grant_expiry; cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan; fabric GA-V-33 + GA-V-33b pass",
       "blockedBy": ["GA-H-02"],
       "notes": "Feed half proven; auth-path deny remains fenced_authority expires_at (ADR 0121). Live OpenBao stack still optional/unavailable without .tools/bin/bao."
     },
@@ -429,7 +437,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Fabric unsupported residual cleared (GA-V-29 shuttle authority evaluator lifted). GA-V-32 remains env-blocked on live OpenFGA."
+      "notes": "Standing honesty ratchet; never closes. GA-V-29 shuttle evaluator and GA-V-34 naming landed on main. This branch adds live offer writer, issuance preflight, AT-CONTROL-ROLE/ROTATION/COPIED-KEY on shipped paths, and fabric 117 pass / 1 unsupported (live Discord/Apple). GA-V-32 needs OPENSESAME_OPENFGA_URL."
     },
     {
       "id": "GA-Q-01",
@@ -562,24 +570,24 @@
     {
       "id": "COHORT-SNAPSHOT-LIVE",
       "swarm": "COHORT",
-      "title": "snapshot offers bind roster digest; live binding refuses until writer path exists",
+      "title": "snapshot offers bind roster digest; live offers admit under a trusted-writer envelope",
       "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "cargo +1.88.0 test -p opensesame-domain --lib authority_adversarial_matrix::at_snapshot_",
-          "result": "AT-SNAPSHOT-ADD/REMOVE domain algebra covered"
+          "command": "cargo +1.88.0 test -p opensesame-storage --test authority_offers",
+          "result": "ok. 4 passed \u2014 snapshot digest/cap/uniqueness; live without writer refused; trusted writer late-revision bound; unauthorized writer and class refused"
         },
         {
-          "command": "cargo +1.88.0 test -p opensesame-storage --test authority_schema",
-          "result": "ok. 10 passed (snapshot digest required; live create refused; revision freeze; domain forest)"
+          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::offers_live",
+          "result": "ok. 2 passed \u2014 live create/activate on the Host store"
         },
         {
           "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_contractor::",
           "result": "ok. snapshot late-add refused at offer activation"
         }
       ],
-      "notes": "roster_digest persistence + live offer refuse until writer path (#403). Live binding remains refused by design."
+      "notes": "migration 0039 trusted_writer + permitted_principal_class. Snapshot still freezes digest+revision. Live is not a group token."
     },
     {
       "id": "BUD-RESERVE",
@@ -591,7 +599,7 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-domain --lib budget::",
           "result": "ok. 72 passed; 0 failed",
-          "note": "reserve/settle/release + parallel conservation; not yet on dispatch path"
+          "note": "reserve/settle/release + parallel conservation; Host invoke spends via reserve_invoke_budgets in intents_budget.rs"
         }
       ]
     },
@@ -604,11 +612,18 @@
       "evidence": [
         {
           "command": "cargo +1.88.0 test -p opensesame-enforcement --lib",
-          "result": "descriptor/conformance/unsupported + platform_catalog incl. discord-live/blocky-live-saas",
-          "note": "Issuance-path wiring still pending; live SaaS platforms refuse by catalog"
+          "result": "descriptor/conformance/unsupported + platform_catalog incl. discord-live/blocky-live-saas"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-authz --lib issuance",
+          "result": "ok. 5 passed \u2014 broker admitted; apple-ios/android/discord-live/blocky-live-saas refused; unknown platform refused"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- authority_grants",
+          "result": "ok. 4 passed \u2014 default broker issues; unsupported platforms 422 and write no sidecar"
         }
       ],
-      "notes": "EnforcementDescriptor + refuse-unsupported; discord-live/blocky-live-saas Absent (#404)."
+      "notes": "Issuance calls admit_issuance before issue_authority. Invoke uses authorize_authority_use_enforced with catalog descriptors. Live SaaS still AdapterStatus::Absent."
     },
     {
       "id": "DNS-SCOPE",
@@ -620,6 +635,10 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-dns-enforcement --lib",
           "result": "ok. 49 passed; empty-group disable refused; DNS-only coverage"
+        },
+        {
+          "command": "pnpm test:authority-fabric",
+          "result": "GA-V-59 pass \u2014 blocky::request::tests::a_disable_cannot_be_built_without_groups"
         }
       ]
     },
@@ -633,6 +652,10 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-sandbox --lib",
           "result": "ok. 46 passed; native binary refusal; generation fence"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-sandbox --features wasm-runtime,fixtures --test payloads -- --exact a_native_binary_is_refused_by_the_spawn_path_itself",
+          "result": "ok. 1 passed \u2014 ELF/Mach-O/PE/shebang refused by spawn, not sniffing alone; fabric GA-V-60"
         }
       ]
     },
@@ -646,6 +669,10 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-collab-adapter --tests",
           "result": "ok across registry(6)/refusals(11)/reconcile(6)/portal(5)/rate_limit(5)/apply(6); live_apply ignored/optional"
+        },
+        {
+          "command": "pnpm test:authority-fabric",
+          "result": "GA-V-61 pass \u2014 apply_creates_scopes_then_assigns_in_that_order against the HTTP fixture"
         }
       ],
       "notes": "Collab adapter fixtures green; discord-live ignored/opt-in; catalog refuses live (#404)."
@@ -658,16 +685,12 @@
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_family::",
-          "result": "ok. 3 passed (scheduled window, bounded budget, expiry)"
-        },
-        {
-          "command": "cargo +1.88.0 test -p opensesame-domain --lib fix_family::",
-          "result": "ok. 2 passed (snapshot late-add exclusion, guardian supervision \u2260 vault secrets)"
+          "command": "pnpm test:authority-fabric",
+          "result": "GA-V-35..39 pass on Blocky opposite-unit isolation, screen-time refusal, empty-group disable refuse, exclusive DNS deadline, usage/egress claim refusal"
         }
       ],
       "blockedBy": [],
-      "notes": "Fabric GA-V-35..39. Storage fenced reads + domain cohort/control composition; not UI. Fabric report 2026-09: GA-V rows pass in docs/evidence/general-authority/authority-fabric-report.json."
+      "notes": "Fabric GA-V-35..39 retargeted onto opensesame-dns-enforcement. Algebra tests remain as unit coverage, not FIX-* evidence."
     },
     {
       "id": "FIX-CONTRACTOR",
@@ -677,16 +700,12 @@
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "cargo +1.88.0 test -p opensesame-domain --lib fix_contractor::",
-          "result": "ok. 2 passed (correlated permits, snapshot roster add denied)"
-        },
-        {
-          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_contractor::",
-          "result": "ok. 4 passed (correlated persist, offer revision refuse, ancestor fence, independent survives)"
+          "command": "pnpm test:authority-fabric",
+          "result": "GA-V-40..43 pass on issuance absent-platform refuse, invoke action-outside-child deny, revoke-ends-exercise, independent authority survives reconcile"
         }
       ],
       "blockedBy": [],
-      "notes": "Fabric GA-V-40..43. Fabric report 2026-09: GA-V rows pass in docs/evidence/general-authority/authority-fabric-report.json."
+      "notes": "Fabric GA-V-40..43 retargeted onto issuance preflight, owned invoke, and collab reconcile. Algebra tests remain as unit coverage."
     },
     {
       "id": "FIX-RAID",
@@ -696,16 +715,12 @@
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "cargo +1.88.0 test -p opensesame-domain --lib fix_raid::",
-          "result": "ok. 3 passed"
-        },
-        {
-          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_raid::",
-          "result": "ok. 2 passed"
+          "command": "pnpm test:authority-fabric",
+          "result": "GA-V-44..46 pass on Discord HTTP apply, reconcile-only-owned, rate-limited create-once"
         }
       ],
       "blockedBy": [],
-      "notes": "Fabric GA-V-44..46. Discord live adapter still contract/fixture-only (not claimed as live enforcement). Fabric report 2026-09: GA-V rows pass in docs/evidence/general-authority/authority-fabric-report.json."
+      "notes": "Fabric GA-V-44..46 retargeted onto collab-adapter HTTP fixture. Live Discord remains GA-V-64 unsupported."
     },
     {
       "id": "FIX-WORKCELL",
@@ -715,16 +730,12 @@
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_workcell::",
-          "result": "ok. 1 passed (100-cap concurrent conservation)"
-        },
-        {
-          "command": "cargo +1.88.0 test -p opensesame-domain --lib fix_workcell::",
-          "result": "ok. 2 passed (omitted budget, spawn depth)"
+          "command": "pnpm test:authority-fabric",
+          "result": "GA-V-47..49 pass on native-binary spawn refuse, looping-guest fuel exhaust, ambient WASI refuse"
         }
       ],
       "blockedBy": [],
-      "notes": "Fabric GA-V-47..49. Native-binary WASM refusal remains covered by sandbox format tests (SBOX-PROFILE), not re-marked here. Fabric report 2026-09: GA-V rows pass in docs/evidence/general-authority/authority-fabric-report.json."
+      "notes": "Fabric GA-V-47..49 retargeted onto Wasmtime guests and spawn-path native refuse. Algebra tests remain as unit coverage."
     },
     {
       "id": "FIX-GENERALITY",

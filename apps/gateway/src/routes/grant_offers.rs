@@ -12,9 +12,9 @@ use opensesame_storage::authority::{ActivationOutcome, OfferActivation};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::secret_configs::access::hidden;
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
-use super::secret_configs::access::hidden;
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
@@ -35,6 +35,7 @@ struct ActivateBody {
     grant_id: String,
     cohort_revision: i64,
     membership_source: String,
+    #[allow(dead_code)]
     membership_issuer: String,
     idempotency_key: String,
 }
@@ -73,11 +74,12 @@ async fn activate(
     Path((organization, offer_id)): Path<(String, String)>,
     Json(body): Json<ActivateBody>,
 ) -> Response {
-    let (_, organization) = match authorize_realm(&st, &headers, &organization) {
+    let (who, organization) = match authorize_realm(&st, &headers, &organization) {
         Ok(pair) => pair,
         Err(response) => return response,
     };
     let org = organization.to_string();
+    let writer = who.actor_subject();
     let outcome = match st
         .db
         .activate_grant_offer(&OfferActivation {
@@ -87,7 +89,7 @@ async fn activate(
             grant_id: &body.grant_id,
             cohort_revision: body.cohort_revision,
             membership_source: &body.membership_source,
-            membership_issuer: &body.membership_issuer,
+            membership_issuer: writer,
             idempotency_key: &body.idempotency_key,
         })
         .await

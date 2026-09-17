@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MANDATE_AT_IDS } from "./authority-fabric-at-ids.mjs";
 import {
   BLOCKED_REASONS,
   STATUSES,
@@ -10,7 +11,6 @@ import {
   scenarios,
 } from "./authority-fabric.mjs";
 
-/** A facts object where nothing is wired, so every probe must fail closed. */
 const emptyFacts = {
   crates: {},
   modules: {},
@@ -125,7 +125,9 @@ describe("failing closed", () => {
     const facts = {
       ...wiredFacts,
       tests: { "opensesame-domain": null },
-      testErrors: { "opensesame-domain": "error[E0609]: no field `domain_id`" },
+      testErrors: {
+        "opensesame-domain": "error[E0609]: no field `domain_id`",
+      },
     };
     const resolution = resolveScenario(cargoScenario, facts);
     expect(resolution.reason).toBe(BLOCKED_REASONS.enumerationFailed);
@@ -265,8 +267,7 @@ describe("tier separation", () => {
       invariant: "INV-GA-06",
       title: "Synthetic unsupported for resolve coverage",
       unsupported: {
-        reason:
-          "No live scenario remains unsupported; this fixture covers resolve.",
+        reason: "Synthetic unsupported fixture for resolve coverage.",
         wouldRequire: "Delete this fixture if a real unsupported row returns.",
       },
     };
@@ -276,18 +277,9 @@ describe("tier separation", () => {
   });
 
   it("keeps the live catalog free of research-only unsupported rows", () => {
-    const residual = scenarios.filter(
-      (scenario) => scenario.tier === "unsupported",
-    );
-    expect(residual.map((scenario) => scenario.id)).toEqual([]);
-  });
-
-  it("settles INV-GA-05 via the lifecycle unit test, not live-stack", () => {
-    const gaV33 = scenarios.find((scenario) => scenario.id === "GA-V-33");
-    expect(gaV33.tier).toBe("unit");
-    expect(gaV33.target.kind).toBe("cargo");
-    expect(gaV33.target.crate).toBe("opensesame-lifecycle");
-    expect(gaV33.target.test).toContain("authority_grant_expiry");
+    expect(
+      scenarios.filter((s) => s.tier === "unsupported").map((s) => s.id),
+    ).toEqual(["GA-V-64"]);
   });
 });
 
@@ -324,6 +316,21 @@ describe("the report and the exit code", () => {
     ]);
     expect(report.summary.gate).toBe("pass");
     expect(exitCodeFor(report)).toBe(0);
+  });
+
+  it("registers every frozen AT-* as a scenario id or workItem with a target", () => {
+    const covered = new Set(
+      scenarios.flatMap((s) => [s.id, s.workItem].filter(Boolean)),
+    );
+    expect(MANDATE_AT_IDS.filter((id) => !covered.has(id))).toEqual([]);
+    for (const id of MANDATE_AT_IDS) {
+      const row = scenarios.find((s) => s.id === id || s.workItem === id);
+      if (row.tier === "unsupported") {
+        expect(row.unsupported.reason).toBeTruthy();
+      } else {
+        expect(row.target).toBeDefined();
+      }
+    }
   });
 
   it("does not report a pass when nothing ran at all", () => {

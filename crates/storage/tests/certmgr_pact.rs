@@ -242,7 +242,7 @@ fn pact_certificate_statuses_are_the_documented_set() {
 }
 
 #[test]
-fn pact_migrations_are_append_only_and_end_with_0038() {
+fn pact_migrations_are_append_only_and_end_with_0039() {
     let versions = migration_versions();
     assert_eq!(
         versions,
@@ -285,10 +285,11 @@ fn pact_migrations_are_append_only_and_end_with_0038() {
             "0036_authority_grant_watermarks",
             "0037_session_join_refusal_grant_check",
             "0038_authority_offer_roster_digest",
+            "0039_authority_offer_live_writer",
         ]
     );
     assert_eq!(
         versions.last().copied(),
-        Some("0038_authority_offer_roster_digest")
+        Some("0039_authority_offer_live_writer")
     );
 }

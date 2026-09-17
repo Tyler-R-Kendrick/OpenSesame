@@ -55,6 +55,11 @@ pub mod task;
 pub mod validated_grant_chain;
 pub mod verification_evidence;
 
+#[cfg(all(test, feature = "concurrency-test"))]
+mod shuttle_authority;
+
+#[cfg(test)]
+mod authority_adversarial_matrix;
 #[cfg(test)]
 mod canonical_adversarial;
 #[cfg(test)]
@@ -70,21 +75,21 @@ mod cohort_fixture;
 #[cfg(test)]
 mod cohort_path_adversarial;
 #[cfg(test)]
-mod authority_adversarial_matrix;
+mod fix_contractor;
+#[cfg(test)]
+mod fix_family;
+#[cfg(test)]
+mod fix_raid;
+#[cfg(test)]
+mod fix_workcell;
 #[cfg(test)]
 mod grant_adversarial;
 #[cfg(test)]
 mod grant_lineage_adversarial;
 #[cfg(test)]
+mod honest_attacks;
+#[cfg(test)]
 mod invocation_adversarial;
-#[cfg(test)]
-mod fix_family;
-#[cfg(test)]
-mod fix_contractor;
-#[cfg(test)]
-mod fix_raid;
-#[cfg(test)]
-mod fix_workcell;
 
 pub use access_domain::*;
 pub use authentication_policy::*;

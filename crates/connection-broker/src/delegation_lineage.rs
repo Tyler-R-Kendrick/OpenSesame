@@ -25,7 +25,8 @@ pub(crate) async fn load_grant(pool: &SqlitePool, id: &str) -> Result<Option<Gra
     let Some(row) = row else {
         return Ok(None);
     };
-    let mut grant: Grant = serde_json::from_str(&row.get::<String, _>("body_json")).map_err(internal)?;
+    let mut grant: Grant =
+        serde_json::from_str(&row.get::<String, _>("body_json")).map_err(internal)?;
     if let Some(revoked) = row.get::<Option<String>, _>("revoked_at") {
         grant.revoked_at = grant.revoked_at.or(Some(parse_time(&revoked)));
     }

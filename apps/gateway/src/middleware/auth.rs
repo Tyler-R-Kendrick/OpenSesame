@@ -209,10 +209,28 @@ impl Caller {
         }
     }
 
+    #[must_use]
+    pub fn actor_subject(&self) -> &str {
+        match self {
+            Caller::Operator => "operator",
+            Caller::Session { subject, .. } => subject,
+        }
+    }
+
     pub fn can_configure_integrations(&self) -> bool {
         match self {
             Caller::Operator => true,
             Caller::Session { role, .. } => role.can_configure_integrations(),
+        }
+    }
+
+    /// Owner/operator may mint reserved administration. An admin who can edit
+    /// cohorts or templates cannot issue export or policy.edit by that right.
+    #[must_use]
+    pub fn may_issue_reserved_administration(&self) -> bool {
+        match self {
+            Caller::Operator => true,
+            Caller::Session { role, .. } => role.may_issue_reserved_administration(),
         }
     }
 }

@@ -68,6 +68,9 @@ pub fn redact_json(value: &serde_json::Value) -> serde_json::Value {
 }
 
 #[cfg(test)]
+mod privacy;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;

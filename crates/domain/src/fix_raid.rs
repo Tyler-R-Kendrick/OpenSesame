@@ -66,13 +66,7 @@ fn fix_raid_leave_or_end_terminates_lifecycle_bound_reach() {
         minted.ends_with_session(),
         "raid-issued reach must be lifecycle-bound"
     );
-    assert!(minted.permits(
-        holder,
-        vault_id,
-        VaultItemId::new(),
-        SessionRole::Read,
-        now
-    ));
+    assert!(minted.permits(holder, vault_id, VaultItemId::new(), SessionRole::Read, now));
 }
 
 #[test]
