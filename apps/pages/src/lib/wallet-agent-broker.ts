@@ -7,7 +7,7 @@
  */
 
 import { reserveTransferAndFee } from "@opensesame/wallet-budget";
-import { redactWalletExport } from "@opensesame/wallet-consent";
+import { redactWalletExport } from "@opensesame/wallet-consent/redact";
 import {
   type DigestBoundPaymentProof,
   type LocalPaymentApprovalIntent,

@@ -19,6 +19,14 @@
     "./intent": {
       "types": "./src/intent.ts",
       "default": "./src/intent.ts"
+    },
+    "./redact": {
+      "types": "./src/redact.ts",
+      "default": "./src/redact.ts"
+    },
+    "./wrap": {
+      "types": "./src/wrap.ts",
+      "default": "./src/wrap.ts"
     }
   },
   "scripts": {

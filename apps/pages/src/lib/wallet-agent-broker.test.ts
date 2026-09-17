@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import {
   generatePaymentApprovalKeyPair,
   signPaymentApprovalDigest,
@@ -5,8 +6,7 @@ import {
 import {
   redactWalletExport,
   walletExportLeaksCanary,
-} from "@opensesame/wallet-consent";
-/** @vitest-environment jsdom */
+} from "@opensesame/wallet-consent/redact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildLocalPaymentApprovalDigest,
