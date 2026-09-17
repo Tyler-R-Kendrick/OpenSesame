@@ -62,6 +62,7 @@ export {
 export {
   entraRedirectBridgePath,
   acquireEntraSilent,
+  entraJwksUri,
   entraSeams,
   ENTRA_SCOPES,
 } from "./entra.js";

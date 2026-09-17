@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ENTRA_SCOPES,
   acquireEntraSilent,
+  entraJwksUri,
   entraSeams,
   newEntraNonce,
 } from "./entra.js";
@@ -35,6 +36,13 @@ describe("entra adapter", () => {
     expect(ENTRA_SCOPES.join(" ")).not.toMatch(
       /User.Read|offline_access|mail|calendar/i,
     );
+  });
+
+  it("JWKS URI is tenant discovery, not issuer/discovery/v2.0/keys", () => {
+    expect(entraJwksUri(issuer)).toBe(
+      "https://login.microsoftonline.com/aaaabbbb-cccc-dddd-eeee-ffffffffffff/discovery/v2.0/keys",
+    );
+    expect(entraJwksUri(issuer)).not.toContain("/v2.0/discovery/v2.0/");
   });
 
   it("does not authenticate from getAllAccounts()[0]", async () => {

@@ -116,12 +116,10 @@ export function assertSafeReturnTo(
   if (returnTo.startsWith("//") || returnTo.includes("://")) return undefined;
   if (!returnTo.startsWith("/")) return undefined;
   if (returnTo.includes("\\") || returnTo.includes("@")) return undefined;
-  const root = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
-  const allowed =
-    returnTo === "/" ||
-    returnTo.startsWith(`${root || ""}/`) ||
-    returnTo.startsWith("/");
-  if (!allowed) return undefined;
+  const root = basePath === "/" ? "" : basePath.replace(/\/+$/, "");
+  if (root && returnTo !== root && !returnTo.startsWith(`${root}/`)) {
+    return undefined;
+  }
   try {
     const resolved = new URL(returnTo, origin);
     if (resolved.origin !== origin) return undefined;

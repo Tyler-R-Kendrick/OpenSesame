@@ -35,6 +35,9 @@ function revalidateStoredSession(): ReturnType<typeof loadSession> {
     },
     fetch,
   ).then((result) => {
+    // JWKS/network failure is `remembered` or `invalid`, not a signed
+    // principal — loadSession already bound exp/sub/iss from the JWT.
+    // Clearing those would make offline vault access depend on JWKS.
     if (
       result.kind === "rejected" &&
       (result.reason === "suppressed" ||

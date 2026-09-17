@@ -72,7 +72,11 @@
     {
       "id": "ID-COOKIE",
       "owner": "admission",
-      "symbols": ["applyAmbientReturn", "admitAmbientSession", "vaultStateFromStore"],
+      "symbols": [
+        "applyAmbientReturn",
+        "admitAmbientSession",
+        "vaultStateFromStore"
+      ],
       "test": "return-path.test.ts, admission.test.ts",
       "status": "pass"
     },
@@ -93,7 +97,11 @@
     {
       "id": "LIFE-SWITCH",
       "owner": "controller+entra",
-      "symbols": ["runAutomaticAttempt", "acquireEntraSilent", "fenceLocalSignOut"],
+      "symbols": [
+        "runAutomaticAttempt",
+        "acquireEntraSilent",
+        "fenceLocalSignOut"
+      ],
       "test": "controller.test.ts",
       "status": "pass"
     },

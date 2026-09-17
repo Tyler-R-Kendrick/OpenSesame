@@ -193,12 +193,13 @@ export async function acquireEntraSilent(
   if (!matchesAuthGeneration(request.generation)) {
     return { kind: "rejected", reason: "stale_generation" };
   }
+  const jwksUri = entraJwksUri(request.connection.issuer);
   const claims = await verifyBrowserIdTokenClaims({
     token: result.idToken,
     nonce: request.nonce,
     issuer: request.connection.issuer,
     clientId: request.connection.clientId,
-    jwksUri: `${trim(request.connection.issuer)}/discovery/v2.0/keys`,
+    jwksUri,
     fetchImpl,
   });
   const identity: UpstreamIdentity = {
@@ -207,7 +208,7 @@ export async function acquireEntraSilent(
     idToken: result.idToken,
     pairwiseSub: claims.sub,
     audience: request.connection.clientId,
-    jwksUri: `${trim(request.connection.issuer)}/discovery/v2.0/keys`,
+    jwksUri,
     expiresAt: claims.exp * 1000,
     ...(claims.email ? { email: claims.email } : undefined),
     ...(claims.name ? { name: claims.name } : undefined),
@@ -219,8 +220,11 @@ export function newEntraNonce(): string {
   return randomString(32);
 }
 
-function trim(value: string): string {
-  return value.replace(/\/+$/, "");
+/** Entra JWKS is `{tenant}/discovery/v2.0/keys`, not `{issuer}/discovery/v2.0/keys`. */
+export function entraJwksUri(issuer: string): string {
+  const trimmed = issuer.replace(/\/+$/, "");
+  const tenant = trimmed.replace(/\/v2\.0$/, "");
+  return `${tenant}/discovery/v2.0/keys`;
 }
 
 export async function clearEntraAdapter(
