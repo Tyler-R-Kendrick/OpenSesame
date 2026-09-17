@@ -82,6 +82,7 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   const affordance = screen.getByRole("button", { name: "Support" });
   await user.click(affordance);
   const panel = await screen.findByRole("dialog", { name: "Support" });
+  await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
   return { affordance, panel };
 }
 
@@ -113,8 +114,6 @@ describe("support panel", () => {
     const user = userEvent.setup();
     mount(fakeAgentAnswering("Anything."));
     const { affordance, panel } = await openPanel(user);
-
-    expect(panel.contains(document.activeElement)).toBe(true);
 
     await user.click(within(panel).getByRole("button", { name: "Close" }));
     await waitFor(() =>
