@@ -12,10 +12,10 @@ Neither is decided. This map states the constraints both answers must satisfy.
 
 ### What exists today
 
-| Concern | Baseline reality (`4358f7fe`) |
+| Concern | Baseline reality (post GA-A #408) |
 |---|---|
 | Identity-plane authority | `ProjectMembership` in `packages/os-domain/src/types.ts` — `projectId`, `principalId`, `role` of `owner \| admin \| member` |
-| The word "Grant" | A doc comment ("Grants a principal access to a shared project") and a `requestedGrant?: JsonObject` field. There is no `Grant` type |
+| The word "Grant" | Host `crates/domain` `Grant` + TS `AuthorityGrant`/`AuthorityRecord` in `packages/os-domain/src/authority-grant.ts` (#408). Identity `requestedGrant?: JsonObject` remains a request payload, not a second engine |
 | Client-plane authority | `LocalShare` / `ShareKind` / `ShareTarget` in `apps/pages/src/lib/local-share-grants.ts` — the one ledger, with `connection` bindings added by ADR 0115 |
 | "AccessLease" | Does not appear anywhere in the repository |
 
@@ -120,3 +120,14 @@ baseline.
 - [ADR 0086](../../adr/0086-wallet-native-interaction-layer.md) — one interaction primitive; do not add a second authority model
 - [ADR 0115](../../adr/0115-front-door-and-connector-directory.md) — connector binding is a local share grant, not a parallel model
 - [`repository-baseline.md`](repository-baseline.md) — what was actually read, and when
+
+## Decision status (2026-09-17)
+
+**Canonical stored record name: Grant** (Host) / **AuthorityGrant** (TS alias
+`AuthorityRecord`). AccessLease remains a product *view* vocabulary for
+time-bounded presentation only — it must not become a second stored type or
+evaluation path (`INV-GA-08`).
+
+This closes GA-O-03's naming constraint without inventing a lease engine.
+Expiry/delegation presentation may still say "lease" in UI copy; persistence
+and attenuation stay on Grant.
