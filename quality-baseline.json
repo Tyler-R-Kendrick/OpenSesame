@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 545,
-    "violations": 882,
-    "oversizedLines": 278817
+    "files": 534,
+    "violations": 866,
+    "oversizedLines": 278308
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -979,43 +979,6 @@
       "complexity": 1,
       "max-lines-per-function": 2
     },
-    "apps/pages/src/sections/connections/BindingEditor.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/CatalogPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/ConnectForm.tsx": {
-      "complexity": 1,
-      "max-lines": 501,
-      "max-lines-per-function": 2
-    },
-    "apps/pages/src/sections/connections/ConnectionCard.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/CustomConnectorPage.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/GithubAppPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/NeedsAttention.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/OauthClientPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/PolicyEditor.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/SettingsPage.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/shared.ts": {
-      "complexity": 1
-    },
     "apps/pages/src/sections/identity/LocalMemberships.tsx": {
       "max-lines-per-function": 1
     },
@@ -1846,7 +1809,7 @@
     },
     "scripts/wallet/protocols-harness.mjs": {
       "complexity": 1,
-      "max-lines": 560,
+      "max-lines": 553,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
