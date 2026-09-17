@@ -5,8 +5,17 @@
   "baselineDirty": false,
   "generatedAt": "2026-09-17T06:43:09Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
-  "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
-  "verificationVocabulary": ["none", "self-reported", "command-backed"],
+  "statusVocabulary": [
+    "unresolved",
+    "in-progress",
+    "blocked",
+    "verified"
+  ],
+  "verificationVocabulary": [
+    "none",
+    "self-reported",
+    "command-backed"
+  ],
   "rules": [
     "A work item moves off 'unresolved' only with a recorded command and what that command printed.",
     "'verified' requires command-backed verification; a passing claim without a command stays 'self-reported' and the item stays 'in-progress'.",
@@ -52,7 +61,9 @@
           "result": "ok. INV-GA-01/02/04/06/07/08 asserts exercised"
         }
       ],
-      "blockedBy": ["GA-A-01"],
+      "blockedBy": [
+        "GA-A-01"
+      ],
       "notes": "Executable INV-GA asserts in authority-invariants.ts. Remaining INV-GA-03/09/10/11/12 stay with their owning swarms."
     },
     {
@@ -67,7 +78,9 @@
           "result": "ok. DEFAULT_MAXIMUM_DELEGATION_DEPTH=2; assertInvGa04FiniteDepth defaults to it"
         }
       ],
-      "blockedBy": ["GA-A-01"],
+      "blockedBy": [
+        "GA-A-01"
+      ],
       "notes": "Product ceiling is 2 (matches Host adversarial/ValidatedGrantChain fixtures). Per-grant maximumDelegationDepth may be lower; never higher under attenuation."
     },
     {
@@ -82,7 +95,9 @@
           "result": "ok. 5 passed \u2014 Host-shaped Grant wire schema; AccessLease alias; strict secret refusal; depth ceiling"
         }
       ],
-      "blockedBy": ["GA-A-01"],
+      "blockedBy": [
+        "GA-A-01"
+      ],
       "notes": "packages/contracts/src/authority-grant.ts mirrors Host Grant serde (snake_case, strict). AccessLeaseSchema is the same object (GA-O-03). raw_credential_export stays boolean for Host round-trip; agent paths still refuse via INV-GA-02 asserts."
     },
     {
@@ -107,7 +122,9 @@
           "result": "ok. 6 passed \u2014 connection/project/vault tuples; cohort refuse; revoked refuse"
         }
       ],
-      "blockedBy": ["GA-F-01"],
+      "blockedBy": [
+        "GA-F-01"
+      ],
       "notes": "packages/policy/src/authority-tuples.ts maps AuthorityGrant \u2192 OpenFGA TupleKey (connection#user, project viewer/developer, vault/access_domain). Refuses cohort grantees and revoked/empty grants. Live write/backfill is GA-F-04."
     },
     {
@@ -132,7 +149,9 @@
           "result": "ok. 4 passed \u2014 writes, quarantine revoked/cohort, realm rollback deletes only planned writes"
         }
       ],
-      "blockedBy": ["GA-F-02"],
+      "blockedBy": [
+        "GA-F-02"
+      ],
       "notes": "Plan in openfga-tuple-backfill.md; dry-run harness planGrantTupleBackfill / planTupleBackfillRollback. Live apply stays Host projector + writer lease."
     },
     {
@@ -155,7 +174,9 @@
           "result": "ok. 2 passed \u2014 Host issue_authority HTTP"
         }
       ],
-      "blockedBy": ["GA-A-03"],
+      "blockedBy": [
+        "GA-A-03"
+      ],
       "notes": "host-authority-route-inventory.md + api-surface.md. Evaluation + AccessDomain/offer + grant-issue HTTP inventoried."
     },
     {
@@ -165,7 +186,9 @@
       "status": "verified",
       "verification": "command-backed",
       "evidence": "cargo +1.88.0 test -p opensesame-storage --test authority_schema (8 ok); cargo +1.88.0 test -p opensesame-storage authority --lib (5 ok); migrations/0034_general_authority.sql in migrations.rs",
-      "blockedBy": ["GA-A-01"],
+      "blockedBy": [
+        "GA-A-01"
+      ],
       "notes": "AccessDomain forest, grant sidecar, budget CHECK, ancestor fence; Host HTTP routes still separate"
     },
     {
@@ -175,7 +198,9 @@
       "status": "verified",
       "verification": "command-backed",
       "evidence": "SubjectKind::AuthorityGrant; crates/lifecycle/src/authority_grant_expiry.rs; storage authority/expiry.rs + gateway subjects absorb; cargo +1.88.0 test -p opensesame-lifecycle authority_grant_expiry; fabric GA-V-33 retargeted off dishonest live-stack-test.sh",
-      "blockedBy": ["GA-H-02"],
+      "blockedBy": [
+        "GA-H-02"
+      ],
       "notes": "Feed half proven; auth-path deny remains fenced_authority expires_at (ADR 0121). Live OpenBao stack still optional/unavailable without .tools/bin/bao."
     },
     {
@@ -190,7 +215,9 @@
           "result": "ok \u2014 alone binds grant; lineage binds root+child"
         }
       ],
-      "blockedBy": ["GA-H-01"],
+      "blockedBy": [
+        "GA-H-01"
+      ],
       "notes": "Frozen and non-frozen broker receipts bind receipt_delegation_chain (lineage root\u2192leaf, else exercising grant id). Outbox issue event remains authority.grant.issued."
     },
     {
@@ -202,11 +229,13 @@
       "evidence": [
         {
           "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-routes.test.ts",
-          "result": "ok. 3 passed \u2014 spawn wasmtime, refuse native, PoP enroll + audit"
+          "result": "ok \u2014 spawn wasmtime, refuse native, orchestrator=caller, PoP realm-admin + refuse without membership + audit"
         }
       ],
-      "blockedBy": ["GA-A-04"],
-      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed (GA-A-04 wire unblocks). Host grant issuance remains Host-plane (GA-H). Self-review: OpenAPI paths added; spawn requires orchestratorPrincipalId=caller; PoP requires kind-prefixed principalId. Realm-admin for cross-device enroll remains residual."
+      "blockedBy": [
+        "GA-A-04"
+      ],
+      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed. Spawn requires orchestratorPrincipalId=caller; PoP requires kind-prefixed principalId and realm owner/admin membership. Host grant issuance remains Host-plane (GA-H)."
     },
     {
       "id": "GA-I-02",
@@ -218,10 +247,20 @@
         {
           "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-membership-reconcile.test.ts",
           "result": "ok. 4 passed \u2014 upsert, invalidate removed, refuse personal, role drift upsert"
+        },
+        {
+          "command": "pnpm --filter @opensesame/database exec vitest run tests/authority-membership-edges.test.ts",
+          "result": "ok. 1 passed \u2014 memory upsert/drift/invalidate"
+        },
+        {
+          "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-membership-reconcile-live.test.ts",
+          "result": "ok. 1 passed \u2014 live apply + authority.membership.reconciled audit"
         }
       ],
-      "blockedBy": ["GA-A-01"],
-      "notes": "planProjectMembershipReconcile diffs ADR 0038 memberships into authority edge upserts/invalidations; personal projects refuse. Live DB writer still Identity apply."
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": "planProjectMembershipReconcile + AuthorityMembershipEdgeStore.applyPlan wired from project membership mutations; personal projects and projects without organizationId skip; audit authority.membership.reconciled."
     },
     {
       "id": "GA-I-03",
@@ -235,7 +274,9 @@
           "result": "ok. authority.workload.spawned + authority.enrollment.pop audit events"
         }
       ],
-      "blockedBy": ["GA-I-01"],
+      "blockedBy": [
+        "GA-I-01"
+      ],
       "notes": "Spawn/enroll mutations emit authority.workload.spawned + authority.enrollment.pop. Further mutation verbs join this catalog as routes land \u2014 not a second audit path."
     },
     {
@@ -258,7 +299,9 @@
           "result": "ok. 2 passed \u2014 issue writes fence-clear authority; members forbidden"
         }
       ],
-      "blockedBy": ["GA-A-01"],
+      "blockedBy": [
+        "GA-A-01"
+      ],
       "notes": "INV-GA-10 local-ledger-inventory.json + LocalAuthorityTemplates. Host grant-issue HTTP (issue_authority) lands with this PR; not a second ledger."
     },
     {
@@ -273,7 +316,9 @@
           "result": "ok. before=Vault share sessions only; after=Local sessions & grants + Audience templates (phone+desktop)"
         }
       ],
-      "blockedBy": ["GA-P-01"],
+      "blockedBy": [
+        "GA-P-01"
+      ],
       "notes": "Access \u203a Sessions shows LocalAuthorityPanel + LocalAuthorityTemplates; visual evidence gallery committed."
     },
     {
@@ -317,7 +362,10 @@
       "status": "verified",
       "verification": "command-backed",
       "evidence": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=\u2026 pnpm test:authority-fabric:report \u2192 GA-V-30 pass",
-      "blockedBy": ["GA-I-01", "GA-P-02"],
+      "blockedBy": [
+        "GA-I-01",
+        "GA-P-02"
+      ],
       "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=\u2026 pnpm test:authority-fabric:report \u2192 GA-V-30 pass"
     },
     {
@@ -348,7 +396,9 @@
           "result": "ok. 2 passed"
         }
       ],
-      "blockedBy": ["GA-C-01"],
+      "blockedBy": [
+        "GA-C-01"
+      ],
       "notes": "Per-surface registry parity sweeps green for mcp-host/client, pages webmcp, both CLIs."
     },
     {
@@ -413,7 +463,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: realm-admin scoping for cross-device PoP enrollment; live OpenFGA apply; fabric unsupported shuttle/OpenBao rows."
+      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: live OpenFGA apply; fabric unsupported shuttle/OpenBao rows."
     },
     {
       "id": "GA-Q-01",
@@ -437,7 +487,10 @@
           "result": "ok. four sections + still-outside residuals named"
         }
       ],
-      "blockedBy": ["GA-A-02", "GA-F-03"],
+      "blockedBy": [
+        "GA-A-02",
+        "GA-F-03"
+      ],
       "notes": "docs/implementation/general-authority/cross-plane-test-plan.md maps Host/Identity/shared commands + fabric gate."
     },
     {
@@ -452,7 +505,9 @@
           "result": "ok. measured before/after captions committed beside sheets"
         }
       ],
-      "blockedBy": ["GA-P-02"],
+      "blockedBy": [
+        "GA-P-02"
+      ],
       "notes": "Before/after sheets at docs/evidence/2026-09-17-access-authority/ from two real builds."
     },
     {

@@ -1,6 +1,7 @@
 /**
  * GA-I-02 — reconcile ADR 0038 project memberships into authority membership
- * edges (pure plan; Identity store apply is a separate writer).
+ * edges (pure plan; Identity live apply is
+ * `AuthorityMembershipEdgeStore.applyPlan` in `@opensesame/database`).
  *
  * Personal projects refuse membership entirely (ADR 0038). A removed member's
  * edge is invalidated with a reason — never deleted silently so re-add cannot
@@ -59,7 +60,7 @@ export type MembershipReconcileResult =
 const SOURCE = "project_membership_reconcile" as const;
 const ISSUER = "identity.project_memberships" as const;
 
-function cohortIdForProject(projectId: string): string {
+export function cohortIdForProject(projectId: string): string {
   return `project:${projectId}`;
 }
 

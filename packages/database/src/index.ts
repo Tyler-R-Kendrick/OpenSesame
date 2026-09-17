@@ -24,6 +24,13 @@ export {
   type Database,
 } from "./repos/postgres.js";
 export {
+  MemoryAuthorityMembershipEdgeStore,
+  PostgresAuthorityMembershipEdgeStore,
+  createMemoryAuthorityMembershipEdgeStore,
+  createPostgresAuthorityMembershipEdgeStore,
+  type AuthorityMembershipEdgeStore,
+} from "./repos/authority-membership-edges.js";
+export {
   SAML_PENDING_TTL_MS,
   createMemorySamlStores,
   createPostgresSamlStores,

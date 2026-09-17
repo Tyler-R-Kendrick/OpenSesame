@@ -403,6 +403,37 @@
     }
   },
   {
+    "id": "authority.membership.reconcile",
+    "title": "Reconcile project memberships into authority edges",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "generalized hierarchical authority is conferred by a human; an agent surface that could issue, reshape or terminate it would make the ceremony decorative",
+        "adr": "0120-generalized-hierarchical-authority.md"
+      },
+      "mcp_host": {
+        "reason": "generalized hierarchical authority is conferred by a human; an agent surface that could issue, reshape or terminate it would make the ceremony decorative",
+        "adr": "0120-generalized-hierarchical-authority.md"
+      },
+      "mcp_client": {
+        "reason": "generalized hierarchical authority is conferred by a human; an agent surface that could issue, reshape or terminate it would make the ceremony decorative",
+        "adr": "0120-generalized-hierarchical-authority.md"
+      },
+      "webmcp": {
+        "reason": "generalized hierarchical authority is conferred by a human; an agent surface that could issue, reshape or terminate it would make the ceremony decorative",
+        "adr": "0120-generalized-hierarchical-authority.md"
+      }
+    }
+  },
+  {
     "id": "tasks.start",
     "title": "Start a task-scoped authority run",
     "plane": "host",

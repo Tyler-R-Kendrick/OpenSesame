@@ -107,9 +107,27 @@ describe("GA-I authority routes", () => {
     expect(res.status).toBe(403);
   });
 
-  it("binds PoP enrollment for a device principal", async () => {
+  it("binds PoP enrollment when the caller is a realm admin", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
     const owner = await provisional(app);
+    const realmId = "org_pop_realm";
+    const now = ctx.clock();
+    await ctx.stores.organizations.set(realmId, {
+      id: realmId,
+      slug: "pop-realm",
+      displayName: "PoP Realm",
+      state: "active",
+      createdBy: owner.principalId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.stores.organizationMemberships.upsert({
+      organizationId: realmId,
+      principalId: owner.principalId,
+      role: "admin",
+      createdAt: now,
+      updatedAt: now,
+    });
     const res = await app.request("/v1/authority/enrollment/pop", {
       method: "POST",
       headers: {
@@ -119,6 +137,7 @@ describe("GA-I authority routes", () => {
       body: JSON.stringify({
         subjectKind: "device",
         principalId: "device:phone-1",
+        realmId,
         publicKeyJkt: "jkt-device-cccccccc",
         authorityGeneration: 1,
       }),
@@ -131,5 +150,25 @@ describe("GA-I authority routes", () => {
     expect(events.some((e) => e.eventType === "authority.enrollment.pop")).toBe(
       true,
     );
+  });
+
+  it("refuses PoP enrollment without realm admin membership", async () => {
+    const { app } = createControlPlane({ config: testConfig() });
+    const owner = await provisional(app);
+    const res = await app.request("/v1/authority/enrollment/pop", {
+      method: "POST",
+      headers: {
+        ...auth(owner.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        subjectKind: "device",
+        principalId: "device:phone-2",
+        realmId: "org_missing",
+        publicKeyJkt: "jkt-device-dddddddd",
+        authorityGeneration: 1,
+      }),
+    });
+    expect(res.status).toBe(403);
   });
 });

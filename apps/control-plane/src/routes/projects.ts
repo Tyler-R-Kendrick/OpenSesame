@@ -26,6 +26,7 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
+import { reconcileProjectAuthorityMembership } from "../services/project-membership-reconcile.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
@@ -49,7 +50,7 @@ function slugify(value: string): string {
     .slice(0, 48);
 }
 
-function isVisible(project: Project, now: Date): boolean {
+export function isVisible(project: Project, now: Date): boolean {
   if (!VISIBLE_PROJECT_STATES.has(project.state)) return false;
   if (project.expiresAt && project.expiresAt <= now) return false;
   return true;
@@ -82,7 +83,7 @@ export async function roleFor(
 }
 
 /** Serialize membership mutations per project so checks and writes don't interleave. */
-async function serializeProjectMutation<T>(
+export async function serializeProjectMutation<T>(
   ctx: AppContext,
   projectId: string,
   mutation: () => Promise<T>,
@@ -149,7 +150,7 @@ function personalEnsureResponse(project: Project, created: boolean) {
   };
 }
 
-function membershipResponse(membership: ProjectMembership) {
+export function membershipResponse(membership: ProjectMembership) {
   return ProjectMembershipResponseSchema.parse({
     ...membership,
     createdAt: membership.createdAt.toISOString(),
@@ -381,6 +382,10 @@ projectRoutes.post(
           role: "owner",
           createdAt: now,
           updatedAt: now,
+        });
+        await reconcileProjectAuthorityMembership(ctx, project.id, {
+          actorPrincipalId: principalId,
+          correlationId: c.get("correlationId"),
         });
 
         await appendAuditEvent(ctx.repos.auditEvents, {
@@ -729,6 +734,10 @@ projectRoutes.delete("/:id", requirePrincipal(), async (c) => {
     for (const [holder, activeId] of ctx.stores.activeProjects) {
       if (activeId === projectId) ctx.stores.activeProjects.delete(holder);
     }
+    await reconcileProjectAuthorityMembership(ctx, projectId, {
+      actorPrincipalId: principalId,
+      correlationId: c.get("correlationId"),
+    });
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "project.deleted",
       outcome: "succeeded",
@@ -740,212 +749,3 @@ projectRoutes.delete("/:id", requirePrincipal(), async (c) => {
     return c.body(null, 204);
   });
 });
-
-projectRoutes.get("/:id/members", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const project = await ctx.stores.projects.get(c.req.param("id"));
-  const role = project && (await roleFor(ctx, project, principalId));
-  if (!project || !role || !isVisible(project, ctx.clock())) {
-    return c.json({ error: "not_found" }, 404);
-  }
-  if (role === "member") {
-    return c.json({ error: "admin_required" }, 403);
-  }
-  const members = (
-    await ctx.stores.projectMemberships.listByProject(project.id)
-  ).map(membershipResponse);
-  return c.json({ members });
-});
-
-projectRoutes.post("/:id/members", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
-  const projectId = c.req.param("id");
-  return serializeProjectMutation(ctx, projectId, async () => {
-    const project = await ctx.stores.projects.get(projectId);
-    const actorRole =
-      project && (await roleFor(ctx, project, actorPrincipalId));
-    if (!project || !actorRole || !isVisible(project, ctx.clock())) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    if (actorRole === "member") {
-      return c.json({ error: "admin_required" }, 403);
-    }
-    if (project.kind === "personal") {
-      return c.json({ error: "personal_project_not_shareable" }, 409);
-    }
-    const parsed = AddProjectMemberRequestSchema.safeParse(await c.req.json());
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
-      );
-    }
-    // Only an owner may mint another owner.
-    if (parsed.data.role === "owner" && actorRole !== "owner") {
-      return c.json({ error: "owner_required" }, 403);
-    }
-    const principal = await ctx.repos.principals.getById(
-      parsed.data.principalId,
-    );
-    if (!principal) return c.json({ error: "principal_not_found" }, 404);
-    if (principal.state === "suspended" || principal.state === "closed") {
-      return c.json({ error: "principal_inactive" }, 409);
-    }
-    if (await ctx.stores.projectMemberships.find(projectId, principal.id)) {
-      return c.json({ error: "membership_exists" }, 409);
-    }
-    const now = ctx.clock();
-    const membership: ProjectMembership = {
-      projectId,
-      principalId: principal.id,
-      role: parsed.data.role,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await ctx.stores.projectMemberships.upsert(membership);
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "project.member_added",
-      outcome: "succeeded",
-      principalId: actorPrincipalId,
-      projectId,
-      correlationId: c.get("correlationId"),
-      metadata: {
-        action: "project.member.add",
-        memberPrincipalId: principal.id,
-        role: membership.role,
-      },
-    });
-    return c.json(membershipResponse(membership), 201);
-  });
-});
-
-projectRoutes.patch(
-  "/:id/members/:principalId",
-  requirePrincipal(),
-  async (c) => {
-    const ctx = c.get("ctx");
-    const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
-    const projectId = c.req.param("id");
-    return serializeProjectMutation(ctx, projectId, async () => {
-      const project = await ctx.stores.projects.get(projectId);
-      const actorRole =
-        project && (await roleFor(ctx, project, actorPrincipalId));
-      if (!project || !actorRole || !isVisible(project, ctx.clock())) {
-        return c.json({ error: "not_found" }, 404);
-      }
-      if (actorRole === "member") {
-        return c.json({ error: "admin_required" }, 403);
-      }
-      const targetPrincipalId = c.req.param("principalId");
-      const target = await ctx.stores.projectMemberships.find(
-        projectId,
-        targetPrincipalId,
-      );
-      if (!target) return c.json({ error: "membership_not_found" }, 404);
-      const parsed = ChangeProjectMemberRoleRequestSchema.safeParse(
-        await c.req.json(),
-      );
-      if (!parsed.success) {
-        return c.json(
-          { error: "validation_error", details: parsed.error.flatten() },
-          400,
-        );
-      }
-      // Touching the owner role in either direction takes an owner actor.
-      if (
-        (target.role === "owner" || parsed.data.role === "owner") &&
-        actorRole !== "owner"
-      ) {
-        return c.json({ error: "owner_required" }, 403);
-      }
-      if (target.role === parsed.data.role) {
-        return c.json(membershipResponse(target));
-      }
-      if (
-        target.role === "owner" &&
-        (await ctx.stores.projectMemberships.countOwners(projectId)) === 1
-      ) {
-        return c.json({ error: "last_owner" }, 409);
-      }
-      const updated: ProjectMembership = {
-        ...target,
-        role: parsed.data.role,
-        updatedAt: ctx.clock(),
-      };
-      await ctx.stores.projectMemberships.upsert(updated);
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "project.member_role_changed",
-        outcome: "succeeded",
-        principalId: actorPrincipalId,
-        projectId,
-        correlationId: c.get("correlationId"),
-        metadata: {
-          action: "project.member.role.change",
-          memberPrincipalId: targetPrincipalId,
-          previousRole: target.role,
-          role: updated.role,
-        },
-      });
-      return c.json(membershipResponse(updated));
-    });
-  },
-);
-
-projectRoutes.delete(
-  "/:id/members/:principalId",
-  requirePrincipal(),
-  async (c) => {
-    const ctx = c.get("ctx");
-    const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
-    const projectId = c.req.param("id");
-    return serializeProjectMutation(ctx, projectId, async () => {
-      const project = await ctx.stores.projects.get(projectId);
-      const actorRole =
-        project && (await roleFor(ctx, project, actorPrincipalId));
-      if (!project || !actorRole || !isVisible(project, ctx.clock())) {
-        return c.json({ error: "not_found" }, 404);
-      }
-      const targetPrincipalId = c.req.param("principalId");
-      const leavingSelf = targetPrincipalId === actorPrincipalId;
-      if (actorRole === "member" && !leavingSelf) {
-        return c.json({ error: "admin_required" }, 403);
-      }
-      const target = await ctx.stores.projectMemberships.find(
-        projectId,
-        targetPrincipalId,
-      );
-      if (!target) return c.json({ error: "membership_not_found" }, 404);
-      if (target.role === "owner" && actorRole !== "owner") {
-        return c.json({ error: "owner_required" }, 403);
-      }
-      if (
-        target.role === "owner" &&
-        (await ctx.stores.projectMemberships.countOwners(projectId)) === 1
-      ) {
-        return c.json({ error: "last_owner" }, 409);
-      }
-      if (project.kind === "personal") {
-        return c.json({ error: "personal_project_immutable" }, 409);
-      }
-      await ctx.stores.projectMemberships.remove(projectId, targetPrincipalId);
-      if (ctx.stores.activeProjects.get(targetPrincipalId) === projectId) {
-        ctx.stores.activeProjects.delete(targetPrincipalId);
-      }
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "project.member_removed",
-        outcome: "succeeded",
-        principalId: actorPrincipalId,
-        projectId,
-        correlationId: c.get("correlationId"),
-        metadata: {
-          action: "project.member.remove",
-          memberPrincipalId: targetPrincipalId,
-          role: target.role,
-        },
-      });
-      return c.body(null, 204);
-    });
-  },
-);

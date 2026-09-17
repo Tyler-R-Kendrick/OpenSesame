@@ -29,4 +29,4 @@ Rebased onto main after GA-2 (#400) via signed createCommitOnBranch.
 ## Landed on main (2026-09-16+)
 
 - GA-1 #398, GA-2 #400, wallet #397, INV-REVOCATION #402, GA-4 #403, GA-5 #404, INV-BUDGET #405, INV-CONSISTENCY #406, surfaces honesty #407, GA-A #408, GA-I spawn/enroll #409.
-- Remaining open: standing matrix honesty (GA-O-04) — never closes. Self-review residuals: realm-admin PoP enroll, live OpenFGA apply, fabric unsupported shuttle/OpenBao.
+- Remaining open: standing matrix honesty (GA-O-04) — never closes. Self-review residuals: live OpenFGA apply (GA-F-04), fabric unsupported shuttle/OpenBao, Identity lineage/projector E2E (INV-REVOCATION / INV-CONSISTENCY).

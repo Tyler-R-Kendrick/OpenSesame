@@ -1,5 +1,6 @@
 import type { UpstreamAuthDatabase } from "@opensesame/auth-upstream";
 import type {
+  AuthorityMembershipEdgeStore,
   Database,
   OrgFederationStores,
   OrganizationStores,
@@ -33,6 +34,8 @@ export interface CreateControlPlaneOptions {
    * against the Postgres implementation without a server.
    */
   projectStores?: ProjectStores;
+  /** Test seam: inject authority membership edge store (GA-I-02 live apply). */
+  authorityMembershipEdges?: AuthorityMembershipEdgeStore;
   /**
    * Test seam: inject organization stores. Defaults to the Postgres stores
    * when a `databaseUrl` is configured, memory otherwise — the same shape the
@@ -100,6 +103,7 @@ export function assertProductionStoreOptions(
     (options.database ||
       options.repos ||
       options.projectStores ||
+      options.authorityMembershipEdges ||
       options.organizationStores ||
       options.scimStores ||
       options.samlStores ||
