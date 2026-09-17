@@ -216,7 +216,7 @@ function VaultApp() {
             <Route path=":itemId" element={<slots.ItemDetail />} />
           </Route>
           <Route
-            path="/access"
+            path="/access/:tab?/:rest?"
             element={
               <Framed>
                 <slots.AccessSection />
