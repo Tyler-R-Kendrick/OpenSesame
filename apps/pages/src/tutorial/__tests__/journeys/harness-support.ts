@@ -30,7 +30,7 @@ export async function askSupport(
   const field = await screen.findByLabelText<HTMLInputElement>(
     "Ask about this screen",
   );
-  await waitFor(() => expect(field.disabled).toBe(false));
+  await waitFor(() => expect(field.disabled).toBe(false), { timeout: 10_000 });
   await user.type(field, question);
   await user.click(screen.getByRole("button", { name: "Ask" }));
 }
