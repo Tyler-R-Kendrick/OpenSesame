@@ -1,4 +1,4 @@
-import { type JsonObject, isString } from "@opensesame/os-domain";
+import { type JsonObject, type JsonValue, isString } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import {
   formatUnits,
@@ -25,6 +25,10 @@ const SECRET_REFUSALS = [
   "unrestricted_sign",
   "unbounded_paid_fetch",
 ] as const;
+
+function asBoundary(value: unknown): JsonValue {
+  return JSON.parse(JSON.stringify(value)) as JsonValue;
+}
 
 function sessionCaller() {
   return { principalRef: "local-session" };
@@ -72,7 +76,7 @@ export const WALLET_TOOLS: readonly WalletTool[] = [
           ],
           executeApprovedOnly: ["wallet.payment.execute_approved"],
         },
-        refusals: SECRET_REFUSALS,
+        refusals: [...SECRET_REFUSALS],
         note: "Spending authority is conserved under ADR 0123. execute_approved spends only an internally issued PreparedExecutionRef.",
       }) as const,
   },
@@ -217,7 +221,7 @@ export const WALLET_TOOLS: readonly WalletTool[] = [
       properties: {},
       additionalProperties: false,
     },
-    execute: () => walletPaymentStatus(),
+    execute: () => asBoundary(walletPaymentStatus()),
   },
   {
     name: "opensesame_wallet_lease_request",
@@ -255,7 +259,7 @@ export const WALLET_TOOLS: readonly WalletTool[] = [
       properties: {},
       additionalProperties: false,
     },
-    execute: () => walletLeaseStatus(),
+    execute: () => asBoundary(walletLeaseStatus()),
   },
   {
     name: "opensesame_wallet_lease_request_stop",

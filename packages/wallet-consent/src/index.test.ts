@@ -7,25 +7,27 @@ import {
 } from "./index.js";
 
 describe("@opensesame/wallet-consent exports", () => {
-  it("exposes digest build and cryptographic verify", () => {
+  it("exposes digest build and cryptographic verify", async () => {
     const digest = buildPaymentApprovalDigest({
       currency: "USD",
       amount: "1.00",
       recipient: "A",
     });
-    expect(
-      verifyDigestBoundApproval({
-        expectedDigest: digest,
-        proof: { boundDigest: digest, mechanism: "webauthn" },
-      }).ok,
-    ).toBe(false);
+    const forged = await verifyDigestBoundApproval({
+      expectedDigest: digest,
+      proof: { boundDigest: digest, mechanism: "webauthn" },
+    });
+    expect(forged.ok).toBe(false);
     const keys = generatePaymentApprovalKeyPair();
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: digest,
         proof: {
           boundDigest: digest,
-          verifiedBytes: signPaymentApprovalDigest(digest, keys.privateKeyPkcs8),
+          verifiedBytes: signPaymentApprovalDigest(
+            digest,
+            keys.privateKeyPkcs8,
+          ),
           publicKeySpki: keys.publicKeySpki,
         },
       }),

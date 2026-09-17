@@ -24,7 +24,7 @@ export type LocalExactRuntime = {
   readonly asset: HexAddress;
   readonly payTo: HexAddress;
   readonly amount: string;
-  readonly network: string;
+  readonly network: `${string}:${string}`;
 };
 
 export type PreparedExactPayment = {
@@ -77,7 +77,7 @@ export async function createExactPaymentPayload(
     maxTimeoutSeconds: 600,
     extra: { name: "TEST", version: "1", assetTransferMethod: "eip3009" },
   };
-  const created = await clientScheme.createPaymentPayload(2, requirements);
+  const created = await clientScheme.createPaymentPayload(2, requirements as never);
   const payload = {
     x402Version: 2 as const,
     accepted: requirements,
@@ -95,19 +95,19 @@ export async function settleExactPayment(prepared: PreparedExactPayment) {
   assertLocalExactRuntime(prepared.runtime);
   const { facilitatorWallet } = clients(prepared.runtime);
   const facScheme = new FacilitatorExact(
-    toFacilitatorEvmSigner(facilitatorWallet),
+    toFacilitatorEvmSigner(facilitatorWallet as never),
     { simulateInSettle: false },
   );
   const verifyOk = await facScheme.verify(
-    prepared.payload,
-    prepared.requirements,
+    prepared.payload as never,
+    prepared.requirements as never,
   );
   if (!verifyOk.isValid) {
     return { success: false, errorReason: verifyOk.invalidReason ?? "verify_failed" };
   }
   const settle = await facScheme.settle(
-    prepared.payload,
-    prepared.requirements,
+    prepared.payload as never,
+    prepared.requirements as never,
   );
   return {
     success: settle.success === true && Boolean(settle.transaction),
@@ -123,13 +123,13 @@ export async function verifyExactPaymentMismatch(
   assertLocalExactRuntime(prepared.runtime);
   const { facilitatorWallet } = clients(prepared.runtime);
   const facScheme = new FacilitatorExact(
-    toFacilitatorEvmSigner(facilitatorWallet),
+    toFacilitatorEvmSigner(facilitatorWallet as never),
     { simulateInSettle: false },
   );
   const badReqs = { ...prepared.requirements, amount: mutatedAmount };
   const verifyBad = await facScheme.verify(
-    { ...prepared.payload, accepted: badReqs },
-    badReqs,
+    { ...prepared.payload, accepted: badReqs } as never,
+    badReqs as never,
   );
   return verifyBad.isValid === false;
 }
