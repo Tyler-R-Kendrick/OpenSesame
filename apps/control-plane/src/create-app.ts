@@ -18,6 +18,7 @@ import {
   createMemoryAuthenticationServiceStores,
   createPostgresAuthenticationServiceStores,
   createPostgresAuthorityMembershipEdgeStore,
+  createPostgresAuthorityProjectionStateStore,
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
   createPostgresClientRecordStore,
@@ -205,6 +206,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     (drizzleBundle
       ? createPostgresAuthorityMembershipEdgeStore(drizzleBundle.db)
       : undefined);
+  const authorityProjectionState =
+    options.authorityProjectionState ??
+    (drizzleBundle
+      ? createPostgresAuthorityProjectionStateStore(drizzleBundle.db)
+      : undefined);
   // Durable organizations + memberships (ADR 0055): a tenant's SSO issuer is
   // read on the login path, so it has to outlive the process that configured
   // it. The rest of the federation storage follows the same rule — memory in
@@ -297,6 +303,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(consentStore ? { consents: consentStore } : undefined),
     ...(projectStores ? { projectStores } : undefined),
     ...(authorityMembershipEdges ? { authorityMembershipEdges } : undefined),
+    ...(authorityProjectionState ? { authorityProjectionState } : undefined),
     ...(organizationStores ? { organizationStores } : undefined),
     ...(scimStores ? { scimStores } : undefined),
     ...(orgFederationStores ? { orgFederationStores } : undefined),

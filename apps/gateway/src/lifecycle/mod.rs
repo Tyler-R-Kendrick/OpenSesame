@@ -22,6 +22,8 @@
 //! layer carry structural tests that keep it that way.
 
 pub mod authority_subjects;
+#[cfg(test)]
+mod authority_grant_scan;
 pub mod dispatch;
 pub mod responders;
 pub mod scanner;

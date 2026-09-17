@@ -1,5 +1,6 @@
 import {
   type AuthorityMembershipEdgeStore,
+  type AuthorityProjectionStateStore,
   type ClientClaimChallengeStore,
   type ClientOriginStore,
   type ConsentStore,
@@ -13,6 +14,7 @@ import {
   type SamlStores,
   type ScimStores,
   createMemoryAuthorityMembershipEdgeStore,
+  createMemoryAuthorityProjectionStateStore,
   createMemoryClientClaimChallengeStore,
   createMemoryClientOriginStore,
   createMemoryConsentStore,
@@ -98,6 +100,8 @@ export interface AppStores {
   projectMemberships: ProjectMembershipStore;
   /** Durable authority membership edges (GA-I-02 live apply). */
   authorityMembershipEdges: AuthorityMembershipEdgeStore;
+  /** Identity projector fence (INV-CONSISTENCY). */
+  authorityProjectionState: AuthorityProjectionStateStore;
   /** project id → tail of serialized membership mutations */
   projectMembershipMutations: Map<string, Promise<void>>;
   /** principalId → active (swapped-in) project id */
@@ -188,6 +192,7 @@ export function createAppStores(options?: {
   projectStores?: ProjectStores;
   organizationStores?: OrganizationStores;
   authorityMembershipEdges?: AuthorityMembershipEdgeStore;
+  authorityProjectionState?: AuthorityProjectionStateStore;
   scimStores?: ScimStores;
   orgFederationStores?: OrgFederationStores;
   samlStores?: SamlStores;
@@ -203,6 +208,9 @@ export function createAppStores(options?: {
     authorityMembershipEdges:
       options?.authorityMembershipEdges ??
       createMemoryAuthorityMembershipEdgeStore(),
+    authorityProjectionState:
+      options?.authorityProjectionState ??
+      createMemoryAuthorityProjectionStateStore(),
     projectMembershipMutations: new Map(),
     activeProjects: new Map(),
     organizations: organizationStores.organizations,

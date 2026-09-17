@@ -31,6 +31,14 @@ export {
   type AuthorityMembershipEdgeStore,
 } from "./repos/authority-membership-edges.js";
 export {
+  MemoryAuthorityProjectionStateStore,
+  PostgresAuthorityProjectionStateStore,
+  createMemoryAuthorityProjectionStateStore,
+  createPostgresAuthorityProjectionStateStore,
+  type AuthorityProjectionMark,
+  type AuthorityProjectionStateStore,
+} from "./repos/authority-projection-state.js";
+export {
   SAML_PENDING_TTL_MS,
   createMemorySamlStores,
   createPostgresSamlStores,
