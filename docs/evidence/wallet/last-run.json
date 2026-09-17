@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-17T16:25:13.198Z",
-  "head": "06aa19f8d0252047b2a69cef1eb430680a97497a",
+  "generatedAt": "2026-09-17T16:50:05.599Z",
+  "head": "4920a260645d6ed658e18d8c2f3c18475500d4fd",
   "treeDirty": true,
   "invokedAs": "pnpm wallet:verify",
   "mainnet": {
@@ -23,7 +23,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/test-domain.mjs",
-      "durationMs": 2662
+      "durationMs": 2882
     },
     {
       "suite": "contracts",
@@ -31,7 +31,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs contracts",
-      "durationMs": 3573
+      "durationMs": 3499
     },
     {
       "suite": "protocols",
@@ -39,7 +39,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs protocols",
-      "durationMs": 5817
+      "durationMs": 5733
     },
     {
       "suite": "browser",
@@ -47,7 +47,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs browser",
-      "durationMs": 11618
+      "durationMs": 11431
     },
     {
       "suite": "security",
@@ -55,7 +55,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs security",
-      "durationMs": 4288
+      "durationMs": 4379
     }
   ],
   "ok": true,
