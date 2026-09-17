@@ -33,3 +33,5 @@ export {
 } from "./agent-auth-scopes.js";
 
 export * from "./authority-tuples.js";
+
+export * from "./authority-tuple-backfill.js";
