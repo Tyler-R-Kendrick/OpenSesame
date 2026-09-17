@@ -146,7 +146,7 @@ export function SyncTargetsPanel() {
 
       {!hostConfigured ? null : targets.length === 0 && !loading ? (
         <p className="hint">
-          No sync targets yet. Create them via Host API against an active Vercel
+          No sync targets yet. Create them against an active Vercel
           or Railway connection (<code>POST /api/v1/sync-targets</code>).
         </p>
       ) : (

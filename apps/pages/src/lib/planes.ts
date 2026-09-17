@@ -68,8 +68,8 @@ function identityStatusLabelDefault(identity: IdentityPlane): string {
 /** Whether the Connect-this-machine panel should be shown. */
 function needsHostPairingDefault(status: PlaneStatus): boolean {
   if (status.host === "live" || status.host === "pending") return false;
+  if (status.host === "unset") return false;
   if (hasRemoteHostPairing() && status.host === "down") return false;
-  if (status.host === "unset") return true;
   // Loopback Host is fine when the page itself is on loopback.
   if (status.host === "loopback") return !pageIsLoopback();
   return false;

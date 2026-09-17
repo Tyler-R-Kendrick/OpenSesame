@@ -438,7 +438,7 @@ describe("access client", () => {
       expect(error.code).toBe("unreachable");
     }
     expect(error.message).toMatch(
-      /Host API unreachable at http:\/\/127\.0\.0\.1:8787/,
+      /Couldn't reach http:\/\/127\.0\.0\.1:8787/,
     );
   });
 
@@ -492,7 +492,7 @@ describe("access client", () => {
       expect(error.code).toBe("unreachable");
     }
     expect(error.message).toMatch(
-      /Host API unreachable at http:\/\/127\.0\.0\.1:8787/,
+      /Couldn't reach http:\/\/127\.0\.0\.1:8787/,
     );
   });
 

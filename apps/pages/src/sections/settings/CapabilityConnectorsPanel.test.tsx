@@ -598,7 +598,8 @@ describe("CapabilityConnectorsPanel", () => {
     );
     expect(button.disabled).toBe(true);
     expect(
-      screen.getAllByText(/Host API is not reachable from this tab yet/).length,
+      screen.getAllByText(/This service is not reachable from this tab yet/)
+        .length,
     ).toBeGreaterThan(0);
   });
 });

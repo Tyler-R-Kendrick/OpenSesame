@@ -376,7 +376,7 @@ describe("transport", () => {
     const error = await listConnections().catch((caught) => caught);
 
     expect(overlapCast(error).code).toBe("unreachable");
-    expect(overlapCast(error).message).toContain(HOST);
+    expect(overlapCast(error).message).toContain("Couldn't reach the connected service.");
   });
 });
 

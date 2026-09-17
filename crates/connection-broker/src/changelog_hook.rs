@@ -352,7 +352,7 @@ mod tests {
             project_id: "p_a".into(),
             organization_id: Some("org_b".into()),
             config_id: Some("cfg".into()),
-            key_names: vec!["STRIPE_API_KEY".into()],
+            key_names: vec!["WORKOS_API_KEY".into()],
             ..Default::default()
         });
         let a = list_secret_changelog("org_a", "p_a", 10);
@@ -362,7 +362,7 @@ mod tests {
         assert_eq!(a[0].content_version.as_deref(), Some("cv_1"));
         let b = list_secret_changelog("org_b", "p_a", 10);
         assert_eq!(b.len(), 1);
-        assert_eq!(b[0].key_names, vec!["STRIPE_API_KEY"]);
+        assert_eq!(b[0].key_names, vec!["WORKOS_API_KEY"]);
         assert!(list_secret_changelog("org_a", "p_a", 10)
             .iter()
             .all(|e| e.organization_id.as_deref() == Some("org_a")));

@@ -70,7 +70,7 @@ GET /api/v1/providers
 Provider = {
   "id": "github",
   "display_name": "GitHub",
-  "category": "developer" | "productivity" | "communication" | "storage" | "crm" | "payments" | "identity" | "testing",
+  "category": "identity" | "backup_recovery" | "encryption" | "password_managers" | "agent_harnesses" | "networking" | "wallet" | "cloud_secret_storage" | "local_storage" | "certificates" | "custom" | "developer" | "productivity" | "communication" | "storage" | "crm" | "testing",
   "docs_url": "https://docs.github.com/apps/oauth-apps",
   "auth_kind": "oauth2_authorization_code" | "api_key" | "configuration",
   "supports_refresh": true,

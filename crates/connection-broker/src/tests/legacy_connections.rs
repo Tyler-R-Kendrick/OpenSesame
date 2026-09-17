@@ -58,8 +58,8 @@ async fn ambiguous_legacy_connection_can_always_revoke_locally() {
         .create_connection(
             &org,
             CreateConnection {
-                integration_id: Some("deployment:stripe".into()),
-                ..create("stripe")
+                integration_id: Some("deployment:workos".into()),
+                ..create("workos")
             },
         )
         .await
@@ -77,9 +77,9 @@ async fn ambiguous_legacy_connection_can_always_revoke_locally() {
         .create_integration(
             &org,
             CreateIntegration {
-                key: "second-stripe".into(),
-                provider_id: "stripe".into(),
-                display_name: "Second Stripe".into(),
+                key: "second-workos".into(),
+                provider_id: "workos".into(),
+                display_name: "Second WorkOS".into(),
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
@@ -107,7 +107,7 @@ async fn stale_unknown_provider_can_always_revoke_locally() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();
     let connection = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
     broker

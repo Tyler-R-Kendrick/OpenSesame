@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconSettings } from "../../components/Icons.js";
-import { NoHostNote } from "../../components/NoHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { createConnection, revokeConnection } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
@@ -61,8 +60,15 @@ export function ConnectedPanel({
         <h2>Connected</h2>
       </div>
       <div className="panel__body panel__body--tight">
-        {!hostConfigured ? (
-          <NoHostNote what="A connection is a credential a Host holds for you, so an agent can be sent through it without ever seeing it." />
+        {!hostConfigured ||
+        (!setupRequired &&
+          connections !== null &&
+          automatic.length === 0 &&
+          managed.length === 0) ? (
+          <div className="empty">
+            <h3>Nothing connected</h3>
+            <EmptyTip>{emptyTips.rail}</EmptyTip>
+          </div>
         ) : setupRequired ? (
           <div className="empty conn-gate">
             <h3>Choose an organization</h3>

@@ -98,7 +98,7 @@ describe("backup workflow client", () => {
       { providerId: "github", status: "active" },
       { providerId: "github", status: "needs_reauth" },
       { providerId: "github", status: "revoked" },
-      { providerId: "stripe", status: "active" },
+      { providerId: "workos", status: "active" },
       { providerId: "openai", status: "active" },
     ]);
     expect(filtered).toEqual([

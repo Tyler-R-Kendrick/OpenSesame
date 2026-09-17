@@ -604,7 +604,7 @@ export function CapabilityConnectorsPanel() {
                 </div>
                 {needsAuth && planes.host !== "live" ? (
                   <p className="hint">
-                    Host API is not reachable from this tab yet. Pair or start
+                    This service is not reachable from this tab yet. Pair or start
                     the local Host so GitHub OAuth can complete.
                   </p>
                 ) : null}

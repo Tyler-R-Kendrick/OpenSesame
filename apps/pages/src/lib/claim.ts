@@ -89,7 +89,7 @@ async function presentOfferDefault(
     throw new AccessError(
       0,
       "unreachable",
-      `Host API unreachable at ${hostBase()}. Start the Host, or point at a running one under Settings.`,
+      `Couldn't reach ${hostBase()}. Point Settings at a running service, or continue without it.`,
     );
   }
   if (!res.ok) {

@@ -6,14 +6,8 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 /**
- * Connection broker client (Host plane).
- *
- * Connections are the one thing OpenSesame holds on the user's behalf: the
- * authority plane must be able to decrypt a provider token to inject it at
- * egress and to refresh it while nobody is watching. That is the opposite of
- * the vault, and the UI has to keep the two apart. Nothing here ever receives
- * an access token, a refresh token, or a client secret — the API does not
- * expose them (ADR 0032).
+ * Connection broker client. Live list/create/authorize use Vercel Connect
+ * when configured; Host is the fallback. Tokens stay off this page (ADR 0005).
  */
 
 import {
@@ -30,23 +24,26 @@ import {
   RevokeResponseSchema,
 } from "@opensesame/contracts";
 import { hostBase, hostFetch } from "./identity.js";
+import * as vercelConnect from "./vercel-connect.js";
 
 export type ProviderCategory =
+  | "identity"
+  | "backup_recovery"
   | "encryption"
-  | "cloud_secret_storage"
   | "password_managers"
+  | "agent_harnesses"
+  | "networking"
+  | "wallet"
+  | "cloud_secret_storage"
   | "local_storage"
   | "developer"
   | "productivity"
   | "communication"
   | "storage"
   | "crm"
-  | "payments"
-  | "identity"
   | "testing"
   | "certificates"
   | "custom";
-
 export type AuthKind =
   | "oauth2_authorization_code"
   | "api_key"
@@ -201,7 +198,7 @@ async function call<T>(
     throw new ConnectionsError(
       0,
       "unreachable",
-      `Host API unreachable at ${base()}.`,
+      "Couldn't reach the connected service.",
     );
   }
 
@@ -368,8 +365,7 @@ export type CustomProviderAuth =
     }
   | { kind: "api_key"; header: string; valuePrefix: string };
 
-/** Register an org-scoped custom connector (MCP server, OpenAPI backend,
- *  internal API). Owner/admin only; egress is derived from the base URL. */
+/** Register an org-scoped custom connector. Owner/admin only. */
 function createCustomProviderDefault(body: {
   id: string;
   displayName: string;
@@ -413,8 +409,7 @@ function deleteCustomProviderDefault(id: string): Promise<void> {
   });
 }
 
-/** Seal an org-level OAuth client (or other provider credentials) on the Host.
- *  Requires an owner/admin role; the secret is write-only from here on. */
+/** Seal an org-level OAuth client. Owner/admin only; write-only secret. */
 function createIntegrationDefault(body: {
   key: string;
   providerId: string;
@@ -484,9 +479,7 @@ function startGithubAppRegistrationDefault(body: {
   );
 }
 
-/** Browser POST to github.com/settings/apps/new — required by the Manifest flow.
- *  Navigates this tab (not a popup). CSP must allow form-action https://github.com.
- */
+/** Browser POST to github.com/settings/apps/new (Manifest flow). */
 function submitGithubAppManifestDefault(
   registration: GithubAppRegistration,
 ): void {
@@ -519,6 +512,8 @@ function listProvidersDefault(): Promise<Provider[]> {
 }
 
 function listConnectionsDefault(): Promise<Connection[]> {
+  if (vercelConnect.vercelConnectConfigured())
+    return vercelConnect.listVercelConnections();
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
   );
@@ -533,6 +528,8 @@ function discoverConnectionsDefault(): Promise<number> {
 }
 
 export function getConnection(id: string): Promise<Connection> {
+  if (vercelConnect.vercelConnectConfigured())
+    return vercelConnect.getVercelConnection(id);
   return call(`/connections/${encodeURIComponent(id)}`, {}, toConnection);
 }
 
@@ -543,6 +540,8 @@ function createConnectionDefault(body: {
   projectId?: string;
   integrationId?: string;
 }): Promise<Connection> {
+  if (vercelConnect.vercelConnectConfigured())
+    return vercelConnect.createVercelConnection(body);
   return call(
     "/connections",
     {
@@ -565,6 +564,8 @@ function authorizeConnectionDefault(
   id: string,
   scopes?: string[],
 ): Promise<{ authorizationUrl: string; expiresAt: string }> {
+  if (vercelConnect.vercelConnectConfigured())
+    return vercelConnect.authorizeVercelConnection(id, scopes);
   return call(
     `/connections/${encodeURIComponent(id)}/authorize`,
     {
@@ -622,6 +623,8 @@ function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
+  if (vercelConnect.vercelConnectConfigured())
+    return vercelConnect.revokeVercelConnection(id);
   return call(
     `/connections/${encodeURIComponent(id)}`,
     { method: "DELETE" },
@@ -725,12 +728,7 @@ const POLL_MS = 1500;
 /** Long enough for a real consent screen including an upstream login and MFA. */
 const CONSENT_TIMEOUT_MS = 5 * 60_000;
 
-/**
- * Run the consent round trip. The popup posts back on success, but a blocked
- * `postMessage`, a popup the user closed by hand, or a provider that lands on
- * its own page instead of ours would all strand the flow — so the connection
- * is polled as well, and whichever settles first wins.
- */
+/** Consent popup plus connection poll; whichever settles first wins. */
 async function awaitConsentDefault(
   connectionId: string,
   popup: Window | null,

@@ -89,7 +89,7 @@ async fn credential_value_limit_applies_to_the_value_not_json_overhead() {
         &state,
         "POST",
         "/api/v1/connections",
-        Some(json!({"provider_id":"stripe"})),
+        Some(json!({"provider_id":"workos"})),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{created}");

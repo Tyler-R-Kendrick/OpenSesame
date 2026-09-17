@@ -17,6 +17,7 @@ import {
   ListEventsResponseSchema,
   ListIntegrationsResponseSchema,
   ListProvidersResponseSchema,
+  ProviderCategorySchema,
   ProviderSchema,
   RevokeResponseSchema,
   ScopeDefSchema,
@@ -126,6 +127,21 @@ const integration = {
 };
 
 describe("connection broker contracts", () => {
+  it("accepts the Connections section ids and rejects payments", () => {
+    for (const category of [
+      "identity",
+      "backup_recovery",
+      "encryption",
+      "password_managers",
+      "agent_harnesses",
+      "networking",
+      "wallet",
+    ] as const) {
+      expect(ProviderCategorySchema.parse(category)).toBe(category);
+    }
+    expect(() => ProviderCategorySchema.parse("payments")).toThrow();
+  });
+
   it("keeps Host discovery responses bounded and strict", () => {
     expect(DiscoverConnectionsResponseSchema.parse({ configured: 2 })).toEqual({
       configured: 2,

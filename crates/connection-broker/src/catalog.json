@@ -10,7 +10,7 @@
         "token_auth": "client_secret_post",
         "token_url": "https://github.com/login/oauth/access_token"
       },
-      "category": "developer",
+      "category": "backup_recovery",
       "display_name": "GitHub",
       "docs_url": "https://docs.github.com/apps/oauth-apps",
       "egress": {
@@ -67,7 +67,7 @@
         "token_auth": "client_secret_post",
         "token_url": "https://gitlab.com/oauth/token"
       },
-      "category": "developer",
+      "category": "backup_recovery",
       "display_name": "GitLab",
       "docs_url": "https://docs.gitlab.com/ee/api/oauth2.html",
       "egress": {
@@ -635,29 +635,7 @@
         "kind": "api_key",
         "value_prefix": "Bearer "
       },
-      "category": "payments",
-      "display_name": "Stripe",
-      "docs_url": "https://docs.stripe.com/keys",
-      "egress": {
-        "authorities": ["api.stripe.com"],
-        "path_prefixes": [],
-        "scheme": "https"
-      },
-      "id": "stripe",
-      "operations": ["customer.read", "charge.read", "invoice.read"],
-      "provenance_url": "https://docs.stripe.com/keys",
-      "scopes": [],
-      "verify": {
-        "path": "/v1/account"
-      }
-    },
-    {
-      "auth": {
-        "header": "Authorization",
-        "kind": "api_key",
-        "value_prefix": "Bearer "
-      },
-      "category": "developer",
+      "category": "agent_harnesses",
       "display_name": "OpenAI",
       "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
       "egress": {
@@ -679,7 +657,7 @@
         "kind": "api_key",
         "value_prefix": ""
       },
-      "category": "developer",
+      "category": "agent_harnesses",
       "display_name": "Anthropic",
       "docs_url": "https://docs.anthropic.com/en/api/getting-started",
       "egress": {
@@ -737,7 +715,7 @@
     {
       "id": "cohere",
       "display_name": "Cohere",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://docs.cohere.com/reference/about",
       "provenance_url": "https://docs.cohere.com/reference/about",
       "auth": {
@@ -756,7 +734,7 @@
     {
       "id": "mistral",
       "display_name": "Mistral AI",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
       "provenance_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
       "auth": {
@@ -775,7 +753,7 @@
     {
       "id": "groq",
       "display_name": "Groq",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://console.groq.com/docs/api-reference",
       "provenance_url": "https://console.groq.com/docs/api-reference",
       "auth": {
@@ -794,7 +772,7 @@
     {
       "id": "perplexity",
       "display_name": "Perplexity",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://docs.perplexity.ai/docs/getting-started/api-groups",
       "provenance_url": "https://docs.perplexity.ai/docs/getting-started/api-groups",
       "auth": {
@@ -813,7 +791,7 @@
     {
       "id": "together",
       "display_name": "Together AI",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://docs.together.ai/docs/authentication",
       "provenance_url": "https://docs.together.ai/docs/authentication",
       "auth": {
@@ -832,7 +810,7 @@
     {
       "id": "replicate",
       "display_name": "Replicate",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://replicate.com/docs/topics/security/api-tokens",
       "provenance_url": "https://replicate.com/docs/topics/security/api-tokens",
       "auth": {
@@ -851,7 +829,7 @@
     {
       "id": "huggingface",
       "display_name": "Hugging Face",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://huggingface.co/docs/inference-providers/en/index",
       "provenance_url": "https://huggingface.co/docs/inference-providers/en/index",
       "auth": {
@@ -946,7 +924,7 @@
     {
       "id": "gemini",
       "display_name": "Google Gemini",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://ai.google.dev/gemini-api/docs/api-key",
       "provenance_url": "https://ai.google.dev/gemini-api/docs/api-key",
       "auth": {
@@ -965,7 +943,7 @@
     {
       "id": "fireworks",
       "display_name": "Fireworks AI",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://docs.fireworks.ai/api-reference/post-responses",
       "provenance_url": "https://docs.fireworks.ai/api-reference/post-responses",
       "auth": {
@@ -1074,8 +1052,8 @@
       "id": "vercel",
       "display_name": "Vercel",
       "category": "developer",
-      "docs_url": "https://vercel.com/docs/rest-api",
-      "provenance_url": "https://vercel.com/docs/rest-api",
+      "docs_url": "https://vercel.com/docs/rest-api/reference/sdk",
+      "provenance_url": "https://github.com/vercel/sdk",
       "auth": {
         "kind": "api_key",
         "header": "Authorization",
@@ -1353,28 +1331,9 @@
       "operations": ["incident.read", "incident.write", "schedule.read"]
     },
     {
-      "id": "square",
-      "display_name": "Square",
-      "category": "payments",
-      "docs_url": "https://developer.squareup.com/docs/build-basics/access-tokens",
-      "provenance_url": "https://developer.squareup.com/docs/build-basics/access-tokens",
-      "auth": {
-        "kind": "api_key",
-        "header": "Authorization",
-        "value_prefix": "Bearer "
-      },
-      "scopes": [],
-      "egress": {
-        "scheme": "https",
-        "authorities": ["connect.squareup.com", "connect.squareupsandbox.com"],
-        "path_prefixes": []
-      },
-      "operations": ["payment.read", "payment.create", "catalog.read"]
-    },
-    {
       "id": "neon",
       "display_name": "Neon",
-      "category": "storage",
+      "category": "backup_recovery",
       "docs_url": "https://api-docs.neon.tech/reference/getting-started-with-neon-api",
       "provenance_url": "https://api-docs.neon.tech/reference/getting-started-with-neon-api",
       "auth": {
@@ -1393,7 +1352,7 @@
     {
       "id": "postgresql",
       "display_name": "PostgreSQL",
-      "category": "storage",
+      "category": "backup_recovery",
       "docs_url": "https://www.postgresql.org/docs/current/",
       "provenance_url": "https://www.postgresql.org/docs/current/",
       "auth": {
@@ -1412,7 +1371,7 @@
     {
       "id": "supabase",
       "display_name": "Supabase",
-      "category": "storage",
+      "category": "backup_recovery",
       "docs_url": "https://supabase.com/docs/guides/api",
       "provenance_url": "https://supabase.com/docs/guides/api",
       "auth": {
@@ -1542,25 +1501,6 @@
         "path_prefixes": []
       },
       "operations": ["article.search", "source.list", "headline.read"]
-    },
-    {
-      "id": "finnhub",
-      "display_name": "Finnhub",
-      "category": "payments",
-      "docs_url": "https://finnhub.io/docs/api/authentication",
-      "provenance_url": "https://finnhub.io/docs/api/authentication",
-      "auth": {
-        "kind": "api_key",
-        "header": "X-Finnhub-Token",
-        "value_prefix": ""
-      },
-      "scopes": [],
-      "egress": {
-        "scheme": "https",
-        "authorities": ["finnhub.io"],
-        "path_prefixes": []
-      },
-      "operations": ["quote.read", "company.read", "news.read"]
     },
     {
       "id": "honeycomb",
@@ -2161,7 +2101,7 @@
     {
       "id": "azure-openai",
       "display_name": "Azure OpenAI",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://learn.microsoft.com/azure/ai-services/openai/reference",
       "provenance_url": "https://learn.microsoft.com/azure/ai-services/openai/reference",
       "auth": { "kind": "configuration" },
@@ -2178,7 +2118,7 @@
     {
       "id": "aws-bedrock",
       "display_name": "Amazon Bedrock",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started-api.html",
       "provenance_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
       "auth": { "kind": "configuration" },
@@ -2196,7 +2136,7 @@
     {
       "id": "openrouter",
       "display_name": "OpenRouter",
-      "category": "developer",
+      "category": "agent_harnesses",
       "docs_url": "https://openrouter.ai/docs/guides/overview/auth/oauth",
       "provenance_url": "https://openrouter.ai/docs/guides/overview/auth/oauth",
       "auth": {
@@ -2227,8 +2167,89 @@
       "scopes": [],
       "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
       "operations": ["secret.configure"]
+    },
+    {
+      "id": "tailscale",
+      "display_name": "Tailscale",
+      "category": "networking",
+      "docs_url": "https://tailscale.com/kb/1085/auth-keys",
+      "provenance_url": "https://tailscale.com/kb/1085/auth-keys",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "tailnet", "secret": false, "required": true },
+        { "name": "hostname", "secret": false, "required": false },
+        { "name": "auth_key", "secret": true, "required": true },
+        { "name": "socket", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["network.configure"]
+    },
+    {
+      "id": "cloudflare-wallet",
+      "display_name": "Cloudflare Wallet",
+      "category": "wallet",
+      "docs_url": "https://developers.cloudflare.com/",
+      "provenance_url": "https://developers.cloudflare.com/",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "account_id", "secret": false, "required": true },
+        { "name": "wallet_id", "secret": false, "required": true },
+        { "name": "api_token", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["wallet.configure"]
+    },
+    {
+      "id": "google-wallet",
+      "display_name": "Google Wallet",
+      "category": "wallet",
+      "docs_url": "https://developers.google.com/wallet",
+      "provenance_url": "https://developers.google.com/wallet",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "issuer_id", "secret": false, "required": true },
+        { "name": "class_id", "secret": false, "required": true },
+        { "name": "service_account_email", "secret": false, "required": true },
+        { "name": "service_account_key", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["wallet.configure"]
+    },
+    {
+      "id": "apple-wallet",
+      "display_name": "Apple Wallet",
+      "category": "wallet",
+      "docs_url": "https://developer.apple.com/wallet/",
+      "provenance_url": "https://developer.apple.com/wallet/",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "pass_type_id", "secret": false, "required": true },
+        { "name": "team_id", "secret": false, "required": true },
+        { "name": "certificate", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["wallet.configure"]
+    },
+    {
+      "id": "samsung-wallet",
+      "display_name": "Samsung Wallet",
+      "category": "wallet",
+      "docs_url": "https://developer.samsung.com/wallet",
+      "provenance_url": "https://developer.samsung.com/wallet",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "service_id", "secret": false, "required": true },
+        { "name": "api_key", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["wallet.configure"]
     }
   ],
-  "revision": "2026-09-15.2",
+  "revision": "2026-09-17.2",
   "schema_version": 1
 }

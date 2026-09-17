@@ -121,7 +121,7 @@ export function TaskBusPanel() {
           <p className="note">Connect to the network to configure TaskBus.</p>
         ) : planes.host !== "live" ? (
           <p className="note note--warn">
-            Host API is not reachable. Pair or start Host first.
+            This service is not reachable. Pair or start it first.
           </p>
         ) : (
           <div className="stack">

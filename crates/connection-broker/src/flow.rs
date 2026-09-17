@@ -555,9 +555,9 @@ mod tests {
 
     #[test]
     fn api_key_providers_have_no_authorize_url() {
-        let stripe = catalog::find("stripe").expect("catalog").expect("stripe");
+        let workos = catalog::find("workos").expect("catalog").expect("workos");
         let err = build_authorize_url(
-            stripe,
+            workos,
             &config(),
             AuthorizeParams {
                 client_id: "id",

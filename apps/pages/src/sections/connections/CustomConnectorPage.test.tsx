@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const createCustomProvider = vi.hoisted(() => vi.fn());
 
 import { connectionSeams } from "../../lib/connections.js";
+import { clearCustomConnectors } from "../../lib/custom-connectors.js";
 import { identitySeams } from "../../lib/identity.js";
+import { kvDelete } from "../../lib/kv.js";
 import { useOnlineSeams } from "../../lib/use-online.js";
 import { CustomConnectorPage, slugify } from "./CustomConnectorPage.js";
 
@@ -24,6 +26,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  clearCustomConnectors();
+  kvDelete("custom-connectors.v1");
   Object.assign(connectionSeams, originalConnectionSeams);
   Object.assign(identitySeams, originalIdentitySeams);
   Object.assign(useOnlineSeams, originalUseOnlineSeams);

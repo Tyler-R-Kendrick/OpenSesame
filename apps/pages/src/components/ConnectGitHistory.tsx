@@ -463,7 +463,7 @@ function ConnectGitHistoryDefault() {
                 </>
               ) : (
                 <p className="hint">
-                  Host API is not reachable from this tab yet. Pair or start the
+                  This service is not reachable from this tab yet. Pair or start the
                   local Host first — the token is sealed there, never held in
                   the browser.
                 </p>
@@ -556,7 +556,7 @@ function ConnectGitHistoryDefault() {
         </p>
         {needsAuth && !hostLive ? (
           <p className="hint">
-            Host API is not reachable from this tab yet. Pair or start the local
+            This service is not reachable from this tab yet. Pair or start the local
             Host so OAuth can complete.
           </p>
         ) : null}

@@ -542,7 +542,7 @@ describe("GithubBackupPanel", () => {
     planes.value = { host: "degraded", identity: "connected" };
     render(<GithubBackupPanel />);
     expect(
-      await screen.findByText(/Host API is not reachable from this tab/),
+      await screen.findByText(/This service is not reachable from this tab/),
     ).toBeTruthy();
     expect(
       overlapCast(
