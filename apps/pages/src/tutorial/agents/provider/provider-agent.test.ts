@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { overlapCast } from "@opensesame/os-domain";
 import { fakeSupportPageContext } from "@opensesame/support-agent";
 import { describe, expect, it, vi } from "vitest";
 import { modelProviderRecord } from "../../../lib/model-provider.js";
@@ -57,7 +58,7 @@ describe("createProviderSupportAgent", () => {
         endpoint: "http://127.0.0.1:1234/v1",
         model: "qwen",
       }),
-      fetch: fetchImpl as unknown as typeof fetch,
+      fetch: overlapCast(fetchImpl),
     });
     expect(agent).not.toBeNull();
     expect(await agent?.availability()).toEqual({ kind: "ready" });

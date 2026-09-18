@@ -1,6 +1,11 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  currentKeybindings,
+  persistKeybindings,
+  resetLiveKeybindings,
+} from "./configuration/nav-persist.js";
+import {
   type RailKeymapTarget,
   type VaultKeymapTarget,
   createKeymapHandler,
@@ -145,6 +150,39 @@ describe("listing keymap journey", () => {
     input.dispatchEvent(
       new KeyboardEvent("keydown", { key: "j", bubbles: true }),
     );
+    expect(items.next).not.toHaveBeenCalled();
+    release();
+  });
+});
+
+describe("live keybinding overlay", () => {
+  afterEach(() => {
+    resetLiveKeybindings();
+    document.body.replaceChildren();
+  });
+
+  it("remaps an existing action and still runs it after reload from storage", () => {
+    const items = vault();
+    const release = registerVaultKeymap(items);
+    expect(persistKeybindings({ w: "item.edit", j: "item.edit" }).ok).toBe(
+      true,
+    );
+    // SAFETY: fixture constructed in this test matches the declared contract.
+    const stored = JSON.parse(JSON.stringify(currentKeybindings())) as Record<
+      string,
+      string
+    >;
+    resetLiveKeybindings();
+    expect(persistKeybindings(stored).ok).toBe(true);
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    press(handler, "w");
+    expect(items.edit).toHaveBeenCalledOnce();
+    expect(items.next).not.toHaveBeenCalled();
+    press(handler, "j");
+    expect(items.edit).toHaveBeenCalledTimes(2);
     expect(items.next).not.toHaveBeenCalled();
     release();
   });

@@ -1,7 +1,9 @@
 import {
+  type BoundaryValue,
   type JsonObject,
   type JsonValue,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import {
@@ -30,8 +32,10 @@ const SECRET_REFUSALS = [
   "unbounded_paid_fetch",
 ] as const;
 
-function asBoundary(value: unknown): JsonValue {
-  return JSON.parse(JSON.stringify(value)) as JsonValue;
+function asBoundary(value: JsonValue): JsonValue {
+  const parsed: BoundaryValue = JSON.parse(JSON.stringify(value));
+  // SAFETY: JSON round-trip of a JsonValue remains a JsonValue.
+  return overlapCast(parsed);
 }
 
 function sessionCaller() {
@@ -225,7 +229,7 @@ export const WALLET_TOOLS: readonly WalletTool[] = [
       properties: {},
       additionalProperties: false,
     },
-    execute: () => asBoundary(walletPaymentStatus()),
+    execute: () => asBoundary(overlapCast(walletPaymentStatus())),
   },
   {
     name: "opensesame_wallet_lease_request",

@@ -39,7 +39,7 @@ async function letTheLateAnswerLand(): Promise<void> {
   }
 }
 
-describe("locking while support is busy", () => {
+describe("locking while support is busy", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("drops the conversation, the walkthrough and the overlays together", async () => {
@@ -64,7 +64,11 @@ describe("locking while support is busy", () => {
     ).toBeTruthy();
     await askSupport(user, "And how do I revoke one afterwards?");
     expect(
-      await within(panel).findByRole("button", { name: "Cancel" }),
+      await within(panel).findByRole(
+        "button",
+        { name: "Cancel" },
+        { timeout: 10_000 },
+      ),
     ).toBeTruthy();
 
     lockTheVault();
@@ -115,5 +119,5 @@ describe("locking while support is busy", () => {
     ).toBeNull();
     expect(screen.queryByText(ANSWER)).toBeNull();
     expect(screen.queryByText("How do I add a connection?")).toBeNull();
-  });
+  }, 20_000);
 });

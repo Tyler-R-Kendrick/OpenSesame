@@ -1,4 +1,5 @@
-import type { JsonObject } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
+import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import type { Context } from "hono";
 import type { Variables } from "../middleware/context.js";
 const ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
@@ -60,4 +61,48 @@ export function scimUserUpdateAudit(wasActive: boolean, active: boolean) {
       state: active ? "active" : "inactive",
     },
   };
+}
+
+export type ScimPatchOperation = {
+  op: string;
+  path?: string;
+  value?: BoundaryValue;
+};
+
+export function scimPatchOperations(body: JsonObject): ScimPatchOperation[] {
+  const raw = body.Operations ?? body.operations;
+  if (!Array.isArray(raw)) return [];
+  const operations: ScimPatchOperation[] = [];
+  for (const entry of raw) {
+    if (!isJsonObject(entry)) continue;
+    const op = isString(entry.op) ? entry.op.toLowerCase() : "";
+    if (!op) continue;
+    operations.push({
+      op,
+      ...(isString(entry.path) ? { path: entry.path } : undefined),
+      ...(entry.value !== undefined ? { value: entry.value } : undefined),
+    });
+  }
+  return operations;
+}
+
+export async function readScimJsonBody(
+  c: Context<{ Variables: Variables }>,
+): Promise<JsonObject | undefined> {
+  try {
+    const parsed: BoundaryValue = overlapCast(await c.req.json());
+    return isJsonObject(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function boundedScimString(
+  value: BoundaryValue,
+  max: number,
+): string | undefined {
+  if (!isString(value)) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > max) return undefined;
+  return trimmed;
 }

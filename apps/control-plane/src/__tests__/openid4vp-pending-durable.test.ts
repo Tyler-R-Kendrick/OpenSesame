@@ -23,15 +23,17 @@ const VCT = "https://credentials.opensesame.local/opensesame-holder-binding/v1";
 
 type Plane = ReturnType<typeof createControlPlane>;
 
+type ReplicaDbOptions = {
+  claimPepper: string;
+  trustedIssuers?: NonNullable<
+    Parameters<typeof createControlPlane>[0]
+  >["openid4vpTrustedIssuers"];
+  clock?: () => Date;
+};
+
 async function withReplicaDb(
   run: (first: Plane, second: Plane) => Promise<void>,
-  options: {
-    claimPepper: string;
-    trustedIssuers?: NonNullable<
-      Parameters<typeof createControlPlane>[0]
-    >["openid4vpTrustedIssuers"];
-    clock?: () => Date;
-  },
+  options: ReplicaDbOptions,
 ) {
   resetInteractionLinkBudget();
   const client = new PGlite();
@@ -43,12 +45,8 @@ async function withReplicaDb(
         import.meta.url,
       ).pathname,
     });
-    const shared = {
+    const shared: Parameters<typeof createControlPlane>[0] = {
       database: overlapCast(db),
-      ...(options.clock ? { clock: options.clock } : {}),
-      ...(options.trustedIssuers
-        ? { openid4vpTrustedIssuers: options.trustedIssuers }
-        : {}),
       config: {
         publicUrl: ISSUER,
         issuer: ISSUER,
@@ -66,6 +64,10 @@ async function withReplicaDb(
         },
       },
     };
+    if (options.clock) shared.clock = options.clock;
+    if (options.trustedIssuers) {
+      shared.openid4vpTrustedIssuers = options.trustedIssuers;
+    }
     const first = createControlPlane(shared);
     const second = createControlPlane(shared);
     await Promise.all([

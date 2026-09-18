@@ -1,0 +1,42 @@
+{
+  "objectives": [
+    {
+      "objective": "Visual/Source prefs draft",
+      "workId": "DOC-EDIT",
+      "entry": "apps/pages/src/sections/settings/GeneralPrefsPanel.tsx",
+      "domain": "apps/pages/src/lib/configuration/prefs-adapter.ts",
+      "tests": [
+        "apps/pages/src/lib/configuration/yaml-profile.test.ts",
+        "apps/pages/src/lib/configuration/prefs-adapter.test.ts",
+        "apps/pages/src/sections/settings/GeneralPrefsPanel.test.tsx"
+      ]
+    },
+    {
+      "objective": "Path aliases ADV-01",
+      "workId": "CFG-TREE",
+      "entry": "apps/pages/src/lib/configuration/registry.ts",
+      "tests": ["apps/pages/src/lib/configuration/registry.test.ts"]
+    },
+    {
+      "objective": "Commands and views",
+      "workId": "NAV-ACTIONS",
+      "entry": "apps/pages/src/lib/configuration/actions.ts",
+      "tests": ["apps/pages/src/lib/configuration/nav.test.ts"]
+    },
+    {
+      "objective": "Hosted claims and client_credentials",
+      "workId": "OID-CLAIMS",
+      "entry": "packages/oauth-provider/src/claims/project-account-claims.ts",
+      "tests": [
+        "packages/oauth-provider/src/__tests__/project-account-claims.test.ts",
+        "packages/oauth-provider/src/__tests__/client-credentials.test.ts"
+      ]
+    },
+    {
+      "objective": "SCIM groups selector-remove",
+      "workId": "DIR-GROUPS",
+      "entry": "apps/control-plane/src/routes/scim-groups.ts",
+      "tests": ["apps/control-plane/src/__tests__/scim-groups.test.ts"]
+    }
+  ]
+}

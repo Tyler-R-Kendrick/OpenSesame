@@ -91,7 +91,9 @@ export function SupportPanel(): ReactElement {
   const goals = useMemo(() => goalsForRoute(view.route), [view.route]);
 
   const availability = view.availability;
-  const canAsk = availability?.kind === "ready" && !view.thinking;
+  // Asking must work with no local model: refuseUntrustedProposal and authored
+  // topic fallbacks run before or without ensureEngine.
+  const canAsk = !view.thinking;
 
   const questions = useMemo(() => {
     const fromTopics = questionsFromTopics(topics, support, canAsk);

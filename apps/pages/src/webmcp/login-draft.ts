@@ -37,6 +37,7 @@ export function useWebMcpLoginDraft(
         const applied = applyLoginDraftPatch(current, changes);
         patchRef.current(applied);
         return loginDraftView(
+          // SAFETY: test/fixture or boundary-checked value matches VaultItem,.
           { ...current, ...applied } as VaultItem,
           foldersRef.current,
         );

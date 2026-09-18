@@ -26,7 +26,11 @@ export type AppCommand =
   | { action: "open_item"; query: string }
   | { action: "copy_field"; query: string; field: CommandField }
   | { action: "search"; query: string }
-  | { action: "help" };
+  | { action: "help" }
+  /** A configuration document from the palette registry, by its route. */
+  | { action: "open_path"; path: string; label: string }
+  /** A path the registry refuses to open, with the reason to show. */
+  | { action: "refuse"; message: string };
 
 export type CommandOutcome =
   | { ok: true; message: string }

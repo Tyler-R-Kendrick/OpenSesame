@@ -49,6 +49,8 @@ jobs:
         run: pnpm typecheck
       - name: Test
         run: pnpm test
+      - name: Product-experience contracts
+        run: pnpm verify:experience
 
   bundle:
     name: Bundle budgets

@@ -8,23 +8,9 @@ import {
 } from "@opensesame/os-domain";
 /**
  * Directory client (Identity plane) — the people/providers/orgs reads and
- * writes behind the Identity screen (ADR 0060).
- *
- * Everything here binds an existing control-plane route through
- * `identityFetch`, with the same caller identity as the rest of Pages:
- *
- * - the principal itself and its linked external identities
- *   (`/v1/principals/me`, `/v1/principals/identities`);
- * - owner-fenced OAuth client CRUD (`/v1/oauth/clients`) — the "service
- *   accounts that aren't people" surface;
- * - organization membership management (`/v1/organizations/:id/members`,
- *   owner-only) and organization creation;
- * - device approval (`/v1/device/approve`) — the control plane holds the
- *   operator token and proxies to the Host.
- *
- * Nothing here ever receives a credential. Rotating an OAuth client mints a
- * new client id server-side and revokes the old one — the client id is all
- * the response carries, so it is all this screen can show.
+ * writes behind the Identity screen (ADR 0060). Everything here binds an
+ * existing control-plane route through `identityFetch`. Rotating an OAuth
+ * client mints a new client id server-side and revokes the old one.
  */
 
 import { identityBase, identityFetch } from "./identity.js";
@@ -56,6 +42,7 @@ export type OAuthClient = {
   sectorIdentifier: string;
   tokenEndpointAuthMethod: string;
   allowedScopes: string[];
+  grantTypes: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -223,6 +210,7 @@ function toOAuthClient(value: BoundaryValue): OAuthClient {
     sectorIdentifier: String(raw.sectorIdentifier ?? ""),
     tokenEndpointAuthMethod: String(raw.tokenEndpointAuthMethod ?? ""),
     allowedScopes: strings(raw.allowedScopes),
+    grantTypes: strings(raw.grantTypes),
     createdAt: String(raw.createdAt ?? ""),
     updatedAt: String(raw.updatedAt ?? ""),
   };

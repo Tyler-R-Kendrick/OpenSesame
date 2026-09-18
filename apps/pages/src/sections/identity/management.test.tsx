@@ -213,7 +213,29 @@ it("edits application redirects without replacing its subject sector", async () 
       body: {
         displayName: "Updated RP",
         redirectUris: ["https://rp.example/callback"],
+        grantTypes: ["authorization_code"],
+        tokenEndpointAuthMethod: "none",
       },
     },
   ]);
+});
+
+it("saves hosted application source through the Identity PATCH adapter", async () => {
+  const user = userEvent.setup();
+  const saved = vi.fn();
+  render(
+    <EditApplication
+      client={makeClient()}
+      online
+      onSaved={saved}
+      onCancel={() => undefined}
+    />,
+  );
+  await user.click(screen.getByRole("button", { name: "Source" }));
+  // SAFETY: fixture constructed in this test matches the declared contract.
+  const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
+  expect(source.value).toContain("Registration is not consent");
+  await user.click(screen.getByRole("button", { name: "Save application" }));
+  await waitFor(() => expect(saved).toHaveBeenCalledOnce());
+  expect(writes[0]?.path).toBe("/v1/oauth/clients/cli_1");
 });

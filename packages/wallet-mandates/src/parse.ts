@@ -1,18 +1,21 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import type { MandateClaims, MandateConstraints } from "./types.js";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
+function str(value: BoundaryValue): string | undefined {
+  return isString(value) ? value : undefined;
 }
 
-function str(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+function num(value: BoundaryValue): number | undefined {
+  return isNumber(value) ? value : undefined;
 }
 
-function num(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function roleOf(value: unknown): "cart" | "payment" | undefined {
+function roleOf(value: BoundaryValue): "cart" | "payment" | undefined {
   if (value === "cart" || value === "payment") return value;
   return undefined;
 }
@@ -21,8 +24,10 @@ function nonNegativeInt(value: string | undefined): value is string {
   return value !== undefined && /^[0-9]+$/u.test(value);
 }
 
-function parseConstraints(value: unknown): MandateConstraints | undefined {
-  if (!isRecord(value)) return undefined;
+function parseConstraints(
+  value: BoundaryValue,
+): MandateConstraints | undefined {
+  if (!isJsonObject(value)) return undefined;
   const maxAmount = str(value.maxAmount);
   const currency = str(value.currency);
   const recipient = str(value.recipient);
@@ -47,7 +52,7 @@ function parseConstraints(value: unknown): MandateConstraints | undefined {
   };
 }
 
-function hasCrit(value: unknown): boolean {
+function hasCrit(value: BoundaryValue): boolean {
   return (
     Array.isArray(value) &&
     value.includes("constraints") &&
@@ -55,18 +60,23 @@ function hasCrit(value: unknown): boolean {
   );
 }
 
-export function asClaims(payload: unknown): MandateClaims | null {
-  if (!isRecord(payload)) return null;
-  const iss = str(payload.iss);
-  const aud = str(payload.aud);
-  const sub = str(payload.sub);
-  const jti = str(payload.jti);
-  const iat = num(payload.iat);
-  const exp = num(payload.exp);
-  const role = roleOf(payload.role);
-  const cartHash = str(payload.cartHash);
-  const amount = str(payload.amount);
-  const constraints = parseConstraints(payload.constraints);
+function asObject(payload: BoundaryValue): JsonObject | null {
+  return isJsonObject(payload) ? payload : null;
+}
+
+export function asClaims(payload: BoundaryValue): MandateClaims | null {
+  const record = asObject(payload);
+  if (!record) return null;
+  const iss = str(record.iss);
+  const aud = str(record.aud);
+  const sub = str(record.sub);
+  const jti = str(record.jti);
+  const iat = num(record.iat);
+  const exp = num(record.exp);
+  const role = roleOf(record.role);
+  const cartHash = str(record.cartHash);
+  const amount = str(record.amount);
+  const constraints = parseConstraints(record.constraints);
   if (
     iss === undefined ||
     aud === undefined ||
@@ -78,8 +88,8 @@ export function asClaims(payload: unknown): MandateClaims | null {
     cartHash === undefined ||
     !nonNegativeInt(amount) ||
     constraints === undefined ||
-    payload.protection !== "required" ||
-    !hasCrit(payload.crit)
+    record.protection !== "required" ||
+    !hasCrit(record.crit)
   ) {
     return null;
   }
@@ -100,13 +110,14 @@ export function asClaims(payload: unknown): MandateClaims | null {
 }
 
 export function malformedReason(
-  payload: unknown,
+  payload: BoundaryValue,
 ): "protection_downgrade" | "constraint_stripped" | "critical_missing" {
-  if (isRecord(payload)) {
-    if (payload.protection === "optional" || payload.protection === "none") {
+  const record = asObject(payload);
+  if (record) {
+    if (record.protection === "optional" || record.protection === "none") {
       return "protection_downgrade";
     }
-    if (payload.constraints === undefined) return "constraint_stripped";
+    if (record.constraints === undefined) return "constraint_stripped";
   }
   return "critical_missing";
 }

@@ -8,6 +8,10 @@ import {
   listAccessRequests,
 } from "../../lib/access-requests.js";
 import {
+  type InboxStatusFilter,
+  filterInboxRows,
+} from "../../lib/configuration/inbox-triage.js";
+import {
   isRemoteIdentityConfigured,
   useIdentitySession,
 } from "../../lib/identity.js";
@@ -184,8 +188,35 @@ function InboxRows({
   state,
 }: { online: boolean; state: ReturnType<typeof useConnectedInbox> }) {
   const { inbox, selected, setSelected } = state;
+  const [filter, setFilter] = useState<InboxStatusFilter>("all");
+  const visible = filterInboxRows(
+    (inbox.requests ?? []).map((row) => ({
+      id: row.authReqId,
+      status: row.status,
+      expiresAt: row.expiresAt,
+      plane: "hosted" as const,
+    })),
+    filter,
+  );
+  const visibleIds = new Set(visible.map((row) => row.id));
   return (
     <>
+      <label>
+        Show{" "}
+        <select
+          aria-label="Approval status filter"
+          value={filter}
+          onChange={(event) =>
+            // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
+            setFilter(event.target.value as InboxStatusFilter)
+          }
+        >
+          <option value="pending">pending</option>
+          <option value="expired">expired</option>
+          <option value="decided">decided</option>
+          <option value="all">all</option>
+        </select>
+      </label>
       {inbox.requests === null && !inbox.error ? (
         <output>{online ? "Loading approvals…" : "Offline."}</output>
       ) : null}
@@ -198,44 +229,47 @@ function InboxRows({
         </>
       ) : null}
       <ul className="access-requests">
-        {inbox.requests?.map((row) => (
-          <li className="access-request" key={row.authReqId}>
-            <div className="access-request__top">
-              <h3>{row.bindingMessage}</h3>
-              <span className="chip">{row.status}</span>
-              {row.status === "pending" ? (
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  aria-expanded={selected === row.authReqId}
-                  onClick={() =>
-                    setSelected(
-                      selected === row.authReqId ? null : row.authReqId,
-                    )
-                  }
-                >
-                  Review request
-                </button>
+        {inbox.requests
+          ?.filter((row) => visibleIds.has(row.authReqId))
+          .map((row) => (
+            <li className="access-request" key={row.authReqId}>
+              <div className="access-request__top">
+                <h3>{row.bindingMessage}</h3>
+                <span className="chip">hosted</span>
+                <span className="chip">{row.status}</span>
+                {row.status === "pending" ? (
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    aria-expanded={selected === row.authReqId}
+                    onClick={() =>
+                      setSelected(
+                        selected === row.authReqId ? null : row.authReqId,
+                      )
+                    }
+                  >
+                    Review request
+                  </button>
+                ) : null}
+              </div>
+              {selected === row.authReqId && row.status === "pending" ? (
+                <ApprovalReview
+                  key={row.authReqId}
+                  request={row}
+                  online={online}
+                  onDecided={(result) => {
+                    inbox.setRequests(
+                      (rows) =>
+                        rows?.map((item) =>
+                          item.authReqId === result.authReqId ? result : item,
+                        ) ?? [],
+                    );
+                    setSelected(null);
+                  }}
+                />
               ) : null}
-            </div>
-            {selected === row.authReqId && row.status === "pending" ? (
-              <ApprovalReview
-                key={row.authReqId}
-                request={row}
-                online={online}
-                onDecided={(result) => {
-                  inbox.setRequests(
-                    (rows) =>
-                      rows?.map((item) =>
-                        item.authReqId === result.authReqId ? result : item,
-                      ) ?? [],
-                  );
-                  setSelected(null);
-                }}
-              />
-            ) : null}
-          </li>
-        ))}
+            </li>
+          ))}
       </ul>
     </>
   );

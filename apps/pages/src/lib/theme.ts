@@ -20,6 +20,7 @@ const listeners = new Set<() => void>();
 let cached: ThemeId | null = null;
 
 function isThemeId(value: string): value is ThemeId {
+  // SAFETY: test/fixture or boundary-checked value matches readonly string[]).includes(value).
   return (THEME_IDS as readonly string[]).includes(value);
 }
 

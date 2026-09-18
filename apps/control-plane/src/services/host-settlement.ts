@@ -113,17 +113,21 @@ export function settleHostSubject(
   facts: SettledSubjectFacts = {},
 ): HostEffect {
   const observed = observeSettledSubject(ceremony, interaction, facts);
-  const effect: HostEffect = {
+  let effect: HostEffect = {
     kind: interaction.kind,
     subjectId: interaction.subject.subjectId,
     outcome: observed.outcome,
     eventType,
-    ...(interaction.requestDigest
-      ? { requestDigest: interaction.requestDigest }
-      : {}),
-    ...(observed.sessionId ? { sessionId: observed.sessionId } : {}),
-    ...(observed.grantId ? { grantId: observed.grantId } : {}),
   };
+  if (interaction.requestDigest) {
+    effect = { ...effect, requestDigest: interaction.requestDigest };
+  }
+  if (observed.sessionId) {
+    effect = { ...effect, sessionId: observed.sessionId };
+  }
+  if (observed.grantId) {
+    effect = { ...effect, grantId: observed.grantId };
+  }
   store.record(effect);
   return effect;
 }

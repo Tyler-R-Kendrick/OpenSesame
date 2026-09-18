@@ -88,6 +88,8 @@ export async function executeCommand(
   ports: CommandPorts,
 ): Promise<CommandOutcome> {
   switch (command.action) {
+    case "refuse":
+      return { ok: false, message: command.message };
     case "help":
       return {
         ok: true,
@@ -97,6 +99,9 @@ export async function executeCommand(
     case "navigate":
       ports.navigate(command.path);
       return { ok: true, message: `Opened ${command.path}` };
+    case "open_path":
+      ports.navigate(command.path);
+      return { ok: true, message: `Opened ${command.label}` };
     case "search":
       ports.navigate(`/vault?q=${encodeURIComponent(command.query)}`);
       return { ok: true, message: `Searching for “${command.query}”` };

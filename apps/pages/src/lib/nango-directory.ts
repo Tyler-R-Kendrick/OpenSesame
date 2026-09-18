@@ -176,13 +176,18 @@ function rejectOnAbort(signal: AbortSignal): Promise<never> {
   });
 }
 
+type FetchJsonResult = {
+  status: number;
+  body: BoundaryValue | null;
+};
+
 async function fetchJson(
   url: string,
   key: string,
   fetchImpl: typeof fetch,
-): Promise<{ status: number; body: BoundaryValue | null }> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (key) headers.Authorization = `Bearer ${key}`;
+): Promise<FetchJsonResult> {
+  const headers = new Headers({ Accept: "application/json" });
+  if (key) headers.set("Authorization", `Bearer ${key}`);
   // One timer over the whole exchange, headers and body alike: a directory
   // that answers its headers and then stalls would otherwise hold the sync
   // open for good, with every control on the panel disabled behind it.

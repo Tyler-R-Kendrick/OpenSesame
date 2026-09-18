@@ -119,6 +119,13 @@ function SessionList({
         <div className="panel__head">
           <div>
             <h2>Host task sessions</h2>
+            <p className="hint">
+              Host task sessions are not vault share sessions, hosted identity
+              sessions, or unattended machine credentials. Revoking one kind
+              does not impersonate another. An unattended JWT accepted offline
+              stays usable until its 3600-second bound, not until this list
+              refreshes.
+            </p>
           </div>
           <button
             type="button"

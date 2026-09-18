@@ -160,3 +160,35 @@ it("persists explicit scope roles without silently granting a new scope", async 
     screen.getByRole("checkbox", { name: "records:read: member" }),
   ).toHaveProperty("checked", false);
 });
+
+it("shares Visual and Source over the same registration", async () => {
+  await open();
+  await screen.findByRole("button", { name: "Save registration" });
+  await userEvent.click(screen.getByRole("button", { name: "Source" }));
+  // SAFETY: fixture constructed in this test matches the declared contract.
+  const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
+  expect(source.value).toContain("Registration is not consent");
+  expect(source.value).toContain("https://rp.example.test/callback");
+  await userEvent.click(screen.getByRole("button", { name: "Visual" }));
+  expect(
+    screen.getByRole("button", { name: "Save registration" }),
+  ).toBeTruthy();
+});
+
+it("saves a source edit through configureLocalApplication", async () => {
+  await open();
+  await userEvent.click(await screen.findByRole("button", { name: "Source" }));
+  // SAFETY: fixture constructed in this test matches the declared contract.
+  const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
+  const next = source.value.replace(
+    "https://rp.example.test/callback",
+    "https://rp.example.test/other",
+  );
+  await userEvent.clear(source);
+  await userEvent.paste(next);
+  await userEvent.click(screen.getByRole("button", { name: "Save source" }));
+  await waitFor(async () => {
+    const saved = (await readLocalApplications(tomb)).applications[0];
+    expect(saved?.redirectUris).toEqual(["https://rp.example.test/other"]);
+  });
+});

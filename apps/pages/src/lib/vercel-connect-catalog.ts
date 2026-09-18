@@ -134,7 +134,7 @@ const ROWS: [string, string, Methods][] = [
 
 const BLOCKED = new Set(["stripe", "razorpay", "agentcard"]);
 
-const CATEGORY: Record<string, Provider["category"]> = {
+const CATEGORY = {
   auth0: "identity",
   clerk: "identity",
   okta: "identity",
@@ -184,12 +184,14 @@ const CATEGORY: Record<string, Provider["category"]> = {
   ngrok: "networking",
   oauth: "custom",
   "api-key": "custom",
-};
+} satisfies Record<string, Provider["category"]>;
+
+const EMPTY_STRING_LIST: string[] = [];
 
 const EMPTY_EGRESS = {
   scheme: "https",
-  authorities: [] as string[],
-  pathPrefixes: [] as string[],
+  authorities: EMPTY_STRING_LIST,
+  pathPrefixes: EMPTY_STRING_LIST,
 };
 
 function authKind(methods: Methods): AuthKind {
@@ -203,7 +205,10 @@ function toProvider(row: [string, string, Methods]): Provider {
   return {
     id,
     displayName,
-    category: CATEGORY[id] ?? "developer",
+    category: Object.hasOwn(CATEGORY, id)
+      ? // SAFETY: Object.hasOwn checked id is a CATEGORY key above.
+        CATEGORY[id as keyof typeof CATEGORY]
+      : "developer",
     docsUrl: `https://vercel.com/connect/${id}`,
     authKind: authKind(methods),
     supportsRefresh: methods === "managed" || methods === "oauth",

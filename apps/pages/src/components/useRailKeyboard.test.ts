@@ -2,10 +2,12 @@
 import { describe, expect, it } from "vitest";
 import { railMoveNavigates } from "./useRailKeyboard.js";
 
-function row(attrs: {
+type RailRowAttrs = {
   expanded?: "true" | "false";
   level: string;
-}): HTMLElement {
+};
+
+function row(attrs: RailRowAttrs): HTMLElement {
   const node = document.createElement("a");
   node.setAttribute("aria-level", attrs.level);
   if (attrs.expanded) node.setAttribute("aria-expanded", attrs.expanded);

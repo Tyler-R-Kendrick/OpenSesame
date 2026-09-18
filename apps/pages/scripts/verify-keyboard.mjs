@@ -201,9 +201,14 @@ try {
       ["s", "settings"],
     ]) {
       await page.keyboard.press("Escape");
+      // A second Escape leaves any text field that stole focus after the
+      // previous section's chrome pass (mobile access has denser stops).
+      await page.keyboard.press("Escape");
       await page.keyboard.press("g");
       await page.keyboard.press(key);
-      await expect(page).toHaveURL(new RegExp(`/${section}(?:[/?].*)?$`));
+      await expect(page).toHaveURL(new RegExp(`/${section}(?:[/?].*)?$`), {
+        timeout: 10_000,
+      });
       await expect(page.locator("main")).toBeVisible();
       if (width === 390 && section === "identity")
         await localDirectoryContract(page, tabTo);

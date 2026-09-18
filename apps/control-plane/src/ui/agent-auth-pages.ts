@@ -23,7 +23,7 @@ export function safeAgentAuthReturnTo(value: string): string {
   return value;
 }
 
-const CLAIM_ERROR_COPY: Record<string, string> = {
+const CLAIM_ERROR_COPY = {
   invalid_user_code:
     "That code does not match. Ask the agent for the current 6 digits and try again.",
   expired_token:
@@ -33,10 +33,14 @@ const CLAIM_ERROR_COPY: Record<string, string> = {
   invalid_request:
     "This claim link is not valid. Start the ceremony again from the agent.",
   unauthorized: "Sign in first, then return to enter the code.",
-};
+} as const;
 
 export function claimErrorCopy(error: string): string {
-  return CLAIM_ERROR_COPY[error] ?? error;
+  if (Object.hasOwn(CLAIM_ERROR_COPY, error)) {
+    // SAFETY: Object.hasOwn established error as a CLAIM_ERROR_COPY key.
+    return CLAIM_ERROR_COPY[error as keyof typeof CLAIM_ERROR_COPY];
+  }
+  return error;
 }
 
 /** Pages unlock/sign-in tokens and layout, inlined for the Identity CSP. */

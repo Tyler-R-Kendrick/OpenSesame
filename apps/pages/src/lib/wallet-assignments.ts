@@ -3,6 +3,11 @@
  */
 
 import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+import {
   onWalletTombChange,
   walletStorageKey,
 } from "./wallet-storage-scope.js";
@@ -27,19 +32,14 @@ function readAll(): Record<string, string> {
       cache = {};
       return cache;
     }
-    const parsed: unknown = JSON.parse(raw);
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) {
       cache = {};
       return cache;
     }
     const out: Record<string, string> = {};
     for (const [itemId, budgetId] of Object.entries(parsed)) {
-      if (typeof budgetId === "string" && budgetId !== "")
-        out[itemId] = budgetId;
+      if (isString(budgetId) && budgetId !== "") out[itemId] = budgetId;
     }
     cache = out;
     return cache;
@@ -49,10 +49,10 @@ function readAll(): Record<string, string> {
   }
 }
 
-function writeAll(next: Record<string, string>): void {
-  cache = next;
+function persistCache(): void {
+  if (cache === null) return;
   try {
-    localStorage.setItem(assignmentKey(), JSON.stringify(next));
+    localStorage.setItem(assignmentKey(), JSON.stringify(cache));
   } catch {
     // Keep memory copy if storage is unavailable.
   }
@@ -75,7 +75,8 @@ export function assignInstrumentBudget(
   const next = { ...readAll() };
   if (budgetId === null || budgetId === "") delete next[itemId];
   else next[itemId] = budgetId;
-  writeAll(next);
+  cache = next;
+  persistCache();
 }
 
 export function setBudgetInstruments(
@@ -87,7 +88,8 @@ export function setBudgetInstruments(
     if (bound === budgetId) delete next[itemId];
   }
   for (const itemId of itemIds) next[itemId] = budgetId;
-  writeAll(next);
+  cache = next;
+  persistCache();
 }
 
 export function unbindBudget(budgetId: string): void {

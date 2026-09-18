@@ -37,13 +37,13 @@ import {
 } from "../../lib/secret-configs.js";
 import { loadSettings } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
+import { SecretConfigEmptyCreate } from "./SecretConfigEmptyCreate.js";
+import { type Flash, SecretConfigFlash } from "./SecretConfigFlash.js";
 import { SecretConfigHeading } from "./SecretConfigHeading.js";
 import {
   SecretConfigBranchForm,
   SecretConfigSetForm,
 } from "./SecretConfigWriteForms.js";
-
-import { type Flash, SecretConfigFlash } from "./SecretConfigFlash.js";
 
 const CHANGELOG_PAGE_SIZE = 20;
 
@@ -358,10 +358,10 @@ export function SecretConfigsPanel() {
         ) : !access.metadata && !loading ? (
           <p className="hint">Project configs are not shared with this role.</p>
         ) : configs.length === 0 && !loading ? (
-          <p className="hint">
-            No configs yet for this project. Create them with{" "}
-            <code>POST /api/v1/projects/&lt;id&gt;/configs</code>.
-          </p>
+          <SecretConfigEmptyCreate
+            projectId={projectId}
+            onCreated={() => void refreshConfigs()}
+          />
         ) : (
           <>
             <label className="field">

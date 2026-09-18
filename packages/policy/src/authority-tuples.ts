@@ -8,6 +8,7 @@
  */
 
 import type { AuthorityGrant } from "@opensesame/os-domain";
+import {} from "@opensesame/os-domain";
 
 /** OpenFGA tuple key wire shape (matches `crates/provider-openfga::TupleKey`). */
 export type OpenFgaTupleKey = {
@@ -227,7 +228,7 @@ export function grantToOpenFgaTuples(
   pushScopeTuples(grant, bag);
 
   const mapped = mapResources(grant, bag);
-  if (typeof mapped !== "boolean") return mapped;
+  if (mapped !== true && mapped !== false) return mapped;
 
   if (
     bag.tuples.length === 0 &&

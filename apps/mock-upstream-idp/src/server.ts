@@ -37,7 +37,7 @@ import {
 } from "./oidc-crypto.js";
 import {
   originFromClientId,
-  refuseAuthorizeShape,
+  refuseInvalidAuthorizeRequest,
   refusePromptNoneWithoutSession,
 } from "./prompt-none.js";
 import { type ClientRegistry, registerClient } from "./registration.js";
@@ -476,7 +476,7 @@ export async function createMockUpstreamIdp(
           );
         }
         if (
-          refuseAuthorizeShape({
+          refuseInvalidAuthorizeRequest({
             res,
             issuer: config.issuer,
             responseType,

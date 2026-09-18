@@ -179,7 +179,7 @@ function journalToWire(entry: JournalEntry): JsonObject {
 
 function parseClosedOrCeiling(
   value: JsonObject,
-  kind: unknown,
+  kind: BoundaryValue,
 ): JournalEntry | null {
   if (kind === "node_closed") {
     if (!isString(value.nodeId)) throw new Error("nodeId required");

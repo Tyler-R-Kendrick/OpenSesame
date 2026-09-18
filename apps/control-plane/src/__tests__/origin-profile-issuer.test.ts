@@ -2,19 +2,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
-
 type Started = Awaited<ReturnType<typeof startServer>>;
-
 const ORIGIN = "http://127.0.0.1:4101";
 const CLIENT_ID = `origin:${ORIGIN}`;
 const REDIRECT_URI = `${ORIGIN}/opensesame/callback`;
-
 function pkce() {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   return { verifier, challenge };
 }
-
 function authUrl(port: number, challenge: string): string {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -28,7 +24,6 @@ function authUrl(port: number, challenge: string): string {
   });
   return `http://127.0.0.1:${port}/auth?${params.toString()}`;
 }
-
 async function startOriginServer(enabled: boolean): Promise<Started> {
   const { startServer: start } = await import("../server.js");
   return start({
@@ -44,13 +39,25 @@ async function startOriginServer(enabled: boolean): Promise<Started> {
     },
   });
 }
-
+async function ensureAccount(
+  started: Started,
+  accountId: string,
+): Promise<void> {
+  const now = started.ctx.clock();
+  await started.ctx.repos.principals.create({
+    id: accountId,
+    state: "active",
+    assurance: "verified",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
 async function stop(started: Started): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     started.server.close((err) => (err ? reject(err) : resolve()));
   });
 }
-
 function decodeJwtPayload(jwt: string): JsonObject {
   const part = jwt.split(".")[1];
   if (!part) throw new Error("not a jwt");
@@ -58,7 +65,6 @@ function decodeJwtPayload(jwt: string): JsonObject {
     JSON.parse(Buffer.from(part, "base64url").toString("utf8")),
   );
 }
-
 describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
   it("auto-admits an origin client on /auth and begins an interaction when the flag is on", async () => {
     const started = await startOriginServer(true);
@@ -69,7 +75,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       });
       expect(res.status).toBe(303);
       expect(res.headers.get("location")).toMatch(/^\/interaction\//);
-
       // Auto-admission persisted the fixed public-client profile (F2/F4).
       const record = await started.ctx.oauth.clientStore.findById(CLIENT_ID);
       expect(record).toMatchObject({
@@ -84,7 +89,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         redirectUris: [REDIRECT_URI],
         state: "active",
       });
-
       // The persisted origin is now the exact CORS origin for /token.
       const preflight = await fetch(`http://127.0.0.1:${started.port}/token`, {
         method: "OPTIONS",
@@ -97,7 +101,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("rejects origin client_ids on /auth when the flag is off", async () => {
     const started = await startOriginServer(false);
     try {
@@ -109,7 +112,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       expect(
         await started.ctx.oauth.clientStore.findById(CLIENT_ID),
       ).toBeUndefined();
-
       // Nothing persisted: no CORS allowance either.
       const preflight = await fetch(`http://127.0.0.1:${started.port}/token`, {
         method: "OPTIONS",
@@ -120,7 +122,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R1: /token OPTIONS from a non-persisted origin gets no Access-Control-Allow-Origin", async () => {
     const started = await startOriginServer(true);
     try {
@@ -131,7 +132,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       expect(res.headers.get("access-control-allow-origin")).toBeNull();
       expect(res.headers.get("vary")).toContain("Origin");
       expect(res.status).toBe(403);
-
       // The probe must not have inserted a client row (F2 lookup-only).
       expect(
         await started.ctx.oauth.clientStore.findById(
@@ -142,7 +142,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R2: /token POST with a mismatched or missing Origin is 403 origin_cors_denied and never reaches oidc-provider", async () => {
     const started = await startOriginServer(true);
     try {
@@ -151,7 +150,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         redirect: "manual",
       });
       expect(admit.status).toBe(303);
-
       const body = new URLSearchParams({
         grant_type: "authorization_code",
         client_id: CLIENT_ID,
@@ -159,7 +157,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         redirect_uri: REDIRECT_URI,
         code_verifier: "any-verifier",
       });
-
       const mismatched = await fetch(`http://127.0.0.1:${started.port}/token`, {
         method: "POST",
         headers: {
@@ -272,6 +269,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const client = await provider.Client.find(CLIENT_ID);
       expect(client).toBeDefined();
       const accountId = "prn_static_site_user";
+      await ensureAccount(started, accountId);
       const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
       grant.addOIDCScope("openid");
       await grant.save();
@@ -364,6 +362,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const provider = started.ctx.oauth.provider;
       const client = await provider.Client.find(CLIENT_ID);
       const accountId = "prn_static_site_user";
+      await ensureAccount(started, accountId);
       const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
       grant.addOIDCScope("openid");
       await grant.save();
@@ -467,6 +466,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const clientB = `origin:${originB}`;
       const redirectB = `${originB}/opensesame/callback`;
       const accountId = "prn_static_site_user";
+      await ensureAccount(started, accountId);
 
       async function mintSub(
         origin: string,

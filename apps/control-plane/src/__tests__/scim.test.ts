@@ -9,9 +9,9 @@ import { createControlPlane } from "../create-app.js";
 import {
   SCIM_TOKEN_PREFIX,
   provisionedRoleForSubject,
+  putGroupRoleMapping,
   roleForGroupName,
 } from "../routes/scim.js";
-
 /**
  * SCIM 2.0 provisioning, end to end (C15, D11).
  *
@@ -521,10 +521,10 @@ describe("SCIM Users surface", () => {
 });
 
 describe("SCIM Groups role mapping", () => {
-  it("maps a group name to an org role", () => {
-    expect(roleForGroupName("Owners")).toBe("owner");
-    expect(roleForGroupName("acme-admins")).toBe("admin");
-    expect(roleForGroupName("OpenSesame Members")).toBe("member");
+  it("does not infer a role from a group name", () => {
+    expect(roleForGroupName("Owners")).toBeUndefined();
+    expect(roleForGroupName("acme-admins")).toBeUndefined();
+    expect(roleForGroupName("OpenSesame Members")).toBeUndefined();
     expect(roleForGroupName("Engineering")).toBeUndefined();
   });
 
@@ -533,6 +533,7 @@ describe("SCIM Groups role mapping", () => {
     const { owner, org } = await seedTenant(app, "groups-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
+    await putGroupRoleMapping(ctx, org.id, "acme-owners", "owner");
     const created = await provisionUser(app, org.id, token, {
       userName: "ada@groups.example",
       externalId: subject,
@@ -571,7 +572,6 @@ describe("SCIM Groups role mapping", () => {
       (await ctx.stores.organizationMemberships.find(org.id, guest.principalId))
         ?.role,
     ).toBe("owner");
-    // Recorded on the row too, so a later sign-in can join at the same role.
     expect(await provisionedRoleForSubject(ctx, org.id, subject)).toBe("owner");
 
     const demoted = await app.request(

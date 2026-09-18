@@ -7,6 +7,8 @@ import {
   speechSeams,
 } from "./speech.js";
 
+type SpeechRecHolder = { rec: SpeechRecognitionLike | null };
+
 describe("detectSpeechRecognition", () => {
   afterEach(resetSpeechSeams);
 
@@ -56,7 +58,7 @@ describe("createPushToTalk", () => {
 
   it("keeps a trailing result that arrives after onend", async () => {
     vi.useFakeTimers();
-    const box: { rec: SpeechRecognitionLike | null } = { rec: null };
+    const box: SpeechRecHolder = { rec: null };
     class FakeRec implements SpeechRecognitionLike {
       continuous = false;
       interimResults = false;
@@ -119,7 +121,7 @@ describe("createPushToTalk", () => {
   it("does not restart after a spontaneous end — that would drop the mic", () => {
     vi.useFakeTimers();
     let starts = 0;
-    const box: { rec: SpeechRecognitionLike | null } = { rec: null };
+    const box: SpeechRecHolder = { rec: null };
     const onEngineEnd = vi.fn();
     class FakeRec implements SpeechRecognitionLike {
       continuous = false;

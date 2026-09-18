@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import {
   getConnectorMetadata,
   revokeToken,
@@ -29,7 +30,7 @@ const originalStart = vercelConnectSeams.startAuthorization;
 const originalMeta = vercelConnectSeams.getConnectorMetadata;
 const originalRevoke = vercelConnectSeams.revokeToken;
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: JsonObject, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -56,6 +57,7 @@ function stubConnect(handler: (url: string, init?: RequestInit) => Response) {
   const spy = vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
     Promise.resolve(handler(String(input), init)),
   );
+  // SAFETY: fixture constructed in this test matches the declared contract.
   vercelConnectSeams.fetch = spy as typeof fetch;
   return spy;
 }

@@ -119,9 +119,9 @@ function looksLikeJwt(token: string): boolean {
   return token.split(".").length === 3;
 }
 
-function jwtAudience(aud: unknown): string | null {
-  if (typeof aud === "string") return aud;
-  if (Array.isArray(aud) && typeof aud[0] === "string") return aud[0];
+function jwtAudience(aud: BoundaryValue): string | null {
+  if (isString(aud)) return aud;
+  if (Array.isArray(aud) && isString(aud[0])) return aud[0];
   return null;
 }
 

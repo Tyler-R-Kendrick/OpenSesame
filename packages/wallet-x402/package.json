@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "@opensesame/wallet-policy": "workspace:*",
     "@x402/core": "2.26.0",
     "@x402/evm": "2.26.0",

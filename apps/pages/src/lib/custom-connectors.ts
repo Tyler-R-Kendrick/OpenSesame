@@ -1,5 +1,11 @@
 /** User-owned API key/OAuth connectors. Persist the public definition only. */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { CustomProviderAuth, Provider } from "./connections.js";
 import {
   ConnectionsError,
@@ -23,31 +29,46 @@ let cache: CustomConnectorInput[] | null = null;
 function parse(raw: string | null): CustomConnectorInput[] {
   if (!raw) return [];
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: BoundaryValue = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isInput);
+    const out: CustomConnectorInput[] = [];
+    for (const value of parsed) {
+      const input = readInput(value);
+      if (input) out.push(input);
+    }
+    return out;
   } catch {
     return [];
   }
 }
 
-function isInput(value: unknown): value is CustomConnectorInput {
-  if (!value || typeof value !== "object") return false;
-  const row = value as CustomConnectorInput;
+function readInput(value: BoundaryValue): CustomConnectorInput | null {
+  if (!isJsonObject(value)) return null;
   if (
-    typeof row.id !== "string" ||
-    typeof row.displayName !== "string" ||
-    typeof row.baseUrl !== "string" ||
-    !row.auth
+    !isString(value.id) ||
+    !isString(value.displayName) ||
+    !isString(value.baseUrl) ||
+    value.auth === undefined ||
+    value.auth === null
   ) {
-    return false;
+    return null;
   }
   try {
-    httpsOrigin(row.baseUrl);
-    if (row.docsUrl) httpsOrigin(row.docsUrl);
-    return true;
+    httpsOrigin(value.baseUrl);
+    const docsUrl = isString(value.docsUrl) ? value.docsUrl : undefined;
+    if (docsUrl) httpsOrigin(docsUrl);
+    // SAFETY: id/displayName/baseUrl string-checked; auth written only via createCustomProvider.
+    const auth = value.auth as CustomProviderAuth;
+    const input: CustomConnectorInput = {
+      id: value.id,
+      displayName: value.displayName,
+      baseUrl: value.baseUrl,
+      auth,
+    };
+    if (docsUrl) input.docsUrl = docsUrl;
+    return input;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -65,7 +86,7 @@ function httpsOrigin(raw: string): URL {
   return url;
 }
 
-function isHostOptionalFailure(error: unknown): boolean {
+function isHostOptionalFailure(error: BoundaryValue): boolean {
   return error instanceof ConnectionsError && error.code === "unreachable";
 }
 
@@ -130,7 +151,7 @@ export async function addCustomConnector(
   try {
     return await customConnectorSeams.createRemote(input);
   } catch (error) {
-    if (isHostOptionalFailure(error)) return provider;
+    if (isHostOptionalFailure(overlapCast(error))) return provider;
     await persist(load().filter((row) => row.id !== input.id));
     throw error;
   }
@@ -140,7 +161,7 @@ export async function removeCustomConnector(id: string): Promise<void> {
   try {
     await customConnectorSeams.deleteRemote(id);
   } catch (error) {
-    if (!isHostOptionalFailure(error)) throw error;
+    if (!isHostOptionalFailure(overlapCast(error))) throw error;
   }
   await persist(load().filter((row) => row.id !== id));
 }

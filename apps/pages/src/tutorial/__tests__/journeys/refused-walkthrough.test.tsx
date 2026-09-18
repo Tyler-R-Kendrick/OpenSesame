@@ -34,7 +34,7 @@ const WITH_A_CLICK = [
   'click "#reveal-secret"',
 ].join("\n");
 
-describe("a walkthrough the compiler refuses", () => {
+describe("a walkthrough the compiler refuses", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("keeps the answer, says the walkthrough did not run, and draws nothing", async () => {

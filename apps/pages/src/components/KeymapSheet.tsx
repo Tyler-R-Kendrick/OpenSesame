@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { keysForAction } from "../lib/configuration/nav-persist.js";
 import { KEYMAP_HELP } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
@@ -53,6 +54,16 @@ export function KeymapSheet({
                   <td>{action}</td>
                 </tr>
               ))}
+              {keysForAction("item.edit").map((key) =>
+                key === "e" ? null : (
+                  <tr key={`custom-${key}`}>
+                    <th scope="row">
+                      <kbd>{key}</kbd>
+                    </th>
+                    <td>Edit (custom)</td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         </div>

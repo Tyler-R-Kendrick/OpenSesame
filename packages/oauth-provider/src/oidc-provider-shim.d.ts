@@ -17,6 +17,7 @@ declare module "oidc-provider" {
     sector_identifier_uri?: string;
     scope?: string;
     application_type?: "web" | "native";
+    jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
   };
 
   export type AdapterPayload = import("@opensesame/os-domain").JsonObject & {
@@ -102,6 +103,21 @@ declare module "oidc-provider" {
     scopes?: string[];
     claims?: import("@opensesame/os-domain").JsonObject;
     interactions?: import("@opensesame/os-domain").JsonObject;
+    extraClientMetadata?: {
+      properties?: string[];
+      validator?: (
+        ctx: KoaContext,
+        key: string,
+        value: import("@opensesame/os-domain").BoundaryValue,
+        metadata: import("@opensesame/os-domain").BoundaryValue,
+      ) => void;
+    };
+    assertJwtClientAuthClaimsAndHeader?: (
+      ctx: KoaContext,
+      claims: import("@opensesame/os-domain").JsonObject,
+      header: import("@opensesame/os-domain").JsonObject,
+      client: import("@opensesame/os-domain").BoundaryValue,
+    ) => void | Promise<void>;
   };
 
   export class Provider {
@@ -121,6 +137,7 @@ declare module "oidc-provider" {
     InvalidTarget: OidcErrorConstructor;
     InvalidRequest: OidcErrorConstructor;
     InvalidClient: OidcErrorConstructor;
+    InvalidClientAuth: OidcErrorConstructor;
   };
   export default Provider;
 }

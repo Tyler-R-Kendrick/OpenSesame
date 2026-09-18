@@ -1,6 +1,7 @@
 export * from "./schema/index.js";
 export * from "./schema/authority.js";
 export * from "./schema/wallet-interactions.js";
+export * from "./schema/scim-groups.js";
 export * from "./repos/interfaces.js";
 export * from "./repos/wallet-interaction-types.js";
 export {
@@ -50,12 +51,16 @@ export {
 export {
   createMemoryScimStores,
   createPostgresScimStores,
+  type ScimGroupMapping,
+  type ScimGroupMappingStore,
+  type ScimGroupRecord,
+  type ScimGroupStore,
   type ScimStores,
   type ScimTokenRecord,
   type ScimTokenStore,
   type ScimUserRecord,
   type ScimUserStore,
-} from "./scim-store.js";
+} from "./scim-group-store.js";
 export {
   OrgEmailDomainConflictError,
   createMemoryOrgFederationStores,

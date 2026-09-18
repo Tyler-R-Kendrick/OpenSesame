@@ -4,6 +4,7 @@ import {
 } from "@opensesame/contracts";
 import {
   type BoundaryValue,
+  type JsonObject,
   isBoolean,
   isJsonObject,
   isString,
@@ -117,17 +118,47 @@ export function updateManagedAgent(
   );
 }
 
+type ApplicationUpdateExtras = {
+  allowedScopes?: string[];
+  grantTypes?: string[];
+  tokenEndpointAuthMethod?: string;
+};
+
 export function updateApplication(
   id: string,
   displayName: string,
   redirectUris: string[],
+  extras: ApplicationUpdateExtras = {},
 ) {
   return call(
     `/v1/oauth/clients/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
-      body: JSON.stringify({ displayName, redirectUris }),
+      body: JSON.stringify({
+        displayName,
+        redirectUris,
+        ...extras,
+      }),
     },
     () => undefined,
+  );
+}
+
+type HostedClaimsPreviewInput = {
+  scopes: string[];
+  persona: JsonObject;
+};
+
+export function previewHostedClaims(
+  id: string,
+  input: HostedClaimsPreviewInput,
+) {
+  return call(
+    `/v1/oauth/clients/${encodeURIComponent(id)}/claim-preview`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    (body) => (isJsonObject(body) ? body : {}),
   );
 }

@@ -50,12 +50,14 @@ export type NotificationsForm = "key" | "panel";
  * row and the desktop strip's key can never disagree — and so the health scan,
  * which walks every password, runs once per render rather than once per form.
  */
-export function useNotices(): {
+export type NoticesSnapshot = {
   notices: Notice[];
   health: ReturnType<typeof buildHealthReport>;
   queued: number;
   count: number;
-} {
+};
+
+export function useNotices(): NoticesSnapshot {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
   const { items } = notificationsBarDependencies.useVault();
   const health = useMemo(() => buildHealthReport(items), [items]);

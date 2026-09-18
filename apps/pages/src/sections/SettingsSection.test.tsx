@@ -6,9 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Folder } from "../lib/vault/model.js";
 import type { VaultPrefs } from "../lib/vault/store.js";
-
 type TestItem = { id: string; deletedAt?: string | null; sample?: boolean };
-
 const vault: {
   current: {
     prefs: VaultPrefs;
@@ -30,40 +28,43 @@ const vault: {
     header: null,
   },
 }));
-const store = vi.hoisted(() => ({
-  setPrefs: vi.fn(),
-  changeMasterPassword: vi.fn(),
-  addFolder: vi.fn(),
-  renameFolder: vi.fn(),
-  deleteFolder: vi.fn(),
-  addItems: vi.fn(),
-  replaceAll: vi.fn(),
-  exportSealed: vi.fn(),
-  importSealed: vi.fn(),
-  applyManifestMerge: vi.fn(),
-  destroy: vi.fn(),
-}));
-
+const store = vi.hoisted(() => {
+  const api = {
+    setPrefs: vi.fn(),
+    commitPrefs: vi.fn(),
+    writePrefsSource: vi.fn(async () => undefined),
+    readPrefsSource: vi.fn(async () => null),
+    activeTomb: () => "personal",
+    changeMasterPassword: vi.fn(),
+    addFolder: vi.fn(),
+    renameFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    addItems: vi.fn(),
+    replaceAll: vi.fn(),
+    exportSealed: vi.fn(),
+    importSealed: vi.fn(),
+    applyManifestMerge: vi.fn(),
+    destroy: vi.fn(),
+  };
+  api.commitPrefs.mockImplementation(async (next) => api.setPrefs(next));
+  return api;
+});
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
   useVaultStore: () => store,
 });
-
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
-
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
 Object.assign(settingsSeams, { loadSettings, saveSettings });
 const checkTurso = vi.hoisted(() => vi.fn());
 const setTursoSessionToken = vi.hoisted(() => vi.fn());
-
 import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
 const originalEmbeddedCatalogSeams = { ...embeddedCatalogSeams };
 Object.assign(embeddedCatalogSeams, { checkTurso, setTursoSessionToken });
-
 import { passwordSeams } from "../lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
 Object.assign(passwordSeams, {
@@ -75,7 +76,6 @@ Object.assign(passwordSeams, {
   defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
   generate: () => "harbor-cinder-lattice-quarry",
 });
-
 import { SAMPLE_FOLDER_NAME, sampleSeams } from "../lib/vault/sample.js";
 const originalSampleSeams = { ...sampleSeams };
 Object.assign(sampleSeams, {
@@ -84,15 +84,12 @@ Object.assign(sampleSeams, {
   ],
   sampleFolder: () => ({ id: "fld_samples", name: SAMPLE_FOLDER_NAME }),
 });
-
 const planManifestMerge = vi.hoisted(() => vi.fn());
 const vaultItemToEntry = vi.hoisted(() => vi.fn());
 import { storeSyncSeams } from "../lib/vault/store-sync.js";
 const originalStoreSyncSeams = { ...storeSyncSeams };
 Object.assign(storeSyncSeams, { planManifestMerge, vaultItemToEntry });
-
 import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
-
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
   WalletPassPanel: () => <div data-testid="wallet-pass-panel" />,
@@ -112,7 +109,6 @@ const stubPanels: SettingsPanels = {
   SyncTargetsPanel: () => <div data-testid="sync-targets-panel" />,
   TaskBusPanel: () => <div data-testid="taskbus-panel" />,
 };
-
 const endpoints = {
   hostApi: "http://127.0.0.1:8787",
   identityApi: "http://127.0.0.1:8788",
@@ -121,7 +117,6 @@ const endpoints = {
   mfaAppUrl: "",
   capabilityConnectors: {},
 };
-
 function renderSettings(entry = "") {
   const path = entry.startsWith("/") ? entry : `/settings${entry}`;
   return render(
@@ -203,30 +198,34 @@ describe("SettingsSection", () => {
   it("switches theme and locking preferences", async () => {
     renderSettings();
     await userEvent.click(screen.getByRole("button", { name: /Night/i }));
-    expect(store.setPrefs).toHaveBeenCalledWith({ theme: "dark" });
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-
     await userEvent.selectOptions(
       screen.getByLabelText(/Lock after inactivity/i),
       "60",
     );
-    expect(store.setPrefs).toHaveBeenCalledWith({ autoLockMinutes: 60 });
-
     await userEvent.selectOptions(
       screen.getByLabelText(/Clear copied secrets after/i),
       "0",
     );
-    expect(store.setPrefs).toHaveBeenCalledWith({ clipboardClearSeconds: 0 });
-
     await userEvent.click(
       screen.getByLabelText(/Lock when this tab goes to the background/i),
     );
-    expect(store.setPrefs).toHaveBeenCalledWith({ lockOnHide: true });
-
     await userEvent.click(
       screen.getByLabelText(/Also sign out of Identity when the vault locks/i),
     );
-    expect(store.setPrefs).toHaveBeenCalledWith({ signOutOnLock: true });
+    expect(store.setPrefs).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save preferences" }),
+    );
+    expect(store.setPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        theme: "dark",
+        autoLockMinutes: 60,
+        clipboardClearSeconds: 0,
+        lockOnHide: true,
+        signOutOnLock: true,
+      }),
+    );
   });
 
   it("activates categories from the hash and the nav", async () => {

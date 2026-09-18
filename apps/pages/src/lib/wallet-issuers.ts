@@ -26,6 +26,7 @@ export const WALLET_HOST = [
 export type WalletIssuerId = (typeof WALLET_ISSUER_IDS)[number];
 
 export function isWalletIssuer(providerId: string): boolean {
+  // SAFETY: WALLET_ISSUER_IDS is the checked-in issuer id tuple; includes() needs readonly string[].
   return (WALLET_ISSUER_IDS as readonly string[]).includes(providerId);
 }
 
@@ -36,6 +37,7 @@ export function connectedWalletIssuerIds(
   for (const connection of connections) {
     if (connection.status !== "active") continue;
     if (!isWalletIssuer(connection.providerId)) continue;
+    // SAFETY: isWalletIssuer checked providerId against WALLET_ISSUER_IDS (WalletIssuerId source).
     seen.add(connection.providerId as WalletIssuerId);
   }
   return WALLET_ISSUER_IDS.filter((id) => seen.has(id));

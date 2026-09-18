@@ -1,4 +1,4 @@
-import { isBoolean } from "@opensesame/os-domain";
+import { type JsonObject, isBoolean, isString } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { requireLoginDraft } from "../lib/vault/login-draft.js";
 import { suggestItemMetadata } from "./draft-suggestions.js";
@@ -8,9 +8,9 @@ type LoginTool = WebMcpToolSpec & {
   scope: "boot" | "session";
 };
 
-function optStr(args: Record<string, unknown>, key: string): string | null {
+function optStr(args: JsonObject, key: string): string | null {
   const value = args[key];
-  return typeof value === "string" && value.length > 0 ? value : null;
+  return isString(value) && value.length > 0 ? value : null;
 }
 
 export const LOGIN_DRAFT_TOOLS: readonly LoginTool[] = [

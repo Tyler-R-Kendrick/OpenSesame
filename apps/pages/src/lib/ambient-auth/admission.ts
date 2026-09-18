@@ -133,9 +133,12 @@ export function vaultStateFromStore(snapshot: {
     snapshot.status === "unlocked" || snapshot.status === "locked"
       ? snapshot.status
       : "empty";
-  return {
+  const state: VaultNamespaceState = {
     status,
     guest: snapshot.guest === true,
-    ...(snapshot.pairwiseSub ? { pairwiseSub: snapshot.pairwiseSub } : {}),
   };
+  if (snapshot.pairwiseSub) {
+    state.pairwiseSub = snapshot.pairwiseSub;
+  }
+  return state;
 }

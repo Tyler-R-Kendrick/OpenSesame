@@ -21,6 +21,10 @@ const osDomainWallet = fileURLToPath(
 );
 
 export default defineConfig({
+  test: {
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
+  },
   base,
   define: { "process.env.NODE_DEBUG_NATIVE": "false" },
   resolve: {

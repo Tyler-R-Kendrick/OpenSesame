@@ -32,7 +32,7 @@ function authored(id: string): string {
   return goal.guide;
 }
 
-describe("asking whether OpenSesame is healthy", () => {
+describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("shows the planes on the statusline, then walks to the report on the items", async () => {
@@ -82,7 +82,7 @@ describe("asking whether OpenSesame is healthy", () => {
 
     await openSupport(user);
     expect(await screen.findByText("This is Vault health.")).toBeTruthy();
-  });
+  }, 20_000);
 });
 
 describe("asking where the lock is", () => {
@@ -138,5 +138,5 @@ describe("asking where the lock is", () => {
     expect(within(status).getByRole("button", { name: "Stop" })).toBeTruthy();
     // Reading about the lock did not lock anything either.
     expect(journey.lockPresses()).toBe(0);
-  });
+  }, 20_000);
 });

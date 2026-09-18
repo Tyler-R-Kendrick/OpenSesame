@@ -47,6 +47,7 @@ function itemsFor(
       leaf(view, device.id, device.name),
     );
   }
+  // SAFETY: test/fixture or boundary-checked value matches keyof typeof VIEW_KIND].
   const kind = VIEW_KIND[view as keyof typeof VIEW_KIND];
   if (!kind) return [];
   return directory

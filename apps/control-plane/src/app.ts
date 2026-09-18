@@ -38,6 +38,7 @@ import {
   notificationChannelRoutes,
   notificationPreferenceRoutes,
 } from "./routes/notification-channels.js";
+import { oauthClaimRoutes } from "./routes/oauth-claims.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
 import { createOrgDomainRoutes } from "./routes/org-domains.js";
 import { createOrgLdapRoutes } from "./routes/org-ldap.js";
@@ -45,10 +46,13 @@ import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
+import { scimMappingAdminRoutes } from "./routes/scim-mapping-admin.js";
 import "./routes/projects-members.js";
+import { enrollmentRoutes } from "./routes/enrollment.js";
 import { createSamlRoutes } from "./routes/saml.js";
 import { createScimRoutes } from "./routes/scim.js";
 import { siopLinkRoutes } from "./routes/siop-link.js";
+import { supportRoutes } from "./routes/support.js";
 import {
   type WalletNativeMounts,
   mountWalletNativeRoutes,
@@ -133,7 +137,9 @@ export function createHonoApp(
   app.route("/v1/mfa", mfaRoutes);
   app.route("/v1/authentication", authenticationServiceRoutes);
   app.route("/v1/device", deviceRoutes);
+  app.route("/v1/enrollment", enrollmentRoutes);
   app.route("/v1/organizations", organizationRoutes);
+  app.route("/v1/oauth/clients", oauthClaimRoutes);
   app.route("/v1/oauth/clients", oauthClientRoutes);
   app.route("/v1/oauth/applications", appClaimRoutes);
   app.route("/v1/oauth/admin/clients", originClientAdminRoutes);
@@ -163,6 +169,7 @@ export function createHonoApp(
   // home-realm discovery routes on (C16). Both hang off the organization
   // prefix because both are per-tenant: the SCIM base URL a directory is
   // configured with is `/v1/organizations/<id>/scim/v2`.
+  app.route("/v1/organizations", scimMappingAdminRoutes);
   app.route("/v1/organizations", createScimRoutes());
   app.route("/v1/organizations", createOrgDomainRoutes());
   // Owner-facing directory configuration and the manual sync trigger (C21):
@@ -225,4 +232,3 @@ export function createHonoApp(
 
   return app;
 }
-import { supportRoutes } from "./routes/support.js";

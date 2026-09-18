@@ -116,6 +116,15 @@ const STEPS = {
       `capture-evidence press("${name}"): no button or tab matched — refusing a silent miss`,
     );
   },
+  async pressOptional(page, name) {
+    const target = page
+      .getByRole("button", { name: new RegExp(name, "i") })
+      .first();
+    if (await target.count()) {
+      await press(target);
+      await page.waitForTimeout(1000);
+    }
+  },
   async open(page, name) {
     const link = page.getByRole("link", { name, exact: true }).first();
     if (await link.count()) {

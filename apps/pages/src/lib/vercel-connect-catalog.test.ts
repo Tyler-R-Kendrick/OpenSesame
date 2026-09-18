@@ -39,10 +39,12 @@ describe("Vercel Connect browse catalog", () => {
     const stripe = vercelConnectCatalog().find((row) => row.id === "stripe");
     expect(slack).toBeTruthy();
     expect(stripe).toBeTruthy();
+    // SAFETY: fixture constructed in this test matches the declared contract.
     expect(catalogTileNote(slack as Provider, null)).toEqual({
       label: "Not configured",
       tone: "chip",
     });
+    // SAFETY: fixture constructed in this test matches the declared contract.
     expect(catalogTileNote(stripe as Provider, null)).toEqual({
       label: "Not connectable",
       tone: "chip--err",
@@ -50,11 +52,13 @@ describe("Vercel Connect browse catalog", () => {
   });
 
   it("keeps OpenSesame-only bundled rows that Vercel does not list", () => {
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const tailscale = {
       id: "tailscale",
       displayName: "Tailscale",
       category: "networking",
     } as Provider;
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const github = {
       id: "github",
       displayName: "GitHub (bundled)",

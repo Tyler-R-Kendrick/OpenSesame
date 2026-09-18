@@ -1,0 +1,62 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "shot": "390-settings-visual" },
+        { "pressOptional": "Source" },
+        { "shot": "390-settings-source" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "shot": "1280-settings-visual" },
+        { "pressOptional": "Source" },
+        { "shot": "1280-settings-source" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-settings-visual",
+      "width": 390,
+      "title": "Settings › General — Visual, 390 × 844",
+      "caption": "Guest opens Settings. Visual/Source is one toggle on the existing General preferences panel; no new workspace.",
+      "before": "Appearance/Locking, no representation toggle",
+      "after": "Visual/Source 44×76; Visual pressed"
+    },
+    {
+      "shot": "390-settings-source",
+      "width": 390,
+      "title": "Settings › General — Source, 390 × 844",
+      "caption": "Source is a native textarea over the same prefs draft. Phone layout stays a mode switch, not a split editor.",
+      "before": "No prefs source document",
+      "after": "textarea 192px min-height, 16px font"
+    },
+    {
+      "shot": "1280-settings-visual",
+      "width": 1280,
+      "title": "Settings › General — Visual, 1280 × 800",
+      "caption": "Desktop rail still hosts Settings. Visual/Source sits in the existing panel head.",
+      "before": "Rail Settings without Visual/Source",
+      "after": "Visual/Source 44×76 in panel head; settings/prefs.yaml in rail"
+    },
+    {
+      "shot": "1280-settings-source",
+      "width": 1280,
+      "title": "Settings › General — Source, 1280 × 800",
+      "caption": "Source editing uses the same draft as Visual. yaml parser is lazy-loaded; the editor is a textarea.",
+      "before": "No prefs.yaml source view",
+      "after": "textarea 192px min-height, 16px font"
+    }
+  ]
+}

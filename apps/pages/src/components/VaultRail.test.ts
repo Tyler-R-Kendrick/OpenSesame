@@ -6,6 +6,7 @@ const folders: Folder[] = [
   { id: "work", name: "Work", createdAt: "2026-01-01" },
   { id: "empty", name: "Empty", createdAt: "2026-01-01" },
 ];
+// SAFETY: fixture constructed in this test matches the declared contract.
 const items = [
   { kind: "login", deletedAt: null, folderId: "work" },
   { kind: "note", deletedAt: null, folderId: "work" },
@@ -29,6 +30,7 @@ describe("vault rail folders", () => {
   });
 
   it("infers login when that is the only live kind in the folder", () => {
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const onlyLogin = [
       { kind: "login", deletedAt: null, folderId: "work" },
       { kind: "card", deletedAt: "2026-01-02", folderId: "work" },
