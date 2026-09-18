@@ -72,7 +72,7 @@ const ACTION = {
   attn: "Set up",
   off: "Connect",
   offline: "Offline",
-} satisfies Record<ConnectorStatus["tone"], string>
+} satisfies Record<ConnectorStatus["tone"], string>;
 
 export function MoreMenu() {
   const connectors = useConnectors();

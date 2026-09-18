@@ -142,9 +142,7 @@ function jsonValue(
   }
   if (isSeq(node)) {
     const seq: YAMLSeq = node;
-    return seq.items.map((item: BoundaryValue) =>
-      jsonValue(overlapCast(item), diagnostics),
-    );
+    return seq.items.map((item) => jsonValue(overlapCast(item), diagnostics));
   }
   return null;
 }
@@ -197,7 +195,7 @@ export function parseConfigYaml(source: string): YamlParseResult {
   }
 
   visit(document, {
-    Pair(_path: string, pair: BoundaryValue) {
+    Pair(_path, pair) {
       const pairRecord: { key?: BoundaryValue; value?: BoundaryValue } =
         overlapCast(pair);
       const tag = yamlNodeTag(overlapCast(pairRecord.value));

@@ -95,10 +95,7 @@ describe("AgentAuth provider ID-JAG", () => {
     omitAuthTime?: boolean;
   };
 
-  async function idJag(
-    privateKey: CryptoKey,
-    overrides: IdJagOverrides = {},
-  ) {
+  async function idJag(privateKey: CryptoKey, overrides: IdJagOverrides = {}) {
     const now = Math.floor(Date.now() / 1000);
     const claims: JsonObject = {
       sub: overrides.sub ?? "user_idp_1",

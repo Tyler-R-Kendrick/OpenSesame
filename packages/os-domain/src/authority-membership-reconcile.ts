@@ -140,7 +140,9 @@ type ActiveEdgeReconcileInput = {
   readonly existingEdges: readonly AuthorityMembershipEdgeSnapshot[];
 };
 
-function reconcileActiveEdges(input: ActiveEdgeReconcileInput): ActiveEdgeReconcile {
+function reconcileActiveEdges(
+  input: ActiveEdgeReconcileInput,
+): ActiveEdgeReconcile {
   const upserts: MembershipEdgeUpsert[] = [];
   const invalidations: MembershipEdgeInvalidate[] = [];
   const seenActive = new Set<string>();

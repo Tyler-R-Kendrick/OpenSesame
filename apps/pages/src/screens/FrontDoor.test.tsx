@@ -8,9 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  isFunction,
-} from "@opensesame/os-domain";
+import { isFunction } from "@opensesame/os-domain";
 import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { federationSeams } from "../lib/federation.js";
 import { guestAuthSeams } from "../lib/guest-auth.js";
@@ -69,10 +67,7 @@ function renderDoor(overrides: Partial<Parameters<typeof FrontDoor>[0]> = {}) {
 }
 
 function ensureMemoryLocalStorage(): void {
-  if (
-    globalThis.localStorage &&
-    isFunction(globalThis.localStorage.getItem)
-  ) {
+  if (globalThis.localStorage && isFunction(globalThis.localStorage.getItem)) {
     return;
   }
   const store = new Map<string, string>();

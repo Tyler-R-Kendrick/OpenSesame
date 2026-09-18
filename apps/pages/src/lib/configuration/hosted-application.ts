@@ -69,17 +69,16 @@ export function parseHostedApplicationSource(
   if (!parsed.ok) return { ok: false, diagnostics: parsed.diagnostics };
   const displayName: BoundaryValue = overlapCast(parsed.value.displayName);
   const redirectUris = stringList(overlapCast(parsed.value.redirectUris));
-  const allowedScopes =
-    stringList(overlapCast(parsed.value.allowedScopes)) ?? ["openid"];
+  const allowedScopes = stringList(overlapCast(parsed.value.allowedScopes)) ?? [
+    "openid",
+  ];
   const grantTypes = stringList(overlapCast(parsed.value.grantTypes)) ?? [
     "authorization_code",
   ];
   const tokenMethod: BoundaryValue = overlapCast(
     parsed.value.tokenEndpointAuthMethod,
   );
-  const tokenEndpointAuthMethod = isString(tokenMethod)
-    ? tokenMethod
-    : "none";
+  const tokenEndpointAuthMethod = isString(tokenMethod) ? tokenMethod : "none";
   if (!isString(displayName) || !redirectUris) {
     return {
       ok: false,

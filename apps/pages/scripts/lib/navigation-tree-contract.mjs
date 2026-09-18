@@ -12,7 +12,10 @@ export async function navigationTreeContract(page, tabTo) {
 }
 
 function isString(value) {
-  return Object(value) !== value && Object.prototype.toString.call(value) === "[object String]";
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object String]"
+  );
 }
 
 function isObject(value) {

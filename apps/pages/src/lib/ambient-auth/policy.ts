@@ -277,8 +277,7 @@ function readPolicyBlob(
   };
   if (selectedProviderKey) {
     // SAFETY: parseProviderConnectionKey validated this string as a connection-key contract.
-    policy.selectedProviderKey =
-      selectedProviderKey as ProviderConnectionKey;
+    policy.selectedProviderKey = selectedProviderKey as ProviderConnectionKey;
   }
   if (isString(raw.tenantAuthority)) {
     policy.tenantAuthority = raw.tenantAuthority;

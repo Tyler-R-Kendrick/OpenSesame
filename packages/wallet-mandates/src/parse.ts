@@ -24,7 +24,9 @@ function nonNegativeInt(value: string | undefined): value is string {
   return value !== undefined && /^[0-9]+$/u.test(value);
 }
 
-function parseConstraints(value: BoundaryValue): MandateConstraints | undefined {
+function parseConstraints(
+  value: BoundaryValue,
+): MandateConstraints | undefined {
   if (!isJsonObject(value)) return undefined;
   const maxAmount = str(value.maxAmount);
   const currency = str(value.currency);

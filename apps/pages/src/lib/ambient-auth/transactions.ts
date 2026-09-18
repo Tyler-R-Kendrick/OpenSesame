@@ -173,7 +173,9 @@ function hasTxStrings(raw: JsonObject): boolean {
   );
 }
 
-export function asTransaction(value: BoundaryValue): FederationTransaction | null {
+export function asTransaction(
+  value: BoundaryValue,
+): FederationTransaction | null {
   const raw: BoundaryValue = overlapCast(value);
   if (!isJsonObject(raw) || raw.schemaVersion !== 1) return null;
   if (!hasTxStrings(raw)) return null;

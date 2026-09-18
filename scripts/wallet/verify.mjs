@@ -9,7 +9,6 @@
  * Contracts/protocols mark local_execution_verified only after forge/Anvil harness success.
  */
 
-
 function isPlainNumber(value) {
   return (
     Object(value) !== value &&

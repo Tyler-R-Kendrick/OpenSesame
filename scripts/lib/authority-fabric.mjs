@@ -7,7 +7,6 @@
  * is that an unresolvable scenario is `blocked`, never absent and never green.
  */
 
-
 function isPlainString(value) {
   return (
     Object(value) !== value &&

@@ -190,8 +190,8 @@ describe("WalletSection", () => {
       screen.getByRole("combobox", { name: "Budget for Corporate card" }),
     ).toHaveProperty("value");
     expect(
+      // SAFETY: fixture constructed in this test matches the declared contract.
       (
-        // SAFETY: fixture constructed in this test matches the declared contract.
         screen.getByRole("combobox", {
           name: "Budget for Corporate card",
         }) as HTMLSelectElement

@@ -13,7 +13,6 @@ function isString(value) {
   return Object.prototype.toString.call(value) === "[object String]";
 }
 
-
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const oauth2ProxyCandidates = [
   process.env.OAUTH2_PROXY_BIN,

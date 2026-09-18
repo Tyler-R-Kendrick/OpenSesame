@@ -12,7 +12,6 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-
 function isString(value) {
   return Object.prototype.toString.call(value) === "[object String]";
 }
@@ -145,8 +144,9 @@ export function moduleFacts(root, crates, targets) {
     const crateFact = crates[crate];
     const key = `${crate}:${module}`;
     const bin = isString(target.bin) ? target.bin : null;
-    const integration =
-      isString(target.integration) ? target.integration : null;
+    const integration = isString(target.integration)
+      ? target.integration
+      : null;
     if (crateFact === undefined) {
       facts[key] = false;
       continue;
@@ -210,12 +210,11 @@ export function enumerateCargoTests(
     Array.isArray(features) && features.length > 0
       ? ["--features", features.join(",")]
       : [];
-  const suiteArgs =
-    isString(integration)
-      ? ["--test", integration]
-      : bin
-        ? ["--bin", bin]
-        : ["--lib"];
+  const suiteArgs = isString(integration)
+    ? ["--test", integration]
+    : bin
+      ? ["--bin", bin]
+      : ["--lib"];
   const result = spawnSync(
     "cargo",
     [

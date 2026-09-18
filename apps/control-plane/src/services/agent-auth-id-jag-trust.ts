@@ -3,8 +3,8 @@ import type { UnitOfWork } from "@opensesame/database";
 import { assertSafeMetadataUrl } from "@opensesame/oauth-provider";
 import {
   type JsonObject,
-  overlapCast,
   isFunction,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { AgentAuthTrustedProvider } from "../config.js";
 import type { AppContext } from "../context.js";

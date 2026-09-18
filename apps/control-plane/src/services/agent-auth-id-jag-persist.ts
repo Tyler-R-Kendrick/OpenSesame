@@ -13,7 +13,6 @@ import type { AppContext } from "../context.js";
 import { consumeProviderReplay } from "./agent-auth-id-jag-trust.js";
 import { effectiveScopes, mintAssertion } from "./agent-auth-shared.js";
 
-
 export type ProviderAssertionRegistrationResponse = {
   registration_id: string;
   registration_type: "identity_assertion";

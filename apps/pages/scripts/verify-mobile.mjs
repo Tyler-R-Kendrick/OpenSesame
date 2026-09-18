@@ -299,7 +299,10 @@ async function tablet(browser, size) {
     chromeCounts.topbar === 0 && chromeCounts.overflow === 0,
     `${stop("chrome")}: the phone's top bar stays off above 900px, so the strip is not doubled`,
   );
-  harness.check(chromeCounts.rail === 1, `${stop("chrome")}: the rail is drawn`);
+  harness.check(
+    chromeCounts.rail === 1,
+    `${stop("chrome")}: the rail is drawn`,
+  );
   // Everything the strip holds has to be reachable by name, not merely
   // painted: this is the road a person on a tablet takes to support and to the
   // truth about which planes are configured.

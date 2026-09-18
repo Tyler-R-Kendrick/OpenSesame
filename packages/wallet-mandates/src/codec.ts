@@ -1,10 +1,10 @@
-import { type CryptoKey, SignJWT, compactVerify } from "jose";
 import {
   type BoundaryValue,
   isJsonObject,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { type CryptoKey, SignJWT, compactVerify } from "jose";
 
 import { asClaims, malformedReason } from "./parse.js";
 import {
@@ -33,7 +33,11 @@ function headerAlg(compact: string): MandateVerifyResult | "ok" {
     const header: BoundaryValue = overlapCast(
       JSON.parse(Buffer.from(headerPart, "base64url").toString("utf8")),
     );
-    if (!isJsonObject(header) || !isString(header.alg) || header.alg !== ALLOWED_ALG) {
+    if (
+      !isJsonObject(header) ||
+      !isString(header.alg) ||
+      header.alg !== ALLOWED_ALG
+    ) {
       return { ok: false, reason: "alg_not_es256" };
     }
     return "ok";
@@ -115,7 +119,10 @@ export async function verifyMandate(input: {
   if (!verified.ok) return verified;
   const claims = asClaims(overlapCast(verified.payload));
   if (claims === null) {
-    return { ok: false, reason: malformedReason(overlapCast(verified.payload)) };
+    return {
+      ok: false,
+      reason: malformedReason(overlapCast(verified.payload)),
+    };
   }
   return checkClaims(
     claims,

@@ -10,11 +10,7 @@ import {
   randomBytes,
   sign,
 } from "node:crypto";
-import {
-  type JsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import type { createControlPlane } from "../create-app.js";
 
 type Plane = ReturnType<typeof createControlPlane>;

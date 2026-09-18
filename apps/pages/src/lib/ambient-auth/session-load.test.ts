@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { type JsonObject } from "@opensesame/os-domain";
+import type { JsonObject } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type UpstreamIdentity,

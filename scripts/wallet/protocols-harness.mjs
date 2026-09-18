@@ -437,8 +437,9 @@ async function main() {
       details: {
         tx: settle.transaction ?? null,
         success: settle.success ?? false,
-        errorMessage:
-          isString(settle.errorMessage) ? settle.errorMessage : null,
+        errorMessage: isString(settle.errorMessage)
+          ? settle.errorMessage
+          : null,
       },
     });
     if (!settleOk) {

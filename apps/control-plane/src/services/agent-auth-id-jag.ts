@@ -11,8 +11,8 @@ import {
 import type { JsonObject } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import {
-  commitProviderRegistration,
   type ProviderAssertionRegistrationResponse,
+  commitProviderRegistration,
 } from "./agent-auth-id-jag-persist.js";
 import { resolveProviderRegistration } from "./agent-auth-id-jag-resolve.js";
 import { consumeProviderReplay } from "./agent-auth-id-jag-trust.js";

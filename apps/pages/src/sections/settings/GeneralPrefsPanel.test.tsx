@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { VaultPrefs } from "../../lib/vault/store.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import type { VaultPrefs } from "../../lib/vault/store.js";
 import { GeneralPrefsPanel } from "./GeneralPrefsPanel.js";
 
 const setPrefs = vi.fn();

@@ -1,3 +1,4 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import { useEffect, useMemo, useState } from "react";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { SourceEditor } from "../../components/configuration/SourceEditor.js";
@@ -15,7 +16,6 @@ import { setTheme } from "../../lib/theme.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import type { VaultPrefs } from "../../lib/vault/store.js";
 import { VisualPrefs } from "./VisualPrefs.js";
-import type { JsonValue } from "@opensesame/os-domain";
 
 const COMMENT = "# Vault preferences. Visual and Source edit this document.";
 

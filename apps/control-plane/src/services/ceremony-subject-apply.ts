@@ -3,10 +3,7 @@
  * Terminal rows are left alone so a racing second consume cannot throw.
  */
 
-import {
-  DomainError,
-  type Interaction,
-} from "@opensesame/os-domain";
+import { DomainError, type Interaction } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import {
   authorizeTransaction,

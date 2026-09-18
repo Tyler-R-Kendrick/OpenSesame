@@ -3,7 +3,7 @@
  * activation for one selected provider. Default personal mode does no I/O.
  */
 
-import { type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import type { OperatorIdp } from "../settings.js";
 import { runSilentIframeAttempt } from "./controller-silent.js";
 import {

@@ -8,9 +8,7 @@
  */
 
 import type { AuthorityGrant } from "@opensesame/os-domain";
-import {
-} from "@opensesame/os-domain";
-
+import {} from "@opensesame/os-domain";
 
 /** OpenFGA tuple key wire shape (matches `crates/provider-openfga::TupleKey`). */
 export type OpenFgaTupleKey = {

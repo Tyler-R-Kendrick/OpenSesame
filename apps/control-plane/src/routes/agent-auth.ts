@@ -42,7 +42,6 @@ import {
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 
-
 agentAuthRoutes.post("/agent/identity", async (c) => {
   c.header("cache-control", "no-store");
   c.header("pragma", "no-cache");

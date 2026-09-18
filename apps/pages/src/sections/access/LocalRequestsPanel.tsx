@@ -106,11 +106,6 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint access-local-request-intro">
-          Requests are encrypted in this vault and expire after five minutes. An
-          authorized person approves or denies with a request-bound passkey.
-          Approval is single-use and never bypasses application policy.
-        </p>
         <label>
           Show{" "}
           <select

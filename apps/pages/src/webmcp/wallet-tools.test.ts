@@ -1,10 +1,10 @@
-/** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
 import {
   type BoundaryValue,
   isJsonObject,
   overlapCast,
 } from "@opensesame/os-domain";
+/** @vitest-environment jsdom */
+import { describe, expect, it } from "vitest";
 
 import { WALLET_TOOLS } from "./wallet-tools.js";
 

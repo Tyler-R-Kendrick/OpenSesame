@@ -1,10 +1,10 @@
-import { isBindableAction } from "./actions.js";
 import {
   type BoundaryValue,
   isJsonObject,
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
+import { isBindableAction } from "./actions.js";
 
 import {
   DEFAULT_KEYBINDINGS,

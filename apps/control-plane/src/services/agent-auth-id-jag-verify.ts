@@ -4,11 +4,7 @@ import {
   agentAuthError,
   verifyProviderIdJag,
 } from "@opensesame/agent-protocols";
-import {
-  isJsonObject,
-  overlapCast,
-  readString,
-} from "@opensesame/os-domain";
+import { isJsonObject, overlapCast, readString } from "@opensesame/os-domain";
 import { importJWK } from "jose";
 import type { AppContext } from "../context.js";
 import {

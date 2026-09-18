@@ -18,12 +18,11 @@ function isString(value) {
 
 /** @param {{ crate: string, bin?: string, integration?: string, features?: string[] }} target */
 export function cargoBatchKey(target) {
-  const suite =
-    isString(target.bin)
-      ? `${target.crate}#bin:${target.bin}`
-      : isString(target.integration)
-        ? `${target.crate}#test:${target.integration}`
-        : target.crate;
+  const suite = isString(target.bin)
+    ? `${target.crate}#bin:${target.bin}`
+    : isString(target.integration)
+      ? `${target.crate}#test:${target.integration}`
+      : target.crate;
   if (!Array.isArray(target.features) || target.features.length === 0) {
     return suite;
   }
@@ -68,12 +67,10 @@ export function runCargoBatches(resolved, { root, noRun }) {
     if (!batches.has(key)) {
       batches.set(key, {
         crate: scenario.target.crate,
-        bin:
-          isString(scenario.target.bin) ? scenario.target.bin : null,
-        integration:
-          isString(scenario.target.integration)
-            ? scenario.target.integration
-            : null,
+        bin: isString(scenario.target.bin) ? scenario.target.bin : null,
+        integration: isString(scenario.target.integration)
+          ? scenario.target.integration
+          : null,
         features: scenario.target.features,
       });
     }
@@ -179,8 +176,7 @@ export function enumerateScenarioCargoTests({
       enumKeys.set(key, {
         crate: target.crate,
         bin: cargoBinName(target),
-        integration:
-          isString(target.integration) ? target.integration : null,
+        integration: isString(target.integration) ? target.integration : null,
         features: target.features,
       });
     }

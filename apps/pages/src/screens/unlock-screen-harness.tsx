@@ -251,10 +251,7 @@ export function submitIdentifier(value: string): void {
 /** Every suite starts from the same device: no note, no catalog, no record. */
 
 function ensureMemoryLocalStorage(): void {
-  if (
-    globalThis.localStorage &&
-    isFunction(globalThis.localStorage.getItem)
-  ) {
+  if (globalThis.localStorage && isFunction(globalThis.localStorage.getItem)) {
     return;
   }
   const store = new Map<string, string>();

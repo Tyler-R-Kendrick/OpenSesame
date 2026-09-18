@@ -165,8 +165,7 @@ function assertIdJagTimes(
 }
 
 function assertVerifiedContact(payload: JsonObject): void {
-  const emailOk =
-    payload.email_verified === true && isString(payload.email);
+  const emailOk = payload.email_verified === true && isString(payload.email);
   const phoneOk =
     payload.phone_number_verified === true && isString(payload.phone_number);
   if (!emailOk && !phoneOk) {

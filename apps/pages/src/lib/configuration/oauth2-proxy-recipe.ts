@@ -1,6 +1,4 @@
-import {
-  isString,
-} from "@opensesame/os-domain";
+import { isString } from "@opensesame/os-domain";
 /**
  * Pinned OAuth2 Proxy (v7.8.2) OIDC consumer contract. Not a native reverse
  * proxy — operators run the upstream binary; this only emits discovery-backed

@@ -1,7 +1,4 @@
-import {
-  type BoundaryValue,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 
 /**
  * Entra / MSAL Browser v5 adapter. Lazy-loaded only for a selected Entra
@@ -193,7 +190,10 @@ export async function acquireEntraSilent(
       authority: entraAuthority(request.connection),
     });
   } catch (err) {
-    return { kind: "interaction-required", reason: mapMsalError(overlapCast(err)) };
+    return {
+      kind: "interaction-required",
+      reason: mapMsalError(overlapCast(err)),
+    };
   }
   if (!matchesAuthGeneration(request.generation)) {
     return { kind: "rejected", reason: "stale_generation" };

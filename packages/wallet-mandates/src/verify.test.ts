@@ -95,11 +95,7 @@ describe("AP2/UCP local mandate verifier", () => {
       protection: "none",
     });
     const down = await verifyMandate({
-      compact: await signMandate(
-        downgraded,
-        issuerKeys.privateKey,
-        "iss-1",
-      ),
+      compact: await signMandate(downgraded, issuerKeys.privateKey, "iss-1"),
       trust,
       nowSeconds: now,
     });

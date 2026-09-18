@@ -37,10 +37,9 @@ async function readJson(c: {
 enrollmentRoutes.post("/tickets", requireOperatorToken(), async (c) => {
   const ctx = c.get("ctx");
   const body = await readJson(c);
-  const ttlMs =
-    isNumber(body.ttlSeconds)
-      ? clampEnrollmentTtlMs(body.ttlSeconds * 1000)
-      : ENROLLMENT_TICKET_TTL_MS_DEFAULT;
+  const ttlMs = isNumber(body.ttlSeconds)
+    ? clampEnrollmentTtlMs(body.ttlSeconds * 1000)
+    : ENROLLMENT_TICKET_TTL_MS_DEFAULT;
   const minted = await storeEnrollmentTicket(
     ctx.stores.enrollmentTickets,
     ctx.clock(),

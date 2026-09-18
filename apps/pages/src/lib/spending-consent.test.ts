@@ -25,7 +25,7 @@ const TAMPER = {
   policyVersion: "2",
   allocationRef: "child-b",
   effectiveEnforcement: "independent_execution",
-} satisfies Record<PaymentApprovalDigestField, string>
+} satisfies Record<PaymentApprovalDigestField, string>;
 
 describe("spending-consent", () => {
   it("matches the Node wallet-consent digest encoding", async () => {
