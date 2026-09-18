@@ -153,7 +153,8 @@ describe("experience journeys against shipped functions", () => {
         "https://b.example",
       ),
     ).toBeNull();
-    const persisted: { theme?: string } = {};
+    type PersistedTheme = { theme?: string };
+    const persisted: PersistedTheme = {};
     const result = await commitPrefsSource(
       {
         readPrefs: () => ({

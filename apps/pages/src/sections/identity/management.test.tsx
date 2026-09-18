@@ -232,6 +232,7 @@ it("saves hosted application source through the Identity PATCH adapter", async (
     />,
   );
   await user.click(screen.getByRole("button", { name: "Source" }));
+  // SAFETY: fixture constructed in this test matches the declared contract.
   const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
   expect(source.value).toContain("Registration is not consent");
   await user.click(screen.getByRole("button", { name: "Save application" }));

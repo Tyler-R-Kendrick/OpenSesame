@@ -100,11 +100,16 @@ export async function beginAmbientOidc(input: {
   return { url: url.toString(), transaction };
 }
 
+export type AmbientExchangeResult = {
+  identity: UpstreamIdentity;
+  claims: VerifiedIdTokenClaims;
+};
+
 export async function exchangeAmbientCode(
   transaction: FederationTransaction,
   code: string,
   fetchImpl: typeof fetch,
-): Promise<{ identity: UpstreamIdentity; claims: VerifiedIdTokenClaims }> {
+) {
   if (transaction.intent.kind !== "ambient") {
     throw new FederationError("invalid_request", "Not an ambient transaction.");
   }
@@ -152,8 +157,8 @@ export async function exchangeAmbientCode(
     audience: transaction.clientId,
     jwksUri: transaction.jwksUri,
     expiresAt: claims.exp * 1000,
-    ...(claims.email ? { email: claims.email } : undefined),
-    ...(claims.name ? { name: claims.name } : undefined),
   };
+  if (claims.email) identity.email = claims.email;
+  if (claims.name) identity.name = claims.name;
   return { identity, claims };
 }

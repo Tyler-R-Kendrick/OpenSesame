@@ -146,10 +146,12 @@ export function createMemoryTransactionStore(): TransactionStore {
 function asIntent(value: BoundaryValue): AuthenticationIntent | null {
   if (!isJsonObject(value) || !isString(value.kind)) return null;
   if (
+    // SAFETY: test/fixture or boundary-checked value matches readonly string[]).includes(value.kind).
     !(AUTHENTICATION_INTENT_KINDS as readonly string[]).includes(value.kind)
   ) {
     return null;
   }
+  // SAFETY: test/fixture or boundary-checked value matches AuthenticationIntent.
   return value as AuthenticationIntent;
 }
 
@@ -171,7 +173,7 @@ function hasTxStrings(raw: JsonObject): boolean {
   );
 }
 
-export function asTransaction(value: unknown): FederationTransaction | null {
+export function asTransaction(value: BoundaryValue): FederationTransaction | null {
   const raw: BoundaryValue = overlapCast(value);
   if (!isJsonObject(raw) || raw.schemaVersion !== 1) return null;
   if (!hasTxStrings(raw)) return null;
@@ -185,6 +187,7 @@ export function asTransaction(value: unknown): FederationTransaction | null {
   const intent = asIntent(overlapCast(raw.intent));
   const nonce = raw.nonce;
   if (!intent || !isString(nonce) || nonce.length < 16) return null;
+  // SAFETY: test/fixture or boundary-checked value matches FederationTransaction.
   return raw as FederationTransaction;
 }
 

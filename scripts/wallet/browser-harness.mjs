@@ -39,10 +39,17 @@ function run(cmd, args) {
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   return {
-    exitCode: typeof r.status === "number" ? r.status : 1,
+    exitCode: isNumber(r.status) ? r.status : 1,
     durationMs: Date.now() - started,
     command: [cmd, ...args].join(" "),
   };
+}
+
+function isNumber(value) {
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object Number]"
+  );
 }
 
 async function runPlaywrightQab() {

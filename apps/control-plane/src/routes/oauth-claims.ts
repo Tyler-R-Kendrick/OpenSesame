@@ -6,6 +6,7 @@ import {
 } from "@opensesame/oauth-provider";
 import {
   type JsonObject,
+  isBoolean,
   isJsonObject,
   isString,
   overlapCast,
@@ -55,10 +56,10 @@ function personaFromBody(body: JsonObject): AccountPrincipal {
   const persona: AccountPrincipal = {};
   if (isString(body.name)) persona.name = body.name;
   if (isString(body.email)) persona.email = body.email;
-  if (typeof body.emailVerified === "boolean") {
+  if (isBoolean(body.emailVerified)) {
     persona.emailVerified = body.emailVerified;
   }
-  if (typeof body.emailAuthoritative === "boolean") {
+  if (isBoolean(body.emailAuthoritative)) {
     persona.emailAuthoritative = body.emailAuthoritative;
   }
   const groups = stringList(body.groups);

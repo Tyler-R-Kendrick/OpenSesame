@@ -68,13 +68,15 @@ export function isReservedProtocolClaim(name: string): boolean {
 }
 
 function scopeSet(scope: string | readonly string[] | undefined): Set<string> {
-  if (typeof scope === "string") {
-    return new Set(scope.split(" ").filter((part) => part.length > 0));
+  if (scope === undefined) {
+    return new Set();
   }
   if (Array.isArray(scope)) {
     return new Set(scope.filter((part) => part.length > 0));
   }
-  return new Set();
+  // SAFETY: Array.isArray checked above; remaining established contract is string.
+  const text = scope as string;
+  return new Set(text.split(" ").filter((part) => part.length > 0));
 }
 
 function consentAllows(

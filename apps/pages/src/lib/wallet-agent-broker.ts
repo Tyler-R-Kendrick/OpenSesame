@@ -249,17 +249,20 @@ export function walletPaymentStatus(): {
       state: attempt.state,
     })),
   };
+  // SAFETY: test/fixture or boundary-checked value matches typeof body.
   return JSON.parse(redactWalletExport(body)) as typeof body;
 }
 
-export function walletLeaseStatus(): {
+export type WalletLeaseStatus = {
   readonly leases: readonly {
     readonly id: string;
     readonly status: string;
     readonly amount: string;
   }[];
   readonly active: readonly { readonly id: string; readonly amount: string }[];
-} {
+};
+
+export function walletLeaseStatus() {
   return {
     leases: listSpendingLeases().map((lease) => ({
       id: lease.id,

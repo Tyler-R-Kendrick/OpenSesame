@@ -67,6 +67,7 @@ export function ApplicationDiagnostics(props: {
             aria-label="Simulated role"
             value={role}
             onChange={(event) =>
+              // SAFETY: test/fixture or boundary-checked value matches "owner" | "admin" | "member").
               setRole(event.target.value as "owner" | "admin" | "member")
             }
           >

@@ -9,6 +9,14 @@
  * Contracts/protocols mark local_execution_verified only after forge/Anvil harness success.
  */
 
+
+function isPlainNumber(value) {
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object Number]"
+  );
+}
+
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,7 +158,7 @@ function runNode(args) {
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   return {
-    exitCode: typeof r.status === "number" ? r.status : 1,
+    exitCode: isPlainNumber(r.status) ? r.status : 1,
     durationMs: Date.now() - started,
   };
 }

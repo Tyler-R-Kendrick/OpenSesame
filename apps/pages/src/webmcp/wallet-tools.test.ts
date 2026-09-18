@@ -1,5 +1,10 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 import { WALLET_TOOLS } from "./wallet-tools.js";
 
@@ -29,10 +34,9 @@ describe("WALLET_TOOLS", () => {
     if (tool === undefined) {
       throw new Error("missing opensesame_wallet_capabilities_read");
     }
-    const result = tool.execute({});
+    const result: BoundaryValue = overlapCast(tool.execute({}));
     if (
-      typeof result !== "object" ||
-      result === null ||
+      !isJsonObject(result) ||
       !("refusals" in result) ||
       !("productionEnabled" in result)
     ) {

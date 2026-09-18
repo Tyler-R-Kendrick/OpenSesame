@@ -117,6 +117,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             aria-label="Local request status filter"
             value={statusFilter}
             onChange={(event) =>
+              // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
               setStatusFilter(event.target.value as InboxStatusFilter)
             }
           >

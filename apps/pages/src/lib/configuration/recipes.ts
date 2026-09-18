@@ -1,7 +1,14 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+
 export type RecipeResource = {
   kind: "local_application" | "prefs" | "claim_mapping" | "item_type";
   logicalId: string;
-  body: Record<string, unknown>;
+  body: JsonObject;
 };
 
 export type RecipeManifest = {
@@ -10,6 +17,12 @@ export type RecipeManifest = {
   resources: RecipeResource[];
   requiredInputs: readonly string[];
   omissions: readonly string[];
+};
+
+export type RecipePreview = {
+  resources: number;
+  omissions: readonly string[];
+  requiredInputs: readonly string[];
 };
 
 const STRIP = new Set([
@@ -35,22 +48,22 @@ function isAuthorityKey(key: string): boolean {
   );
 }
 
-function containsAuthority(body: Record<string, unknown>): boolean {
+function containsAuthority(body: JsonObject): boolean {
   for (const [key, value] of Object.entries(body)) {
     if (isAuthorityKey(key)) return true;
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      if (containsAuthority(value as Record<string, unknown>)) return true;
+    if (isJsonObject(value)) {
+      if (containsAuthority(value)) return true;
     }
   }
   return false;
 }
 
-function allowlisted(body: Record<string, unknown>): Record<string, unknown> {
-  const next: Record<string, unknown> = {};
+function allowlisted(body: JsonObject): JsonObject {
+  const next: JsonObject = {};
   for (const [key, value] of Object.entries(body)) {
     if (isAuthorityKey(key)) continue;
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      next[key] = allowlisted(value as Record<string, unknown>);
+    if (isJsonObject(value)) {
+      next[key] = allowlisted(value);
     } else {
       next[key] = value;
     }
@@ -79,11 +92,7 @@ export function exportRecipe(input: {
   };
 }
 
-export function previewRecipe(manifest: RecipeManifest): {
-  resources: number;
-  omissions: readonly string[];
-  requiredInputs: readonly string[];
-} {
+export function previewRecipe(manifest: RecipeManifest): RecipePreview {
   return {
     resources: manifest.resources.length,
     omissions: manifest.omissions,
@@ -120,9 +129,13 @@ export type RecipeApplyPort = {
   }) => Promise<void>;
 };
 
-function stringList(value: unknown): string[] {
+function stringList(value: BoundaryValue): string[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
+  const out: string[] = [];
+  for (const item of value) {
+    if (isString(item)) out.push(item);
+  }
+  return out;
 }
 
 /** Apply a bound recipe through owning adapters. Repeat apply is idempotent. */

@@ -3,6 +3,7 @@
  * activation for one selected provider. Default personal mode does no I/O.
  */
 
+import { type BoundaryValue } from "@opensesame/os-domain";
 import type { OperatorIdp } from "../settings.js";
 import { runSilentIframeAttempt } from "./controller-silent.js";
 import {
@@ -40,8 +41,8 @@ export type EligibilityInput = {
   localConsentRoute: boolean;
   existingVerifiedSession: boolean;
   operatorProviders: readonly OperatorIdp[];
-  runtimePolicy?: unknown;
-  userPreference?: unknown;
+  runtimePolicy?: BoundaryValue;
+  userPreference?: BoundaryValue;
   lastSignInMethod?: string | null;
   openPairwiseSub?: string;
   now?: number;
@@ -150,11 +151,13 @@ export type Discovery = {
   jwks_uri: string;
 };
 
-export const ambientControllerSeams: {
+export type AmbientControllerSeams = {
   discover: (issuer: string) => Promise<Discovery>;
   navigate: ControllerNavigate;
   clock: ControllerClock;
-} = {
+};
+
+export const ambientControllerSeams: AmbientControllerSeams = {
   discover: async () => {
     throw new Error("discovery not wired");
   },

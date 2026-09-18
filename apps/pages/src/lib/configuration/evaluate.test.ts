@@ -40,6 +40,7 @@ describe("evaluateDecision", () => {
     const policy = [
       {
         scope: "openid",
+        // SAFETY: fixture constructed in this test matches the declared contract.
         roles: ["owner", "admin", "member"] as OrganizationRole[],
       },
     ];

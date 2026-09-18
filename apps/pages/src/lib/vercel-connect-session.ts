@@ -112,10 +112,14 @@ export async function forgetVercelConnectAuth(
  * Arm Connect for this session. With an open tomb, seal it; otherwise hold
  * the credential in memory until unlock can write the sealed record.
  */
+type VercelConnectAuthOpts = {
+  ephemeral?: boolean;
+};
+
 export async function armVercelConnectAuth(
   auth: VercelConnectAuth,
   tomb: string | null,
-  opts: { ephemeral?: boolean } = {},
+  opts: VercelConnectAuthOpts = {},
 ): Promise<void> {
   const next: VercelConnectAuth = { token: auth.token.trim() };
   if (auth.teamId?.trim()) next.teamId = auth.teamId.trim();
@@ -133,7 +137,7 @@ export async function armVercelConnectAuth(
 /** Unlock path: seal any staged credential, then hydrate from the tomb. */
 export async function hydrateVercelConnectAuth(
   tomb: string,
-  opts: { ephemeral?: boolean } = {},
+  opts: VercelConnectAuthOpts = {},
 ): Promise<boolean> {
   if (pending && !opts.ephemeral) {
     await writeVercelConnectAuth(tomb, pending);

@@ -72,8 +72,7 @@ export function runCommand(root, command, opts = {}) {
     maxBuffer: 4 * 1024 * 1024,
   });
   const durationMs = Date.now() - started;
-  const exitCode =
-    typeof result.status === "number" ? result.status : result.signal ? 1 : 1;
+  const exitCode = Number.isFinite(result.status) ? result.status : 1;
   return {
     exitCode,
     durationMs,

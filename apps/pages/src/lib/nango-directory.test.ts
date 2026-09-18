@@ -1,3 +1,4 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import {
@@ -8,21 +9,26 @@ import {
   parseIntegrations,
 } from "./nango-directory.js";
 
-function reply(status: number, body: unknown): Response {
-  return {
+type DirectoryFetch = typeof fetch;
+
+function reply(status: number, body: BoundaryValue): Response {
+  return new Response(JSON.stringify(body), {
     status,
-    json: async () => body,
-  } as unknown as Response;
+    headers: { "content-type": "application/json" },
+  });
 }
 
-function server(routes: Record<string, () => Response>): typeof fetch {
-  return vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(input);
-    const path = new URL(url).pathname;
-    const handler = routes[path];
+function server(
+  handlers: ReadonlyArray<readonly [string, () => Response]>,
+): DirectoryFetch {
+  const routes = new Map(handlers);
+  const fn = vi.fn(async (input: RequestInfo | URL) => {
+    const path = new URL(String(input)).pathname;
+    const handler = routes.get(path);
     if (!handler) return reply(404, { error: { code: "not_found" } });
     return handler();
-  }) as unknown as typeof fetch;
+  });
+  return overlapCast(fn);
 }
 
 describe("the endpoint rule", () => {
@@ -162,14 +168,22 @@ describe("the two calls", () => {
   });
 
   it("sends the key as a bearer token and falls back to the older path", async () => {
-    const fetchImpl = server({
-      "/integrations": () =>
-        reply(200, { data: [{ unique_key: "github", provider: "github" }] }),
-      "/connection": () =>
-        reply(200, {
-          connections: [{ connection_id: "c1", provider_config_key: "github" }],
-        }),
-    });
+    const fetchImpl = server([
+      [
+        "/integrations",
+        () =>
+          reply(200, { data: [{ unique_key: "github", provider: "github" }] }),
+      ],
+      [
+        "/connection",
+        () =>
+          reply(200, {
+            connections: [
+              { connection_id: "c1", provider_config_key: "github" },
+            ],
+          }),
+      ],
+    ]);
     const listing = await listDirectory(
       "https://api.nango.dev",
       "sk-env",
@@ -182,6 +196,7 @@ describe("the two calls", () => {
       "https://api.nango.dev/connections",
       "https://api.nango.dev/connection",
     ]);
+    // SAFETY: checked invariant established at this contract boundary.
     const init = calls[0]?.[1] as RequestInit;
     expect(new Headers(init.headers).get("authorization")).toBe(
       "Bearer sk-env",
@@ -190,28 +205,31 @@ describe("the two calls", () => {
   });
 
   it("sends no authorization header without a key", async () => {
-    const fetchImpl = server({
-      "/integrations": () => reply(200, { data: [] }),
-      "/connections": () => reply(200, { connections: [] }),
-    });
+    const fetchImpl = server([
+      ["/integrations", () => reply(200, { data: [] })],
+      ["/connections", () => reply(200, { connections: [] })],
+    ]);
     await listDirectory("http://localhost:3003", "", fetchImpl);
+    // SAFETY: checked invariant established at this contract boundary.
     const init = vi.mocked(fetchImpl).mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(init.headers).has("authorization")).toBe(false);
   });
 
   it("says the key was refused, not that the endpoint is broken", async () => {
-    const fetchImpl = server({
-      "/integrations": () => reply(401, { error: { code: "unauthorized" } }),
-    });
+    const fetchImpl = server([
+      ["/integrations", () => reply(401, { error: { code: "unauthorized" } })],
+    ]);
     await expect(
       listDirectory("https://api.nango.dev", "bad", fetchImpl),
     ).rejects.toMatchObject({ failure: "refused" });
   });
 
   it("says when the endpoint did not answer at all", async () => {
-    const fetchImpl = vi.fn(async () => {
-      throw new TypeError("Failed to fetch");
-    }) as unknown as typeof fetch;
+    const fetchImpl: DirectoryFetch = overlapCast(
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
     await expect(
       listDirectory("https://api.nango.dev", "k", fetchImpl),
     ).rejects.toBeInstanceOf(DirectoryError);
@@ -221,7 +239,7 @@ describe("the two calls", () => {
   });
 
   it("refuses an endpoint this page may not call before any request", async () => {
-    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const fetchImpl: DirectoryFetch = overlapCast(vi.fn());
     await expect(
       listDirectory("http://nango.internal", "k", fetchImpl),
     ).rejects.toMatchObject({ failure: "malformed" });
@@ -230,16 +248,16 @@ describe("the two calls", () => {
 
   it("keeps a local-network directory behind the deployment's fence", async () => {
     localNetworkFetchSeams.eligible = () => false;
-    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const fetchImpl: DirectoryFetch = overlapCast(vi.fn());
     await expect(
       listDirectory("http://localhost:3003", "k", fetchImpl),
     ).rejects.toMatchObject({ failure: "malformed" });
     expect(fetchImpl).not.toHaveBeenCalled();
     // https anywhere is not the local network.
-    const hosted = server({
-      "/integrations": () => reply(200, { data: [] }),
-      "/connections": () => reply(200, { connections: [] }),
-    });
+    const hosted = server([
+      ["/integrations", () => reply(200, { data: [] })],
+      ["/connections", () => reply(200, { connections: [] })],
+    ]);
     await expect(
       listDirectory("https://api.nango.dev", "k", hosted),
     ).resolves.toEqual({ integrations: [], connections: [] });
@@ -247,13 +265,14 @@ describe("the two calls", () => {
 
   it("gives up on a body that never arrives", async () => {
     vi.useFakeTimers();
-    const fetchImpl = vi.fn(
-      async () =>
-        ({
+    const fetchImpl: DirectoryFetch = overlapCast(
+      vi.fn(async () =>
+        overlapCast({
           status: 200,
           json: () => new Promise(() => {}),
-        }) as unknown as Response,
-    ) as unknown as typeof fetch;
+        }),
+      ),
+    );
     const read = listDirectory("https://api.nango.dev", "k", fetchImpl);
     const outcome = expect(read).rejects.toMatchObject({
       failure: "unanswered",

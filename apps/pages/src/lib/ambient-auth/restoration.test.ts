@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { type JsonObject } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fenceLocalSignOut } from "./generation.js";
 import {
@@ -97,7 +98,7 @@ function b64url(value: string): string {
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function jwt(claims: Record<string, unknown>): string {
+function jwt(claims: JsonObject): string {
   return `${b64url(JSON.stringify({ alg: "none", typ: "JWT" }))}.${b64url(
     JSON.stringify(claims),
   )}.sig`;

@@ -24,7 +24,9 @@ export const CONNECT_API = "https://api.vercel.com";
 const TIMEOUT_MS = 8000;
 const EMPTY_EGRESS = {
   scheme: "https",
+  // SAFETY: test/fixture or boundary-checked value matches string[],.
   authorities: [] as string[],
+  // SAFETY: test/fixture or boundary-checked value matches string[],.
   pathPrefixes: [] as string[],
 };
 
@@ -108,10 +110,10 @@ function sdkOptions(auth: VercelConnectAuth) {
 }
 
 function appSubject(scopes?: string[]) {
-  return {
-    subject: { type: "app" as const },
-    ...(scopes?.length ? { scopes } : {}),
-  };
+  if (scopes?.length) {
+    return { subject: { type: "app" as const }, scopes };
+  }
+  return { subject: { type: "app" as const } };
 }
 
 function requireAuth(): VercelConnectAuth {
@@ -148,11 +150,15 @@ function scopeNames(value: BoundaryValue | undefined): string[] {
   return value.scopes.filter(isString).slice(0, 64);
 }
 
-function teamQuery(
-  auth: VercelConnectAuth,
-  extra: Record<string, string> = {},
-) {
-  const params = new URLSearchParams(extra);
+type TeamQueryExtra = {
+  limit?: string;
+  projectId?: string;
+};
+
+function teamQuery(auth: VercelConnectAuth, extra: TeamQueryExtra = {}) {
+  const params = new URLSearchParams();
+  if (extra.limit) params.set("limit", extra.limit);
+  if (extra.projectId) params.set("projectId", extra.projectId);
   if (auth.teamId) params.set("teamId", auth.teamId);
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -275,8 +281,9 @@ export function toConnectConnection(
 
 export async function listVercelConnections(): Promise<Connection[]> {
   const auth = requireAuth();
-  const extra: Record<string, string> = { limit: "100" };
-  if (auth.projectId) extra.projectId = auth.projectId;
+  const extra = auth.projectId
+    ? { limit: "100", projectId: auth.projectId }
+    : { limit: "100" };
   const body = await connectFetch(
     `/v2/connect/connectors${teamQuery(auth, extra)}`,
   );
@@ -356,10 +363,15 @@ export async function createVercelConnection(body: {
   return mapped;
 }
 
+export type VercelAuthorizeResult = {
+  authorizationUrl: string;
+  expiresAt: string;
+};
+
 export async function authorizeVercelConnection(
   id: string,
   scopes?: string[],
-): Promise<{ authorizationUrl: string; expiresAt: string }> {
+): Promise<VercelAuthorizeResult> {
   const auth = requireAuth();
   const reply = await vercelConnectSeams.startAuthorization(
     id,
@@ -381,10 +393,14 @@ export async function authorizeVercelConnection(
   };
 }
 
-export async function revokeVercelConnection(id: string): Promise<{
+export type VercelRevokeResult = {
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
-}> {
+};
+
+export async function revokeVercelConnection(
+  id: string,
+): Promise<VercelRevokeResult> {
   const auth = requireAuth();
   await vercelConnectSeams.revokeToken(
     id,

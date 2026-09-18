@@ -3,10 +3,11 @@
 // the session ends.
 import { chromium } from "@playwright/test";
 const exe = process.env.PLAYWRIGHT_CHROMIUM;
-const browser = await chromium.launch({
-  headless: true,
-  ...(exe ? { executablePath: exe } : {}),
-});
+const launchOptions = { headless: true };
+if (exe) {
+  launchOptions.executablePath = exe;
+}
+const browser = await chromium.launch(launchOptions);
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const stamp = () => new Date().toISOString();
 page.on("console", (m) => {

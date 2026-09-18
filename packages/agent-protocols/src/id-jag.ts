@@ -1,5 +1,10 @@
-import { jwtVerify } from "jose";
-import type { JWTPayload } from "jose";
+import {
+  type JsonObject,
+  isNumber,
+  isString,
+  readString,
+} from "@opensesame/os-domain";
+import { decodeProtectedHeader, jwtVerify } from "jose";
 import {
   ID_JAG_ASSERTION_TYPE,
   PROVIDER_ID_JAG_TYP,
@@ -35,21 +40,27 @@ export interface VerifyProviderIdJagInput {
   now?: Date;
 }
 
-function decodeHeader(jwt: string): {
+type IdJagHeader = {
   typ?: string;
   alg?: string;
   kid?: string;
-} {
-  const headerB64 = jwt.split(".")[0];
-  if (!headerB64) {
-    throw agentAuthError("invalid_request", 400, "assertion is not a JWT");
-  }
+};
+
+type IdJagTimes = {
+  jti: string;
+  iat: number;
+  exp: number;
+  authTime: number;
+};
+
+function decodeHeader(jwt: string): IdJagHeader {
   try {
-    return JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8")) as {
-      typ?: string;
-      alg?: string;
-      kid?: string;
-    };
+    const header = decodeProtectedHeader(jwt);
+    const result: IdJagHeader = {};
+    if (isString(header.typ)) result.typ = header.typ;
+    if (isString(header.alg)) result.alg = header.alg;
+    if (isString(header.kid)) result.kid = header.kid;
+    return result;
   } catch {
     throw agentAuthError("invalid_request", 400, "assertion is not a JWT");
   }
@@ -87,32 +98,34 @@ function assertIdJagHeader(
   return alg;
 }
 
-function assertIdJagSubject(payload: JWTPayload): string {
-  if (typeof payload.sub !== "string" || payload.sub.length === 0) {
+function assertIdJagSubject(payload: JsonObject): string {
+  const subject = readString(payload.sub);
+  if (subject === undefined || subject.length === 0) {
     throw agentAuthError("invalid_request", 400, "assertion missing subject");
   }
-  if (payload.sub.startsWith("areg_")) {
+  if (subject.startsWith("areg_")) {
     throw agentAuthError(
       "invalid_request",
       400,
       "provider ID-JAG subject is not a user",
     );
   }
-  return payload.sub;
+  return subject;
 }
 
 function assertIdJagTimes(
-  payload: JWTPayload,
+  payload: JsonObject,
   expected: VerifyProviderIdJagInput,
   now: Date,
-): { jti: string; iat: number; exp: number; authTime: number } {
-  if (typeof payload.jti !== "string" || payload.jti.length === 0) {
+): IdJagTimes {
+  const jti = readString(payload.jti);
+  if (jti === undefined || jti.length === 0) {
     throw agentAuthError("invalid_request", 400, "assertion missing jti");
   }
-  if (typeof payload.exp !== "number") {
+  if (!isNumber(payload.exp)) {
     throw agentAuthError("invalid_request", 400, "assertion missing exp");
   }
-  if (typeof payload.iat !== "number") {
+  if (!isNumber(payload.iat)) {
     throw agentAuthError("invalid_request", 400, "assertion missing iat");
   }
   const age = Math.floor(now.getTime() / 1000) - payload.iat;
@@ -126,7 +139,7 @@ function assertIdJagTimes(
     throw agentAuthError("invalid_request", 400, "assertion issuer mismatch");
   }
   const maxAuthAge = expected.maxAuthAgeSeconds;
-  if (typeof payload.auth_time !== "number") {
+  if (!isNumber(payload.auth_time)) {
     throw agentAuthError(
       "login_required",
       401,
@@ -144,19 +157,18 @@ function assertIdJagTimes(
     );
   }
   return {
-    jti: payload.jti,
+    jti,
     iat: payload.iat,
     exp: payload.exp,
     authTime: payload.auth_time,
   };
 }
 
-function assertVerifiedContact(payload: JWTPayload): void {
+function assertVerifiedContact(payload: JsonObject): void {
   const emailOk =
-    payload.email_verified === true && typeof payload.email === "string";
+    payload.email_verified === true && isString(payload.email);
   const phoneOk =
-    payload.phone_number_verified === true &&
-    typeof payload.phone_number === "string";
+    payload.phone_number_verified === true && isString(payload.phone_number);
   if (!emailOk && !phoneOk) {
     throw agentAuthError(
       "invalid_request",
@@ -167,9 +179,9 @@ function assertVerifiedContact(payload: JWTPayload): void {
 }
 
 function toVerifiedIdentity(
-  payload: JWTPayload,
+  payload: JsonObject,
   subject: string,
-  times: { jti: string; iat: number; exp: number; authTime: number },
+  times: IdJagTimes,
 ): VerifiedProviderIdentity {
   const identity: VerifiedProviderIdentity = {
     issuer: normalizeIssuer(String(payload.iss)),
@@ -179,17 +191,16 @@ function toVerifiedIdentity(
     expiresAt: new Date(times.exp * 1000),
     authTime: new Date(times.authTime * 1000),
   };
-  if (typeof payload.email === "string") identity.email = payload.email;
+  const email = readString(payload.email);
+  if (email !== undefined) identity.email = email;
   if (payload.email_verified === true) identity.emailVerified = true;
-  if (typeof payload.phone_number === "string") {
-    identity.phoneNumber = payload.phone_number;
-  }
+  const phoneNumber = readString(payload.phone_number);
+  if (phoneNumber !== undefined) identity.phoneNumber = phoneNumber;
   if (payload.phone_number_verified === true) {
     identity.phoneNumberVerified = true;
   }
-  if (typeof payload.client_id === "string") {
-    identity.clientId = payload.client_id;
-  }
+  const clientId = readString(payload.client_id);
+  if (clientId !== undefined) identity.clientId = clientId;
   return identity;
 }
 
@@ -206,14 +217,13 @@ export async function verifyProviderIdJag(
   const allowed = expected.algorithms?.length
     ? expected.algorithms
     : [...ALLOWED_ALGS];
-  const key = await expected.getKey({
-    ...(header.kid ? { kid: header.kid } : {}),
-    alg,
-  });
+  const keyHeader: Parameters<typeof expected.getKey>[0] = { alg };
+  if (header.kid) keyHeader.kid = header.kid;
+  const key = await expected.getKey(keyHeader);
   const now = expected.now ?? new Date();
-  let payload: JWTPayload;
+  let payload: JsonObject;
   try {
-    const verified = await jwtVerify(jwt, key, {
+    const verified = await jwtVerify<JsonObject>(jwt, key, {
       issuer: expected.issuer,
       audience: [...expected.audiences],
       algorithms: allowed.filter((item) => ALLOWED_ALGS.has(item)),

@@ -67,12 +67,12 @@ function summarize(connectors: ConnectorStatus[]): string {
   return "nothing needs setup";
 }
 
-const ACTION: Record<ConnectorStatus["tone"], string> = {
+const ACTION = {
   live: "Connected",
   attn: "Set up",
   off: "Connect",
   offline: "Offline",
-};
+} satisfies Record<ConnectorStatus["tone"], string>
 
 export function MoreMenu() {
   const connectors = useConnectors();

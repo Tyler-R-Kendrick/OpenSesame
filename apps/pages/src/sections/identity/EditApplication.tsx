@@ -12,15 +12,14 @@ import {
   updateApplication,
 } from "../../lib/identity-management.js";
 
-async function saveHostedDraft(
-  clientId: string,
-  draft: {
-    displayName: string;
-    redirectUris: string[];
-    grantTypes?: string[];
-    tokenEndpointAuthMethod?: string;
-  },
-) {
+type HostedDraftSave = {
+  displayName: string;
+  redirectUris: string[];
+  grantTypes?: string[];
+  tokenEndpointAuthMethod?: string;
+};
+
+async function saveHostedDraft(clientId: string, draft: HostedDraftSave) {
   await updateApplication(clientId, draft.displayName, draft.redirectUris, {
     ...(draft.grantTypes ? { grantTypes: draft.grantTypes } : undefined),
     ...(draft.tokenEndpointAuthMethod
@@ -125,19 +124,18 @@ export function EditApplication({
       void run(() => saveHostedDraft(client.id, parsed.value));
       return;
     }
-    void run(() =>
-      saveHostedDraft(client.id, {
-        displayName: name.trim(),
-        redirectUris: redirects
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean),
-        grantTypes: workload
-          ? ["authorization_code", "client_credentials"]
-          : ["authorization_code"],
-        tokenEndpointAuthMethod: workload ? "private_key_jwt" : "none",
-      }),
-    );
+    const draft = {
+      displayName: name.trim(),
+      redirectUris: redirects
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+      grantTypes: workload
+        ? ["authorization_code", "client_credentials"]
+        : ["authorization_code"],
+      tokenEndpointAuthMethod: workload ? "private_key_jwt" : "none",
+    };
+    void run(() => saveHostedDraft(client.id, draft));
   }
 
   return (

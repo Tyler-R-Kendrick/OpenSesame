@@ -10,7 +10,10 @@ import {
 } from "@opensesame/os-domain";
 import type { JsonObject } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
-import { commitProviderRegistration } from "./agent-auth-id-jag-persist.js";
+import {
+  commitProviderRegistration,
+  type ProviderAssertionRegistrationResponse,
+} from "./agent-auth-id-jag-persist.js";
 import { resolveProviderRegistration } from "./agent-auth-id-jag-resolve.js";
 import { consumeProviderReplay } from "./agent-auth-id-jag-trust.js";
 import { providerAssertionIsAdvertised } from "./agent-auth-id-jag-trust.js";
@@ -24,7 +27,7 @@ export async function registerProviderAssertion(
   input: { assertionType: string; assertion: string },
   headers: { userAgent?: string; origin?: string },
   correlationId: string,
-): Promise<Record<string, unknown>> {
+): Promise<ProviderAssertionRegistrationResponse> {
   const identity = await verifyProviderAssertionRequest(ctx, input, headers);
   const resolved = await resolveProviderRegistration(
     ctx,
@@ -60,7 +63,7 @@ function firstLinkRequired(
       claim_token: claim.token,
       claim_token_expires: registration.expiresAt.toISOString(),
       post_claim_scopes: [...registration.postClaimScopes],
-      claim: ceremony.claim as JsonObject,
+      claim: ceremony.claim,
     },
   );
 }

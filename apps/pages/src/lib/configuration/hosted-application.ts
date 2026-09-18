@@ -1,3 +1,8 @@
+import {
+  type BoundaryValue,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { OAuthClient } from "../directory.js";
 import type { ConfigDiagnostic } from "./types.js";
 import { parseConfigYaml } from "./yaml-profile.js";
@@ -36,11 +41,14 @@ ${grants}
 `;
 }
 
-function stringList(value: unknown): string[] | undefined {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    return undefined;
+function stringList(value: BoundaryValue): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const strings: string[] = [];
+  for (const item of value) {
+    if (!isString(item)) return undefined;
+    strings.push(item);
   }
-  return value.filter((item) => item.length > 0);
+  return strings.filter((item) => item.length > 0);
 }
 
 /** ADV-32: a draft bound to one issuer cannot auto-apply to another. */
@@ -59,17 +67,20 @@ export function parseHostedApplicationSource(
   | { ok: false; diagnostics: ConfigDiagnostic[] } {
   const parsed = parseConfigYaml(source);
   if (!parsed.ok) return { ok: false, diagnostics: parsed.diagnostics };
-  const displayName = parsed.value.displayName;
-  const redirectUris = stringList(parsed.value.redirectUris);
-  const allowedScopes = stringList(parsed.value.allowedScopes) ?? ["openid"];
-  const grantTypes = stringList(parsed.value.grantTypes) ?? [
+  const displayName: BoundaryValue = overlapCast(parsed.value.displayName);
+  const redirectUris = stringList(overlapCast(parsed.value.redirectUris));
+  const allowedScopes =
+    stringList(overlapCast(parsed.value.allowedScopes)) ?? ["openid"];
+  const grantTypes = stringList(overlapCast(parsed.value.grantTypes)) ?? [
     "authorization_code",
   ];
-  const tokenEndpointAuthMethod =
-    typeof parsed.value.tokenEndpointAuthMethod === "string"
-      ? parsed.value.tokenEndpointAuthMethod
-      : "none";
-  if (typeof displayName !== "string" || !redirectUris) {
+  const tokenMethod: BoundaryValue = overlapCast(
+    parsed.value.tokenEndpointAuthMethod,
+  );
+  const tokenEndpointAuthMethod = isString(tokenMethod)
+    ? tokenMethod
+    : "none";
+  if (!isString(displayName) || !redirectUris) {
     return {
       ok: false,
       diagnostics: [
@@ -81,7 +92,8 @@ export function parseHostedApplicationSource(
       ],
     };
   }
-  if (typeof parsed.value.id === "string" && parsed.value.id !== clientId) {
+  const idField: BoundaryValue = overlapCast(parsed.value.id);
+  if (isString(idField) && idField !== clientId) {
     return {
       ok: false,
       diagnostics: [

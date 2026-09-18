@@ -10,7 +10,11 @@ import {
   randomBytes,
   sign,
 } from "node:crypto";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { createControlPlane } from "../create-app.js";
 
 type Plane = ReturnType<typeof createControlPlane>;
@@ -71,12 +75,18 @@ export function assertionFor(
   };
 }
 
+export type InteractionActivationBegin = {
+  activationId: string;
+  challenge: string;
+  status: number;
+};
+
 export async function beginInteractionActivation(
   cp: Plane,
   token: string,
   ref: string,
   requestDigest: string,
-): Promise<{ activationId: string; challenge: string; status: number }> {
+): Promise<InteractionActivationBegin> {
   const begun = await cp.app.request(`/v1/interactions/${ref}/activation`, {
     method: "POST",
     headers: {
@@ -91,7 +101,7 @@ export async function beginInteractionActivation(
   return {
     status: begun.status,
     activationId: String(body.activationId ?? ""),
-    challenge: typeof challenge === "string" ? challenge : "",
+    challenge: isString(challenge) ? challenge : "",
   };
 }
 
@@ -120,7 +130,7 @@ export async function activateInteraction(
   credentialId: string,
 ): Promise<string> {
   const begun = await beginInteractionActivation(cp, token, ref, requestDigest);
-  if (typeof begun.challenge !== "string" || begun.challenge.length === 0) {
+  if (!isString(begun.challenge) || begun.challenge.length === 0) {
     throw new Error("activation options missing challenge");
   }
   await completeInteractionActivation(

@@ -18,7 +18,7 @@ export function originFromClientId(clientId: string): string | undefined {
   }
 }
 
-export function refuseAuthorizeShape(input: {
+export function refuseInvalidAuthorizeRequest(input: {
   res: ServerResponse;
   issuer: string;
   responseType: string;

@@ -114,7 +114,7 @@ export async function findOriginClient(
 export function toOidcClientMetadata(client: OAuthClientRecord) {
   const scopes =
     client.allowedScopes.length > 0 ? client.allowedScopes : ["openid"];
-  return {
+  const metadata = {
     client_id: client.id,
     client_name: client.displayName,
     redirect_uris: client.redirectUris,
@@ -124,6 +124,9 @@ export function toOidcClientMetadata(client: OAuthClientRecord) {
     scope: scopes.join(" "),
     subject_type: "pairwise" as const,
     application_type: "web" as const,
-    ...(client.jwks ? { jwks: client.jwks } : {}),
   };
+  if (client.jwks) {
+    return { ...metadata, jwks: client.jwks };
+  }
+  return metadata;
 }

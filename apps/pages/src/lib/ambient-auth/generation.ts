@@ -6,6 +6,13 @@
  * not match is refused.
  */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
+
 const GENERATION_KEY = "opensesame:ambient-auth:generation";
 const SUPPRESSION_KEY = "opensesame:ambient-auth:suppressed";
 
@@ -98,17 +105,20 @@ export function readAttemptRecord(): AttemptRecord | null {
   try {
     const raw = globalThis.localStorage?.getItem(ATTEMPT_KEY);
     if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) return null;
     if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      typeof (parsed as AttemptRecord).providerKey !== "string" ||
-      typeof (parsed as AttemptRecord).policyRevision !== "string" ||
-      typeof (parsed as AttemptRecord).at !== "number"
+      !isString(parsed.providerKey) ||
+      !isString(parsed.policyRevision) ||
+      !isNumber(parsed.at)
     ) {
       return null;
     }
-    return parsed as AttemptRecord;
+    return {
+      providerKey: parsed.providerKey,
+      policyRevision: parsed.policyRevision,
+      at: parsed.at,
+    };
   } catch {
     return null;
   }

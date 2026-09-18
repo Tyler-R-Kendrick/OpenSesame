@@ -1,3 +1,9 @@
+import {
+  type BoundaryValue,
+  isString,
+  overlapCast,
+  readString,
+} from "@opensesame/os-domain";
 import type { LocalApplicationRegistration } from "../local-applications.js";
 import type { ConfigDiagnostic } from "./types.js";
 import { parseConfigYaml } from "./yaml-profile.js";
@@ -23,11 +29,14 @@ export type ApplicationParseResult =
   | { ok: true; value: LocalApplicationRegistration }
   | { ok: false; diagnostics: ConfigDiagnostic[] };
 
-function stringList(value: unknown): string[] | undefined {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    return undefined;
+function stringList(value: BoundaryValue): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const strings: string[] = [];
+  for (const item of value) {
+    if (!isString(item)) return undefined;
+    strings.push(item);
   }
-  return value.filter((item) => item.length > 0);
+  return strings.filter((item) => item.length > 0);
 }
 
 export function parseApplicationSource(
@@ -36,10 +45,11 @@ export function parseApplicationSource(
 ): ApplicationParseResult {
   const parsed = parseConfigYaml(source);
   if (!parsed.ok) return { ok: false, diagnostics: parsed.diagnostics };
-  const organizationId = parsed.value.organizationId;
-  const redirectUris = stringList(parsed.value.redirectUris);
-  const scopes = stringList(parsed.value.scopes);
-  if (typeof organizationId !== "string" || !redirectUris || !scopes) {
+  const raw = overlapCast(parsed.value);
+  const organizationId = readString(raw.organizationId);
+  const redirectUris = stringList(raw.redirectUris);
+  const scopes = stringList(raw.scopes);
+  if (organizationId === undefined || !redirectUris || !scopes) {
     return {
       ok: false,
       diagnostics: [
@@ -51,10 +61,8 @@ export function parseApplicationSource(
       ],
     };
   }
-  if (
-    typeof parsed.value.applicationId === "string" &&
-    parsed.value.applicationId !== applicationId
-  ) {
+  const declaredId = readString(raw.applicationId);
+  if (declaredId !== undefined && declaredId !== applicationId) {
     return {
       ok: false,
       diagnostics: [

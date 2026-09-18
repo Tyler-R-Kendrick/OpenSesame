@@ -7,6 +7,7 @@
 import {
   type BoundaryValue,
   type JsonObject,
+  isFunction,
   overlapCast,
 } from "@opensesame/os-domain";
 import { fireEvent, screen, within } from "@testing-library/react";
@@ -252,7 +253,7 @@ export function submitIdentifier(value: string): void {
 function ensureMemoryLocalStorage(): void {
   if (
     globalThis.localStorage &&
-    typeof globalThis.localStorage.getItem === "function"
+    isFunction(globalThis.localStorage.getItem)
   ) {
     return;
   }

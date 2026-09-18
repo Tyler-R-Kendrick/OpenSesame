@@ -15,6 +15,7 @@ import { setTheme } from "../../lib/theme.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import type { VaultPrefs } from "../../lib/vault/store.js";
 import { VisualPrefs } from "./VisualPrefs.js";
+import type { JsonValue } from "@opensesame/os-domain";
 
 const COMMENT = "# Vault preferences. Visual and Source edit this document.";
 
@@ -76,7 +77,7 @@ export function GeneralPrefsPanel() {
     setSource(switchDraftMode(draft, next).currentSource);
     setMode(next);
   };
-  const visualPatch = (key: string, value: unknown) => {
+  const visualPatch = (key: string, value: JsonValue) => {
     const patched = patchYamlTopLevel(source, key, value);
     const draft = prefsDraft(source, prefs.prefsRevision);
     setSource(applySourceEdit(draft, patched, []).currentSource);

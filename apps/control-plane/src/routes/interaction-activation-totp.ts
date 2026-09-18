@@ -3,7 +3,13 @@
  */
 
 import { appendAuditEvent } from "@opensesame/audit";
-import type { ApprovalActivation, Interaction } from "@opensesame/os-domain";
+import {
+  type ApprovalActivation,
+  type Interaction,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { interactionRequiresPhishingResistance } from "@opensesame/policy";
 import type { Context, Hono } from "hono";
 import type { AppContext } from "../context.js";
@@ -44,15 +50,17 @@ function isHttpResponse(
   return value instanceof Response;
 }
 
+type PendingTotpLookup = {
+  ctx: AppContext;
+  principalId: string;
+  interactionId: string;
+  activationId: string;
+  now: Date;
+};
+
 async function pendingTotpActivation(
   c: Context<{ Variables: Variables }>,
-  input: {
-    ctx: AppContext;
-    principalId: string;
-    interactionId: string;
-    activationId: string;
-    now: Date;
-  },
+  input: PendingTotpLookup,
 ): Promise<ApprovalActivation | Response> {
   const activation = await input.ctx.repos.approvalActivations.getById(
     input.activationId,
@@ -87,22 +95,22 @@ async function completeTotp(
   if (interactionRequiresPhishingResistance(row.kind)) {
     return deps.fail(c, "invalid_request");
   }
-  const body = (await c.req.json().catch(() => ({}))) as {
-    activationId?: unknown;
-    code?: unknown;
-  };
+  const parsedBody = overlapCast(await c.req.json().catch(() => ({})));
   if (
-    typeof body.activationId !== "string" ||
-    typeof body.code !== "string" ||
-    !TOTP_CODE.test(body.code)
+    !isJsonObject(parsedBody) ||
+    !isString(parsedBody.activationId) ||
+    !isString(parsedBody.code) ||
+    !TOTP_CODE.test(parsedBody.code)
   ) {
     return deps.fail(c, "invalid_request");
   }
+  const activationId = parsedBody.activationId;
+  const code = parsedBody.code;
   const activation = await pendingTotpActivation(c, {
     ctx,
     principalId,
     interactionId: row.id,
-    activationId: body.activationId,
+    activationId,
     now,
   });
   if (isHttpResponse(activation)) return activation;
@@ -114,7 +122,7 @@ async function completeTotp(
   if (prior >= MAX_INTERACTION_TOTP_FAILURES) {
     return c.json({ error: "too_many_attempts" }, 429);
   }
-  if (!totpCodesEqual(body.code, totpCode(secret))) {
+  if (!totpCodesEqual(code, totpCode(secret))) {
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "authority.activation.denied",
       principalId,

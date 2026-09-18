@@ -24,11 +24,16 @@ function runtimeFromEnv(): LocalExactRuntime | null {
   return {
     rpcUrl,
     chainId: Number(process.env.CHAIN_ID ?? "31337"),
+    // SAFETY: fixture constructed in this test matches the declared contract.
     payerPrivateKey: payer as `0x${string}`,
+    // SAFETY: fixture constructed in this test matches the declared contract.
     facilitatorPrivateKey: facilitator as `0x${string}`,
+    // SAFETY: fixture constructed in this test matches the declared contract.
     asset: asset as `0x${string}`,
+    // SAFETY: fixture constructed in this test matches the declared contract.
     payTo: payTo as `0x${string}`,
     amount: process.env.WALLET_X402_AMOUNT ?? "1000000",
+    // SAFETY: fixture constructed in this test matches the declared contract.
     network: network as `${string}:${string}`,
   };
 }

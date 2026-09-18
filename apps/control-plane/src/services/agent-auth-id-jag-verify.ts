@@ -4,7 +4,11 @@ import {
   agentAuthError,
   verifyProviderIdJag,
 } from "@opensesame/agent-protocols";
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  isJsonObject,
+  overlapCast,
+  readString,
+} from "@opensesame/os-domain";
 import { importJWK } from "jose";
 import type { AppContext } from "../context.js";
 import {
@@ -44,10 +48,13 @@ export async function verifyProviderAssertionRequest(
   try {
     const payloadB64 = input.assertion.split(".")[1];
     if (payloadB64) {
-      const payload = JSON.parse(
-        Buffer.from(payloadB64, "base64url").toString("utf8"),
-      ) as { iss?: unknown };
-      if (typeof payload.iss === "string") issuerHint = payload.iss;
+      const parsed = overlapCast(
+        JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8")),
+      );
+      if (isJsonObject(parsed)) {
+        const iss = readString(parsed.iss);
+        if (iss !== undefined) issuerHint = iss;
+      }
     }
   } catch {
     throw agentAuthError("invalid_grant", 400, "assertion is not a JWT");

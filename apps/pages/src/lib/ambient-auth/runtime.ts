@@ -3,14 +3,18 @@
  * URL query and localStorage cannot write this object.
  */
 
-import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
-import type { BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { type OperatorIdp, normalizeOperatorIdp } from "../settings.js";
 
-let deployed: unknown;
+let deployed: BoundaryValue | undefined;
 let deployedProviders: OperatorIdp[] = [];
 
-function readDeployedProviders(value: unknown): OperatorIdp[] {
+function readDeployedProviders(value: BoundaryValue): OperatorIdp[] {
   const raw: BoundaryValue = overlapCast(value);
   if (!isJsonObject(raw) || !Array.isArray(raw.providers)) return [];
   const out: OperatorIdp[] = [];
@@ -33,12 +37,12 @@ function readDeployedProviders(value: unknown): OperatorIdp[] {
   return out;
 }
 
-export function applyDeployedAmbientPolicy(value: unknown): void {
-  deployed = value && typeof value === "object" ? value : undefined;
+export function applyDeployedAmbientPolicy(value: BoundaryValue): void {
+  deployed = isJsonObject(value) ? value : undefined;
   deployedProviders = readDeployedProviders(value);
 }
 
-export function deployedAmbientPolicy(): unknown {
+export function deployedAmbientPolicy(): BoundaryValue | undefined {
   return deployed;
 }
 

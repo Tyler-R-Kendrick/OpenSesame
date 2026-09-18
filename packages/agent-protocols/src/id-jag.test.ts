@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { SignJWT, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { PROVIDER_ID_JAG_TYP, SERVICE_ASSERTION_TYP } from "./constants.js";
@@ -18,11 +19,15 @@ describe("verifyProviderIdJag", () => {
     omitAuthTime?: boolean;
   };
 
-  function mintClaims(
-    now: number,
-    opts: MintOpts = {},
-  ): Record<string, unknown> {
-    const claims: Record<string, unknown> = {
+  type MintClaims = {
+    sub: string;
+    email: string;
+    email_verified: boolean;
+    auth_time?: number;
+  };
+
+  function mintClaims(now: number, opts: MintOpts = {}): MintClaims {
+    const claims: MintClaims = {
       sub: opts.sub ?? "user_1",
       email: "user@example.com",
       email_verified: opts.emailVerified ?? true,
@@ -36,7 +41,7 @@ describe("verifyProviderIdJag", () => {
   async function mint(opts: MintOpts = {}) {
     const { privateKey, publicKey } = await generateKeyPair("ES256");
     const now = Math.floor(Date.now() / 1000);
-    const jwt = await new SignJWT(mintClaims(now, opts))
+    const jwt = await new SignJWT(overlapCast(mintClaims(now, opts)))
       .setProtectedHeader({
         alg: "ES256",
         typ: opts.typ ?? PROVIDER_ID_JAG_TYP,

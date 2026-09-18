@@ -12,12 +12,16 @@ import {
   enumerateCargoTests,
 } from "./authority-fabric-facts.mjs";
 
+function isString(value) {
+  return Object.prototype.toString.call(value) === "[object String]";
+}
+
 /** @param {{ crate: string, bin?: string, integration?: string, features?: string[] }} target */
 export function cargoBatchKey(target) {
   const suite =
-    typeof target.bin === "string"
+    isString(target.bin)
       ? `${target.crate}#bin:${target.bin}`
-      : typeof target.integration === "string"
+      : isString(target.integration)
         ? `${target.crate}#test:${target.integration}`
         : target.crate;
   if (!Array.isArray(target.features) || target.features.length === 0) {
@@ -28,8 +32,8 @@ export function cargoBatchKey(target) {
 
 /** @param {{ bin?: string, integration?: string }} target */
 export function cargoSuiteArgs(target) {
-  if (typeof target.bin === "string") return ["--bin", target.bin];
-  if (typeof target.integration === "string") {
+  if (isString(target.bin)) return ["--bin", target.bin];
+  if (isString(target.integration)) {
     return ["--test", target.integration];
   }
   return ["--lib"];
@@ -45,7 +49,7 @@ export function cargoFeatureArgs(target) {
 
 /** @param {{ bin?: string }} target */
 export function cargoBinName(target) {
-  return typeof target.bin === "string" ? target.bin : null;
+  return isString(target.bin) ? target.bin : null;
 }
 
 /**
@@ -65,9 +69,9 @@ export function runCargoBatches(resolved, { root, noRun }) {
       batches.set(key, {
         crate: scenario.target.crate,
         bin:
-          typeof scenario.target.bin === "string" ? scenario.target.bin : null,
+          isString(scenario.target.bin) ? scenario.target.bin : null,
         integration:
-          typeof scenario.target.integration === "string"
+          isString(scenario.target.integration)
             ? scenario.target.integration
             : null,
         features: scenario.target.features,
@@ -176,7 +180,7 @@ export function enumerateScenarioCargoTests({
         crate: target.crate,
         bin: cargoBinName(target),
         integration:
-          typeof target.integration === "string" ? target.integration : null,
+          isString(target.integration) ? target.integration : null,
         features: target.features,
       });
     }

@@ -389,6 +389,7 @@ describe("ConnectionsSection gallery", () => {
     const search = () =>
       screen.getByRole("textbox", { name: "Search connectors" });
     await userEvent.type(search(), "linear");
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const grid = container.querySelector(".conn-grid") as HTMLElement;
     expect(within(grid).getByText("Linear")).toBeTruthy();
     expect(container.querySelectorAll(".conn-tile").length).toBe(1);

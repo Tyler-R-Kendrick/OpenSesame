@@ -1,3 +1,6 @@
+import {
+  isString,
+} from "@opensesame/os-domain";
 /**
  * Pinned OAuth2 Proxy (v7.8.2) OIDC consumer contract. Not a native reverse
  * proxy — operators run the upstream binary; this only emits discovery-backed
@@ -25,7 +28,7 @@ export type OidcDiscovery = {
 export function oauth2ProxyDiscoveryGaps(doc: OidcDiscovery): string[] {
   return OAUTH2_PROXY_REQUIRED_DISCOVERY.filter((key) => {
     const value = doc[key];
-    return typeof value !== "string" || value.length === 0;
+    return !isString(value) || value.length === 0;
   });
 }
 

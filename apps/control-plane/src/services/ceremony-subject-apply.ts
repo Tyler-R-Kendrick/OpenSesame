@@ -6,7 +6,6 @@
 import {
   DomainError,
   type Interaction,
-  type InteractionKind,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import {
@@ -66,23 +65,22 @@ function applyTransaction(
   );
 }
 
-const APPLIERS: Partial<
-  Record<
-    InteractionKind,
-    (ctx: AppContext, interaction: Interaction, now: Date) => void
-  >
-> = {
-  device_authorization: applyDevice,
-  pairing: applyPairing,
-  transaction_authorization: applyTransaction,
-};
-
-function noop() {}
-
 export function applyHostCeremonySubject(
   ctx: AppContext,
   interaction: Interaction,
   now: Date,
 ): void {
-  (APPLIERS[interaction.kind] ?? noop)(ctx, interaction, now);
+  switch (interaction.kind) {
+    case "device_authorization":
+      applyDevice(ctx, interaction, now);
+      return;
+    case "pairing":
+      applyPairing(ctx, interaction, now);
+      return;
+    case "transaction_authorization":
+      applyTransaction(ctx, interaction, now);
+      return;
+    default:
+      return;
+  }
 }

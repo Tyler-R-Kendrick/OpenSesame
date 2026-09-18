@@ -22,7 +22,7 @@ const CANDIDATE_BINS = [
   process.env.OAUTH2_PROXY_BIN,
   "/tmp/oauth2-proxy-smoke/oauth2-proxy-v7.8.2.linux-arm64/oauth2-proxy",
   "/tmp/oauth2-proxy-smoke/oauth2-proxy",
-].filter((p): p is string => typeof p === "string" && p.length > 0);
+].filter((p): p is string => isString(p) && p.length > 0);
 
 function resolveProxyBin(): string | null {
   for (const path of CANDIDATE_BINS) {
@@ -37,11 +37,13 @@ function resolveProxyBin(): string | null {
 }
 
 /** Mirrors apps/pages oauth2ProxyConfig — keep fields in lockstep with the recipe. */
-function publicPkceCfg(input: {
+type PublicPkceCfgInput = {
   issuer: string;
   clientId: string;
   redirectUrl: string;
-}): string {
+};
+
+function publicPkceCfg(input: PublicPkceCfgInput): string {
   return `# oauth2-proxy ${PINNED}
 # Public PKCE client. Do not put a client secret in this file.
 provider = "oidc"
@@ -131,11 +133,12 @@ describe(`oauth2-proxy ${PINNED} live binary`, () => {
 
     const proxyPort = await freePort();
     const redirectUrl = `http://127.0.0.1:${proxyPort}/oauth2/callback`;
-    const cfg = publicPkceCfg({
+    const cfgInput = {
       issuer: String(discovery.issuer),
       clientId: "oauth2-proxy-live",
       redirectUrl,
-    });
+    } satisfies PublicPkceCfgInput;
+    const cfg = publicPkceCfg(cfgInput);
     expect(cfg).not.toMatch(/^\s*client_secret\s*=/im);
     expect(cfg).toContain(PINNED);
 

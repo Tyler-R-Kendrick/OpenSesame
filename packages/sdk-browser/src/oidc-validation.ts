@@ -1,4 +1,5 @@
 import {
+  type BoundaryObject,
   type BoundaryValue,
   isJsonObject,
   isNumber,
@@ -171,7 +172,7 @@ export async function verifyRestoredBrowserIdToken(
   });
 }
 
-async function verifySignedIdToken(input: {
+type VerifySignedIdTokenInput = {
   token: string;
   issuer: string;
   clientId: string;
@@ -180,7 +181,25 @@ async function verifySignedIdToken(input: {
   expectedNonce: string | undefined;
   maxTokenAge: string | undefined;
   requiredClaims: string[];
-}): Promise<VerifiedIdTokenClaims> {
+};
+
+type IdTokenPayloadFields = {
+  iss: string;
+  sub: string;
+  aud: BoundaryValue;
+  exp: number;
+  iat: number;
+  nonce?: BoundaryValue;
+  tid?: BoundaryValue;
+  oid?: BoundaryValue;
+  name?: BoundaryValue;
+  email?: BoundaryValue;
+  auth_time?: BoundaryValue;
+};
+
+async function verifySignedIdToken(
+  input: VerifySignedIdTokenInput,
+): Promise<VerifiedIdTokenClaims> {
   const getKey = await readPublicJwks(input.fetchImpl, input.jwksUri);
   const { payload, protectedHeader } = await jwtVerify(input.token, getKey, {
     issuer: input.issuer,
@@ -208,20 +227,20 @@ async function verifySignedIdToken(input: {
   if (authorizedParty !== undefined && !isString(authorizedParty))
     throw new Error("Invalid authorized party");
   assertAuthorizedParty(payload.aud, authorizedParty, input.clientId);
-  const extra = payload as Record<string, unknown>;
+  const claims: BoundaryObject = overlapCast(payload);
   return claimsFromPayload(
     {
       iss: payload.iss,
       sub: payload.sub,
-      aud: payload.aud,
+      aud: overlapCast(payload.aud),
       exp: payload.exp,
       iat: payload.iat,
-      nonce: payload.nonce,
-      tid: extra.tid,
-      oid: extra.oid,
-      name: payload.name,
-      email: payload.email,
-      auth_time: payload.auth_time,
+      nonce: overlapCast(payload.nonce),
+      tid: claims.tid,
+      oid: claims.oid,
+      name: overlapCast(payload.name),
+      email: overlapCast(payload.email),
+      auth_time: overlapCast(payload.auth_time),
     },
     isString(authorizedParty) ? authorizedParty : undefined,
   );
@@ -244,31 +263,33 @@ function assertProtectedHeader(header: {
 }
 
 function claimsFromPayload(
-  payload: {
-    iss: string;
-    sub: string;
-    aud: unknown;
-    exp: number;
-    iat: number;
-    nonce?: unknown;
-    tid?: unknown;
-    oid?: unknown;
-    name?: unknown;
-    email?: unknown;
-    auth_time?: unknown;
-  },
+  payload: IdTokenPayloadFields,
   authorizedParty: string | undefined,
 ): VerifiedIdTokenClaims {
-  const tid: BoundaryValue = overlapCast(payload.tid);
-  const oid: BoundaryValue = overlapCast(payload.oid);
-  const name: BoundaryValue = overlapCast(payload.name);
-  const email: BoundaryValue = overlapCast(payload.email);
-  const authTime: BoundaryValue = overlapCast(payload.auth_time);
-  const nonce: BoundaryValue = overlapCast(payload.nonce);
+  const tid = payload.tid;
+  const oid = payload.oid;
+  const name = payload.name;
+  const email = payload.email;
+  const authTime = payload.auth_time;
+  const nonce = payload.nonce;
+  const audRaw = payload.aud;
+  let aud: string | string[];
+  if (isString(audRaw)) {
+    aud = audRaw;
+  } else if (Array.isArray(audRaw)) {
+    const parts: string[] = [];
+    for (const item of audRaw) {
+      if (!isString(item)) throw new Error("id_token missing aud");
+      parts.push(item);
+    }
+    aud = parts;
+  } else {
+    throw new Error("id_token missing aud");
+  }
   return {
     iss: payload.iss,
     sub: payload.sub,
-    aud: payload.aud as string | string[],
+    aud,
     exp: payload.exp,
     iat: payload.iat,
     ...(isString(nonce) ? { nonce } : undefined),

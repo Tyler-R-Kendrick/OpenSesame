@@ -56,7 +56,7 @@ export function assertConfidentialClientCredentials(
  * extraClientMetadata hook: public clients (`token_endpoint_auth_method:
  * none` or no secret) may not register `client_credentials`.
  */
-export function clientCredentialsExtraMetadata(): {
+export type ClientCredentialsExtraMetadata = {
   properties: string[];
   validator: (
     ctx: BoundaryValue,
@@ -64,7 +64,9 @@ export function clientCredentialsExtraMetadata(): {
     value: BoundaryValue,
     metadata: BoundaryValue,
   ) => void;
-} {
+};
+
+export function clientCredentialsExtraMetadata(): ClientCredentialsExtraMetadata {
   return {
     // Sentinel so oidc-provider invokes the validator for every client,
     // including static registrations. The property is never persisted.

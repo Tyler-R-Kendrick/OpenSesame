@@ -141,6 +141,7 @@ describe("built-in audience catalog", () => {
         expect(claim.status).toMatch(
           /^(unsupported|configuration_required|local_defaults_only)$/,
         );
+        // SAFETY: fixture constructed in this test matches the declared contract.
         if ((UNWIRED_PORTAL_SURFACES as readonly string[]).includes(claim.id)) {
           expect(claim.status).not.toBe("local_defaults_only");
           expect(claim.note.toLowerCase()).not.toMatch(

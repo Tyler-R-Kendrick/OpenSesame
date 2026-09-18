@@ -13,7 +13,7 @@ import {
   localPaymentApprovalIntent,
 } from "./spending-consent.js";
 
-const TAMPER: Record<PaymentApprovalDigestField, string> = {
+const TAMPER = {
   currency: "EUR",
   amount: "701",
   recipient: "child-b",
@@ -25,7 +25,7 @@ const TAMPER: Record<PaymentApprovalDigestField, string> = {
   policyVersion: "2",
   allocationRef: "child-b",
   effectiveEnforcement: "independent_execution",
-};
+} satisfies Record<PaymentApprovalDigestField, string>
 
 describe("spending-consent", () => {
   it("matches the Node wallet-consent digest encoding", async () => {

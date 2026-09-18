@@ -30,6 +30,7 @@ describe("application surfaces", () => {
 
   it("exports a recipe without the live secret", () => {
     render(<ApplicationRecipePanel registration={registration} />);
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const exported = screen.getByLabelText(
       "Exported recipe",
     ) as HTMLTextAreaElement;

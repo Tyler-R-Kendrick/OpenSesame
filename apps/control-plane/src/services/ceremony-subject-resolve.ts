@@ -76,10 +76,13 @@ function resolveTransaction(
   return stillLive(existing.expiresAt, ctx.clock());
 }
 
-const RESOLVERS: Record<
-  InteractionKind,
-  (ctx: AppContext, subjectId: string, callerId: string) => Promise<boolean>
-> = {
+type SubjectResolver = (
+  ctx: AppContext,
+  subjectId: string,
+  callerId: string,
+) => Promise<boolean>;
+
+const RESOLVERS = {
   authorization_request: resolveAuthorizationRequest,
   claim: resolveClaim,
   grant_claim: resolveClaim,
@@ -89,7 +92,7 @@ const RESOLVERS: Record<
     resolvePairing(ctx, subjectId, callerId),
   transaction_authorization: async (ctx, subjectId, callerId) =>
     resolveTransaction(ctx, subjectId, callerId),
-};
+} satisfies Record<InteractionKind, SubjectResolver>;
 
 export async function resolveEntitledSubject(
   ctx: AppContext,

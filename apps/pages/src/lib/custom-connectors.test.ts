@@ -37,15 +37,18 @@ describe("managed vs user-owned connectors", () => {
     expect(isManagedConnector("github")).toBe(true);
     expect(isManagedConnector("custom-acme")).toBe(false);
     expect(
+      // SAFETY: fixture constructed in this test matches the declared contract.
       authKindLabel({
         id: "slack",
         authKind: "oauth2_authorization_code",
       } as Provider),
     ).toBe("Managed");
     expect(
+      // SAFETY: fixture constructed in this test matches the declared contract.
       authKindLabel({ id: "custom-acme", authKind: "api_key" } as Provider),
     ).toBe("API key");
     expect(
+      // SAFETY: fixture constructed in this test matches the declared contract.
       authKindLabel({
         id: "custom-oauth",
         authKind: "oauth2_authorization_code",
@@ -94,6 +97,7 @@ describe("managed vs user-owned connectors", () => {
       "custom-internal",
     ]);
     const merged = mergeCustomConnectors([
+      // SAFETY: fixture constructed in this test matches the declared contract.
       { id: "slack", displayName: "Slack" } as Provider,
     ]);
     expect(merged.map((row) => row.id)).toEqual([

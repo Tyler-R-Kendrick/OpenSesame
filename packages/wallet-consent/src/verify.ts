@@ -79,7 +79,9 @@ export async function verifyDigestBoundApproval(
   }
   const verified = await verifyEs256(
     expectedDigest,
+    // SAFETY: test/fixture or boundary-checked value matches Uint8Array,.
     proof.verifiedBytes as Uint8Array,
+    // SAFETY: test/fixture or boundary-checked value matches Uint8Array,.
     proof.publicKeySpki as Uint8Array,
   );
   if (!verified) {
@@ -88,11 +90,15 @@ export async function verifyDigestBoundApproval(
   return { ok: true, verifiedMechanism: "es256" };
 }
 
-/** Browser-safe ephemeral P-256 signature over a digest. Test/demo only. */
-export async function signDigestWithEphemeralP256(digestHex: string): Promise<{
+export type EphemeralP256Proof = {
   verifiedBytes: Uint8Array;
   publicKeySpki: Uint8Array;
-}> {
+};
+
+/** Browser-safe ephemeral P-256 signature over a digest. Test/demo only. */
+export async function signDigestWithEphemeralP256(
+  digestHex: string,
+): Promise<EphemeralP256Proof> {
   const pair = await crypto.subtle.generateKey(
     { name: "ECDSA", namedCurve: "P-256" },
     true,

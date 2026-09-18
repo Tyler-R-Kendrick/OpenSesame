@@ -1,3 +1,9 @@
+import {
+  type BoundaryValue,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { Configuration } from "oidc-provider";
 import {
   type AccountPrincipal,
@@ -25,12 +31,21 @@ export type FindAccountOptions = {
   mapClaims?: MapClaims;
 };
 
-function clientIdOf(ctx: unknown): string | undefined {
-  if (!ctx || typeof ctx !== "object") return undefined;
-  const oidc = (ctx as { oidc?: { client?: { clientId?: unknown } } }).oidc;
-  return typeof oidc?.client?.clientId === "string"
-    ? oidc.client.clientId
-    : undefined;
+type OidcClientContext = {
+  oidc?: { client?: { clientId?: BoundaryValue } };
+};
+
+function clientIdOf(ctx: BoundaryValue): string | undefined {
+  if (
+    ctx === null ||
+    ctx === undefined ||
+    !isTypeofObject(ctx) ||
+    Array.isArray(ctx)
+  )
+    return undefined;
+  const scoped: OidcClientContext = overlapCast(ctx);
+  const clientId = scoped.oidc?.client?.clientId;
+  return isString(clientId) ? clientId : undefined;
 }
 
 function isUnavailable(principal: AccountPrincipal | undefined): boolean {
@@ -63,7 +78,7 @@ export function createFindAccount(
   return async (ctx, id) => {
     let lookup: AccountLookup | undefined;
     if (options.lookupAccount) {
-      const clientId = clientIdOf(ctx);
+      const clientId = clientIdOf(overlapCast(ctx));
       const found = await options.lookupAccount(id, clientId);
       if (found == null || isUnavailable(found.principal)) return undefined;
       lookup = found;

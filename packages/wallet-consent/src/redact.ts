@@ -2,12 +2,14 @@
  * WAL-B17 — redacted Wallet exports must not echo seeded secret canaries.
  */
 
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
+
 const CANARY = /CANARY_[A-Za-z0-9_-]+/g;
 const KEYISH = /\b(?:sk|pk|api)[_-][A-Za-z0-9_-]{8,}\b/gi;
 const LONG_HEX = /[A-Fa-f0-9]{64,}/g;
 
-export function redactWalletExport(value: unknown): string {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+export function redactWalletExport(value: BoundaryValue): string {
+  const text = isString(value) ? value : JSON.stringify(value);
   return text
     .replace(CANARY, "[redacted-canary]")
     .replace(KEYISH, "[redacted]")

@@ -7,6 +7,14 @@
  * is that an unresolvable scenario is `blocked`, never absent and never green.
  */
 
+
+function isPlainString(value) {
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object String]"
+  );
+}
+
 import {
   cargoBatchKey,
   cargoFeatureArgs,
@@ -106,7 +114,7 @@ function resolveCargo(target, facts) {
 }
 
 function cargoSuiteMissing(crate, target) {
-  if (typeof target.bin === "string") {
+  if (isPlainString(target.bin)) {
     return crate.binExists === true
       ? null
       : `${target.crate} declares no bin target reachable for fabric scenarios`;

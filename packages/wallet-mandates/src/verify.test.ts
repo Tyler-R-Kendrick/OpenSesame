@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { signMandate, verifyMandate } from "./codec.js";
@@ -61,8 +62,8 @@ describe("AP2/UCP local mandate verifier", () => {
 
   it("rejects constraint stripping", async () => {
     const { issuerKeys, trust, now, base } = await fixture();
-    const stripped = { ...base() } as unknown as MandateClaims;
-    (stripped as { constraints?: unknown }).constraints = undefined;
+    const strippedPayload = { ...base(), constraints: undefined };
+    const stripped: MandateClaims = overlapCast(strippedPayload);
     const result = await verifyMandate({
       compact: await signMandate(stripped, issuerKeys.privateKey, "iss-1"),
       trust,
@@ -89,9 +90,13 @@ describe("AP2/UCP local mandate verifier", () => {
 
   it("rejects protection downgrade and alg none", async () => {
     const { issuerKeys, trust, now, base } = await fixture();
+    const downgraded: MandateClaims = overlapCast({
+      ...base(),
+      protection: "none",
+    });
     const down = await verifyMandate({
       compact: await signMandate(
-        { ...base(), protection: "none" } as unknown as MandateClaims,
+        downgraded,
         issuerKeys.privateKey,
         "iss-1",
       ),

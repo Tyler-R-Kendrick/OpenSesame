@@ -47,6 +47,20 @@ const KEYS = {
 const MINT_AMOUNT = 1_000_000_000n; // 1000 TEST (6 decimals)
 const PAY_AMOUNT = "1000000"; // 1.000000 TEST
 
+function isNumber(value) {
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object Number]"
+  );
+}
+
+function isString(value) {
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object String]"
+  );
+}
+
 function foundryEnv() {
   return {
     ...process.env,
@@ -81,7 +95,7 @@ function run(cmd, args, cwd, extraEnv) {
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   return {
-    exitCode: typeof r.status === "number" ? r.status : 1,
+    exitCode: isNumber(r.status) ? r.status : 1,
     durationMs: Date.now() - started,
     command: [cmd, ...args].join(" "),
     stdout: r.stdout ?? "",
@@ -424,7 +438,7 @@ async function main() {
         tx: settle.transaction ?? null,
         success: settle.success ?? false,
         errorMessage:
-          typeof settle.errorMessage === "string" ? settle.errorMessage : null,
+          isString(settle.errorMessage) ? settle.errorMessage : null,
       },
     });
     if (!settleOk) {

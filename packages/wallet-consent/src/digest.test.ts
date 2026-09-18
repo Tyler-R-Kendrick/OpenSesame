@@ -26,7 +26,7 @@ function intent(
   };
 }
 
-const TAMPER: Record<PaymentApprovalDigestField, string> = {
+const TAMPER = {
   currency: "EUR",
   amount: "42.01",
   recipient: "Evil Corp",
@@ -38,7 +38,7 @@ const TAMPER: Record<PaymentApprovalDigestField, string> = {
   policyVersion: "2",
   allocationRef: "alloc-other",
   effectiveEnforcement: "local_approval",
-};
+} satisfies Record<PaymentApprovalDigestField, string>
 
 describe("buildPaymentApprovalDigest", () => {
   it("returns a stable 64-char lowercase hex digest", () => {

@@ -11,6 +11,7 @@ const vault = vi.hoisted(() => ({
     tomb: "guest",
     guest: true,
     header: null,
+    // SAFETY: fixture constructed in this test matches the declared contract.
     items: [] as CardItem[],
     folders: [],
     prefs: {
@@ -190,6 +191,7 @@ describe("WalletSection", () => {
     ).toHaveProperty("value");
     expect(
       (
+        // SAFETY: fixture constructed in this test matches the declared contract.
         screen.getByRole("combobox", {
           name: "Budget for Corporate card",
         }) as HTMLSelectElement

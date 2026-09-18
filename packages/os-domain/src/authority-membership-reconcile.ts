@@ -127,16 +127,20 @@ function upsertFor(
   };
 }
 
-function reconcileActiveEdges(input: {
+type ActiveEdgeReconcile = {
+  readonly upserts: MembershipEdgeUpsert[];
+  readonly invalidations: MembershipEdgeInvalidate[];
+  readonly seenActive: Set<string>;
+};
+
+type ActiveEdgeReconcileInput = {
   readonly organizationId: string;
   readonly cohortId: string;
   readonly desired: Map<string, ProjectMembership>;
   readonly existingEdges: readonly AuthorityMembershipEdgeSnapshot[];
-}): {
-  readonly upserts: MembershipEdgeUpsert[];
-  readonly invalidations: MembershipEdgeInvalidate[];
-  readonly seenActive: Set<string>;
-} {
+};
+
+function reconcileActiveEdges(input: ActiveEdgeReconcileInput): ActiveEdgeReconcile {
   const upserts: MembershipEdgeUpsert[] = [];
   const invalidations: MembershipEdgeInvalidate[] = [];
   const seenActive = new Set<string>();

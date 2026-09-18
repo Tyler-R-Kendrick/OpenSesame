@@ -1,8 +1,13 @@
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { actionById, isBindableAction } from "./actions.js";
 
 export type KeybindingMap = Record<string, string>;
 
-export const DEFAULT_KEYBINDINGS: KeybindingMap = {
+export const DEFAULT_KEYBINDINGS = {
   "Control+l": "command.palette",
   ":": "command.palette",
   "/": "listing.search",
@@ -11,7 +16,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingMap = {
   s: "item.share",
   e: "item.edit",
   "?": "help.keymap",
-};
+} satisfies KeybindingMap;
 
 const UNSAFE_TARGETS = /^(https?:|javascript:|data:|\/\/)/i;
 
@@ -20,52 +25,53 @@ export type KeybindingImportResult =
   | { ok: false; message: string; bindings: KeybindingMap };
 
 export function importKeybindings(
-  candidate: unknown,
-  previous: KeybindingMap = DEFAULT_KEYBINDINGS,
+  candidate: BoundaryValue,
+  previous?: KeybindingMap,
 ): KeybindingImportResult {
-  if (
-    candidate === null ||
-    typeof candidate !== "object" ||
-    Array.isArray(candidate)
-  ) {
+  const base: KeybindingMap = {};
+  Object.assign(base, previous ?? DEFAULT_KEYBINDINGS);
+  if (!isJsonObject(candidate)) {
     return {
       ok: false,
       message: "Keybindings must be a mapping of keys to action ids.",
-      bindings: previous,
+      bindings: base,
     };
   }
-  const next: KeybindingMap = { ...previous };
+  const next: KeybindingMap = {};
+  Object.assign(next, base);
   for (const [key, value] of Object.entries(candidate)) {
-    if (typeof value !== "string") {
+    if (!isString(value)) {
       return {
         ok: false,
         message: `Binding for "${key}" is not an action id.`,
-        bindings: previous,
+        bindings: base,
       };
     }
     if (UNSAFE_TARGETS.test(value) || value.includes("://")) {
       return {
         ok: false,
         message: "Keybindings cannot name URLs or endpoints.",
-        bindings: previous,
+        bindings: base,
       };
     }
     if (!actionById(value)) {
       return {
         ok: false,
         message: `Unknown action "${value}".`,
-        bindings: previous,
+        bindings: base,
       };
     }
     if (!isBindableAction(value)) {
-      if (DEFAULT_KEYBINDINGS[key] === value) {
+      const defaults: KeybindingMap = {};
+      Object.assign(defaults, DEFAULT_KEYBINDINGS);
+      if (defaults[key] === value) {
         next[key] = value;
         continue;
       }
       return {
         ok: false,
         message: `Action "${value}" requires confirmation and cannot be rebound to skip it.`,
-        bindings: previous,
+        bindings: base,
       };
     }
     next[key] = value;
@@ -73,6 +79,8 @@ export function importKeybindings(
   return { ok: true, bindings: next };
 }
 
-export function resetKeybindings(): KeybindingMap {
-  return { ...DEFAULT_KEYBINDINGS };
+export function resetKeybindings() {
+  const next: KeybindingMap = {};
+  Object.assign(next, DEFAULT_KEYBINDINGS);
+  return next;
 }
