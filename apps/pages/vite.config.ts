@@ -22,7 +22,6 @@ const osDomainWallet = fileURLToPath(
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
     testTimeout: 20_000,
     hookTimeout: 20_000,
   },
