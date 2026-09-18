@@ -2,11 +2,11 @@
 /**
  * wallet:test:browser — Vitest Wallet fixtures + Playwright QAB.
  */
-
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isNumber } from "./lib/primitive-guards.mjs";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
@@ -43,13 +43,6 @@ function run(cmd, args) {
     durationMs: Date.now() - started,
     command: [cmd, ...args].join(" "),
   };
-}
-
-function isNumber(value) {
-  return (
-    Object(value) !== value &&
-    Object.prototype.toString.call(value) === "[object Number]"
-  );
 }
 
 async function runPlaywrightQab() {

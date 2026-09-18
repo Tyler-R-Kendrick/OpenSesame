@@ -12,7 +12,6 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearNotices, listNotices } from "../lib/notices.js";
 import type { SecretItem } from "../lib/vault/model.js";
-
 const online = vi.hoisted(() => ({ value: true }));
 const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },

@@ -9,7 +9,6 @@
  *
  * Fail-closed if forge missing or tests fail. Never marks mainnet.
  */
-
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
@@ -20,6 +19,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isNumber } from "./lib/primitive-guards.mjs";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
@@ -66,13 +66,6 @@ const foundryBins = [
   join(home, ".config/.foundry/bin"),
   join(home, ".foundry/bin"),
 ];
-
-function isNumber(value) {
-  return (
-    Object(value) !== value &&
-    Object.prototype.toString.call(value) === "[object Number]"
-  );
-}
 
 function foundryEnv() {
   const path = `${foundryBins.join(":")}:${process.env.PATH ?? ""}`;

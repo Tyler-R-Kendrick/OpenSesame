@@ -88,7 +88,6 @@ export interface CreateOpenSesameProviderOptions {
   mapClaims?: MapClaims;
   replayCache?: JwtReplayCache;
 }
-
 export interface OpenSesameProviderBundle {
   provider: Provider;
   env: OAuthProviderEnv;

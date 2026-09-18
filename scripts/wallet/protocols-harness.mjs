@@ -6,21 +6,19 @@
  * settles via ExactEvmScheme facilitator, proves mismatch/replay refusals.
  * Never marks mainnet or productionEnabled.
  */
-
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import { isNumber, isString } from "./lib/primitive-guards.mjs";
 import {
   bumpProtocolClaims,
   runMandates,
   runShippedAdapterLive,
 } from "./lib/protocols-followup.mjs";
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const forgeDir = join(root, "packages/wallet-x402/forge");
 const home = process.env.HOME ?? "";
@@ -46,20 +44,6 @@ const KEYS = {
 };
 const MINT_AMOUNT = 1_000_000_000n; // 1000 TEST (6 decimals)
 const PAY_AMOUNT = "1000000"; // 1.000000 TEST
-
-function isNumber(value) {
-  return (
-    Object(value) !== value &&
-    Object.prototype.toString.call(value) === "[object Number]"
-  );
-}
-
-function isString(value) {
-  return (
-    Object(value) !== value &&
-    Object.prototype.toString.call(value) === "[object String]"
-  );
-}
 
 function foundryEnv() {
   return {
