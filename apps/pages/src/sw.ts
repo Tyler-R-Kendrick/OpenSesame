@@ -121,6 +121,25 @@ sw.addEventListener("fetch", (event) => {
           return cachedShell(url);
         }
       }
+      // The deployment's endpoints, network-first. It is precached so an
+      // installed vault boots the same offline, but the deploy writes this
+      // file AFTER the build, so the precache holds a hash of the build's
+      // empty placeholder: cache-first would pin an installed client to the
+      // config it first saw. The network is the truth while there is one, and
+      // the precached copy is what offline gets.
+      if (url.pathname.endsWith("/os-runtime-config.json")) {
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            const cache = await caches.open(CACHE);
+            await cache.put(request, response.clone());
+            return response;
+          }
+        } catch {
+          // Offline, or the file is not there. The cache answers below.
+        }
+        return (await caches.match(request)) ?? fetch(request);
+      }
       const cached = await caches.match(request);
       return cached ?? fetch(request);
     })(),
