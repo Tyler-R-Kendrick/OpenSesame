@@ -21,11 +21,8 @@ describe("contracts schemas", () => {
       "code",
     ]);
 
-    // A record that can name `implicit` or `client_credentials` for itself is a
-    // token in a URL fragment, or a client acting with no user behind it.
     for (const grantTypes of [
       ["implicit"],
-      ["authorization_code", "client_credentials"],
       ["urn:ietf:params:oauth:grant-type:token-exchange"],
     ]) {
       expect(
@@ -33,6 +30,13 @@ describe("contracts schemas", () => {
           .success,
       ).toBe(false);
     }
+    expect(
+      CreateOAuthClientRequestSchema.safeParse({
+        ...base,
+        grantTypes: ["authorization_code", "client_credentials"],
+        tokenEndpointAuthMethod: "private_key_jwt",
+      }).success,
+    ).toBe(true);
     expect(
       CreateOAuthClientRequestSchema.safeParse({
         ...base,

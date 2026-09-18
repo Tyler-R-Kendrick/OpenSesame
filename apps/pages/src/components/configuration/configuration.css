@@ -1,0 +1,35 @@
+.cfg-mode {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cfg-mode__btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+}
+.cfg-mode__btn[aria-pressed="true"] {
+  border-color: var(--ink);
+}
+.cfg-mode__dirty {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.cfg-source__label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+.cfg-source__input {
+  width: 100%;
+  min-height: 12rem;
+  font-family: var(--mono);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.cfg-source__err {
+  color: var(--err, #a33);
+}

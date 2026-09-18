@@ -2,10 +2,8 @@ import { randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   CreateOAuthClientRequestSchema,
-  OAuthClientResponseSchema,
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
-import type { OAuthClientRecord as StoreClientRecord } from "@opensesame/oauth-provider";
 import type { OAuthClientRecord } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
@@ -14,87 +12,15 @@ import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
+import {
+  confidentialClientCredentialsError,
+  toDomain,
+  toResponse,
+  toStoreRecord,
+} from "./oauth-client-map.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
-
-/**
- * Mapping layer between the durable store record (oauth-provider shape) and
- * the os-domain record the contracts validate against. Origin-profile records
- * auto-admitted on the /auth path are owned by the deployment/system
- * principal (ADR 0050 R-A) — they are invisible to this API (owner-fenced
- * reads answer 404) until the F5 claim flow transfers ownership.
- */
-function toDomain(client: StoreClientRecord): OAuthClientRecord {
-  return {
-    id: client.id,
-    // Callers only map records whose ownership was already verified.
-    ownerPrincipalId: client.ownerPrincipalId ?? "",
-    admissionMode: client.admissionMode,
-    displayName: client.displayName,
-    redirectUris: client.redirectUris,
-    sectorIdentifier: client.sectorIdentifier,
-    grantTypes: client.grantTypes,
-    responseTypes: client.responseTypes,
-    tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
-    allowedScopes: client.allowedScopes,
-    allowedResources: client.allowedResources,
-    ...(client.metadataUri ? { metadataUri: client.metadataUri } : undefined),
-    ...(client.metadataDigest
-      ? { metadataDigest: client.metadataDigest }
-      : undefined),
-    state: client.state,
-    createdAt: client.createdAt ?? client.firstSeenAt ?? new Date(0),
-    updatedAt:
-      client.updatedAt ??
-      client.lastUsedAt ??
-      client.createdAt ??
-      client.firstSeenAt ??
-      new Date(0),
-  };
-}
-
-function toStoreRecord(client: OAuthClientRecord): StoreClientRecord {
-  return {
-    id: client.id,
-    ownerPrincipalId: client.ownerPrincipalId,
-    admissionMode: client.admissionMode,
-    displayName: client.displayName,
-    redirectUris: client.redirectUris,
-    sectorIdentifier: client.sectorIdentifier,
-    grantTypes: client.grantTypes,
-    responseTypes: client.responseTypes,
-    tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
-    allowedScopes: client.allowedScopes,
-    allowedResources: client.allowedResources,
-    ...(client.metadataUri ? { metadataUri: client.metadataUri } : undefined),
-    ...(client.metadataDigest
-      ? { metadataDigest: client.metadataDigest }
-      : undefined),
-    state: client.state,
-    createdAt: client.createdAt,
-    updatedAt: client.updatedAt,
-  };
-}
-
-function toResponse(client: OAuthClientRecord) {
-  return OAuthClientResponseSchema.parse({
-    id: client.id,
-    ownerPrincipalId: client.ownerPrincipalId,
-    admissionMode: client.admissionMode,
-    displayName: client.displayName,
-    redirectUris: client.redirectUris,
-    sectorIdentifier: client.sectorIdentifier,
-    grantTypes: client.grantTypes,
-    responseTypes: client.responseTypes,
-    tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
-    allowedScopes: client.allowedScopes,
-    allowedResources: client.allowedResources,
-    state: client.state,
-    createdAt: client.createdAt.toISOString(),
-    updatedAt: client.updatedAt.toISOString(),
-  });
-}
 
 /**
  * Loads a client the caller owns. Foreign or unknown ids both answer 404 so the
@@ -267,10 +193,18 @@ oauthClientRoutes.post(
           tokenEndpointAuthMethod: parsed.data.tokenEndpointAuthMethod,
           allowedScopes: parsed.data.allowedScopes,
           allowedResources: parsed.data.allowedResources,
+          ...(parsed.data.jwks ? { jwks: parsed.data.jwks } : undefined),
           state: "active",
           createdAt: now,
           updatedAt: now,
         };
+        const publicCc = confidentialClientCredentialsError(client);
+        if (publicCc) {
+          return c.json(
+            { error: "invalid_client_auth", message: publicCc },
+            400,
+          );
+        }
         await ctx.stores.oauthClients.insertAtomic(toStoreRecord(client));
 
         await appendAuditEvent(ctx.repos.auditEvents, {
@@ -327,8 +261,21 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   if (parsed.data.allowedResources !== undefined) {
     next.allowedResources = parsed.data.allowedResources;
   }
+  if (parsed.data.grantTypes !== undefined) {
+    next.grantTypes = parsed.data.grantTypes;
+  }
+  if (parsed.data.tokenEndpointAuthMethod !== undefined) {
+    next.tokenEndpointAuthMethod = parsed.data.tokenEndpointAuthMethod;
+  }
   if (parsed.data.state !== undefined) {
     next.state = parsed.data.state;
+  }
+  if (parsed.data.jwks !== undefined) {
+    next.jwks = parsed.data.jwks;
+  }
+  const publicCc = confidentialClientCredentialsError(next);
+  if (publicCc) {
+    return c.json({ error: "invalid_client_auth", message: publicCc }, 400);
   }
   await ctx.stores.oauthClients.update(toStoreRecord(next));
 

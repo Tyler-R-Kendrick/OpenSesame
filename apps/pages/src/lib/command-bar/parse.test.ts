@@ -16,6 +16,39 @@ describe("parseCommand", () => {
     });
   });
 
+  it("opens a setting key from the command palette registry", () => {
+    expect(parseCommand("autoLockMinutes")).toEqual({
+      action: "open_path",
+      path: "/settings",
+      label: "autoLockMinutes",
+    });
+  });
+
+  it("opens prefs aliases and refuses ledger path guesses", () => {
+    expect(parseCommand("settings/prefs.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings",
+      label: "settings/prefs.yaml",
+    });
+    expect(parseCommand(".config/opensesame/prefs.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings",
+      label: ".config/opensesame/prefs.yaml",
+    });
+    expect(parseCommand("config/identity-grants")).toEqual({
+      action: "refuse",
+      message: "That path is not an editable document.",
+    });
+    expect(parseCommand(".config/../config/identity-grants")).toEqual({
+      action: "refuse",
+      message: "That path is not an editable document.",
+    });
+    expect(parseCommand("open config/identity-grants")).toEqual({
+      action: "refuse",
+      message: "That path is not an editable document.",
+    });
+  });
+
   it("copies a named field", () => {
     expect(parseCommand("copy password for GitHub")).toEqual({
       action: "copy_field",

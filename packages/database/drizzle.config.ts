@@ -5,6 +5,7 @@ export default defineConfig({
     "./src/schema/index.ts",
     "./src/schema/authority.ts",
     "./src/schema/wallet-interactions.ts",
+    "./src/schema/scim-groups.ts",
   ],
   out: "./drizzle",
   dialect: "postgresql",

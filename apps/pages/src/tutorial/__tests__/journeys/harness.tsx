@@ -44,7 +44,6 @@ import { createSupportSession } from "@opensesame/support-agent";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { expect } from "vitest";
 import { accountSwitcherSeams } from "../../../components/AccountSwitcher.js";
 import { AppShell } from "../../../components/AppShell.js";
 import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
@@ -79,8 +78,7 @@ import {
   SupportLauncher,
   SupportSlotProvider,
 } from "../../ui/SupportLauncher.js";
-
-export type JourneyUser = ReturnType<typeof userEvent.setup>;
+import type { JourneyUser } from "./harness-support.js";
 
 const lockHandlers = new Set<() => void>();
 let lockPresses = 0;
@@ -356,42 +354,10 @@ export function resetJourney(): void {
   targetsCleared = 0;
 }
 
-/** The overlay affordance, which is present at every width. */
-export async function openSupport(user: JourneyUser): Promise<HTMLElement> {
-  await user.click(await screen.findByRole("button", { name: "Support" }));
-  return screen.findByRole("dialog", { name: "Support" }, { timeout: 10_000 });
-}
-
-/**
- * The way back in while a walkthrough is live. The panel steps aside for one,
- * and the overlay is what says so.
- */
-export async function reopenSupport(user: JourneyUser): Promise<HTMLElement> {
-  await user.click(
-    await screen.findByRole("button", {
-      name: "Support — walkthrough in progress",
-    }),
-  );
-  return screen.findByRole("dialog", { name: "Support" });
-}
-
-export async function askSupport(
-  user: JourneyUser,
-  question: string,
-): Promise<void> {
-  const field = await screen.findByLabelText<HTMLInputElement>(
-    "Ask about this screen",
-  );
-  await waitFor(() => expect(field.disabled).toBe(false));
-  await user.type(field, question);
-  await user.click(screen.getByRole("button", { name: "Ask" }));
-}
-
-/** Counts clicks on one element, so "nothing activated it" can be asserted. */
-export function countClicks(element: HTMLElement): () => number {
-  let clicks = 0;
-  element.addEventListener("click", () => {
-    clicks += 1;
-  });
-  return () => clicks;
-}
+export {
+  type JourneyUser,
+  askSupport,
+  countClicks,
+  openSupport,
+  reopenSupport,
+} from "./harness-support.js";

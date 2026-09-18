@@ -49,8 +49,13 @@ import type { CreateControlPlaneOptions } from "./create-app-options.js";
 import { resolveControlPlaneConfig } from "./create-app-options.js";
 import { createPasskeys } from "./create-passkeys.js";
 import { resolveWalletNativeMounts } from "./create-wallet-native-mounts.js";
+import {
+  type AccountLookupSlot,
+  lookupHostedAccount,
+} from "./oauth-account-lookup.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
 import { DurableClaimStore } from "./repos/durable-claim-store.js";
+import { createDurableJwtReplayCache } from "./repos/durable-jwt-replay.js";
 import { DurablePrincipalMappingStore } from "./repos/durable-mapping-store.js";
 import { installDurableSecurityMaps } from "./repos/security-maps.js";
 import { verifySecurityDatabase } from "./repos/security-readiness.js";
@@ -254,15 +259,16 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   systemPrincipalReady.catch(() => {
     log.error("security_state_initialization_failed");
   });
-  // Late-bound: `stores` is assembled after the provider, but the lookup only
-  // runs per authorization request, long after both exist.
-  const consentLookup: ConsentLookupSlot = {};
+  const lateLookups: AccountLookupSlot & ConsentLookupSlot = {};
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     env: { isProduction: config.isProduction },
     processEnv: options.processEnv ?? process.env,
     clientStore,
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
+    ...(drizzleBundle
+      ? { replayCache: createDurableJwtReplayCache(drizzleBundle.db) }
+      : undefined),
     clients: [
       {
         client_id: AGENT_AUTH_OAUTH_CLIENT_ID,
@@ -278,8 +284,10 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     // browser session. Conservative on purpose — a consent carrying resource
     // indicators falls through to the prompt rather than being replayed
     // without them.
+    lookupAccount: (id, clientId) =>
+      lookupHostedAccount(lateLookups, id, clientId),
     findStoredConsent: async (accountId, clientId) => {
-      const record = await consentLookup.store?.findActive(accountId, clientId);
+      const record = await lateLookups.store?.findActive(accountId, clientId);
       if (!record || record.resources.length > 0) return null;
       return { scopes: record.scopes, claims: record.claims };
     },
@@ -309,7 +317,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(orgFederationStores ? { orgFederationStores } : undefined),
     ...(samlStores ? { samlStores } : undefined),
   });
-  consentLookup.store = stores.consents;
+  Object.assign(lateLookups, { repos, stores, store: stores.consents });
   if (drizzleBundle)
     installDurableSecurityMaps(
       stores,

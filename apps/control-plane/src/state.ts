@@ -25,6 +25,7 @@ import {
   createMemoryScimStores,
 } from "@opensesame/database";
 import {
+  type ClaimMapping,
   type ClientRecordStore,
   MemoryClientRecordStore,
 } from "@opensesame/oauth-provider";
@@ -35,6 +36,7 @@ import type {
 } from "@opensesame/os-domain";
 import type { SiopIssuerProfile } from "@opensesame/siop-v2";
 import type { SecurityMap } from "./repos/durable-map.js";
+import type { EnrollmentTicketRecord } from "./repos/enrollment-tickets.js";
 import {
   type PostgresAgentInstanceStore,
   PostgresAgentStore,
@@ -169,6 +171,13 @@ export interface AppStores {
   mfaCodes: SecurityMap<MfaCodeChallenge>;
   /** challengeId → expected nonce/aud/issuer for hosted SIOP link (ADR 0117) */
   siopLinkChallenges: SecurityMap<SiopLinkChallenge>;
+  /**
+   * Operator-minted first-admin enrollment tickets (ADV-30). Single-use,
+   * hashed, short-lived. DurableMap when a database is configured.
+   */
+  enrollmentTickets: SecurityMap<EnrollmentTicketRecord>;
+  /** Per-client claim mapping used by issuance and unsigned preview. */
+  claimMappings: SecurityMap<ClaimMapping>;
   /** principalId → serialized quota mutations */
   principalMutations: Map<string, Promise<void>>;
   /** Idempotency-Key inflight locks */
@@ -246,6 +255,8 @@ export function createAppStores(options?: {
     mfaFailures: new Map(),
     mfaCodes: new Map(),
     siopLinkChallenges: new Map(),
+    enrollmentTickets: new Map(),
+    claimMappings: new Map(),
     hostAuthorizations: new Map(),
     principalMutations: new Map(),
     idempotencyLocks: new Map(),

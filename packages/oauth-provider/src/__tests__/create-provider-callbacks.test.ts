@@ -5,6 +5,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
+import { ReservedClaimError } from "../claims/project-account-claims.js";
 import {
   type OpenSesameProviderBundle,
   createOpenSesameProvider,
@@ -84,6 +85,108 @@ describe("provider account and pkce callbacks", () => {
     const account = overlapCast(await findAccount?.({}, "user-1"));
     expect(account.accountId).toBe("user-1");
     await expect(account.claims()).resolves.toEqual({ sub: "user-1" });
+  });
+
+  it("releases name and authoritative email when mapping and scopes allow", async () => {
+    const bundle = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      lookupAccount: async () => ({
+        principal: {
+          name: "Ada Lovelace",
+          email: "ada@example.test",
+          emailVerified: true,
+          emailAuthoritative: true,
+        },
+        mapping: { allow: ["name", "email", "email_verified"] },
+      }),
+    });
+    const account = overlapCast(
+      await bundle.configuration.findAccount?.({}, "user-1"),
+    );
+    await expect(
+      account.claims("id_token", "openid profile email"),
+    ).resolves.toEqual({
+      sub: "user-1",
+      name: "Ada Lovelace",
+      email: "ada@example.test",
+      email_verified: true,
+    });
+  });
+
+  it("omits untrusted email and other-org roles", async () => {
+    const bundle = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      lookupAccount: async () => ({
+        principal: {
+          name: "Ada",
+          email: "ada@untrusted.test",
+          emailVerified: true,
+          emailAuthoritative: false,
+          roles: ["admin"],
+          orgId: "org-other",
+        },
+        mapping: { allow: ["name", "email", "roles"], orgId: "org-home" },
+      }),
+    });
+    const account = overlapCast(
+      await bundle.configuration.findAccount?.({}, "user-1"),
+    );
+    await expect(
+      account.claims("id_token", "openid profile email"),
+    ).resolves.toEqual({ sub: "user-1", name: "Ada" });
+  });
+
+  it("ADV-16: refuses mapping that overrides reserved sub/aud", async () => {
+    const bundle = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      lookupAccount: async () => ({
+        principal: { name: "Ada" },
+        mapping: { claims: { sub: "attacker", aud: "https://evil.test" } },
+      }),
+    });
+    const account = overlapCast(
+      await bundle.configuration.findAccount?.({}, "user-1"),
+    );
+    await expect(account.claims("id_token", "openid")).rejects.toBeInstanceOf(
+      ReservedClaimError,
+    );
+  });
+
+  it("ADV-17: missing or suspended lookup does not fabricate an account", async () => {
+    const missing = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      lookupAccount: async () => null,
+    });
+    await expect(
+      missing.configuration.findAccount?.({}, "gone"),
+    ).resolves.toBeUndefined();
+
+    const suspended = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      lookupAccount: async () => ({
+        principal: { status: "suspended", name: "Ada" },
+      }),
+    });
+    await expect(
+      suspended.configuration.findAccount?.({}, "user-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("findAccount yields no account for a suspended principal", async () => {
+    const bundle = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      lookupAccount: async () => ({
+        principal: { status: "suspended" },
+      }),
+    });
+    const findAccount = bundle.configuration.findAccount;
+    await expect(findAccount?.({}, "user-1")).resolves.toBeUndefined();
   });
 
   it("always requires PKCE under the built configuration", () => {

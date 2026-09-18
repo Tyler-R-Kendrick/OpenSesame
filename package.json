@@ -70,6 +70,7 @@
     "test:nats-dogfood": "bash ./scripts/nats-dogfood-test.sh",
     "test:live-stack": "bash ./scripts/live-stack-test.sh",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
+    "verify:experience": "pnpm --filter @opensesame/pages verify:experience",
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",

@@ -45,6 +45,18 @@ export function installDurableSecurityMaps(
     false,
     300_000,
   );
+  stores.enrollmentTickets = new DurableMap(
+    db,
+    "OpenSesame:EnrollmentTicket",
+    true,
+    3_600_000,
+  );
+  stores.claimMappings = new DurableMap(
+    db,
+    "OpenSesame:ClaimMapping",
+    false,
+    null,
+  );
   stores.hostAuthorizations = new DurableMap(
     db,
     "OpenSesame:HostAuthorization",

@@ -1,4 +1,5 @@
 import {
+  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -6,6 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { ModeToggle } from "../../components/configuration/ModeToggle.js";
+import type { EditorMode } from "../../lib/configuration/draft.js";
 import {
   type LocalScopeRoles,
   defaultScopeRoles,
@@ -20,10 +23,13 @@ import {
   type LocalDirectory,
   LocalDirectoryError,
 } from "../../lib/local-directory.js";
+import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
+import { ApplicationSourceEditor } from "./ApplicationSourceEditor.js";
 import {
   OrganizationField,
   ScopeRolesField,
 } from "./LocalApplicationFields.js";
+import { RegistrationExtras } from "./RegistrationExtras.js";
 
 type Props = {
   tomb: string;
@@ -152,9 +158,11 @@ function RegistrationEditor({
     (app) => app.applicationId === applicationId,
   );
   const [removing, setRemoving] = useState(false);
+  const [mode, setMode] = useState<EditorMode>("visual");
   const removeButton = useRef<HTMLButtonElement>(null);
   return (
     <div aria-busy={model.busy}>
+      <ModeToggle mode={mode} onMode={setMode} />
       <p className="hint">
         Bind this application to an organization and exact callbacks.
         Registration alone grants no sign-in or resource access.
@@ -174,7 +182,7 @@ function RegistrationEditor({
       {!model.state && !model.error ? (
         <output>Loading registration…</output>
       ) : null}
-      {model.state ? (
+      {model.state && mode === "visual" ? (
         <RegistrationForm
           model={model}
           applicationId={applicationId}
@@ -182,53 +190,97 @@ function RegistrationEditor({
           disabled={disabled}
         />
       ) : null}
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={model.busy}
-          onClick={model.reload}
-        >
-          Reload registration
-        </button>
-        {registration ? (
-          <>
+      {model.state && mode === "source" ? (
+        <ApplicationSourceEditor
+          applicationId={applicationId}
+          revision={model.state.revision}
+          registration={registration}
+          disabled={disabled || model.busy}
+          onApply={(registration) =>
+            model.save(
+              registration.organizationId,
+              registration.redirectUris.join("\n"),
+              registration.scopes.join(" "),
+              defaultScopeRoles(registration.scopes),
+            )
+          }
+        />
+      ) : null}
+      <RegistrationActions
+        busy={model.busy}
+        registered={Boolean(registration)}
+        removing={removing}
+        removeButton={removeButton}
+        onReload={model.reload}
+        onRemove={() => {
+          if (!removing) {
+            setRemoving(true);
+            return;
+          }
+          void model.save("", "", "", [], true).then((saved) => {
+            if (saved) {
+              setRemoving(false);
+              onRemoved();
+            }
+          });
+        }}
+        onKeep={() => {
+          setRemoving(false);
+          removeButton.current?.focus();
+        }}
+      />
+      <ApplicationSetupCard registration={registration} />
+      <RegistrationExtras
+        tomb={tomb}
+        registration={registration}
+        revision={model.state?.revision}
+      />
+    </div>
+  );
+}
+
+function RegistrationActions(props: {
+  busy: boolean;
+  registered: boolean;
+  removing: boolean;
+  removeButton: RefObject<HTMLButtonElement | null>;
+  onReload: () => void;
+  onRemove: () => void;
+  onKeep: () => void;
+}) {
+  return (
+    <div className="actions">
+      <button
+        type="button"
+        className="btn btn--sm"
+        disabled={props.busy}
+        onClick={props.onReload}
+      >
+        Reload registration
+      </button>
+      {props.registered ? (
+        <>
+          <button
+            ref={props.removeButton}
+            type="button"
+            className="btn btn--sm btn--danger"
+            disabled={props.busy}
+            onClick={props.onRemove}
+          >
+            {props.removing ? "Confirm removal" : "Remove registration"}
+          </button>
+          {props.removing ? (
             <button
-              ref={removeButton}
               type="button"
-              className="btn btn--sm btn--danger"
-              disabled={model.busy}
-              onClick={() => {
-                if (!removing) {
-                  setRemoving(true);
-                  return;
-                }
-                void model.save("", "", "", [], true).then((saved) => {
-                  if (saved) {
-                    setRemoving(false);
-                    onRemoved();
-                  }
-                });
-              }}
+              className="btn btn--sm"
+              disabled={props.busy}
+              onClick={props.onKeep}
             >
-              {removing ? "Confirm removal" : "Remove registration"}
+              Keep registration
             </button>
-            {removing ? (
-              <button
-                type="button"
-                className="btn btn--sm"
-                disabled={model.busy}
-                onClick={() => {
-                  setRemoving(false);
-                  removeButton.current?.focus();
-                }}
-              >
-                Keep registration
-              </button>
-            ) : null}
-          </>
-        ) : null}
-      </div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

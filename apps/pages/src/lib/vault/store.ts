@@ -1,5 +1,4 @@
 import { isBoolean, isNumber, overlapCast } from "@opensesame/os-domain";
-import { writeItem } from "./item-path.js";
 /**
  * Vault session store. Holds the unlocked collection in memory, seals every
  * mutation straight back to OPFS, and drops the key on lock.
@@ -12,7 +11,6 @@ import { writeItem } from "./item-path.js";
  * on unlock and are unreadable while locked. Lockout counters stay
  * plaintext at their scoped key by design (documented boundary).
  */
-
 import {
   kvDelete,
   kvDeleteDurable,
@@ -63,6 +61,7 @@ import {
   installVaultHostBackupFlushHooks,
   pushSealedVaultToHost,
 } from "./host-backup.js";
+import { writeItem } from "./item-path.js";
 import {
   type InstallResult,
   installItemType,
@@ -79,6 +78,12 @@ import {
   mergeVaultBodies,
 } from "./model.js";
 import { estimateStrength } from "./password.js";
+import {
+  readPrefsJson,
+  readPrefsSourceFile,
+  writePrefsJson,
+  writePrefsSourceFile,
+} from "./prefs-io.js";
 import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import {
@@ -119,18 +124,14 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-
 installVaultHostBackupFlushHooks();
-
 /**
  * Lockout counters stay plaintext at their project-scoped KV key — the
  * documented ADR 0063 boundary: they gate unlock attempts, so they must be
  * readable and writable while the tomb is locked.
  */
 export const ATTEMPTS_KEY = "vault.attempts.v1";
-
-/** Sealed VFS path (within a tomb) holding the vault prefs JSON. */
-export const PREFS_CONFIG_PATH = "config/prefs";
+export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
 type VaultScope = {
   /** The active project vault's tomb — the project id, `personal` for the base vault. */
@@ -521,44 +522,24 @@ export class VaultStore {
     return readTombHeader(this.#scope.tomb);
   }
 
-  /**
-   * Write-through the in-memory prefs to the sealed tomb config. Fire and
-   * forget like the legacy kvSet: memory is the session's source of truth.
-   */
   #persistPrefs(): void {
     if (!this.#vaultKey) return;
-    void writeFile(
-      this.#scope.tomb,
-      PREFS_CONFIG_PATH,
-      new TextEncoder().encode(JSON.stringify(this.#prefs)),
-    ).catch(() => {
-      /* memory holds the session's prefs; the next unlock re-reads */
-    });
+    void writePrefsJson(this.#scope.tomb, this.#prefs).catch(() => undefined);
   }
 
-  /** Hydrate prefs from the sealed tomb config on unlock. */
   async #loadPrefsFromVfs(): Promise<void> {
     try {
-      const bytes = await readFile(this.#scope.tomb, PREFS_CONFIG_PATH);
       const stored: Partial<VaultPrefs> = overlapCast(
-        JSON.parse(new TextDecoder().decode(bytes)),
+        await readPrefsJson(this.#scope.tomb),
       );
-      const needsMigration = (stored.prefsRevision ?? 0) < VAULT_PREFS_REVISION;
       this.#prefs = normalizeVaultPrefs(stored);
-      if (needsMigration) {
-        // Awaited — the one-time revision migration must be durable, not
-        // racing whatever the session does next.
-        await writeFile(
-          this.#scope.tomb,
-          PREFS_CONFIG_PATH,
-          new TextEncoder().encode(JSON.stringify(this.#prefs)),
-        ).catch(() => {
-          /* memory holds the session's prefs; the next unlock re-reads */
-        });
+      if ((stored.prefsRevision ?? 0) < VAULT_PREFS_REVISION) {
+        await writePrefsJson(this.#scope.tomb, this.#prefs).catch(
+          () => undefined,
+        );
       }
     } catch (error) {
       if (error instanceof VfsError && error.code === "locked") throw error;
-      // No prefs file (or an unreadable one): defaults stand.
     }
   }
 
@@ -1833,6 +1814,23 @@ export class VaultStore {
     this.#persistPrefs();
     this.#armIdleTimer();
     this.#emit();
+  }
+
+  async commitPrefs(next: Partial<VaultPrefs>): Promise<void> {
+    if (!this.#vaultKey)
+      throw new Error("Unlock the vault before saving preferences.");
+    this.setPrefs(next);
+    await writePrefsJson(this.#scope.tomb, this.#prefs);
+  }
+
+  async writePrefsSource(source: string): Promise<void> {
+    if (!this.#vaultKey)
+      throw new Error("Unlock the vault before saving preferences.");
+    await writePrefsSourceFile(this.#scope.tomb, source);
+  }
+
+  async readPrefsSource(): Promise<string | null> {
+    return this.#vaultKey ? readPrefsSourceFile(this.#scope.tomb) : null;
   }
 
   touch = (): void => {

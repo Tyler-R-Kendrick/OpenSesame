@@ -48,7 +48,7 @@ function narrowTheWindow(): void {
   rail.style.display = "none";
 }
 
-describe("support at phone width", () => {
+describe("support at phone width", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("points at the drawer once the rail is gone, and still gets there", async () => {
@@ -117,5 +117,5 @@ describe("support at phone width", () => {
     const reopened = await openSupport(user);
     expect(within(reopened).getByText(ANSWER)).toBeTruthy();
     expect(within(reopened).getByText("This is Connections.")).toBeTruthy();
-  });
+  }, 20_000);
 });

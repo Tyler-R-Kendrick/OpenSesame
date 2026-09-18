@@ -29,6 +29,15 @@ export const appCommandSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("help"),
   }),
+  z.object({
+    action: z.literal("open_path"),
+    path: z.string().min(1).max(200),
+    label: z.string().min(1).max(120),
+  }),
+  z.object({
+    action: z.literal("refuse"),
+    message: z.string().min(1).max(200),
+  }),
 ]);
 
 export type AppCommand = z.infer<typeof appCommandSchema>;

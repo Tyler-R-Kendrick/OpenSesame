@@ -17,6 +17,30 @@ export {
   type CreateOpenSesameProviderOptions,
   type OpenSesameProviderBundle,
 } from "./create-provider.js";
+export { createLoadExistingGrant } from "./consent/load-existing-grant.js";
+export {
+  previewAccountClaims,
+  projectAccountClaims,
+  ReservedClaimError,
+  RESERVED_PROTOCOL_CLAIMS,
+  type AccountPrincipal,
+  type ClaimMapping,
+  type ProjectAccountClaimsInput,
+} from "./claims/project-account-claims.js";
+export {
+  createFindAccount,
+  type AccountLookup,
+  type FindAccountOptions,
+  type LookupAccount,
+  type MapClaims,
+} from "./claims/find-account.js";
+export { ReplayCache, type JwtReplayCache } from "./grants/replay-cache.js";
+export {
+  CLIENT_CREDENTIALS_FEATURE,
+  SERVICE_ACCESS_TOKEN_MAX_SECONDS,
+  assertConfidentialClientCredentials,
+  isPublicClient,
+} from "./grants/client-credentials.js";
 export { createMemoryAdapterConstructor } from "./adapter/memory-adapter.js";
 export {
   createPostgresAdapterConstructor,

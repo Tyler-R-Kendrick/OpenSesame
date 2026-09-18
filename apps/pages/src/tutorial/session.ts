@@ -17,7 +17,6 @@
  * boot bundle one button and this state machine; the agent adapters, the guide
  * runtime, Driver.js and the capability registry all arrive on first open.
  */
-
 import type { GuideGoalId, GuideProgram } from "@opensesame/guide-lang";
 import type {
   GuideCancelReason,
@@ -46,6 +45,7 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { vaultStore } from "../lib/vault/store.js";
 import { webmcpSupportSeam } from "../webmcp/tools.js";
+import { gateSupportAsk } from "./ask-guard.js";
 import type { PageContextInput } from "./registry/context.js";
 import {
   HELP_TOPICS,
@@ -75,31 +75,25 @@ import {
   citedHelpText,
   writtenHelpSaysText,
 } from "./ui/messages.js";
-
 /**
  * Who wrote the walkthrough. It selects the vocabulary it is checked against,
  * never whether it is checked.
  */
 export type GuideOrigin = "model" | "authored";
-
 /** Where an answer comes from. Only `remote` leaves the device. */
 export type SupportTransport = "none" | "on-device" | "remote";
-
 export type SupportEntryKind = "question" | "answer" | "note";
-
 /** An authored walkthrough offered beside a line, by registry id only. */
 export type SupportWalkthrough = {
   readonly goal: GuideGoalId;
   readonly title: string;
 };
-
 /** What an answer or note carries besides its text; every member optional. */
 export type SupportEntryExtras = {
   readonly thoughts?: string | null;
   readonly computer?: readonly SupportComputerStep[];
   readonly walkthroughs?: readonly SupportWalkthrough[];
 };
-
 /**
  * One line of the conversation. Text only — the panel renders it as React text
  * nodes, so there is no markup path from a model into the document.
@@ -114,7 +108,6 @@ export type SupportEntry = {
   /** Checked-in walkthroughs that go with the written help this line rests on. */
   readonly walkthroughs: readonly SupportWalkthrough[];
 };
-
 export type SupportView = {
   readonly open: boolean;
   /** True once the engine has loaded. The written help works before it does. */
@@ -498,14 +491,15 @@ export function createSupportController(
       navigator = next;
     },
     async ask(question) {
-      const text = question.trim();
-      if (text.length === 0 || state.thinking) return;
+      const gate = gateSupportAsk(question, state.thinking);
+      if (gate.kind === "skip") return;
+      const { text } = gate;
       push("question", text, []);
       set({ error: null });
       const loaded = await ensureEngine();
       if (!loaded) {
         const authored = rankHelpTopics(text, state.route).find(
-          (entry) => entry.strong,
+          (e) => e.strong,
         )?.topic;
         if (authored) {
           push("answer", authored.answer, [], {

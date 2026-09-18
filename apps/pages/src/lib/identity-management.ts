@@ -121,13 +121,39 @@ export function updateApplication(
   id: string,
   displayName: string,
   redirectUris: string[],
+  extras: {
+    allowedScopes?: string[];
+    grantTypes?: string[];
+    tokenEndpointAuthMethod?: string;
+  } = {},
 ) {
   return call(
     `/v1/oauth/clients/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
-      body: JSON.stringify({ displayName, redirectUris }),
+      body: JSON.stringify({
+        displayName,
+        redirectUris,
+        ...extras,
+      }),
     },
     () => undefined,
+  );
+}
+
+export function previewHostedClaims(
+  id: string,
+  input: {
+    scopes: string[];
+    persona: Record<string, unknown>;
+  },
+) {
+  return call(
+    `/v1/oauth/clients/${encodeURIComponent(id)}/claim-preview`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    (body) => (isJsonObject(body) ? body : {}),
   );
 }

@@ -25,7 +25,6 @@ import { clearSession as clearFederationSession } from "./federation.js";
 import { forgetPendingLink } from "./guest-auth.js";
 import { endSession } from "./identity.js";
 import { vaultStore } from "./vault/store.js";
-import { disarmVercelConnectAuth } from "./vercel-connect-session.js";
 
 /**
  * Sign out of this device: forget the upstream assertion, revoke the Identity
@@ -51,7 +50,6 @@ function signOutDefault(intent: SignOutIntent = "leave"): void {
       : { kind: "signed_out" },
   );
   endSession();
-  disarmVercelConnectAuth();
   if (vaultStore.isUnlocked() || vaultStore.getSnapshot().awaitingSecondStep) {
     vaultStore.lock();
   }

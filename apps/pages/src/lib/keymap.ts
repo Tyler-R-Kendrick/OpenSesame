@@ -4,6 +4,7 @@ import {
   handleCommandBarChord,
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
+import { dispatchUserBinding } from "./configuration/nav-persist.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 export type ListingMotion = {
@@ -107,12 +108,14 @@ export function focusVaultListing(): void {
   vaultTarget?.focus?.();
 }
 
-function typing(target: EventTarget | null): boolean {
+export function typing(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest("[data-config-source]")) return true;
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
     target instanceof HTMLSelectElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
+    target.isContentEditable
   );
 }
 
@@ -180,12 +183,7 @@ function times(n: number, run: () => void): void {
   for (let i = 0; i < n; i++) run();
 }
 
-/**
- * Bindings are a tinykeys map (`Control+d`, `Shift+G`, `ArrowDown`).
- * Counts (`5j`) and the `g` leader (`gg`, `gv`) stay a thin wrapper:
- * tinykeys sequences treat overlapping prefixes as first-complete-wins,
- * so `gga` would never jump. Adding a motion is a row, not a ternary.
- */
+/** tinykeys map plus counts/`g` leader; remappable actions use liveBindings. */
 export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   let count = 0;
   let pendingGo = false;
@@ -380,6 +378,19 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     if (event.key === "g") {
       armGo();
       event.preventDefault();
+      return;
+    }
+
+    if (
+      dispatchUserBinding(event, false, {
+        "command.palette": () => focusCommandBar(),
+        "listing.search": () => (searchTarget ?? vaultTarget)?.search(),
+        "listing.next": (ev) => movementTarget(ev)?.next(takeCount().steps),
+        "item.edit": () => vaultTarget?.edit(),
+        "help.keymap": () => showHelp(),
+      })
+    ) {
+      count = 0;
       return;
     }
 

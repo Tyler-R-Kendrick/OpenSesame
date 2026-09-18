@@ -1,6 +1,10 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import "./local-authority.css";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import {
+  type InboxStatusFilter,
+  filterInboxRows,
+} from "../../lib/configuration/inbox-triage.js";
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import {
   type LocalAccessRequest,
@@ -53,6 +57,7 @@ function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
 
 export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const model = useLocalRequests(tomb);
+  const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>("all");
   const {
     creating,
     setCreating,
@@ -106,6 +111,21 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           authorized person approves or denies with a request-bound passkey.
           Approval is single-use and never bypasses application policy.
         </p>
+        <label>
+          Show{" "}
+          <select
+            aria-label="Local request status filter"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(event.target.value as InboxStatusFilter)
+            }
+          >
+            <option value="pending">pending</option>
+            <option value="expired">expired</option>
+            <option value="decided">decided</option>
+            <option value="all">all</option>
+          </select>
+        </label>
         {model.error ? (
           <p className="note note--err" role="alert">
             {model.error}
@@ -136,6 +156,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
         {model.data ? (
           <RequestRows
             data={model.data}
+            filter={statusFilter}
             disabled={disabled || creating || selected !== null}
             select={(row, button) => {
               trigger.current = button;
@@ -152,18 +173,32 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
 
 function RequestRows({
   data,
+  filter,
   disabled,
   select,
 }: {
   data: NonNullable<ReturnType<typeof useLocalRequests>["data"]>;
+  filter: InboxStatusFilter;
   disabled: boolean;
   select: (row: LocalAccessRequest, button: HTMLButtonElement) => void;
 }) {
+  const visibleIds = new Set(
+    filterInboxRows(
+      data.requests.map((row) => ({
+        id: row.id,
+        status: row.status,
+        expiresAt: new Date(row.expiresAt).toISOString(),
+        plane: "local" as const,
+      })),
+      filter,
+    ).map((row) => row.id),
+  );
+  const rows = data.requests.filter((row) => visibleIds.has(row.id));
   return (
     <>
-      <p className="hint">Requests: {data.requests.length || "-"}</p>
+      <p className="hint">Requests: {rows.length || "-"}</p>
       <ul className="access-local-records">
-        {data.requests.map((row) => (
+        {rows.map((row) => (
           <li key={row.id}>
             <strong>
               {data.directory.entries.find(
@@ -189,7 +224,7 @@ function RequestRows({
           </li>
         ))}
       </ul>
-      {!data.requests.length ? (
+      {!rows.length ? (
         <p>No local requests. Create one for a registered application.</p>
       ) : null}
     </>

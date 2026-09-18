@@ -20,6 +20,11 @@ describe("package barrel", () => {
     expect(isFunction(api.UnsafeMetadataUrlError)).toBe(true);
     expect(isFunction(api.assertSafeMetadataUrl)).toBe(true);
     expect(isFunction(api.EnvSigningKeyProvider)).toBe(true);
+    expect(isFunction(api.projectAccountClaims)).toBe(true);
+    expect(isFunction(api.previewAccountClaims)).toBe(true);
+    expect(isFunction(api.createFindAccount)).toBe(true);
+    expect(isFunction(api.ReplayCache)).toBe(true);
+    expect(api.CLIENT_CREDENTIALS_FEATURE).toEqual({ enabled: true });
     expect(api.ORIGIN_PROFILE_FORBIDDEN_SCOPES).toContain("offline_access");
   });
 });

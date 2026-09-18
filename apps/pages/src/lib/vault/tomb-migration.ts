@@ -59,7 +59,7 @@ import {
   writeFile,
   writePlaintextFile,
 } from "../vfs.js";
-import { PREFS_CONFIG_PATH } from "./store.js";
+import { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
 /** Legacy flat-KV base keys (still scoped per project via `scopedKey`). */
 export const LEGACY_HEADER_KEY = "vault.header.v1";
@@ -114,6 +114,7 @@ function tombSessionKeys(tomb: string): string[] {
   return [
     INDEX_PATH,
     PREFS_CONFIG_PATH,
+    PREFS_SOURCE_CONFIG_PATH,
     IDP_REGISTRY_CONFIG_PATH,
     PROJECTS_CONFIG_PATH,
     ORG_PROFILE_CONFIG_PATH,

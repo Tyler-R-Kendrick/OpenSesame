@@ -76,7 +76,6 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
 exports[`listing keymap session > records this dispatch log for a vim-like pass 1`] = `
 {
   "calls": [
-    "focus",
     "next:1",
     "focus",
     "previous:5",
