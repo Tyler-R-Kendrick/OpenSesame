@@ -304,7 +304,13 @@ describe("durable OpenID4VP pending bindings", () => {
   });
 
   it("classifies an overdue durable pending binding as presentation_expired", async () => {
-    let now = Date.parse("2026-09-17T12:00:00.000Z");
+    // Relative to the real clock, never a fixed date. The approver's token is
+    // minted against `Date.now()` (`raiseOn`), so a hard-coded instant only
+    // agrees with it on the day it was written: this froze the app at
+    // 2026-09-17T12:00 and began answering 401 to every request the moment the
+    // calendar rolled past it. The hour below is what the test is actually
+    // about — a binding that fell overdue while nobody answered it.
+    let now = Date.now();
     await withReplicaDb(
       async (first) => {
         const { approver, created, opened } = await raiseOn(
@@ -325,7 +331,7 @@ describe("durable OpenID4VP pending bindings", () => {
         });
         expect(begun.status).toBe(200);
         const session = overlapCast<{ state: string }>(await begun.json());
-        now = Date.parse("2026-09-17T13:00:00.000Z");
+        now += 3_600_000;
         const expired = await first.app.request("/v1/openid4vp/response", {
           method: "POST",
           headers: { "content-type": "application/x-www-form-urlencoded" },
