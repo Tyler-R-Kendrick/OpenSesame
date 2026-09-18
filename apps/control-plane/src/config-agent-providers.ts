@@ -1,4 +1,11 @@
-import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { normalizeIssuer } from "./interactions/registry.js";
 
 export type AgentAuthTrustedProvider = {
@@ -12,90 +19,7 @@ export type AgentAuthTrustedProvider = {
   jwksUri?: string;
 };
 
-export function truthy(v: string | undefined): boolean {
-  return v === "true" || v === "1";
-}
-
-/** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
-function truthyDefaultOn(v: string | undefined): boolean {
-  if (v === undefined || v.trim() === "") return true;
-  return !(v === "false" || v === "0");
-}
-
-function stringList(value: unknown, fallback: string[]): string[] {
-  if (!Array.isArray(value)) return fallback;
-  const items = value.filter(
-    (item): item is string => typeof item === "string",
-  );
-  return items.length > 0 ? items : fallback;
-}
-
-function positiveNumber(value: unknown, fallback: number): number {
-  return typeof value === "number" && value > 0 ? value : fallback;
-}
-
-function parseTrustedProviderRow(
-  row: unknown,
-  defaultAudience: string,
-): AgentAuthTrustedProvider | undefined {
-  if (!row || typeof row !== "object") return undefined;
-  const rec = row as Record<string, unknown>;
-  if (typeof rec.issuer !== "string" || rec.issuer.length === 0)
-    return undefined;
-  const fallbackAudiences = [defaultAudience];
-  const slashed = defaultAudience.endsWith("/")
-    ? defaultAudience
-    : `${defaultAudience}/`;
-  if (!fallbackAudiences.includes(slashed)) fallbackAudiences.push(slashed);
-  const maxAuthAge = positiveNumber(
-    rec.maxAuthAgeSeconds,
-    positiveNumber(rec.idJagMaxAuthAgeSeconds, 3600),
-  );
-  const provider: AgentAuthTrustedProvider = {
-    issuer: normalizeIssuer(rec.issuer),
-    enabled: rec.enabled !== false,
-    audiences: stringList(rec.audiences, fallbackAudiences),
-    algorithms: stringList(rec.algorithms, ["ES256", "RS256"]),
-    maxAgeSeconds: positiveNumber(rec.maxAgeSeconds, 300),
-    maxAuthAgeSeconds: maxAuthAge,
-  };
-  if (rec.jwks && typeof rec.jwks === "object") {
-    provider.jwks = rec.jwks as { keys: JsonObject[] };
-  }
-  if (typeof rec.jwksUri === "string") provider.jwksUri = rec.jwksUri;
-  return provider;
-}
-
-export function parseTrustedAgentProviders(
-  raw: string | undefined,
-  defaultAudience: string,
-): AgentAuthTrustedProvider[] {
-  if (!raw || raw.trim() === "") return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(
-      "OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON is not valid JSON",
-    );
-  }
-  if (!Array.isArray(parsed)) {
-    throw new Error(
-      "OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON must be a JSON array",
-    );
-  }
-  const out: AgentAuthTrustedProvider[] = [];
-  for (const row of parsed) {
-    const provider = parseTrustedProviderRow(row, defaultAudience);
-    if (provider) out.push(provider);
-  }
-  return out;
-}
-
-export function loadAgentAuthFromEnv(
-  env: NodeJS.ProcessEnv,
-  issuer: string,
-): {
+export type AgentAuthEnvConfig = {
   enabled: boolean;
   anonymousEnabled: boolean;
   serviceAuthEnabled: boolean;
@@ -112,7 +36,92 @@ export function loadAgentAuthFromEnv(
   postClaimScopes: string[];
   resourceScopes: string[];
   trustedProviders: AgentAuthTrustedProvider[];
-} {
+};
+
+export function truthy(v: string | undefined): boolean {
+  return v === "true" || v === "1";
+}
+
+/** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
+function truthyDefaultOn(v: string | undefined): boolean {
+  if (v === undefined || v.trim() === "") return true;
+  return !(v === "false" || v === "0");
+}
+
+function stringList(value: BoundaryValue, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const items: string[] = [];
+  for (const item of value) {
+    if (isString(item)) items.push(item);
+  }
+  return items.length > 0 ? items : fallback;
+}
+
+function positiveNumber(value: BoundaryValue, fallback: number): number {
+  return isNumber(value) && value > 0 ? value : fallback;
+}
+
+function parseTrustedProviderRow(
+  row: BoundaryValue,
+  defaultAudience: string,
+): AgentAuthTrustedProvider | undefined {
+  if (!isJsonObject(row)) return undefined;
+  const rec = row;
+  if (!isString(rec.issuer) || rec.issuer.length === 0) return undefined;
+  const fallbackAudiences = [defaultAudience];
+  const slashed = defaultAudience.endsWith("/")
+    ? defaultAudience
+    : `${defaultAudience}/`;
+  if (!fallbackAudiences.includes(slashed)) fallbackAudiences.push(slashed);
+  const maxAuthAge = positiveNumber(
+    overlapCast(rec.maxAuthAgeSeconds),
+    positiveNumber(overlapCast(rec.idJagMaxAuthAgeSeconds), 3600),
+  );
+  const provider: AgentAuthTrustedProvider = {
+    issuer: normalizeIssuer(rec.issuer),
+    enabled: rec.enabled !== false,
+    audiences: stringList(overlapCast(rec.audiences), fallbackAudiences),
+    algorithms: stringList(overlapCast(rec.algorithms), ["ES256", "RS256"]),
+    maxAgeSeconds: positiveNumber(overlapCast(rec.maxAgeSeconds), 300),
+    maxAuthAgeSeconds: maxAuthAge,
+  };
+  if (isJsonObject(rec.jwks) && Array.isArray(rec.jwks.keys)) {
+    provider.jwks = { keys: rec.jwks.keys.filter(isJsonObject) };
+  }
+  if (isString(rec.jwksUri)) provider.jwksUri = rec.jwksUri;
+  return provider;
+}
+
+export function parseTrustedAgentProviders(
+  raw: string | undefined,
+  defaultAudience: string,
+): AgentAuthTrustedProvider[] {
+  if (!raw || raw.trim() === "") return [];
+  let parsed: BoundaryValue;
+  try {
+    parsed = overlapCast(JSON.parse(raw));
+  } catch {
+    throw new Error(
+      "OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON is not valid JSON",
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(
+      "OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON must be a JSON array",
+    );
+  }
+  const out: AgentAuthTrustedProvider[] = [];
+  for (const row of parsed) {
+    const provider = parseTrustedProviderRow(overlapCast(row), defaultAudience);
+    if (provider) out.push(provider);
+  }
+  return out;
+}
+
+export function loadAgentAuthFromEnv(
+  env: NodeJS.ProcessEnv,
+  issuer: string,
+): AgentAuthEnvConfig {
   return {
     enabled: truthyDefaultOn(env.OPENSESAME_AGENT_AUTH_ENABLED),
     anonymousEnabled: truthyDefaultOn(

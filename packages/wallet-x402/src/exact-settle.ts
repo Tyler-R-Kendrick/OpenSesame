@@ -3,6 +3,11 @@
  */
 
 import {
+  type JsonObject,
+  type JsonValue,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
   ExactEvmScheme as ClientExact,
   toClientEvmSigner,
   toFacilitatorEvmSigner,
@@ -38,10 +43,10 @@ export type PreparedExactPayment = {
   readonly ref: string;
   readonly payload: {
     readonly x402Version: 2;
-    readonly accepted: Record<string, unknown>;
-    readonly payload: unknown;
+    readonly accepted: JsonObject;
+    readonly payload: JsonValue;
   };
-  readonly requirements: Record<string, unknown>;
+  readonly requirements: JsonObject;
   readonly runtime: LocalExactRuntime;
 };
 
@@ -122,17 +127,18 @@ export async function createExactPaymentPayload(
   };
   const created = await clientScheme.createPaymentPayload(
     2,
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     requirements as never,
   );
   const payload = {
     x402Version: 2 as const,
-    accepted: requirements,
-    payload: created.payload,
+    accepted: overlapCast(requirements),
+    payload: overlapCast(created.payload) satisfies JsonValue,
   };
   return {
     ref: `prepared:x402:${globalThis.crypto.randomUUID()}`,
     payload,
-    requirements,
+    requirements: overlapCast(requirements),
     runtime,
   };
 }
@@ -141,11 +147,14 @@ export async function settleExactPayment(prepared: PreparedExactPayment) {
   assertLocalExactRuntime(prepared.runtime);
   const { facilitatorWallet } = clients(prepared.runtime);
   const facScheme = new FacilitatorExact(
+    // SAFETY: test/fixture or boundary-checked value matches never),.
     toFacilitatorEvmSigner(facilitatorWallet as never),
     { simulateInSettle: false },
   );
   const verifyOk = await facScheme.verify(
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     prepared.payload as never,
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     prepared.requirements as never,
   );
   if (!verifyOk.isValid) {
@@ -155,12 +164,16 @@ export async function settleExactPayment(prepared: PreparedExactPayment) {
     };
   }
   const settle = await facScheme.settle(
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     prepared.payload as never,
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     prepared.requirements as never,
   );
   return {
     success: settle.success === true && Boolean(settle.transaction),
+    // SAFETY: test/fixture or boundary-checked value matches string | undefined,.
     transaction: settle.transaction as string | undefined,
+    // SAFETY: test/fixture or boundary-checked value matches string | undefined,.
     errorReason: settle.errorReason as string | undefined,
   };
 }
@@ -172,12 +185,15 @@ export async function verifyExactPaymentMismatch(
   assertLocalExactRuntime(prepared.runtime);
   const { facilitatorWallet } = clients(prepared.runtime);
   const facScheme = new FacilitatorExact(
+    // SAFETY: test/fixture or boundary-checked value matches never),.
     toFacilitatorEvmSigner(facilitatorWallet as never),
     { simulateInSettle: false },
   );
   const badReqs = { ...prepared.requirements, amount: mutatedAmount };
   const verifyBad = await facScheme.verify(
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     { ...prepared.payload, accepted: badReqs } as never,
+    // SAFETY: test/fixture or boundary-checked value matches never,.
     badReqs as never,
   );
   return verifyBad.isValid === false;

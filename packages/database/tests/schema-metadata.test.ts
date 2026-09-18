@@ -1,4 +1,9 @@
-import { MEMBERSHIP_SUBJECT_KINDS, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  MEMBERSHIP_SUBJECT_KINDS,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import * as authoritySchema from "../src/schema/authority.js";
@@ -273,9 +278,10 @@ describe("schema metadata contract", () => {
     expect(mechanismCheck).toBeDefined();
     const seen = new WeakSet<object>();
     const mechanismSql = JSON.stringify(mechanismCheck, (_key, value) => {
-      if (value && typeof value === "object") {
-        if (seen.has(value)) return "[Circular]";
-        seen.add(value);
+      const current: BoundaryValue = overlapCast(value);
+      if (current !== null && isTypeofObject(current)) {
+        if (seen.has(current)) return "[Circular]";
+        seen.add(current);
       }
       return value;
     });

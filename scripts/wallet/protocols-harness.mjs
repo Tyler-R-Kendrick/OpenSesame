@@ -6,21 +6,19 @@
  * settles via ExactEvmScheme facilitator, proves mismatch/replay refusals.
  * Never marks mainnet or productionEnabled.
  */
-
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import { isNumber, isString } from "./lib/primitive-guards.mjs";
 import {
   bumpProtocolClaims,
   runMandates,
   runShippedAdapterLive,
 } from "./lib/protocols-followup.mjs";
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const forgeDir = join(root, "packages/wallet-x402/forge");
 const home = process.env.HOME ?? "";
@@ -81,7 +79,7 @@ function run(cmd, args, cwd, extraEnv) {
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   return {
-    exitCode: typeof r.status === "number" ? r.status : 1,
+    exitCode: isNumber(r.status) ? r.status : 1,
     durationMs: Date.now() - started,
     command: [cmd, ...args].join(" "),
     stdout: r.stdout ?? "",
@@ -423,8 +421,9 @@ async function main() {
       details: {
         tx: settle.transaction ?? null,
         success: settle.success ?? false,
-        errorMessage:
-          typeof settle.errorMessage === "string" ? settle.errorMessage : null,
+        errorMessage: isString(settle.errorMessage)
+          ? settle.errorMessage
+          : null,
       },
     });
     if (!settleOk) {

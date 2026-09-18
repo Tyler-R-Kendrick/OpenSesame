@@ -12,7 +12,6 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearNotices, listNotices } from "../lib/notices.js";
 import type { SecretItem } from "../lib/vault/model.js";
-
 const online = vi.hoisted(() => ({ value: true }));
 const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
@@ -389,6 +388,7 @@ describe("ConnectionsSection gallery", () => {
     const search = () =>
       screen.getByRole("textbox", { name: "Search connectors" });
     await userEvent.type(search(), "linear");
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const grid = container.querySelector(".conn-grid") as HTMLElement;
     expect(within(grid).getByText("Linear")).toBeTruthy();
     expect(container.querySelectorAll(".conn-tile").length).toBe(1);

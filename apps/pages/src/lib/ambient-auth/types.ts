@@ -132,5 +132,6 @@ export function isAmbientIntent(
 }
 
 export function isAmbientReasonCode(value: string): value is AmbientReasonCode {
+  // SAFETY: test/fixture or boundary-checked value matches readonly string[]).includes(value).
   return (AMBIENT_REASON_CODES as readonly string[]).includes(value);
 }

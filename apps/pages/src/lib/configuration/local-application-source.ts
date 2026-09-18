@@ -1,10 +1,11 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import type { CommitResult } from "./types.js";
 import { isPresentationOnlyChange } from "./yaml-patch.js";
 import { parseConfigYaml } from "./yaml-profile.js";
 
 export type LocalApplicationPorts = {
   revision: () => number;
-  configure: (registration: Record<string, unknown>, revision: number) => void;
+  configure: (registration: JsonObject, revision: number) => void;
 };
 
 /**

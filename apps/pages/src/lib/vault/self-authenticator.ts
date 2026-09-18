@@ -29,6 +29,21 @@ import {
 
 export const SELF_AUTHENTICATOR_TITLE = "OpenSesame (this vault)";
 
+export type TotpEnrollmentStart = {
+  secret: string;
+  uri: string;
+};
+
+export type SelfAuthenticatorRegistrationResult = {
+  gate: TotpGateRecord;
+  item: LoginItem | null;
+};
+
+export type SelfAuthenticatorHeaderResult = {
+  header: VaultHeader;
+  item: LoginItem | null;
+};
+
 const UNGUARDED =
   "Seal this vault with a passkey, PIN or password before adding an authenticator code — a code can only guard a key.";
 
@@ -42,7 +57,7 @@ export class UnguardedTotpEnrollment extends Error {}
 export function startTotpEnrollment(
   ephemeral: boolean,
   primaryCount: number,
-): { secret: string; uri: string } {
+): TotpEnrollmentStart {
   if (ephemeral || primaryCount === 0) throw new Error(UNGUARDED);
   const secret = randomTotpSecret();
   return {
@@ -89,7 +104,7 @@ export async function selfAuthenticatorRegistration(
   vaultKey: CryptoKey,
   gate: TotpGateRecord,
   body: VaultBody,
-): Promise<{ gate: TotpGateRecord; item: LoginItem | null }> {
+): Promise<SelfAuthenticatorRegistrationResult> {
   const existing = body.items.find(
     (item): item is LoginItem =>
       item.kind === "login" &&
@@ -117,7 +132,7 @@ export async function withSelfAuthenticatorRegistration(
   gate: TotpGateRecord,
   header: VaultHeader,
   body: VaultBody,
-): Promise<{ header: VaultHeader; item: LoginItem | null }> {
+): Promise<SelfAuthenticatorHeaderResult> {
   const registered = await selfAuthenticatorRegistration(vaultKey, gate, body);
   return {
     header: {

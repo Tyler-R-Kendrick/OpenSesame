@@ -4,6 +4,7 @@
  * Add, edit, and remove root budgets. Amounts are integer subunits.
  */
 
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useCallback, useState } from "react";
 import { IconEdit, IconPlus, IconTrash } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
@@ -31,7 +32,7 @@ type Draft = {
   readonly itemIds: readonly string[];
 };
 
-function failText(caught: unknown): string {
+function failText(caught: BoundaryValue): string {
   if (caught instanceof BudgetError) return caught.message;
   if (caught instanceof Error) return caught.message;
   return "Could not update budget";
@@ -71,7 +72,7 @@ export function BudgetsPanel() {
       setDraft(null);
       refresh();
     } catch (caught) {
-      setMessage({ tone: "err", text: failText(caught) });
+      setMessage({ tone: "err", text: failText(overlapCast(caught)) });
     }
   };
 
@@ -85,7 +86,7 @@ export function BudgetsPanel() {
     } catch (caught) {
       setMessage({
         tone: "err",
-        text: failText(caught) || `Could not remove ${label}`,
+        text: failText(overlapCast(caught)) || `Could not remove ${label}`,
       });
     }
   };

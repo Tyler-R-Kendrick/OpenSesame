@@ -9,7 +9,6 @@
  *
  * Fail-closed if forge missing or tests fail. Never marks mainnet.
  */
-
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
@@ -20,6 +19,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isNumber } from "./lib/primitive-guards.mjs";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
@@ -95,7 +95,7 @@ function run(cmd, args, cwd) {
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   return {
-    exitCode: typeof r.status === "number" ? r.status : 1,
+    exitCode: isNumber(r.status) ? r.status : 1,
     durationMs: Date.now() - started,
     command: [cmd, ...args].join(" "),
   };

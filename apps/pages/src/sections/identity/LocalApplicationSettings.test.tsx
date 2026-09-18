@@ -165,6 +165,7 @@ it("shares Visual and Source over the same registration", async () => {
   await open();
   await screen.findByRole("button", { name: "Save registration" });
   await userEvent.click(screen.getByRole("button", { name: "Source" }));
+  // SAFETY: fixture constructed in this test matches the declared contract.
   const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
   expect(source.value).toContain("Registration is not consent");
   expect(source.value).toContain("https://rp.example.test/callback");
@@ -177,6 +178,7 @@ it("shares Visual and Source over the same registration", async () => {
 it("saves a source edit through configureLocalApplication", async () => {
   await open();
   await userEvent.click(await screen.findByRole("button", { name: "Source" }));
+  // SAFETY: fixture constructed in this test matches the declared contract.
   const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
   const next = source.value.replace(
     "https://rp.example.test/callback",

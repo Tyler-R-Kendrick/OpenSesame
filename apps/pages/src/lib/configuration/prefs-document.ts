@@ -1,3 +1,11 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isBoolean,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { VaultPrefs } from "../vault/store.js";
 import { PREFS_SCHEMA_VERSION, PREFS_SYSTEM_FIELDS } from "./prefs-keys.js";
 import type { ConfigDiagnostic } from "./types.js";
@@ -24,11 +32,11 @@ clipboardClearSeconds: ${prefs.clipboardClearSeconds}
 }
 
 function asBoolean(
-  value: unknown,
+  value: BoundaryValue,
   key: string,
   diagnostics: ConfigDiagnostic[],
 ): boolean | undefined {
-  if (typeof value === "boolean") return value;
+  if (isBoolean(value)) return value;
   diagnostics.push({
     severity: "error",
     code: "type",
@@ -38,11 +46,11 @@ function asBoolean(
 }
 
 function asFiniteNumber(
-  value: unknown,
+  value: BoundaryValue,
   key: string,
   diagnostics: ConfigDiagnostic[],
 ): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+  if (isNumber(value) && Number.isFinite(value) && value >= 0) {
     return value;
   }
   diagnostics.push({
@@ -67,7 +75,7 @@ const KNOWN_FIELDS = new Set([
   ...PREFS_SYSTEM_FIELDS,
 ]);
 
-function collectFieldErrors(raw: Record<string, unknown>): ConfigDiagnostic[] {
+function collectFieldErrors(raw: JsonObject): ConfigDiagnostic[] {
   const diagnostics: ConfigDiagnostic[] = [];
   for (const key of PREFS_SYSTEM_FIELDS) {
     if (key in raw) {
@@ -90,7 +98,7 @@ function collectFieldErrors(raw: Record<string, unknown>): ConfigDiagnostic[] {
   const schemaVersion = raw.schemaVersion;
   if (schemaVersion !== undefined) {
     if (
-      typeof schemaVersion !== "number" ||
+      !isNumber(schemaVersion) ||
       !Number.isInteger(schemaVersion) ||
       schemaVersion > PREFS_SCHEMA_VERSION
     ) {
@@ -103,10 +111,7 @@ function collectFieldErrors(raw: Record<string, unknown>): ConfigDiagnostic[] {
     }
   }
   const theme = raw.theme;
-  if (
-    theme !== undefined &&
-    (typeof theme !== "string" || !THEMES.has(theme))
-  ) {
+  if (theme !== undefined && (!isString(theme) || !THEMES.has(theme))) {
     diagnostics.push({
       severity: "error",
       code: "type",
@@ -116,10 +121,16 @@ function collectFieldErrors(raw: Record<string, unknown>): ConfigDiagnostic[] {
   return diagnostics;
 }
 
+function themeFromRaw(theme: BoundaryValue): PrefsDocument["theme"] {
+  if (isString(theme) && THEMES.has(theme)) {
+    // SAFETY: THEMES membership established the PrefsDocument theme contract.
+    return theme as PrefsDocument["theme"];
+  }
+  return "system";
+}
+
 /** Map a YAML object onto VaultPrefs. System fields cannot be written. */
-export function validatePrefsDocument(
-  raw: Record<string, unknown>,
-): PrefsValidateResult {
+export function validatePrefsDocument(raw: JsonObject): PrefsValidateResult {
   const diagnostics = collectFieldErrors(raw);
   const autoLockMinutes =
     raw.autoLockMinutes === undefined
@@ -142,11 +153,10 @@ export function validatePrefsDocument(
       ? false
       : asBoolean(raw.signOutOnLock, "signOutOnLock", diagnostics);
   if (diagnostics.length > 0) return { ok: false, diagnostics };
-  const theme = raw.theme;
   return {
     ok: true,
     value: {
-      theme: (theme as PrefsDocument["theme"] | undefined) ?? "system",
+      theme: themeFromRaw(raw.theme),
       autoLockMinutes: autoLockMinutes ?? 0,
       clipboardClearSeconds: clipboardClearSeconds ?? 30,
       lockOnHide: lockOnHide ?? false,
@@ -175,5 +185,5 @@ export function parsePrefsSource(source: string): PrefsValidateResult {
       diagnostics: parsed.diagnostics,
     };
   }
-  return validatePrefsDocument(parsed.value);
+  return validatePrefsDocument(overlapCast(parsed.value));
 }

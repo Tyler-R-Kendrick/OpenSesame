@@ -88,7 +88,6 @@ export interface CreateOpenSesameProviderOptions {
   mapClaims?: MapClaims;
   replayCache?: JwtReplayCache;
 }
-
 export interface OpenSesameProviderBundle {
   provider: Provider;
   env: OAuthProviderEnv;
@@ -270,7 +269,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
       /* keep client_id fallback */
     }
   }
-  return {
+  const record: OAuthClientRecord = {
     id: meta.client_id,
     admissionMode: "pre_registered",
     displayName: isString(meta.client_name) ? meta.client_name : meta.client_id,
@@ -282,8 +281,9 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
     allowedScopes: scope ? scope.split(" ") : ["openid"],
     allowedResources: [],
     state: "active",
-    ...(meta.jwks ? { jwks: meta.jwks } : {}),
   };
+  if (meta.jwks) record.jwks = meta.jwks;
+  return record;
 }
 
 /**

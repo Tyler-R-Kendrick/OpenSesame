@@ -1,3 +1,5 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+
 /**
  * Entra / MSAL Browser v5 adapter. Lazy-loaded only for a selected Entra
  * connection. A cached SDK account is a routing preference, not proof.
@@ -111,9 +113,9 @@ async function loadMsalSdk(input: {
   };
 }
 
-export const entraSeams: { loadSdk: EntraSdkLoader } = {
+export const entraSeams = {
   loadSdk: loadMsalSdk,
-};
+} satisfies { loadSdk: EntraSdkLoader };
 
 export function entraRedirectBridgePath(base: string): string {
   const root = base.endsWith("/") ? base : `${base}/`;
@@ -125,7 +127,7 @@ export function entraAuthority(connection: ProviderConnection): string {
   return connection.issuer;
 }
 
-function mapMsalError(err: unknown): AmbientReasonCode {
+function mapMsalError(err: BoundaryValue): AmbientReasonCode {
   const message = err instanceof Error ? err.message : String(err);
   const code = message.toLowerCase();
   if (
@@ -188,7 +190,10 @@ export async function acquireEntraSilent(
       authority: entraAuthority(request.connection),
     });
   } catch (err) {
-    return { kind: "interaction-required", reason: mapMsalError(err) };
+    return {
+      kind: "interaction-required",
+      reason: mapMsalError(overlapCast(err)),
+    };
   }
   if (!matchesAuthGeneration(request.generation)) {
     return { kind: "rejected", reason: "stale_generation" };

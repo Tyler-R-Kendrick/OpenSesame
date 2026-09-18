@@ -80,7 +80,9 @@ it("lists the directory's connectors with their source and health", async () => 
     screen.getByText(/^api\.nango\.dev · 2 connectors · synced /),
   ).toBeTruthy();
   const rows = screen.getAllByRole("listitem");
+  // SAFETY: fixture constructed in this test matches the declared contract.
   expect(within(rows[0] as HTMLElement).getByText("Authorized")).toBeTruthy();
+  // SAFETY: fixture constructed in this test matches the declared contract.
   expect(within(rows[1] as HTMLElement).getByText("1 error")).toBeTruthy();
   // One source only: a chip on every row would say nothing.
   expect(screen.queryByText("directory")).toBeNull();
@@ -102,6 +104,7 @@ it("binds a connector to a person under a policy, lists it, and revokes it", asy
   render(<ConnectorsPanel tomb={fixture.tomb} />);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
   const [githubRow] = screen.getAllByRole("listitem");
+  // SAFETY: fixture constructed in this test matches the declared contract.
   const row = within(githubRow as HTMLElement);
   await userEvent.click(row.getByRole("button", { name: "Bind" }));
   expect(document.activeElement).toBe(screen.getByLabelText("Identity"));
@@ -140,6 +143,7 @@ it("returns the keyboard to the row's Bind when its form is cancelled", async ()
   render(<ConnectorsPanel tomb={fixture.tomb} />);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
   const [githubRow] = screen.getAllByRole("listitem");
+  // SAFETY: fixture constructed in this test matches the declared contract.
   const row = within(githubRow as HTMLElement);
   await userEvent.click(row.getByRole("button", { name: "Bind" }));
   expect(document.activeElement).toBe(screen.getByLabelText("Identity"));

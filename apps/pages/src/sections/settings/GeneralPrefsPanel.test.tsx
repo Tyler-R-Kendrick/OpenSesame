@@ -2,50 +2,52 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import type { VaultPrefs } from "../../lib/vault/store.js";
 import { GeneralPrefsPanel } from "./GeneralPrefsPanel.js";
 
 const setPrefs = vi.fn();
-const commitPrefs = vi.fn(async (next: unknown) => {
+const commitPrefs = vi.fn(async (next: VaultPrefs) => {
   setPrefs(next);
 });
 const writePrefsSource = vi.fn(async () => undefined);
 const readPrefsSource = vi.fn(async () => null);
 
-vi.mock("../../lib/vault/hooks.js", () => ({
-  useVaultStore: () => ({
-    setPrefs,
-    commitPrefs,
-    writePrefsSource,
-    readPrefsSource,
-    activeTomb: () => "personal",
-  }),
-  useVault: () => ({
-    prefs: {
-      theme: "system",
-      autoLockMinutes: 0,
-      lockOnHide: false,
-      signOutOnLock: false,
-      clipboardClearSeconds: 30,
-      prefsRevision: 2,
-    },
-  }),
-}));
+const originalVaultHooksSeams = { ...vaultHooksSeams };
 
-vi.mock("../../lib/theme.js", () => ({
-  setTheme: vi.fn(),
-  useThemePreference: () => "system",
-}));
-
-vi.mock("../../tutorial/registry/react.jsx", () => ({
-  useGuideTarget: () => ({ current: null }),
-}));
+function installVaultSeams(): void {
+  Object.assign(vaultHooksSeams, {
+    useVaultStore: () => ({
+      setPrefs,
+      commitPrefs,
+      writePrefsSource,
+      readPrefsSource,
+      activeTomb: () => "personal",
+    }),
+    useVault: () => ({
+      prefs: {
+        theme: "system",
+        autoLockMinutes: 0,
+        lockOnHide: false,
+        signOutOnLock: false,
+        clipboardClearSeconds: 30,
+        prefsRevision: 2,
+      },
+    }),
+  });
+}
 
 describe("GeneralPrefsPanel", () => {
+  beforeEach(() => {
+    installVaultSeams();
+  });
+
   afterEach(() => {
     cleanup();
     setPrefs.mockClear();
     commitPrefs.mockClear();
+    Object.assign(vaultHooksSeams, originalVaultHooksSeams);
   });
 
   it("keeps a source custom idle timeout in Visual and commits through save", async () => {
@@ -56,7 +58,10 @@ describe("GeneralPrefsPanel", () => {
       </MemoryRouter>,
     );
     await user.click(screen.getByRole("button", { name: "Source" }));
-    const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
+    const source = screen.getByLabelText("Source");
+    if (!(source instanceof HTMLTextAreaElement)) {
+      throw new Error("expected prefs source textarea");
+    }
     fireEvent.change(source, {
       target: {
         value: `# keep
@@ -72,7 +77,10 @@ clipboardClearSeconds: 30
     expect(source.value).toContain("# keep");
     await user.click(screen.getByRole("button", { name: "Visual" }));
     const select = screen.getByLabelText(/Lock after inactivity/i);
-    expect((select as HTMLSelectElement).value).toBe("7");
+    if (!(select instanceof HTMLSelectElement)) {
+      throw new Error("expected auto-lock select");
+    }
+    expect(select.value).toBe("7");
     expect(setPrefs).not.toHaveBeenCalled();
     expect(commitPrefs).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Save preferences" }));

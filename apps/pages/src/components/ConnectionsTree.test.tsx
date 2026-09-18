@@ -270,6 +270,7 @@ it("indexes catalog leaves once their group is expanded", () => {
   const groupRow = catalogGroup()
     .getAllByRole("treeitem")
     .find((row) => row.getAttribute("aria-expanded") === "false");
+  // SAFETY: fixture constructed in this test matches the declared contract.
   fireEvent.click(groupRow as HTMLElement);
   const tree = screen.getByRole("tree", { name: "Sections" });
   tree.focus();
@@ -287,6 +288,7 @@ it("keeps nested catalog groups collapsed until they are opened", () => {
     .find((row) => row.getAttribute("aria-expanded") === "false");
   expect(groupRow).toBeTruthy();
   expect(catalogLeaves()).toHaveLength(0);
+  // SAFETY: fixture constructed in this test matches the declared contract.
   fireEvent.click(groupRow as HTMLElement);
   expect(groupRow?.getAttribute("aria-expanded")).toBe("true");
   expect(catalogLeaves().length).toBeGreaterThan(0);

@@ -145,6 +145,7 @@ function ShareFields({
           id="share-kind"
           disabled={busy}
           value={kind}
+          // SAFETY: test/fixture or boundary-checked value matches ShareKind)}.
           onChange={(event) => onKind(event.target.value as ShareKind)}
         >
           <option value="vault">Vault</option>

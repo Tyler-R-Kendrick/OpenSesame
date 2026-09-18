@@ -167,6 +167,7 @@ describe("live keybinding overlay", () => {
     expect(persistKeybindings({ w: "item.edit", j: "item.edit" }).ok).toBe(
       true,
     );
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const stored = JSON.parse(JSON.stringify(currentKeybindings())) as Record<
       string,
       string

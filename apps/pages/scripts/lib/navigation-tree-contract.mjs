@@ -11,11 +11,21 @@ export async function navigationTreeContract(page, tabTo) {
   );
 }
 
+function isString(value) {
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object String]"
+  );
+}
+
+function isObject(value) {
+  return value !== null && Object(value) === value && !Array.isArray(value);
+}
+
 function treeItem(page, name) {
-  if (typeof name === "string" || name instanceof RegExp)
+  if (isString(name) || name instanceof RegExp)
     return page.getByRole("treeitem", { name });
-  if (name && typeof name === "object" && "name" in name)
-    return page.getByRole("treeitem", name);
+  if (isObject(name) && "name" in name) return page.getByRole("treeitem", name);
   return name;
 }
 

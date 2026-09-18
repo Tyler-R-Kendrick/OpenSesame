@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import {
   generatePaymentApprovalKeyPair,
   signPaymentApprovalDigest,
@@ -243,10 +244,12 @@ describe("wallet-agent-broker", () => {
 
   it("redacts a secret canary from payment status exports (WAL-B17)", () => {
     const canary = "CANARY_wallet_status_export_secret";
-    const exported = redactWalletExport({
-      ...walletPaymentStatus(),
-      secret: canary,
-    });
+    const exported = redactWalletExport(
+      overlapCast({
+        ...walletPaymentStatus(),
+        secret: canary,
+      }),
+    );
     expect(walletExportLeaksCanary(exported, [canary])).toBe(false);
     expect(exported).not.toContain(canary);
   });

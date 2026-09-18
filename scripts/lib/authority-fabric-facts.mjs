@@ -12,6 +12,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+function isString(value) {
+  return Object.prototype.toString.call(value) === "[object String]";
+}
+
 /** Members of the Cargo workspace. A crate outside this list is not compiled. */
 export function workspaceMembers(root) {
   const manifest = readFileSync(join(root, "Cargo.toml"), "utf8");
@@ -139,9 +143,10 @@ export function moduleFacts(root, crates, targets) {
     const { crate, module } = target;
     const crateFact = crates[crate];
     const key = `${crate}:${module}`;
-    const bin = typeof target.bin === "string" ? target.bin : null;
-    const integration =
-      typeof target.integration === "string" ? target.integration : null;
+    const bin = isString(target.bin) ? target.bin : null;
+    const integration = isString(target.integration)
+      ? target.integration
+      : null;
     if (crateFact === undefined) {
       facts[key] = false;
       continue;
@@ -205,12 +210,11 @@ export function enumerateCargoTests(
     Array.isArray(features) && features.length > 0
       ? ["--features", features.join(",")]
       : [];
-  const suiteArgs =
-    typeof integration === "string"
-      ? ["--test", integration]
-      : bin
-        ? ["--bin", bin]
-        : ["--lib"];
+  const suiteArgs = isString(integration)
+    ? ["--test", integration]
+    : bin
+      ? ["--bin", bin]
+      : ["--lib"];
   const result = spawnSync(
     "cargo",
     [

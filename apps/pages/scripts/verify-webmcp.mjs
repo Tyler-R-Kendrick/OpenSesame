@@ -226,12 +226,18 @@ try {
   await native.expectCount(4);
   assert.deepEqual(native.names(), boot);
   assert.notEqual((await native.invoke("opensesame_status")).vault, "unlocked");
+  function isRuntimeString(value) {
+    return (
+      Object(value) !== value &&
+      Object.prototype.toString.call(value) === "[object String]"
+    );
+  }
   const errors = harness.log.filter((entry) => {
     if (entry.kind === "MISSING-ASSET") return true;
     if (entry.kind !== "PAGE-ERROR") return false;
     // Chromium can still emit a pageerror for OPFS removeEntry refusals even
     // when kvDelete catches the rejection (seen under CI Chrome + WebMCP).
-    const detail = typeof entry.detail === "string" ? entry.detail : "";
+    const detail = isRuntimeString(entry.detail) ? entry.detail : "";
     if (
       detail.includes("removeEntry") &&
       detail.includes("modifications are not allowed")

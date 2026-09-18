@@ -35,6 +35,7 @@ it("never lets a slip while editing erase the endpoint on record", async () => {
   expect(stored).toBe("https://api.nango.dev");
   // Not an address this page may call, so nothing to sync either.
   expect(
+    // SAFETY: fixture constructed in this test matches the declared contract.
     (
       screen.getByRole("button", {
         name: "Sync connectors",

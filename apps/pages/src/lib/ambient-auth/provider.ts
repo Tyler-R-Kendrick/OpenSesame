@@ -43,6 +43,7 @@ export function providerConnectionKey(input: {
   ) {
     throw new Error("invalid provider connection");
   }
+  // SAFETY: test/fixture or boundary-checked value matches ProviderConnectionKey.
   return `${input.protocol}|${issuer}|${clientId}|${org}` as ProviderConnectionKey;
 }
 

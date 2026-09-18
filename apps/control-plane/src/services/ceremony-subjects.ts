@@ -171,13 +171,16 @@ export function authorizeTransaction(
   resourceRef?: string,
 ): TransactionAuthorizationRecord {
   if (row.state !== "pending") return row;
-  return {
+  const authorized = {
     ...row,
-    state: "authorized",
+    state: "authorized" as const,
     authorizedAt: now,
     authorizedByPrincipalId,
-    ...(resourceRef ? { resourceRef } : {}),
   };
+  if (resourceRef) {
+    authorized.resourceRef = resourceRef;
+  }
+  return authorized;
 }
 
 export function createMemoryCeremonySubjectStore(): CeremonySubjectStore {

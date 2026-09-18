@@ -106,17 +106,13 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint access-local-request-intro">
-          Requests are encrypted in this vault and expire after five minutes. An
-          authorized person approves or denies with a request-bound passkey.
-          Approval is single-use and never bypasses application policy.
-        </p>
         <label>
           Show{" "}
           <select
             aria-label="Local request status filter"
             value={statusFilter}
             onChange={(event) =>
+              // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
               setStatusFilter(event.target.value as InboxStatusFilter)
             }
           >

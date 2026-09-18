@@ -278,7 +278,7 @@ async function tablet(browser, size) {
   // Name the stop before any check runs, or each failure is filed under the
   // stop before it and the log points at the wrong screen.
   harness.setStep(stop("chrome"));
-  const shape = await page.evaluate(() => {
+  const chromeCounts = await page.evaluate(() => {
     const visible = (selector) =>
       [...document.querySelectorAll(selector)].filter(
         (el) => el.getClientRects().length > 0,
@@ -292,14 +292,17 @@ async function tablet(browser, size) {
     };
   });
   harness.check(
-    shape.strip === 1 && shape.keys === 7,
-    `${stop("chrome")}: the status strip and its seven keys are on screen (saw ${shape.keys} in ${shape.strip} strip)`,
+    chromeCounts.strip === 1 && chromeCounts.keys === 7,
+    `${stop("chrome")}: the status strip and its seven keys are on screen (saw ${chromeCounts.keys} in ${chromeCounts.strip} strip)`,
   );
   harness.check(
-    shape.topbar === 0 && shape.overflow === 0,
+    chromeCounts.topbar === 0 && chromeCounts.overflow === 0,
     `${stop("chrome")}: the phone's top bar stays off above 900px, so the strip is not doubled`,
   );
-  harness.check(shape.rail === 1, `${stop("chrome")}: the rail is drawn`);
+  harness.check(
+    chromeCounts.rail === 1,
+    `${stop("chrome")}: the rail is drawn`,
+  );
   // Everything the strip holds has to be reachable by name, not merely
   // painted: this is the road a person on a tablet takes to support and to the
   // truth about which planes are configured.

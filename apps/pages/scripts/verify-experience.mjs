@@ -9,12 +9,16 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+function isString(value) {
+  return Object.prototype.toString.call(value) === "[object String]";
+}
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const oauth2ProxyCandidates = [
   process.env.OAUTH2_PROXY_BIN,
   "/tmp/oauth2-proxy-smoke/oauth2-proxy-v7.8.2.linux-arm64/oauth2-proxy",
   "/tmp/oauth2-proxy-smoke/oauth2-proxy",
-].filter((path) => typeof path === "string" && path.length > 0);
+].filter((path) => isString(path) && path.length > 0);
 for (const candidate of oauth2ProxyCandidates) {
   if (existsSync(candidate)) {
     process.env.OAUTH2_PROXY_BIN = candidate;

@@ -13,6 +13,15 @@ type AmbientCompleted = CompletedSignIn & {
   intent: Extract<AuthenticationIntent, { kind: "ambient" }>;
 };
 
+type AdmissionErrorOutcome = {
+  kind: "error";
+  detail: string;
+};
+
+type AmbientReturnResult = {
+  returnTo?: string;
+};
+
 export const ambientReturnSeams = {
   vault(): VaultNamespaceState {
     const snapshot = vaultStore.getSnapshot();
@@ -24,10 +33,9 @@ export const ambientReturnSeams = {
   },
 };
 
-function outcomeForAdmission(kind: "mismatch" | "rejected"): {
-  kind: "error";
-  detail: string;
-} {
+function outcomeForAdmission(
+  kind: "mismatch" | "rejected",
+): AdmissionErrorOutcome {
   if (kind === "mismatch") {
     return {
       kind: "error",
@@ -42,7 +50,7 @@ function outcomeForAdmission(kind: "mismatch" | "rejected"): {
 
 export async function applyAmbientReturn(
   result: AmbientCompleted,
-): Promise<{ returnTo?: string }> {
+): Promise<AmbientReturnResult> {
   if (!result.claims) {
     storeAuthOutcome(outcomeForAdmission("rejected"));
     return {};

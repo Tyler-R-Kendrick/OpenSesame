@@ -12,14 +12,16 @@ function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void): void {
   apply();
 }
 
-export function createMemoryProviderReplayConsumer(): {
+export type ProviderReplayConsumer = {
   consumeProviderAssertionReplay: (
     issuer: string,
     jti: string,
     expiresAt: Date,
     uow?: UnitOfWork,
   ) => Promise<boolean>;
-} {
+};
+
+export function createMemoryProviderReplayConsumer(): ProviderReplayConsumer {
   const providerReplays = new Map<string, { expiresAt: Date }>();
   return {
     async consumeProviderAssertionReplay(issuer, jti, expiresAt, uow) {

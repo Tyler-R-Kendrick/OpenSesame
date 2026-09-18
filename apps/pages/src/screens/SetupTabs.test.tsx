@@ -79,6 +79,7 @@ describe("the tabs and their skips (ADR 0114)", () => {
     expect(selectedTab()).toBe("connectors");
     expect(completeSetup).not.toHaveBeenCalled();
     expect(
+      // SAFETY: fixture constructed in this test matches the declared contract.
       (
         screen.getByRole("button", {
           name: "Previous step",

@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 /** Unsigned synthetic claim preview. Never a token. */
 
 export type SyntheticPersona = {
@@ -62,8 +63,6 @@ export function previewSyntheticClaims(input: {
   return preview;
 }
 
-export function mappingOverridesReserved(
-  mapping: Record<string, unknown>,
-): boolean {
+export function mappingOverridesReserved(mapping: JsonObject): boolean {
   return Object.keys(mapping).some((key) => RESERVED.has(key));
 }

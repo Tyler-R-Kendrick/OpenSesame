@@ -1,11 +1,17 @@
+import {
+  type JsonValue,
+  isBoolean,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import { isMap, isScalar, parseDocument } from "yaml";
 import { parseConfigYaml } from "./yaml-profile.js";
 
-function formatScalar(value: unknown): string {
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (typeof value === "boolean") return value ? "true" : "false";
+function formatScalar(value: JsonValue): string {
+  if (isNumber(value) && Number.isFinite(value)) return String(value);
+  if (isBoolean(value)) return value ? "true" : "false";
   if (value === null) return "null";
-  if (typeof value === "string") {
+  if (isString(value)) {
     if (value === "" || /[:#\n\r]/.test(value) || value !== value.trim()) {
       return JSON.stringify(value);
     }
@@ -29,7 +35,7 @@ function valueRange(node: { range?: [number, number, number] | null }):
 export function patchYamlTopLevel(
   source: string,
   key: string,
-  value: unknown,
+  value: JsonValue,
 ): string {
   const parsed = parseConfigYaml(source);
   if (!parsed.ok) {

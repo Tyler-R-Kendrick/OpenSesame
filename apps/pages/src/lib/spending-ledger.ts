@@ -7,6 +7,12 @@
  */
 
 import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
   type AmountUnits,
   BudgetError,
   type BudgetLedger,
@@ -118,18 +124,14 @@ function readLabels(): Record<string, string> {
       labelCache = {};
       return labelCache;
     }
-    const parsed: unknown = JSON.parse(raw);
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
+    const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
+    if (!isJsonObject(parsed)) {
       labelCache = {};
       return labelCache;
     }
     const out: Record<string, string> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value === "string" && value.trim() !== "") out[key] = value;
+      if (isString(value) && value.trim() !== "") out[key] = value;
     }
     labelCache = out;
     return labelCache;

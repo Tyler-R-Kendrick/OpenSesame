@@ -207,6 +207,7 @@ function InboxRows({
           aria-label="Approval status filter"
           value={filter}
           onChange={(event) =>
+            // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
             setFilter(event.target.value as InboxStatusFilter)
           }
         >

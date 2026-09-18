@@ -185,21 +185,25 @@ export async function drainConsumedSettlement(
   // Host is optional. A missing or unreachable Host must not un-succeed
   // Identity ceremony settlement or invite a second consume.
   if (hostSettlementDispatchEnabled(ctx.config)) {
-    await dispatchHostSettlementHttp(ctx.config, {
+    const hostPayload = {
       eventType: saved.command.eventType,
       interactionId: saved.interaction.id,
-      ...(saved.interaction.requestDigest
-        ? { requestDigest: saved.interaction.requestDigest }
-        : {}),
-    });
+    };
+    if (saved.interaction.requestDigest) {
+      Object.assign(hostPayload, {
+        requestDigest: saved.interaction.requestDigest,
+      });
+    }
+    await dispatchHostSettlementHttp(ctx.config, hostPayload);
   }
-  const metadata: {
+  type SettlementAuditMetadata = {
     interactionId: string;
     subjectKind: InteractionKind;
     eventType: string;
     execution: HostSettlementOutcome;
     requestDigest?: string;
-  } = {
+  };
+  const metadata: SettlementAuditMetadata = {
     interactionId: saved.interaction.id,
     subjectKind: saved.interaction.subject.kind,
     eventType: saved.command.eventType,

@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
+  type BoundaryValue,
   digestAgentClaimAttemptToken,
+  isString,
   overlapCast,
 } from "@opensesame/os-domain";
 import type { Context, Hono } from "hono";
@@ -41,7 +43,8 @@ async function exchangeAgentAuthCode(
       }),
     });
     const body = overlapCast(await tokenRes.json());
-    if (typeof body.access_token === "string") return body.access_token;
+    const accessToken = body.access_token;
+    if (isString(accessToken)) return accessToken;
   } catch {
     return undefined;
   }
@@ -84,15 +87,14 @@ async function handleClaimResume(c: Context): Promise<Response> {
   c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
   const raw = getCookie(c, AGENT_AUTH_OIDC_COOKIE);
   deleteCookie(c, AGENT_AUTH_OIDC_COOKIE, { path: "/" });
-  let stored: { v?: string; r?: string; s?: string } = {};
+  type AgentAuthOidcCookie = { v?: string; r?: string; s?: string };
+  let stored: AgentAuthOidcCookie = {};
   try {
     stored = raw ? overlapCast(JSON.parse(raw)) : {};
   } catch {
     stored = {};
   }
-  const returnTo = safeAgentAuthReturnTo(
-    typeof stored.r === "string" ? stored.r : "/claim",
-  );
+  const returnTo = safeAgentAuthReturnTo(stored.r ?? "/claim");
   const login = () =>
     c.html(
       renderAgentAuthLoginPage({
@@ -149,18 +151,17 @@ function registerAgentAuthClaimRoutes(
     const registration = attempt
       ? await ctx.repos.agentAuth.getRegistrationById(attempt.registrationId)
       : null;
-    return c.html(
-      renderAgentAuthClaimPage({
-        claimAttemptToken: token,
-        principalId,
-        ...(registration
-          ? {
-              registrationId: registration.id,
-              scopes: registration.postClaimScopes,
-            }
-          : {}),
-      }),
-    );
+    const claimPage = {
+      claimAttemptToken: token,
+      principalId,
+    };
+    if (registration) {
+      Object.assign(claimPage, {
+        registrationId: registration.id,
+        scopes: registration.postClaimScopes,
+      });
+    }
+    return c.html(renderAgentAuthClaimPage(claimPage));
   });
 }
 
@@ -171,9 +172,10 @@ function registerAgentAuthLoginRoutes(
     const ctx = c.get("ctx");
     c.header("X-Frame-Options", "DENY");
     c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
-    const form = await c.req.parseBody();
+    const form = overlapCast(await c.req.parseBody());
+    const returnToField: BoundaryValue = overlapCast(form.return_to);
     const returnTo = safeAgentAuthReturnTo(
-      typeof form.return_to === "string" ? form.return_to : "/claim",
+      isString(returnToField) ? returnToField : "/claim",
     );
     const principalId = c.get("principalId");
     if (principalId) {
@@ -203,8 +205,8 @@ function registerAgentAuthLoginRoutes(
     authorize.searchParams.set("code_challenge", pkceChallenge(verifier));
     authorize.searchParams.set("code_challenge_method", "S256");
     authorize.searchParams.set("state", state);
-    const provider =
-      typeof form.provider === "string" ? form.provider.trim() : "";
+    const providerField: BoundaryValue = overlapCast(form.provider);
+    const provider = isString(providerField) ? providerField.trim() : "";
     if (/^[a-z0-9._-]{1,64}$/i.test(provider)) {
       authorize.searchParams.set("login_hint_provider", provider);
       authorize.searchParams.set("kc_idp_hint", provider);

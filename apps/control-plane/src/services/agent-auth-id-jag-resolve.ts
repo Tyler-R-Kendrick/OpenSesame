@@ -12,17 +12,19 @@ import {
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 
+type BuiltProviderRegistration = {
+  registration: AgentRegistration;
+  principalId: string;
+  principal: Principal;
+};
+
 function buildProviderRegistration(
   ctx: AppContext,
   identity: VerifiedProviderIdentity,
   principalIdIn: string | undefined,
   principalIn: Principal | null,
   now: Date,
-): {
-  registration: AgentRegistration;
-  principalId: string;
-  principal: Principal;
-} {
+) {
   const cfg = ctx.config.agentAuth;
   let principalId = principalIdIn;
   let principal = principalIn;
@@ -71,6 +73,14 @@ function buildProviderRegistration(
   return { registration, principalId, principal };
 }
 
+type ResolvedProviderRegistration = {
+  principal: Principal;
+  registration: AgentRegistration;
+  existing: ExternalIdentity | null;
+  identityRow: ExternalIdentity | null;
+  now: Date;
+};
+
 export async function resolveProviderRegistration(
   ctx: AppContext,
   identity: VerifiedProviderIdentity,
@@ -81,13 +91,7 @@ export async function resolveProviderRegistration(
     verifiedEmail: string,
     correlationId: string,
   ) => Promise<never>,
-): Promise<{
-  principal: Principal;
-  registration: AgentRegistration;
-  existing: ExternalIdentity | null;
-  identityRow: ExternalIdentity | null;
-  now: Date;
-}> {
+): Promise<ResolvedProviderRegistration> {
   const now = ctx.clock();
   const existing = await ctx.repos.externalIdentities.findByTuple({
     kind: "auth_md",
@@ -124,20 +128,25 @@ export async function resolveProviderRegistration(
     principal,
     now,
   );
-  const identityRow: ExternalIdentity | null = existing
-    ? null
-    : {
-        id: `xid_${randomUUID()}`,
-        principalId: built.principal.id,
-        kind: "auth_md",
-        issuer: identity.issuer,
-        subject: identity.subject,
-        assurance: "verified",
-        linkedAt: now,
-        metadata: {},
-        ...(verifiedEmail ? { emailNormalized: verifiedEmail } : {}),
-        ...(identity.emailVerified ? { emailVerified: true } : {}),
-      };
+  let identityRow: ExternalIdentity | null = null;
+  if (!existing) {
+    identityRow = {
+      id: `xid_${randomUUID()}`,
+      principalId: built.principal.id,
+      kind: "auth_md",
+      issuer: identity.issuer,
+      subject: identity.subject,
+      assurance: "verified",
+      linkedAt: now,
+      metadata: {},
+    };
+    if (verifiedEmail) {
+      identityRow.emailNormalized = verifiedEmail;
+    }
+    if (identity.emailVerified) {
+      identityRow.emailVerified = true;
+    }
+  }
 
   return {
     principal: built.principal,

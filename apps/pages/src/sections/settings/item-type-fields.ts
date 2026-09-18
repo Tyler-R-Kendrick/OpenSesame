@@ -1,18 +1,24 @@
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+
 export type FieldPreview = { id: string; type: string; label: string };
 
-function fieldsFromSection(section: unknown): FieldPreview[] {
-  if (!section || typeof section !== "object") return [];
-  const listed = (section as { fields?: unknown }).fields;
+function fieldsFromSection(section: BoundaryValue): FieldPreview[] {
+  if (!isJsonObject(section)) return [];
+  const listed = section.fields;
   if (!Array.isArray(listed)) return [];
   const fields: FieldPreview[] = [];
   for (const field of listed) {
-    if (!field || typeof field !== "object") continue;
-    const row = field as { id?: unknown; type?: unknown; label?: unknown };
-    if (typeof row.id === "string" && typeof row.type === "string") {
+    if (!isJsonObject(field)) continue;
+    if (isString(field.id) && isString(field.type)) {
       fields.push({
-        id: row.id,
-        type: row.type,
-        label: typeof row.label === "string" ? row.label : row.id,
+        id: field.id,
+        type: field.type,
+        label: isString(field.label) ? field.label : field.id,
       });
     }
   }
@@ -21,10 +27,10 @@ function fieldsFromSection(section: unknown): FieldPreview[] {
 
 export function fieldsOfDefinition(text: string): FieldPreview[] {
   try {
-    const parsed: unknown = JSON.parse(text);
-    if (!parsed || typeof parsed !== "object") return [];
-    const spec = (parsed as { spec?: { sections?: unknown } }).spec;
-    if (!spec || typeof spec !== "object") return [];
+    const parsed: BoundaryValue = overlapCast(JSON.parse(text));
+    if (!isJsonObject(parsed)) return [];
+    const spec = parsed.spec;
+    if (!isJsonObject(spec)) return [];
     const sections = spec.sections;
     if (!Array.isArray(sections)) return [];
     return sections.flatMap(fieldsFromSection);

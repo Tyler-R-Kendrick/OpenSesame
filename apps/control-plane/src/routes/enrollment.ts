@@ -6,8 +6,10 @@ import type {
   ProvisionalSession,
 } from "@opensesame/os-domain";
 import {
+  type BoundaryValue,
   type JsonObject,
   isJsonObject,
+  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -26,7 +28,7 @@ import { serializeKeyed } from "../serialize.js";
 export const enrollmentRoutes = new Hono<{ Variables: Variables }>();
 
 async function readJson(c: {
-  req: { json: () => Promise<unknown> };
+  req: { json: () => Promise<BoundaryValue> };
 }): Promise<JsonObject> {
   const value = overlapCast(await c.req.json().catch(() => ({})));
   return isJsonObject(value) ? value : {};
@@ -35,10 +37,9 @@ async function readJson(c: {
 enrollmentRoutes.post("/tickets", requireOperatorToken(), async (c) => {
   const ctx = c.get("ctx");
   const body = await readJson(c);
-  const ttlMs =
-    typeof body.ttlSeconds === "number"
-      ? clampEnrollmentTtlMs(body.ttlSeconds * 1000)
-      : ENROLLMENT_TICKET_TTL_MS_DEFAULT;
+  const ttlMs = isNumber(body.ttlSeconds)
+    ? clampEnrollmentTtlMs(body.ttlSeconds * 1000)
+    : ENROLLMENT_TICKET_TTL_MS_DEFAULT;
   const minted = await storeEnrollmentTicket(
     ctx.stores.enrollmentTickets,
     ctx.clock(),

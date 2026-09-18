@@ -28,11 +28,17 @@ export function clampEnrollmentTtlMs(ttlMs: number): number {
   );
 }
 
+export type StoredEnrollmentTicket = {
+  id: string;
+  ticket: string;
+  expiresAt: Date;
+};
+
 export async function storeEnrollmentTicket(
   store: SecurityMap<EnrollmentTicketRecord>,
   now: Date,
   ttlMs = ENROLLMENT_TICKET_TTL_MS_DEFAULT,
-): Promise<{ id: string; ticket: string; expiresAt: Date }> {
+): Promise<StoredEnrollmentTicket> {
   const ticket = randomBytes(32).toString("base64url");
   const id = randomUUID();
   const expiresAt = new Date(now.getTime() + clampEnrollmentTtlMs(ttlMs));

@@ -49,8 +49,8 @@ export type AmbientAuthPolicy = {
 };
 
 export type AmbientPolicyInputs = {
-  runtime?: unknown;
-  userPreference?: unknown;
+  runtime?: BoundaryValue;
+  userPreference?: BoundaryValue;
   lastSignInMethod?: string | null;
   operatorProviders?: readonly OperatorIdp[];
   builtinIssuer?: { id: string; issuer: string; clientId: string };
@@ -122,7 +122,7 @@ function decide(
         mode: blob.mode,
         selectedProviderKey: blob.selectedProviderKey,
         provenance: "invalid",
-      }),
+      } satisfies AmbientRevisionSeed),
     });
     return {
       policy,
@@ -168,7 +168,7 @@ function decide(
       permitJitProvisioning: blob.permitJitProvisioning,
       clientId: selected.clientId,
       issuer: selected.issuer,
-    }),
+    } satisfies AmbientRevisionSeed),
   });
   return { policy, connection: selected, eligible: true, reason: "eligible" };
 }
@@ -230,7 +230,7 @@ function readMode(value: BoundaryValue): AmbientAuthMode | null {
 }
 
 function readPolicyBlob(
-  value: unknown,
+  value: BoundaryValue,
   provenance: AmbientPolicyProvenance,
 ): AmbientAuthPolicy | null {
   if (value === undefined || value === null) return null;
@@ -251,28 +251,22 @@ function readPolicyBlob(
   ) {
     return null;
   }
-  const allowedTransport = readTransport(raw.allowedTransport);
+  const allowedTransport = readTransport(overlapCast(raw.allowedTransport));
   const cooldownMs = clampInt(
-    raw.cooldownMs,
+    overlapCast(raw.cooldownMs),
     DEFAULT_COOLDOWN_MS,
     MIN_COOLDOWN_MS,
     MAX_COOLDOWN_MS,
   );
   const timeoutMs = clampInt(
-    raw.timeoutMs,
+    overlapCast(raw.timeoutMs),
     DEFAULT_TIMEOUT_MS,
     MIN_TIMEOUT_MS,
     MAX_TIMEOUT_MS,
   );
-  return {
+  const policy: AmbientAuthPolicy = {
     schemaVersion: 1,
     mode,
-    ...(selectedProviderKey
-      ? { selectedProviderKey: selectedProviderKey as ProviderConnectionKey }
-      : undefined),
-    ...(isString(raw.tenantAuthority)
-      ? { tenantAuthority: raw.tenantAuthority }
-      : undefined),
     allowedTransport,
     allowVisibleTopLevel: raw.allowVisibleTopLevel === true,
     cooldownMs,
@@ -281,9 +275,17 @@ function readPolicyBlob(
     policyRevision: "pending",
     provenance,
   };
+  if (selectedProviderKey) {
+    // SAFETY: parseProviderConnectionKey validated this string as a connection-key contract.
+    policy.selectedProviderKey = selectedProviderKey as ProviderConnectionKey;
+  }
+  if (isString(raw.tenantAuthority)) {
+    policy.tenantAuthority = raw.tenantAuthority;
+  }
+  return policy;
 }
 
-function readTransport(value: unknown): AmbientTransport {
+function readTransport(value: BoundaryValue): AmbientTransport {
   if (
     value === "silent-redirect" ||
     value === "silent-iframe" ||
@@ -295,7 +297,7 @@ function readTransport(value: unknown): AmbientTransport {
 }
 
 function clampInt(
-  value: unknown,
+  value: BoundaryValue,
   fallback: number,
   min: number,
   max: number,
@@ -312,7 +314,19 @@ function freezePolicy(policy: AmbientAuthPolicy): AmbientAuthPolicy {
   return Object.freeze({ ...policy });
 }
 
-export function revisionOf(fields: Record<string, unknown>): string {
+export type AmbientRevisionSeed = {
+  mode?: string;
+  selectedProviderKey?: string;
+  provenance?: string;
+  tenantAuthority?: string;
+  allowedTransport?: string;
+  allowVisibleTopLevel?: boolean;
+  permitJitProvisioning?: boolean;
+  clientId?: string;
+  issuer?: string;
+};
+
+export function revisionOf(fields: AmbientRevisionSeed): string {
   const json = JSON.stringify(fields, Object.keys(fields).sort());
   let hash = 2166136261;
   for (let i = 0; i < json.length; i += 1) {
@@ -328,17 +342,17 @@ function trimSlashes(value: string): string {
 
 export const USER_AMBIENT_PREFERENCE_KEY = "opensesame:ambient-auth:preference";
 
-export function readUserAmbientPreference(): unknown {
+export function readUserAmbientPreference(): BoundaryValue | null {
   try {
     const raw = globalThis.localStorage?.getItem(USER_AMBIENT_PREFERENCE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    return overlapCast(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
-export function writeUserAmbientPreference(value: unknown): void {
+export function writeUserAmbientPreference(value: BoundaryValue): void {
   try {
     // ast-grep-ignore: ts-localstorage-set
     globalThis.localStorage?.setItem(

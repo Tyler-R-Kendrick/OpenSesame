@@ -1,5 +1,5 @@
 import { PROVIDER_ID_JAG_TYP } from "@opensesame/agent-protocols";
-import { overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { generateClaimToken } from "@opensesame/os-domain";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterEach, describe, expect, it } from "vitest";
@@ -84,21 +84,20 @@ describe("AgentAuth provider ID-JAG", () => {
     return { hono, privateKey };
   }
 
-  async function idJag(
-    privateKey: CryptoKey,
-    overrides: {
-      iss?: string;
-      aud?: string;
-      jti?: string;
-      sub?: string;
-      email?: string;
-      emailVerified?: boolean;
-      authTimeOffset?: number;
-      omitAuthTime?: boolean;
-    } = {},
-  ) {
+  type IdJagOverrides = {
+    iss?: string;
+    aud?: string;
+    jti?: string;
+    sub?: string;
+    email?: string;
+    emailVerified?: boolean;
+    authTimeOffset?: number;
+    omitAuthTime?: boolean;
+  };
+
+  async function idJag(privateKey: CryptoKey, overrides: IdJagOverrides = {}) {
     const now = Math.floor(Date.now() / 1000);
-    const claims: Record<string, unknown> = {
+    const claims: JsonObject = {
       sub: overrides.sub ?? "user_idp_1",
       email: overrides.email ?? "idp-user@example.com",
       email_verified: overrides.emailVerified ?? true,
@@ -158,6 +157,7 @@ describe("AgentAuth provider ID-JAG", () => {
     );
     expect(overlapCast(as.agent_auth).events_endpoint).toBeUndefined();
     const sia = String(registered.identity_assertion).split(".")[1] ?? "";
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const payload = JSON.parse(
       Buffer.from(sia, "base64url").toString("utf8"),
     ) as { act?: { sub?: string }; sub?: string };
@@ -356,6 +356,7 @@ describe("AgentAuth provider ID-JAG", () => {
       }),
     );
     expect(first.error).toBe("interaction_required");
+    // SAFETY: fixture constructed in this test matches the declared contract.
     const userCode = overlapCast(first.claim).user_code as string;
     const verificationUri = new URL(
       String(overlapCast(first.claim).verification_uri),

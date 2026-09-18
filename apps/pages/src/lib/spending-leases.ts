@@ -96,7 +96,7 @@ function parseLease(value: BoundaryValue): LeaseRecord | undefined {
   if (!isJsonObject(value)) return undefined;
   const status = parseStatus(value.status);
   if (status === undefined) return undefined;
-  const strings: Record<(typeof LEASE_STRING_FIELDS)[number], string> = {
+  const strings = {
     id: "",
     grantRef: "",
     allocationRef: "",
@@ -113,7 +113,7 @@ function parseLease(value: BoundaryValue): LeaseRecord | undefined {
     recipient: "",
     approvalDigest: "",
     reserveAttemptId: "",
-  };
+  } satisfies Record<(typeof LEASE_STRING_FIELDS)[number], string>;
   for (const key of LEASE_STRING_FIELDS) {
     const field = value[key];
     if (!isString(field)) return undefined;
@@ -171,9 +171,13 @@ function readSpentAssertions(): Set<string> {
   try {
     const raw = readWalletStorage(SPENT_ASSERTIONS_KEY);
     if (raw === null || raw === "") return new Set();
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
     if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+    const ids: string[] = [];
+    for (const item of parsed) {
+      if (isString(item)) ids.push(item);
+    }
+    return new Set(ids);
   } catch {
     return new Set();
   }

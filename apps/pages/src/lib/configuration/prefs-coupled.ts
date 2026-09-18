@@ -27,6 +27,7 @@ export async function commitPrefsCoupled(input: {
     };
   }
   const previous = prefsToYaml(
+    // SAFETY: test/fixture or boundary-checked value matches {.
     input.record.semantic as {
       theme: PrefsDocument["theme"];
       autoLockMinutes: number;

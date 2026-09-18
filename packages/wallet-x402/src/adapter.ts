@@ -75,7 +75,7 @@ function assertWithinRemaining(
 }
 
 export function describeX402Adapter(
-  input: { readonly localExecutionVerified?: boolean } = {},
+  input: DescribeX402AdapterInput = {},
 ): X402AdapterManifest {
   return {
     adapterId: "x402-exact",
@@ -109,12 +109,44 @@ type PreparedSlot = {
   readonly remainingAllocation: string;
 };
 
-const preparedSlots = new Map<string, PreparedSlot>();
+type DescribeX402AdapterInput = {
+  readonly localExecutionVerified?: boolean;
+};
 
-export async function prepareX402Payment(input?: {
+export type PreparedX402PaymentRef = {
+  readonly ref: string;
+  readonly expiresAt: string;
+};
+
+export type ExecutedX402Payment = {
+  readonly status: "confirmed" | "failed";
+  readonly detail: string;
+  readonly transaction?: string;
+};
+
+export type ReconciledX402Payment = {
+  readonly status: "matched" | "unknown";
+  readonly detail: string;
+};
+
+type PrepareX402PaymentInput = {
   readonly runtime: LocalExactRuntime;
   readonly remainingAllocation: string;
-}): Promise<{ ref: string; expiresAt: string }> {
+};
+
+type ExecuteX402PaymentInput = {
+  readonly preparedRef: string;
+};
+
+type ReconcileX402PaymentInput = {
+  readonly preparedRef: string;
+};
+
+const preparedSlots = new Map<string, PreparedSlot>();
+
+export async function prepareX402Payment(
+  input?: PrepareX402PaymentInput,
+): Promise<PreparedX402PaymentRef> {
   if (input === undefined) throw new X402AdapterBlockedError("prepare");
   if (isMainnetChainId(input.runtime.chainId))
     throw new Error("MAINNET_DENIED");
@@ -131,13 +163,9 @@ export async function prepareX402Payment(input?: {
   return { ref, expiresAt: new Date(Date.now() + 60_000).toISOString() };
 }
 
-export async function executeX402Payment(input?: {
-  readonly preparedRef: string;
-}): Promise<{
-  status: "confirmed" | "failed";
-  detail: string;
-  transaction?: string;
-}> {
+export async function executeX402Payment(
+  input?: ExecuteX402PaymentInput,
+): Promise<ExecutedX402Payment> {
   if (input === undefined) throw new X402AdapterBlockedError("execute");
   const slot = preparedSlots.get(input.preparedRef);
   if (slot === undefined) {
@@ -181,9 +209,9 @@ export async function executeX402Payment(input?: {
   };
 }
 
-export async function reconcileX402Payment(input?: {
-  readonly preparedRef: string;
-}): Promise<{ status: "matched" | "unknown"; detail: string }> {
+export async function reconcileX402Payment(
+  input?: ReconcileX402PaymentInput,
+): Promise<ReconciledX402Payment> {
   if (input === undefined) throw new X402AdapterBlockedError("reconcile");
   return {
     status: "unknown",

@@ -1,7 +1,11 @@
 import { agentAuthError } from "@opensesame/agent-protocols";
 import type { UnitOfWork } from "@opensesame/database";
 import { assertSafeMetadataUrl } from "@opensesame/oauth-provider";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isFunction,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { AgentAuthTrustedProvider } from "../config.js";
 import type { AppContext } from "../context.js";
 
@@ -25,7 +29,7 @@ export async function consumeProviderReplay(
   uow?: UnitOfWork,
 ): Promise<boolean> {
   const consume = ctx.repos.agentAuth.consumeProviderAssertionReplay;
-  if (typeof consume === "function") {
+  if (isFunction(consume)) {
     return consume(issuer, jti, expiresAt, uow);
   }
   const key = `${issuer}\0${jti}`;
@@ -49,9 +53,11 @@ export function trustedProviderFor(
   );
 }
 
+export type ProviderJwks = { keys: JsonObject[] };
+
 export async function jwksForProvider(
   provider: AgentAuthTrustedProvider,
-): Promise<{ keys: JsonObject[] }> {
+): Promise<ProviderJwks> {
   if (provider.jwks?.keys && provider.jwks.keys.length > 0) {
     return provider.jwks;
   }

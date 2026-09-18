@@ -10,35 +10,34 @@ export const WEBMCP_CONTEXTS = [
 export type WebMcpContextId = (typeof WEBMCP_CONTEXTS)[number];
 
 /** Session tools registered only while this surface is the one on screen. */
-export const SESSION_TOOL_CONTEXTS: Record<string, readonly WebMcpContextId[]> =
-  {
-    opensesame_vault_search: ["vault"],
-    opensesame_vault_item_read: ["vault"],
-    opensesame_vault_item_write: ["vault"],
-    opensesame_totp_code: ["vault"],
-    opensesame_open_reveal: ["vault"],
-    opensesame_login_draft: ["login_form"],
-    opensesame_settings_read: ["settings"],
-    opensesame_connections_read: ["connections"],
-    opensesame_open_connect_ceremony: ["connections"],
-    opensesame_access_read: ["access"],
-    opensesame_task_terminate: ["access"],
-    opensesame_delegation_narrow: ["access"],
-    opensesame_delegation_revoke: ["access"],
-    opensesame_open_relay_approval: ["access"],
-    opensesame_open_delegation_claim: ["access"],
-    opensesame_identity_read: ["identity"],
-    opensesame_help: WEBMCP_CONTEXTS,
-    opensesame_guide_start: WEBMCP_CONTEXTS,
-    opensesame_wallet_budgets_read: ["vault", "access", "settings"],
-    opensesame_wallet_allocations_read: ["vault", "access", "settings"],
-    opensesame_wallet_payment_propose: ["vault", "access", "settings"],
-    opensesame_wallet_payment_execute_approved: ["vault", "access", "settings"],
-    opensesame_wallet_payment_status: ["vault", "access", "settings"],
-    opensesame_wallet_lease_request: ["vault", "access", "settings"],
-    opensesame_wallet_lease_status: ["vault", "access", "settings"],
-    opensesame_wallet_lease_request_stop: ["vault", "access", "settings"],
-  };
+export const SESSION_TOOL_CONTEXTS = {
+  opensesame_vault_search: ["vault"],
+  opensesame_vault_item_read: ["vault"],
+  opensesame_vault_item_write: ["vault"],
+  opensesame_totp_code: ["vault"],
+  opensesame_open_reveal: ["vault"],
+  opensesame_login_draft: ["login_form"],
+  opensesame_settings_read: ["settings"],
+  opensesame_connections_read: ["connections"],
+  opensesame_open_connect_ceremony: ["connections"],
+  opensesame_access_read: ["access"],
+  opensesame_task_terminate: ["access"],
+  opensesame_delegation_narrow: ["access"],
+  opensesame_delegation_revoke: ["access"],
+  opensesame_open_relay_approval: ["access"],
+  opensesame_open_delegation_claim: ["access"],
+  opensesame_identity_read: ["identity"],
+  opensesame_help: WEBMCP_CONTEXTS,
+  opensesame_guide_start: WEBMCP_CONTEXTS,
+  opensesame_wallet_budgets_read: ["vault", "access", "settings"],
+  opensesame_wallet_allocations_read: ["vault", "access", "settings"],
+  opensesame_wallet_payment_propose: ["vault", "access", "settings"],
+  opensesame_wallet_payment_execute_approved: ["vault", "access", "settings"],
+  opensesame_wallet_payment_status: ["vault", "access", "settings"],
+  opensesame_wallet_lease_request: ["vault", "access", "settings"],
+  opensesame_wallet_lease_status: ["vault", "access", "settings"],
+  opensesame_wallet_lease_request_stop: ["vault", "access", "settings"],
+} satisfies Record<string, readonly WebMcpContextId[]>;
 
 let editorKind: string | null = null;
 const listeners = new Set<() => void>();
@@ -83,9 +82,13 @@ export function sessionToolsFor<T extends { name: string; scope: string }>(
   tools: readonly T[],
   context: WebMcpContextId,
 ): T[] {
-  return tools.filter(
-    (tool) =>
-      tool.scope === "session" &&
-      SESSION_TOOL_CONTEXTS[tool.name]?.includes(context),
-  );
+  return tools.filter((tool) => {
+    if (tool.scope !== "session") return false;
+    if (!Object.hasOwn(SESSION_TOOL_CONTEXTS, tool.name)) return false;
+    // SAFETY: Object.hasOwn established tool.name is a key of SESSION_TOOL_CONTEXTS.
+    const allowed =
+      SESSION_TOOL_CONTEXTS[tool.name as keyof typeof SESSION_TOOL_CONTEXTS];
+    // SAFETY: SESSION_TOOL_CONTEXTS values are checked-in readonly context string arrays.
+    return (allowed as readonly string[]).includes(context);
+  });
 }

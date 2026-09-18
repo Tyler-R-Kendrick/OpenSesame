@@ -1,4 +1,11 @@
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { isBindableAction } from "./actions.js";
+
 import {
   DEFAULT_KEYBINDINGS,
   type KeybindingMap,
@@ -37,7 +44,7 @@ export function loadKeybindings(): KeybindingMap {
 }
 
 export function persistKeybindings(
-  candidate: unknown,
+  candidate: BoundaryValue,
 ): ReturnType<typeof importKeybindings> {
   const imported = importKeybindings(candidate, liveBindings);
   if (!imported.ok) return imported;
@@ -57,8 +64,10 @@ export function loadViews(): SavedView[] {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return liveViews;
     liveViews = parsed.filter((row): row is SavedView => {
-      if (!row || typeof row !== "object") return false;
-      return validateSavedView(row as SavedView).ok;
+      const candidate: BoundaryValue = overlapCast(row);
+      if (!isJsonObject(candidate)) return false;
+      const view: SavedView = overlapCast(candidate);
+      return validateSavedView(view).ok;
     });
   } catch {
     /* keep previous */

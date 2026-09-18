@@ -15,14 +15,11 @@ function leaf(
   href: string,
   group?: string,
 ): PageTreeLeaf {
-  return {
-    id,
-    label,
-    href,
-    ...(group
-      ? { selectTo: `/connections#${group}-${encodeURIComponent(id)}` }
-      : {}),
-  };
+  const node: PageTreeLeaf = { id, label, href };
+  if (group) {
+    node.selectTo = `/connections#${group}-${encodeURIComponent(id)}`;
+  }
+  return node;
 }
 
 function matchesCatalog(provider: Provider, query: string): boolean {

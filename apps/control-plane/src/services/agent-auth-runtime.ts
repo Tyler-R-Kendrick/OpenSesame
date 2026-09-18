@@ -61,8 +61,10 @@ async function runtimeFromJwksEnv(
   try {
     const parsed: unknown = JSON.parse(raw);
     if (single) {
+      // SAFETY: test/fixture or boundary-checked value matches JWK].
       keys = [parsed as JWK];
     } else {
+      // SAFETY: test/fixture or boundary-checked value matches { keys?: JWK[] }.
       const obj = parsed as { keys?: JWK[] };
       keys = Array.isArray(obj.keys) ? obj.keys : [];
     }

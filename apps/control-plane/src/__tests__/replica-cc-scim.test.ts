@@ -68,11 +68,13 @@ afterEach(async () => {
   pg = undefined;
 });
 
-async function startPair(): Promise<{
+type ReplicaPair = {
   issuer: string;
   tokenA: string;
   tokenB: string;
-}> {
+};
+
+async function startPair(): Promise<ReplicaPair> {
   pg = new PGlite();
   const db = drizzle(pg, { schema });
   await migrate(db, { migrationsFolder: MIGRATIONS });

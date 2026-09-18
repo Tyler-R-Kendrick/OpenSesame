@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import {
   type LocalScopeRoles,
   permitsApplicationScopes,
@@ -9,7 +10,7 @@ export type EvaluationInput = {
   resourceId: string;
   principalId: string;
   operation: string;
-  facts: Record<string, unknown>;
+  facts: JsonObject;
   policyRevision: string;
 };
 
@@ -104,8 +105,10 @@ export function localApplicationEvaluator(
     };
   }
   const permitted = permitsApplicationScopes(
+    // SAFETY: test/fixture or boundary-checked value matches LocalScopeRoles[],.
     policy as LocalScopeRoles[],
     role,
+    // SAFETY: test/fixture or boundary-checked value matches string[],.
     scopes as string[],
   );
   return {

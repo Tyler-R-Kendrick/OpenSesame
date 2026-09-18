@@ -58,10 +58,12 @@ export type BackupInventory = {
   complete: boolean;
 };
 
-export function inventoryBackup(input: {
+export type BackupInventoryInput = {
   format: string;
   paths: readonly string[];
-}): BackupInventory {
+};
+
+export function inventoryBackup(input: BackupInventoryInput): BackupInventory {
   const known = BACKUP_COVERAGE.filter(
     (entry) => entry.kind === "included",
   ).map((entry) => entry.path);

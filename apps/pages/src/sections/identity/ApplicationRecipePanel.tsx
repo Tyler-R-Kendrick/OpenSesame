@@ -11,15 +11,20 @@ import {
   readLocalApplications,
 } from "../../lib/local-applications.js";
 
-async function applyImportedRecipe(input: {
+type ApplyImportedRecipeInput = {
   imported: string;
   organization: string;
   tomb?: string;
   revision?: number;
   fallback: ReturnType<typeof exportRecipe>;
-}): Promise<string> {
+};
+
+async function applyImportedRecipe(
+  input: ApplyImportedRecipeInput,
+): Promise<string> {
   let manifest = input.fallback;
   try {
+    // SAFETY: test/fixture or boundary-checked value matches typeof manifest.
     manifest = JSON.parse(input.imported) as typeof manifest;
   } catch {
     return "Imported recipe is not JSON.";

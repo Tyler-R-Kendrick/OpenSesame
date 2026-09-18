@@ -1,3 +1,4 @@
+import { isString } from "@opensesame/os-domain";
 import { itemTypeId } from "./vault/item-types.js";
 import type { VaultItem } from "./vault/model.js";
 
@@ -29,7 +30,7 @@ export function paymentInstrumentDetail(item: VaultItem): string {
   }
   if (item.kind === "typed" && item.typeId === "bank-account") {
     const bank = item.values.bank;
-    return typeof bank === "string" && bank.trim() !== "" ? bank : "Account";
+    return isString(bank) && bank.trim() !== "" ? bank : "Account";
   }
   return paymentInstrumentKindLabel(item);
 }

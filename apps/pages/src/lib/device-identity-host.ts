@@ -53,10 +53,10 @@ function obj(value: BoundaryValue): Record<string, BoundaryValue> {
 }
 
 async function readJson(init: RequestInit): Promise<JsonObject> {
-  const raw = init.body;
-  if (typeof raw !== "string" || raw.length === 0) return {};
+  const raw: BoundaryValue = overlapCast(init.body);
+  if (!isString(raw) || raw.length === 0) return {};
   try {
-    const parsed: BoundaryValue = JSON.parse(raw);
+    const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
     return overlapCast(obj(parsed));
   } catch {
     return {};

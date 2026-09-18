@@ -5,6 +5,7 @@ import {
   forgetVercelConnectAuth,
 } from "../../lib/vercel-connect-session.js";
 import {
+  type VercelConnectAuth,
   useVercelConnectConfigured,
   vercelConnectAuth,
 } from "../../lib/vercel-connect.js";
@@ -27,7 +28,7 @@ export function ConnectSessionNote() {
     setBusy(true);
     setError(null);
     try {
-      const next: { token: string; teamId?: string } = { token: token.trim() };
+      const next: VercelConnectAuth = { token: token.trim() };
       const team = teamId.trim();
       if (team) next.teamId = team;
       await armVercelConnectAuth(next, openTomb, { ephemeral });

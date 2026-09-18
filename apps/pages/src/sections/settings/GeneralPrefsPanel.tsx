@@ -1,3 +1,4 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import { useEffect, useMemo, useState } from "react";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { SourceEditor } from "../../components/configuration/SourceEditor.js";
@@ -76,7 +77,7 @@ export function GeneralPrefsPanel() {
     setSource(switchDraftMode(draft, next).currentSource);
     setMode(next);
   };
-  const visualPatch = (key: string, value: unknown) => {
+  const visualPatch = (key: string, value: JsonValue) => {
     const patched = patchYamlTopLevel(source, key, value);
     const draft = prefsDraft(source, prefs.prefsRevision);
     setSource(applySourceEdit(draft, patched, []).currentSource);

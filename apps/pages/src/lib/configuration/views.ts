@@ -12,12 +12,12 @@ export type ViewResolution =
   | { ok: true; view: SavedView }
   | { ok: false; reason: "scope" | "unknown" | "unsupported" };
 
-const PROVIDER_FILTERS: Record<SavedView["collection"], readonly string[]> = {
+const PROVIDER_FILTERS = {
   vault: ["kind", "folder", "favorite", "query"],
   approvals: ["status", "plane", "scope"],
   sessions: ["kind", "owner"],
   applications: ["plane", "query"],
-};
+} satisfies Record<SavedView["collection"], readonly string[]>;
 
 export function validateSavedView(view: SavedView): ViewResolution {
   const allowed = PROVIDER_FILTERS[view.collection];

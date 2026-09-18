@@ -3,6 +3,11 @@
  * Create no longer auto-mints device/pairing/transaction subjects (F04/T-09).
  */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { seedCeremonySubject } from "../services/ceremony-subjects.js";
 
 type Plane = {
@@ -40,24 +45,20 @@ export function seedRaiseSubject(
   cp: Plane,
   ownerPrincipalId: string,
   overrides: {
-    kind?: unknown;
-    subject?: unknown;
+    kind?: BoundaryValue;
+    subject?: BoundaryValue;
   },
   fallbackSubjectId = "dev-session-77",
 ): void {
-  const kind =
-    typeof overrides.kind === "string"
-      ? overrides.kind
-      : "device_authorization";
+  const kind = isString(overrides.kind)
+    ? overrides.kind
+    : "device_authorization";
   let subjectKind = kind;
   let subjectId = fallbackSubjectId;
-  if (overrides.subject && typeof overrides.subject === "object") {
-    const subject = overrides.subject as {
-      kind?: unknown;
-      subjectId?: unknown;
-    };
-    if (typeof subject.kind === "string") subjectKind = subject.kind;
-    if (typeof subject.subjectId === "string") subjectId = subject.subjectId;
+  if (isJsonObject(overrides.subject)) {
+    const subject = overrides.subject;
+    if (isString(subject.kind)) subjectKind = subject.kind;
+    if (isString(subject.subjectId)) subjectId = subject.subjectId;
   }
   seedOwnedCeremony(cp, subjectKind, subjectId, ownerPrincipalId);
 }

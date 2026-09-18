@@ -74,10 +74,19 @@ function clientAssertion(key: KeyObject, jti: string, aud: string): string {
   );
 }
 
+type PostTokenHeaders = {
+  Authorization?: string;
+};
+
+type PostTokenResponse = {
+  status: number;
+  json: JsonObject;
+};
+
 async function postToken(
   body: URLSearchParams,
-  headers: Record<string, string> = {},
-): Promise<{ status: number; json: JsonObject }> {
+  headers: PostTokenHeaders = {},
+) {
   const res = await fetch(`${issuer}/token`, {
     method: "POST",
     headers: {

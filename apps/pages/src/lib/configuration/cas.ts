@@ -1,3 +1,4 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { type ConfigDraft, draftMatchesScope } from "./draft.js";
 import type { CommitResult } from "./types.js";
 
@@ -6,7 +7,7 @@ export type CoupledRecord = {
   semanticRevision: string;
   sourceRevision: string;
   source: string;
-  semantic: unknown;
+  semantic: BoundaryValue;
   orphanSource: string | null;
   generation: number;
 };
@@ -16,7 +17,7 @@ export type CoupledChange = {
   generation: number;
   baseSemanticRevision: string;
   source: string;
-  semantic: unknown;
+  semantic: BoundaryValue;
   presentationOnly: boolean;
   actorKey: string;
   scopeKey: string;
@@ -24,7 +25,7 @@ export type CoupledChange = {
 
 export type CoupledIo = {
   writeSource: (source: string) => Promise<void>;
-  writeSemantic: (semantic: unknown) => Promise<void>;
+  writeSemantic: (semantic: BoundaryValue) => Promise<void>;
 };
 
 export function beginCoupledChange(record: CoupledRecord): number {

@@ -11,6 +11,7 @@ import {
 } from "@opensesame/contracts";
 import {
   digestAgentClaimAttemptToken,
+  isNumber,
   overlapCast,
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
@@ -40,17 +41,6 @@ import {
 } from "../ui/agent-auth-pages.js";
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
-
-function isAgentAuthError(err: unknown): err is AgentAuthError {
-  if (err instanceof AgentAuthError) return true;
-  return (
-    err instanceof Error &&
-    err.name === "AgentAuthError" &&
-    typeof (err as AgentAuthError).status === "number" &&
-    typeof (err as AgentAuthError).error === "string" &&
-    typeof (err as AgentAuthError).toJSON === "function"
-  );
-}
 
 agentAuthRoutes.post("/agent/identity", async (c) => {
   c.header("cache-control", "no-store");
@@ -106,22 +96,22 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
       correlationId,
     );
     return c.json(result, 200);
-  } catch (err) {
-    if (isAgentAuthError(err)) {
-      if (err.status === 401) {
-        const maxAge = err.extras?.max_age;
-        const description = (err.errorDescription ?? err.error).replace(
+  } catch (caught) {
+    if (caught instanceof AgentAuthError) {
+      if (caught.status === 401) {
+        const maxAge = caught.extras?.max_age;
+        const description = (caught.errorDescription ?? caught.error).replace(
           /"/g,
           "",
         );
-        const parts = [`AgentAuth error="${err.error}"`];
-        if (typeof maxAge === "number") parts.push(`max_age="${maxAge}"`);
+        const parts = [`AgentAuth error="${caught.error}"`];
+        if (isNumber(maxAge)) parts.push(`max_age="${maxAge}"`);
         parts.push(`error_description="${description}"`);
         c.header("WWW-Authenticate", parts.join(", "));
       }
-      return c.json(err.toJSON(), overlapCast(err.status));
+      return c.json(caught.toJSON(), overlapCast(caught.status));
     }
-    throw err;
+    throw caught;
   }
 });
 
@@ -145,11 +135,11 @@ agentAuthRoutes.post("/agent/identity/claim", async (c) => {
       c.get("correlationId"),
     );
     return c.json(result, 200);
-  } catch (err) {
-    if (isAgentAuthError(err)) {
-      return c.json(err.toJSON(), overlapCast(err.status));
+  } catch (caught) {
+    if (caught instanceof AgentAuthError) {
+      return c.json(caught.toJSON(), overlapCast(caught.status));
     }
-    throw err;
+    throw caught;
   }
 });
 
@@ -209,11 +199,11 @@ agentAuthRoutes.post("/agent/identity/:id/revoke", async (c) => {
       c.get("correlationId"),
     );
     return c.json({ status: "revoked" }, 200);
-  } catch (err) {
-    if (isAgentAuthError(err)) {
-      return c.json(err.toJSON(), overlapCast(err.status));
+  } catch (caught) {
+    if (caught instanceof AgentAuthError) {
+      return c.json(caught.toJSON(), overlapCast(caught.status));
     }
-    throw err;
+    throw caught;
   }
 });
 
@@ -247,11 +237,11 @@ agentAuthRoutes.post("/oauth2/token", async (c) => {
       return c.json(result, 200);
     }
     return c.json({ error: "unsupported_grant_type" }, 400);
-  } catch (err) {
-    if (isAgentAuthError(err)) {
-      return c.json(err.toJSON(), overlapCast(err.status));
+  } catch (caught) {
+    if (caught instanceof AgentAuthError) {
+      return c.json(caught.toJSON(), overlapCast(caught.status));
     }
-    throw err;
+    throw caught;
   }
 });
 

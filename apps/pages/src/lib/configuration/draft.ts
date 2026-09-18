@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import type { ConfigDiagnostic } from "./types.js";
 
 export type EditorMode = "visual" | "source";
@@ -8,7 +9,7 @@ export type ConfigDraft = {
   mode: EditorMode;
   originalSource: string;
   currentSource: string;
-  lastValid: Record<string, unknown> | null;
+  lastValid: JsonObject | null;
   diagnostics: ConfigDiagnostic[];
   history: string[];
   historyIndex: number;
@@ -22,7 +23,7 @@ export function createDraft(input: {
   source: string;
   actorKey: string;
   scopeKey: string;
-  lastValid?: Record<string, unknown> | null;
+  lastValid?: JsonObject | null;
 }): ConfigDraft {
   return {
     resourceKey: input.resourceKey,
@@ -62,7 +63,7 @@ export function applySourceEdit(
   draft: ConfigDraft,
   source: string,
   diagnostics: ConfigDiagnostic[],
-  lastValid?: Record<string, unknown> | null,
+  lastValid?: JsonObject | null,
 ): ConfigDraft {
   const next = pushHistory(draft, source);
   return {

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { useState } from "react";
 import { resetKeybindings } from "../../lib/configuration/keybindings.js";
 import {
@@ -17,7 +18,8 @@ export function KeybindingsViewsPanel() {
 
   function saveBindings() {
     try {
-      const result = persistKeybindings(JSON.parse(bindingsText) as unknown);
+      // SAFETY: JSON.parse of the textarea is decoded at this prefs boundary.
+      const result = persistKeybindings(overlapCast(JSON.parse(bindingsText)));
       setNotice(
         result.ok
           ? "Keybindings saved. They do not run until the next key."

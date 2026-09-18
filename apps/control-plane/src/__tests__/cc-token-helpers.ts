@@ -15,10 +15,12 @@ export function publicJwk(key: KeyObject, kid: string): JsonObject {
   return jwk;
 }
 
-export function rsaPair(kid: string): {
+export type RsaPair = {
   privateKey: KeyObject;
   jwk: JsonObject;
-} {
+};
+
+export function rsaPair(kid: string): RsaPair {
   const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
   return { privateKey: pair.privateKey, jwk: publicJwk(pair.publicKey, kid) };
 }
@@ -50,10 +52,15 @@ export function clientAssertion(
   );
 }
 
+export type TokenResponse = {
+  status: number;
+  json: JsonObject;
+};
+
 export async function postToken(
   url: string,
   body: URLSearchParams,
-): Promise<{ status: number; json: JsonObject }> {
+): Promise<TokenResponse> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
