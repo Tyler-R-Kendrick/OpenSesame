@@ -18,7 +18,7 @@ import {
 import { guideRouteWithin } from "../registry/routes.js";
 import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
-import { SupportComposer, useSupportAskSlot } from "./SupportComposer.js";
+import { SupportComposer } from "./SupportComposer.js";
 import "../support.css";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
 import {
@@ -82,7 +82,6 @@ export function SupportPanel(): ReactElement {
 
   const searchId = useId();
   const [query, setQuery] = useState("");
-  const askSlot = useSupportAskSlot();
 
   const topics = useMemo(
     () =>
@@ -269,11 +268,9 @@ export function SupportPanel(): ReactElement {
 
           <WebMcpStatus />
         </div>
-        {askSlot ? null : (
-          <div className="sheet__foot">
-            <SupportComposer slot={null} />
-          </div>
-        )}
+        <div className="sheet__foot">
+          <SupportComposer />
+        </div>
       </section>
     </div>
   );

@@ -1,16 +1,21 @@
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { SupportAskSlot, SupportSlot } from "../tutorial/ui/SupportLauncher.js";
+import { SupportSlot } from "../tutorial/ui/SupportLauncher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
 import { NotificationsBar } from "./NotificationsBar.js";
 import "./statusline.css";
 
 /**
- * One strip for asking, support, plane truth, and notifications.
+ * One mono strip of plane truth: support, the five connector glyphs, the
+ * bell — seven equal keys in one left-aligned row (docs/design/controls.md).
  *
- * The ask field lives here — outer chrome, not the support sheet — so it is
- * on every unlocked screen. Below 900px the plane glyphs and bell stay behind
- * the top bar's overflow key; the strip itself still draws, because that is
- * where a question is typed.
+ * Nothing is typed here. The command bar under the crumbs is the shell's one
+ * field: a command runs, and a sentence it cannot parse goes to Support as a
+ * question. A second field in this strip was a disabled input on every
+ * screen for anyone without a model, and it cost a phone a whole row.
+ *
+ * Below 900px the strip is not drawn at all; its contents sit behind the top
+ * bar's overflow key (`MoreMenu`). It stays in the document because it holds
+ * the seat the support mark portals into.
  */
 export function Statusline() {
   const connectivityRef = useGuideTarget<HTMLDivElement>("shell.connectivity");
@@ -20,7 +25,6 @@ export function Statusline() {
   return (
     <footer className="statusline">
       <SupportSlot />
-      <SupportAskSlot />
       <div className="statusline__planes" ref={connectivityRef}>
         <ConnectivityBar />
       </div>

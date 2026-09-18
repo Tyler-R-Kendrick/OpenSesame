@@ -100,12 +100,12 @@ const CLIPBOARD = [
 
 /**
  * Settings is a lot of unrelated panels; one wall of scroll buries them all.
- * Each panel belongs to exactly one category, and only the active category
- * renders.
+ * Each panel belongs to exactly one category; only the active one renders.
  */
 const CATEGORIES = [
   { id: "general", label: "General", guideId: "settings.general" },
   { id: "security", label: "Security", guideId: "settings.security" },
+  { id: "vaults", label: "Vaults", guideId: "settings.vaults" },
   {
     id: "connectivity",
     label: "Connectivity",

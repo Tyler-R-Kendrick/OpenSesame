@@ -601,9 +601,9 @@ describe("VaultWelcome", () => {
 
   it("hands over the keys on an empty vault, without a second empty state", () => {
     renderWelcome();
-    expect(
-      screen.getByText(/Try the keyboard — n new, \/ search/),
-    ).toBeTruthy();
+    expect(screen.getByText("nothing sealed yet")).toBeTruthy();
+    expect(screen.getByText("n new · import · ? keys")).toBeTruthy();
+    expect(screen.queryByText(/Try the keyboard/)).toBeNull(); // list has it
     expect(
       screen.queryByRole("link", { name: /Add your first login/i }),
     ).toBeNull();

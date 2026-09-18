@@ -133,7 +133,7 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2}"],
+        globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2,json}"],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },

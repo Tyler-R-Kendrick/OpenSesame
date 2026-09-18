@@ -1605,14 +1605,14 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* Top bar for sections; bottom statusline for asking. Plane glyphs and the
-     bell stay behind the overflow key. */
+  /* One column and one row of chrome: the top bar. The statusline is not
+     drawn here (its contents are behind the bar's overflow key) and neither is
+     a tab bar (sections are behind the bar's menu key), so nothing is left to
+     stack under the content. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "main"
-      "status";
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "main";
     height: 100dvh;
   }
 
@@ -1656,6 +1656,9 @@ body {
     scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
   }
 
+  /* The strip is not drawn on a phone at all, but it still holds the seat the
+     support mark portals into, so it keeps its gutters for the widths that do
+     draw it. */
   .statusline {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
@@ -1828,13 +1831,13 @@ body {
   color: var(--ink-2);
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 /* ——— A phone on its side ——————————————————————————————————
-   Rotated, the frame has 390px of height to spend. The top bar stays; the
-   statusline is one ask row, not the seven keys that used to live there. */
+   Rotated, the frame has 390px of height to spend and the chrome was taking
+   167 of it: a top bar over the content and two full-width bars under it. The
+   statusline is not drawn on a phone, so what is left is the padding the bars
+   only needed when there was room. */
 @media (max-height: 500px) and (pointer: coarse) {
   .topbar {
     padding-block: 0.2rem;

@@ -9,7 +9,6 @@ import {
   useRef,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
-import { AppShell as DefaultAppShell } from "./components/AppShell.js";
 import { useAmbientAuthBoot } from "./lib/ambient-auth/boot.js";
 import { sealPendingConnectorDirectory } from "./lib/connector-directory.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
@@ -30,13 +29,6 @@ import { BrokerAuthorize as DefaultBrokerAuthorize } from "./screens/BrokerAutho
 import { DropClaimScreen } from "./screens/DropClaimScreen.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
-import {
-  VaultSection as DefaultVaultSection,
-  VaultWelcome as DefaultVaultWelcome,
-} from "./sections/VaultSection.js";
-import { HealthPanel as DefaultHealthPanel } from "./sections/vault/HealthPanel.js";
-import { ItemDetail as DefaultItemDetail } from "./sections/vault/ItemDetail.js";
-import { ItemEditor as DefaultItemEditor } from "./sections/vault/ItemEditor.js";
 import { SupportProvider } from "./tutorial/session.js";
 import {
   SupportLauncher,
@@ -44,9 +36,41 @@ import {
 } from "./tutorial/ui/SupportLauncher.js";
 import { useWebMcp } from "./webmcp/lifecycle.js";
 
-// Route-level code splitting: the four big sections load on first visit.
-// Vault, unlock and the broker/federation returns stay eager — they are the
-// critical path every session goes through.
+// Route-level code splitting. Unlock, the front door and the broker/federation
+// returns stay eager: they are the first paint of every session, and on a
+// phone over a slow link that paint is what a person waits for. The shell and
+// the vault behind the gate load with the unlock — one chunk the service
+// worker precaches on install, so only a cold first visit ever waits for it,
+// and that visit no longer downloads the whole workspace to draw a sign-in
+// card. The other sections load on first visit as before.
+const DefaultAppShell = lazy(() =>
+  import("./components/AppShell.js").then((m) => ({ default: m.AppShell })),
+);
+const DefaultVaultSection = lazy(() =>
+  import("./sections/VaultSection.js").then((m) => ({
+    default: m.VaultSection,
+  })),
+);
+const DefaultVaultWelcome = lazy(() =>
+  import("./sections/VaultSection.js").then((m) => ({
+    default: m.VaultWelcome,
+  })),
+);
+const DefaultHealthPanel = lazy(() =>
+  import("./sections/vault/HealthPanel.js").then((m) => ({
+    default: m.HealthPanel,
+  })),
+);
+const DefaultItemDetail = lazy(() =>
+  import("./sections/vault/ItemDetail.js").then((m) => ({
+    default: m.ItemDetail,
+  })),
+);
+const DefaultItemEditor = lazy(() =>
+  import("./sections/vault/ItemEditor.js").then((m) => ({
+    default: m.ItemEditor,
+  })),
+);
 const DefaultAccessSection = lazy(() =>
   import("./sections/AccessSection.js").then((m) => ({
     default: m.AccessSection,
@@ -211,85 +235,89 @@ function VaultApp() {
   }
 
   return (
-    <slots.AppShell>
-      <Suspense fallback={<p className="hint">Loading…</p>}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/vault" replace />} />
-          <Route path="/vault" element={<slots.VaultSection />}>
-            <Route index element={<slots.VaultWelcome />} />
-            <Route path="health" element={<slots.HealthPanel />} />
+    // The shell is one Suspense boundary and the section inside it another,
+    // so a section still loading never blanks the rail around it.
+    <Suspense fallback={null}>
+      <slots.AppShell>
+        <Suspense fallback={<p className="hint">Loading…</p>}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/vault" replace />} />
+            <Route path="/vault" element={<slots.VaultSection />}>
+              <Route index element={<slots.VaultWelcome />} />
+              <Route path="health" element={<slots.HealthPanel />} />
+              <Route
+                path="new/:kind?"
+                element={<slots.ItemEditor mode="new" />}
+              />
+              <Route
+                path=":itemId/edit"
+                element={<slots.ItemEditor mode="edit" />}
+              />
+              <Route path=":itemId" element={<slots.ItemDetail />} />
+            </Route>
             <Route
-              path="new/:kind?"
-              element={<slots.ItemEditor mode="new" />}
+              path="/access/:tab?/:rest?"
+              element={
+                <Framed>
+                  <slots.AccessSection />
+                </Framed>
+              }
+            />
+            <Route path="/agents" element={<Navigate to="/access" replace />} />
+            <Route path="/sites" element={<Navigate to="/access" replace />} />
+            <Route
+              path="/identity"
+              element={
+                <Framed>
+                  <slots.IdentitySection />
+                </Framed>
+              }
             />
             <Route
-              path=":itemId/edit"
-              element={<slots.ItemEditor mode="edit" />}
+              path="/identity/authorize"
+              element={
+                <Framed>
+                  <LocalAuthorize />
+                </Framed>
+              }
             />
-            <Route path=":itemId" element={<slots.ItemDetail />} />
-          </Route>
-          <Route
-            path="/access/:tab?/:rest?"
-            element={
-              <Framed>
-                <slots.AccessSection />
-              </Framed>
-            }
-          />
-          <Route path="/agents" element={<Navigate to="/access" replace />} />
-          <Route path="/sites" element={<Navigate to="/access" replace />} />
-          <Route
-            path="/identity"
-            element={
-              <Framed>
-                <slots.IdentitySection />
-              </Framed>
-            }
-          />
-          <Route
-            path="/identity/authorize"
-            element={
-              <Framed>
-                <LocalAuthorize />
-              </Framed>
-            }
-          />
-          <Route
-            path="/identity/siop"
-            element={
-              <Framed>
-                <SiopAuthorize />
-              </Framed>
-            }
-          />
-          <Route
-            path="/connections/:providerId?/:connectionId?"
-            element={
-              <Framed>
-                <slots.ConnectionsSection />
-              </Framed>
-            }
-          />
-          <Route
-            path="/wallet/:category?"
-            element={
-              <Framed>
-                <slots.WalletSection />
-              </Framed>
-            }
-          />
-          <Route
-            path="/settings/:category?"
-            element={
-              <Framed>
-                <slots.SettingsSection />
-              </Framed>
-            }
-          />
-          <Route path="*" element={<Navigate to="/vault" replace />} />
-        </Routes>
-      </Suspense>
-    </slots.AppShell>
+            <Route
+              path="/identity/siop"
+              element={
+                <Framed>
+                  <SiopAuthorize />
+                </Framed>
+              }
+            />
+            <Route
+              path="/connections/:providerId?/:connectionId?"
+              element={
+                <Framed>
+                  <slots.ConnectionsSection />
+                </Framed>
+              }
+            />
+            <Route
+              path="/wallet/:category?"
+              element={
+                <Framed>
+                  <slots.WalletSection />
+                </Framed>
+              }
+            />
+            <Route
+              path="/settings/:category?"
+              element={
+                <Framed>
+                  <slots.SettingsSection />
+                </Framed>
+              }
+            />
+            <Route path="*" element={<Navigate to="/vault" replace />} />
+          </Routes>
+        </Suspense>
+      </slots.AppShell>
+    </Suspense>
   );
 }
 

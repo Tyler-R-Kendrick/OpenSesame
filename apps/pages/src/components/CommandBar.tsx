@@ -17,6 +17,7 @@ import {
 import { voiceRecognitionLang } from "../lib/model-provider.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { useSupportIfMounted } from "../tutorial/support-access.js";
 import { IconArrowRight } from "./Icons.js";
 import { MicButton } from "./command-bar-mic.js";
 import "./command-bar.css";
@@ -28,6 +29,18 @@ function useCommandRunner() {
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // "Command or ask": a sentence no verb claims is a question, and the one
+  // field in the chrome hands it to Support rather than shrugging. Support
+  // learns whether a model exists only once it is opened, so an unknown
+  // availability is still a road in; a known absence keeps the honest
+  // no-match, because the sheet could only refuse the question again.
+  const supportAccess = useSupportIfMounted();
+  const availability = supportAccess?.view.availability ?? null;
+  const canAsk =
+    supportAccess !== null &&
+    (availability === null || availability.kind === "ready") &&
+    !supportAccess.view.thinking;
+  const support = supportAccess?.support ?? null;
 
   const ports = useMemo(
     () => ({
@@ -51,6 +64,13 @@ function useCommandRunner() {
           .map((item) => item.name);
         const interpreted = await interpretCommand(text, { itemNames: names });
         if (interpreted.source === "none") {
+          if (canAsk && support !== null) {
+            support.open();
+            void support.ask(text);
+            setNotice(null);
+            setValue("");
+            return;
+          }
           setNotice(interpreted.reason);
           return;
         }
@@ -61,7 +81,7 @@ function useCommandRunner() {
         setBusy(false);
       }
     },
-    [busy, items, ports],
+    [busy, canAsk, items, ports, support],
   );
 
   return { value, setValue, notice, setNotice, busy, run };

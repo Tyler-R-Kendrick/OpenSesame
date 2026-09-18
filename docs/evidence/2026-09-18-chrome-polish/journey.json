@@ -1,0 +1,98 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "shot": "1280-front-door" },
+        { "guest": null },
+        { "shot": "1280-vault" },
+        { "open": "New item" },
+        { "shot": "1280-new-login" },
+        { "tab": "settings" },
+        { "shot": "1280-settings" },
+        { "tab": "connections" },
+        { "shot": "1280-connections" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "shot": "390-front-door" },
+        { "guest": null },
+        { "shot": "390-vault" },
+        { "press": "^More —" },
+        { "shot": "390-more" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-front-door",
+      "width": 1280,
+      "title": "The front door — 1280 × 800",
+      "caption": "Skip and the theme key both sat in the card's top-right corner and drew over each other; the theme key now takes the top-left, the corner Skip does not use. The two roads carry their whole visible text as their accessible name, so what a person reads is what a voice-control user says (WCAG 2.5.3).",
+      "before": "Skip and theme key overlap by 8px",
+      "after": "corners apart, 0px overlap"
+    },
+    {
+      "shot": "390-front-door",
+      "width": 390,
+      "title": "The front door on a phone — 390 × 844",
+      "caption": "The same corner collision at phone width, where Skip is a 44px key and the theme key sat under its right edge.",
+      "before": "Skip and theme key overlap by 8px",
+      "after": "0px overlap"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "The statusline is keys again — 1280 × 800",
+      "caption": "The foot carried a second text field — disabled, reading \"Questions only\", for anyone without an on-device model — with the plane glyphs pushed to the far edge, while the command bar above already said \"Command or ask…\". The strip is back to its contract (docs/design/controls.md): seven equal keys, one left-aligned row. The command bar is the chrome's one field, and a sentence it cannot run goes to Support as a question. The buffer's empty state is its two mono lines, not a copy of the list pane's tip.",
+      "before": "field + 6 keys pushed right, gap 1002px",
+      "after": "7 keys, one strip, gaps ≤ 8px"
+    },
+    {
+      "shot": "390-vault",
+      "width": 390,
+      "title": "No strip on a phone — 390 × 844",
+      "caption": "A phone drew the ask field as a whole row under the content again. A phone draws no statusline (DESIGN.md § Touch): what it held is behind the top bar's overflow key, and the row goes back to the content.",
+      "before": "statusline 56px",
+      "after": "none · content 56px taller"
+    },
+    {
+      "shot": "390-more",
+      "width": 390,
+      "title": "The overflow sheet — 390 × 844",
+      "caption": "One heading in the app was set in tracked capitals. Sentence case everywhere is the rule (DESIGN.md § Typography); the heading now reads like the rest.",
+      "before": "CONNECTIONS, uppercase, +0.04em",
+      "after": "Connections, sentence case"
+    },
+    {
+      "shot": "1280-new-login",
+      "width": 1280,
+      "title": "A new login — 1280 × 800",
+      "caption": "The consent line under \"Suggest names on device\" named `https://%2A` on every new login: the Websites row defaults to a wildcard, and the URL parser percent-encoded it into a hostname. Only a plain hostname is context now; a pattern is not.",
+      "before": "…item type and https://%2A.",
+      "after": "…item type. No vault contents."
+    },
+    {
+      "shot": "1280-settings",
+      "width": 1280,
+      "title": "Settings names what the rail names — 1280 × 800",
+      "caption": "The rail listed six settings categories and the tab row five: Vaults had a route, a panel and a rail row but no tab. The rail and the tabs name the same views.",
+      "before": "5 tabs under 6 rail rows",
+      "after": "6 tabs, 6 rail rows"
+    },
+    {
+      "shot": "1280-connections",
+      "width": 1280,
+      "title": "Connections — 1280 × 800",
+      "caption": "A Vercel token form — a paragraph and two fields — stood above Connected for everyone, guests included. It is one disclosure line now, opened by whoever has a token to seal.",
+      "before": "form 147px tall before Connected",
+      "after": "one 21px summary line"
+    }
+  ]
+}

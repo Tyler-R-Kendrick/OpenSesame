@@ -21,6 +21,17 @@ import {
   tombStorageKeys,
 } from "./lib/vault/tomb-migration.js";
 import { TOMBS_REGISTRY_KEY } from "./lib/vfs.js";
+// The shell and the vault load behind the unlock gate (App.tsx), but their
+// stylesheets stay in the first bundle, ahead of styles.css: a stylesheet
+// that arrives with a lazy chunk lands after the shared rules and wins every
+// cascade tie they used to win — the editor's type chip lost its 44px floor
+// that way. Order here is the order the bundle always had.
+import "./components/command-bar.css";
+import "./components/connections-tree.css";
+import "./components/slash-search.css";
+import "./components/statusline.css";
+import "./components/wordmark.css";
+import "./sections/vault.css";
 import "./styles.css";
 
 const root = document.getElementById("root");

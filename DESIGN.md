@@ -188,7 +188,10 @@ scanning.
 
 Desktop is a 15.5rem rail plus content over a full-width statusline — the
 terminal frame: tree on the left, buffer in the middle, one mono strip of
-plane truth (connectivity, notifications, lock) at the foot. The vault adds
+plane truth (support, connectivity, notifications) at the foot. The strip is
+keys only. The command bar under the crumbs is the chrome's one typed field:
+a command runs, and a sentence it cannot parse goes to Support as a question,
+so nothing else in the frame asks to be typed into. The vault adds
 a 21rem list column between rail and detail, giving ranger's three panes;
 the other sections read as a single 60rem flowing document of chapters.
 

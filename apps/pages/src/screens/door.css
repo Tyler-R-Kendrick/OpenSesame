@@ -8,15 +8,19 @@
   padding-top: 2.4rem;
 }
 
-/* The title is the wordmark at hero scale — one authored moment, then
-   stillness. It is centred because it is a title, not a chrome line. The
-   size is the display step DESIGN.md records for the front door. */
+/* The two corner keys: Skip owns the top-right (unlock.css puts every skip
+   there), so the theme key takes the top-left. Both used to sit in the same
+   corner and drew over each other. */
 .door__theme {
   position: absolute;
   top: 0.35rem;
-  right: 0;
+  left: 0;
   z-index: 1;
 }
+
+/* The title is the wordmark at hero scale — one authored moment, then
+   stillness. It is centred because it is a title, not a chrome line. The
+   size is the display step DESIGN.md records for the front door. */
 
 .door__hero {
   display: grid;

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 543,
-    "violations": 878,
-    "oversizedLines": 277619
+    "files": 542,
+    "violations": 877,
+    "oversizedLines": 277618
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -855,9 +855,6 @@
     "apps/pages/src/screens/DropClaimScreen.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/screens/FrontDoor.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/screens/SetupScreen.test.tsx": {
       "max-lines": 570
     },
@@ -1166,7 +1163,7 @@
     },
     "apps/pages/src/tutorial/session.ts": {
       "complexity": 1,
-      "max-lines": 958,
+      "max-lines": 957,
       "max-lines-per-function": 2
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {

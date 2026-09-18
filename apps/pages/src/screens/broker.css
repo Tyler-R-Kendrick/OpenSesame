@@ -1,4 +1,6 @@
-/* Standalone broker popup — no vault chrome. */
+/* Standalone broker popup — no vault chrome. The one primary is ink, as
+   everywhere else (DESIGN.md § Buttons): teal is state and identity, never
+   the commit. */
 
 .broker {
   min-height: 100vh;
@@ -23,7 +25,7 @@
 
 .broker__head h1 {
   margin: 0 0 0.5rem;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   line-height: 1.25;
   font-weight: 600;
 }
@@ -55,7 +57,7 @@
 
 .broker__card h2 {
   margin: 0 0 0.5rem;
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
 }
 
 .broker__card p {
@@ -69,16 +71,16 @@
   display: inline-block;
   margin-top: 0.15rem;
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--surface-3);
-  font-family: ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 0.8125rem;
   color: var(--ink);
   word-break: break-all;
 }
 
-.broker__fine {
-  font-size: 0.8125rem !important;
+.broker__card p.broker__fine {
+  font-size: 0.8125rem;
 }
 
 .broker__actions {
@@ -90,19 +92,20 @@
 
 .broker__btn {
   appearance: none;
-  border: 0;
-  border-radius: var(--radius, 6px);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
   padding: 0.55rem 1.1rem;
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--ink);
+  color: var(--canvas);
   font: inherit;
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
 }
 
 .broker__btn:hover {
-  background: var(--accent-hover);
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
 }
 
 .broker__btn--ghost {

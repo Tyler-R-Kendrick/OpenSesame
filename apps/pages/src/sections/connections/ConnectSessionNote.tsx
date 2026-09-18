@@ -5,6 +5,7 @@ import {
   forgetVercelConnectAuth,
 } from "../../lib/vercel-connect-session.js";
 import {
+  type VercelConnectAuth,
   useVercelConnectConfigured,
   vercelConnectAuth,
 } from "../../lib/vercel-connect.js";
@@ -27,9 +28,10 @@ export function ConnectSessionNote() {
     setBusy(true);
     setError(null);
     try {
-      const next: { token: string; teamId?: string } = { token: token.trim() };
       const team = teamId.trim();
-      if (team) next.teamId = team;
+      const next: VercelConnectAuth = team
+        ? { token: token.trim(), teamId: team }
+        : { token: token.trim() };
       await armVercelConnectAuth(next, openTomb, { ephemeral });
       setToken("");
     } catch (cause) {
@@ -71,11 +73,15 @@ export function ConnectSessionNote() {
     );
   }
 
+  // Unarmed, the form waits behind one line. It used to be the first thing
+  // on the section — two fields and a paragraph before Connected — for
+  // everyone, guests included, who had no Vercel token to seal.
   return (
-    <aside className="plane-note" aria-label="Vercel Connect session">
-      <p>
-        To use live Connect without a Host, seal a Vercel access token in this
-        vault. Nothing is baked into the static Pages build.
+    <details className="conn-client-alt" aria-label="Vercel Connect session">
+      <summary>Use live Connect without a Host</summary>
+      <p className="hint">
+        Seal a Vercel access token in this vault. Nothing is baked into the
+        static Pages build.
       </p>
       <form className="stack" onSubmit={(event) => void save(event)}>
         <label htmlFor={tokenId}>Vercel token</label>
@@ -101,6 +107,6 @@ export function ConnectSessionNote() {
           {busy ? "Saving…" : "Arm Connect"}
         </button>
       </form>
-    </aside>
+    </details>
   );
 }

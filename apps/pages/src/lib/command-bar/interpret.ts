@@ -11,7 +11,7 @@ import {
 } from "../model-provider.js";
 import { parseCommand } from "./parse.js";
 import { createPromptLanguageModel } from "./prompt-model.js";
-import { type AppCommand, appCommandSchema } from "./types.js";
+import type { AppCommand } from "./types.js";
 
 type GenerateObject = typeof import("ai").generateObject;
 
@@ -88,7 +88,10 @@ export async function interpretCommand(
 
   try {
     const catalog = itemNameCatalog(options?.itemNames ?? []);
-    const generateObject = await generateObjectFn();
+    const [generateObject, { appCommandSchema }] = await Promise.all([
+      generateObjectFn(),
+      import("./schema.js"),
+    ]);
     const { object } = await generateObject({
       model: createPromptLanguageModel({ api }),
       schema: appCommandSchema,
