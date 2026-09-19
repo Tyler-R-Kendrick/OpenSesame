@@ -73,8 +73,12 @@ export function FrontDoor({
         </header>
 
         <fieldset className="door__roads" aria-label="Roads in">
-          {/* The name is the road; the second line describes it, so a
-              screen reader hears "Join a session" and then what it takes. */}
+          {/* The road's name is what it says, whole: "Join a session, a link
+              and a code". No aria-label — a name that carries less than the
+              visible words fails WCAG 2.5.3 (label in name) for anyone who
+              speaks what they see, and every checker says so. The space
+              between the lines is real so the spoken name has one too; the
+              grid ignores it. */}
           <button
             ref={(element) => {
               firstRoad.current = element;
@@ -82,33 +86,25 @@ export function FrontDoor({
             }}
             type="button"
             className="road"
-            aria-label="Join a session"
-            aria-describedby="door-join-kind"
             onClick={onOpenJoin}
           >
             <span className="road__mark" aria-hidden="true">
               <IconBroadcast size={20} />
             </span>
-            <span className="road__name">Join a session</span>
-            <span className="road__kind" id="door-join-kind">
-              a link and a code
-            </span>
+            <span className="road__name">Join a session</span>{" "}
+            <span className="road__kind">a link and a code</span>
           </button>
           <button
             ref={setupRef}
             type="button"
             className="road"
-            aria-label="Set up your own"
-            aria-describedby="door-setup-kind"
             onClick={onOpenSetup}
           >
             <span className="road__mark" aria-hidden="true">
               <IconAuthority size={20} />
             </span>
-            <span className="road__name">Set up your own</span>
-            <span className="road__kind" id="door-setup-kind">
-              a few optional steps
-            </span>
+            <span className="road__name">Set up your own</span>{" "}
+            <span className="road__kind">a few optional steps</span>
           </button>
         </fieldset>
 

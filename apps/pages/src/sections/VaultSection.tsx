@@ -362,10 +362,13 @@ export function VaultWelcome() {
 
   if (live.length === 0) {
     // The list pane states the empty vault and carries the actions that fill
-    // it. Saying it twice, side by side, only asks which one to believe.
+    // it. The buffer says what is sealed and hands over the keys — the same
+    // two mono lines it shows a full vault (DESIGN.md § Empty states), not a
+    // second copy of the list pane's tip beside the first.
     return (
       <div className="buffer">
-        <EmptyTip>{emptyTips.vaultEmpty}</EmptyTip>
+        <p className="buffer__line">nothing sealed yet</p>
+        <p className="buffer__keys">n new · import · ? keys</p>
       </div>
     );
   }

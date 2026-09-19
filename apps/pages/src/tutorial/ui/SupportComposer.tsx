@@ -9,14 +9,11 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { useSupport } from "../session.js";
 
 type SupportSlotApi = {
   slot: HTMLElement | null;
   setSlot: (node: HTMLElement | null) => void;
-  askSlot: HTMLElement | null;
-  setAskSlot: (node: HTMLElement | null) => void;
 };
 
 const noopSetSlot = (_node: HTMLElement | null): void => {};
@@ -24,22 +21,16 @@ const noopSetSlot = (_node: HTMLElement | null): void => {};
 const SupportSlotContext = createContext<SupportSlotApi>({
   slot: null,
   setSlot: noopSetSlot,
-  askSlot: null,
-  setAskSlot: noopSetSlot,
 });
 
-/** Shares the statusline seats with the launcher. Wrap the shell and launcher. */
+/** Shares the statusline seat with the launcher. Wrap the shell and launcher. */
 export function SupportSlotProvider({
   children,
 }: {
   children?: ReactNode;
 }): ReactElement {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  const [askSlot, setAskSlot] = useState<HTMLElement | null>(null);
-  const value = useMemo(
-    () => ({ slot, setSlot, askSlot, setAskSlot }),
-    [slot, askSlot],
-  );
+  const value = useMemo(() => ({ slot, setSlot }), [slot]);
   return (
     <SupportSlotContext.Provider value={value}>
       {children}
@@ -53,30 +44,16 @@ export function SupportSlot(): ReactElement {
   return <span ref={setSlot} className="statusline__support" />;
 }
 
-/** Empty seat for the ask field. The composer portals into it. */
-export function SupportAskSlot(): ReactElement {
-  const { setAskSlot } = useContext(SupportSlotContext);
-  return <div ref={setAskSlot} className="statusline__ask" />;
-}
-
 export function useSupportMarkSlot(): HTMLElement | null {
   return useContext(SupportSlotContext).slot;
 }
 
-export function useSupportAskSlot(): HTMLElement | null {
-  return useContext(SupportSlotContext).askSlot;
-}
-
 /**
- * The ask field. It belongs to the outer chrome (the statusline), not the
- * support sheet: a question is how you open the transcript, and chrome is
- * what stays put while screens change.
+ * The ask field, at the foot of the support sheet. The shell's command bar
+ * is the field that is always on screen; a sentence it cannot run arrives
+ * here as the first question, and follow-ups are typed where the answers are.
  */
-export function SupportComposer({
-  slot,
-}: {
-  slot: HTMLElement | null;
-}): ReactElement {
+export function SupportComposer(): ReactElement {
   const { view, support } = useSupport();
   const askId = useId();
   const [question, setQuestion] = useState("");
@@ -86,11 +63,10 @@ export function SupportComposer({
     event.preventDefault();
     const asked = question;
     setQuestion("");
-    if (!view.open) support.open();
     void support.ask(asked);
   };
 
-  const form = (
+  return (
     <form className="support__composer" onSubmit={submit}>
       <label className="visually-hidden" htmlFor={askId}>
         Ask about this screen
@@ -116,6 +92,4 @@ export function SupportComposer({
       </button>
     </form>
   );
-
-  return slot ? createPortal(form, slot) : form;
 }

@@ -5,15 +5,12 @@ import { useGuideTarget } from "../registry/react.jsx";
 import { useSupport } from "../session.js";
 import "../support.css";
 import {
-  SupportAskSlot,
-  SupportComposer,
   SupportSlot,
   SupportSlotProvider,
-  useSupportAskSlot,
   useSupportMarkSlot,
 } from "./SupportComposer.js";
 
-export { SupportAskSlot, SupportSlot, SupportSlotProvider, useSupportAskSlot };
+export { SupportSlot, SupportSlotProvider };
 
 /**
  * The panel, the agent adapters, the guide runtime and Driver.js all live
@@ -27,8 +24,8 @@ const SupportPanel = lazy(() =>
 
 /**
  * The question mark. On an unlocked shell it sits in the statusline, the same
- * strip as the ask field, the planes, the bell and the lock. Unlock, setup and
- * the broker have no statusline, so it falls back to a fixed corner overlay.
+ * strip as the planes and the bell. Unlock, setup and the broker have no
+ * statusline, so it falls back to a fixed corner overlay.
  *
  * There is deliberately no keyboard shortcut. Every free single key belongs to
  * the vault keymap in `lib/keymap.ts`, which owns the one global handler and
@@ -39,7 +36,6 @@ const SupportPanel = lazy(() =>
 export function SupportLauncher(): ReactElement {
   const { view, support } = useSupport();
   const slot = useSupportMarkSlot();
-  const askSlot = useSupportAskSlot();
   const ref = useGuideTarget<HTMLButtonElement>("shell.support");
   const chrome = slot !== null;
   // A walkthrough runs on the page, not in the panel, so a closed panel has to
@@ -69,7 +65,6 @@ export function SupportLauncher(): ReactElement {
   return (
     <>
       {slot ? createPortal(mark, slot) : mark}
-      {askSlot ? <SupportComposer slot={askSlot} /> : null}
       {view.open ? (
         <Suspense
           fallback={

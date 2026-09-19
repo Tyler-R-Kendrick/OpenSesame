@@ -65,8 +65,17 @@ describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
     await waitFor(() =>
       expect(journey.navigations()).toEqual(["/vault/health"]),
     );
+    // The guide records the navigation before React has rendered the route it
+    // asked for, so this waits for the screen rather than the request. The
+    // default 1s budget is the whole of the gap on an idle machine and not
+    // enough on a loaded CI runner, where this went red while every other
+    // step passed; the test's own budget is 20s and this is part of it.
     expect(
-      await screen.findByRole("heading", { name: "Password health" }),
+      await screen.findByRole(
+        "heading",
+        { name: "Password health" },
+        { timeout: 10_000 },
+      ),
     ).toBeTruthy();
 
     await waitFor(() => expect(journey.outcomes()).toHaveLength(1));

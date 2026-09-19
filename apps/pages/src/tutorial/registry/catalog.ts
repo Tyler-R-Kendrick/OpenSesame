@@ -205,6 +205,14 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.recovery_codes",
   },
   {
+    id: "settings.vaults",
+    description:
+      "The Vaults settings category: every vault this device holds — the personal tomb, one per project, the guest tomb — and the way to open, create or remove one (ADR 0089).",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
     id: "settings.connectivity",
     description:
       "The Connectivity settings category: the core plane connections, the endpoints they point at, and the task bus.",

@@ -44,6 +44,25 @@ describe("draft suggestion consent and lifetime", () => {
       username: "quiet_fox",
     });
   });
+  it("names a plain origin and never a pattern in the consent line", () => {
+    render(<DraftSuggestions typeId="login" website="*" onApply={vi.fn()} />);
+    // A login's Websites row defaults to a wildcard; the URL parser used to
+    // percent-encode it into a hostname and the hint read `https://%2A`.
+    expect(screen.getByText(/Uses only/).textContent).toBe(
+      "Uses only the item type. No vault contents. Your browser may download its model.",
+    );
+    cleanup();
+    render(
+      <DraftSuggestions
+        typeId="login"
+        website="app.example.com"
+        onApply={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/Uses only/).textContent).toContain(
+      "and https://app.example.com.",
+    );
+  });
   it("leaves the draft alone when the model is unavailable", async () => {
     draftSuggestionSeams.model = () => null;
     const apply = vi.fn();

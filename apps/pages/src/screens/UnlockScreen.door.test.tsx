@@ -53,9 +53,11 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Join a session" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Set up your own" }),
+      screen.getByRole("button", { name: /^Join a session/ }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^Set up your own/ }),
     ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Continue with Google" }),
@@ -84,18 +86,20 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       "Sign in",
     );
     expect(
-      screen.queryByRole("button", { name: "Set up your own" }),
+      screen.queryByRole("button", { name: /^Set up your own/ }),
     ).toBeNull();
     expect(
       screen.getByRole("button", { name: "Deployment setup" }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Join a session" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^Join a session/ }),
+    ).toBeTruthy();
   });
 
   it("reaches deployment setup from the front door and hands back to sign-in", () => {
     fresh();
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Set up your own/ }));
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
     ).toBe("connectors");
@@ -112,7 +116,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
   it("backs out of setup without recording anything", () => {
     fresh();
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Set up your own/ }));
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
@@ -136,7 +140,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
   it("reaches the join road from the front door", () => {
     fresh();
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Join a session/ }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Join a session",
     );

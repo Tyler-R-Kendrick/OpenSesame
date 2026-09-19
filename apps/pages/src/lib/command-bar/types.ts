@@ -1,46 +1,36 @@
-import { z } from "zod";
+/**
+ * Closed set of actions the command bar may run. The model picks among these.
+ *
+ * Plain types here, on purpose: this module is on the first-paint path (the
+ * shell imports the command bar), and the zod schema that validates a model's
+ * answer lives in `schema.ts` behind the same lazy import as the AI SDK, so a
+ * vault that never speaks to a model never downloads either.
+ */
 
-/** Closed set of actions the command bar may run. The model picks among these. */
-export const appCommandSchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("navigate"),
-    path: z.enum([
-      "/vault",
-      "/connections",
-      "/access",
-      "/identity",
-      "/settings",
-    ]),
-  }),
-  z.object({
-    action: z.literal("open_item"),
-    /** Display name fragment to match against vault items. Never a secret. */
-    query: z.string().min(1).max(120),
-  }),
-  z.object({
-    action: z.literal("copy_field"),
-    query: z.string().min(1).max(120),
-    field: z.enum(["password", "username", "otp", "url"]),
-  }),
-  z.object({
-    action: z.literal("search"),
-    query: z.string().min(1).max(120),
-  }),
-  z.object({
-    action: z.literal("help"),
-  }),
-  z.object({
-    action: z.literal("open_path"),
-    path: z.string().min(1).max(200),
-    label: z.string().min(1).max(120),
-  }),
-  z.object({
-    action: z.literal("refuse"),
-    message: z.string().min(1).max(200),
-  }),
-]);
+export const COMMAND_SECTIONS = [
+  "/vault",
+  "/connections",
+  "/access",
+  "/identity",
+  "/settings",
+] as const;
 
-export type AppCommand = z.infer<typeof appCommandSchema>;
+export const COMMAND_FIELDS = ["password", "username", "otp", "url"] as const;
+
+export type CommandSection = (typeof COMMAND_SECTIONS)[number];
+export type CommandField = (typeof COMMAND_FIELDS)[number];
+
+export type AppCommand =
+  | { action: "navigate"; path: CommandSection }
+  /** Display name fragment to match against vault items. Never a secret. */
+  | { action: "open_item"; query: string }
+  | { action: "copy_field"; query: string; field: CommandField }
+  | { action: "search"; query: string }
+  | { action: "help" }
+  /** A configuration document from the palette registry, by its route. */
+  | { action: "open_path"; path: string; label: string }
+  /** A path the registry refuses to open, with the reason to show. */
+  | { action: "refuse"; message: string };
 
 export type CommandOutcome =
   | { ok: true; message: string }

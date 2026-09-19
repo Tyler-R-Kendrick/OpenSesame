@@ -178,7 +178,7 @@
 
 .preset__kind {
   font-family: var(--font);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 
@@ -356,7 +356,7 @@
 
 .ways__kind {
   font-family: var(--mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--ink-3);
   overflow: hidden;
   text-overflow: ellipsis;

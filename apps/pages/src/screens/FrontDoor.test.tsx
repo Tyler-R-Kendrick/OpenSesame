@@ -120,14 +120,17 @@ describe("the front door", () => {
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label") ?? button.textContent);
     // Document order is Tab order: the roads, then the corner skip, then the
-    // brand marks, guest, and the local-only seal.
-    expect(names.slice(0, 2)).toEqual(["Join a session", "Set up your own"]);
+    // brand marks, guest, and the local-only seal. A road's name is the
+    // whole of what it shows (WCAG 2.5.3), so no aria-label narrows it.
+    expect(names.slice(0, 2)).toEqual([
+      "Join a session a link and a code",
+      "Set up your own a few optional steps",
+    ]);
     expect(
       screen
-        .getByRole("button", { name: "Join a session" })
-        .getAttribute("aria-describedby"),
-    ).toBe("door-join-kind");
-    expect(screen.getByText("a link and a code").id).toBe("door-join-kind");
+        .getByRole("button", { name: /^Join a session/ })
+        .hasAttribute("aria-label"),
+    ).toBe(false);
     expect(names).toContain("Skip sign-in and continue as guest");
     expect(names).toContain("Continue with Google");
     expect(names).toContain("Continue as guest");
@@ -138,7 +141,7 @@ describe("the front door", () => {
   it("lands the keyboard on the first road", () => {
     renderDoor();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Join a session" }),
+      screen.getByRole("button", { name: /^Join a session/ }),
     );
   });
 
@@ -152,9 +155,9 @@ describe("the front door", () => {
 
   it("opens each road, and the local-only seal", () => {
     const props = renderDoor();
-    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Join a session/ }));
     expect(props.onOpenJoin).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Set up your own/ }));
     expect(props.onOpenSetup).toHaveBeenCalledTimes(1);
     fireEvent.click(
       screen.getByRole("button", { name: "Use without an account" }),

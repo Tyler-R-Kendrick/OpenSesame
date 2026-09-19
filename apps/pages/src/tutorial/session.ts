@@ -65,6 +65,7 @@ import {
   clearMountedGuideTargets,
   guideTargetIds,
 } from "./registry/targets.js";
+import { SupportContext } from "./support-context.js";
 import {
   GUIDE_ERROR_TEXT,
   GUIDE_REFUSED_TEXT,
@@ -849,8 +850,6 @@ export const supportSessionSeams: SupportSessionDependencies = {
   onLock: (handler) => vaultStore.onLock(handler),
   clearTargets: clearMountedGuideTargets,
 };
-
-const SupportContext = createContext<SupportController | null>(null);
 
 const SupportRouteOverrideContext = createContext<
   (route: GuideRouteId | null) => void

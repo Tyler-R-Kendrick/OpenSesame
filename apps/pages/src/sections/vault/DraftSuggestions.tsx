@@ -13,6 +13,21 @@ type Props = {
   onApply: (labels: DraftLabels) => void;
 };
 
+/**
+ * The origin a suggestion may know about, or nothing. A login's Websites row
+ * defaults to a wildcard, and the URL parser happily percent-encodes `*` into
+ * a hostname — `https://%2A` reached the hint on every new login. Only a
+ * plain hostname is context; a pattern or an invalid value is not.
+ */
+export function suggestionOrigin(website: string): string {
+  try {
+    const url = draftWebsite(website);
+    return /^[a-z0-9.-]+$/i.test(url.hostname) ? url.origin : "";
+  } catch {
+    return "";
+  }
+}
+
 /** A preview first: a delayed model response never overwrites the form. */
 export function DraftSuggestions({ typeId, website, onApply }: Props) {
   const [labels, setLabels] = useState<DraftLabels | null>(null);
@@ -25,12 +40,7 @@ export function DraftSuggestions({ typeId, website, onApply }: Props) {
       request.current = null;
     };
   }, []);
-  let origin = "";
-  try {
-    if (website) origin = draftWebsite(website).origin;
-  } catch {
-    /* Invalid patterns are not model context. */
-  }
+  const origin = website ? suggestionOrigin(website) : "";
   async function suggest() {
     request.current?.abort();
     const controller = new AbortController();
