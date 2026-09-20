@@ -477,9 +477,7 @@ describe("IdentitySection", () => {
       await screen.findByText("Connect to manage identities"),
     ).toBeTruthy();
     expect(directory.getMe).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Connect to Identity/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /^Connect$/i }));
     expect(connect).toHaveBeenCalled();
   });
 

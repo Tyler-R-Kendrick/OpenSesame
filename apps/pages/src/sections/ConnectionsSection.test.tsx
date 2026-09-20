@@ -445,7 +445,7 @@ describe("ConnectionsSection gallery", () => {
     expect(screen.queryByText(/Host catalog/i)).toBeNull();
   });
 
-  it("warns when the Host is missing its sealing key", async () => {
+  it("warns when connection sealing is unavailable", async () => {
     const keyed = [
       { ...catalog[1], missingConfig: ["OPENSESAME_CONNECTION_KEY"] },
     ];
@@ -453,7 +453,7 @@ describe("ConnectionsSection gallery", () => {
     embeddedCatalogSeams.bundledProviders = keyed;
     renderAt("/connections");
     expect(
-      await screen.findByText(/credentials cannot be sealed yet/),
+      await screen.findByText(/Connection sealing is not available yet/),
     ).toBeTruthy();
   });
 
