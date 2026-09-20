@@ -42,15 +42,11 @@ it("requires separate explicit Identity and purpose approvals before releasing e
     />,
   );
   expect(seam.authenticate).not.toHaveBeenCalled();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Open verification" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Open verification" }));
   await screen.findByText("Approve this control transition");
   expect(complete).not.toHaveBeenCalled();
   expect(seam.authorize).not.toHaveBeenCalled();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Open verification" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Open verification" }));
   await waitFor(() => expect(complete).toHaveBeenCalledWith("e".repeat(64)));
   expect(seam.authorize.mock.calls[0][0]).toEqual(request);
 });
@@ -71,9 +67,7 @@ it("aborts an old request when the displayed run changes and cannot apply its la
       onCancel={() => {}}
     />,
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Open verification" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Open verification" }));
   const signal: AbortSignal = seam.authenticate.mock.calls[0][0];
   view.rerender(
     <HostAuthorizationCeremony
@@ -96,9 +90,7 @@ it("cancel and unmount abort verification instead of retaining a popup authoriza
   const view = render(
     <HostAuthorizationCeremony onComplete={() => {}} onCancel={cancel} />,
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Open verification" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Open verification" }));
   const signal: AbortSignal = seam.authenticate.mock.calls[0][0];
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(signal.aborted).toBe(true);
