@@ -17,6 +17,7 @@ import {
 } from "../../lib/connector-guidance.js";
 import { ensureHostSession } from "../../lib/identity.js";
 import { usesConnect } from "../../lib/vercel-connect.js";
+import { GitConnectForm } from "./GitConnectForm.js";
 import { OauthConnectBody } from "./OauthConnectBody.js";
 import { type Flash, errorText } from "./shared.js";
 
@@ -176,6 +177,18 @@ export function ConnectForm({
     } finally {
       setBusy(false);
     }
+  }
+
+  if (provider.id === "git") {
+    return (
+      <GitConnectForm
+        provider={provider}
+        online={online}
+        onFlash={onFlash}
+        onConnected={onConnected}
+        onRememberOffer={onRememberOffer}
+      />
+    );
   }
 
   if (provider.authKind === "configuration") {

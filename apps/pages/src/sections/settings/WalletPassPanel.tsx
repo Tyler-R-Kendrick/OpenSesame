@@ -125,7 +125,7 @@ export function WalletPassPanel() {
       <div className="panel__body">
         {!hasIdentity ? (
           <p className="hint">
-            Configure an Identity API to enroll a Google Wallet pass. Local
+            Connect a sign-in service to enroll a Google Wallet pass. Local
             approvals keep working without it.
           </p>
         ) : (

@@ -3,6 +3,7 @@ import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import { IconAlert, IconRefresh } from "../components/Icons.js";
 import { StatusMark } from "../components/StatusMark.js";
+import { mergeLocalGitConnections } from "../lib/connections-local-git.js";
 import {
   type Connection,
   ConnectionsError,
@@ -101,12 +102,6 @@ export function ConnectionsSection() {
 
   const loadConnections = useCallback(async () => {
     const id = ++connectionRun.current;
-    if (!liveConnections) {
-      setConnections([]);
-      setLoadError(null);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
       const nextConnections = await listConnections();
@@ -115,7 +110,7 @@ export function ConnectionsSection() {
       setLoadError(null);
     } catch (error) {
       if (connectionRun.current !== id) return;
-      setConnections([]);
+      setConnections(mergeLocalGitConnections([]));
       setLoadError({
         message: errorText(error),
         unreachable:
@@ -125,7 +120,7 @@ export function ConnectionsSection() {
     } finally {
       if (connectionRun.current === id) setLoading(false);
     }
-  }, [liveConnections]);
+  }, []);
 
   // Re-run after Identity changes because the catalog can differ per session.
   // biome-ignore lint/correctness/useExhaustiveDependencies: session is the retry trigger.

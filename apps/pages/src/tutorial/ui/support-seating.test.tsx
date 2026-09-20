@@ -31,9 +31,9 @@ describe("support statusline seating", () => {
     expect(chrome.closest(".statusline")).not.toBeNull();
     expect(chrome.className).toContain("support-launch--chrome");
     expect(screen.getAllByRole("button", { name: "Support" })).toHaveLength(1);
-    // The strip carries keys only; a question is typed in the sheet, or in
-    // the command bar, never in the chrome's foot.
+    // Support ask stays in the sheet. The statusline omnibox is CommandBar.
     expect(screen.queryByLabelText("Ask about this screen")).toBeNull();
+    expect(screen.queryByPlaceholderText("Questions only")).toBeNull();
   });
 
   it("falls back to the overlay when the shell has no seat", () => {

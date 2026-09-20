@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 511,
-    "violations": 807,
-    "oversizedLines": 257258
+    "files": 507,
+    "violations": 800,
+    "oversizedLines": 256819
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -596,7 +596,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/AppShell.test.tsx": {
-      "max-lines": 414
+      "max-lines": 413
     },
     "apps/pages/src/components/AppShell.tsx": {
       "max-lines-per-function": 1
@@ -651,7 +651,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/lib/connections.ts": {
-      "max-lines": 921
+      "max-lines": 896
     },
     "apps/pages/src/lib/crumbs.ts": {
       "complexity": 1
@@ -866,14 +866,14 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 795
+      "max-lines": 793
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 892
+      "max-lines": 890
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
@@ -882,7 +882,6 @@
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
       "complexity": 1,
-      "max-lines": 403,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
@@ -916,9 +915,6 @@
     "apps/pages/src/sections/connections/GithubAppPanel.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/connections/GithubAppPresence.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/connections/GithubBackupRepo.tsx": {
       "max-lines-per-function": 1
     },
@@ -926,7 +922,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/OauthClientPanel.tsx": {
-      "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/SettingsPage.tsx": {
@@ -945,14 +940,7 @@
     "apps/pages/src/sections/identity/LocalMemberships.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/settings/ActiveProjectPanel.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/settings/AgeKeysPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/EndpointsPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/GithubHistoryRemotePicker.tsx": {
@@ -960,9 +948,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/KeybindingsViewsPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/ModelProviderPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/SettingsRawEditor.tsx": {
@@ -1004,7 +989,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemDetail.test.tsx": {
-      "max-lines": 685
+      "max-lines": 679
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,

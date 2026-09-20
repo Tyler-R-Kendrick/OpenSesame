@@ -1,8 +1,12 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useSyncExternalStore } from "react";
 import { IconCheck, IconExternal } from "../../components/Icons.js";
 import { PasskeyCeremonyNote } from "../../components/PasskeyCeremonyNote.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import type { Provider } from "../../lib/connections.js";
+import {
+  readLocalGithubApp,
+  subscribeLocalGithubApp,
+} from "../../lib/github-app-manifest.js";
 import { OauthClientPanel } from "./OauthClientPanel.js";
 import type { Flash } from "./shared.js";
 
@@ -91,6 +95,77 @@ function PatForm({
   );
 }
 
+function AuthorizeForm({
+  provider,
+  online,
+  busy,
+  name,
+  nameId,
+  scopes,
+  missingScope,
+  oauthReady,
+  onName,
+  onToggleScope,
+  onConnectOauth,
+}: {
+  provider: Provider;
+  online: boolean;
+  busy: boolean;
+  name: string;
+  nameId: string;
+  scopes: string[];
+  missingScope: boolean;
+  oauthReady: boolean;
+  onName: (value: string) => void;
+  onToggleScope: (scope: string) => void;
+  onConnectOauth: (event: FormEvent) => Promise<void>;
+}) {
+  return (
+    <form onSubmit={(event) => void onConnectOauth(event)}>
+      <PasskeyCeremonyNote />
+      {oauthReady ? null : (
+        <details className="conn-client-alt">
+          <summary>Optional settings</summary>
+          <div className="field">
+            <label className="label" htmlFor={nameId}>
+              Name it (optional)
+            </label>
+            <input
+              id={nameId}
+              value={name}
+              onChange={(event) => onName(event.target.value)}
+            />
+          </div>
+        </details>
+      )}
+      <ScopePicker
+        provider={provider}
+        scopes={scopes}
+        onToggleScope={onToggleScope}
+      />
+      <div className="actions">
+        <button
+          type="submit"
+          className="icon-btn icon-btn--sm"
+          disabled={busy || !online || missingScope || !oauthReady}
+          aria-label={
+            busy
+              ? "Waiting for consent"
+              : `Authorize with ${provider.displayName}`
+          }
+          title={
+            busy
+              ? "Waiting for consent"
+              : `Authorize with ${provider.displayName}`
+          }
+        >
+          <IconExternal size={16} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /** OAuth half of the connect form: client panel, scopes, Authorize, optional PAT. */
 export function OauthConnectBody({
   provider,
@@ -127,7 +202,16 @@ export function OauthConnectBody({
 }) {
   const acceptsPat = provider.id === "github" || provider.id === "gitlab";
   const [hasClient, setHasClient] = useState(false);
-  const oauthReady = provider.configured || hasClient;
+  const localGithubApp = useSyncExternalStore(
+    subscribeLocalGithubApp,
+    readLocalGithubApp,
+    () => null,
+  );
+  // PAT is a fallback when no App/OAuth client exists — never after one does.
+  const oauthReady =
+    provider.configured ||
+    hasClient ||
+    (provider.id === "github" && localGithubApp !== null);
 
   return (
     <div className="conn-tile__body">
@@ -137,47 +221,20 @@ export function OauthConnectBody({
         onFlash={onFlash}
         onClientState={setHasClient}
       />
-      <form onSubmit={(event) => void onConnectOauth(event)}>
-        <PasskeyCeremonyNote />
-        <details className="conn-client-alt">
-          <summary>Optional settings</summary>
-          <div className="field">
-            <label className="label" htmlFor={nameId}>
-              Name it (optional)
-            </label>
-            <input
-              id={nameId}
-              value={name}
-              onChange={(event) => onName(event.target.value)}
-            />
-          </div>
-        </details>
-        <ScopePicker
-          provider={provider}
-          scopes={scopes}
-          onToggleScope={onToggleScope}
-        />
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !online || missingScope || !oauthReady}
-            aria-label={
-              busy
-                ? "Waiting for consent"
-                : `Authorize with ${provider.displayName}`
-            }
-            title={
-              busy
-                ? "Waiting for consent"
-                : `Authorize with ${provider.displayName}`
-            }
-          >
-            <IconExternal size={16} />
-          </button>
-        </div>
-      </form>
-      {acceptsPat ? (
+      <AuthorizeForm
+        provider={provider}
+        online={online}
+        busy={busy}
+        name={name}
+        nameId={nameId}
+        scopes={scopes}
+        missingScope={missingScope}
+        oauthReady={oauthReady}
+        onName={onName}
+        onToggleScope={onToggleScope}
+        onConnectOauth={onConnectOauth}
+      />
+      {acceptsPat && !oauthReady ? (
         <PatForm
           provider={provider}
           online={online}

@@ -10,10 +10,11 @@ import type {
   Provider,
   ProviderCategory,
 } from "./connections.js";
+import { bundledGitProvider } from "./embedded-git.js";
 import { walletHostProviders } from "./wallet-issuers.js";
 const CATEGORY = new Map<ProviderCategory, readonly string[]>([
   ["identity", ["better-auth", "workos", "auth0"]],
-  ["backup_recovery", ["github", "gitlab"]],
+  ["backup_recovery", ["github", "gitlab", "git"]],
   [
     "encryption",
     [
@@ -274,7 +275,6 @@ const WALLET = [
   ["apple-wallet", "https://developer.apple.com/wallet/", "configuration"],
   ["samsung-wallet", "https://developer.samsung.com/wallet", "configuration"],
 ] as const;
-
 const BUNDLED_REVISION = "2026-09-17.3";
 
 function title(id: string): string {
@@ -431,7 +431,7 @@ export const embeddedCatalogSeams = {
 };
 
 export function getBundledProviders(): Provider[] {
-  return embeddedCatalogSeams.bundledProviders;
+  return [bundledGitProvider(), ...embeddedCatalogSeams.bundledProviders];
 }
 
 export async function readEmbeddedProviders(): Promise<Provider[]> {

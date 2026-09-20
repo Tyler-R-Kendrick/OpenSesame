@@ -283,7 +283,7 @@ export async function presentLocalDropClaim(
   if (!raw) {
     throw new LocalDropClaimError(
       "refused",
-      "This drop is not on this device. Open the link in the browser that sealed it, or set an Identity API under Settings for cross-device drops.",
+      "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
     );
   }
   let record = freshen(raw, Date.now());

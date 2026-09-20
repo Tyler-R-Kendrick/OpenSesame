@@ -86,7 +86,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "history",
     title: "History & persistence",
     summary: "Optional persistence for encrypted secrets on git remotes.",
-    connectorIds: ["github", "password-store", "gitlab"],
+    connectorIds: ["github", "password-store", "gitlab", "git"],
     requiresAuth: (providerId) =>
       providerId === "github" || providerId === "gitlab",
     authScopes: (providerId) => {
@@ -103,7 +103,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "cloud_secrets",
     title: "Cloud secret storage",
     summary:
-      "Where brokered credentials live upstream. The Host invokes these providers with host-injected credentials; agents only ever hold ConnectionRefs.",
+      "Where brokered credentials live upstream. Agents only ever hold ConnectionRefs, never the credential itself.",
     connectorIds: [
       "doppler",
       "vault",
@@ -127,7 +127,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "identity",
     title: "Identity providers",
     summary:
-      "Upstream IdPs brokered for sign-in. Providers are descriptors the Identity plane validates; token exchange stays platform-owned (ADR 0055).",
+      "Upstream IdPs brokered for sign-in. Providers are descriptors the sign-in service validates; token exchange stays platform-owned (ADR 0055).",
     connectorIds: ["auth0", "workos", "clerk", "better-auth"],
     requiresAuth: () => true,
   },
@@ -135,7 +135,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "certificates",
     title: "Certificates",
     summary:
-      "Certificate authorities the Host can issue from. Trust class per issuer is platform-assigned and never falls back without consent (ADR 0052/0061).",
+      "Certificate authorities OpenSesame can issue from. Trust class per issuer is platform-assigned and never falls back without consent (ADR 0052/0061).",
     connectorIds: ["letsencrypt", "zerossl", "cloudflare-origin-ca"],
     requiresAuth: (providerId) => providerId === "cloudflare-origin-ca",
   },
@@ -157,7 +157,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "mfa_email",
     title: "Email code",
     summary:
-      "Who delivers a one-time email code when Identity is configured. Connect an ESP the Host can invoke; enrollment still happens from Settings › Security once a vault exists.",
+      "Who delivers a one-time email code when a sign-in service is connected. Connect an email provider; enrollment still happens from Settings › Security once a vault exists.",
     connectorIds: ["resend", "sendgrid", "postmark", "brevo"],
     requiresAuth: () => true,
   },
@@ -165,7 +165,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "mfa_sms",
     title: "Text message",
     summary:
-      "Who delivers a one-time SMS code when Identity is configured. A number can move SIMs — a fallback, never the first second step (ADR 0091).",
+      "Who delivers a one-time SMS code when a sign-in service is connected. A number can move SIMs — a fallback, never the first second step (ADR 0091).",
     connectorIds: ["twilio", "messagebird", "vonage", "plivo"],
     requiresAuth: () => true,
   },
@@ -258,7 +258,7 @@ export function connectorLabel(providerId: string): string {
     case "webcrypto":
       return "WebCrypto (this device)";
     case "sealed-local":
-      return "Sealed local (Host)";
+      return "Sealed local (this device)";
     case "yubikey":
       return "YubiKey";
     case "fido2":
@@ -277,6 +277,8 @@ export function connectorLabel(providerId: string): string {
       return "GitHub";
     case "gitlab":
       return "GitLab";
+    case "git":
+      return "Git (any remote)";
     case "letsencrypt":
       return "Let's Encrypt";
     case "zerossl":

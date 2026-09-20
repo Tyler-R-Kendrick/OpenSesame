@@ -1,7 +1,7 @@
 /**
- * AI model catalog — voice (STT) and inference (LLM) presets offered in
- * deployment setup › AI and Settings › AI models. Addresses and model ids only;
- * never an API key (ADR 0114).
+ * AI model catalog — voice (STT) and inference (LLM) presets. Addresses and
+ * model ids only; never an API key (ADR 0114). Hosted entries are offered in
+ * Settings › Models only after Agent Harnesses has an active connection.
  */
 
 import type { ModelPlaneKind } from "./model-provider.js";
@@ -14,10 +14,7 @@ export type ModelCatalogEntry = {
   readonly endpoint: string;
   /** Default model id or BCP-47 speech language. */
   readonly model: string;
-  /**
-   * Named variants the operator can pick. Empty means a free-text model field
-   * (or no model field for the browser Prompt API).
-   */
+  /** Named variants the operator can pick as `provider/model` slugs. */
   readonly models: readonly string[];
 };
 
@@ -59,8 +56,8 @@ export const VOICE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
 ];
 
 /**
- * Inference / LLM catalog. Local first (nothing leaves), then hosted, with the
- * browser Prompt API offered separately by the panel when the device is ready.
+ * Inference / LLM catalog. Local first (nothing leaves), then hosted Agent
+ * Harness providers. The browser Prompt API is offered separately when ready.
  */
 export const INFERENCE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   {
@@ -70,7 +67,7 @@ export const INFERENCE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     kindLabel: "nothing leaves",
     endpoint: "http://127.0.0.1:11434",
     model: "qwen2.5-vl:7b",
-    models: [],
+    models: ["qwen2.5-vl:7b", "llama3.2", "mistral"],
   },
   {
     id: "lmstudio",
@@ -79,7 +76,7 @@ export const INFERENCE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     kindLabel: "nothing leaves",
     endpoint: "http://127.0.0.1:1234/v1",
     model: "qwen2.5-vl-7b",
-    models: [],
+    models: ["qwen2.5-vl-7b"],
   },
   {
     id: "anthropic",
@@ -87,8 +84,8 @@ export const INFERENCE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     name: "Anthropic",
     kindLabel: "api key",
     endpoint: "https://api.anthropic.com",
-    model: "claude-sonnet-5",
-    models: [],
+    model: "claude-sonnet-4-5",
+    models: ["claude-sonnet-4-5", "claude-opus-4-1", "claude-haiku-4-5"],
   },
   {
     id: "openai",
@@ -96,17 +93,44 @@ export const INFERENCE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     name: "OpenAI",
     kindLabel: "api key",
     endpoint: "https://api.openai.com/v1",
-    model: "",
-    models: [],
+    model: "gpt-4o",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "o3-mini"],
   },
   {
-    id: "openai-shaped",
+    id: "azure-openai",
     kind: "hosted",
-    name: "Anything OpenAI-shaped",
-    kindLabel: "bring a url",
+    name: "Azure OpenAI",
+    kindLabel: "configuration",
     endpoint: "",
-    model: "",
-    models: [],
+    model: "gpt-4o",
+    models: ["gpt-4o", "gpt-4o-mini"],
+  },
+  {
+    id: "aws-bedrock",
+    kind: "hosted",
+    name: "AWS Bedrock",
+    kindLabel: "configuration",
+    endpoint: "",
+    model: "anthropic.claude-sonnet-4-5",
+    models: ["anthropic.claude-sonnet-4-5", "amazon.nova-pro-v1:0"],
+  },
+  {
+    id: "openrouter",
+    kind: "hosted",
+    name: "OpenRouter",
+    kindLabel: "oauth",
+    endpoint: "https://openrouter.ai/api/v1",
+    model: "openai/gpt-4o",
+    models: ["openai/gpt-4o", "anthropic/claude-sonnet-4.5"],
+  },
+  {
+    id: "huggingface",
+    kind: "hosted",
+    name: "Hugging Face",
+    kindLabel: "api key",
+    endpoint: "https://router.huggingface.co/v1",
+    model: "meta-llama/Llama-3.3-70B-Instruct",
+    models: ["meta-llama/Llama-3.3-70B-Instruct"],
   },
 ];
 

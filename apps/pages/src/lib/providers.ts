@@ -198,9 +198,7 @@ export function workEmailDomain(email: string): string {
 async function requestEmailMagicLinkDefault(email: string): Promise<void> {
   const base = remoteIdentityApi();
   if (!base) {
-    throw new Error(
-      "No remote Identity API is configured. Set the Identity URL in Settings.",
-    );
+    throw new Error("No sign-in service is connected.");
   }
   const res = await localNetworkFetch(`${base}/v1/auth/sign-in/magic-link`, {
     method: "POST",
@@ -212,7 +210,7 @@ async function requestEmailMagicLinkDefault(email: string): Promise<void> {
   if (!res.ok) {
     throw new Error(
       res.status === 404
-        ? "Email sign-in is not available on this Identity API."
+        ? "Email sign-in is not available on this sign-in service."
         : `Could not send the sign-in link (${res.status}).`,
     );
   }

@@ -638,10 +638,10 @@ function looksLikeAddress(channel: CodeChannel, to: string): boolean {
 function identityHost(): string {
   try {
     const remote = remoteIdentityApi().trim();
-    if (!remote) return "your Identity API";
+    if (!remote) return "your sign-in service";
     return new URL(remote).host;
   } catch {
-    return "your Identity API";
+    return "your sign-in service";
   }
 }
 
@@ -771,7 +771,7 @@ export function CodeCeremony({
             ok
             name={words.name}
             facts={[
-              { key: "Sent by", value: `${identityHost()}, your Identity API` },
+              { key: "Sent by", value: `${identityHost()} · sign-in` },
               {
                 key: "Asked",
                 value: `at unlock, when you pick ${words.tab} for step 2`,

@@ -166,7 +166,7 @@ export function ShareSecretDrop({
       <h2 className="detail__grouphead">Share this secret once</h2>
       <p className="hint">
         Sealed here with a fresh key. This device hosts the claim when no
-        Identity API is set.
+        sign-in service is connected.
       </p>
       <TtlPicker value={ttlMs} onChange={setTtlMs} />
       <div className="field">

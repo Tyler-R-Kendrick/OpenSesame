@@ -9,18 +9,18 @@ import type {
 type FieldGuidance = { help: string; placeholder: string };
 
 const CATEGORY_SUMMARY = {
-  identity: "Use this identity device or service from the Host.",
+  identity: "Use this identity device or service with OpenSesame.",
   backup_recovery:
     "Use this repository or database as a backup and recovery target.",
   encryption: "Encrypt secrets before they are stored or committed.",
   password_managers: "Use secrets already managed by this password service.",
   agent_harnesses:
     "Give approved agents a runtime without exposing the credential.",
-  networking: "Configure this network so the Host can reach machines on it.",
+  networking: "Configure this network so OpenSesame can reach machines on it.",
   wallet:
     "Connect a card issuer or pass wallet. OpenSesame does not mint cards.",
   cloud_secret_storage: "Read secrets from a centralized cloud service.",
-  local_storage: "Use credentials available on the Host machine.",
+  local_storage: "Use credentials available on this machine.",
   developer:
     "Give approved projects and agents access without exposing the credential.",
   productivity: "Authorize selected actions in your workspace account.",
@@ -148,7 +148,7 @@ const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
       placeholder: "opensesame",
     },
     database_path: {
-      help: "An absolute path on the Host machine to the KeePass .kdbx database.",
+      help: "An absolute path on this machine to the KeePass .kdbx database.",
       placeholder: "/home/user/secrets.kdbx",
     },
     password: {
@@ -156,15 +156,31 @@ const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
       placeholder: "Paste database password once",
     },
     store_dir: {
-      help: "An absolute path on the Host machine to the password-store directory.",
+      help: "An absolute path on this machine to the password-store directory.",
       placeholder: "/home/user/.password-store",
+    },
+    remote_url: {
+      help: "HTTPS or SSH clone URL for any git forge or bare host.",
+      placeholder: "https://git.example.com/org/store.git",
+    },
+    auth_mode: {
+      help: "How OpenSesame authenticates: https_token, https_basic, ssh_key, or ssh_agent.",
+      placeholder: "https_token",
+    },
+    ssh_private_key: {
+      help: "OpenSSH private key for this remote. Sealed immediately.",
+      placeholder: "-----BEGIN OPENSSH PRIVATE KEY-----",
+    },
+    ssh_passphrase: {
+      help: "Optional passphrase for the sealed SSH private key.",
+      placeholder: "Passphrase if the key has one",
     },
     namespace: {
       help: "An optional namespace that keeps this connection's entries separate from others.",
       placeholder: "team-name",
     },
     location: {
-      help: "The Host path or remote location where encrypted values are stored.",
+      help: "The path or remote location where encrypted values are stored.",
       placeholder: "/absolute/path or provider location",
     },
     key: {
@@ -187,7 +203,7 @@ const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
 );
 
 export function connectorSummary(provider: Provider): string {
-  return `${CATEGORY_SUMMARY[provider.category]} ${provider.displayName} setup stays in the Host; secret values are never returned to this browser.`;
+  return `${CATEGORY_SUMMARY[provider.category]} ${provider.displayName} setup stays on this device; secret values are never returned to this browser.`;
 }
 
 export function connectorSteps(provider: Provider): string[] {
@@ -204,21 +220,21 @@ export function connectorSteps(provider: Provider): string[] {
     provider.id.startsWith("gcp-")
   ) {
     return [
-      `OpenSesame first uses the ${provider.displayName} identity already available to the Host.`,
-      "Fill only the resource location and any credential overrides your Host cannot discover.",
+      `OpenSesame first uses the ${provider.displayName} identity already available on this device.`,
+      "Fill only the resource location and any credential overrides this device cannot discover.",
       "Save the configuration; no long-lived secret is needed when workload identity is available.",
     ];
   }
   if (["1password", "bitwarden"].includes(provider.id)) {
     return [
-      `OpenSesame first reuses the signed-in ${provider.displayName} CLI session on the Host.`,
-      "Add a token only when the Host has no delegated session to reuse.",
+      `OpenSesame first reuses the signed-in ${provider.displayName} CLI session on this device.`,
+      "Add a token only when this device has no delegated session to reuse.",
       "Save the configuration; secret overrides are sealed and never shown again.",
     ];
   }
   if (provider.id === "better-auth") {
     return [
-      "Enable Better Auth's API Key plugin and create a least-privilege key for this Host.",
+      "Enable Better Auth's API Key plugin and create a least-privilege key for this device.",
       "Enter the Better Auth base URL and paste the key once.",
       "The default x-api-key header and default configuration ID are filled automatically.",
     ];
@@ -248,7 +264,7 @@ export function connectorSteps(provider: Provider): string[] {
   }
   return [
     `Open the ${provider.displayName} setup guide and prepare the required values.`,
-    "Enter values from the machine or account the Host will use.",
+    "Enter values from the machine or account OpenSesame will use.",
     "Save once; secret fields are sealed and never shown again.",
   ];
 }
@@ -270,44 +286,44 @@ export function fieldGuidance(field: ConfigurationField): FieldGuidance {
     const delegated = new Map<string, FieldGuidance>(
       Object.entries({
         region: {
-          help: "Leave blank to use the region from the Host's AWS profile, environment, container, or instance identity.",
-          placeholder: "Auto-detect from Host",
+          help: "Leave blank to use the region from this machine’s AWS profile, environment, container, or instance identity.",
+          placeholder: "Auto-detect on this device",
         },
         access_key_id: {
-          help: "Leave blank to use the Host's AWS default credential chain. Supply this only with a matching secret access key.",
-          placeholder: "Use Host identity",
+          help: "Leave blank to use this machine’s AWS default credential chain. Supply this only with a matching secret access key.",
+          placeholder: "Use this device’s identity",
         },
         secret_access_key: {
-          help: "Leave blank to use the Host's AWS default credential chain. A manual override is sealed immediately.",
-          placeholder: "Use Host identity",
+          help: "Leave blank to use this machine’s AWS default credential chain. A manual override is sealed immediately.",
+          placeholder: "Use this device’s identity",
         },
         tenant_id: {
-          help: "Leave blank to let Azure DefaultAzureCredential select the Host tenant. Override only for a service principal.",
-          placeholder: "Auto-detect from Host",
+          help: "Leave blank to let Azure DefaultAzureCredential select this machine’s tenant. Override only for a service principal.",
+          placeholder: "Auto-detect on this device",
         },
         client_id: {
-          help: "Leave blank to use the Host's managed identity or signed-in Azure CLI session.",
-          placeholder: "Use Host identity",
+          help: "Leave blank to use this machine’s managed identity or signed-in Azure CLI session.",
+          placeholder: "Use this device’s identity",
         },
         client_secret: {
           help: "Leave blank to use delegated Azure credentials. A service-principal secret override is sealed immediately.",
-          placeholder: "Use Host identity",
+          placeholder: "Use this device’s identity",
         },
         project_id: {
           help: "Leave blank to use the project discovered by Google Application Default Credentials.",
-          placeholder: "Auto-detect from Host",
+          placeholder: "Auto-detect on this device",
         },
         service_account_json: {
-          help: "Leave blank to use Google Application Default Credentials from the Host. A JSON override is sealed immediately.",
-          placeholder: "Use Host identity",
+          help: "Leave blank to use Google Application Default Credentials from this machine. A JSON override is sealed immediately.",
+          placeholder: "Use this device’s identity",
         },
         service_account_token: {
-          help: "Leave blank to reuse the signed-in 1Password CLI session on the Host. A service-account override is sealed immediately.",
-          placeholder: "Use Host session",
+          help: "Leave blank to reuse the signed-in 1Password CLI session on this device. A service-account override is sealed immediately.",
+          placeholder: "Use this device’s session",
         },
         session_token: {
-          help: "Leave blank to reuse the unlocked Bitwarden CLI session on the Host. A session-token override is sealed immediately.",
-          placeholder: "Use Host session",
+          help: "Leave blank to reuse the unlocked Bitwarden CLI session on this device. A session-token override is sealed immediately.",
+          placeholder: "Use this device’s session",
         },
       }),
     );

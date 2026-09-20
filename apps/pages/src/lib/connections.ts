@@ -24,13 +24,23 @@ import {
   RevokeResponseSchema,
 } from "@opensesame/contracts";
 import {
+  type Integration,
+  integrationFromLocal,
+  toIntegration,
+} from "./connections-integrations.js";
+import {
+  mergeLocalGitConnections,
+  revokeLocalGitConnection,
+} from "./connections-local-git.js";
+import {
   type LocalGithubApp,
   buildGithubAppRegistration,
   readLocalGithubApp,
 } from "./github-app-manifest.js";
 import { claimGuestConnection } from "./guest-connections.js";
+export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
-import { hostBase, hostFetch } from "./identity.js";
+import { HostSessionError, hostBase, hostFetch } from "./identity.js";
 import * as vercelConnect from "./vercel-connect.js";
 
 export type ProviderCategory =
@@ -201,12 +211,9 @@ async function call<T>(
       headers,
     });
   } catch (error) {
-    if (error instanceof Error && !(error instanceof TypeError)) throw error;
-    throw new ConnectionsError(
-      0,
-      "unreachable",
-      "Couldn't reach the connected service.",
-    );
+    if (!(error instanceof HostSessionError || error instanceof TypeError))
+      throw error;
+    throw new ConnectionsError(0, "unreachable", error.message);
   }
 
   if (!res.ok) {
@@ -317,57 +324,12 @@ function toEvent(value: BoundaryValue): ConnectionEvent {
 
 /* --------------------------------------------------------------- requests */
 
-export type Integration = {
-  id: string;
-  key: string;
-  providerId: string;
-  displayName: string;
-  source: string;
-  enabled: boolean;
-  configured: boolean;
-  scopes: string[];
-  /** Public GitHub App page when this is a tenant App integration. */
-  githubAppHtmlUrl: string | null;
-};
-
 export type GithubAppRegistration = {
   action: string;
   state: string;
   manifest: JsonObject;
   redirectUrl: string;
 };
-
-function toIntegration(value: BoundaryValue): Integration {
-  const raw = overlapCast(value);
-  const html = isString(raw.github_app_html_url)
-    ? raw.github_app_html_url.trim()
-    : "";
-  return {
-    id: String(raw.id ?? ""),
-    key: String(raw.key ?? ""),
-    providerId: String(raw.provider_id ?? ""),
-    displayName: String(raw.display_name ?? ""),
-    source: String(raw.source ?? ""),
-    enabled: Boolean(raw.enabled),
-    configured: Boolean(raw.configured),
-    scopes: Array.isArray(raw.scopes) ? raw.scopes.map(String) : [],
-    githubAppHtmlUrl: html.startsWith("https://github.com/apps/") ? html : null,
-  };
-}
-
-function integrationFromLocal(app: LocalGithubApp): Integration {
-  return {
-    id: app.id,
-    key: app.key,
-    providerId: "github",
-    displayName: app.displayName,
-    source: "github-app",
-    enabled: true,
-    configured: true,
-    scopes: [],
-    githubAppHtmlUrl: app.htmlUrl,
-  };
-}
 
 function listIntegrationsDefault(): Promise<Integration[]> {
   const local = readLocalGithubApp();
@@ -507,12 +469,23 @@ function listProvidersDefault(): Promise<Provider[]> {
 }
 
 function listConnectionsDefault(): Promise<Connection[]> {
-  if (vercelConnect.usesConnect()) return vercelConnect.listVercelConnections();
+  if (vercelConnect.usesConnect()) {
+    return vercelConnect.listVercelConnections().then(mergeLocalGitConnections);
+  }
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
-  );
+  )
+    .then(mergeLocalGitConnections)
+    .catch((error) => {
+      if (
+        error instanceof ConnectionsError &&
+        (error.code === "unreachable" || error.status === 0)
+      ) {
+        return mergeLocalGitConnections([]);
+      }
+      throw error;
+    });
 }
-
 function discoverConnectionsDefault(): Promise<number> {
   return call(
     "/connections/discover",
@@ -612,10 +585,12 @@ function setConnectionConfigurationDefault(
   );
 }
 
-function revokeConnectionDefault(id: string): Promise<{
+async function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
+  const local = await revokeLocalGitConnection(id);
+  if (local) return local;
   if (vercelConnect.isConnectConnector(id))
     return vercelConnect.revokeVercelConnection(id);
   return call(

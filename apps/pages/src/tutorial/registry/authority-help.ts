@@ -3,18 +3,18 @@ import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 export const AUTHORITY_HELP: readonly HelpTopic[] = [
   {
     id: "help.browser.pair",
-    title: "Pair this browser with a Host",
+    title: "Pair this browser",
     answer:
-      "On a loopback or dedicated-origin deployment, open a Host-dependent panel and choose Pair this browser. Inspect its origin and code in the native Host approval ceremony. Approval initially permits encrypted sync only. The shared-origin demo cannot pair.",
+      "On a loopback or dedicated-origin deployment, open a panel that needs pairing and choose Pair this browser. Inspect its origin and code in the native approval ceremony. Approval initially permits encrypted sync only. The shared-origin demo cannot pair.",
     routes: [],
     goal: "browser.pair",
     keywords: ["pair", "pairing", "local host", "user code"],
   },
   {
     id: "help.browser.authenticate",
-    title: "Verify Identity for a paired Host",
+    title: "Verify identity after pairing",
     answer:
-      "After pairing, a Host-dependent panel can ask you to verify with Identity. Complete its passkey user-verification ceremony. Identity evidence can only narrow the native Host role ceiling; pairing or an ordinary sign-in does not grant administration or browser control.",
+      "After pairing, a panel can ask you to verify with a passkey. Complete that ceremony. Verification evidence can only narrow the paired role ceiling; pairing or an ordinary sign-in does not grant administration or browser control.",
     routes: [],
     goal: "browser.authenticate",
     keywords: ["verify identity", "host authorization", "passkey"],
@@ -23,7 +23,7 @@ export const AUTHORITY_HELP: readonly HelpTopic[] = [
     id: "help.browser.revoke",
     title: "Understand paired-client revocation",
     answer:
-      "The browser-pairing client supports revoking its current paired client at the Host. Revocation invalidates that client's grants. Lock and sign-out discard this page's active grant and proof key; that local cleanup is not a promise of server-side revocation.",
+      "The browser-pairing client supports revoking its current paired client. Revocation invalidates that client's grants. Lock and sign-out discard this page's active grant and proof key; that local cleanup is not a promise of server-side revocation.",
     routes: [],
     goal: "browser.revoke",
     keywords: ["revoke pairing", "paired client", "forget host"],
@@ -32,7 +32,7 @@ export const AUTHORITY_HELP: readonly HelpTopic[] = [
     id: "help.configs.permissions",
     title: "Review secret-configuration visibility",
     answer:
-      "Settings → Connections shows secret-configuration metadata only when the Host grants it. Project metadata and key-name permissions are separate. Missing access stays hidden; ask an organization owner or administrator to review the project's explicit permissions.",
+      "Settings → Connections shows secret-configuration metadata only when this device is allowed to show it. Project metadata and key-name permissions are separate. Missing access stays hidden; ask an organization owner or administrator to review the project's explicit permissions.",
     routes: [],
     goal: "configs.permissions",
     keywords: ["metadata", "key names", "project permissions"],

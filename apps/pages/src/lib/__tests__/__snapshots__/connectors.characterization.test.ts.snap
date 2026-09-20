@@ -152,8 +152,8 @@ history password-store conn_1 no-remote live     Local git password-store
 history password-store conn_1 remote   live     Local git password-store
 keys webcrypto unauth                  live     WebCrypto (this device)
 keys webcrypto conn_1                  live     WebCrypto (this device)
-keys sealed-local unauth               live     Sealed local (Host)
-keys sealed-local conn_1               live     Sealed local (Host)
+keys sealed-local unauth               live     Sealed local (this device)
+keys sealed-local conn_1               live     Sealed local (this device)
 keys aws-kms unauth                    attn     AWS KMS not authorized
 keys aws-kms conn_1                    live     AWS KMS
 keys yubikey unauth                    attn     YubiKey not authorized

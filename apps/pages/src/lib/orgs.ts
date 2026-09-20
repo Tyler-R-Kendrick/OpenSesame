@@ -169,10 +169,7 @@ async function lookupOrgTenantDefault(slug: string): Promise<OrgTenant> {
     throw new IdentityError("Enter an organization slug like acme-corp.", 400);
   }
   if (!isRemoteIdentityConfigured()) {
-    throw new IdentityError(
-      "No remote Identity API is configured. Set the Identity URL in Settings.",
-      0,
-    );
+    throw new IdentityError("No sign-in service is connected.", 0);
   }
   return identityJson<OrgTenant>(
     `/v1/organizations/tenants/${encodeURIComponent(normalized)}`,
@@ -190,10 +187,7 @@ async function lookupOrgByDomainDefault(
   domain: string,
 ): Promise<OrgTenant | null> {
   if (!isRemoteIdentityConfigured()) {
-    throw new IdentityError(
-      "No remote Identity API is configured. Set the Identity URL in Settings.",
-      0,
-    );
+    throw new IdentityError("No sign-in service is connected.", 0);
   }
   try {
     return await identityJson<OrgTenant>(

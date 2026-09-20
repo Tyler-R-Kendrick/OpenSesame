@@ -42,6 +42,12 @@ describe("connectorPath", () => {
   it("encodes provider and connection ids", () => {
     expect(connectorPath("github")).toBe("/connections/github");
     expect(connectorPath("a b", "c/d")).toBe("/connections/a%20b/c%2Fd");
+    expect(connectorPath("github", undefined, "/settings/connections")).toBe(
+      "/settings/connections/github",
+    );
+    expect(connectorPath("github", "conn_1", "/settings/connections")).toBe(
+      "/settings/connections/github/conn_1",
+    );
   });
 });
 

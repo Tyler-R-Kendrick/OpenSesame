@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import {
   IconChevronLeft,
   IconConnection,
@@ -11,6 +11,7 @@ import {
   statusTone,
 } from "../../components/StatusMark.js";
 import type { Connection, Provider } from "../../lib/connections.js";
+import { listIntegrations } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import {
   readLocalGithubApp,
@@ -27,12 +28,15 @@ import { authKindLabel } from "./CatalogPanel.js";
 import { ConnectForm } from "./ConnectForm.js";
 import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
+import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import {
   CATEGORY_LABELS,
   type Flash,
   STATUS_CHIP,
+  connectorCeremonyRoot,
+  connectorPath,
   errorText,
   statusSentence,
 } from "./shared.js";
@@ -69,6 +73,8 @@ export function ConnectorSettingsPage({
   ) => void;
   onChanged: () => void;
 }) {
+  const { pathname } = useLocation();
+  const ceremonyRoot = connectorCeremonyRoot(pathname);
   const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
   const authorizeRef = useGuideTarget<HTMLElement>("connections.authorize");
   const [backupReady, setBackupReady] = useState(false);
@@ -80,17 +86,43 @@ export function ConnectorSettingsPage({
     () => (providerId === "github" ? readLocalGithubApp() : null),
     () => null,
   );
+  const [githubHostReady, setGithubHostReady] = useState(false);
   useEffect(() => {
     // A completed local App registration must not leave a failure glyph up.
     if (localGithubApp !== null && flash?.tone === "err") onFlash(null);
   }, [localGithubApp, flash, onFlash]);
+  useEffect(() => {
+    if (providerId !== "github") {
+      setGithubHostReady(false);
+      return;
+    }
+    let cancel = false;
+    void listIntegrations()
+      .then((rows) => {
+        if (cancel) return;
+        setGithubHostReady(
+          rows.some(
+            (row) =>
+              row.providerId === "github" && row.enabled && row.configured,
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancel) setGithubHostReady(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [providerId]);
   if (!provider) {
     return (
       <div className="section__inner">
-        <Link ref={backRef} className="conn-back" to="/connections">
+        <Link ref={backRef} className="conn-back" to={ceremonyRoot}>
           <IconChevronLeft size={16} /> Connections
         </Link>
-        {providerId === "github" ? <GithubAppPresence /> : null}
+        {providerId === "github" ? (
+          <GithubAppPresence connection={connection} />
+        ) : null}
         <div className="panel">
           <div className="empty">
             <IconConnection />
@@ -104,9 +136,13 @@ export function ConnectorSettingsPage({
   }
 
   const automatic = canConfigureAutomatically(provider);
+  // GitHub App already on this device / Host — no Connect chrome.
+  const githubAppReady =
+    provider.id === "github" &&
+    (localGithubApp !== null || provider.configured || githubHostReady);
   return (
     <div className="section__inner conn-settings">
-      <Link ref={backRef} className="conn-back" to="/connections">
+      <Link ref={backRef} className="conn-back" to={ceremonyRoot}>
         <IconChevronLeft size={16} /> Connections
       </Link>
       <header className="conn-settings__head">
@@ -124,9 +160,12 @@ export function ConnectorSettingsPage({
                 connection,
                 connections,
                 backupReady,
-                localGithubApp !== null,
+                localGithubApp !== null || githubHostReady,
               )}
             />
+            {provider.id === "github" && localGithubApp !== null ? (
+              <GithubAppForgetButton />
+            ) : null}
           </div>
           <p>
             {connection
@@ -153,7 +192,9 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {providerId === "github" ? <GithubAppPresence /> : null}
+      {providerId === "github" ? (
+        <GithubAppPresence connection={connection} />
+      ) : null}
 
       {rememberOffer ? (
         <VaultReminderBanner
@@ -191,24 +232,7 @@ export function ConnectorSettingsPage({
               onBackupReady={reportBackup}
             />
           </ul>
-        </section>
-      ) : connections.length > 1 ? (
-        <section className="panel" id="authorization" ref={authorizeRef}>
-          <div className="panel__head">
-            <div>
-              <h2>Authorizations</h2>
-            </div>
-          </div>
-          <ul className="conn-list">
-            {connections.map((item) => (
-              <AuthorizedAccount
-                key={item.connectionId}
-                connection={item}
-                provider={provider}
-              />
-            ))}
-          </ul>
-          {canConfigure && provider.configured ? (
+          {canConfigure && provider.id === "git" ? (
             <details className="conn-add-authorization">
               <summary>Add another authorization</summary>
               <ConnectForm
@@ -223,7 +247,41 @@ export function ConnectorSettingsPage({
             </details>
           ) : null}
         </section>
-      ) : (
+      ) : connections.length > 1 ? (
+        <section className="panel" id="authorization" ref={authorizeRef}>
+          <div className="panel__head">
+            <div>
+              <h2>Authorizations</h2>
+            </div>
+          </div>
+          <ul className="conn-list">
+            {connections.map((item) => (
+              <AuthorizedAccount
+                key={item.connectionId}
+                connection={item}
+                provider={provider}
+                ceremonyRoot={ceremonyRoot}
+              />
+            ))}
+          </ul>
+          {canConfigure &&
+          (provider.configured || provider.id === "git") &&
+          !githubAppReady ? (
+            <details className="conn-add-authorization">
+              <summary>Add another authorization</summary>
+              <ConnectForm
+                provider={provider}
+                online={online}
+                onFlash={(next) => onFlash(next)}
+                onConnected={onChanged}
+                onRememberOffer={(created) =>
+                  onRememberOffer({ provider, connection: created })
+                }
+              />
+            </details>
+          ) : null}
+        </section>
+      ) : githubAppReady ? null : (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <h2>Connect</h2>
@@ -233,7 +291,8 @@ export function ConnectorSettingsPage({
               <p className="hint">{configureHint}</p>
             </div>
           ) : provider.configured ||
-            provider.authKind === "oauth2_authorization_code" ? (
+            provider.authKind === "oauth2_authorization_code" ||
+            provider.id === "git" ? (
             <ConnectForm
               provider={provider}
               online={online}
@@ -302,9 +361,11 @@ function githubConnectorStatus(
 function AuthorizedAccount({
   connection,
   provider,
+  ceremonyRoot,
 }: {
   connection: Connection;
   provider: Provider | null;
+  ceremonyRoot: ReturnType<typeof connectorCeremonyRoot>;
 }) {
   const chip = STATUS_CHIP[connection.status];
   return (
@@ -317,7 +378,11 @@ function AuthorizedAccount({
         <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
         <Link
           className="btn btn--sm"
-          to={`/connections/${encodeURIComponent(connection.providerId)}/${encodeURIComponent(connection.connectionId)}`}
+          to={connectorPath(
+            connection.providerId,
+            connection.connectionId,
+            ceremonyRoot,
+          )}
           aria-label={`Settings for ${connection.displayName}`}
         >
           Open

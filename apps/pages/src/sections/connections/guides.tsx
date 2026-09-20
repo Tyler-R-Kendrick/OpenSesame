@@ -26,8 +26,8 @@ export function DeploymentSetupGuide({ provider }: { provider: Provider }) {
         ) : null}
         {missing.length > 0 ? (
           <li>
-            Optional OAuth app env vars on the Host (not required when using a
-            personal access token for GitHub/GitLab):
+            Optional OAuth app credentials (not required when using a personal
+            access token for GitHub/GitLab):
             <ul className="conn-envs">
               {missing.map((name) => (
                 <li key={name}>
@@ -37,7 +37,7 @@ export function DeploymentSetupGuide({ provider }: { provider: Provider }) {
             </ul>
           </li>
         ) : (
-          <li>Restart the Host after updating provider credentials.</li>
+          <li>Save again after updating provider credentials.</li>
         )}
       </ol>
       <a

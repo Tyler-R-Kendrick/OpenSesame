@@ -203,7 +203,7 @@ describe("requestEmailMagicLink", () => {
     identitySeams.identityBase = () => "";
     deviceIdentitySeams.remoteIdentityApi = () => "";
     await expect(requestEmailMagicLink("ada@example.com")).rejects.toThrow(
-      /No remote Identity API/,
+      /No sign-in service is connected/,
     );
   });
 });

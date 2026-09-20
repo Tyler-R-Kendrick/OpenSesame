@@ -3,7 +3,10 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backupSeams } from "../../lib/backup.js";
 import { connectionSeams } from "../../lib/connections.js";
-import { claimGithubAppCode } from "../../lib/github-app-manifest.js";
+import {
+  claimGithubAppCode,
+  forgetLocalGithubApp,
+} from "../../lib/github-app-manifest.js";
 import { vaultStore } from "../../lib/vault/store.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
 
@@ -48,10 +51,28 @@ describe("GithubAppPresence", () => {
           accountType: "Organization",
           targetType: "Organization",
           repositorySelection: "selected",
-          permissions: [],
-          repositories: [],
+          permissions: [
+            { name: "contents", access: "write" },
+            { name: "metadata", access: "read" },
+          ],
+          repositories: ["acme-corp/vault"],
         },
       ]),
+      getBackupStatus: vi.fn(async () => ({
+        target: {
+          integrationId: "int-gh",
+          installationId: "4242",
+          owner: "acme-corp",
+          repo: "vault",
+          branch: "main",
+          enabled: true,
+          status: "ok",
+          lastCommitSha: null,
+          lastSyncedAt: null,
+          lastError: null,
+        },
+        pendingEvents: 0,
+      })),
     });
     Object.assign(connectionSeams, {
       listIntegrations: vi.fn(async () => [
@@ -77,15 +98,30 @@ describe("GithubAppPresence", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows Host installation account as the authenticated install", async () => {
+  it("shows Host install config: name, account, permissions, backup", async () => {
     render(<GithubAppPresence />);
     await waitFor(() => {
       expect(screen.getByTestId("github-app-install").textContent).toContain(
         "acme-corp",
       );
     });
+    expect(screen.getByTestId("github-app-name").textContent).toContain(
+      "OpenSesame",
+    );
     expect(screen.getByTestId("github-app-install").textContent).toContain(
       "Organization",
+    );
+    expect(screen.getByTestId("github-app-install").textContent).toContain(
+      "repos selected",
+    );
+    expect(screen.getByTestId("github-app-backup").textContent).toContain(
+      "acme-corp/vault",
+    );
+    expect(screen.getByTestId("github-app-granted").textContent).toContain(
+      "contents",
+    );
+    expect(screen.getByTestId("github-app-repos").textContent).toContain(
+      "acme-corp/vault",
     );
   });
 
@@ -95,6 +131,7 @@ describe("GithubAppPresence", () => {
     });
     Object.assign(backupSeams, {
       listGithubInstallations: vi.fn(async () => []),
+      getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
     localStorage.setItem(
       PUBLIC_KEY,
@@ -131,6 +168,7 @@ describe("GithubAppPresence", () => {
     });
     Object.assign(backupSeams, {
       listGithubInstallations: vi.fn(async () => []),
+      getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
     render(<GithubAppPresence />);
     expect(screen.queryByTestId("github-app-presence")).toBeNull();
@@ -204,6 +242,7 @@ describe("GithubAppPresence", () => {
     });
     Object.assign(backupSeams, {
       listGithubInstallations: vi.fn(async () => []),
+      getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
     localStorage.setItem(
       PUBLIC_KEY,
@@ -224,7 +263,8 @@ describe("GithubAppPresence", () => {
         "Tyler-R-Kendrick",
       );
     });
-    screen.getByTestId("github-app-forget").click();
+    // Forget control lives next to the connector title on SettingsPage.
+    forgetLocalGithubApp();
     await waitFor(() => {
       expect(screen.queryByTestId("github-app-presence")).toBeNull();
     });
@@ -237,6 +277,7 @@ describe("GithubAppPresence", () => {
     });
     Object.assign(backupSeams, {
       listGithubInstallations: vi.fn(async () => []),
+      getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
     localStorage.setItem(
       PUBLIC_KEY,
@@ -255,7 +296,7 @@ describe("GithubAppPresence", () => {
     await waitFor(() => {
       expect(
         screen.getByTestId("github-app-owner-missing").textContent,
-      ).toContain("registrant unknown");
+      ).toContain("unknown");
     });
   });
 });

@@ -289,7 +289,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     scope: "boot",
     readOnly: true,
     description:
-      "Connectivity posture of this vault tab: browser online state and last-probed health of the Identity API.",
+      "Connectivity posture of this vault tab: browser online state and last-probed health of the sign-in service.",
     inputSchema: {
       type: "object",
       properties: {},

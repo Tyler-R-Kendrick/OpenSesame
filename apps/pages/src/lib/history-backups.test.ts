@@ -27,6 +27,7 @@ describe("history backups", () => {
       "github",
       "password-store",
       "gitlab",
+      "git",
     ]);
   });
 

@@ -7,6 +7,7 @@
   gap: 8px;
   box-sizing: border-box;
   min-height: 40px;
+  max-height: 56px;
   padding: 4px 12px;
   border-top: 1px solid var(--line);
   background: var(--surface-2);
@@ -16,6 +17,7 @@
 }
 
 .statusline__support,
+.statusline__command,
 .statusline__planes,
 .statusline__tools,
 .statusline__tools > div {
@@ -98,24 +100,21 @@
 }
 
 /* ——— The strip on a phone ————————————————————————————————
-   There isn't one. Seven 44px keys were 308px — a 320px screen edge to edge —
-   and a second full-width bar under the tab bar is a row of the frame spent on
-   things a person looks at rarely. Every phone platform puts exactly that
-   behind one key in the bar it already has, so that is where all of it went
-   (`MoreMenu`).
+   Plane glyphs and the bell move behind the top bar overflow key. The strip
+   itself still draws: that is where CommandBar sits, on every unlocked
+   screen including a phone.
 
-   Hidden rather than unmounted: this strip holds the seat the support mark
-   portals into, and a mark with no seat falls back to a fixed corner overlay —
-   the clutter this removed.
-
-   Width only, never `(pointer: coarse)`. The strip's replacement is the top
-   bar, and that is `display: none` above 900px — so a coarse rule here hid
-   both on a touchscreen wider than a phone: an iPad in landscape kept its rail
-   and lost support, notifications, plane truth, the keymap, and the overflow
-   key that holds them. Layout pairs with layout; the 44px floor above is the
-   rule that reads the pointer, because target size is what a pointer decides. */
+   Width only, never `(pointer: coarse)`. Layout pairs with layout; the 44px
+   floor above is the rule that reads the pointer. */
 @media (max-width: 900px) {
   .statusline {
+    padding: 4px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+
+  .statusline__planes,
+  .statusline__tools {
     display: none;
   }
 }

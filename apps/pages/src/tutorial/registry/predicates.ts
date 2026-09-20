@@ -104,7 +104,7 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
   {
     id: "host.connected",
     description:
-      "The Host plane answered its last reachability probe. Pages never claims a Host (ADR 0090).",
+      "A remote authority answered its last reachability probe. Pages never assumes one is present (ADR 0090).",
     read: () => false,
   },
   {

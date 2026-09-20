@@ -1,7 +1,8 @@
 /**
  * Multi-select history backups over git remotes.
  *
- * Selections reuse Host connectors (GitHub / GitLab / password-store).
+ * Selections reuse Host connectors (GitHub / GitLab / generic git /
+ * password-store).
  */
 
 import { isString } from "@opensesame/os-domain";
@@ -40,7 +41,7 @@ export const HISTORY_BACKUP_GROUPS: readonly HistoryBackupGroupDef[] = [
   {
     id: "git",
     title: "Git",
-    providerIds: ["github", "password-store", "gitlab"],
+    providerIds: ["github", "password-store", "gitlab", "git"],
   },
 ];
 

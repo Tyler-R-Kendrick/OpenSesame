@@ -109,6 +109,8 @@ describe("AppShell", () => {
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
     expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Command")).toBeTruthy();
+    expect(screen.queryByPlaceholderText("Questions only")).toBeNull();
     // The rail's lowercase segments are always drawn; the capitalised labels
     // are the phone's, and a phone keeps its sections behind one key.
     const labels = [
@@ -143,16 +145,13 @@ describe("AppShell", () => {
     expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw", "gs"]);
   });
 
-  it.skip("hangs the settings categories under settings/ when inside", () => {
+  it("lists Vaults and Connections as sibling settings tabs", () => {
     const { container } = renderShell("/settings/security");
     const rail = container.querySelector(".railtree");
-    const security = rail?.querySelector('a[href="/settings/security"]');
-    expect(security?.textContent).toContain("Security");
-    expect(security?.className).toContain("is-active");
-    expect(rail?.querySelector('a[href="/settings/data"]')).toBeNull();
-    expect(rail?.querySelector('a[href="/settings/vaults"]')).toBeNull();
-    expect(rail?.textContent).toContain("Connections");
-    expect(rail?.textContent).not.toContain("Vault data");
+    const vaults = rail?.querySelector('a[href="/settings/vaults"]');
+    const connections = rail?.querySelector('a[href="/settings/connections"]');
+    expect(vaults?.getAttribute("aria-level")).toBe("2");
+    expect(connections?.getAttribute("aria-level")).toBe("2");
   });
 
   it.each([

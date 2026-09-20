@@ -96,7 +96,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "shell.connectivity",
     description:
-      "Statusline strip reporting whether the Host plane and the Identity plane are reachable right now.",
+      "Statusline strip reporting whether identity on this device is ready right now.",
     role: "status",
     routes: [],
     capabilityId: "host.health.pages",

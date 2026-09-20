@@ -6,17 +6,12 @@ import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 import { featureBindingSections } from "../connections/page-tree.js";
 import "../connections.css";
-import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./ActiveProjectPanel.js";
-import { CoreConnectionsPanel } from "./CoreConnectionsPanel.js";
-import { EndpointsPanel } from "./EndpointsPanel.js";
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./ModelProviderPanel.js";
 
-/** Capability families, plus the planes and endpoints that used to be a second section. */
+/** Capability families plus Models. */
 export function FeatureBindingsPanel({
-  ActiveProjectPanel = DefaultActiveProjectPanel,
   ModelProviderPanel = DefaultModelProviderPanel,
 }: {
-  ActiveProjectPanel?: ComponentType;
   ModelProviderPanel?: ComponentType;
 } = {}) {
   const { hash } = useLocation();
@@ -33,9 +28,6 @@ export function FeatureBindingsPanel({
         <h2>Connections</h2>
       </div>
       <div className="panel__body">
-        <CoreConnectionsPanel />
-        <EndpointsPanel />
-        <ActiveProjectPanel />
         <GuideTarget id="settings.model-provider">
           <ModelProviderPanel />
         </GuideTarget>

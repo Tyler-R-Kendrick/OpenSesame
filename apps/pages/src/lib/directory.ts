@@ -135,7 +135,7 @@ export async function call<T>(
     throw new DirectoryError(
       0,
       "unreachable",
-      `Identity API unreachable at ${identityBase()}. Start it, or point at a running one under Settings.`,
+      `Sign-in service unreachable at ${identityBase()}.`,
     );
   }
 
@@ -365,16 +365,16 @@ function createOrganizationDefault(
  */
 function approveDeviceWords(error: DirectoryError): string {
   if (error.code === "operator_token_unconfigured") {
-    return "Device approval is not enabled on this Identity service — the operator sets OPENSESAME_OPERATOR_TOKEN.";
+    return "Device approval is not enabled on this sign-in service.";
   }
   if (error.code === "host_api_unreachable") {
-    return "The Host is unreachable, so the approval could not be delivered. Start the Host and try again.";
+    return "Approval could not be delivered. Try again when the service is reachable.";
   }
   if (error.code === "host_approval_failed" && error.status === 404) {
     return "No device is waiting on that code — check the code the device shows and try again.";
   }
   if (error.code === "host_approval_failed") {
-    return "The Host could not approve that code — ask the device for a fresh one and try again.";
+    return "That code could not be approved — ask the device for a fresh one and try again.";
   }
   if (error.code === "invalid_request") {
     return "Enter the user code exactly as the device shows it.";

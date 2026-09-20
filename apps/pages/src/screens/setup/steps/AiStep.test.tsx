@@ -12,9 +12,11 @@ import {
   MODEL_PROVIDER_KEY,
   loadModelProvider,
 } from "../../../lib/model-provider.js";
+import { modelSlugSeams } from "../../../lib/model-slugs.js";
 import { AiStep } from "./AiStep.js";
 
 const originalSeams = { ...browserInferenceSeams };
+const originalList = modelSlugSeams.listConnections;
 
 function capableBrowser() {
   browserInferenceSeams.isSecureContext = () => true;
@@ -44,39 +46,39 @@ beforeEach(async () => {
   await kvSetDurable(MODEL_PROVIDER_KEY, "");
   speechAvailable();
   capableBrowser();
+  modelSlugSeams.listConnections = async () => [];
 });
 
 afterEach(() => {
   cleanup();
   Object.assign(browserInferenceSeams, originalSeams);
+  modelSlugSeams.listConnections = originalList;
   resetSpeechSeams();
   vi.restoreAllMocks();
 });
 
 describe("AiStep", () => {
-  it("offers voice and inference catalog picks", async () => {
+  it("offers voice and inference slug selects", async () => {
     render(<AiStep />);
 
-    expect(await screen.findByRole("heading", { name: "Voice" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Inference" })).toBeTruthy();
-    expect(
-      await screen.findByRole("button", {
-        name: /This device's own model/,
-      }),
-    ).toBeTruthy();
+    expect(await screen.findByLabelText("Voice model")).toBeTruthy();
+    expect(screen.getByLabelText("Inference model")).toBeTruthy();
   });
 
-  it("persists a speech language and an inference preset", async () => {
+  it("persists a speech language and an inference slug", async () => {
     render(<AiStep />);
 
-    const lang = await screen.findByLabelText("Speech language");
-    await userEvent.selectOptions(lang, "de-DE");
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Voice model"),
+      "browser-speech/de-DE",
+    );
     await waitFor(() => {
       expect(loadModelProvider().voice.model).toBe("de-DE");
     });
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Ollama/ }),
+    await userEvent.selectOptions(
+      screen.getByLabelText("Inference model"),
+      "ollama/qwen2.5-vl:7b",
     );
     await waitFor(() => {
       expect(loadModelProvider().inference.provider).toBe("ollama");
@@ -84,16 +86,16 @@ describe("AiStep", () => {
     });
   });
 
-  it("withholds the browser inference card when the device cannot carry one", async () => {
+  it("withholds browser inference when the device cannot carry one", async () => {
     browserInferenceSeams.languageModel = () => null;
     browserInferenceSeams.gpu = () => null;
     render(<AiStep />);
 
+    const inference = await screen.findByLabelText("Inference model");
     expect(
-      await screen.findByRole("heading", { name: "Inference" }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: /This device's own model/ }),
-    ).toBeNull();
+      Array.from(inference.querySelectorAll("option")).some(
+        (option) => option.value === "browser/",
+      ),
+    ).toBe(false);
   });
 });

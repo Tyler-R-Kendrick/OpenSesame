@@ -222,7 +222,7 @@ function notImplemented(path: string): Response {
   return json(
     {
       error: "device_identity",
-      hint: `This device identity host does not implement ${path}. Point Settings at a remote Identity API for that capability, or use the matching local Identity screen.`,
+      hint: `This device identity host does not implement ${path}. Use the matching local Identity screen, or connect a sign-in service if your organisation provides one.`,
     },
     501,
   );

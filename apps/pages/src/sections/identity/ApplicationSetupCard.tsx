@@ -47,8 +47,8 @@ export function ApplicationSetupCard(props: {
         <p className="hint">
           This is a local browser-mediated relying party. Registration is not
           consent. OpenSesame Pages is not a SAML IdP or LDAP server. Hosted
-          public PKCE and confidential clients live on the Identity API when one
-          is configured.
+          public PKCE and confidential clients live on your sign-in service when
+          one is configured.
         </p>
         <dl>
           <dt>Authority</dt>

@@ -27,6 +27,7 @@ import {
   siDiscord,
   siDropbox,
   siElevenlabs,
+  siGit,
   siGithub,
   siGitlab,
   siGnuprivacyguard,
@@ -88,6 +89,7 @@ export function adaptiveHex(hex: string): string | null {
 }
 
 const MARKS = {
+  git: markOf(siGit),
   github: markOf(siGithub),
   gitlab: markOf(siGitlab),
   google: markOf(siGoogle),

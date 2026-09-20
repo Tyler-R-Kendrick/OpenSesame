@@ -115,7 +115,11 @@ export function featureBindingSections(
       label: CATEGORY_LABELS[category],
       href: `/settings/connections#${category}`,
       items: items.map((provider) =>
-        leaf(provider.id, provider.displayName, connectorPath(provider.id)),
+        leaf(
+          provider.id,
+          provider.displayName,
+          connectorPath(provider.id, undefined, "/settings/connections"),
+        ),
       ),
     });
   }

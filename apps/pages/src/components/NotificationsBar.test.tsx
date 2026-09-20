@@ -85,8 +85,8 @@ describe("NotificationsBar", () => {
     setStatusNotice({
       id: "host-down",
       tone: "warn",
-      title: "Host API unavailable",
-      body: "Host authorization needs the Host API.",
+      title: "Service unavailable",
+      body: "Authorization needs a connection.",
       ceremony: "identity",
       ceremonyLabel: "Repair the Identity connection",
       retry,
@@ -100,19 +100,17 @@ describe("NotificationsBar", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Notifications — 1 pending" }),
     );
-    expect(screen.getByText("Host API unavailable")).toBeTruthy();
-    expect(
-      screen.getByText("Host authorization needs the Host API."),
-    ).toBeTruthy();
+    expect(screen.getByText("Service unavailable")).toBeTruthy();
+    expect(screen.getByText("Authorization needs a connection.")).toBeTruthy();
     // Repair opens the Host ceremony in place — never a route change.
     expect(screen.queryByRole("link")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Repair the Host connection" }),
+      screen.getByRole("button", { name: "Repair the connection" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByText("Host API unavailable")).toBeNull();
+    expect(screen.queryByText("Service unavailable")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Notifications — none" }),
     ).toBeTruthy();

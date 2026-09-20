@@ -49,9 +49,8 @@ export function useSupportMarkSlot(): HTMLElement | null {
 }
 
 /**
- * The ask field, at the foot of the support sheet. The shell's command bar
- * is the field that is always on screen; a sentence it cannot run arrives
- * here as the first question, and follow-ups are typed where the answers are.
+ * Ask field at the foot of the support sheet. The statusline CommandBar is
+ * the always-on field; unmatched commands land here as questions.
  */
 export function SupportComposer(): ReactElement {
   const { view, support } = useSupport();
@@ -78,7 +77,7 @@ export function SupportComposer(): ReactElement {
           type="text"
           value={question}
           maxLength={SUPPORT_LIMITS.maxQuestionChars}
-          placeholder={canAsk ? "Ask about this screen" : "Questions only"}
+          placeholder="Ask about this screen"
           disabled={!canAsk}
           onChange={(event) => setQuestion(event.target.value)}
         />

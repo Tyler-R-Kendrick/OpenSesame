@@ -75,7 +75,7 @@ async function registerByoProviderDefault(
   if (!base) {
     throw new ByoError(
       "no_identity_api",
-      "This deployment isn't connected to an identity service yet, so a provider can't be registered.",
+      "No sign-in service is connected, so a provider can't be registered.",
     );
   }
   let response: Response;
@@ -90,7 +90,7 @@ async function registerByoProviderDefault(
   } catch {
     throw new ByoError(
       "identity_unavailable",
-      "The identity service couldn't be reached. Check your connection and try again.",
+      "The sign-in service couldn't be reached. Check your connection and try again.",
     );
   }
   const body: BoundaryValue = await response.json().catch(() => null);
@@ -100,14 +100,14 @@ async function registerByoProviderDefault(
     }
     throw new ByoError(
       "registration_failed",
-      `The identity service refused the registration (${response.status}).`,
+      `The sign-in service refused the registration (${response.status}).`,
     );
   }
   const parsed = overlapCast<BoundaryValue, BoundaryValue>(body);
   if (!isRegistration(parsed)) {
     throw new ByoError(
       "registration_failed",
-      "The identity service returned an unusable registration.",
+      "The sign-in service returned an unusable registration.",
     );
   }
   return parsed;

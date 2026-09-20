@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bundledProviders,
   decodeEmbeddedProviders,
+  getBundledProviders,
 } from "./embedded-catalog.js";
 
 describe("embedded connector catalog", () => {
@@ -38,6 +39,16 @@ describe("embedded connector catalog", () => {
     ]) {
       expect(ids).toContain(id);
     }
+  });
+
+  it("prepends forge-agnostic git under backup/recovery", () => {
+    const providers = getBundledProviders();
+    expect(providers[0]).toMatchObject({
+      id: "git",
+      category: "backup_recovery",
+      authKind: "configuration",
+    });
+    expect(providers.some((provider) => provider.id === "gitlab")).toBe(true);
   });
 
   it("keeps identity fallback authority aligned with the Host catalog", () => {
