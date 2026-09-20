@@ -4,8 +4,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
-import { GUEST_PERSON_ID } from "../../lib/local-guest.js";
+import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import {
   SHARE_DURATIONS,
@@ -96,12 +97,6 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
         </fieldset>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          A session is bound to this vault. While running it issues time-boxed
-          grants for chosen identities or roles (and optional rows). The join
-          code is what others redeem. Stop revokes the grants; restart reissues
-          them.
-        </p>
         {error ? (
           <p className="note note--err" role="alert">
             {error}
@@ -164,11 +159,15 @@ function SessionRow({
             {session.grants.length === 1 ? "" : "s"} · bound {session.boundTomb}
           </code>
         </div>
-        <span className="chip">{session.status}</span>
+        <StatusMark
+          tone={session.status === "stopped" ? "idle" : "ok"}
+          label={session.status}
+        />
         {session.expiresAt ? (
-          <span className="chip">
-            until {new Date(session.expiresAt).toLocaleString()}
-          </span>
+          <StatusMark
+            tone="idle"
+            label={`Until ${new Date(session.expiresAt).toLocaleString()}`}
+          />
         ) : null}
         <div className="actions">
           {session.status === "stopped" ? (
@@ -250,17 +249,6 @@ function NewVaultSessionForm({
         resourceId: itemId,
         resourceLabel: item?.label ?? itemId,
         policy: "read",
-      });
-    }
-    // Always include an explicit guest principal grant when targeting guests,
-    // so redeem-by-code can match either the role or the standing guest id.
-    if (subject === "guest") {
-      grants.push({
-        subject: { kind: "principal", principalId: GUEST_PERSON_ID },
-        resourceKind: grants[0]?.resourceKind ?? "vault",
-        resourceId: grants[0]?.resourceId ?? vault.id,
-        resourceLabel: grants[0]?.resourceLabel ?? vault.label,
-        policy: grants[0]?.policy ?? "open",
       });
     }
     onSave({ label, durationSeconds: duration, grants });
@@ -371,11 +359,13 @@ function NewVaultSessionForm({
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
           onClick={onCancel}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </form>

@@ -424,20 +424,6 @@
   display: none;
 }
 
-.icon-btn--danger {
-  color: var(--err);
-}
-
-.icon-btn--danger:hover:not(:disabled) {
-  background: var(--err-wash);
-  color: var(--err);
-}
-
-.icon-btn--danger.is-armed {
-  background: var(--err);
-  color: var(--err-ink);
-}
-
 .detail__head {
   display: flex;
   align-items: flex-start;

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import {
+  IconCheck,
+  IconPlus,
+  IconRefresh,
+  IconX,
+} from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
   type DirectoryUser,
   createDirectoryUser,
@@ -249,18 +255,22 @@ function UsersForm({
       <div className="actions">
         <button
           type="submit"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={busy || !online || !draft.userName.trim()}
+          aria-label="Save user"
+          title="Save user"
         >
-          {busy ? "Saving…" : draft.id ? "Save user" : "Create user"}
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
           onClick={() => setDraft(null)}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </form>
@@ -281,7 +291,10 @@ function UsersRows({
               <h3>{user.displayName || user.userName}</h3>
               <code className="identity-ref">{user.userName}</code>
             </div>
-            <span className="chip">{user.active ? "active" : "inactive"}</span>
+            <StatusMark
+              tone={user.active ? "ok" : "idle"}
+              label={user.active ? "Active" : "Inactive"}
+            />
             <button
               type="button"
               className="btn btn--sm"

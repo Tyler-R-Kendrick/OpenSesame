@@ -33,7 +33,7 @@ export function NoHostNote({
         {road ? (
           <>
             {" — connect one under "}
-            <Link to="/settings/connectivity">Settings → Connectivity</Link>
+            <Link to="/settings/connections">Settings → Connections</Link>
           </>
         ) : null}
         .

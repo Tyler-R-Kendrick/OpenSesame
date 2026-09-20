@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { IconCheck, IconGitBranch } from "../../components/Icons.js";
 
 /** The masked value goes up once and the parent clears it on submit, success
  * or failure. All returned data remains metadata, never a secret value. */
@@ -43,10 +44,12 @@ export function SecretConfigSetForm({
       </div>
       <button
         type="submit"
-        className="btn btn--primary"
+        className="icon-btn"
         disabled={busy || !newKeyName.trim() || !newKeyValue}
+        aria-label="Set secret"
+        title="Set secret"
       >
-        Set secret
+        <IconCheck size={16} />
       </button>
     </form>
   );
@@ -78,10 +81,12 @@ export function SecretConfigBranchForm({
       </div>
       <button
         type="submit"
-        className="btn"
+        className="icon-btn"
         disabled={busy || !branchSlug.trim()}
+        aria-label="Branch"
+        title="Branch"
       >
-        Branch
+        <IconGitBranch size={16} />
       </button>
     </form>
   );

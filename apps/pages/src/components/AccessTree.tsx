@@ -4,7 +4,7 @@ import {
   useHostConfigured,
   useIdentityConfigured,
 } from "../lib/use-configured.js";
-import { useVaultStore } from "../lib/vault/hooks.js";
+import { useVault } from "../lib/vault/hooks.js";
 import { useLocalShares } from "../sections/access/LocalSharePanel.js";
 import { accessPageTree } from "../sections/access/page-tree.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
@@ -25,7 +25,7 @@ export function AccessTree({
   const identity = useIdentityConfigured();
   const view = ACCESS_VIEWS.find((id) => id === params.get("view")) ?? "grants";
   const current = `/access?view=${view}${hash}`;
-  const tomb = useVaultStore().activeTomb?.() ?? "";
+  const { tomb } = useVault();
   const shares = useLocalShares(tomb).shares.map((share) => ({
     id: share.id,
     label: `${share.resourceKind}: ${share.resourceLabel}`,

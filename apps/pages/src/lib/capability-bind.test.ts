@@ -14,7 +14,6 @@ const BASE: PagesSettings = {
   hostApi: "http://127.0.0.1:18787",
   identityApi: "http://127.0.0.1:18788",
   daemonApi: "http://127.0.0.1:18790",
-  tursoUrl: "",
   mfaAppUrl: "",
   capabilityConnectors: {
     ...defaultCapabilityConnectors(),
@@ -109,7 +108,6 @@ describe("bindingNeedsAuth", () => {
 describe("authorizeCapabilityConnector", () => {
   function arrange(over: Partial<typeof capabilityBindDependencies> = {}) {
     Object.assign(capabilityBindDependencies, {
-      ensureHostSession: vi.fn().mockResolvedValue(undefined),
       listConnections: vi.fn().mockResolvedValue([]),
       createConnection: vi
         .fn()
@@ -234,7 +232,7 @@ describe("authorizeCapabilityConnector", () => {
     stored.capabilityConnectors.encryption = { providerId: "yubikey" };
     const shut = vi.fn();
     arrange({
-      ensureHostSession: vi.fn().mockRejectedValue(new Error("host is down")),
+      listConnections: vi.fn().mockRejectedValue(new Error("identity is down")),
     });
     const consentPopup = popup();
     consentPopup.close = shut;
@@ -242,7 +240,7 @@ describe("authorizeCapabilityConnector", () => {
       "encryption",
       consentPopup,
     );
-    expect(outcome).toEqual({ tone: "err", text: "host is down" });
+    expect(outcome).toEqual({ tone: "err", text: "identity is down" });
     // A popup left open on about:blank is a window the person has to go and
     // find and close themselves.
     expect(shut).toHaveBeenCalled();

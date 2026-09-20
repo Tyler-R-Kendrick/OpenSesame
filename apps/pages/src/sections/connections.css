@@ -226,6 +226,23 @@
   word-break: break-all;
 }
 
+.conn-card__repo {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+}
+
+.conn-card__repo .conn-card__ref {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+
+.conn-card__repo input {
+  font-family: var(--mono);
+}
+
 .conn-card__chips {
   display: flex;
   flex-wrap: wrap;
@@ -312,23 +329,6 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--ink-3);
-}
-
-.conn-confirm {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  border: 1px solid var(--warn);
-  border-radius: var(--radius);
-  background: var(--warn-wash);
-  animation: rise 0.16s var(--ease) both;
-}
-
-.conn-confirm p {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.55;
-  color: var(--ink);
 }
 
 /* ------------------------------------------------------------- bindings */
@@ -469,6 +469,9 @@
 }
 
 .conn-group__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0 0 0.625rem;
   font-size: 0.75rem;
   color: var(--ink-2);
@@ -514,6 +517,19 @@
 .conn-tile__link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+button.conn-tile__link {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.conn-tile__link > .status-mark {
+  margin-left: auto;
 }
 
 .conn-tile__copy {
@@ -775,6 +791,20 @@
   align-items: center;
   gap: 0.4rem;
   color: var(--ok);
+}
+
+.conn-github-presence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
+}
+
+.conn-github-presence .conn-card__ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
 }
 
 .conn-callback {

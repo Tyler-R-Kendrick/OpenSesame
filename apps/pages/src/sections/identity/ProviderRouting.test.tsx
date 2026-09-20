@@ -67,6 +67,7 @@ it("registers the compiled browser provider without an Identity endpoint", async
     ),
   );
   expect(listIdpRegistrations()).toEqual([
+    expect.objectContaining({ id: "opensesame-device", kind: "device" }),
     expect.objectContaining({ id: "shoo", issuer: "https://shoo.dev" }),
   ]);
   expect(fetch).not.toHaveBeenCalled();
@@ -109,7 +110,10 @@ it("preserves an existing provider when a registration retry cannot start", asyn
   );
   await chooseDefault();
   await screen.findByText("Sign-in unavailable");
-  expect(listIdpRegistrations()).toEqual([previous]);
+  expect(listIdpRegistrations()).toEqual([
+    expect.objectContaining({ id: "opensesame-device", kind: "device" }),
+    previous,
+  ]);
 });
 
 it("removes only the new record when initial registration cannot start", async () => {
@@ -118,5 +122,7 @@ it("removes only the new record when initial registration cannot start", async (
   );
   await chooseDefault();
   await screen.findByText("Sign-in unavailable");
-  expect(listIdpRegistrations()).toEqual([]);
+  expect(listIdpRegistrations()).toEqual([
+    expect.objectContaining({ id: "opensesame-device", kind: "device" }),
+  ]);
 });

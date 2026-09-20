@@ -1,5 +1,6 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { useEffect, useId, useRef, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 
 export function LocalAgentEnrollment({
   disabled,
@@ -60,18 +61,22 @@ export function LocalAgentEnrollment({
       <div className="actions">
         <button
           type="submit"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={disabled || !draft.trim()}
+          aria-label="Save public key"
+          title="Save public key"
         >
-          Save public key
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={disabled}
           onClick={close}
+          aria-label="Cancel enrollment"
+          title="Cancel enrollment"
         >
-          Cancel enrollment
+          <IconX size={16} />
         </button>
       </div>
     </form>

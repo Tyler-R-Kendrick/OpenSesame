@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 import {
   type LocalDevice,
   removeLocalDevice,
@@ -185,18 +186,22 @@ function RenameForm({
       <div className="actions">
         <button
           type="submit"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={busy || !draft.name.trim()}
+          aria-label="Save name"
+          title="Save name"
         >
-          Save name
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
           onClick={onCancel}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </form>

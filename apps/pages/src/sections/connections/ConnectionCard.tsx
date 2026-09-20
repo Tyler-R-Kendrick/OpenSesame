@@ -1,24 +1,21 @@
 import { useState } from "react";
 import {
-  IconClock,
   IconExternal,
   IconInfo,
-  IconRefresh,
   IconTrash,
+  IconX,
 } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import {
   authorizeConnection,
   awaitConsent,
   openConsentPopup,
-  refreshConnection,
   revokeConnection,
 } from "../../lib/connections.js";
-import { ensureHostSession } from "../../lib/identity.js";
-import { isConnectConnector } from "../../lib/vercel-connect.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { ActivityLog } from "./ActivityLog.js";
-import { BindingEditor } from "./BindingEditor.js";
+import { GithubBackupField } from "./GithubBackupRepo.js";
+import { GithubCardDetails } from "./GithubInstallationPanel.js";
 import {
   type Flash,
   STATUS_CHIP,
@@ -27,28 +24,34 @@ import {
   statusSentence,
 } from "./shared.js";
 
+function ignoreBackupReady(_ready: boolean): void {}
+
 export function ConnectionCard({
   connection,
   provider,
   online,
   onFlash,
   onChanged,
-  showBindings = true,
+  onBackupReady,
 }: {
   connection: Connection;
   provider: Provider | null;
   online: boolean;
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
-  showBindings?: boolean;
+  onBackupReady?: (ready: boolean) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [showActivity, setShowActivity] = useState(false);
-  const renewRef = useGuideTarget<HTMLButtonElement>("connections.renew");
   const revokeRef = useGuideTarget<HTMLButtonElement>("connections.revoke");
   const chip = STATUS_CHIP[connection.status];
   const revoked = connection.status === "revoked";
+  const authorizeLabel =
+    busy === "authorize"
+      ? "Waiting for consent"
+      : connection.status === "pending"
+        ? "Authorize"
+        : "Re-authorize";
 
   async function act(label: string, work: () => Promise<void>, done: string) {
     setBusy(label);
@@ -67,8 +70,6 @@ export function ConnectionCard({
     const popup = openConsentPopup("about:blank");
     setBusy("authorize");
     try {
-      if (!isConnectConnector(connection.connectionId))
-        await ensureHostSession();
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );
@@ -132,10 +133,18 @@ export function ConnectionCard({
       <div className="conn-card__top">
         <div className="conn-card__title">
           <h3>{connection.displayName}</h3>
+          {provider?.id === "github" ? (
+            <GithubBackupField
+              connection={connection}
+              online={online}
+              onFlash={onFlash}
+              onReady={onBackupReady ?? ignoreBackupReady}
+            />
+          ) : null}
           <p className="conn-card__ref">{connection.connectionRef}</p>
         </div>
         <div className="conn-card__chips">
-          <span className={`chip ${chip.tone}`}>{chip.label}</span>
+          <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
           {provider ? (
             <span className="chip">{provider.displayName}</span>
           ) : null}
@@ -146,7 +155,11 @@ export function ConnectionCard({
         {statusSentence(connection, provider)}
       </p>
 
-      {scopes.length > 0 ? (
+      {provider?.id === "github" ? (
+        <GithubCardDetails connection={connection} />
+      ) : null}
+
+      {provider?.id === "github" || scopes.length === 0 ? null : (
         <div className="conn-card__block">
           <p className="conn-card__label">Allowed to</p>
           <ul className="conn-scopes">
@@ -157,16 +170,17 @@ export function ConnectionCard({
                   <code>{scope}</code>
                   {def ? <span>{def.description}</span> : null}
                   {def?.sensitive ? (
-                    <span className="chip chip--warn chip--sm">broad</span>
+                    <StatusMark tone="warn" label="Broad" />
                   ) : null}
                 </li>
               );
             })}
           </ul>
         </div>
-      ) : null}
+      )}
 
-      {connection.egress.authorities.length > 0 ? (
+      {provider?.id === "github" ||
+      connection.egress.authorities.length === 0 ? null : (
         <p className="conn-card__egress">
           <IconInfo size={15} />
           The credential is only ever attached to{" "}
@@ -175,130 +189,80 @@ export function ConnectionCard({
             <span key={authority}>
               {index > 0 ? ", " : ""}
               <code>{authority}</code>
-              {/* Glued to the host so the period cannot wrap onto its own line. */}
+              {/* Glued to the authority so the period cannot wrap onto its own line. */}
               {index === connection.egress.authorities.length - 1 ? "." : ""}
             </span>
           ))}{" "}
           Anywhere else, it is not sent.
         </p>
-      ) : null}
-
-      {revoked || !showBindings ? null : (
-        <BindingEditor
-          connection={connection}
-          online={online}
-          onFlash={onFlash}
-          onChanged={onChanged}
-        />
       )}
 
       <div className="conn-card__foot">
         <div className="actions">
           {revoked ? null : (
             <>
-              {connection.status === "active" && connection.refreshable ? (
-                <button
-                  ref={renewRef}
-                  type="button"
-                  className="btn btn--sm"
-                  disabled={busy !== null || !online}
-                  onClick={() =>
-                    void act(
-                      "refresh",
-                      () =>
-                        refreshConnection(connection.connectionId).then(
-                          () => undefined,
-                        ),
-                      `${connection.displayName} was renewed.`,
-                    )
-                  }
-                >
-                  <IconRefresh size={16} />
-                  {busy === "refresh" ? "Renewing…" : "Renew now"}
-                </button>
-              ) : null}
               {provider?.authKind === "oauth2_authorization_code" ? (
                 <button
                   type="button"
-                  className={`btn btn--sm${
-                    connection.status === "active" ? "" : " btn--primary"
-                  }`}
+                  className="icon-btn icon-btn--sm"
                   disabled={busy !== null || !online}
+                  aria-label={authorizeLabel}
+                  title={authorizeLabel}
                   onClick={() => void reauthorize()}
                 >
                   <IconExternal size={16} />
-                  {busy === "authorize"
-                    ? "Waiting for consent…"
-                    : connection.status === "pending"
-                      ? "Authorize"
-                      : "Re-authorize"}
                 </button>
               ) : null}
             </>
           )}
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost"
-            onClick={() => setShowActivity((on) => !on)}
-          >
-            <IconClock size={16} />
-            {showActivity ? "Hide history" : "History"}
-          </button>
           {revoked ? null : (
             <button
               ref={revokeRef}
               type="button"
-              className="btn btn--sm btn--danger"
+              className={`icon-btn icon-btn--sm icon-btn--danger${
+                confirming ? " is-armed" : ""
+              }`}
               disabled={busy !== null || !online}
-              onClick={() => setConfirming(true)}
-            >
-              <IconTrash size={16} />
-              Revoke
-            </button>
-          )}
-        </div>
-        <p className="conn-card__meta">
-          Authorized {formatWhen(connection.createdAt)}
-          {connection.lastRefreshedAt
-            ? ` · renewed ${formatWhen(connection.lastRefreshedAt)}`
-            : ""}
-        </p>
-      </div>
-
-      {confirming ? (
-        <div className="conn-confirm">
-          <p>
-            Revoking cuts off every project and agent bound to{" "}
-            <strong>{connection.displayName}</strong> at once, and asks the
-            provider to invalidate the token. Reconnecting means approving it
-            again.
-          </p>
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn--sm btn--danger"
-              disabled={busy !== null}
+              aria-label={confirming ? "Revoke it" : "Revoke"}
+              title={
+                confirming
+                  ? `Revoke ${connection.displayName}. Bindings to it stop.`
+                  : "Revoke"
+              }
               onClick={() => {
+                if (!confirming) {
+                  setConfirming(true);
+                  return;
+                }
                 setConfirming(false);
                 void revoke();
               }}
             >
-              Revoke it
+              <IconTrash size={16} />
             </button>
+          )}
+          {confirming ? (
             <button
               type="button"
-              className="btn btn--sm"
+              className="icon-btn icon-btn--sm"
+              aria-label="Keep it"
+              title="Keep it"
               onClick={() => setConfirming(false)}
             >
-              Keep it
+              <IconX size={16} />
             </button>
-          </div>
+          ) : null}
         </div>
-      ) : null}
-
-      {showActivity ? (
-        <ActivityLog connectionId={connection.connectionId} />
-      ) : null}
+        <p className="conn-card__meta">
+          {confirming
+            ? `Revoke ${connection.displayName}. Bindings to it stop.`
+            : `Authorized ${formatWhen(connection.createdAt)}${
+                connection.lastRefreshedAt
+                  ? ` · renewed ${formatWhen(connection.lastRefreshedAt)}`
+                  : ""
+              }`}
+        </p>
+      </div>
     </li>
   );
 }

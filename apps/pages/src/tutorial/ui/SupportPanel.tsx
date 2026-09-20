@@ -247,10 +247,12 @@ export function SupportPanel(): ReactElement {
               <output className="support__pending-read">Thinking…</output>
               <button
                 type="button"
-                className="btn btn--sm"
+                className="icon-btn icon-btn--sm"
                 onClick={() => support.cancel()}
+                aria-label="Cancel"
+                title="Cancel"
               >
-                Cancel
+                <IconX size={16} />
               </button>
             </div>
           ) : null}

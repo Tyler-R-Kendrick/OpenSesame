@@ -13,13 +13,8 @@
 
 import type { ReactNode } from "react";
 import { type DeviceVault, describeSealedAt } from "../lib/vaults.js";
-import {
-  IconCheck,
-  IconChevronRight,
-  IconFolder,
-  IconUser,
-  IconVault,
-} from "./Icons.js";
+import { IconChevronRight, IconFolder, IconUser, IconVault } from "./Icons.js";
+import { StatusMark } from "./StatusMark.js";
 
 type Props = {
   vaults: readonly DeviceVault[];
@@ -55,16 +50,14 @@ function Mark({ vault }: { vault: DeviceVault }) {
 
 function StateChip({ vault }: { vault: DeviceVault }) {
   if (vault.state === "open") {
-    return (
-      <span className="chip chip--accent">
-        <IconCheck size={12} />
-        open
-      </span>
-    );
+    return <StatusMark tone="ok" label="Open" />;
   }
   if (vault.kind === "guest") return null;
   return (
-    <span className="chip">{vault.state === "empty" ? "new" : "locked"}</span>
+    <StatusMark
+      tone="idle"
+      label={vault.state === "empty" ? "New" : "Locked"}
+    />
   );
 }
 

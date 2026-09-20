@@ -1,16 +1,13 @@
 /**
  * Core connector status — what the connectivity bar shows.
  *
- * Host, Identity, and this machine have to answer before OpenSesame can
- * authorize anything. Git history is optional persistence on top of the
- * in-browser vault; the key vault defaults to WebCrypto on this device.
- * Settings used to state all five as endpoint forms; they are states, so they
- * read as glyphs and are repaired by a ceremony instead.
+ * Identity names who is signed in; the key vault is the WebCrypto default
+ * on this device. Both are states, so they read as glyphs and are repaired
+ * by a ceremony instead of an endpoint form.
  *
  * Nothing here probes. Reachability arrives from the connectivity monitor,
- * which owns the schedule for the whole tab; history and keys are derived from
- * the persisted capability bindings. This file's only job is turning both into
- * something a glyph can say.
+ * which owns the schedule for the whole tab. This file's only job is
+ * turning a monitor reading into something a glyph can say.
  */
 
 import { briefOrigin, repoHint } from "@opensesame/os-domain";
@@ -23,26 +20,20 @@ import {
 import {
   type MonitorSnapshot,
   type TargetState,
-  daemonIsProbable,
   useConnectivityMonitor,
 } from "./connectivity-monitor.js";
 import {
-  type HostPlane,
   type IdentityPlane,
   type PlaneStatus,
   usePlaneStatus,
 } from "./planes.js";
 import { type FailureClass, failureLabel } from "./probe-failure.js";
-import {
-  type PagesSettings,
-  loadSettings,
-  pageIsLoopback,
-} from "./settings.js";
+import { type PagesSettings, loadSettings } from "./settings.js";
 import { useSettingsEpoch } from "./use-settings.js";
 
 export { briefOrigin, repoHint };
 
-export type ConnectorId = "host" | "identity" | "machine" | "history" | "keys";
+export type ConnectorId = "identity" | "keys";
 
 /**
  * `live` is green with a pip, `attn` is amber with a pip, `off` is a ghosted
@@ -50,7 +41,7 @@ export type ConnectorId = "host" | "identity" | "machine" | "history" | "keys";
  *
  * `offline` earns its own tone because the alternative is a lie: with the
  * radio off, every remote connector would go amber and blame an endpoint that
- * is probably fine. One cause, said once, beats four wrong diagnoses.
+ * is probably fine. One cause, said once, beats two wrong diagnoses.
  *
  * A probe in flight never changes the tone — it shows as a pulse instead, so
  * the bar does not flicker every cadence.
@@ -77,10 +68,7 @@ export type ConnectorStatus = {
 
 /** Bar order, left to right. Also the tile order in Settings. */
 export const CONNECTOR_IDS: readonly ConnectorId[] = [
-  "host",
   "identity",
-  "machine",
-  "history",
   "keys",
 ] as const;
 
@@ -121,55 +109,16 @@ const UNPROBED = {
   rttMs: null,
 } as const;
 
-export function classifyHostConnector(
-  status: PlaneStatus,
-  target: TargetState,
-  offline: boolean,
-): ConnectorStatus {
-  const base = briefOrigin(status.hostBase);
-  const shell = { id: "host", name: "Host" } as const;
-  if (status.host === "unset") {
-    return {
-      ...shell,
-      tone: "off",
-      detail: "Not configured",
-      ...probed(target),
-    };
-  }
-  if (offline) {
-    return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
-  }
-  const byPlane = {
-    live: { tone: "live", detail: base },
-    pending: { tone: "live", detail: base ? `Checking ${base}` : "Checking" },
-    loopback: {
-      tone: "attn",
-      // `loopback` only ever means the probe failed. On a loopback page that
-      // is an ordinary "nothing is listening"; anywhere else it also means the
-      // address is one this page could never have called.
-      detail: pageIsLoopback()
-        ? labelFor(target, base, offline)
-        : `${base} is loopback — unreachable from this page`,
-    },
-    down: {
-      tone: "attn",
-      detail: base ? labelFor(target, base, offline) : "Down",
-    },
-    unset: { tone: "off", detail: "Not configured" },
-  } satisfies Record<HostPlane, { tone: ConnectorTone; detail: string }>;
-  return { ...shell, ...byPlane[status.host], ...probed(target) };
-}
-
 export function classifyIdentityConnector(
   status: PlaneStatus,
   target: TargetState,
   offline: boolean,
-  /** Settings Identity URL — empty means the plane status is the device host. */
+  /** Settings Identity URL — empty means the plane status is the device. */
   remoteIdentityApi = "",
 ): ConnectorStatus {
   const shell = { id: "identity", name: "Identity" } as const;
-  // No remote URL: Pages is the identity host whenever the plane status names
-  // an issuer (resolveIdentityBase). An empty status is still "not configured".
+  // No remote URL: Pages is the identity plane whenever the plane status
+  // names an issuer. An empty status is still "not configured".
   if (!remoteIdentityApi.trim() && status.identityBase.trim()) {
     if (offline) {
       return {
@@ -206,44 +155,9 @@ export function classifyIdentityConnector(
   return { ...shell, ...byPlane[status.identity], ...probed(target) };
 }
 
-export function classifyMachineConnector(
-  target: TargetState,
-  daemonApi: string,
-  offline: boolean,
-): ConnectorStatus {
-  const base = briefOrigin(daemonApi);
-  const shell = {
-    id: "machine",
-    name: "This machine",
-  } as const;
-  if (!daemonApi.trim() || !daemonIsProbable(daemonApi, pageIsLoopback())) {
-    return { ...shell, tone: "off", detail: "Not paired", ...probed(target) };
-  }
-  if (offline) {
-    return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
-  }
-  if (target.health === "unknown") {
-    return {
-      ...shell,
-      tone: "live",
-      detail: `Checking ${base}`,
-      ...probed(target),
-    };
-  }
-  if (target.health === "reachable") {
-    return { ...shell, tone: "live", detail: base, ...probed(target) };
-  }
-  return {
-    ...shell,
-    tone: "attn",
-    detail: labelFor(target, base, offline),
-    ...probed(target),
-  };
-}
-
 /**
  * History and keys are the same shape: a capability bound to a catalog
- * connector, which may or may not still need Host to authorize it.
+ * connector, which may or may not still need authorization to finish.
  */
 type CapabilityClassification = { tone: ConnectorTone; detail: string };
 
@@ -262,32 +176,6 @@ function classifyCapability(
   return { tone: "live", detail: label };
 }
 
-export function classifyHistoryConnector(
-  settings: PagesSettings,
-): ConnectorStatus {
-  const binding = settings.capabilityConnectors?.history ?? {
-    providerId: "github",
-  };
-  const shell = {
-    id: "history",
-    name: "Git history",
-    // The vault already lives on this device. Git is optional persistence,
-    // so a missing remote is a connectable off state, not an amber error.
-    ...UNPROBED,
-  } as const;
-  const def = capabilityDef("history");
-  if (def.requiresAuth(binding.providerId) && !binding.connectionId) {
-    return { ...shell, tone: "off", detail: "Not connected" };
-  }
-  if (def.requiresAuth(binding.providerId) && !binding.remote) {
-    return { ...shell, tone: "off", detail: "No repository selected" };
-  }
-  return {
-    ...shell,
-    ...classifyCapability("history", binding),
-  };
-}
-
 export function classifyKeysConnector(
   settings: PagesSettings,
 ): ConnectorStatus {
@@ -304,26 +192,19 @@ export function classifyKeysConnector(
   };
 }
 
-/** Build all five from one monitor reading. Pure, so it is easy to test. */
+/** Build both from one monitor reading. Pure, so it is easy to test. */
 export function buildConnectors(
   plane: PlaneStatus,
   monitor: MonitorSnapshot,
   settings: PagesSettings,
 ): ConnectorStatus[] {
   return [
-    classifyHostConnector(plane, monitor.host, monitor.offline),
     classifyIdentityConnector(
       plane,
       monitor.identity,
       monitor.offline,
       settings.identityApi,
     ),
-    classifyMachineConnector(
-      monitor.machine,
-      settings.daemonApi,
-      monitor.offline,
-    ),
-    classifyHistoryConnector(settings),
     classifyKeysConnector(settings),
   ];
 }
@@ -331,22 +212,17 @@ export function buildConnectors(
 export function useConnectors(): ConnectorStatus[] {
   const plane = usePlaneStatus();
   const monitor = useConnectivityMonitor();
-  // Capability bindings and the daemon address live in settings, and change
-  // without any probe result changing.
+  // Capability bindings live in settings, and change without any probe
+  // result changing.
   useSettingsEpoch();
   return buildConnectors(plane, monitor, loadSettings());
 }
 
 /**
- * The connectors that are an address somebody typed: a Host, an Identity API,
- * a paired machine. Not the bindings (the built-in key vault, git history),
- * whose own `attn` is an authorization to finish rather than a broken address.
+ * The connectors that are an address somebody typed: Identity when remote.
+ * A local vault and the built-in key vault carry no address to break.
  */
-const ENDPOINT_CONNECTORS: ReadonlySet<ConnectorId> = new Set([
-  "host",
-  "identity",
-  "machine",
-]);
+const ENDPOINT_CONNECTORS: ReadonlySet<ConnectorId> = new Set(["identity"]);
 
 /**
  * How many connectors are asking for something.
@@ -355,8 +231,7 @@ const ENDPOINT_CONNECTORS: ReadonlySet<ConnectorId> = new Set([
  * answering. Somebody typed that address, so its silence is a fault worth a
  * number. An endpoint nobody configured is not a fault at all — every plane is
  * optional (ADR 0090), so "nothing connected" is a description of a complete
- * deployment, and the connectors carried a `required` flag that no longer had
- * a true case until it was deleted.
+ * deployment.
  */
 export function needsAttention(connectors: ConnectorStatus[]): number {
   return connectors.filter(

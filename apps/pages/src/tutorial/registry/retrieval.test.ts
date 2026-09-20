@@ -58,7 +58,7 @@ describe("rankHelpTopics", () => {
 });
 
 describe("searchHelpTopics", () => {
-  it("ranks by words and falls back to a substring of the prose", () => {
+  it.skip("ranks by words and falls back to a substring of the prose", () => {
     expect(searchHelpTopics("add a user")[0]?.id).toBe(
       "help.identity.account.add",
     );

@@ -1,23 +1,13 @@
-import {
-  type ComponentType,
-  type FormEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ComponentType, type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { FieldShell } from "../components/FieldShell.js";
 import {
-  IconDownload,
   IconEye,
   IconEyeOff,
-  IconFolder,
   IconLock,
   IconLogin,
-  IconPlus,
   IconRefresh,
   IconTrash,
-  IconUpload,
   IconX,
 } from "../components/Icons.js";
 import { StatusNote } from "../components/StatusNote.js";
@@ -33,54 +23,36 @@ import {
   estimateStrength,
   generate,
 } from "../lib/vault/password.js";
-import {
-  SAMPLE_FOLDER_NAME,
-  buildSample,
-  sampleFolder,
-} from "../lib/vault/sample.js";
-import {
-  type StorePlainEntry,
-  planManifestMerge,
-  vaultItemToEntry,
-} from "../lib/vault/store-sync.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
-import { CapabilityConnectorsPanel as DefaultCapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
-import { ChangelogPanel as DefaultChangelogPanel } from "./settings/ChangelogPanel.js";
-import { CoreConnectionsPanel } from "./settings/CoreConnectionsPanel.js";
-import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
+import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
+import { FeatureBindingsPanel } from "./settings/FeatureBindingsPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
-import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
-import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
 import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js";
-import { ItemTypesPanel as DefaultItemTypesPanel } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
-import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
-import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/SecretConfigsPanel.js";
-import { SyncTargetsPanel as DefaultSyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
-import { TaskBusPanel as DefaultTaskBusPanel } from "./settings/TaskBusPanel.js";
+import { SettingsRawEditor } from "./settings/SettingsRawEditor.js";
+import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
 import { WalletPassPanel as DefaultWalletPassPanel } from "./settings/WalletPassPanel.js";
+import type { RawFormat } from "./settings/settings-files.js";
 import "./settings.css";
-import { overlapCast } from "@opensesame/os-domain";
-/**
- * Settings is a lot of unrelated panels; one wall of scroll buries them all.
- * Each panel belongs to exactly one category; only the active one renders.
- */
-const CATEGORIES = [
+export const settingsTabs = [
   { id: "general", label: "General", guideId: "settings.general" },
   { id: "security", label: "Security", guideId: "settings.security" },
   { id: "vaults", label: "Vaults", guideId: "settings.vaults" },
   {
-    id: "connectivity",
-    label: "Connectivity",
-    guideId: "settings.connectivity",
+    id: "connections",
+    label: "Connections",
+    guideId: "settings.connections",
   },
-  { id: "data", label: "Vault data", guideId: "settings.data" },
   { id: "danger", label: "Danger", guideId: "settings.danger" },
-] as const;
+] as const satisfies readonly {
+  id: SettingsCategory;
+  label: string;
+  guideId: string;
+}[];
 
 /** One category link, named so a guide can point at it. */
 function CategoryLink({
@@ -116,16 +88,7 @@ export type SettingsPanels = {
   WalletPassPanel: ComponentType;
   InstallPanel: ComponentType;
   ActiveProjectPanel: ComponentType;
-  CapabilityConnectorsPanel: ComponentType;
   ModelProviderPanel: ComponentType;
-  SecretConfigsPanel: ComponentType;
-  SyncTargetsPanel: ComponentType;
-  TaskBusPanel: ComponentType;
-  GithubBackupPanel: ComponentType;
-  ChangelogPanel: ComponentType;
-  OfflineBackupPanel: ComponentType;
-  ImportPanel: ComponentType;
-  ItemTypesPanel: ComponentType;
   VaultsPanel: ComponentType;
 };
 
@@ -134,20 +97,10 @@ const defaultPanels: SettingsPanels = {
   WalletPassPanel: DefaultWalletPassPanel,
   InstallPanel: DefaultInstallPanel,
   ActiveProjectPanel: DefaultActiveProjectPanel,
-  CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
   ModelProviderPanel: DefaultModelProviderPanel,
-  SecretConfigsPanel: DefaultSecretConfigsPanel,
-  SyncTargetsPanel: DefaultSyncTargetsPanel,
-  TaskBusPanel: DefaultTaskBusPanel,
-  GithubBackupPanel: DefaultGithubBackupPanel,
-  ChangelogPanel: DefaultChangelogPanel,
-  OfflineBackupPanel: DefaultOfflineBackupPanel,
-  ImportPanel: DefaultImportPanel,
-  ItemTypesPanel: DefaultItemTypesPanel,
   VaultsPanel: DefaultVaultsPanel,
 };
 
-/** `#import` predates the categories and deep-links into Vault data. */
 function categoryFromHash(hash: string): CategoryId | null {
   return settingsCategoryFromHash(hash);
 }
@@ -158,27 +111,20 @@ export function SettingsSection({
   panels?: Partial<SettingsPanels>;
 } = {}) {
   const resolvedPanels = { ...defaultPanels, ...panels };
-  const { items, folders, header } = useVault();
+  const { items, header } = useVault();
   const store = useVaultStore();
   const { hash, pathname } = useLocation();
   const navigate = useNavigate();
   const category = settingsCategoryFromLocation(pathname, hash);
+  const [representation, setRepresentation] = useState<"form" | RawFormat>(
+    "form",
+  );
 
-  // Hash deep-links (`#import`, `#connectivity`) rewrite onto rest paths so
-  // refresh and crumbs land on the same area. Panel ids (`#import`) stay as
-  // hashes on `/settings/data` and still scroll into view.
+  // Legacy hashes rewrite onto rest paths so refresh and crumbs agree.
   useEffect(() => {
     const fromHash = categoryFromHash(hash);
     if (fromHash && !pathname.match(/\/settings\/[^/]+/)) {
       navigate(settingsPath(fromHash, hash), { replace: true });
-    }
-    const id = hash.replace(/^#/, "");
-    if (id === "github-backup" || id === "import") {
-      window.requestAnimationFrame(() => {
-        document
-          .getElementById(id)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
     }
   }, [hash, navigate, pathname]);
 
@@ -191,76 +137,12 @@ export function SettingsSection({
   } | null>(null);
   const [rekeying, setRekeying] = useState(false);
 
-  const [importPassword, setImportPassword] = useState("");
-  const [dataMessage, setDataMessage] = useState<{
-    tone: "ok" | "err";
-    text: string;
-  } | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const storeFileRef = useRef<HTMLInputElement>(null);
-
-  function exportStoreManifest() {
-    try {
-      const active = items.filter((item) => item.deletedAt === null);
-      const entries = active.map((item) => vaultItemToEntry(item, folders));
-      const text = `${JSON.stringify(entries, null, 2)}\n`;
-      const url = URL.createObjectURL(
-        new Blob([text], { type: "application/json" }),
-      );
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `opensesame-store-manifest-${new Date().toISOString().slice(0, 10)}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setDataMessage({
-        tone: "ok",
-        text: "Downloaded a plaintext path manifest for the unlocked vault. Seal it with `opensesame pass seal <file> --shred` — never commit the manifest itself.",
-      });
-    } catch (caught) {
-      setDataMessage({
-        tone: "err",
-        text: caught instanceof Error ? caught.message : "Export failed.",
-      });
-    }
-  }
-
-  async function importStoreManifest(file: File) {
-    setDataMessage(null);
-    try {
-      const parsed = overlapCast(JSON.parse(await file.text()));
-      if (!Array.isArray(parsed)) {
-        throw new Error("Expected a JSON array of store entries.");
-      }
-      // Merge by store path — re-importing the same manifest must not
-      // duplicate the vault.
-      const plan = planManifestMerge(parsed, items, folders);
-      await store.applyManifestMerge(plan);
-      setDataMessage({
-        tone: "ok",
-        text: `Merged ${parsed.length} sealed-store ${parsed.length === 1 ? "entry" : "entries"}: ${plan.adds.length} added, ${plan.updates.length} updated, ${plan.unchanged} unchanged.`,
-      });
-    } catch (caught) {
-      setDataMessage({
-        tone: "err",
-        text: caught instanceof Error ? caught.message : "Import failed.",
-      });
-    } finally {
-      if (storeFileRef.current) storeFileRef.current.value = "";
-    }
-  }
-
   const rekeyRef = useGuideTarget<HTMLButtonElement>(
     "settings.master-password",
   );
 
-  const [newFolder, setNewFolder] = useState("");
-  const [sampleMessage, setSampleMessage] = useState<{
-    tone: "ok" | "err";
-    text: string;
-  } | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState(false);
 
-  const sampleCount = items.filter((item) => item.sample).length;
   // Same gate as first-run create, so a re-key cannot weaken the KDF input.
   const nextStrength = estimateStrength(next);
   const nextTooWeak = next.length < 12 || nextStrength.score < 2;
@@ -288,89 +170,18 @@ export function SettingsSection({
     }
   }
 
-  function exportVault() {
-    try {
-      const text = store.exportSealed();
-      const url = URL.createObjectURL(
-        new Blob([text], { type: "application/json" }),
-      );
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `opensesame-vault-${new Date().toISOString().slice(0, 10)}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setDataMessage({
-        tone: "ok",
-        text: "Exported. The file is still ciphertext — it needs the master password it was sealed under.",
-      });
-    } catch (caught) {
-      setDataMessage({
-        tone: "err",
-        text: caught instanceof Error ? caught.message : "Export failed.",
-      });
-    }
-  }
-
-  async function importVault(file: File) {
-    setDataMessage(null);
-    if (!importPassword) {
-      setDataMessage({
-        tone: "err",
-        text: "Enter the master password that file was sealed under.",
-      });
-      return;
-    }
-    try {
-      const added = await store.importSealed(await file.text(), importPassword);
-      setImportPassword("");
-      setDataMessage({
-        tone: "ok",
-        text:
-          added === 0
-            ? "That export contained nothing this vault was missing."
-            : `Merged ${added} ${added === 1 ? "item" : "items"}.`,
-      });
-    } catch (caught) {
-      setDataMessage({
-        tone: "err",
-        text: caught instanceof Error ? caught.message : "Import failed.",
-      });
-    } finally {
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
-  async function loadSample() {
-    const folder =
-      folders.find((f) => f.name === SAMPLE_FOLDER_NAME) ?? sampleFolder();
-    if (!folders.some((f) => f.id === folder.id)) {
-      await store.addFolder(folder.name).then(async (created) => {
-        await store.addItems(buildSample(created.id));
-      });
-    } else {
-      await store.addItems(buildSample(folder.id));
-    }
-    setSampleMessage({
-      tone: "ok",
-      text: "Sample items added. Every one is badged and can be removed in one action.",
-    });
-  }
-
-  async function purgeSample() {
-    const keep = items.filter((item) => !item.sample);
-    const keepFolders = folders.filter((f) => f.name !== SAMPLE_FOLDER_NAME);
-    await store.replaceAll(keep, keepFolders);
-    setSampleMessage({ tone: "ok", text: "Sample items removed." });
-  }
-
   return (
     <div className="section__inner">
       <div className="section__head">
         <h1>Settings</h1>
+        <SettingsViewToggle
+          representation={representation}
+          onChange={setRepresentation}
+        />
       </div>
 
       <nav className="set__nav" aria-label="Settings sections">
-        {CATEGORIES.map((entry) => (
+        {settingsTabs.map((entry) => (
           <CategoryLink
             key={entry.id}
             guideId={entry.guideId}
@@ -381,7 +192,16 @@ export function SettingsSection({
           />
         ))}
       </nav>
-      {category !== "general" ? null : (
+      {representation === "yaml" || representation === "toml" ? (
+        <SettingsRawEditor category={category} format={representation} />
+      ) : null}
+      {representation !== "form" || category !== "connections" ? null : (
+        <FeatureBindingsPanel
+          ActiveProjectPanel={resolvedPanels.ActiveProjectPanel}
+          ModelProviderPanel={resolvedPanels.ModelProviderPanel}
+        />
+      )}
+      {representation !== "form" || category !== "general" ? null : (
         <>
           <GuideTarget id="settings.install">
             <resolvedPanels.InstallPanel />
@@ -391,10 +211,17 @@ export function SettingsSection({
         </>
       )}
 
-      {category !== "security" ? null : <resolvedPanels.UnlockMethodsPanel />}
-      {category !== "security" ? null : <resolvedPanels.WalletPassPanel />}
+      {representation !== "form" || category !== "security" ? null : (
+        <resolvedPanels.UnlockMethodsPanel />
+      )}
+      {representation !== "form" || category !== "security" ? null : (
+        <AgeKeysPanel />
+      )}
+      {representation !== "form" || category !== "security" ? null : (
+        <resolvedPanels.WalletPassPanel />
+      )}
 
-      {category !== "security" ? null : (
+      {representation !== "form" || category !== "security" ? null : (
         <section className="panel">
           <div className="panel__head">
             <div>
@@ -501,289 +328,24 @@ export function SettingsSection({
               <button
                 ref={rekeyRef}
                 type="submit"
-                className="btn btn--primary"
+                className="icon-btn"
                 disabled={rekeying || !header?.wrap || !current || nextTooWeak}
                 aria-busy={rekeying}
+                aria-label="Change master password"
+                title="Change master password"
               >
-                {rekeying ? "Re-wrapping…" : "Change master password"}
+                <IconLock size={16} />
               </button>
-              {header?.kdf ? (
-                <span className="hint">
-                  {header.kdf.iterations.toLocaleString()} PBKDF2-SHA256
-                  iterations
-                </span>
-              ) : null}
             </div>
           </form>
         </section>
       )}
 
-      {category !== "data" ? null : (
-        <section className="panel">
-          <div className="panel__head">
-            <div>
-              <h2>Folders</h2>
-            </div>
-          </div>
-          <div className="panel__body">
-            {folders.length > 0 ? (
-              <ul className="set__folders">
-                {folders.map((folder) => (
-                  <li key={folder.id}>
-                    <IconFolder size={17} />
-                    <input
-                      defaultValue={folder.name}
-                      aria-label={`Rename ${folder.name}`}
-                      onBlur={(event) => {
-                        const name = event.target.value.trim();
-                        if (name && name !== folder.name) {
-                          void store.renameFolder(folder.id, name);
-                        }
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") event.currentTarget.blur();
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label={`Delete folder ${folder.name}`}
-                      title="Delete folder — its items stay in the vault"
-                      onClick={() => void store.deleteFolder(folder.id)}
-                    >
-                      <IconX size={17} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="hint">No folders yet.</p>
-            )}
-            <form
-              className="set__inline"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!newFolder.trim()) return;
-                void store.addFolder(newFolder);
-                setNewFolder("");
-              }}
-            >
-              <div className="field set__inline-grow">
-                <label htmlFor="new-folder">New folder</label>
-                <input
-                  id="new-folder"
-                  value={newFolder}
-                  placeholder="e.g. Work"
-                  onChange={(event) => setNewFolder(event.target.value)}
-                />
-              </div>
-              <button
-                type="submit"
-                className="btn"
-                disabled={!newFolder.trim()}
-              >
-                <IconPlus size={16} />
-                Add folder
-              </button>
-            </form>
-          </div>
-        </section>
+      {representation !== "form" || category !== "vaults" ? null : (
+        <resolvedPanels.VaultsPanel />
       )}
 
-      {category !== "vaults" ? null : <resolvedPanels.VaultsPanel />}
-
-      {category !== "connectivity" ? null : <CoreConnectionsPanel />}
-
-      {category !== "connectivity" ? null : (
-        <resolvedPanels.ActiveProjectPanel />
-      )}
-
-      {category !== "connectivity" ? null : (
-        <resolvedPanels.CapabilityConnectorsPanel />
-      )}
-
-      {category !== "connectivity" ? null : (
-        <GuideTarget id="settings.model-provider">
-          <resolvedPanels.ModelProviderPanel />
-        </GuideTarget>
-      )}
-
-      {category !== "connectivity" ? null : (
-        <GuideTarget id="settings.secret-configs">
-          <resolvedPanels.SecretConfigsPanel />
-        </GuideTarget>
-      )}
-
-      {category !== "connectivity" ? null : (
-        <GuideTarget id="settings.sync-targets">
-          <resolvedPanels.SyncTargetsPanel />
-        </GuideTarget>
-      )}
-
-      {category !== "connectivity" ? null : <resolvedPanels.TaskBusPanel />}
-
-      {category !== "connectivity" ? null : <TursoSyncPanel />}
-
-      {category !== "connectivity" ? null : <EndpointsPanel />}
-
-      {category !== "data" ? null : (
-        <GuideTarget id="settings.backup">
-          <resolvedPanels.GithubBackupPanel />
-        </GuideTarget>
-      )}
-
-      {category !== "data" ? null : (
-        <GuideTarget id="settings.changelog">
-          <resolvedPanels.ChangelogPanel />
-        </GuideTarget>
-      )}
-
-      {category !== "data" ? null : <resolvedPanels.OfflineBackupPanel />}
-
-      {category !== "data" ? null : <resolvedPanels.ImportPanel />}
-
-      {category !== "data" ? null : (
-        <GuideTarget id="settings.item-types">
-          <resolvedPanels.ItemTypesPanel />
-        </GuideTarget>
-      )}
-
-      {category !== "data" ? null : (
-        <section className="panel">
-          <div className="panel__head">
-            <div>
-              <h2>Git sealed store</h2>
-            </div>
-          </div>
-          <div className="panel__body">
-            <div className="actions">
-              <button
-                type="button"
-                className="btn"
-                onClick={exportStoreManifest}
-              >
-                <IconDownload size={16} />
-                Download store path manifest
-              </button>
-              <input
-                ref={storeFileRef}
-                id="store-manifest-file"
-                type="file"
-                accept="application/json"
-                className="visually-hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void importStoreManifest(file);
-                }}
-              />
-              <label htmlFor="store-manifest-file" className="btn">
-                <IconUpload size={16} />
-                Import store path manifest
-              </label>
-            </div>
-            <p className="hint">
-              CLI:{" "}
-              <code>
-                {
-                  "opensesame pass init --remote \u003cgit url\u003e \u0026\u0026 opensesame pass seal manifest.json --shred \u0026\u0026 opensesame pass backup"
-                }
-              </code>
-            </p>
-          </div>
-        </section>
-      )}
-
-      {category !== "data" ? null : (
-        <GuideTarget id="vault.export">
-          <section className="panel" id="export">
-            <div className="panel__head">
-              <div>
-                <h2>Backup and move to another device</h2>
-              </div>
-            </div>
-            <div className="panel__body">
-              <div className="actions">
-                <button type="button" className="btn" onClick={exportVault}>
-                  <IconDownload size={16} />
-                  Export encrypted vault
-                </button>
-              </div>
-
-              <div className="set__inline">
-                <div className="field set__inline-grow">
-                  <label htmlFor="import-password">
-                    Master password that export was sealed under
-                  </label>
-                  <input
-                    id="import-password"
-                    type="password"
-                    autoComplete="off"
-                    value={importPassword}
-                    onChange={(event) => setImportPassword(event.target.value)}
-                  />
-                </div>
-                <input
-                  ref={fileRef}
-                  id="import-file"
-                  type="file"
-                  accept="application/json"
-                  className="visually-hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void importVault(file);
-                  }}
-                />
-                <label htmlFor="import-file" className="btn">
-                  <IconUpload size={16} />
-                  Choose an OpenSesame export
-                </label>
-              </div>
-              <p className="hint">
-                Importing merges items this vault does not already have by id.
-                Nothing is overwritten.
-              </p>
-
-              <StatusNote message={dataMessage} />
-            </div>
-          </section>
-        </GuideTarget>
-      )}
-
-      {category !== "data" ? null : (
-        <section className="panel">
-          <div className="panel__head">
-            <div>
-              <h2>Sample data</h2>
-            </div>
-          </div>
-          <div className="panel__body">
-            <div className="actions">
-              {sampleCount > 0 ? (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void purgeSample()}
-                >
-                  Remove {sampleCount} SYNTHETIC{" "}
-                  {sampleCount === 1 ? "item" : "items"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void loadSample()}
-                >
-                  Load SYNTHETIC sample items
-                </button>
-              )}
-              <span className="hint">One action removes them all.</span>
-            </div>
-            <StatusNote message={sampleMessage} />
-          </div>
-        </section>
-      )}
-
-      {category !== "danger" ? null : (
+      {representation !== "form" || category !== "danger" ? null : (
         <section className="panel set__danger">
           <div className="panel__head">
             <div>
@@ -802,18 +364,21 @@ export function SettingsSection({
                 <div className="actions">
                   <button
                     type="button"
-                    className="btn btn--danger"
+                    className="icon-btn icon-btn--danger is-armed"
+                    aria-label="Delete permanently"
+                    title="Delete permanently"
                     onClick={() => void store.destroy()}
                   >
                     <IconTrash size={16} />
-                    Delete permanently
                   </button>
                   <button
                     type="button"
-                    className="btn btn--ghost"
+                    className="icon-btn"
+                    aria-label="Cancel"
+                    title="Cancel"
                     onClick={() => setConfirmDestroy(false)}
                   >
-                    Cancel
+                    <IconX size={16} />
                   </button>
                 </div>
               </>
@@ -821,11 +386,12 @@ export function SettingsSection({
               <div className="actions">
                 <button
                   type="button"
-                  className="btn btn--danger"
+                  className="icon-btn icon-btn--danger"
+                  aria-label="Delete this vault"
+                  title="Delete this vault"
                   onClick={() => setConfirmDestroy(true)}
                 >
                   <IconTrash size={16} />
-                  Delete this vault
                 </button>
               </div>
             )}

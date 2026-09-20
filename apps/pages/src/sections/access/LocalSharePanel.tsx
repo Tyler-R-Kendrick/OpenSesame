@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { IconPlus, IconRefresh, IconTrash } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { readLocalDirectory } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import {
@@ -145,10 +146,6 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         />
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Operators grant standing access. Guests stay Guest — they do not
-          receive connector or admin powers unless an operator grants them here.
-        </p>
         {!canGrant ? (
           <p className="hint">
             An operator identity is assigned. Guests and members can view shares
@@ -216,17 +213,20 @@ function ShareRow({
           </code>
         </div>
         {role ? <span className="chip">{role}</span> : null}
-        <span className="chip">
-          until {new Date(share.expiresAt).toLocaleString()}
-        </span>
+        <StatusMark
+          tone="idle"
+          label={`Until ${new Date(share.expiresAt).toLocaleString()}`}
+        />
         <div className="actions">
           <button
             type="button"
-            className="btn btn--sm btn--danger"
+            className="icon-btn icon-btn--sm icon-btn--danger"
             disabled={busy || !canRevoke}
+            aria-label="Revoke"
+            title="Revoke"
             onClick={onRevoke}
           >
-            Revoke
+            <IconTrash size={16} />
           </button>
         </div>
       </div>

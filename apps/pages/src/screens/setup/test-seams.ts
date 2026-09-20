@@ -93,7 +93,6 @@ export function createSetupSeams(): SetupSeams {
     Object.assign(setupScreenDependencies, {
       completeSetup,
       loadSettings: currentSettings,
-      readJoinFromLocation: () => null,
     });
   };
   return { written, currentSettings, discover, completeSetup, reset };

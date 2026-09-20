@@ -1,4 +1,5 @@
 import { isString } from "@opensesame/os-domain";
+import { isSettingsEncryptionKey } from "./capabilities.js";
 import type {
   ConfigurationField,
   Provider,
@@ -336,6 +337,18 @@ export function canConfigureAutomatically(
   provider: Pick<Provider, "autoConfigurable">,
 ): boolean {
   return provider.autoConfigurable;
+}
+
+/**
+ * Connections catalog only lists brokers a person authorizes. Age / WebCrypto /
+ * sealed-local are Settings encryption key SOPs (typage for age), not catalog
+ * rows.
+ */
+export function isConnectionCatalogProvider(
+  provider: Pick<Provider, "id" | "autoConfigurable">,
+): boolean {
+  if (isSettingsEncryptionKey(provider.id)) return false;
+  return !canConfigureAutomatically(provider);
 }
 
 export function configurationPayload(

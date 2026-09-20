@@ -16,7 +16,13 @@ export function selectedRailPath(
   category: SettingsCategory,
   folderKind: string | null = null,
 ): string {
-  if (pathname.startsWith("/settings")) return settingsPath(category);
+  if (pathname.startsWith("/settings")) {
+    const base = settingsPath(category);
+    if (category === "connections" && hash.startsWith("#") && hash.length > 1) {
+      return `${base}${hash}`;
+    }
+    return base;
+  }
   if (pathname.startsWith("/wallet"))
     return walletPath(walletCategoryFromLocation(pathname));
   if (pathname.startsWith("/vault"))

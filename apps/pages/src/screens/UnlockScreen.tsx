@@ -1,4 +1,3 @@
-import { briefOrigin } from "@opensesame/os-domain";
 import {
   type FormEvent,
   useCallback,
@@ -9,42 +8,34 @@ import {
 } from "react";
 import {
   IconArrowRight,
-  IconAuthority,
   IconEye,
   IconEyeOff,
   IconLock,
   IconMail,
-  IconMark,
   IconMessage,
   IconPasskey,
   IconPhone,
   IconShield,
+  IconX,
 } from "../components/Icons.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
+import { Wordmark } from "../components/Wordmark.js";
 import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
-import { defaultUpstream } from "../lib/federation.js";
-import { firstControl, landFocus } from "../lib/focus.js";
-import { continueAsGuest } from "../lib/guest-auth.js";
-import {
-  currentSession,
-  remoteIdentityApi,
-  useIdentitySession,
-} from "../lib/identity.js";
-import {
-  readJoinFromLocation,
-  resumeStashedJoin,
-} from "../lib/join-session.js";
+import { continueAsGuest, resumeGuestSession } from "../lib/guest-auth.js";
+import { currentSession, useIdentitySession } from "../lib/identity.js";
 import { PERSONAL_PROJECT_ID } from "../lib/projects.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
-import { noWayIn, signInMethods } from "../lib/settings.js";
+import { checkForAppUpdate } from "../lib/pwa-update.js";
+import { noWayIn } from "../lib/settings.js";
 import { loadSetup, unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
 import type { SentCode } from "../lib/vault/remote-code.js";
+import { GUEST_TOMB } from "../lib/vault/store.js";
 import {
   MIN_PIN_LENGTH,
   type SecondStepId,
@@ -65,10 +56,11 @@ import {
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { FrontDoor } from "./FrontDoor.js";
-import { type SetupRoad, SetupScreen, type SetupStep } from "./SetupScreen.js";
+import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
+import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { StrengthMeter } from "./unlock/StrengthMeter.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
@@ -77,20 +69,16 @@ import {
   RESEND_COOLDOWN_MS,
   SECOND_STEP_LABEL,
 } from "./unlock/labels.js";
+import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
 export const unlockScreenDependencies = {
   currentSession,
-  remoteIdentityApi,
   loadSetup,
   noWayIn,
-  signInMethods,
-  defaultUpstream,
-  resumeStashedJoin,
   deviceHasSeveralVaults,
   listDeviceVaults,
-  readJoinFromLocation,
 };
 
 /**
@@ -99,23 +87,19 @@ export const unlockScreenDependencies = {
  * This static app is complete without a backend: the compiled-in broker runs
  * the whole code flow in the browser, guest seals a local vault, and a
  * local-only seal needs nothing at all. So an empty device opens on the
- * sign-in form, never on an operator's question. Deployment setup and joining
- * a session are ceremonies a person opens on purpose from the foot of that
- * form — except an invite link, which opens join directly because the link is
- * the request.
+ * sign-in form, never on an operator's question. Deployment setup lives
+ * behind unlock (Settings); the front door's "Set up your own" road is the
+ * only pre-unlock setup path. An invite link still opens join directly
+ * because the link is the request.
  *
  * The split exists so the early return happens above the form's hooks rather
  * than among them.
  */
 export function UnlockScreen() {
-  const { status } = useVault();
-  const session = useIdentitySession();
+  const { status, tomb } = useVault();
   const [ceremony, setCeremony] = useState<{
-    road: SetupRoad;
     step?: SetupStep;
-  } | null>(() =>
-    unlockScreenDependencies.readJoinFromLocation() ? { road: "join" } : null,
-  );
+  } | null>(null);
   // Several vaults open on the choice (ADR 0089); one goes straight to it.
   const [vaultsOpen, setVaultsOpen] = useState(() =>
     unlockScreenDependencies.deviceHasSeveralVaults(),
@@ -138,30 +122,27 @@ export function UnlockScreen() {
       cancelled = true;
     };
   }, []);
+  // A locked screen is idle time: ask the service worker for a newer shell
+  // and let it start downloading while the person unlocks (esp. installed PWA).
   useEffect(() => {
-    if (ceremony || !session) return;
-    void unlockScreenDependencies.resumeStashedJoin().catch(() => {
-      // A spent or expired stash is not a reason to trap unlock. The next
-      // invite is a new one.
-    });
-  }, [ceremony, session]);
+    void checkForAppUpdate();
+  }, []);
   // The front door (ADR 0115): a device with no vault and no setup record
   // opens on the two roads made large, with sign-in whole beneath them. A
   // person who chose the local-only seal is past the door until they say
   // "Sign in instead"; an answered — or skipped — ceremony retires it for good.
   const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
+  // Guest prepare leaves status empty (no wrap on disk) — that is Unlock,
+  // not the front door's first-run roads.
   const frontDoor =
     status === "empty" &&
+    tomb !== GUEST_TOMB &&
     !localOnlyPicked &&
     unlockScreenDependencies.loadSetup() === null;
 
   if (ceremony) {
     return (
-      <SetupScreen
-        road={ceremony.road}
-        step={ceremony.step}
-        onDone={() => setCeremony(null)}
-      />
+      <SetupScreen step={ceremony.step} onDone={() => setCeremony(null)} />
     );
   }
   if (vaultsOpen) {
@@ -176,8 +157,7 @@ export function UnlockScreen() {
     return (
       <FrontDoor
         providers={providers}
-        onOpenJoin={() => setCeremony({ road: "join" })}
-        onOpenSetup={() => setCeremony({ road: "setup" })}
+        onOpenSetup={() => setCeremony({ step: undefined })}
         onUseLocalOnly={() => setLocalOnlyPicked(true)}
       />
     );
@@ -189,8 +169,7 @@ export function UnlockScreen() {
       onSignInInstead={
         localOnlyPicked ? () => setLocalOnlyPicked(false) : undefined
       }
-      onOpenSetup={(step) => setCeremony({ road: "setup", step })}
-      onOpenJoin={() => setCeremony({ road: "join" })}
+      onOpenSetup={(step) => setCeremony({ step })}
       onOpenVaults={() => setVaultsOpen(true)}
     />
   );
@@ -201,7 +180,6 @@ function UnlockForm({
   initialLocalOnly = false,
   onSignInInstead,
   onOpenSetup,
-  onOpenJoin,
   onOpenVaults,
 }: {
   providers: FederatedProviderSummary[];
@@ -210,8 +188,6 @@ function UnlockForm({
   /** Where "Sign in instead" goes when the front door is what sign-in is. */
   onSignInInstead?: () => void;
   onOpenSetup: (step?: SetupStep) => void;
-  /** Join a session somebody invited this device to (ADR 0079 §7). */
-  onOpenJoin: () => void;
   /** Back to the front door: every vault on this device (ADR 0089). */
   onOpenVaults: () => void;
 }) {
@@ -220,7 +196,6 @@ function UnlockForm({
   const secretRef = useGuideTarget<HTMLInputElement>("unlock.secret");
   const passkeyRef = useGuideTarget<HTMLButtonElement>("unlock.passkey");
   const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
-  const joinRef = useGuideTarget<HTMLButtonElement>("setup.join");
   const {
     status,
     tomb,
@@ -231,9 +206,12 @@ function UnlockForm({
     awaitingSecondStep,
   } = useVault();
   const store = useVaultStore();
-  const firstRun = status === "empty";
-  // Which vault this key opens — shown whenever there is a choice to go back to, or this is not the personal vault.
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
+  // Guest has no wrap on disk — picking guest lands here with an empty header.
+  // That is not a first-run seal; Unlock alone opens the guest session.
+  const guestUnlock = activeTomb === GUEST_TOMB && status !== "unlocked";
+  const firstRun = status === "empty" && !guestUnlock;
+  // Which vault this key opens — shown whenever there is a choice to go back to, or this is not the personal vault.
   const vaultCrumb =
     unlockScreenDependencies.deviceHasSeveralVaults() ||
     activeTomb !== PERSONAL_PROJECT_ID
@@ -253,28 +231,9 @@ function UnlockForm({
   const showSignIn = returning && signingIn;
   // Not "no identity service" (ADR 0078) — the narrower and truer claim: setup left no way in.
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
-  /**
-   * What this app is pointed at, said as the operator would say it: the
-   * identity service where there is one, otherwise the provider that will
-   * actually sign people in. "No identity service" was the old line, and it
-   * read as broken on a deployment whose Google button worked fine.
-   */
-  const deploymentName = (() => {
-    const remote = unlockScreenDependencies.remoteIdentityApi().trim();
-    if (remote) return briefOrigin(remote);
-    const configured = unlockScreenDependencies.signInMethods();
-    const [first] = configured.providers;
-    if (first) {
-      const more = configured.providers.length - 1;
-      return more > 0 ? `${first.label} +${more}` : first.label;
-    }
-    if (configured.builtin) {
-      return unlockScreenDependencies.defaultUpstream().displayName;
-    }
-    return "No accounts";
-  })();
 
   const methods = useMemo<UnlockMethodId[]>(() => {
+    if (guestUnlock) return [];
     // A returning vault offers exactly the challenges it enrolled. The screen
     // used to show all three whatever the vault had, on the theory that which
     // ones exist is the person's own knowledge — but the header on disk is
@@ -286,11 +245,11 @@ function UnlockForm({
     if (passkeyHost.ok) available.push("passkey");
     available.push("pin", "password");
     return available;
-  }, [firstRun, header, passkeyHost.ok]);
+  }, [guestUnlock, firstRun, header, passkeyHost.ok]);
   // A vault with an authenticator code but no passkey, PIN or password: a
   // code can only ever follow a key, so nothing here can open it. Said out
   // loud rather than drawn as three tabs that all fail.
-  const noPrimary = !firstRun && methods.length === 0;
+  const noPrimary = !firstRun && !guestUnlock && methods.length === 0;
   // The second step, announced before the first is taken.
   // Exactly the second steps this vault enrolled — authenticator, email,
   // text — offered at step 2 in the same tab vocabulary step 1 uses for keys.
@@ -304,7 +263,8 @@ function UnlockForm({
     : (preferredUnlockMethod(header) ?? "password");
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
-  const showMethodTabs = !awaitingSecondStep && !noPrimary;
+  const showMethodTabs =
+    !guestUnlock && !awaitingSecondStep && !noPrimary && methods.length > 0;
 
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -348,37 +308,22 @@ function UnlockForm({
     setBusy(false);
   }, []);
 
-  // The keyboard lands where the ceremony is — on every form this screen can
-  // show, not only when the method changes. A reload, a hydrate that turns
-  // "loading" into "locked", "Use without an account", the end of a lockout:
-  // each puts a different field on screen, and each has to be typeable at
-  // once, with no click first. Passkey has no field, so its go control holds
-  // the keyboard and Enter starts the ceremony. The sign-in panel lands its
-  // own caret.
   const formGated = lockedFor > 0;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: status is a hydrate signal — "loading" becoming "locked" swaps the form under the same method, and the caret must follow
-  useEffect(() => {
-    if (signInStage || showSignIn || formGated) return;
-    if (awaitingSecondStep) {
-      landFocus(totpRef.current);
-      return;
-    }
-    if (activeMethod === "pin") landFocus(pinRef.current);
-    else if (activeMethod === "password") landFocus(passwordRef.current);
-    // Passkey: the go control, unless it is refusing — a first seal wants the
-    // acknowledgement ticked first, and a host that cannot do WebAuthn leaves
-    // the method tabs as the only live controls.
-    else if (!landFocus(goRef.current) && !landFocus(acceptRef.current)) {
-      landFocus(firstControl(formRef.current));
-    }
-  }, [
-    activeMethod,
-    awaitingSecondStep,
+  useUnlockFormFocus({
     signInStage,
     showSignIn,
     formGated,
+    awaitingSecondStep,
+    guestUnlock,
+    activeMethod,
     status,
-  ]);
+    totpRef,
+    pinRef,
+    passwordRef,
+    goRef,
+    acceptRef,
+    formRef,
+  });
 
   const resendIn = useCountdown(
     sentAt === null ? null : sentAt + RESEND_COOLDOWN_MS,
@@ -447,6 +392,8 @@ function UnlockForm({
           }
           await store.create(password, hint.trim() || undefined);
         }
+      } else if (guestUnlock) {
+        await resumeGuestSession();
       } else if (awaitingSecondStep) {
         if (recoveryMode) {
           await store.redeemRecoveryCode(recovery);
@@ -519,7 +466,8 @@ function UnlockForm({
         : password.length < 12 || password !== confirm || strength.score < 2);
 
   let unlockBlocked = true;
-  if (noPrimary) unlockBlocked = true;
+  if (guestUnlock) unlockBlocked = false;
+  else if (noPrimary) unlockBlocked = true;
   else if (awaitingSecondStep)
     unlockBlocked = recoveryMode
       ? recovery.replace(/[^a-z0-9]/gi, "").length < 8
@@ -536,54 +484,56 @@ function UnlockForm({
       <div className="unlock__card">
         <PendingLinkBanner />
         <div className="unlock__brand">
-          <IconMark className="unlock__mark" size={28} title="open-sesame" />
+          <Wordmark className="unlock__wordmark" size={28} replay />
           <div className="unlock__brand-tools">
             <ThemeToggle />
-            {!firstRun ? (
-              <UnlockUserMenu
-                disabled={busy}
-                currentVaultId={activeTomb}
-                signingIn={showSignIn}
-                showAllVaults={vaultCrumb !== null}
-                onOpenVaults={onOpenVaults}
-                onSignIn={() => {
-                  cancelPasskeyCeremony();
-                  if (awaitingSecondStep) store.cancelTotpChallenge();
-                  setError(null);
-                  setSigningIn(true);
-                }}
-                onUnlock={() => {
-                  setError(null);
-                  setSigningIn(false);
-                }}
-                onPickVault={(vault: DeviceVault) => {
-                  cancelPasskeyCeremony();
-                  setError(null);
-                  setBusy(true);
-                  void switchVault(vault.id)
-                    .then(() => setSigningIn(false))
-                    .catch((caught) => {
-                      setError(
-                        caught instanceof Error
-                          ? caught.message
-                          : "Could not switch vault.",
-                      );
-                    })
-                    .finally(() => setBusy(false));
-                }}
-              />
-            ) : null}
           </div>
         </div>
-        <h1 className="unlock__title">
-          {signInStage || showSignIn
-            ? "Sign in"
-            : firstRun
-              ? "Seal this device"
-              : awaitingSecondStep
-                ? "Confirm it is you"
-                : "Unlock"}
-        </h1>
+        <div className="unlock__heading">
+          <h1 className="unlock__title">
+            {signInStage || showSignIn
+              ? "Sign in"
+              : firstRun
+                ? "Seal this device"
+                : awaitingSecondStep
+                  ? "Confirm it is you"
+                  : "Unlock"}
+          </h1>
+          {!firstRun ? (
+            <UnlockUserMenu
+              disabled={busy}
+              currentVaultId={activeTomb}
+              signingIn={showSignIn}
+              showAllVaults={vaultCrumb !== null}
+              onOpenVaults={onOpenVaults}
+              onSignIn={() => {
+                cancelPasskeyCeremony();
+                if (awaitingSecondStep) store.cancelTotpChallenge();
+                setError(null);
+                setSigningIn(true);
+              }}
+              onUnlock={() => {
+                setError(null);
+                setSigningIn(false);
+              }}
+              onPickVault={(vault: DeviceVault) => {
+                cancelPasskeyCeremony();
+                setError(null);
+                setBusy(true);
+                void switchVault(vault.id)
+                  .then(() => setSigningIn(false))
+                  .catch((caught) => {
+                    setError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Could not switch vault.",
+                    );
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            />
+          ) : null}
+        </div>
 
         {/* Setup left no way in at all. One sentence and the road that fixes
             it — landing on the identity tab, where the fix lives. */}
@@ -885,7 +835,7 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {!awaitingSecondStep && activeMethod === "pin" ? (
+            {!guestUnlock && !awaitingSecondStep && activeMethod === "pin" ? (
               <div className="field">
                 <label htmlFor="unlock-pin">
                   {firstRun ? "Device PIN" : "PIN"}
@@ -917,38 +867,44 @@ function UnlockForm({
               </div>
             ) : null}
 
-            {!awaitingSecondStep && activeMethod === "password" && (
-              <div className="field">
-                <label htmlFor="master">
-                  {firstRun ? "Master password" : "Password"}
-                </label>
-                <div className="unlock__reveal">
-                  <input
-                    id="master"
-                    ref={(element) => {
-                      passwordRef.current = element;
-                      secretRef(element);
-                    }}
-                    type={reveal ? "text" : "password"}
-                    autoComplete={
-                      firstRun ? "new-password" : "current-password"
-                    }
-                    value={password}
-                    disabled={busy || lockedFor > 0}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-describedby={firstRun ? "master-help" : undefined}
-                  />
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => setReveal((value) => !value)}
-                    aria-label={reveal ? "Hide password" : "Show password"}
-                  >
-                    {reveal ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-                  </button>
+            {!guestUnlock &&
+              !awaitingSecondStep &&
+              activeMethod === "password" && (
+                <div className="field">
+                  <label htmlFor="master">
+                    {firstRun ? "Master password" : "Password"}
+                  </label>
+                  <div className="unlock__reveal">
+                    <input
+                      id="master"
+                      ref={(element) => {
+                        passwordRef.current = element;
+                        secretRef(element);
+                      }}
+                      type={reveal ? "text" : "password"}
+                      autoComplete={
+                        firstRun ? "new-password" : "current-password"
+                      }
+                      value={password}
+                      disabled={busy || lockedFor > 0}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-describedby={firstRun ? "master-help" : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => setReveal((value) => !value)}
+                      aria-label={reveal ? "Hide password" : "Show password"}
+                    >
+                      {reveal ? (
+                        <IconEyeOff size={18} />
+                      ) : (
+                        <IconEye size={18} />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {firstRun && activeMethod === "password" ? (
               <>
@@ -1082,9 +1038,11 @@ function UnlockForm({
                           : "Seal this device"
                       : awaitingSecondStep
                         ? "Confirm MFA"
-                        : activeMethod === "passkey"
-                          ? "Unlock with passkey"
-                          : "Unlock";
+                        : guestUnlock
+                          ? "Unlock"
+                          : activeMethod === "passkey"
+                            ? "Unlock with passkey"
+                            : "Unlock";
                   return (
                     <div className="go-row">
                       <button
@@ -1142,7 +1100,7 @@ function UnlockForm({
               device without its key still gets in, as a guest in an isolated
               tomb, and the sealed vault stays exactly as it is. Never removed,
               never gated (AGENTS.md §5). */}
-          {!firstRun && !showSignIn && !showReset ? (
+          {!firstRun && !guestUnlock && !showSignIn && !showReset ? (
             <button
               type="button"
               className="unlock__switch"
@@ -1164,7 +1122,7 @@ function UnlockForm({
               Continue as guest
             </button>
           ) : null}
-          {!firstRun && !showSignIn ? (
+          {!firstRun && !guestUnlock && !showSignIn ? (
             showReset ? (
               <div className="unlock__danger">
                 <p>
@@ -1183,10 +1141,12 @@ function UnlockForm({
                   </button>
                   <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    className="icon-btn icon-btn--sm"
                     onClick={() => setShowReset(false)}
+                    aria-label="Keep it"
+                    title="Keep it"
                   >
-                    Keep it
+                    <IconX size={16} />
                   </button>
                 </div>
               </div>
@@ -1200,33 +1160,9 @@ function UnlockForm({
               </button>
             )
           ) : null}
-
-          {/* Where this app is pointed, and the two optional ceremonies:
-              setup for the operator who runs a deployment, join for somebody
-              who was invited to a session. Quiet, because on a working
-              deployment both are facts rather than problems — whoever needs
-              one is looking for it (ADR 0090). */}
-          <p className="unlock__deployment">
-            <IconAuthority size={14} />
-            <span className="unlock__deployment-name">{deploymentName}</span>
-            <button
-              type="button"
-              className="unlock__switch"
-              onClick={() => onOpenSetup()}
-            >
-              Deployment setup
-            </button>
-            <button
-              ref={joinRef}
-              type="button"
-              className="unlock__switch"
-              onClick={onOpenJoin}
-            >
-              Join a session
-            </button>
-          </p>
         </div>
       </div>
+      <ReleaseNotes />
     </div>
   );
 }

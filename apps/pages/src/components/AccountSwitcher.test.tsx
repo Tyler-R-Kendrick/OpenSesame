@@ -66,13 +66,13 @@ describe("AccountSwitcher", () => {
 
   afterEach(cleanup);
 
-  it("shows Guest for an anonymous session and lets them add an organization", async () => {
+  it("shows guest for an anonymous session and lets them add an organization", async () => {
     renderSwitcher();
     expect(screen.queryByText("Accounts")).toBeNull();
     openMenu();
     expect(screen.getByText("Accounts")).toBeTruthy();
     const guestItem = screen
-      .getAllByRole("button", { name: "guest" })
+      .getAllByRole("button", { name: /^guest(-[1-9]\d*)?$/ })
       .find((el) => el.className.includes("account-switcher__item"));
     expect(guestItem).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add organization" }));

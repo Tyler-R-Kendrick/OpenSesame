@@ -11,6 +11,7 @@
 import { type JsonObject, isString } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import {
   IdentityError,
   identityBase,
@@ -48,9 +49,10 @@ function ReceiptRow({ event }: { event: AuditEvent }) {
         <IconClock /> {formatTime(event.occurredAt)}
       </span>
       <span className="access-trail__type">{event.eventType}</span>
-      <span className={`chip ${outcomeChip(event.outcome)}`}>
-        {event.outcome}
-      </span>
+      <StatusMark
+        tone={statusTone(outcomeChip(event.outcome))}
+        label={event.outcome}
+      />
     </li>
   );
 }

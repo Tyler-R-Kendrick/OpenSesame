@@ -345,11 +345,36 @@ leaf shows only its open caret and weight. Teal never marks selection.
 
 ### Actions are symbols
 An action that executes — edit, trash, copy, reveal, rotate, restore, new,
-import, save, cancel, lock — renders as an icon key: a square icon button
-whose `aria-label` and tooltip carry the sentence. Text survives on a
-button only where it is the object of a choice (a provider, a mode, a
-navigation target) or where a destructive ceremony must be spelled out.
-Never a text verb stretched across a grid row.
+import, save, cancel, lock, authorize, revoke, retry, load more — renders
+as an icon key: a square icon button (`icon-btn`, or `.go` for the action
+that ends the screen) whose `aria-label` and tooltip carry the sentence.
+The verb is never painted on the button. A destructive ceremony is spelled
+out in the prose beside the keys, not as a word on the key.
+
+Text on a control is only the object of a choice: a provider, a mode, a
+navigation target, or the guest road. Never a text verb stretched across a
+row, a card foot, or an empty state. `pnpm lint:design` rejects a word-verb
+`<button>` that is not an icon key, and the debt ledger in
+`scripts/design-button-baseline.json` only falls.
+
+### Status is a symbol
+A status — connected, needs you, broken, revoked, saved, locked, authorized,
+enabled — is a glyph (`StatusMark`), never a pill or a label with the word
+painted on it. The sentence is `aria-label` and `title`. The glyph is one of
+the existing icons: check, alert, dismiss, lock. Colour carries the tone
+(ok, warn, err, idle). A name is not a status: a provider, a role, a person,
+or a platform may stay text. `pnpm lint:design` rejects a `.chip` whose face
+carries a status word.
+
+An in-page error box is the same violation. Do not render `note`, `conn-flash`,
+or a paragraph banner to explain a failure. The failure is a `StatusMark`.
+Do not add caption or explainer prose under a title, a button, or a field:
+no sentence that tells the person what the control will do, where it goes,
+or why it exists. The control's `aria-label` and `title` carry that sentence.
+
+Pages copy never names a Host. A connector action that the browser can do
+itself — including creating a GitHub App — does not ask for a paired Host
+and does not tell the person to pair one.
 
 The vault pane always retains its top path-strip command group: **+**, import,
 export, each an icon key with an accessible name and tooltip. Empty, filtered,

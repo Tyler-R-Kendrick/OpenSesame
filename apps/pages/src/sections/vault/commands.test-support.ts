@@ -5,18 +5,11 @@ import { expect } from "vitest";
 export function expectVaultCommands() {
   const bar = screen.getByRole("group", { name: "Vault commands" });
   const commands = within(bar);
-  for (const [role, name] of [
-    ["link", "New item"],
-    ["button", "Import items"],
-    ["link", "Export items"],
-  ]) {
-    const control = commands.getByRole(role, { name });
-    expect(control.textContent).toBe("");
-    expect(control.querySelector("svg")).not.toBeNull();
-    expect(control.getAttribute("title")).toBeTruthy();
-  }
-  expect(
-    commands.getByRole("link", { name: "Export items" }).getAttribute("href"),
-  ).toBe("/settings/data#export");
+  const control = commands.getByRole("link", { name: "New item" });
+  expect(control.textContent).toBe("");
+  expect(control.querySelector("svg")).not.toBeNull();
+  expect(control.getAttribute("title")).toBeTruthy();
+  expect(commands.queryByRole("button", { name: "Import items" })).toBeNull();
+  expect(commands.queryByRole("link", { name: "Export items" })).toBeNull();
   expect(bar.closest(".vtree")?.firstElementChild?.contains(bar)).toBe(true);
 }

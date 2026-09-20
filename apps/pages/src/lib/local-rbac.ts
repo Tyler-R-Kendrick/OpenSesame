@@ -3,9 +3,9 @@
  *
  * Organization membership still uses owner | admin | member (ADR 0105). This
  * module maps those onto Access roles operators configure in practice:
- * Operator (owner/admin), Member, and Guest. Guest is the standing
- * `guest@guest` principal — never an operator once a claimed person holds
- * owner/admin.
+ * Operator (owner/admin), Member, and Guest. Guest is any unclaimed
+ * `Guest N` / legacy guest person — never an operator once a claimed person
+ * holds owner/admin.
  */
 
 import {

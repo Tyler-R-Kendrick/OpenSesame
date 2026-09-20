@@ -64,7 +64,7 @@ describe("VaultList", () => {
     render(<VaultList vaults={[personal, work]} onPick={vi.fn()} />);
     const open = document.querySelector(".vault-row--open [aria-current]");
     expect(open?.textContent).toContain("personal");
-    expect(open?.textContent).toContain("open");
+    expect(open?.querySelector('[aria-label="Open"]')).toBeTruthy();
     expect(open?.tagName).toBe("DIV");
     expect(screen.getByRole("button", { name: /Work/ })).toBeTruthy();
   });
@@ -84,7 +84,7 @@ describe("VaultList", () => {
         trailing={(vault) => <span data-testid={`trail-${vault.id}`} />}
       />,
     );
-    expect(screen.getByText("locked")).toBeTruthy();
+    expect(screen.getByLabelText("Locked")).toBeTruthy();
     expect(screen.getByTestId("trail-prj_9c11")).toBeTruthy();
   });
 

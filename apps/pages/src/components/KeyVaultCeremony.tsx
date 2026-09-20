@@ -20,7 +20,8 @@ export const keyVaultCeremonyDependencies = {
   openConsentPopup,
 };
 
-/** Hardware-backed choices, and the cloud services, as the catalog allows. */
+/** Hardware-backed choices, local age key SOP, and cloud KMS. */
+const LOCAL = ["webcrypto", "age"] as const;
 const HARDWARE = ["yubikey", "fido2"] as const;
 const CLOUD = ["aws-kms", "azure-key-vault-keys", "gcp-kms"] as const;
 
@@ -45,7 +46,6 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
   const [flash, setFlash] = useState<Flash>(null);
   const [busy, setBusy] = useState(false);
 
-  const builtIn = binding.providerId === "webcrypto";
   const owesAuth = bindingNeedsAuth("encryption", binding);
 
   function choose(providerId: string) {
@@ -86,6 +86,14 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
 
   const alts: CeremonyAlt[] = [
     {
+      id: "local",
+      label: "Use WebCrypto or age on this device",
+      icon: <IconLock size={18} />,
+      render: () => (
+        <Picker ids={LOCAL} current={binding.providerId} onPick={choose} />
+      ),
+    },
+    {
       id: "hardware",
       label: "Bind a YubiKey or FIDO2 key",
       icon: <IconPasskey size={18} />,
@@ -110,7 +118,7 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
         top={owesAuth ? "Bound, not yet authorized" : "Active"}
         name={connectorLabel(binding.providerId)}
         facts={
-          builtIn
+          binding.providerId === "webcrypto"
             ? [
                 { key: "Wrapping", value: "AES-GCM 256" },
                 {
@@ -118,13 +126,18 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
                   value: `PBKDF2-SHA256 · ${PBKDF2_ITERATIONS.toLocaleString("en-US")} iterations`,
                 },
               ]
-            : [
-                { key: "Wrapping", value: "AES-GCM 256" },
-                {
-                  key: "Authorization",
-                  value: binding.connectionId ? "granted" : "not yet granted",
-                },
-              ]
+            : binding.providerId === "age"
+              ? [
+                  { key: "Format", value: "age (typage)" },
+                  { key: "Keys", value: "Settings › Security › Age key" },
+                ]
+              : [
+                  { key: "Wrapping", value: "AES-GCM 256" },
+                  {
+                    key: "Authorization",
+                    value: binding.connectionId ? "granted" : "not yet granted",
+                  },
+                ]
         }
         primary={
           owesAuth
@@ -134,9 +147,10 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
                 busy,
               }
             : {
-                label: builtIn
-                  ? "Keep the built-in vault"
-                  : `Keep ${connectorLabel(binding.providerId)}`,
+                label:
+                  binding.providerId === "webcrypto"
+                    ? "Keep the built-in vault"
+                    : `Keep ${connectorLabel(binding.providerId)}`,
                 onClick: onClose,
               }
         }

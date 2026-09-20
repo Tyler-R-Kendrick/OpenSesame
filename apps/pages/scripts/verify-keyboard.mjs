@@ -87,12 +87,8 @@ try {
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-    // The front door (ADR 0115) lands on its first road; Tab walks the
-    // second road, the corner skip, the broker's mark and guest, in order.
-    await expect(
-      page.getByRole("button", { name: "Join a session" }),
-    ).toBeFocused();
-    await page.keyboard.press("Tab");
+    // The front door lands on Set up; Tab walks the corner skip, the
+    // broker's mark and guest, in order. Join is invite-link only now.
     await expect(
       page.getByRole("button", { name: "Set up your own" }),
     ).toBeFocused();
@@ -235,10 +231,15 @@ try {
       .filter({ visible: true });
     await tabTo(page, lock);
     await page.keyboard.press("Enter");
+    // Guest lock keeps the guest tomb selected (guest resume); Unlock is the
+    // road back, not another "Continue as guest" affordance.
     await expect(
-      page.getByRole("button", { name: "Continue as guest", exact: true }),
+      page.getByRole("button", { name: /^Unlock$/ }).first(),
     ).toBeVisible();
     await page.reload({ waitUntil: "networkidle" });
+    await expect(
+      page.getByRole("button", { name: /^Unlock$/ }).first(),
+    ).toBeFocused();
     await expect(page.locator(":focus")).not.toHaveJSProperty(
       "tagName",
       "BODY",

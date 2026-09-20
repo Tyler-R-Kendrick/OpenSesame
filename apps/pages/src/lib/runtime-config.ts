@@ -20,6 +20,7 @@ import {
 } from "@opensesame/os-domain";
 import { applyAgUiEndpoint } from "../tutorial/agents/ag-ui/endpoint.js";
 import { applyDeployedAmbientPolicy } from "./ambient-auth/runtime.js";
+import { applyConnectCallbackBase } from "./connect-callback.js";
 import { type RuntimeEndpointConfig, applyRuntimeConfig } from "./settings.js";
 
 const RUNTIME_CONFIG_FETCH_MS = 3000;
@@ -28,7 +29,9 @@ function readEndpoint(value: BoundaryValue | undefined): string | undefined {
   return isString(value) && value.trim() ? value.trim() : undefined;
 }
 
-async function fetchRuntimeConfigDefault(): Promise<RuntimeEndpointConfig | null> {
+async function fetchRuntimeConfigDefault(): Promise<
+  (RuntimeEndpointConfig & { connectCallbackBase?: string }) | null
+> {
   const base = import.meta.env.BASE_URL || "/";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RUNTIME_CONFIG_FETCH_MS);
@@ -50,6 +53,7 @@ async function fetchRuntimeConfigDefault(): Promise<RuntimeEndpointConfig | null
       daemonApi: readEndpoint(body.daemonApi),
       mfaAppUrl: readEndpoint(body.mfaAppUrl),
       supportAgentUrl: readEndpoint(body.supportAgentUrl),
+      connectCallbackBase: readEndpoint(body.connectCallbackBase),
     };
   } catch {
     return null;
@@ -65,7 +69,10 @@ export const runtimeConfigSeams = {
 /** Load and apply the deployment config; safe to call on every boot. */
 export async function loadRuntimeConfig(): Promise<void> {
   const config = await runtimeConfigSeams.fetchRuntimeConfig();
-  if (config) applyRuntimeConfig(config);
+  if (config) {
+    applyRuntimeConfig(config);
+    applyConnectCallbackBase(config.connectCallbackBase);
+  }
   // Remote support reads the same file rather than fetching it a second time.
   // Absent is the normal case, and it resolves to "no remote transport".
   applyAgUiEndpoint(config);

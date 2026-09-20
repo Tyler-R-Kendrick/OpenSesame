@@ -1,5 +1,8 @@
 import type { Connection, Provider } from "../../lib/connections.js";
-import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
+import {
+  canConfigureAutomatically,
+  isConnectionCatalogProvider,
+} from "../../lib/connector-guidance.js";
 import { unfinishedConnections } from "../../lib/identity-graph.js";
 import { isManagedConnector } from "../../lib/managed-connectors.js";
 import {
@@ -7,7 +10,13 @@ import {
   type PageTreeSource,
   pageToTree,
 } from "../../lib/page-to-tree.js";
-import { CATEGORY_LABELS, CATEGORY_ORDER, connectorPath } from "./shared.js";
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  FEATURE_BINDING_CATEGORIES,
+  connectorPath,
+  isFeatureBindingCategory,
+} from "./shared.js";
 
 function leaf(
   id: string,
@@ -38,7 +47,7 @@ export function catalogPageSections(
   const managed: Provider[] = [];
   const grouped = new Map<Provider["category"], Provider[]>();
   for (const provider of providers) {
-    if (canConfigureAutomatically(provider)) continue;
+    if (!isConnectionCatalogProvider(provider)) continue;
     if (!matchesCatalog(provider, normalized)) continue;
     if (isManagedConnector(provider.id)) {
       managed.push(provider);
@@ -65,6 +74,7 @@ export function catalogPageSections(
     });
   }
   for (const category of CATEGORY_ORDER) {
+    if (isFeatureBindingCategory(category)) continue;
     if (!grouped.has(category)) continue;
     groups.push({
       id: category,
@@ -77,6 +87,35 @@ export function catalogPageSections(
           connectorPath(provider.id),
           "catalog",
         ),
+      ),
+    });
+  }
+  return groups;
+}
+
+/** Feature bindings live under Settings → Connections, not Add a connection. */
+export function featureBindingSections(
+  providers: readonly Provider[],
+): PageTreeSource[] {
+  const grouped = new Map<Provider["category"], Provider[]>();
+  for (const provider of providers) {
+    if (!isConnectionCatalogProvider(provider)) continue;
+    if (isManagedConnector(provider.id)) continue;
+    if (!isFeatureBindingCategory(provider.category)) continue;
+    const items = grouped.get(provider.category) ?? [];
+    items.push(provider);
+    grouped.set(provider.category, items);
+  }
+  const groups: PageTreeSource[] = [];
+  for (const category of FEATURE_BINDING_CATEGORIES) {
+    const items = grouped.get(category);
+    if (!items) continue;
+    groups.push({
+      id: category,
+      label: CATEGORY_LABELS[category],
+      href: `/settings/connections#${category}`,
+      items: items.map((provider) =>
+        leaf(provider.id, provider.displayName, connectorPath(provider.id)),
       ),
     });
   }

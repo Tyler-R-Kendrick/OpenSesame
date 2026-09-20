@@ -181,10 +181,25 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "settings.connections",
+    description:
+      "The Connections settings category: feature bindings for identity, backup and recovery, encryption, and the other capability families.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
     id: "settings.security",
     description:
       "The Security settings category: the keys that open this vault, the second steps asked after one, and the recovery codes — each a row with one action that opens the one sheet.",
     role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
+    id: "settings.age-keys",
+    description: "Age recipients and identities for this vault.",
+    role: "action",
     routes: ["/settings"],
     capabilityId: null,
   },
@@ -215,7 +230,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.connectivity",
     description:
-      "The Connectivity settings category: the core plane connections, the endpoints they point at, and the task bus.",
+      "The Connections settings page: core planes, endpoints, the active project, models, and feature bindings.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",
@@ -223,7 +238,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.data",
     description:
-      "The Vault data settings category: folders, imports from other managers, the encrypted export, and the git sealed store.",
+      "There is no Vault data settings category. Folders, backup, and the build record live with the surfaces that own them.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "vault.export",

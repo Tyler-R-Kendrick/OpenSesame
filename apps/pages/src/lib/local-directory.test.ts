@@ -14,6 +14,7 @@ import {
   ownerPersonName,
   readLocalDirectory,
 } from "./local-directory.js";
+import { mintGuestSessionPerson } from "./local-guest.js";
 import { mintVaultKey } from "./vault/crypto.js";
 import {
   lockAllTombs,
@@ -191,11 +192,6 @@ describe("local encrypted directory", () => {
     const first = await ensureOwnerPerson(tomb, "Ada Lovelace");
     expect(first.entries).toEqual([
       expect.objectContaining({ kind: "person", name: "Ada Lovelace" }),
-      expect.objectContaining({
-        kind: "person",
-        name: GUEST_PERSON_NAME,
-        id: GUEST_PERSON_ID,
-      }),
       expect.objectContaining({ kind: "organization", name: "Ada Lovelace" }),
       expect.objectContaining({
         kind: "agent",
@@ -208,20 +204,17 @@ describe("local encrypted directory", () => {
         id: PAGES_APPLICATION_ID,
       }),
     ]);
-    const person = first.entries.find(
-      (entry) => entry.kind === "person" && entry.id !== GUEST_PERSON_ID,
-    );
+    // Personal vaults do not seed a standing guest singleton.
+    expect(
+      first.entries.filter((entry) => entry.kind === "person"),
+    ).toHaveLength(1);
+    const person = first.entries.find((entry) => entry.kind === "person");
     const org = first.entries.find((entry) => entry.kind === "organization");
     expect(first.memberships).toEqual([
       {
         organizationId: org?.id,
         principalId: person?.id,
         role: "owner",
-      },
-      {
-        organizationId: org?.id,
-        principalId: GUEST_PERSON_ID,
-        role: "member",
       },
       {
         organizationId: org?.id,
@@ -238,11 +231,6 @@ describe("local encrypted directory", () => {
     const directory = await ensureOwnerPerson(tomb, "Owner");
     expect(directory.entries).toEqual([
       expect.objectContaining({ kind: "person", name: "Owner" }),
-      expect.objectContaining({
-        kind: "person",
-        name: GUEST_PERSON_NAME,
-        id: GUEST_PERSON_ID,
-      }),
       expect.objectContaining({ kind: "organization", name: "Personal" }),
       expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
       expect.objectContaining({
@@ -253,16 +241,21 @@ describe("local encrypted directory", () => {
   });
 
   it("names a guest person the same identity the prompt shows", async () => {
-    expect(ownerPersonName(true)).toBe(GUEST_PERSON_NAME);
-    expect(ownerPersonName(false, "guest", true)).toBe(GUEST_PERSON_NAME);
+    const guest = mintGuestSessionPerson();
+    expect(ownerPersonName(true)).toBe(guest.name);
+    expect(ownerPersonName(false, "guest", true)).toBe(guest.name);
+    expect(guest.name).toMatch(/^guest-[1-9]\d*$/);
     expect(ownerPersonName(false, "Ada")).toBe("Ada");
     expect(ownerPersonName(false, null)).toBe("Owner");
-    const directory = await ensureOwnerPerson(tomb, GUEST_PERSON_NAME);
+    // Guest principals are minted into the guest tomb, not personal.
+    const { GUEST_TOMB } = await import("./vfs.js");
+    unlockTomb(GUEST_TOMB, (await mintVaultKey()).vaultKey);
+    const directory = await ensureOwnerPerson(GUEST_TOMB, guest.name);
     expect(directory.entries).toEqual([
       expect.objectContaining({
         kind: "person",
-        name: GUEST_PERSON_NAME,
-        id: GUEST_PERSON_ID,
+        name: guest.name,
+        id: guest.id,
       }),
       expect.objectContaining({ kind: "organization", name: "Personal" }),
       expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
@@ -276,26 +269,14 @@ describe("local encrypted directory", () => {
     ).toHaveLength(1);
   });
 
-  it("keeps Owner and guest as separate people when guest is already seeded", async () => {
+  it("does not rename Owner into a guest label on personal vaults", async () => {
     await ensureOwnerPerson(tomb, "Owner");
     const directory = await ensureOwnerPerson(tomb, GUEST_PERSON_NAME);
     expect(
       directory.entries
         .filter((entry) => entry.kind === "person")
-        .map((row) => ({
-          id: row.id,
-          name: row.name,
-        })),
-    ).toEqual([
-      expect.objectContaining({ name: "Owner" }),
-      expect.objectContaining({
-        id: GUEST_PERSON_ID,
-        name: GUEST_PERSON_NAME,
-      }),
-    ]);
-    expect(
-      directory.entries.find((entry) => entry.kind === "organization")?.name,
-    ).toBe("Personal");
+        .map((entry) => ({ id: entry.id, name: entry.name })),
+    ).toEqual([expect.objectContaining({ name: "Owner" })]);
   });
 
   it("renames the placeholder Support agent to open-sesame", async () => {

@@ -1,26 +1,25 @@
 /**
  * Default Access configuration for this vault — dogfood the local IAM plane.
  *
- * Opening Access (or Identity) should already show the current person, the
- * guest principal, this app, this device, and standing shares for every vault
- * the owner can use — including the guest vault, so guest access is
- * configurable rather than invisible. Nothing that the product itself needs
- * should wait for a blank Grant form.
+ * Opening Access (or Identity) should already show the current person, this
+ * app, this device, and standing shares for every vault the owner can use.
+ * Guest principals are per-session (Guest N) and live in the guest tomb only;
+ * they are never a shared singleton account for connectors.
  */
 
 import { getBundledProviders } from "./embedded-catalog.js";
 import { ensureThisDevice } from "./local-devices.js";
 import {
-  GUEST_PERSON_ID,
-  GUEST_PERSON_NAME,
   SUPPORT_AGENT_ID,
   currentOwnerPersonName,
   ensureOwnerPerson,
 } from "./local-directory-bootstrap.js";
 import { type LocalDirectory, readLocalDirectory } from "./local-directory.js";
+import { guestSessionPerson, isGuestPersonEntry } from "./local-guest.js";
 import { ensureLocalShare } from "./local-share-grants.js";
 import { loadSettings } from "./settings.js";
 import { listDeviceVaults } from "./vaults.js";
+import { GUEST_TOMB } from "./vfs.js";
 
 function providerLabel(providerId: string): string {
   return (
@@ -40,12 +39,7 @@ function configuredProviderIds(): readonly string[] {
 }
 
 function findGuestPerson(directory: LocalDirectory) {
-  return (
-    directory.entries.find((entry) => entry.id === GUEST_PERSON_ID) ??
-    directory.entries.find(
-      (entry) => entry.kind === "person" && entry.name === GUEST_PERSON_NAME,
-    )
-  );
+  return directory.entries.find((entry) => isGuestPersonEntry(entry));
 }
 
 function findOwnerPerson(directory: LocalDirectory) {
@@ -84,22 +78,24 @@ async function ensureDefaultShares(tomb: string): Promise<void> {
     }
   }
 
-  // Guest vault + guest principal — always dogfooded so Access can tighten.
+  // Guest vault + this tomb's guest principal(s) — each Guest N is distinct.
   if (guestVault && guest) {
-    await ensureLocalShare(tomb, {
-      principalId: guest.id,
-      resourceKind: "vault",
-      resourceId: guestVault.id,
-      resourceLabel: guestVault.label,
-      policy: "open",
-    });
-    await ensureLocalShare(tomb, {
-      principalId: guest.id,
-      resourceKind: "vault",
-      resourceId: guestVault.id,
-      resourceLabel: guestVault.label,
-      policy: "items",
-    });
+    for (const guestPerson of directory.entries.filter(isGuestPersonEntry)) {
+      await ensureLocalShare(tomb, {
+        principalId: guestPerson.id,
+        resourceKind: "vault",
+        resourceId: guestVault.id,
+        resourceLabel: guestVault.label,
+        policy: "open",
+      });
+      await ensureLocalShare(tomb, {
+        principalId: guestPerson.id,
+        resourceKind: "vault",
+        resourceId: guestVault.id,
+        resourceLabel: guestVault.label,
+        policy: "items",
+      });
+    }
     await ensureLocalShare(tomb, {
       principalId: SUPPORT_AGENT_ID,
       resourceKind: "vault",
@@ -132,11 +128,13 @@ async function ensureDefaultShares(tomb: string): Promise<void> {
 }
 
 /**
- * Ensure the local IAM surface this app dogfoods: owner, guest, org, Pages
- * app, support agent, this device, and standing shares for vaults/connectors.
+ * Ensure the local IAM surface this app dogfoods: owner, (session) guest,
+ * org, Pages app, support agent, this device, and standing shares.
  */
 export async function ensureDefaultAccess(tomb: string): Promise<void> {
-  await ensureOwnerPerson(tomb, currentOwnerPersonName());
+  const personName =
+    tomb === GUEST_TOMB ? guestSessionPerson().name : currentOwnerPersonName();
+  await ensureOwnerPerson(tomb, personName);
   await ensureThisDevice(tomb);
   await ensureDefaultShares(tomb);
 }

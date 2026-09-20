@@ -27,15 +27,26 @@
   justify-items: center;
   gap: 0.9rem;
   text-align: center;
+  /* Inline size so the LED board scales to the card, not the viewport. */
+  container-type: inline-size;
+  width: 100%;
 }
 
 .door__wordmark {
-  font-size: clamp(1.75rem, 8vw, 2.6rem);
+  /* Eleven 1.05em cells + icon must stay inside the card (mobile gate). */
+  font-size: clamp(1.05rem, 6cqi, 2.6rem);
   letter-spacing: 0;
   color: var(--ink);
+  max-width: 100%;
+}
+
+.door__wordmark > svg {
+  width: 1.15em;
+  height: 1.15em;
 }
 
 .door__lede {
+  min-height: 1.25rem; /* Impeccable pick floor (20px) */
   /* One sentence, one line where the card allows it; the card is the bound. */
   max-width: 60ch;
   color: var(--ink-2);
@@ -105,6 +116,7 @@
 }
 
 .road__name {
+  min-height: 1.25rem; /* Impeccable pick floor (20px) */
   font-family: var(--mono);
   font-size: 0.9375rem;
   font-weight: 600;
@@ -112,6 +124,7 @@
 }
 
 .road__kind {
+  min-height: 1.25rem; /* Impeccable pick floor (20px) */
   font-family: var(--font);
   font-size: 0.75rem;
   line-height: 1.35;

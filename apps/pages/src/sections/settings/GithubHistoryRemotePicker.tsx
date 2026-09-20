@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
 import type { Connection } from "../../lib/connections.js";
@@ -133,20 +134,24 @@ export function GithubHistoryRemotePicker({
           />
           <button
             type="button"
-            className="btn btn--primary"
+            className="icon-btn"
             disabled={disabled || creating || !newName.trim()}
             aria-busy={creating}
+            aria-label="Create private repo"
+            title="Create private repo"
             onClick={() => void createPrivate()}
           >
-            {creating ? "Creating private repo…" : "Create private repo"}
+            <IconPlus size={16} />
           </button>
           <button
             type="button"
-            className="btn btn--ghost"
+            className="icon-btn"
             disabled={disabled || loading || creating}
+            aria-label="Refresh list"
+            title="Refresh list"
             onClick={() => void refreshRepos()}
           >
-            Refresh list
+            <IconRefresh size={16} />
           </button>
         </div>
         <p className="hint">

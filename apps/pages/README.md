@@ -129,10 +129,3 @@ git remote. Importing a manifest here merges by store path (re-imports are
 idempotent). Agents never see the manifest — they use ConnectionRefs only
 (ADR 0005 / 0037 / 0038).
 
-## Browser database
-
-The connector catalog opens `opensesame-connectors.db` directly in the PWA
-with Turso WASM and OPFS. It works locally without a database service. An admin
-may set a Turso sync URL under Settings and paste its auth token for the current
-tab; the token is never persisted. The Host remains the credential authority
-and never returns connector secrets to this database.

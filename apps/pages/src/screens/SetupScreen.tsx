@@ -1,27 +1,21 @@
 /**
- * Deployment setup and joining a session — two optional ceremonies.
+ * Deployment setup — one optional ceremony.
  *
- * Neither is a gate. This static app is complete without a backend (ADR
+ * Nothing here is a gate. This static app is complete without a backend (ADR
  * 0090): a first visitor signs in through the compiled-in broker, continues
  * as a guest, or seals a local vault, and never has to answer an operator's
- * question first. This screen is reached on purpose — `Deployment setup` or
- * `Join a session` from the sign-in screen's foot — or by arriving on an
- * invite link, which opens the join road directly because the link *is* the
- * request.
+ * question first. This screen is reached on purpose — `Deployment setup`
+ * from the sign-in screen's foot.
  *
  * The operator road is a tab per concern (ADR 0114): connectors
- * (ADR 0115), backups, ai, identity, mfa, sync. Connectors come first so
- * backups can reuse directory-authorized endpoints. Every tab writes its
+ * (ADR 0115), backups, ai, identity, mfa. Every tab writes its
  * record as it is answered — `settings.v1`, or the connector directory's
  * own — every tab is skippable, and "Skip all" takes the whole tour off the
  * table — skipping is recorded, so "looked and passed" stays distinct from
  * "never looked". The foot is icon keys for previous / skip / next, and the
- * shared `.go` Finish. The join road is a claim
- * invite (ADR 0079 §7) or a request into a public session, and is the only
- * place the Host is asked for, because sharing is the action that
- * reintroduces the server.
+ * shared `.go` Finish.
  *
- * Designed in `docs/design/first-run-setup/` and `docs/design/shared-sessions/`.
+ * Designed in `docs/design/first-run-setup/`.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -34,33 +28,24 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
-import { firstControl, landFocus } from "../lib/focus.js";
-import {
-  type ParsedInvite,
-  readJoinFromLocation,
-  scrubJoinHash,
-} from "../lib/join-session.js";
+import { landFocus } from "../lib/focus.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
-import { JoinSession } from "./setup/JoinSession.js";
 import { KeepIt } from "./setup/KeepIt.js";
 import { AiStep } from "./setup/steps/AiStep.js";
-import { BackupsStep } from "./setup/steps/BackupsStep.js";
 import { ConnectorsStep } from "./setup/steps/ConnectorsStep.js";
 import { IdentityStep } from "./setup/steps/IdentityStep.js";
 import { MfaStep } from "./setup/steps/MfaStep.js";
-import { SyncStep } from "./setup/steps/SyncStep.js";
 import "./setup.css";
 
 export const setupScreenDependencies = {
   completeSetup,
   loadSettings,
-  readJoinFromLocation,
 };
 
-export type SetupRoad = "setup" | "join";
+export type SetupRoad = "setup";
 
 const STEPS = [
   {
@@ -69,32 +54,20 @@ const STEPS = [
     rail: "Connectors",
     Panel: ConnectorsStep,
   },
-  { id: "backups", tab: "backups", rail: "Backups", Panel: BackupsStep },
   { id: "ai", tab: "ai", rail: "AI", Panel: AiStep },
   { id: "identity", tab: "identity", rail: "Identity", Panel: IdentityStep },
   { id: "mfa", tab: "mfa", rail: "MFA", Panel: MfaStep },
-  { id: "sync", tab: "sync", rail: "Sync", Panel: SyncStep },
 ] as const;
 
 /** A tab of the operator ceremony (ADR 0114). */
 export type SetupStep = (typeof STEPS)[number]["id"];
 
-function initialInvite(): ParsedInvite | null {
-  return setupScreenDependencies.readJoinFromLocation();
-}
-
 export function SetupScreen({
   onDone,
-  road,
   step,
 }: {
   /** Back to the sign-in screen — after finishing, or by backing out. */
   onDone: () => void;
-  /**
-   * Which ceremony to open. Absent, an invite in the address bar opens join;
-   * otherwise the operator question.
-   */
-  road?: SetupRoad;
   /**
    * The tab to open on — a road that knows its concern (the no-way-in notice)
    * lands on it directly; anything else takes the tour from the top.
@@ -103,7 +76,6 @@ export function SetupScreen({
 }) {
   useSupportRoute("/setup");
   const finishRef = useGuideTarget<HTMLButtonElement>("setup.finish");
-  const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);
   const [index, setIndex] = useState(() =>
     Math.max(
@@ -112,24 +84,14 @@ export function SetupScreen({
     ),
   );
   const [skipped, setSkipped] = useState<SetupStep[]>([]);
-  const active: SetupRoad = road ?? (invite ? "join" : "setup");
   const frameRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    scrubJoinHash();
-  }, []);
-
-  // Each road lands the keyboard where its answer is — the invite on join,
-  // and on setup the terminal commit: nothing here is required, so Enter
+  // The terminal commit owns the landing: nothing here is required, so Enter
   // finishes, and Shift+Tab walks back up into the tabs. The first control
   // in a step's body can be a Remove, which an arrival must not land on.
   useEffect(() => {
-    if (active === "setup") {
-      landFocus(frameRef.current?.querySelector(".go"));
-      return;
-    }
-    landFocus(firstControl(frameRef.current?.querySelector("main")));
-  }, [active]);
+    landFocus(frameRef.current?.querySelector(".go"));
+  }, []);
 
   const verb = finishing ? "Saving…" : "Finish setup";
 
@@ -209,118 +171,108 @@ export function SetupScreen({
           </button>
         </div>
 
-        {active === "join" ? (
-          <JoinSession initial={invite} onDone={onDone} />
-        ) : (
-          <>
-            {/* The rail and the tabs pin to the frame, above the scrollport —
-                a step the body scrolled past would otherwise take its tab
-                with it, stranding the later steps on a phone. */}
-            <div className="setup__chrome">
-              <div className="steps" aria-label="Setup steps">
-                {STEPS.map((entry, at) => (
-                  <div
-                    key={entry.id}
-                    className={`steps__seg${
-                      at < index ? " is-done" : at === index ? " is-now" : ""
-                    }`}
-                  >
-                    <span className="steps__bar" />
-                    <span className="steps__label">{`${at + 1} · ${entry.rail}`}</span>
-                  </div>
-                ))}
-              </div>
-
+        {/* The rail and the tabs pin to the frame, above the scrollport —
+            a step the body scrolled past would otherwise take its tab
+            with it, stranding the later steps on a phone. */}
+        <div className="setup__chrome">
+          <div className="steps" aria-label="Setup steps">
+            {STEPS.map((entry, at) => (
               <div
-                className="setup__tabs"
-                role="tablist"
-                aria-label="Setup step"
+                key={entry.id}
+                className={`steps__seg${
+                  at < index ? " is-done" : at === index ? " is-now" : ""
+                }`}
               >
-                {STEPS.map((entry, at) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={at === index}
-                    className={`setup__tab${
-                      at === index ? " setup__tab--active" : ""
-                    }`}
-                    onClick={() => setIndex(at)}
-                  >
-                    {entry.tab}
-                  </button>
-                ))}
+                <span className="steps__bar" />
+                <span className="steps__label">{`${at + 1} · ${entry.rail}`}</span>
               </div>
-            </div>
+            ))}
+          </div>
 
-            <main className="setup__body" id="main">
-              <current.Panel />
+          <div className="setup__tabs" role="tablist" aria-label="Setup step">
+            {STEPS.map((entry, at) => (
+              <button
+                key={entry.id}
+                type="button"
+                role="tab"
+                aria-selected={at === index}
+                className={`setup__tab${
+                  at === index ? " setup__tab--active" : ""
+                }`}
+                onClick={() => setIndex(at)}
+              >
+                {entry.tab}
+              </button>
+            ))}
+          </div>
+        </div>
 
-              {/* Not a question — an offer with no wrong answer, below the
+        <main className="setup__body" id="main">
+          <current.Panel />
+
+          {/* Not a question — an offer with no wrong answer, below the
                   step that is on screen and withheld entirely where the
                   browser will not install. ADR 0086. */}
-              <GuideTarget id="setup.keep">
-                <KeepIt />
-              </GuideTarget>
-            </main>
+          <GuideTarget id="setup.keep">
+            <KeepIt />
+          </GuideTarget>
+        </main>
 
-            <div className="setup__foot">
-              <div className="setup__foot-start">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  disabled={finishing || atStart}
-                  aria-label="Previous step"
-                  title="Previous step"
-                  onClick={stepBack}
-                >
-                  <IconChevronLeft size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  disabled={finishing}
-                  aria-label="Skip this step"
-                  title="Skip this step"
-                  onClick={skipStep}
-                >
-                  <IconSkip size={18} />
-                </button>
-              </div>
-              <div className="setup__foot-end">
-                {atEnd ? null : (
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    disabled={finishing}
-                    aria-label="Next step"
-                    title="Next step"
-                    onClick={() => setIndex(index + 1)}
-                  >
-                    <IconChevronRight size={18} />
-                  </button>
-                )}
-                <div className="go-row">
-                  <button
-                    ref={finishRef}
-                    type="button"
-                    className="go"
-                    disabled={finishing}
-                    aria-busy={finishing}
-                    aria-label={verb}
-                    title={verb}
-                    onClick={() => finish(skipped)}
-                  >
-                    <IconCheck size={18} />
-                  </button>
-                  <span className="go-verb" aria-hidden="true">
-                    {verb}
-                  </span>
-                </div>
-              </div>
+        <div className="setup__foot">
+          <div className="setup__foot-start">
+            <button
+              type="button"
+              className="icon-btn"
+              disabled={finishing || atStart}
+              aria-label="Previous step"
+              title="Previous step"
+              onClick={stepBack}
+            >
+              <IconChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              disabled={finishing}
+              aria-label="Skip this step"
+              title="Skip this step"
+              onClick={skipStep}
+            >
+              <IconSkip size={18} />
+            </button>
+          </div>
+          <div className="setup__foot-end">
+            {atEnd ? null : (
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={finishing}
+                aria-label="Next step"
+                title="Next step"
+                onClick={() => setIndex(index + 1)}
+              >
+                <IconChevronRight size={18} />
+              </button>
+            )}
+            <div className="go-row">
+              <button
+                ref={finishRef}
+                type="button"
+                className="go"
+                disabled={finishing}
+                aria-busy={finishing}
+                aria-label={verb}
+                title={verb}
+                onClick={() => finish(skipped)}
+              >
+                <IconCheck size={18} />
+              </button>
+              <span className="go-verb" aria-hidden="true">
+                {verb}
+              </span>
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );

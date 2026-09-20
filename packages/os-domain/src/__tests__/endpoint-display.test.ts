@@ -27,7 +27,9 @@ describe("briefOrigin", () => {
     const typo = 'w:z:xa)d<+1$8%g,sk$294".4|^@z.6^s>q-v';
     expect(briefOrigin(typo)).toBe(typo);
     expect(briefOrigin("file:///etc/passwd")).toBe("file:///etc/passwd");
-    expect(briefOrigin("libsql://db.turso.io")).toBe("libsql://db.turso.io");
+    expect(briefOrigin("wss://sync.example.invalid")).toBe(
+      "wss://sync.example.invalid",
+    );
   });
 
   it("never grows what it was given", () => {

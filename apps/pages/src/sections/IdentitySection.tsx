@@ -18,13 +18,11 @@ import {
   IconRefresh,
   IconShield,
   IconSite,
+  IconTrash,
   IconUser,
+  IconX,
 } from "../components/Icons.js";
-import {
-  type Delegation,
-  listDelegations,
-  revokeDelegation,
-} from "../lib/access.js";
+import { StatusMark, statusTone } from "../components/StatusMark.js";
 import {
   ByoError,
   type ByoProviderInput,
@@ -53,6 +51,7 @@ import {
   defaultUpstream,
   upstreamByIssuer,
 } from "../lib/federation.js";
+import { isGuestSession } from "../lib/guest-isolation.js";
 import {
   type IdentitySession,
   identityBase,
@@ -66,9 +65,11 @@ import {
   presetIssuer,
 } from "../lib/idp-presets.js";
 import {
+  DEVICE_IDP_ID,
   type IdpProviderType,
   type IdpRecord,
   dismissIdpCeremony,
+  listAdditionalIdpRegistrations,
   listIdpRegistrations,
   registerIdp,
   removeIdpRegistration,
@@ -91,7 +92,6 @@ import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { ClaimAccessCeremony } from "./access/ClaimAccessCeremony.js";
 import { monogram } from "./connections/connector-marks.js";
 import type { Flash } from "./connections/shared.js";
 import { AgentsPanel } from "./identity/AgentsPanel.js";
@@ -107,9 +107,93 @@ import "../screens/unlock.css";
 import "./identity.css";
 
 /**
- * Browser-local identity management, with optional hosted Identity and Host
+ * Browser-local identity management, with optional hosted Identity
  * surfaces. Provider registration is an explicit ceremony, not an entry gate.
  */
+type IdentityTab = (typeof IDENTITY_VIEWS)[number];
+
+function IdentityTabPanels({
+  tab,
+  online,
+  configured,
+  session,
+  providers,
+  flash,
+  onSelectTab,
+  onProvidersChanged,
+  onOpenCeremony,
+}: {
+  tab: IdentityTab;
+  online: boolean;
+  configured: boolean;
+  session: ReturnType<typeof useIdentitySession>;
+  providers: IdpRecord[];
+  flash: Flash | null;
+  onSelectTab: (tab: IdentityTab) => void;
+  onProvidersChanged: (next: IdpRecord[]) => void;
+  onOpenCeremony: () => void;
+}) {
+  // Guest sessions are local-vault IAM only — never hide Guest N behind a
+  // hosted People panel the guest cannot see themselves in.
+  const localOnly = isGuestSession() || !configured;
+  return (
+    <>
+      <IdentityTabs selected={tab} onSelect={onSelectTab} />
+      {flash ? (
+        <output className={`note note--${flash.tone}`}>
+          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
+          <p>{flash.text}</p>
+        </output>
+      ) : null}
+      {tab === "people" ? (
+        localOnly ? (
+          <LocalDirectoryPanel kind="person" />
+        ) : (
+          <PeoplePanel online={online} session={session} />
+        )
+      ) : null}
+      {tab === "providers" ? (
+        <ProvidersPanel
+          online={online}
+          providers={providers}
+          onChanged={onProvidersChanged}
+          onOpenCeremony={onOpenCeremony}
+        />
+      ) : null}
+      {tab === "devices" ? (
+        <DevicesPanel online={online} session={session} />
+      ) : null}
+      {tab === "agents" ? (
+        localOnly ? (
+          <LocalDirectoryPanel kind="agent" />
+        ) : session ? (
+          <AgentsPanel online={online} />
+        ) : (
+          <ConnectIdentityNote online={online} what="agent identities" />
+        )
+      ) : null}
+      {tab === "service-accounts" ? (
+        localOnly ? (
+          <LocalDirectoryPanel kind="application" />
+        ) : (
+          <ServiceAccountsPanel online={online} session={session} />
+        )
+      ) : null}
+      {tab === "organization" ? (
+        localOnly ? (
+          <LocalDirectoryPanel kind="organization" />
+        ) : (
+          <OrganizationPanel
+            online={online}
+            session={session}
+            onOpenPeople={() => onSelectTab("people")}
+          />
+        )
+      ) : null}
+    </>
+  );
+}
+
 export function IdentitySection() {
   const online = useOnline();
   const configured = useIdentityConfigured();
@@ -126,8 +210,8 @@ export function IdentitySection() {
   }
 
   function closeCeremony() {
-    if (providers.length === 0) {
-      // "Set up later" is the guest-primacy escape, and it is sticky.
+    if (listAdditionalIdpRegistrations().length === 0) {
+      // "Set up later" defers adding another upstream; the device IdP remains.
       dismissIdpCeremony();
     }
     setCeremonyOpen(false);
@@ -149,7 +233,6 @@ export function IdentitySection() {
       <header className="section__head">
         <h1>Identity</h1>
       </header>
-
       {ceremonyOpen ? (
         <IdpCeremony
           online={online}
@@ -158,66 +241,17 @@ export function IdentitySection() {
           onDismiss={closeCeremony}
         />
       ) : (
-        <>
-          <IdentityTabs selected={tab} onSelect={setTab} />
-
-          {flash ? (
-            <output className={`note note--${flash.tone}`}>
-              {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-              <p>{flash.text}</p>
-            </output>
-          ) : null}
-
-          {tab === "people" ? (
-            !configured ? (
-              <LocalDirectoryPanel kind="person" />
-            ) : (
-              <PeoplePanel
-                online={online}
-                session={session}
-                onOpenCeremony={openCeremony}
-              />
-            )
-          ) : null}
-          {tab === "providers" ? (
-            <ProvidersPanel
-              online={online}
-              providers={providers}
-              onChanged={providersChanged}
-              onOpenCeremony={openCeremony}
-            />
-          ) : null}
-          {tab === "devices" ? (
-            <DevicesPanel online={online} session={session} />
-          ) : null}
-          {tab === "agents" ? (
-            !configured ? (
-              <LocalDirectoryPanel kind="agent" />
-            ) : session ? (
-              <AgentsPanel online={online} />
-            ) : (
-              <ConnectIdentityNote online={online} what="agent identities" />
-            )
-          ) : null}
-          {tab === "service-accounts" ? (
-            !configured ? (
-              <LocalDirectoryPanel kind="application" />
-            ) : (
-              <ServiceAccountsPanel online={online} session={session} />
-            )
-          ) : null}
-          {tab === "organization" ? (
-            !configured ? (
-              <LocalDirectoryPanel kind="organization" />
-            ) : (
-              <OrganizationPanel
-                online={online}
-                session={session}
-                onOpenPeople={() => setTab("people")}
-              />
-            )
-          ) : null}
-        </>
+        <IdentityTabPanels
+          tab={tab}
+          online={online}
+          configured={configured}
+          session={session}
+          providers={providers}
+          flash={flash}
+          onSelectTab={setTab}
+          onProvidersChanged={providersChanged}
+          onOpenCeremony={openCeremony}
+        />
       )}
     </div>
   );
@@ -594,7 +628,7 @@ function ByoClientFields({
           </>
         ) : (
           <p className="hint">
-            Set a remote Identity URL under Settings → Connectivity to get the
+            Set a remote Identity URL under Settings → Connections to get the
             deployment callback URI. Browser-local providers do not need it.
           </p>
         )}
@@ -826,15 +860,10 @@ function CustomOidcCard({
 function PeoplePanel({
   online,
   session,
-  onOpenCeremony,
 }: {
   online: boolean;
   session: IdentitySession | null;
-  onOpenCeremony: () => void;
 }) {
-  const [claimOpen, setClaimOpen] = useState(false);
-  const [accessNonce, setAccessNonce] = useState(0);
-
   if (!session) {
     return (
       <ConnectIdentityNote
@@ -844,219 +873,13 @@ function PeoplePanel({
     );
   }
 
-  // One ceremony at a time: claiming access takes over the tab, with a
-  // back-link out, never fields appended to the list.
-  if (claimOpen) {
-    return (
-      <ClaimAccessCeremony
-        online={online}
-        onDone={(claimed) => {
-          setClaimOpen(false);
-          if (claimed) setAccessNonce((nonce) => nonce + 1);
-        }}
-      />
-    );
-  }
-
   return (
     <>
       <UsersPanel online={online} />
-      <MeCard online={online} onOpenCeremony={onOpenCeremony} />
+      <MeCard online={online} />
       <LinkedIdentitiesCard online={online} />
-      {/* Remount on a fresh claim so the new grant is simply there. */}
-      <MyAccessCard
-        key={accessNonce}
-        online={online}
-        session={session}
-        onOpenClaim={() => setClaimOpen(true)}
-      />
       <OrgMembersCard online={online} />
     </>
-  );
-}
-
-/* --------------------------------------------------------------- my access */
-
-/**
- * The requester side of JIT (ADR 0061): grants this principal holds, with
- * their expiry, and the claim ceremony that adds one. Bound to the same
- * delegation seams the Access screen uses.
- */
-function MyAccessCard({
-  online,
-  session,
-  onOpenClaim,
-}: {
-  online: boolean;
-  session: IdentitySession;
-  onOpenClaim: () => void;
-}) {
-  const claimRef = useGuideTarget<HTMLButtonElement>("identity.claim-access");
-  const [rows, setRows] = useState<Delegation[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const run = useRef(0);
-  const now = useNow(30_000);
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const all = await listDelegations();
-      if (run.current !== id) return;
-      // The list also carries grants I minted for others — My access is only
-      // the rows I claimed and have not dropped.
-      setRows(
-        all.filter(
-          (delegation) =>
-            delegation.claimantSubject === session.principalId &&
-            delegation.revokedAt === null,
-        ),
-      );
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setRows(null);
-      setError(identityErrorText(caught));
-    }
-  }, [session.principalId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function drop(delegation: Delegation) {
-    setBusyId(delegation.id);
-    setFlash(null);
-    try {
-      await revokeDelegation(delegation.id);
-      setFlash({ tone: "ok", text: "Access dropped." });
-      setConfirmId(null);
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>My access</h2>
-        </div>
-        <div className="actions">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => void load()}
-            disabled={!online}
-            title="Reload my access"
-            aria-label="Reload my access"
-          >
-            <IconRefresh />
-          </button>
-          <button
-            ref={claimRef}
-            type="button"
-            className="btn btn--sm btn--primary"
-            onClick={onOpenClaim}
-          >
-            Claim access
-          </button>
-        </div>
-      </div>
-
-      <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
-
-        {rows === null && !error ? (
-          <output className="note">Asking the Host…</output>
-        ) : null}
-
-        {rows && rows.length > 0 ? (
-          <ul className="identity-rows">
-            {rows.map((delegation) => (
-              <li className="identity-row" key={delegation.id}>
-                <div className="identity-row__main">
-                  <span className="identity-row__mark">
-                    <IconShield size={18} />
-                  </span>
-                  <div className="identity-row__id">
-                    <h3>
-                      {delegation.resources.length > 0
-                        ? delegation.resources.join(", ")
-                        : delegation.connectionId}
-                    </h3>
-                    <code className="identity-ref">
-                      {delegation.connectionId}
-                    </code>
-                  </div>
-                  {delegation.actions.map((action) => (
-                    <span className="chip" key={action}>
-                      {action}
-                    </span>
-                  ))}
-                  <span className="chip">{delegation.executionMode}</span>
-                  <span className="identity-row__when">
-                    expires {countdown(delegation.expiresAt, now)}
-                  </span>
-                  <div className="actions">
-                    {confirmId === delegation.id ? (
-                      <>
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--danger"
-                          disabled={busyId !== null || !online}
-                          onClick={() => void drop(delegation)}
-                        >
-                          {busyId === delegation.id ? "Dropping…" : "Drop it"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--sm"
-                          onClick={() => setConfirmId(null)}
-                        >
-                          Keep it
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn--sm btn--danger"
-                        disabled={busyId !== null || !online}
-                        onClick={() => setConfirmId(delegation.id)}
-                      >
-                        Drop
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {rows && rows.length === 0 ? (
-          <p className="hint">
-            No access held — claim a code an owner hands you.
-          </p>
-        ) : null}
-
-        {flash ? (
-          <output className={`note note--${flash.tone}`}>
-            {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-            <p>{flash.text}</p>
-          </output>
-        ) : null}
-      </div>
-    </section>
   );
 }
 
@@ -1076,13 +899,7 @@ function truncateId(id: string): string {
   return id.length > 18 ? `${id.slice(0, 14)}…${id.slice(-4)}` : id;
 }
 
-function MeCard({
-  online,
-  onOpenCeremony,
-}: {
-  online: boolean;
-  onOpenCeremony: () => void;
-}) {
+function MeCard({ online }: { online: boolean }) {
   const [me, setMe] = useState<DirectoryPrincipal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const run = useRef(0);
@@ -1105,8 +922,6 @@ function MeCard({
   useEffect(() => {
     void load();
   }, [load]);
-
-  const guest = me !== null && me.state === "provisional";
 
   return (
     <section className="panel">
@@ -1138,61 +953,42 @@ function MeCard({
         ) : null}
 
         {me ? (
-          <>
-            <dl className="kv">
-              <div>
-                <dt>Principal</dt>
-                <dd>
-                  <code title={me.id}>{truncateId(me.id)}</code>{" "}
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => copy(me.id, "principal")}
-                    title="Copy principal id"
-                    aria-label="Copy principal id"
-                  >
-                    {copied === "principal" ? <IconCheck /> : <IconCopy />}
-                  </button>
-                </dd>
-              </div>
-              <div>
-                <dt>State</dt>
-                <dd>
-                  <span className={`chip ${stateChip(me.state).tone}`}>
-                    {stateChip(me.state).label}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Assurance</dt>
-                <dd>
-                  <span className="chip">{me.assurance}</span>
-                </dd>
-              </div>
-              <div>
-                <dt>Created</dt>
-                <dd>{formatTime(me.createdAt)}</dd>
-              </div>
-            </dl>
-
-            {guest ? (
-              <div className="identity-guest">
-                <p className="hint">
-                  No identity provider vouches for this identity yet — a guest
-                  principal is provisional and expires.
-                </p>
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn btn--sm btn--primary"
-                    onClick={onOpenCeremony}
-                  >
-                    Register an identity provider
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </>
+          <dl className="kv">
+            <div>
+              <dt>Principal</dt>
+              <dd>
+                <code title={me.id}>{truncateId(me.id)}</code>{" "}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => copy(me.id, "principal")}
+                  title="Copy principal id"
+                  aria-label="Copy principal id"
+                >
+                  {copied === "principal" ? <IconCheck /> : <IconCopy />}
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>State</dt>
+              <dd>
+                <StatusMark
+                  tone={statusTone(stateChip(me.state).tone)}
+                  label={stateChip(me.state).label}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Assurance</dt>
+              <dd>
+                <span className="chip">{me.assurance}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Created</dt>
+              <dd>{formatTime(me.createdAt)}</dd>
+            </div>
+          </dl>
         ) : null}
       </div>
     </section>
@@ -1299,30 +1095,34 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
                         <>
                           <button
                             type="button"
-                            className="btn btn--sm btn--danger"
+                            className="icon-btn icon-btn--danger icon-btn--sm"
                             disabled={busyId !== null || !online}
                             onClick={() => void unlink(identity)}
+                            aria-label="Unlink"
+                            title="Unlink"
                           >
-                            {busyId === identity.id
-                              ? "Unlinking…"
-                              : "Unlink it"}
+                            <IconTrash size={16} />
                           </button>
                           <button
                             type="button"
-                            className="btn btn--sm"
+                            className="icon-btn icon-btn--sm"
                             onClick={() => setConfirmId(null)}
+                            aria-label="Keep it"
+                            title="Keep it"
                           >
-                            Keep it
+                            <IconX size={16} />
                           </button>
                         </>
                       ) : (
                         <button
                           type="button"
-                          className="btn btn--sm btn--danger"
+                          className="icon-btn icon-btn--danger icon-btn--sm"
                           disabled={busyId !== null || !online}
                           onClick={() => setConfirmId(identity.id)}
+                          aria-label="Unlink"
+                          title="Unlink"
                         >
-                          Unlink
+                          <IconTrash size={16} />
                         </button>
                       )}
                     </div>
@@ -1500,10 +1300,12 @@ function OrgMembersCard({ online }: { online: boolean }) {
                           </button>
                           <button
                             type="button"
-                            className="btn btn--sm"
+                            className="icon-btn icon-btn--sm"
                             onClick={() => setConfirmId(null)}
+                            aria-label="Keep them"
+                            title="Keep them"
                           >
-                            Keep them
+                            <IconX size={16} />
                           </button>
                         </>
                       ) : (
@@ -1587,10 +1389,10 @@ function OrgMembersCard({ online }: { online: boolean }) {
 /* --------------------------------------------------------------- providers */
 
 /**
- * Who vouches for the people here. Rows come from the local registry — the
- * only list a browser can hold, since the server-side registration list is
- * operator-token-only. First-class rows are intersected with the live catalog
- * when it answers; BYO rows are the registry mirror itself.
+ * Who vouches for the people here. OpenSesame (this device) is always first
+ * (ADR 0118). Additional rows come from the local registry mirror — the only
+ * list a browser can hold for upstreams. First-class rows are intersected with
+ * the live catalog when it answers; BYO rows are the registry mirror itself.
  */
 function ProvidersPanel({
   online,
@@ -1625,7 +1427,10 @@ function ProvidersPanel({
     if (!catalog || catalog.length === 0) return providers;
     const listed = new Set(catalog.map((provider) => provider.id));
     return providers.filter(
-      (record) => record.kind === "byo" || listed.has(record.id),
+      (record) =>
+        record.kind === "device" ||
+        record.kind === "byo" ||
+        listed.has(record.id),
     );
   }, [catalog, providers]);
 
@@ -1650,26 +1455,50 @@ function ProvidersPanel({
       </div>
 
       <div className="panel__body">
-        {providers.length === 0 ? (
-          <div className="empty">
-            <h3>No identity provider registered.</h3>
-            <EmptyTip>{emptyTips.navigate}</EmptyTip>
-          </div>
-        ) : (
-          <ul className="identity-rows">
-            {rows.map((record) => (
-              <ProviderRow
-                key={record.id}
-                record={record}
-                online={online}
-                onChanged={onChanged}
-              />
-            ))}
-          </ul>
-        )}
+        <ul className="identity-rows">
+          {rows.map((record) => (
+            <ProviderRow
+              key={record.id}
+              record={record}
+              online={online}
+              onChanged={onChanged}
+            />
+          ))}
+        </ul>
       </div>
     </section>
   );
+}
+
+function providerChipLabel(
+  device: boolean,
+  kind: IdpRecord["kind"],
+  presetLabel: string | undefined,
+): string {
+  if (device) return "This device";
+  if (kind === "first-class") return "First-class";
+  return presetLabel ?? "Custom OIDC";
+}
+
+function ProviderMark({
+  device,
+  brand,
+  presetLabel,
+}: {
+  device: boolean;
+  brand: ReturnType<typeof brandFor>;
+  presetLabel: string | null;
+}) {
+  if (device) return <IconShield size={18} />;
+  if (brand) return <brand.Icon size={18} />;
+  if (presetLabel) {
+    return (
+      <span className="identity-row__monogram" aria-hidden="true">
+        {monogram(presetLabel)}
+      </span>
+    );
+  }
+  return <IconSite size={18} />;
 }
 
 function ProviderRow({
@@ -1684,6 +1513,7 @@ function ProviderRow({
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const device = record.kind === "device" || record.id === DEVICE_IDP_ID;
   const brand = record.kind === "first-class" ? brandFor(record.id) : null;
   const preset = record.providerType ? presetFor(record.providerType) : null;
 
@@ -1721,70 +1551,68 @@ function ProviderRow({
     onChanged(removeIdpRegistration(record.id));
   }
 
+  const chipLabel = providerChipLabel(device, record.kind, preset?.label);
+
   return (
     <li className="identity-row" id={record.id}>
       <div className="identity-row__main">
         <span className="identity-row__mark">
-          {brand ? (
-            <brand.Icon size={18} />
-          ) : preset ? (
-            <span className="identity-row__monogram" aria-hidden="true">
-              {monogram(preset.label)}
-            </span>
-          ) : (
-            <IconSite size={18} />
-          )}
+          <ProviderMark
+            device={device}
+            brand={brand}
+            presetLabel={preset?.label ?? null}
+          />
         </span>
         <div className="identity-row__id">
           <h3>{record.label}</h3>
           <code className="identity-ref">{record.issuer}</code>
         </div>
-        <span className="chip">
-          {record.kind === "first-class"
-            ? "First-class"
-            : (preset?.label ?? "Custom OIDC")}
-        </span>
+        <span className="chip">{chipLabel}</span>
         {record.kind === "byo" ? (
           <span className="identity-row__when">
             registered {formatTime(record.registeredAt)}
           </span>
         ) : null}
-        <div className="actions">
-          <button
-            type="button"
-            className="btn btn--sm"
-            disabled={busy || !online}
-            onClick={() => void signIn()}
-          >
-            {busy ? "Starting…" : "Sign in"}
-          </button>
-          {confirming ? (
-            <>
+        {device ? null : (
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={busy || !online}
+              onClick={() => void signIn()}
+            >
+              {busy ? "Starting…" : "Sign in"}
+            </button>
+            {confirming ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--danger"
+                  onClick={remove}
+                >
+                  Remove it
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--sm"
+                  onClick={() => setConfirming(false)}
+                  aria-label="Keep it"
+                  title="Keep it"
+                >
+                  <IconX size={16} />
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 className="btn btn--sm btn--danger"
-                onClick={remove}
+                onClick={() => setConfirming(true)}
               >
-                Remove it
+                Remove
               </button>
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={() => setConfirming(false)}
-              >
-                Keep it
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn btn--sm btn--danger"
-              onClick={() => setConfirming(true)}
-            >
-              Remove
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
       {confirming ? (
         <p className="hint">
@@ -1927,13 +1755,10 @@ function ServiceAccountsPanel({
                       <code className="identity-ref">{client.id}</code>
                     </div>
                     <span className="chip">{client.admissionMode}</span>
-                    <span
-                      className={`chip ${
-                        client.state === "active" ? "chip--ok" : "chip--warn"
-                      }`}
-                    >
-                      {client.state}
-                    </span>
+                    <StatusMark
+                      tone={client.state === "active" ? "ok" : "warn"}
+                      label={client.state}
+                    />
                     <span className="identity-row__when">
                       created {formatTime(client.createdAt)}
                     </span>
@@ -1964,28 +1789,34 @@ function ServiceAccountsPanel({
                         <>
                           <button
                             type="button"
-                            className="btn btn--sm btn--danger"
+                            className="icon-btn icon-btn--danger icon-btn--sm"
                             disabled={busyId !== null || !online}
                             onClick={() => void revoke(client)}
+                            aria-label="Revoke it"
+                            title="Revoke it"
                           >
-                            Revoke it
+                            <IconTrash size={16} />
                           </button>
                           <button
                             type="button"
-                            className="btn btn--sm"
+                            className="icon-btn icon-btn--sm"
                             onClick={() => setConfirmId(null)}
+                            aria-label="Keep it"
+                            title="Keep it"
                           >
-                            Keep it
+                            <IconX size={16} />
                           </button>
                         </>
                       ) : (
                         <button
                           type="button"
-                          className="btn btn--sm btn--danger"
+                          className="icon-btn icon-btn--danger icon-btn--sm"
                           disabled={busyId !== null || !online}
                           onClick={() => setConfirmId(client.id)}
+                          aria-label="Revoke"
+                          title="Revoke"
                         >
-                          Revoke
+                          <IconTrash size={16} />
                         </button>
                       )}
                     </div>

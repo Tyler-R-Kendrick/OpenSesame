@@ -1,27 +1,23 @@
 /**
  * Is a plane configured for this deployment?
  *
- * A Host is optional (ADR 0090): this static app holds the vault, signs people
- * in and talks to its own connectors without one. What a Host adds is the
- * things a tab cannot do — brokered authority for callers that are not this
- * browser, and work that runs with no tab open (ADR 0078 §4).
+ * Per ADR 0128 the Pages PWA no longer speaks Host: Connect and the sealed
+ * local stores are the only live roads. `useHostConfigured` stays as a
+ * compatibility shim that always returns false so leftover call sites keep
+ * Host-gated panels dark rather than crashing on a removed export.
  *
- * So this is the question a screen asks BEFORE it calls the Host, not after it
- * fails: a deployment with no Host must never be told that something could not
- * be read. It re-reads on every settings write, so pairing a daemon or filling
- * in Settings → Endpoints lights the Host-backed panels up without a reload.
+ * Identity remains optional (ADR 0078 / 0118): the device-native identity
+ * plane always serves provisional sessions and claims in-tab. What a remote
+ * Identity API adds is the networked control-plane.
  */
 
-import {
-  hostBase,
-  identityBase,
-  isRemoteIdentityConfigured,
-} from "./identity.js";
+import { identityBase, isRemoteIdentityConfigured } from "./identity.js";
 import { useSettingsEpoch } from "./use-settings.js";
 
+/** Always false — Pages no longer speaks Host (ADR 0128). */
 export function useHostConfigured(): boolean {
   useSettingsEpoch();
-  return hostBase().trim().length > 0;
+  return false;
 }
 
 /**

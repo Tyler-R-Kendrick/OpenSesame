@@ -236,7 +236,7 @@ async function walk(browser, phone) {
   await openTab(page, "Vault");
   await openChromeKey(page, /^More —/, stop("more"));
   await openOverflowRow(page, /^Notifications/, stop("more-notifications"));
-  await openOverflowRow(page, /^Host/, stop("more-host"));
+  await openOverflowRow(page, /^Identity/, stop("more-identity"));
   await openOverflowRow(page, /^Help$/, stop("more-support"));
 
   await vaultItem(page, stop);
@@ -257,7 +257,7 @@ async function walk(browser, phone) {
  * A finger above 900px: the arrangement the phone roads never reach.
  *
  * Here the top bar is gone by width and the status strip is the whole of the
- * chrome, so this asserts the strip is drawn, that the seven keys it holds are
+ * chrome, so this asserts the strip is drawn, that the four keys it holds are
  * on screen and named, and — through the same audit every phone stop runs —
  * that they are keys a finger can hit. A width-gated rule that hides the strip
  * without putting the top bar back strands all of it, and a size rule written
@@ -292,8 +292,8 @@ async function tablet(browser, size) {
     };
   });
   harness.check(
-    chromeCounts.strip === 1 && chromeCounts.keys === 7,
-    `${stop("chrome")}: the status strip and its seven keys are on screen (saw ${chromeCounts.keys} in ${chromeCounts.strip} strip)`,
+    chromeCounts.strip === 1 && chromeCounts.keys === 4,
+    `${stop("chrome")}: the status strip and its four keys are on screen (saw ${chromeCounts.keys} in ${chromeCounts.strip} strip)`,
   );
   harness.check(
     chromeCounts.topbar === 0 && chromeCounts.overflow === 0,
@@ -306,7 +306,7 @@ async function tablet(browser, size) {
   // Everything the strip holds has to be reachable by name, not merely
   // painted: this is the road a person on a tablet takes to support and to the
   // truth about which planes are configured.
-  for (const name of [/^Support$/, /^Notifications/, /^Host/]) {
+  for (const name of [/^Support$/, /^Notifications/, /^Identity/]) {
     harness.check(
       (await page.getByRole("button", { name }).count()) > 0,
       `${stop("chrome")}: ${name.source} is reachable`,

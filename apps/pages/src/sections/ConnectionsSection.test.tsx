@@ -29,6 +29,7 @@ const ensureHostSession = vi.hoisted(() =>
 );
 
 import { HostSessionError, identitySeams } from "../lib/identity.js";
+import { setVercelConnectAuth } from "../lib/vercel-connect.js";
 const originalIdentitySeams = { ...identitySeams };
 Object.assign(identitySeams, {
   ensureHostSession,
@@ -48,7 +49,9 @@ const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
 Object.assign(settingsSeams, { shouldAutoConnect });
-const vault: { items: SecretItem[] } = vi.hoisted(() => ({ items: [] }));
+const vault: { items: SecretItem[]; tomb: string; status: string } = vi.hoisted(
+  () => ({ items: [], tomb: "personal", status: "unlocked" }),
+);
 const addItems = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveItem = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
@@ -59,9 +62,22 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ addItems, saveItem }),
 });
 
-import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
-const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
-Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
+import * as githubInstallation from "../lib/github-installation-access.js";
+vi.spyOn(
+  githubInstallation,
+  "loadGithubInstallationSnapshot",
+).mockResolvedValue({
+  integrations: [],
+  installations: [],
+  repos: [],
+  shares: [],
+  events: [],
+  auditEvents: [],
+});
+vi.spyOn(githubInstallation, "shouldEnsureGithubAccessGrant").mockReturnValue(
+  false,
+);
+vi.spyOn(githubInstallation, "ensureGithubAccessGrant").mockResolvedValue([]);
 
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
@@ -351,12 +367,14 @@ describe("ConnectionsSection gallery", () => {
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
+    setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections");
   });
 
   afterEach(() => {
     cleanup();
     clearNotices();
+    setVercelConnectAuth(null);
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
@@ -367,21 +385,19 @@ describe("ConnectionsSection gallery", () => {
     expect(
       await screen.findByRole("heading", { name: "Connections" }),
     ).toBeTruthy();
-    expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Linear").length).toBeGreaterThan(0);
-    expect(screen.getByText("Vaultwarden")).toBeTruthy();
-    expect(screen.getByText("Better Auth")).toBeTruthy();
+    expect(screen.queryByText("Vaultwarden")).toBeNull();
+    expect(screen.queryByText("Better Auth")).toBeNull();
     expect(screen.getByText("Developer tools")).toBeTruthy();
-    expect(screen.getByText("Password managers")).toBeTruthy();
-    // The automatic provider is offered as a switch, not a marketplace tile.
+    expect(screen.queryByText("Password managers")).toBeNull();
     expect(
-      screen.getByRole("switch", { name: /Enable Plain storage/i }),
-    ).toBeTruthy();
+      screen.queryByRole("switch", { name: /Enable Plain storage/i }),
+    ).toBeNull();
   });
 
   it("filters the catalog by search and clears it", async () => {
     const { container } = renderAt("/connections");
-    await screen.findByText("Vaultwarden");
+    await screen.findByText("Linear");
     await userEvent.click(
       screen.getByRole("button", { name: "Search connectors" }),
     );
@@ -398,7 +414,8 @@ describe("ConnectionsSection gallery", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Clear search/i }),
     );
-    expect(container.querySelectorAll(".conn-tile").length).toBe(5);
+    // Catalog tiles: github, linear, vercel (feature + automatic excluded).
+    expect(container.querySelectorAll(".conn-tile").length).toBe(3);
   });
   it("does not report an unreachable Host as a notification", async () => {
     listConnections.mockRejectedValue(
@@ -413,14 +430,6 @@ describe("ConnectionsSection gallery", () => {
     ).toBeUndefined();
     expect(screen.queryByText(/Host API/i)).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("gates on organization setup when the Host session needs it", async () => {
-    listConnections.mockRejectedValue(
-      new HostSessionError("setup_required", "No organization selected."),
-    );
-    renderAt("/connections");
-    expect(await screen.findByText("Choose an organization")).toBeTruthy();
   });
 
   it("keeps the bundled catalog when the remote list is unreachable", async () => {
@@ -446,62 +455,6 @@ describe("ConnectionsSection gallery", () => {
     expect(
       await screen.findByText(/credentials cannot be sealed yet/),
     ).toBeTruthy();
-  });
-
-  it("enables an automatic service and offers a vault reminder", async () => {
-    createConnection.mockResolvedValue(
-      makeConnection({
-        connectionId: "con_plain",
-        providerId: "plain",
-        displayName: "Plain storage",
-      }),
-    );
-    renderAt("/connections");
-    await userEvent.click(
-      await screen.findByRole("switch", { name: /Enable Plain storage/i }),
-    );
-    expect(await screen.findByText(/Plain storage is enabled/)).toBeTruthy();
-    expect(createConnection).toHaveBeenCalledWith(
-      expect.objectContaining({ providerId: "plain" }),
-    );
-    // The reminder banner offers to save a vault pointer.
-    expect(screen.getByText(/Add a vault reminder/)).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remember in vault/i }),
-    );
-    await waitFor(() => expect(addItems).toHaveBeenCalled());
-    expect(
-      await screen.findByText(/Added a vault reminder for Plain storage/),
-    ).toBeTruthy();
-  });
-
-  it("disables an automatic service", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection({
-        connectionId: "con_plain",
-        providerId: "plain",
-        displayName: "Plain storage",
-      }),
-    ]);
-    revokeConnection.mockResolvedValue({ providerRevocation: "ok" });
-    renderAt("/connections");
-    await screen.findByText(/Plain storage/);
-    await userEvent.click(
-      screen.getByRole("switch", { name: /Disable Plain storage/i }),
-    );
-    await waitFor(() =>
-      expect(revokeConnection).toHaveBeenCalledWith("con_plain"),
-    );
-    expect(await screen.findByText(/Plain storage is disabled/)).toBeTruthy();
-  });
-
-  it("surfaces automatic-service failures", async () => {
-    createConnection.mockRejectedValue(new Error("host busy"));
-    renderAt("/connections");
-    await userEvent.click(
-      await screen.findByRole("switch", { name: /Enable Plain storage/i }),
-    );
-    expect(await screen.findByText(/host busy/)).toBeTruthy();
   });
 
   it("lists unfinished connections under Needs attention", async () => {
@@ -533,14 +486,6 @@ describe("ConnectionsSection gallery", () => {
       screen.getByRole("link", { name: /Settings for GitHub/i }),
     ).toBeTruthy();
   });
-
-  it("auto-connects identity when neither session nor local Host applies", async () => {
-    session.current = null;
-    hostEligible.value = false;
-    connect.mockResolvedValue(undefined);
-    renderAt("/connections");
-    await waitFor(() => expect(connect).toHaveBeenCalled());
-  });
 });
 
 describe("ConnectionsSection connector page", () => {
@@ -555,12 +500,14 @@ describe("ConnectionsSection connector page", () => {
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     vault.items = [];
+    setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections/github");
   });
 
   afterEach(() => {
     cleanup();
     clearNotices();
+    setVercelConnectAuth(null);
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
@@ -583,9 +530,6 @@ describe("ConnectionsSection connector page", () => {
       name: /Create GitHub App for this organization/i,
     });
     await userEvent.click(button);
-    expect(
-      await screen.findByText(/Sending you to GitHub to create the app/),
-    ).toBeTruthy();
     expect(submitGithubAppManifest).toHaveBeenCalled();
   });
 
@@ -597,7 +541,7 @@ describe("ConnectionsSection connector page", () => {
         name: /Create GitHub App for this organization/i,
       }),
     );
-    expect(await screen.findByText(/no host/)).toBeTruthy();
+    expect(await screen.findByRole("img", { name: /no host/ })).toBeTruthy();
   });
 
   it("connects GitHub with a personal access token", async () => {
@@ -618,108 +562,7 @@ describe("ConnectionsSection connector page", () => {
         "ghp_secret",
       ),
     );
-    expect(
-      await screen.findByText(/GitHub credential stored on this Host/),
-    ).toBeTruthy();
-  });
-
-  it("maps a bad-PAT exchange failure to plain advice", async () => {
-    createConnection.mockResolvedValue(makeConnection());
-    setConnectionCredential.mockRejectedValue(
-      new ConnectionsError(401, "exchange_failed", "401 bad credentials"),
-    );
-    renderAt("/connections/github");
-    await userEvent.type(
-      await screen.findByLabelText(/connect with a personal access token/i),
-      "ghp_bad",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Connect GitHub with token/i }),
-    );
-    expect(await screen.findByText(/GitHub rejected that token/)).toBeTruthy();
-  });
-
-  it("runs the OAuth consent flow for a configured provider", async () => {
-    const created = makeConnection({ providerId: "linear" });
-    createConnection.mockResolvedValue(created);
-    authorizeConnection.mockResolvedValue({
-      authorizationUrl: "https://linear.app/oauth/authorize",
-    });
-    awaitConsent.mockResolvedValue({ result: "active", connection: created });
-    renderAt("/connections/linear");
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Authorize with Linear/i }),
-    );
-    expect(
-      await screen.findByText(/Linear is connected as octocat/),
-    ).toBeTruthy();
-    // The consent page URL was assigned for the same-tab navigation.
-    expect(authorizeConnection).toHaveBeenCalledWith("con_1", []);
-  });
-
-  it("warns when consent is abandoned", async () => {
-    const created = makeConnection({ providerId: "linear" });
-    createConnection.mockResolvedValue(created);
-    authorizeConnection.mockResolvedValue({
-      authorizationUrl: "https://linear.app/oauth/authorize",
-    });
-    awaitConsent.mockResolvedValue({
-      result: "cancelled",
-      connection: created,
-    });
-    renderAt("/connections/linear");
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Authorize with Linear/i }),
-    );
-    expect(
-      await screen.findByText(/Consent for Linear was not completed/),
-    ).toBeTruthy();
-  });
-
-  it("saves an API key for key-based providers", async () => {
-    const created = makeConnection({ providerId: "vercel" });
-    createConnection.mockResolvedValue(created);
-    setConnectionCredential.mockResolvedValue(created);
-    renderAt("/connections/vercel");
-    await userEvent.type(
-      await screen.findByLabelText(/API key/i),
-      "vcel_secret",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Connect Vercel$/i }),
-    );
-    await waitFor(() =>
-      expect(setConnectionCredential).toHaveBeenCalledWith(
-        "con_1",
-        "vcel_secret",
-      ),
-    );
-    expect(
-      await screen.findByText(/Vercel credential stored on this Host/),
-    ).toBeTruthy();
-  });
-
-  it("saves configuration for configuration-based providers", async () => {
-    const created = makeConnection({ providerId: "vaultwarden" });
-    createConnection.mockResolvedValue(created);
-    setConnectionConfiguration.mockResolvedValue(created);
-    renderAt("/connections/vaultwarden");
-    await userEvent.type(
-      await screen.findByLabelText(/Server URL/),
-      "https://vw.example.com",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save configuration/i }),
-    );
-    await waitFor(() =>
-      expect(setConnectionConfiguration).toHaveBeenCalledWith(
-        "con_1",
-        expect.objectContaining({ server_url: "https://vw.example.com" }),
-      ),
-    );
-    expect(
-      await screen.findByText(/Vaultwarden configuration saved on this Host/),
-    ).toBeTruthy();
+    expect(await screen.findByLabelText(/GitHub connected/)).toBeTruthy();
   });
 
   it("shows only required Better Auth inputs and applies hidden defaults", async () => {
@@ -755,203 +598,6 @@ describe("ConnectionsSection connector page", () => {
       }),
     );
   });
-
-  it("shows the connection card with scopes, egress, and renewal", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    refreshConnection.mockResolvedValue(makeConnection());
-    renderAt("/connections/github/con_1");
-    expect((await screen.findAllByText(/octocat/)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("api.github.com").length).toBeGreaterThan(0);
-    expect(screen.getByText("Full repository access")).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /Renew now/i }));
-    await waitFor(() =>
-      expect(refreshConnection).toHaveBeenCalledWith("con_1"),
-    );
-    expect(await screen.findByText(/was renewed/)).toBeTruthy();
-  });
-
-  it("shows connection history on demand", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    connectionEvents.mockResolvedValue([
-      {
-        id: "evt_1",
-        kind: "authorized",
-        at: "2026-08-10T10:00:00Z",
-        detail: "by prn_op",
-      },
-    ]);
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(screen.getAllByRole("button", { name: /History/i })[0]),
-    );
-    expect((await screen.findAllByText("authorized")).length).toBeGreaterThan(
-      0,
-    );
-    expect(screen.getAllByText(/by prn_op/).length).toBeGreaterThan(0);
-  });
-
-  it("revokes a connection through the confirm strip", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    revokeConnection.mockResolvedValue({ providerRevocation: "ok" });
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(screen.getAllByRole("button", { name: /^Revoke$/i })[0]),
-    );
-    expect(
-      screen.getByText(/Revoking cuts off every project and agent/),
-    ).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /Keep it/i }));
-    expect(revokeConnection).not.toHaveBeenCalled();
-    await userEvent.click(
-      overlapCast(screen.getAllByRole("button", { name: /^Revoke$/i })[0]),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Revoke it/i }));
-    await waitFor(() => expect(revokeConnection).toHaveBeenCalledWith("con_1"));
-    expect(await screen.findByText(/GitHub was revoked/)).toBeTruthy();
-  });
-
-  it("warns when provider-side revocation fails", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    revokeConnection.mockResolvedValue({ providerRevocation: "failed" });
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(screen.getAllByRole("button", { name: /^Revoke$/i })[0]),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Revoke it/i }));
-    expect(
-      await screen.findByText(/removed locally, but provider revocation/),
-    ).toBeTruthy();
-  });
-
-  it("binds and unbinds targets", async () => {
-    const bound = makeConnection({
-      bindings: [
-        {
-          id: "bnd_1",
-          targetKind: "project",
-          targetId: "proj_1",
-          targetLabel: "proj_1",
-          createdAt: "2026-08-01T00:00:00Z",
-        },
-      ],
-    });
-    listConnections.mockResolvedValue([bound]);
-    bindConnection.mockResolvedValue({});
-    unbindConnection.mockResolvedValue({});
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-
-    // Existing binding renders with an unbind control.
-    await userEvent.click(
-      overlapCast(
-        screen.getAllByRole("button", {
-          name: /Unbind proj_1/i,
-        })[0],
-      ),
-    );
-    await waitFor(() =>
-      expect(unbindConnection).toHaveBeenCalledWith("con_1", "bnd_1"),
-    );
-
-    // Add a new project binding.
-    await userEvent.click(
-      overlapCast(
-        screen.getAllByRole("button", {
-          name: /Bind an identity/i,
-        })[0],
-      ),
-    );
-    await userEvent.type(screen.getByLabelText(/Identifier/i), "proj_9");
-    await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
-    await waitFor(() =>
-      expect(bindConnection).toHaveBeenCalledWith("con_1", {
-        targetKind: "project",
-        targetId: "proj_9",
-      }),
-    );
-  });
-
-  it("rejects a non-agent id for agent bindings", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(
-        screen.getAllByRole("button", {
-          name: /Bind an identity/i,
-        })[0],
-      ),
-    );
-    await userEvent.selectOptions(screen.getByLabelText(/^Kind$/i), "agent");
-    await userEvent.type(screen.getByLabelText(/Identifier/i), "user:demo");
-    await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
-    expect(await screen.findByText(/not user:demo/)).toBeTruthy();
-    expect(bindConnection).not.toHaveBeenCalled();
-  });
-
-  it("saves connector rules", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    updateConnectionPolicy.mockResolvedValue(makeConnection());
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Delegation/i),
-      "organization_wide",
-    );
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Maximum action/i),
-      "1",
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Save rules/i }));
-    await waitFor(() =>
-      expect(updateConnectionPolicy).toHaveBeenCalledWith("con_1", {
-        shareability: "organization_wide",
-        maxInvokeLevel: 1,
-      }),
-    );
-    expect(await screen.findByText(/Connector rules saved/)).toBeTruthy();
-  });
-
-  it("binds an agent from the access panel", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    bindConnection.mockResolvedValue({});
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      screen.getByRole("button", { name: /Bind an identity/i }),
-    );
-    await userEvent.selectOptions(screen.getByLabelText("Kind"), "agent");
-    await userEvent.type(
-      screen.getByLabelText("Identifier"),
-      "agt_release_bot",
-    );
-    await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
-    await waitFor(() =>
-      expect(bindConnection).toHaveBeenCalledWith("con_1", {
-        targetKind: "agent",
-        targetId: "agt_release_bot",
-      }),
-    );
-  });
-
-  it("rejects an invalid agent id in the access panel", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      screen.getByRole("button", { name: /Bind an identity/i }),
-    );
-    await userEvent.selectOptions(screen.getByLabelText("Kind"), "agent");
-    await userEvent.type(screen.getByLabelText("Identifier"), "user:demo");
-    await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
-    expect(
-      await screen.findByText(/Bind an agent, project, or device id/),
-    ).toBeTruthy();
-    expect(bindConnection).not.toHaveBeenCalled();
-  });
 });
 
 describe("ConnectionsSection deeper branches", () => {
@@ -967,23 +613,17 @@ describe("ConnectionsSection deeper branches", () => {
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
+    setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections");
   });
 
   afterEach(() => {
     cleanup();
     clearNotices();
+    setVercelConnectAuth(null);
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
-  });
-
-  it("announces auto-configured connectors after a reload", async () => {
-    discoverConnections.mockResolvedValue(2);
-    renderAt("/connections");
-    expect(
-      await screen.findByText(/2 connectors already configured/),
-    ).toBeTruthy();
   });
 
   it("renders the offline note and disables reload", async () => {
@@ -1018,216 +658,6 @@ describe("ConnectionsSection deeper branches", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("describes api_key and configuration connections", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection({
-        connectionId: "con_key",
-        displayName: "Vercel key",
-        providerId: "vercel",
-        refreshable: false,
-      }),
-    ]);
-    renderAt("/connections");
-    expect(
-      await screen.findByText(/Credential stored as octocat/),
-    ).toBeTruthy();
-  });
-
-  it("offers the multi-authorization picker when a provider has two", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection({
-        connectionId: "con_a",
-        providerId: "linear",
-        displayName: "Linear work",
-      }),
-      makeConnection({
-        connectionId: "con_b",
-        providerId: "linear",
-        displayName: "Linear personal",
-      }),
-    ]);
-    renderAt("/connections/linear");
-    expect(await screen.findByText("2 authorizations")).toBeTruthy();
-    expect(screen.getByText("Linear work")).toBeTruthy();
-    expect(screen.getByText("Linear personal")).toBeTruthy();
-    expect(screen.getByText("Add another authorization")).toBeTruthy();
-  });
-
-  it("offers OAuth client setup for an unconfigured non-GitHub provider", async () => {
-    const unconfigured = [
-      { ...catalog[1], configured: false, missingConfig: ["LINEAR_CLIENT_ID"] },
-    ];
-    bundledRef.current = unconfigured;
-    embeddedCatalogSeams.bundledProviders = unconfigured;
-    renderAt("/connections/linear");
-    expect(
-      await screen.findByText(/has no Linear OAuth client yet/),
-    ).toBeTruthy();
-    expect(screen.getByLabelText("Client ID")).toBeTruthy();
-    expect(screen.getByLabelText("Client secret")).toBeTruthy();
-    expect(screen.getByText(/api\/v1\/oauth\/callback\/linear/)).toBeTruthy();
-    // Authorize stays off until a client is sealed.
-    expect(
-      screen
-        .getByRole("button", { name: /Authorize with Linear/i })
-        .hasAttribute("disabled"),
-    ).toBe(true);
-  });
-
-  it("seals an OAuth client and unlocks Authorize", async () => {
-    const unconfigured = [
-      { ...catalog[1], configured: false, missingConfig: ["LINEAR_CLIENT_ID"] },
-    ];
-    bundledRef.current = unconfigured;
-    embeddedCatalogSeams.bundledProviders = unconfigured;
-    createIntegration.mockResolvedValue({
-      id: "int_1",
-      key: "linear-oauth",
-      providerId: "linear",
-      displayName: "Linear OAuth client",
-      source: "organization",
-      enabled: true,
-      configured: true,
-      scopes: [],
-      githubAppHtmlUrl: null,
-    });
-    renderAt("/connections/linear");
-    await screen.findByText(/has no Linear OAuth client yet/);
-    await userEvent.type(screen.getByLabelText("Client ID"), "lin_client");
-    await userEvent.type(screen.getByLabelText("Client secret"), "s3cret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save OAuth client/i }),
-    );
-    await waitFor(() =>
-      expect(createIntegration).toHaveBeenCalledWith({
-        key: "linear-oauth",
-        providerId: "linear",
-        displayName: "Linear OAuth client",
-        clientId: "lin_client",
-        clientSecret: "s3cret",
-      }),
-    );
-    expect(await screen.findByText(/OAuth client ready/)).toBeTruthy();
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole("button", { name: /Authorize with Linear/i })
-          .hasAttribute("disabled"),
-      ).toBe(false),
-    );
-  });
-
-  it("re-authorizes from the connection card", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    authorizeConnection.mockResolvedValue({
-      authorizationUrl: "https://github.com/login/oauth/authorize",
-    });
-    awaitConsent.mockResolvedValue({
-      result: "active",
-      connection: makeConnection(),
-    });
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(
-        screen.getAllByRole("button", {
-          name: /Re-authorize/i,
-        })[0],
-      ),
-    );
-    expect(await screen.findByText(/GitHub is authorized again/)).toBeTruthy();
-  });
-
-  it("reports a failed re-authorization", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    authorizeConnection.mockResolvedValue({
-      authorizationUrl: "https://github.com/login/oauth/authorize",
-    });
-    awaitConsent.mockResolvedValue({
-      result: "failed",
-      connection: makeConnection({ statusDetail: "user said no" }),
-    });
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(
-        screen.getAllByRole("button", {
-          name: /Re-authorize/i,
-        })[0],
-      ),
-    );
-    expect(await screen.findByText(/user said no/)).toBeTruthy();
-  });
-
-  it("shows an activity log error", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    connectionEvents.mockRejectedValue(new Error("log store down"));
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(screen.getAllByRole("button", { name: /History/i })[0]),
-    );
-    // The log renders in both the card and the identity graph panel.
-    expect(
-      (await screen.findAllByText(/log store down/)).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("reports unbind failures", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection({
-        bindings: [
-          {
-            id: "bnd_1",
-            targetKind: "project",
-            targetId: "proj_1",
-            targetLabel: null,
-            createdAt: "2026-08-01T00:00:00Z",
-          },
-        ],
-      }),
-    ]);
-    unbindConnection.mockRejectedValue(new Error("still in use"));
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(
-      overlapCast(
-        screen.getAllByRole("button", {
-          name: /Unbind proj_1/i,
-        })[0],
-      ),
-    );
-    expect(await screen.findByText(/still in use/)).toBeTruthy();
-  });
-
-  it("reports policy save failures", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    updateConnectionPolicy.mockRejectedValue(new Error("policy rejected"));
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(screen.getByRole("button", { name: /Save rules/i }));
-    expect(await screen.findByText(/policy rejected/)).toBeTruthy();
-  });
-
-  it("maps provider_unconfigured PAT errors to plain advice", async () => {
-    createConnection.mockResolvedValue(makeConnection());
-    setConnectionCredential.mockRejectedValue(
-      new ConnectionsError(400, "provider_unconfigured", "no client creds"),
-    );
-    renderAt("/connections/github");
-    await screen.findByLabelText(/connect with a personal access token/i);
-    await userEvent.type(
-      screen.getByLabelText(/connect with a personal access token/i),
-      "ghp_x",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Connect GitHub with token/i }),
-    );
-    expect(
-      await screen.findByText(/OAuth App credentials are not set on this Host/),
-    ).toBeTruthy();
-  });
-
   it("handles a GitHub App registration redirect with a reason", async () => {
     window.history.replaceState(
       {},
@@ -1236,7 +666,9 @@ describe("ConnectionsSection deeper branches", () => {
     );
     renderAt("/connections/github");
     expect(
-      await screen.findByText(/GitHub App registration failed: denied/),
+      await screen.findByRole("img", {
+        name: /GitHub App registration failed: denied/,
+      }),
     ).toBeTruthy();
   });
 
@@ -1248,11 +680,11 @@ describe("ConnectionsSection deeper branches", () => {
     );
     renderAt("/connections/github");
     expect(
-      await screen.findByText(/GitHub App registered for this organization/),
+      await screen.findByRole("img", { name: /GitHub App registered/ }),
     ).toBeTruthy();
   });
 
-  it("toggles scopes off and warns that one is required", async () => {
+  it("toggles scopes off and disables authorize when none remain", async () => {
     listIntegrations.mockResolvedValue([
       {
         id: "int_gh",
@@ -1266,7 +698,6 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github");
     const scope = await screen.findByLabelText(/repo/);
     await userEvent.click(scope);
-    expect(await screen.findByText(/Pick at least one scope/)).toBeTruthy();
     expect(
       overlapCast(
         screen.getByRole("button", {
@@ -1274,24 +705,6 @@ describe("ConnectionsSection deeper branches", () => {
         }),
       ).disabled,
     ).toBe(true);
-  });
-
-  it("reports a failed identity connect as a notification with a retry", async () => {
-    session.current = null;
-    hostEligible.value = false;
-    shouldAutoConnect.mockReturnValue(false);
-    connectState.error = "identity down";
-    renderAt("/connections");
-    await waitFor(() => {
-      const notice = listNotices().find((n) => n.id === "identity-session");
-      expect(notice?.tone).toBe("err");
-      expect(notice?.body).toMatch(/identity down/);
-      expect(notice?.retryLabel).toBe("Try Identity again");
-    });
-    listNotices()
-      .find((n) => n.id === "identity-session")
-      ?.retry?.();
-    expect(connect).toHaveBeenCalled();
   });
 });
 
@@ -1310,48 +723,17 @@ describe("ConnectionsSection remaining branches", () => {
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
+    setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections");
   });
 
   afterEach(() => {
     cleanup();
     clearNotices();
+    setVercelConnectAuth(null);
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
-  });
-
-  it("uses the singular flash for one auto-configured connector", async () => {
-    discoverConnections.mockResolvedValue(1);
-    renderAt("/connections");
-    expect(
-      await screen.findByText(/1 connector already configured/),
-    ).toBeTruthy();
-  });
-
-  it("describes configuration-kind and non-refreshing connections", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection({
-        connectionId: "con_cfg",
-        providerId: "vaultwarden",
-        displayName: "Vaultwarden config",
-        refreshable: false,
-      }),
-      makeConnection({
-        connectionId: "con_norf",
-        providerId: "github",
-        displayName: "GitHub long-lived",
-        refreshable: false,
-        expiresAt: null,
-      }),
-    ]);
-    renderAt("/connections");
-    expect(
-      await screen.findByText(/Configuration saved on this Host/),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(/issues a long-lived token with no refresh/),
-    ).toBeTruthy();
   });
 
   it("describes a broken connection with its status detail", async () => {
@@ -1367,44 +749,6 @@ describe("ConnectionsSection remaining branches", () => {
     expect(
       await screen.findAllByText("The provider returned an error."),
     ).not.toHaveLength(0);
-  });
-
-  it("dismisses the vault reminder banner without saving", async () => {
-    createConnection.mockResolvedValue(
-      makeConnection({
-        connectionId: "con_plain",
-        providerId: "plain",
-        displayName: "Plain storage",
-      }),
-    );
-    renderAt("/connections");
-    await userEvent.click(
-      await screen.findByRole("switch", { name: /Enable Plain storage/i }),
-    );
-    await screen.findByText(/Add a vault reminder/);
-    await userEvent.click(screen.getByRole("button", { name: /Not now/i }));
-    expect(screen.queryByText(/Add a vault reminder/)).toBeNull();
-    expect(addItems).not.toHaveBeenCalled();
-  });
-
-  it("reports reminder save failures", async () => {
-    createConnection.mockResolvedValue(
-      makeConnection({
-        connectionId: "con_plain",
-        providerId: "plain",
-        displayName: "Plain storage",
-      }),
-    );
-    addItems.mockRejectedValue(new Error("vault sealed"));
-    renderAt("/connections");
-    await userEvent.click(
-      await screen.findByRole("switch", { name: /Enable Plain storage/i }),
-    );
-    await screen.findByText(/Add a vault reminder/);
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remember in vault/i }),
-    );
-    expect(await screen.findByText(/vault sealed/)).toBeTruthy();
   });
 
   it("passes selected scopes through the OAuth flow", async () => {
@@ -1447,34 +791,5 @@ describe("ConnectionsSection remaining branches", () => {
         expect.objectContaining({ scopes: ["read", "write"] }),
       ),
     );
-  });
-
-  it("shows an empty activity log from the history toggle", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    connectionEvents.mockResolvedValue([]);
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.click(screen.getByRole("button", { name: /History/i }));
-    expect(
-      (await screen.findAllByText(/No events recorded/)).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("reports the establishing session as a notification while identity connects", async () => {
-    session.current = null;
-    hostEligible.value = false;
-    connectState.connecting = true;
-    renderAt("/connections");
-    await waitFor(() => {
-      const notice = listNotices().find((n) => n.id === "identity-session");
-      expect(notice?.tone).toBe("info");
-      expect(notice?.title).toBe("Starting your OpenSesame session");
-    });
-  });
-  it("links the provider docs from the connector page", async () => {
-    renderAt("/connections/github");
-    await screen.findByText(/Create GitHub App for this organization/);
-    const docs = screen.getByRole("link", { name: /^Docs$/i });
-    expect(docs.getAttribute("href")).toMatch(/^https:/);
   });
 });

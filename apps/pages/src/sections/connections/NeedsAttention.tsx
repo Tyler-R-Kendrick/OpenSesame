@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import {
   authorizeConnection,
@@ -12,8 +13,6 @@ import {
   connectionVerb,
   unfinishedConnections,
 } from "../../lib/identity-graph.js";
-import { ensureHostSession } from "../../lib/identity.js";
-import { isConnectConnector } from "../../lib/vercel-connect.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import {
@@ -46,8 +45,6 @@ export function NeedsAttention({
     const popup = openConsentPopup("about:blank");
     setBusy(connection.connectionId);
     try {
-      if (!isConnectConnector(connection.connectionId))
-        await ensureHostSession();
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );
@@ -108,9 +105,10 @@ export function NeedsAttention({
                 <p>{statusSentence(connection, provider)}</p>
               </div>
               <div className="conn-service__actions">
-                <span className={`chip ${VERB_CHIP[verb]}`}>
-                  {VERB_LABEL[verb]}
-                </span>
+                <StatusMark
+                  tone={statusTone(VERB_CHIP[verb])}
+                  label={VERB_LABEL[verb]}
+                />
                 <button
                   type="button"
                   className="btn btn--sm btn--primary"

@@ -5,6 +5,8 @@
 //! installation access token. Tokens are cached in memory until shortly
 //! before expiry and never persisted or exposed through any route.
 
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -120,6 +122,13 @@ pub async fn mint_installation_token(
     }
 }
 
+/// One GitHub App permission grant (`contents` → `write`). Never a token.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GithubAppPermission {
+    pub name: String,
+    pub access: String,
+}
+
 /// Summary of a GitHub App installation (never includes tokens).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GithubInstallationSummary {
@@ -127,6 +136,10 @@ pub struct GithubInstallationSummary {
     pub account_login: String,
     pub account_type: String,
     pub target_type: String,
+    /// `all` or `selected` — which repositories the install can reach.
+    pub repository_selection: String,
+    pub permissions: Vec<GithubAppPermission>,
+    pub repositories: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -135,6 +148,10 @@ struct GithubInstallationApiRow {
     account: GithubInstallationAccount,
     #[serde(default)]
     target_type: Option<String>,
+    #[serde(default)]
+    repository_selection: Option<String>,
+    #[serde(default)]
+    permissions: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Deserialize)]
@@ -173,15 +190,29 @@ pub async fn list_app_installations(
                 .json()
                 .await
                 .map_err(|e| MintError::Transient(e.into()))?;
-            Ok(rows
-                .into_iter()
-                .map(|row| GithubInstallationSummary {
+            let mut summaries = Vec::with_capacity(rows.len());
+            for row in rows {
+                let repositories =
+                    installation_repo_names(http, base, &jwt, row.id).await;
+                let permissions = row
+                    .permissions
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(name, access)| GithubAppPermission { name, access })
+                    .collect();
+                summaries.push(GithubInstallationSummary {
                     id: row.id.to_string(),
                     account_login: row.account.login,
                     account_type: row.account.account_type,
                     target_type: row.target_type.unwrap_or_else(|| "Unknown".into()),
-                })
-                .collect())
+                    repository_selection: row
+                        .repository_selection
+                        .unwrap_or_else(|| "unknown".into()),
+                    permissions,
+                    repositories,
+                });
+            }
+            Ok(summaries)
         }
         401 | 403 | 404 => Err(MintError::Suspended(format!(
             "list installations returned {}",
@@ -191,6 +222,51 @@ pub async fn list_app_installations(
             "list installations returned {status}"
         ))),
     }
+}
+
+#[derive(Deserialize)]
+struct InstallationReposBody {
+    #[serde(default)]
+    repositories: Vec<InstallationRepoName>,
+}
+
+#[derive(Deserialize)]
+struct InstallationRepoName {
+    full_name: String,
+}
+
+/// Repository names the installation can reach. Empty when GitHub refuses.
+async fn installation_repo_names(
+    http: &reqwest::Client,
+    base: &str,
+    jwt: &str,
+    installation_id: u64,
+) -> Vec<String> {
+    let Ok(response) = http
+        .get(format!(
+            "{base}/app/installations/{installation_id}/repositories"
+        ))
+        .bearer_auth(jwt)
+        .header("accept", "application/vnd.github+json")
+        .header("x-github-api-version", API_VERSION)
+        .header("user-agent", USER_AGENT)
+        .query(&[("per_page", "100")])
+        .send()
+        .await
+    else {
+        return Vec::new();
+    };
+    if response.status().as_u16() != 200 {
+        return Vec::new();
+    }
+    let Ok(body) = response.json::<InstallationReposBody>().await else {
+        return Vec::new();
+    };
+    body.repositories
+        .into_iter()
+        .map(|repo| repo.full_name)
+        .filter(|name| !name.is_empty())
+        .collect()
 }
 
 #[cfg(test)]

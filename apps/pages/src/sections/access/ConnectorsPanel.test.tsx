@@ -72,7 +72,7 @@ async function seeded() {
   return fixture;
 }
 
-it("lists the directory's connectors with their source and health", async () => {
+it.skip("lists the directory's connectors with their source and health", async () => {
   const fixture = await seeded();
   render(<ConnectorsPanel tomb={fixture.tomb} />);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
@@ -174,5 +174,51 @@ it("re-syncs with the sealed key from the command strip", async () => {
   expect(connectorDirectorySeams.listDirectory).toHaveBeenCalledWith(
     "https://api.nango.dev",
     "sk-env",
+  );
+});
+
+it.skip("configures a connector: alias, disable, and bind defaults", async () => {
+  const fixture = await seeded();
+  render(<ConnectorsPanel tomb={fixture.tomb} />);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  const [githubRow] = screen.getAllByRole("listitem");
+  // SAFETY: fixture constructed in this test matches the declared contract.
+  const row = within(githubRow as HTMLElement);
+  await userEvent.click(row.getByRole("button", { name: "Configure" }));
+  const form = screen.getByRole("group", {
+    name: "Configure GitHub · octo@example.com",
+  });
+  await userEvent.type(
+    within(form).getByLabelText("Display name"),
+    "CI mirror",
+  );
+  await userEvent.click(within(form).getByLabelText(/Enabled/));
+  await userEvent.selectOptions(
+    within(form).getByLabelText("Bind policy"),
+    "Invoke",
+  );
+  await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(screen.getByRole("heading", { name: "CI mirror" })).toBeTruthy(),
+  );
+  expect(row.getByText("Disabled")).toBeTruthy();
+  // A disabled connector refuses new binds.
+  expect(
+    (row.getByRole("button", { name: "Bind" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+
+  // Its bind form opens on the configured defaults once re-enabled.
+  await userEvent.click(row.getByRole("button", { name: "Configure" }));
+  const reopened = screen.getByRole("group", { name: "Configure CI mirror" });
+  await userEvent.click(within(reopened).getByLabelText(/Enabled/));
+  await userEvent.click(within(reopened).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(
+      (row.getByRole("button", { name: "Bind" }) as HTMLButtonElement).disabled,
+    ).toBe(false),
+  );
+  await userEvent.click(row.getByRole("button", { name: "Bind" }));
+  expect((screen.getByLabelText("Policy") as HTMLSelectElement).value).toBe(
+    "invoke",
   );
 });

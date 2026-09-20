@@ -160,6 +160,9 @@ describe("backup workflow client", () => {
         accountLogin: "acme",
         accountType: "Organization",
         targetType: "Organization",
+        repositorySelection: "",
+        permissions: [],
+        repositories: [],
       },
     ]);
   });
@@ -240,7 +243,15 @@ describe("backup workflow edge cases", () => {
       jsonResponse(200, { installations: [null, "x", { id: "12" }] }),
     );
     await expect(listGithubInstallations("int-1")).resolves.toEqual([
-      { id: "12", accountLogin: "", accountType: "", targetType: "" },
+      {
+        id: "12",
+        accountLogin: "",
+        accountType: "",
+        targetType: "",
+        repositorySelection: "",
+        permissions: [],
+        repositories: [],
+      },
     ]);
     hostFetch.mockResolvedValue(jsonResponse(200, {}));
     await expect(listGithubInstallations("int-1")).resolves.toEqual([]);

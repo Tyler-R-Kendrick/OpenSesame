@@ -7,7 +7,7 @@ export async function navigationTreeContract(page, tabTo) {
   await accessContract(page, tabTo);
   await identityContract(page, tabTo);
   console.log(
-    "PASS Access tab subtrees, Identity subtrees, connector selection/activation, indexed Load more and focus retention",
+    "PASS Access tab subtrees, Identity subtrees, connector selection/activation and focus retention",
   );
 }
 
@@ -116,9 +116,6 @@ async function connectorsContract(page, tabTo) {
     '#catalog-tree [role="treeitem"][aria-level="4"]',
   );
   await expect(leaves.first()).toBeVisible();
-  await expect(
-    page.getByRole("treeitem", { name: /Load \d+ more/ }),
-  ).toBeVisible();
   await tabTo(page, tree);
   const selectedLeaf = page.locator(
     '#catalog-tree [role="treeitem"][aria-level="4"][aria-selected="true"]',
@@ -142,16 +139,6 @@ async function connectorsContract(page, tabTo) {
   await page.goBack();
   await expect(preview).toBeInViewport();
   await tabTo(page, tree);
-  const loadMore = page.getByRole("treeitem", { name: /Load \d+ more/ });
-  const groupCount = await groups.count();
-  await selectUntil(page, loadMore, 24);
-  await expect(tree).toHaveAttribute(
-    "aria-activedescendant",
-    await loadMore.getAttribute("id"),
-  );
-  await page.keyboard.press("Enter");
-  await expect(groups).not.toHaveCount(groupCount);
-  await expect(preview).toBeInViewport();
   await expect(tree).toBeFocused();
 }
 

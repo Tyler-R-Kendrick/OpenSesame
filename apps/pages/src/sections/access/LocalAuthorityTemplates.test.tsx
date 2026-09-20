@@ -14,7 +14,6 @@ it("lists audience templates and shows honest support statuses", async () => {
   expect(
     screen.getByRole("heading", { name: "Audience templates" }),
   ).toBeTruthy();
-  expect(screen.getByText(/does not issue a grant/i)).toBeTruthy();
   const select = screen.getByLabelText("Template");
   await user.selectOptions(select, "raid");
   expect(

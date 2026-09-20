@@ -17,11 +17,11 @@ import {
   denySiopAuthorization,
   parsePagesSiopRequest,
 } from "../lib/siop-authority.js";
-import { useVaultStore } from "../lib/vault/hooks.js";
+import { useVault } from "../lib/vault/hooks.js";
 
 export function SiopAuthorize() {
   const { search } = useLocation();
-  const tomb = useVaultStore().activeTomb();
+  const { tomb } = useVault();
   const request = useMemo(() => {
     try {
       return parsePagesSiopRequest(search);

@@ -12,11 +12,11 @@ import {
   readLocalDirectory,
 } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { DirectoryForm, DirectoryRows, LABELS } from "./LocalDirectoryViews.js";
 
 export function LocalDirectoryPanel({ kind }: { kind: LocalIdentityKind }) {
-  const tomb = useVaultStore().activeTomb();
+  const { tomb } = useVault();
   return <DirectoryEditor key={`${tomb}:${kind}`} tomb={tomb} kind={kind} />;
 }
 

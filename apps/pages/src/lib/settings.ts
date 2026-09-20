@@ -69,7 +69,6 @@ export type PagesSettings = {
   hostApi: string;
   identityApi: string;
   daemonApi: string;
-  tursoUrl: string;
   /** Optional Mobile MFA PWA URL for passkey ceremony handoff QR. */
   mfaAppUrl: string;
   /** Capability → Host connector bindings (encryption, git history, …). */
@@ -95,7 +94,6 @@ type PersistedSettings = {
   hostApi: string;
   identityApi: string;
   daemonApi: string;
-  tursoUrl: string;
   mfaAppUrl: string;
   capabilityConnectors: CapabilityConnectorMap;
   activeProjectId: string;
@@ -238,7 +236,6 @@ function defaultsForPage(): PersistedSettings {
     hostApi: runtimeHostApiValue() || "",
     identityApi: defaultIdentityApi(),
     daemonApi: runtimeDaemonApiValue() || "",
-    tursoUrl: "",
     mfaAppUrl: runtimeMfaAppUrlValue() || "",
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
@@ -409,7 +406,6 @@ function loadPersisted(): PersistedSettings {
     const hostApi = optionalString(parsed.hostApi)?.trim() ?? "";
     const identityApi = optionalString(parsed.identityApi)?.trim() ?? "";
     const daemonApi = optionalString(parsed.daemonApi)?.trim() ?? "";
-    const tursoUrl = optionalString(parsed.tursoUrl)?.trim() ?? "";
     const mfaAppUrl = optionalString(parsed.mfaAppUrl);
     return {
       hostApi:
@@ -429,7 +425,6 @@ function loadPersisted(): PersistedSettings {
         return identityApi || defaults.identityApi;
       })(),
       daemonApi: daemonApi || defaults.daemonApi,
-      tursoUrl,
       mfaAppUrl:
         mfaAppUrl !== undefined ? mfaAppUrl.trim() : defaults.mfaAppUrl,
       capabilityConnectors: normalizeCapabilityConnectors(
@@ -467,7 +462,6 @@ function persistRecord(next: PagesSettings): PersistedSettings {
     hostApi: next.hostApi.trim() || defaults.hostApi,
     identityApi: next.identityApi.trim() || defaults.identityApi,
     daemonApi: next.daemonApi.trim() || defaults.daemonApi,
-    tursoUrl: next.tursoUrl?.trim() ?? "",
     mfaAppUrl: next.mfaAppUrl?.trim() ?? "",
     capabilityConnectors: normalizeCapabilityConnectors(
       next.capabilityConnectors ?? defaults.capabilityConnectors,

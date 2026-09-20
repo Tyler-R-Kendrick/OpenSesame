@@ -43,6 +43,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useVault } from "../lib/vault/hooks.js";
 import { vaultStore } from "../lib/vault/store.js";
 import { webmcpSupportSeam } from "../webmcp/tools.js";
 import { gateSupportAsk } from "./ask-guard.js";
@@ -739,7 +740,7 @@ export async function loadBrowserEngine(
     const input: PageContextInput = {
       pageId: "pages",
       route: host.currentRoute(),
-      hostReachable: planes.host.health === "reachable",
+      hostReachable: false, // ADR 0090/0128: no Host
       identityReachable: planes.identity.health === "reachable",
     };
     if (question === undefined) return context.buildSupportPageContext(input);
@@ -906,12 +907,10 @@ export function SupportProvider({
     });
   }, [controller, navigate]);
 
-  // WebMCP's two guidance tools open this panel and start authored
-  // walkthroughs; both are given ids the registry declares, and neither can
-  // reach the model, the transcript or an authority mutation. Binding here
-  // rather than in the tool keeps the no-op default honest in a build that
-  // ships no support UI.
+  // WebMCP guidance tools bind only while unlocked (no help on title/unlock).
+  const { status: vaultStatus } = useVault();
   useEffect(() => {
+    if (vaultStatus !== "unlocked") return;
     const previous = { ...webmcpSupportSeam };
     Object.assign(webmcpSupportSeam, {
       openSupport: (topic: string | null) => {
@@ -929,7 +928,7 @@ export function SupportProvider({
     return () => {
       Object.assign(webmcpSupportSeam, previous);
     };
-  }, [controller]);
+  }, [controller, vaultStatus]);
 
   return createElement(
     SupportRouteOverrideContext.Provider,

@@ -139,7 +139,6 @@ function renderSection(initial = "/vault") {
           <Route index element={<div>welcome pane</div>} />
           <Route path=":itemId" element={<div>detail pane</div>} />
         </Route>
-        <Route path="/settings/data" element={<div>settings pane</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -192,25 +191,6 @@ describe("VaultSection", () => {
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
     ).toBe("/vault/new");
     expectVaultCommands();
-  });
-
-  it("picking a file from Import hands it to the settings import panel", () => {
-    vault.current = {
-      items: [makeLogin()],
-      folders: [],
-      header: null,
-    };
-    renderSection();
-    // Import sits beside new in the path strip even when the vault has items.
-    expectVaultCommands();
-    const file = new File(["KEY=value"], "app.env", { type: "text/plain" });
-    fireEvent.change(screen.getByLabelText("Choose a file to import"), {
-      target: { files: [file] },
-    });
-    // The file waits in the handoff for the panel, and the view moved to the
-    // data settings where the panel will consume it.
-    expect(takeImportFile()?.name).toBe("app.env");
-    expect(screen.getByText("settings pane")).toBeTruthy();
   });
 
   it("lists items as files with kind extensions and a status line", () => {

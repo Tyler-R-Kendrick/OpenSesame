@@ -83,7 +83,7 @@ function mfaUnavailable(channelHint: string): Response {
   return jsonResponse(
     JSON.stringify({
       error: "not_configured",
-      hint: `${channelHint} need a remote Identity API under Settings → Connectivity.`,
+      hint: `${channelHint} need a remote Identity API under Settings → Connections.`,
     }),
     503,
   );

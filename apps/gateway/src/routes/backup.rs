@@ -447,10 +447,10 @@ pub async fn list_installations(
             StatusCode::OK,
             Json(json!({
                 "installations": rows.iter().map(|row| json!({
-                    "id": row.id,
-                    "account_login": row.account_login,
-                    "account_type": row.account_type,
-                    "target_type": row.target_type,
+                    "id": row.id, "account_login": row.account_login,
+                    "account_type": row.account_type, "target_type": row.target_type,
+                    "repository_selection": row.repository_selection,
+                    "permissions": row.permissions, "repositories": row.repositories,
                 })).collect::<Vec<_>>(),
             })),
         )

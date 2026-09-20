@@ -1,4 +1,5 @@
-import { isBoolean, isNumber, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
+import { clearGuestConnections } from "../guest-connections.js";
 /**
  * Vault session store. Holds the unlocked collection in memory, seals every
  * mutation straight back to OPFS, and drops the key on lock.
@@ -18,6 +19,7 @@ import {
   kvGet,
   kvSet,
 } from "../kv.js";
+import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
 import {
   activeProject,
   carryProjectsViewInto,
@@ -56,11 +58,6 @@ import {
   unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
-import {
-  hostBackupSeams,
-  installVaultHostBackupFlushHooks,
-  pushSealedVaultToHost,
-} from "./host-backup.js";
 import { writeItem } from "./item-path.js";
 import {
   type InstallResult,
@@ -77,13 +74,19 @@ import {
   emptyBody,
   mergeVaultBodies,
 } from "./model.js";
-import { estimateStrength } from "./password.js";
 import {
   readPrefsJson,
   readPrefsSourceFile,
   writePrefsJson,
   writePrefsSourceFile,
 } from "./prefs-io.js";
+import {
+  VAULT_PREFS_REVISION,
+  type VaultPrefs,
+  assertMasterPasswordPolicy,
+  defaultPrefs,
+  normalizeVaultPrefs,
+} from "./prefs.js";
 import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import {
@@ -124,7 +127,6 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-installVaultHostBackupFlushHooks();
 /**
  * Lockout counters stay plaintext at their project-scoped KV key — the
  * documented ADR 0063 boundary: they gate unlock attempts, so they must be
@@ -150,10 +152,16 @@ function scopedVaultScope(): VaultScope {
  * The tomb a guest session uses when a sealed vault already lives in the
  * active scope. Guest beside an existing vault must never touch that vault:
  * it is a separate, throwaway tomb with no header, so nothing a guest writes
- * can land on the real body, and nothing pushes to the Host (no header, no
- * snapshot). Not a project id — those are random ids or `personal`.
+ * can land on the real body. Not a project id — those are random ids or `personal`.
  */
 export { GUEST_TOMB };
+export {
+  type VaultPrefs,
+  VAULT_PREFS_REVISION,
+  assertMasterPasswordPolicy,
+  defaultPrefs,
+  normalizeVaultPrefs,
+} from "./prefs.js";
 
 function guestVaultScope(): VaultScope {
   return {
@@ -210,72 +218,6 @@ export function readTombHeader(tomb: string): VaultHeader | null {
   }
 }
 
-export type VaultPrefs = {
-  /** Minutes of inactivity before the vault locks. 0 disables the timer. */
-  autoLockMinutes: number;
-  /** Lock as soon as the tab is hidden. */
-  lockOnHide: boolean;
-  /**
-   * When true, vault lock also ends the Identity/Host session.
-   * Off by default — idle vault lock should not sign you out of everything.
-   */
-  signOutOnLock: boolean;
-  /** Seconds before a copied secret is cleared from the clipboard. 0 disables. */
-  clipboardClearSeconds: number;
-  theme: "system" | "light" | "dark";
-  /**
-   * Bumped when defaults change so existing devices pick up a one-time
-   * migration (e.g. retiring the old 15-minute auto-lock default).
-   */
-  prefsRevision?: number;
-};
-
-/** Current prefs schema revision — bump when shipping a one-time prefs migrate. */
-export const VAULT_PREFS_REVISION = 2;
-
-export const defaultPrefs: VaultPrefs = {
-  // Off by default: closing the window already drops the key from memory.
-  // Operators who want idle lock opt in under Settings → General → Locking.
-  autoLockMinutes: 0,
-  lockOnHide: false,
-  signOutOnLock: false,
-  clipboardClearSeconds: 30,
-  theme: "system",
-  prefsRevision: VAULT_PREFS_REVISION,
-};
-
-/** Merge stored prefs with defaults and apply one-time migrations. */
-export function normalizeVaultPrefs(
-  raw: Partial<VaultPrefs> | null | undefined,
-): VaultPrefs {
-  const incoming = raw ?? {};
-  const merged: VaultPrefs = {
-    ...defaultPrefs,
-    ...incoming,
-    prefsRevision: Math.max(
-      Number(incoming.prefsRevision ?? 0) || 0,
-      VAULT_PREFS_REVISION,
-    ),
-  };
-  // Revision 2: the previous default was 15 minutes and signed the operator
-  // out of Identity on every lock — far too aggressive for normal use.
-  const priorRevision = Number(incoming.prefsRevision ?? 0) || 0;
-  if (priorRevision < 2 && incoming.autoLockMinutes === 15) {
-    merged.autoLockMinutes = 0;
-  }
-  if (!isBoolean(merged.signOutOnLock)) {
-    merged.signOutOnLock = false;
-  }
-  if (
-    !isNumber(merged.autoLockMinutes) ||
-    !Number.isFinite(merged.autoLockMinutes) ||
-    merged.autoLockMinutes < 0
-  ) {
-    merged.autoLockMinutes = 0;
-  }
-  return merged;
-}
-
 export type VaultState = {
   status: VaultStatus;
   /** The tomb this session is scoped to — a project id, `personal`, or `guest`. */
@@ -316,20 +258,6 @@ function readJson<T>(key: string, fallback: T): T {
     return overlapCast(JSON.parse(raw));
   } catch {
     return fallback;
-  }
-}
-
-/** Create and re-key share one policy so a change cannot weaken the KDF input. */
-export function assertMasterPasswordPolicy(password: string): void {
-  if (password.length < 12) {
-    throw new Error(
-      "Use at least 12 characters. This key protects everything.",
-    );
-  }
-  if (estimateStrength(password).score < 2) {
-    throw new Error(
-      "That master password is too easy to guess. Aim for Fair or better.",
-    );
   }
 }
 
@@ -375,8 +303,14 @@ export class VaultStore {
    */
   rehydrate(): void {
     if (this.#vaultKey || this.#pendingVaultKey) return;
-    this.#scope = scopedVaultScope();
-    this.#header = this.#readHeader();
+    // Reload opens the last authorized account's unlock — guest included.
+    if (lastVaultIsGuest()) {
+      this.#scope = guestVaultScope();
+      this.#header = null;
+    } else {
+      this.#scope = scopedVaultScope();
+      this.#header = this.#readHeader();
+    }
     this.#emit();
   }
 
@@ -385,9 +319,12 @@ export class VaultStore {
    * Identity stays signed in — this is a vault-scope swap, not a reload.
    */
   loadActiveProjectScope(): void {
-    this.lock();
+    // Explicit project swap — do not let lock()'s guest keep overwrite the
+    // destination tomb as last-vault, then write the project tomb below.
+    this.lock({ recordLastVault: false });
     this.#scope = scopedVaultScope();
     this.#header = this.#readHeader();
+    writeLastVaultId(this.#scope.tomb);
     this.#emit();
   }
 
@@ -636,27 +573,43 @@ export class VaultStore {
 
   /**
    * Guest session: no passkey, PIN, or password. The vault key lives in this
-   * tab only until an unlock method is enrolled.
-   *
-   * On a first run the guest lives in the active tomb, so enrolling an unlock
-   * method later seals it in place. Beside a sealed vault it moves to the
-   * isolated guest tomb instead (see `GUEST_TOMB`): the existing vault stays
-   * exactly as it was on disk, and `lock()` brings it back on screen. Guest
-   * is never withheld because a vault exists — that was the bug (AGENTS.md
-   * §5), and isolation is the fix, not suppression.
+   * tab only. Guests always run in `GUEST_TOMB` (isolated from member tombs).
+   * `lock()` keeps unlock on the guest road when that was the last authorized
+   * account. Guest is never withheld because a vault exists (AGENTS.md §5).
    */
-  async createGuest(): Promise<void> {
+  /**
+   * Point the unlock screen at the guest tomb without opening a session.
+   * Guests have no passkey or password — Unlock is the only challenge.
+   */
+  prepareGuestUnlock(): void {
+    if (this.#vaultKey || this.#pendingVaultKey) {
+      this.lock();
+    }
+    this.#scope = guestVaultScope();
+    this.#header = null;
+    this.#vaultKey = null;
+    this.#pendingVaultKey = null;
+    this.#ephemeral = false;
+    this.#body = emptyBody();
+    writeLastVaultId(GUEST_TOMB);
+    this.#emit();
+  }
+
+  async createGuest(options?: { resume?: boolean }): Promise<void> {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
-    if (this.#header || deviceHoldsSealedVault()) {
-      this.#scope = guestVaultScope();
-      // Whatever a previous guest left behind is ciphertext under a key that
-      // died with its tab — unreadable, and in the way of a fresh session.
-      lockTomb(this.#scope.tomb);
-      await wipeTombOnDestroy(this.#scope.tomb);
-      await deleteFile(this.#scope.tomb, BODY_PATH);
-    }
+    // Guests always run in GUEST_TOMB — physically separate from member tombs,
+    // including first-run when no sealed vault exists yet.
+    this.#scope = guestVaultScope();
+    // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them
+    // (GitHub App install return must not wipe the registrant).
+    if (!options?.resume) clearGuestConnections();
+    // Whatever a previous guest left behind is ciphertext under a key that
+    // died with its tab — unreadable, and in the way of a fresh session.
+    lockTomb(this.#scope.tomb);
+    await wipeTombOnDestroy(this.#scope.tomb);
+    await deleteFile(this.#scope.tomb, BODY_PATH);
     const { vaultKey, rawVaultKey } = await mintVaultKey();
     this.#header = {
       v: 1,
@@ -668,6 +621,7 @@ export class VaultStore {
     this.#body = emptyBody();
     this.#ephemeral = true;
     unlockTomb(this.#scope.tomb, vaultKey);
+    writeLastVaultId(GUEST_TOMB);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -728,6 +682,7 @@ export class VaultStore {
       throw error;
     }
     kvDelete(this.#scope.attempts);
+    writeLastVaultId(this.#scope.tomb);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -819,6 +774,7 @@ export class VaultStore {
       throw error;
     }
     kvDelete(this.#scope.attempts);
+    writeLastVaultId(this.#scope.tomb);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -1324,7 +1280,8 @@ export class VaultStore {
     return () => this.#lockHandlers.delete(handler);
   };
 
-  lock = (): void => {
+  lock = (options?: { recordLastVault?: boolean }): void => {
+    const recordLastVault = options?.recordLastVault !== false;
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
@@ -1332,10 +1289,11 @@ export class VaultStore {
     this.#pendingCode = null;
     this.#pendingCodeAddress = null;
     this.#body = emptyBody();
-    // A guest that ran beside a sealed vault did so in the isolated guest
-    // tomb; locking it hands the screen back to the real vault.
+    // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock
+    // screen on guest when that was the last authorized account.
     const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
     const guestBesideVault = ephemeralTomb === GUEST_TOMB;
+    const lockedTomb = this.#scope.tomb;
     if (this.#ephemeral) {
       this.#header = null;
       this.#ephemeral = false;
@@ -1343,8 +1301,11 @@ export class VaultStore {
     lockTomb(this.#scope.tomb);
     discardTombCaches();
     if (guestBesideVault) {
-      this.#scope = scopedVaultScope();
-      this.#header = this.#readHeader();
+      if (recordLastVault) writeLastVaultId(GUEST_TOMB);
+      this.#scope = guestVaultScope();
+      this.#header = null;
+    } else if (recordLastVault) {
+      writeLastVaultId(lockedTomb);
     }
     if (ephemeralTomb) void wipeTombOnDestroy(ephemeralTomb);
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
@@ -1391,31 +1352,10 @@ export class VaultStore {
     await writeSealedFile(this.#scope.tomb, BODY_PATH, sealed);
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
-    // Recoverability (ADR 0039): sealed ciphertext must leave the device for
-    // Host → outbox → GitHub. Local OPFS already succeeded; Host failure queues.
-    const headerJson = readPlaintextFile(this.#scope.tomb, HEADER_PATH);
-    if (headerJson) {
-      await pushSealedVaultToHost({
-        headerJson,
-        bodyJson: JSON.stringify(sealed),
-        epoch: rev,
-      });
-    }
-    // Postgres-family history backups (Supabase / Neon / PostgreSQL) hold the
-    // same sealed body under provisional anon accounts until guest claim.
-    try {
-      const { persistHistoryToPostgresAccounts } = await import(
-        "../history-backups.js"
-      );
-      const bytes = new TextEncoder().encode(JSON.stringify(sealed));
-      await persistHistoryToPostgresAccounts(bytes);
-    } catch {
-      /* history backup is best-effort beside Host sync */
-    }
   }
 
-  /** Merge a complete newer Host snapshot while both bodies are authenticated. */
-  async mergeHostSnapshot(input: {
+  /** Merge a complete newer snapshot while both bodies are authenticated. */
+  async mergeSnapshot(input: {
     headerJson: string;
     bodyJson: string;
     epoch: number;
@@ -1427,7 +1367,7 @@ export class VaultStore {
       remoteHeader = overlapCast(JSON.parse(input.headerJson));
       sealed = overlapCast(JSON.parse(input.bodyJson));
     } catch {
-      throw new VaultCorruptError("Host vault snapshot is not valid JSON");
+      throw new VaultCorruptError("Vault snapshot is not valid JSON");
     }
     if (
       remoteHeader.v !== 1 ||
@@ -1435,9 +1375,7 @@ export class VaultStore {
       !sealed.ivB64 ||
       !sealed.ctB64
     ) {
-      throw new VaultCorruptError(
-        "Host vault snapshot belongs to another vault",
-      );
+      throw new VaultCorruptError("Vault snapshot belongs to another vault");
     }
     const incoming = await openJson<VaultBody>(vaultKey, sealed);
     if (
@@ -1445,10 +1383,10 @@ export class VaultStore {
       !Array.isArray(incoming.items) ||
       !Array.isArray(incoming.folders)
     ) {
-      throw new VaultCorruptError("Host vault body is malformed");
+      throw new VaultCorruptError("Vault body is malformed");
     }
     if ((incoming.rev ?? 0) !== input.epoch) {
-      throw new VaultCorruptError("Host vault epoch does not match its body");
+      throw new VaultCorruptError("Vault epoch does not match its body");
     }
     const merged = mergeVaultBodies(this.#body, incoming);
     await this.#mutate((body) => {
@@ -1773,14 +1711,21 @@ export class VaultStore {
   /** Irreversibly remove the vault from this device. */
   async destroy(): Promise<void> {
     // The files to remove are the ones this session was using. Captured
-    // before `lock()`, which hands a guest-beside-vault session back to the
-    // real vault's scope: a guest deleting "this vault" deletes the guest
-    // tomb, never the sealed vault it was running beside.
+    // before `lock()`: a guest deleting "this vault" deletes the guest tomb,
+    // never the sealed vault it was running beside. After wipe, hand the
+    // unlock screen back to the personal vault — destroy leaves guest, it
+    // does not lock guest for re-entry.
     const scope = this.#scope;
     // Deleting is at least as final as locking, so it runs the same teardown:
     // clipboard, Identity session, staged claims.
     this.lock();
-    if (scope.tomb !== GUEST_TOMB) this.#header = null;
+    if (scope.tomb === GUEST_TOMB) {
+      this.#scope = scopedVaultScope();
+      this.#header = this.#readHeader();
+      writeLastVaultId(this.#scope.tomb);
+    } else {
+      this.#header = null;
+    }
     this.#emit();
     // Queued behind any write still in the air. Deleting straight away would let
     // a persist that had already sealed its body land afterwards and put the
@@ -1855,8 +1800,5 @@ export class VaultStore {
 }
 
 export const vaultStore = new VaultStore();
-
-hostBackupSeams.mergePulledVault = (input) =>
-  vaultStore.mergeHostSnapshot(input);
 
 export { WrongPasswordError, VaultCorruptError };

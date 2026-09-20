@@ -133,11 +133,13 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
   });
 
   it("the guest row locks and continues as guest (AGENTS.md §5)", async () => {
+    const prepare = vi.spyOn(vaultStore, "prepareGuestUnlock");
     renderSwitcher();
     openMenu();
     fireEvent.click(vaultRow("guest"));
-    await waitFor(() => expect(proj.continueAsGuest).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1));
     expect(proj.setActiveProject).not.toHaveBeenCalled();
+    prepare.mockRestore();
   });
 
   it("surfaces swap failures instead of reloading", async () => {

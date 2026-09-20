@@ -49,9 +49,11 @@ explanatory paragraphs.
 
 ## Providers — multiple IdP sources
 
-The registry this device brokers. Adding is always a ceremony, repeatable
-for any number of providers. The ceremony's primary path is **bindable auth
-providers** — enterprise SSO, not social-login buttons:
+OpenSesame itself is always the first row: **OpenSesame (this device)** —
+the device-native Identity host (ADR 0118). Additional upstreams are
+optional. Adding one is always a ceremony, repeatable for any number of
+providers. The ceremony's primary path is **bindable auth providers** —
+enterprise SSO, not social-login buttons:
 
 - **Provider presets** (each its own tailored form, all riding ADR 0055's
   shipped BYO registration — they are OIDC issuers):
@@ -69,14 +71,15 @@ providers** — enterprise SSO, not social-login buttons:
 
 Registry records carry an optional `providerType` (`workos` | `okta` |
 `auth0` | `better-auth`); rows badge it ("WorkOS", "Okta", …) with a
-monogram tile instead of the generic "Custom OIDC" badge. Row actions:
-**Sign in** (brokered leg), **Remove** (local mirror; one-line operator
-note).
+monogram tile instead of the generic "Custom OIDC" badge. Row actions for
+additional upstreams: **Sign in** (brokered leg), **Remove** (local
+mirror; one-line operator note). The device IdP has neither — it is not
+removable and does not federate out.
 
-- **Register an IdP** → the ceremony. Works repeatedly; the registry never
-  caps.
-- Empty (post-dismissal): `No identity provider registered.` + **Register
-  an IdP**.
+- **Register an IdP** → the ceremony for an *additional* upstream. Works
+  repeatedly; the registry never caps.
+- Never an empty Providers list: the device IdP always vouches. Do not
+  show copy like "No identity provider registered."
 
 ## Devices — approve what signs in (Tailscale: Device approval)
 

@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe("support statusline seating", () => {
-  it("sits in the statusline when the shell offers a seat", () => {
+  it("seats the mark in the statusline and leaves asking to the panel", () => {
     render(
       <MemoryRouter>
         <SupportProvider>

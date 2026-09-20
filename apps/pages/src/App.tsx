@@ -14,13 +14,13 @@ import { sealPendingConnectorDirectory } from "./lib/connector-directory.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
 import { recoverPendingFederatedLink } from "./lib/guest-auth.js";
-import { resumeStashedJoin } from "./lib/join-session.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
   useVault as defaultUseVault,
 } from "./lib/vault/hooks.js";
+import { hydrateVercelConnectAuth } from "./lib/vercel-connect-session.js";
 import { BrokerAuthorize as DefaultBrokerAuthorize } from "./screens/BrokerAuthorize.js";
 import { DropClaimScreen } from "./screens/DropClaimScreen.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
@@ -187,9 +187,6 @@ function useAfterUnlock(
   useEffect(() => {
     if (status !== "unlocked") return;
     recoverPendingFederatedLink();
-    void resumeStashedJoin().catch(() => {
-      // A spent or expired stash is not a reason to trap the vault.
-    });
     if (tomb) {
       // A guest tomb is wiped on lock, so it gets the list without taking
       // it: the sync still waits for the vault that lasts.
@@ -198,6 +195,11 @@ function useAfterUnlock(
           // The endpoint is on record; Access › Connectors syncs it again.
         },
       );
+      // Same road for the Connect bearer: a sealed token arms the live
+      // transport, and a staged one lands with the first open tomb.
+      void hydrateVercelConnectAuth(tomb, { ephemeral: guest }).catch(() => {
+        // A corrupt record reads as no Connect session, not a trapped vault.
+      });
     }
   }, [status, tomb, guest]);
 }
@@ -311,8 +313,9 @@ function VaultApp() {
 
 /**
  * Broker + federated return run without unlocking the vault. Everything else
- * stays behind the master-password gate. Support sits outside that gate so
- * the overlay is on every screen, including unlock, setup and ceremonies.
+ * stays behind the master-password gate. Support (`?` / WebMCP guidance) is
+ * unlocked-only — a locked title or unlock screen must not expose the AI
+ * help surface as an attack path into page context or model session.
  */
 export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
@@ -336,9 +339,17 @@ export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
       <SupportProvider>
         <SupportSlotProvider>
           {body}
-          <SupportLauncher />
+          <SupportWhenUnlocked />
         </SupportSlotProvider>
       </SupportProvider>
     </AppSlotsContext.Provider>
   );
+}
+
+/** Support mark + panel only after the vault key is in memory. */
+function SupportWhenUnlocked(): ReactNode {
+  const slots = useContext(AppSlotsContext);
+  const { status } = slots.useVault();
+  if (status !== "unlocked") return null;
+  return <SupportLauncher />;
 }

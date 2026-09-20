@@ -27,6 +27,7 @@ import { vaultStore } from "../lib/vault/store.js";
 import {
   type DeviceVault,
   enterActiveProjectScope,
+  guestVaultLabel,
   switchToGuest,
   useDeviceVaults,
   vaultLabel,
@@ -102,7 +103,11 @@ function ProjectSwitcherDefault() {
         title="Switch vault"
         onClick={() => (open ? close() : setOpen(true))}
       >
-        {guestOpen ? "guest" : active ? vaultLabel(active) : "personal"}
+        {guestOpen
+          ? guestVaultLabel()
+          : active
+            ? vaultLabel(active)
+            : "personal"}
       </button>
 
       {open ? (

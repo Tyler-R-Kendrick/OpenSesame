@@ -230,6 +230,7 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
     expect(raw).not.toContain("google");
     // …and the module's in-memory view hydrated from the VFS.
     expect(listIdpRegistrations().map((record) => record.id)).toEqual([
+      "opensesame-device",
       "google",
     ]);
   });
@@ -355,12 +356,14 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
       }),
     );
     await hydrateAndMigrateTombOnUnlock(PERSONAL_TOMB);
-    expect(listIdpRegistrations()).toHaveLength(1);
+    expect(listIdpRegistrations()).toHaveLength(2);
     expect(activeOrgProfileId()).toBe("org:acme");
 
     lockAllTombs();
     discardTombCaches();
-    expect(listIdpRegistrations()).toEqual([]);
+    expect(listIdpRegistrations().map((r) => r.id)).toEqual([
+      "opensesame-device",
+    ]);
     expect(activeOrgProfileId()).toBe("guest");
     expect(projectsState().projects.map((project) => project.id)).toEqual([
       PERSONAL_TOMB,

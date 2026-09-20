@@ -5,6 +5,7 @@ import {
   capabilityDef,
   connectorLabel,
   defaultCapabilityConnectors,
+  isSettingsEncryptionKey,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
 
@@ -50,29 +51,23 @@ describe("capability connectors", () => {
       "workflow",
     ]);
     expect(history?.requiresAuth("password-store")).toBe(false);
-    expect(history?.requiresAuth("supabase")).toBe(false);
-    expect(history?.requiresAuth("neon")).toBe(false);
     expect(history?.connectorIds).toEqual([
       "github",
       "password-store",
       "gitlab",
-      "supabase",
-      "neon",
-      "postgresql",
     ]);
   });
 
   it("preserves multi-select history selections", () => {
     const next = normalizeCapabilityConnectors({
       history: {
-        providerId: "supabase",
+        providerId: "gitlab",
         selections: [
           { providerId: "github", group: "git" },
           {
-            providerId: "supabase",
-            group: "postgres",
-            claimState: "provisional",
-            provisionalAccountId: "hacc_1",
+            providerId: "gitlab",
+            group: "git",
+            remote: "https://gitlab.com/org/store.git",
           },
         ],
       },
@@ -80,10 +75,9 @@ describe("capability connectors", () => {
     expect(next.history.selections).toEqual([
       { providerId: "github", group: "git" },
       {
-        providerId: "supabase",
-        group: "postgres",
-        claimState: "provisional",
-        provisionalAccountId: "hacc_1",
+        providerId: "gitlab",
+        group: "git",
+        remote: "https://gitlab.com/org/store.git",
       },
     ]);
   });
@@ -136,7 +130,9 @@ describe("capability definitions", () => {
     const encryption = capabilityDef("encryption");
     expect(encryption.requiresAuth("webcrypto")).toBe(false);
     expect(encryption.requiresAuth("sealed-local")).toBe(false);
-    expect(encryption.requiresAuth("age")).toBe(true);
+    expect(encryption.requiresAuth("age")).toBe(false);
+    expect(isSettingsEncryptionKey("age")).toBe(true);
+    expect(isSettingsEncryptionKey("aws-kms")).toBe(false);
     expect(encryption.requiresAuth("aws-kms")).toBe(true);
     expect(encryption.authScopes?.("aws-kms")).toBeUndefined();
   });

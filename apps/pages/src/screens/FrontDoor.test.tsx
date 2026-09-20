@@ -57,7 +57,6 @@ import { FrontDoor } from "./FrontDoor.js";
 function renderDoor(overrides: Partial<Parameters<typeof FrontDoor>[0]> = {}) {
   const props = {
     providers: [],
-    onOpenJoin: vi.fn(),
     onOpenSetup: vi.fn(),
     onUseLocalOnly: vi.fn(),
     ...overrides,
@@ -110,7 +109,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the front door", () => {
-  it("titles the screen with the wordmark and offers the two roads before sign-in", () => {
+  it("titles the screen with the wordmark and offers the road before sign-in", () => {
     renderDoor();
     expect(
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
@@ -119,29 +118,25 @@ describe("the front door", () => {
     const names = screen
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label") ?? button.textContent);
-    // Document order is Tab order: the roads, then the corner skip, then the
-    // brand marks, guest, and the local-only seal. A road's name is the
-    // whole of what it shows (WCAG 2.5.3), so no aria-label narrows it.
-    expect(names.slice(0, 2)).toEqual([
-      "Join a session a link and a code",
-      "Set up your own a few optional steps",
-    ]);
+    // Document order is Tab order: the road, then the corner skip, then the
+    // brand marks, guest, and the local-only seal.
+    expect(names.slice(0, 1)).toEqual(["Set up your own"]);
     expect(
       screen
-        .getByRole("button", { name: /^Join a session/ })
-        .hasAttribute("aria-label"),
-    ).toBe(false);
+        .getByRole("button", { name: "Set up your own" })
+        .getAttribute("aria-describedby"),
+    ).toBe("door-setup-kind");
     expect(names).toContain("Skip sign-in and continue as guest");
     expect(names).toContain("Continue with Google");
     expect(names).toContain("Continue as guest");
-    expect(names[names.length - 1]).toBe("Use without an account");
+    expect(names).toContain("Use without an account");
     expect(screen.getByText("or sign in")).toBeTruthy();
   });
 
-  it("lands the keyboard on the first road", () => {
+  it("lands the keyboard on the road", () => {
     renderDoor();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /^Join a session/ }),
+      screen.getByRole("button", { name: "Set up your own" }),
     );
   });
 
@@ -153,11 +148,9 @@ describe("the front door", () => {
     );
   });
 
-  it("opens each road, and the local-only seal", () => {
+  it("opens the road, and the local-only seal", () => {
     const props = renderDoor();
-    fireEvent.click(screen.getByRole("button", { name: /^Join a session/ }));
-    expect(props.onOpenJoin).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: /^Set up your own/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
     expect(props.onOpenSetup).toHaveBeenCalledTimes(1);
     fireEvent.click(
       screen.getByRole("button", { name: "Use without an account" }),

@@ -42,7 +42,6 @@ beforeEach(() => {
     hostApi: HOST,
     identityApi: "",
     daemonApi: "",
-    tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
       ...defaultCapabilityConnectors(),

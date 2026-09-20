@@ -4,10 +4,34 @@
  * Identity session into one display model — and never a raw subject.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { describeAccount } from "./account.js";
 import { type UpstreamIdentity, federationSeams } from "./federation.js";
 import { type IdentitySession, identitySeams } from "./identity.js";
+
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear() {
+      map.clear();
+    },
+    getItem(key: string) {
+      return map.get(key) ?? null;
+    },
+    key(index: number) {
+      return [...map.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      map.delete(key);
+    },
+    setItem(key: string, value: string) {
+      map.set(key, value);
+    },
+  };
+}
 
 const originalIdentity = { ...identitySeams };
 const originalFederation = { ...federationSeams };
@@ -28,6 +52,8 @@ const SHOO: UpstreamIdentity = {
 beforeEach(() => {
   identity = null;
   session = null;
+  vi.stubGlobal("sessionStorage", memoryStorage());
+  vi.stubGlobal("localStorage", memoryStorage());
   federationSeams.loadSession = () => identity;
   identitySeams.currentSession = () => session;
   identitySeams.identityBase = () => "http://127.0.0.1:18788";
@@ -49,12 +75,12 @@ describe("describeAccount", () => {
       accessToken: "pst",
       issuerOrigin: "http://127.0.0.1:18788",
     };
-    expect(describeAccount()).toEqual({
-      name: "guest",
-      detail: "prn · 8f3c · provisional",
-      providerId: null,
-      guest: true,
-    });
+    const account = describeAccount();
+    expect(account?.guest).toBe(true);
+    expect(account?.providerId).toBeNull();
+    expect(account?.detail).toBe("prn · 8f3c · provisional");
+    // Describing must not mint — no principal yet means the generic slug.
+    expect(account?.name).toBe("guest");
   });
 
   it("names a Google account through shoo.dev without leaking the subject", () => {

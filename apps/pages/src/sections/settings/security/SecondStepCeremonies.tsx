@@ -23,6 +23,7 @@ import {
   IconSecret,
 } from "../../../components/Icons.js";
 import { QrCode } from "../../../components/QrCode.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { remoteIdentityApi } from "../../../lib/identity.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 import type { SentCode } from "../../../lib/vault/remote-code.js";
@@ -117,7 +118,9 @@ function FreshCodes({
       <div className="actions">
         <button
           type="button"
-          className="btn btn--sm"
+          className="icon-btn icon-btn--sm"
+          aria-label={copied ? "Copied" : "Copy"}
+          title={copied ? "Copied" : "Copy"}
           onClick={() =>
             void copyCodes(ledger).then(
               () => setCopied(true),
@@ -125,14 +128,16 @@ function FreshCodes({
             )
           }
         >
-          <IconCopy size={16} /> {copied ? "Copied" : "Copy"}
+          <IconCopy size={16} />
         </button>
         <button
           type="button"
-          className="btn btn--sm"
+          className="icon-btn icon-btn--sm"
+          aria-label="Download"
+          title="Download"
           onClick={() => downloadCodes(ledger)}
         >
-          <IconDownload size={16} /> Download
+          <IconDownload size={16} />
         </button>
       </div>
     </CeremonyShell>
@@ -209,14 +214,12 @@ export function RecoveryCeremony({
       icon: <IconRefresh size={16} />,
       render: () => (
         <>
-          <p className="hint">
-            A new set replaces this one whole; the old codes stop working the
-            moment it is made.
-          </p>
           <button
             type="button"
-            className="btn btn--danger"
+            className="icon-btn icon-btn--danger"
             disabled={busy}
+            aria-label="Make a new set"
+            title="Make a new set"
             onClick={() => {
               setFoot("The old codes stopped working. Save the new ones.");
               void run(async () => {
@@ -224,7 +227,7 @@ export function RecoveryCeremony({
               }, "A new set of recovery codes was made.");
             }}
           >
-            Make a new set
+            <IconRefresh size={16} />
           </button>
         </>
       ),
@@ -460,10 +463,6 @@ export function AuthenticatorCeremony({
                     </button>
                   }
                 />
-                <p className="hint">
-                  Time-based, SHA-1, 6 digits, 30 seconds. Account name:
-                  OpenSesame vault.
-                </p>
               </>
             ),
           },
@@ -526,8 +525,10 @@ export function AuthenticatorCeremony({
         render: () => (
           <button
             type="button"
-            className="btn"
+            className="icon-btn"
             disabled={busy}
+            aria-label="Make a new seed and scan it"
+            title="Make a new seed and scan it"
             onClick={() => {
               store.cancelTotpEnrollment();
               began.current = false;
@@ -537,7 +538,7 @@ export function AuthenticatorCeremony({
               setStage("scan");
             }}
           >
-            <IconRefresh size={16} /> Make a new seed and scan it
+            <IconRefresh size={16} />
           </button>
         ),
       },
@@ -571,17 +572,9 @@ export function AuthenticatorCeremony({
               mono
               disabled={busy}
               status={
-                refused ? (
-                  <span className="chip chip--err">Did not match</span>
-                ) : null
+                refused ? <StatusMark tone="err" label="Did not match" /> : null
               }
             />
-            {refused ? (
-              <p className="hint">
-                Codes change every 30 seconds; enter the one showing now. If
-                they never match, the phone's clock may be off.
-              </p>
-            ) : null}
           </CeremonyShell>
         </form>
         <CeremonyAlts alts={alts} />
@@ -848,8 +841,14 @@ export function CodeCeremony({
         render: () => (
           <button
             type="button"
-            className="btn"
+            className="icon-btn"
             disabled={busy || coolingFor > 0}
+            aria-label={
+              coolingFor > 0
+                ? `Send it again in ${coolingFor}s`
+                : "Send a new code"
+            }
+            title="Send a new code"
             onClick={() =>
               void run(async () => {
                 const result = await store.beginCodeEnrollment(channel, to);
@@ -860,7 +859,7 @@ export function CodeCeremony({
               }, `A new code was sent to ${sent.to}.`)
             }
           >
-            <IconRefresh size={16} /> Send a new code
+            <IconRefresh size={16} />
           </button>
         ),
       },
@@ -871,8 +870,10 @@ export function CodeCeremony({
         render: () => (
           <button
             type="button"
-            className="btn"
+            className="icon-btn"
             disabled={busy}
+            aria-label={words.change}
+            title={words.change}
             onClick={() => {
               store.cancelCodeEnrollment();
               setSent(null);
@@ -881,7 +882,7 @@ export function CodeCeremony({
               setStage("where");
             }}
           >
-            {words.change}
+            <IconEdit size={16} />
           </button>
         ),
       },
@@ -917,9 +918,7 @@ export function CodeCeremony({
               mono
               disabled={busy}
               status={
-                refused ? (
-                  <span className="chip chip--err">Did not match</span>
-                ) : null
+                refused ? <StatusMark tone="err" label="Did not match" /> : null
               }
             />
             {refused ? (

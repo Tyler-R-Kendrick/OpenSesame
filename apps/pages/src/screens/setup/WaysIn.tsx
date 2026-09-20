@@ -22,12 +22,8 @@
  *    magic links, guest sessions, and whatever its own catalog brokers.
  *
  * Remove everything and that is a real answer too: a local vault, sealed on
- * this device, with no accounts at all.
- *
- * What is *not* asked: a Host API, and pairing a daemon on this machine.
- * Neither is a question a first-time visitor has, and neither gates anything
- * the vault does on its own — see ADR 0078 §4 for what the Host is actually
- * for. They live in Settings → Endpoints.
+ * this device, with no accounts at all. Host API and daemon pairing are not
+ * first-run questions — they live in Settings → Endpoints (ADR 0078 §4).
  */
 
 import { useReducer, useState } from "react";
@@ -41,6 +37,7 @@ import {
   IconSite,
   IconTrash,
 } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import {
   FederationError,
@@ -396,7 +393,7 @@ export function WaysIn() {
           placeholder="https://id.example.com"
           value={identityApi}
           status={
-            service ? <span className="chip chip--ok">Will connect</span> : null
+            service ? <StatusMark tone="ok" label="Will connect" /> : null
           }
           onValueChange={setIdentityApi}
           onCommit={commitIdentityApi}

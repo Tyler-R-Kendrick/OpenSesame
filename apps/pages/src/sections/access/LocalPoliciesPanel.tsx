@@ -5,11 +5,11 @@ import {
   readLocalDirectory,
 } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { LocalApplicationSettings } from "../identity/LocalApplicationSettings.js";
 
 export function LocalPoliciesPanel() {
-  const tomb = useVaultStore().activeTomb();
+  const { tomb } = useVault();
   return <LocalPolicyEditor key={tomb} tomb={tomb} />;
 }
 
@@ -69,13 +69,6 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
         </button>
       </div>
       <div className="panel__body">
-        <p className="hint local-policy-intro">
-          Choose which organization roles may request each application scope.
-          Owner/Admin are Operators; Member is Member. Guest identities are
-          limited to openid regardless of these checkboxes. Unchecked roles are
-          denied, including owners. Saving a changed policy invalidates existing
-          application grants; a new sign-in and explicit consent are required.
-        </p>
         {error ? (
           <p className="note note--err" role="alert">
             {error}

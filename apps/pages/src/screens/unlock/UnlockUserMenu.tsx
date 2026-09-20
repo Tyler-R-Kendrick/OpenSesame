@@ -1,10 +1,12 @@
 /**
- * Who locked this screen, as a dropdown on the unlock card.
+ * Who is unlocking, as a dropdown beside the Unlock / Sign in title.
  *
- * The trigger names the signed-in account, or the current vault when nobody
- * is signed in. The menu lists every vault on this device, Sign in (to swap
- * identity), and Sign out. The Unlock/Sign in tabs used to split those
- * ceremonies; this is the one control for both.
+ * The trigger names the account for the vault about to unlock — the guest
+ * slug (`guest-N`) when the last lock was guest, the federated claimer on
+ * personal/project, else the vault label. A leftover Google session must
+ * not label a guest unlock.
+ * The menu lists every vault on this device, Sign in (to swap identity), and
+ * Sign out.
  */
 
 import { useState } from "react";
@@ -13,11 +15,28 @@ import {
   IconChevronRight,
   IconUser,
 } from "../../components/Icons.js";
-import { useAccount } from "../../lib/account.js";
+import { type Account, useAccount } from "../../lib/account.js";
+import { guestVaultLabel } from "../../lib/local-guest.js";
 import { signOut, switchAccount } from "../../lib/session-exit.js";
 import { type DeviceVault, useDeviceVaults } from "../../lib/vaults.js";
+import { GUEST_TOMB } from "../../lib/vfs.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { brandFor } from "./ProviderBrand.js";
+
+/** Label for the unlock trigger: follows the vault being unlocked, not a stale claim. */
+export function unlockAccountLabel(
+  currentVaultId: string,
+  account: Account | null,
+  vaultLabel: string | undefined,
+): string {
+  if (currentVaultId === GUEST_TOMB) {
+    return guestVaultLabel();
+  }
+  // Federated / brokered identity for this durable vault only — never a
+  // provisional guest principal left over from another road.
+  if (account && !account.guest) return account.name;
+  return vaultLabel ?? "personal";
+}
 
 type Props = {
   disabled?: boolean;
@@ -46,8 +65,11 @@ export function UnlockUserMenu({
   const current = vaults.find((vault) => vault.id === currentVaultId);
   const [open, setOpen] = useState(false);
   const ref = useGuideTarget<HTMLButtonElement>("unlock.account");
-  const label = account?.name ?? current?.label ?? "personal";
-  const brand = account?.providerId ? brandFor(account.providerId) : null;
+  const label = unlockAccountLabel(currentVaultId, account, current?.label);
+  const showAccount =
+    currentVaultId !== GUEST_TOMB && account !== null && !account.guest;
+  const brand =
+    showAccount && account.providerId ? brandFor(account.providerId) : null;
 
   function close(): void {
     setOpen(false);
@@ -80,6 +102,7 @@ export function UnlockUserMenu({
       {open ? (
         <Menu
           account={account}
+          showWho={showAccount}
           brand={brand}
           vaults={vaults}
           currentVaultId={currentVaultId}
@@ -98,6 +121,8 @@ export function UnlockUserMenu({
 
 type MenuProps = {
   account: ReturnType<typeof useAccount>;
+  /** Federated claimer header — never a provisional guest principal. */
+  showWho: boolean;
   brand: ReturnType<typeof brandFor>;
   vaults: DeviceVault[];
   currentVaultId: string;
@@ -112,6 +137,7 @@ type MenuProps = {
 
 function Menu({
   account,
+  showWho,
   brand,
   vaults,
   currentVaultId,
@@ -139,7 +165,7 @@ function Menu({
           if (event.key === "Escape") onClose();
         }}
       >
-        {account ? (
+        {showWho && account ? (
           <div className="account-switcher__who">
             <span className="who__mark" aria-hidden="true">
               {brand ? <brand.Icon size={16} /> : <IconUser size={16} />}

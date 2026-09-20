@@ -1,17 +1,21 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { Link } from "react-router";
 import {
-  IconAlert,
-  IconCheck,
   IconChevronLeft,
   IconConnection,
   IconExternal,
-  IconX,
 } from "../../components/Icons.js";
-import { PagesCannotHostNote } from "../../components/PagesCannotHostNote.js";
+import {
+  StatusMark,
+  type StatusTone,
+  statusTone,
+} from "../../components/StatusMark.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
-import { removeCustomConnector } from "../../lib/custom-connectors.js";
+import {
+  readLocalGithubApp,
+  subscribeLocalGithubApp,
+} from "../../lib/github-app-manifest.js";
 import {
   VERB_CHIP,
   VERB_LABEL,
@@ -19,16 +23,12 @@ import {
   providerVerb,
 } from "../../lib/identity-graph.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { BindingEditor } from "./BindingEditor.js";
 import { authKindLabel } from "./CatalogPanel.js";
 import { ConnectForm } from "./ConnectForm.js";
-import { AutomaticService } from "./ConnectedPanel.js";
 import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
-import { IdentitySessionNote } from "./IdentitySessionNote.js";
-import { PolicyEditor } from "./PolicyEditor.js";
+import { GithubAppPresence } from "./GithubAppPresence.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
-import { DeploymentSetupGuide } from "./guides.js";
 import {
   CATEGORY_LABELS,
   type Flash,
@@ -71,13 +71,26 @@ export function ConnectorSettingsPage({
 }) {
   const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
   const authorizeRef = useGuideTarget<HTMLElement>("connections.authorize");
-  const bindingsRef = useGuideTarget<HTMLElement>("connections.bindings");
+  const [backupReady, setBackupReady] = useState(false);
+  const reportBackup = useCallback((ready: boolean) => {
+    setBackupReady(ready);
+  }, []);
+  const localGithubApp = useSyncExternalStore(
+    subscribeLocalGithubApp,
+    () => (providerId === "github" ? readLocalGithubApp() : null),
+    () => null,
+  );
+  useEffect(() => {
+    // A completed local App registration must not leave a failure glyph up.
+    if (localGithubApp !== null && flash?.tone === "err") onFlash(null);
+  }, [localGithubApp, flash, onFlash]);
   if (!provider) {
     return (
       <div className="section__inner">
         <Link ref={backRef} className="conn-back" to="/connections">
           <IconChevronLeft size={16} /> Connections
         </Link>
+        {providerId === "github" ? <GithubAppPresence /> : null}
         <div className="panel">
           <div className="empty">
             <IconConnection />
@@ -96,8 +109,6 @@ export function ConnectorSettingsPage({
       <Link ref={backRef} className="conn-back" to="/connections">
         <IconChevronLeft size={16} /> Connections
       </Link>
-      <PagesCannotHostNote ceremony="Host authorization" />
-      <IdentitySessionNote />
       <header className="conn-settings__head">
         <ConnectorMark
           providerId={provider.id}
@@ -107,28 +118,15 @@ export function ConnectorSettingsPage({
         <div className="conn-settings__title">
           <div className="conn-settings__name">
             <h1>{provider.displayName}</h1>
-            <span
-              className={`chip ${
-                VERB_CHIP[
-                  connections.length > 1 && !connection
-                    ? "idle"
-                    : providerVerb(provider, connection)
-                ]
-              }`}
-              aria-label={`Connector status: ${
-                connection
-                  ? VERB_LABEL[connectionVerb(connection.status)]
-                  : connections.length > 1
-                    ? `${connections.length} authorizations`
-                    : VERB_LABEL[providerVerb(provider, null)]
-              }`}
-            >
-              {connection
-                ? VERB_LABEL[connectionVerb(connection.status)]
-                : connections.length > 1
-                  ? `${connections.length} authorizations`
-                  : VERB_LABEL[providerVerb(provider, null)]}
-            </span>
+            <StatusMark
+              {...githubConnectorStatus(
+                provider,
+                connection,
+                connections,
+                backupReady,
+                localGithubApp !== null,
+              )}
+            />
           </div>
           <p>
             {connection
@@ -144,25 +142,18 @@ export function ConnectorSettingsPage({
         >
           Docs <IconExternal size={14} />
         </a>
-        {provider.category === "custom" ? (
-          <DeleteCustomConnector provider={provider} onFlash={onFlash} />
-        ) : null}
       </header>
 
       {flash ? (
-        <output className={`note note--${flash.tone} conn-flash`}>
-          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-          <p>{flash.text}</p>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => onFlash(null)}
-            aria-label="Dismiss"
-          >
-            <IconX />
-          </button>
-        </output>
+        <StatusMark
+          tone={
+            flash.tone === "ok" ? "ok" : flash.tone === "warn" ? "warn" : "err"
+          }
+          label={flash.text}
+        />
       ) : null}
+
+      {providerId === "github" ? <GithubAppPresence /> : null}
 
       {rememberOffer ? (
         <VaultReminderBanner
@@ -179,17 +170,11 @@ export function ConnectorSettingsPage({
               <h2>Authorization</h2>
             </div>
           </div>
-          <ul className="conn-list">
-            <AutomaticService
-              provider={provider}
-              connection={connection}
-              online={online}
-              onFlash={(next) => onFlash(next)}
-              onChanged={onChanged}
-              onRememberOffer={(offer) => onRememberOffer(offer)}
-              settings={false}
-            />
-          </ul>
+          <div className="panel__body">
+            <p className="hint">
+              {provider.displayName} is built in. Nothing to authorize.
+            </p>
+          </div>
         </section>
       ) : connection ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
@@ -203,7 +188,7 @@ export function ConnectorSettingsPage({
               online={online}
               onFlash={(next) => onFlash(next)}
               onChanged={onChanged}
-              showBindings={false}
+              onBackupReady={reportBackup}
             />
           </ul>
         </section>
@@ -260,48 +245,58 @@ export function ConnectorSettingsPage({
             />
           ) : (
             <div className="panel__body">
-              <DeploymentSetupGuide provider={provider} />
+              <p className="hint">
+                {provider.displayName} connects over OAuth — pick an OAuth
+                connector from the catalog.
+              </p>
             </div>
           )}
         </section>
       )}
-
-      {connection ? (
-        <>
-          <section className="panel" id="access" ref={bindingsRef}>
-            <div className="panel__head">
-              <div>
-                <h2>Who can use it</h2>
-              </div>
-            </div>
-            <div className="panel__body">
-              <BindingEditor
-                connection={connection}
-                online={online}
-                onFlash={(next) => onFlash(next)}
-                onChanged={onChanged}
-              />
-            </div>
-          </section>
-          <section className="panel" id="rules">
-            <div className="panel__head">
-              <div>
-                <h2>Rules</h2>
-              </div>
-            </div>
-            <div className="panel__body">
-              <PolicyEditor
-                connection={connection}
-                online={online}
-                onFlash={(next) => onFlash(next)}
-                onChanged={onChanged}
-              />
-            </div>
-          </section>
-        </>
-      ) : null}
     </div>
   );
+}
+
+type ConnectorTitleStatus = { tone: StatusTone; label: string };
+
+function githubConnectorStatus(
+  provider: Provider,
+  connection: Connection | null,
+  connections: Connection[],
+  backupReady: boolean,
+  localApp: boolean,
+): ConnectorTitleStatus {
+  if (provider.id === "github") {
+    if (connection !== null && !backupReady) {
+      return {
+        tone: "warn",
+        label: "Needs a backup repository",
+      } satisfies ConnectorTitleStatus;
+    }
+    if (connection !== null) {
+      return {
+        tone: statusTone(VERB_CHIP[connectionVerb(connection.status)]),
+        label: VERB_LABEL[connectionVerb(connection.status)],
+      } satisfies ConnectorTitleStatus;
+    }
+    if (localApp || provider.configured) {
+      return {
+        tone: "ok",
+        label: "GitHub App ready",
+      } satisfies ConnectorTitleStatus;
+    }
+  }
+  if (connections.length > 1 && !connection) {
+    return {
+      tone: "idle",
+      label: `${connections.length} authorizations`,
+    } satisfies ConnectorTitleStatus;
+  }
+  const verb = providerVerb(provider, connection);
+  return {
+    tone: statusTone(VERB_CHIP[verb]),
+    label: VERB_LABEL[verb],
+  } satisfies ConnectorTitleStatus;
 }
 
 function AuthorizedAccount({
@@ -319,7 +314,7 @@ function AuthorizedAccount({
         <p>{statusSentence(connection, provider)}</p>
       </div>
       <div className="conn-service__actions">
-        <span className={`chip ${chip.tone}`}>{chip.label}</span>
+        <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
         <Link
           className="btn btn--sm"
           to={`/connections/${encodeURIComponent(connection.providerId)}/${encodeURIComponent(connection.connectionId)}`}
@@ -329,39 +324,5 @@ function AuthorizedAccount({
         </Link>
       </div>
     </li>
-  );
-}
-
-function DeleteCustomConnector({
-  provider,
-  onFlash,
-}: {
-  provider: Provider;
-  onFlash: (flash: Flash | null) => void;
-}) {
-  const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-
-  async function remove() {
-    setBusy(true);
-    try {
-      await removeCustomConnector(provider.id);
-      navigate("/connections");
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      className="btn btn--sm btn--danger"
-      disabled={busy}
-      onClick={() => void remove()}
-    >
-      {busy ? "Deleting…" : "Delete connector"}
-    </button>
   );
 }

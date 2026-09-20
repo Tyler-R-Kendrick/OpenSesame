@@ -1,10 +1,8 @@
 import {
   type BoundaryValue,
-  type JsonObject,
   isBoolean,
   isJsonObject,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import parity from "../../../../connectors/fnox-parity.json";
 import type {
@@ -12,11 +10,10 @@ import type {
   Provider,
   ProviderCategory,
 } from "./connections.js";
-import { loadSettings } from "./settings.js";
 import { walletHostProviders } from "./wallet-issuers.js";
 const CATEGORY = new Map<ProviderCategory, readonly string[]>([
   ["identity", ["better-auth", "workos", "auth0"]],
-  ["backup_recovery", ["github", "gitlab", "supabase", "neon", "postgresql"]],
+  ["backup_recovery", ["github", "gitlab"]],
   [
     "encryption",
     [
@@ -382,124 +379,6 @@ export const bundledProviders: Provider[] = [
   ...walletHostProviders((id, docs, auth) => preview(id, docs, auth, "wallet")),
 ];
 
-type TursoDb = {
-  exec(sql: string): Promise<void>;
-  prepare(sql: string): Promise<{
-    get(...values: string[]): Promise<JsonObject | undefined>;
-    run(...values: string[]): Promise<BoundaryValue>;
-  }>;
-  pull(): Promise<boolean>;
-  push(): Promise<void>;
-  close(): Promise<void>;
-};
-
-let database: Promise<TursoDb> | null = null;
-let sessionToken = import.meta.env.VITE_TURSO_AUTH_TOKEN?.trim() ?? "";
-let lastMode: "embedded" | "remote" | "memory" = "memory";
-
-/** Turso WASM + OPFS can hang on some static hosts; never block the gallery on it. */
-const TURSO_OPEN_MS = 2500;
-
-export function tursoMode(): typeof lastMode {
-  return lastMode;
-}
-
-function setTursoSessionTokenDefault(token: string): void {
-  sessionToken = token.trim();
-  const current = database;
-  database = null;
-  if (current) void current.then((db) => db.close()).catch(() => undefined);
-}
-
-async function checkTursoDefault(): Promise<typeof lastMode> {
-  try {
-    await db();
-  } catch {
-    lastMode = "memory";
-  }
-  return lastMode;
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`${label}_timeout`));
-    }, ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
-
-/**
- * The turso wasm worker hands the page a SharedArrayBuffer, which a browser
- * only allows in a cross-origin-isolated context. A static host sends no
- * COOP/COEP headers, so the very first load of the deployed app (before the
- * service worker adds them and reloads) is not isolated, and starting the
- * worker there is an uncaught DataCloneError. Answer the question before
- * asking; the in-memory catalog is the fallback either way. Test runtimes
- * do not define the flag at all, and are left alone.
- */
-function workerIsolationBlocked(): boolean {
-  return globalThis.crossOriginIsolated === false;
-}
-
-async function open(): Promise<TursoDb> {
-  if (workerIsolationBlocked()) {
-    throw new Error("turso_requires_cross_origin_isolation");
-  }
-  const settings = loadSettings();
-  const remote = settings.tursoUrl.trim();
-  const { connectTurso } = await import("./turso-connect.js");
-  const database: TursoDb = overlapCast(
-    await connectTurso({
-      path: "opensesame-connectors.db",
-      ...(remote && sessionToken
-        ? { url: remote, authToken: () => Promise.resolve(sessionToken) }
-        : undefined),
-      clientName: "opensesame-pages",
-    }),
-  );
-  if (remote && sessionToken) {
-    try {
-      await database.pull();
-      lastMode = "remote";
-    } catch {
-      lastMode = "embedded";
-    }
-  } else {
-    lastMode = "embedded";
-  }
-  await database.exec(
-    "CREATE TABLE IF NOT EXISTS pwa_cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)",
-  );
-  return database;
-}
-
-async function db(): Promise<TursoDb> {
-  if (!database) {
-    database = withTimeout(open(), TURSO_OPEN_MS, "turso_open").catch(
-      (error) => {
-        database = null;
-        lastMode = "memory";
-        throw error;
-      },
-    );
-  }
-  return database;
-}
-
 function validProvider(value: BoundaryValue): value is Provider {
   if (!isJsonObject(value)) return false;
   const item = value;
@@ -538,50 +417,14 @@ export function decodeEmbeddedProviders(value: string): Provider[] | null {
 }
 
 async function readEmbeddedProvidersDefault(): Promise<Provider[]> {
-  try {
-    const connection = await db();
-    const row = await withTimeout(
-      (
-        await connection.prepare("SELECT value FROM pwa_cache WHERE key = ?")
-      ).get("providers"),
-      TURSO_OPEN_MS,
-      "turso_read",
-    );
-    if (isString(row?.value)) {
-      const providers = decodeEmbeddedProviders(row.value);
-      if (providers) return providers;
-    }
-    await writeEmbeddedProviders(getBundledProviders());
-  } catch {
-    lastMode = "memory";
-    database = null;
-  }
   return getBundledProviders();
 }
 
 async function writeEmbeddedProvidersDefault(
-  providers: Provider[],
-): Promise<void> {
-  try {
-    const connection = await db();
-    await (
-      await connection.prepare(
-        "INSERT INTO pwa_cache (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-      )
-    ).run(
-      "providers",
-      JSON.stringify({ revision: BUNDLED_REVISION, providers }),
-      new Date().toISOString(),
-    );
-    if (lastMode === "remote") await connection.push();
-  } catch {
-    lastMode = "memory";
-  }
-}
+  _providers: Provider[],
+): Promise<void> {}
 
 export const embeddedCatalogSeams = {
-  setTursoSessionToken: setTursoSessionTokenDefault,
-  checkTurso: checkTursoDefault,
   bundledProviders,
   readEmbeddedProviders: readEmbeddedProvidersDefault,
   writeEmbeddedProviders: writeEmbeddedProvidersDefault,
@@ -589,14 +432,6 @@ export const embeddedCatalogSeams = {
 
 export function getBundledProviders(): Provider[] {
   return embeddedCatalogSeams.bundledProviders;
-}
-
-export function setTursoSessionToken(token: string): void {
-  embeddedCatalogSeams.setTursoSessionToken(token);
-}
-
-export async function checkTurso(): Promise<typeof lastMode> {
-  return embeddedCatalogSeams.checkTurso();
 }
 
 export async function readEmbeddedProviders(): Promise<Provider[]> {

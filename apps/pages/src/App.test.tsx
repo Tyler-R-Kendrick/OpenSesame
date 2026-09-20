@@ -56,21 +56,21 @@ describe("App", () => {
     renderApp("/?code=abc&state=xyz");
     expect(screen.getByText("federation return stub")).toBeTruthy();
     expect(screen.queryByTestId("app-shell")).toBeNull();
-    expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Support" })).toBeNull();
   });
 
   it("serves the broker authorize popup without unlocking", () => {
     renderApp("/broker/authorize?client_id=x");
     expect(screen.getByText("broker authorize stub")).toBeTruthy();
     expect(screen.queryByTestId("app-shell")).toBeNull();
-    expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Support" })).toBeNull();
   });
 
   it("gates the whole app behind the unlock screen", () => {
     renderApp("/vault");
     expect(screen.getByText("unlock screen stub")).toBeTruthy();
     expect(screen.queryByTestId("app-shell")).toBeNull();
-    expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Support" })).toBeNull();
   });
 
   it("redirects the root to the vault once unlocked", () => {
@@ -108,7 +108,7 @@ describe("App", () => {
       ["/connections", "connections section"],
       ["/connections/github/conn_1", "connections section"],
       ["/settings", "settings section"],
-      ["/settings/connectivity", "settings section"],
+      ["/settings/connections", "settings section"],
     ];
     for (const [route, marker] of cases) {
       const { unmount } = renderApp(route);
@@ -119,12 +119,10 @@ describe("App", () => {
     }
   });
 
-  it("keeps the support overlay on the locked, broker and unlocked screens", () => {
+  it("withholds support on locked and broker screens; offers it only unlocked", () => {
     for (const route of ["/vault", "/broker/authorize"]) {
       const { unmount } = renderApp(route);
-      expect(
-        screen.getByRole("button", { name: "Support" }).className,
-      ).toContain("support-launch");
+      expect(screen.queryByRole("button", { name: "Support" })).toBeNull();
       unmount();
     }
     env.vaultStatus = "unlocked";

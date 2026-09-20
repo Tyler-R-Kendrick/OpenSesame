@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 import {
   SHARE_DURATIONS,
   SHARE_POLICIES,
@@ -72,16 +73,24 @@ export function ShareGrantForm({
         onDuration={setDuration}
       />
       <div className="actions">
-        <button type="submit" className="btn btn--primary" disabled={busy}>
-          Grant
+        <button
+          type="submit"
+          className="icon-btn"
+          disabled={busy}
+          aria-label="Grant"
+          title="Grant"
+        >
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
+          aria-label="Cancel"
+          title="Cancel"
           onClick={onCancel}
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </form>

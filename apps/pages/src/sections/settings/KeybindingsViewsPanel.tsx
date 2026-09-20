@@ -1,5 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { useState } from "react";
+import { IconCheck, IconRefresh, IconStar } from "../../components/Icons.js";
 import { resetKeybindings } from "../../lib/configuration/keybindings.js";
 import {
   currentKeybindings,
@@ -71,20 +72,40 @@ export function KeybindingsViewsPanel() {
           value={bindingsText}
           onChange={(event) => setBindingsText(event.target.value)}
         />
-        <button type="button" className="btn btn--sm" onClick={saveBindings}>
-          Save keybindings
-        </button>
-        <button type="button" className="btn btn--sm" onClick={reset}>
-          Reset keybindings
-        </button>
+        <div className="actions">
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Save keybindings"
+            title="Save keybindings"
+            onClick={saveBindings}
+          >
+            <IconCheck size={16} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Reset keybindings"
+            title="Reset keybindings"
+            onClick={reset}
+          >
+            <IconRefresh size={16} />
+          </button>
+        </div>
         <label htmlFor="view-name">Pin approvals view</label>
         <input
           id="view-name"
           value={viewName}
           onChange={(event) => setViewName(event.target.value)}
         />
-        <button type="button" className="btn btn--sm" onClick={pinView}>
-          Pin view
+        <button
+          type="button"
+          className="icon-btn icon-btn--sm"
+          aria-label="Pin view"
+          title="Pin view"
+          onClick={pinView}
+        >
+          <IconStar size={16} />
         </button>
         <p className="hint">
           {loadViews().length} saved view(s). Effective{" "}

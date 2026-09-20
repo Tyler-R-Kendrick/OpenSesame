@@ -13,7 +13,6 @@
  * it.
  */
 
-import { connectivitySnapshot } from "../../lib/connectivity-monitor.js";
 import { currentSession } from "../../lib/identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
 import {
@@ -104,8 +103,9 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
   },
   {
     id: "host.connected",
-    description: "The Host plane answered its last reachability probe.",
-    read: () => connectivitySnapshot().host.health === "reachable",
+    description:
+      "The Host plane answered its last reachability probe. Pages never claims a Host (ADR 0090).",
+    read: () => false,
   },
   {
     id: "identity.connected",

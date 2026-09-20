@@ -44,7 +44,6 @@ beforeEach(() => {
     hostApi: HOST,
     identityApi: IDENTITY,
     daemonApi: "http://127.0.0.1:18790",
-    tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
       ...defaultCapabilityConnectors(),
@@ -387,7 +386,6 @@ describe("missing configuration", () => {
       hostApi: "",
       identityApi: "",
       daemonApi: "",
-      tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
         ...defaultCapabilityConnectors(),

@@ -360,12 +360,12 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   be placed in front of them. On a device with no vault and no setup record
   that screen is the **front door** (`screens/FrontDoor.tsx`,
   [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)): the
-  wordmark at hero scale, the `Join a session` and `Set up your own` roads
-  made large, and the whole sign-in panel beneath them on the same card —
-  offers beside sign-in, never a gate before it. Once the ceremony is
-  answered or skipped, `Deployment setup` and `Join a session` are the quiet
-  links in the sign-in foot (an invite link opens join by itself);
-  `setupRequired` does not exist and must not come back. No
+  wordmark at hero scale, the `Set up your own` road made large, and the
+  whole sign-in panel beneath it on the same card — offers beside sign-in,
+  never a gate before it. Join is invite-link only (an invite opens join
+  by itself); once the ceremony is answered or skipped, setup lives behind
+  unlock (Settings), not as quiet foot links. `setupRequired` does not
+  exist and must not come back. No
   default may point at a local host: `lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
   offer, never something the app assumes. With no Identity API configured a
@@ -393,7 +393,8 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   claim degrades to a bell notice (ADR 0033). Beside a sealed vault the store
   runs the guest in the isolated `GUEST_TOMB` (`apps/pages/src/lib/vault/store.ts`
   `createGuest`), so the existing vault is never read, written, or deleted,
-  and `lock()` hands it back — isolation is the answer to "a guest would
+  and `lock()` keeps the unlock screen on guest when that was the last
+  authorized account — isolation is the answer to "a guest would
   clobber the vault", suppression is not. Do not gate guest on
   `hasIdentityService`, `noWayIn`, the provider catalog, first-run setup
   allowlists, or vault status. The only road that is legitimately withheld
@@ -523,11 +524,19 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   raise a recorded number to make the gate pass — split the file. New files get
   a recorded number of zero, so new code meets the budget outright.
   `docs/validation/code-quality-gates.md` is the working guide.
-- A screen's terminal commit is the shared `.go` ink square with its verb
-  beside it; `.btn--primary` with a text label is for actions *inside* a card.
-  Both patterns are named in [`docs/design/controls.md`](docs/design/controls.md)
-  and enforced by `pnpm lint:design` (`scripts/design-lint.mjs`), which runs in
-  the `pre-commit` hook and a Claude Code `PostToolUse` hook.
+- Pages, PWA, and ceremony UI follow [`DESIGN.md`](DESIGN.md) and
+  [`docs/design/controls.md`](docs/design/controls.md). An action that
+  executes is an icon key (`icon-btn`, or `.go` for the action that ends the
+  screen) with `aria-label` and `title`. Do not paint a verb on a button.
+  Text on a control is only a choice object (a provider, a mode, a navigation
+  target, the guest road). A status is a `StatusMark` glyph, never a text
+  pill. Do not render an in-page error box (`note`, `conn-flash`, or a
+  paragraph banner). Do not add explainer or caption prose. Pages copy never
+  names a Host, and a browser-local connector action never asks the person to
+  pair one. `pnpm lint:design` (`scripts/design-lint.mjs`) rejects word-verb
+  buttons, status pills, and explainer captions; `impeccable detect`
+  enforces the same design file. Both run in `.githooks/pre-commit`. The
+  word-verb ledger is `scripts/design-button-baseline.json` and only falls.
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live

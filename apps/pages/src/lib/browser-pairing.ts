@@ -19,7 +19,7 @@ export class BrowserPairingError extends Error {
       code === "restricted_demo"
         ? "This shared-origin demo cannot connect to local authority. Use a dedicated or loopback deployment."
         : code === "pairing_required"
-          ? "Pair this browser with the Host using its local approval ceremony."
+          ? "This browser has no approved grant for that action."
           : code,
     );
     this.name = "BrowserPairingError";

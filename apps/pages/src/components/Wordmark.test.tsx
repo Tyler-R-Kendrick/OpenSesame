@@ -49,6 +49,16 @@ describe("Wordmark", () => {
     );
   });
 
+  it("replays the decrypt when asked, then leaves later mounts settled", () => {
+    const first = render(<Wordmark />);
+    first.unmount();
+    const replayed = render(<Wordmark replay />);
+    expect(replayed.container.querySelector(".wordmark--settled")).toBeNull();
+    replayed.unmount();
+    const later = render(<Wordmark />);
+    expect(later.container.querySelector(".wordmark--settled")).toBeTruthy();
+  });
+
   it("scrambles every unread slot until the cursor locks it", () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValue(0.999);
     const { container, rerender } = render(<Wordmark />);

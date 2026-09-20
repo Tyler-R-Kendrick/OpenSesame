@@ -1,4 +1,4 @@
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { Provider } from "../lib/connections.js";
 import {
@@ -8,6 +8,10 @@ import {
   pageTreeLeaves,
 } from "../lib/page-to-tree.js";
 import {
+  CONNECTIONS_PAGE_SIZE,
+  nextPageCount,
+} from "../sections/connections/page-cap.js";
+import {
   catalogPageSections,
   connectionsPageSources,
 } from "../sections/connections/page-tree.js";
@@ -15,8 +19,6 @@ import { useConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 import { SECTIONS, SectionRow, TreeRow } from "./RailRows.js";
 import "./connections-tree.css";
-
-const PAGE_SIZE = 12;
 
 export function ConnectionsTree({
   open,
@@ -79,6 +81,9 @@ export function ConnectionsTree({
   );
 }
 
+/** Survives CatalogEntries remount when the catalog snapshot briefly clears. */
+let catalogLeafLimit = CONNECTIONS_PAGE_SIZE;
+
 function CatalogEntries({
   providers,
   current,
@@ -86,14 +91,12 @@ function CatalogEntries({
   providers: Provider[] | null;
   current: string;
 }) {
-  const [limit, setLimit] = useState(PAGE_SIZE);
-  const [pending, startTransition] = useTransition();
-  const { hash } = useLocation();
+  const [limit, setLimit] = useState(catalogLeafLimit);
   const navigate = useNavigate();
   const sections = catalogPageSections(providers ?? []);
   const matches = pageTreeLeaves(pageToTree(sections));
   const visible = pageToTree(limitPageTree(sections, limit));
-  const more = Math.min(PAGE_SIZE, Math.max(0, matches.length - limit));
+  const more = nextPageCount(matches.length, limit);
 
   return (
     <>
@@ -107,25 +110,20 @@ function CatalogEntries({
       ))}
       {more > 0 ? (
         <TreeRow
+          to="/connections#catalog-more"
           child
           level={3}
-          to="/connections#catalog-more"
-          selected={hash === "#catalog-more"}
-          isActive={hash === "#catalog-more"}
-          busy={pending}
           onToggle={() => {
-            if (!pending)
-              startTransition(() => {
-                setLimit((previous) => previous + PAGE_SIZE);
-                const first = matches[limit];
-                if (first)
-                  navigate(
-                    `/connections#catalog-${encodeURIComponent(first.id)}`,
-                  );
-              });
+            const next = limit + CONNECTIONS_PAGE_SIZE;
+            catalogLeafLimit = next;
+            setLimit(next);
+            const first = matches[limit];
+            if (first) {
+              navigate(`/connections#catalog-${encodeURIComponent(first.id)}`);
+            }
           }}
         >
-          {pending ? "Loading connectors…" : `Load ${more} more`}
+          {`Load ${more} more`}
         </TreeRow>
       ) : null}
       {matches.length === 0 ? (

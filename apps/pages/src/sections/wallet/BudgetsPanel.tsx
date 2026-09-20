@@ -6,7 +6,13 @@
 
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useCallback, useState } from "react";
-import { IconEdit, IconPlus, IconTrash } from "../../components/Icons.js";
+import {
+  IconCheck,
+  IconEdit,
+  IconPlus,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import {
   BudgetError,
@@ -228,15 +234,22 @@ export function BudgetsPanel() {
               </fieldset>
             ) : null}
             <div className="actions">
-              <button type="submit" className="btn btn--primary">
-                {draft.nodeId === null ? "Create budget" : "Save budget"}
+              <button
+                type="submit"
+                className="icon-btn"
+                aria-label="Save budget"
+                title="Save budget"
+              >
+                <IconCheck size={16} />
               </button>
               <button
                 type="button"
-                className="btn"
+                className="icon-btn"
                 onClick={() => setDraft(null)}
+                aria-label="Cancel"
+                title="Cancel"
               >
-                Cancel
+                <IconX size={16} />
               </button>
             </div>
           </form>

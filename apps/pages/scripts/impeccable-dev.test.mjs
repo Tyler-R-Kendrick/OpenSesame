@@ -22,6 +22,12 @@ test("the picker is admitted only with both a dev server and explicit opt-in", (
   }
 });
 
+test("opted-in live mode does not arm element picking", () => {
+  const result = impeccableDevHtml(html, true, true);
+  assert.match(result, /pickActive:false/);
+  assert.doesNotMatch(result, /pickActive:true/);
+});
+
 test("upstream CSP injection is removed outside opted-in development", () => {
   const injected = html.replace(
     "script-src 'self'",

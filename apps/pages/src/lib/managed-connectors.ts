@@ -1,6 +1,5 @@
 /** Vercel Connect managed connectors — Vercel registers the provider app. */
 export const MANAGED_CONNECTOR_IDS = new Set([
-  "github",
   "linear",
   "linq",
   "microsoft",

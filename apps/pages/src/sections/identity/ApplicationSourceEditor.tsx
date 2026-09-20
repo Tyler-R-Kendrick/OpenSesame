@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
 import { SourceEditor } from "../../components/configuration/SourceEditor.js";
 import {
   parseApplicationSource,
@@ -61,11 +62,13 @@ export function ApplicationSourceEditor(props: {
       />
       <button
         type="button"
-        className="btn btn--primary"
+        className="icon-btn"
         disabled={props.disabled || !parsed.ok}
         onClick={() => void save()}
+        aria-label="Save source"
+        title="Save source"
       >
-        Save source
+        <IconCheck size={16} />
       </button>
       {message ? <p className="hint">{message}</p> : null}
     </div>

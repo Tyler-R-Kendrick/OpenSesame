@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvHydrate, kvSet } from "../kv.js";
+import { LAST_VAULT_KEY } from "../last-vault.js";
+import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "../local-guest.js";
 import { MODEL_PROVIDER_KEY } from "../model-provider.js";
 import {
   PROJECTS_KEY,
@@ -9,6 +11,7 @@ import {
 } from "../projects.js";
 import {
   BODY_PATH,
+  GUEST_TOMB,
   HEADER_PATH,
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
@@ -64,6 +67,7 @@ function clearBootKeys(): void {
     PROJECTS_KEY,
     TOMBS_REGISTRY_KEY,
     "settings.v1",
+    LAST_VAULT_KEY,
     LEGACY_HEADER_KEY,
     LEGACY_BODY_KEY,
     tombFileKey(PERSONAL_TOMB, HEADER_PATH),
@@ -92,6 +96,10 @@ async function boot(): Promise<void> {
     "outbox.v1",
     "connections.firstRun.v1",
     MODEL_PROVIDER_KEY,
+    // Guest/personal last-authorized pointer — same key main.tsx hydrates.
+    LAST_VAULT_KEY,
+    GUEST_ORDINAL_KEY,
+    GUEST_PERSON_KEY,
   ]);
   rehydrateProjects();
   const tomb = activeProject().id;
@@ -135,5 +143,18 @@ describe("pre-unlock boot path", () => {
       touched.keys.has(tombFileKey(PERSONAL_TOMB, HEADER_PATH)) ||
         touched.keys.has(LEGACY_HEADER_KEY),
     ).toBe(true);
+  });
+
+  it("opens guest unlock when last-vault was guest (install-return reload)", async () => {
+    // Full navigation away (GitHub App install) and back is a cold boot: the
+    // last-vault pointer must hydrate before rehydrate or unlock defaults to
+    // personal even though the guest was the last authorized account.
+    kvSet(LAST_VAULT_KEY, GUEST_TOMB);
+    kvSet(LEGACY_HEADER_KEY, '{"v":1,"createdAt":"2026-08-29T00:00:00Z"}');
+
+    await boot();
+
+    expect(vaultStore.getSnapshot().tomb).toBe(GUEST_TOMB);
+    expect(vaultStore.getSnapshot().status).toBe("empty");
   });
 });

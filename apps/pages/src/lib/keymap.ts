@@ -132,7 +132,7 @@ const COUNT_MAX = 999;
 
 /** Vim `timeoutlen` for `g` chords. Tests may shorten it. */
 export const keymapSeams = {
-  goTimeoutMs: 600,
+  goTimeoutMs: 1_000, // CI keypress gap; was 600
 };
 
 /**

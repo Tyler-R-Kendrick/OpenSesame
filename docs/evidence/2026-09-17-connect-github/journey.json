@@ -1,0 +1,91 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-vault" }]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [{ "guest": null }, { "shot": "390-vault" }]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Access" },
+        { "press": "Policies" },
+        { "shot": "1280-access-policies" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Access" },
+        { "press": "Connectors" },
+        { "shot": "1280-access-connectors" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Connections" },
+        { "press": "GitHub" },
+        { "shot": "1280-connections-github" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Vault — command bar in the statusline, desktop",
+      "caption": "Guest vault. The command input left the content column for the bottom status strip, beside support, planes and tools.",
+      "before": "Command row under Crumbs, above the vault panes",
+      "after": "Command field in the one-row statusline"
+    },
+    {
+      "shot": "390-vault",
+      "width": 390,
+      "title": "Vault — command bar in the statusline, phone",
+      "caption": "Same walk at phone width. The strip stays one row; planes and tools sit behind the top-bar overflow key.",
+      "before": "Command row under Crumbs, above the vault panes",
+      "after": "Command field in the one-row statusline"
+    },
+    {
+      "shot": "1280-access-policies",
+      "width": 1280,
+      "title": "Access › Policies — explainer prose removed",
+      "caption": "Guest opens Access › Policies. Headers, counts and empty states remain; the multi-sentence introductions are gone.",
+      "before": "Four-sentence policy introduction under the heading",
+      "after": "Heading, reload key, lists — no prose"
+    },
+    {
+      "shot": "1280-access-connectors",
+      "width": 1280,
+      "title": "Access › Connectors — per-row Configure",
+      "caption": "Directory rows keep Bind and gain Configure: alias, enabled switch, and the bind defaults the form opens with.",
+      "before": "Bind only on every row",
+      "after": "Bind plus Configure on directory rows"
+    },
+    {
+      "shot": "1280-connections-github",
+      "width": 1280,
+      "title": "Connections › GitHub — arm Connect inline",
+      "caption": "With no Host and no session, the Connect panel offers the Vercel token arm form where the dead hint line used to be alone.",
+      "before": "One hint line, no way forward",
+      "after": "Token and Team fields with the .go commit"
+    }
+  ]
+}

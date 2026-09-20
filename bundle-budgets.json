@@ -35,13 +35,16 @@
         "2026-09-17: javascript 3450->3960 and javascriptGzip 980->1140 because Wallet residuals (fee/CORS/canary/wrap/activation) ride the same lazy /wallet and WebMCP session tools. Measured 3762/1082 KiB plus ~5% headroom. productionEnabled stays false.",
         "2026-09-17: javascript 3450->3770 and javascriptGzip 980->1070 because ADR 0125 ambient SSO adds a lazy @azure/msal-browser 5.22 chunk (only loaded for a selected Entra connection) plus the ambient-auth controller/transaction/admission modules. Measured 3584/1016 KiB; budgets keep ~5% headroom. MSAL is not on the default personal startup path.",
         "2026-09-17: javascript 3450->4300, javascriptGzip 980->1240, total 16700->17900 because this merge carries both ADR 0123 Wallet residuals (measured 3762/1082 on the pre-ambient tree) and ADR 0125 ambient SSO's lazy MSAL 5.22.0 chunk (measured 3584/1016 on the pre-wallet-residual tree). Combined estimate ~4094/1172 KiB plus ~5% headroom. productionEnabled stays false. MSAL is not on the default personal startup path.",
-        "2026-09-17: javascript 4300->4330 because product-experience Visual/Source prefs add a lazy yaml-patch chunk (~101 KiB / ~32 KiB gzip) for comment-preserving prefs edits. Measured CI 4316 KiB javascript (gzip still under 1240). Keep ~0.3% headroom."
+        "2026-09-17: javascript 4300->4330 because product-experience Visual/Source prefs add a lazy yaml-patch chunk (~101 KiB / ~32 KiB gzip) for comment-preserving prefs edits. Measured CI 4316 KiB javascript (gzip still under 1240). Keep ~0.3% headroom.",
+        "2026-09-20: css 139->147 because verify:mobile needed LED wordmark board",
+        "scaling on the door/unlock brand, plus 44px floors for Settings Form/YAML/",
+        "TOML and the unlock guest chip. Measured CI 140 KiB; budget keeps ~5% headroom."
       ],
       "budgets": {
         "total": 17900,
         "javascript": 4330,
         "javascriptGzip": 1240,
-        "css": 139,
+        "css": 147,
         "largestAsset": 12800
       }
     },

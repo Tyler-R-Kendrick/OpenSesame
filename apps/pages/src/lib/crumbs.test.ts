@@ -12,22 +12,25 @@ import {
 
 describe("settings rest paths", () => {
   it("reads a category from the path, then the hash", () => {
+    expect(settingsCategoryFromLocation("/settings/connections", "")).toBe(
+      "connections",
+    );
     expect(settingsCategoryFromLocation("/settings/connectivity", "")).toBe(
-      "connectivity",
+      "connections",
     );
     expect(settingsCategoryFromLocation("/settings", "#security")).toBe(
       "security",
     );
-    expect(settingsCategoryFromLocation("/settings", "#import")).toBe("data");
+    expect(settingsCategoryFromHash("#import")).toBeNull();
     expect(settingsCategoryFromLocation("/settings", "")).toBe("general");
   });
 
   it("maps legacy hashes onto rest paths", () => {
-    expect(settingsCategoryFromHash("#github-backup")).toBe("data");
-    expect(settingsCategoryFromHash("#taskbus")).toBe("connectivity");
-    expect(settingsPath("connectivity")).toBe("/settings/connectivity");
+    expect(settingsCategoryFromHash("#github-backup")).toBeNull();
+    expect(settingsCategoryFromHash("#taskbus")).toBe("connections");
+    expect(settingsCategoryFromHash("#connectivity")).toBe("connections");
+    expect(settingsPath("connections")).toBe("/settings/connections");
     expect(settingsPath("general")).toBe("/settings");
-    expect(settingsPath("data", "#import")).toBe("/settings/data#import");
   });
 });
 
@@ -120,9 +123,9 @@ describe("crumbsFor", () => {
   });
 
   it("links settings rest paths", () => {
-    expect(crumbsFor("/settings/connectivity")).toEqual([
+    expect(crumbsFor("/settings/connections")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Connectivity" },
+      { label: "Connections" },
     ]);
   });
 });

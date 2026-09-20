@@ -1,19 +1,13 @@
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
-import { IconSettings } from "../../components/Icons.js";
+import { IconPlus, IconSettings } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import type { Connection, Provider } from "../../lib/connections.js";
-import { createConnection, revokeConnection } from "../../lib/connections.js";
-import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
-import {
-  type Flash,
-  STATUS_CHIP,
-  connectorPath,
-  errorText,
-  statusSentence,
-} from "./shared.js";
+import { CONNECTIONS_PAGE_SIZE, nextPageCount } from "./page-cap.js";
+import { STATUS_CHIP, connectorPath, statusSentence } from "./shared.js";
 
 function nothingConnected() {
   return (
@@ -24,38 +18,27 @@ function nothingConnected() {
   );
 }
 
-/** Managed authorizations plus local storage providers that only need a switch. */
+/** Live authorizations. First page matches the nav catalog cap. */
 export function ConnectedPanel({
   connections,
   providers,
   loading,
-  online,
-  onFlash,
-  onChanged,
-  onRememberOffer,
   setupRequired,
-  hostConfigured,
+  hostConfigured = false,
 }: {
   connections: Connection[] | null;
   providers: Provider[];
   loading: boolean;
-  online: boolean;
-  onFlash: (flash: Flash) => void;
-  onChanged: () => void;
-  onRememberOffer: (offer: {
-    provider: Provider;
-    connection: Connection;
-  }) => void;
   setupRequired: boolean;
-  hostConfigured: boolean;
+  /** Unconfigured Connect is empty, not a failed read (ADR 0090/0128). */
+  hostConfigured?: boolean;
 }) {
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
+  const [limit, setLimit] = useState(CONNECTIONS_PAGE_SIZE);
+  const [pending, startTransition] = useTransition();
   const live = (connections ?? []).filter((c) => c.status !== "revoked");
-  const automatic = providers.filter(canConfigureAutomatically);
-  const automaticIds = new Set(automatic.map((provider) => provider.id));
-  const managed = live.filter(
-    (connection) => !automaticIds.has(connection.providerId),
-  );
+  const shown = live.slice(0, limit);
+  const more = nextPageCount(live.length, limit);
 
   return (
     <section id="connected" className="panel" ref={panelRef}>
@@ -63,56 +46,60 @@ export function ConnectedPanel({
         <h2>Connected</h2>
       </div>
       <div className="panel__body panel__body--tight">
-        {!hostConfigured ||
-        (!setupRequired &&
-          connections !== null &&
-          automatic.length === 0 &&
-          managed.length === 0) ? (
+        {connections !== null && live.length === 0 ? (
           nothingConnected()
         ) : setupRequired ? (
           <div className="empty conn-gate">
             <h3>Choose an organization</h3>
           </div>
         ) : connections === null ? (
-          <div className="conn-pad">
-            <p className="hint">
-              {loading
-                ? "Reading connections…"
-                : "Connections could not be read."}
-            </p>
-          </div>
-        ) : automatic.length === 0 && managed.length === 0 ? (
-          <div className="empty">
-            <h3>Nothing connected</h3>
-            <EmptyTip>{emptyTips.rail}</EmptyTip>
-          </div>
+          loading ? (
+            <div className="conn-pad">
+              <p className="hint">Reading connections…</p>
+            </div>
+          ) : hostConfigured ? (
+            <div className="conn-pad">
+              <p className="hint">Connections could not be read.</p>
+            </div>
+          ) : (
+            nothingConnected()
+          )
         ) : (
-          <ul className="conn-list">
-            {automatic.map((provider) => (
-              <AutomaticService
-                key={provider.id}
-                provider={provider}
-                connection={
-                  live.find(
-                    (connection) => connection.providerId === provider.id,
-                  ) ?? null
-                }
-                online={online}
-                onFlash={onFlash}
-                onChanged={onChanged}
-                onRememberOffer={onRememberOffer}
-              />
-            ))}
-            {managed.map((connection) => (
-              <AuthorizedConnection
-                key={connection.connectionId}
-                connection={connection}
-                provider={
-                  providers.find((p) => p.id === connection.providerId) ?? null
-                }
-              />
-            ))}
-          </ul>
+          <>
+            <ul className="conn-list">
+              {shown.map((connection) => (
+                <AuthorizedConnection
+                  key={connection.connectionId}
+                  connection={connection}
+                  provider={
+                    providers.find((p) => p.id === connection.providerId) ??
+                    null
+                  }
+                />
+              ))}
+            </ul>
+            {more > 0 ? (
+              <div className="conn-pad">
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--sm"
+                  disabled={pending}
+                  aria-label={
+                    pending ? "Loading connections" : `Load ${more} more`
+                  }
+                  title={pending ? "Loading connections" : `Load ${more} more`}
+                  onClick={() => {
+                    if (pending) return;
+                    startTransition(() => {
+                      setLimit((previous) => previous + CONNECTIONS_PAGE_SIZE);
+                    });
+                  }}
+                >
+                  <IconPlus size={16} />
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </section>
@@ -142,7 +129,7 @@ function AuthorizedConnection({
         <p>{statusSentence(connection, provider)}</p>
       </div>
       <div className="conn-service__actions">
-        <span className={`chip ${chip.tone}`}>{chip.label}</span>
+        <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
         <Link
           className="btn btn--sm"
           to={connectorPath(connection.providerId, connection.connectionId)}
@@ -150,105 +137,6 @@ function AuthorizedConnection({
         >
           <IconSettings size={16} /> Settings
         </Link>
-      </div>
-    </li>
-  );
-}
-
-export function AutomaticService({
-  provider,
-  connection,
-  online,
-  onFlash,
-  onChanged,
-  onRememberOffer,
-  settings = true,
-}: {
-  provider: Provider;
-  connection: Connection | null;
-  online: boolean;
-  onFlash: (flash: Flash) => void;
-  onChanged: () => void;
-  onRememberOffer?: (offer: {
-    provider: Provider;
-    connection: Connection;
-  }) => void;
-  settings?: boolean;
-}) {
-  const [busy, setBusy] = useState(false);
-  const { hash } = useLocation();
-  const enabled = connection !== null;
-
-  async function toggle(next: boolean) {
-    setBusy(true);
-    try {
-      if (next) {
-        const created = await createConnection({
-          providerId: provider.id,
-          displayName: provider.displayName,
-        });
-        onRememberOffer?.({ provider, connection: created });
-      } else if (connection) {
-        await revokeConnection(connection.connectionId);
-      }
-      onFlash({
-        tone: "ok",
-        text: `${provider.displayName} is ${next ? "enabled" : "disabled"}.`,
-      });
-      onChanged();
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <li
-      className={`conn-service${connection && hash === `#connected-${encodeURIComponent(connection.connectionId)}` ? " is-selected" : ""}`}
-      id={
-        connection
-          ? `connected-${encodeURIComponent(connection.connectionId)}`
-          : undefined
-      }
-    >
-      <ConnectorMark
-        providerId={provider.id}
-        displayName={provider.displayName}
-      />
-      <div className="conn-service__copy">
-        <h3>{provider.displayName}</h3>
-        <p>
-          {provider.id === "sealed-local"
-            ? "Encrypted local storage with a Host-generated sealing key."
-            : provider.id === "plain"
-              ? "Built-in local plaintext storage for non-sensitive values."
-              : "Detected on this Host; no setup needed."}
-        </p>
-      </div>
-      <div className="conn-service__actions">
-        {settings ? (
-          <Link
-            className="btn btn--sm"
-            to={connectorPath(provider.id, connection?.connectionId)}
-            aria-label={`Settings for ${provider.displayName}`}
-          >
-            <IconSettings size={16} /> Settings
-          </Link>
-        ) : null}
-        <label className="conn-switch">
-          <span>{enabled ? "Enabled" : "Disabled"}</span>
-          <input
-            type="checkbox"
-            role="switch"
-            aria-checked={enabled}
-            checked={enabled}
-            disabled={busy || !online || !provider.configured}
-            onChange={(event) => void toggle(event.target.checked)}
-            aria-label={`${enabled ? "Disable" : "Enable"} ${provider.displayName}`}
-          />
-          <span className="conn-switch__track" aria-hidden="true" />
-        </label>
       </div>
     </li>
   );

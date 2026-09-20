@@ -1,3 +1,4 @@
+import { IconCheck, IconX } from "../../components/Icons.js";
 /**
  * Returning-user opt-in for automatic sign-in. Deployment-selected policy is
  * shown as configuration, never as device management.
@@ -67,10 +68,12 @@ export function AmbientAuthPanel() {
             <li key={idp.issuer}>
               <button
                 type="button"
-                className="btn"
+                className="icon-btn"
+                aria-label={`Use ${idp.label} automatically next time`}
+                title={`Use ${idp.label} automatically next time`}
                 onClick={() => optIn(idp.issuer, idp.clientId, idp.providerId)}
               >
-                Use {idp.label} automatically next time
+                <IconCheck size={16} />
               </button>
             </li>
           ))}
@@ -79,13 +82,15 @@ export function AmbientAuthPanel() {
       {deployed ? null : (
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
+          aria-label="Don't sign me in automatically"
+          title="Don't sign me in automatically"
           onClick={() => {
             clearUserAmbientPreference();
             bump();
           }}
         >
-          Don&apos;t sign me in automatically
+          <IconX size={16} />
         </button>
       )}
     </section>

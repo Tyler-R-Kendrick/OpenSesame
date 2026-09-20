@@ -60,11 +60,6 @@ const saveSettings = vi.hoisted(() => vi.fn());
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
 Object.assign(settingsSeams, { loadSettings, saveSettings });
-const checkTurso = vi.hoisted(() => vi.fn());
-const setTursoSessionToken = vi.hoisted(() => vi.fn());
-import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
-const originalEmbeddedCatalogSeams = { ...embeddedCatalogSeams };
-Object.assign(embeddedCatalogSeams, { checkTurso, setTursoSessionToken });
 import { passwordSeams } from "../lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
 Object.assign(passwordSeams, {
@@ -76,19 +71,6 @@ Object.assign(passwordSeams, {
   defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
   generate: () => "harbor-cinder-lattice-quarry",
 });
-import { SAMPLE_FOLDER_NAME, sampleSeams } from "../lib/vault/sample.js";
-const originalSampleSeams = { ...sampleSeams };
-Object.assign(sampleSeams, {
-  buildSample: (folderId: string) => [
-    { id: "itm_sample", kind: "login", name: "Sample", folderId },
-  ],
-  sampleFolder: () => ({ id: "fld_samples", name: SAMPLE_FOLDER_NAME }),
-});
-const planManifestMerge = vi.hoisted(() => vi.fn());
-const vaultItemToEntry = vi.hoisted(() => vi.fn());
-import { storeSyncSeams } from "../lib/vault/store-sync.js";
-const originalStoreSyncSeams = { ...storeSyncSeams };
-Object.assign(storeSyncSeams, { planManifestMerge, vaultItemToEntry });
 import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
@@ -97,25 +79,13 @@ const stubPanels: SettingsPanels = {
   VaultsPanel: () => <div data-testid="vaults-panel" />,
   ActiveProjectPanel: () => <div data-testid="active-project-panel" />,
   ModelProviderPanel: () => <div data-testid="model-provider-panel" />,
-  CapabilityConnectorsPanel: () => (
-    <div data-testid="capability-connectors-panel" />
-  ),
-  ChangelogPanel: () => <div data-testid="changelog-panel" />,
-  GithubBackupPanel: () => <div data-testid="github-backup-panel" />,
-  ImportPanel: () => <div data-testid="import-panel" />,
-  ItemTypesPanel: () => <div data-testid="item-types-panel" />,
-  OfflineBackupPanel: () => <div data-testid="offline-backup-panel" />,
-  SecretConfigsPanel: () => <div data-testid="secret-configs-panel" />,
-  SyncTargetsPanel: () => <div data-testid="sync-targets-panel" />,
-  TaskBusPanel: () => <div data-testid="taskbus-panel" />,
 };
 const endpoints = {
   hostApi: "http://127.0.0.1:8787",
   identityApi: "http://127.0.0.1:8788",
   daemonApi: "http://127.0.0.1:18790",
-  tursoUrl: "",
   mfaAppUrl: "",
-  capabilityConnectors: {},
+  capabilityConnectors: { encryption: { providerId: "webcrypto" } },
 };
 function renderSettings(entry = "") {
   const path = entry.startsWith("/") ? entry : `/settings${entry}`;
@@ -124,20 +94,6 @@ function renderSettings(entry = "") {
       <SettingsSection panels={stubPanels} />
     </MemoryRouter>,
   );
-}
-
-function makeFile(name: string, contents: string): File {
-  const file = new File([contents], name, { type: "application/json" });
-  Object.defineProperty(file, "text", {
-    value: () => Promise.resolve(contents),
-  });
-  return file;
-}
-
-function fileInput(id: string): HTMLInputElement {
-  const input = document.getElementById(id);
-  if (!(input instanceof HTMLInputElement)) throw new Error(`${id} not found`);
-  return input;
 }
 
 describe("SettingsSection", () => {
@@ -157,20 +113,6 @@ describe("SettingsSection", () => {
     loadSettings.mockReturnValue({ ...endpoints });
     store.exportSealed.mockReturnValue('{"sealed":true}');
     store.importSealed.mockResolvedValue(2);
-    store.addFolder.mockResolvedValue({
-      id: "fld_new",
-      name: SAMPLE_FOLDER_NAME,
-    });
-    store.addItems.mockResolvedValue(undefined);
-    store.replaceAll.mockResolvedValue(undefined);
-    store.changeMasterPassword.mockResolvedValue(undefined);
-    store.applyManifestMerge.mockResolvedValue(undefined);
-    planManifestMerge.mockReturnValue({
-      adds: [{}],
-      updates: [],
-      unchanged: 0,
-    });
-    vaultItemToEntry.mockReturnValue({ path: "Dev/token" });
     vi.stubGlobal(
       "URL",
       Object.assign(URL, {
@@ -213,30 +155,32 @@ describe("SettingsSection", () => {
     await userEvent.click(
       screen.getByLabelText(/Also sign out of Identity when the vault locks/i),
     );
-    expect(store.setPrefs).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Save preferences" }),
+    expect(store.commitPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({ theme: "dark" }),
     );
-    expect(store.setPrefs).toHaveBeenCalledWith(
-      expect.objectContaining({
-        theme: "dark",
-        autoLockMinutes: 60,
-        clipboardClearSeconds: 0,
-        lockOnHide: true,
-        signOutOnLock: true,
-      }),
+    expect(store.commitPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({ autoLockMinutes: 60 }),
+    );
+    expect(store.commitPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({ clipboardClearSeconds: 0 }),
+    );
+    expect(store.commitPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({ lockOnHide: true }),
+    );
+    expect(store.commitPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({ signOutOnLock: true }),
     );
   });
 
   it("activates categories from the hash and the nav", async () => {
     renderSettings("#taskbus");
-    expect(screen.getByTestId("taskbus-panel")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Connections" })).toBeTruthy();
     const nav = screen.getByRole("navigation", {
       name: /Settings sections/i,
     });
     expect(
       nav.querySelector('[aria-current="page"]')?.textContent?.toLowerCase(),
-    ).toBe("connectivity");
+    ).toBe("connections");
 
     await userEvent.click(screen.getByRole("link", { name: /Danger/i }));
     expect(
@@ -244,15 +188,12 @@ describe("SettingsSection", () => {
     ).toBeTruthy();
   });
 
-  it("maps the legacy #import hash to Vault data", () => {
-    renderSettings("#import");
-    expect(screen.getByTestId("import-panel")).toBeTruthy();
-  });
-
   it("shows the security category with unlock methods and master password", async () => {
     renderSettings("#security");
     expect(screen.getByTestId("unlock-methods-panel")).toBeTruthy();
-    expect(screen.getByText(/600,000 PBKDF2-SHA256 iterations/)).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Master password" }),
+    ).toBeTruthy();
   });
 
   it("changes the master password and clears the form", async () => {
@@ -324,13 +265,11 @@ describe("SettingsSection", () => {
   });
 
   it("opens a category from a rest path", () => {
-    renderSettings("/settings/connectivity");
-    expect(
-      screen.getByRole("heading", { name: "Core connections" }),
-    ).toBeTruthy();
+    renderSettings("/settings/connections");
+    expect(screen.getByRole("heading", { name: "Connections" })).toBeTruthy();
     expect(
       screen
-        .getByRole("link", { name: "Connectivity" })
+        .getByRole("link", { name: "Connections" })
         .getAttribute("aria-current"),
     ).toBe("page");
     expect(screen.queryByText("Appearance")).toBeNull();
@@ -338,210 +277,10 @@ describe("SettingsSection", () => {
 
   it("renders the connectivity child panels", () => {
     renderSettings("#connectivity");
-    expect(
-      screen.getByRole("heading", { name: "Core connections" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /^Core/ })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Turso sync" })).toBeTruthy();
     expect(screen.getByTestId("active-project-panel")).toBeTruthy();
-    expect(screen.getByTestId("capability-connectors-panel")).toBeTruthy();
-    expect(screen.getByTestId("sync-targets-panel")).toBeTruthy();
-    expect(screen.getByTestId("taskbus-panel")).toBeTruthy();
-  });
-
-  it("renders the data category child panels", () => {
-    renderSettings("#data");
-    expect(screen.getByTestId("github-backup-panel")).toBeTruthy();
-    expect(screen.getByTestId("changelog-panel")).toBeTruthy();
-    expect(screen.getByTestId("offline-backup-panel")).toBeTruthy();
-    expect(screen.getByTestId("import-panel")).toBeTruthy();
-  });
-
-  it("adds, renames, and deletes folders", async () => {
-    vault.current.folders = [
-      { id: "fld_1", name: "Work", createdAt: "2026-08-01" },
-    ];
-    renderSettings("#data");
-    // Rename on blur with a changed name.
-    const rename = screen.getByLabelText("Rename Work");
-    fireEvent.change(rename, { target: { value: "Personal" } });
-    fireEvent.blur(rename, { target: { value: "Personal" } });
-    expect(store.renameFolder).toHaveBeenCalledWith("fld_1", "Personal");
-
-    // Blur without a change does nothing.
-    fireEvent.blur(screen.getByLabelText("Rename Work"), {
-      target: { value: "Work" },
-    });
-    expect(store.renameFolder).toHaveBeenCalledTimes(1);
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Delete folder Work" }),
-    );
-    expect(store.deleteFolder).toHaveBeenCalledWith("fld_1");
-
-    await userEvent.type(screen.getByLabelText(/New folder/i), "Archive");
-    await userEvent.click(screen.getByRole("button", { name: /Add folder/i }));
-    expect(store.addFolder).toHaveBeenCalledWith("Archive");
-  });
-
-  it("shows the no-folders hint", () => {
-    renderSettings("#data");
-    expect(screen.getByText("No folders yet.")).toBeTruthy();
-  });
-
-  it("exports a plaintext store manifest for the unlocked vault", async () => {
-    vault.current.items = [
-      { id: "itm_1", deletedAt: null },
-      { id: "itm_2", deletedAt: "2026-08-01" },
-    ];
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
-    renderSettings("#data");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Download store path manifest/i }),
-    );
-    // Trashed items are excluded from the manifest.
-    expect(vaultItemToEntry).toHaveBeenCalledTimes(1);
-    expect(click).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /plaintext path manifest/,
-    );
-    click.mockRestore();
-  });
-
-  it("imports a store manifest with a merge summary", async () => {
-    planManifestMerge.mockReturnValue({
-      adds: [{}],
-      updates: [{}],
-      unchanged: 3,
-    });
-    renderSettings("#data");
-    const input = fileInput("store-manifest-file");
-    fireEvent.change(input, {
-      target: { files: [makeFile("manifest.json", '[{"path":"a"}]')] },
-    });
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Merged 1 sealed-store entry: 1 added, 1 updated, 3 unchanged/,
-    );
-    expect(store.applyManifestMerge).toHaveBeenCalled();
-  });
-
-  it("rejects manifests that are not JSON arrays", async () => {
-    renderSettings("#data");
-    const input = fileInput("store-manifest-file");
-    fireEvent.change(input, {
-      target: { files: [makeFile("manifest.json", '{"nope":true}')] },
-    });
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /Expected a JSON array/,
-    );
-  });
-
-  it("exports the encrypted vault", async () => {
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
-    renderSettings("#data");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Export encrypted vault/i }),
-    );
-    expect(store.exportSealed).toHaveBeenCalled();
-    expect(click).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /still ciphertext/,
-    );
-    click.mockRestore();
-  });
-
-  it("requires the export password before importing a vault", async () => {
-    renderSettings("#data");
-    const input = fileInput("import-file");
-    fireEvent.change(input, {
-      target: { files: [makeFile("vault.json", "{}")] },
-    });
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /Enter the master password/,
-    );
-    expect(store.importSealed).not.toHaveBeenCalled();
-  });
-
-  it("imports a sealed vault export with its password", async () => {
-    renderSettings("#data");
-    await userEvent.type(
-      screen.getByLabelText(/Master password that export was sealed under/i),
-      "hunter2",
-    );
-    const input = fileInput("import-file");
-    fireEvent.change(input, {
-      target: { files: [makeFile("vault.json", "{}")] },
-    });
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Merged 2 items/,
-    );
-    expect(store.importSealed).toHaveBeenCalledWith("{}", "hunter2");
-  });
-
-  it("reports when an import adds nothing new", async () => {
-    store.importSealed.mockResolvedValue(0);
-    renderSettings("#data");
-    await userEvent.type(
-      screen.getByLabelText(/Master password that export was sealed under/i),
-      "hunter2",
-    );
-    const input = fileInput("import-file");
-    fireEvent.change(input, {
-      target: { files: [makeFile("vault.json", "{}")] },
-    });
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /nothing this vault was missing/,
-    );
-  });
-
-  it("loads sample items, creating the folder when needed", async () => {
-    renderSettings("#data");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Load SYNTHETIC sample items/i }),
-    );
-    expect(store.addFolder).toHaveBeenCalledWith(SAMPLE_FOLDER_NAME);
-    expect(store.addItems).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Sample items added/,
-    );
-  });
-
-  it("reuses the existing sample folder when present", async () => {
-    vault.current.folders = [
-      { id: "fld_s", name: SAMPLE_FOLDER_NAME, createdAt: "2026-08-01" },
-    ];
-    renderSettings("#data");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Load SYNTHETIC sample items/i }),
-    );
-    expect(store.addFolder).not.toHaveBeenCalled();
-    expect(store.addItems).toHaveBeenCalled();
-  });
-
-  it("purges sample items and their folder", async () => {
-    vault.current.items = [
-      { id: "itm_1", sample: true, deletedAt: null },
-      { id: "itm_2", sample: false, deletedAt: null },
-    ];
-    vault.current.folders = [
-      { id: "fld_s", name: SAMPLE_FOLDER_NAME, createdAt: "2026-08-01" },
-      { id: "fld_w", name: "Work", createdAt: "2026-08-01" },
-    ];
-    renderSettings("#data");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remove 1 SYNTHETIC item/i }),
-    );
-    expect(store.replaceAll).toHaveBeenCalledWith(
-      [{ id: "itm_2", sample: false, deletedAt: null }],
-      [{ id: "fld_w", name: "Work", createdAt: "2026-08-01" }],
-    );
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Sample items removed/,
-    );
+    expect(screen.getByTestId("model-provider-panel")).toBeTruthy();
   });
 
   it("destroys the vault only after confirmation", async () => {

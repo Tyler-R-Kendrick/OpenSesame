@@ -10,7 +10,6 @@ import type {
   ProviderCategory,
 } from "../../lib/connections.js";
 import { VERB_CHIP, VERB_LABEL } from "../../lib/identity-graph.js";
-import { HostSessionError } from "../../lib/identity.js";
 
 export type Flash = { tone: "ok" | "warn" | "err"; text: string };
 
@@ -39,6 +38,28 @@ export const CATEGORY_LABELS = {
   crm: "CRM",
   testing: "Testing",
 } satisfies Record<ProviderCategory, string>;
+
+/** Capability families bound in Settings, not connectors shared through IAM. */
+export const FEATURE_BINDING_CATEGORIES = [
+  "identity",
+  "backup_recovery",
+  "encryption",
+  "password_managers",
+  "agent_harnesses",
+  "networking",
+  "wallet",
+  "cloud_secret_storage",
+  "local_storage",
+  "certificates",
+] as const satisfies readonly ProviderCategory[];
+
+const FEATURE_BINDING_SET = new Set<ProviderCategory>(
+  FEATURE_BINDING_CATEGORIES,
+);
+
+export function isFeatureBindingCategory(category: ProviderCategory): boolean {
+  return FEATURE_BINDING_SET.has(category);
+}
 
 export const CATEGORY_ORDER: ProviderCategory[] = [
   "identity",
@@ -109,24 +130,12 @@ export function relative(iso: string | null): string | null {
 }
 
 export function errorText<Thrown>(error: Thrown): string {
-  if (error instanceof HostSessionError) {
-    if (error.code === "setup_required") {
-      return `${error.message} Connect on Identity first so this page can mint a Host session, then try again.`;
-    }
-    return error.message;
-  }
   if (error instanceof ConnectionsError) {
     if (
       error.code === "exchange_failed" &&
       /bad credentials|401|unauthorized/i.test(error.message)
     ) {
       return "GitHub rejected that token. Use a classic PAT (ghp_…) or fine-grained token with Contents: Read and Write on the store repo (repo scope).";
-    }
-    if (error.code === "provider_unconfigured") {
-      return "OAuth App credentials are not set on this Host. Paste a personal access token instead — no OAuth App required.";
-    }
-    if (error.code === "integration_not_found") {
-      return "Host could not open this connector yet. Reload Connections after Identity is connected, or paste a GitHub PAT on the connector page.";
     }
     return error.message;
   }
@@ -137,12 +146,12 @@ export function errorText<Thrown>(error: Thrown): string {
     "issues" in error &&
     Array.isArray(error.issues)
   ) {
-    return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
+    return "The response could not be read. Try Reload.";
   }
   if (error instanceof Error) {
     const message = error.message.trim();
     if (message.startsWith("[") || message.includes('"code":')) {
-      return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
+      return "Connect returned data this page does not understand. Try Reload.";
     }
     return message;
   }
@@ -168,12 +177,6 @@ export function statusSentence(
     case "pending":
       return "Created, but nobody has approved it yet. Authorize it to finish.";
     case "active": {
-      if (provider?.authKind === "configuration") {
-        return "Configuration saved on this Host and ready to bind to a project or agent.";
-      }
-      if (provider?.authKind === "api_key") {
-        return `Credential stored${who}. It does not expire automatically.`;
-      }
       const expiry = relative(connection.expiresAt);
       if (connection.refreshable) {
         return expiry
