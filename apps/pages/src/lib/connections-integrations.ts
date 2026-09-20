@@ -49,4 +49,3 @@ export function integrationFromLocal(app: LocalGithubApp): Integration {
     githubAppHtmlUrl: app.htmlUrl,
   };
 }
-

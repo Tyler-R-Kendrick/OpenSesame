@@ -45,8 +45,8 @@ export function VaultReminderBanner({
     <output className="note note--ok conn-flash">
       <IconCheck />
       <p>
-        Saved {offer.provider.displayName}. Add a vault reminder
-        that points at the ConnectionRef — not the token?
+        Saved {offer.provider.displayName}. Add a vault reminder that points at
+        the ConnectionRef — not the token?
       </p>
       <button
         type="button"

@@ -1,12 +1,12 @@
 import { type FormEvent, useId, useState } from "react";
+import { localGitToConnection } from "../../lib/connections-local-git.js";
 import {
-  ConnectionsError,
   type Connection,
+  ConnectionsError,
   type Provider,
   createConnection,
   setConnectionConfiguration,
 } from "../../lib/connections.js";
-import { localGitToConnection } from "../../lib/connections-local-git.js";
 import {
   type GitAuthFields,
   type GitAuthMode,
@@ -42,20 +42,17 @@ async function persistGitRemote(
   const configuration = gitConfigurationPayload(input);
   const displayName = input.name.trim() || input.provider.displayName;
 
+  let hostCreated = false;
   try {
     const connection = await createConnection({
       providerId: input.provider.id,
       displayName,
     });
-    try {
-      await setConnectionConfiguration(
-        connection.connectionId,
-        gitConfigurationSet(configuration),
-      );
-    } catch (error) {
-      // Created on Host but configure failed — surface that; do not dual-write.
-      throw error;
-    }
+    hostCreated = true;
+    await setConnectionConfiguration(
+      connection.connectionId,
+      gitConfigurationSet(configuration),
+    );
     bindHistoryConnection(
       input.provider.id,
       connection.connectionId,
@@ -63,7 +60,8 @@ async function persistGitRemote(
     );
     return connection;
   } catch (error) {
-    if (!hostUnavailable(error)) throw error;
+    // Local fallback only when Host was never reached — not after a partial create.
+    if (hostCreated || !hostUnavailable(error)) throw error;
   }
 
   const remote = await rememberLocalGitRemote({

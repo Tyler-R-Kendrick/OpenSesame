@@ -175,7 +175,8 @@ describe("ModelProviderPanel", () => {
     speechSeams.globals = () => ({});
     render(<ModelProviderPanel />);
 
-    const voice = await screen.findByLabelText<HTMLSelectElement>("Voice model");
+    const voice =
+      await screen.findByLabelText<HTMLSelectElement>("Voice model");
     expect(voice.disabled).toBe(true);
     expect(voice.querySelector("option")?.textContent).toBe("Unavailable");
   });

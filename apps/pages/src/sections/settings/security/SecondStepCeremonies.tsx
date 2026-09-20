@@ -771,7 +771,10 @@ export function CodeCeremony({
             ok
             name={words.name}
             facts={[
-              { key: "Sent by", value: `${identityHost()}, your sign-in service` },
+              {
+                key: "Sent by",
+                value: `${identityHost()}, your sign-in service`,
+              },
               {
                 key: "Asked",
                 value: `at unlock, when you pick ${words.tab} for step 2`,

@@ -53,8 +53,6 @@ describe("ConnectorSettingsPage git", () => {
     expect(screen.getByRole("heading", { name: "Connect" })).toBeTruthy();
     expect(screen.getByLabelText(/Remote URL/i)).toBeTruthy();
     expect(screen.getByText(/HTTPS token/i)).toBeTruthy();
-    expect(
-      screen.queryByText(/connects over OAuth/i),
-    ).toBeNull();
+    expect(screen.queryByText(/connects over OAuth/i)).toBeNull();
   });
 });

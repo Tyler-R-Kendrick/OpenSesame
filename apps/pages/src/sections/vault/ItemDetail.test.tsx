@@ -457,7 +457,9 @@ describe("ItemDetail", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      await screen.findByText(/Connection receipts are unavailable on this device/),
+      await screen.findByText(
+        /Connection receipts are unavailable on this device/,
+      ),
     ).toBeTruthy();
   });
 
@@ -473,7 +475,9 @@ describe("ItemDetail", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      await screen.findByText(/Connection receipts are unavailable on this device/),
+      await screen.findByText(
+        /Connection receipts are unavailable on this device/,
+      ),
     ).toBeTruthy();
     expect(listConnections).not.toHaveBeenCalled();
   });
@@ -664,7 +668,9 @@ describe("ItemDetail edge branches", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      await screen.findByText(/Connection receipts are unavailable on this device/),
+      await screen.findByText(
+        /Connection receipts are unavailable on this device/,
+      ),
     ).toBeTruthy();
   });
 

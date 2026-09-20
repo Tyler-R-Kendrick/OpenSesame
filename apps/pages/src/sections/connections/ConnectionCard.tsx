@@ -13,8 +13,8 @@ import {
   openConsentPopup,
   revokeConnection,
 } from "../../lib/connections.js";
-import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { isLocalGitRemoteId } from "../../lib/git-remote-local.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { GithubBackupField } from "./GithubBackupRepo.js";
 import { GithubCardDetails } from "./GithubInstallationPanel.js";
 import {

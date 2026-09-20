@@ -888,8 +888,8 @@ function ItemFields({
           <div className="note">
             <span>
               You can reveal this value; an agent never can. An agent receives a
-              ConnectionRef, invokes through OpenSesame, and returns a
-              receipt. There is no getSecret().
+              ConnectionRef, invokes through OpenSesame, and returns a receipt.
+              There is no getSecret().
             </span>
           </div>
         </>

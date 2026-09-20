@@ -24,20 +24,20 @@ import {
   RevokeResponseSchema,
 } from "@opensesame/contracts";
 import {
-  type LocalGithubApp,
-  buildGithubAppRegistration,
-  readLocalGithubApp,
-} from "./github-app-manifest.js";
-import { claimGuestConnection } from "./guest-connections.js";
+  type Integration,
+  integrationFromLocal,
+  toIntegration,
+} from "./connections-integrations.js";
 import {
   mergeLocalGitConnections,
   revokeLocalGitConnection,
 } from "./connections-local-git.js";
 import {
-  type Integration,
-  integrationFromLocal,
-  toIntegration,
-} from "./connections-integrations.js";
+  type LocalGithubApp,
+  buildGithubAppRegistration,
+  readLocalGithubApp,
+} from "./github-app-manifest.js";
+import { claimGuestConnection } from "./guest-connections.js";
 export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
 import { HostSessionError, hostBase, hostFetch } from "./identity.js";
@@ -471,9 +471,7 @@ function listProvidersDefault(): Promise<Provider[]> {
 
 function listConnectionsDefault(): Promise<Connection[]> {
   if (vercelConnect.usesConnect()) {
-    return vercelConnect
-      .listVercelConnections()
-      .then(mergeLocalGitConnections);
+    return vercelConnect.listVercelConnections().then(mergeLocalGitConnections);
   }
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
@@ -597,13 +595,17 @@ async function revokeConnectionDefault(id: string): Promise<{
   if (local) return local;
   if (vercelConnect.isConnectConnector(id))
     return vercelConnect.revokeVercelConnection(id);
-  return call(`/connections/${encodeURIComponent(id)}`, { method: "DELETE" }, (body) => {
-    const parsed = RevokeResponseSchema.parse(body);
-    return {
-      revoked: parsed.revoked,
-      providerRevocation: parsed.provider_revocation,
-    };
-  });
+  return call(
+    `/connections/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    (body) => {
+      const parsed = RevokeResponseSchema.parse(body);
+      return {
+        revoked: parsed.revoked,
+        providerRevocation: parsed.provider_revocation,
+      };
+    },
+  );
 }
 
 function updateConnectionPolicyDefault(

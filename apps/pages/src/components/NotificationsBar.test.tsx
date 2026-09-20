@@ -101,9 +101,7 @@ describe("NotificationsBar", () => {
       screen.getByRole("button", { name: "Notifications — 1 pending" }),
     );
     expect(screen.getByText("Service unavailable")).toBeTruthy();
-    expect(
-      screen.getByText("Authorization needs a connection."),
-    ).toBeTruthy();
+    expect(screen.getByText("Authorization needs a connection.")).toBeTruthy();
     // Repair opens the Host ceremony in place — never a route change.
     expect(screen.queryByRole("link")).toBeNull();
     expect(

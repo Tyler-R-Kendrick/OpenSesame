@@ -10,9 +10,9 @@ import { listConnections } from "./connections.js";
 import {
   BROWSER_INFERENCE_ENTRY,
   INFERENCE_MODEL_CATALOG,
+  type ModelCatalogEntry,
   VOICE_MODEL_CATALOG,
   catalogEntry,
-  type ModelCatalogEntry,
 } from "./model-catalog.js";
 import type { AiModelChoice } from "./model-provider.js";
 
@@ -83,11 +83,7 @@ function optionFromEntry(
 
 function expandEntry(entry: ModelCatalogEntry): ModelSlugOption[] {
   const models =
-    entry.models.length > 0
-      ? entry.models
-      : entry.model
-        ? [entry.model]
-        : [""];
+    entry.models.length > 0 ? entry.models : entry.model ? [entry.model] : [""];
   return models.map((model) => optionFromEntry(entry, model));
 }
 

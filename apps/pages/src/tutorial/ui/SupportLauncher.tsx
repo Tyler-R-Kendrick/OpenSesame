@@ -10,7 +10,11 @@ import {
   useSupportMarkSlot,
 } from "./SupportComposer.js";
 
-export { SupportComposer, SupportSlot, SupportSlotProvider } from "./SupportComposer.js";
+export {
+  SupportComposer,
+  SupportSlot,
+  SupportSlotProvider,
+} from "./SupportComposer.js";
 
 /**
  * The panel, the agent adapters, the guide runtime and Driver.js all live

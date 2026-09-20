@@ -3,13 +3,13 @@ import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import { IconAlert, IconRefresh } from "../components/Icons.js";
 import { StatusMark } from "../components/StatusMark.js";
+import { mergeLocalGitConnections } from "../lib/connections-local-git.js";
 import {
   type Connection,
   ConnectionsError,
   type Provider,
   listConnections,
 } from "../lib/connections.js";
-import { mergeLocalGitConnections } from "../lib/connections-local-git.js";
 import { getBundledProviders } from "../lib/embedded-catalog.js";
 import { useIdentitySession } from "../lib/identity.js";
 import { useOnline } from "../lib/use-online.js";

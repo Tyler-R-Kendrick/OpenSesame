@@ -45,9 +45,9 @@ describe("connectorPath", () => {
     expect(connectorPath("github", undefined, "/settings/connections")).toBe(
       "/settings/connections/github",
     );
-    expect(
-      connectorPath("github", "conn_1", "/settings/connections"),
-    ).toBe("/settings/connections/github/conn_1");
+    expect(connectorPath("github", "conn_1", "/settings/connections")).toBe(
+      "/settings/connections/github/conn_1",
+    );
   });
 });
 

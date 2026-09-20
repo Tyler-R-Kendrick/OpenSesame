@@ -7,10 +7,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import type {
-  GitAuthMode,
-  GitRemoteConfiguration,
-} from "./git-auth-modes.js";
+import type { GitAuthMode, GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitAuthMode } from "./git-auth-modes.js";
 import { createItem } from "./vault/model.js";
 import { vaultStore } from "./vault/store.js";

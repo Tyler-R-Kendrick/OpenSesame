@@ -2,10 +2,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  ConnectionsError,
-  connectionSeams,
-} from "../../lib/connections.js";
+import { ConnectionsError, connectionSeams } from "../../lib/connections.js";
 import type { Provider } from "../../lib/connections.js";
 import {
   forgetAllLocalGitRemotes,
@@ -109,7 +106,11 @@ describe("GitConnectForm", () => {
   it("saves locally when Host is unreachable", async () => {
     Object.assign(connectionSeams, {
       createConnection: vi.fn(async () => {
-        throw new ConnectionsError(0, "unreachable", "Couldn't reach the connected service.");
+        throw new ConnectionsError(
+          0,
+          "unreachable",
+          "Couldn't reach the connected service.",
+        );
       }),
     });
 

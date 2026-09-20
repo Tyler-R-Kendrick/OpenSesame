@@ -198,9 +198,7 @@ export function workEmailDomain(email: string): string {
 async function requestEmailMagicLinkDefault(email: string): Promise<void> {
   const base = remoteIdentityApi();
   if (!base) {
-    throw new Error(
-      "No sign-in service is connected.",
-    );
+    throw new Error("No sign-in service is connected.");
   }
   const res = await localNetworkFetch(`${base}/v1/auth/sign-in/magic-link`, {
     method: "POST",

@@ -91,7 +91,8 @@ function BoundHostAuthorizationCeremony({
       </p>
       {error ? (
         <p className="hint" role="alert">
-          Verification was refused or expired. Sign in and check your passkey, then try again.
+          Verification was refused or expired. Sign in and check your passkey,
+          then try again.
         </p>
       ) : null}
     </CeremonyShell>

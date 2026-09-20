@@ -1,9 +1,9 @@
 import type { Connection } from "./connections.js";
 import {
+  type LocalGitRemote,
   forgetLocalGitRemote,
   isLocalGitRemoteId,
   listLocalGitRemotes,
-  type LocalGitRemote,
 } from "./git-remote-local.js";
 
 function gitEgress(remoteUrl: string): Connection["egress"] {

@@ -83,7 +83,8 @@ export function CatalogPanel({
             {sealKeyMissing ? (
               <p className="note note--warn conn-unconfigured">
                 <IconInfo />
-                Connection sealing is not available yet on this deployment. Ask an operator to finish setup, then try again.
+                Connection sealing is not available yet on this deployment. Ask
+                an operator to finish setup, then try again.
               </p>
             ) : null}
 
