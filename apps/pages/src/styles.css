@@ -1655,14 +1655,15 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* One column and one row of chrome: the top bar. The statusline is not
-     drawn here (its contents are behind the bar's overflow key) and neither is
-     a tab bar (sections are behind the bar's menu key), so nothing is left to
-     stack under the content. */
+  /* One column: main + statusline. Plane glyphs/bell sit behind the top bar
+     overflow key; CommandBar stays in the statusline on every unlocked screen.
+     Sections stay behind the bar's menu key — no tab bar. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "main";
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main"
+      "status";
     height: 100dvh;
   }
 
@@ -1706,9 +1707,7 @@ body {
     scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
   }
 
-  /* The strip is not drawn on a phone at all, but it still holds the seat the
-     support mark portals into, so it keeps its gutters for the widths that do
-     draw it. */
+  /* CommandBar keeps the strip drawn; gutters follow the safe area. */
   .statusline {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
