@@ -14,6 +14,21 @@ describe("git-auth-modes", () => {
     expect(isGitRemoteUrl("not-a-url")).toBe(false);
   });
 
+  it("strips URL-embedded credentials before persist", () => {
+    expect(
+      gitConfigurationPayload({
+        remoteUrl: "https://user:pass@git.example/a.git",
+        authMode: "https_token",
+        username: "",
+        token: "tok",
+        password: "",
+        sshKey: "",
+        sshPassphrase: "",
+      }).remote_url,
+    ).toBe("https://git.example/a.git");
+    expect(isGitRemoteUrl("https://user:pass@git.example/a.git")).toBe(true);
+  });
+
   it("requires credentials for each auth mode except ssh_agent", () => {
     expect(
       gitAuthReady("https_token", "https://git.example/a.git", "", "", "", ""),

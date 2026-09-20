@@ -31,9 +31,33 @@ export function isGitAuthMode(value: string): value is GitAuthMode {
   return GIT_AUTH_MODES.some((mode) => mode.id === value);
 }
 
+/**
+ * Drop HTTPS URL-embedded userinfo so remotes never store credentials in
+ * cleartext localStorage — secrets belong in vault auth fields. SSH usernames
+ * (ssh://git@host/…) stay; only a password in the URL is cleared.
+ */
+export function sanitizeGitRemoteUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!/^https?:\/\//i.test(trimmed) && !/^ssh:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  try {
+    const url = new URL(trimmed);
+    if (/^https?:$/i.test(url.protocol)) {
+      url.username = "";
+      url.password = "";
+    } else if (url.password !== "") {
+      url.password = "";
+    }
+    return url.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 /** Accept HTTPS, SSH scp-style, and ssh:// clone URLs. */
 export function isGitRemoteUrl(value: string): boolean {
-  const trimmed = value.trim();
+  const trimmed = sanitizeGitRemoteUrl(value);
   if (trimmed === "") return false;
   if (/^https?:\/\//i.test(trimmed) || /^ssh:\/\//i.test(trimmed)) {
     try {
@@ -66,7 +90,7 @@ export function gitConfigurationPayload(
   input: GitAuthFields,
 ): GitRemoteConfiguration {
   const configuration: GitRemoteConfiguration = {
-    remote_url: input.remoteUrl.trim(),
+    remote_url: sanitizeGitRemoteUrl(input.remoteUrl),
     auth_mode: input.authMode,
   };
   if (input.username.trim() !== "") {

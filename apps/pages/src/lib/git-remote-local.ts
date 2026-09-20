@@ -194,7 +194,7 @@ export async function rememberLocalGitRemote(input: {
 }
 
 async function trashSecret(secretItemId: string | null): Promise<void> {
-  if (!secretItemId || !vaultStore.isUnlocked()) return;
+  if (!secretItemId) return;
   try {
     await vaultStore.trashItem(secretItemId);
   } catch {
@@ -202,10 +202,20 @@ async function trashSecret(secretItemId: string | null): Promise<void> {
   }
 }
 
+function assertUnlockedForSecrets(rows: LocalGitRemote[]): void {
+  if (
+    rows.some((row) => row.secretItemId !== null) &&
+    !vaultStore.isUnlocked()
+  ) {
+    throw new Error("Unlock the vault to remove git remotes with credentials.");
+  }
+}
+
 export async function forgetLocalGitRemote(id: string): Promise<boolean> {
   const rows = readRaw();
   const target = rows.find((row) => row.id === id);
   if (!target) return false;
+  assertUnlockedForSecrets([target]);
   await trashSecret(target.secretItemId);
   writeRaw(rows.filter((row) => row.id !== id));
   return true;
@@ -213,6 +223,7 @@ export async function forgetLocalGitRemote(id: string): Promise<boolean> {
 
 export async function forgetAllLocalGitRemotes(): Promise<void> {
   const rows = readRaw();
+  assertUnlockedForSecrets(rows);
   for (const row of rows) {
     await trashSecret(row.secretItemId);
   }

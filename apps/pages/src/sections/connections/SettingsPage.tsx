@@ -232,6 +232,20 @@ export function ConnectorSettingsPage({
               onBackupReady={reportBackup}
             />
           </ul>
+          {canConfigure && provider.id === "git" ? (
+            <details className="conn-add-authorization">
+              <summary>Add another authorization</summary>
+              <ConnectForm
+                provider={provider}
+                online={online}
+                onFlash={(next) => onFlash(next)}
+                onConnected={onChanged}
+                onRememberOffer={(created) =>
+                  onRememberOffer({ provider, connection: created })
+                }
+              />
+            </details>
+          ) : null}
         </section>
       ) : connections.length > 1 ? (
         <section className="panel" id="authorization" ref={authorizeRef}>

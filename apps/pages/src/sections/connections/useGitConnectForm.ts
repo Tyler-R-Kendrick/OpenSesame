@@ -30,10 +30,10 @@ type GitConnectPersistInput = GitAuthFields & {
 
 function hostUnavailable<Thrown>(error: Thrown): boolean {
   if (error instanceof TypeError) return true;
-  return (
-    error instanceof ConnectionsError &&
-    (error.code === "unreachable" || error.status === 0)
-  );
+  if (!(error instanceof ConnectionsError)) return false;
+  if (error.code === "unreachable" || error.status === 0) return true;
+  // Host reached but cannot store forge-agnostic git — fall back locally.
+  return error.status === 404 || error.status === 501 || error.status === 422;
 }
 
 async function persistGitRemote(
