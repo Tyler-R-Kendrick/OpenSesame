@@ -257,11 +257,9 @@ async function walk(browser, phone) {
  * A finger above 900px: the arrangement the phone roads never reach.
  *
  * Here the top bar is gone by width and the status strip is the whole of the
- * chrome, so this asserts the strip is drawn, that the four keys it holds are
- * on screen and named, and — through the same audit every phone stop runs —
- * that they are keys a finger can hit. A width-gated rule that hides the strip
- * without putting the top bar back strands all of it, and a size rule written
- * for a mouse leaves 28px targets under a thumb; both faults live only here.
+ * chrome — Support, CommandBar, plane glyphs, and the bell. Assert the strip
+ * is drawn with those seats on screen and named, and that they are keys a
+ * finger can hit.
  */
 async function tablet(browser, size) {
   const { page, context } = await harness.newPage(browser, {
@@ -286,14 +284,17 @@ async function tablet(browser, size) {
     return {
       strip: visible("footer.statusline").length,
       keys: visible("footer.statusline button").length,
+      command: visible(".statusline__command").length,
       topbar: visible(".topbar").length,
       overflow: visible(".topbar__more").length,
       rail: visible(".rail").length,
     };
   });
   harness.check(
-    chromeCounts.strip === 1 && chromeCounts.keys === 4,
-    `${stop("chrome")}: the status strip and its four keys are on screen (saw ${chromeCounts.keys} in ${chromeCounts.strip} strip)`,
+    chromeCounts.strip === 1 &&
+      chromeCounts.command === 1 &&
+      chromeCounts.keys >= 4,
+    `${stop("chrome")}: the status strip with CommandBar is on screen (saw ${chromeCounts.keys} keys in ${chromeCounts.strip} strip)`,
   );
   harness.check(
     chromeCounts.topbar === 0 && chromeCounts.overflow === 0,

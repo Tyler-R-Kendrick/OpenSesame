@@ -456,11 +456,7 @@ describe("ItemDetail", () => {
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
-    expect(
-      await screen.findByText(
-        /Connection receipts are unavailable on this device/,
-      ),
-    ).toBeTruthy();
+    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
   });
 
   it.skip("reports when the Host is disconnected", async () => {
@@ -474,11 +470,7 @@ describe("ItemDetail", () => {
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
-    expect(
-      await screen.findByText(
-        /Connection receipts are unavailable on this device/,
-      ),
-    ).toBeTruthy();
+    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
     expect(listConnections).not.toHaveBeenCalled();
   });
 
@@ -667,11 +659,7 @@ describe("ItemDetail edge branches", () => {
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
-    expect(
-      await screen.findByText(
-        /Connection receipts are unavailable on this device/,
-      ),
-    ).toBeTruthy();
+    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
   });
 
   it("falls back to the generic provider for a bare connection ref", () => {

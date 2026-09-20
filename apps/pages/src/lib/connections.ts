@@ -211,10 +211,9 @@ async function call<T>(
       headers,
     });
   } catch (error) {
-    if (error instanceof HostSessionError || error instanceof TypeError) {
-      throw new ConnectionsError(0, "unreachable", error.message);
-    }
-    throw error;
+    if (!(error instanceof HostSessionError || error instanceof TypeError))
+      throw error;
+    throw new ConnectionsError(0, "unreachable", error.message);
   }
 
   if (!res.ok) {
@@ -487,7 +486,6 @@ function listConnectionsDefault(): Promise<Connection[]> {
       throw error;
     });
 }
-
 function discoverConnectionsDefault(): Promise<number> {
   return call(
     "/connections/discover",

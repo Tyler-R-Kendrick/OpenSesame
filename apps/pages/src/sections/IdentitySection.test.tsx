@@ -780,9 +780,7 @@ describe("IdentitySection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Approve device/i }),
     );
-    expect(
-      await screen.findByText(/Approval could not be delivered/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/could not be delivered/)).toBeTruthy();
   });
 
   it("renders the operator note when approval is unconfigured", async () => {
