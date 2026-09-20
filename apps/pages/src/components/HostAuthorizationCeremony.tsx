@@ -73,7 +73,7 @@ function BoundHostAuthorizationCeremony({
           : []
       }
       primary={{
-        label: busy ? "Waiting for Identity…" : "Open Identity verification",
+        label: busy ? "Waiting…" : "Open verification",
         onClick: () => void verify(),
         busy,
       }}
@@ -86,13 +86,12 @@ function BoundHostAuthorizationCeremony({
       }}
     >
       <p className="hint">
-        Your Identity window shows the exact request and asks for your passkey.
+        A verification window shows the exact request and asks for your passkey.
         Local pairing alone does not authorize browser control.
       </p>
       {error ? (
         <p className="hint" role="alert">
-          Verification was refused or expired. Sign in on the configured
-          Identity origin and check your passkey, then try again.
+          Verification was refused or expired. Sign in and check your passkey, then try again.
         </p>
       ) : null}
     </CeremonyShell>

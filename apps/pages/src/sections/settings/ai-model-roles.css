@@ -1,19 +1,19 @@
-.ai-role__title {
-  margin: 0.35rem 0 0.2rem;
-  font-size: 0.8125rem;
-  font-family: var(--mono);
-  font-weight: 600;
-  color: var(--ink-2);
+.ai-roles {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr;
 }
 
-.ai-role__lead {
-  margin: 0 0 0.45rem;
-  font-size: 0.8438rem;
-  color: var(--ink-2);
-  max-width: 58ch;
+.ai-roles .label {
+  margin-top: 0.35rem;
 }
 
-.ai-role__kind {
-  font-size: 0.7813rem;
-  color: var(--ink-2);
+.ai-roles .label:first-child {
+  margin-top: 0;
+}
+
+.ai-roles select {
+  width: 100%;
+  min-height: 2.75rem;
+  font-size: 1rem;
 }

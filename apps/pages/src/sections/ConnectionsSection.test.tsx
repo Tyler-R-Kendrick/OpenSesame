@@ -684,7 +684,7 @@ describe("ConnectionsSection deeper branches", () => {
     ).toBeTruthy();
   });
 
-  it("toggles scopes off and disables authorize when none remain", async () => {
+  it("hides Connect once the GitHub App is already configured", async () => {
     listIntegrations.mockResolvedValue([
       {
         id: "int_gh",
@@ -696,15 +696,13 @@ describe("ConnectionsSection deeper branches", () => {
       },
     ]);
     renderAt("/connections/github");
-    const scope = await screen.findByLabelText(/repo/);
-    await userEvent.click(scope);
+    expect(await screen.findByTestId("github-app-presence")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: /^Connect$/i })).toBeNull();
+    });
     expect(
-      overlapCast(
-        screen.getByRole("button", {
-          name: /Authorize with GitHub/i,
-        }),
-      ).disabled,
-    ).toBe(true);
+      screen.queryByRole("button", { name: /Authorize with GitHub/i }),
+    ).toBeNull();
   });
 });
 

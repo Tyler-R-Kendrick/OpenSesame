@@ -161,7 +161,7 @@ describe("IdentifierField", () => {
   it("surfaces a lookup failure's message", async () => {
     Object.assign(identifierFieldDependencies, {
       lookupOrgTenant: vi.fn(async () => {
-        throw new Error("Identity API unreachable");
+        throw new Error("Sign-in service unreachable");
       }),
     });
 
@@ -170,7 +170,7 @@ describe("IdentifierField", () => {
     submit();
 
     expect((await screen.findByRole("alert")).textContent).toContain(
-      "Identity API unreachable",
+      "Sign-in service unreachable",
     );
   });
 });

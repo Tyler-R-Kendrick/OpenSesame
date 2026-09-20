@@ -14,6 +14,7 @@ import {
   revokeConnection,
 } from "../../lib/connections.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { isLocalGitRemoteId } from "../../lib/git-remote-local.js";
 import { GithubBackupField } from "./GithubBackupRepo.js";
 import { GithubCardDetails } from "./GithubInstallationPanel.js";
 import {
@@ -46,6 +47,7 @@ export function ConnectionCard({
   const revokeRef = useGuideTarget<HTMLButtonElement>("connections.revoke");
   const chip = STATUS_CHIP[connection.status];
   const revoked = connection.status === "revoked";
+  const localGit = isLocalGitRemoteId(connection.connectionId);
   const authorizeLabel =
     busy === "authorize"
       ? "Waiting for consent"
@@ -222,7 +224,7 @@ export function ConnectionCard({
               className={`icon-btn icon-btn--sm icon-btn--danger${
                 confirming ? " is-armed" : ""
               }`}
-              disabled={busy !== null || !online}
+              disabled={busy !== null || (!online && !localGit)}
               aria-label={confirming ? "Revoke it" : "Revoke"}
               title={
                 confirming

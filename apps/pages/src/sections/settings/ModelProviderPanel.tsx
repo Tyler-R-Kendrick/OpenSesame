@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import {
   type BrowserInferenceVerdict,
@@ -17,14 +16,14 @@ import {
   loadModelProvider,
   resolveModelPlane,
   saveModelProvider,
-  withInference,
 } from "../../lib/model-provider.js";
 import {
-  InferenceRefineFields,
-  InferenceRolePicker,
-  VoiceRolePicker,
-  clearInference,
-} from "./AiModelRoles.js";
+  type ModelSlugOption,
+  connectedHarnessProviderIds,
+  inferenceSlugOptions,
+  voiceSlugOptions,
+} from "../../lib/model-slugs.js";
+import { ModelRoleSelects } from "./AiModelRoles.js";
 
 export type { ModelProviderPreset };
 export { MODEL_PROVIDER_PRESETS };
@@ -49,30 +48,45 @@ function planeSentence(plane: ResolvedModelPlane): string {
 }
 
 /**
- * Who runs the model that works a website's own password-reset form, plus the
- * voice and inference catalog picks for the command bar.
- *
- * See `lib/model-provider.ts` for the bypass rule and
- * `lib/browser-inference.ts` for the capability ladder. Nothing here downloads
- * a model: an offer names its download, and pressing nothing starts none.
+ * Voice + inference role picks. Agent Harnesses configures hosted providers;
+ * this panel only chooses which slug each role uses.
  */
 export function ModelProviderPanel() {
   const [record, setRecord] = useState<ModelProviderRecord>(NO_MODEL_PROVIDER);
   const [verdict, setVerdict] = useState<BrowserInferenceVerdict | null>(null);
-  const [endpoint, setEndpoint] = useState("");
-  const [model, setModel] = useState("");
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
+  const [voiceOptions, setVoiceOptions] = useState<ModelSlugOption[]>(() =>
+    voiceSlugOptions(detectSpeechRecognition() !== null),
+  );
+  const [inferenceOptions, setInferenceOptions] = useState<ModelSlugOption[]>(
+    () =>
+      inferenceSlugOptions({
+        browserReady: false,
+        connectedProviderIds: [],
+      }),
+  );
 
   useEffect(() => {
     const stored = loadModelProvider();
     setRecord(stored);
-    setEndpoint(stored.inference.endpoint);
-    setModel(stored.inference.model);
+    const speechReady = detectSpeechRecognition() !== null;
+    setVoiceOptions(voiceSlugOptions(speechReady));
     let live = true;
-    void browserInference().then((result) => {
-      if (live) setVerdict(result);
-    });
+    void (async () => {
+      const [browser, connected] = await Promise.all([
+        browserInference(),
+        connectedHarnessProviderIds(),
+      ]);
+      if (!live) return;
+      setVerdict(browser);
+      setInferenceOptions(
+        inferenceSlugOptions({
+          browserReady: browser.plane === "builtin",
+          connectedProviderIds: connected,
+        }),
+      );
+    })();
     return () => {
       live = false;
     };
@@ -84,8 +98,6 @@ export function ModelProviderPanel() {
     try {
       await saveModelProvider(next);
       setRecord(next);
-      setEndpoint(next.inference.endpoint);
-      setModel(next.inference.model);
       setFlash({ tone: "ok", text: "Saved." });
     } catch {
       setFlash({
@@ -98,8 +110,6 @@ export function ModelProviderPanel() {
   }, []);
 
   const plane = verdict ? resolveModelPlane(record, verdict) : null;
-  const browserReady = verdict?.plane === "builtin";
-  const speechReady = detectSpeechRecognition() !== null;
 
   return (
     <div className="conn-group" id="model-provider">
@@ -112,58 +122,13 @@ export function ModelProviderPanel() {
       </h3>
       <div className="conn-tile">
         <div className="conn-tile__body">
-          <VoiceRolePicker
+          <ModelRoleSelects
             record={record}
             busy={busy}
-            chrome="list"
-            speechReady={speechReady}
+            voiceOptions={voiceOptions}
+            inferenceOptions={inferenceOptions}
             onCommit={(next) => void commit(next)}
           />
-
-          {browserReady ? (
-            <div className="actions">
-              <button
-                type="button"
-                className="icon-btn"
-                disabled={busy || record.inference.provider === "browser"}
-                aria-label="Use this device's own model"
-                title="Use this device's own model"
-                onClick={() =>
-                  void commit(
-                    withInference(record, {
-                      kind: "browser",
-                      provider: "browser",
-                      endpoint: "",
-                      model: "",
-                    }),
-                  )
-                }
-              >
-                <IconCheck size={16} />
-              </button>
-            </div>
-          ) : null}
-
-          <InferenceRolePicker
-            record={record}
-            busy={busy}
-            chrome="list"
-            browserReady={false}
-            onCommit={(next) => void commit(next)}
-          />
-
-          <InferenceRefineFields
-            record={record}
-            busy={busy}
-            endpoint={endpoint}
-            model={model}
-            setEndpoint={setEndpoint}
-            setModel={setModel}
-            mode="button"
-            onCommit={(next) => void commit(next)}
-            onClear={() => void commit(clearInference(record))}
-          />
-
           {flash ? (
             <StatusMark
               tone={flash.tone === "ok" ? "ok" : "err"}

@@ -17,6 +17,9 @@ export function selectedRailPath(
   folderKind: string | null = null,
 ): string {
   if (pathname.startsWith("/settings")) {
+    if (pathname.startsWith("/settings/connections/")) {
+      return pathname;
+    }
     const base = settingsPath(category);
     if (category === "connections" && hash.startsWith("#") && hash.length > 1) {
       return `${base}${hash}`;

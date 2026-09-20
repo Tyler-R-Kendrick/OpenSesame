@@ -1,17 +1,19 @@
-import { type FormEvent, useCallback, useEffect, useId, useState } from "react";
 import {
-  IconCheck,
-  IconCopy,
-  IconExternal,
-  IconTrash,
-} from "../../components/Icons.js";
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { IconCheck, IconCopy, IconExternal } from "../../components/Icons.js";
 import type { Integration, Provider } from "../../lib/connections.js";
 import { createIntegration, listIntegrations } from "../../lib/connections.js";
 import {
   claimGithubAppCode,
-  forgetLocalGithubApp,
   readLocalGithubApp,
   refreshGithubAppInstallations,
+  subscribeLocalGithubApp,
 } from "../../lib/github-app-manifest.js";
 import { type Flash, errorText } from "./shared.js";
 import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
@@ -45,12 +47,19 @@ export function OauthClientPanel({
   const [clientSecret, setClientSecret] = useState("");
   const fieldId = useId();
   const deployGithubApp = useGithubAppRegistration(provider, onFlash, setBusy);
+  const localGithubApp = useSyncExternalStore(
+    subscribeLocalGithubApp,
+    readLocalGithubApp,
+    () => null,
+  );
 
   const refresh = useCallback(async () => {
     const rows = await listIntegrations().catch((): Integration[] => []);
     const found = rows.find(usableFor(provider)) ?? null;
     setIntegration(found);
-    onClientState(found !== null);
+    const localReady =
+      provider.id === "github" && readLocalGithubApp() !== null;
+    onClientState(found !== null || localReady || provider.configured);
   }, [provider, onClientState]);
 
   useEffect(() => {
@@ -150,63 +159,14 @@ export function OauthClientPanel({
     }
   }
 
-  if (provider.configured) {
-    if (provider.id === "github") return null;
-    return (
-      <p className="hint">
-        {`${provider.displayName} OAuth client is already configured.`}
-      </p>
-    );
-  }
-
-  if (integration) {
-    const installUrl = integration.githubAppHtmlUrl
-      ? `${integration.githubAppHtmlUrl.replace(/\/$/u, "")}/installations/new`
-      : null;
-    const localApp = readLocalGithubApp();
-    const canForget =
-      provider.id === "github" &&
-      localApp !== null &&
-      localApp.id === integration.id;
-    return (
-      <div className="conn-client-ready">
-        <p className="hint">
-          <IconCheck size={15} /> {integration.displayName}
-        </p>
-        {installUrl ? (
-          <a
-            className="icon-btn icon-btn--sm"
-            href={installUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label="Install GitHub App on an account"
-            title="Install GitHub App on an account"
-          >
-            <IconExternal size={16} />
-          </a>
-        ) : null}
-        {canForget ? (
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            data-testid="github-app-forget-client"
-            aria-label="Remove GitHub App from this device"
-            title="Remove GitHub App from this device"
-            onClick={() => {
-              forgetLocalGithubApp();
-              setIntegration(null);
-              onClientState(false);
-              onFlash({
-                tone: "ok",
-                text: "GitHub App removed from this device.",
-              });
-            }}
-          >
-            <IconTrash size={16} />
-          </button>
-        ) : null}
-      </div>
-    );
+  // Already sealed: App presence lives in GithubAppPresence. Do not re-draw
+  // Create App, Client ID/secret, Install-on-account, or any other setup chrome.
+  if (
+    provider.configured ||
+    integration !== null ||
+    (provider.id === "github" && localGithubApp !== null)
+  ) {
+    return null;
   }
 
   const form = (

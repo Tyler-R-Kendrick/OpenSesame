@@ -178,7 +178,7 @@ export function buildConnectorReminder(
     item.value = "";
     item.connectionRef = connection.connectionRef;
     item.notes =
-      "Credential stays on the Host. This item is a reminder and a grant target.";
+      "Credential stays with the connection. This item is a reminder and a grant target.";
   }
   return item;
 }
@@ -275,7 +275,7 @@ export function graphDoors(
   return [
     {
       kind: "host",
-      title: "Host connector",
+      title: "Connection",
       detail:
         liveConnections.length === 0
           ? "None. Authorize so agents can invoke without a pasted token."
@@ -303,7 +303,7 @@ export function graphDoors(
       title: "Vault login",
       detail:
         summarizeItems(logins) ??
-        `None saved. A ${provider.displayName} password lives here, not on the Host.`,
+        `None saved. A ${provider.displayName} password lives here, not in a remote connection.`,
       verb: logins.length > 0 ? "connected" : "idle",
       href:
         logins[0] !== undefined

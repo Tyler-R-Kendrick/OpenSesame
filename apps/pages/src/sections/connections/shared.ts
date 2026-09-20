@@ -81,14 +81,23 @@ export const CATEGORY_ORDER: ProviderCategory[] = [
   "testing",
 ];
 
+/** SPA root for a connector ceremony — catalog vs Settings → Connections. */
+export type ConnectorCeremonyRoot = "/connections" | "/settings/connections";
+
+export function connectorCeremonyRoot(pathname: string): ConnectorCeremonyRoot {
+  return pathname.startsWith("/settings/connections")
+    ? "/settings/connections"
+    : "/connections";
+}
+
 export function connectorPath(
   providerId: string,
   connectionId?: string,
+  root: ConnectorCeremonyRoot = "/connections",
 ): string {
   const provider = encodeURIComponent(providerId);
-  return connectionId
-    ? `/connections/${provider}/${encodeURIComponent(connectionId)}`
-    : `/connections/${provider}`;
+  const base = `${root}/${provider}`;
+  return connectionId ? `${base}/${encodeURIComponent(connectionId)}` : base;
 }
 
 const timeFormat = new Intl.DateTimeFormat(undefined, {
@@ -168,6 +177,12 @@ export const STATUS_CHIP = {
 } satisfies Record<Connection["status"], { tone: string; label: string }>;
 
 /** One sentence answering "is this working, and do I have to do anything?". */
+function gitStatusSentence(connection: Connection): string {
+  return connection.accountLabel
+    ? `Remote ${connection.accountLabel}.`
+    : "Git remote configured.";
+}
+
 export function statusSentence(
   connection: Connection,
   provider?: Provider | null,
@@ -177,6 +192,7 @@ export function statusSentence(
     case "pending":
       return "Created, but nobody has approved it yet. Authorize it to finish.";
     case "active": {
+      if (provider?.id === "git") return gitStatusSentence(connection);
       const expiry = relative(connection.expiresAt);
       if (connection.refreshable) {
         return expiry

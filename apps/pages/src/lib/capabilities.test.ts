@@ -55,7 +55,10 @@ describe("capability connectors", () => {
       "github",
       "password-store",
       "gitlab",
+      "git",
     ]);
+    expect(history?.requiresAuth("git")).toBe(false);
+    expect(connectorLabel("git")).toBe("Git (any remote)");
   });
 
   it("preserves multi-select history selections", () => {
@@ -147,13 +150,14 @@ describe("capability definitions", () => {
   it("labels every built-in connector and falls back to the raw id", () => {
     const labels: Array<[string, string]> = [
       ["webcrypto", "WebCrypto (this device)"],
-      ["sealed-local", "Sealed local (Host)"],
+      ["sealed-local", "Sealed local (this device)"],
       ["password-store", "Local git password-store"],
       ["aws-kms", "AWS KMS"],
       ["azure-key-vault-keys", "Azure Key Vault"],
       ["gcp-kms", "Google Cloud KMS"],
       ["github", "GitHub"],
       ["gitlab", "GitLab"],
+      ["git", "Git (any remote)"],
     ];
     for (const [id, label] of labels) {
       expect(connectorLabel(id)).toBe(label);

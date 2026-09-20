@@ -36,6 +36,9 @@ describe("connections page tree", () => {
     ]);
     expect(bindings.map((group) => group.label)).toEqual(["Password managers"]);
     expect(bindings[0]?.items?.map((item) => item.label)).toEqual(["Mid Pass"]);
+    expect(bindings[0]?.items?.map((item) => item.href)).toEqual([
+      "/settings/connections/mid",
+    ]);
   });
 
   it("ships wallet issuers in the bundled catalog", () => {

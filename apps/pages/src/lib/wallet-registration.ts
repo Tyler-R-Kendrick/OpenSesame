@@ -39,7 +39,7 @@ export class WalletRegistrationUnavailable extends Error {
 function requireIdentity(): void {
   if (!isRemoteIdentityConfigured()) {
     throw new WalletRegistrationUnavailable(
-      "Add to Google Wallet needs a configured Identity API; the local vault still approves without it.",
+      "Add to Google Wallet needs a connected sign-in service; the local vault still approves without it.",
     );
   }
 }

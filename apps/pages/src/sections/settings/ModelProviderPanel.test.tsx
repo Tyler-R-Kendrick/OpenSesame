@@ -9,9 +9,11 @@ import {
   MODEL_PROVIDER_KEY,
   loadModelProvider,
 } from "../../lib/model-provider.js";
+import { modelSlugSeams } from "../../lib/model-slugs.js";
 import { ModelProviderPanel } from "./ModelProviderPanel.js";
 
 const originalSeams = { ...browserInferenceSeams };
+const originalList = modelSlugSeams.listConnections;
 
 /** A browser whose own model is resident and can be shown a page. */
 function capableBrowser() {
@@ -20,17 +22,6 @@ function capableBrowser() {
     availability: async () => "available",
   });
   browserInferenceSeams.gpu = () => null;
-}
-
-/** A browser with a text-only model and graphics that could run one in-page. */
-function textOnlyBrowser() {
-  browserInferenceSeams.isSecureContext = () => true;
-  browserInferenceSeams.languageModel = () => ({
-    availability: async (options?: {
-      expectedInputs?: readonly { readonly type: string }[];
-    }) => (options === undefined ? "available" : "unavailable"),
-  });
-  browserInferenceSeams.gpu = () => ({ requestAdapter: async () => ({}) });
 }
 
 /** A browser that carries nothing. */
@@ -59,172 +50,133 @@ function speechAvailable() {
 beforeEach(async () => {
   await kvSetDurable(MODEL_PROVIDER_KEY, "");
   speechAvailable();
+  modelSlugSeams.listConnections = async () => [];
 });
 
 afterEach(() => {
   cleanup();
   Object.assign(browserInferenceSeams, originalSeams);
+  modelSlugSeams.listConnections = originalList;
   resetSpeechSeams();
   vi.restoreAllMocks();
 });
 
 describe("ModelProviderPanel", () => {
-  it("reports the browser fallback when nothing is configured", async () => {
+  it("offers one voice select and one inference select", async () => {
     capableBrowser();
     render(<ModelProviderPanel />);
 
     expect(
       await screen.findByRole("heading", { name: /^Models/ }),
     ).toBeTruthy();
-    expect(
-      await screen.findByRole("img", {
-        name: /No provider set, so this device's own model/,
-      }),
-    ).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Voice" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Inference" })).toBeTruthy();
+    expect(screen.getByLabelText("Voice model")).toBeTruthy();
+    expect(screen.getByLabelText("Inference model")).toBeTruthy();
   });
 
-  it("withholds the browser option rather than greying it, and says why", async () => {
-    barrenBrowser();
-    render(<ModelProviderPanel />);
-
-    expect(
-      await screen.findByRole("img", { name: /never half-tries/ }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: /Use this device's own model/ }),
-    ).toBeNull();
-  });
-
-  it("distinguishes a text-only model from no model, and never offers a silent download", async () => {
-    textOnlyBrowser();
-    render(<ModelProviderPanel />);
-
-    expect(
-      await screen.findByRole("heading", { name: /^Models/ }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: /Use this device's own model/ }),
-    ).toBeNull();
-  });
-
-  it("says password changes stay manual where nothing can run", async () => {
-    barrenBrowser();
-    render(<ModelProviderPanel />);
-
-    expect(
-      await screen.findByRole("img", { name: /it never half-tries/ }),
-    ).toBeTruthy();
-  });
-
-  it("records the browser plane with no endpoint", async () => {
+  it("records a browser-speech language slug", async () => {
     capableBrowser();
     render(<ModelProviderPanel />);
 
-    await userEvent.click(
-      await screen.findByRole("button", {
-        name: "Use this device's own model",
-      }),
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Voice model"),
+      "browser-speech/ja-JP",
     );
 
     await waitFor(() => {
-      expect(loadModelProvider()).toEqual({
+      expect(loadModelProvider().voice).toEqual({
+        provider: "browser-speech",
         kind: "browser",
-        provider: "browser",
         endpoint: "",
-        model: "",
-        voice: {
-          provider: "browser-speech",
-          kind: "browser",
-          endpoint: "",
-          model: "en-US",
-        },
-        inference: {
-          kind: "browser",
-          provider: "browser",
-          endpoint: "",
-          model: "",
-        },
+        model: "ja-JP",
       });
     });
   });
 
-  it("records a speech language from the voice catalog", async () => {
-    capableBrowser();
+  it("records a local inference slug without a harness connection", async () => {
+    barrenBrowser();
     render(<ModelProviderPanel />);
 
-    const lang = await screen.findByLabelText("Speech language");
-    await userEvent.selectOptions(lang, "ja-JP");
-
-    await waitFor(() => {
-      expect(loadModelProvider().voice.model).toBe("ja-JP");
-    });
-  });
-
-  it("prefers a named provider over the device that could have carried it", async () => {
-    capableBrowser();
-    render(<ModelProviderPanel />);
-
-    const rows = await screen.findAllByRole("button", { name: /^Use / });
-    await userEvent.click(rows[0]);
-
-    await waitFor(() => {
-      expect(loadModelProvider().provider).toBe("ollama");
-    });
-    expect(
-      await screen.findByRole("img", { name: /Running on this machine/ }),
-    ).toBeTruthy();
-  });
-
-  it("asks for an address and never for a key", async () => {
-    capableBrowser();
-    const { container } = render(<ModelProviderPanel />);
-
-    const rows = await screen.findAllByRole("button", { name: /^Use / });
-    await userEvent.click(rows[0]);
-
-    expect(await screen.findByText("Endpoint")).toBeTruthy();
-    expect(screen.getByText("Model")).toBeTruthy();
-    // No field a key could be typed into at all — not a masked one, not a
-    // plain one. The panel stores addresses; the key lives in the vault.
-    expect(container.querySelectorAll("input[type=password]").length).toBe(0);
-    expect(
-      [...container.querySelectorAll("input")]
-        .map((input) => input.type)
-        .sort(),
-    ).toEqual(["text", "url"]);
-  });
-
-  it("returns to the fallback when the provider is cleared", async () => {
-    capableBrowser();
-    render(<ModelProviderPanel />);
-
-    const rows = await screen.findAllByRole("button", { name: /^Use / });
-    await userEvent.click(rows[0]);
-
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Use no provider" }),
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Inference model"),
+      "ollama/llama3.2",
     );
 
+    await waitFor(() => {
+      expect(loadModelProvider().inference.provider).toBe("ollama");
+      expect(loadModelProvider().inference.model).toBe("llama3.2");
+      expect(loadModelProvider().provider).toBe("ollama");
+      expect(loadModelProvider().kind).toBe("local");
+    });
+  });
+
+  it("offers hosted harness slugs only after that provider is connected", async () => {
+    barrenBrowser();
+    modelSlugSeams.listConnections = async () => [
+      {
+        connectionId: "c_openai",
+        connectionRef: "ref",
+        logicalName: "openai",
+        displayName: "OpenAI",
+        providerId: "openai",
+        integrationId: null,
+        status: "active",
+        statusDetail: null,
+        organizationId: "org",
+        projectId: null,
+        ownerKind: "user",
+        shareability: "private",
+        requestedScopes: [],
+        grantedScopes: [],
+        accountLabel: null,
+        expiresAt: null,
+        refreshable: false,
+        lastRefreshedAt: null,
+        maxInvokeLevel: 0,
+        egress: { scheme: "https", authorities: [], pathPrefixes: [] },
+        bindings: [],
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+    render(<ModelProviderPanel />);
+
+    const inference = await screen.findByLabelText("Inference model");
     expect(
-      await screen.findByRole("img", {
-        name: /No provider set, so this device's own model/,
-      }),
-    ).toBeTruthy();
+      Array.from(inference.querySelectorAll("option")).some(
+        (option) => option.value === "openai/gpt-4o",
+      ),
+    ).toBe(true);
+
+    await userEvent.selectOptions(inference, "openai/gpt-4o");
+    await waitFor(() => {
+      expect(loadModelProvider().inference).toEqual({
+        provider: "openai",
+        kind: "hosted",
+        endpoint: "https://api.openai.com/v1",
+        model: "gpt-4o",
+      });
+    });
+  });
+
+  it("withholds browser inference when the device cannot carry one", async () => {
+    barrenBrowser();
+    render(<ModelProviderPanel />);
+
+    const inference = await screen.findByLabelText("Inference model");
+    expect(
+      Array.from(inference.querySelectorAll("option")).some(
+        (option) => option.value === "browser/",
+      ),
+    ).toBe(false);
   });
 
   it("withholds the voice catalog when speech recognition is missing", async () => {
     capableBrowser();
-    resetSpeechSeams();
     speechSeams.globals = () => ({});
     render(<ModelProviderPanel />);
 
-    expect(
-      await screen.findByRole("img", {
-        name: /no speech recognition, so the mic stays off/,
-      }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("Speech language")).toBeNull();
+    const voice = await screen.findByLabelText<HTMLSelectElement>("Voice model");
+    expect(voice.disabled).toBe(true);
+    expect(voice.querySelector("option")?.textContent).toBe("Unavailable");
   });
 });

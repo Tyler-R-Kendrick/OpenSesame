@@ -10,7 +10,7 @@ import {
   useSupportMarkSlot,
 } from "./SupportComposer.js";
 
-export { SupportSlot, SupportSlotProvider };
+export { SupportComposer, SupportSlot, SupportSlotProvider } from "./SupportComposer.js";
 
 /**
  * The panel, the agent adapters, the guide runtime and Driver.js all live
@@ -23,23 +23,14 @@ const SupportPanel = lazy(() =>
 );
 
 /**
- * The question mark. On an unlocked shell it sits in the statusline, the same
- * strip as the planes and the bell. Unlock, setup and the broker have no
- * statusline, so it falls back to a fixed corner overlay.
- *
- * There is deliberately no keyboard shortcut. Every free single key belongs to
- * the vault keymap in `lib/keymap.ts`, which owns the one global handler and
- * its guards; a second window listener here would duplicate those guards and
- * drift from them. Opening support from a key needs a registration in that
- * module, the way `?` already registers the keymap sheet.
+ * The question mark. On an unlocked shell it sits in the statusline beside
+ * CommandBar. Unlock/setup have no statusline, so it falls back to a corner.
  */
 export function SupportLauncher(): ReactElement {
   const { view, support } = useSupport();
   const slot = useSupportMarkSlot();
   const ref = useGuideTarget<HTMLButtonElement>("shell.support");
   const chrome = slot !== null;
-  // A walkthrough runs on the page, not in the panel, so a closed panel has to
-  // keep saying that one is live — and offer the way back to its controls.
   const guiding =
     view.guide?.status === "running" ||
     view.guide?.status === "waiting" ||

@@ -76,7 +76,7 @@ function statusInput(over: Partial<StatusNoticeInput> = {}): StatusNoticeInput {
   return {
     id: "host-down",
     tone: "warn",
-    title: "Host API unavailable",
+    title: "Service unavailable",
     body: "b",
     ...over,
   };

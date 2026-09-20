@@ -24,7 +24,6 @@ import {
   generate,
 } from "../lib/vault/password.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
-import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
 import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
 import { FeatureBindingsPanel } from "./settings/FeatureBindingsPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
@@ -87,7 +86,6 @@ export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
   WalletPassPanel: ComponentType;
   InstallPanel: ComponentType;
-  ActiveProjectPanel: ComponentType;
   ModelProviderPanel: ComponentType;
   VaultsPanel: ComponentType;
 };
@@ -96,7 +94,6 @@ const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
   WalletPassPanel: DefaultWalletPassPanel,
   InstallPanel: DefaultInstallPanel,
-  ActiveProjectPanel: DefaultActiveProjectPanel,
   ModelProviderPanel: DefaultModelProviderPanel,
   VaultsPanel: DefaultVaultsPanel,
 };
@@ -197,7 +194,6 @@ export function SettingsSection({
       ) : null}
       {representation !== "form" || category !== "connections" ? null : (
         <FeatureBindingsPanel
-          ActiveProjectPanel={resolvedPanels.ActiveProjectPanel}
           ModelProviderPanel={resolvedPanels.ModelProviderPanel}
         />
       )}

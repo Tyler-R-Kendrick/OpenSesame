@@ -693,7 +693,7 @@ async function adoptBrokeredSessionDefault(
   if (!base) {
     throw new FederationError(
       "no_identity_api",
-      "No remote Identity API is configured, so this sign-in cannot be adopted.",
+      "No sign-in service is connected, so this sign-in cannot be adopted.",
     );
   }
   let response: Response;
@@ -712,7 +712,7 @@ async function adoptBrokeredSessionDefault(
   } catch {
     throw new FederationError(
       "identity_unavailable",
-      `Could not reach the Identity API at ${base} to finish signing in.`,
+      `Could not reach the sign-in service at ${base} to finish signing in.`,
     );
   }
   if (!response.ok) {
@@ -720,7 +720,7 @@ async function adoptBrokeredSessionDefault(
       "session_adoption_failed",
       response.status === 401
         ? "That sign-in expired before it could be adopted. Try again."
-        : `The Identity API refused the sign-in (${response.status}).`,
+        : `The sign-in service refused the sign-in (${response.status}).`,
     );
   }
   const body: {
@@ -731,7 +731,7 @@ async function adoptBrokeredSessionDefault(
   if (!isString(body.principalId) || !isString(body.accessToken)) {
     throw new FederationError(
       "session_adoption_failed",
-      "The Identity API returned an unusable session.",
+      "The sign-in service returned an unusable session.",
     );
   }
   const session: IdentitySession = {

@@ -874,11 +874,11 @@ function ItemFields({
                 className="btn btn--primary btn--sm"
                 to={`/connections/${providerIdFromRef(item.connectionRef)}`}
               >
-                Grant or invoke on the Host
+                Grant or invoke
               </Link>
             ) : (
               <Link className="btn btn--sm" to="/connections">
-                Authorize a Host connector first
+                Authorize a connector first
               </Link>
             )}
           </div>
@@ -888,7 +888,7 @@ function ItemFields({
           <div className="note">
             <span>
               You can reveal this value; an agent never can. An agent receives a
-              ConnectionRef, invokes through the Host, and the Host returns a
+              ConnectionRef, invokes through OpenSesame, and returns a
               receipt. There is no getSecret().
             </span>
           </div>
@@ -1018,7 +1018,7 @@ function LastReceipt({ connectionRef }: { connectionRef: string }) {
   // lived on the Host plane and have no local substitute here.
   const line = !connectionRef
     ? "No ConnectionRef on this item."
-    : "Connection receipts need a Host — this device has none.";
+    : "Connection receipts are unavailable on this device.";
   return <p className="frow__notes">{line}</p>;
 }
 import { loginWebsiteLink } from "../../lib/vault/website-pattern.js";

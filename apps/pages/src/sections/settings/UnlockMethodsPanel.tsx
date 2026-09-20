@@ -166,12 +166,12 @@ function UnlockMethodsBody() {
         on={on}
         sub={
           !hasIdentity
-            ? "Needs an Identity API to send it."
+            ? "Needs a sign-in service to send it."
             : enrolled.length === 0
               ? "After a key."
               : on
-                ? "Offered at step 2. Sent by the Identity API."
-                : "For a lost phone. Sent by the Identity API to an address you confirm."
+                ? "Offered at step 2. Sent by your sign-in service."
+                : "For a lost phone. Sent by your sign-in service to an address you confirm."
         }
         action={
           !hasIdentity ? (

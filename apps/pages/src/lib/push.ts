@@ -215,7 +215,7 @@ async function authorized(
   } catch {
     throw new PushError(
       "unavailable",
-      "The Identity API is not reachable from here, so notifications were not changed.",
+      "The sign-in service is not reachable from here, so notifications were not changed.",
     );
   }
   if (!res.ok && !tolerate.includes(res.status)) {

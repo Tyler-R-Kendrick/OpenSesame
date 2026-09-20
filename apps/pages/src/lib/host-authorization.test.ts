@@ -137,7 +137,7 @@ it("refuses when only the device-native Identity host is available", async () =>
   hostAuthorizationSeams.identityBase = () => "";
   await expect(
     authorizeHost(request, new AbortController().signal),
-  ).rejects.toThrow(/remote Identity API/);
+  ).rejects.toThrow(/sign-in service/);
   expect(opened).not.toHaveBeenCalled();
   expect(fetched).not.toHaveBeenCalled();
 });

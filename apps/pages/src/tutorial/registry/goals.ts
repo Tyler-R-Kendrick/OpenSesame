@@ -81,7 +81,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "host.health.check"',
-      'focus "shell.connectivity" "Plane truth lives here: Host and Identity report whether they are reachable." side=top',
+      'focus "shell.connectivity" "Connectivity lives here: the statusline reports whether identity on this device is ready." side=top',
       'say "For the vault contents themselves, Vault health lists weak, reused and aging items."',
       'navigate "/vault/health"',
       'wait route "/vault/health" timeout=15000',
@@ -227,7 +227,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "access.relay"',
-      'say "Requests contains your Identity approval inbox and Host relay asks. New requests need an approver inbox address and an exact action. Review the digest and complete any required passkey or comparison ceremony. Consent alone does not mint a Host grant."',
+      'say "Requests contains your approval inbox and relay asks. New requests need an approver inbox address and an exact action. Review the digest and complete any required passkey or comparison ceremony. Consent alone does not mint a grant."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/access"',
       'wait route "/access" timeout=15000',
@@ -299,7 +299,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "vault.second-step.code"',
-      'say "A code by email or text is a fallback for a lost phone, not a first second step: it needs an Identity API to send it, and anyone who can read the inbox or hold the number can read the code. Keep an authenticator app or passkey enrolled too."',
+      'say "A code by email or text is a fallback for a lost phone, not a first second step: it needs a sign-in service to send it, and anyone who can read the inbox or hold the number can read the code. Keep an authenticator app or passkey enrolled too."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings"',
       'wait route "/settings" timeout=15000',
@@ -346,7 +346,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/connections"',
       'wait route "/settings/connections" timeout=15000',
-      'focus "settings.model-provider" "This chooses the voice speech language and which model runs inference, or that this deployment uses neither." side=bottom',
+      'focus "settings.model-provider" "Pick one provider/model slug for voice and one for inference. Hosted providers appear after Agent Harnesses connects them." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -471,7 +471,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.health",
     title: "How do I tell whether OpenSesame is healthy?",
     answer:
-      "Two different questions, two places. The statusline reports whether the Host plane and the Identity plane are reachable. Vault health, under Vault, reports on the items themselves — weak, reused and aging credentials.",
+      "Two different questions, two places. The statusline reports whether identity on this device is ready. Vault health, under Vault, reports on the items themselves — weak, reused and aging credentials.",
     routes: [],
     goal: "host.health.check",
     keywords: [
@@ -491,7 +491,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.connection.create",
     title: "How do I connect a provider?",
     answer:
-      "Connections → Add a connection. Search the catalog, open the provider's page, and approve it once on its Authorization panel. The credential is sealed on the Host; projects and agents are bound to the connection afterwards, and never receive the credential itself.",
+      "Connections → Add a connection. Search the catalog, open the provider's page, and approve it once on its Authorization panel. The credential is sealed with the connection; projects and agents are bound to the connection afterwards, and never receive the credential itself.",
     routes: [],
     goal: "connection.create",
     keywords: [
@@ -513,7 +513,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.connection.broken",
     title: "A connection stopped working. What now?",
     answer:
-      "Open that connector's page from Connections. An authorization that only needs a fresh credential offers Renew now; one the provider has invalidated has to be authorized again. If the whole list fails to load, the Host plane is the thing to check first, on the statusline.",
+      "Open that connector's page from Connections. An authorization that only needs a fresh credential offers Renew now; one the provider has invalidated has to be authorized again. If the whole list fails to load, check connectivity on the statusline first.",
     routes: [],
     goal: "connection.repair",
     keywords: [

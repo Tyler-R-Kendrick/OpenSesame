@@ -100,10 +100,9 @@ describe("states an assistive technology has to hear", () => {
     const field = within(sheet).getByLabelText<HTMLInputElement>(
       "Ask about this screen",
     );
-    // `disabled` is exposed to assistive technology; the placeholder repeats
-    // it for anyone reading. Neither is a greyed-out box and nothing else.
+    // `disabled` is exposed to assistive technology. Prose above names why.
     await waitFor(() => expect(field.disabled).toBe(true));
-    expect(field.getAttribute("placeholder")).toBe("Questions only");
+    expect(field.getAttribute("placeholder")).toBe("Ask about this screen");
   });
 
   it("raises a failure as an alert, in a sentence, with no code in it", async () => {

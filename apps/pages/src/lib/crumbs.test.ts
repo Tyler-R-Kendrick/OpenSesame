@@ -127,5 +127,16 @@ describe("crumbsFor", () => {
       { label: "Settings", to: "/settings" },
       { label: "Connections" },
     ]);
+    expect(crumbsFor("/settings/connections/github")).toEqual([
+      { label: "Settings", to: "/settings" },
+      { label: "Connections", to: "/settings/connections" },
+      { label: "github" },
+    ]);
+    expect(crumbsFor("/settings/connections/github/conn_1")).toEqual([
+      { label: "Settings", to: "/settings" },
+      { label: "Connections", to: "/settings/connections" },
+      { label: "github", to: "/settings/connections/github" },
+      { label: "conn_1" },
+    ]);
   });
 });

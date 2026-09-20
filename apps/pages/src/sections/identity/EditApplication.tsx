@@ -197,7 +197,7 @@ function HostedApplicationForm(props: {
       <h3>Edit application</h3>
       <ModeToggle mode={props.mode} onMode={props.onMode} />
       <p className="hint">
-        This is a hosted OIDC client on the Identity API. Registration is not
+        This is a hosted OIDC client on your sign-in service. Registration is not
         consent. Pages is not a SAML IdP or LDAP server.
       </p>
       {props.mode === "visual" ? (

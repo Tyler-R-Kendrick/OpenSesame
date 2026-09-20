@@ -83,8 +83,7 @@ export function CatalogPanel({
             {sealKeyMissing ? (
               <p className="note note--warn conn-unconfigured">
                 <IconInfo />
-                This Host is missing <code>OPENSESAME_CONNECTION_KEY</code>, so
-                credentials cannot be sealed yet. Set it and restart the Host.
+                Connection sealing is not available yet on this deployment. Ask an operator to finish setup, then try again.
               </p>
             ) : null}
 

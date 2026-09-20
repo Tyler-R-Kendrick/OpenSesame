@@ -14,7 +14,7 @@ const BY_CODE = new Map<string, string>(
     access_denied:
       "Access was denied at the provider. Nothing was changed on this device.",
     no_identity_api:
-      "This deployment isn't connected to an identity service yet. Add an Identity API URL to enable sign-in, or continue with a local-only vault.",
+      "This deployment isn't connected to an identity service yet. Connect a sign-in service to enable organisation sign-in, or continue with a local-only vault.",
     upstream_unavailable:
       "The sign-in provider couldn't be reached. Check your connection and try again.",
     identity_unavailable:

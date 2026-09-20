@@ -54,7 +54,6 @@ import { ConnectivityBar } from "../../components/ConnectivityBar.js";
 import { VaultSection } from "../../sections/VaultSection.js";
 import { CatalogPanel } from "../../sections/connections/CatalogPanel.js";
 import { ConnectedPanel } from "../../sections/connections/ConnectedPanel.js";
-import { CoreConnectionsPanel } from "../../sections/settings/CoreConnectionsPanel.js";
 import { HealthPanel } from "../../sections/vault/HealthPanel.js";
 import {
   duplicateGuideTargetMounts,
@@ -249,17 +248,6 @@ describe("instrumented screens", () => {
         "aria-label",
       ),
     ).toBe("Host — 127.0.0.1:18787");
-  });
-
-  it("binds the core connections panel in Settings", () => {
-    connectors.current = [connectorStatus()];
-    render(
-      <MemoryRouter>
-        <CoreConnectionsPanel />
-      </MemoryRouter>,
-    );
-
-    expect(isMountedGuideTarget("settings.core-connections")).toBe(true);
   });
 
   /**

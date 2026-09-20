@@ -13,11 +13,12 @@ export type Crumb = {
   to?: string;
 };
 
+/** Same order as `settingsTabs` — General → Security → Vaults → Connections → Danger. */
 export const SETTINGS_CATEGORIES = [
   "general",
-  "connections",
   "security",
   "vaults",
+  "connections",
   "danger",
 ] as const;
 export type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
@@ -266,6 +267,22 @@ function settingsCrumbs(parts: string[]): Crumb[] {
   const category = parts[1];
   if (!category || !isSettingsCategory(category) || category === "general") {
     return [{ label: "Settings" }];
+  }
+  if (category === "connections" && parts[2]) {
+    const provider = decodeURIComponent(parts[2]);
+    const crumbs: Crumb[] = [
+      { label: "Settings", to: "/settings" },
+      { label: "Connections", to: "/settings/connections" },
+      { label: provider },
+    ];
+    if (parts[3]) {
+      crumbs[2] = {
+        label: provider,
+        to: `/settings/connections/${parts[2]}`,
+      };
+      crumbs.push({ label: decodeURIComponent(parts[3]) });
+    }
+    return crumbs;
   }
   return [
     { label: "Settings", to: "/settings" },

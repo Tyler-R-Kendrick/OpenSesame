@@ -69,7 +69,7 @@ function notImplemented(path: string): Response {
   return jsonResponse(
     JSON.stringify({
       error: "device_identity",
-      hint: `This device identity host does not implement ${path}. Point Settings at a remote Identity API for that capability, or use the matching local Identity screen.`,
+      hint: `This device identity host does not implement ${path}. Use the matching local Identity screen, or connect a sign-in service if your organisation provides one.`,
     }),
     501,
   );
@@ -83,7 +83,7 @@ function mfaUnavailable(channelHint: string): Response {
   return jsonResponse(
     JSON.stringify({
       error: "not_configured",
-      hint: `${channelHint} need a remote Identity API under Settings → Connections.`,
+      hint: `${channelHint} need a connected sign-in service.`,
     }),
     503,
   );

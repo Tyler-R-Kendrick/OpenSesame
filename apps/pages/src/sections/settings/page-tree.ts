@@ -1,24 +1,80 @@
-import { settingsPath } from "../../lib/crumbs.js";
-import type { PageTreeSource } from "../../lib/page-to-tree.js";
-import { pageToTree } from "../../lib/page-to-tree.js";
+import { type SettingsCategory, settingsPath } from "../../lib/crumbs.js";
+import { getBundledProviders } from "../../lib/embedded-catalog.js";
+import { type PageTreeSource, pageTabTree } from "../../lib/page-to-tree.js";
 import { settingsTabs } from "../SettingsSection.js";
+import { featureBindingSections } from "../connections/page-tree.js";
 
-/** The same tabs the settings page renders. The rail does not keep a second list. */
-export function settingsPageSources(): PageTreeSource[] {
+/** Live lists a Settings tab may mirror (Vaults on this device). */
+export type SettingsRailSnapshot = {
+  vaults?: readonly { id: string; label: string }[];
+};
+
+function panel(
+  category: SettingsCategory,
+  id: string,
+  label: string,
+): PageTreeSource {
+  return {
+    id,
+    label,
+    href: settingsPath(category, id),
+    keepEmpty: true,
+  };
+}
+
+/**
+ * Headings on Settings → Connections (FeatureBindingsPanel), in document
+ * order — Models, then capability families.
+ */
+export function connectionsSettingsSections(): PageTreeSource[] {
   return [
-    {
-      id: "settings",
-      label: "Settings",
-      href: settingsPath("general"),
-      items: settingsTabs.map((tab) => ({
-        id: tab.id,
-        label: tab.label,
-        href: settingsPath(tab.id),
-      })),
-    },
+    panel("connections", "model-provider", "Models"),
+    ...featureBindingSections(getBundledProviders()),
   ];
 }
 
-export function settingsPageTree() {
-  return pageToTree(settingsPageSources());
+function sectionsFor(
+  category: SettingsCategory,
+  snapshot: SettingsRailSnapshot,
+): PageTreeSource[] {
+  switch (category) {
+    case "general":
+      return [panel("general", "settings-install", "Install")];
+    case "security":
+      return [
+        panel("security", "age-keys", "Age key"),
+        panel("security", "settings-wallet-pass", "Google Wallet"),
+      ];
+    case "vaults":
+      return (snapshot.vaults ?? []).map((vault) => ({
+        id: vault.id,
+        label: vault.label,
+        href: settingsPath("vaults"),
+        keepEmpty: true,
+      }));
+    case "connections":
+      return connectionsSettingsSections();
+    case "danger":
+      return [];
+  }
+}
+
+/**
+ * Settings page: each tab is a subtree of the panels/headings that tab shows.
+ * The rail must not keep a second hardcoded hierarchy.
+ */
+export function settingsPageSources(
+  snapshot: SettingsRailSnapshot = {},
+): PageTreeSource[] {
+  return settingsTabs.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    href: settingsPath(tab.id),
+    keepEmpty: true,
+    sections: sectionsFor(tab.id, snapshot),
+  }));
+}
+
+export function settingsPageTree(snapshot: SettingsRailSnapshot = {}) {
+  return pageTabTree(settingsPageSources(snapshot));
 }

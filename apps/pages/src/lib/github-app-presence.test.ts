@@ -32,7 +32,7 @@ describe("loadGithubAppPresenceState", () => {
     vi.unstubAllGlobals();
   });
 
-  it("returns Host install accounts for the connector page", async () => {
+  it("returns Host install accounts, permissions, and backup for the connector page", async () => {
     Object.assign(connectionSeams, {
       listIntegrations: vi.fn(async () => [
         {
@@ -44,7 +44,7 @@ describe("loadGithubAppPresenceState", () => {
           enabled: true,
           configured: true,
           scopes: [],
-          githubAppHtmlUrl: null,
+          githubAppHtmlUrl: "https://github.com/apps/opensesame",
         },
       ]),
     });
@@ -56,18 +56,52 @@ describe("loadGithubAppPresenceState", () => {
           accountType: "Organization",
           targetType: "Organization",
           repositorySelection: "all",
-          permissions: [],
-          repositories: [],
+          permissions: [
+            { name: "contents", access: "write" },
+            { name: "metadata", access: "read" },
+          ],
+          repositories: ["ship-it-org/passwords"],
         },
       ]),
+      getBackupStatus: vi.fn(async () => ({
+        target: {
+          integrationId: "int-1",
+          installationId: "55",
+          owner: "ship-it-org",
+          repo: "passwords",
+          branch: "main",
+          enabled: true,
+          status: "ok",
+          lastCommitSha: null,
+          lastSyncedAt: null,
+          lastError: null,
+        },
+        pendingEvents: 0,
+      })),
     });
     const state = await loadGithubAppPresenceState("");
+    expect(state.appName).toBe("OpenSesame");
+    expect(state.htmlUrl).toBe("https://github.com/apps/opensesame");
+    expect(state.backupRepo).toBe("ship-it-org/passwords");
     expect(state.installs).toEqual([
       {
         id: "55",
         accountLogin: "ship-it-org",
         accountType: "Organization",
+        repositorySelection: "all",
+        permissions: [
+          { name: "contents", access: "write" },
+          { name: "metadata", access: "read" },
+        ],
+        repositories: ["ship-it-org/passwords"],
       },
     ]);
+    expect(state.grantedPermissions).toEqual([
+      { name: "contents", access: "write" },
+      { name: "metadata", access: "read" },
+    ]);
+    expect(state.requestedPermissions.map((row) => row.name)).toContain(
+      "contents",
+    );
   });
 });

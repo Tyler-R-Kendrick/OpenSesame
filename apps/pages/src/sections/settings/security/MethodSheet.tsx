@@ -44,8 +44,8 @@ const TITLE = {
 const SUBTITLE = {
   ...KEY_SUBTITLE,
   totp: "Codes from an app on your phone. The seed is sealed under the vault key.",
-  email: "For a lost phone. Sent by the Identity API.",
-  sms: "For a lost phone. Sent by the Identity API.",
+  email: "For a lost phone. Sent by your sign-in service.",
+  sms: "For a lost phone. Sent by your sign-in service.",
   recovery: "Each stands in for the second step once.",
 } satisfies Record<MethodKind, string>;
 
@@ -192,7 +192,7 @@ function footFor(kind: MethodKind, view: MethodView): string {
       return "The seed lives only in memory until a code matches.";
     case "email":
     case "sms":
-      return "The Identity API sends the code. The vault key never leaves this device.";
+      return "Your sign-in service sends the code. The vault key never leaves this device.";
     case "recovery":
       return "Sealed under the vault key. A used code is crossed out here and refused at unlock.";
     default:

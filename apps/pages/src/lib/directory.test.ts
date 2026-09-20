@@ -375,7 +375,7 @@ describe("directory client", () => {
       expect(error.code).toBe("unreachable");
     }
     expect(error.message).toMatch(
-      /Identity API unreachable at http:\/\/127\.0\.0\.1:8788/,
+      /Sign-in service unreachable at http:\/\/127\.0\.0\.1:8788/,
     );
   });
 
@@ -408,7 +408,7 @@ describe("directory client", () => {
       expect(error.status).toBe(503);
       expect(error.code).toBe("operator_token_unconfigured");
     }
-    expect(error.message).toMatch(/operator sets OPENSESAME_OPERATOR_TOKEN/);
+    expect(error.message).toMatch(/Device approval is not enabled/);
   });
 
   it("maps a 404 from the Host to unknown-code wording", async () => {
@@ -427,7 +427,7 @@ describe("directory client", () => {
       jsonResponse({ error: "host_approval_failed" }, 502),
     );
     const error = await failureOf(approveDevice("ABCD-EFGH"));
-    expect(error.message).toMatch(/could not approve that code/);
+    expect(error.message).toMatch(/could not be approved/);
   });
 
   it("maps an unreachable Host to unreachable wording", async () => {
@@ -439,7 +439,7 @@ describe("directory client", () => {
       expect(error.status).toBe(502);
       expect(error.code).toBe("host_api_unreachable");
     }
-    expect(error.message).toMatch(/Host is unreachable/);
+    expect(error.message).toMatch(/Approval could not be delivered/);
   });
 
   it("maps a missing user code to invalid-request wording", async () => {

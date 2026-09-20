@@ -25,7 +25,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "connections.reload",
     description:
-      "Re-reads the connection list from the Host. Use it after finishing an authorization somewhere else.",
+      "Re-reads the connection list. Use it after finishing an authorization somewhere else.",
     role: "action",
     routes: ["/connections"],
     capabilityId: "connections.list",
@@ -33,7 +33,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "connections.connected",
     description:
-      "The Connected panel: every provider connection this Host currently holds, with its state and a way into its settings.",
+      "The Connected panel: every provider connection this device currently holds, with its state and a way into its settings.",
     role: "surface",
     routes: ["/connections"],
     capabilityId: "connections.list",
@@ -115,7 +115,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.grants",
     description:
-      "The Grants tab: local application grants and optional Host delegations, their scope and expiry, with confirmed revocation.",
+      "The Grants tab: local application grants and optional delegations, their scope and expiry, with confirmed revocation.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "delegations.list",
@@ -131,7 +131,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.sessions",
     description:
-      "The Sessions tab: agent task runs currently executing against this Host, and the way to terminate one.",
+      "The Sessions tab: agent task runs currently executing on this device, and the way to terminate one.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "tasks.list",
@@ -139,7 +139,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.connectors",
     description:
-      "The Connectors tab: connectors read by reference from a Nango-compatible directory or brokered by a Host, and who is bound to each — sync the directory, then Bind under a row.",
+      "The Connectors tab: connectors read by reference from a Nango-compatible directory or brokered by OpenSesame, and who is bound to each — sync the directory, then Bind under a row.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "connectors.bind",
@@ -206,7 +206,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.second-step",
     description:
-      "The Second step list under Security: the authenticator app, and the email and text codes the Identity API sends as fallbacks. Each row's Add opens the sheet; nothing turns on until a code from the new method matches.",
+      "The Second step list under Security: the authenticator app, and the email and text codes your sign-in service sends as fallbacks. Each row's Add opens the sheet; nothing turns on until a code from the new method matches.",
     role: "action",
     routes: ["/settings"],
     capabilityId: "vault.second_step.code",
@@ -230,7 +230,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.connectivity",
     description:
-      "The Connections settings page: core planes, endpoints, the active project, models, and feature bindings.",
+      "The Connections settings page: core status, the active project, models, and feature bindings.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",
@@ -267,20 +267,12 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/settings"],
     capabilityId: null,
   },
-  {
-    id: "settings.core-connections",
-    description:
-      "The Core connections panel: the Host and Identity planes, this machine, git history and the key vault, each opening its own repair ceremony.",
-    role: "surface",
-    routes: ["/settings"],
-    capabilityId: "host.health.pages",
-  },
 
   // ── Statusline detail: the two planes and the health notice ───────────
   {
     id: "connectivity.host",
     description:
-      "The Host glyph on the statusline. Its colour reports reachability, and pressing it opens the ceremony that repairs or re-points the Host connection.",
+      "The identity glyph on the statusline. Its colour reports reachability, and pressing it opens the ceremony that repairs the connection.",
     role: "ceremony",
     routes: [],
     capabilityId: "host.health.pages",
@@ -288,7 +280,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "connectivity.identity",
     description:
-      "The Identity glyph on the statusline. Pressing it opens the ceremony that signs in to the Identity plane or reports the session already held.",
+      "The sign-in glyph on the statusline. Pressing it opens the ceremony that signs in or reports the session already held.",
     role: "ceremony",
     routes: [],
     capabilityId: "identity.whoami",
@@ -347,7 +339,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.model-provider",
     description:
-      "Chooses the voice speech language and the inference plane (password-reset and freer command phrasing), or that this deployment uses neither.",
+      "Two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "model_plane.choose",

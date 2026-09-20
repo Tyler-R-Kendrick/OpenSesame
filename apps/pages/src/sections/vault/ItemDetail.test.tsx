@@ -419,7 +419,7 @@ describe("ItemDetail", () => {
       await screen.findByText("invoke · 2026-08-10T10:00:00Z · 200 OK"),
     ).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: /Grant or invoke on the Host/i }),
+      screen.getByRole("link", { name: /^Grant or invoke$/i }),
     ).toBeTruthy();
     // The secret value stays concealed.
     expect(screen.queryByText("whsec_123")).toBeNull();
@@ -441,7 +441,7 @@ describe("ItemDetail", () => {
       await screen.findByText(/No ConnectionRef on this item/),
     ).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: /Authorize a Host connector first/i }),
+      screen.getByRole("link", { name: /Authorize a connector first/i }),
     ).toBeTruthy();
   });
 
@@ -457,7 +457,7 @@ describe("ItemDetail", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      await screen.findByText(/No Host connection for this ConnectionRef/),
+      await screen.findByText(/Connection receipts are unavailable on this device/),
     ).toBeTruthy();
   });
 
@@ -473,7 +473,7 @@ describe("ItemDetail", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      await screen.findByText(/Host disconnected — no receipt/),
+      await screen.findByText(/Connection receipts are unavailable on this device/),
     ).toBeTruthy();
     expect(listConnections).not.toHaveBeenCalled();
   });
@@ -649,7 +649,7 @@ describe("ItemDetail edge branches", () => {
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
-    expect(await screen.findByText("No receipts yet.")).toBeTruthy();
+    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
   });
 
   it.skip("degrades gracefully when the receipt lookup fails", async () => {
@@ -664,7 +664,7 @@ describe("ItemDetail edge branches", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      await screen.findByText(/Host disconnected — no receipt/),
+      await screen.findByText(/Connection receipts are unavailable on this device/),
     ).toBeTruthy();
   });
 
@@ -679,7 +679,7 @@ describe("ItemDetail edge branches", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(
-      screen.getByRole("link", { name: /Grant or invoke on the Host/i }),
+      screen.getByRole("link", { name: /^Grant or invoke$/i }),
     ).toBeTruthy();
   });
 });

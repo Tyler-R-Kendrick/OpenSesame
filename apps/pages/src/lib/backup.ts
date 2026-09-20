@@ -161,7 +161,7 @@ async function putBackupTargetDefault(input: {
   const body = overlapCast(await res.json());
   const target = readJsonObject(body.target);
   if (!target) {
-    throw new Error("Host returned no backup target");
+    throw new Error("OpenSesame returned no backup target");
   }
   return toTarget(target);
 }
@@ -295,12 +295,12 @@ export function githubAppFailureReason(raw: string | null): string {
       return "unknown error";
     case "missing_state":
     case "missing_code":
-      return "GitHub returned an incomplete redirect. Keep the Host running and try Create GitHub App again.";
+      return "GitHub returned an incomplete redirect. Try Create GitHub App again.";
     case "unknown_or_expired_state":
     case "expired_state":
-      return "That registration session expired or the Host restarted. Create the GitHub App again (Host must stay up during the handshake).";
+      return "That registration session expired. Create the GitHub App again and finish the handshake without closing the tab.";
     case "conversion_failed":
-      return "GitHub created the app but Host could not exchange the one-time code. Retry Create GitHub App while Host stays reachable.";
+      return "GitHub created the app but OpenSesame could not exchange the one-time code. Retry Create GitHub App and keep this tab open until it finishes.";
     default:
       return (raw ?? "").trim();
   }

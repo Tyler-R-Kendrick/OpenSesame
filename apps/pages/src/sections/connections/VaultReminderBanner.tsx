@@ -31,7 +31,7 @@ export function VaultReminderBanner({
       ]);
       onFlash({
         tone: "ok",
-        text: `Saved to Host. Added a vault reminder for ${offer.provider.displayName}. The credential itself stays on the Host.`,
+        text: `Connection saved. Added a vault reminder for ${offer.provider.displayName}. The credential itself is not stored in the vault.`,
       });
       onDismiss();
     } catch (error) {
@@ -45,7 +45,7 @@ export function VaultReminderBanner({
     <output className="note note--ok conn-flash">
       <IconCheck />
       <p>
-        Saved {offer.provider.displayName} on this Host. Add a vault reminder
+        Saved {offer.provider.displayName}. Add a vault reminder
         that points at the ConnectionRef — not the token?
       </p>
       <button

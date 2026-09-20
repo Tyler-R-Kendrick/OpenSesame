@@ -37,14 +37,21 @@ export type GithubAppRegistration = {
   redirectUrl: string;
 };
 
+/** Permissions this App asks GitHub for at registration (read-only after install). */
+export const GITHUB_APP_REQUESTED_PERMISSIONS = [
+  { name: "metadata", access: "read" },
+  { name: "contents", access: "write" },
+  { name: "administration", access: "write" },
+  { name: "workflows", access: "write" },
+  { name: "pull_requests", access: "write" },
+] as const;
+
 function permissions(): JsonObject {
-  return {
-    metadata: "read",
-    contents: "write",
-    administration: "write",
-    workflows: "write",
-    pull_requests: "write",
-  };
+  const out: JsonObject = {};
+  for (const row of GITHUB_APP_REQUESTED_PERMISSIONS) {
+    out[row.name] = row.access;
+  }
+  return out;
 }
 
 function setupUrl(returnTo: string): string {

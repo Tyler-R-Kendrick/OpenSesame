@@ -170,7 +170,7 @@ async function lookupOrgTenantDefault(slug: string): Promise<OrgTenant> {
   }
   if (!isRemoteIdentityConfigured()) {
     throw new IdentityError(
-      "No remote Identity API is configured. Set the Identity URL in Settings.",
+      "No sign-in service is connected.",
       0,
     );
   }
@@ -191,7 +191,7 @@ async function lookupOrgByDomainDefault(
 ): Promise<OrgTenant | null> {
   if (!isRemoteIdentityConfigured()) {
     throw new IdentityError(
-      "No remote Identity API is configured. Set the Identity URL in Settings.",
+      "No sign-in service is connected.",
       0,
     );
   }

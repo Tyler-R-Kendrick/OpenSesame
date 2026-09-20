@@ -92,7 +92,7 @@ export function Receipts({
             : `Identity answered ${err.status} for the receipt trail.`,
         );
       } else {
-        setError(`Identity API unreachable at ${identityBase()}.`);
+        setError(`Sign-in service unreachable at ${identityBase()}.`);
       }
     } finally {
       if (!superseded()) setBusy(false);

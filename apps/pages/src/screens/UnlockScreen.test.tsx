@@ -603,7 +603,7 @@ describe("UnlockScreen — first run", () => {
 
   it("surfaces a deployment with no email sign-in", async () => {
     requestEmailMagicLink.mockRejectedValue(
-      new Error("Email sign-in is not available on this Identity API."),
+      new Error("Email sign-in is not available on this sign-in service."),
     );
     render(<UnlockScreen />);
     fireEvent.click(

@@ -296,6 +296,14 @@ function VaultApp() {
               }
             />
             <Route
+              path="/settings/connections/:providerId/:connectionId?"
+              element={
+                <Framed>
+                  <slots.ConnectionsSection />
+                </Framed>
+              }
+            />
+            <Route
               path="/settings/:category?"
               element={
                 <Framed>

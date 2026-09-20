@@ -77,7 +77,6 @@ const stubPanels: SettingsPanels = {
   WalletPassPanel: () => <div data-testid="wallet-pass-panel" />,
   InstallPanel: () => <div data-testid="install-panel" />,
   VaultsPanel: () => <div data-testid="vaults-panel" />,
-  ActiveProjectPanel: () => <div data-testid="active-project-panel" />,
   ModelProviderPanel: () => <div data-testid="model-provider-panel" />,
 };
 const endpoints = {
@@ -277,9 +276,10 @@ describe("SettingsSection", () => {
 
   it("renders the connectivity child panels", () => {
     renderSettings("#connectivity");
-    expect(screen.getByRole("heading", { name: /^Core/ })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
-    expect(screen.getByTestId("active-project-panel")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Project" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
+    expect(screen.queryByTestId("active-project-panel")).toBeNull();
     expect(screen.getByTestId("model-provider-panel")).toBeTruthy();
   });
 

@@ -39,7 +39,7 @@ function requireIdentity(): void {
   if (!isRemoteIdentityConfigured()) {
     throw new RemoteCodeError(
       "no_identity",
-      "Codes by email or text need a remote Identity API. Set one under Settings → Connections.",
+      "Codes by email or text need a connected sign-in service.",
     );
   }
 }
@@ -65,15 +65,15 @@ async function sendCodeDefault(
   if (res.status === 401 || res.status === 403) {
     throw new RemoteCodeError(
       "unauthorized",
-      "Sign in to the Identity API first; it sends the code on your behalf.",
+      "Sign in first; your sign-in service sends the code on your behalf.",
     );
   }
   if (res.status === 503) {
     throw new RemoteCodeError(
       "not_configured",
       channel === "email"
-        ? "The Identity API has no mail transport configured, so it cannot send an email code."
-        : "The Identity API has no SMS bridge configured, so it cannot send a text.",
+        ? "This sign-in service cannot send email codes."
+        : "This sign-in service cannot send text codes.",
     );
   }
   if (res.status === 429) {
@@ -110,7 +110,7 @@ async function verifyCodeDefault(
   if (res.status === 401 && body.error !== "invalid_code") {
     throw new RemoteCodeError(
       "unauthorized",
-      "Sign in to the Identity API first; it checks the code on your behalf.",
+      "Sign in first; your sign-in service checks the code on your behalf.",
     );
   }
   throw new RemoteCodeError(

@@ -769,7 +769,7 @@ describe("IdentitySection", () => {
       new DirectoryError(
         502,
         "host_api_unreachable",
-        "The Host is unreachable, so the approval could not be delivered. Start the Host and try again.",
+        "Approval could not be delivered. Try again when the service is reachable.",
       ),
     );
     registerIdp(makeRecord());
@@ -780,7 +780,7 @@ describe("IdentitySection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Approve device/i }),
     );
-    expect(await screen.findByText(/Host is unreachable/)).toBeTruthy();
+    expect(await screen.findByText(/Approval could not be delivered/)).toBeTruthy();
   });
 
   it("renders the operator note when approval is unconfigured", async () => {
