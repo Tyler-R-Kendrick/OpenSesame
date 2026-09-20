@@ -14,7 +14,6 @@ import {
   acknowledgeCertificateDelivery,
   issueCertificate,
 } from "../../lib/certs.js";
-import { compileSecretToHost } from "../../lib/connections.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   definitionFor,
@@ -250,15 +249,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       if (deliveryId) {
         await acknowledgeCertificateDelivery(deliveryId);
         setPendingDeliveryId(undefined);
-      }
-      if (next.kind === "secret" && next.connectionRef) {
-        try {
-          await compileSecretToHost(next);
-        } catch {
-          setError(
-            "Saved on this device. Host grant compile failed — Host may be disconnected.",
-          );
-        }
       }
       navigate(`/vault/${next.id}`);
     } catch (caught) {

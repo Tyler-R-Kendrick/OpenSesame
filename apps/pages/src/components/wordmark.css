@@ -1,12 +1,23 @@
+/* Share Tech Mono — digital LED-board lettering for the slot reel. OFL:
+   src/assets/fonts/OFL.txt. Self-hosted so CSP font-src 'self' holds. */
+@font-face {
+  font-family: "Share Tech Mono";
+  src: url("../assets/fonts/ShareTechMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   margin: 0;
-  font-family: var(--mono);
-  font-weight: 600;
+  font-family: "Share Tech Mono", var(--mono);
+  font-weight: 400;
   letter-spacing: 0;
   line-height: 1;
+  text-transform: lowercase;
 }
 
 .wordmark > svg {
@@ -16,7 +27,7 @@
 .wordmark__slots {
   display: inline-flex;
   align-items: stretch;
-  gap: 0.1em;
+  gap: 0.12em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -28,13 +39,19 @@
   transition-property: none;
 }
 
+/* Square LED cells — em units so every glyph (including hyphen) shares one
+   tile; 1ch collapses on narrow glyphs and breaks the board reading. The
+   slot stays `block` so the reel clips from the top, not a centered grid.
+   Cell fill is ink mixed into surface so day mode keeps a visible tile on
+   paper white (surface-3 washed out there) and night keeps a raised cell. */
 .wordmark__slot {
   display: block;
-  width: 1ch;
-  height: 1em;
+  box-sizing: border-box;
+  width: 1.05em;
+  height: 1.25em;
   overflow: hidden;
-  border-radius: var(--radius);
-  background: var(--surface-3);
+  border-radius: 0.08em;
+  background: color-mix(in srgb, var(--ink) 16%, var(--surface));
   color: inherit;
   animation-name: wordmark-lock;
   animation-timing-function: steps(1, end);
@@ -43,16 +60,19 @@
 .wordmark__reel {
   display: flex;
   flex-direction: column;
-  transform: translateY(calc(-100% + 1em));
+  width: 100%;
+  transform: translateY(calc(-100% + 1.25em));
   animation-name: wordmark-decrypt;
   animation-delay: 0s;
   animation-fill-mode: backwards;
 }
 
 .wordmark__glyph {
-  display: block;
+  display: grid;
+  place-items: center;
   flex: none;
-  height: 1em;
+  width: 100%;
+  height: 1.25em;
   line-height: 1;
 }
 
@@ -61,7 +81,7 @@
     transform: translateY(0);
   }
   to {
-    transform: translateY(calc(-100% + 1em));
+    transform: translateY(calc(-100% + 1.25em));
   }
 }
 
@@ -71,7 +91,7 @@
     color: var(--canvas);
   }
   to {
-    background: var(--surface-3);
+    background: color-mix(in srgb, var(--ink) 16%, var(--surface));
     color: inherit;
   }
 }

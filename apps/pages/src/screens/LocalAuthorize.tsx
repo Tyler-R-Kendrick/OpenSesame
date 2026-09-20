@@ -5,12 +5,12 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
-import { useVaultStore } from "../lib/vault/hooks.js";
+import { useVault } from "../lib/vault/hooks.js";
 import { useLocalConsent } from "./useLocalConsent.js";
 
 export function LocalAuthorize() {
   const { search } = useLocation();
-  const tomb = useVaultStore().activeTomb();
+  const { tomb } = useVault();
   const request = useMemo(() => {
     try {
       return parseLocalAuthorizationRequest(search);

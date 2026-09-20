@@ -50,11 +50,11 @@ describe("Crumbs", () => {
   });
 
   it("navigates settings and connection rest paths", () => {
-    const { unmount } = renderAt("/settings/connectivity");
+    const { unmount } = renderAt("/settings/connections");
     expect(
       screen.getByRole("link", { name: "Settings" }).getAttribute("href"),
     ).toBe("/settings");
-    expect(screen.getByText("Connectivity")).toBeTruthy();
+    expect(screen.getAllByText("Connections").length).toBeGreaterThan(0);
     unmount();
 
     renderAt("/connections/github/conn_1");

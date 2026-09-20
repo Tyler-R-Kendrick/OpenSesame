@@ -75,7 +75,14 @@ describe("continueAsGuest", () => {
       title: "Claim this guest session",
       body: "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.",
     });
-    expect(sessionStorage).toHaveLength(0);
+    // Each Continue-as-guest mints guest-N; never a bearer.
+    const raw = sessionStorage.getItem("opensesame.guest.session-person");
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw ?? "{}").name).toMatch(/^guest-[1-9]\d*$/);
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      expect(key).not.toMatch(/token|bearer|refresh/i);
+    }
   });
 
   it("still enters as a guest when Identity minting fails", async () => {
@@ -143,7 +150,14 @@ describe("linkGuestAccount", () => {
     connectProvisional.mockClear();
     await linkGuestAccount("id.token.here");
     expect(connectProvisional).not.toHaveBeenCalled();
-    expect(sessionStorage).toHaveLength(0);
+    // Guest principal stays; bearer still must not.
+    expect(
+      sessionStorage.getItem("opensesame.guest.session-person"),
+    ).toBeTruthy();
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      expect(key).not.toMatch(/token|bearer|refresh/i);
+    }
     expect(identityJson).toHaveBeenCalledWith(
       "/v1/principals/link-identities",
       expect.objectContaining({

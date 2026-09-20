@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconAlert } from "../../components/Icons.js";
+import { IconAlert, IconLogin } from "../../components/Icons.js";
 import { useConnect } from "../../lib/identity.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
@@ -42,11 +42,13 @@ export function ConnectIdentityNote({
           ) : (
             <button
               type="button"
-              className="btn btn--primary"
+              className="icon-btn"
               disabled={connecting || !online}
               onClick={() => void connect()}
+              aria-label="Connect to Identity"
+              title="Connect to Identity"
             >
-              {connecting ? "Connecting…" : "Connect to Identity"}
+              <IconLogin size={16} />
             </button>
           )}
         </div>

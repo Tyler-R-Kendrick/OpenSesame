@@ -3,14 +3,203 @@
   display: grid;
   grid-template-columns: 1fr;
   place-items: center;
-  padding: 2rem 1.25rem;
+  /* Horizontal pad lives on the card; notes go edge-to-edge for the tone. */
+  padding: 2rem 0 0;
   background: var(--canvas);
   color: var(--ink);
+  /* Full-viewport shell must not steal Impeccable picks / hit-testing —
+     descendants keep pointer-events:auto and remain the only targets. */
+  pointer-events: none;
+}
+
+.unlock > * {
+  pointer-events: auto;
+}
+
+/* ——— Release notes beside the gate ———————————————————————
+   Wide screens: two equal columns, two tones. The notes pane mixes ink into
+   surface — day needs a heavier mix than night or white|grey collapses. The
+   accordion summary is a darker head band so "Release notes" reads as a
+   subheader on both themes. The split is painted on `.unlock` so empty
+   column areas match. */
+.unlock {
+  --unlock-notes-pane: color-mix(in srgb, var(--ink) 22%, var(--surface));
+  --unlock-notes-head: color-mix(in srgb, var(--ink) 32%, var(--surface));
+}
+
+.unlock__notes {
+  width: min(100%, 27rem);
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  background: var(--unlock-notes-pane);
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+/* One accordion row per build. Summary is the subheader band; prior builds
+   collapse until opened. */
+.unlock__notes-stack {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+}
+
+.unlock__notes-release {
+  min-width: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.unlock__notes-release:last-child {
+  border-bottom: 0;
+}
+
+.unlock__notes-summary {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.85rem 1.25rem;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: start;
+  text-transform: uppercase;
+  color: var(--ink);
+  /* Darker than the notes pane so the label reads as a subheader in day and
+     night — not a paper band that collapses the two-tone split. */
+  background: var(--unlock-notes-head);
+  user-select: none;
+}
+
+.unlock__notes-summary-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unlock__notes-caret {
+  flex: none;
+  opacity: 0.7;
+  transform: rotate(90deg);
+}
+
+.unlock__notes-release--open > .unlock__notes-summary .unlock__notes-caret {
+  transform: rotate(-90deg);
+}
+
+.unlock__notes-summary:hover,
+.unlock__notes-summary:focus-visible {
+  background: color-mix(in srgb, var(--ink) 8%, var(--unlock-notes-head));
+}
+
+.unlock__notes-body {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+  padding: 1rem 1.25rem 1.35rem;
+  min-width: 0;
+}
+
+.unlock__notes-section {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.unlock__notes-head {
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+/* Subsection items sit under the head, indented past the label. */
+.unlock__notes-list {
+  margin: 0;
+  padding: 0 0 0 0.85rem;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.unlock__notes-list li {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  column-gap: 0.55rem;
+  align-items: start;
+}
+
+.unlock__notes-mark {
+  display: block;
+  margin-top: 0.15rem;
+  flex: none;
+  color: inherit;
+}
+
+@media (min-width: 1100px) {
+  .unlock {
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+    align-content: stretch;
+    align-items: stretch;
+    /* Full-height split: card pane | notes pane. Uses the same day-strong
+       mix as `.unlock__notes` so the right column is never white-on-white. */
+    background: linear-gradient(
+      90deg,
+      var(--surface) 0 50%,
+      var(--unlock-notes-pane) 50% 100%
+    );
+  }
+
+  .unlock__card {
+    justify-self: end;
+    align-self: center;
+    margin-right: clamp(1.5rem, 4vw, 3.5rem);
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .unlock__notes {
+    width: auto;
+    max-width: none;
+    min-height: 100dvh;
+    justify-self: stretch;
+    /* Accordion stack centred as one block in the column. */
+    align-content: center;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: inset 1px 0 0 var(--line);
+  }
+
+  .unlock__notes-summary {
+    padding: 1rem clamp(1.5rem, 4vw, 3.25rem);
+  }
+
+  .unlock__notes-body {
+    padding: 1.15rem clamp(1.5rem, 4vw, 3.25rem) 1.5rem;
+  }
 }
 
 .unlock__card {
   position: relative;
-  width: min(100%, 27rem);
+  width: min(calc(100% - 2.5rem), 27rem);
   /* Grid items default to min-width auto, so one unbreakable string (a
      redirect URI, a pairwise subject) would stretch the whole card past its
      27rem and bleed content off its edge. Pin the card and its children. */
@@ -56,12 +245,28 @@
   color: var(--ink);
 }
 
+/* Ceremony title + who is unlocking — account belongs with Unlock/Sign in,
+   not with the wordmark chrome. */
+.unlock__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .unlock__title {
   margin: 0;
+  min-width: 0;
   font-size: 1.4rem;
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: -0.021em;
+}
+
+.unlock__heading .unlock-user {
+  flex: none;
+  max-width: min(14rem, 48%);
 }
 
 .unlock__brand-copy {
@@ -72,28 +277,25 @@
   flex: 1;
 }
 
-.unlock__wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ink-2);
+/* Brand title — display step, not chrome. Beat `.unlock__brand p` so the
+   wordmark keeps LED cell geometry at title scale. Sized so the theme key
+   is never pushed off a 320px phone (mobile gate). */
+.unlock__brand .unlock__wordmark {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(0.9rem, 3.2vw, 1.55rem);
+  font-weight: 400;
+  color: var(--ink);
+  max-width: 100%;
 }
 
-.unlock__brand h1 {
-  font-size: 1.4rem;
-  line-height: 1.2;
+.unlock__brand .unlock__wordmark > svg {
+  width: 1.1em;
+  height: 1.1em;
 }
 
-.unlock__brand p {
-  color: var(--ink-2);
-  font-size: 0.875rem;
-  max-width: 34ch;
-  text-wrap: balance;
-}
+/* Wordmark is a `p` in the brand row — do not restyle it as body copy.
+   Title copy lives under `.unlock__heading`. */
 
 .unlock__form {
   display: grid;
@@ -372,6 +574,13 @@
 /* The same 44px floor every other key gets; this rule loads after the
    shared one, so the mark needs its own. */
 @media (pointer: coarse), (max-width: 900px) {
+  /* Guest account chip on unlock — name is short, height was 33. */
+  .unlock-user__trigger {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding-block: 0.55rem;
+  }
+
   /* This screen has no statusline to seat the support mark in, so the mark
      falls back to a fixed corner overlay — and on a phone the card runs
      nearly edge to edge. The screen keeps the mark's band clear at the end of
@@ -772,7 +981,7 @@
   text-overflow: ellipsis;
 }
 
-/* Who locked this screen — a compact trigger on the right of the brand row.
+/* Who is unlocking — compact trigger beside the Unlock / Sign in title.
    The menu itself reuses `.account-switcher__*` so the unlock card and the
    in-app prompt name people the same way. */
 .unlock-user {

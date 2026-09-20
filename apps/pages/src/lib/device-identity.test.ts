@@ -25,7 +25,6 @@ function emptyRemoteSettings(): void {
     hostApi: "",
     identityApi: "",
     daemonApi: "",
-    tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
       ...defaultCapabilityConnectors(),

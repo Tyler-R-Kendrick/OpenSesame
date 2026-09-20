@@ -33,7 +33,7 @@ describe("railMoveNavigates", () => {
       railMoveNavigates(
         leaf,
         row({ expanded: "true", level: "3" }),
-        "/connections#catalog-age",
+        "/connections#catalog-github",
         "/connections#catalog-encryption",
       ),
     ).toBe(true);

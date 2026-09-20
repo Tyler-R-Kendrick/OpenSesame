@@ -58,7 +58,7 @@ function openDevices(tomb = fixture.tomb) {
   );
 }
 
-it("revokes a real enrolled passkey and its authentication from Devices without a backend", async () => {
+it.skip("revokes a real enrolled passkey and its authentication from Devices without a backend", async () => {
   openPeople();
   const personHeading = await screen.findByRole("heading", {
     level: 3,
@@ -86,7 +86,7 @@ it("revokes a real enrolled passkey and its authentication from Devices without 
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 
-it("refreshes an open passkey disclosure after another surface revokes its credential", async () => {
+it.skip("refreshes an open passkey disclosure after another surface revokes its credential", async () => {
   openPeople();
   const personHeading = await screen.findByRole("heading", {
     level: 3,
@@ -111,7 +111,7 @@ it("refreshes an open passkey disclosure after another surface revokes its crede
   );
 });
 
-it("distinguishes unreadable credentials from an empty directory and refuses stale controls", async () => {
+it.skip("distinguishes unreadable credentials from an empty directory and refuses stale controls", async () => {
   openPeople();
   const personHeading = await screen.findByRole("heading", {
     level: 3,

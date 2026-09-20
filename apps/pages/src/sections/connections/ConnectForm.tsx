@@ -1,7 +1,5 @@
 import { type FormEvent, useId, useState } from "react";
-import { IconExternal } from "../../components/Icons.js";
-import { IconInfo } from "../../components/Icons.js";
-import { PasskeyCeremonyNote } from "../../components/PasskeyCeremonyNote.js";
+import { IconCheck, IconInfo } from "../../components/Icons.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import {
   authorizeConnection,
@@ -19,8 +17,7 @@ import {
 } from "../../lib/connector-guidance.js";
 import { ensureHostSession } from "../../lib/identity.js";
 import { usesConnect } from "../../lib/vercel-connect.js";
-import { OauthClientPanel } from "./OauthClientPanel.js";
-import { ConnectorSetupGuide } from "./guides.js";
+import { OauthConnectBody } from "./OauthConnectBody.js";
 import { type Flash, errorText } from "./shared.js";
 
 export function defaultsFor(provider: Provider) {
@@ -137,7 +134,10 @@ export function ConnectForm({
       setApiKey("");
       onFlash({
         tone: "ok",
-        text: `${provider.displayName} credential stored on this Host.`,
+        text:
+          provider.id === "github"
+            ? "GitHub connected."
+            : `${provider.displayName} connected.`,
       });
       onRememberOffer?.(connection);
       onConnected();
@@ -166,7 +166,7 @@ export function ConnectForm({
       await setConnectionConfiguration(connection.connectionId, payload);
       onFlash({
         tone: "ok",
-        text: `${provider.displayName} configuration saved on this Host.`,
+        text: `${provider.displayName} configuration saved.`,
       });
       onRememberOffer?.(connection);
       onConnected();
@@ -238,7 +238,6 @@ export function ConnectForm({
 
     return (
       <form className="conn-tile__body" onSubmit={saveConfiguration}>
-        <ConnectorSetupGuide provider={provider} />
         {renderFields(requiredFields)}
         <details className="conn-client-alt">
           <summary>Optional settings</summary>
@@ -264,10 +263,12 @@ export function ConnectForm({
         <div className="actions">
           <button
             type="submit"
-            className="btn btn--primary btn--sm"
+            className="icon-btn icon-btn--sm"
             disabled={busy || !online}
+            aria-label={busy ? "Saving" : "Save configuration"}
+            title={busy ? "Saving" : "Save configuration"}
           >
-            {busy ? "Saving…" : "Save configuration"}
+            <IconCheck size={16} />
           </button>
         </div>
       </form>
@@ -277,7 +278,6 @@ export function ConnectForm({
   if (provider.authKind === "api_key") {
     return (
       <form className="conn-tile__body" onSubmit={saveKey}>
-        <ConnectorSetupGuide provider={provider} />
         <div className="field">
           <label className="label" htmlFor={keyId}>
             API key
@@ -311,10 +311,12 @@ export function ConnectForm({
         <div className="actions">
           <button
             type="submit"
-            className="btn btn--primary btn--sm"
+            className="icon-btn icon-btn--sm"
             disabled={busy || !online || apiKey.trim() === ""}
+            aria-label={busy ? "Saving" : `Connect ${provider.displayName}`}
+            title={busy ? "Saving" : `Connect ${provider.displayName}`}
           >
-            {busy ? "Saving…" : `Connect ${provider.displayName}`}
+            <IconCheck size={16} />
           </button>
         </div>
       </form>
@@ -339,163 +341,5 @@ export function ConnectForm({
       onConnectOauth={connectOauth}
       onSaveKey={saveKey}
     />
-  );
-}
-
-function OauthConnectBody({
-  provider,
-  online,
-  busy,
-  name,
-  nameId,
-  keyId,
-  apiKey,
-  scopes,
-  missingScope,
-  onName,
-  onApiKey,
-  onToggleScope,
-  onFlash,
-  onConnectOauth,
-  onSaveKey,
-}: {
-  provider: Provider;
-  online: boolean;
-  busy: boolean;
-  name: string;
-  nameId: string;
-  keyId: string;
-  apiKey: string;
-  scopes: string[];
-  missingScope: boolean;
-  onName: (value: string) => void;
-  onApiKey: (value: string) => void;
-  onToggleScope: (scope: string) => void;
-  onFlash: (flash: Flash) => void;
-  onConnectOauth: (event: FormEvent) => Promise<void>;
-  onSaveKey: (event: FormEvent) => Promise<void>;
-}) {
-  const acceptsPat = provider.id === "github" || provider.id === "gitlab";
-  const [hasClient, setHasClient] = useState(false);
-  // Derived, not latched: the bundled catalog can briefly claim a provider is
-  // configured before the Host's answer replaces it.
-  const oauthReady = provider.configured || hasClient;
-
-  return (
-    <div className="conn-tile__body">
-      <OauthClientPanel
-        provider={provider}
-        online={online}
-        onFlash={onFlash}
-        onClientState={setHasClient}
-      />
-      <form onSubmit={(event) => void onConnectOauth(event)}>
-        <PasskeyCeremonyNote />
-        <ConnectorSetupGuide provider={provider} />
-        {!oauthReady && acceptsPat ? (
-          <p className="hint">
-            Once the OAuth client above exists, Authorize works. A personal
-            access token below is an alternative if you already have one.
-          </p>
-        ) : null}
-        <details className="conn-client-alt">
-          <summary>Optional settings</summary>
-          <div className="field">
-            <label className="label" htmlFor={nameId}>
-              Name it (optional)
-            </label>
-            <input
-              id={nameId}
-              value={name}
-              onChange={(event) => onName(event.target.value)}
-            />
-            <p className="hint">
-              How it reads in this list. The provider never sees it.
-            </p>
-          </div>
-        </details>
-
-        {provider.scopes.length > 0 ? (
-          <fieldset className="conn-scope-picker">
-            <legend className="label">Ask for</legend>
-            {provider.scopes.map((scope) => (
-              <label className="check" key={scope.name}>
-                <input
-                  type="checkbox"
-                  checked={scopes.includes(scope.name)}
-                  onChange={() => onToggleScope(scope.name)}
-                />
-                <span>
-                  <code>{scope.name}</code>
-                  {scope.sensitive ? (
-                    <span className="chip chip--warn chip--sm">broad</span>
-                  ) : null}
-                  <span className="hint">{scope.description}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-        ) : null}
-
-        <div className="actions">
-          <button
-            type="submit"
-            className="btn btn--primary btn--sm"
-            disabled={busy || !online || missingScope || !oauthReady}
-          >
-            <IconExternal size={16} />
-            {busy
-              ? "Waiting for consent…"
-              : `Authorize with ${provider.displayName}`}
-          </button>
-        </div>
-        {missingScope ? (
-          <p className="hint">
-            Pick at least one scope — an authorization with none can do nothing.
-          </p>
-        ) : null}
-        {!oauthReady ? (
-          <p className="hint">
-            Set up the OAuth client above first
-            {acceptsPat ? ", or use a personal access token below" : ""}.
-          </p>
-        ) : null}
-      </form>
-
-      {acceptsPat ? (
-        <form className="cap-pat" onSubmit={(event) => void onSaveKey(event)}>
-          <div className="field">
-            <label className="label" htmlFor={`${keyId}-pat`}>
-              Or connect with a personal access token
-            </label>
-            <input
-              id={`${keyId}-pat`}
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={
-                provider.id === "github"
-                  ? "ghp_… or github_pat_… (repo scope)"
-                  : "glpat-…"
-              }
-              value={apiKey}
-              onChange={(event) => onApiKey(event.target.value)}
-            />
-            <p className="hint">
-              Sealed on the Host immediately. Never stored in this browser.
-            </p>
-          </div>
-          <div className="actions">
-            <button
-              type="submit"
-              className="btn btn--primary btn--sm"
-              disabled={busy || !online || apiKey.trim() === ""}
-            >
-              {busy ? "Saving…" : `Connect ${provider.displayName} with token`}
-            </button>
-          </div>
-        </form>
-      ) : null}
-    </div>
   );
 }

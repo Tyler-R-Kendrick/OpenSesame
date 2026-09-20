@@ -1,4 +1,11 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  IconEdit,
+  IconEye,
+  IconPlus,
+  IconTrash,
+} from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { describeRecovery } from "../../lib/configuration/recovery-outcomes.js";
 import { loadSession } from "../../lib/federation.js";
@@ -120,27 +127,28 @@ function UnlockMethodsBody() {
           on ? (
             <button
               type="button"
-              className="btn btn--sm"
+              className="icon-btn icon-btn--sm"
               disabled={busy}
+              aria-label={kind === "passkey" ? "Remove" : "Change"}
+              title={kind === "passkey" ? "Remove" : "Change"}
               onClick={open(kind, kind === "passkey" ? "remove" : "change")}
             >
-              {kind === "passkey" ? "Remove" : "Change"}
+              {kind === "passkey" ? (
+                <IconTrash size={16} />
+              ) : (
+                <IconEdit size={16} />
+              )}
             </button>
           ) : (
             <button
               type="button"
-              className={
-                // The one recommended start for a keyless vault carries the
-                // weight: a passkey where the host can do one, else a PIN.
-                enrolled.length === 0 &&
-                kind === (webauthnHost.ok ? "passkey" : "pin")
-                  ? "btn btn--primary btn--sm"
-                  : "btn btn--sm"
-              }
+              className="icon-btn icon-btn--sm"
               disabled={busy}
+              aria-label="Add"
+              title="Add"
               onClick={open(kind, "add")}
             >
-              Add
+              <IconPlus size={16} />
             </button>
           )
         }
@@ -167,17 +175,19 @@ function UnlockMethodsBody() {
         }
         action={
           !hasIdentity ? (
-            <a className="btn btn--sm" href="/settings/connectivity">
-              Connectivity
+            <a className="btn btn--sm" href="/settings/connections">
+              Connections
             </a>
           ) : (
             <button
               type="button"
-              className="btn btn--sm"
+              className="icon-btn icon-btn--sm"
               disabled={busy || (!on && enrolled.length === 0)}
+              aria-label={on ? "Remove" : "Add"}
+              title={on ? "Remove" : "Add"}
               onClick={open(channel, on ? "remove" : "add")}
             >
-              {on ? "Remove" : "Add"}
+              {on ? <IconTrash size={16} /> : <IconPlus size={16} />}
             </button>
           )
         }
@@ -254,11 +264,13 @@ function UnlockMethodsBody() {
             action={
               <button
                 type="button"
-                className="btn btn--sm"
+                className="icon-btn icon-btn--sm"
                 disabled={busy}
+                aria-label={totpOn ? "Remove" : "Add"}
+                title={totpOn ? "Remove" : "Add"}
                 onClick={open("totp", totpOn ? "remove" : "add")}
               >
-                {totpOn ? "Remove" : "Add"}
+                {totpOn ? <IconTrash size={16} /> : <IconPlus size={16} />}
               </button>
             }
           />
@@ -291,11 +303,13 @@ function UnlockMethodsBody() {
               hasRecovery ? (
                 <button
                   type="button"
-                  className="btn btn--sm"
+                  className="icon-btn icon-btn--sm"
                   disabled={busy}
+                  aria-label="View recovery codes"
+                  title="View recovery codes"
                   onClick={open("recovery", "add")}
                 >
-                  View
+                  <IconEye size={16} />
                 </button>
               ) : null
             }
@@ -340,7 +354,7 @@ function MethodRow({
         <div className="sw__name">
           {methodIcon(kind)}
           {label}
-          <span className={on ? "chip chip--ok" : "chip"}>{state}</span>
+          <StatusMark tone={on ? "ok" : "idle"} label={state} />
         </div>
         <p className="sw__sub">{sub}</p>
       </div>

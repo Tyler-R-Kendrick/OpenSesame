@@ -82,11 +82,6 @@ export function LocalAuthorityTemplates() {
         <h2 id={labelId}>Audience templates</h2>
       </div>
       <div className="panel__body">
-        <p className="hint access-local-authority-intro">
-          Versioned vocabulary and default limits for a temporary domain or
-          session. Selecting a template does not issue a grant, open a second
-          lease store, or claim remote DNS/OS enforcement.
-        </p>
         <label className="field">
           <span className="field__label">Template</span>
           <select

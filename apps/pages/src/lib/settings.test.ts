@@ -16,7 +16,6 @@ describe("runtime endpoint defaults", () => {
       hostApi: "http://127.0.0.1:18787",
       identityApi: "http://127.0.0.1:18788",
       daemonApi: "http://127.0.0.1:18790",
-      tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
         ...defaultCapabilityConnectors(),
@@ -27,7 +26,6 @@ describe("runtime endpoint defaults", () => {
 
     expect(loadSettings().hostApi).toBe("http://localhost:18787");
     expect(loadSettings().identityApi).toBe("http://localhost:18788");
-    expect(loadSettings().tursoUrl).toBe("");
     expect(loadSettings().daemonApi).toBe("http://127.0.0.1:18790");
   });
 
@@ -81,7 +79,6 @@ describe("runtime endpoint defaults", () => {
           hostApi: "http://127.0.0.1:8787",
           identityApi: "http://127.0.0.1:18788",
           daemonApi: "http://127.0.0.1:18790",
-          tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
@@ -98,7 +95,6 @@ describe("runtime endpoint defaults", () => {
           hostApi: "http://127.0.0.1:8787",
           identityApi: "http://127.0.0.1:18788",
           daemonApi: "http://127.0.0.1:18790",
-          tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
@@ -115,7 +111,6 @@ describe("runtime endpoint defaults", () => {
           hostApi: "https://host.example",
           identityApi: "https://id.example",
           daemonApi: "http://127.0.0.1:18790",
-          tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
@@ -131,7 +126,6 @@ describe("runtime endpoint defaults", () => {
         hostApi: "https://box.tail123.ts.net/host",
         identityApi: "https://box.tail123.ts.net/identity",
         daemonApi: "https://box.tail123.ts.net",
-        tursoUrl: "",
         mfaAppUrl: "",
         capabilityConnectors: {
           ...defaultCapabilityConnectors(),
@@ -145,7 +139,6 @@ describe("runtime endpoint defaults", () => {
         hostApi: "http://127.0.0.1:8787",
         identityApi: "http://127.0.0.1:18788",
         daemonApi: "http://127.0.0.1:18790",
-        tursoUrl: "",
         mfaAppUrl: "",
         capabilityConnectors: {
           ...defaultCapabilityConnectors(),
@@ -198,7 +191,6 @@ describe("settings subscriptions and guards", () => {
     const base = {
       hostApi: "",
       identityApi: "",
-      tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
         ...defaultCapabilityConnectors(),
@@ -226,7 +218,6 @@ describe("settings subscriptions and guards", () => {
           hostApi: "",
           identityApi: "",
           daemonApi: "",
-          tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),

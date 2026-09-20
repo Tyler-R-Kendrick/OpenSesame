@@ -14,9 +14,9 @@ describe("shared rail branch helpers", () => {
       true,
     );
     expect(
-      rowSelected("/connections#catalog-age", {
-        href: "/connections/age",
-        selectTo: "/connections#catalog-age",
+      rowSelected("/connections#catalog-github", {
+        href: "/connections/github",
+        selectTo: "/connections#catalog-github",
       }),
     ).toBe(true);
     expect(rowSelected("/vault", { href: "/settings" })).toBe(false);

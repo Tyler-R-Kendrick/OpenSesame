@@ -22,9 +22,8 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
-import { connectionEvents, listConnections } from "../../lib/connections.js";
-import { usePlaneStatus } from "../../lib/planes.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   definitionFor,
@@ -142,10 +141,8 @@ export function ItemDetail() {
               </Link>
             ) : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
-            {item.sample ? (
-              <span className="chip chip--sample">SYNTHETIC</span>
-            ) : null}
-            {inTrash ? <span className="chip chip--warn">In trash</span> : null}
+            {item.sample ? <StatusMark tone="idle" label="Synthetic" /> : null}
+            {inTrash ? <StatusMark tone="warn" label="In trash" /> : null}
           </div>
         </div>
         {/* The item's verbs are keys in one toolbar — symbols, named for
@@ -1017,42 +1014,11 @@ function providerIdFromRef(ref: string): string {
 }
 
 function LastReceipt({ connectionRef }: { connectionRef: string }) {
-  const status = usePlaneStatus();
-  const [line, setLine] = useState("Checking Host…");
-
-  useEffect(() => {
-    if (!connectionRef) {
-      setLine("No ConnectionRef on this item.");
-      return;
-    }
-    if (status.host !== "live") {
-      setLine("Host disconnected — no receipt.");
-      return;
-    }
-    let cancelled = false;
-    void listConnections()
-      .then(async (rows) => {
-        const match = rows.find((row) => row.connectionRef === connectionRef);
-        if (!match) {
-          return "No Host connection for this ConnectionRef.";
-        }
-        const events = await connectionEvents(match.connectionId);
-        const last = events[0];
-        return last
-          ? `${last.kind} · ${last.at}${last.detail ? ` · ${last.detail}` : ""}`
-          : "No receipts yet.";
-      })
-      .then((next) => {
-        if (!cancelled) setLine(next);
-      })
-      .catch(() => {
-        if (!cancelled) setLine("Host disconnected — no receipt.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [connectionRef, status.host]);
-
+  // Pages is complete without a Host (ADR 0090) — ConnectionRef receipts
+  // lived on the Host plane and have no local substitute here.
+  const line = !connectionRef
+    ? "No ConnectionRef on this item."
+    : "Connection receipts need a Host — this device has none.";
   return <p className="frow__notes">{line}</p>;
 }
 import { loginWebsiteLink } from "../../lib/vault/website-pattern.js";

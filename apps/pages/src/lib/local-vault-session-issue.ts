@@ -2,7 +2,7 @@
 
 import type { OrganizationRole } from "@opensesame/os-domain";
 import { readLocalDirectory } from "./local-directory.js";
-import { GUEST_PERSON_ID } from "./local-guest.js";
+import { guestPersonIds } from "./local-guest.js";
 import { type AccessRole, resolveAccessRole } from "./local-rbac.js";
 import { createLocalShare } from "./local-share-grants.js";
 import type {
@@ -21,7 +21,9 @@ export async function resolvePrincipals(
     return [subject.principalId];
   }
   if (subject.kind === "accessRole") {
-    if (subject.role === "guest") return [GUEST_PERSON_ID];
+    if (subject.role === "guest") {
+      return [...guestPersonIds(directory.entries)];
+    }
     return directory.entries
       .filter((entry) => entry.kind === "person" || entry.kind === "agent")
       .filter(

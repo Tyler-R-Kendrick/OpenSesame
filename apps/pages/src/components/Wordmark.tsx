@@ -86,6 +86,7 @@ export function Wordmark({
   className,
   size = 16,
   as: Tag = "p",
+  replay = false,
 }: {
   className?: string;
   size?: number;
@@ -95,9 +96,15 @@ export function Wordmark({
    * technology reads the hidden name as the heading, never the reels.
    */
   as?: "p" | "h1";
+  /**
+   * Run the decrypt again on this mount (unlock brand). The session seam
+   * still marks later chrome (rail, setup) settled so only this gate
+   * replays.
+   */
+  replay?: boolean;
 }): ReactElement {
   const [slots] = useState(createSlots);
-  const [settled] = useState(() => wordmarkSeams.revealed);
+  const [settled] = useState(() => (replay ? false : wordmarkSeams.revealed));
   useEffect(() => {
     wordmarkSeams.revealed = true;
   }, []);

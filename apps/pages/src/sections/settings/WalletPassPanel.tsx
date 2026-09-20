@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { IconPlus, IconTrash } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { isRemoteIdentityConfigured } from "../../lib/identity.js";
 import {
@@ -132,11 +133,13 @@ export function WalletPassPanel() {
             <div className="row gap">
               <button
                 type="button"
-                className="btn"
+                className="icon-btn"
                 disabled={busy}
+                aria-label="Add to Google Wallet"
+                title="Add to Google Wallet"
                 onClick={() => void onAdd()}
               >
-                Add to Google Wallet
+                <IconPlus size={16} />
               </button>
             </div>
             {saveUrl ? (
@@ -159,11 +162,13 @@ export function WalletPassPanel() {
                     {row.state === "active" ? (
                       <button
                         type="button"
-                        className="btn"
+                        className="icon-btn icon-btn--danger"
                         disabled={busy}
+                        aria-label="Revoke"
+                        title="Revoke"
                         onClick={() => void onDisable(row.registrationId)}
                       >
-                        Revoke
+                        <IconTrash size={16} />
                       </button>
                     ) : null}
                   </li>

@@ -15,20 +15,18 @@ export type Crumb = {
 
 export const SETTINGS_CATEGORIES = [
   "general",
+  "connections",
   "security",
   "vaults",
-  "connectivity",
-  "data",
   "danger",
 ] as const;
 export type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
 
 export const SETTINGS_CATEGORY_LABEL = {
   general: "General",
+  connections: "Connections",
   security: "Security",
   vaults: "Vaults",
-  connectivity: "Connectivity",
-  data: "Vault data",
   danger: "Danger",
 } satisfies Record<SettingsCategory, string>;
 
@@ -47,16 +45,10 @@ export const WALLET_CATEGORY_LABEL = {
   activity: "Activity",
 } satisfies Record<WalletCategory, string>;
 
-const HASH_TO_SETTINGS = new Map<string, SettingsCategory>([
-  ["general", "general"],
-  ["security", "security"],
-  ["vaults", "vaults"],
-  ["connectivity", "connectivity"],
-  ["data", "data"],
-  ["danger", "danger"],
-  ["import", "data"],
-  ["github-backup", "data"],
-  ["taskbus", "connectivity"],
+/** Legacy hashes that are not themselves a settings category. */
+const SETTINGS_HASH_ALIAS = new Map<string, SettingsCategory>([
+  ["taskbus", "connections"],
+  ["connectivity", "connections"],
   ["unlock", "security"],
 ]);
 
@@ -107,17 +99,22 @@ export function settingsCategoryFromHash(
   hash: string,
 ): SettingsCategory | null {
   const raw = hash.replace(/^#/, "");
-  return HASH_TO_SETTINGS.get(raw) ?? null;
+  if (isSettingsCategory(raw)) return raw;
+  return SETTINGS_HASH_ALIAS.get(raw) ?? null;
 }
 
-/** `/settings/connectivity` or `/settings#connectivity` → connectivity. */
+/** `/settings/connections` or `/settings#connectivity` → connections. */
 export function settingsCategoryFromLocation(
   pathname: string,
   hash: string,
 ): SettingsCategory {
   const match = pathname.match(/\/settings\/([^/]+)/);
   const fromPath = match?.[1];
-  if (fromPath && isSettingsCategory(fromPath)) return fromPath;
+  if (fromPath) {
+    const aliased = SETTINGS_HASH_ALIAS.get(fromPath);
+    if (aliased) return aliased;
+    if (isSettingsCategory(fromPath)) return fromPath;
+  }
   return settingsCategoryFromHash(hash) ?? "general";
 }
 

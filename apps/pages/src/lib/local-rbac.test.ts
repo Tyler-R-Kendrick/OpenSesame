@@ -2,11 +2,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  GUEST_PERSON_ID,
   changeLocalDirectory,
   ensureOwnerPerson,
   readLocalDirectory,
 } from "./local-directory.js";
+import { isGuestPersonEntry, mintGuestSessionPerson } from "./local-guest.js";
 import {
   accessRoleLabel,
   canAccess,
@@ -16,7 +16,7 @@ import {
 } from "./local-rbac.js";
 import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
-import { lockAllTombs, unlockTomb } from "./vfs.js";
+import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;
 
@@ -35,6 +35,19 @@ beforeEach(async () => {
         );
         return result;
       },
+    },
+  });
+  const session = new Map<string, string>();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => session.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      session.set(key, value);
+    },
+    removeItem: (key: string) => {
+      session.delete(key);
+    },
+    clear: () => {
+      session.clear();
     },
   });
   vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
@@ -65,15 +78,22 @@ afterEach(() => {
 });
 
 describe("local RBAC", () => {
-  it("maps owner/admin to Operator and guest@guest to Guest", async () => {
+  it("maps owner/admin to Operator and Guest N to Guest", async () => {
     const directory = await ensureOwnerPerson(tomb, "Ada");
-    const owner = directory.entries.find(
-      (row) => row.kind === "person" && row.id !== GUEST_PERSON_ID,
+    const guest = mintGuestSessionPerson();
+    const withGuest = await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: guest.name,
+      id: guest.id,
+    });
+    const owner = withGuest.entries.find(
+      (row) => row.kind === "person" && !isGuestPersonEntry(row),
     );
     expect(owner).toBeTruthy();
-    expect(resolveAccessRole(directory, owner?.id ?? "")).toBe("operator");
-    expect(resolveAccessRole(directory, GUEST_PERSON_ID)).toBe("guest");
-    expect(hasClaimedOperator(directory)).toBe(true);
+    expect(resolveAccessRole(withGuest, owner?.id ?? "")).toBe("operator");
+    expect(resolveAccessRole(withGuest, guest.id)).toBe("guest");
+    expect(hasClaimedOperator(withGuest)).toBe(true);
     expect(accessRoleLabel("operator")).toBe("Operator");
     expect(canAccess("operator", "manage_grants")).toBe(true);
     expect(canAccess("guest", "manage_grants")).toBe(false);
@@ -81,19 +101,27 @@ describe("local RBAC", () => {
 
   it("refuses elevating guest to admin or owner beside a claimed operator", async () => {
     const directory = await ensureOwnerPerson(tomb, "Ada");
-    const org = directory.entries.find((row) => row.kind === "organization");
+    const guest = mintGuestSessionPerson();
+    const withGuest = await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: guest.name,
+      id: guest.id,
+    });
+    const org = withGuest.entries.find((row) => row.kind === "organization");
     await expect(
-      changeLocalDirectory(tomb, directory.revision, {
+      changeLocalDirectory(tomb, withGuest.revision, {
         action: "membership",
         organizationId: org?.id ?? "",
-        principalId: GUEST_PERSON_ID,
+        principalId: guest.id,
         role: "admin",
       }),
     ).rejects.toThrow(/cannot be operators/i);
   });
 
   it("lets a sole guest act as operator until a claimed operator exists", async () => {
-    await ensureOwnerPerson(tomb, "guest@guest");
+    const guest = mintGuestSessionPerson();
+    unlockTomb(GUEST_TOMB, (await mintVaultKey()).vaultKey);
     vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
       status: "unlocked",
       guest: true,
@@ -111,32 +139,33 @@ describe("local RBAC", () => {
       failedAttempts: 0,
       awaitingSecondStep: false,
       durable: true,
-      tomb,
+      tomb: GUEST_TOMB,
     });
-    expect(await resolveCurrentAccessRole(tomb)).toBe("operator");
+    await ensureOwnerPerson(GUEST_TOMB, guest.name);
+    expect(await resolveCurrentAccessRole(GUEST_TOMB)).toBe("operator");
 
-    const directory = await readLocalDirectory(tomb);
+    const directory = await readLocalDirectory(GUEST_TOMB);
     const org = directory.entries.find((row) => row.kind === "organization");
-    await changeLocalDirectory(tomb, directory.revision, {
+    await changeLocalDirectory(GUEST_TOMB, directory.revision, {
       action: "create",
       kind: "person",
       name: "Ada",
     });
-    const withAda = await readLocalDirectory(tomb);
+    const withAda = await readLocalDirectory(GUEST_TOMB);
     const ada = withAda.entries.find(
       (row) => row.kind === "person" && row.name === "Ada",
     );
-    await changeLocalDirectory(tomb, withAda.revision, {
+    await changeLocalDirectory(GUEST_TOMB, withAda.revision, {
       action: "membership",
       organizationId: org?.id ?? "",
       principalId: ada?.id ?? "",
       role: "owner",
     });
-    const next = await readLocalDirectory(tomb);
+    const next = await readLocalDirectory(GUEST_TOMB);
     expect(hasClaimedOperator(next)).toBe(true);
     expect(
-      next.memberships.find((row) => row.principalId === GUEST_PERSON_ID)?.role,
+      next.memberships.find((row) => row.principalId === guest.id)?.role,
     ).toBe("member");
-    expect(await resolveCurrentAccessRole(tomb)).toBe("guest");
+    expect(await resolveCurrentAccessRole(GUEST_TOMB)).toBe("guest");
   });
 });

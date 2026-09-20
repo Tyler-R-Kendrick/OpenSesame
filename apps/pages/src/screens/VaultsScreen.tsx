@@ -52,15 +52,21 @@ export function VaultsScreen({ providers, onPicked }: Props) {
   // The front door is the first screen a device with several vaults shows, so
   // it lands the keyboard on the first vault that can be opened — Enter opens
   // it, arrows and Tab walk the rest. Sealing lands on the name. The sign-in
-  // tab's panel lands its own.
+  // tab's panel lands its own. Re-land when vaults.length changes after reload.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: vaults.length is the paint signal
   useEffect(() => {
     if (tab !== "device") return;
     if (naming) {
       landFocus(nameRef.current);
       return;
     }
-    landFocus(firstControl(listRef.current));
-  }, [tab, naming]);
+    const land = () => landFocus(firstControl(listRef.current));
+    if (land()) return;
+    const raf = requestAnimationFrame(() => {
+      land();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [tab, naming, vaults.length]);
 
   function run<T>(task: () => Promise<T>): void {
     setError(null);

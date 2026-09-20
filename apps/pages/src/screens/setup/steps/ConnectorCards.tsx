@@ -1,19 +1,17 @@
 /**
  * A capability family's connectors as live cards (ADR 0114).
  *
- * Nango-style: every card can be taken to a configured state without leaving
- * the step. A connector that needs no account binds the moment it is chosen.
- * One that needs authorization opens its ceremony in a NEW TAB — the Host's
- * callback page posts `opensesame:connection` back to the opener and closes
- * itself — and the card observes that notification (and polls, in case the
- * message is lost) through the same `awaitConsent` the Connections page uses,
- * flipping to Connected when the connection is established.
- *
- * Where no Host answers, nothing pretends: the card says so and the action is
- * withheld, because a button that can only fail is a lie about the road.
+ * Every card can be taken to a configured state without leaving the step. A
+ * connector that needs no account binds the moment it is chosen. One that
+ * needs authorization opens its ceremony in a new tab — Connect's callback
+ * posts `opensesame:connection` back to the opener and closes itself — and
+ * the card observes that notification (and polls, in case the message is
+ * lost) through the same `awaitConsent` the Connections page uses.
  */
 
 import { useEffect, useState } from "react";
+import { IconConnection } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import {
   type CapabilityId,
   capabilityDef,
@@ -25,9 +23,8 @@ import {
   awaitConsent,
   createConnection,
   listConnections,
+  openConsentPopup,
 } from "../../../lib/connections.js";
-import { ensureHostSession } from "../../../lib/identity.js";
-import { usePlaneStatus } from "../../../lib/planes.js";
 import { useCapabilityChoice } from "./shared.js";
 
 type CardState =
@@ -36,13 +33,7 @@ type CardState =
   | { phase: "connected"; as?: string }
   | { phase: "error"; text: string };
 
-/** Open the ceremony in a new tab — the opener link stays, so the Host's
- * callback can post the event notification back and close itself. */
-function openCeremonyTab(url: string): Window | null {
-  return window.open(url, "_blank");
-}
-
-/** The connect round trip: session, connection, authorize, new tab, observe. */
+/** The connect round trip: connection, authorize, popup, observe. */
 function useConnectFlow(
   capability: CapabilityId,
   providerId: string,
@@ -53,9 +44,8 @@ function useConnectFlow(
   const [state, setState] = useState<CardState>({ phase: "idle" });
   const connect = async () => {
     setState({ phase: "busy" });
-    const tab = openCeremonyTab("about:blank");
+    const tab = openConsentPopup("about:blank");
     try {
-      await ensureHostSession();
       const scopes = def.authScopes?.(providerId);
       const live =
         connection && connection.status !== "revoked"
@@ -106,12 +96,10 @@ function ConnectorCard({
   capability,
   providerId,
   connection,
-  hostLive,
 }: {
   capability: CapabilityId;
   providerId: string;
   connection: Connection | undefined;
-  hostLive: boolean;
 }) {
   const def = capabilityDef(capability);
   const [binding, choose] = useCapabilityChoice(capability);
@@ -140,29 +128,36 @@ function ConnectorCard({
       </button>
       <span className="xcard__side">
         {!needsAuth ? (
-          <span className={`chip${selected ? " chip--ok" : ""}`}>
-            {selected ? "Ready" : "Instant"}
-          </span>
+          <StatusMark
+            tone={selected ? "ok" : "idle"}
+            label={selected ? "Ready" : "Instant"}
+          />
         ) : active || state.phase === "connected" ? (
-          <span className="chip chip--ok">
-            Connected
-            {state.phase === "connected" && state.as ? ` as ${state.as}` : ""}
-          </span>
-        ) : !hostLive ? (
-          <span className="chip chip--warn">Needs a Host</span>
+          <StatusMark
+            tone="ok"
+            label={
+              state.phase === "connected" && state.as
+                ? `Connected as ${state.as}`
+                : "Connected"
+            }
+          />
         ) : (
           <button
             type="button"
-            className="btn btn--sm"
+            className="icon-btn"
             disabled={state.phase === "busy"}
             aria-busy={state.phase === "busy"}
+            aria-label={
+              state.phase === "busy"
+                ? "Authorizing"
+                : connection
+                  ? `Reconnect ${connectorLabel(providerId)}`
+                  : `Connect ${connectorLabel(providerId)}`
+            }
+            title={connection ? "Reconnect" : "Connect"}
             onClick={() => void connect()}
           >
-            {state.phase === "busy"
-              ? "Authorizing…"
-              : connection
-                ? "Reconnect"
-                : "Connect"}
+            <IconConnection size={17} />
           </button>
         )}
       </span>
@@ -177,15 +172,9 @@ function ConnectorCard({
 
 export function ConnectorCards({ id }: { id: CapabilityId }) {
   const def = capabilityDef(id);
-  const planes = usePlaneStatus();
   const [connections, setConnections] = useState<Connection[]>([]);
-  const hostLive = planes.host === "live";
 
   useEffect(() => {
-    if (!hostLive) {
-      setConnections([]);
-      return;
-    }
     let live = true;
     void listConnections()
       .then((rows) => {
@@ -197,7 +186,7 @@ export function ConnectorCards({ id }: { id: CapabilityId }) {
     return () => {
       live = false;
     };
-  }, [hostLive]);
+  }, []);
 
   return (
     <ul className="xcards" aria-label={def.title}>
@@ -209,7 +198,6 @@ export function ConnectorCards({ id }: { id: CapabilityId }) {
           connection={connections.find(
             (row) => row.providerId === providerId && row.status === "active",
           )}
-          hostLive={hostLive}
         />
       ))}
     </ul>

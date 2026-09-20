@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { StatusMark } from "./StatusMark.js";
 
 import type { ConnectorStatus } from "../lib/connectors.js";
 import { hostBase, hostRoutedViaDaemon } from "../lib/identity.js";
@@ -119,7 +120,7 @@ export function HostAddress() {
       value={value}
       onValueChange={setValue}
       onCommit={commit}
-      status={saved ? <span className="chip chip--ok">Saved</span> : null}
+      status={saved ? <StatusMark tone="ok" label="Saved" /> : null}
       // Only offer a default that is not already in the box: a fill chip that
       // does nothing is a button that teaches you not to trust buttons.
       fills={

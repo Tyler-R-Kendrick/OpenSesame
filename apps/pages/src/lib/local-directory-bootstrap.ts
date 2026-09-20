@@ -4,8 +4,10 @@
  * The organization owns this instance's projects/vaults. The OpenSesame
  * agent is the in-product helper (ADR 0088); it is a member, never an owner.
  * The OpenSesame application is this origin as a relying party, so grants
- * and policies apply to Pages itself. A guest person is always present
- * (`guest@guest`) so Access can grant and tighten what guests may use.
+ * and policies apply to Pages itself.
+ *
+ * Guest principals are per-session unclaimed people (`Guest N`), minted only
+ * into the active guest tomb — never a standing singleton on personal vaults.
  */
 
 export const SUPPORT_AGENT_ID = "local_00000000-0000-4000-8000-000000000001";
@@ -16,8 +18,16 @@ export const PAGES_APPLICATION_NAME = "OpenSesame";
 export {
   GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
+  guestSessionPerson,
+  isGuestDisplayName,
+  mintGuestSessionPerson,
 } from "./local-guest.js";
-import { GUEST_PERSON_ID, GUEST_PERSON_NAME } from "./local-guest.js";
+import {
+  guestSessionPerson,
+  isGuestDisplayName,
+  isGuestPersonEntry,
+  readGuestSessionPerson,
+} from "./local-guest.js";
 
 import { describeAccount } from "./account.js";
 import {
@@ -27,14 +37,11 @@ import {
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import { vaultStore } from "./vault/store.js";
+import { GUEST_TOMB } from "./vfs.js";
 
 function isPlaceholderPerson(name: string): boolean {
   const trimmed = name.trim();
-  return (
-    trimmed === "Owner" ||
-    trimmed.toLowerCase() === "guest" ||
-    trimmed === GUEST_PERSON_NAME
-  );
+  return trimmed === "Owner" || isGuestDisplayName(trimmed);
 }
 
 function orgNameFor(personName: string): string {
@@ -49,29 +56,34 @@ export function ownerPersonName(
   accountName?: string | null,
   accountGuest = false,
 ): string {
-  if (guest || accountGuest) return GUEST_PERSON_NAME;
+  if (guest || accountGuest) {
+    return readGuestSessionPerson()?.name ?? "guest";
+  }
   const name = accountName?.trim();
   return name || "Owner";
 }
 
 export function currentOwnerPersonName(): string {
   const account = describeAccount();
-  return ownerPersonName(
-    vaultStore.getSnapshot().guest,
-    account?.name,
-    account?.guest,
-  );
+  const snap = vaultStore.getSnapshot();
+  // Guest tomb is always the guest road — even before unlock marks ephemeral.
+  const guestRoad = snap.guest || snap.tomb === GUEST_TOMB;
+  return ownerPersonName(guestRoad, account?.name, account?.guest);
 }
 
 function findGuestPerson(
   directory: LocalDirectory,
 ): LocalDirectory["entries"][number] | undefined {
-  return (
-    directory.entries.find((entry) => entry.id === GUEST_PERSON_ID) ??
-    directory.entries.find(
-      (entry) => entry.kind === "person" && entry.name === GUEST_PERSON_NAME,
-    )
-  );
+  const session = readGuestSessionPerson();
+  if (session) {
+    const match = directory.entries.find((entry) => entry.id === session.id);
+    if (match) return match;
+  }
+  return directory.entries.find((entry) => isGuestPersonEntry(entry));
+}
+
+function guestSessionActive(tomb: string): boolean {
+  return tomb === GUEST_TOMB || vaultStore.getSnapshot().guest;
 }
 
 async function ensurePerson(
@@ -81,12 +93,13 @@ async function ensurePerson(
 ): Promise<LocalDirectory> {
   const name = label.length <= 128 ? label : "Owner";
   if (!current.entries.some((entry) => entry.kind === "person")) {
-    if (name === GUEST_PERSON_NAME) {
+    if (isGuestDisplayName(name) && guestSessionActive(tomb)) {
+      const guest = guestSessionPerson();
       return commitLocalDirectoryUnderLock(tomb, current.revision, {
         action: "create",
         kind: "person",
-        name,
-        id: GUEST_PERSON_ID,
+        name: guest.name,
+        id: guest.id,
       });
     }
     return commitLocalDirectoryUnderLock(tomb, current.revision, {
@@ -97,9 +110,10 @@ async function ensurePerson(
   }
   const person = current.entries.find((entry) => entry.kind === "person");
   if (person && isPlaceholderPerson(person.name) && person.name !== name) {
-    // Guest is a standing principal; never rename Owner into a second guest@guest.
+    // Never rename a claimed/owner person into a guest label, and never
+    // overwrite a different guest principal with this session's name.
     if (
-      name === GUEST_PERSON_NAME &&
+      isGuestDisplayName(name) &&
       findGuestPerson(current)?.id !== person.id
     ) {
       return current;
@@ -114,17 +128,23 @@ async function ensurePerson(
   return current;
 }
 
-/** Guest is always a directory principal so Access can grant them policies. */
+/**
+ * On the guest tomb only: ensure THIS session's guest principal exists.
+ * Personal vaults do not get a standing guest person — that singleton made
+ * every guest share one account for connectors and grants.
+ */
 async function ensureGuestPerson(
   tomb: string,
   current: LocalDirectory,
 ): Promise<LocalDirectory> {
+  if (!guestSessionActive(tomb)) return current;
   if (findGuestPerson(current)) return current;
+  const guest = guestSessionPerson();
   return commitLocalDirectoryUnderLock(tomb, current.revision, {
     action: "create",
     kind: "person",
-    name: GUEST_PERSON_NAME,
-    id: GUEST_PERSON_ID,
+    name: guest.name,
+    id: guest.id,
   });
 }
 

@@ -32,7 +32,7 @@ export const AUTHORITY_HELP: readonly HelpTopic[] = [
     id: "help.configs.permissions",
     title: "Review secret-configuration visibility",
     answer:
-      "Settings → Connectivity shows secret-configuration metadata only when the Host grants it. Project metadata and key-name permissions are separate. Missing access stays hidden; ask an organization owner or administrator to review the project's explicit permissions.",
+      "Settings → Connections shows secret-configuration metadata only when the Host grants it. Project metadata and key-name permissions are separate. Missing access stays hidden; ask an organization owner or administrator to review the project's explicit permissions.",
     routes: [],
     goal: "configs.permissions",
     keywords: ["metadata", "key names", "project permissions"],
@@ -65,7 +65,7 @@ export const AUTHORITY_GOALS: readonly GuideGoalDescriptor[] =
       title: topic.title,
       routes: topic.goal.startsWith("agent.")
         ? ["/access"]
-        : ["/settings/connectivity", "/connections"],
+        : ["/settings/connections", "/connections"],
       guide: [
         "guide/1",
         `goal "${topic.goal}"`,

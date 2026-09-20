@@ -28,6 +28,7 @@ import {
   identityBase,
   useIdentitySession,
 } from "./identity.js";
+import { readGuestSessionPerson } from "./local-guest.js";
 import { signInMethods } from "./settings.js";
 
 export type Account = {
@@ -97,8 +98,10 @@ function describeAccountDefault(
   const tail = principalTail(session);
   if (!identity) {
     // A provisional principal with nothing vouching for it yet: a guest.
+    // Name is the session mint (guest-N), never the shared guest@guest alias.
+    // Read-only — describing must not mint a principal as a side effect.
     return {
-      name: "guest",
+      name: readGuestSessionPerson()?.name ?? "guest",
       detail: [tail, "provisional"].filter(Boolean).join(" · "),
       providerId: null,
       guest: true,

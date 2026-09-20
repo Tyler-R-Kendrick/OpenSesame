@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,43 +50,25 @@ describe("GeneralPrefsPanel", () => {
     Object.assign(vaultHooksSeams, originalVaultHooksSeams);
   });
 
-  it("keeps a source custom idle timeout in Visual and commits through save", async () => {
+  it("commits appearance and locking as they change", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
         <GeneralPrefsPanel />
       </MemoryRouter>,
     );
-    await user.click(screen.getByRole("button", { name: "Source" }));
-    const source = screen.getByLabelText("Source");
-    if (!(source instanceof HTMLTextAreaElement)) {
-      throw new Error("expected prefs source textarea");
-    }
-    fireEvent.change(source, {
-      target: {
-        value: `# keep
-theme: dark
-autoLockMinutes: 7
-lockOnHide: false
-signOutOnLock: false
-clipboardClearSeconds: 30
-`,
-      },
-    });
-    expect(source.value).toContain("autoLockMinutes: 7");
-    expect(source.value).toContain("# keep");
-    await user.click(screen.getByRole("button", { name: "Visual" }));
-    const select = screen.getByLabelText(/Lock after inactivity/i);
-    if (!(select instanceof HTMLSelectElement)) {
-      throw new Error("expected auto-lock select");
-    }
-    expect(select.value).toBe("7");
-    expect(setPrefs).not.toHaveBeenCalled();
-    expect(commitPrefs).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Save preferences" }));
+    await user.click(screen.getByRole("button", { name: "Night" }));
     expect(commitPrefs).toHaveBeenCalledWith(
-      expect.objectContaining({ autoLockMinutes: 7, theme: "dark" }),
+      expect.objectContaining({ theme: "dark" }),
     );
-    expect(screen.getByText(/Preferences saved|Saved source/i)).toBeTruthy();
+    await user.selectOptions(
+      screen.getByLabelText(/Lock after inactivity/i),
+      "60",
+    );
+    expect(commitPrefs).toHaveBeenCalledWith(
+      expect.objectContaining({ autoLockMinutes: 60 }),
+    );
+    expect(screen.queryByRole("button", { name: "Source" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Visual" })).toBeNull();
   });
 });

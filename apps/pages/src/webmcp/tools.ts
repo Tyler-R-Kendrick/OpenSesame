@@ -5,26 +5,8 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import {
-  type NarrowInput,
-  getTask,
-  listDelegations,
-  listMyOffers,
-  listRelayRequests,
-  listTasks,
-  narrowDelegation,
-  revokeDelegation,
-  revokeOffer,
-  terminateTask,
-} from "../lib/access.js";
 import { browserInference } from "../lib/browser-inference.js";
-import {
-  connectionEvents,
-  getConnection,
-  listConnections,
-  listIntegrations,
-  listProviders,
-} from "../lib/connections.js";
+import { getConnection, listConnections } from "../lib/connections.js";
 import {
   type TargetState,
   connectivitySnapshot,
@@ -33,7 +15,6 @@ import { isOnline } from "../lib/connectivity.js";
 import {
   currentSession,
   fetchPrincipal,
-  hostBase,
   identityBase,
 } from "../lib/identity.js";
 import {
@@ -139,29 +120,21 @@ function requireUnlocked(): void {
   }
 }
 
-async function assertHostItemReach(
+async function assertItemReach(
   itemId: string,
   wanted: "read" | "write",
 ): Promise<void> {
-  const { assertHostSessionReach } = await import(
-    "../lib/host-session-reach.js"
-  );
-  await assertHostSessionReach(
+  const { assertShareReach } = await import("../lib/local-share-reach.js");
+  await assertShareReach(
     vaultStore.activeTomb(),
     { kind: "item", id: itemId },
     wanted,
   );
 }
 
-async function assertHostVaultWrite(): Promise<void> {
-  const { assertHostSessionReach } = await import(
-    "../lib/host-session-reach.js"
-  );
-  await assertHostSessionReach(
-    vaultStore.activeTomb(),
-    { kind: "vault" },
-    "write",
-  );
+async function assertVaultWrite(): Promise<void> {
+  const { assertShareReach } = await import("../lib/local-share-reach.js");
+  await assertShareReach(vaultStore.activeTomb(), { kind: "vault" }, "write");
 }
 
 function findItem(itemId: string): VaultItem {
@@ -280,7 +253,7 @@ function targetSummary(state: TargetState) {
 export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
   {
     name: "opensesame_status",
-    capabilityIds: ["host.whoami", "app.status"],
+    capabilityIds: ["app.status"],
     scope: "boot",
     readOnly: true,
     description:
@@ -312,11 +285,11 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
   },
   {
     name: "opensesame_health",
-    capabilityIds: ["host.health.pages"],
+    capabilityIds: ["identity.health.pages"],
     scope: "boot",
     readOnly: true,
     description:
-      "Connectivity posture of this vault tab: browser online state and last-probed health of the Host API, Identity API and local machine agent.",
+      "Connectivity posture of this vault tab: browser online state and last-probed health of the Identity API.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -327,11 +300,8 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       return {
         online: isOnline(),
         offline: snapshot.offline,
-        hostApi: hostBase(),
         identityApi: identityBase(),
-        host: targetSummary(snapshot.host),
         identity: targetSummary(snapshot.identity),
-        machine: targetSummary(snapshot.machine),
       };
     },
   },
@@ -370,7 +340,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       const items = [];
       for (const item of candidates) {
         try {
-          await assertHostItemReach(item.id, "read");
+          await assertItemReach(item.id, "read");
         } catch {
           continue;
         }
@@ -398,7 +368,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     execute: async (args) => {
       requireUnlocked();
       const item = findItem(str(args, "itemId"));
-      await assertHostItemReach(item.id, "read");
+      await assertItemReach(item.id, "read");
       return {
         ...projectVaultItemMeta(item),
         healthIssues: healthIssuesById().get(item.id) ?? [],
@@ -442,8 +412,8 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       if (args.action === "suggest") return suggestItemMetadata(args);
       assertMetadataOnlyWrite(args);
       const itemId = optStr(args, "itemId");
-      if (itemId) await assertHostItemReach(itemId, "write");
-      else await assertHostVaultWrite();
+      if (itemId) await assertItemReach(itemId, "write");
+      else await assertVaultWrite();
       const name = optStr(args, "name");
       const folderId = optStr(args, "folderId");
       const url = optStr(args, "url");
@@ -506,22 +476,17 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
   },
   {
     name: "opensesame_connections_read",
-    capabilityIds: [
-      "providers.list",
-      "connections.list",
-      "connections.inspect",
-      "integrations.read",
-    ],
+    capabilityIds: ["connections.list", "connections.inspect"],
     scope: "session",
     readOnly: true,
     description:
-      "Read the Host connection plane: provider catalog, connections, one connection with its activity events, or configured integrations. Read-only; never returns credentials.",
+      "Read Vercel Connect connections: the list, or one connection. Read-only; never returns credentials.",
     inputSchema: {
       type: "object",
       properties: {
         view: {
           type: "string",
-          enum: ["providers", "connections", "connection", "integrations"],
+          enum: ["connections", "connection"],
         },
         connectionId: {
           type: "string",
@@ -534,156 +499,16 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     execute: async (args) => {
       const view = str(args, "view");
       switch (view) {
-        case "providers":
-          return { providers: await listProviders() };
         case "connections":
           return { connections: await listConnections() };
         case "connection": {
           const id = str(args, "connectionId");
-          const [connection, events] = await Promise.all([
-            getConnection(id),
-            connectionEvents(id),
-          ]);
-          return { connection, events };
+          const connection = await getConnection(id);
+          return { connection };
         }
-        case "integrations":
-          return { integrations: await listIntegrations() };
         default:
           throw new Error(`unknown_view:${view}`);
       }
-    },
-  },
-  {
-    name: "opensesame_access_read",
-    capabilityIds: [
-      "tasks.list",
-      "tasks.inspect",
-      "receipts.read",
-      "delegations.list",
-      "delegations.offers.list",
-      "relay.inbox",
-      "agent_identities.read",
-    ],
-    scope: "session",
-    readOnly: true,
-    description:
-      "Read the access plane: task runs, one task with its capability ceiling, delegations, the caller's delegation offers, the relay approval inbox, or a connection's receipts. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        view: {
-          type: "string",
-          enum: ["tasks", "task", "delegations", "offers", "relay", "receipts"],
-        },
-        id: {
-          type: "string",
-          description:
-            "Task run id for view=task; connection id for view=receipts.",
-        },
-      },
-      required: ["view"],
-      additionalProperties: false,
-    },
-    execute: async (args) => {
-      const view = str(args, "view");
-      switch (view) {
-        case "tasks":
-          return { tasks: await listTasks() };
-        case "task":
-          return { task: await getTask(str(args, "id")) };
-        case "delegations":
-          return { delegations: await listDelegations() };
-        case "offers":
-          return { offers: await listMyOffers() };
-        case "relay":
-          return { requests: await listRelayRequests() };
-        case "receipts":
-          return { events: await connectionEvents(str(args, "id")) };
-        default:
-          throw new Error(`unknown_view:${view}`);
-      }
-    },
-  },
-  {
-    name: "opensesame_task_terminate",
-    capabilityIds: ["tasks.terminate"],
-    scope: "session",
-    description:
-      "Terminate a task-scoped authority run by id, optionally guarded by the expected state version.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        taskRunId: { type: "string" },
-        expectedStateVersion: { type: "number" },
-      },
-      required: ["taskRunId"],
-      additionalProperties: false,
-    },
-    execute: async (args) => {
-      const id = str(args, "taskRunId");
-      const version = isNumber(args.expectedStateVersion)
-        ? args.expectedStateVersion
-        : undefined;
-      return { task: await terminateTask(id, version) };
-    },
-  },
-  {
-    name: "opensesame_delegation_narrow",
-    capabilityIds: ["delegations.narrow"],
-    scope: "session",
-    description:
-      "Narrow a delegation — restriction only. Omitted fields stay as granted; nothing can widen.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        delegationId: { type: "string" },
-        actions: { type: "array", items: { type: "string" } },
-        resources: { type: "array", items: { type: "string" } },
-        expiresInSeconds: { type: "number" },
-      },
-      required: ["delegationId"],
-      additionalProperties: false,
-    },
-    execute: async (args) => {
-      const id = str(args, "delegationId");
-      const input: NarrowInput = {};
-      if (Array.isArray(args.actions)) {
-        input.actions = args.actions.filter(isString);
-      }
-      if (Array.isArray(args.resources)) {
-        input.resources = args.resources.filter(isString);
-      }
-      if (isNumber(args.expiresInSeconds)) {
-        input.expiresInSeconds = args.expiresInSeconds;
-      }
-      return { delegation: await narrowDelegation(id, input) };
-    },
-  },
-  {
-    name: "opensesame_delegation_revoke",
-    capabilityIds: ["delegations.revoke", "delegations.offers.revoke"],
-    scope: "session",
-    description:
-      "Revoke a delegation, or an unclaimed delegation offer with kind=offer.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: { type: "string" },
-        kind: { type: "string", enum: ["delegation", "offer"] },
-      },
-      required: ["id"],
-      additionalProperties: false,
-    },
-    execute: async (args) => {
-      const id = str(args, "id");
-      const kind = optStr(args, "kind") ?? "delegation";
-      if (kind === "offer") {
-        await revokeOffer(id);
-        return { status: "revoked", kind: "offer", id };
-      }
-      if (kind !== "delegation") throw new Error(`unknown_kind:${kind}`);
-      await revokeDelegation(id);
-      return { status: "revoked", kind: "delegation", id };
     },
   },
   {
@@ -731,7 +556,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     scope: "session",
     readOnly: true,
     description:
-      "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0087).",
+      "Read-only settings summary: the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0087).",
     inputSchema: {
       type: "object",
       properties: {},
@@ -747,9 +572,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         await browserInference(),
       );
       return {
-        hostApi: settings.hostApi,
         identityApi: settings.identityApi,
-        daemonApi: settings.daemonApi,
         mfaAppUrl: settings.mfaAppUrl,
         activeProjectId: settings.activeProjectId ?? null,
         capabilityConnectors: settings.capabilityConnectors,
@@ -762,51 +585,11 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     },
   },
   {
-    name: "opensesame_open_relay_approval",
-    capabilityIds: ["relay.decide"],
-    scope: "session",
-    description:
-      "Open the relay approval inbox on a pending request so the human can approve or deny it. Never decides; the consent click stays with the person.",
-    inputSchema: {
-      type: "object",
-      properties: { requestId: { type: "string" } },
-      required: ["requestId"],
-      additionalProperties: false,
-    },
-    execute: (args) =>
-      ceremonyOpened(
-        `/access?view=requests&request=${encodeURIComponent(str(args, "requestId"))}`,
-      ),
-  },
-  {
-    name: "opensesame_open_delegation_claim",
-    capabilityIds: ["delegations.claim"],
-    scope: "session",
-    description:
-      "Open the delegation claim ceremony, prefilled with a claim token and user code when given. The human reviews and accepts; nothing is claimed by this tool.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        claimToken: { type: "string" },
-        userCode: { type: "string" },
-      },
-      additionalProperties: false,
-    },
-    execute: (args) => {
-      const query = new URLSearchParams({ view: "claim" });
-      const token = optStr(args, "claimToken");
-      const code = optStr(args, "userCode");
-      if (token) query.set("token", token);
-      if (code) query.set("code", code);
-      return ceremonyOpened(`/access?${query.toString()}`);
-    },
-  },
-  {
     name: "opensesame_open_connect_ceremony",
     capabilityIds: ["connections.create", "connections.bindings"],
     scope: "session",
     description:
-      "Open the connect ceremony for a provider (and optionally an existing connection) so the human can grant consent or enter a credential. Never completes the ceremony.",
+      "Open the connect ceremony for a provider (and optionally an existing connection) so the human can grant consent. Never completes the ceremony.",
     inputSchema: {
       type: "object",
       properties: {

@@ -7,6 +7,7 @@ import {
   connectorSteps,
   connectorSummary,
   fieldGuidance,
+  isConnectionCatalogProvider,
   needsScopeSelection,
 } from "./connector-guidance.js";
 
@@ -97,6 +98,13 @@ describe("connector setup guidance", () => {
       canConfigureAutomatically(provider({ autoConfigurable: true })),
     ).toBe(true);
     expect(canConfigureAutomatically(provider())).toBe(false);
+    expect(isConnectionCatalogProvider(provider({ id: "github" }))).toBe(true);
+    expect(isConnectionCatalogProvider(provider({ id: "age" }))).toBe(false);
+    expect(
+      isConnectionCatalogProvider(
+        provider({ id: "webcrypto", autoConfigurable: true }),
+      ),
+    ).toBe(false);
   });
 
   it("derives the Auth0 Management API audience from its tenant domain", () => {

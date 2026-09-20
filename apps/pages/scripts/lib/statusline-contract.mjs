@@ -2,19 +2,19 @@
  * Cold-load geometry, not a screenshot: state pips cannot shift icon centers.
  *
  * Two arrangements, because a phone is not a narrow desktop. With room the
- * five connector glyphs are the strip — seven keys with support and the bell.
- * A phone draws no strip at all: a second full-width bar under the tab bar is
- * a row of the frame spent on things looked at rarely, so all of it sits
- * behind the top bar's one overflow key instead. The strip stays in the
- * document (it holds the seat the support mark portals into) but is not drawn,
- * so everything here measures the *visible* controls — counting hidden ones
- * would let either arrangement pass for the other.
+ * identity and keys glyphs are the strip — four keys with support and the bell
+ * (Host is gone; Pages is complete without it — ADR 0128). A phone draws no
+ * strip at all: a second full-width bar under the tab bar is a row of the
+ * frame spent on things looked at rarely, so all of it sits behind the top
+ * bar's one overflow key instead. The strip stays in the document (it holds
+ * the seat the support mark portals into) but is not drawn, so everything
+ * here measures the *visible* controls — counting hidden ones would let
+ * either arrangement pass for the other.
  */
 export async function checkStatusline(page, check) {
   const original = page.viewportSize();
   // 320 is in the list because that is where the strip used to fold onto a
-  // second row: seven 44px keys are 308px, and every pixel of gutter above
-  // that wrapped one of them. Checking 390 alone never saw it.
+  // second row when it held seven keys. Checking 390 alone never saw it.
   for (const viewport of [
     { width: 1280, height: 800 },
     { width: 390, height: 844 },
@@ -71,7 +71,7 @@ export async function checkStatusline(page, check) {
 
 /**
  * The arrangement at one width. On a phone: no strip drawn, and one overflow
- * key in the top bar holding what it held. With room: seven keys, and
+ * key in the top bar holding what it held. With room: four keys, and
  * everything that must hold of them — equal boxes, centred glyphs, one axis,
  * one left-aligned strip, one styling, one Support, no widened document.
  */
@@ -95,8 +95,8 @@ function checkArrangement(geometry, width, check) {
   }
   const size = 28;
   check(
-    geometry.buttons.length === 7,
-    `footer has 7 visible controls at ${width}px; lock belongs with the profile`,
+    geometry.buttons.length === 4,
+    `footer has 4 visible controls at ${width}px; lock belongs with the profile`,
   );
   check(
     geometry.overflowKey === 0 && geometry.planesVisible === 1,

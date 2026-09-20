@@ -6,6 +6,8 @@ import { App } from "./App.js";
 import { DIRECTORY_KEY } from "./lib/connector-directory.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
+import { LAST_VAULT_KEY } from "./lib/last-vault.js";
+import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "./lib/local-guest.js";
 import { MODEL_PROVIDER_KEY } from "./lib/model-provider.js";
 import {
   PROJECTS_KEY,
@@ -33,6 +35,7 @@ import "./components/statusline.css";
 import "./components/wordmark.css";
 import "./sections/vault.css";
 import "./styles.css";
+import "./lib/agent-page-dump.js";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
@@ -88,6 +91,12 @@ void (async () => {
     MODEL_PROVIDER_KEY,
     // Day/night must survive a locked reload — not a vault secret.
     THEME_KEY,
+    // Last authorized vault (guest included). Missing this on a cold load —
+    // e.g. GitHub App install return — makes unlock default to personal.
+    LAST_VAULT_KEY,
+    // Guest slug ordinal + durable principal — same install-return cold load.
+    GUEST_ORDINAL_KEY,
+    GUEST_PERSON_KEY,
   ]);
   rehydrateProjects();
   const tomb = activeProject().id;

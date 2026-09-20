@@ -1359,68 +1359,6 @@
       "operations": ["incident.read", "incident.write", "schedule.read"]
     },
     {
-      "id": "neon",
-      "display_name": "Neon",
-      "category": "backup_recovery",
-      "docs_url": "https://api-docs.neon.tech/reference/getting-started-with-neon-api",
-      "provenance_url": "https://api-docs.neon.tech/reference/getting-started-with-neon-api",
-      "auth": {
-        "kind": "api_key",
-        "header": "Authorization",
-        "value_prefix": "Bearer "
-      },
-      "scopes": [],
-      "egress": {
-        "scheme": "https",
-        "authorities": ["console.neon.tech"],
-        "path_prefixes": []
-      },
-      "operations": ["project.read", "project.write", "branch.read"]
-    },
-    {
-      "id": "postgresql",
-      "display_name": "PostgreSQL",
-      "category": "backup_recovery",
-      "docs_url": "https://www.postgresql.org/docs/current/",
-      "provenance_url": "https://www.postgresql.org/docs/current/",
-      "auth": {
-        "kind": "api_key",
-        "header": "Authorization",
-        "value_prefix": "Bearer "
-      },
-      "scopes": [],
-      "egress": {
-        "scheme": "https",
-        "authorities": ["127.0.0.1:5432", "localhost:5432"],
-        "path_prefixes": []
-      },
-      "operations": ["database.read", "database.write"]
-    },
-    {
-      "id": "supabase",
-      "display_name": "Supabase",
-      "category": "backup_recovery",
-      "docs_url": "https://supabase.com/docs/guides/api",
-      "provenance_url": "https://supabase.com/docs/guides/api",
-      "auth": {
-        "kind": "api_key",
-        "header": "apikey",
-        "value_prefix": ""
-      },
-      "scopes": [],
-      "egress": {
-        "scheme": "https",
-        "authorities": ["api.supabase.com"],
-        "path_prefixes": []
-      },
-      "operations": [
-        "project.read",
-        "project.write",
-        "database.read",
-        "database.write"
-      ]
-    },
-    {
       "id": "ngrok",
       "display_name": "ngrok",
       "category": "developer",

@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { guestAuthSeams } from "./guest-auth.js";
 import { kvDelete, kvSet } from "./kv.js";
 import {
+  clearGuestSessionPerson,
+  mintGuestSessionPerson,
+} from "./local-guest.js";
+import {
   PERSONAL_PROJECT_ID,
   type ProjectsState,
   projectSeams,
@@ -56,12 +60,14 @@ beforeEach(() => {
   });
   kvDelete(tombFileKey(PERSONAL_TOMB, HEADER_PATH));
   kvDelete(tombFileKey("prj_named", HEADER_PATH));
+  clearGuestSessionPerson();
 });
 
 afterEach(() => {
   Object.assign(projectSeams, originalProjectSeams);
   Object.assign(guestAuthSeams, originalGuestSeams);
   vaultStore.lock();
+  clearGuestSessionPerson();
 });
 
 describe("vaultLabel — honest before unlock", () => {
@@ -77,6 +83,11 @@ describe("vaultLabel — honest before unlock", () => {
     ).toBe("project · f4a2");
     expect(vaultLabel({ id: "prj_named", name: "Work" })).toBe("Work");
     expect(vaultLabel({ id: GUEST_TOMB, name: GUEST_TOMB })).toBe("guest");
+  });
+
+  it("uses the guest-N slug once a guest session exists", () => {
+    mintGuestSessionPerson();
+    expect(vaultLabel({ id: GUEST_TOMB, name: GUEST_TOMB })).toBe("guest-1");
   });
 });
 
@@ -128,17 +139,20 @@ describe("listDeviceVaults", () => {
     const guest = vaults.at(-1);
     expect(guest?.id).toBe(GUEST_TOMB);
     expect(guest?.state).toBe("open");
-    // A first-run guest lives in the personal tomb; that row is not "open".
+    // Guests always unlock GUEST_TOMB — personal stays closed beside them.
     expect(vaults[0]?.state).not.toBe("open");
   });
 });
 
 describe("switchVault", () => {
-  it("the guest road locks nothing it does not own and continues as guest", async () => {
-    const continueAsGuest = vi.fn().mockResolvedValue(undefined);
-    Object.assign(guestAuthSeams, { continueAsGuest });
-    await expect(switchVault(GUEST_TOMB)).resolves.toBe("opened");
-    expect(continueAsGuest).toHaveBeenCalledTimes(1);
+  it("the guest road locks the open vault and lands on guest Unlock", async () => {
+    await vaultStore.createWithPin("24681357");
+    expect(vaultStore.isUnlocked()).toBe(true);
+    await expect(switchVault(GUEST_TOMB)).resolves.toBe("locked");
+    const snap = vaultStore.getSnapshot();
+    expect(snap.tomb).toBe(GUEST_TOMB);
+    expect(snap.status).toBe("empty");
+    expect(vaultStore.isUnlocked()).toBe(false);
   });
 
   it("refuses a vault that is not on this device", async () => {

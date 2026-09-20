@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { ConnectorStatus } from "../../lib/connectors.js";
 
@@ -23,10 +23,10 @@ Object.assign(coreConnectionsDependencies, {
 
 function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
   return {
-    id: "host",
-    name: "Host",
+    id: "identity",
+    name: "Identity",
     tone: "live",
-    detail: "127.0.0.1:18787",
+    detail: "This device",
     rttMs: 12,
     failure: null,
     lastCheckedAt: null,
@@ -51,74 +51,59 @@ describe("CoreConnectionsPanel", () => {
     const { container } = renderPanel([
       status(),
       status({
-        id: "machine",
-        name: "This machine",
-        tone: "attn",
-        detail: "Not paired",
+        id: "keys",
+        name: "Key vault",
+        tone: "live",
+        detail: "WebCrypto (this device)",
       }),
     ]);
-    expect(container.querySelectorAll(".conn").length).toBe(2);
-    expect(screen.getByText("127.0.0.1:18787")).toBeTruthy();
-    expect(screen.getByText("Not paired")).toBeTruthy();
-    // Nothing here is a text input any more.
+    expect(container.querySelectorAll(".conn-tile").length).toBe(2);
+    expect(screen.getByRole("img", { name: "This device" })).toBeTruthy();
+    expect(
+      screen.getByRole("img", { name: "WebCrypto (this device)" }),
+    ).toBeTruthy();
     expect(container.querySelector("input")).toBeNull();
   });
 
-  it("labels what each tile will do when opened", () => {
+  it("marks tone without painting a verb", () => {
     renderPanel([
       status(),
-      status({ id: "machine", tone: "attn", name: "This machine" }),
-      status({ id: "keys", tone: "off", name: "Key vault" }),
-    ]);
-    expect(screen.getByText("Connected")).toBeTruthy();
-    expect(screen.getByText("Fix")).toBeTruthy();
-    expect(screen.getByText("Set up")).toBeTruthy();
-  });
-
-  it("marks the built-in key vault as such", () => {
-    renderPanel([status({ id: "keys", name: "Key vault" })]);
-    expect(screen.getByText("Built in")).toBeTruthy();
-    expect(screen.queryByText("Required")).toBeNull();
-  });
-
-  it("marks git history as optional", () => {
-    renderPanel([
       status({
-        id: "history",
-        name: "Git history",
+        id: "keys",
         tone: "off",
-        detail: "Not connected",
+        name: "Key vault",
+        detail: "Not set up",
       }),
     ]);
-    expect(screen.getByText("Optional")).toBeTruthy();
-    expect(screen.queryByText("Required")).toBeNull();
-    // Not "all connected" — nothing is — and not a complaint either.
-    expect(screen.getByText("Nothing needs setup")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Identity" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Not set up" })).toBeTruthy();
+    expect(screen.queryByText("Connected")).toBeNull();
+    expect(screen.queryByText("Set up")).toBeNull();
+  });
+
+  it("does not paint a built-in chip", () => {
+    renderPanel([status({ id: "keys", name: "Key vault" })]);
+    expect(screen.queryByText("Built in")).toBeNull();
+    expect(screen.getByRole("img", { name: "This device" })).toBeTruthy();
   });
 
   it("summarises attention in the panel head", () => {
-    // Two configured endpoints that stopped answering. The optional git
-    // history binding is merely unconnected, which is not a fault.
-    renderPanel([
-      status({ tone: "attn" }),
-      status({ id: "machine", name: "This machine", tone: "attn" }),
-      status({ id: "history", name: "Git history", tone: "off" }),
-    ]);
-    expect(screen.getByText("2 need attention")).toBeTruthy();
+    renderPanel([status({ tone: "attn" })]);
+    expect(screen.getByRole("img", { name: "1 needs attention" })).toBeTruthy();
   });
 
   it("says so plainly when nothing needs doing", () => {
     renderPanel([status()]);
-    expect(screen.getByText("All connected")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "All connected" })).toBeTruthy();
   });
 
   it("opens the same ceremony the connectivity bar opens", () => {
     renderPanel([
       status(),
-      status({ id: "machine", name: "This machine", tone: "attn" }),
+      status({ id: "keys", name: "Key vault", tone: "attn" }),
     ]);
     expect(screen.queryByTestId("ceremony")).toBeNull();
-    fireEvent.click(screen.getByText("This machine"));
-    expect(screen.getByTestId("ceremony").textContent).toBe("machine");
+    fireEvent.click(screen.getByRole("button", { name: "Key vault" }));
+    expect(screen.getByTestId("ceremony").textContent).toBe("keys");
   });
 });

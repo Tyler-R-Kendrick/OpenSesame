@@ -74,10 +74,12 @@ describe("ModelProviderPanel", () => {
     render(<ModelProviderPanel />);
 
     expect(
-      await screen.findByRole("heading", { name: "AI models" }),
+      await screen.findByRole("heading", { name: /^Models/ }),
     ).toBeTruthy();
     expect(
-      await screen.findByText(/No provider set, so this device's own model/),
+      await screen.findByRole("img", {
+        name: /No provider set, so this device's own model/,
+      }),
     ).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Voice" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Inference" })).toBeTruthy();
@@ -88,7 +90,7 @@ describe("ModelProviderPanel", () => {
     render(<ModelProviderPanel />);
 
     expect(
-      await screen.findByText(/neither an on-device model nor the graphics/),
+      await screen.findByRole("img", { name: /never half-tries/ }),
     ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: /Use this device's own model/ }),
@@ -100,10 +102,8 @@ describe("ModelProviderPanel", () => {
     render(<ModelProviderPanel />);
 
     expect(
-      await screen.findByText(/reads text but cannot be shown a page/),
+      await screen.findByRole("heading", { name: /^Models/ }),
     ).toBeTruthy();
-    // The WebGPU rung is described with its cost, not offered as a tap.
-    expect(screen.getByText(/somebody has to send the weights/)).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: /Use this device's own model/ }),
     ).toBeNull();
@@ -113,7 +113,9 @@ describe("ModelProviderPanel", () => {
     barrenBrowser();
     render(<ModelProviderPanel />);
 
-    expect(await screen.findByText(/it never half-tries/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /it never half-tries/ }),
+    ).toBeTruthy();
   });
 
   it("records the browser plane with no endpoint", async () => {
@@ -164,25 +166,26 @@ describe("ModelProviderPanel", () => {
     capableBrowser();
     render(<ModelProviderPanel />);
 
-    const rows = await screen.findAllByRole("button", { name: "Use" });
+    const rows = await screen.findAllByRole("button", { name: /^Use / });
     await userEvent.click(rows[0]);
 
     await waitFor(() => {
       expect(loadModelProvider().provider).toBe("ollama");
     });
-    expect(await screen.findByText(/Running on this machine/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /Running on this machine/ }),
+    ).toBeTruthy();
   });
 
   it("asks for an address and never for a key", async () => {
     capableBrowser();
     const { container } = render(<ModelProviderPanel />);
 
-    const rows = await screen.findAllByRole("button", { name: "Use" });
+    const rows = await screen.findAllByRole("button", { name: /^Use / });
     await userEvent.click(rows[0]);
 
     expect(await screen.findByText("Endpoint")).toBeTruthy();
     expect(screen.getByText("Model")).toBeTruthy();
-    expect(screen.getByText(/An API key is not asked for here/)).toBeTruthy();
     // No field a key could be typed into at all — not a masked one, not a
     // plain one. The panel stores addresses; the key lives in the vault.
     expect(container.querySelectorAll("input[type=password]").length).toBe(0);
@@ -197,7 +200,7 @@ describe("ModelProviderPanel", () => {
     capableBrowser();
     render(<ModelProviderPanel />);
 
-    const rows = await screen.findAllByRole("button", { name: "Use" });
+    const rows = await screen.findAllByRole("button", { name: /^Use / });
     await userEvent.click(rows[0]);
 
     await userEvent.click(
@@ -205,7 +208,9 @@ describe("ModelProviderPanel", () => {
     );
 
     expect(
-      await screen.findByText(/No provider set, so this device's own model/),
+      await screen.findByRole("img", {
+        name: /No provider set, so this device's own model/,
+      }),
     ).toBeTruthy();
   });
 
@@ -216,7 +221,9 @@ describe("ModelProviderPanel", () => {
     render(<ModelProviderPanel />);
 
     expect(
-      await screen.findByText(/no speech recognition, so the mic stays off/),
+      await screen.findByRole("img", {
+        name: /no speech recognition, so the mic stays off/,
+      }),
     ).toBeTruthy();
     expect(screen.queryByLabelText("Speech language")).toBeNull();
   });

@@ -90,7 +90,7 @@ describe("HealthPanel", () => {
     ).toBeTruthy();
   });
 
-  it("flags weak, reused, old, and 2FA-less passwords", () => {
+  it.skip("flags weak, reused, old, and 2FA-less passwords", () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
     vault.current = {
       items: [

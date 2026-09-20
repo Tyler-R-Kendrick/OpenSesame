@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { IconPlus, IconX } from "../../components/Icons.js";
 import {
   type LocalAccessRequest,
   createLocalAccessRequest,
@@ -95,13 +96,21 @@ export function LocalRequestForm({
         <div className="actions">
           <button
             type="submit"
-            className="btn btn--primary"
+            className="icon-btn"
             disabled={!applications.length}
+            aria-label="Create local request"
+            title="Create local request"
           >
-            Create local request
+            <IconPlus size={16} />
           </button>
-          <button type="button" className="btn" onClick={close}>
-            Cancel request
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Cancel request"
+            title="Cancel request"
+            onClick={close}
+          >
+            <IconX size={16} />
           </button>
         </div>
       </form>

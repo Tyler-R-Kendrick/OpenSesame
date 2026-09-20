@@ -66,6 +66,17 @@ describe("KeyVaultCeremony", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("binds age as a local key SOP from inside the sheet", () => {
+    render(<KeyVaultCeremony onClose={() => {}} />);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Use WebCrypto or age on this device/,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "age (this device)" }));
+    expect(bindCapabilityConnector).toHaveBeenCalledWith("encryption", "age");
+  });
+
   it("binds a hardware key from inside the sheet", () => {
     render(<KeyVaultCeremony onClose={() => {}} />);
     fireEvent.click(

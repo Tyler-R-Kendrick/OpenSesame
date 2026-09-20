@@ -1,7 +1,9 @@
+import { IconCheck } from "../../components/Icons.js";
 /**
  * Shared voice + inference catalog pickers for Setup › AI and Settings › AI models.
  */
 
+import { StatusMark } from "../../components/StatusMark.js";
 import type { ModelCatalogEntry } from "../../lib/model-catalog.js";
 import {
   INFERENCE_MODEL_CATALOG,
@@ -99,9 +101,11 @@ function VoiceCards(props: RoleListProps) {
               <span className="xcard__kind">{entry.kindLabel}</span>
             </button>
             <span className="xcard__side">
-              <span className={`chip${inUse ? " chip--ok" : ""}`}>
-                {inUse ? "In use" : "Device"}
-              </span>
+              {inUse ? (
+                <StatusMark tone="ok" label="In use" />
+              ) : (
+                <span>Device</span>
+              )}
             </span>
           </li>
         );
@@ -122,10 +126,14 @@ function VoiceList(props: RoleListProps) {
           </div>
           <button
             type="button"
-            className={
-              record.voice.provider === entry.id ? "btn btn--primary" : "btn"
-            }
+            className="icon-btn"
             disabled={busy}
+            aria-label={
+              record.voice.provider === entry.id
+                ? `Using ${entry.name}`
+                : `Use ${entry.name}`
+            }
+            title={entry.name}
             onClick={() =>
               onCommit(
                 withVoice(
@@ -135,7 +143,7 @@ function VoiceList(props: RoleListProps) {
               )
             }
           >
-            {record.voice.provider === entry.id ? "In use" : "Use"}
+            <IconCheck size={16} />
           </button>
         </li>
       ))}
@@ -150,23 +158,19 @@ export function VoiceRolePicker(props: VoiceRoleProps) {
   if (props.speechReady === false) {
     return (
       <>
-        <h3 className="ai-role__title">Voice</h3>
-        <p className="note">
-          <span>
-            This browser has no speech recognition, so the mic stays off. Typed
-            commands still work.
-          </span>
-        </p>
+        <h3 className="ai-role__title">
+          Voice
+          <StatusMark
+            tone="idle"
+            label="This browser has no speech recognition, so the mic stays off. Typed commands still work."
+          />
+        </h3>
       </>
     );
   }
   return (
     <>
       <h3 className="ai-role__title">Voice</h3>
-      <p className="ai-role__lead">
-        Which speech engine turns mic listening into text. Languages are the
-        browser&apos;s; nothing is sent to a transcription vendor.
-      </p>
       {props.chrome === "cards" ? (
         <VoiceCards {...props} />
       ) : (
@@ -239,30 +243,28 @@ export function InferenceRefineFields(props: InferenceRefineProps) {
           spellCheck={false}
         />
       </label>
-      <p className="note">
-        <span>
-          An API key is not asked for here. Keep it in the vault; this panel
-          stores addresses only.
-        </span>
-      </p>
       {props.mode === "button" ? (
         <div className="actions">
           <button
             type="button"
-            className="btn btn--primary"
+            className="icon-btn"
             disabled={props.busy}
             onClick={commitRefine}
+            aria-label="Save"
+            title="Save"
           >
-            {props.busy ? "Saving…" : "Save"}
+            <IconCheck size={16} />
           </button>
           {props.onClear ? (
             <button
               type="button"
-              className="btn"
+              className="icon-btn"
               disabled={props.busy}
+              aria-label="Use no provider"
+              title="Use no provider"
               onClick={props.onClear}
             >
-              Use no provider
+              <IconCheck size={16} />
             </button>
           ) : null}
         </div>
@@ -303,11 +305,11 @@ function InferenceCards(props: InferenceListProps) {
             <span className="xcard__kind">in the browser</span>
           </button>
           <span className="xcard__side">
-            <span
-              className={`chip${record.inference.provider === "browser" ? " chip--ok" : ""}`}
-            >
-              {record.inference.provider === "browser" ? "In use" : "Device"}
-            </span>
+            {record.inference.provider === "browser" ? (
+              <StatusMark tone="ok" label="In use" />
+            ) : (
+              <span>Device</span>
+            )}
           </span>
         </li>
       ) : null}
@@ -328,9 +330,11 @@ function InferenceCards(props: InferenceListProps) {
               <span className="xcard__kind">{entry.kindLabel}</span>
             </button>
             <span className="xcard__side">
-              <span className={`chip${inUse ? " chip--ok" : ""}`}>
-                {inUse ? "In use" : entry.kind === "local" ? "Local" : "Hosted"}
-              </span>
+              {inUse ? (
+                <StatusMark tone="ok" label="In use" />
+              ) : (
+                <span>{entry.kind === "local" ? "Local" : "Hosted"}</span>
+              )}
             </span>
           </li>
         );
@@ -351,17 +355,19 @@ function InferenceListRows(props: InferenceListProps) {
           </div>
           <button
             type="button"
-            className={
-              record.inference.provider === entry.id
-                ? "btn btn--primary"
-                : "btn"
-            }
+            className="icon-btn"
             disabled={busy}
+            aria-label={
+              record.inference.provider === entry.id
+                ? `Using ${entry.name}`
+                : `Use ${entry.name}`
+            }
+            title={entry.name}
             onClick={() =>
               onCommit(withInference(record, choiceFromEntry(entry)))
             }
           >
-            {record.inference.provider === entry.id ? "In use" : "Use"}
+            <IconCheck size={16} />
           </button>
         </li>
       ))}
@@ -373,10 +379,6 @@ export function InferenceRolePicker(props: InferenceListProps) {
   return (
     <>
       <h3 className="ai-role__title">Inference</h3>
-      <p className="ai-role__lead">
-        Which model interprets freer command phrasing and works a site&apos;s
-        own password-reset form. Addresses only — never a key.
-      </p>
       {props.chrome === "cards" ? (
         <InferenceCards {...props} />
       ) : (

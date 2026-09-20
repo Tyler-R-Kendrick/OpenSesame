@@ -7,8 +7,9 @@ import {
   SlashSearchKey,
   useListingSearch,
 } from "../../components/SlashSearch.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import type { Connection, Provider } from "../../lib/connections.js";
-import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
+import { isConnectionCatalogProvider } from "../../lib/connector-guidance.js";
 import { isManagedConnector } from "../../lib/managed-connectors.js";
 import {
   catalogTileNote,
@@ -48,9 +49,9 @@ export function CatalogPanel({
   const customRef = useGuideTarget<HTMLAnchorElement>("connections.custom");
   const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
   const catalogProviders = (providers ?? []).filter(
-    (provider) => !canConfigureAutomatically(provider),
+    isConnectionCatalogProvider,
   );
-  const grouped = catalogPageSections(providers ?? [], normalizedQuery);
+  const grouped = catalogPageSections(catalogProviders, normalizedQuery);
 
   const sealKeyMissing = (providers ?? []).some((provider) =>
     provider.missingConfig.some((name) => name.includes("CONNECTION_KEY")),
@@ -175,9 +176,7 @@ function ProviderTile({
           <span className="conn-tile__kind">{authKindLabel(provider)}</span>
         </span>
         {note ? (
-          <span className={`chip chip--sm-tile ${note.tone}`}>
-            {note.label}
-          </span>
+          <StatusMark tone={statusTone(note.tone)} label={note.label} />
         ) : null}
       </TileBody>
     </li>

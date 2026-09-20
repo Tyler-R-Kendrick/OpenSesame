@@ -1,16 +1,12 @@
 #!/usr/bin/env node
 /**
- * Design lint — the control contract in `docs/design/controls.md`, enforced.
+ * Design lint — `DESIGN.md` and `docs/design/controls.md`, enforced.
  *
- * The vault has two primary actions: `.go`, the ink square that ends a screen,
- * and `.btn--primary`, the text button that does a thing inside a card. The
- * first-run setup ceremony shipped with a full-width text slab in its foot
- * bar, which is neither — it read as a banner and looked nothing like the
- * unlock screen it sits next to. Review caught it; nothing else would have.
- *
- * These checks are deliberately mechanical: a lint that tried to
- * decide *in general* whether a button should have been an icon would be wrong
- * constantly. These catch the specific things that actually went wrong.
+ * An action that executes is an icon key (`icon-btn`, or `.go` for the action
+ * that ends a screen). A verb painted on a button face is a failure. Choice
+ * objects (a provider, a mode, a navigation target, the guest road) stay text.
+ * Existing word-verb buttons are pinned in `scripts/design-button-baseline.json`
+ * and that ledger only falls.
  *
  *   node scripts/design-lint.mjs [files...]
  *
@@ -94,10 +90,8 @@ function lineOf(source, index) {
  * A screen's commit bar: the `*__foot` of a screen-level ceremony.
  *
  * Scoped to `src/screens/` deliberately. A *card* also has a foot — see
- * `.conn-card__foot` — and a card's foot is legitimately a row of
- * `.btn--primary` actions, because the label is doing real work there ("Renew
- * now", "Re-authorize"). The contract is about the action that ends a
- * *screen*, and in this codebase screens live in one directory.
+ * `.conn-card__foot`. A card's actions are icon keys too. This check is only
+ * about a screen's terminal commit, and screens live in one directory.
  */
 const COMMIT_BAR = /className="[^"]*\b(\w+__foot)\b[^"]*"/g;
 const SCREEN_DIR = /(^|\/)src\/screens\//;
@@ -159,6 +153,123 @@ function checkTsx(file, source) {
         "A `.go` square is paired with a `.go-verb` beside it; an unlabelled ink square is mystery meat.",
       );
     }
+  }
+  checkExplainers(file, source);
+  checkWordVerbs(file, source);
+  checkStatusPills(file, source);
+}
+
+/** Captions that narrate a connector panel instead of showing the row. */
+const EXPLAINER =
+  /this app is installed|permissions it was granted|repositories it can reach|saved in this app|already saved in this app|no permissions recorded|no repositories returned|no github user or organization|loading github app access|mirrored as a revocable/i;
+
+function checkExplainers(file, source) {
+  const path = relative(root, file).replaceAll("\\", "/");
+  if (!path.includes("/sections/connections/")) return;
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const match of code.matchAll(
+    /<div className="panel__head">([\s\S]*?)<\/div>/g,
+  )) {
+    if (!match[1].includes("hint")) continue;
+    report(
+      file,
+      lineOf(source, match.index ?? 0),
+      "no-explainer",
+      "A panel head is a title. Do not add a caption that explains the section.",
+    );
+  }
+  for (const match of code.matchAll(/["'`]([^"'`\n]+)["'`]/g)) {
+    if (!EXPLAINER.test(match[1])) continue;
+    report(
+      file,
+      lineOf(source, match.index ?? 0),
+      "no-explainer",
+      "Explainer copy is a design smell. Show the account, grant, or repo. Do not describe the panel.",
+    );
+  }
+}
+
+/**
+ * Executing verbs. Choice labels (provider names, guest, navigation) are not
+ * in this list. Matched against the button source, then waived for icon keys.
+ */
+const WORD_VERB =
+  /\b(Retry|Revoke|Authorize|Re-authorize|Connect |Save|Cancel|Copy|Keep it|Keep them|Load \d+ more|Unlink|Dismiss)\b/;
+
+const BUTTON_BASELINE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "design-button-baseline.json",
+);
+
+function isCountRecord(value) {
+  return (
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+function readButtonBaseline() {
+  try {
+    const parsed = JSON.parse(readFileSync(BUTTON_BASELINE, "utf8"));
+    if (!isCountRecord(parsed)) return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+const buttonBaseline = readButtonBaseline();
+
+function checkWordVerbs(file, source) {
+  const path = relative(root, file).replaceAll("\\", "/");
+  const hits = [];
+  for (const match of source.matchAll(/<button\b([^>]*)>[\s\S]*?<\/button>/g)) {
+    const attrs = match[1] ?? "";
+    if (/\bicon-btn\b/.test(attrs) || /\bclassName="go"/.test(attrs)) continue;
+    if (!WORD_VERB.test(match[0])) continue;
+    hits.push(match.index ?? 0);
+  }
+  const recorded = Object.hasOwn(buttonBaseline, path)
+    ? buttonBaseline[path]
+    : 0;
+  if (!Number.isInteger(recorded)) return;
+  if (hits.length === recorded) return;
+  if (hits.length < recorded) {
+    report(
+      file,
+      1,
+      "word-verb-button",
+      `Word-verb buttons fell from ${recorded} to ${hits.length}. Lower ${path} in scripts/design-button-baseline.json.`,
+    );
+    return;
+  }
+  for (const index of hits.slice(recorded)) {
+    report(
+      file,
+      lineOf(source, index),
+      "word-verb-button",
+      "An executing action is an icon key (`icon-btn` or `.go`) with aria-label and title. Do not paint the verb on the button. See DESIGN.md § Actions are symbols.",
+    );
+  }
+}
+
+function checkStatusPills(file, source) {
+  const face =
+    /\b(Connected|Needs you|Needs install|Broken|Not enabled|Revoked|Authorized|Disabled|Enabled|inactive|Saved|In use|Did not match|Does not match|Matches|broad|In trash|Will connect|Ready|Instant|SYNTHETIC|connector off|Identity sealed|No identity|locked|Offline|All connected|Nothing needs setup|needs attention|need attention|errors?|chip\.label|VERB_LABEL|note\.label|session\.status|ISSUE_LABEL|stateChip)\b/;
+  for (const match of source.matchAll(
+    /<(span|p|output|div)\b[^>]*\bchip\b[^>]*>/g,
+  )) {
+    const start = (match.index ?? 0) + match[0].length;
+    const close = source.indexOf(`</${match[1]}>`, start);
+    if (close === -1) continue;
+    if (!face.test(source.slice(start, close))) continue;
+    report(
+      file,
+      lineOf(source, match.index ?? 0),
+      "status-is-symbol",
+      "Status is a StatusMark glyph with aria-label and title. Do not paint the word on a chip. See DESIGN.md § Status is a symbol.",
+    );
   }
 }
 

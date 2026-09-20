@@ -12,7 +12,7 @@
  */
 
 import { useState } from "react";
-import { IconPlus, IconTrash } from "../../components/Icons.js";
+import { IconPlus, IconTrash, IconX } from "../../components/Icons.js";
 import { VaultList } from "../../components/VaultList.js";
 import { PERSONAL_PROJECT_ID } from "../../lib/projects.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -97,22 +97,26 @@ export function VaultsPanel() {
             <div className="actions">
               <button
                 type="button"
-                className="btn btn--danger btn--sm"
+                className="icon-btn icon-btn--sm icon-btn--danger is-armed"
                 disabled={busy}
+                aria-label="Delete this vault"
+                title="Delete this vault"
                 onClick={() => {
                   const id = arming;
                   setArming(null);
                   run(() => removeVault(id));
                 }}
               >
-                Delete this vault
+                <IconTrash size={16} />
               </button>
               <button
                 type="button"
-                className="btn btn--ghost btn--sm"
+                className="icon-btn icon-btn--sm"
+                aria-label="Keep it"
+                title="Keep it"
                 onClick={() => setArming(null)}
               >
-                Keep it
+                <IconX size={16} />
               </button>
             </div>
           </div>
@@ -144,11 +148,12 @@ export function VaultsPanel() {
             />
             <button
               type="submit"
-              className="btn"
+              className="icon-btn"
               disabled={busy || name.trim().length === 0}
+              aria-label="Create vault"
+              title="Create vault"
             >
               <IconPlus size={16} />
-              Create
             </button>
           </div>
           {canShareKey ? (

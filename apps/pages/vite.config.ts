@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { crossOriginOpenerPolicy } from "./src/lib/opener-policy.ts";
 
@@ -61,6 +63,7 @@ export default defineConfig({
   // Dependency pre-bundling in dev has its own target and hits the same limitation.
   esbuild: { target: "es2022" },
   plugins: [
+    githubAppRelayPlugin(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
       // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
@@ -78,6 +81,30 @@ export default defineConfig({
             base,
           );
           if (coop) res.setHeader("Cross-Origin-Opener-Policy", coop);
+          const pathOnly = req.url?.split("?")[0] ?? "";
+          if (
+            pathOnly === `${base}__agent_page` ||
+            pathOnly === "/__agent_page"
+          ) {
+            if (req.method === "POST") {
+              const chunks = [];
+              req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+              req.on("end", () => {
+                try {
+                  writeFileSync(
+                    "/tmp/agent-page.json",
+                    Buffer.concat(chunks).toString("utf8"),
+                  );
+                } catch {}
+                res.statusCode = 204;
+                res.end();
+              });
+              return;
+            }
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
           if (req.url?.startsWith("/opensesame/callback")) {
             const query = req.url.slice("/opensesame/callback".length);
             res.statusCode = 302;

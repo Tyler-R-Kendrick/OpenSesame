@@ -11,6 +11,11 @@ function locationHere(): string {
   );
 }
 
+function activateRow(row: HTMLElement | undefined): void {
+  if (!row) return;
+  row.click();
+}
+
 /**
  * Whether moving the rail cursor should also drive the page.
  *
@@ -130,7 +135,7 @@ export function useRailKeyboard(
         if (here !== path) navigateRef.current(path);
       },
       ...branchActions(tree, () => rows()[selectedIndex(rows())], dive),
-      activate: () => rows()[selectedIndex(rows())]?.click(),
+      activate: () => activateRow(rows()[selectedIndex(rows())]),
     });
   }, [treeRef, navigateRef, currentToRef]);
 }
@@ -144,6 +149,7 @@ function branchActions(
     enter: () => {
       const row = current();
       if (!row) return;
+      // Collapse/expand directories activate by click; leaves dive in.
       if (row.getAttribute("aria-expanded") === "false") {
         row.click();
         return;

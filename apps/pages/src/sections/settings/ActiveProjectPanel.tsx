@@ -1,6 +1,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { useCallback, useEffect, useState } from "react";
-import { IconAlert, IconCheck } from "../../components/Icons.js";
+import { IconLogin, IconRefresh } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
   identityFetch,
   isDeviceIdentityMode,
@@ -137,49 +138,39 @@ export function ActiveProjectPanel() {
   const active = projects.find((p) => p.id === activeId);
 
   return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Active project</h2>
-        </div>
-      </div>
-      <div className="panel__body">
-        <OfflineNote online={online} deviceIdentity={deviceIdentity} />
-        {session ? (
-          <ProjectPicker
-            deviceIdentity={deviceIdentity}
-            projects={projects}
-            activeId={activeId}
-            active={active}
-            busy={busy}
-            flash={flash}
-            onSelect={selectProject}
-            onRefresh={() => void refresh()}
-          />
-        ) : (
-          <ConnectIdentityButton
-            connecting={connecting}
-            deviceIdentity={deviceIdentity}
-            onConnect={() => void connect()}
-          />
+    <div className="conn-group" id="active-project">
+      <h3 className="conn-group__label">
+        Project
+        {online || deviceIdentity ? null : (
+          <StatusMark tone="warn" label="Offline" />
         )}
-      </div>
-    </section>
-  );
-}
-
-function OfflineNote({
-  online,
-  deviceIdentity,
-}: {
-  online: boolean;
-  deviceIdentity: boolean;
-}) {
-  if (online || deviceIdentity) return null;
-  return (
-    <output className="note note--warn">
-      Offline — project list needs Identity.
-    </output>
+      </h3>
+      {session ? (
+        <div className="conn-tile">
+          <div className="conn-tile__body">
+            <ProjectPicker
+              projects={projects}
+              activeId={activeId}
+              active={active}
+              busy={busy}
+              flash={flash}
+              onSelect={selectProject}
+              onRefresh={() => void refresh()}
+            />
+          </div>
+        </div>
+      ) : (
+        <ul className="conn-grid">
+          <li className="conn-tile">
+            <ConnectIdentityButton
+              connecting={connecting}
+              deviceIdentity={deviceIdentity}
+              onConnect={() => void connect()}
+            />
+          </li>
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -194,21 +185,21 @@ function ConnectIdentityButton({
 }) {
   const disabled = connecting || (!deviceIdentity && !shouldAutoConnect());
   return (
-    <div className="actions">
-      <button
-        type="button"
-        className="btn btn--primary"
-        disabled={disabled}
-        onClick={onConnect}
-      >
-        {connecting ? "Connecting…" : "Connect Identity"}
-      </button>
-    </div>
+    <button
+      type="button"
+      className="conn-tile__link"
+      disabled={disabled}
+      onClick={onConnect}
+      aria-label="Connect Identity"
+      title="Connect Identity"
+    >
+      <IconLogin size={16} />
+      <span className="conn-tile__name">Identity</span>
+    </button>
   );
 }
 
 function ProjectPicker({
-  deviceIdentity,
   projects,
   activeId,
   active,
@@ -217,7 +208,6 @@ function ProjectPicker({
   onSelect,
   onRefresh,
 }: {
-  deviceIdentity: boolean;
   projects: ProjectSummary[];
   activeId: string;
   active: ProjectSummary | undefined;
@@ -228,11 +218,6 @@ function ProjectPicker({
 }) {
   return (
     <>
-      {deviceIdentity ? (
-        <p className="hint">
-          Projects on this device — the same list Settings → Vaults uses.
-        </p>
-      ) : null}
       <div className="field">
         <label htmlFor="active-project">Project</label>
         <select
@@ -253,30 +238,22 @@ function ProjectPicker({
           ))}
         </select>
       </div>
-      {active ? (
-        <p className="hint">
-          Tomb binding: <code>{active.sealedStoreTombName ?? "personal"}</code>
-          {active.pagesVaultFolderId
-            ? ` · Vault folder: ${active.pagesVaultFolderId}`
-            : null}
-        </p>
-      ) : null}
       <div className="actions">
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
+          aria-label="Refresh projects"
+          title="Refresh projects"
           onClick={onRefresh}
         >
-          {busy ? "Refreshing…" : "Refresh / ensure personal"}
+          <IconRefresh size={16} />
         </button>
         {flash ? (
-          <output
-            className={`chip chip--${flash.tone === "ok" ? "ok" : "err"}`}
-          >
-            {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-            {flash.text}
-          </output>
+          <StatusMark
+            tone={flash.tone === "ok" ? "ok" : "err"}
+            label={flash.text}
+          />
         ) : null}
       </div>
     </>

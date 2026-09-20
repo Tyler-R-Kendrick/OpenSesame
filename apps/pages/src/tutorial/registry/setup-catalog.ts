@@ -64,7 +64,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.setup",
     description:
-      "Opens optional deployment setup — connectors, sign-in, backups, all skippable. The Set up your own road on the front door, and a link in the sign-in form's foot.",
+      "Opens optional deployment setup — connectors, sign-in, backups, all skippable. The Set up your own road on the front door; after the ceremony, setup lives behind unlock.",
     role: "ceremony",
     routes: ["/unlock"],
     capabilityId: "setup.first_run",
@@ -72,7 +72,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "setup.join",
     description:
-      "Opens the join road: a claim invite or a request into a public session. The Join a session road on the front door, and a link in the sign-in form's foot.",
+      "Opens the join road from an invite link: a claim invite or a request into a public session. Not a front-door road.",
     role: "action",
     routes: ["/unlock"],
     capabilityId: "setup.first_run",

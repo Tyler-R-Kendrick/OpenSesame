@@ -3,7 +3,7 @@ import { IconAlert, IconCheck } from "../../components/Icons.js";
 import { approveDevice } from "../../lib/directory.js";
 import type { IdentitySession } from "../../lib/identity.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
-import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import type { Flash } from "../connections/shared.js";
 import { ConnectIdentityNote } from "./ConnectIdentityNote.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
@@ -16,7 +16,7 @@ export function DevicesPanel({
   session: IdentitySession | null;
 }) {
   const configured = useIdentityConfigured();
-  const tomb = useVaultStore().activeTomb();
+  const { tomb } = useVault();
   return (
     <>
       <LocalDevicesPanel key={tomb} tomb={tomb} />

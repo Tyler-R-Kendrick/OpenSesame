@@ -1,6 +1,13 @@
 import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import {
+  IconCheck,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
   listManagedAgents,
   registerManagedAgent,
@@ -192,18 +199,22 @@ function AgentsForm({
       <div className="actions">
         <button
           type="submit"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={busy || !online || !draft.name.trim()}
+          aria-label="Save agent"
+          title="Save agent"
         >
-          {busy ? "Saving…" : draft.id ? "Save agent" : "Register agent"}
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
           onClick={() => setDraft(null)}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </form>
@@ -224,7 +235,18 @@ function AgentsRows({
               <h3>{agent.displayName}</h3>
               <code className="identity-ref">{agent.id}</code>
             </div>
-            <span className="chip">{agent.state}</span>
+            <StatusMark
+              tone={
+                agent.state === "revoked"
+                  ? "err"
+                  : agent.state === "suspended"
+                    ? "warn"
+                    : agent.state === "claimed"
+                      ? "ok"
+                      : "idle"
+              }
+              label={agent.state}
+            />
             {agent.state !== "revoked" ? (
               <div className="actions">
                 <button
@@ -264,11 +286,13 @@ function AgentsRows({
                 ) : (
                   <button
                     type="button"
-                    className="btn btn--sm btn--danger"
+                    className="icon-btn icon-btn--danger icon-btn--sm"
                     disabled={busy || !online}
                     onClick={() => setRevoke(agent.id)}
+                    aria-label="Revoke"
+                    title="Revoke"
                   >
-                    Revoke
+                    <IconTrash size={16} />
                   </button>
                 )}
               </div>

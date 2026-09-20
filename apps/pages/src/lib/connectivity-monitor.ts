@@ -22,33 +22,21 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { useSyncExternalStore } from "react";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
-import { probeDaemon } from "./daemon.js";
-import {
-  hostBase,
-  identityBase,
-  probeHostDetailed,
-  probeIdentityDetailed,
-} from "./identity.js";
+import { identityBase, probeIdentityDetailed } from "./identity.js";
 import { type FailureClass, classifyThrown } from "./probe-failure.js";
-import { loadSettings, pageIsLoopback, subscribeSettings } from "./settings.js";
-import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+import { subscribeSettings } from "./settings.js";
 
 export const connectivityMonitorDependencies = {
   isOnline,
   subscribeConnectivity,
-  probeDaemon,
-  hostBase,
   identityBase,
-  probeHostDetailed,
   probeIdentityDetailed,
-  loadSettings,
-  pageIsLoopback,
   subscribeSettings,
 };
 
 export type { FailureClass } from "./probe-failure.js";
 
-export type ProbeTarget = "host" | "identity" | "machine";
+export type ProbeTarget = "identity";
 
 export type TargetHealth = "unknown" | "reachable" | "unreachable";
 
@@ -71,16 +59,9 @@ export type TargetState = {
 
 export type MonitorSnapshot = {
   offline: boolean;
-  host: TargetState;
   identity: TargetState;
-  machine: TargetState;
   /** Epoch ms the next scheduled sweep is due, or null when parked. */
   nextCheckAt: number | null;
-};
-
-type MachineProbeResult = {
-  ok: boolean;
-  failure: FailureClass | null;
 };
 
 /** Everything is green: check rarely enough to be free. */
@@ -127,9 +108,7 @@ function blank(): Internal {
 }
 
 const state = {
-  host: blank(),
   identity: blank(),
-  machine: blank(),
 } satisfies Record<ProbeTarget, Internal>;
 
 let offline = !connectivityMonitorDependencies.isOnline();
@@ -156,9 +135,7 @@ function buildSnapshot(): MonitorSnapshot {
   });
   return {
     offline,
-    host: pick("host"),
     identity: pick("identity"),
-    machine: pick("machine"),
     nextCheckAt,
   };
 }
@@ -189,9 +166,7 @@ export function connectivitySnapshot(): MonitorSnapshot {
  * the first strike means a failure is confirmed one short interval later.
  */
 function degraded(): boolean {
-  return (["host", "identity", "machine"] as const).some(
-    (t) => state[t].health === "unreachable" || state[t].strikes > 0,
-  );
+  return state.identity.health === "unreachable" || state.identity.strikes > 0;
 }
 
 function jittered(ms: number): number {
@@ -241,48 +216,6 @@ function schedule(): void {
   }, delay);
 }
 
-/** Whether this page may even attempt `${daemonApi}/health`. */
-export function daemonIsProbable(
-  daemonApi: string,
-  loopbackPage: boolean,
-): boolean {
-  const base = normalizeTailnetBase(daemonApi);
-  if (!base) return false;
-  return loopbackPage || !isLoopbackUrl(base);
-}
-
-async function probeMachine(): Promise<MachineProbeResult> {
-  const daemonApi = connectivityMonitorDependencies
-    .loadSettings()
-    .daemonApi.trim();
-  if (
-    !daemonApi ||
-    !daemonIsProbable(
-      daemonApi,
-      connectivityMonitorDependencies.pageIsLoopback(),
-    )
-  ) {
-    // Not a failure — there is nothing to reach. `unset` is the tone for this.
-    return { ok: false, failure: null };
-  }
-  try {
-    const health = await connectivityMonitorDependencies.probeDaemon(daemonApi);
-    // Public health proves liveness, not service identity or operator authority.
-    return health.status === "ok"
-      ? { ok: true, failure: null }
-      : { ok: false, failure: "not-opensesame" };
-  } catch (error) {
-    // A malformed liveness answer is distinct from nothing listening at all.
-    if (
-      error instanceof Error &&
-      error.message === "That URL did not report healthy liveness."
-    ) {
-      return { ok: false, failure: "not-opensesame" };
-    }
-    return { ok: false, failure: classifyThrown(overlapCast(error)) };
-  }
-}
-
 async function probeOne(target: ProbeTarget): Promise<void> {
   const entry = state[target];
   // One in-flight probe per target: a slow answer must not stack up behind
@@ -299,27 +232,16 @@ async function probeOne(target: ProbeTarget): Promise<void> {
   // Date.now() is the clock the rest of the monitor already reasons in.
   const startedAt = Date.now();
   try {
-    if (target === "machine") {
-      const result = await probeMachine();
-      ok = result.ok;
-      failure = result.failure;
+    const base = connectivityMonitorDependencies.identityBase();
+    if (!base.trim()) {
+      // Nothing configured is not a failure — `unset` is the tone for it.
+      ok = false;
+      failure = null;
     } else {
-      const base =
-        target === "host"
-          ? connectivityMonitorDependencies.hostBase()
-          : connectivityMonitorDependencies.identityBase();
-      if (!base.trim()) {
-        // Nothing configured is not a failure — `unset` is the tone for it.
-        ok = false;
-        failure = null;
-      } else {
-        const result =
-          target === "host"
-            ? await connectivityMonitorDependencies.probeHostDetailed()
-            : await connectivityMonitorDependencies.probeIdentityDetailed();
-        ok = result.health === "reachable";
-        failure = ok ? null : (result.failure ?? "unreachable");
-      }
+      const result =
+        await connectivityMonitorDependencies.probeIdentityDetailed();
+      ok = result.health === "reachable";
+      failure = ok ? null : (result.failure ?? "unreachable");
     }
   } catch (error) {
     ok = false;
@@ -353,11 +275,7 @@ async function sweep(): Promise<void> {
     return;
   }
   const before = degraded();
-  await Promise.all([
-    probeOne("host"),
-    probeOne("identity"),
-    probeOne("machine"),
-  ]);
+  await probeOne("identity");
   const after = degraded();
   // Back off only while it stays broken; a recovery resets the ladder so the
   // next failure is caught quickly again.
@@ -387,7 +305,7 @@ export function checkNow(): void {
 function setOffline(next: boolean): void {
   if (offline === next) return;
   offline = next;
-  for (const target of ["host", "identity", "machine"] as const) {
+  for (const target of ["identity"] as const) {
     if (next) {
       // Do not relabel what we last knew — just stop claiming it is current.
       state[target].failure = "offline";
@@ -458,9 +376,7 @@ export function subscribeConnectivityMonitor(listener: () => void): () => void {
 export function resetConnectivityMonitorForTests(): void {
   stop();
   listeners.clear();
-  state.host = blank();
   state.identity = blank();
-  state.machine = blank();
   offline = !connectivityMonitorDependencies.isOnline();
   consecutiveDegradedSweeps = 0;
   dirty = true;

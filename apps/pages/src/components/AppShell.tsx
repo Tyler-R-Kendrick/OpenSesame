@@ -24,7 +24,6 @@ import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccessTree } from "./AccessTree.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
-import { CommandBar } from "./CommandBar.js";
 import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
@@ -220,7 +219,7 @@ function SessionPrompt() {
         ref={lockRef}
         type="button"
         className="icon-btn"
-        onClick={store.lock}
+        onClick={() => store.lock()}
         aria-label="Lock vault"
         title="Lock vault"
       >
@@ -281,8 +280,6 @@ function Shell({ children }: { children?: ReactNode }) {
         </header>
 
         <Crumbs />
-
-        <CommandBar />
 
         {children}
       </div>

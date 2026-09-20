@@ -19,6 +19,12 @@ import {
   readDirectoryEndpoint,
   syncConnectorDirectory,
 } from "../../lib/connector-directory.js";
+import {
+  type ConnectorSetting,
+  readConnectorSettings,
+  settingFor,
+  writeConnectorSetting,
+} from "../../lib/connector-settings.js";
 import { readLocalDirectory } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import {
@@ -58,6 +64,7 @@ type Loaded = {
   connections: Connection[];
   shares: LocalShare[];
   identities: ConnectorIdentity[];
+  settings: Record<string, ConnectorSetting>;
 };
 
 function directoryRows(directory: ConnectorDirectory | null): ConnectorRow[] {
@@ -116,17 +123,20 @@ async function readIdentities(tomb: string): Promise<ConnectorIdentity[]> {
 }
 
 async function readAll(tomb: string, hostConfigured: boolean): Promise<Loaded> {
-  const [directory, connections, granted, identities] = await Promise.all([
-    readConnectorDirectory(tomb),
-    readHostConnections(hostConfigured),
-    listLocalShares(tomb),
-    readIdentities(tomb),
-  ]);
+  const [directory, connections, granted, identities, settings] =
+    await Promise.all([
+      readConnectorDirectory(tomb),
+      readHostConnections(hostConfigured),
+      listLocalShares(tomb),
+      readIdentities(tomb),
+      readConnectorSettings(tomb),
+    ]);
   return {
     directory,
     connections,
     shares: granted.filter((share) => share.resourceKind === "connection"),
     identities,
+    settings,
   };
 }
 
@@ -206,6 +216,9 @@ export function useConnectorDirectory(tomb: string) {
     directory,
     endpoint: directory?.endpoint ?? readDirectoryEndpoint(),
     rows,
+    settings: reads.loaded?.settings ?? {},
+    settingsFor: (row: ConnectorRow) =>
+      settingFor(reads.loaded?.settings ?? {}, row.id),
     identities: reads.loaded?.identities ?? [],
     loaded: reads.loaded !== null,
     busy,
@@ -230,6 +243,11 @@ export function useConnectorDirectory(tomb: string) {
       run(async () => {
         await revokeLocalShare(tomb, share.id);
         return "Binding revoked.";
+      }),
+    saveSetting: (row: ConnectorRow, setting: ConnectorSetting) =>
+      run(async () => {
+        await writeConnectorSetting(tomb, row.id, setting);
+        return `${row.name} configured.`;
       }),
     sync: (key?: string) =>
       run(async () => {

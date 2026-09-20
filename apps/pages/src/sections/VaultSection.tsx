@@ -10,12 +10,11 @@ import {
 
 import { isString } from "@opensesame/os-domain";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
-import { IconDownload, IconPlus, IconUpload } from "../components/Icons.js";
+import { IconPlus } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { stashImportFile } from "../lib/vault/import/handoff.js";
 import { itemCreatePath } from "../lib/vault/item-path.js";
 import {
   definitionFor,
@@ -60,48 +59,6 @@ const FILTER_TITLE = new Map([
   ["drop", "Drops"],
   ["note", "Secure notes"],
 ]);
-
-const IMPORT_ACCEPT =
-  ".env,.csv,.json,.1pux,.zip,.kdbx,text/plain,text/csv,application/json";
-
-/**
- * Import starts at the OS file picker, not at a settings screen: the chosen
- * file is handed to the Settings import panel through `stashImportFile` so
- * clicking Import here is the only click before the file dialog opens.
- */
-function ImportButton() {
-  const navigate = useNavigate();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const guideRef = useGuideTarget<HTMLButtonElement>("vault.import");
-  return (
-    <>
-      <button
-        ref={guideRef}
-        type="button"
-        className="icon-btn icon-btn--sm"
-        aria-label="Import items"
-        title="Import items"
-        onClick={() => fileRef.current?.click()}
-      >
-        <IconDownload size={15} />
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept={IMPORT_ACCEPT}
-        className="visually-hidden"
-        tabIndex={-1}
-        aria-label="Choose a file to import"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          stashImportFile(file);
-          navigate("/settings/data#import");
-        }}
-      />
-    </>
-  );
-}
 
 /** Any registered type may be the one a filtered "+ new" creates. */
 function concealedValue(item: VaultItem): string | null {
@@ -327,15 +284,6 @@ export function VaultSection() {
                 to={createPath}
               >
                 <IconPlus size={15} />
-              </Link>
-              <ImportButton />
-              <Link
-                className="icon-btn icon-btn--sm"
-                aria-label="Export items"
-                title="Export encrypted vault"
-                to="/settings/data#export"
-              >
-                <IconUpload size={15} />
               </Link>
             </>
           }

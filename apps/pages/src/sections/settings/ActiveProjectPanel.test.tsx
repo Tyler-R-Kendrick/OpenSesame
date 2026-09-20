@@ -101,7 +101,6 @@ describe("ActiveProjectPanel", () => {
   it("loads vault projects through the device-native Identity host", async () => {
     loadSettings.mockReturnValue({ activeProjectId: "", identityApi: "" });
     render(<ActiveProjectPanel />);
-    expect(await screen.findByText(/Projects on this device/i)).toBeTruthy();
     await waitFor(() => {
       expect(identityFetch).toHaveBeenCalledWith(
         "/v1/projects/personal/ensure",
@@ -128,7 +127,7 @@ describe("ActiveProjectPanel", () => {
     connecting.value = true;
     render(<ActiveProjectPanel />);
     const button = screen.getByRole<HTMLButtonElement>("button", {
-      name: /Connecting…/i,
+      name: /Connect Identity/i,
     });
     expect(button.disabled).toBe(true);
   });
@@ -155,7 +154,9 @@ describe("ActiveProjectPanel", () => {
 
   it("ensures the personal project and lists projects", async () => {
     render(<ActiveProjectPanel />);
-    expect(await screen.findByText(/Using your personal project/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /Using your personal project/ }),
+    ).toBeTruthy();
     expect(identityFetch).toHaveBeenCalledWith(
       "/v1/projects/personal/ensure",
       expect.objectContaining({ method: "POST" }),
@@ -173,7 +174,9 @@ describe("ActiveProjectPanel", () => {
   it("announces a freshly created personal project", async () => {
     mockSuccessfulRefresh({ ...personalProject, created: true });
     render(<ActiveProjectPanel />);
-    expect(await screen.findByText(/Personal project ready/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /Personal project ready/ }),
+    ).toBeTruthy();
   });
 
   it("keeps a stored selection that still exists", async () => {
@@ -182,22 +185,21 @@ describe("ActiveProjectPanel", () => {
       identityApi: "http://127.0.0.1:8788",
     });
     render(<ActiveProjectPanel />);
-    await screen.findByText(/Using your personal project/);
-    const select = overlapCast(screen.getByLabelText(/Project/i));
+    await screen.findByRole("img", { name: /Using your personal project/ });
+    const select = overlapCast(screen.getByRole("combobox"));
     await waitFor(() => expect(select.value).toBe("proj_team"));
   });
 
   it("persists a manual project selection", async () => {
     render(<ActiveProjectPanel />);
-    await screen.findByText(/Using your personal project/);
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Project/i),
-      "proj_team",
-    );
+    await screen.findByRole("img", { name: /Using your personal project/ });
+    await userEvent.selectOptions(screen.getByRole("combobox"), "proj_team");
     expect(saveSettings).toHaveBeenCalledWith(
       expect.objectContaining({ activeProjectId: "proj_team" }),
     );
-    expect(await screen.findByText(/Active project saved/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /Active project saved/ }),
+    ).toBeTruthy();
   });
 
   it("shows tomb binding details for the active project", async () => {
@@ -225,9 +227,8 @@ describe("ActiveProjectPanel", () => {
       );
     });
     render(<ActiveProjectPanel />);
-    await screen.findByText(/Using your personal project/);
-    expect(await screen.findByText(/team-tomb/)).toBeTruthy();
-    expect(screen.getByText(/Vault folder: fld_9/)).toBeTruthy();
+    await screen.findByRole("img", { name: /Using your personal project/ });
+    expect(await screen.findByRole("option", { name: /Team/ })).toBeTruthy();
   });
 
   it("surfaces ensure failures with the server message", async () => {
@@ -240,7 +241,9 @@ describe("ActiveProjectPanel", () => {
       return Promise.resolve(jsonResponse({ projects: [] }));
     });
     render(<ActiveProjectPanel />);
-    expect(await screen.findByText(/quota exceeded/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /quota exceeded/ }),
+    ).toBeTruthy();
   });
 
   it("falls back to the status code when ensure has no message", async () => {
@@ -251,7 +254,9 @@ describe("ActiveProjectPanel", () => {
       return Promise.resolve(jsonResponse({ projects: [] }));
     });
     render(<ActiveProjectPanel />);
-    expect(await screen.findByText(/Ensure failed \(500\)/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /Ensure failed \(500\)/ }),
+    ).toBeTruthy();
   });
 
   it("surfaces project list failures", async () => {
@@ -263,14 +268,16 @@ describe("ActiveProjectPanel", () => {
     });
     render(<ActiveProjectPanel />);
     expect(
-      await screen.findByText(/List projects failed \(502\)/),
+      await screen.findByRole("img", { name: /List projects failed \(502\)/ }),
     ).toBeTruthy();
   });
 
   it("reports thrown refresh errors", async () => {
     identityFetch.mockRejectedValue(new Error("dns failure"));
     render(<ActiveProjectPanel />);
-    expect(await screen.findByText(/dns failure/)).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: /dns failure/ }),
+    ).toBeTruthy();
   });
 
   it("does not refresh while the identity plane is down", () => {
@@ -282,17 +289,15 @@ describe("ActiveProjectPanel", () => {
   it("shows an offline note when disconnected", () => {
     online.value = false;
     render(<ActiveProjectPanel />);
-    expect(
-      screen.getByText(/Offline — project list needs Identity/i),
-    ).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Offline" })).toBeTruthy();
     expect(identityFetch).not.toHaveBeenCalled();
   });
 
   it("reloads when Refresh is clicked", async () => {
     render(<ActiveProjectPanel />);
-    await screen.findByText(/Using your personal project/);
+    await screen.findByRole("img", { name: /Using your personal project/ });
     await userEvent.click(
-      screen.getByRole("button", { name: /Refresh \/ ensure personal/i }),
+      screen.getByRole("button", { name: /Refresh projects/i }),
     );
     await waitFor(() =>
       expect(

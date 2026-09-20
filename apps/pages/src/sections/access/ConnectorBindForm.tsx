@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 import {
   SHARE_DURATIONS,
   SHARE_POLICIES,
@@ -59,20 +60,26 @@ export function ConnectorBindForm({
   connector,
   identities,
   busy,
+  initialPolicy,
+  initialDuration,
   onCancel,
   onBind,
 }: {
   connector: string;
   identities: readonly ConnectorIdentity[];
   busy: boolean;
+  initialPolicy?: string;
+  initialDuration?: number;
   onCancel: () => void;
   onBind: (input: BindInput) => void;
 }) {
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
   const [policy, setPolicy] = useState<string>(
-    SHARE_POLICIES.connection[0]?.id ?? "use",
+    initialPolicy ?? SHARE_POLICIES.connection[0]?.id ?? "use",
   );
-  const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);
+  const [duration, setDuration] = useState<number>(
+    initialDuration ?? SHARE_DURATIONS[0].seconds,
+  );
   const first = useRef<HTMLSelectElement>(null);
   // The keyboard lands on the first choice — unless a finger opened this,
   // where a form is not focused uninvited (DESIGN.md › Touch).
@@ -93,8 +100,14 @@ export function ConnectorBindForm({
         <legend>Bind {connector}</legend>
         <p>No person or agent in this vault yet. Create one under Identity.</p>
         <div className="actions">
-          <button type="button" className="btn btn--sm" onClick={onCancel}>
-            Close
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Close"
+            title="Close"
+            onClick={onCancel}
+          >
+            <IconX size={16} />
           </button>
         </div>
       </fieldset>
@@ -136,11 +149,22 @@ export function ConnectorBindForm({
           />
         </div>
         <div className="actions">
-          <button type="submit" className="btn btn--primary btn--sm">
-            Bind
+          <button
+            type="submit"
+            className="icon-btn icon-btn--sm"
+            aria-label="Bind"
+            title="Bind"
+          >
+            <IconCheck size={16} />
           </button>
-          <button type="button" className="btn btn--sm" onClick={onCancel}>
-            Cancel
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Cancel"
+            title="Cancel"
+            onClick={onCancel}
+          >
+            <IconX size={16} />
           </button>
         </div>
       </fieldset>

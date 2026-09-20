@@ -23,6 +23,13 @@ import {
   ProviderSchema,
   RevokeResponseSchema,
 } from "@opensesame/contracts";
+import {
+  type LocalGithubApp,
+  buildGithubAppRegistration,
+  readLocalGithubApp,
+} from "./github-app-manifest.js";
+import { claimGuestConnection } from "./guest-connections.js";
+import { isGuestSession } from "./guest-isolation.js";
 import { hostBase, hostFetch } from "./identity.js";
 import * as vercelConnect from "./vercel-connect.js";
 
@@ -348,11 +355,30 @@ function toIntegration(value: BoundaryValue): Integration {
   };
 }
 
+function integrationFromLocal(app: LocalGithubApp): Integration {
+  return {
+    id: app.id,
+    key: app.key,
+    providerId: "github",
+    displayName: app.displayName,
+    source: "github-app",
+    enabled: true,
+    configured: true,
+    scopes: [],
+    githubAppHtmlUrl: app.htmlUrl,
+  };
+}
+
 function listIntegrationsDefault(): Promise<Integration[]> {
+  const local = readLocalGithubApp();
+  const localRows = local ? [integrationFromLocal(local)] : [];
   return call("/integrations", {}, (body) => {
     const raw: { integrations?: BoundaryValue[] } = overlapCast(body);
     return (raw.integrations ?? []).map(toIntegration);
-  });
+  }).then(
+    (remote) => [...localRows, ...remote],
+    () => localRows,
+  );
 }
 
 export type CustomProviderAuth =
@@ -441,42 +467,11 @@ function createIntegrationDefault(body: {
   );
 }
 
-/** Begin tenant GitHub App Manifest registration (Host seals client credentials). */
 function startGithubAppRegistrationDefault(body: {
   returnTo: string;
   displayName?: string;
 }): Promise<GithubAppRegistration> {
-  return call(
-    "/providers/github/app",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        return_to: body.returnTo,
-        ...(body.displayName ? { display_name: body.displayName } : undefined),
-      }),
-    },
-    (payload) => {
-      const raw = overlapCast(payload);
-      if (
-        !isString(raw.action) ||
-        !isString(raw.state) ||
-        !raw.manifest ||
-        !isTypeofObject(raw.manifest)
-      ) {
-        throw new ConnectionsError(
-          0,
-          "invalid_host",
-          "Host returned an invalid GitHub App registration.",
-        );
-      }
-      return {
-        action: raw.action,
-        state: raw.state,
-        manifest: overlapCast(raw.manifest),
-        redirectUrl: String(raw.redirect_url ?? ""),
-      };
-    },
-  );
+  return Promise.resolve(buildGithubAppRegistration(body));
 }
 
 /** Browser POST to github.com/settings/apps/new (Manifest flow). */
@@ -859,10 +854,12 @@ export function listProviders(): Promise<Provider[]> {
 export function listConnections(): Promise<Connection[]> {
   return connectionSeams.listConnections();
 }
-export function createConnection(
+export async function createConnection(
   body: Parameters<typeof createConnectionDefault>[0],
 ): Promise<Connection> {
-  return connectionSeams.createConnection(body);
+  const created = await connectionSeams.createConnection(body);
+  if (isGuestSession()) claimGuestConnection(created.connectionId);
+  return created;
 }
 export function authorizeConnection(
   ...args: Parameters<typeof authorizeConnectionDefault>

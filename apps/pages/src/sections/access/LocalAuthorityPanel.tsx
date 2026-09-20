@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./local-authority.css";
-import { IconRefresh } from "../../components/Icons.js";
+import { IconRefresh, IconTrash, IconX } from "../../components/Icons.js";
 import { keyboardIsIdle } from "../../lib/focus.js";
 import {
   type LocalAuthorityRow,
@@ -52,11 +52,6 @@ export function LocalAuthorityPanel({
         </button>
       </div>
       <div className="panel__body">
-        <p className="hint access-local-authority-intro">
-          {grantsOnly
-            ? "Application sign-in issues these grants after passkey approval and scope-policy checks. Revocation blocks the application's next access check; new access requires fresh consent."
-            : "Unexpired records in this vault, not a count of connected applications. Access is checked again on use. Revoking a session also invalidates grants that depend on it."}
-        </p>
         {state.error ? (
           <p className="note note--err" role="alert">
             {state.error}
@@ -135,8 +130,15 @@ function ConfirmRevocation({
         >
           Confirm revocation
         </button>
-        <button ref={cancel} type="button" className="btn" onClick={close}>
-          Cancel revocation
+        <button
+          ref={cancel}
+          type="button"
+          className="icon-btn"
+          onClick={close}
+          aria-label="Cancel revocation"
+          title="Cancel revocation"
+        >
+          <IconX size={16} />
         </button>
       </div>
     </fieldset>
@@ -174,11 +176,13 @@ function AuthorityRows({
           </p>
           <button
             type="button"
-            className="btn btn--sm"
+            className="icon-btn icon-btn--danger icon-btn--sm"
             disabled={disabled}
             onClick={(event) => select(row, event.currentTarget)}
+            aria-label={`Revoke ${row.kind}`}
+            title="Revoke"
           >
-            Revoke {row.kind}
+            <IconTrash size={16} />
           </button>
         </li>
       ))}

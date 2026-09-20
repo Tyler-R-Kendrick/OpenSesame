@@ -7,7 +7,7 @@ async function count(page, role, name, exact = false) {
   return page.getByRole(role, { name, exact }).count();
 }
 
-/** A. The first screen: the two roads made large, every sign-in road whole. */
+/** A. The first screen: setup made large, every sign-in road whole. */
 export async function checkFrontDoor(page, check, text, base) {
   check(
     (await page
@@ -16,8 +16,11 @@ export async function checkFrontDoor(page, check, text, base) {
     "first screen is the front door, titled by the wordmark",
   );
   check(!/This device is empty/.test(text), "no setup wall");
+  check(
+    (await count(page, "button", "Join a session")) === 0,
+    "join is invite-link only, not a front-door road",
+  );
   for (const [name, label] of [
-    ["Join a session", "join road on the front door"],
     ["Set up your own", "setup road on the front door"],
     ["Continue with Google", "Google button present"],
     ["Skip sign-in and continue as guest", "Skip link present"],
@@ -38,7 +41,7 @@ export async function checkFrontDoor(page, check, text, base) {
 /**
  * A2. "Set up your own": six tabs opening on connectors (so backups can reuse
  * directory endpoints), then backups, and Skip all retiring the door — sign-in,
- * with both roads back in its foot.
+ * then plain sign-in (setup behind unlock).
  */
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
@@ -97,8 +100,8 @@ export async function walkSetupCeremony(page, check, snap) {
   const back = await snap(page, "A2-back");
   check(
     /^Sign in$/m.test(back) &&
-      (await count(page, "button", "Deployment setup")) === 1 &&
-      (await count(page, "button", "Join a session")) === 1,
-    "skip all retires the front door: sign-in, with both roads in its foot",
+      (await count(page, "button", "Deployment setup")) === 0 &&
+      (await count(page, "button", "Join a session")) === 0,
+    "skip all retires the front door: plain sign-in (setup lives behind unlock)",
   );
 }

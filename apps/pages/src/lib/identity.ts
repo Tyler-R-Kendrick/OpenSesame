@@ -286,7 +286,7 @@ async function ensureHostSessionDefault(): Promise<HostSession> {
   if (!active)
     throw new HostSessionError(
       "setup_required",
-      "Pair this browser with the Host using the local approval ceremony.",
+      "This browser has no approved grant for that action.",
     );
   return active;
 }

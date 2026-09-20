@@ -17,6 +17,8 @@ import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
 export type TestVaultState = {
   status: "empty" | "locked";
+  /** Active tomb id — `guest` selects the keyless Unlock button. */
+  tomb?: string | null;
   header: { hint?: string; unlocks?: Record<string, JsonObject> } | null;
   lockedOutUntil: number | null;
   failedAttempts: number;
@@ -54,6 +56,7 @@ export type TestHarness = {
 export const v = ((): TestHarness => {
   const state: TestVaultState = {
     status: "locked",
+    tomb: null,
     header: null,
     lockedOutUntil: null,
     failedAttempts: 0,
@@ -103,7 +106,8 @@ Object.assign(unlockMethodsSeams, {
 
 import { guestAuthSeams } from "../lib/guest-auth.js";
 export const continueAsGuest = vi.fn();
-Object.assign(guestAuthSeams, { continueAsGuest });
+export const resumeGuestSession = vi.fn();
+Object.assign(guestAuthSeams, { continueAsGuest, resumeGuestSession });
 
 import { federationSeams } from "../lib/federation.js";
 export const beginSignIn = vi.fn();
@@ -149,10 +153,6 @@ import { setupScreenDependencies } from "./SetupScreen.js";
 import { unlockScreenDependencies } from "./UnlockScreen.js";
 
 // Setup is never a gate (ADR 0090); this suite tests the unlock form and handoff.
-export type InviteHolder = {
-  current: ReturnType<typeof setupScreenDependencies.readJoinFromLocation>;
-};
-export const inviteHolder: InviteHolder = { current: null };
 export const identityBaseHolder = { current: "http://127.0.0.1:18788" };
 deviceIdentitySeams.remoteIdentityApi = () => identityBaseHolder.current;
 /** What setup left as the ways in — the screen reads this, not the URL. */
@@ -175,27 +175,16 @@ export const ANSWERED: NonNullable<SetupHolder["current"]> = {
 };
 Object.assign(unlockScreenDependencies, {
   loadSetup: () => setupHolder.current,
-  readJoinFromLocation: () => inviteHolder.current,
   currentSession: () => null,
-  identityBase: () => identityBaseHolder.current,
-  signInMethods: () => waysInHolder.current,
   noWayIn: () =>
     !waysInHolder.current.builtin &&
     waysInHolder.current.providers.length === 0 &&
     identityBaseHolder.current.trim() === "",
-  defaultUpstream: () => ({
-    id: "shoo",
-    displayName: "Shoo",
-    issuer: "https://shoo.dev",
-    accountKind: "Google",
-  }),
-  resumeStashedJoin: async () => false,
 });
 Object.assign(setupScreenDependencies, {
   // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these
   // tests only care that it is reached and handed back from.
   completeSetup,
-  readJoinFromLocation: () => null,
 });
 
 export const STRONG = "correct horse battery staple";
@@ -291,6 +280,8 @@ export function resetUnlockHarness(): void {
   localStorage.clear();
   continueAsGuest.mockReset();
   continueAsGuest.mockResolvedValue(undefined);
+  resumeGuestSession.mockReset();
+  resumeGuestSession.mockResolvedValue(undefined);
   beginSignIn.mockReset();
   // Real sign-in navigates away and never settles; a pending promise is the
   // honest stand-in.
@@ -306,7 +297,6 @@ export function resetUnlockHarness(): void {
   // Identity API).
   listFederatedProviders.mockResolvedValue([]);
   endSession.mockReset();
-  inviteHolder.current = null;
   identityBaseHolder.current = "http://127.0.0.1:18788";
   waysInHolder.current = { builtin: true, providers: [] };
   completeSetup.mockReset();

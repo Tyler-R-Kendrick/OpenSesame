@@ -1,33 +1,20 @@
-import { PREFS_DISPLAY_PATH } from "../../lib/configuration/aliases.js";
-import { pinnedViewsForScope } from "../../lib/configuration/nav-persist.js";
 import { settingsPath } from "../../lib/crumbs.js";
 import type { PageTreeSource } from "../../lib/page-to-tree.js";
 import { pageToTree } from "../../lib/page-to-tree.js";
+import { settingsTabs } from "../SettingsSection.js";
 
+/** The same tabs the settings page renders. The rail does not keep a second list. */
 export function settingsPageSources(): PageTreeSource[] {
-  const views = pinnedViewsForScope("local").map((view) => ({
-    id: `view-${view.id}`,
-    label: `settings/views/${view.id}.yaml`,
-    href: settingsPath("general"),
-  }));
   return [
     {
-      id: "general",
-      label: "general",
+      id: "settings",
+      label: "Settings",
       href: settingsPath("general"),
-      items: [
-        {
-          id: "prefs.yaml",
-          label: PREFS_DISPLAY_PATH,
-          href: settingsPath("general"),
-        },
-        {
-          id: "keybindings.yaml",
-          label: "settings/keybindings.yaml",
-          href: settingsPath("general"),
-        },
-        ...views,
-      ],
+      items: settingsTabs.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        href: settingsPath(tab.id),
+      })),
     },
   ];
 }

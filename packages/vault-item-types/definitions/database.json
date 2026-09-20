@@ -22,7 +22,6 @@
             "type": "select",
             "label": "Engine",
             "options": [
-              "postgresql",
               "mysql",
               "mariadb",
               "sqlserver",

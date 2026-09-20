@@ -1,0 +1,12 @@
+---
+description: Pages voice — no Host copy, no explainer, no error boxes
+globs: apps/pages/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Pages voice
+
+- Never put the word Host in user-facing copy under `apps/pages`.
+- A connector action the browser can perform does not call a paired Host and does not tell the person to pair one. Creating a GitHub App posts the manifest from this page.
+- Do not add explainer or caption prose: no sentence under a title, button, or field that describes what the control will do.
+- Do not render an in-page error box (`note`, `conn-flash`, paragraph banner). A failure is a `StatusMark`. The sentence is `aria-label` and `title`.

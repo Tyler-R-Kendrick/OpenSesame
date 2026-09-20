@@ -1,4 +1,11 @@
 import { useEffect, useRef } from "react";
+import {
+  IconCheck,
+  IconEdit,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import type {
   LocalDirectory,
   LocalDirectoryChange,
@@ -51,23 +58,27 @@ export function DirectoryRows({
                 <h3>{entry.name}</h3>
                 <code className="identity-ref">{entry.id}</code>
               </div>
-              <span className="chip">
-                {entry.enabled ? "Enabled" : "Disabled"}
-              </span>
+              <StatusMark
+                tone={entry.enabled ? "ok" : "warn"}
+                label={entry.enabled ? "Enabled" : "Disabled"}
+              />
               <div className="actions">
                 <button
                   type="button"
-                  className="btn btn--sm"
+                  className="icon-btn icon-btn--sm"
                   disabled={busy || draft !== null}
                   onClick={() => setDraft(entry)}
                   aria-label={`Edit ${entry.name}`}
+                  title={`Edit ${entry.name}`}
                 >
-                  Edit
+                  <IconEdit size={16} />
                 </button>
                 <button
                   type="button"
-                  className="btn btn--sm"
+                  className="icon-btn icon-btn--sm"
                   disabled={busy || draft !== null}
+                  aria-label={entry.enabled ? "Disable" : "Enable"}
+                  title={entry.enabled ? "Disable" : "Enable"}
                   onClick={() =>
                     void change({
                       action: "update",
@@ -77,37 +88,47 @@ export function DirectoryRows({
                     })
                   }
                 >
-                  {entry.enabled ? "Disable" : "Enable"}
+                  {entry.enabled ? (
+                    <IconX size={16} />
+                  ) : (
+                    <IconCheck size={16} />
+                  )}
                 </button>
                 {removing === entry.id ? (
                   <>
                     <button
                       type="button"
-                      className="btn btn--sm btn--danger"
+                      className="icon-btn icon-btn--sm icon-btn--danger is-armed"
                       disabled={busy || draft !== null}
+                      aria-label="Confirm deletion"
+                      title="Confirm deletion"
                       onClick={() =>
                         void change({ action: "delete", id: entry.id })
                       }
                     >
-                      Confirm deletion
+                      <IconTrash size={16} />
                     </button>
                     <button
                       type="button"
-                      className="btn btn--sm"
+                      className="icon-btn icon-btn--sm"
                       disabled={busy}
+                      aria-label={`Keep ${label.singular}`}
+                      title={`Keep ${label.singular}`}
                       onClick={() => setRemoving(null)}
                     >
-                      Keep {label.singular}
+                      <IconX size={16} />
                     </button>
                   </>
                 ) : (
                   <button
                     type="button"
-                    className="btn btn--sm btn--danger"
+                    className="icon-btn icon-btn--sm icon-btn--danger"
                     disabled={busy || draft !== null}
+                    aria-label="Delete"
+                    title="Delete"
                     onClick={() => setRemoving(entry.id)}
                   >
-                    Delete
+                    <IconTrash size={16} />
                   </button>
                 )}
               </div>
@@ -241,22 +262,22 @@ export function DirectoryForm({
       <div className="actions">
         <button
           type="submit"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={busy || !draft.name.trim()}
+          aria-label="Save changes"
+          title="Save changes"
         >
-          {busy
-            ? "Saving…"
-            : draft.id
-              ? "Save changes"
-              : `Create ${label.singular}`}
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn"
           disabled={busy}
           onClick={() => setDraft(null)}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </form>

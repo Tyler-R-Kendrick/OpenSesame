@@ -2,7 +2,7 @@ import type { GuideGoalDescriptor } from "./goals.js";
 
 /**
  * Goals for the gates and the ceremony behind them: opening the vault, the
- * front door's two roads, setup itself, and the connectors it brings across
+ * front door's setup road, setup itself, and the connectors it brings across
  * (ADR 0115). Authored GuideLang, compiled by the same parser model output
  * goes through.
  */
@@ -29,7 +29,6 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "setup.first-run"',
       'say "Nothing has to be set up first: sign in, continue as guest, or seal a local vault. Setting up your own is for whoever runs this deployment — connectors, sign-in and backups, every tab skippable."',
       'focus "unlock.setup" "The operator road. Name a connector directory, choose who signs people in, and it records that and returns to sign-in." side=top',
-      'hint "setup.join" "Join if you were invited: a link and a code, or a public session to ask into." side=top',
       "end",
     ].join("\n"),
   },
@@ -53,8 +52,8 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "setup.join-session"',
-      'say "Join a session you were invited to: a link and a code, or a public session to ask into."',
-      'focus "setup.join" "This road never asks you to be the operator. The Host is asked for only here, because sharing reintroduces the server." side=top',
+      'say "Join a session from an invite link: a claim invite or a request into a public session. The front door no longer offers this as a road."',
+      'focus "setup.join" "Invite-link only. Sharing still needs a session to join into." side=top',
       "end",
     ].join("\n"),
   },

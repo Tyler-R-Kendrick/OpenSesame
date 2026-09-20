@@ -2,7 +2,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureDefaultAccess } from "./local-access-bootstrap.js";
-import { GUEST_PERSON_ID } from "./local-guest.js";
+import { changeLocalDirectory, ensureOwnerPerson } from "./local-directory.js";
+import { mintGuestSessionPerson } from "./local-guest.js";
 import { listLocalShares } from "./local-share-grants.js";
 import {
   createVaultSession,
@@ -52,6 +53,19 @@ beforeEach(async () => {
       memory.clear();
     },
   });
+  const session = new Map<string, string>();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => session.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      session.set(key, value);
+    },
+    removeItem: (key: string) => {
+      session.delete(key);
+    },
+    clear: () => {
+      session.clear();
+    },
+  });
   vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
     status: "unlocked",
     guest: false,
@@ -82,6 +96,14 @@ afterEach(() => {
 
 describe("local vault sessions", () => {
   it("starts with a join code, issues grants, stop revokes, restart reissues", async () => {
+    const guest = mintGuestSessionPerson();
+    const directory = await ensureOwnerPerson(tomb, "Ada");
+    await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: guest.name,
+      id: guest.id,
+    });
     const session = await createVaultSession(tomb, {
       label: "Pairing",
       durationSeconds: 3600,
@@ -95,7 +117,7 @@ describe("local vault sessions", () => {
           policy: "open",
         },
         {
-          subject: { kind: "principal", principalId: GUEST_PERSON_ID },
+          subject: { kind: "principal", principalId: guest.id },
           resourceKind: "item",
           resourceId: "row-1",
           resourceLabel: "Row one",
@@ -130,6 +152,14 @@ describe("local vault sessions", () => {
   });
 
   it("redeems a running session code for a principal mid-run", async () => {
+    const guest = mintGuestSessionPerson();
+    const directory = await ensureOwnerPerson(tomb, "Ada");
+    await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: guest.name,
+      id: guest.id,
+    });
     const session = await createVaultSession(tomb, {
       label: "Join me",
       durationSeconds: 3600,
@@ -149,14 +179,14 @@ describe("local vault sessions", () => {
     const joined = await redeemVaultSessionCode(
       tomb,
       session.code.toLowerCase(),
-      GUEST_PERSON_ID,
+      guest.id,
     );
     expect(joined.status).toBe("running");
     expect(
       (await listLocalShares(tomb)).some(
         (share) =>
           share.sessionId === session.id &&
-          share.principalId === GUEST_PERSON_ID &&
+          share.principalId === guest.id &&
           share.resourceKind === "vault",
       ),
     ).toBe(true);

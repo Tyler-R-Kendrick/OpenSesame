@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { SourceEditor } from "../../components/configuration/SourceEditor.js";
 import type { EditorMode } from "../../lib/configuration/draft.js";
@@ -254,14 +255,16 @@ function HostedApplicationActions(props: {
     <div className="actions">
       <button
         type="submit"
-        className="btn btn--primary"
+        className="icon-btn"
         disabled={
           props.busy ||
           !props.online ||
           (props.mode === "visual" ? !visualReady : !props.parsed.ok)
         }
+        aria-label="Save application"
+        title="Save application"
       >
-        {props.busy ? "Saving…" : "Save application"}
+        <IconCheck size={16} />
       </button>
       <button
         type="button"
@@ -289,11 +292,13 @@ function HostedApplicationActions(props: {
       </button>
       <button
         type="button"
-        className="btn"
+        className="icon-btn"
         disabled={props.busy}
         onClick={props.onCancel}
+        aria-label="Cancel"
+        title="Cancel"
       >
-        Cancel
+        <IconX size={16} />
       </button>
     </div>
   );

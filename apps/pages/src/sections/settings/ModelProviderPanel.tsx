@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
-  type BrowserInferenceLimit,
   type BrowserInferenceVerdict,
   browserInference,
 } from "../../lib/browser-inference.js";
@@ -29,26 +30,6 @@ export type { ModelProviderPreset };
 export { MODEL_PROVIDER_PRESETS };
 
 type Flash = { tone: "ok" | "err"; text: string };
-
-/**
- * What the device is short of, said plainly.
- *
- * A greyed control asserts the action exists and merely is not available right
- * now, which is a different and untrue claim on a laptop that will never have
- * an on-device model. So the reason is spelled out and the option is withheld
- * rather than disabled.
- */
-const LIMIT_TEXT = {
-  "insecure-context":
-    "This page is not in a secure context, so the browser withholds its model. Serve it over HTTPS or loopback.",
-  "no-builtin": "This browser carries no on-device model.",
-  "text-only":
-    "This browser's on-device model reads text but cannot be shown a page, and a model that cannot see has nothing to point at.",
-  "needs-download":
-    "This browser has the model but has not fetched it yet. It is the browser's own download, once, and shared with every site that asks.",
-  "no-hardware":
-    "This device has neither an on-device model nor the graphics support to run one.",
-} as const satisfies Record<BrowserInferenceLimit, string>;
 
 function planeSentence(plane: ResolvedModelPlane): string {
   switch (plane.because) {
@@ -121,101 +102,76 @@ export function ModelProviderPanel() {
   const speechReady = detectSpeechRecognition() !== null;
 
   return (
-    <section className="panel" id="model-provider">
-      <div className="panel__head">
-        <div>
-          <h2>AI models</h2>
+    <div className="conn-group" id="model-provider">
+      <h3 className="conn-group__label">
+        Models
+        <StatusMark
+          tone={plane ? (plane.kind === "none" ? "err" : "ok") : "idle"}
+          label={plane ? planeSentence(plane) : "Checking"}
+        />
+      </h3>
+      <div className="conn-tile">
+        <div className="conn-tile__body">
+          <VoiceRolePicker
+            record={record}
+            busy={busy}
+            chrome="list"
+            speechReady={speechReady}
+            onCommit={(next) => void commit(next)}
+          />
+
+          {browserReady ? (
+            <div className="actions">
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={busy || record.inference.provider === "browser"}
+                aria-label="Use this device's own model"
+                title="Use this device's own model"
+                onClick={() =>
+                  void commit(
+                    withInference(record, {
+                      kind: "browser",
+                      provider: "browser",
+                      endpoint: "",
+                      model: "",
+                    }),
+                  )
+                }
+              >
+                <IconCheck size={16} />
+              </button>
+            </div>
+          ) : null}
+
+          <InferenceRolePicker
+            record={record}
+            busy={busy}
+            chrome="list"
+            browserReady={false}
+            onCommit={(next) => void commit(next)}
+          />
+
+          <InferenceRefineFields
+            record={record}
+            busy={busy}
+            endpoint={endpoint}
+            model={model}
+            setEndpoint={setEndpoint}
+            setModel={setModel}
+            mode="button"
+            onCommit={(next) => void commit(next)}
+            onClear={() => void commit(clearInference(record))}
+          />
+
+          {flash ? (
+            <StatusMark
+              tone={flash.tone === "ok" ? "ok" : "err"}
+              label={flash.text}
+            />
+          ) : null}
         </div>
       </div>
-      <div className="panel__body">
-        {plane ? (
-          <output
-            className={`note note--${plane.kind === "none" ? "err" : "ok"}`}
-          >
-            <span>{planeSentence(plane)}</span>
-          </output>
-        ) : (
-          <output className="note">
-            <span>Checking what this device can run…</span>
-          </output>
-        )}
-
-        <VoiceRolePicker
-          record={record}
-          busy={busy}
-          chrome="list"
-          speechReady={speechReady}
-          onCommit={(next) => void commit(next)}
-        />
-
-        {!browserReady && verdict ? (
-          <p className="note">
-            <span>
-              {LIMIT_TEXT[verdict.limit ?? "no-hardware"]}
-              {verdict.plane === "webgpu-download"
-                ? " This device could run a small one in the page instead, but somebody has to send the weights — which is a request to a model host, and this app makes none on its own."
-                : ""}
-            </span>
-          </p>
-        ) : null}
-
-        {browserReady ? (
-          <div className="actions">
-            <button
-              type="button"
-              className={
-                record.inference.provider === "browser"
-                  ? "btn btn--primary"
-                  : "btn"
-              }
-              disabled={busy || record.inference.provider === "browser"}
-              onClick={() =>
-                void commit(
-                  withInference(record, {
-                    kind: "browser",
-                    provider: "browser",
-                    endpoint: "",
-                    model: "",
-                  }),
-                )
-              }
-            >
-              {record.inference.provider === "browser"
-                ? "Using this device"
-                : "Use this device's own model"}
-            </button>
-          </div>
-        ) : null}
-
-        <InferenceRolePicker
-          record={record}
-          busy={busy}
-          chrome="list"
-          browserReady={false}
-          onCommit={(next) => void commit(next)}
-        />
-
-        <InferenceRefineFields
-          record={record}
-          busy={busy}
-          endpoint={endpoint}
-          model={model}
-          setEndpoint={setEndpoint}
-          setModel={setModel}
-          mode="button"
-          onCommit={(next) => void commit(next)}
-          onClear={() => void commit(clearInference(record))}
-        />
-
-        {flash ? (
-          <p
-            className={`note note--${flash.tone}`}
-            role={flash.tone === "err" ? "alert" : "status"}
-          >
-            <span>{flash.text}</span>
-          </p>
-        ) : null}
-      </div>
-    </section>
+    </div>
   );
 }

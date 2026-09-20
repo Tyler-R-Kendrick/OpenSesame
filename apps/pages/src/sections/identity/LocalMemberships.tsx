@@ -33,7 +33,7 @@ export function LocalMemberships(props: MembershipProps) {
       <summary ref={summary}>Members</summary>
       <p className="hint">
         Organization roles map to Access RBAC: Owner/Admin are Operators, Member
-        is Member, and guest@guest stays Guest. Guests cannot be operators once
+        is Member, and Guest N stays Guest. Guests cannot be operators once
         another person is assigned. Role changes require local sessions to sign
         in again.
       </p>
@@ -141,6 +141,8 @@ function MembershipForm(props: MembershipProps) {
   }
 
   const guestSelected = selected ? isGuestIdentity(selected) : false;
+  const alreadyMember = members.some((row) => row.principalId === principalId);
+  const submitLabel = alreadyMember ? "Save role" : "Add member";
 
   return (
     <form
@@ -222,10 +224,12 @@ function MembershipForm(props: MembershipProps) {
           )}
         </select>
       </div>
-      <button type="submit" className="btn btn--primary" disabled={disabled}>
-        {members.some((row) => row.principalId === principalId)
-          ? "Save role"
-          : "Add member"}
+      <button
+        type="submit"
+        className="btn btn--sm btn--primary"
+        disabled={disabled || !principalId}
+      >
+        {submitLabel}
       </button>
     </form>
   );

@@ -261,10 +261,12 @@ function StatusNoticeCard({ notice }: { notice: Notice }) {
         ) : null}
         <button
           type="button"
-          className="btn btn--sm btn--ghost"
+          className="icon-btn icon-btn--sm"
           onClick={() => dismissNotice(notice.id)}
+          aria-label="Dismiss"
+          title="Dismiss"
         >
-          Dismiss
+          <IconX size={16} />
         </button>
       </div>
     </article>

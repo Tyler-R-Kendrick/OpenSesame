@@ -5,8 +5,8 @@ import { NotificationsBar } from "./NotificationsBar.js";
 import "./statusline.css";
 
 /**
- * One mono strip of plane truth: support, the five connector glyphs, the
- * bell — seven equal keys in one left-aligned row (docs/design/controls.md).
+ * One mono strip of plane truth: support, identity and keys, the bell —
+ * four equal keys in one left-aligned row (docs/design/controls.md).
  *
  * Nothing is typed here. The command bar under the crumbs is the shell's one
  * field: a command runs, and a sentence it cannot parse goes to Support as a

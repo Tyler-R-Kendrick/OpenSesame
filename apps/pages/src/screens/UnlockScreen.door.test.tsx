@@ -14,7 +14,6 @@ import {
   completeSetup,
   goLocalOnly,
   identityBaseHolder,
-  inviteHolder,
   resetUnlockHarness,
   setupHolder,
   submitButton,
@@ -46,7 +45,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
   it("opens on the front door on a fresh device, with the broker and guest on offer", () => {
     // The screen this replaces was an operator's question ("This device is
     // empty") with no sign-in and no guest road on it at all. The front door
-    // (ADR 0115) makes the two roads large and keeps every sign-in road whole.
+    // makes the setup road large and keeps every sign-in road whole.
     fresh();
     render(<UnlockScreen />);
 
@@ -54,8 +53,8 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: /^Join a session/ }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: /^Join a session/ }),
+    ).toBeNull();
     expect(
       screen.getByRole("button", { name: /^Set up your own/ }),
     ).toBeTruthy();
@@ -89,11 +88,8 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       screen.queryByRole("button", { name: /^Set up your own/ }),
     ).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Deployment setup" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: /^Join a session/ }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Deployment setup" }),
+    ).toBeNull();
   });
 
   it("reaches deployment setup from the front door and hands back to sign-in", () => {
@@ -137,34 +133,6 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     ).toBeTruthy();
   });
 
-  it("reaches the join road from the front door", () => {
-    fresh();
-    render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: /^Join a session/ }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Join a session",
-    );
-  });
-
-  it("opens join directly when the visit is an invite link", () => {
-    // The link is the request: nobody who was invited should have to find
-    // the road themselves.
-    fresh();
-    inviteHolder.current = {
-      host: "https://host.example",
-      token: "osc_clm_id.secret",
-    };
-    setupScreenDependencies.readJoinFromLocation = () => inviteHolder.current;
-    try {
-      render(<UnlockScreen />);
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "Join a session",
-      );
-    } finally {
-      setupScreenDependencies.readJoinFromLocation = () => null;
-    }
-  });
-
   it("withholds the user menu while nothing is sealed on this device", () => {
     fresh();
     render(<UnlockScreen />);
@@ -189,7 +157,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     expect(submitButton()).toBeTruthy();
   });
 
-  it("names the deployment it is pointed at, and the road back into setup", () => {
+  it("withholds deployment setup until the vault is unlocked", () => {
     v.state = {
       status: "locked",
       header: null,
@@ -199,12 +167,10 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       awaitingSecondStep: false,
     };
     render(<UnlockScreen />);
-    expect(screen.getByText("127.0.0.1:18788")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
     expect(
-      screen.getByRole("tab", { selected: true }).textContent?.trim(),
-    ).toBe("connectors");
+      screen.queryByRole("button", { name: "Deployment setup" }),
+    ).toBeNull();
+    expect(screen.queryByText("127.0.0.1:18788")).toBeNull();
   });
 
   it("offers the setup road when setup left no way in at all", () => {

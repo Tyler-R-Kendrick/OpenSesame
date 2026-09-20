@@ -1,33 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
-import {
-  IconAlert,
-  IconCheck,
-  IconRefresh,
-  IconX,
-} from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
+import { IconAlert, IconRefresh } from "../components/Icons.js";
+import { StatusMark } from "../components/StatusMark.js";
 import {
   type Connection,
   ConnectionsError,
   type Provider,
-  discoverConnections,
   listConnections,
 } from "../lib/connections.js";
-import {
-  listCustomConnectors,
-  mergeCustomConnectors,
-} from "../lib/custom-connectors.js";
 import { getBundledProviders } from "../lib/embedded-catalog.js";
-import {
-  HostSessionError,
-  hostLocalSessionEligible,
-  useConnect,
-  useIdentitySession,
-} from "../lib/identity.js";
-import { shouldAutoConnect } from "../lib/settings.js";
-import { useHostConfigured } from "../lib/use-configured.js";
+import { useIdentitySession } from "../lib/identity.js";
 import { useOnline } from "../lib/use-online.js";
 import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
 import { useVercelConnectConfigured } from "../lib/vercel-connect.js";
@@ -35,8 +18,6 @@ import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js"
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
-import { CustomConnectorPage } from "./connections/CustomConnectorPage.js";
-import { IdentitySessionNote } from "./connections/IdentitySessionNote.js";
 import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
@@ -49,15 +30,13 @@ import "./connections.css";
 
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
-  const { hash } = useLocation();
+  const { hash, search } = useLocation();
   const online = useOnline();
   // Live connections go through Vercel Connect. The catalog below is
   // embedded and stays browsable with no backend at all (ADR 0090).
-  const hostConfigured = useHostConfigured();
   const connectConfigured = useVercelConnectConfigured();
-  const liveConnections = hostConfigured || connectConfigured;
+  const liveConnections = connectConfigured;
   const session = useIdentitySession();
-  const { connecting, error: connectError, connect } = useConnect();
 
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
@@ -89,6 +68,21 @@ export function ConnectionsSection() {
   const connectionRun = useRef(0);
   const reloadRef = useGuideTarget<HTMLButtonElement>("connections.reload");
 
+  // OAuth-callback landing: the relay bounces the popup here after approval.
+  // Same origin as the opener, so the message passes the consent listener
+  // and the popup closes itself — the poll would settle anyway, this is
+  // just faster and tidier.
+  useEffect(() => {
+    if (!window.opener) return;
+    const returned = new URLSearchParams(search).get("connection");
+    if (!returned) return;
+    window.opener.postMessage(
+      { type: "opensesame:connection", connectionId: returned },
+      window.location.origin,
+    );
+    window.close();
+  }, [search]);
+
   // A coarse count, never a name: `connections.any` is the only thing a guide
   // may learn about what is connected here.
   useEffect(() => {
@@ -100,11 +94,7 @@ export function ConnectionsSection() {
 
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
-    setProviders(
-      mergeCustomConnectors(
-        vercelCatalogSeams.providers(getBundledProviders()),
-      ),
-    );
+    setProviders(vercelCatalogSeams.providers(getBundledProviders()));
     if (catalogRun.current !== id) return;
     setCatalogError(null);
   }, []);
@@ -119,22 +109,10 @@ export function ConnectionsSection() {
     }
     setLoading(true);
     try {
-      let configured = 0;
-      try {
-        configured = await discoverConnections();
-      } catch {
-        // Discovery is best-effort — never block the connections list on it.
-      }
       const nextConnections = await listConnections();
       if (connectionRun.current !== id) return;
       setConnections(nextConnections);
       setLoadError(null);
-      if (configured > 0) {
-        setFlash({
-          tone: "ok",
-          text: `${configured} connector${configured === 1 ? "" : "s"} already configured ${configured === 1 ? "was" : "were"} connected automatically.`,
-        });
-      }
     } catch (error) {
       if (connectionRun.current !== id) return;
       setConnections([]);
@@ -142,42 +120,25 @@ export function ConnectionsSection() {
         message: errorText(error),
         unreachable:
           error instanceof ConnectionsError && error.code === "unreachable",
-        setupRequired:
-          error instanceof HostSessionError && error.code !== "invalid_host",
+        setupRequired: false,
       });
     } finally {
       if (connectionRun.current === id) setLoading(false);
     }
   }, [liveConnections]);
 
-  // Re-run after Identity changes because Host authentication is session-backed.
+  // Re-run after Identity changes because the catalog can differ per session.
   // biome-ignore lint/correctness/useExhaustiveDependencies: session is the retry trigger.
   useEffect(() => {
     void loadCatalog();
   }, [loadCatalog, session, providerId]);
 
   useEffect(() => {
-    if (!connectConfigured && !session && !hostLocalSessionEligible()) return;
     void loadConnections();
-  }, [session, loadConnections, connectConfigured]);
-
-  useEffect(() => {
-    if (!hostConfigured) return;
-    if (hostLocalSessionEligible()) return;
-    if (session || !online || connecting || connectError) return;
-    if (!shouldAutoConnect()) return;
-    void connect();
-  }, [hostConfigured, session, online, connecting, connectError, connect]);
-
-  if (providerId === "new") {
-    return <CustomConnectorPage />;
-  }
+  }, [loadConnections]);
 
   if (providerId) {
-    const provider =
-      providers?.find((item) => item.id === providerId) ??
-      listCustomConnectors().find((item) => item.id === providerId) ??
-      null;
+    const provider = providers?.find((item) => item.id === providerId) ?? null;
     const providerConnections = (connections ?? []).filter(
       (item) => item.providerId === providerId && item.status !== "revoked",
     );
@@ -198,14 +159,11 @@ export function ConnectionsSection() {
           providers === null || (session !== null && connections === null)
         }
         online={online}
-        canConfigure={
-          (session !== null || hostLocalSessionEligible()) &&
-          loadError?.setupRequired !== true
-        }
+        canConfigure={loadError?.setupRequired !== true}
         configureHint={
-          session === null
-            ? "You can still save a vault login or import one below."
-            : "Select an organization before configuring this connector."
+          connectConfigured
+            ? "Authorize this connector to use it from this device."
+            : "This deployment has no Connect relay — set VITE_CONNECT_CALLBACK_BASE to enable OAuth."
         }
         flash={flash}
         rememberOffer={rememberOffer}
@@ -234,24 +192,14 @@ export function ConnectionsSection() {
           </button>
         </div>
       </header>
-      {hostConfigured ? (
-        <PagesCannotHostNote ceremony="Host authorization" />
-      ) : null}
-      {hostConfigured ? <IdentitySessionNote /> : null}
 
       {flash ? (
-        <output className={`note note--${flash.tone} conn-flash`}>
-          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-          <p>{flash.text}</p>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => setFlash(null)}
-            aria-label="Dismiss"
-          >
-            <IconX />
-          </button>
-        </output>
+        <StatusMark
+          tone={
+            flash.tone === "ok" ? "ok" : flash.tone === "warn" ? "warn" : "err"
+          }
+          label={flash.text}
+        />
       ) : null}
 
       {online ? null : (
@@ -293,12 +241,7 @@ export function ConnectionsSection() {
         connections={connections}
         providers={providers ?? []}
         loading={loading}
-        online={online}
-        onFlash={setFlash}
-        onChanged={() => void loadConnections()}
-        onRememberOffer={setRememberOffer}
         setupRequired={loadError?.setupRequired === true}
-        hostConfigured={hostConfigured}
       />
 
       <CatalogPanel providers={providers} connections={connections ?? []} />

@@ -26,6 +26,7 @@ import {
   openSignIn,
   requestEmailMagicLink,
   resetUnlockHarness,
+  resumeGuestSession,
   sessionHolder,
   submitButton,
   submitIdentifier,
@@ -35,7 +36,6 @@ import {
 } from "./unlock-screen-harness.js";
 
 beforeEach(resetUnlockHarness);
-
 describe("UnlockScreen — first run", () => {
   beforeEach(() => {
     v.state = {
@@ -695,7 +695,6 @@ describe("UnlockScreen — first run", () => {
     ).toBeNull();
   });
 });
-
 describe("UnlockScreen — password unlock", () => {
   beforeEach(() => {
     v.state = {
@@ -839,7 +838,8 @@ describe("UnlockScreen — password unlock", () => {
       issuerOrigin: "http://127.0.0.1:18788",
     };
     render(<UnlockScreen />);
-    expect(userMenuTrigger().textContent).toContain("guest");
+    // Provisional Identity on personal vault — trigger is the vault slug.
+    expect(userMenuTrigger().textContent).toContain("personal");
     fireEvent.click(userMenuTrigger());
     fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(endSession).toHaveBeenCalledTimes(1);

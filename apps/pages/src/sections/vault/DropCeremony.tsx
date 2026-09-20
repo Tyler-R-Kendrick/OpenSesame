@@ -23,7 +23,7 @@ import {
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
-import { IconDrop } from "../../components/Icons.js";
+import { IconDrop, IconX } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { b64ToBytes } from "../../lib/vault/crypto.js";
 import {
@@ -196,11 +196,13 @@ export function ShareSecretDrop({
         </button>
         <button
           type="button"
-          className="btn btn--ghost btn--sm"
+          className="icon-btn icon-btn--sm"
           disabled={busy}
           onClick={() => setOpen(false)}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={16} />
         </button>
       </div>
     </section>

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import {
   type HealthIssue,
   ISSUE_EXPLANATION,
@@ -94,9 +95,10 @@ export function HealthPanel() {
                   <ul className="health__issues">
                     {finding.issues.map((issue) => (
                       <li key={issue}>
-                        <span className={`chip ${ISSUE_TONE[issue]}`}>
-                          {ISSUE_LABEL[issue]}
-                        </span>
+                        <StatusMark
+                          tone={statusTone(ISSUE_TONE[issue])}
+                          label={ISSUE_LABEL[issue]}
+                        />
                         <span className="health__why">
                           {issue === "reused" && finding.sharedWith.length > 0
                             ? `Also used for ${finding.sharedWith.join(", ")}. One breach there unlocks this too.`

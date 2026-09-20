@@ -262,6 +262,15 @@
     flex: 1 1 auto;
     justify-content: center;
   }
+
+  /* Form / YAML / TOML are real targets on this section head — 42×26 fails
+     the 44px mobile floor. */
+  .set__view-btn {
+    box-sizing: border-box;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.55rem 0.65rem;
+  }
 }
 
 /* Five categories do not fit a phone in one row. Wrapping put two of them on a
@@ -373,4 +382,122 @@
 .found .f__fills-label,
 .found .hint {
   color: var(--ink-2);
+}
+
+.section__head:has(.set__view) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.set__view {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.set__view-btn {
+  appearance: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+}
+
+.set__view-btn[aria-pressed="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.set-raw__path {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.set-raw__stage {
+  position: relative;
+  min-height: 16rem;
+}
+
+.set-raw__paint,
+.set-raw__input {
+  margin: 0;
+  width: 100%;
+  min-height: 16rem;
+  padding: 0.75rem 0;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.set-raw__paint {
+  pointer-events: none;
+  color: var(--ink);
+}
+
+.set-raw__input {
+  position: absolute;
+  inset: 0;
+  resize: none;
+  color: transparent;
+  caret-color: var(--ink);
+  background: transparent;
+}
+
+.set-raw__key {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.set-raw__str {
+  color: var(--ok);
+}
+
+.set-raw__num {
+  color: var(--warn);
+}
+
+.set-raw__bool {
+  color: var(--err);
+}
+
+.set-raw__comment {
+  color: var(--ink-3);
+}
+
+.set-raw__complete {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.set-raw__option {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.15rem 0;
+  cursor: pointer;
+}
+
+.set-raw__option:hover,
+.set-raw__option:focus-visible {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
 }

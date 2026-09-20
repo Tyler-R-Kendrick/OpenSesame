@@ -11,7 +11,7 @@ import {
 import type { Connection, Egress } from "./connections.js";
 
 export type ConnectAuthLike = {
-  token: string;
+  token?: string;
   teamId?: string;
   projectId?: string;
 };

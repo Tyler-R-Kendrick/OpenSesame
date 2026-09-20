@@ -47,8 +47,18 @@ if [ -n "$design_files" ]; then
   # shellcheck disable=SC2086
   if ! node scripts/design-lint.mjs $design_files; then
     echo "pre-commit: design lint failed." >&2
-    echo "  -> see docs/design/controls.md for the two primary-action patterns." >&2
+    echo "  -> see DESIGN.md and docs/design/controls.md. Executing actions are icon keys." >&2
     exit 1
+  fi
+  impeccable_files=$(printf '%s\n' "$design_files" | grep -E '\.tsx$' || true)
+  if [ -n "$impeccable_files" ]; then
+    echo "==> impeccable detect (DESIGN.md, staged UI files)"
+    # shellcheck disable=SC2086
+    if ! .claude/skills/impeccable/scripts/impeccable detect --no-advisory $impeccable_files; then
+      echo "pre-commit: impeccable detect failed." >&2
+      echo "  -> fix the finding, or the button is a word verb and belongs as an icon key." >&2
+      exit 1
+    fi
   fi
 fi
 

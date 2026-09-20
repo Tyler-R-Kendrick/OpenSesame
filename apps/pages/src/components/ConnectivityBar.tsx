@@ -16,34 +16,22 @@ import { useConnect } from "../lib/identity.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { failureSentence } from "../lib/probe-failure.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { ConnectGitHistory } from "./ConnectGitHistory.js";
-import { HostCeremony } from "./HostCeremony.js";
-import {
-  IconAuthority,
-  IconGitBranch,
-  IconLogin,
-  IconTerminal,
-  IconVault,
-  IconX,
-} from "./Icons.js";
+import { IconLogin, IconVault, IconX } from "./Icons.js";
 import { IdentityCeremony } from "./IdentityCeremony.js";
 import { KeyVaultCeremony } from "./KeyVaultCeremony.js";
-import { ConnectThisMachine } from "./PlaneNote.js";
+import { StatusMark } from "./StatusMark.js";
 import { StatusNote } from "./StatusNote.js";
 
 /**
  * The connectivity bar — a phone status bar for the authorization fabric.
  *
  * Connection state is a state, not a setting, so it lives up top where a glance
- * costs nothing: five glyphs, a coloured pip under each, and an amber pip as
+ * costs nothing: two glyphs, a coloured pip under each, and an amber pip as
  * the only thing that ever pulls the eye. Clicking one that is not live opens
  * its ceremony; clicking a live one shows what it is connected to.
  */
 const GLYPHS = {
-  host: (size) => <IconAuthority size={size} />,
   identity: (size) => <IconLogin size={size} />,
-  machine: (size) => <IconTerminal size={size} />,
-  history: (size) => <IconGitBranch size={size} />,
   keys: (size) => <IconVault size={size} />,
 } satisfies Record<ConnectorId, (size: number) => ReactNode>;
 
@@ -55,9 +43,6 @@ export const connectivityBarDependencies = {
   defaultUpstream,
   claimGuestAuth,
   useConnect,
-  ConnectGitHistory,
-  ConnectThisMachine,
-  HostCeremony,
   KeyVaultCeremony,
 };
 
@@ -67,20 +52,12 @@ export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
 
 function ConnectivityBarDefault() {
   const connectors = connectivityBarDependencies.useConnectors();
-  // Only the two authority planes are named for guides; the rest of the bar
-  // is still reachable, it is just not something a support answer points at.
-  const hostRef = useGuideTarget<HTMLButtonElement>("connectivity.host");
   const identityRef = useGuideTarget<HTMLButtonElement>(
     "connectivity.identity",
   );
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
   const offline = isOfflineSet(connectors);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("github_app")) setOpen("history");
-  }, []);
 
   return (
     <>
@@ -104,13 +81,7 @@ function ConnectivityBarDefault() {
           <ConnectorGlyph
             key={connector.id}
             connector={connector}
-            guideRef={
-              connector.id === "host"
-                ? hostRef
-                : connector.id === "identity"
-                  ? identityRef
-                  : null
-            }
+            guideRef={connector.id === "identity" ? identityRef : null}
             onOpen={() => {
               // Opening a ceremony is a person asking, so refresh rather than
               // showing them whatever the last sweep happened to find.
@@ -254,9 +225,16 @@ export function ConnectionCeremony({
           </button>
         </div>
         <div className="sheet__body">
-          <p className={`chip chip--${toneChip(connector.tone)}`}>
-            {connector.detail}
-          </p>
+          <StatusMark
+            tone={
+              connector.tone === "live"
+                ? "ok"
+                : connector.tone === "attn"
+                  ? "warn"
+                  : "idle"
+            }
+            label={connector.detail}
+          />
           {connector.failure ? (
             <p className="hint">
               {failureSentence(connector.failure, connector.name)}
@@ -274,10 +252,6 @@ export function ConnectionCeremony({
   );
 }
 
-function toneChip(tone: ConnectorStatus["tone"]): string {
-  return tone === "live" ? "ok" : tone === "attn" ? "warn" : "";
-}
-
 function CeremonyBody({
   connector,
   onClose,
@@ -288,25 +262,8 @@ function CeremonyBody({
   onSwitch: (next: ConnectorId) => void;
 }) {
   switch (connector.id) {
-    case "machine":
-      return (
-        <connectivityBarDependencies.ConnectThisMachine
-          autoDiscover
-          onPaired={onClose}
-        />
-      );
-    case "host":
-      return (
-        <connectivityBarDependencies.HostCeremony
-          connector={connector}
-          onCheckNow={() => connectivityBarDependencies.checkNow()}
-          onSwitch={onSwitch}
-        />
-      );
     case "identity":
       return <IdentityCeremony connector={connector} onClose={onClose} />;
-    case "history":
-      return <connectivityBarDependencies.ConnectGitHistory />;
     default:
       return <connectivityBarDependencies.KeyVaultCeremony onClose={onClose} />;
   }

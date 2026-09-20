@@ -17,6 +17,7 @@ packages:
   - "apps/pages"
   - "apps/mobile-mfa"
   - "apps/authenticator-native"
+  - "apps/connect-backend"
   - "apps/mcp-client"
   - "apps/mcp-host"
   - "tools/oxlint/anti-slop"

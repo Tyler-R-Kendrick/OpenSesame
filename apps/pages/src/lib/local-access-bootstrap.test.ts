@@ -5,15 +5,14 @@ import { ensureDefaultAccess } from "./local-access-bootstrap.js";
 import { readLocalApplications } from "./local-applications.js";
 import { readLocalDevices, thisDeviceId } from "./local-devices.js";
 import {
-  GUEST_PERSON_ID,
-  GUEST_PERSON_NAME,
   PAGES_APPLICATION_ID,
   SUPPORT_AGENT_ID,
   readLocalDirectory,
 } from "./local-directory.js";
+import { mintGuestSessionPerson } from "./local-guest.js";
 import { listLocalShares } from "./local-share-grants.js";
 import { mintVaultKey } from "./vault/crypto.js";
-import { lockAllTombs, unlockTomb } from "./vfs.js";
+import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;
 
@@ -52,11 +51,18 @@ beforeEach(async () => {
       memory.clear();
     },
   });
+  const session = new Map<string, string>();
   vi.stubGlobal("sessionStorage", {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-    clear: () => {},
+    getItem: (key: string) => session.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      session.set(key, value);
+    },
+    removeItem: (key: string) => {
+      session.delete(key);
+    },
+    clear: () => {
+      session.clear();
+    },
   });
 });
 
@@ -67,33 +73,22 @@ afterEach(() => {
 });
 
 describe("ensureDefaultAccess", () => {
-  it("seeds person, guest, app, device, Pages scopes, and standing vault shares", async () => {
+  it("seeds person, app, device, Pages scopes, and standing vault shares", async () => {
     await ensureDefaultAccess(tomb);
 
     const directory = await readLocalDirectory(tomb);
-    const person = directory.entries.find(
-      (row) => row.kind === "person" && row.id !== GUEST_PERSON_ID,
-    );
-    const guest = directory.entries.find((row) => row.id === GUEST_PERSON_ID);
+    const person = directory.entries.find((row) => row.kind === "person");
     expect(person).toBeTruthy();
-    expect(guest).toEqual(
-      expect.objectContaining({
-        kind: "person",
-        name: GUEST_PERSON_NAME,
-        id: GUEST_PERSON_ID,
-      }),
-    );
+    // Personal Access bootstrap does not mint a shared guest account.
+    expect(
+      directory.entries.filter((row) => row.kind === "person"),
+    ).toHaveLength(1);
     expect(
       directory.entries.some((row) => row.id === PAGES_APPLICATION_ID),
     ).toBe(true);
     expect(directory.entries.some((row) => row.id === SUPPORT_AGENT_ID)).toBe(
       true,
     );
-    expect(
-      directory.memberships.some(
-        (row) => row.principalId === GUEST_PERSON_ID && row.role === "member",
-      ),
-    ).toBe(true);
 
     const devices = await readLocalDevices(tomb);
     expect(devices.some((row) => row.id === thisDeviceId())).toBe(true);
@@ -121,24 +116,6 @@ describe("ensureDefaultAccess", () => {
     expect(
       shares.some(
         (share) =>
-          share.principalId === GUEST_PERSON_ID &&
-          share.resourceKind === "vault" &&
-          share.resourceId === "guest" &&
-          share.policy === "open",
-      ),
-    ).toBe(true);
-    expect(
-      shares.some(
-        (share) =>
-          share.principalId === GUEST_PERSON_ID &&
-          share.resourceKind === "vault" &&
-          share.resourceId === "guest" &&
-          share.policy === "items",
-      ),
-    ).toBe(true);
-    expect(
-      shares.some(
-        (share) =>
           share.principalId === SUPPORT_AGENT_ID &&
           share.resourceKind === "vault" &&
           share.policy === "open",
@@ -148,5 +125,26 @@ describe("ensureDefaultAccess", () => {
     const before = shares.length;
     await ensureDefaultAccess(tomb);
     expect(await listLocalShares(tomb)).toHaveLength(before);
+  });
+
+  it("mints a unique guest-N into the guest tomb only", async () => {
+    const guest = mintGuestSessionPerson();
+    unlockTomb(GUEST_TOMB, (await mintVaultKey()).vaultKey);
+    await ensureDefaultAccess(GUEST_TOMB);
+    const directory = await readLocalDirectory(GUEST_TOMB);
+    const people = directory.entries.filter((row) => row.kind === "person");
+    expect(people).toEqual([
+      expect.objectContaining({ id: guest.id, name: guest.name }),
+    ]);
+    expect(guest.name).toMatch(/^guest-[1-9]\d*$/);
+    const shares = await listLocalShares(GUEST_TOMB);
+    expect(
+      shares.some(
+        (share) =>
+          share.principalId === guest.id &&
+          share.resourceKind === "vault" &&
+          share.resourceId === "guest",
+      ),
+    ).toBe(true);
   });
 });

@@ -1,23 +1,15 @@
 /**
- * The local IdP registry — the binding this device brokers (ADR 0060).
+ * The local IdP registry — the binding this device brokers (ADR 0060 + 0118).
  *
- * Tailscale locks a tailnet to an IdP at creation; OpenSesame records, per
- * device, every identity provider this browser brokers: BYO upstreams it
- * registered itself (ADR 0055) and first-class catalog providers chosen in
- * the Identity ceremony. The record is a mirror, not the source of truth — the
- * server-side registration list is operator-token-only, so a browser can only
- * ever see what it registered itself, and the UI says exactly that.
+ * OpenSesame itself is always the first identity provider: the device-native
+ * Identity host (ADR 0118) and browser-local IAM. Additional upstreams — BYO
+ * (ADR 0055) and first-class catalog providers from the Identity ceremony —
+ * are optional extras recorded here as a local mirror. An empty additional
+ * list is not an error and must never read as "no identity provider".
  *
- * The registry also carries the ceremony gate: `ceremonyDismissed` is the
- * operator's explicit "set up later", which lifts the gate without a binding.
- *
- * Storage (ADR 0063): the registry lives sealed in the active tomb at
- * `tomb/<name>/config/idp-registry` — it left localStorage with the encrypted
- * VFS. Hydrated into memory on unlock (`hydrateIdpRegistryFromVfs`) and
- * discarded on lock (`discardIdpRegistry`), so while the vault is locked the
- * registry is unreadable. Every consumer (the Identity screen) is already
- * post-unlock; the sign-in hub never consults the registry — the first-class
- * catalog is server-fetched and the BYO hint comes from the sheet flow.
+ * The registry also carries `ceremonyDismissed` for the optional "add another
+ * IdP" ceremony deferral. Storage (ADR 0063): sealed at
+ * `tomb/<name>/config/idp-registry`, hydrated on unlock, discarded on lock.
  */
 
 import {
@@ -26,6 +18,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { pagesIdentityPublicBase } from "./device-identity.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, writeFile } from "./vfs.js";
 
@@ -35,7 +28,16 @@ const LEGACY_STORAGE_KEY = "opensesame.idp-registry.v1";
 /** Sealed VFS path (within a tomb) holding the registry JSON. */
 export const IDP_REGISTRY_CONFIG_PATH = "config/idp-registry";
 
-export type IdpKind = "first-class" | "byo";
+/** Synthetic id for the always-present device-native IdP — never persisted. */
+export const DEVICE_IDP_ID = "opensesame-device";
+
+/** Dogfood label — parallel to `OpenSesame (this vault)` for the authenticator. */
+export const DEVICE_IDP_LABEL = "OpenSesame (this device)";
+
+/** Stable registration time for the synthetic device row (not operator-set). */
+const DEVICE_IDP_REGISTERED_AT = "1970-01-01T00:00:00.000Z";
+
+export type IdpKind = "first-class" | "byo" | "device";
 
 /** The enterprise SSO preset a BYO record was registered through, if any. */
 export type IdpProviderType = "workos" | "okta" | "auth0" | "better-auth";
@@ -95,8 +97,7 @@ function isIdpRecord(value: BoundaryValue): value is IdpRecord {
 
 /**
  * Malformed JSON — a hand-edited store, an older build's shape — reads as the
- * empty registry rather than breaking the section: the ceremony simply shows
- * again, which is the safe first-run posture.
+ * empty *additional* registry. The device IdP still vouches (list API).
  */
 function parseRegistry(raw: string | null): StoredRegistry {
   if (!raw) return EMPTY_REGISTRY;
@@ -104,7 +105,10 @@ function parseRegistry(raw: string | null): StoredRegistry {
     const body: BoundaryValue = JSON.parse(raw);
     if (!isJsonObject(body)) return EMPTY_REGISTRY;
     const providers = Array.isArray(body.providers)
-      ? body.providers.filter(isIdpRecord)
+      ? body.providers.filter(
+          (row): row is IdpRecord =>
+            isIdpRecord(row) && row.id !== DEVICE_IDP_ID,
+        )
       : [];
     return {
       providers,
@@ -115,6 +119,21 @@ function parseRegistry(raw: string | null): StoredRegistry {
   } catch {
     return EMPTY_REGISTRY;
   }
+}
+
+/** Always-present device-native IdP — Pages is the Identity plane for itself. */
+export function deviceIdpRecord(issuer = pagesIdentityPublicBase()): IdpRecord {
+  return {
+    id: DEVICE_IDP_ID,
+    issuer,
+    label: DEVICE_IDP_LABEL,
+    kind: "device",
+    registeredAt: DEVICE_IDP_REGISTERED_AT,
+  };
+}
+
+function withDeviceIdp(additional: IdpRecord[]): IdpRecord[] {
+  return [deviceIdpRecord(), ...additional];
 }
 
 function saveRegistry(registry: StoredRegistry): void {
@@ -223,47 +242,59 @@ export function clearLegacyIdpRegistry(): void {
 
 /* ----------------------------------------------------------------- API */
 
-/** Every IdP this device brokers, oldest registration first. */
+/**
+ * Every IdP this device brokers: the device-native OpenSesame IdP first, then
+ * any additional upstreams (oldest registration first). Never empty.
+ */
 export function listIdpRegistrations(): IdpRecord[] {
+  return withDeviceIdp(parseRegistry(idpRegistrySeams.read()).providers);
+}
+
+/** Additional upstreams only — excludes the built-in device IdP. */
+export function listAdditionalIdpRegistrations(): IdpRecord[] {
   return parseRegistry(idpRegistrySeams.read()).providers;
 }
 
-/** The operator's explicit "set up later" — lifts the gate with no binding. */
+/** The operator's explicit "set up later" — defers adding another upstream. */
 export function ceremonyDismissed(): boolean {
   return parseRegistry(idpRegistrySeams.read()).ceremonyDismissed;
 }
 
-/** The gate condition: no binding recorded and no explicit deferral. */
+/**
+ * Whether the optional "add another IdP" ceremony should interrupt first
+ * navigation. Always false: the device IdP already vouches (ADR 0118).
+ */
 export function idpCeremonyNeeded(): boolean {
-  const registry = parseRegistry(idpRegistrySeams.read());
-  return registry.providers.length === 0 && !registry.ceremonyDismissed;
+  return false;
 }
 
 /**
- * Record a binding. Upserts by id — re-registering the same provider refreshes
- * its record rather than listing it twice. Registering also lifts the ceremony
- * gate permanently: removing the last mirror later shows the Providers banner,
- * never the gate again.
+ * Record an additional upstream. Upserts by id. Cannot replace the device IdP.
+ * Registering lifts the optional ceremony deferral.
  */
 export function registerIdp(record: IdpRecord): IdpRecord[] {
+  if (record.id === DEVICE_IDP_ID || record.kind === "device") {
+    return listIdpRegistrations();
+  }
   const registry = parseRegistry(idpRegistrySeams.read());
   const providers = [
     ...registry.providers.filter((existing) => existing.id !== record.id),
     record,
   ];
   saveRegistry({ ...registry, providers, ceremonyDismissed: true });
-  return providers;
+  return withDeviceIdp(providers);
 }
 
 /**
- * Drop the local mirror of a binding. The server-side registration is
- * disable-only and operator-gated — removal here never claims to delete it.
+ * Drop the local mirror of an additional upstream. The device IdP cannot be
+ * removed. Server-side registration is disable-only and operator-gated.
  */
 export function removeIdpRegistration(id: string): IdpRecord[] {
+  if (id === DEVICE_IDP_ID) return listIdpRegistrations();
   const registry = parseRegistry(idpRegistrySeams.read());
   const providers = registry.providers.filter((existing) => existing.id !== id);
   saveRegistry({ ...registry, providers });
-  return providers;
+  return withDeviceIdp(providers);
 }
 
 /** Record the explicit deferral that lifts the ceremony gate. */

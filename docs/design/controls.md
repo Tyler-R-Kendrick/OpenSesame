@@ -1,9 +1,9 @@
-# Controls — the two primary actions, and which is which
+# Controls — icon keys, and which glyph
 
-The vault has exactly two shapes for "the important button", and picking the
-wrong one is how a screen stops looking like the rest of the app. This page
-names both so the choice is a lookup rather than a judgement call, and
-`scripts/design-lint.mjs` (`pnpm lint:design`) holds new code to it.
+Read [`DESIGN.md`](../../DESIGN.md) before drawing a control. An action that
+executes is an icon key. A word on a button face is a design failure.
+`scripts/design-lint.mjs` (`pnpm lint:design`) and `impeccable detect` hold
+new code to that, and both run in `.githooks/pre-commit`.
 
 ## Native dropdowns
 
@@ -12,6 +12,12 @@ opaque `--surface` backgrounds with `--ink` text in `native-controls.css`;
 the root color scheme follows the selected theme, including system mode.
 Never hard-code white/black dropdown colors. `pnpm lint:design` checks both
 the shared popup pair and component overrides; browser checks cover contrast.
+A connector panel head is a title. `pnpm lint:design` rejects a hint caption
+under it, and rejects explainer sentences that describe the panel instead of
+showing the account, grant, or repository. An in-page `note` or `conn-flash`
+box is rejected the same way: a failure is a `StatusMark`, never a paragraph.
+Pages copy never names a Host, and a browser-local action never tells the
+person to pair one.
 
 ## 1. The terminal commit — `.go`
 
@@ -41,26 +47,43 @@ margin voice beside a mark costs nothing and buys back the width. It is also
 the only way the control stays recognisable across screens: the square is the
 same object every time, and only its glyph changes.
 
-## 2. The in-card action — `.btn--primary`
+## 2. The in-card action — `icon-btn`
 
-**A thing to do *here*, beside the facts that justify it.** Pairing a daemon
-that discovery just found. Authorizing a connector. Registering a provider.
+**A thing to do *here*, beside the facts that justify it.** Authorizing a
+connector. Revoking a grant. Copying a callback. Loading another page of rows.
 
 ```html
-<div class="found__do">
-  <button type="button" class="btn btn--primary">Pair this daemon</button>
+<div class="actions">
+  <button type="button" class="icon-btn icon-btn--sm" aria-label="Revoke" title="Revoke">
+    <IconTrash size={16} />
+  </button>
 </div>
 ```
 
-- A normal `.btn--primary` with a **text label**. This is correct and
-  deliberate: the action belongs to the card's content, not to the screen, and
-  its label is doing real work (*which* daemon, *what* authorization).
-- It lives inside a `.found` card, an `.alt__body`, or a `.panel__body` —
-  never in a screen's foot bar.
+- The same icon key as everywhere else. The sentence is `aria-label` and
+  `title`, never visible text.
+- Choice objects stay words: a provider name, a mode, a navigation target,
+  the guest road. Those are not executing verbs.
+- It lives inside a card or a panel body. A screen's foot is still `.go`.
 
 ## The rule in one line
 
-> A screen's foot commits with `.go`. A card's body acts with `.btn--primary`.
+> A screen's foot commits with `.go`. Every other executing action is an `icon-btn`. A status is a `StatusMark`, never a text pill.
+
+## 3. Status — `StatusMark`
+
+**A condition, not a name.** Connected. Needs you. Broken. Revoked. Saved.
+Locked. Authorized.
+
+```html
+<span class="status-mark status-mark--ok" role="img" aria-label="Connected" title="Connected">
+  <!-- IconCheck -->
+</span>
+```
+
+- The glyph is an existing icon: check, alert, dismiss, or lock. Colour is the tone.
+- The word is `aria-label` and `title` only.
+- A provider, a role, a person, or a platform is a name. Those may stay text. A status may not.
 
 ## What is enforced
 
@@ -91,6 +114,10 @@ second layout row that shifts one icon above another. All controls form one
 left-aligned strip; no utility group is pushed to the opposite edge. Static-origin
 browser checks compare actual hit areas, glyph centers, group gaps, and surface styles.
 
-The rules are deliberately narrow. A lint that tried to guess *in general*
-whether a button should have been an icon would be wrong constantly; these
-check the specific, mechanical things that went wrong the first time.
+`pnpm lint:design` also rejects a `<button>` whose face carries an executing
+verb (`Revoke`, `Authorize`, `Connect`, `Save`, `Copy`, `Load N more`, and
+the same family) unless the control is `icon-btn` or `.go`. Existing files
+are pinned in `scripts/design-button-baseline.json`. A file may not exceed
+its recorded count, and a file that improves must have that count lowered in
+the same change. New files start at zero. `impeccable detect` runs on the
+same pre-commit path and fails the commit on a primary finding.

@@ -26,6 +26,7 @@ const providers: Provider[] = Array.from({ length: 29 }, (_, index) => ({
   ...template,
   id: `provider-${index}`,
   displayName: `Connector ${String(index).padStart(2, "0")}`,
+  category: "developer",
   autoConfigurable: false,
 }));
 function connection(
@@ -189,13 +190,7 @@ it("walks catalog subheaders in page order instead of alphabetically", () => {
     catalogGroup()
       .getAllByRole("treeitem")
       .map((row) => row.getAttribute("aria-label")),
-  ).toEqual([
-    "Password managers",
-    "Mid Pass",
-    "Developer tools",
-    "Zulu Cloud",
-    "Alpha Cloud",
-  ]);
+  ).toEqual(["Developer tools", "Zulu Cloud", "Alpha Cloud"]);
 });
 
 it("keeps each connected instance addressable and excludes revoked connections", () => {

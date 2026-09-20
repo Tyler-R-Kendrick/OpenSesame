@@ -1,5 +1,6 @@
 import {
   type JsonObject,
+  type JsonValue,
   isTypeofObject,
   overlapCast,
   readJsonObject,
@@ -32,11 +33,20 @@ export type BackupStatus = {
   pendingEvents: number;
 };
 
+export type GithubAppPermission = {
+  name: string;
+  access: string;
+};
+
 export type GithubInstallation = {
   id: string;
   accountLogin: string;
   accountType: string;
   targetType: string;
+  /** `all` or `selected` — which repositories this install can reach. */
+  repositorySelection: string;
+  permissions: GithubAppPermission[];
+  repositories: string[];
 };
 
 function toTarget(raw: JsonObject): BackupTargetView {
@@ -74,6 +84,29 @@ async function getBackupStatusDefault(): Promise<BackupStatus> {
   };
 }
 
+function readPermissions(value: JsonValue | undefined): GithubAppPermission[] {
+  if (!Array.isArray(value)) return [];
+  const rows: GithubAppPermission[] = [];
+  for (const item of value) {
+    if (!item || !isTypeofObject(item) || Array.isArray(item)) continue;
+    const name = readString(item.name);
+    const access = readString(item.access);
+    if (!name || !access) continue;
+    rows.push({ name, access });
+  }
+  return rows;
+}
+
+function readStringList(value: JsonValue | undefined): string[] {
+  if (!Array.isArray(value)) return [];
+  const names: string[] = [];
+  for (const item of value) {
+    const name = readString(item);
+    if (name) names.push(name);
+  }
+  return names;
+}
+
 async function listGithubInstallationsDefault(
   integrationId: string,
 ): Promise<GithubInstallation[]> {
@@ -91,6 +124,9 @@ async function listGithubInstallationsDefault(
       accountLogin: String(row.account_login ?? ""),
       accountType: String(row.account_type ?? ""),
       targetType: String(row.target_type ?? ""),
+      repositorySelection: String(row.repository_selection ?? ""),
+      permissions: readPermissions(row.permissions),
+      repositories: readStringList(row.repositories),
     }))
     .filter((row) => /^\d+$/.test(row.id));
 }

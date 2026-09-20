@@ -1,4 +1,4 @@
-/* Shell omnibox — URL-bar geometry under crumbs, above the section. */
+/* Shell omnibox — outer chrome in the statusline, on every unlocked screen. */
 
 .command-bar {
   flex: none;
@@ -88,6 +88,41 @@
   font-size: 0.75rem;
   color: var(--ink-3);
   text-wrap: pretty;
+}
+
+/* ——— Seated in the statusline —————————————————————————————
+   The strip stays one row, so the bar goes borderless and the notice
+   floats above it instead of stacking under the input. */
+.statusline__command {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+}
+
+.statusline__command .command-bar {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.statusline__command .command-bar__form {
+  min-height: 2.75rem;
+}
+
+.statusline__command .command-bar__status {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
 }
 
 @media (pointer: coarse) {

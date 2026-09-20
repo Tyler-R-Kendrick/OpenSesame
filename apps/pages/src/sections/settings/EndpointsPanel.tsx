@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
 import {
   IconAuthority,
@@ -6,11 +6,7 @@ import {
   IconPhone,
   IconTerminal,
 } from "../../components/Icons.js";
-import { StatusNote } from "../../components/StatusNote.js";
-import {
-  checkTurso,
-  setTursoSessionToken,
-} from "../../lib/embedded-catalog.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
   type PagesSettings,
   loadSettings,
@@ -22,8 +18,6 @@ import {
 } from "../../lib/settings.js";
 
 export const endpointsPanelDependencies = {
-  checkTurso,
-  setTursoSessionToken,
   loadSettings,
   saveSettings,
   pageIsLoopback,
@@ -45,7 +39,7 @@ export function EndpointsPanel() {
   const [settings, setSettings] = useState<PagesSettings>(() =>
     endpointsPanelDependencies.loadSettings(),
   );
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<EndpointKey | null>(null);
   const [saved, setSaved] = useState<Set<EndpointKey>>(() => new Set());
 
   function commit(key: EndpointKey, raw: string) {
@@ -68,190 +62,92 @@ export function EndpointsPanel() {
   }
 
   function savedChip(key: EndpointKey) {
-    return saved.has(key) ? <span className="chip chip--ok">Saved</span> : null;
+    return saved.has(key) ? <StatusMark tone="ok" label="Saved" /> : null;
   }
 
-  /** Only offer a default that is not already in the box. */
   function fill(key: EndpointKey, value: string) {
     if (!value || settings[key] === value) return [];
     return [{ label: value, onPick: () => edit(key, value) }];
   }
 
-  return (
-    <section className="panel" id="endpoints">
-      <div className="panel__head">
-        <div>
-          <h2>Endpoints</h2>
-        </div>
-        <button
-          type="button"
-          className="btn btn--sm"
-          aria-expanded={open}
-          aria-controls="endpoints-body"
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open ? "Hide" : "Edit by hand"}
-        </button>
-      </div>
-      {open ? (
-        <div className="panel__body" id="endpoints-body">
-          <FieldShell
-            id="host-api"
-            label="Host API"
-            type="url"
-            mono
-            lead={<IconAuthority size={17} />}
-            placeholder="http://127.0.0.1:18787"
-            value={settings.hostApi}
-            status={savedChip("hostApi")}
-            onValueChange={(value) => edit("hostApi", value)}
-            onCommit={(value) => commit("hostApi", value)}
-            fills={fill(
-              "hostApi",
-              endpointsPanelDependencies.pageIsLoopback() ? shippedHostApi : "",
-            )}
-          />
-          <FieldShell
-            id="identity-api"
-            label="Identity API"
-            type="url"
-            mono
-            lead={<IconLogin size={17} />}
-            placeholder="http://127.0.0.1:18788"
-            value={settings.identityApi}
-            status={savedChip("identityApi")}
-            onValueChange={(value) => edit("identityApi", value)}
-            onCommit={(value) => commit("identityApi", value)}
-            fills={fill(
-              "identityApi",
-              endpointsPanelDependencies.pageIsLoopback()
-                ? shippedIdentityApi
-                : "",
-            )}
-          />
-          <FieldShell
-            id="daemon-api"
-            label="Daemon on this machine"
-            type="url"
-            mono
-            lead={<IconTerminal size={17} />}
-            placeholder="https://your-machine.tailnet.ts.net"
-            value={settings.daemonApi}
-            status={savedChip("daemonApi")}
-            onValueChange={(value) => edit("daemonApi", value)}
-            onCommit={(value) => commit("daemonApi", value)}
-            fills={fill(
-              "daemonApi",
-              endpointsPanelDependencies.pageIsLoopback()
-                ? shippedDaemonApi
-                : "",
-            )}
-            hint={
-              <>
-                Local Pages keep Host and Identity on loopback after pairing.
-                The Tailscale Serve URL is what github.io and other devices use
-                — this page cannot call <code>127.0.0.1</code>.
-              </>
-            }
-          />
-          <FieldShell
-            id="mfa-app-url"
-            label="Mobile MFA app"
-            type="url"
-            mono
-            lead={<IconPhone size={17} />}
-            placeholder="http://127.0.0.1:5177"
-            value={settings.mfaAppUrl}
-            status={savedChip("mfaAppUrl")}
-            onValueChange={(value) => edit("mfaAppUrl", value)}
-            onCommit={(value) => commit("mfaAppUrl", value)}
-            hint="When this browser cannot finish a passkey, the passkey note shows a QR that opens this URL on your phone."
-          />
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-/**
- * Turso is off unless someone turns it on, and turning it on takes a URL plus
- * a token that is deliberately never persisted. That is a form, and it stays
- * one — but it is no longer wedged into the middle of the endpoint list.
- */
-export function TursoSyncPanel() {
-  const [tursoUrl, setTursoUrl] = useState(
-    () => endpointsPanelDependencies.loadSettings().tursoUrl,
-  );
-  const [token, setToken] = useState("");
-  const [status, setStatus] = useState<{
-    tone: "ok" | "err";
-    text: string;
-  } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function apply() {
-    setBusy(true);
-    try {
-      endpointsPanelDependencies.saveSettings({
-        ...endpointsPanelDependencies.loadSettings(),
-        tursoUrl: tursoUrl.trim(),
-      });
-      endpointsPanelDependencies.setTursoSessionToken(token);
-      const mode = await endpointsPanelDependencies.checkTurso();
-      setStatus({
-        tone: mode === "memory" ? "err" : "ok",
-        text:
-          mode === "remote"
-            ? "Turso is embedded in this PWA and synchronized with the configured remote."
-            : mode === "embedded"
-              ? "Turso is running inside this PWA and persisting the connector catalog in OPFS."
-              : "Turso could not open; this tab is using the bundled connector catalog in memory.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
+  const rows: ReadonlyArray<{
+    key: EndpointKey;
+    label: string;
+    placeholder: string;
+    lead: ReactNode;
+    fill: string;
+  }> = [
+    {
+      key: "hostApi",
+      label: "Host API",
+      placeholder: "http://127.0.0.1:18787",
+      lead: <IconAuthority size={17} />,
+      fill: endpointsPanelDependencies.pageIsLoopback() ? shippedHostApi : "",
+    },
+    {
+      key: "identityApi",
+      label: "Identity API",
+      placeholder: "http://127.0.0.1:18788",
+      lead: <IconLogin size={17} />,
+      fill: endpointsPanelDependencies.pageIsLoopback()
+        ? shippedIdentityApi
+        : "",
+    },
+    {
+      key: "daemonApi",
+      label: "Daemon on this machine",
+      placeholder: "https://your-machine.tailnet.ts.net",
+      lead: <IconTerminal size={17} />,
+      fill: endpointsPanelDependencies.pageIsLoopback() ? shippedDaemonApi : "",
+    },
+    {
+      key: "mfaAppUrl",
+      label: "Mobile MFA app",
+      placeholder: "http://127.0.0.1:5177",
+      lead: <IconPhone size={17} />,
+      fill: "",
+    },
+  ];
 
   return (
-    <section className="panel" id="turso">
-      <div className="panel__head">
-        <div>
-          <h2>Turso sync</h2>
-        </div>
-      </div>
-      <div className="panel__body">
-        <FieldShell
-          id="turso-url"
-          label="Sync URL"
-          type="url"
-          mono
-          placeholder="libsql://database-name.turso.io"
-          value={tursoUrl}
-          onValueChange={setTursoUrl}
-        />
-        <FieldShell
-          id="turso-token"
-          label="Auth token (this tab only)"
-          type="password"
-          autoComplete="off"
-          placeholder="Only needed for remote sync"
-          value={token}
-          onValueChange={setToken}
-          hint="Never written to OPFS or the vault. Paste it again after a reload when remote sync is needed."
-        />
-        <StatusNote message={status} />
-        <div className="actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            aria-busy={busy}
-            onClick={() => void apply()}
-          >
-            {busy ? "Checking…" : "Apply and check"}
-          </button>
-        </div>
-      </div>
-    </section>
+    <div className="conn-group" id="endpoints">
+      <h3 className="conn-group__label">Endpoints</h3>
+      <ul className="conn-grid">
+        {rows.map((row) => (
+          <li className="conn-tile" key={row.key}>
+            <button
+              type="button"
+              className="conn-tile__link"
+              aria-expanded={open === row.key}
+              aria-label={row.label}
+              title={row.label}
+              onClick={() =>
+                setOpen((current) => (current === row.key ? null : row.key))
+              }
+            >
+              {row.lead}
+              <span className="conn-tile__name">{row.label}</span>
+              {savedChip(row.key)}
+            </button>
+            {open === row.key ? (
+              <div className="conn-tile__body">
+                <FieldShell
+                  id={row.key}
+                  label={row.label}
+                  type="url"
+                  mono
+                  placeholder={row.placeholder}
+                  value={settings[row.key]}
+                  status={savedChip(row.key)}
+                  onValueChange={(value) => edit(row.key, value)}
+                  onCommit={(value) => commit(row.key, value)}
+                  fills={fill(row.key, row.fill)}
+                />
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

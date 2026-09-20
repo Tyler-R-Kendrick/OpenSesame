@@ -65,7 +65,7 @@ export async function authorizeHost(
   const base = hostAuthorizationSeams.identityBase().trim();
   if (!base) {
     throw new HostAuthorizationError(
-      "Host verification needs a remote Identity API under Settings → Connectivity. This device hosts local identity only.",
+      "Host verification needs a remote Identity API under Settings → Connections. This device hosts local identity only.",
     );
   }
   const identity = new URL(base);

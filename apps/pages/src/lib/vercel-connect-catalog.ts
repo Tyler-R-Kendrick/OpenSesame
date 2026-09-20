@@ -10,7 +10,6 @@ type Methods = "managed" | "oauth" | "api_key" | "mcp";
 
 /** id, display name, connection methods from the Vercel browse catalog. */
 const ROWS: [string, string, Methods][] = [
-  ["github", "GitHub", "managed"],
   ["linear", "Linear", "managed"],
   ["linq", "Linq", "managed"],
   ["microsoft", "Microsoft", "managed"],
@@ -79,7 +78,6 @@ const ROWS: [string, string, Methods][] = [
   ["mixpanel", "Mixpanel", "mcp"],
   ["monday", "monday.com", "oauth"],
   ["n8n", "n8n", "api_key"],
-  ["neon", "Neon", "api_key"],
   ["netlify", "Netlify", "mcp"],
   ["ngrok", "ngrok", "api_key"],
   ["notion", "Notion", "oauth"],
@@ -110,7 +108,6 @@ const ROWS: [string, string, Methods][] = [
   ["similarweb", "Similarweb", "mcp"],
   ["spotify", "Spotify", "oauth"],
   ["stripe", "Stripe", "mcp"],
-  ["supabase", "Supabase", "mcp"],
   ["telegram", "Telegram Bot", "api_key"],
   ["ticket-tailor", "Ticket Tailor", "mcp"],
   ["ticktick", "TickTick", "mcp"],
@@ -140,11 +137,8 @@ const CATEGORY = {
   okta: "identity",
   workos: "identity",
   microsoft: "identity",
-  github: "backup_recovery",
   gitlab: "backup_recovery",
   gitee: "backup_recovery",
-  supabase: "backup_recovery",
-  neon: "backup_recovery",
   planetscale: "backup_recovery",
   convex: "backup_recovery",
   anthropic: "agent_harnesses",
@@ -212,7 +206,10 @@ function toProvider(row: [string, string, Methods]): Provider {
     docsUrl: `https://vercel.com/connect/${id}`,
     authKind: authKind(methods),
     supportsRefresh: methods === "managed" || methods === "oauth",
-    configured: false,
+    // Managed/OAuth rows are ready on Connect — no client-id ceremony.
+    // They still need a human Authorize click; autoConfigurable is only for
+    // built-ins like WebCrypto (SettingsPage treats it as "nothing to authorize").
+    configured: methods === "managed" || methods === "oauth",
     autoConfigurable: false,
     missingConfig: [],
     callbackUrl: null,

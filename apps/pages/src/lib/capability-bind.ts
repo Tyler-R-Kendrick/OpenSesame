@@ -9,7 +9,7 @@
  *
  * So the sequence lives here. Two entry points, both usable from any surface:
  * `bindCapabilityConnector` writes the choice, and `authorizeCapabilityConnector`
- * runs the consent round trip for the connectors that need Host authorization.
+ * runs the consent round trip for the connectors that need authorization.
  */
 
 import {
@@ -24,11 +24,9 @@ import {
   createConnection,
   listConnections,
 } from "./connections.js";
-import { ensureHostSession } from "./identity.js";
 import { loadSettings, saveSettings } from "./settings.js";
 
 export const capabilityBindDependencies = {
-  ensureHostSession,
   listConnections,
   createConnection,
   authorizeConnection,
@@ -99,7 +97,6 @@ export async function authorizeCapabilityConnector(
   }
 
   try {
-    await capabilityBindDependencies.ensureHostSession();
     const scopes = def.authScopes?.(binding.providerId);
     const existing = (await capabilityBindDependencies.listConnections()).find(
       (entry) =>

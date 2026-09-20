@@ -4,8 +4,8 @@
 > SOPS, fnox, password-store forks, and OpenSesame sealed-store interop.
 
 **Stance: primitive / prior art** — not a product competitor. age is a building
-block OpenSesame reads/writes (`.age`) and offers as an encryption capability
-connector option.
+block OpenSesame reads/writes (`.age`). In Pages it is a Settings encryption
+key SOP (typage / `age-encryption`), not a Connections catalog connector.
 
 ## Overview
 
@@ -40,7 +40,7 @@ file to these people” without the OpenPGP web of trust.
 - Product needs vault UI, Host connectors, and agent-safe authority.
 - Sealed store may prefer `.osseal` while still reading classic `.age`.
 - Encryption **capability** can select WebCrypto, age, YubiKey, cloud KMS —
-  age is one connector, not the whole product.
+  age is a key SOP under Settings, not a Connections broker.
 
 ## OpenSesame mapping
 
@@ -49,7 +49,7 @@ file to these people” without the OpenPGP web of trust.
 | Recipient | Sealed-store / capability encryption recipient |
 | `.age` file | Classic sealed-store ciphertext (interop) |
 | `age` CLI | Optional; Host/Pages must not require it for core paths |
-| Catalog | Provider / capability option `age` |
+| Settings | Encryption key SOP `age` (browser: typage) |
 
 Related: [sops.md](sops.md), [fnox.md](fnox.md),
 [ADR 0037](../adr/0037-git-sealed-store.md), Pages capability connectors

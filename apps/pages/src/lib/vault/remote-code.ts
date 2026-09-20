@@ -39,7 +39,7 @@ function requireIdentity(): void {
   if (!isRemoteIdentityConfigured()) {
     throw new RemoteCodeError(
       "no_identity",
-      "Codes by email or text need a remote Identity API. Set one under Settings → Connectivity.",
+      "Codes by email or text need a remote Identity API. Set one under Settings → Connections.",
     );
   }
 }

@@ -7,12 +7,12 @@ import {
   readLocalDirectory,
 } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import type { IdentityRailSnapshot } from "./page-tree.js";
 
 /** Live directory, devices, and IdP registry for every Identity rail subtree. */
 export function useIdentityRailSnapshot(): IdentityRailSnapshot {
-  const tomb = useVaultStore().activeTomb?.() ?? "";
+  const { tomb } = useVault();
   const [directory, setDirectory] = useState<LocalIdentity[]>([]);
   const [devices, setDevices] = useState<LocalDevice[]>([]);
   const [providers, setProviders] = useState(() => listIdpRegistrations());

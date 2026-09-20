@@ -9,8 +9,8 @@
 import { loadSession as loadFederationSession } from "./federation.js";
 import { claimProvisionalHistoryAccounts } from "./history-backups.js";
 import {
+  GUEST_NOTICE_BODY,
   GUEST_NOTICE_TITLE,
-  guestClaimNoticeBody,
 } from "./history-claim-notice.js";
 import {
   IdentityError,
@@ -20,9 +20,12 @@ import {
   isRemoteIdentityConfigured,
 } from "./identity.js";
 import { ensureDefaultAccess } from "./local-access-bootstrap.js";
+import {
+  mintGuestSessionPerson,
+  readGuestSessionPerson,
+} from "./local-guest.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
 import { vaultStore } from "./vault/store.js";
-import { GUEST_TOMB } from "./vfs.js";
 
 /**
  * Set while a verified upstream identity is waiting to be attached, cleared the
@@ -50,7 +53,8 @@ export const guestAuthDependencies = {
   currentSession,
   isRemoteIdentityConfigured,
   identityJson,
-  createGuest: () => vaultStore.createGuest(),
+  createGuest: (options?: { resume?: boolean }) =>
+    vaultStore.createGuest(options),
   vaultStatus: () => vaultStore.getSnapshot().status,
   loadFederationSession,
 };
@@ -131,13 +135,12 @@ async function claimGuestAuthDefault(): Promise<void> {
   }
   if (inFlightClaim) return inFlightClaim;
   inFlightClaim = (async () => {
-    const body = await guestClaimNoticeBody();
     try {
       await guestAuthDependencies.connectProvisional();
       pushNotice({
         kind: "guest_claim",
         title: GUEST_NOTICE_TITLE,
-        body,
+        body: GUEST_NOTICE_BODY,
       });
     } catch (caught) {
       pushNotice({
@@ -157,19 +160,34 @@ async function claimGuestAuthDefault(): Promise<void> {
 
 async function seedGuestAccess(): Promise<void> {
   try {
-    await ensureDefaultAccess(GUEST_TOMB);
+    // Seed the tomb this guest session actually unlocked — always the guest
+    // isolation tomb after createGuest, never a member vault.
+    await ensureDefaultAccess(vaultStore.activeTomb());
   } catch {
     /* Access seeds when Identity/Access opens; guest entry must not fail. */
   }
 }
 
-async function openGuestVault(): Promise<void> {
-  await guestAuthDependencies.createGuest();
+async function openGuestVault(mode: "fresh" | "resume"): Promise<void> {
+  if (mode === "fresh") {
+    // Continue-as-guest always mints a new unclaimed principal (`guest-N`).
+    mintGuestSessionPerson();
+  } else if (!readGuestSessionPerson()) {
+    // Unlock on the guest road with no surviving principal — mint once.
+    mintGuestSessionPerson();
+  }
+  await guestAuthDependencies.createGuest({ resume: mode === "resume" });
   await seedGuestAccess();
 }
 
 async function continueAsGuestDefault(): Promise<void> {
-  await openGuestVault();
+  await openGuestVault("fresh");
+  await claimGuestAuthDefault();
+}
+
+/** Unlock on the guest road after lock/reload — same principal, keep claims. */
+async function resumeGuestSessionDefault(): Promise<void> {
+  await openGuestVault("resume");
   await claimGuestAuthDefault();
 }
 
@@ -237,7 +255,7 @@ async function adoptFederatedIdentityDefault(
     // No principal to link to, so nothing to defer or retry. A true first run
     // still opens the same ephemeral vault a guest gets; a locked vault stays
     // locked, and the caller's "signed in, now unlock" banner says so.
-    if (status === "empty") await openGuestVault();
+    if (status === "empty") await openGuestVault("fresh");
     const federation = guestAuthDependencies.loadFederationSession();
     if (federation?.pairwiseSub) {
       try {
@@ -251,7 +269,7 @@ async function adoptFederatedIdentityDefault(
   }
 
   if (status === "empty") {
-    await openGuestVault();
+    await openGuestVault("fresh");
     try {
       await linkGuestAccountDefault(idToken);
       clearPendingLink();
@@ -313,7 +331,7 @@ async function adoptFederatedIdentityDefault(
  */
 async function openVaultAfterSignInDefault(): Promise<boolean> {
   if (guestAuthDependencies.vaultStatus() === "empty") {
-    await openGuestVault();
+    await openGuestVault("fresh");
   }
   return guestAuthDependencies.vaultStatus() === "unlocked";
 }
@@ -342,6 +360,7 @@ function recoverPendingFederatedLinkDefault(): void {
 
 export const guestAuthSeams = {
   continueAsGuest: continueAsGuestDefault,
+  resumeGuestSession: resumeGuestSessionDefault,
   claimGuestAuth: claimGuestAuthDefault,
   linkGuestAccount: linkGuestAccountDefault,
   adoptFederatedIdentity: adoptFederatedIdentityDefault,
@@ -351,6 +370,10 @@ export const guestAuthSeams = {
 
 export async function continueAsGuest(): Promise<void> {
   return guestAuthSeams.continueAsGuest();
+}
+
+export async function resumeGuestSession(): Promise<void> {
+  return guestAuthSeams.resumeGuestSession();
 }
 
 export async function claimGuestAuth(): Promise<void> {
@@ -374,5 +397,3 @@ export async function openVaultAfterSignIn(): Promise<boolean> {
 export function recoverPendingFederatedLink(): void {
   guestAuthSeams.recoverPendingFederatedLink();
 }
-
-export { ensureHistoryClaimNotice } from "./history-claim-notice.js";

@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { ConnectorDirectoryForm } from "../../../components/ConnectorDirectoryForm.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import {
   type ConnectorDirectory,
   pendingConnectorDirectory,
@@ -36,12 +37,12 @@ function ConnectionCards({
           </span>
           <span className="xcard__side">
             {connection.errors > 0 ? (
-              <span className="chip chip--warn">
-                {connection.errors}{" "}
-                {connection.errors === 1 ? "error" : "errors"}
-              </span>
+              <StatusMark
+                tone="warn"
+                label={`${connection.errors} ${connection.errors === 1 ? "error" : "errors"}`}
+              />
             ) : (
-              <span className="chip chip--ok">Authorized</span>
+              <StatusMark tone="ok" label="Authorized" />
             )}
           </span>
         </li>

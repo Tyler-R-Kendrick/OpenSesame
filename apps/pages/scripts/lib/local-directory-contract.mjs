@@ -84,13 +84,17 @@ async function directoryRecordsContract(page, tabTo) {
       row().getByRole("button", { name: "Disable", exact: true }),
     );
     await page.keyboard.press("Enter");
-    await expect(row().getByText("Disabled", { exact: true })).toBeVisible();
+    await expect(
+      row().getByRole("img", { name: "Disabled", exact: true }),
+    ).toBeVisible();
     await tabTo(
       page,
       panel.getByRole("button", { name: "Reload directory", exact: true }),
     );
     await page.keyboard.press("Enter");
-    await expect(row().getByText("Disabled", { exact: true })).toBeVisible();
+    await expect(
+      row().getByRole("img", { name: "Disabled", exact: true }),
+    ).toBeVisible();
     await tabTo(
       page,
       row().getByRole("button", { name: "Delete", exact: true }),

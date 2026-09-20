@@ -135,16 +135,13 @@ export function TreeRow({
       aria-selected={shownSelected}
       aria-expanded={expanded}
       aria-busy={busy}
+      data-rail-toggle={onToggle ? "true" : undefined}
       onClick={(event) => {
-        if (
-          !onToggle ||
-          event.button !== 0 ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey
-        ) {
+        if (!onToggle) {
           setRailCursor(null);
+          return;
+        }
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
           return;
         }
         setRailCursor(event.currentTarget.id);

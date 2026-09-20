@@ -1,8 +1,18 @@
 import { type FormEvent, useCallback, useEffect, useId, useState } from "react";
-import { IconCheck, IconExternal } from "../../components/Icons.js";
+import {
+  IconCheck,
+  IconCopy,
+  IconExternal,
+  IconTrash,
+} from "../../components/Icons.js";
 import type { Integration, Provider } from "../../lib/connections.js";
 import { createIntegration, listIntegrations } from "../../lib/connections.js";
-import { hostBase } from "../../lib/identity.js";
+import {
+  claimGithubAppCode,
+  forgetLocalGithubApp,
+  readLocalGithubApp,
+  refreshGithubAppInstallations,
+} from "../../lib/github-app-manifest.js";
 import { type Flash, errorText } from "./shared.js";
 import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 
@@ -12,19 +22,11 @@ function usableFor(provider: Provider) {
 }
 
 export function callbackUrlFor(provider: Provider): string {
-  return (
-    provider.callbackUrl ??
-    `${hostBase()}/api/v1/oauth/callback/${encodeURIComponent(provider.id)}`
-  );
+  if (provider.callbackUrl) return provider.callbackUrl;
+  const origin = window.location.origin;
+  return `${origin}/api/v1/oauth/callback/${encodeURIComponent(provider.id)}`;
 }
 
-/**
- * Makes an OAuth connector configurable from this page. Until the Host has a
- * client for the provider — deployment env vars, a sealed org integration, or
- * (GitHub only) a one-click App registration — Authorize cannot work, so this
- * panel offers the two ways to create one. Client secrets are sealed by the
- * Host on arrival and never read back.
- */
 export function OauthClientPanel({
   provider,
   online,
@@ -60,18 +62,50 @@ export function OauthClientPanel({
     if (provider.id !== "github") return;
     const params = new URLSearchParams(window.location.search);
     const result = params.get("github_app");
-    if (!result) return;
     const reason = params.get("reason");
-    if (result === "registered") {
-      onFlash({
-        tone: "ok",
-        text: "GitHub App registered for this organization. You can Authorize with GitHub now.",
+    // Relay renames GitHub's code/state so OIDC sign-in does not steal them.
+    const code = params.get("github_app_code") ?? params.get("code");
+    const state = params.get("github_app_state") ?? params.get("state");
+    if (code && state) {
+      void claimGithubAppCode(code, state).then((outcome) => {
+        params.delete("code");
+        params.delete("state");
+        params.delete("github_app_code");
+        params.delete("github_app_state");
+        params.delete("github_app");
+        params.delete("reason");
+        params.delete("integration");
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", next);
+        if (outcome === "registered") {
+          onFlash({ tone: "ok", text: "GitHub App registered." });
+          void refresh();
+          void refreshGithubAppInstallations();
+        } else if (outcome === "failed") {
+          onFlash({ tone: "err", text: "GitHub App registration failed." });
+        }
+        // "ignored" = not our ceremony (or already claimed) — leave the page alone.
       });
+      return;
+    }
+    if (result === "claim") {
+      // Relay stamp without a code — nothing to claim; drop the marker.
+      params.delete("github_app");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", next);
+      return;
+    }
+    if (!result) return;
+    if (result === "registered" || result === "installed") {
+      onFlash({ tone: "ok", text: "GitHub App registered." });
       void refresh();
+      void refreshGithubAppInstallations();
     } else if (result === "error") {
       onFlash({
         tone: "err",
-        text: `GitHub App registration failed${reason ? `: ${reason}` : ""}. Try again.`,
+        text: reason
+          ? `GitHub App registration failed: ${reason}`
+          : "GitHub App registration failed.",
       });
     }
     params.delete("github_app");
@@ -97,7 +131,7 @@ export function OauthClientPanel({
       setIntegration(created);
       onFlash({
         tone: "ok",
-        text: `${provider.displayName} OAuth client sealed on this Host. Authorize is ready.`,
+        text: `${provider.displayName} OAuth client saved.`,
       });
       onClientState(true);
     } catch (error) {
@@ -117,20 +151,61 @@ export function OauthClientPanel({
   }
 
   if (provider.configured) {
+    if (provider.id === "github") return null;
     return (
       <p className="hint">
-        This Host already has deployment {provider.displayName} OAuth
-        credentials.
+        {`${provider.displayName} OAuth client is already configured.`}
       </p>
     );
   }
 
   if (integration) {
+    const installUrl = integration.githubAppHtmlUrl
+      ? `${integration.githubAppHtmlUrl.replace(/\/$/u, "")}/installations/new`
+      : null;
+    const localApp = readLocalGithubApp();
+    const canForget =
+      provider.id === "github" &&
+      localApp !== null &&
+      localApp.id === integration.id;
     return (
-      <p className="hint conn-client-ready">
-        <IconCheck size={15} /> OAuth client ready ({integration.displayName}).
-        Use Authorize below.
-      </p>
+      <div className="conn-client-ready">
+        <p className="hint">
+          <IconCheck size={15} /> {integration.displayName}
+        </p>
+        {installUrl ? (
+          <a
+            className="icon-btn icon-btn--sm"
+            href={installUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label="Install GitHub App on an account"
+            title="Install GitHub App on an account"
+          >
+            <IconExternal size={16} />
+          </a>
+        ) : null}
+        {canForget ? (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            data-testid="github-app-forget-client"
+            aria-label="Remove GitHub App from this device"
+            title="Remove GitHub App from this device"
+            onClick={() => {
+              forgetLocalGithubApp();
+              setIntegration(null);
+              onClientState(false);
+              onFlash({
+                tone: "ok",
+                text: "GitHub App removed from this device.",
+              });
+            }}
+          >
+            <IconTrash size={16} />
+          </button>
+        ) : null}
+      </div>
     );
   }
 
@@ -163,78 +238,65 @@ export function OauthClientPanel({
           value={clientSecret}
           onChange={(event) => setClientSecret(event.target.value)}
         />
-        <p className="hint">
-          Sealed on the Host on arrival; never shown again and never sent to
-          this browser.
-        </p>
       </div>
       <div className="conn-callback">
         <span className="conn-callback__label">Callback URL</span>
         <code>{callbackUrlFor(provider)}</code>
         <button
           type="button"
-          className="btn btn--sm btn--ghost"
+          className="icon-btn icon-btn--sm"
+          aria-label="Copy callback URL"
+          title="Copy callback URL"
           onClick={() => void copyCallback()}
         >
-          Copy
+          <IconCopy size={16} />
         </button>
       </div>
-      <p className="hint">
-        Register this exact callback URL in the provider&rsquo;s app settings.
-      </p>
       <div className="actions">
         <button
           type="submit"
-          className="btn btn--sm"
+          className="icon-btn icon-btn--sm"
           disabled={
             busy !== null ||
             !online ||
             clientId.trim() === "" ||
             clientSecret.trim() === ""
           }
+          aria-label={busy === "client" ? "Sealing" : "Save OAuth client"}
+          title={busy === "client" ? "Sealing" : "Save OAuth client"}
         >
-          {busy === "client" ? "Sealing…" : "Save OAuth client"}
+          <IconCheck size={16} />
         </button>
       </div>
     </form>
   );
 
   if (provider.id !== "github") {
-    return (
-      <div className="conn-client-setup">
-        <p className="hint">
-          This Host has no {provider.displayName} OAuth client yet. Create an
-          OAuth app in the provider console, then save its credentials here once
-          for the whole organization.
-        </p>
-        {form}
-      </div>
-    );
+    return <div className="conn-client-setup">{form}</div>;
   }
 
   return (
     <div className="conn-client-setup">
-      <p className="hint">
-        OpenSesame creates a GitHub App for this organization — you only confirm
-        it on GitHub. No client id or secret paste.
-      </p>
       <div className="actions">
         <button
           type="button"
-          className="btn btn--primary btn--sm"
+          className="icon-btn icon-btn--sm"
           disabled={!online || busy !== null}
+          aria-label={
+            busy === "app"
+              ? "Opening GitHub"
+              : "Create GitHub App for this organization"
+          }
+          title={
+            busy === "app"
+              ? "Opening GitHub"
+              : "Create GitHub App for this organization"
+          }
           onClick={() => void deployGithubApp()}
         >
           <IconExternal size={16} />
-          {busy === "app"
-            ? "Opening GitHub…"
-            : "Create GitHub App for this organization"}
         </button>
       </div>
-      <p className="hint">
-        Continues in this tab on github.com — not a popup. After you confirm the
-        app, GitHub returns you here.
-      </p>
       <details className="conn-client-alt">
         <summary>Or use an existing OAuth app</summary>
         {form}

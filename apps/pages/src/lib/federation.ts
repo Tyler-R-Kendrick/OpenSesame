@@ -41,7 +41,6 @@ import { type OperatorIdp, signInMethods } from "./settings.js";
  * the upstream, not here. The wire contract is
  * docs/architecture/federated-signin.md §1.
  */
-
 export type TrustedUpstream = {
   id: string;
   displayName: string;
@@ -470,6 +469,7 @@ async function beginSignInDefault(
 /** True when the current URL looks like an upstream sending the browser back. */
 export function hasAuthResponse(search: string = location.search): boolean {
   const params = new URLSearchParams(search);
+  if (params.has("github_app") || params.has("github_app_code")) return false;
   return params.has("code") || params.has("error");
 }
 

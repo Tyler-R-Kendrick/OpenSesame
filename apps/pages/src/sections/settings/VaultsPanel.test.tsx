@@ -102,7 +102,7 @@ describe("Settings → Vaults", () => {
     fireEvent.change(screen.getByLabelText("Seal a new vault"), {
       target: { value: "Side" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create vault" }));
     await waitFor(() =>
       expect(sealNewVault).toHaveBeenCalledWith("Side", { shareKey: false }),
     );
@@ -119,7 +119,7 @@ describe("Settings → Vaults", () => {
     fireEvent.change(screen.getByLabelText("Seal a new vault"), {
       target: { value: "Side" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create vault" }));
     await waitFor(() =>
       expect(sealNewVault).toHaveBeenCalledWith("Side", { shareKey: true }),
     );

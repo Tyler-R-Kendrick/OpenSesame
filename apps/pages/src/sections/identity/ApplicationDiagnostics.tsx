@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
 import {
   evaluateDecision,
   localApplicationEvaluator,
@@ -103,8 +104,14 @@ export function ApplicationDiagnostics(props: {
             <option value="deny">deny</option>
           </select>
         </label>
-        <button type="button" className="btn btn--sm" onClick={saveCurrent}>
-          Save as policy test
+        <button
+          type="button"
+          className="icon-btn icon-btn--sm"
+          onClick={saveCurrent}
+          aria-label="Save as policy test"
+          title="Save as policy test"
+        >
+          <IconCheck size={16} />
         </button>
         <ul>
           {runs.map((run) => (

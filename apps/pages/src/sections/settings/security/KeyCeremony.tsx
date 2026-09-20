@@ -11,6 +11,7 @@ import {
   IconShield,
   IconTrash,
 } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
 import { estimateStrength } from "../../../lib/vault/password.js";
 import {
@@ -280,13 +281,12 @@ export function KeyCard({
           disabled={busy}
           status={
             first.length === 0 ? null : problem ? (
-              <span className="chip chip--err">{problem}</span>
+              <StatusMark tone="err" label={problem} />
             ) : strength ? (
-              <span
-                className={strongEnough ? "chip chip--ok" : "chip chip--warn"}
-              >
-                {strength.label}
-              </span>
+              <StatusMark
+                tone={strongEnough ? "ok" : "warn"}
+                label={strength.label}
+              />
             ) : null
           }
         />
@@ -309,9 +309,9 @@ export function KeyCard({
           disabled={busy}
           status={
             mismatch ? (
-              <span className="chip chip--err">Does not match</span>
+              <StatusMark tone="err" label="Does not match" />
             ) : ready ? (
-              <span className="chip chip--ok">Matches</span>
+              <StatusMark tone="ok" label="Matches" />
             ) : null
           }
         />

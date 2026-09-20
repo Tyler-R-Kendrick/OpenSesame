@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconCheck } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import type { EditorMode } from "../../lib/configuration/draft.js";
 import {
@@ -386,10 +387,12 @@ function RegistrationForm({
         </p>
         <button
           type="submit"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={!organizationId || !redirects.trim() || !scopes.trim()}
+          aria-label="Save registration"
+          title="Save registration"
         >
-          {model.busy ? "Saving…" : "Save registration"}
+          <IconCheck size={16} />
         </button>
       </fieldset>
     </form>

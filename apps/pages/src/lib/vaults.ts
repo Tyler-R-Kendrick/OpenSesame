@@ -21,6 +21,9 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { continueAsGuest } from "./guest-auth.js";
 import { kvHydrate } from "./kv.js";
+import { guestVaultLabel } from "./local-guest.js";
+
+export { guestVaultLabel } from "./local-guest.js";
 import {
   PERSONAL_PROJECT_ID,
   type PagesProject,
@@ -64,15 +67,17 @@ export type DeviceVault = {
 };
 
 /** The guest road as a row: not a vault on disk, but a peer in the list. */
-export const GUEST_VAULT: DeviceVault = {
-  id: GUEST_TOMB,
-  kind: "guest",
-  label: "guest",
-  named: true,
-  sealedAt: null,
-  state: "empty",
-  sharedKey: false,
-};
+export function guestVault(state: DeviceVaultState = "empty"): DeviceVault {
+  return {
+    id: GUEST_TOMB,
+    kind: "guest",
+    label: guestVaultLabel(),
+    named: true,
+    sealedAt: null,
+    state,
+    sharedKey: false,
+  };
+}
 
 /**
  * What a vault is called on screen. Before unlock a project's name is sealed
@@ -81,7 +86,7 @@ export const GUEST_VAULT: DeviceVault = {
  */
 export function vaultLabel(project: Pick<PagesProject, "id" | "name">): string {
   if (project.id === PERSONAL_PROJECT_ID) return "personal";
-  if (project.id === GUEST_TOMB) return "guest";
+  if (project.id === GUEST_TOMB) return guestVaultLabel();
   if (project.name && project.name !== project.id) return project.name;
   return `project · ${project.id.replace(/^prj_/, "").slice(-4)}`;
 }
@@ -131,7 +136,7 @@ function listDeviceVaultsDefault(): DeviceVault[] {
     ...listProjects()
       .filter((project) => project.id !== GUEST_TOMB)
       .map(describeVault),
-    guestOpen ? { ...GUEST_VAULT, state: "open" as const } : GUEST_VAULT,
+    guestOpen ? guestVault("open") : guestVault(),
   ];
 }
 
@@ -205,7 +210,8 @@ export type SwitchOutcome =
 async function switchVaultDefault(id: string): Promise<SwitchOutcome> {
   if (id === GUEST_TOMB) {
     await switchToGuest();
-    return "opened";
+    // Guest has no enrolled key — UnlockScreen shows a single Unlock button.
+    return "locked";
   }
   const target = listProjects().find((project) => project.id === id);
   if (!target) {
@@ -219,12 +225,12 @@ async function switchVaultDefault(id: string): Promise<SwitchOutcome> {
 
 /**
  * The guest road from anywhere: an open vault locks first (a guest never
- * runs beside an open session), then the store seals a guest session in the
- * isolated guest tomb. Never gated on anything (AGENTS.md §5).
+ * runs beside an open session), then unlock points at the guest tomb.
+ * Unlock / Continue-as-guest opens the session. Never gated (AGENTS.md §5).
  */
 export async function switchToGuest(): Promise<void> {
   if (vaultStore.isUnlocked()) vaultStore.lock();
-  await continueAsGuest();
+  vaultStore.prepareGuestUnlock();
 }
 
 /**

@@ -26,16 +26,10 @@ const monitorTarget = {
   rttMs: 12,
 };
 
-import { connectGitHistorySeams } from "./ConnectGitHistory.js";
-Object.assign(connectGitHistorySeams, {
-  ConnectGitHistory: () => <div data-testid="git-ceremony" />,
-});
-
 import {
   ConnectivityBar,
   connectivityBarDependencies,
 } from "./ConnectivityBar.js";
-import { hostCeremonyDependencies } from "./HostCeremony.js";
 import { identityCeremonyDependencies } from "./IdentityCeremony.js";
 
 Object.assign(identityCeremonyDependencies, {
@@ -57,9 +51,7 @@ Object.assign(connectivityBarDependencies, {
   checkNow,
   useConnectivityMonitor: () => ({
     offline: false,
-    host: monitorTarget,
     identity: monitorTarget,
-    machine: monitorTarget,
     nextCheckAt: Date.now() + 30_000,
   }),
   beginSignIn,
@@ -71,16 +63,14 @@ Object.assign(connectivityBarDependencies, {
   }),
   claimGuestAuth,
   useConnect: () => ({ connect: connectSpy, connecting: false, error: null }),
-  ConnectThisMachine: () => <div data-testid="pairing-ceremony" />,
-  ConnectGitHistory: () => <div data-testid="git-ceremony" />,
 });
 
 function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
   return {
-    id: "host",
-    name: "Host",
+    id: "identity",
+    name: "Identity",
     tone: "live",
-    detail: "127.0.0.1:18787",
+    detail: "127.0.0.1:18788",
     rttMs: 12,
     failure: null,
     // A probed connector has been checked; the freshness row only shows for
@@ -93,18 +83,6 @@ function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
 
 const ALL: ConnectorStatus[] = [
   status(),
-  status({ id: "identity", name: "Identity", detail: "127.0.0.1:18788" }),
-  status({
-    id: "machine",
-    name: "This machine",
-    tone: "attn",
-    detail: "Not paired",
-  }),
-  status({
-    id: "history",
-    name: "Git history",
-    detail: "GitHub · owner/store",
-  }),
   status({
     id: "keys",
     name: "Key vault",
@@ -127,27 +105,35 @@ afterEach(() => vi.restoreAllMocks());
 describe("ConnectivityBar", () => {
   it("renders one glyph per connector, toned by state", () => {
     const { container } = renderBar();
-    expect(container.querySelectorAll(".cx__btn").length).toBe(5);
-    expect(container.querySelectorAll(".cx__btn--live").length).toBe(4);
-    expect(container.querySelectorAll(".cx__btn--attn").length).toBe(1);
+    expect(container.querySelectorAll(".cx__btn").length).toBe(2);
+    expect(container.querySelectorAll(".cx__btn--live").length).toBe(2);
   });
 
   it("carries the whole status in the accessible name, since the glyph has none", () => {
     renderBar();
     expect(
-      screen.getByRole("button", { name: "This machine — Not paired" }),
+      screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+      screen.getByRole("button", {
+        name: "Key vault — WebCrypto (this device)",
+      }),
     ).toBeTruthy();
   });
 
   it("summarises how many connectors are asking for something", () => {
-    renderBar();
+    renderBar([
+      status({ tone: "attn", detail: "No identity session" }),
+      status({
+        id: "keys",
+        name: "Key vault",
+        detail: "WebCrypto (this device)",
+      }),
+    ]);
     expect(screen.getByRole("group", { name: /1 needs setup/ })).toBeTruthy();
   });
 
-  it("does not count the optional key vault towards attention", () => {
+  it("does not count the key vault towards attention", () => {
     renderBar([
       status(),
       status({ id: "keys", name: "Key vault", tone: "attn" }),
@@ -157,22 +143,18 @@ describe("ConnectivityBar", () => {
     ).toBeTruthy();
   });
 
-  it("opens the pairing ceremony from the machine glyph", () => {
+  it("opens the identity ceremony from the identity glyph", () => {
     renderBar();
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(
-      screen.getByRole("button", { name: "This machine — Not paired" }),
+      screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     );
-    const sheet = screen.getByRole("dialog", {
-      name: "This machine connection",
-    });
-    expect(sheet).toBeTruthy();
-    expect(sheet.tagName).toBe("DIV");
-    expect(document.querySelector("dialog")).toBeNull();
-    expect(screen.getByTestId("pairing-ceremony")).toBeTruthy();
+    expect(
+      screen.getByRole("dialog", { name: "Identity connection" }),
+    ).toBeTruthy();
   });
 
-  it("keeps the rest of the app interactive while the machine sheet is open", () => {
+  it("keeps the rest of the app interactive while the sheet is open", () => {
     env.connectors = ALL;
     render(
       <MemoryRouter>
@@ -183,13 +165,13 @@ describe("ConnectivityBar", () => {
       </MemoryRouter>,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "This machine — Not paired" }),
+      screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     );
     const vault = screen.getByRole("link", { name: "Vault" });
     expect(vault.closest("[inert]")).toBeNull();
     expect(vault.getAttribute("aria-hidden")).not.toBe("true");
     expect(
-      screen.getByRole("dialog", { name: "This machine connection" }),
+      screen.getByRole("dialog", { name: "Identity connection" }),
     ).toBeTruthy();
   });
 
@@ -197,7 +179,7 @@ describe("ConnectivityBar", () => {
     renderBar();
     const open = () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "This machine — Not paired" }),
+        screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
       );
 
     open();
@@ -212,12 +194,12 @@ describe("ConnectivityBar", () => {
   it("moves focus into the sheet on open and back to the glyph on close", () => {
     renderBar();
     const glyph = screen.getByRole("button", {
-      name: "This machine — Not paired",
+      name: "Identity — 127.0.0.1:18788",
     });
     glyph.focus();
     fireEvent.click(glyph);
     const sheet = screen.getByRole("dialog", {
-      name: "This machine connection",
+      name: "Identity connection",
     });
     expect(sheet.contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(window, { key: "Escape" });
@@ -229,64 +211,20 @@ describe("ConnectivityBar", () => {
     renderBar();
     checkNow.mockClear();
     fireEvent.click(
-      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+      screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     );
     // Opening a ceremony is a person asking, so it refreshes on the way in.
     expect(checkNow).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Check now" }));
     expect(checkNow).toHaveBeenCalledTimes(2);
-
-    // Edit the Host endpoint in this sheet, without navigating to Settings
-    // and losing the person's place.
-    expect(screen.queryByRole("link")).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Point at a host someone else runs/,
-      }),
-    );
-    expect(screen.getByLabelText("Host API")).toBeTruthy();
-  });
-
-  it("saves a host typed into the ceremony, without leaving it", () => {
-    const saveSettings = vi.fn();
-    Object.assign(hostCeremonyDependencies, { saveSettings });
-    renderBar();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Point at a host someone else runs/,
-      }),
-    );
-    const field = screen.getByLabelText("Host API");
-    fireEvent.change(field, { target: { value: "https://host.example " } });
-    fireEvent.blur(field);
-    expect(saveSettings).toHaveBeenCalledTimes(1);
-    expect(saveSettings.mock.calls[0][0].hostApi).toBe("https://host.example");
-    // Still in the sheet afterwards — that is the whole point.
-    expect(screen.getByRole("dialog")).toBeTruthy();
-  });
-
-  it("offers the machine ceremony when there is no shareable address to encode", () => {
-    renderBar();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Show pairing QR/ }));
-    // A QR of 127.0.0.1 would resolve to the scanning phone, not to us.
-    fireEvent.click(
-      screen.getByRole("button", { name: "Pair this machine first" }),
-    );
-    expect(screen.getByTestId("pairing-ceremony")).toBeTruthy();
   });
 
   it("says how old the verdict is and when the next one is due", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     renderBar([status()]);
     fireEvent.click(
-      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+      screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     );
     expect(screen.getByRole("status").textContent).toBe(
       "Checked 4s ago · next in 30s",
@@ -297,14 +235,14 @@ describe("ConnectivityBar", () => {
     renderBar([
       status({
         tone: "attn",
-        detail: "Not OpenSesame · 127.0.0.1:18787",
+        detail: "Not OpenSesame · 127.0.0.1:18788",
         failure: "not-opensesame",
         lastCheckedAt: Date.now(),
       }),
     ]);
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Host — Not OpenSesame · 127.0.0.1:18787",
+        name: "Identity — Not OpenSesame · 127.0.0.1:18788",
       }),
     );
     expect(screen.getByText(/it is not the OpenSesame service/)).toBeTruthy();
@@ -314,7 +252,7 @@ describe("ConnectivityBar", () => {
     vi.useFakeTimers();
     try {
       const { container, rerender } = renderBar([
-        status({ tone: "attn", detail: "Unreachable · 127.0.0.1:18787" }),
+        status({ tone: "attn", detail: "Unreachable · 127.0.0.1:18788" }),
       ]);
       expect(container.querySelector(".is-recovered")).toBeNull();
 
@@ -372,14 +310,6 @@ describe("ConnectivityBar", () => {
     claimGuestAuth.mockResolvedValue(undefined);
     renderBar();
     fireEvent.click(
-      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
-    );
-    expect(
-      screen.queryByRole("button", { name: "Continue as guest" }),
-    ).toBeNull();
-    fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
-
-    fireEvent.click(
       screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     );
     expect(
@@ -409,30 +339,16 @@ describe("ConnectivityBar", () => {
     expect(screen.queryByRole("button", { name: "Check now" })).toBeNull();
   });
 
-  it("shows offline as its own thing, not as four broken endpoints", () => {
+  it("shows offline as its own thing, not as broken endpoints", () => {
     renderBar([
       status({ tone: "offline", detail: "Offline" }),
       status({
-        id: "identity",
-        name: "Identity",
+        id: "keys",
+        name: "Key vault",
         tone: "offline",
         detail: "Offline",
       }),
     ]);
     expect(screen.getByRole("group", { name: /offline/i })).toBeTruthy();
-  });
-
-  it("opens the git ceremony from the history glyph", () => {
-    renderBar();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Git history — GitHub · owner/store",
-      }),
-    );
-    expect(
-      screen.getByRole("dialog", { name: "Git history connection" }),
-    ).toBeTruthy();
-    expect(screen.getByTestId("git-ceremony")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Change connector" })).toBeNull();
   });
 });

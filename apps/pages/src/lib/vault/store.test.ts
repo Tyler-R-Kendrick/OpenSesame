@@ -271,7 +271,7 @@ describe("VaultStore multi-method unlock", () => {
     expect(store.getSnapshot().status).toBe("empty");
   });
 
-  it("runs a guest beside a sealed vault in its own tomb and hands the vault back on lock", async () => {
+  it("runs a guest beside a sealed vault in its own tomb and keeps guest unlock on lock", async () => {
     const store = await storeWithVault();
     const sealedHeader = kvGet(HEADER_KEY);
     expect(store.getSnapshot().status).toBe("locked");
@@ -286,13 +286,13 @@ describe("VaultStore multi-method unlock", () => {
     expect(kvGet(tombFileKey(GUEST_TOMB, BODY_PATH))).not.toBeNull();
 
     store.lock();
-    // Not "empty": the real vault is back, exactly as it was.
-    expect(store.getSnapshot().status).toBe("locked");
-    expect(store.getSnapshot().header?.wrap).toBeDefined();
-    await store.unlock(PASSWORD);
-    expect(store.getSnapshot().items).toHaveLength(0);
+    expect(store.getSnapshot().tomb).toBe(GUEST_TOMB);
+    expect(store.getSnapshot().status).toBe("empty");
+    expect(kvGet(HEADER_KEY)).toBe(sealedHeader);
+    store.rehydrate();
+    expect(store.getSnapshot().tomb).toBe(GUEST_TOMB);
+    expect(store.getSnapshot().status).toBe("empty");
   });
-
   it("lets a guest beside a sealed vault delete only the guest tomb", async () => {
     const store = await storeWithVault();
     await store.createGuest();

@@ -41,7 +41,7 @@ export type CapabilityConnectorBinding = {
   connectionId?: string;
   /** For history: git remote URL (e.g. https://github.com/org/store.git). */
   remote?: string;
-  /** Multi-select history backups (git + PostgreSQL groups). */
+  /** Multi-select history backups on git remotes. */
   selections?: HistoryBackupSelection[];
 };
 
@@ -66,7 +66,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "encryption",
     title: "Encryption key vault",
     summary:
-      "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in key vault; cloud KMS connectors are optional.",
+      "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in key vault; age (typage) is the local key SOP; cloud KMS connectors are optional.",
     connectorIds: [
       "webcrypto",
       "sealed-local",
@@ -78,21 +78,15 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
       "gcp-kms",
     ],
     requiresAuth: (providerId) =>
-      providerId !== "webcrypto" && providerId !== "sealed-local",
+      providerId !== "webcrypto" &&
+      providerId !== "sealed-local" &&
+      providerId !== "age",
   },
   {
     id: "history",
     title: "History & persistence",
-    summary:
-      "Optional persistence for encrypted secrets: git remotes and PostgreSQL-family stores (Supabase, Neon, plain Postgres). Multi-select; Postgres roads mint anon/agent accounts a guest can claim later.",
-    connectorIds: [
-      "github",
-      "password-store",
-      "gitlab",
-      "supabase",
-      "neon",
-      "postgresql",
-    ],
+    summary: "Optional persistence for encrypted secrets on git remotes.",
+    connectorIds: ["github", "password-store", "gitlab"],
     requiresAuth: (providerId) =>
       providerId === "github" || providerId === "gitlab",
     authScopes: (providerId) => {
@@ -337,13 +331,22 @@ export function connectorLabel(providerId: string): string {
       return "Vonage";
     case "plivo":
       return "Plivo";
-    case "supabase":
-      return "Supabase";
-    case "neon":
-      return "Neon";
-    case "postgresql":
-      return "PostgreSQL";
     default:
       return providerId;
   }
+}
+
+/**
+ * Encryption key SOPs configured under Settings, not Connections brokers.
+ * Age is typage on this device; WebCrypto / sealed-local are built-ins.
+ */
+const SETTINGS_ENCRYPTION_KEYS: ReadonlySet<string> = new Set([
+  "webcrypto",
+  "sealed-local",
+  "age",
+]);
+
+/** True when the id is a key vault SOP, not a Connections catalog connector. */
+export function isSettingsEncryptionKey(providerId: string): boolean {
+  return SETTINGS_ENCRYPTION_KEYS.has(providerId);
 }

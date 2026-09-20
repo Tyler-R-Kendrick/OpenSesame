@@ -16,9 +16,16 @@ export function useGithubAppRegistration(
   useEffect(() => {
     if (provider.id !== "github") return;
     generation.current += 1;
+    const onHide = () => {
+      // Form navigation to github.com — do not flash a CSP failure after we left.
+      generation.current += 1;
+      window.clearTimeout(timeout.current);
+    };
+    window.addEventListener("pagehide", onHide);
     return () => {
       generation.current += 1;
       window.clearTimeout(timeout.current);
+      window.removeEventListener("pagehide", onHide);
     };
   }, [provider.id]);
 
@@ -33,7 +40,6 @@ export function useGithubAppRegistration(
         displayName: `OpenSesame ${provider.displayName}`,
       });
       if (run !== generation.current) return;
-      onFlash({ tone: "ok", text: "Sending you to GitHub to create the app…" });
       submitGithubAppManifest(registration);
       timeout.current = window.setTimeout(() => {
         if (run !== generation.current) return;

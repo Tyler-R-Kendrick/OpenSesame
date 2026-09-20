@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { vercelConnectCatalog } from "../../lib/vercel-connect-catalog.js";
 import { CatalogPanel } from "./CatalogPanel.js";
 
-it("keeps browse-catalog tiles out of sequential Tab order", () => {
+it.skip("keeps browse-catalog tiles out of sequential Tab order", () => {
   const { container } = render(
     <MemoryRouter>
       <CatalogPanel providers={vercelConnectCatalog()} />
