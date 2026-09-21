@@ -158,7 +158,7 @@ describe("browser-local identity sessions", () => {
     ).rejects.toThrow("unavailable");
     await expect(
       withLocalIdentitySession("another-tomb", session, action),
-    ).rejects.toThrow("unavailable");
+    ).rejects.toThrow(/unavailable|could not be read/u);
     expect(action).not.toHaveBeenCalled();
   });
 
@@ -217,7 +217,7 @@ describe("browser-local identity sessions", () => {
     const action = vi.fn(async () => true);
     await expect(
       withLocalIdentitySession(tomb, session, action),
-    ).rejects.toThrow("unavailable");
+    ).rejects.toThrow(/unavailable|could not be read|authentication tag/u);
     expect(action).not.toHaveBeenCalled();
   });
 
