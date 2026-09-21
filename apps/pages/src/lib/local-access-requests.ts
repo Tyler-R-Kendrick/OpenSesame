@@ -4,7 +4,10 @@ import {
   type LocalAccessRequestRecord,
 } from "@opensesame/contracts";
 import { interactionMachine } from "@opensesame/os-domain";
-import { emitActivity } from "./activity-log.js";
+import {
+  noteInboundRequestCreated,
+  noteInboundRequestDecision,
+} from "./activity-log.js";
 import {
   requireLocalApplicationAdmission,
   withLocalApplicationRequest,
@@ -100,14 +103,7 @@ export async function createLocalAccessRequest(
       await writeLocalRequestRecords(tomb, [...rows, row]);
       assertActive();
       const summary = summarize(row);
-      emitActivity({
-        category: "request",
-        type: "request.inbound.created",
-        summary: "Inbound access request received",
-        outcome: "info",
-        targetType: "access_request",
-        targetId: summary.id,
-      });
+      noteInboundRequestCreated(summary.id);
       return summary;
     },
   );
@@ -280,16 +276,7 @@ export async function decideLocalAccessRequest(
     );
     const summary = summarize(next);
     const ok = input.decision === "approve";
-    emitActivity({
-      category: "request",
-      type: ok ? "request.inbound.approved" : "request.inbound.denied",
-      summary: ok
-        ? "Inbound access request approved"
-        : "Inbound access request denied",
-      outcome: ok ? "succeeded" : "denied",
-      targetType: "access_request",
-      targetId: summary.id,
-    });
+    noteInboundRequestDecision(summary.id, ok);
     return summary;
   });
 }

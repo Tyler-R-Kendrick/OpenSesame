@@ -4,7 +4,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { emitActivity } from "./activity-log.js";
+import { noteSettingsUpdated } from "./activity-log.js";
 import {
   type CapabilityConnectorBinding,
   type CapabilityConnectorMap,
@@ -418,12 +418,7 @@ function loadSettingsDefault(): PagesSettings {
 function emitSettings(): void {
   epoch += 1;
   for (const listener of listeners) listener();
-  emitActivity({
-    category: "settings",
-    type: "settings.updated",
-    summary: "Settings updated",
-    outcome: "succeeded",
-  });
+  noteSettingsUpdated();
 }
 
 function subscribeSettingsDefault(listener: () => void): () => void {

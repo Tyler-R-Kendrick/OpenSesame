@@ -64,7 +64,6 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
   const active = bindingId === "aws-kms";
   const configured = Boolean(saved?.keyArn && saved.secretAccessKey);
   const publicView = saved ? toAwsKmsPublic(saved) : null;
-
   useEffect(() => {
     if (!unlocked || !tomb) {
       setSaved(null);

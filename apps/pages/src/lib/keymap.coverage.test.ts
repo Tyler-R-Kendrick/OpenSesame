@@ -12,7 +12,6 @@ import {
   registerVaultKeymap,
   showKeymapHelp,
 } from "./keymap.js";
-
 function vault(overrides: Partial<VaultKeymapTarget> = {}): VaultKeymapTarget {
   return {
     next: vi.fn(),
@@ -38,7 +37,6 @@ function vault(overrides: Partial<VaultKeymapTarget> = {}): VaultKeymapTarget {
     ...overrides,
   };
 }
-
 function rail(): ListingMotion {
   return {
     next: vi.fn(),
@@ -54,13 +52,11 @@ function rail(): ListingMotion {
     toIndex: vi.fn(),
   };
 }
-
 function shifted(key: string): boolean {
   return key.length === 1 && key !== key.toLowerCase()
     ? true
     : key === "$" || key === "?";
 }
-
 function press(
   handler: (event: KeyboardEvent) => void,
   key: string,
@@ -312,14 +308,15 @@ describe("counts and the g leader", () => {
     const release = registerVaultKeymap(tree);
     const navigate = vi.fn();
     const handler = createKeymapHandler({ navigate, showHelp: vi.fn() });
-    for (const [letter, path] of [
+    const jumps = [
       ["c", "/connections"],
       ["i", "/identity"],
       ["w", "/wallet"],
       ["y", "/activity"],
       ["s", "/settings"],
       ["v", "/vault"],
-    ] as const) {
+    ] as const;
+    for (const [letter, path] of jumps) {
       press(handler, "g");
       press(handler, letter);
       expect(navigate).toHaveBeenCalledWith(path);
@@ -694,7 +691,6 @@ function targeted(
   handler(event);
   return event;
 }
-
 describe("unbound and partial listings", () => {
   it("does not throw on motions, verbs, counts or g when nothing is registered", () => {
     const showHelp = vi.fn();

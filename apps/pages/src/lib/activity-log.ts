@@ -176,6 +176,79 @@ export async function recordActivityEvent(
  * Fire-and-forget append against the unlocked vault. No-ops when locked,
  * guest, or the write fails — activity must never block a primary action.
  */
+
+export function noteConnectionCreated(connectionId: string): void {
+  noteActivity(
+    "connection",
+    "connection.created",
+    "Connection created",
+    "succeeded",
+    "connection",
+    connectionId,
+  );
+}
+
+export function noteConnectionRevoked(connectionId: string): void {
+  noteActivity(
+    "connection",
+    "connection.revoked",
+    "Connection revoked",
+    "succeeded",
+    "connection",
+    connectionId,
+  );
+}
+
+export function noteSettingsUpdated(): void {
+  noteActivity("settings", "settings.updated", "Settings updated");
+}
+
+export function noteVaultUnlocked(): void {
+  noteActivity("vault", "vault.unlocked", "Vault unlocked");
+}
+
+export function noteVaultBodyPersisted(): void {
+  noteActivity("vault", "vault.body.persisted", "Vault body saved");
+}
+
+export function noteInboundRequestCreated(requestId: string): void {
+  noteActivity(
+    "request",
+    "request.inbound.created",
+    "Inbound access request received",
+    "info",
+    "access_request",
+    requestId,
+  );
+}
+
+export function noteInboundRequestDecision(
+  requestId: string,
+  approved: boolean,
+): void {
+  noteActivity(
+    "request",
+    approved ? "request.inbound.approved" : "request.inbound.denied",
+    approved
+      ? "Inbound access request approved"
+      : "Inbound access request denied",
+    approved ? "succeeded" : "denied",
+    "access_request",
+    requestId,
+  );
+}
+
+export function noteActivity(
+  category: ActivityCategory,
+  type: string,
+  summary: string,
+  outcome: ActivityOutcome = "succeeded",
+  targetType: string | null = null,
+  targetId: string | null = null,
+): void {
+  emitActivity({ category, type, summary, outcome, targetType, targetId });
+}
+
 export function emitActivity(input: RecordActivityInput): void {
   const tomb = activitySeams.activeTomb();
   if (!tomb) return;

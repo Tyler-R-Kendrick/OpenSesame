@@ -1,7 +1,8 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
 import {
   activitySeams,
-  emitActivity,
+  noteVaultBodyPersisted,
+  noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
 import { clearGuestConnections } from "../guest-connections.js";
@@ -717,14 +718,8 @@ export class VaultStore {
     this.touch();
     this.#armIdleTimer();
     this.#emit();
-    emitActivity({
-      category: "vault",
-      type: "vault.unlocked",
-      summary: "Vault unlocked",
-      outcome: "succeeded",
-    });
+    noteVaultUnlocked();
   }
-
   /** After primary unwrap: either activate or park the key for a second step. */
   async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
     if (hasSecondStep(this.#header)) {
@@ -1300,12 +1295,7 @@ export class VaultStore {
     await writeSealedFile(this.#scope.tomb, BODY_PATH, sealed);
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
-    emitActivity({
-      category: "vault",
-      type: "vault.body.persisted",
-      summary: "Vault body saved",
-      outcome: "succeeded",
-    });
+    noteVaultBodyPersisted();
   }
 
   /** Merge a complete newer snapshot while both bodies are authenticated. */

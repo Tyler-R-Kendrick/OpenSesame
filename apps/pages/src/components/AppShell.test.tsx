@@ -137,7 +137,6 @@ describe("AppShell", () => {
     expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
   });
-
   it("advertises the g-jump key on every section directory", () => {
     const { container } = renderShell("/vault");
     const jumps = [...container.querySelectorAll("kbd.railtree__jump")].map(
@@ -145,7 +144,6 @@ describe("AppShell", () => {
     );
     expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw", "gy", "gs"]);
   });
-
   it("lists Vaults and Connections as sibling settings tabs", () => {
     const { container } = renderShell("/settings/security");
     const rail = container.querySelector(".railtree");
@@ -190,7 +188,6 @@ describe("AppShell", () => {
     expect(row.getAttribute("aria-expanded")).toBe("true");
     expect(row.getAttribute("aria-selected")).toBe("true");
   });
-
   it("collapses and reopens a page subtree with the arrow keys", () => {
     renderShell("/access?view=grants");
     const tree = screen.getByRole("tree", { name: "Sections" });
@@ -232,7 +229,6 @@ describe("AppShell", () => {
     expect(folder.textContent).toContain("1");
     expect(folder.closest("#login-tree")).toBeTruthy();
   });
-
   it("marks the active filter from the query string", () => {
     const { container } = renderShell("/vault?f=favorites");
     expect(
@@ -242,7 +238,6 @@ describe("AppShell", () => {
       "is-active",
     );
   });
-
   it("marks the active folder and deactivates 'all'", () => {
     const { container } = renderShell("/vault?folder=f1");
     fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
@@ -253,14 +248,12 @@ describe("AppShell", () => {
       "is-active",
     );
   });
-
   it("marks 'all' active only with no filter at all", () => {
     const { container } = renderShell("/vault");
     expect(filterLink(container, "/vault", "all").className).toContain(
       "is-active",
     );
   });
-
   it("hides vault entries outside the vault section", () => {
     const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
@@ -270,7 +263,6 @@ describe("AppShell", () => {
     expect(screen.queryByText("all")).toBeNull();
     expect(screen.getAllByText("settings").length).toBe(1);
   });
-
   it("omits folder entries when there are none", () => {
     vault.folders = [];
     const { container } = renderShell("/vault");
@@ -310,7 +302,6 @@ describe("AppShell", () => {
     }
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
-
   it("offers a skip-to-content link as the first stop", () => {
     const { container } = renderShell("/vault");
     const skip = screen.getByRole("link", { name: "Skip to content" });
@@ -318,14 +309,12 @@ describe("AppShell", () => {
     expect(skip.className).toContain("visually-hidden");
     expect(container.querySelector("a, button")).toBe(skip);
   });
-
   it("handles vaults with no folders and no items", () => {
     vault.items = [];
     vault.folders = [];
     const { container } = renderShell("/vault");
     expect(filterLink(container, "/vault", "all").textContent).toContain("-");
   });
-
   it("captures section shortcuts before the tree can stop propagation", () => {
     renderShell(
       "/vault",
@@ -344,7 +333,6 @@ describe("AppShell", () => {
     fireEvent.keyDown(row, { key: "j" });
     expect(selected("Settings")).toBe("false");
   });
-
   it("moves the rail cursor with arrows and j/k", () => {
     const { container } = renderShell("/vault");
     const tree = screen.getByRole("tree", { name: "Sections" });
@@ -362,7 +350,6 @@ describe("AppShell", () => {
       filterLink(container, "/vault?f=favorites", "favorites").className,
     ).toContain("is-active");
   });
-
   it("walks off the open vault directory onto the next section", () => {
     const { container } = renderShell("/vault?f=trash");
     const tree = screen.getByRole("tree", { name: "Sections" });
@@ -375,7 +362,6 @@ describe("AppShell", () => {
       container.querySelector('a[href="/vault"] + .railtree__kids'),
     ).toBeTruthy();
     expect(document.getElementById("connections-tree")).toBeNull();
-    // connections → access → identity → wallet → activity → settings
     fireEvent.keyDown(tree, { key: "5" });
     fireEvent.keyDown(tree, { key: "j" });
     const settings = screen.getByRole("treeitem", { name: "Settings" });
