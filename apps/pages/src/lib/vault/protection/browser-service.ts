@@ -127,7 +127,6 @@ export class VaultProtectionBrowserService {
     await this.#host.persistHeader({ ...header, protection: sealed });
   }
 
-
   /**
    * Account sign-in already created a PRF-capable passkey. Wrap the vault
    * root only when the person opts in — never from the ceremony itself.

@@ -4,11 +4,7 @@
  */
 
 import { isString, overlapCast } from "@opensesame/os-domain";
-import {
-  b64ToBytes,
-  bytesToB64,
-  randomBytes,
-} from "../../crypto.js";
+import { b64ToBytes, bytesToB64, randomBytes } from "../../crypto.js";
 import {
   type PasskeyCeremony,
   type PasskeyUnlockCeremonyResult,

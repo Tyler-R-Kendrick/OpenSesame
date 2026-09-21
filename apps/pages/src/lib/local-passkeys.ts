@@ -163,7 +163,8 @@ export async function enrollLocalPasskey(
       throw new LocalDirectoryError("This credential is already registered.");
     const extensionResults = credential.getClientExtensionResults();
     const prfFirst = readPrfFirst(extensionResults);
-    const prfSupported = hasUsablePrfOutput(extensionResults) && prfFirst !== null;
+    const prfSupported =
+      hasUsablePrfOutput(extensionResults) && prfFirst !== null;
     await writeLocalPasskeys(tomb, [
       ...current,
       {

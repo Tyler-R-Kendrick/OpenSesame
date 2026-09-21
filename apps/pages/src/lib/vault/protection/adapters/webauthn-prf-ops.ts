@@ -96,7 +96,10 @@ async function webauthnPrfEnroll(
       "WebAuthn PRF enrollment produced no evidence.",
     );
   }
-  return { record: protector, proof: { ok: true, evidence: protector.lastEvidence } };
+  return {
+    record: protector,
+    proof: { ok: true, evidence: protector.lastEvidence },
+  };
 }
 
 async function webauthnPrfProve(
@@ -160,7 +163,6 @@ async function webauthnPrfOpen(
   );
   return mintRootKeyHandle(request.context, rootKey);
 }
-
 
 /** Copy a view so wrap does not read bytes outside the view. */
 function copiedBuffer(value: ArrayBuffer | Uint8Array): ArrayBuffer {

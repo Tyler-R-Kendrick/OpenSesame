@@ -48,7 +48,9 @@ function isPasskey(value: BoundaryValue): value is LocalPasskey {
     isNumber(value.createdAt) &&
     Number.isSafeInteger(value.createdAt) &&
     value.createdAt > 0 &&
-    (value.prfCapable === undefined || value.prfCapable === true || value.prfCapable === false)
+    (value.prfCapable === undefined ||
+      value.prfCapable === true ||
+      value.prfCapable === false)
   );
 }
 

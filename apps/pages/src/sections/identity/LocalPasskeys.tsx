@@ -178,7 +178,8 @@ function useCredentialCommands(
   }
 
   function publishOffer(next: LocalPasskeyVaultOffer | null) {
-    if (offerRef.current && offerRef.current !== next) offerRef.current.discard();
+    if (offerRef.current && offerRef.current !== next)
+      offerRef.current.discard();
     offerRef.current = next;
     setOffer(next);
   }
