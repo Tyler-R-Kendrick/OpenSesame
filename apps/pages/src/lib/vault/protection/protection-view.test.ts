@@ -9,7 +9,7 @@ import {
 describe("protection-view", () => {
   it("never labels WebCrypto as a protector", () => {
     expect(preferenceMechanismLabel("webcrypto")).toBe("Password");
-    expect(preferenceMechanismLabel("fido2")).toBe("Passkey (PRF)");
+    expect(preferenceMechanismLabel("fido2")).toBe("Passkey / security key");
   });
 
   it("derives enrolled methods from header wrap/unlocks", () => {

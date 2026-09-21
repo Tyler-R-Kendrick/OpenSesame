@@ -2,7 +2,7 @@ import {
   verifyPasskeyAuthentication,
   verifyPasskeyRegistration,
 } from "@opensesame/auth-upstream/browser";
-import { isString } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
 import {
   authenticationResponseJson,
   b64urlToBytes,
@@ -22,6 +22,10 @@ import {
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import { onVaultLock } from "./vault/lock-events.js";
+import {
+  hasUsablePrfOutput,
+  readPrfFirst,
+} from "./vault/protection/adapters/webauthn-prf-output.js";
 import { tombUnlocked } from "./vfs.js";
 
 const CEREMONY_MS = 120_000;
@@ -77,22 +81,42 @@ function requireLive(start: ReturnType<typeof ceremony>) {
     throw new LocalDirectoryError("The passkey ceremony expired. Start again.");
 }
 
-/** Human vault-custodian action. Never exposed as an agent enrollment tool. */
+export type LocalPasskeyVaultOffer = {
+  prfOutput: Uint8Array;
+  prfSalt: Uint8Array;
+  credentialId: ArrayBuffer;
+  userId: Uint8Array;
+  discard(): void;
+};
+
+export type LocalPasskeyEnrollResult = {
+  credentialId: string;
+  /** Registration returned a 32-byte PRF result. Not yet a vault protector. */
+  prfSupported: boolean;
+  vaultOffer: LocalPasskeyVaultOffer | null;
+};
+
+/** Human vault-custodian action. Never exposed as an agent enrollment tool.
+ *  Requests WebAuthn PRF. A usable result is offered back to the caller; this
+ *  function never wraps a vault key.
+ */
 export async function enrollLocalPasskey(
   tomb: string,
   principalId: string,
-): Promise<void> {
+): Promise<LocalPasskeyEnrollResult> {
   const start = ceremony();
   const { person, keys } = await withLocalDirectoryLock(tomb, async () => ({
     person: await requireLocalPerson(tomb, principalId),
     keys: await readLocalPasskeys(tomb),
   }));
+  const prfSalt = crypto.getRandomValues(new Uint8Array(32));
+  const userId = new TextEncoder().encode(principalId);
   const credential = await navigator.credentials.create({
     publicKey: {
       challenge: start.challenge,
       rp: { id: start.rp.rpID, name: "OpenSesame local identity" },
       user: {
-        id: new TextEncoder().encode(principalId),
+        id: userId,
         name: person.name,
         displayName: person.name,
       },
@@ -109,6 +133,9 @@ export async function enrollLocalPasskey(
           type: "public-key",
           id: b64urlToBytes(key.credentialId),
         })),
+      extensions: overlapCast({
+        prf: { eval: { first: prfSalt } },
+      }),
     },
   });
   if (!credential || !isPublicKeyCredential(credential))
@@ -128,12 +155,15 @@ export async function enrollLocalPasskey(
   });
   if (!verified)
     throw new LocalDirectoryError("The passkey could not be verified.");
-  await withLocalDirectoryLock(tomb, async () => {
+  return withLocalDirectoryLock(tomb, async () => {
     requireLive(start);
     await requireLocalPerson(tomb, principalId);
     const current = await readLocalPasskeys(tomb);
     if (current.some((key) => key.credentialId === verified.credentialId))
       throw new LocalDirectoryError("This credential is already registered.");
+    const extensionResults = credential.getClientExtensionResults();
+    const prfFirst = readPrfFirst(extensionResults);
+    const prfSupported = hasUsablePrfOutput(extensionResults) && prfFirst !== null;
     await writeLocalPasskeys(tomb, [
       ...current,
       {
@@ -142,8 +172,32 @@ export async function enrollLocalPasskey(
         publicKeyB64: bytesToB64url(verified.publicKey),
         counter: verified.counter,
         createdAt: Date.now(),
+        ...(prfSupported ? { prfCapable: true } : {}),
       },
     ]);
+    if (!prfSupported) {
+      prfSalt.fill(0);
+      return {
+        credentialId: verified.credentialId,
+        prfSupported: false,
+        vaultOffer: null,
+      };
+    }
+    const prfOutput = new Uint8Array(prfFirst);
+    return {
+      credentialId: verified.credentialId,
+      prfSupported: true,
+      vaultOffer: {
+        prfOutput,
+        prfSalt,
+        credentialId: credential.rawId,
+        userId,
+        discard() {
+          prfOutput.fill(0);
+          prfSalt.fill(0);
+        },
+      },
+    };
   });
 }
 

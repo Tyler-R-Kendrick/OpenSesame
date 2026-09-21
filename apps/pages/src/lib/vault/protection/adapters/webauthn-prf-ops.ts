@@ -82,32 +82,21 @@ async function webauthnPrfEnroll(
     throw mapPrfToProtectionError(error);
   }
   assertUsablePrfOutput(ceremony.prfOutput);
-  const record = await wrapVaultKeyWithPrf(
-    request.rootHandle.bytes,
-    ceremony.prfOutput,
-    ceremony.prfSalt,
-    ceremony.credential.rawId,
-    ceremony.userId,
-  );
-  const evidence = browserEvidence(
-    `${LEGACY_WEBAUTHN_PRF_DOMAIN}:${record.credentialIdB64}`,
-  );
-  const protector: WebauthnPrfProtectorRecord = {
-    kind: "webauthn-prf",
+  const protector = await protectorFromPrfMaterial({
+    rootKey: request.rootHandle.bytes,
+    prfOutput: ceremony.prfOutput,
+    prfSalt: ceremony.prfSalt,
+    credentialId: ceremony.credential.rawId,
+    userId: ceremony.userId,
     protectorId: request.context.protectorId,
-    legacy: true,
-    credentialIdB64: record.credentialIdB64,
-    rpId: webauthnRpId(),
-    saltB64: record.prfSaltB64,
-    wrap: {
-      ivB64: record.wrap.ivB64,
-      ctB64: record.wrap.ctB64,
-    },
-    userVerification: "required",
-    proofStatus: "verified",
-    lastEvidence: evidence,
-  };
-  return { record: protector, proof: { ok: true, evidence } };
+  });
+  if (!protector.lastEvidence) {
+    throw new ProtectionError(
+      "enrollment_proof_failed",
+      "WebAuthn PRF enrollment produced no evidence.",
+    );
+  }
+  return { record: protector, proof: { ok: true, evidence: protector.lastEvidence } };
 }
 
 async function webauthnPrfProve(
@@ -170,6 +159,65 @@ async function webauthnPrfOpen(
     selected.prfOutput,
   );
   return mintRootKeyHandle(request.context, rootKey);
+}
+
+
+/** Copy a view so wrap does not read bytes outside the view. */
+function copiedBuffer(value: ArrayBuffer | Uint8Array): ArrayBuffer {
+  if (value instanceof Uint8Array) {
+    return value.buffer.slice(
+      value.byteOffset,
+      value.byteOffset + value.byteLength,
+    );
+  }
+  return value.slice(0);
+}
+
+/** Wrap a VRK with a PRF output this caller already holds. Does not start a ceremony. */
+export async function protectorFromPrfMaterial(input: {
+  rootKey: Uint8Array;
+  prfOutput: ArrayBuffer;
+  prfSalt: Uint8Array;
+  credentialId: ArrayBuffer | Uint8Array;
+  userId: ArrayBuffer | Uint8Array;
+  protectorId: string;
+}): Promise<WebauthnPrfProtectorRecord> {
+  assertUsablePrfOutput(input.prfOutput);
+  const wrapped = await wrapVaultKeyWithPrf(
+    input.rootKey,
+    input.prfOutput,
+    input.prfSalt,
+    copiedBuffer(input.credentialId),
+    copiedBuffer(input.userId),
+  );
+  const opened = await unwrapVaultKeyWithPrf(wrapped, input.prfOutput);
+  try {
+    if (
+      opened.byteLength !== input.rootKey.byteLength ||
+      opened.some((byte, index) => byte !== input.rootKey[index])
+    ) {
+      throw new ProtectionError(
+        "enrollment_proof_failed",
+        "WebAuthn PRF enrollment recovered a different root key.",
+      );
+    }
+  } finally {
+    opened.fill(0);
+  }
+  return {
+    kind: "webauthn-prf",
+    protectorId: input.protectorId,
+    legacy: false,
+    credentialIdB64: wrapped.credentialIdB64,
+    rpId: webauthnRpId(),
+    saltB64: wrapped.prfSaltB64,
+    wrap: { ivB64: wrapped.wrap.ivB64, ctB64: wrapped.wrap.ctB64 },
+    userVerification: "required",
+    proofStatus: "verified",
+    lastEvidence: browserEvidence(
+      `${LEGACY_WEBAUTHN_PRF_DOMAIN}:${wrapped.credentialIdB64}`,
+    ),
+  };
 }
 
 export function createWebauthnPrfProtector(

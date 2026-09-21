@@ -4,8 +4,14 @@
  */
 
 import type { VaultHeader } from "../crypto.js";
-import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
+import {
+  assertNotCanceled,
+  assertSessionGeneration,
+  mintRootKeyHandle,
+} from "./adapter.js";
 import { enrollAgeWebauthn } from "./adapters/age-webauthn.js";
+import { protectorFromPrfMaterial } from "./adapters/webauthn-prf-ops.js";
+import { createWebauthnPrfProtector } from "./adapters/webauthn-prf.js";
 import {
   removeProtector as removeProtectorOp,
   rotateCompromisedRoot as rotateCompromisedRootOp,
@@ -13,7 +19,7 @@ import {
   testProtector as testProtectorOp,
 } from "./browser-lifecycle-ops.js";
 import { ProtectionError } from "./errors.js";
-import { newOpaqueId } from "./ids.js";
+import { newOpaqueId, newProtectorId } from "./ids.js";
 import {
   type MutationJournal,
   assertExpectedRevision,
@@ -121,8 +127,65 @@ export class VaultProtectionBrowserService {
     await this.#host.persistHeader({ ...header, protection: sealed });
   }
 
+
+  /**
+   * Account sign-in already created a PRF-capable passkey. Wrap the vault
+   * root only when the person opts in — never from the ceremony itself.
+   */
+  async enrollHeldWebauthnPrf(input: {
+    prfOutput: ArrayBuffer;
+    prfSalt: Uint8Array;
+    credentialId: ArrayBuffer;
+    userId: ArrayBuffer;
+  }): Promise<EnrollCandidateResult> {
+    this.#assertCanMutate();
+    assertNotCanceled(this.#host.session.signal);
+    await this.ensureProtectionProjected();
+    await this.#assertManifestTrusted();
+    const header = this.#requireHeader();
+    const base = this.#requireManifest(header);
+    const expectedRevision = base.revision;
+    assertExpectedRevision(base, expectedRevision);
+    const operationId = newOpaqueId("op");
+    const sessionGeneration = this.#host.session.generation;
+    const journal = beginMutationJournal({
+      vaultId: base.vaultId,
+      expectedRevision,
+      operationId,
+    });
+    const rootKey = this.#host.requireRawRoot();
+    const provenRecord = await protectorFromPrfMaterial({
+      rootKey,
+      prfOutput: input.prfOutput,
+      prfSalt: input.prfSalt,
+      credentialId: input.credentialId,
+      userId: input.userId,
+      protectorId: newProtectorId("webauthn-prf"),
+    });
+    journal.phase = "proven";
+    journal.candidateManifest = {
+      ...base,
+      revision: expectedRevision + 1,
+      records: [...base.records, provenRecord],
+    };
+    this.#pending = {
+      operationId,
+      sessionGeneration,
+      expectedRevision,
+      journal,
+      record: provenRecord,
+      baseManifest: base,
+    };
+    return {
+      operationId,
+      expectedRevision,
+      sessionGeneration,
+      record: provenRecord,
+    };
+  }
+
   async enrollCandidate(
-    kind: "recovery-key" | "age-webauthn",
+    kind: "recovery-key" | "age-webauthn" | "webauthn-prf",
   ): Promise<EnrollCandidateResult> {
     this.#assertCanMutate();
     assertNotCanceled(this.#host.session.signal);
@@ -173,6 +236,19 @@ export class VaultProtectionBrowserService {
         rootKey,
       });
       provenRecord = enrolled.record;
+    } else if (kind === "webauthn-prf") {
+      const protectorId = newProtectorId("webauthn-prf");
+      const context = contextForRecord(base, protectorId);
+      const pending = await createWebauthnPrfProtector({
+        sessionGeneration,
+      }).enroll({
+        operationId,
+        sessionGeneration,
+        context,
+        rootHandle: mintRootKeyHandle(context, rootKey),
+        signal: this.#host.session.signal,
+      });
+      provenRecord = pending.record;
     } else {
       throw new ProtectionError(
         "unsupported_runtime",
