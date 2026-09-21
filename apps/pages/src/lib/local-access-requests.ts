@@ -4,6 +4,7 @@ import {
   type LocalAccessRequestRecord,
 } from "@opensesame/contracts";
 import { interactionMachine } from "@opensesame/os-domain";
+import { emitActivity } from "./activity-log.js";
 import {
   requireLocalApplicationAdmission,
   withLocalApplicationRequest,
@@ -31,7 +32,6 @@ import {
   type LocalSession,
   withLocalIdentitySession,
 } from "./local-sessions.js";
-import { emitActivity } from "./activity-log.js";
 import { tombUnlocked } from "./vfs.js";
 
 type RequestRef = { id: string; version: number; requestDigest: string };
@@ -101,9 +101,12 @@ export async function createLocalAccessRequest(
       assertActive();
       const summary = summarize(row);
       emitActivity({
-        category: "request", type: "request.inbound.created",
-        summary: "Inbound access request received", outcome: "info",
-        targetType: "access_request", targetId: summary.id,
+        category: "request",
+        type: "request.inbound.created",
+        summary: "Inbound access request received",
+        outcome: "info",
+        targetType: "access_request",
+        targetId: summary.id,
       });
       return summary;
     },
@@ -280,9 +283,12 @@ export async function decideLocalAccessRequest(
     emitActivity({
       category: "request",
       type: ok ? "request.inbound.approved" : "request.inbound.denied",
-      summary: ok ? "Inbound access request approved" : "Inbound access request denied",
+      summary: ok
+        ? "Inbound access request approved"
+        : "Inbound access request denied",
       outcome: ok ? "succeeded" : "denied",
-      targetType: "access_request", targetId: summary.id,
+      targetType: "access_request",
+      targetId: summary.id,
     });
     return summary;
   });

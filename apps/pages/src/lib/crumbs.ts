@@ -31,11 +31,7 @@ export const SETTINGS_CATEGORY_LABEL = {
   danger: "Danger",
 } satisfies Record<SettingsCategory, string>;
 
-export const WALLET_CATEGORIES = [
-  "budgets",
-  "methods",
-  "passes",
-] as const;
+export const WALLET_CATEGORIES = ["budgets", "methods", "passes"] as const;
 export type WalletCategory = (typeof WALLET_CATEGORIES)[number];
 
 export const WALLET_CATEGORY_LABEL = {

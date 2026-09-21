@@ -114,8 +114,13 @@ describe("AppShell", () => {
     // The rail's lowercase segments are always drawn; the capitalised labels
     // are the phone's, and a phone keeps its sections behind one key.
     const labels = [
-      "Vault", "Connections", "Access", "Identity",
-      "Wallet", "Activity", "Settings",
+      "Vault",
+      "Connections",
+      "Access",
+      "Identity",
+      "Wallet",
+      "Activity",
+      "Settings",
     ];
     for (const label of labels) {
       expect(screen.getAllByText(label.toLowerCase()).length).toBe(1);

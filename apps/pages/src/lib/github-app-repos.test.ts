@@ -115,31 +115,34 @@ it("keeps an error when one install fails beside a successful list", async () =>
       ],
     }),
   });
-  postRelay.mockImplementation(async (_path: string, body: { installationId?: string }) => {
-    if (body.installationId === "88") {
+  postRelay.mockImplementation(
+    async (_path: string, body: { installationId?: string }) => {
+      if (body.installationId === "88") {
+        return {
+          ok: false,
+          status: 403,
+          payload: { message: "Resource not accessible by integration" },
+        };
+      }
       return {
-        ok: false,
-        status: 403,
-        payload: { message: "Resource not accessible by integration" },
+        ok: true,
+        status: 200,
+        payload: {
+          repositories: [
+            {
+              fullName: "octocat/vault",
+              name: "vault",
+              private: true,
+              defaultBranch: "main",
+            },
+          ],
+        },
       };
-    }
-    return {
-      ok: true,
-      status: 200,
-      payload: {
-        repositories: [
-          {
-            fullName: "octocat/vault",
-            name: "vault",
-            private: true,
-            defaultBranch: "main",
-          },
-        ],
-      },
-    };
-  });
+    },
+  );
   const listed = await listGithubAppInstallationRepos();
-  expect(listed.repositories.map((row) => row.fullName)).toEqual(["octocat/vault"]);
+  expect(listed.repositories.map((row) => row.fullName)).toEqual([
+    "octocat/vault",
+  ]);
   expect(listed.error).toBe("Resource not accessible by integration");
 });
-

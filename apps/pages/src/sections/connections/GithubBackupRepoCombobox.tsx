@@ -151,8 +151,7 @@ function RepoComboboxInput({
   setFilter: (value: string) => void;
   choose: (value: string) => Promise<void>;
 }) {
-  const activeId =
-    open && suggestions[active] ? `${listId}-${active}` : null;
+  const activeId = open && suggestions[active] ? `${listId}-${active}` : null;
   const activeProps =
     activeId === null ? {} : { "aria-activedescendant": activeId };
 
@@ -240,43 +239,60 @@ function SuggestionList({
       ? "Repositories unavailable"
       : "No matching repositories";
   return (
-    <ul
-      id={listId}
+    // biome-ignore lint/a11y/useSemanticElements: ARIA combobox listbox not a native select
+    // biome-ignore lint/a11y/useFocusableInteractive: focus stays on the combobox input via aria-activedescendant
+    <div
       role="listbox"
+      id={listId}
       className="conn-repo-combobox__list"
       data-testid="github-repo-list"
     >
       {suggestions.length === 0 ? (
-        <li className="conn-repo-combobox__empty" role="presentation">
+        <div className="conn-repo-combobox__empty" role="presentation">
           {emptyLabel}
-        </li>
+        </div>
       ) : (
-        suggestions.map((row, index) => (
-          <li
-            key={`${row.kind}:${row.value}`}
-            id={`${listId}-${index}`}
-            role="option"
-            aria-selected={index === active}
-            className={
-              index === active
-                ? "conn-repo-combobox__option is-active"
-                : "conn-repo-combobox__option"
-            }
-            onMouseDown={(event) => {
-              event.preventDefault();
-              skipBlur.current = true;
-              void choose(row.value);
-            }}
-            onMouseEnter={() => setActive(index)}
-          >
-            {row.label}
-          </li>
-        ))
+        suggestions.map((row, index) =>
+          renderOption(row, index, listId, active, skipBlur, setActive, choose),
+        )
       )}
-    </ul>
+    </div>
   );
 }
 
+function renderOption(
+  row: RepoSuggestion,
+  index: number,
+  listId: string,
+  active: number,
+  skipBlur: { current: boolean },
+  setActive: (value: number) => void,
+  choose: (value: string) => Promise<void>,
+) {
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: ARIA combobox option under listbox
+    // biome-ignore lint/a11y/useFocusableInteractive: options reached via aria-activedescendant on the input
+    <div
+      role="option"
+      key={`${row.kind}:${row.value}`}
+      id={`${listId}-${index}`}
+      className={
+        index === active
+          ? "conn-repo-combobox__option is-active"
+          : "conn-repo-combobox__option"
+      }
+      aria-selected={index === active}
+      onMouseDown={(event) => {
+        event.preventDefault();
+        skipBlur.current = true;
+        void choose(row.value);
+      }}
+      onMouseEnter={() => setActive(index)}
+    >
+      {row.label}
+    </div>
+  );
+}
 type ComboboxKeyContext = {
   open: boolean;
   setOpen: (value: boolean) => void;
@@ -332,4 +348,3 @@ function handleComboboxKey(
   }
   void ctx.choose(sanitizeRepoSlug(event.currentTarget.value));
 }
-

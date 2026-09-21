@@ -54,10 +54,7 @@ function isAccessKeyId(value: string): boolean {
   return /^[A-Z0-9]+$/i.test(trimmed);
 }
 
-function optionalTrimmed(
-  value: BoundaryValue,
-  key: string,
-): string | null {
+function optionalTrimmed(value: BoundaryValue, key: string): string | null {
   if (!isJsonObject(value)) return null;
   const raw = value[key];
   if (!isString(raw)) return null;
@@ -78,7 +75,7 @@ function parseConfig(value: BoundaryValue): AwsKmsDeviceConfig {
     : "";
   if (!keyArn || !accessKeyId || !secretAccessKey) return EMPTY;
   if (!isAccessKeyId(accessKeyId)) return EMPTY;
-  let identity;
+  let identity: { keyArn: string; region: string };
   try {
     identity = assertAwsKmsKeyArn(keyArn);
   } catch {

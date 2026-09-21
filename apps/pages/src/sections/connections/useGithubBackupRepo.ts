@@ -5,23 +5,23 @@ import {
   getBackupStatus,
 } from "../../lib/backup.js";
 import type { Connection } from "../../lib/connections.js";
+import { refreshGithubAppInstallations } from "../../lib/github-app-manifest.js";
 import {
   type AppInstallAccount,
   listGithubAppInstallationRepos,
   listLocalAppInstallAccounts,
 } from "../../lib/github-app-repos.js";
-import { refreshGithubAppInstallations } from "../../lib/github-app-manifest.js";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
   listGithubRepos,
 } from "../../lib/github-history.js";
-import { commitRepoSlug } from "./githubBackupRepoActions.js";
-import type { Flash } from "./shared.js";
 import {
   type RepoChoice,
   isBound,
   mergeChoices,
 } from "./GithubBackupRepoResolve.js";
+import { commitRepoSlug } from "./githubBackupRepoActions.js";
+import type { Flash } from "./shared.js";
 
 export function useGithubBackupRepo(
   connection: Connection,
@@ -43,15 +43,28 @@ export function useGithubBackupRepo(
   const onReadyRef = useRef(onReady);
   const flight = useRef(false);
   const targetRef = useRef<BackupTargetView | null>(null);
+  const connectionRef = useRef(connection);
+  const seedAccountsRef = useRef(seedAccounts);
+  const seedReposRef = useRef(seedRepos);
   onReadyRef.current = onReady;
+  connectionRef.current = connection;
+  seedAccountsRef.current = seedAccounts;
+  seedReposRef.current = seedRepos;
+  const connectionId = connection.connectionId;
+  const accountsKey = seedKey(seedAccounts);
+  const reposKey = seedReposKey(seedRepos);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
+      // Touch keys so the callback identity tracks connection + seed content.
+      void connectionId;
+      void accountsKey;
+      void reposKey;
       const loaded = await loadRepoChoices(
-        connection,
-        seedAccounts,
-        seedRepos,
+        connectionRef.current,
+        seedAccountsRef.current,
+        seedReposRef.current,
         targetRef.current,
       );
       targetRef.current = loaded.target;
@@ -64,7 +77,7 @@ export function useGithubBackupRepo(
     } finally {
       setLoading(false);
     }
-  }, [connection.connectionId, seedKey(seedAccounts), seedReposKey(seedRepos)]);
+  }, [connectionId, accountsKey, reposKey]);
 
   useEffect(() => {
     void reload();

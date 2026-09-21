@@ -311,8 +311,10 @@ export function readPersisted(): BudgetSnapshot | undefined {
 
 export function writePersisted(snapshot: BudgetSnapshot): void {
   emitActivity({
-    category: "wallet", type: "wallet.budget.updated",
-    summary: "Wallet budget updated", outcome: "succeeded",
+    category: "wallet",
+    type: "wallet.budget.updated",
+    summary: "Wallet budget updated",
+    outcome: "succeeded",
   });
   try {
     localStorage.setItem(

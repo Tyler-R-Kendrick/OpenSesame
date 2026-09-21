@@ -6,8 +6,10 @@ import { emitActivity } from "./activity-log.js";
 export function notifyLocalIamChange(): void {
   events.dispatchEvent(new Event("change"));
   emitActivity({
-    category: "identity", type: "identity.changed",
-    summary: "Identity or access state changed", outcome: "info",
+    category: "identity",
+    type: "identity.changed",
+    summary: "Identity or access state changed",
+    outcome: "info",
   });
 }
 

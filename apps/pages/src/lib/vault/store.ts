@@ -718,8 +718,10 @@ export class VaultStore {
     this.#armIdleTimer();
     this.#emit();
     emitActivity({
-      category: "vault", type: "vault.unlocked",
-      summary: "Vault unlocked", outcome: "succeeded",
+      category: "vault",
+      type: "vault.unlocked",
+      summary: "Vault unlocked",
+      outcome: "succeeded",
     });
   }
 
@@ -1254,8 +1256,10 @@ export class VaultStore {
     emitVaultLock();
     if (wasUnlocked && !wasGuest) {
       void recordActivityEvent(lockedTombForLog, {
-        category: "vault", type: "vault.locked",
-        summary: "Vault locked", outcome: "succeeded",
+        category: "vault",
+        type: "vault.locked",
+        summary: "Vault locked",
+        outcome: "succeeded",
       }).catch(() => undefined);
     }
     this.#emit();
@@ -1297,8 +1301,10 @@ export class VaultStore {
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
     emitActivity({
-      category: "vault", type: "vault.body.persisted",
-      summary: "Vault body saved", outcome: "succeeded",
+      category: "vault",
+      type: "vault.body.persisted",
+      summary: "Vault body saved",
+      outcome: "succeeded",
     });
   }
 

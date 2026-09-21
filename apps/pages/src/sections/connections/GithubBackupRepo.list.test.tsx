@@ -70,21 +70,23 @@ beforeEach(() => {
   });
   getBackupStatus.mockResolvedValue({ target: null, pendingEvents: 0 });
   listGithubRepos.mockResolvedValue([]);
-  putBackupTarget.mockImplementation(async (body: {
-    owner: string;
-    repo: string;
-  }) => ({
-    integrationId: "int_gh",
-    installationId: "99",
-    owner: body.owner,
-    repo: body.repo,
-    branch: "main",
-    enabled: true,
-    status: "ok",
-    lastCommitSha: null,
-    lastSyncedAt: null,
-    lastError: null,
-  }));
+  putBackupTarget.mockImplementation(
+    async (body: {
+      owner: string;
+      repo: string;
+    }) => ({
+      integrationId: "int_gh",
+      installationId: "99",
+      owner: body.owner,
+      repo: body.repo,
+      branch: "main",
+      enabled: true,
+      status: "ok",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+    }),
+  );
   postRelay.mockResolvedValue({
     ok: true,
     status: 200,
@@ -142,9 +144,9 @@ it("opens the full install list when the field is cleared", async () => {
   await userEvent.click(screen.getByTestId("github-repo-toggle"));
   await waitFor(() => {
     const list = screen.getByTestId("github-repo-list");
-    expect(list.querySelectorAll('[role="option"]').length).toBeGreaterThanOrEqual(
-      120,
-    );
+    expect(
+      list.querySelectorAll('[role="option"]').length,
+    ).toBeGreaterThanOrEqual(120);
     expect(list.textContent).toContain("octocat/repo-001");
     expect(list.textContent).toContain("octocat/repo-120");
   });
@@ -244,4 +246,3 @@ it("marks a list failure instead of showing an empty success", async () => {
   expect(list.textContent).toContain("Repositories unavailable");
   expect(list.querySelectorAll('[role="option"]')).toHaveLength(0);
 });
-

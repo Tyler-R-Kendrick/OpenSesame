@@ -117,7 +117,10 @@ function pushNamedRepos(
   const defaultAccount = accounts[0] ?? null;
   for (const item of names) {
     const key = item.fullName.toLowerCase();
-    if (!item.fullName || rows.some((row) => row.fullName.toLowerCase() === key)) {
+    if (
+      !item.fullName ||
+      rows.some((row) => row.fullName.toLowerCase() === key)
+    ) {
       continue;
     }
     const owner = item.fullName.split("/")[0] ?? "";
@@ -156,7 +159,9 @@ export function mergeChoices(
   );
   if (target?.owner && target.repo && target.installationId) {
     const fullName = `${target.owner}/${target.repo}`;
-    if (!rows.some((row) => row.fullName.toLowerCase() === fullName.toLowerCase())) {
+    if (
+      !rows.some((row) => row.fullName.toLowerCase() === fullName.toLowerCase())
+    ) {
       rows.push({
         fullName,
         installationId: target.installationId,

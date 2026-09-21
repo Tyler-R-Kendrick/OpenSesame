@@ -1,10 +1,3 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isString,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
 /** Connection broker client — Vercel Connect or Host; tokens stay off-page (ADR 0005). */
 import {
   AuthorizeResponseSchema,
@@ -20,6 +13,14 @@ import {
   RevokeResponseSchema,
 } from "@opensesame/contracts";
 import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { emitActivity } from "./activity-log.js";
+import {
   type Integration,
   integrationFromLocal,
   toIntegration,
@@ -33,7 +34,6 @@ import {
   buildGithubAppRegistration,
   readLocalGithubApp,
 } from "./github-app-manifest.js";
-import { emitActivity } from "./activity-log.js";
 import { claimGuestConnection } from "./guest-connections.js";
 export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
@@ -831,7 +831,14 @@ export async function createConnection(
 ): Promise<Connection> {
   const created = await connectionSeams.createConnection(body);
   if (isGuestSession()) claimGuestConnection(created.connectionId);
-  emitActivity({ category: "connection", type: "connection.created", summary: "Connection created", outcome: "succeeded", targetType: "connection", targetId: created.connectionId });
+  emitActivity({
+    category: "connection",
+    type: "connection.created",
+    summary: "Connection created",
+    outcome: "succeeded",
+    targetType: "connection",
+    targetId: created.connectionId,
+  });
   return created;
 }
 export function authorizeConnection(
@@ -876,7 +883,14 @@ export function revokeConnection(
   id: string,
 ): ReturnType<typeof revokeConnectionDefault> {
   const result = connectionSeams.revokeConnection(id);
-  emitActivity({ category: "connection", type: "connection.revoked", summary: "Connection revoked", outcome: "succeeded", targetType: "connection", targetId: id });
+  emitActivity({
+    category: "connection",
+    type: "connection.revoked",
+    summary: "Connection revoked",
+    outcome: "succeeded",
+    targetType: "connection",
+    targetId: id,
+  });
   return result;
 }
 export function updateConnectionPolicy(

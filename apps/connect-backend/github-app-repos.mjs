@@ -36,7 +36,11 @@ function corsGate(origin) {
   return { cors };
 }
 
-async function mintInstallationTokenWithPermissions(creds, fetchImpl, permissions) {
+async function mintInstallationTokenWithPermissions(
+  creds,
+  fetchImpl,
+  permissions,
+) {
   const jwt = mintGithubAppJwt(creds.appId, creds.pem);
   const response = await fetchImpl(
     `${API}/app/installations/${creds.installationId}/access_tokens`,
@@ -53,7 +57,10 @@ async function mintInstallationTokenWithPermissions(creds, fetchImpl, permission
     },
   );
   const payload = parseJsonText(await response.text());
-  if (!payload) throw Object.assign(new Error("installation_token_malformed"), { status: 502 });
+  if (!payload)
+    throw Object.assign(new Error("installation_token_malformed"), {
+      status: 502,
+    });
   if (!response.ok || typeof payload.token !== "string") {
     throw Object.assign(
       new Error(
@@ -84,7 +91,12 @@ export async function mintWideInstallationToken(creds, fetchImpl) {
   });
 }
 
-async function tokenOrError(creds, fetchImpl, cors, mint = mintWideInstallationToken) {
+async function tokenOrError(
+  creds,
+  fetchImpl,
+  cors,
+  mint = mintWideInstallationToken,
+) {
   try {
     return { token: await mint(creds, fetchImpl) };
   } catch (error) {
@@ -137,16 +149,21 @@ async function fetchInstallationRepoPage(token, page, fetchImpl, cors) {
     { headers: githubHeaders(token) },
   );
   const payload = parseJsonText(await response.text());
-  if (!payload) return { error: json(502, { error: "upstream_malformed" }, cors) };
+  if (!payload)
+    return { error: json(502, { error: "upstream_malformed" }, cors) };
   if (!response.ok) {
     return {
-      error: json(statusOr502(response.status), {
-        error: "list_failed",
-        message:
-          typeof payload.message === "string"
-            ? payload.message
-            : `GitHub returned ${response.status}`,
-      }, cors),
+      error: json(
+        statusOr502(response.status),
+        {
+          error: "list_failed",
+          message:
+            typeof payload.message === "string"
+              ? payload.message
+              : `GitHub returned ${response.status}`,
+        },
+        cors,
+      ),
     };
   }
   const rows = Array.isArray(payload.repositories) ? payload.repositories : [];
@@ -156,7 +173,12 @@ async function fetchInstallationRepoPage(token, page, fetchImpl, cors) {
 async function listInstallationRepositories(token, fetchImpl, cors) {
   const repositories = [];
   for (let page = 1; page <= 10; page += 1) {
-    const result = await fetchInstallationRepoPage(token, page, fetchImpl, cors);
+    const result = await fetchInstallationRepoPage(
+      token,
+      page,
+      fetchImpl,
+      cors,
+    );
     if (result.error) return result;
     for (const row of result.rows) {
       const mapped = mapRepo(row);
@@ -220,20 +242,26 @@ async function postCreateRepo(token, url, name, isPrivate, fetchImpl, cors) {
     }),
   });
   const payload = parseJsonText(await response.text());
-  if (!payload) return { error: json(502, { error: "upstream_malformed" }, cors) };
+  if (!payload)
+    return { error: json(502, { error: "upstream_malformed" }, cors) };
   if (!response.ok) {
     return {
-      error: json(statusOr502(response.status), {
-        error: "create_failed",
-        message:
-          typeof payload.message === "string"
-            ? payload.message
-            : `GitHub returned ${response.status}`,
-      }, cors),
+      error: json(
+        statusOr502(response.status),
+        {
+          error: "create_failed",
+          message:
+            typeof payload.message === "string"
+              ? payload.message
+              : `GitHub returned ${response.status}`,
+        },
+        cors,
+      ),
     };
   }
   const mapped = mapRepo(payload);
-  if (!mapped) return { error: json(502, { error: "upstream_malformed" }, cors) };
+  if (!mapped)
+    return { error: json(502, { error: "upstream_malformed" }, cors) };
   return { repository: mapped };
 }
 

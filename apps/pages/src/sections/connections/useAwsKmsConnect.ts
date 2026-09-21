@@ -56,9 +56,10 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
   const [form, setForm] = useState<AwsKmsFormState>(emptyAwsKmsForm);
   const [saved, setSaved] = useState<AwsKmsDeviceConfig | null>(null);
   const [busy, setBusy] = useState(false);
-  const [bindingId, setBindingId] = useState(() =>
-    awsKmsConnectDependencies.loadSettings().capabilityConnectors.encryption
-      .providerId,
+  const [bindingId, setBindingId] = useState(
+    () =>
+      awsKmsConnectDependencies.loadSettings().capabilityConnectors.encryption
+        .providerId,
   );
   const active = bindingId === "aws-kms";
   const configured = Boolean(saved?.keyArn && saved.secretAccessKey);

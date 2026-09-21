@@ -80,58 +80,62 @@ beforeEach(() => {
   });
   getBackupStatus.mockResolvedValue({ target: null, pendingEvents: 0 });
   listGithubRepos.mockResolvedValue([]);
-  putBackupTarget.mockImplementation(async (body: {
-    owner: string;
-    repo: string;
-  }) => ({
-    integrationId: "int_gh",
-    installationId: "99",
-    owner: body.owner,
-    repo: body.repo,
-    branch: "main",
-    enabled: true,
-    status: "ok",
-    lastCommitSha: null,
-    lastSyncedAt: null,
-    lastError: null,
-  }));
-  postRelay.mockImplementation(async (path: string, body?: { name?: string }) => {
-    if (path === "/api/github-app/installation-repos") {
+  putBackupTarget.mockImplementation(
+    async (body: {
+      owner: string;
+      repo: string;
+    }) => ({
+      integrationId: "int_gh",
+      installationId: "99",
+      owner: body.owner,
+      repo: body.repo,
+      branch: "main",
+      enabled: true,
+      status: "ok",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+    }),
+  );
+  postRelay.mockImplementation(
+    async (path: string, body?: { name?: string }) => {
+      if (path === "/api/github-app/installation-repos") {
+        return {
+          ok: true,
+          status: 200,
+          payload: {
+            repositories: [
+              {
+                fullName: "octocat/secrets",
+                name: "secrets",
+                private: true,
+                defaultBranch: "main",
+              },
+              {
+                fullName: "octocat/vault",
+                name: "vault",
+                private: true,
+                defaultBranch: "main",
+              },
+            ],
+          },
+        };
+      }
+      const name = body?.name ?? DEFAULT_PASSWORD_REPO_NAME;
       return {
         ok: true,
         status: 200,
         payload: {
-          repositories: [
-            {
-              fullName: "octocat/secrets",
-              name: "secrets",
-              private: true,
-              defaultBranch: "main",
-            },
-            {
-              fullName: "octocat/vault",
-              name: "vault",
-              private: true,
-              defaultBranch: "main",
-            },
-          ],
+          repository: {
+            fullName: `octocat/${name}`,
+            name,
+            private: true,
+            defaultBranch: "main",
+          },
         },
       };
-    }
-    const name = body?.name ?? DEFAULT_PASSWORD_REPO_NAME;
-    return {
-      ok: true,
-      status: 200,
-      payload: {
-        repository: {
-          fullName: `octocat/${name}`,
-          name,
-          private: true,
-          defaultBranch: "main",
-        },
-      },
-    };
-  });
+    },
+  );
 });
 
 afterEach(() => {
@@ -173,7 +177,9 @@ it("binds a repository chosen from the list", async () => {
       "octocat/secrets",
     ),
   );
-  await userEvent.click(screen.getByRole("option", { name: "octocat/secrets" }));
+  await userEvent.click(
+    screen.getByRole("option", { name: "octocat/secrets" }),
+  );
   await waitFor(() =>
     expect(putBackupTarget).toHaveBeenCalledWith(
       expect.objectContaining({ owner: "octocat", repo: "secrets" }),
@@ -240,7 +246,6 @@ it("seeds install repositories when the App list is empty", async () => {
     ),
   );
 });
-
 
 it("opens the bound repository for editing", async () => {
   getBackupStatus.mockResolvedValue({

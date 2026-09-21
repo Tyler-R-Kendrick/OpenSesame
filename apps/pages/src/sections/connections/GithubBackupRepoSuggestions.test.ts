@@ -7,8 +7,8 @@
  * hide a large install list behind the typed default draft.
  */
 import { describe, expect, it } from "vitest";
-import { buildRepoSuggestions } from "./GithubBackupRepoSuggestions.js";
 import type { RepoChoice } from "./GithubBackupRepoResolve.js";
+import { buildRepoSuggestions } from "./GithubBackupRepoSuggestions.js";
 
 const ACCOUNT = {
   installationId: "99",
@@ -98,9 +98,9 @@ describe("buildRepoSuggestions — ideal combobox", () => {
         },
       ],
     });
-    expect(rows.filter((row) => row.kind === "existing").map((r) => r.value)).toEqual(
-      ["acme/payments"],
-    );
+    expect(
+      rows.filter((row) => row.kind === "existing").map((r) => r.value),
+    ).toEqual(["acme/payments"]);
   });
 
   it("offers create for a novel valid slug under an install account", () => {
@@ -149,14 +149,13 @@ describe("buildRepoSuggestions — ideal combobox", () => {
   });
 });
 
-  it("hides create rows when the install list failed", () => {
-    const rows = buildRepoSuggestions({
-      draft: "octocat/brand-new-backup",
-      filter: "",
-      repos: [],
-      accounts: [ACCOUNT],
-      listError: "Resource not accessible by integration",
-    });
-    expect(rows).toEqual([]);
+it("hides create rows when the install list failed", () => {
+  const rows = buildRepoSuggestions({
+    draft: "octocat/brand-new-backup",
+    filter: "",
+    repos: [],
+    accounts: [ACCOUNT],
+    listError: "Resource not accessible by integration",
   });
-
+  expect(rows).toEqual([]);
+});

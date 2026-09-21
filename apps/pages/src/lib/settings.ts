@@ -4,6 +4,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { emitActivity } from "./activity-log.js";
 import {
   type CapabilityConnectorBinding,
   type CapabilityConnectorMap,
@@ -12,7 +13,6 @@ import {
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
-import { emitActivity } from "./activity-log.js";
 import { kvGet, kvSet, kvSetDurable } from "./kv.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
@@ -419,8 +419,10 @@ function emitSettings(): void {
   epoch += 1;
   for (const listener of listeners) listener();
   emitActivity({
-    category: "settings", type: "settings.updated",
-    summary: "Settings updated", outcome: "succeeded",
+    category: "settings",
+    type: "settings.updated",
+    summary: "Settings updated",
+    outcome: "succeeded",
   });
 }
 

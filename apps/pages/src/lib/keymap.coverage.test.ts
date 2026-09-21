@@ -313,8 +313,12 @@ describe("counts and the g leader", () => {
     const navigate = vi.fn();
     const handler = createKeymapHandler({ navigate, showHelp: vi.fn() });
     for (const [letter, path] of [
-      ["c", "/connections"], ["i", "/identity"], ["w", "/wallet"],
-      ["y", "/activity"], ["s", "/settings"], ["v", "/vault"],
+      ["c", "/connections"],
+      ["i", "/identity"],
+      ["w", "/wallet"],
+      ["y", "/activity"],
+      ["s", "/settings"],
+      ["v", "/vault"],
     ] as const) {
       press(handler, "g");
       press(handler, letter);

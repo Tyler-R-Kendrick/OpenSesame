@@ -16,8 +16,8 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import type { ConnectionEvent } from "./connections.js";
 import { emitActivity } from "./activity-log.js";
+import type { ConnectionEvent } from "./connections.js";
 import { kvRefresh } from "./kv.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";

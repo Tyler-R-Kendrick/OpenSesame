@@ -75,9 +75,7 @@ async function postRelayDefault(
   });
   let payload: JsonObject;
   try {
-    payload = overlapCast(
-      await readBoundedObject(response, 262_144, 30_000),
-    );
+    payload = overlapCast(await readBoundedObject(response, 262_144, 30_000));
   } catch {
     return {
       ok: false,

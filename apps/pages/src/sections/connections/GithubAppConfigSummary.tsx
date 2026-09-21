@@ -1,8 +1,8 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { useMemo } from "react";
-import type { AppInstallAccount } from "../../lib/github-app-repos.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import type { Connection } from "../../lib/connections.js";
+import type { AppInstallAccount } from "../../lib/github-app-repos.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 import {
   GithubAppInstallRows,

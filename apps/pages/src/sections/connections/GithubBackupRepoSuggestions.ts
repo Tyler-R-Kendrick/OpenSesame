@@ -21,9 +21,7 @@ export function buildRepoSuggestions(input: {
 }): RepoSuggestion[] {
   const needle = input.filter.trim().toLowerCase();
   const existing = input.repos
-    .filter(
-      (repo) => !needle || repo.fullName.toLowerCase().includes(needle),
-    )
+    .filter((repo) => !needle || repo.fullName.toLowerCase().includes(needle))
     .map((repo) => ({
       kind: "existing" as const,
       value: repo.fullName,
@@ -32,11 +30,7 @@ export function buildRepoSuggestions(input: {
   if (input.listError) return existing;
   const seen = new Set(existing.map((row) => row.value.toLowerCase()));
   const creates: RepoSuggestion[] = [];
-  const decision = resolveBackupSlug(
-    input.draft,
-    input.repos,
-    input.accounts,
-  );
+  const decision = resolveBackupSlug(input.draft, input.repos, input.accounts);
   if (decision.kind === "create") {
     const value = `${decision.account.accountLogin}/${decision.name}`;
     if (!seen.has(value.toLowerCase())) {

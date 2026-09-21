@@ -5,12 +5,12 @@
 import { useEffect, useState } from "react";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { subscribeLocalBackupTarget } from "../../lib/backup-target-local.js";
 import {
   type BackupTargetView,
   getBackupStatus,
   resyncBackup,
 } from "../../lib/backup.js";
-import { subscribeLocalBackupTarget } from "../../lib/backup-target-local.js";
 import { startVaultBackupObserver } from "../../lib/vault-backup-observer.js";
 
 function syncTone(target: BackupTargetView): "ok" | "err" | "warn" | "idle" {
