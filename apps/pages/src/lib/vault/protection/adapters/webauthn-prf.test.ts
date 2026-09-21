@@ -13,6 +13,7 @@ import {
   withPasskeyUnlock,
   wrapVaultKeyWithPrf,
 } from "../../unlock-methods.js";
+import { protectorFromPrfMaterial } from "./webauthn-prf-ops.js";
 import { webauthnPrfCapabilities } from "./webauthn-prf.js";
 
 afterEach(() => {
@@ -215,5 +216,24 @@ describe("webauthnPrfCapabilities honesty", () => {
     });
     expect(report.details.usablePrfOutput).toBe(true);
     expect(report.availability.reasonCode).toBe("prf_output_ready");
+  });
+});
+
+describe("held PRF material", () => {
+  it("wraps a root key without starting another ceremony", async () => {
+    const root = crypto.getRandomValues(new Uint8Array(32));
+    const prf = crypto.getRandomValues(new Uint8Array(32));
+    const record = await protectorFromPrfMaterial({
+      rootKey: root,
+      prfOutput: prf.buffer,
+      prfSalt: crypto.getRandomValues(new Uint8Array(32)),
+      credentialId: crypto.getRandomValues(new Uint8Array(16)).buffer,
+      userId: crypto.getRandomValues(new Uint8Array(16)).buffer,
+      protectorId: "prf-held",
+    });
+    expect(record.kind).toBe("webauthn-prf");
+    expect(record.legacy).toBe(false);
+    expect(record.proofStatus).toBe("verified");
+    expect(record.saltB64.length).toBeGreaterThan(0);
   });
 });

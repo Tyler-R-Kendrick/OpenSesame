@@ -103,7 +103,7 @@ describe("passkey ceremonies", () => {
     });
     const result = await createPasskeyUnlockCeremony();
     expect(result.prfOutput).toBe(prfOutput);
-    expect(result.prfSalt).toHaveLength(16);
+    expect(result.prfSalt).toHaveLength(32);
     expect(result.userId).toHaveLength(16);
   });
 

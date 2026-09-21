@@ -35,7 +35,7 @@ export function protectionMechanismLabel(
     case "pin":
       return "PIN";
     case "webauthn-prf":
-      return "Passkey (PRF)";
+      return "Passkey / security key";
     case "age-recipient":
       return "age recipient";
     case "age-webauthn":

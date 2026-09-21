@@ -21,6 +21,8 @@ export type LocalPasskey = {
   publicKeyB64: string;
   counter: number;
   createdAt: number;
+  /** True when registration returned a usable WebAuthn PRF output. Not a vault wrap. */
+  prfCapable?: boolean;
 };
 
 function base64url(value: BoundaryValue, max: number): value is string {
@@ -45,7 +47,8 @@ function isPasskey(value: BoundaryValue): value is LocalPasskey {
     value.counter <= 0xffffffff &&
     isNumber(value.createdAt) &&
     Number.isSafeInteger(value.createdAt) &&
-    value.createdAt > 0
+    value.createdAt > 0 &&
+    (value.prfCapable === undefined || value.prfCapable === true || value.prfCapable === false)
   );
 }
 

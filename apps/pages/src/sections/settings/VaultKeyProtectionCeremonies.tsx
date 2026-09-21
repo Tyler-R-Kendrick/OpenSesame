@@ -71,6 +71,7 @@ function AddCeremony({
 }): ReactNode {
   const store = useVaultStore();
   const [busy, setBusy] = useState(false);
+  const [unlockWithPasskey, setUnlockWithPasskey] = useState(true);
   return (
     <CeremonyShell
       ok
@@ -106,7 +107,50 @@ function AddCeremony({
         disabled: busy,
         onClick: onOpenAgeWebauthn,
       }}
-    />
+    >
+      <label>
+        <input
+          type="checkbox"
+          checked={unlockWithPasskey}
+          disabled={busy}
+          onChange={(event) => setUnlockWithPasskey(event.target.checked)}
+        />
+        Use this passkey to unlock this vault
+      </label>
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btn--sm"
+          disabled={busy}
+          onClick={() => {
+            if (!unlockWithPasskey) {
+              status(
+                "info",
+                "Passkey / security key",
+                "Unchecked leaves vault protection unchanged. Enroll a sign-in passkey under Identity.",
+              );
+              return;
+            }
+            setBusy(true);
+            void runCaught(async () => {
+              const candidate =
+                await store.protection.enrollCandidate("webauthn-prf");
+              await store.protection.commitEnrollment(candidate.operationId);
+              status(
+                "info",
+                "Passkey / security key",
+                "This passkey can unlock the vault.",
+              );
+              onDone();
+            }, "Could not enroll a passkey protector.").finally(() =>
+              setBusy(false),
+            );
+          }}
+        >
+          Passkey / security key
+        </button>
+      </div>
+    </CeremonyShell>
   );
 }
 
