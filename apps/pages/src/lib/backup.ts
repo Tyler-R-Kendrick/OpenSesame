@@ -1,21 +1,35 @@
-import {
-  type JsonObject,
-  type JsonValue,
-  isTypeofObject,
-  overlapCast,
-  readJsonObject,
-  readString,
-} from "@opensesame/os-domain";
 /**
- * Server-side backup workflow client (ADR 0039).
+ * Browser-local vault backup target (ADR 0128).
  *
- * Configure via an active GitHub History connection + private repo + App
- * installation — never by picking unrelated catalog integrations.
+ * Bind a private repo via the local GitHub App or a forge git remote;
+ * enable/disable and sync run entirely in the SPA. Ciphertext is pushed
+ * through the Connect relay.
  */
-
-import { hostFetch } from "./identity.js";
+import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type PutBackupTargetInput,
+  buildLocalBackupTarget,
+  resolveProviderId,
+  trimInput,
+} from "./backup-target-build.js";
+import {
+  type LocalBackupTarget,
+  clearLocalBackupTarget,
+  readLocalBackupTarget,
+  writeLocalBackupTarget,
+} from "./backup-target-local.js";
+import { readLocalGithubApp } from "./github-app-local.js";
+import {
+  publishBackupSyncEvent,
+  startVaultBackupObserver,
+} from "./vault-backup-observer.js";
+import { syncVaultBackup } from "./vault-backup-sync.js";
+export type { PutBackupTargetInput } from "./backup-target-build.js";
 
 export type BackupTargetView = {
+  kind: string;
+  providerId: string | null;
+  connectionId: string | null;
   integrationId: string;
   installationId: string;
   owner: string;
@@ -26,6 +40,7 @@ export type BackupTargetView = {
   lastCommitSha: string | null;
   lastSyncedAt: string | null;
   lastError: string | null;
+  config: JsonObject | null;
 };
 
 export type BackupStatus = {
@@ -43,149 +58,135 @@ export type GithubInstallation = {
   accountLogin: string;
   accountType: string;
   targetType: string;
-  /** `all` or `selected` — which repositories this install can reach. */
   repositorySelection: string;
   permissions: GithubAppPermission[];
   repositories: string[];
 };
 
-function toTarget(raw: JsonObject): BackupTargetView {
+function fromLocal(row: LocalBackupTarget): BackupTargetView {
   return {
-    integrationId: String(raw.integration_id ?? ""),
-    installationId: String(raw.installation_id ?? ""),
-    owner: String(raw.owner ?? ""),
-    repo: String(raw.repo ?? ""),
-    branch: String(raw.branch ?? "main"),
-    enabled: Boolean(raw.enabled),
-    status: String(raw.status ?? "pending"),
-    lastCommitSha: overlapCast(raw.last_commit_sha) ?? null,
-    lastSyncedAt: overlapCast(raw.last_synced_at) ?? null,
-    lastError: overlapCast(raw.last_error) ?? null,
+    kind: row.kind,
+    providerId: row.providerId,
+    connectionId: row.connectionId,
+    integrationId: row.integrationId,
+    installationId: row.installationId,
+    owner: row.owner,
+    repo: row.repo,
+    branch: row.branch,
+    enabled: row.enabled,
+    status: row.status,
+    lastCommitSha: row.lastCommitSha,
+    lastSyncedAt: row.lastSyncedAt,
+    lastError: row.lastError,
+    config: row.config,
   };
 }
 
-async function fail(res: Response, fallback: string): Promise<never> {
-  const body = overlapCast(await res.json().catch(() => ({})));
-  throw new Error(
-    readString(body.hint) ||
-      readString(body.error) ||
-      `${fallback} (${res.status})`,
-  );
+/** Provider catalog id this backup target belongs to. */
+export function backupTargetProviderId(
+  target: BackupTargetView,
+): string | null {
+  if (target.providerId) return target.providerId;
+  if (target.kind === "connector") return target.providerId;
+  if (target.kind === "git_remote") return target.providerId;
+  if (
+    target.kind === "github_app" ||
+    target.integrationId !== "" ||
+    target.owner !== ""
+  ) {
+    return "github";
+  }
+  return null;
 }
 
-async function getBackupStatusDefault(): Promise<BackupStatus> {
-  const res = await hostFetch("/api/v1/backup/target");
-  if (!res.ok) await fail(res, "Could not read backup status");
-  const body = overlapCast(await res.json());
-  const target = readJsonObject(body.target);
+async function getBackupStatusDefault(
+  providerId?: string | null,
+): Promise<BackupStatus> {
+  const local = readLocalBackupTarget(providerId);
+  if (local?.enabled) startVaultBackupObserver();
   return {
-    target: target ? toTarget(target) : null,
-    pendingEvents: Number(body.pending_events ?? 0),
+    target: local ? fromLocal(local) : null,
+    pendingEvents: local?.pendingEvents ?? 0,
   };
-}
-
-function readPermissions(value: JsonValue | undefined): GithubAppPermission[] {
-  if (!Array.isArray(value)) return [];
-  const rows: GithubAppPermission[] = [];
-  for (const item of value) {
-    if (!item || !isTypeofObject(item) || Array.isArray(item)) continue;
-    const name = readString(item.name);
-    const access = readString(item.access);
-    if (!name || !access) continue;
-    rows.push({ name, access });
-  }
-  return rows;
-}
-
-function readStringList(value: JsonValue | undefined): string[] {
-  if (!Array.isArray(value)) return [];
-  const names: string[] = [];
-  for (const item of value) {
-    const name = readString(item);
-    if (name) names.push(name);
-  }
-  return names;
 }
 
 async function listGithubInstallationsDefault(
-  integrationId: string,
+  _integrationId: string,
 ): Promise<GithubInstallation[]> {
-  const res = await hostFetch(
-    `/api/v1/integrations/${encodeURIComponent(integrationId)}/github/installations`,
-  );
-  if (!res.ok) await fail(res, "Could not list GitHub App installations");
-  const body = overlapCast(await res.json());
-  const installations = body.installations;
-  const rows = Array.isArray(installations) ? installations : [];
-  return rows
-    .filter((row): row is JsonObject => !!row && isTypeofObject(row))
-    .map((row) => ({
-      id: String(row.id ?? ""),
-      accountLogin: String(row.account_login ?? ""),
-      accountType: String(row.account_type ?? ""),
-      targetType: String(row.target_type ?? ""),
-      repositorySelection: String(row.repository_selection ?? ""),
-      permissions: readPermissions(row.permissions),
-      repositories: readStringList(row.repositories),
-    }))
-    .filter((row) => /^\d+$/.test(row.id));
+  const app = readLocalGithubApp();
+  if (!app) return [];
+  return app.installations.map((row) => ({
+    id: row.id,
+    accountLogin: row.accountLogin,
+    accountType: row.accountType,
+    targetType: row.accountType,
+    repositorySelection: "selected",
+    permissions: [],
+    repositories: [],
+  }));
 }
 
-async function putBackupTargetDefault(input: {
-  connectionId?: string;
-  integrationId?: string;
-  installationId: string;
-  owner: string;
-  repo: string;
-  branch?: string;
-  enabled?: boolean;
-}): Promise<BackupTargetView> {
-  const res = await hostFetch("/api/v1/backup/target", {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      ...(input.connectionId
-        ? { connection_id: input.connectionId }
-        : undefined),
-      ...(input.integrationId
-        ? { integration_id: input.integrationId }
-        : undefined),
-      installation_id: input.installationId,
-      owner: input.owner,
-      repo: input.repo,
-      ...(input.branch ? { branch: input.branch } : undefined),
-      ...(input.enabled === undefined ? undefined : { enabled: input.enabled }),
-    }),
-  });
-  if (!res.ok) await fail(res, "Could not configure backup");
-  const body = overlapCast(await res.json());
-  const target = readJsonObject(body.target);
-  if (!target) {
-    throw new Error("OpenSesame returned no backup target");
+async function putBackupTargetDefault(
+  input: PutBackupTargetInput,
+): Promise<BackupTargetView> {
+  const kindHint = trimInput(input.kind);
+  const providerId = resolveProviderId(input, kindHint);
+  if (providerId === "") {
+    throw new Error("Backup needs a provider id.");
   }
-  return toTarget(target);
+  const prior = readLocalBackupTarget(providerId);
+  const kind = kindHint || prior?.kind || "github_app";
+  const next = buildLocalBackupTarget(input, prior, providerId, kind);
+  writeLocalBackupTarget(next);
+  if (next.enabled) {
+    startVaultBackupObserver();
+    publishBackupSyncEvent("configured");
+  }
+  return fromLocal(readLocalBackupTarget(providerId) ?? next);
 }
 
-async function deleteBackupTargetDefault(): Promise<void> {
-  const res = await hostFetch("/api/v1/backup/target", { method: "DELETE" });
-  if (!res.ok) await fail(res, "Could not remove backup target");
+/** Flip backup on/off without changing the bound repository. */
+async function setBackupTargetEnabledDefault(
+  enabled: boolean,
+  providerId?: string | null,
+): Promise<BackupTargetView> {
+  const prior = readLocalBackupTarget(providerId);
+  if (!prior) {
+    throw new Error("No backup target configured");
+  }
+  const next: LocalBackupTarget = { ...prior, enabled };
+  writeLocalBackupTarget(next);
+  if (enabled) {
+    startVaultBackupObserver();
+    publishBackupSyncEvent("enabled");
+  }
+  return fromLocal(next);
 }
 
-async function resyncBackupDefault(): Promise<void> {
-  const res = await hostFetch("/api/v1/backup/resync", { method: "POST" });
-  if (!res.ok) await fail(res, "Could not queue a resync");
+async function deleteBackupTargetDefault(
+  providerId?: string | null,
+): Promise<void> {
+  clearLocalBackupTarget(providerId);
+}
+
+async function resyncBackupDefault(providerId?: string | null): Promise<void> {
+  publishBackupSyncEvent("manual");
+  await syncVaultBackup(providerId);
 }
 
 export const backupSeams = {
   getBackupStatus: getBackupStatusDefault,
   listGithubInstallations: listGithubInstallationsDefault,
   putBackupTarget: putBackupTargetDefault,
+  setBackupTargetEnabled: setBackupTargetEnabledDefault,
   deleteBackupTarget: deleteBackupTargetDefault,
   resyncBackup: resyncBackupDefault,
 };
 
-export async function getBackupStatus(): Promise<BackupStatus> {
-  return backupSeams.getBackupStatus();
+export async function getBackupStatus(
+  providerId?: string | null,
+): Promise<BackupStatus> {
+  return backupSeams.getBackupStatus(providerId);
 }
 
 export async function listGithubInstallations(
@@ -195,17 +196,26 @@ export async function listGithubInstallations(
 }
 
 export async function putBackupTarget(
-  input: Parameters<typeof putBackupTargetDefault>[0],
+  input: PutBackupTargetInput,
 ): Promise<BackupTargetView> {
   return backupSeams.putBackupTarget(input);
 }
 
-export async function deleteBackupTarget(): Promise<void> {
-  return backupSeams.deleteBackupTarget();
+export async function setBackupTargetEnabled(
+  enabled: boolean,
+  providerId?: string | null,
+): Promise<BackupTargetView> {
+  return backupSeams.setBackupTargetEnabled(enabled, providerId);
 }
 
-export async function resyncBackup(): Promise<void> {
-  return backupSeams.resyncBackup();
+export async function deleteBackupTarget(
+  providerId?: string | null,
+): Promise<void> {
+  return backupSeams.deleteBackupTarget(providerId);
+}
+
+export async function resyncBackup(providerId?: string | null): Promise<void> {
+  return backupSeams.resyncBackup(providerId);
 }
 
 /** Parse `owner/repo` from a GitHub https clone URL or full_name. */
@@ -228,92 +238,52 @@ export function ownerRepoFromRemote(remote: string): {
   return null;
 }
 
-/** Map SecretConfig environment → default backup branch name. */
-export function branchForEnvironment(
-  environment: "development" | "staging" | "production" | "custom" | string,
-): string {
-  switch (environment) {
-    case "development":
-      return "env/development";
-    case "staging":
-      return "env/staging";
-    case "production":
-      return "env/production";
-    default:
-      return `env/${environment.replace(/[^a-zA-Z0-9._/-]+/gu, "-")}`;
-  }
+export function branchForEnvironment(environment: string): string {
+  const slug = environment.trim().toLowerCase().replace(/\s+/gu, "-");
+  if (!slug || slug === "main" || slug === "master") return "main";
+  return `env/${slug}`;
 }
 
-/**
- * Recoverability only lists History GitHub connections — never Stripe/OpenAI
- * catalog rows that used to poison the old integration dropdown.
- */
+export function filterPrivateGithubRepos<T extends { private: boolean }>(
+  rows: T[],
+): T[] {
+  return rows.filter((row) => row.private);
+}
+
 export function filterGithubBackupConnections<
   T extends { providerId: string; status: string },
 >(rows: T[]): T[] {
   return rows.filter(
-    (row) =>
-      row.providerId === "github" &&
-      (row.status === "active" || row.status === "needs_reauth"),
+    (row) => row.providerId === "github" && row.status === "active",
   );
 }
 
-/** Password recoverability repos must be private. */
-export function filterPrivateGithubRepos<
-  T extends { private: boolean; cloneUrl: string },
->(rows: T[]): T[] {
-  return rows.filter(
-    (row) => row.private && row.cloneUrl.startsWith("https://"),
+export function installationIdFromLocation(search: string): string | null {
+  const params = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
   );
+  const raw =
+    params.get("installation_id") ?? params.get("installationId") ?? "";
+  return /^\d+$/.test(raw) ? raw : null;
 }
 
-/**
- * Prefer the App's public html_url; otherwise derive a best-effort install URL
- * from the App display name (GitHub slugifies names the same way).
- */
+export function githubBackupReturnTo(): string {
+  return `${window.location.origin}/settings`;
+}
+
 export function githubAppInstallUrl(input: {
-  htmlUrl?: string | null;
-  displayName?: string | null;
+  htmlUrl: string | null;
+  state?: string;
 }): string | null {
-  const html = (input.htmlUrl ?? "").trim().replace(/\/$/u, "");
-  if (html.startsWith("https://github.com/apps/")) {
-    return `${html}/installations/new`;
-  }
-  const name = (input.displayName ?? "").trim().toLowerCase();
-  if (!name) return null;
-  const slug = name
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-+|-+$/gu, "")
-    .slice(0, 80);
-  if (!slug) return null;
-  return `https://github.com/apps/${slug}/installations/new`;
+  const base = input.htmlUrl?.replace(/\/$/u, "");
+  if (!base) return null;
+  const url = new URL(`${base}/installations/new`);
+  if (input.state) url.searchParams.set("state", input.state);
+  return url.toString();
 }
 
 export function githubAppFailureReason(raw: string | null): string {
-  switch ((raw ?? "").trim()) {
-    case "":
-      return "unknown error";
-    case "missing_state":
-    case "missing_code":
-      return "GitHub returned an incomplete redirect. Try Create GitHub App again.";
-    case "unknown_or_expired_state":
-    case "expired_state":
-      return "That registration session expired. Create the GitHub App again and finish the handshake without closing the tab.";
-    case "conversion_failed":
-      return "GitHub created the app but OpenSesame could not exchange the one-time code. Retry Create GitHub App and keep this tab open until it finishes.";
-    default:
-      return (raw ?? "").trim();
-  }
-}
-
-/** Settings URL that GitHub App registration/install should return to. */
-export function githubBackupReturnTo(): string {
-  const base = import.meta.env.BASE_URL.replace(/\/?$/u, "/");
-  return `${window.location.origin}${base}settings`;
-}
-
-/** The `installation_id` GitHub appends to the App setup redirect, if any. */
-export function installationIdFromLocation(search: string): string | null {
-  const id = new URLSearchParams(search).get("installation_id");
-  return id && /^\d+$/.test(id) ? id : null;
+  if (!raw) return "GitHub App setup did not finish.";
+  if (raw.includes("state")) return "GitHub App setup state did not match.";
+  return raw;
 }

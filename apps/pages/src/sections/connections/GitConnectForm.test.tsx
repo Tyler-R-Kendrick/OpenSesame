@@ -2,26 +2,33 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { backupSeams } from "../../lib/backup.js";
 import { ConnectionsError, connectionSeams } from "../../lib/connections.js";
 import type { Provider } from "../../lib/connections.js";
 import {
   forgetAllLocalGitRemotes,
   listLocalGitRemotes,
 } from "../../lib/git-remote-local.js";
+import { vaultStore } from "../../lib/vault/store.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 
 const original = { ...connectionSeams };
+const originalBackup = { ...backupSeams };
 
 afterEach(async () => {
   cleanup();
   Object.assign(connectionSeams, original);
+  Object.assign(backupSeams, originalBackup);
+  vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
+  vi.spyOn(vaultStore, "trashItem").mockResolvedValue(undefined);
   await forgetAllLocalGitRemotes();
+  vi.restoreAllMocks();
 });
 
-function gitProvider(): Provider {
+function gitProvider(id = "git"): Provider {
   return {
-    id: "git",
-    displayName: "Git",
+    id,
+    displayName: id === "git" ? "Git" : id,
     category: "backup_recovery",
     docsUrl: "https://git-scm.com/docs/gitcredentials",
     authKind: "configuration",
@@ -38,42 +45,37 @@ function gitProvider(): Provider {
 }
 
 describe("GitConnectForm", () => {
-  it("offers forge-agnostic auth modes and seals an HTTPS token remote on Host", async () => {
-    const createConnection = vi.fn(async () => ({
-      connectionId: "con_git",
-      connectionRef: "conn/git/1",
-      logicalName: "git",
-      displayName: "Git",
-      providerId: "git",
-      integrationId: null,
-      status: "active" as const,
-      statusDetail: null,
-      organizationId: "org",
-      projectId: null,
-      ownerKind: "user",
-      shareability: "private" as const,
-      requestedScopes: [],
-      grantedScopes: [],
-      accountLabel: null,
-      expiresAt: null,
-      refreshable: false,
-      lastRefreshedAt: null,
-      maxInvokeLevel: 0,
-      egress: { scheme: "https", authorities: [], pathPrefixes: [] },
-      bindings: [],
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
+  it("seals an HTTPS token remote locally and binds backup", async () => {
+    vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
+    vi.spyOn(vaultStore, "addItems").mockResolvedValue(undefined);
+    const putBackupTarget = vi.fn(async (input) => ({
+      kind: "git_remote",
+      providerId: input.providerId ?? "git",
+      connectionId: input.connectionId ?? null,
+      integrationId: "",
+      installationId: "",
+      owner: input.owner ?? "",
+      repo: input.repo ?? "",
+      branch: "main",
+      enabled: true,
+      status: "pending",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+      config: input.config ?? null,
     }));
-    const setConnectionConfiguration = vi.fn(async () => undefined);
+    Object.assign(backupSeams, { putBackupTarget });
     Object.assign(connectionSeams, {
-      createConnection,
-      setConnectionConfiguration,
+      createConnection: vi.fn(async () => {
+        throw new ConnectionsError(0, "unreachable", "offline");
+      }),
+      setConnectionConfiguration: vi.fn(async () => undefined),
     });
 
     const onConnected = vi.fn();
     render(
       <GitConnectForm
-        provider={gitProvider()}
+        provider={gitProvider("gitlab")}
         online
         onFlash={vi.fn()}
         onConnected={onConnected}
@@ -81,29 +83,30 @@ describe("GitConnectForm", () => {
     );
 
     expect(screen.getByText(/HTTPS token/i)).toBeTruthy();
-    expect(screen.getByText(/HTTPS username \+ password/i)).toBeTruthy();
-    expect(screen.getByText(/SSH private key/i)).toBeTruthy();
-    expect(screen.getByText(/^SSH agent$/i)).toBeTruthy();
 
     await userEvent.type(
       screen.getByLabelText(/Remote URL/i),
-      "https://git.example.com/org/store.git",
+      "https://gitlab.com/org/store.git",
     );
     await userEvent.type(screen.getByLabelText(/^Token$/i), "glpat-secret");
     await userEvent.click(
       screen.getByRole("button", { name: /Save Git remote/i }),
     );
 
-    await waitFor(() => expect(createConnection).toHaveBeenCalled());
-    expect(setConnectionConfiguration).toHaveBeenCalledWith("con_git", {
-      remote_url: "https://git.example.com/org/store.git",
-      auth_mode: "https_token",
-      token: "glpat-secret",
-    });
-    expect(onConnected).toHaveBeenCalled();
+    await waitFor(() => expect(onConnected).toHaveBeenCalled());
+    expect(listLocalGitRemotes()).toHaveLength(1);
+    expect(putBackupTarget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "git_remote",
+        providerId: "gitlab",
+        owner: "org",
+        repo: "store",
+        enabled: true,
+      }),
+    );
   });
 
-  it("saves locally when Host is unreachable", async () => {
+  it("saves locally when the optional gateway mirror is unreachable", async () => {
     Object.assign(connectionSeams, {
       createConnection: vi.fn(async () => {
         throw new ConnectionsError(

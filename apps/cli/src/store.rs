@@ -25,7 +25,7 @@ pub fn require_reveal(reveal: bool) -> anyhow::Result<()> {
     );
 }
 
-fn prompt_password(prompt: &str) -> anyhow::Result<String> {
+pub(crate) fn prompt_password(prompt: &str) -> anyhow::Result<String> {
     if let Ok(p) = std::env::var("OPENSESAME_STORE_PASSWORD") {
         if !p.is_empty() {
             return Ok(p);

@@ -72,7 +72,13 @@ function PatForm({
           placeholder={
             provider.id === "github"
               ? "ghp_… or github_pat_… (repo scope)"
-              : "glpat-…"
+              : provider.id === "bitbucket"
+                ? "Bitbucket HTTP access token"
+                : provider.id === "codeberg"
+                  ? "Codeberg access token"
+                  : provider.id === "origin"
+                    ? "oit_… installation token"
+                    : "glpat-…"
           }
           value={apiKey}
           onChange={(event) => onApiKey(event.target.value)}
@@ -200,7 +206,12 @@ export function OauthConnectBody({
   onConnectOauth: (event: FormEvent) => Promise<void>;
   onSaveKey: (event: FormEvent) => Promise<void>;
 }) {
-  const acceptsPat = provider.id === "github" || provider.id === "gitlab";
+  const acceptsPat =
+    provider.id === "github" ||
+    provider.id === "gitlab" ||
+    provider.id === "bitbucket" ||
+    provider.id === "codeberg" ||
+    provider.id === "origin";
   const [hasClient, setHasClient] = useState(false);
   const localGithubApp = useSyncExternalStore(
     subscribeLocalGithubApp,

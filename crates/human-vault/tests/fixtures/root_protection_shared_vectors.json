@@ -1,0 +1,31 @@
+{
+  "canonicalizeUtf8Hex": "7b2261223a312c2262223a322c226e6573746564223a7b2279223a6e756c6c2c227a223a747275657d7d",
+  "canonicalizeJson": "{\"a\":1,\"b\":2,\"nested\":{\"y\":null,\"z\":true}}",
+  "capsule": {
+    "kekHex": "2222222222222222222222222222222222222222222222222222222222222222",
+    "ivHex": "333333333333333333333333",
+    "rootKeyHex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "context": {
+      "vaultId": "vault_vector",
+      "rootKeyId": "root_vector",
+      "rootEpoch": 1,
+      "protectorId": "prot_vector",
+      "purpose": "human-vault-root"
+    },
+    "ivB64": "MzMzMzMzMzMzMzMz",
+    "ctB64": "DeGlhRtYExB8z6ELN6F//VHECPM3wiCVKO0KhuzgdiL9jcwjnkn2qGXdQICnwc+voqeL4YPz3G+WJGWt1Vo3aHCwGff77Kf9XyChcTogMSJ2WKOG7kUsfTLHp5r2jE6AxgZYCsMqzLTQ54Zkad8URyuZ/9dNs7hkezsdxnG1eLUwN0C6E9eG/C6V29/L7rf3MmeZvTOhGDD5/oOYkPUkio+p7fNVI3e89/b177rtJ8m5x5AdxqmqzL1gXMCcED7d8RntYjZOufWJK49NBiqj3kYDM96IqEIuzGfaknPGasNZisT+2VhBRyB5DXos1gKfbUgRSfCuATa0SG7/l/287Fb+P9w8"
+  },
+  "manifestAuth": {
+    "rootKeyHex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "manifest": {
+      "schemaVersion": 1,
+      "vaultId": "vault_vector",
+      "rootKeyId": "root_vector",
+      "rootEpoch": 1,
+      "revision": 7,
+      "purpose": "human-vault-root",
+      "records": []
+    },
+    "authTagB64": "2rBfl/XfoDr10Hf4p3Z8uzK18xd+MFPNsec1XJd+87k="
+  }
+}

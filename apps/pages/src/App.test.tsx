@@ -108,6 +108,7 @@ describe("App", () => {
       ["/connections", "connections section"],
       ["/connections/github/conn_1", "connections section"],
       ["/settings", "settings section"],
+      ["/settings/", "settings section"],
       ["/settings/connections", "settings section"],
       ["/settings/connections/github", "connections section"],
       ["/settings/connections/github/conn_1", "connections section"],

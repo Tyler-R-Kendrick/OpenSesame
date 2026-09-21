@@ -39,6 +39,14 @@ export type CapabilityConnectorBinding = {
   providerId: string;
   /** Host connection id when the connector needs (or has completed) auth. */
   connectionId?: string;
+  /**
+   * Host consent readiness. For encryption/root protection, a nonempty
+   * `connectionId` alone is not authorized (KP-14) — callers must record
+   * `pending` while consent is resumable and `authorized` only after active
+   * consent. Other capabilities treat a bare `connectionId` as authorized
+   * when this field is omitted (legacy).
+   */
+  authorization?: "missing" | "pending" | "authorized" | "expired";
   /** For history: git remote URL (e.g. https://github.com/org/store.git). */
   remote?: string;
   /** Multi-select history backups on git remotes. */
@@ -66,13 +74,12 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "encryption",
     title: "Encryption key vault",
     summary:
-      "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in key vault; age (typage) is the local key SOP; cloud KMS connectors are optional.",
+      "Where vault and sealed-store keys are wrapped. Password wraps use WebCrypto on this device; passkeys protect via WebAuthn PRF under Unlock methods / Vault key protection — not as a connector. age recipients and cloud KMS are optional external protectors; YubiKey PIV is advanced hardware.",
     connectorIds: [
       "webcrypto",
       "sealed-local",
       "age",
       "yubikey",
-      "fido2",
       "aws-kms",
       "azure-key-vault-keys",
       "gcp-kms",
@@ -86,9 +93,21 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "history",
     title: "History & persistence",
     summary: "Optional persistence for encrypted secrets on git remotes.",
-    connectorIds: ["github", "password-store", "gitlab", "git"],
+    connectorIds: [
+      "github",
+      "password-store",
+      "gitlab",
+      "bitbucket",
+      "codeberg",
+      "origin",
+      "git",
+    ],
     requiresAuth: (providerId) =>
-      providerId === "github" || providerId === "gitlab",
+      providerId === "github" ||
+      providerId === "gitlab" ||
+      providerId === "bitbucket" ||
+      providerId === "codeberg" ||
+      providerId === "origin",
     authScopes: (providerId) => {
       if (providerId === "github") {
         // Classic OAuth App path. GitHub Apps omit scope= on Authorize so the
@@ -96,6 +115,14 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
         return ["read:user", "repo", "workflow"];
       }
       if (providerId === "gitlab") return ["read_user", "api"];
+      if (providerId === "bitbucket") {
+        return ["account", "repository", "repository:write"];
+      }
+      // Forgejo/Codeberg OAuth scopes are not enforced by the forge yet.
+      if (providerId === "codeberg") return [];
+      if (providerId === "origin") {
+        return ["repository:contents:read", "repository:contents:write"];
+      }
       return undefined;
     },
   },
@@ -211,6 +238,14 @@ export function normalizeCapabilityConnectors(
     if (isString(incoming.connectionId) && incoming.connectionId.trim()) {
       next.connectionId = incoming.connectionId.trim();
     }
+    if (
+      incoming.authorization === "missing" ||
+      incoming.authorization === "pending" ||
+      incoming.authorization === "authorized" ||
+      incoming.authorization === "expired"
+    ) {
+      next.authorization = incoming.authorization;
+    }
     if (isString(incoming.remote) && incoming.remote.trim()) {
       next.remote = incoming.remote.trim();
     }
@@ -246,9 +281,16 @@ export function normalizeCapabilityConnectors(
         }
         selections.push(row);
       }
-      if (selections.length > 0) next.selections = selections;
+      // Keep `[]` so toggling the last history remote off sticks (otherwise
+      // persist drops `selections` and load re-defaults to github).
+      next.selections = selections;
     }
     out[def.id] = next;
+  }
+  // Legacy fido2 was a mistaken encryption connector id. Passkeys protect
+  // via WebAuthn PRF under Unlock methods / Vault key protection.
+  if (out.encryption?.providerId === "fido2") {
+    out.encryption = { providerId: "webcrypto" };
   }
   return out;
 }
@@ -260,11 +302,9 @@ export function connectorLabel(providerId: string): string {
     case "sealed-local":
       return "Sealed local (this device)";
     case "yubikey":
-      return "YubiKey";
-    case "fido2":
-      return "FIDO2 security key";
+      return "YubiKey PIV (advanced)";
     case "age":
-      return "age (this device)";
+      return "age recipient (recovery)";
     case "password-store":
       return "Local git password-store";
     case "aws-kms":
@@ -277,6 +317,12 @@ export function connectorLabel(providerId: string): string {
       return "GitHub";
     case "gitlab":
       return "GitLab";
+    case "bitbucket":
+      return "Bitbucket";
+    case "codeberg":
+      return "Codeberg";
+    case "origin":
+      return "Cursor Origin";
     case "git":
       return "Git (any remote)";
     case "letsencrypt":

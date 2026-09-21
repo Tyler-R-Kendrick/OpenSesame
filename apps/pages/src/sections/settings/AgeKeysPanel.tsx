@@ -1,5 +1,5 @@
 /**
- * Settings › Security — age key SOP (typage), not a Connections broker.
+ * Settings › Security — age key inventory (typage), not a Connections broker.
  *
  * Configures recipients and the sealed identity used when encryption capability
  * is bound to age. Browser crypto is FiloSottile typage (`age-encryption`).
@@ -47,6 +47,7 @@ export function AgeKeysPanel() {
   const [config, setConfig] = useState<AgeKeyConfig>({
     recipients: [],
     identity: null,
+    identities: [],
   });
   const [recipientsText, setRecipientsText] = useState("");
   const [importIdentity, setImportIdentity] = useState("");
@@ -57,7 +58,7 @@ export function AgeKeysPanel() {
 
   useEffect(() => {
     if (!tomb) {
-      setConfig({ recipients: [], identity: null });
+      setConfig({ recipients: [], identity: null, identities: [] });
       setRecipientsText("");
       return;
     }
@@ -80,7 +81,7 @@ export function AgeKeysPanel() {
     setBinding(next);
     setFlash({
       tone: "ok",
-      text: `${connectorLabel("age")} is the encryption key SOP. Generate or import an identity below.`,
+      text: `${connectorLabel("age")} is selected for post-unlock file encryption — not vault key protection. Generate or import an identity below.`,
     });
   }
 
@@ -207,10 +208,10 @@ export function AgeKeysPanel() {
     <section className="panel" id="age-keys" ref={panelRef}>
       <div className="panel__head">
         <div>
-          <h2>Age key</h2>
+          <h2>Age keys</h2>
         </div>
         {active ? (
-          <StatusMark tone="ok" label="Active SOP" />
+          <StatusMark tone="ok" label="File encryption" />
         ) : (
           <span>{connectorLabel(binding.providerId)}</span>
         )}
@@ -218,7 +219,9 @@ export function AgeKeysPanel() {
       <div className="panel__body">
         {flash ? <StatusNote message={flash} /> : null}
         {!tomb ? (
-          <p className="hint">Unlock a vault to configure the age key SOP.</p>
+          <p className="hint">
+            Unlock a vault to configure the age key inventory.
+          </p>
         ) : null}
         <div className="actions">
           {active ? null : (

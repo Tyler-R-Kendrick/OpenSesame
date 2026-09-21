@@ -1,8 +1,8 @@
 import { type FormEvent, useId, useState } from "react";
+import { putBackupTarget } from "../../lib/backup.js";
 import { localGitToConnection } from "../../lib/connections-local-git.js";
 import {
   type Connection,
-  ConnectionsError,
   type Provider,
   createConnection,
   setConnectionConfiguration,
@@ -14,6 +14,7 @@ import {
   gitConfigurationPayload,
   gitConfigurationSet,
 } from "../../lib/git-auth-modes.js";
+import { ownerRepoFromGitRemote } from "../../lib/git-backup-forges.js";
 import {
   isLocalGitRemoteId,
   rememberLocalGitRemote,
@@ -28,12 +29,23 @@ type GitConnectPersistInput = GitAuthFields & {
   name: string;
 };
 
-function hostUnavailable<Thrown>(error: Thrown): boolean {
-  if (error instanceof TypeError) return true;
-  if (!(error instanceof ConnectionsError)) return false;
-  if (error.code === "unreachable" || error.status === 0) return true;
-  // Host reached but cannot store forge-agnostic git — fall back locally.
-  return error.status === 404 || error.status === 501 || error.status === 422;
+async function bindBackupRemote(
+  providerId: string,
+  connectionId: string,
+  remoteUrl: string,
+): Promise<void> {
+  const parsed = ownerRepoFromGitRemote(remoteUrl);
+  if (!parsed) return;
+  await putBackupTarget({
+    kind: "git_remote",
+    providerId,
+    connectionId,
+    owner: parsed.owner,
+    repo: parsed.repo,
+    branch: "main",
+    enabled: true,
+    config: { remoteUrl },
+  });
 }
 
 async function persistGitRemote(
@@ -42,33 +54,29 @@ async function persistGitRemote(
   const configuration = gitConfigurationPayload(input);
   const displayName = input.name.trim() || input.provider.displayName;
 
-  let hostCreated = false;
-  try {
-    const connection = await createConnection({
-      providerId: input.provider.id,
-      displayName,
-    });
-    hostCreated = true;
-    await setConnectionConfiguration(
-      connection.connectionId,
-      gitConfigurationSet(configuration),
-    );
-    bindHistoryConnection(
-      input.provider.id,
-      connection.connectionId,
-      input.remoteUrl,
-    );
-    return connection;
-  } catch (error) {
-    // Local fallback only when Host was never reached — not after a partial create.
-    if (hostCreated || !hostUnavailable(error)) throw error;
-  }
-
+  // SPA-first: seal the remote on this device. Optional gateway create is a
+  // best-effort upgrade when a deployment still speaks one.
   const remote = await rememberLocalGitRemote({
     displayName,
     configuration,
   });
   bindHistoryConnection(input.provider.id, remote.id, input.remoteUrl);
+  await bindBackupRemote(input.provider.id, remote.id, input.remoteUrl);
+
+  // Optional gateway mirror — never required for SPA backup.
+  try {
+    const connection = await createConnection({
+      providerId: input.provider.id,
+      displayName,
+    });
+    await setConnectionConfiguration(
+      connection.connectionId,
+      gitConfigurationSet(configuration),
+    );
+  } catch {
+    // Local remote + vault credentials are enough.
+  }
+
   return localGitToConnection(remote);
 }
 

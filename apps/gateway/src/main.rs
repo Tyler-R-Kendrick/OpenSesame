@@ -186,8 +186,17 @@ mod pact_coverage {
             include_str!("routes/backup.rs"),
             &[
                 "pub async fn resync",
+                "require_configurator",
                 "if !resync_allowed()",
-                "reason\":\"requested\",\"organization_id\"",
+                "queue_backup_resync",
+                "\"requested\"",
+            ],
+        );
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/backup.rs"),
+            &[
+                "async fn queue_backup_resync",
+                "\"organization_id\": organization",
             ],
         );
     }

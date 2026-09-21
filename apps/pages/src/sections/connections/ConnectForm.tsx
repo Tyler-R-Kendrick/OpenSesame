@@ -15,6 +15,7 @@ import {
   fieldGuidance,
   needsScopeSelection,
 } from "../../lib/connector-guidance.js";
+import { isGitBackupProvider } from "../../lib/git-backup-forges.js";
 import { ensureHostSession } from "../../lib/identity.js";
 import { usesConnect } from "../../lib/vercel-connect.js";
 import { GitConnectForm } from "./GitConnectForm.js";
@@ -179,7 +180,7 @@ export function ConnectForm({
     }
   }
 
-  if (provider.id === "git") {
+  if (isGitBackupProvider(provider.id)) {
     return (
       <GitConnectForm
         provider={provider}

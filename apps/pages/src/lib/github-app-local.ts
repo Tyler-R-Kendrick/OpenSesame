@@ -12,7 +12,7 @@ import {
 import { readBoundedObject } from "./bounded-response.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import { createItem } from "./vault/model.js";
-import { vaultStore } from "./vault/store.js";
+import { GUEST_TOMB, vaultStore } from "./vault/store.js";
 
 const PUBLIC_KEY = "opensesame.github-app.public";
 /** Held only until the vault can seal the PEM (claim may land before unlock). */
@@ -219,6 +219,7 @@ function extractPem(value: string): string | null {
 }
 
 export function pemFromVault(appName: string): string | null {
+  if (vaultStore.getSnapshot().tomb === GUEST_TOMB) return null;
   const pending = pendingPem();
   if (pending) return pending;
   const { status, items } = vaultStore.getSnapshot();

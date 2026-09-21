@@ -2,9 +2,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use opensesame_human_vault::{
-    unwrap_vrk_with_password, wrap_vrk_with_password, ItemDataKey, PasswordWrapper, VaultRootKey,
+use opensesame_human_vault::root_protection::{
+    init_versioned_key_file, unlock_key_file_with_password,
 };
+use opensesame_human_vault::ItemDataKey;
+
 
 use crate::envelope::{open_osseal, seal_osseal};
 use crate::git::auto_commit;
@@ -55,14 +57,10 @@ pub fn init_store(root: &Path, recipients: &[String]) -> Result<StoreRoot, Store
 ///
 /// Returns an error when validation or the underlying operation fails.
 pub fn init_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, StoreError> {
-    let vrk = VaultRootKey::generate();
-    let wrapper =
-        wrap_vrk_with_password(password, &vrk).map_err(|e| StoreError::Crypto(e.to_string()))?;
-    let json =
-        serde_json::to_string_pretty(&wrapper).map_err(|e| StoreError::Crypto(e.to_string()))?;
-    fs::write(root.join(KEY_FILE), json)?;
-    // Derive a stable content key from VRK bytes for entry encryption.
-    Ok(ItemDataKey(vrk.0))
+    // Versioned root-protection manifest; content key remains ItemDataKey(vrk.0).
+    let (idk, _manifest) =
+        init_versioned_key_file(root, password).map_err(|e| StoreError::Crypto(e.to_string()))?;
+    Ok(idk)
 }
 
 ///
@@ -74,12 +72,10 @@ pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Sto
     if !path.exists() {
         return Err(StoreError::NotInitialized(root.to_path_buf()));
     }
-    let json = fs::read_to_string(&path)?;
-    let wrapper: PasswordWrapper =
-        serde_json::from_str(&json).map_err(|e| StoreError::Crypto(e.to_string()))?;
-    let vrk = unwrap_vrk_with_password(password, &wrapper)
+    // Legacy password wrappers and versioned manifests both map to ItemDataKey(vrk.0).
+    let (idk, _contents, _vrk) = unlock_key_file_with_password(root, password)
         .map_err(|e| StoreError::Crypto(e.to_string()))?;
-    Ok(ItemDataKey(vrk.0))
+    Ok(idk)
 }
 
 fn collect_entry_names(

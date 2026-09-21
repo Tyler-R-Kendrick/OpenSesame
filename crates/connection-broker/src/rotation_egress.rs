@@ -38,6 +38,24 @@ pub static ROTATION_EGRESS_RULES: &[EgressRule] = &[
         auth: AuthStyle::Bearer,
     },
     EgressRule {
+        provider_id: "bitbucket",
+        scheme: "https",
+        hosts: &["api.bitbucket.org", "bitbucket.org"],
+        auth: AuthStyle::Bearer,
+    },
+    EgressRule {
+        provider_id: "codeberg",
+        scheme: "https",
+        hosts: &["codeberg.org"],
+        auth: AuthStyle::Bearer,
+    },
+    EgressRule {
+        provider_id: "origin",
+        scheme: "https",
+        hosts: &["api.cursor.com", "origin.cursor.com"],
+        auth: AuthStyle::Bearer,
+    },
+    EgressRule {
         provider_id: "openai",
         scheme: "https",
         hosts: &["api.openai.com"],

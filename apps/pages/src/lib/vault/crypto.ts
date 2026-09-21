@@ -59,6 +59,12 @@ export type VaultHeader = {
    * newer body at worst; a body claiming less than this is an older copy.
    */
   bodyRev?: number;
+  /**
+   * Versioned root-protection manifest (authority for enrolled protectors).
+   * When absent, unlocks/wrap remain the legacy source and are projected on read.
+   * `capabilityConnectors.encryption` never overrides this field.
+   */
+  protection?: import("./protection/types.js").RootProtectionManifest;
 };
 
 export type SealedBlob = {

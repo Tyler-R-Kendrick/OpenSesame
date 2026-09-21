@@ -1,17 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { clearGuestConnections } from "../guest-connections.js";
-/**
- * Vault session store. Holds the unlocked collection in memory, seals every
- * mutation straight back to OPFS, and drops the key on lock.
- *
- * Tomb framing (ADR 0063): every vault is a tomb in the encrypted VFS
- * (`lib/vfs.ts`). The active project's vault lives at `tomb/<name>/body`
- * (store-sealed, verbatim) with its plaintext params header at
- * `tomb/<name>/header`; the personal vault is the `personal` tomb
- * (ADR 0038). Vault prefs moved into the sealed tomb config — they hydrate
- * on unlock and are unreadable while locked. Lockout counters stay
- * plaintext at their scoped key by design (documented boundary).
- */
+/** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
 import {
   kvDelete,
   kvDeleteDurable,
@@ -87,6 +76,8 @@ import {
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
+import { VaultProtectionBrowserService } from "./protection/browser-service.js";
+import { ProtectionSessionGuard } from "./protection/session-guard.js";
 import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import {
@@ -127,12 +118,14 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-/**
- * Lockout counters stay plaintext at their project-scoped KV key — the
- * documented ADR 0063 boundary: they gate unlock attempts, so they must be
- * readable and writable while the tomb is locked.
- */
+/** Lockout counters stay plaintext (ADR 0063): must work while the tomb is locked. */
 export const ATTEMPTS_KEY = "vault.attempts.v1";
+import {
+  deviceHoldsSealedVault,
+  readTombHeader,
+  sharesWrapRecord,
+} from "./store-header.js";
+export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
 type VaultScope = {
@@ -171,52 +164,6 @@ function guestVaultScope(): VaultScope {
 }
 
 export type VaultStatus = "empty" | "locked" | "unlocked";
-
-/**
- * A tomb's plaintext header, or null when nothing was ever sealed there (or
- * the file is unreadable — treated the same: nothing to unlock). Public
- * parameters only, the documented ADR 0063 boundary; the vault switcher reads
- * these for every tomb on the device to say when each was sealed.
- */
-/**
- * Whether any tomb on this device holds a sealed vault. The guest road
- * isolates itself whenever one does — a guest must never end up sealing the
- * tomb of a project that was created but not yet given its own key.
- */
-export function deviceHoldsSealedVault(): boolean {
-  return listTombs().some((tomb) => readTombHeader(tomb) !== null);
-}
-
-/**
- * Whether two headers carry an identical wrap record — the same password
- * wrap and derivation, the same PIN record, or the same passkey record. A
- * project forked "with this vault's key" starts with every record equal;
- * enrolling another method on one side leaves the shared ones intact, so
- * one identical record is enough to predict a shared key. It is a
- * prediction: opening the sealed body is the proof.
- */
-export function sharesWrapRecord(a: VaultHeader, b: VaultHeader): boolean {
-  const same = <T>(x: T, y: T) =>
-    x !== undefined &&
-    y !== undefined &&
-    x !== null &&
-    y !== null &&
-    JSON.stringify(x) === JSON.stringify(y);
-  if (same(a.wrap, b.wrap) && same(a.kdf, b.kdf)) return true;
-  if (same(a.unlocks?.pin, b.unlocks?.pin)) return true;
-  if (same(a.unlocks?.passkey, b.unlocks?.passkey)) return true;
-  return false;
-}
-
-export function readTombHeader(tomb: string): VaultHeader | null {
-  const raw = readPlaintextFile(tomb, HEADER_PATH);
-  if (!raw) return null;
-  try {
-    return overlapCast(JSON.parse(raw));
-  } catch {
-    return null;
-  }
-}
 
 export type VaultState = {
   status: VaultStatus;
@@ -284,23 +231,32 @@ export class VaultStore {
   #writeChain: Promise<unknown> = Promise.resolve();
   #lockHandlers = new Set<() => void>();
   #scope: VaultScope = scopedVaultScope();
-  /**
-   * Guest / this-tab vault: the key was never wrapped to disk. Locking or
-   * reloading must not leave a wrap-less header that cannot be unlocked.
-   */
+  /** Guest/this-tab: key never wrapped; lock must not leave a wrap-less header. */
   #ephemeral = false;
+  #sessionGuard = new ProtectionSessionGuard();
+  #protection: VaultProtectionBrowserService;
 
   constructor() {
     this.#header = this.#readHeader();
+    this.#protection = new VaultProtectionBrowserService({
+      isGuestOrEphemeral: () =>
+        this.#ephemeral || this.#scope.tomb === GUEST_TOMB,
+      getHeader: () => this.#header,
+      requireRawRoot: () => this.#requireRaw(),
+      isUnlocked: () => this.#vaultKey !== null && this.#header !== null,
+      persistHeader: (next) => this.#persistHeader(next),
+      replaceRawVaultKey: (next) => this.#replaceRawVaultKey(next),
+      session: this.#sessionGuard,
+    });
     this.#snapshot = this.#build();
   }
 
-  /**
-   * Re-read plaintext state once OPFS hydration has filled the KV cache.
-   * Hydration is also when the active project becomes known, so the tomb
-   * scope is recomputed here before anything is read. Prefs stay defaults
-   * until unlock — they live in the sealed tomb config now.
-   */
+  /** Root-protection lifecycle for the active vault session. */
+  get protection(): VaultProtectionBrowserService {
+    return this.#protection;
+  }
+
+  /** Re-read plaintext state after OPFS hydration fills the KV cache. */
   rehydrate(): void {
     if (this.#vaultKey || this.#pendingVaultKey) return;
     // Reload opens the last authorized account's unlock — guest included.
@@ -314,10 +270,7 @@ export class VaultStore {
     this.#emit();
   }
 
-  /**
-   * Drop the previous project's session and read the active project's header.
-   * Identity stays signed in — this is a vault-scope swap, not a reload.
-   */
+  /** Drop the previous project session and read the active project's header. */
   loadActiveProjectScope(): void {
     // Explicit project swap — do not let lock()'s guest keep overwrite the
     // destination tomb as last-vault, then write the project tomb below.
@@ -399,6 +352,7 @@ export class VaultStore {
    * first: two tombs are never open in one session.
    */
   async openActiveScopeWithCurrentKey(): Promise<void> {
+    this.#protection.cancelPendingOps();
     const vaultKey = this.#vaultKey;
     if (!vaultKey || !this.#header || this.#ephemeral) {
       throw new Error("Unlock the vault before carrying it into another.");
@@ -535,6 +489,17 @@ export class VaultStore {
     return this.#rawVaultKey;
   }
 
+  /** Root-rotate: swap the in-memory VK and re-seal the body under it. */
+  async #replaceRawVaultKey(next: Uint8Array): Promise<void> {
+    if (!this.#vaultKey || !this.#header) {
+      throw new Error("Unlock the vault before rotating the vault key.");
+    }
+    const vaultKey = await importVaultKey(next);
+    this.#stashRaw(next);
+    this.#vaultKey = vaultKey;
+    await this.#persist();
+  }
+
   async create(password: string, hint?: string): Promise<void> {
     assertMasterPasswordPolicy(password);
     const { header, vaultKey, rawVaultKey } = await createVault(password, hint);
@@ -584,6 +549,8 @@ export class VaultStore {
   prepareGuestUnlock(): void {
     if (this.#vaultKey || this.#pendingVaultKey) {
       this.lock();
+    } else {
+      this.#protection.cancelPendingOps();
     }
     this.#scope = guestVaultScope();
     this.#header = null;
@@ -773,6 +740,7 @@ export class VaultStore {
       this.#body = emptyBody();
       throw error;
     }
+    await this.#protection.ensureProtectionProjected();
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
     this.touch();
@@ -1281,6 +1249,7 @@ export class VaultStore {
   };
 
   lock = (options?: { recordLastVault?: boolean }): void => {
+    this.#protection.cancelPendingOps();
     const recordLastVault = options?.recordLastVault !== false;
     this.#vaultKey = null;
     this.#zeroRaw();

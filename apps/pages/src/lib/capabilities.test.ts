@@ -55,6 +55,9 @@ describe("capability connectors", () => {
       "github",
       "password-store",
       "gitlab",
+      "bitbucket",
+      "codeberg",
+      "origin",
       "git",
     ]);
     expect(history?.requiresAuth("git")).toBe(false);
@@ -83,6 +86,17 @@ describe("capability connectors", () => {
         remote: "https://gitlab.com/org/store.git",
       },
     ]);
+  });
+
+  it("does not list fido2 as an encryption connector", () => {
+    expect(capabilityDef("encryption").connectorIds).not.toContain("fido2");
+  });
+
+  it("rewrites a legacy fido2 encryption preference to webcrypto", () => {
+    const next = normalizeCapabilityConnectors({
+      encryption: { providerId: "fido2" },
+    });
+    expect(next.encryption.providerId).toBe("webcrypto");
   });
 
   it("labels the device encryption key vault clearly", () => {
@@ -140,10 +154,23 @@ describe("capability definitions", () => {
     expect(encryption.authScopes?.("aws-kms")).toBeUndefined();
   });
 
-  it("scopes GitLab history auth and leaves other connectors scopeless", () => {
+  it("scopes forge history auth and leaves other connectors scopeless", () => {
     const history = capabilityDef("history");
     expect(history.requiresAuth("gitlab")).toBe(true);
     expect(history.authScopes?.("gitlab")).toEqual(["read_user", "api"]);
+    expect(history.requiresAuth("bitbucket")).toBe(true);
+    expect(history.authScopes?.("bitbucket")).toEqual([
+      "account",
+      "repository",
+      "repository:write",
+    ]);
+    expect(history.requiresAuth("codeberg")).toBe(true);
+    expect(history.authScopes?.("codeberg")).toEqual([]);
+    expect(history.requiresAuth("origin")).toBe(true);
+    expect(history.authScopes?.("origin")).toEqual([
+      "repository:contents:read",
+      "repository:contents:write",
+    ]);
     expect(history.authScopes?.("password-store")).toBeUndefined();
   });
 
@@ -157,6 +184,9 @@ describe("capability definitions", () => {
       ["gcp-kms", "Google Cloud KMS"],
       ["github", "GitHub"],
       ["gitlab", "GitLab"],
+      ["bitbucket", "Bitbucket"],
+      ["codeberg", "Codeberg"],
+      ["origin", "Cursor Origin"],
       ["git", "Git (any remote)"],
     ];
     for (const [id, label] of labels) {
@@ -185,5 +215,12 @@ describe("capability definitions", () => {
       encryption: { providerId: "age", connectionId: "  conn_9  " },
     });
     expect(next.encryption.connectionId).toBe("conn_9");
+  });
+
+  it("preserves an explicit empty history selection list", () => {
+    const next = normalizeCapabilityConnectors({
+      history: { providerId: "github", selections: [] },
+    });
+    expect(next.history.selections).toEqual([]);
   });
 });

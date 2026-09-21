@@ -1,7 +1,7 @@
 /**
  * Multi-select history backups over git remotes.
  *
- * Selections reuse Host connectors (GitHub / GitLab / generic git /
+ * Selections reuse Host connectors (GitHub / GitLab / Bitbucket / Codeberg / Origin / generic git /
  * password-store).
  */
 
@@ -41,18 +41,35 @@ export const HISTORY_BACKUP_GROUPS: readonly HistoryBackupGroupDef[] = [
   {
     id: "git",
     title: "Git",
-    providerIds: ["github", "password-store", "gitlab", "git"],
+    providerIds: [
+      "github",
+      "password-store",
+      "gitlab",
+      "bitbucket",
+      "codeberg",
+      "origin",
+      "git",
+    ],
   },
 ];
 
 export function historyRequiresHostAuth(providerId: string): boolean {
-  return providerId === "github" || providerId === "gitlab";
+  return (
+    providerId === "github" ||
+    providerId === "gitlab" ||
+    providerId === "bitbucket" ||
+    providerId === "codeberg" ||
+    providerId === "origin"
+  );
 }
 
 export function normalizeHistorySelections(
   binding: CapabilityConnectorBinding | null | undefined,
 ): HistoryBackupSelection[] {
-  if (binding?.selections && binding.selections.length > 0) {
+  // An explicit `selections` array wins — including `[]` after the last
+  // provider is toggled off. Only legacy bindings without `selections` fall
+  // through to the single-provider default.
+  if (Array.isArray(binding?.selections)) {
     const out: HistoryBackupSelection[] = [];
     for (const raw of binding.selections) {
       if (!isString(raw.providerId) || !raw.providerId.trim()) continue;
@@ -79,7 +96,7 @@ export function normalizeHistorySelections(
       }
       out.push(next);
     }
-    if (out.length > 0) return out;
+    return out;
   }
   const providerId = binding?.providerId?.trim() || "github";
   const selection: HistoryBackupSelection = {
@@ -93,16 +110,14 @@ export function normalizeHistorySelections(
 
 function persistHistoryBinding(selections: HistoryBackupSelection[]): void {
   const current = loadSettings();
-  const primary = selections[0] ?? {
-    providerId: "github",
-    group: "git" as const,
-  };
+  const primary = selections[0];
   const next: CapabilityConnectorBinding = {
-    providerId: primary.providerId,
+    // Keep a stable providerId for legacy readers; empty selections stay empty.
+    providerId: primary?.providerId ?? "github",
     selections,
   };
-  if (primary.connectionId) next.connectionId = primary.connectionId;
-  if (primary.remote) next.remote = primary.remote;
+  if (primary?.connectionId) next.connectionId = primary.connectionId;
+  if (primary?.remote) next.remote = primary.remote;
   saveSettings({
     ...current,
     capabilityConnectors: {

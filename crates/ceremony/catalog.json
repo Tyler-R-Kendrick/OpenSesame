@@ -1,10 +1,10 @@
 {
   "$comment": [
-    "Ceremony coverage per provider (ADR 0082 §7). Checked in rather than",
+    "Ceremony coverage per provider (ADR 0082 \u00a77). Checked in rather than",
     "fetched: asking a server which ceremony recipe to use for provider-x tells",
     "that server which provider this user is onboarding, which is precisely the",
     "kind of question the sealed store exists so nobody has to answer",
-    "(ADR 0052 §12 — a lookup is a disclosure).",
+    "(ADR 0052 \u00a712 \u2014 a lookup is a disclosure).",
     "",
     "Three independent facts per provider, never a precomputed tier. The tier is",
     "a decision, and recomputing it from the facts is what keeps a stale entry",
@@ -16,7 +16,7 @@
     "user has not named, and it cannot prove the result works.",
     "",
     "Every id here must name a provider in",
-    "crates/connection-broker/src/catalog.json — enforced by a test, so a",
+    "crates/connection-broker/src/catalog.json \u2014 enforced by a test, so a",
     "ceremony entry cannot outlive the provider it is for.",
     "",
     "Absence is meaningful: a provider with no entry resolves to C3 and gets the",
@@ -47,6 +47,33 @@
       "declares": ["client_id", "client_secret"],
       "verifies_by": "calling GET /api/v4/user",
       "note": "Application registration is a dashboard form with no documented endpoint. No recipe yet."
+    },
+    {
+      "provider_id": "bitbucket",
+      "native_registration": false,
+      "recipe": false,
+      "agentic_allowed": false,
+      "declares": ["client_id", "client_secret"],
+      "verifies_by": "calling GET /2.0/user",
+      "note": "OAuth consumer registration is a workspace dashboard form with no documented endpoint. No recipe yet."
+    },
+    {
+      "provider_id": "codeberg",
+      "native_registration": false,
+      "recipe": false,
+      "agentic_allowed": false,
+      "declares": ["client_id", "client_secret"],
+      "verifies_by": "calling GET /api/v1/user",
+      "note": "OAuth application registration is a Codeberg dashboard form. OAuth scopes are not enforced by Forgejo yet; prefer a scoped access token when possible."
+    },
+    {
+      "provider_id": "origin",
+      "native_registration": false,
+      "recipe": false,
+      "agentic_allowed": false,
+      "declares": ["app_id", "private_key", "installation_id"],
+      "verifies_by": "calling GET /v1/origin/rate_limit",
+      "note": "Origin Apps use Ed25519 app JWTs and short-lived installation tokens (oit_\u2026). Full App registration ceremony is not automated yet; paste an installation token or configure the App material."
     },
     {
       "provider_id": "cloudflare",

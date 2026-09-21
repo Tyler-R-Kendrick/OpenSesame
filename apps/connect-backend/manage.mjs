@@ -186,23 +186,22 @@ export async function handleManage(req) {
   };
 }
 
-/** Read a JSON body from a Node IncomingMessage. */
-export function readJsonBody(req) {
+/** Read a UTF-8 body from a Node IncomingMessage (raw, for HMAC). */
+export function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
-      const raw = Buffer.concat(chunks).toString("utf8");
-      if (!raw) {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(raw));
-      } catch (error) {
-        reject(error);
-      }
+      resolve(Buffer.concat(chunks).toString("utf8"));
     });
     req.on("error", reject);
+  });
+}
+
+/** Read a JSON body from a Node IncomingMessage. */
+export function readJsonBody(req) {
+  return readRawBody(req).then((raw) => {
+    if (!raw) return {};
+    return JSON.parse(raw);
   });
 }

@@ -18,6 +18,7 @@ pub mod delegation; mod delegation_lineage;
 pub mod egress;
 pub mod error;
 pub mod flow;
+mod forge_token_probe;
 pub mod github_app;
 pub mod github_webhook_hmac;
 pub mod installation;
@@ -1734,65 +1735,13 @@ impl ConnectionBroker {
         provider_id: &str,
         token: &str,
     ) -> Result<Option<String>> {
-        match provider_id {
-            "github" => {
-                let url = format!("{}/user", self.config.github_api_base());
-                let res = self
-                    .http
-                    .get(&url)
-                    .header("Authorization", format!("Bearer {token}"))
-                    .header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "OpenSesame-Host/0.1")
-                    .header("X-GitHub-Api-Version", "2022-11-28")
-                    .send()
-                    .await
-                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
-                let status = res.status();
-                let text = res
-                    .text()
-                    .await
-                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
-                if !(200..300).contains(&status.as_u16()) {
-                    let snippet: String = text.chars().take(160).collect();
-                    return Err(BrokerError::ExchangeFailed(format!(
-                        "GitHub rejected the token ({status}): {snippet}"
-                    )));
-                }
-                let body: serde_json::Value = serde_json::from_str(&text)
-                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
-                Ok(body
-                    .get("login")
-                    .and_then(|v| v.as_str())
-                    .map(std::string::ToString::to_string))
-            }
-            "gitlab" => {
-                let res = self
-                    .http
-                    .get("https://gitlab.com/api/v4/user")
-                    .header("Authorization", format!("Bearer {token}"))
-                    .header("User-Agent", "OpenSesame-Host/0.1")
-                    .send()
-                    .await
-                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
-                let status = res.status();
-                let text = res
-                    .text()
-                    .await
-                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
-                if !(200..300).contains(&status.as_u16()) {
-                    return Err(BrokerError::ExchangeFailed(format!(
-                        "GitLab rejected the token ({status})"
-                    )));
-                }
-                let body: serde_json::Value = serde_json::from_str(&text)
-                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
-                Ok(body
-                    .get("username")
-                    .and_then(|v| v.as_str())
-                    .map(std::string::ToString::to_string))
-            }
-            _ => Ok(None),
-        }
+        forge_token_probe::probe_access_token_account(
+            &self.http,
+            &self.config,
+            provider_id,
+            token,
+        )
+        .await
     }
 
     /// # Errors
@@ -2393,7 +2342,7 @@ fn parse_owner_kind(raw: &str) -> ConnectionOwnerKind {
 /// history setup without registering an OAuth App.
 #[must_use]
 pub fn accepts_pasted_access_token(provider_id: &str) -> bool {
-    matches!(provider_id, "github" | "gitlab")
+    matches!(provider_id, "github" | "gitlab" | "bitbucket" | "codeberg" | "origin")
 }
 
 #[must_use]

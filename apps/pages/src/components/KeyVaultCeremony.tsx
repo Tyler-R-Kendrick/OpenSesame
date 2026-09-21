@@ -9,6 +9,7 @@ import {
 import { openConsentPopup } from "../lib/connections.js";
 import { loadSettings } from "../lib/settings.js";
 import { PBKDF2_ITERATIONS } from "../lib/vault/crypto.js";
+import { preferenceMechanismLabel } from "../lib/vault/protection/protection-view.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { IconLock, IconPasskey, IconShield } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";
@@ -20,22 +21,25 @@ export const keyVaultCeremonyDependencies = {
   openConsentPopup,
 };
 
-/** Hardware-backed choices, local age key SOP, and cloud KMS. */
-const LOCAL = ["webcrypto", "age"] as const;
-const HARDWARE = ["yubikey", "fido2"] as const;
+/** Setup preference only — passkeys enroll under Unlock methods / Vault key protection. */
+const LOCAL = ["webcrypto"] as const;
+const RECOVERY = ["age"] as const;
+const HARDWARE = ["yubikey"] as const;
 const CLOUD = ["aws-kms", "azure-key-vault-keys", "gcp-kms"] as const;
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string } | null;
 
+function preferenceName(providerId: string): string {
+  const honest = preferenceMechanismLabel(providerId);
+  if (honest !== providerId) return honest;
+  return connectorLabel(providerId);
+}
+
 /**
- * The key vault ceremony.
- *
- * Every provider offered here is already a legal binding in
- * `CAPABILITIES.encryption` — this sheet is not new product surface, it is the
- * existing catalog made reachable from the glyph that reports on it. Binding
- * writes settings immediately; the ones that need Host authorization run the
- * consent round trip in place rather than sending you to the connectors panel
- * to start again.
+ * Connection preference for protecting a vault key — not the enrolled
+ * authority view. Enrollment and verification live under Settings › Security ›
+ * Vault key protection. Binding writes a setup preference; without a matching
+ * cryptographic record it is setup intent only (KP-04).
  */
 export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
   const [binding, setBinding] = useState(
@@ -56,11 +60,7 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
     setBinding(next);
     setFlash({
       tone: "ok",
-      text: `${connectorLabel(providerId)} bound. ${
-        bindingNeedsAuth("encryption", next)
-          ? "Authorize it on Host to finish."
-          : "Nothing else to do."
-      }`,
+      text: `${preferenceName(providerId)} saved as a setup preference. Enroll it under Settings › Security › Vault key protection.`,
     });
   }
 
@@ -79,7 +79,14 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
         keyVaultCeremonyDependencies.loadSettings().capabilityConnectors
           .encryption,
       );
-      setFlash(outcome);
+      setFlash(
+        outcome.tone === "ok"
+          ? {
+              tone: "ok",
+              text: `${preferenceName(binding.providerId)} authorized for vault key protection. Enroll it under Vault key protection.`,
+            }
+          : outcome,
+      );
       setBusy(false);
     })();
   }
@@ -87,15 +94,23 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
   const alts: CeremonyAlt[] = [
     {
       id: "local",
-      label: "Use WebCrypto or age on this device",
+      label: "Password on this device",
       icon: <IconLock size={18} />,
       render: () => (
         <Picker ids={LOCAL} current={binding.providerId} onPick={choose} />
       ),
     },
     {
+      id: "recovery",
+      label: "age recipient (recovery)",
+      icon: <IconPasskey size={18} />,
+      render: () => (
+        <Picker ids={RECOVERY} current={binding.providerId} onPick={choose} />
+      ),
+    },
+    {
       id: "hardware",
-      label: "Bind a YubiKey or FIDO2 key",
+      label: "YubiKey PIV (advanced)",
       icon: <IconPasskey size={18} />,
       render: () => (
         <Picker ids={HARDWARE} current={binding.providerId} onPick={choose} />
@@ -103,7 +118,7 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
     },
     {
       id: "cloud",
-      label: "Bind a cloud KMS connector",
+      label: "Cloud KMS",
       icon: <IconShield size={18} />,
       render: () => (
         <Picker ids={CLOUD} current={binding.providerId} onPick={choose} />
@@ -115,8 +130,8 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
     <>
       <CeremonyShell
         ok={!owesAuth}
-        top={owesAuth ? "Bound, not yet authorized" : "Active"}
-        name={connectorLabel(binding.providerId)}
+        top={owesAuth ? "Bound, not yet authorized" : "Setup preference"}
+        name={preferenceName(binding.providerId)}
         facts={
           binding.providerId === "webcrypto"
             ? [
@@ -125,11 +140,19 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
                   key: "Derivation",
                   value: `PBKDF2-SHA256 · ${PBKDF2_ITERATIONS.toLocaleString("en-US")} iterations`,
                 },
+                {
+                  key: "Enrollment",
+                  value: "Settings › Security › Vault key protection",
+                },
               ]
             : binding.providerId === "age"
               ? [
                   { key: "Format", value: "age (typage)" },
                   { key: "Keys", value: "Settings › Security › Age key" },
+                  {
+                    key: "Enrollment",
+                    value: "Settings › Security › Vault key protection",
+                  },
                 ]
               : [
                   { key: "Wrapping", value: "AES-GCM 256" },
@@ -137,20 +160,21 @@ export function KeyVaultCeremony({ onClose }: { onClose: () => void }) {
                     key: "Authorization",
                     value: binding.connectionId ? "granted" : "not yet granted",
                   },
+                  {
+                    key: "Enrollment",
+                    value: "Settings › Security › Vault key protection",
+                  },
                 ]
         }
         primary={
           owesAuth
             ? {
-                label: busy ? "Authorizing…" : "Authorize on Host",
+                label: busy ? "Authorizing…" : "Authorize connection",
                 onClick: authorize,
                 busy,
               }
             : {
-                label:
-                  binding.providerId === "webcrypto"
-                    ? "Keep the built-in vault"
-                    : `Keep ${connectorLabel(binding.providerId)}`,
+                label: "Keep this preference",
                 onClick: onClose,
               }
         }
@@ -181,7 +205,7 @@ function Picker({
           onClick={() => onPick(id)}
         >
           <IconLock size={16} />
-          <span>{connectorLabel(id)}</span>
+          <span>{preferenceName(id)}</span>
         </button>
       ))}
     </div>

@@ -334,6 +334,6 @@ function choices(
 }
 
 function plain(message: string): string {
-  if (message.includes("Host")) return "Could not save the backup repository.";
+  if (/host/i.test(message)) return "Could not save the backup repository.";
   return message;
 }
