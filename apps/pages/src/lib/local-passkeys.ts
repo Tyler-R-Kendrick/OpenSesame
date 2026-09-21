@@ -29,6 +29,14 @@ import {
 import { tombUnlocked } from "./vfs.js";
 
 const CEREMONY_MS = 120_000;
+
+export function viewBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
+}
+
 export type LocalAuthentication = Readonly<{
   tomb: string;
   principalId: string;
@@ -96,6 +104,62 @@ export type LocalPasskeyEnrollResult = {
   vaultOffer: LocalPasskeyVaultOffer | null;
 };
 
+async function persistEnrolledPasskey(input: {
+  tomb: string;
+  principalId: string;
+  start: ReturnType<typeof ceremony>;
+  credential: PublicKeyCredential;
+  verified: NonNullable<Awaited<ReturnType<typeof verifyPasskeyRegistration>>>;
+  prfSalt: Uint8Array;
+  userId: Uint8Array;
+}): Promise<LocalPasskeyEnrollResult> {
+  const { tomb, principalId, start, credential, verified, prfSalt, userId } =
+    input;
+  requireLive(start);
+  await requireLocalPerson(tomb, principalId);
+  const current = await readLocalPasskeys(tomb);
+  if (current.some((key) => key.credentialId === verified.credentialId))
+    throw new LocalDirectoryError("This credential is already registered.");
+  const extensionResults = credential.getClientExtensionResults();
+  const prfFirst = readPrfFirst(extensionResults);
+  const prfSupported =
+    hasUsablePrfOutput(extensionResults) && prfFirst !== null;
+  await writeLocalPasskeys(tomb, [
+    ...current,
+    {
+      principalId,
+      credentialId: verified.credentialId,
+      publicKeyB64: bytesToB64url(verified.publicKey),
+      counter: verified.counter,
+      createdAt: Date.now(),
+      ...(prfSupported ? { prfCapable: true } : {}),
+    },
+  ]);
+  if (!prfSupported) {
+    prfSalt.fill(0);
+    return {
+      credentialId: verified.credentialId,
+      prfSupported: false,
+      vaultOffer: null,
+    };
+  }
+  const prfOutput = new Uint8Array(prfFirst);
+  return {
+    credentialId: verified.credentialId,
+    prfSupported: true,
+    vaultOffer: {
+      prfOutput,
+      prfSalt,
+      credentialId: credential.rawId,
+      userId,
+      discard() {
+        prfOutput.fill(0);
+        prfSalt.fill(0);
+      },
+    },
+  };
+}
+
 /** Human vault-custodian action. Never exposed as an agent enrollment tool.
  *  Requests WebAuthn PRF. A usable result is offered back to the caller; this
  *  function never wraps a vault key.
@@ -155,51 +219,17 @@ export async function enrollLocalPasskey(
   });
   if (!verified)
     throw new LocalDirectoryError("The passkey could not be verified.");
-  return withLocalDirectoryLock(tomb, async () => {
-    requireLive(start);
-    await requireLocalPerson(tomb, principalId);
-    const current = await readLocalPasskeys(tomb);
-    if (current.some((key) => key.credentialId === verified.credentialId))
-      throw new LocalDirectoryError("This credential is already registered.");
-    const extensionResults = credential.getClientExtensionResults();
-    const prfFirst = readPrfFirst(extensionResults);
-    const prfSupported =
-      hasUsablePrfOutput(extensionResults) && prfFirst !== null;
-    await writeLocalPasskeys(tomb, [
-      ...current,
-      {
-        principalId,
-        credentialId: verified.credentialId,
-        publicKeyB64: bytesToB64url(verified.publicKey),
-        counter: verified.counter,
-        createdAt: Date.now(),
-        ...(prfSupported ? { prfCapable: true } : {}),
-      },
-    ]);
-    if (!prfSupported) {
-      prfSalt.fill(0);
-      return {
-        credentialId: verified.credentialId,
-        prfSupported: false,
-        vaultOffer: null,
-      };
-    }
-    const prfOutput = new Uint8Array(prfFirst);
-    return {
-      credentialId: verified.credentialId,
-      prfSupported: true,
-      vaultOffer: {
-        prfOutput,
-        prfSalt,
-        credentialId: credential.rawId,
-        userId,
-        discard() {
-          prfOutput.fill(0);
-          prfSalt.fill(0);
-        },
-      },
-    };
-  });
+  return withLocalDirectoryLock(tomb, () =>
+    persistEnrolledPasskey({
+      tomb,
+      principalId,
+      start,
+      credential,
+      verified,
+      prfSalt,
+      userId,
+    }),
+  );
 }
 
 /** Verifies possession; the returned evidence alone is not a transferable session. */

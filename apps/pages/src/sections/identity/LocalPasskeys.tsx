@@ -12,16 +12,12 @@ import {
 } from "../../lib/local-credentials.js";
 import { LocalDirectoryError } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import type { LocalPasskeyVaultOffer } from "../../lib/local-passkeys.js";
+import {
+  type LocalPasskeyVaultOffer,
+  viewBuffer,
+} from "../../lib/local-passkeys.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { LocalIdentitySession } from "./LocalIdentitySession.js";
-
-function viewBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
-}
 
 type CredentialProps = {
   tomb: string;
@@ -53,27 +49,15 @@ export function LocalPasskeys({
   );
 }
 
-function useCredentialCommands(
-  { tomb, principalId, disabled, enabled }: CredentialProps,
+function useTrackedPasskeys(
+  tomb: string,
+  principalId: string,
   container: RefObject<HTMLDivElement | null>,
+  focusSource: RefObject<HTMLElement | null>,
+  setRemoving: (update: (id: string | null) => string | null) => void,
 ) {
   const [keys, setKeys] = useState<LocalPasskey[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [removing, setRemoving] = useState<string | null>(null);
-  const [offer, setOffer] = useState<LocalPasskeyVaultOffer | null>(null);
-  const [unlockChecked, setUnlockChecked] = useState(false);
-  const offerRef = useRef<LocalPasskeyVaultOffer | null>(null);
-  const { status } = useVault();
-  const store = useVaultStore();
-  const focusSource = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    return () => {
-      offerRef.current?.discard();
-      offerRef.current = null;
-    };
-  }, []);
   useEffect(() => {
     let active = true;
     let generation = 0;
@@ -114,82 +98,37 @@ function useCredentialCommands(
       off();
       window.removeEventListener("focus", refresh);
     };
-  }, [tomb, principalId, container]);
+  }, [tomb, principalId, container, focusSource, setRemoving]);
+  return { keys, setKeys, error, setError };
+}
 
-  async function run(action: "enroll" | "revoke", id?: string) {
-    if (busy || disabled || !keys) return;
-    if (action === "enroll" && !enabled) return;
-    if (action === "revoke" && document.activeElement instanceof HTMLElement)
-      focusSource.current = document.activeElement;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      if (action === "revoke") {
-        if (!id) return;
-        await revokeLocalPasskey(tomb, principalId, id);
-      } else {
-        const passkeys = await import("../../lib/local-passkeys.js");
-        const enrolled = await passkeys.enrollLocalPasskey(tomb, principalId);
-        setKeys(
-          (await readLocalPasskeys(tomb)).filter(
-            (row) => row.principalId === principalId,
-          ),
-        );
-        setRemoving(null);
-        if (!enrolled.vaultOffer) {
-          publishOffer(null);
-          setMessage(
-            "Passkey enrolled for sign-in. This authenticator cannot unlock the vault.",
-          );
-          return;
-        }
-        if (status !== "unlocked") {
-          enrolled.vaultOffer.discard();
-          publishOffer(null);
-          setMessage(
-            "Passkey enrolled for sign-in. The vault is locked, so vault protection was not changed.",
-          );
-          return;
-        }
-        setUnlockChecked(false);
-        publishOffer(enrolled.vaultOffer);
-        setMessage(
-          "Passkey created. This passkey supports encrypted vault unlock.",
-        );
-        return;
-      }
-      setKeys(
-        (await readLocalPasskeys(tomb)).filter(
-          (row) => row.principalId === principalId,
-        ),
-      );
-      setRemoving(null);
-      setMessage("Passkey revoked.");
-    } catch (failure) {
-      setError(
-        failure instanceof LocalDirectoryError
-          ? failure.message
-          : "The passkey operation did not complete. Check the vault is unlocked and retry.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
+function usePasskeyVaultOffer(
+  busy: boolean,
+  setBusy: (busy: boolean) => void,
+  setMessage: (message: string) => void,
+  setError: (error: string) => void,
+) {
+  const [offer, setOffer] = useState<LocalPasskeyVaultOffer | null>(null);
+  const [unlockChecked, setUnlockChecked] = useState(false);
+  const offerRef = useRef<LocalPasskeyVaultOffer | null>(null);
+  const store = useVaultStore();
+  useEffect(() => {
+    return () => {
+      offerRef.current?.discard();
+      offerRef.current = null;
+    };
+  }, []);
   function publishOffer(next: LocalPasskeyVaultOffer | null) {
     if (offerRef.current && offerRef.current !== next)
       offerRef.current.discard();
     offerRef.current = next;
     setOffer(next);
   }
-
   function keepSignInOnly() {
     publishOffer(null);
     setUnlockChecked(false);
     setMessage("Sign-in only. Vault protection was not changed.");
   }
-
   async function alsoUnlock() {
     if (!offer || !unlockChecked || busy) return;
     setBusy(true);
@@ -215,21 +154,107 @@ function useCredentialCommands(
       setBusy(false);
     }
   }
-
   return {
-    keys,
+    offer,
+    unlockChecked,
+    setUnlockChecked,
+    publishOffer,
+    keepSignInOnly,
+    alsoUnlock,
+  };
+}
+
+function useCredentialCommands(
+  { tomb, principalId, disabled, enabled }: CredentialProps,
+  container: RefObject<HTMLDivElement | null>,
+) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
+  const { status } = useVault();
+  const focusSource = useRef<HTMLElement | null>(null);
+  const tracked = useTrackedPasskeys(
+    tomb,
+    principalId,
+    container,
+    focusSource,
+    setRemoving,
+  );
+  const vaultOffer = usePasskeyVaultOffer(
+    busy,
+    setBusy,
+    setMessage,
+    tracked.setError,
+  );
+  async function run(action: "enroll" | "revoke", id?: string) {
+    if (busy || disabled || !tracked.keys) return;
+    if (action === "enroll" && !enabled) return;
+    if (action === "revoke" && document.activeElement instanceof HTMLElement)
+      focusSource.current = document.activeElement;
+    setBusy(true);
+    tracked.setError("");
+    setMessage("");
+    try {
+      if (action === "revoke") {
+        if (!id) return;
+        await revokeLocalPasskey(tomb, principalId, id);
+        tracked.setKeys(
+          (await readLocalPasskeys(tomb)).filter(
+            (row) => row.principalId === principalId,
+          ),
+        );
+        setRemoving(null);
+        setMessage("Passkey revoked.");
+        return;
+      }
+      const passkeys = await import("../../lib/local-passkeys.js");
+      const enrolled = await passkeys.enrollLocalPasskey(tomb, principalId);
+      tracked.setKeys(
+        (await readLocalPasskeys(tomb)).filter(
+          (row) => row.principalId === principalId,
+        ),
+      );
+      setRemoving(null);
+      if (!enrolled.vaultOffer) {
+        vaultOffer.publishOffer(null);
+        setMessage(
+          "Passkey enrolled for sign-in. This authenticator cannot unlock the vault.",
+        );
+        return;
+      }
+      if (status !== "unlocked") {
+        enrolled.vaultOffer.discard();
+        vaultOffer.publishOffer(null);
+        setMessage(
+          "Passkey enrolled for sign-in. The vault is locked, so vault protection was not changed.",
+        );
+        return;
+      }
+      vaultOffer.setUnlockChecked(false);
+      vaultOffer.publishOffer(enrolled.vaultOffer);
+      setMessage(
+        "Passkey created. This passkey supports encrypted vault unlock.",
+      );
+    } catch (failure) {
+      tracked.setError(
+        failure instanceof LocalDirectoryError
+          ? failure.message
+          : "The passkey operation did not complete. Check the vault is unlocked and retry.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return {
+    keys: tracked.keys,
     busy,
     message,
-    error,
+    error: tracked.error,
     removing,
     setRemoving,
     run,
     focusSource,
-    offer,
-    unlockChecked,
-    setUnlockChecked,
-    keepSignInOnly,
-    alsoUnlock,
+    ...vaultOffer,
   };
 }
 
