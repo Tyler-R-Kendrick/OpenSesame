@@ -1,10 +1,10 @@
 /**
- * Browser formats interop for root-protection metadata (Formats panel).
+ * Browser formats interop.
  *
- * - Native: authenticated manifest JSON (no secrets).
- * - age: armor-encode / decode ciphertext payloads with typage.
- * - SOPS YAML/JSON: not available in-browser; use `opensesame pass protect
- *   sops-encrypt|sops-decrypt` with OPENSESAME_SOPS_BIN (both directions).
+ * - Native: authenticated manifest JSON (metadata only, not a vault backup).
+ * - age: armor-encode / decode ciphertext payloads.
+ * - SOPS YAML/JSON: browser engine in `lib/sops` (local age). Native CLI
+ *   remains a separate operator tool and is not a Pages dependency.
  */
 
 import * as age from "age-encryption";
@@ -14,7 +14,6 @@ import type { RootProtectionManifest } from "./types.js";
 
 export type FormatCapability =
   | { available: true; runtime: "browser" }
-  | { available: true; runtime: "native-client" }
   | { available: false; runtime: "unavailable"; reason: string };
 
 export function nativeManifestCapability(): FormatCapability {
@@ -26,10 +25,7 @@ export function ageCapability(): FormatCapability {
 }
 
 export function sopsCapability(): FormatCapability {
-  return {
-    available: true,
-    runtime: "native-client",
-  };
+  return { available: true, runtime: "browser" };
 }
 
 export function gpgCapability(): FormatCapability {
@@ -82,13 +78,4 @@ export async function importAgeArmored(
   const decrypter = new age.Decrypter();
   decrypter.addIdentity(identity);
   return decrypter.decrypt(decoded, "uint8array");
-}
-
-/** Honest SOPS both-directions pointer for Formats / operators. */
-export function sopsNativeBothDirectionsHint(): string {
-  return [
-    "opensesame pass protect sops-encrypt --format yaml|json",
-    "opensesame pass protect sops-decrypt --format yaml|json --reveal",
-    "Requires OPENSESAME_SOPS_BIN to an absolute sops binary.",
-  ].join("\n");
 }

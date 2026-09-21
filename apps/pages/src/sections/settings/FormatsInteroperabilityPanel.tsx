@@ -1,10 +1,6 @@
-import { useRef, useState } from "react";
-import { CeremonyShell } from "../../components/CeremonyShell.js";
-import { FieldShell } from "../../components/FieldShell.js";
-import { IconDownload, IconPlus, IconX } from "../../components/Icons.js";
+import { useState } from "react";
+import { IconDownload, IconNote, IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { generateAgeKeyPair } from "../../lib/age-keys.js";
-import { useModalFocus } from "../../lib/modal-focus.js";
 import { setStatusNotice } from "../../lib/notices.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
@@ -15,11 +11,11 @@ import {
   importAgeArmored,
   nativeManifestCapability,
   sopsCapability,
-  sopsNativeBothDirectionsHint,
 } from "../../lib/vault/protection/sops-browser.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import "./vault-key-protection.css";
 import { AgeInteropSheet } from "./AgeInteropSheet.js";
+import { SopsDocumentSheet } from "./SopsDocumentSheet.js";
 
 type Capability = "ok" | "warn" | "idle";
 
@@ -60,11 +56,11 @@ function buildFormats(): readonly FormatRow[] {
     {
       id: "sops",
       name: "SOPS",
-      read: { tone: "warn", label: "Read via native client" },
-      write: { tone: "warn", label: "Write via native client" },
+      read: { tone: sops.available ? "ok" : "idle", label: "Read" },
+      write: { tone: sops.available ? "ok" : "idle", label: "Write" },
       runtime: {
-        tone: sops.runtime === "native-client" ? "warn" : "idle",
-        label: "Requires native client when this browser cannot",
+        tone: sops.runtime === "browser" ? "ok" : "idle",
+        label: "This browser",
       },
     },
     {
@@ -126,6 +122,7 @@ export function FormatsInteroperabilityPanel() {
   const formats = buildFormats();
   const canExport = status === "unlocked" && !guest;
   const [ageSheet, setAgeSheet] = useState(false);
+  const [sopsSheet, setSopsSheet] = useState(false);
 
   const onExportNative = () => exportNativeManifest(store);
 
@@ -155,6 +152,15 @@ export function FormatsInteroperabilityPanel() {
               onClick={onExportNative}
             >
               <IconDownload size={16} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn icon-btn--sm"
+              aria-label="Vault SOPS"
+              title="Vault SOPS"
+              onClick={() => setSopsSheet(true)}
+            >
+              <IconNote size={16} />
             </button>
             <button
               type="button"
@@ -194,6 +200,9 @@ export function FormatsInteroperabilityPanel() {
         </div>
       </section>
       {ageSheet ? <AgeInteropSheet onClose={() => setAgeSheet(false)} /> : null}
+      {sopsSheet ? (
+        <SopsDocumentSheet onClose={() => setSopsSheet(false)} />
+      ) : null}
     </>
   );
 }

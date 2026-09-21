@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 504,
-    "violations": 796,
-    "oversizedLines": 254687
+    "files": 505,
+    "violations": 798,
+    "oversizedLines": 254226
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -592,9 +592,6 @@
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/pages/src/components/AppShell.test.tsx": {
-      "max-lines": 413
-    },
     "apps/pages/src/components/AppShell.tsx": {
       "max-lines-per-function": 1
     },
@@ -648,7 +645,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/lib/connections.ts": {
-      "max-lines": 896
+      "max-lines": 895
     },
     "apps/pages/src/lib/crumbs.ts": {
       "complexity": 1
@@ -692,7 +689,7 @@
       "max-lines": 495
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
-      "max-lines": 959
+      "max-lines": 956
     },
     "apps/pages/src/lib/keymap.ts": {
       "complexity": 1,
@@ -706,7 +703,7 @@
     },
     "apps/pages/src/lib/settings.ts": {
       "complexity": 1,
-      "max-lines": 546
+      "max-lines": 518
     },
     "apps/pages/src/lib/siop-keys.ts": {
       "complexity": 1
@@ -717,6 +714,12 @@
     "apps/pages/src/lib/site-broker.ts": {
       "complexity": 1,
       "max-lines": 618
+    },
+    "apps/pages/src/lib/sops/aes-record.ts": {
+      "complexity": 1
+    },
+    "apps/pages/src/lib/sops/engine.ts": {
+      "complexity": 1
     },
     "apps/pages/src/lib/vault/drop.test.ts": {
       "max-lines": 526
@@ -800,13 +803,13 @@
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1773
+      "max-lines": 1758
     },
     "apps/pages/src/lib/vault/unlock-methods.ts": {
       "max-lines": 769
     },
     "apps/pages/src/lib/vfs.ts": {
-      "max-lines": 471
+      "max-lines": 470
     },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
       "max-lines-per-function": 1
@@ -905,9 +908,6 @@
     "apps/pages/src/sections/connections/GithubAppPanel.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/connections/GithubBackupRepo.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/connections/NeedsAttention.tsx": {
       "max-lines-per-function": 1
     },
@@ -915,6 +915,10 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/SettingsPage.tsx": {
+      "complexity": 1,
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/connections/YubikeyConnectPanel.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
@@ -943,6 +947,9 @@
     "apps/pages/src/sections/settings/SettingsRawEditor.tsx": {
       "max-lines-per-function": 1
     },
+    "apps/pages/src/sections/settings/SopsDocumentSheet.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
       "max-lines": 555
     },
@@ -951,9 +958,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/VaultsPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/WalletPassPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/security/KeyCeremony.tsx": {

@@ -1,16 +1,4 @@
 import {
-  type BoundaryValue,
-  type JsonObject,
-  isString,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
-/**
- * Connection broker client. Live list/create/authorize use Vercel Connect
- * when configured; Host is the fallback. Tokens stay off this page (ADR 0005).
- */
-
-import {
   AuthorizeResponseSchema,
   BindingSchema,
   ConnectionErrorResponseSchema,
@@ -23,6 +11,17 @@ import {
   ProviderSchema,
   RevokeResponseSchema,
 } from "@opensesame/contracts";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
+  noteConnectionCreated,
+  noteConnectionRevoked,
+} from "./activity-log.js";
 import {
   type Integration,
   integrationFromLocal,
@@ -342,7 +341,6 @@ function listIntegrationsDefault(): Promise<Integration[]> {
     () => localRows,
   );
 }
-
 export type CustomProviderAuth =
   | {
       kind: "oauth2_authorization_code";
@@ -770,7 +768,6 @@ function openConsentPopupDefault(url: string): Window | null {
     "width=680,height=820,noopener=no,noreferrer=no",
   );
 }
-
 export const connectionSeams = {
   discoverConnections: discoverConnectionsDefault,
   refreshConnection: refreshConnectionDefault,
@@ -834,6 +831,7 @@ export async function createConnection(
 ): Promise<Connection> {
   const created = await connectionSeams.createConnection(body);
   if (isGuestSession()) claimGuestConnection(created.connectionId);
+  noteConnectionCreated(created.connectionId);
   return created;
 }
 export function authorizeConnection(
@@ -862,7 +860,6 @@ export async function awaitConsent(
 export function openConsentPopup(url: string): Window | null {
   return connectionSeams.openConsentPopup(url);
 }
-
 export function discoverConnections(): Promise<number> {
   return connectionSeams.discoverConnections();
 }
@@ -877,7 +874,9 @@ export function setConnectionConfiguration(
 export function revokeConnection(
   id: string,
 ): ReturnType<typeof revokeConnectionDefault> {
-  return connectionSeams.revokeConnection(id);
+  const result = connectionSeams.revokeConnection(id);
+  noteConnectionRevoked(id);
+  return result;
 }
 export function updateConnectionPolicy(
   ...args: Parameters<typeof updateConnectionPolicyDefault>

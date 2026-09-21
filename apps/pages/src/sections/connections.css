@@ -233,14 +233,117 @@
   margin: 0.35rem 0 0;
 }
 
+.conn-card__repo > .icon-btn {
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+}
+
+.conn-card__repo > .icon-btn > svg {
+  display: block;
+}
+
 .conn-card__repo .conn-card__ref {
   margin: 0;
   color: var(--ink);
   font-size: 0.875rem;
 }
 
-.conn-card__repo input {
+.conn-card__repo input,
+.conn-card__repo select {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: var(--mono);
+}
+
+.conn-card__repo input[aria-invalid="true"] {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.conn-repo-field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.conn-repo-combobox {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.conn-repo-combobox:focus-within {
+  border-color: var(--accent);
+}
+
+.conn-repo-combobox input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--mono);
+}
+
+.conn-repo-combobox__toggle {
+  align-self: center;
+  margin-right: 0.15rem;
+}
+
+.conn-repo-combobox__caret {
+  transform: rotate(90deg);
+  transition: transform 140ms var(--ease);
+}
+
+.conn-repo-combobox__caret.is-open {
+  transform: rotate(-90deg);
+}
+
+.conn-repo-combobox__list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 0.2rem);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.2rem 0;
+  list-style: none;
+  max-height: 12rem;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.conn-repo-combobox__option,
+.conn-repo-combobox__empty {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.conn-repo-combobox__empty {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.conn-repo-combobox__option.is-active,
+.conn-repo-combobox__option:hover {
+  background: var(--accent-wash);
+  color: var(--ink);
+}
+
+.conn-repo-field .conn-card__repo {
+  margin: 0;
 }
 
 .conn-card__chips {
@@ -729,6 +832,16 @@ button.conn-tile__link {
   font-size: 0.8438rem;
 }
 
+.conn-yubikey__status,
+.conn-aws-kms__status,
+.conn-azure-key-vault-keys__status,
+.conn-gcp-kms__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
 .conn-add-authorization {
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--line);
@@ -829,6 +942,29 @@ button.conn-tile__link {
   column-gap: 0.75rem;
   margin: 0;
   font-size: 0.8438rem;
+}
+
+.conn-github-fact__value {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.conn-github-fact__value .conn-repo-field,
+.conn-github-fact__value .conn-card__repo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.conn-github-fact__value > .icon-btn {
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+}
+
+.conn-github-fact__value > .icon-btn > svg {
+  display: block;
 }
 
 .conn-backup-sync {

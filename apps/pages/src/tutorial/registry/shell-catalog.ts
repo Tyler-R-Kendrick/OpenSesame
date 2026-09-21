@@ -56,7 +56,15 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "nav.wallet",
     description:
-      "Rail entry that opens Wallet, where spending overview, budgets, passes, payment methods and activity are reviewed.",
+      "Rail entry that opens Wallet, where spending overview, budgets, passes and payment methods are reviewed.",
+    role: "navigation",
+    routes: [],
+    capabilityId: "app.navigate",
+  },
+  {
+    id: "nav.activity",
+    description:
+      "Rail entry that opens Activity, the durable log of vault, settings, access and request events.",
     role: "navigation",
     routes: [],
     capabilityId: "app.navigate",

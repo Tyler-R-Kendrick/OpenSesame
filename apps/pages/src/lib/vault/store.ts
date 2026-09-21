@@ -1,4 +1,10 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
+import {
+  activitySeams,
+  noteVaultBodyPersisted,
+  noteVaultUnlocked,
+  recordActivityEvent,
+} from "../activity-log.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
 import {
@@ -45,6 +51,7 @@ import {
   rewrapVaultKey,
   sealJson,
   unwrapRawVaultKeyFromPassword,
+  vaultSealBinding,
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
 import { writeItem } from "./item-path.js";
@@ -80,6 +87,7 @@ import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
 import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
+import { openJsonForRebind, rebindTombSeals } from "./seal-rebind.js";
 import {
   UnguardedTotpEnrollment,
   heldTotpCode,
@@ -141,12 +149,7 @@ function scopedVaultScope(): VaultScope {
   };
 }
 
-/**
- * The tomb a guest session uses when a sealed vault already lives in the
- * active scope. Guest beside an existing vault must never touch that vault:
- * it is a separate, throwaway tomb with no header, so nothing a guest writes
- * can land on the real body. Not a project id — those are random ids or `personal`.
- */
+/** Guest-beside-vault tomb — isolated, throwaway, never a project id. */
 export { GUEST_TOMB };
 export {
   type VaultPrefs,
@@ -178,17 +181,9 @@ export type VaultState = {
   /** Milliseconds until auto-lock, or null when no timer is armed. */
   lockedOutUntil: number | null;
   failedAttempts: number;
-  /**
-   * True after a primary unlock (password / PIN / passkey) when a second step
-   * (authenticator, email or text code) is enrolled and none has been
-   * confirmed yet. The key is parked in memory until one is.
-   */
+  /** Primary unlocked; second step enrolled but not yet confirmed. */
   awaitingSecondStep: boolean;
-  /**
-   * False when this browser gives the app no persistent storage, so the vault
-   * lives only until the tab closes. Worth saying out loud before someone
-   * trusts it with their only copy of a password.
-   */
+  /** False when storage is tab-only (no durable OPFS). */
   durable: boolean;
 };
 
@@ -281,10 +276,7 @@ export class VaultStore {
     this.#emit();
   }
 
-  /**
-   * Carry the current unlock into the active project. New projects share this
-   * device's vault key so creating one does not ask for a password/passkey again.
-   */
+  /** Carry this unlock into the active project (shared device key). */
   async forkUnlockedIntoActiveScope(): Promise<void> {
     if (!this.#vaultKey || !this.#header) {
       throw new Error(
@@ -329,28 +321,14 @@ export class VaultStore {
     return this.#scope.tomb;
   }
 
-  /**
-   * Whether `other` was sealed with this session's key — the header a
-   * project gets from `forkUnlockedIntoActiveScope` carries the same wrap
-   * material verbatim, so an equal wrap is the proof, not a name or a flag.
-   * False while locked: without a session there is nothing to share.
-   */
+  /** Equal wrap material means this session's key also opens `other`. False while locked. */
   sharesKeyWith(other: VaultHeader | null): boolean {
     if (!this.#vaultKey || !this.#header || !other) return false;
     if (this.#ephemeral) return false;
     return sharesWrapRecord(this.#header, other);
   }
 
-  /**
-   * Swap into the active project's tomb and open it with the key already in
-   * hand — the road a shared-key project takes, so a person who sealed
-   * "Work" with their personal key is not asked for that key again.
-   *
-   * The target's header must share this session's wrap material
-   * (`sharesKeyWith`); anything else throws before the scope moves, and the
-   * caller falls back to a plain lock-and-unlock. The previous tomb locks
-   * first: two tombs are never open in one session.
-   */
+  /** Open the active project when wraps match; lock the previous tomb first. */
   async openActiveScopeWithCurrentKey(): Promise<void> {
     this.#protection.cancelPendingOps();
     const vaultKey = this.#vaultKey;
@@ -536,12 +514,7 @@ export class VaultStore {
     }
   }
 
-  /**
-   * Guest session: no passkey, PIN, or password. The vault key lives in this
-   * tab only. Guests always run in `GUEST_TOMB` (isolated from member tombs).
-   * `lock()` keeps unlock on the guest road when that was the last authorized
-   * account. Guest is never withheld because a vault exists (AGENTS.md §5).
-   */
+  /** Guest sessions use `GUEST_TOMB` only. `lock()` keeps the unlock screen on guest when that was the last account. */
   /**
    * Point the unlock screen at the guest tomb without opening a session.
    * Guests have no passkey or password — Unlock is the only challenge.
@@ -693,8 +666,9 @@ export class VaultStore {
   async #loadBody(vaultKey: CryptoKey): Promise<VaultBody> {
     const sealed = readSealedFile(this.#scope.tomb, BODY_PATH);
     if (!sealed) return emptyBody();
+    const binding = vaultSealBinding(this.#scope.tomb, BODY_PATH);
     try {
-      const body = await openJson<VaultBody>(vaultKey, sealed);
+      const body = await openJson<VaultBody>(vaultKey, sealed, binding);
       const rev = body.rev ?? 0;
       if (rev < (this.#header?.bodyRev ?? 0)) {
         throw new VaultCorruptError(
@@ -703,10 +677,6 @@ export class VaultStore {
             "the vault here was not opened, so nothing has been lost yet",
         );
       }
-      // The registry is rebuilt from what the body carries, so a definition
-      // installed on another device is live here the moment it syncs — no
-      // build, no reload (ADR 0087 §7).
-      syncInstalledTypes(body.itemTypes);
       return {
         v: 1,
         items: body.items ?? [],
@@ -728,11 +698,13 @@ export class VaultStore {
     this.#pendingVaultKey = null;
     unlockTomb(this.#scope.tomb, vaultKey);
     try {
+      await rebindTombSeals(this.#scope.tomb, vaultKey);
       // Phase C: seal any legacy plaintext config into this tomb and hydrate
       // every module's view of it, then this session's prefs and body.
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
       await this.#loadPrefsFromVfs();
       this.#body = await this.#loadBody(vaultKey);
+      syncInstalledTypes(this.#body.itemTypes);
     } catch (error) {
       this.#vaultKey = null;
       lockTomb(this.#scope.tomb);
@@ -746,8 +718,8 @@ export class VaultStore {
     this.touch();
     this.#armIdleTimer();
     this.#emit();
+    noteVaultUnlocked();
   }
-
   /** After primary unwrap: either activate or park the key for a second step. */
   async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
     if (hasSecondStep(this.#header)) {
@@ -879,11 +851,7 @@ export class VaultStore {
     this.#emit();
   }
 
-  /**
-   * Step 2 by email or text: open the sealed address with the key step 1
-   * produced and ask the Identity API to send a code there. Returns the
-   * masked destination for the screen to name.
-   */
+  /** Step 2 by email/text: send a code to the sealed address. */
   async requestSecondStepCode(channel: CodeChannel): Promise<SentCode> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
@@ -1131,11 +1099,7 @@ export class VaultStore {
     });
   }
 
-  /**
-   * Start enrolling a code by email or text: the Identity API sends the
-   * first code to the address; nothing is written until it matches. Same
-   * rule as the authenticator — a code can only guard a key.
-   */
+  /** Enroll email/text code; nothing is written until a code matches. */
   async beginCodeEnrollment(
     channel: CodeChannel,
     to: string,
@@ -1251,6 +1215,9 @@ export class VaultStore {
   lock = (options?: { recordLastVault?: boolean }): void => {
     this.#protection.cancelPendingOps();
     const recordLastVault = options?.recordLastVault !== false;
+    const wasUnlocked = this.#vaultKey !== null;
+    const lockedTombForLog = this.#scope.tomb;
+    const wasGuest = this.#ephemeral;
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
@@ -1258,6 +1225,7 @@ export class VaultStore {
     this.#pendingCode = null;
     this.#pendingCodeAddress = null;
     this.#body = emptyBody();
+    syncInstalledTypes(undefined);
     // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock
     // screen on guest when that was the last authorized account.
     const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
@@ -1281,6 +1249,14 @@ export class VaultStore {
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();
     emitVaultLock();
+    if (wasUnlocked && !wasGuest) {
+      void recordActivityEvent(lockedTombForLog, {
+        category: "vault",
+        type: "vault.locked",
+        summary: "Vault locked",
+        outcome: "succeeded",
+      }).catch(() => undefined);
+    }
     this.#emit();
   };
 
@@ -1308,19 +1284,18 @@ export class VaultStore {
 
   async #persist(): Promise<void> {
     if (!this.#vaultKey) throw new Error("The vault is locked.");
-    // Sealed with the next revision, but memory only takes it once the write
-    // lands. Counting first and then failing would leave the body behind the
-    // header, and the vault would read as rolled back on the next unlock.
+    // Revision advances only after the sealed write lands.
     const rev = (this.#body.rev ?? 0) + 1;
-    const sealed = await sealJson(this.#vaultKey, { ...this.#body, rev });
+    const sealed = await sealJson(
+      this.#vaultKey,
+      { ...this.#body, rev },
+      vaultSealBinding(this.#scope.tomb, BODY_PATH),
+    );
     assertSealed(sealed);
-    // Awaited, so a disk that refuses the write reaches `#mutate`'s rollback
-    // instead of leaving memory ahead of what survives a reload. The body
-    // lands verbatim at the tomb path — content unchanged from what the
-    // legacy flat key held.
     await writeSealedFile(this.#scope.tomb, BODY_PATH, sealed);
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
+    noteVaultBodyPersisted();
   }
 
   /** Merge a complete newer snapshot while both bodies are authenticated. */
@@ -1346,7 +1321,12 @@ export class VaultStore {
     ) {
       throw new VaultCorruptError("Vault snapshot belongs to another vault");
     }
-    const incoming = await openJson<VaultBody>(vaultKey, sealed);
+    const opened = await openJsonForRebind<VaultBody>(
+      vaultKey,
+      sealed,
+      vaultSealBinding(this.#scope.tomb, BODY_PATH),
+    );
+    const incoming = opened.value;
     if (
       incoming.v !== 1 ||
       !Array.isArray(incoming.items) ||
@@ -1428,13 +1408,7 @@ export class VaultStore {
 
   // —— item types (ADR 0087) ————————————————————————————————
 
-  /**
-   * Install an item type definition into this vault.
-   *
-   * The definition is validated first, so nothing invalid reaches the sealed
-   * body; on success it is written there and syncs to the user's other
-   * devices with everything else. No build, no reload.
-   */
+  /** Validate a definition, store it in the sealed body, and register it for this session. */
   async installItemTypeDefinition(text: string): Promise<InstallResult> {
     const result = installItemType(text);
     if (!result.ok) return result;
@@ -1452,12 +1426,7 @@ export class VaultStore {
     return result;
   }
 
-  /**
-   * Remove an installed definition. Items of that type keep every value they
-   * hold and render through the unknown-type fallback — coercing or dropping
-   * them would destroy them on every other device, because the whole-vault
-   * merge is last-writer-wins per item.
-   */
+  /** Drop a definition. Items of that type keep their values. */
   async uninstallItemTypeDefinition(id: string): Promise<boolean> {
     if (!uninstallItemType(id)) return false;
     try {
@@ -1619,6 +1588,7 @@ export class VaultStore {
         format: "opensesame-vault-export",
         v: 1,
         exportedAt: new Date().toISOString(),
+        tomb: this.#scope.tomb,
         header: this.#header,
         body,
       },
@@ -1631,6 +1601,7 @@ export class VaultStore {
   async importSealed(fileText: string, password: string): Promise<number> {
     let parsed: {
       format?: string;
+      tomb?: string;
       header?: VaultHeader;
       body?: SealedBlob;
     };
@@ -1654,7 +1625,14 @@ export class VaultStore {
     const raw = await unwrapRawVaultKeyFromPassword(parsed.header, password);
     const key = await importVaultKey(raw);
     raw.fill(0);
-    const incoming = await openJson<VaultBody>(key, parsed.body);
+    const named = parsed.tomb ?? "";
+    const tomb = isString(named) && named.length > 0 ? named : this.#scope.tomb;
+    const opened = await openJsonForRebind<VaultBody>(
+      key,
+      parsed.body,
+      vaultSealBinding(tomb, BODY_PATH),
+    );
+    const incoming = opened.value;
 
     if (!this.#vaultKey) throw new Error("Unlock this vault before importing.");
     const existing = new Set(this.#body.items.map((item) => item.id));
@@ -1769,5 +1747,12 @@ export class VaultStore {
 }
 
 export const vaultStore = new VaultStore();
+
+activitySeams.activeTomb = () => {
+  const snap = vaultStore.getSnapshot();
+  return snap.status === "unlocked" && !snap.guest && snap.tomb
+    ? snap.tomb
+    : null;
+};
 
 export { WrongPasswordError, VaultCorruptError };

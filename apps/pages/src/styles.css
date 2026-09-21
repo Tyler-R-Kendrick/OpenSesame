@@ -454,12 +454,19 @@ kbd {
   width: 2rem;
   height: 2rem;
   flex: none;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
   color: var(--ink-2);
   cursor: pointer;
   transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.icon-btn > svg {
+  display: block;
 }
 
 .icon-btn:hover:not(:disabled) {

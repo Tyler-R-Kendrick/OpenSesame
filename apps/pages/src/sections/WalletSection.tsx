@@ -1,5 +1,5 @@
 /**
- * Wallet — budgets, payment methods, spending passes, and activity.
+ * Wallet — budgets, payment methods, and spending passes.
  */
 
 import { Link, useLocation } from "react-router";
@@ -12,7 +12,6 @@ import {
 } from "../lib/crumbs.js";
 import "./identity.css";
 import "./settings.css";
-import { ActivityPanel } from "./wallet/ActivityPanel.js";
 import { BudgetsPanel } from "./wallet/BudgetsPanel.js";
 import { MethodsPanel } from "./wallet/MethodsPanel.js";
 import { PassesPanel } from "./wallet/PassesPanel.js";
@@ -54,7 +53,6 @@ export function WalletSection() {
       {category === "budgets" ? <BudgetsPanel /> : null}
       {category === "passes" ? <PassesPanel /> : null}
       {category === "methods" ? <MethodsPanel /> : null}
-      {category === "activity" ? <ActivityPanel /> : null}
     </div>
   );
 }

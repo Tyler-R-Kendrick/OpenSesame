@@ -95,6 +95,7 @@ function NavTree() {
         "/access": accessOpen,
         "/identity": identityOpen,
         "/wallet": walletOpen,
+        "/activity": false,
         "/settings": settingsOpen,
       }[section.to],
   );
@@ -189,6 +190,11 @@ function NavTree() {
       ) : null}
       <SectionRow
         section={SECTIONS[5]}
+        open={false}
+        active={location.pathname.startsWith("/activity")}
+      />
+      <SectionRow
+        section={SECTIONS[6]}
         open={settingsOpen}
         active={settings.here}
         branch={settingsOpen}

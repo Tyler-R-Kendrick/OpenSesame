@@ -17,6 +17,7 @@ import type {
   NodeState,
 } from "@opensesame/wallet-budget";
 
+import { emitActivity } from "./activity-log.js";
 import { readWalletStorage, walletStorageKey } from "./wallet-storage-scope.js";
 
 export const SPENDING_LEDGER_STORAGE_KEY = "opensesame.wallet.budget.v1";
@@ -309,6 +310,12 @@ export function readPersisted(): BudgetSnapshot | undefined {
 }
 
 export function writePersisted(snapshot: BudgetSnapshot): void {
+  emitActivity({
+    category: "wallet",
+    type: "wallet.budget.updated",
+    summary: "Wallet budget updated",
+    outcome: "succeeded",
+  });
   try {
     localStorage.setItem(
       walletStorageKey(SPENDING_LEDGER_STORAGE_KEY),

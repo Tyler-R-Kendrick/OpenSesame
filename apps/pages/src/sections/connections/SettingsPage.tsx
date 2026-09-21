@@ -25,12 +25,15 @@ import {
   providerVerb,
 } from "../../lib/identity-graph.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { AwsKmsConnectPanel } from "./AwsKmsConnectPanel.js";
+import { AzureKeyVaultKeysConnectPanel } from "./AzureKeyVaultKeysConnectPanel.js";
 import { BackupEnableSwitch, canBackupEnable } from "./BackupEnableSwitch.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 import { authKindLabel } from "./CatalogPanel.js";
 import { ConnectForm } from "./ConnectForm.js";
 import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
+import { GcpKmsConnectPanel } from "./GcpKmsConnectPanel.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
 import {
@@ -38,6 +41,7 @@ import {
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
+import { YubikeyConnectPanel } from "./YubikeyConnectPanel.js";
 import {
   CATEGORY_LABELS,
   type Flash,
@@ -128,7 +132,12 @@ export function ConnectorSettingsPage({
           <IconChevronLeft size={16} /> Connections
         </Link>
         {providerId === "github" ? (
-          <GithubAppPresence connection={connection} />
+          <GithubAppPresence
+            connection={connection}
+            online={online}
+            onFlash={onFlash}
+            onReady={reportBackup}
+          />
         ) : null}
         <div className="panel">
           <div className="empty">
@@ -206,7 +215,12 @@ export function ConnectorSettingsPage({
       ) : null}
 
       {providerId === "github" ? (
-        <GithubAppPresence connection={connection} />
+        <GithubAppPresence
+          connection={connection}
+          online={online}
+          onFlash={onFlash}
+          onReady={reportBackup}
+        />
       ) : null}
 
       {providerId !== "github" && isGitBackupProvider(providerId) ? (
@@ -254,6 +268,7 @@ export function ConnectorSettingsPage({
               onFlash={(next) => onFlash(next)}
               onChanged={onChanged}
               onBackupReady={reportBackup}
+              hideRepository={localGithubApp !== null}
             />
           </ul>
           {canConfigure && isGitBackupProvider(provider.id) ? (
@@ -310,12 +325,22 @@ export function ConnectorSettingsPage({
           <div className="panel__head">
             <h2>Connect</h2>
           </div>
-          {!canConfigure ? (
+          {provider.id === "yubikey" ? (
+            <YubikeyConnectPanel onFlash={(next) => onFlash(next)} />
+          ) : provider.id === "aws-kms" ? (
+            <AwsKmsConnectPanel onFlash={(next) => onFlash(next)} />
+          ) : provider.id === "azure-key-vault-keys" ? (
+            <AzureKeyVaultKeysConnectPanel onFlash={(next) => onFlash(next)} />
+          ) : provider.id === "gcp-kms" ? (
+            <GcpKmsConnectPanel onFlash={(next) => onFlash(next)} />
+          ) : !canConfigure ? (
             <div className="panel__body">
               <p className="hint">{configureHint}</p>
             </div>
           ) : provider.configured ||
             provider.authKind === "oauth2_authorization_code" ||
+            provider.authKind === "configuration" ||
+            provider.authKind === "api_key" ||
             isGitBackupProvider(provider.id) ? (
             <ConnectForm
               provider={provider}

@@ -5,6 +5,10 @@ import {
 } from "@opensesame/contracts";
 import { interactionMachine } from "@opensesame/os-domain";
 import {
+  noteInboundRequestCreated,
+  noteInboundRequestDecision,
+} from "./activity-log.js";
+import {
   requireLocalApplicationAdmission,
   withLocalApplicationRequest,
 } from "./local-applications.js";
@@ -98,7 +102,9 @@ export async function createLocalAccessRequest(
       assertActive();
       await writeLocalRequestRecords(tomb, [...rows, row]);
       assertActive();
-      return summarize(row);
+      const summary = summarize(row);
+      noteInboundRequestCreated(summary.id);
+      return summary;
     },
   );
 }
@@ -268,7 +274,10 @@ export async function decideLocalAccessRequest(
       tomb,
       rows.map((item) => (item.id === row.id ? next : item)),
     );
-    return summarize(next);
+    const summary = summarize(next);
+    const ok = input.decision === "approve";
+    noteInboundRequestDecision(summary.id, ok);
+    return summary;
   });
 }
 

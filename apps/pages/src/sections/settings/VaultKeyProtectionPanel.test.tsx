@@ -188,9 +188,7 @@ describe("FormatsInteroperabilityPanel", () => {
     expect(screen.getByText("age")).toBeTruthy();
     expect(screen.getByText("SOPS")).toBeTruthy();
     expect(screen.getByText("GPG")).toBeTruthy();
-    expect(
-      screen.getByLabelText("Requires native client when this browser cannot"),
-    ).toBeTruthy();
+    expect(screen.getByLabelText("Write not in this browser")).toBeTruthy();
     const sops = document.querySelector('[data-format="sops"]');
     expect(sops?.querySelectorAll(".status-mark").length).toBe(3);
   });

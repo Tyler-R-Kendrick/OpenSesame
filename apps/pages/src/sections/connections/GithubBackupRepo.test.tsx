@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { backupSeams } from "../../lib/backup.js";
 import type { Connection } from "../../lib/connections.js";
+import { githubAppRepoSeams } from "../../lib/github-app-repos.js";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
   githubHistorySeams,
@@ -13,17 +14,19 @@ import {
   GithubBackupField,
   existingRepo,
   repoNameFromSlug,
+  resolveBackupSlug,
   sanitizeRepoSlug,
 } from "./GithubBackupRepo.js";
 
 const originalBackup = { ...backupSeams };
 const originalHistory = { ...githubHistorySeams };
+const originalAppRepos = { ...githubAppRepoSeams };
 
 const getBackupStatus = vi.fn();
-const listGithubInstallations = vi.fn();
 const putBackupTarget = vi.fn();
 const listGithubRepos = vi.fn();
 const createGithubPasswordRepo = vi.fn();
+const postRelay = vi.fn();
 
 const connection = overlapCast({
   connectionId: "con_gh",
@@ -55,57 +58,83 @@ const connection = overlapCast({
   updatedAt: "2026-01-01T00:00:00Z",
 }) satisfies Connection;
 
-const repo = {
-  fullName: "octocat/secrets",
-  name: "secrets",
-  private: true,
-  cloneUrl: "https://github.com/octocat/secrets.git",
-  htmlUrl: "https://github.com/octocat/secrets",
-  defaultBranch: "main",
-};
-
 beforeEach(() => {
-  Object.assign(backupSeams, {
-    getBackupStatus,
-    listGithubInstallations,
-    putBackupTarget,
-  });
+  Object.assign(backupSeams, { getBackupStatus, putBackupTarget });
   Object.assign(githubHistorySeams, {
     listGithubRepos,
     createGithubPasswordRepo,
   });
+  Object.assign(githubAppRepoSeams, {
+    credentials: () => ({
+      appId: "1",
+      pem: "PEM",
+      installs: [
+        {
+          installationId: "99",
+          accountLogin: "octocat",
+          accountType: "User",
+        },
+      ],
+    }),
+    postRelay,
+  });
   getBackupStatus.mockResolvedValue({ target: null, pendingEvents: 0 });
-  listGithubInstallations.mockResolvedValue([
-    {
-      id: "99",
-      accountLogin: "octocat",
-      accountType: "User",
-      targetType: "User",
-      repositorySelection: "selected",
-      permissions: [],
-      repositories: ["octocat/secrets"],
-    },
-  ]);
-  listGithubRepos.mockResolvedValue([repo]);
+  listGithubRepos.mockResolvedValue([]);
   putBackupTarget.mockImplementation(
-    (input: {
+    async (body: {
       owner: string;
       repo: string;
-      installationId: string;
-      branch: string;
-    }) =>
-      Promise.resolve({
-        integrationId: "int_gh",
-        installationId: input.installationId,
-        owner: input.owner,
-        repo: input.repo,
-        branch: input.branch,
-        enabled: true,
-        status: "pending",
-        lastCommitSha: null,
-        lastSyncedAt: null,
-        lastError: null,
-      }),
+    }) => ({
+      integrationId: "int_gh",
+      installationId: "99",
+      owner: body.owner,
+      repo: body.repo,
+      branch: "main",
+      enabled: true,
+      status: "ok",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+    }),
+  );
+  postRelay.mockImplementation(
+    async (path: string, body?: { name?: string }) => {
+      if (path === "/api/github-app/installation-repos") {
+        return {
+          ok: true,
+          status: 200,
+          payload: {
+            repositories: [
+              {
+                fullName: "octocat/secrets",
+                name: "secrets",
+                private: true,
+                defaultBranch: "main",
+              },
+              {
+                fullName: "octocat/vault",
+                name: "vault",
+                private: true,
+                defaultBranch: "main",
+              },
+            ],
+          },
+        };
+      }
+      const name = body?.name ?? DEFAULT_PASSWORD_REPO_NAME;
+      return {
+        ok: true,
+        status: 200,
+        payload: {
+          repository: {
+            fullName: `octocat/${name}`,
+            name,
+            private: true,
+            defaultBranch: "main",
+          },
+        },
+      };
+    },
   );
 });
 
@@ -113,10 +142,112 @@ afterEach(() => {
   cleanup();
   Object.assign(backupSeams, originalBackup);
   Object.assign(githubHistorySeams, originalHistory);
+  Object.assign(githubAppRepoSeams, originalAppRepos);
 });
 
-it("shows the bound repository as a label", async () => {
-  const onReady = vi.fn();
+it("lists existing repositories in the combobox", async () => {
+  render(
+    <GithubBackupField
+      connection={connection}
+      online
+      onFlash={vi.fn()}
+      onReady={vi.fn()}
+    />,
+  );
+  await userEvent.click(await screen.findByTestId("github-repo-toggle"));
+  await waitFor(() => {
+    const list = screen.getByTestId("github-repo-list");
+    expect(list.textContent).toContain("octocat/secrets");
+    expect(list.textContent).toContain("octocat/vault");
+  });
+});
+
+it("binds a repository chosen from the list", async () => {
+  render(
+    <GithubBackupField
+      connection={connection}
+      online
+      onFlash={vi.fn()}
+      onReady={vi.fn()}
+    />,
+  );
+  await userEvent.click(await screen.findByTestId("github-repo-toggle"));
+  await waitFor(() =>
+    expect(screen.getByTestId("github-repo-list").textContent).toContain(
+      "octocat/secrets",
+    ),
+  );
+  await userEvent.click(
+    screen.getByRole("option", { name: "octocat/secrets" }),
+  );
+  await waitFor(() =>
+    expect(putBackupTarget).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "octocat", repo: "secrets" }),
+    ),
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId("github-backup-repo").textContent).toContain(
+      "octocat/secrets",
+    ),
+  );
+});
+
+it("creates a typed repository name in the same field", async () => {
+  render(
+    <GithubBackupField
+      connection={connection}
+      online
+      onFlash={vi.fn()}
+      onReady={vi.fn()}
+    />,
+  );
+  const input = await screen.findByTestId("github-repo-input");
+  await userEvent.clear(input);
+  await userEvent.type(input, "octocat/my-backup");
+  await userEvent.keyboard("{Enter}");
+  await waitFor(() =>
+    expect(postRelay).toHaveBeenCalledWith(
+      "/api/github-app/create-repo",
+      expect.objectContaining({ name: "my-backup" }),
+    ),
+  );
+  await waitFor(() =>
+    expect(putBackupTarget).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "octocat", repo: "my-backup" }),
+    ),
+  );
+});
+
+it("seeds install repositories when the App list is empty", async () => {
+  postRelay.mockResolvedValue({
+    ok: true,
+    status: 200,
+    payload: { repositories: [] },
+  });
+  render(
+    <GithubBackupField
+      connection={connection}
+      online
+      onFlash={vi.fn()}
+      seedAccounts={[
+        {
+          installationId: "99",
+          accountLogin: "octocat",
+          accountType: "User",
+        },
+      ]}
+      seedRepos={["octocat/from-install"]}
+    />,
+  );
+  await userEvent.click(await screen.findByTestId("github-repo-toggle"));
+  await waitFor(() =>
+    expect(screen.getByTestId("github-repo-list").textContent).toContain(
+      "octocat/from-install",
+    ),
+  );
+});
+
+it("opens the bound repository for editing", async () => {
   getBackupStatus.mockResolvedValue({
     target: {
       integrationId: "int_gh",
@@ -137,101 +268,16 @@ it("shows the bound repository as a label", async () => {
       connection={connection}
       online
       onFlash={vi.fn()}
-      onReady={onReady}
-    />,
-  );
-  const shown = await screen.findByTestId("github-backup-repo");
-  expect(shown.textContent).toContain("octocat/secrets");
-  expect(screen.queryByRole("combobox")).toBeNull();
-  expect(screen.queryByLabelText("Backup repository")).toBeNull();
-  await waitFor(() => expect(onReady).toHaveBeenCalledWith(true));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Edit repository" }),
-  );
-  expect(screen.getByLabelText("Backup repository")).toBeTruthy();
-});
-
-it("binds a slug that exists and creates one that does not", async () => {
-  const onReady = vi.fn();
-  createGithubPasswordRepo.mockResolvedValue({
-    ...repo,
-    fullName: "octocat/opensesame-passwords",
-    name: "opensesame-passwords",
-    cloneUrl: "https://github.com/octocat/opensesame-passwords.git",
-  });
-  render(
-    <GithubBackupField
-      connection={connection}
-      online
-      onFlash={vi.fn()}
-      onReady={onReady}
-    />,
-  );
-  const input = await screen.findByLabelText("Backup repository");
-  expect(input).toHaveProperty("value", DEFAULT_PASSWORD_REPO_NAME);
-  await waitFor(() =>
-    expect(document.querySelector("option")?.getAttribute("value")).toBe(
-      "octocat/secrets",
-    ),
-  );
-  await waitFor(() => expect(onReady).toHaveBeenCalledWith(false));
-  await userEvent.clear(input);
-  await userEvent.type(input, "secrets{Enter}");
-  await waitFor(() =>
-    expect(putBackupTarget).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner: "octocat",
-        repo: "secrets",
-        installationId: "99",
-      }),
-    ),
-  );
-  expect(
-    (await screen.findByTestId("github-backup-repo")).textContent,
-  ).toContain("octocat/secrets");
-  expect(
-    screen.queryByRole("button", { name: "Create repository" }),
-  ).toBeNull();
-
-  await userEvent.click(
-    screen.getByRole("button", { name: "Edit repository" }),
-  );
-  const again = screen.getByLabelText("Backup repository");
-  await userEvent.clear(again);
-  await userEvent.type(again, "opensesame-passwords{Enter}");
-  await waitFor(() =>
-    expect(createGithubPasswordRepo).toHaveBeenCalledWith("con_gh", {
-      name: "opensesame-passwords",
-      private: true,
-    }),
-  );
-});
-
-it("creates the offered repository name when it is accepted", async () => {
-  createGithubPasswordRepo.mockResolvedValue({
-    ...repo,
-    fullName: "octocat/opensesame-passwords",
-    name: "opensesame-passwords",
-    cloneUrl: "https://github.com/octocat/opensesame-passwords.git",
-  });
-  render(
-    <GithubBackupField
-      connection={connection}
-      online
-      onFlash={vi.fn()}
       onReady={vi.fn()}
     />,
   );
-  const input = await screen.findByLabelText("Backup repository");
-  expect(input).toHaveProperty("value", DEFAULT_PASSWORD_REPO_NAME);
-  await waitFor(() => expect(document.querySelector("option")).toBeTruthy());
-  await userEvent.type(input, "{Enter}");
   await waitFor(() =>
-    expect(createGithubPasswordRepo).toHaveBeenCalledWith("con_gh", {
-      name: DEFAULT_PASSWORD_REPO_NAME,
-      private: true,
-    }),
+    expect(screen.getByTestId("github-backup-repo").textContent).toContain(
+      "octocat/secrets",
+    ),
   );
+  await userEvent.click(screen.getByTestId("github-repo-edit"));
+  expect(await screen.findByTestId("github-repo-input")).toBeTruthy();
 });
 
 it("keeps only characters a repository name can hold", () => {
@@ -244,4 +290,11 @@ it("keeps only characters a repository name can hold", () => {
     "octocat/secrets",
   );
   expect(existingRepo("missing", ["octocat/secrets"])).toBeNull();
+  expect(
+    resolveBackupSlug(
+      "evil/not-mine",
+      [],
+      [{ installationId: "1", accountLogin: "octocat", accountType: "User" }],
+    ).kind,
+  ).toBe("invalid");
 });

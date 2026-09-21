@@ -12,34 +12,13 @@ import {
   bytesToB64,
   openJson,
   sealJson,
+  vaultSealBinding,
 } from "./vault/crypto.js";
 
 /**
- * Encrypted VFS — tomb-addressed storage for the Pages vault (ADR 0063).
- *
- * Every vault is a tomb: a named volume with its own vault key, its own
- * sealed body, its own config area. The personal vault is the `personal`
- * tomb (ADR 0038); a project-scoped vault is the tomb named after its
- * project id — the same 1:1 mapping the legacy `scopedKey` scheme used.
- *
- * Layout (logical paths; the kv transport flattens them into OPFS files,
- * with the in-memory fallback preserved):
- *
- *   tombs.v1                    plaintext registry — tomb NAMES only
- *   tomb/<name>/header          plaintext vault header (public KDF params,
- *                               readable pre-unlock by design, ADR 0063)
- *   tomb/<name>/migrated.v1     plaintext legacy-migration marker
- *   tomb/<name>/body            vault body — store-sealed SealedBlob JSON,
- *                               stored verbatim (content unchanged)
- *   tomb/<name>/index           sealed directory index (names + revisions)
- *   tomb/<name>/config/<file>   sealed config (prefs, idp-registry, …)
- *   tomb/<name>/drops/<file>    sealed drop records
- *
- * Every sealed write is AES-GCM under the tomb's vault key (the existing
- * SealedBlob construction). The index is sealed too, so listing requires
- * the key and file names stay private; tomb names are not secrets. No
- * IndexedDB, no localStorage for vault material — OPFS only, via the kv
- * transport's sync read of hydrated memory.
+ * Encrypted VFS (ADR 0063). AES-GCM seals bind tomb and path as additional
+ * data. Unlock rewrites any unbound seal once, then only bound seals open.
+ * Plaintext is tomb names, the header, and migration markers. Storage is OPFS.
  */
 
 export type VfsErrorCode = "locked" | "not-found" | "invalid-path" | "corrupt";
@@ -68,6 +47,8 @@ export const BODY_PATH = "body";
 export const INDEX_PATH = "index";
 /** Idempotent legacy-migration marker (plaintext; names, not contents). */
 export const MIGRATION_MARKER_PATH = "migrated.v1";
+/** Written after unlock rewrites every seal with a path binding. */
+export const SEAL_BOUND_MARKER_PATH = "seal-bound.v1";
 
 const TOMB_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const PATH_SEGMENT_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
@@ -79,25 +60,31 @@ export type VfsSeams = {
   readRaw: (key: string) => string | null;
   writeRaw: (key: string, value: string) => Promise<void>;
   deleteRaw: (key: string) => Promise<void>;
-  seal: (vaultKey: CryptoKey, value: BoundaryValue) => Promise<SealedBlob>;
-  open: <T>(vaultKey: CryptoKey, blob: SealedBlob) => Promise<T>;
+  seal: (
+    vaultKey: CryptoKey,
+    value: BoundaryValue,
+    binding?: string,
+  ) => Promise<SealedBlob>;
+  open: <T>(
+    vaultKey: CryptoKey,
+    blob: SealedBlob,
+    binding?: string,
+  ) => Promise<T>;
 };
 
 export const vfsSeams: VfsSeams = {
   readRaw: (key) => kvGet(key),
   writeRaw: (key, value) => kvSetDurable(key, value),
   deleteRaw: (key) => kvDeleteDurable(key),
-  seal: (vaultKey, value) => sealJson(vaultKey, value),
-  open: (vaultKey, blob) => openJson(vaultKey, blob),
+  seal: (vaultKey, value, binding) =>
+    binding ? sealJson(vaultKey, value, binding) : sealJson(vaultKey, value),
+  open: (vaultKey, blob, binding) =>
+    binding ? openJson(vaultKey, blob, binding) : openJson(vaultKey, blob),
 };
 
 /* ------------------------------------------------------------- tomb keys */
 
-/**
- * Unlocked tomb keys, held for the session exactly like the vault store's
- * own key reference. Registered on unlock, dropped on lock — a sealed read
- * or write against a tomb with no key here fails with `VfsError("locked")`.
- */
+/** Session vault key for one tomb. Dropped on lock; sealed I/O then fails locked. */
 const tombKeys = new Map<string, CryptoKey>();
 
 /**
@@ -184,7 +171,11 @@ function assertSealedPath(path: string): void {
       "The tomb index is maintained by the VFS itself.",
     );
   }
-  if (path === HEADER_PATH || path === MIGRATION_MARKER_PATH) {
+  if (
+    path === HEADER_PATH ||
+    path === MIGRATION_MARKER_PATH ||
+    path === SEAL_BOUND_MARKER_PATH
+  ) {
     throw new VfsError(
       "invalid-path",
       `"${path}" is a plaintext file — use the plaintext helpers.`,
@@ -264,7 +255,9 @@ async function readIndex(tomb: string, key: CryptoKey): Promise<TombIndex> {
   } catch {
     throw new VfsError("corrupt", `Tomb "${tomb}" index is not a sealed blob.`);
   }
-  return parseIndex(await vfsSeams.open(key, blob));
+  return parseIndex(
+    await vfsSeams.open(key, blob, vaultSealBinding(tomb, INDEX_PATH)),
+  );
 }
 
 /** Record a write (bump) or a delete (drop) in the sealed directory index. */
@@ -280,7 +273,11 @@ async function reviseIndex(
   } else {
     delete index.files[path];
   }
-  const blob = await vfsSeams.seal(key, index);
+  const blob = await vfsSeams.seal(
+    key,
+    index,
+    vaultSealBinding(tomb, INDEX_PATH),
+  );
   await vfsSeams.writeRaw(tombFileKey(tomb, INDEX_PATH), JSON.stringify(blob));
 }
 
@@ -363,7 +360,11 @@ export async function writeFile(
   await enqueueTombWrite(tomb, async () => {
     const key = requireTombKey(tomb);
     const envelope: SealedFileEnvelope = { v: 1, dataB64: bytesToB64(bytes) };
-    const blob = await vfsSeams.seal(key, envelope);
+    const blob = await vfsSeams.seal(
+      key,
+      envelope,
+      vaultSealBinding(tomb, path),
+    );
     assertSealed(blob);
     await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob));
     await reviseIndex(tomb, key, path, true);
@@ -386,7 +387,11 @@ export async function readFile(
     throw new VfsError("not-found", `tomb "${tomb}" has no file at "${path}".`);
   }
   const blob = parseSealedBlob(raw, tomb, path);
-  return parseEnvelope(await vfsSeams.open(key, blob), tomb, path);
+  return parseEnvelope(
+    await vfsSeams.open(key, blob, vaultSealBinding(tomb, path)),
+    tomb,
+    path,
+  );
 }
 
 /**
@@ -422,13 +427,7 @@ export async function deleteFile(tomb: string, path: string): Promise<void> {
 
 /* ------------------------------------------------- verbatim sealed (body) */
 
-/**
- * Read a file that is already a SealedBlob, verbatim. Used for the vault
- * body, which the store seals itself (revision tracking, rollback witness)
- * — its bytes move through the VFS unchanged. No key needed: the caller
- * still cannot open the blob without one. Sync: the transport reads
- * hydrated memory.
- */
+/** Read a caller-sealed blob verbatim. The store seals the body; opening it still takes the vault key. */
 export function readSealedFile(tomb: string, path: string): SealedBlob | null {
   assertSealedPath(path);
   const raw = vfsSeams.readRaw(tombFileKey(tomb, path));

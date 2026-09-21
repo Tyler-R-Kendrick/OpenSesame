@@ -76,6 +76,9 @@
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
     "generate:sbom": "mkdir -p sbom && pnpm --package @cyclonedx/cdxgen@12.8.4 dlx env -u NODE_PATH -u STARSHIP_SESSION_KEY cdxgen -o sbom/bom.json",
     "verify:key-protection": "node scripts/verify-key-protection.mjs",
+    "verify:sops-browser": "node scripts/verify-sops-browser.mjs",
+    "verify:sops-conformance": "node scripts/verify-sops-conformance.mjs",
+    "verify:sops-cloud-live": "node scripts/verify-sops-cloud-live.mjs",
     "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm quality && pnpm test:rust-lint && pnpm audit:clippy && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh",
     "wallet:evidence:blocked-adapters": "node scripts/wallet/blocked-adapters.mjs"
   },

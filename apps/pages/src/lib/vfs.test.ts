@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvDurability, kvGet, kvHydrate, kvSet } from "./kv.js";
 import {
   type SealedBlob,
+  VaultCorruptError,
   mintVaultKey,
   openJson,
   sealJson,
+  vaultSealBinding,
 } from "./vault/crypto.js";
 import {
   BODY_PATH,
@@ -13,6 +15,7 @@ import {
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
   PERSONAL_TOMB,
+  SEAL_BOUND_MARKER_PATH,
   TOMBS_REGISTRY_KEY,
   VfsError,
   deleteFile,
@@ -20,6 +23,7 @@ import {
   listDir,
   listTombs,
   lockAllTombs,
+  lockTomb,
   readFile,
   readPlaintextFile,
   readSealedFile,
@@ -44,13 +48,17 @@ function clearVfs(): void {
     BODY_PATH,
     INDEX_PATH,
     MIGRATION_MARKER_PATH,
+    SEAL_BOUND_MARKER_PATH,
     "config/prefs",
     "config/secret-name",
     "config/other",
+    "config/a",
     "drops/one",
   ]) {
     kvDelete(tombFileKey(TOMB, path));
   }
+  kvDelete(tombFileKey("other-tomb", "config/a"));
+  kvDelete(tombFileKey("other-tomb", INDEX_PATH));
   kvDelete(TOMBS_REGISTRY_KEY);
 }
 
@@ -109,8 +117,23 @@ describe("vfs sealed files", () => {
     const index = await openJson<{ files: Record<string, number> }>(
       vaultKey,
       blob,
+      vaultSealBinding(TOMB, INDEX_PATH),
     );
     expect(index.files["config/prefs"]).toBe(2);
+  });
+
+  it("refuses a ciphertext moved onto another path that shares the key", async () => {
+    const key = await unlockedTomb();
+    unlockTomb("other-tomb", key);
+    await writeFile(TOMB, "config/a", utf8.encode("alpha"));
+    await writeFile("other-tomb", "config/a", utf8.encode("foreign"));
+    const foreign = kvGet(tombFileKey("other-tomb", "config/a"));
+    if (!foreign) throw new Error("missing foreign file");
+    kvSet(tombFileKey(TOMB, "config/a"), foreign);
+    await expect(readFile(TOMB, "config/a")).rejects.toBeInstanceOf(
+      VaultCorruptError,
+    );
+    lockTomb("other-tomb");
   });
 
   it("deletes a file and its index entry", async () => {

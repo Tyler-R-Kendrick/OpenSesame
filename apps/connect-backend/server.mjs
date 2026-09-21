@@ -92,6 +92,8 @@ const server = createServer((req, res) => {
     }
     if (
       url.pathname === "/api/github-app/installations" ||
+      url.pathname === "/api/github-app/installation-repos" ||
+      url.pathname === "/api/github-app/create-repo" ||
       url.pathname === "/api/github-app/lookup" ||
       url.pathname === "/api/github-app/put-contents" ||
       url.pathname === "/api/github-app/webhook-pending"
@@ -115,14 +117,20 @@ const server = createServer((req, res) => {
         res.end(JSON.stringify({ error: "invalid_json" }));
         return;
       }
+      const { handleGithubAppCreateRepo, handleGithubAppInstallationRepos } =
+        await import("./github-app-repos.mjs");
       const outcome =
         url.pathname === "/api/github-app/lookup"
           ? await handleGithubAppLookup(body, origin)
           : url.pathname === "/api/github-app/put-contents"
             ? await handleGithubAppPutContents(body, origin)
-            : url.pathname === "/api/github-app/webhook-pending"
-              ? await handleGithubAppWebhookPending(body, origin)
-              : await handleGithubAppInstallations(body, origin);
+            : url.pathname === "/api/github-app/installation-repos"
+              ? await handleGithubAppInstallationRepos(body, origin)
+              : url.pathname === "/api/github-app/create-repo"
+                ? await handleGithubAppCreateRepo(body, origin)
+                : url.pathname === "/api/github-app/webhook-pending"
+                  ? await handleGithubAppWebhookPending(body, origin)
+                  : await handleGithubAppInstallations(body, origin);
       res.writeHead(outcome.status, outcome.headers);
       res.end(outcome.body);
       return;

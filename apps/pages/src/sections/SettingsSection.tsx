@@ -110,9 +110,6 @@ export function SettingsSection({
         <FormatsInteroperabilityPanel />
       ) : null}
       {form && category === "security" ? <AgeKeysPanel /> : null}
-      {form && category === "security" ? (
-        <resolvedPanels.WalletPassPanel />
-      ) : null}
       {form && category === "security" ? <SettingsMasterPasswordPanel /> : null}
 
       {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}

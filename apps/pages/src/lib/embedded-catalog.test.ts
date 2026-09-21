@@ -101,7 +101,7 @@ describe("embedded connector catalog", () => {
     expect(
       decodeEmbeddedProviders(
         JSON.stringify({
-          revision: "2026-09-20.2",
+          revision: "2026-09-21.2",
           providers: bundledProviders,
         }),
       ),
@@ -109,7 +109,7 @@ describe("embedded connector catalog", () => {
     expect(
       decodeEmbeddedProviders(
         JSON.stringify({
-          revision: "2026-09-20.3",
+          revision: "2026-09-21.3",
           providers: bundledProviders,
         }),
       ),

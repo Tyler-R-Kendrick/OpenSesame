@@ -1,33 +1,30 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { subscribeLocalBackupTarget } from "../../lib/backup-target-local.js";
 import {
   readLocalGithubApp,
   subscribeLocalGithubApp,
 } from "../../lib/github-app-manifest.js";
 import {
-  type GithubAppPresenceState,
   loadGithubAppPresenceState,
   presenceFromLocal,
 } from "../../lib/github-app-presence.js";
 import { useVault } from "../../lib/vault/hooks.js";
 
 /** Subscribe to local App + Host presence for the GitHub connector page. */
-export function useGithubAppPresence(): {
-  localApp: ReturnType<typeof readLocalGithubApp>;
-  state: GithubAppPresenceState;
-} {
+export function useGithubAppPresence() {
   const { status } = useVault();
   const localApp = useSyncExternalStore(
     subscribeLocalGithubApp,
     readLocalGithubApp,
     () => null,
   );
-  const [state, setState] = useState<GithubAppPresenceState>(() =>
+  const [state, setState] = useState(() =>
     presenceFromLocal(readLocalGithubApp()),
   );
 
   useEffect(() => {
     // Reload when the vault lock state flips so claim/refresh after unlock
-    // lands without a remount.
+    // lands without a remount. Also when the backup target is bound/cleared.
     void status;
     let cancel = false;
     let generation = 0;
@@ -39,10 +36,12 @@ export function useGithubAppPresence(): {
       })();
     };
     reload();
-    const unsubscribe = subscribeLocalGithubApp(reload);
+    const unsubscribeApp = subscribeLocalGithubApp(reload);
+    const unsubscribeBackup = subscribeLocalBackupTarget(reload);
     return () => {
       cancel = true;
-      unsubscribe();
+      unsubscribeApp();
+      unsubscribeBackup();
     };
   }, [status]);
 

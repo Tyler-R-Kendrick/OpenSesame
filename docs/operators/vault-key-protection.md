@@ -48,8 +48,11 @@ root — rotation is not retroactive secrecy.
 
 ## SOPS
 
-Optional. Set `OPENSESAME_SOPS_BIN` to a pinned `sops` absolute path. Core vault
-workflows do not require SOPS. Threshold key-groups are preserved or refused.
+The Pages app encrypts and decrypts SOPS YAML and JSON with local age
+identities in the browser. That path does not use a Host, a daemon, or a
+`sops` binary. Threshold key-groups stay groups. A native CLI may still call
+an absolute `sops` path for operator jobs outside the PWA; that setting is
+not part of the browser workflow.
 
 ## Evidence
 

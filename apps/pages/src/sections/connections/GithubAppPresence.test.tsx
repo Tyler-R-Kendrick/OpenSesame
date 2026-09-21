@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backupSeams } from "../../lib/backup.js";
 import { connectionSeams } from "../../lib/connections.js";
@@ -98,7 +99,7 @@ describe("GithubAppPresence", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows Host install config: name, account, permissions, backup", async () => {
+  it("shows Host install config: name, account, permissions, repository", async () => {
     render(<GithubAppPresence />);
     await waitFor(() => {
       expect(screen.getByTestId("github-app-install").textContent).toContain(
@@ -114,15 +115,50 @@ describe("GithubAppPresence", () => {
     expect(screen.getByTestId("github-app-install").textContent).toContain(
       "repos selected",
     );
-    expect(screen.getByTestId("github-app-backup").textContent).toContain(
-      "acme-corp/vault",
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId("github-backup-repo").textContent).toContain(
+        "acme-corp/vault",
+      );
+    });
     expect(screen.getByTestId("github-app-granted").textContent).toContain(
       "contents",
     );
     expect(screen.getByTestId("github-app-repos").textContent).toContain(
       "acme-corp/vault",
     );
+  });
+
+  it("unlocks the repository field for editing", async () => {
+    const onFlash = vi.fn();
+    localStorage.setItem(
+      PUBLIC_KEY,
+      JSON.stringify({
+        id: "123",
+        key: "github-oauth",
+        displayName: "OpenSesame",
+        htmlUrl: "https://github.com/apps/opensesame",
+        ownerLogin: "acme-corp",
+        ownerType: "Organization",
+        installedByLogin: null,
+        installations: [
+          {
+            id: "4242",
+            accountLogin: "acme-corp",
+            accountType: "Organization",
+          },
+        ],
+      }),
+    );
+    render(<GithubAppPresence online onFlash={onFlash} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("github-backup-repo").textContent).toContain(
+        "acme-corp/vault",
+      );
+    });
+    expect(screen.queryByLabelText("Repository")).toBeNull();
+    await userEvent.click(screen.getByTestId("github-repo-edit"));
+    const input = await screen.findByTestId("github-repo-input");
+    expect((input as HTMLInputElement).disabled).toBe(false);
   });
 
   it("shows local App registrant when stored", async () => {

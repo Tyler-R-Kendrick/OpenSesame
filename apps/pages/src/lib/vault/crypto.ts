@@ -120,22 +120,41 @@ async function deriveMasterKey(
   );
 }
 
+export function vaultSealBinding(tomb: string, path: string): string {
+  return `vault-seal\u0000${tomb}\u0000${path}`;
+}
+
+function encodeBinding(binding: string): Uint8Array {
+  return new TextEncoder().encode(binding);
+}
+
+function aesParams(iv: Uint8Array, aad?: Uint8Array): AesGcmParams {
+  const params: AesGcmParams = { name: "AES-GCM", iv: overlapCast(iv) };
+  if (aad) params.additionalData = overlapCast(aad);
+  return params;
+}
+
 async function encrypt(
   key: CryptoKey,
   plaintext: Uint8Array,
+  aad?: Uint8Array,
 ): Promise<SealedBlob> {
   const iv = randomBytes(IV_BYTES);
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: overlapCast(iv) },
+    aesParams(iv, aad),
     key,
     overlapCast(plaintext),
   );
   return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
 }
 
-async function decrypt(key: CryptoKey, blob: SealedBlob): Promise<Uint8Array> {
+async function decrypt(
+  key: CryptoKey,
+  blob: SealedBlob,
+  aad?: Uint8Array,
+): Promise<Uint8Array> {
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: overlapCast(b64ToBytes(blob.ivB64)) },
+    aesParams(b64ToBytes(blob.ivB64), aad),
     key,
     overlapCast(b64ToBytes(blob.ctB64)),
   );
@@ -317,28 +336,39 @@ export async function wrapVaultKeyWithPassword(
 export async function sealJson(
   vaultKey: CryptoKey,
   value: BoundaryValue,
+  binding?: string,
 ): Promise<SealedBlob> {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
-  const blob = await encrypt(vaultKey, bytes);
+  const blob = binding
+    ? await encrypt(vaultKey, bytes, encodeBinding(binding))
+    : await encrypt(vaultKey, bytes);
   zero(bytes);
   return blob;
 }
 
-export async function openJson<T>(
-  vaultKey: CryptoKey,
-  blob: SealedBlob,
-): Promise<T> {
-  let bytes: Uint8Array;
-  try {
-    bytes = await decrypt(vaultKey, blob);
-  } catch {
-    throw new VaultCorruptError("authentication tag mismatch");
-  }
+function decodeSealedJson<T>(bytes: Uint8Array): T {
   try {
     return overlapCast(JSON.parse(new TextDecoder().decode(bytes)));
   } catch {
     throw new VaultCorruptError("decrypted payload is not valid JSON");
   }
+}
+
+/** Open a seal. A binding, when set, is required — there is no unbound fallback. */
+export async function openJson<T>(
+  vaultKey: CryptoKey,
+  blob: SealedBlob,
+  binding?: string,
+): Promise<T> {
+  let bytes: Uint8Array;
+  try {
+    bytes = binding
+      ? await decrypt(vaultKey, blob, encodeBinding(binding))
+      : await decrypt(vaultKey, blob);
+  } catch {
+    throw new VaultCorruptError("authentication tag mismatch");
+  }
+  return decodeSealedJson(bytes);
 }
 
 /** Guard used before any write to durable storage. */
