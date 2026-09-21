@@ -218,7 +218,7 @@ function useCredentialCommands(
       if (!enrolled.vaultOffer) {
         vaultOffer.publishOffer(null);
         setMessage(
-          "Passkey enrolled for sign-in. This authenticator cannot unlock the vault.",
+          "Passkey enrolled. This authenticator cannot unlock the vault.",
         );
         return;
       }
@@ -226,7 +226,7 @@ function useCredentialCommands(
         enrolled.vaultOffer.discard();
         vaultOffer.publishOffer(null);
         setMessage(
-          "Passkey enrolled for sign-in. The vault is locked, so vault protection was not changed.",
+          "Passkey enrolled. The vault is locked, so vault protection was not changed.",
         );
         return;
       }
