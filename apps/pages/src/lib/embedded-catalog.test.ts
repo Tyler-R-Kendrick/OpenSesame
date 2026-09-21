@@ -9,13 +9,16 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(51);
+    expect(ids).toHaveLength(53);
     for (const id of [
       "webcrypto",
       "azure-key-vault-secrets",
       "bitwarden",
       "github",
       "gitlab",
+      "bitbucket",
+      "codeberg",
+      "origin",
       "vercel",
       "linear",
       "tailscale",
@@ -49,6 +52,11 @@ describe("embedded connector catalog", () => {
       authKind: "configuration",
     });
     expect(providers.some((provider) => provider.id === "gitlab")).toBe(true);
+    expect(providers.some((provider) => provider.id === "bitbucket")).toBe(
+      true,
+    );
+    expect(providers.some((provider) => provider.id === "codeberg")).toBe(true);
+    expect(providers.some((provider) => provider.id === "origin")).toBe(true);
   });
 
   it("keeps identity fallback authority aligned with the Host catalog", () => {
@@ -93,7 +101,7 @@ describe("embedded connector catalog", () => {
     expect(
       decodeEmbeddedProviders(
         JSON.stringify({
-          revision: "2026-09-17.1",
+          revision: "2026-09-20.2",
           providers: bundledProviders,
         }),
       ),
@@ -101,7 +109,7 @@ describe("embedded connector catalog", () => {
     expect(
       decodeEmbeddedProviders(
         JSON.stringify({
-          revision: "2026-09-17.3",
+          revision: "2026-09-20.3",
           providers: bundledProviders,
         }),
       ),
@@ -113,5 +121,13 @@ describe("embedded connector catalog", () => {
       (provider) => !provider.autoConfigurable,
     );
     expect(marketplace.length).toBeGreaterThan(20);
+  });
+});
+
+describe("fido2 is not a catalog connector", () => {
+  it("omits fido2 from bundledProviders", () => {
+    expect(bundledProviders.some((provider) => provider.id === "fido2")).toBe(
+      false,
+    );
   });
 });

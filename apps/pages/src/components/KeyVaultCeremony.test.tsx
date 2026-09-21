@@ -48,41 +48,43 @@ afterEach(() => {
 });
 
 describe("KeyVaultCeremony", () => {
-  it("states the real crypto the built-in vault uses", () => {
+  it("labels the local preference as Password, never WebCrypto", () => {
     render(<KeyVaultCeremony onClose={() => {}} />);
-    expect(screen.getByText("WebCrypto (this device)")).toBeTruthy();
+    expect(screen.getByText("Password")).toBeTruthy();
+    expect(screen.queryByText(/WebCrypto/i)).toBeNull();
     expect(screen.getByText("AES-GCM 256")).toBeTruthy();
-    // The iteration count is read from the constant the vault actually uses,
-    // not typed into the copy, so it cannot drift away from the code.
     expect(screen.getByText(/PBKDF2-SHA256 · 600,000 iterations/)).toBeTruthy();
+    expect(screen.getByText("Setup preference")).toBeTruthy();
   });
 
-  it("closes on the keep-it action, because nothing needs doing", () => {
+  it("closes on keep-preference, because enrollment is elsewhere", () => {
     const onClose = vi.fn();
     render(<KeyVaultCeremony onClose={onClose} />);
     fireEvent.click(
-      screen.getByRole("button", { name: "Keep the built-in vault" }),
+      screen.getByRole("button", { name: "Keep this preference" }),
     );
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("binds age as a local key SOP from inside the sheet", () => {
+  it("binds age as a local preference from inside the sheet", () => {
     render(<KeyVaultCeremony onClose={() => {}} />);
     fireEvent.click(
       screen.getByRole("button", {
-        name: /Use WebCrypto or age on this device/,
+        name: /age recipient \(recovery\)/,
       }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "age (this device)" }));
+    fireEvent.click(screen.getByRole("button", { name: "age recipient" }));
     expect(bindCapabilityConnector).toHaveBeenCalledWith("encryption", "age");
   });
 
   it("binds a hardware key from inside the sheet", () => {
     render(<KeyVaultCeremony onClose={() => {}} />);
     fireEvent.click(
-      screen.getByRole("button", { name: /Bind a YubiKey or FIDO2 key/ }),
+      screen.getByRole("button", { name: /YubiKey PIV \(advanced\)/ }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "YubiKey" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "YubiKey PIV through age" }),
+    );
     expect(bindCapabilityConnector).toHaveBeenCalledWith(
       "encryption",
       "yubikey",
@@ -92,15 +94,16 @@ describe("KeyVaultCeremony", () => {
   it("asks for authorization once a bound connector needs it", () => {
     render(<KeyVaultCeremony onClose={() => {}} />);
     fireEvent.click(
-      screen.getByRole("button", { name: /Bind a YubiKey or FIDO2 key/ }),
+      screen.getByRole("button", { name: /YubiKey PIV \(advanced\)/ }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "YubiKey" }));
-    // The card has to change with the news: bound-but-unauthorized is not
-    // "Active", and the action that clears it is the one now on offer.
+    fireEvent.click(
+      screen.getByRole("button", { name: "YubiKey PIV through age" }),
+    );
     expect(screen.getByText("Bound, not yet authorized")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Authorize on Host" }),
+      screen.getByRole("button", { name: "Authorize connection" }),
     ).toBeTruthy();
+    expect(screen.queryByText(/Host/i)).toBeNull();
   });
 
   it("opens the consent popup on the click itself", async () => {
@@ -110,12 +113,14 @@ describe("KeyVaultCeremony", () => {
     });
     binding = { providerId: "yubikey" };
     render(<KeyVaultCeremony onClose={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Authorize on Host" }));
-    // Browsers only allow window.open synchronously from a gesture; opening it
-    // after the awaited Host session would be blocked as a pop-up.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Authorize connection" }),
+    );
     expect(openConsentPopup).toHaveBeenCalledTimes(1);
     await waitFor(() =>
-      expect(screen.getByText("YubiKey authorized.")).toBeTruthy(),
+      expect(
+        screen.getByText(/authorized for vault key protection/i),
+      ).toBeTruthy(),
     );
   });
 
@@ -126,14 +131,18 @@ describe("KeyVaultCeremony", () => {
     });
     binding = { providerId: "aws-kms" };
     render(<KeyVaultCeremony onClose={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Authorize on Host" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Authorize connection" }),
+    );
     await waitFor(() => expect(screen.getByText("denied")).toBeTruthy());
   });
 
-  it("offers the cloud connectors the catalog actually allows", () => {
+  it("offers cloud connectors as vault-key protection connections", () => {
     render(<KeyVaultCeremony onClose={() => {}} />);
     fireEvent.click(
-      screen.getByRole("button", { name: /Bind a cloud KMS connector/ }),
+      screen.getByRole("button", {
+        name: /Cloud KMS/,
+      }),
     );
     expect(screen.getByRole("button", { name: /AWS KMS/ })).toBeTruthy();
     expect(
@@ -147,7 +156,9 @@ describe("KeyVaultCeremony", () => {
   it("never renders a link out of the sheet", () => {
     const { container } = render(<KeyVaultCeremony onClose={() => {}} />);
     fireEvent.click(
-      screen.getByRole("button", { name: /Bind a cloud KMS connector/ }),
+      screen.getByRole("button", {
+        name: /Cloud KMS/,
+      }),
     );
     expect(container.querySelector("a")).toBeNull();
   });

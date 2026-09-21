@@ -134,7 +134,7 @@ export async function loadGithubAppPresenceState(
     }
   }
 
-  const backup = await getBackupStatus().catch(() => null);
+  const backup = await getBackupStatus("github").catch(() => null);
   const target = backup?.target;
   const backupRepo =
     target && target.owner !== "" && target.repo !== ""

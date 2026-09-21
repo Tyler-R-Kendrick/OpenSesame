@@ -22,6 +22,75 @@ const osDomainWallet = fileURLToPath(
   new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
 );
 
+function redirectBareBase(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+  pathOnly: string,
+  base: string,
+): boolean {
+  const bareBase = base.endsWith("/") ? base.slice(0, -1) : base;
+  if (!bareBase || pathOnly !== bareBase) return false;
+  const qs = req.url?.includes("?")
+    ? `?${req.url.split("?").slice(1).join("?")}`
+    : "";
+  res.statusCode = 302;
+  res.setHeader("Location", `${base}${qs}`);
+  res.end();
+  return true;
+}
+
+function handleAgentPage(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+  pathOnly: string,
+  base: string,
+): boolean {
+  if (pathOnly !== `${base}__agent_page` && pathOnly !== "/__agent_page") {
+    return false;
+  }
+  if (req.method === "POST") {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    req.on("end", () => {
+      try {
+        writeFileSync(
+          "/tmp/agent-page.json",
+          Buffer.concat(chunks).toString("utf8"),
+        );
+      } catch {
+        /* ignore write failures in the agent probe path */
+      }
+      res.statusCode = 204;
+      res.end();
+    });
+    return true;
+  }
+  res.statusCode = 204;
+  res.end();
+  return true;
+}
+
+function handlePagesDevRequest(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+  next: () => void,
+  base: string,
+): void {
+  const coop = crossOriginOpenerPolicy(req.url?.split("?")[0] ?? "", base);
+  if (coop) res.setHeader("Cross-Origin-Opener-Policy", coop);
+  const pathOnly = req.url?.split("?")[0] ?? "";
+  if (redirectBareBase(req, res, pathOnly, base)) return;
+  if (handleAgentPage(req, res, pathOnly, base)) return;
+  if (req.url?.startsWith("/opensesame/callback")) {
+    const query = req.url.slice("/opensesame/callback".length);
+    res.statusCode = 302;
+    res.setHeader("location", `${base}${query.startsWith("?") ? query : ""}`);
+    res.end();
+    return;
+  }
+  next();
+}
+
 export default defineConfig({
   test: {
     testTimeout: 20_000,
@@ -74,48 +143,7 @@ export default defineConfig({
       name: "origin-profile-canonical-callback",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          // Only the local sign-in popup retains its cross-origin opener.
-          // The vault and every other route retain the isolation default.
-          const coop = crossOriginOpenerPolicy(
-            req.url?.split("?")[0] ?? "",
-            base,
-          );
-          if (coop) res.setHeader("Cross-Origin-Opener-Policy", coop);
-          const pathOnly = req.url?.split("?")[0] ?? "";
-          if (
-            pathOnly === `${base}__agent_page` ||
-            pathOnly === "/__agent_page"
-          ) {
-            if (req.method === "POST") {
-              const chunks = [];
-              req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-              req.on("end", () => {
-                try {
-                  writeFileSync(
-                    "/tmp/agent-page.json",
-                    Buffer.concat(chunks).toString("utf8"),
-                  );
-                } catch {}
-                res.statusCode = 204;
-                res.end();
-              });
-              return;
-            }
-            res.statusCode = 204;
-            res.end();
-            return;
-          }
-          if (req.url?.startsWith("/opensesame/callback")) {
-            const query = req.url.slice("/opensesame/callback".length);
-            res.statusCode = 302;
-            res.setHeader(
-              "location",
-              `${base}${query.startsWith("?") ? query : ""}`,
-            );
-            res.end();
-            return;
-          }
-          next();
+          handlePagesDevRequest(req, res, next, base);
         });
       },
       // Vite injects an inline React-refresh hook in index.html. Production

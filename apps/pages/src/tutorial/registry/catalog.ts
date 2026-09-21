@@ -11,8 +11,8 @@
  * person authored — the whole catalog is handed to a model as page context.
  */
 
+import { GUIDE_TARGETS_MORE } from "./catalog-more.js";
 import { IDENTITY_TARGETS } from "./identity-catalog.js";
-import { SETUP_TARGETS } from "./setup-catalog.js";
 import { SHELL_TARGETS } from "./shell-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { VAULT_TARGETS } from "./vault-catalog.js";
@@ -204,6 +204,22 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "settings.vault-key-protection",
+    description:
+      "Vault key protection under Security: enrolled methods that can unlock this vault alone, and setup intent that is not yet enrolled.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
+    id: "settings.formats-interoperability",
+    description:
+      "Formats under Security: native, age, SOPS, and GPG with separate read, write, and runtime indicators.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
     id: "settings.second-step",
     description:
       "The Second step list under Security: the authenticator app, and the email and text codes your sign-in service sends as fallbacks. Each row's Add opens the sheet; nothing turns on until a code from the new method matches.",
@@ -294,94 +310,5 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
 
-  ...SETUP_TARGETS,
-
-  {
-    id: "access.grant-ceremony",
-    description:
-      "The grant ceremony itself: pick what is shared, narrow the scope, decide who it is for, mint a claim code.",
-    role: "ceremony",
-    routes: ["/access"],
-    capabilityId: "delegations.offers.mint",
-  },
-  {
-    id: "identity.claim-access",
-    description:
-      "Starts the ceremony that claims a grant minted for this person, by entering the claim code.",
-    role: "ceremony",
-    routes: ["/identity"],
-    capabilityId: "delegations.claim",
-  },
-  {
-    id: "access.relay",
-    description:
-      "Pending relay approval requests: a person decides whether a running agent may continue.",
-    role: "ceremony",
-    routes: ["/access"],
-    capabilityId: "relay.decide",
-  },
-  {
-    id: "settings.backup",
-    description:
-      "Server-side GitHub backup of the sealed store, and the offline encrypted export that moves a vault to another device.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "backup.target.set",
-  },
-  {
-    id: "settings.changelog",
-    description:
-      "The in-app changelog of what this build shipped. It is a record, not a backup.",
-    role: "surface",
-    routes: ["/settings"],
-    capabilityId: "changelog.read",
-  },
-  {
-    id: "settings.model-provider",
-    description:
-      "Two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "model_plane.choose",
-  },
-  {
-    id: "settings.secret-configs",
-    description:
-      "Write-only intake for secret-config values. Keys and metadata are listed; values never come back out.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "configs.set",
-  },
-  {
-    id: "settings.sync-targets",
-    description:
-      "Replication targets for the sealed store, and the control that triggers a run.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "sync_targets.trigger",
-  },
-  {
-    id: "settings.item-types",
-    description:
-      "Installs or removes a vault item type definition. Types are JSON manifests, not code paths.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "vault.item_types.install",
-  },
-  {
-    id: "settings.install",
-    description:
-      "Installs this app on the device as a PWA, so it is available without a browser chrome.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "app.install",
-  },
-  {
-    id: "vault.export",
-    description:
-      "Exports the sealed vault body plus its key-wrapping header, for moving to another device.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "vault.export",
-  },
+  ...GUIDE_TARGETS_MORE,
 ];

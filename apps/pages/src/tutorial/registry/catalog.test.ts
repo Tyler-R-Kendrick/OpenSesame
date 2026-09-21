@@ -31,6 +31,14 @@ import {
   resolveGuideTargetElement,
 } from "./targets.js";
 
+const CATALOG_MORE_SOURCE = readFileSync(
+  join(import.meta.dirname, "catalog-more.ts"),
+  "utf8",
+).replace(
+  "...SETUP_TARGETS,",
+  readFileSync(join(import.meta.dirname, "setup-catalog.ts"), "utf8"),
+);
+
 const CATALOG_SOURCE = readFileSync(
   join(import.meta.dirname, "catalog.ts"),
   "utf8",
@@ -47,10 +55,7 @@ const CATALOG_SOURCE = readFileSync(
     "...VAULT_TARGETS,",
     readFileSync(join(import.meta.dirname, "vault-catalog.ts"), "utf8"),
   )
-  .replace(
-    "...SETUP_TARGETS,",
-    readFileSync(join(import.meta.dirname, "setup-catalog.ts"), "utf8"),
-  );
+  .replace("...GUIDE_TARGETS_MORE,", CATALOG_MORE_SOURCE);
 
 const GOALS_SOURCES = ["goals.ts", "authority-help.ts"].map((file) =>
   readFileSync(join(import.meta.dirname, file), "utf8"),

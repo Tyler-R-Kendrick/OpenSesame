@@ -15,8 +15,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(test)]
 mod chunk_tests;
-
 pub mod kdf_policy;
+pub mod root_protection;
 mod password_wrap;
 #[cfg(not(target_arch = "wasm32"))]
 pub use password_wrap::migrate_password_wrapper_offline;
@@ -374,7 +374,7 @@ fn decode_nonce(encoded: &str) -> Result<[u8; 24], VaultCryptoError> {
     Ok(nonce)
 }
 
-fn hkdf_expand(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], VaultCryptoError> {
+pub(crate) fn hkdf_expand(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], VaultCryptoError> {
     let hk = Hkdf::<Sha256>::new(None, ikm);
     let mut out = [0u8; 32];
     hk.expand(info, &mut out)

@@ -22,15 +22,30 @@ import {
   bytesToB64,
   randomBytes,
 } from "./crypto.js";
+import {
+  createPasskeyUnlockCeremonyDefault,
+  getPasskeyUnlockCeremonyDefault,
+  getPasskeyUnlockCeremonyForDefault,
+} from "./protection/adapters/webauthn-prf-ceremony.js";
+import {
+  PrfCeremonyError,
+  assertUsablePrfOutput,
+} from "./protection/adapters/webauthn-prf-output.js";
 import { parseTotp, totpCode } from "./totp.js";
+
+export {
+  MIN_PRF_OUTPUT_BYTES,
+  PrfCeremonyError,
+  type PrfCeremonyErrorCode,
+  assertUsablePrfOutput,
+  hasUsablePrfOutput,
+  prfExtensionSupported,
+  readPrfFirst,
+  requirePrfOutputFromExtension,
+} from "./protection/adapters/webauthn-prf-output.js";
 
 const IV_BYTES = 12;
 const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
-
-type PrfExtensionOutput = {
-  enabled?: boolean;
-  results?: { first?: ArrayBuffer };
-};
 
 export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
@@ -86,13 +101,82 @@ export type RecoveryCodesRecord = {
 };
 
 export type VaultUnlocks = {
+  /** Legacy single passkey wrap — still written for older readers. */
   passkey?: PasskeyUnlockRecord;
+  /** Multi-credential PRF wraps; on read, a lone `passkey` becomes one entry. */
+  passkeys?: PasskeyUnlockRecord[];
   pin?: PinUnlockRecord;
   totp?: TotpGateRecord;
   email?: RemoteCodeRecord;
   sms?: RemoteCodeRecord;
   recovery?: RecoveryCodesRecord;
 };
+
+/**
+ * Passkey wraps present on a header. A legacy lone `passkey` migrates to a
+ * one-element list; when both exist, `passkey` is prepended if its id is new.
+ */
+export function listPasskeyUnlockRecords(
+  unlocks: VaultUnlocks | null | undefined,
+): PasskeyUnlockRecord[] {
+  if (!unlocks) return [];
+  const fromArray = unlocks.passkeys ?? [];
+  if (fromArray.length > 0) {
+    const legacy = unlocks.passkey;
+    if (
+      legacy &&
+      !fromArray.some((row) => row.credentialIdB64 === legacy.credentialIdB64)
+    ) {
+      return [legacy, ...fromArray];
+    }
+    return fromArray;
+  }
+  return unlocks.passkey ? [unlocks.passkey] : [];
+}
+
+export function findPasskeyUnlockRecord(
+  unlocks: VaultUnlocks | null | undefined,
+  credentialIdB64: string,
+): PasskeyUnlockRecord | null {
+  return (
+    listPasskeyUnlockRecords(unlocks).find(
+      (row) => row.credentialIdB64 === credentialIdB64,
+    ) ?? null
+  );
+}
+
+/**
+ * Merge a successful enroll into unlocks without dropping other passkeys.
+ * Same credential id replaces that row only (KP-23: failed enroll must not call this).
+ */
+export function withPasskeyUnlock(
+  unlocks: VaultUnlocks | undefined,
+  record: PasskeyUnlockRecord,
+): VaultUnlocks {
+  const existing = listPasskeyUnlockRecords(unlocks).filter(
+    (row) => row.credentialIdB64 !== record.credentialIdB64,
+  );
+  const passkeys = [...existing, record];
+  return {
+    ...unlocks,
+    passkey: passkeys[0],
+    passkeys,
+  };
+}
+
+/** Project legacy `passkey` into `passkeys` for durable multi-cred storage. */
+export function normalizePasskeyUnlocks(unlocks: VaultUnlocks): VaultUnlocks {
+  const passkeys = listPasskeyUnlockRecords(unlocks);
+  if (passkeys.length === 0) {
+    const { passkey: _p, passkeys: _ps, ...rest } = unlocks;
+    return rest;
+  }
+  return {
+    ...unlocks,
+    passkey: passkeys[0],
+    passkeys,
+  };
+}
 
 /** A second step the vault asks for after the key. */
 export type SecondStepId = "totp" | CodeChannel;
@@ -119,7 +203,9 @@ function listAvailableUnlockMethodsDefault(
 ): UnlockMethodId[] {
   if (!header) return [];
   const methods: UnlockMethodId[] = [];
-  if (header.unlocks?.passkey) methods.push("passkey");
+  if (listPasskeyUnlockRecords(header.unlocks).length > 0) {
+    methods.push("passkey");
+  }
   if (header.unlocks?.pin) methods.push("pin");
   if (header.wrap && header.kdf) methods.push("password");
   return methods;
@@ -292,6 +378,7 @@ export async function wrapVaultKeyWithPrf(
   credentialId: ArrayBuffer,
   userId: ArrayBuffer,
 ): Promise<PasskeyUnlockRecord> {
+  assertUsablePrfOutput(prfOutput);
   const kek = await kekFromWebauthnPrf(prfOutput, prfSalt);
   const wrap = await encryptWithKey(kek, rawVaultKey);
   return {
@@ -317,25 +404,23 @@ export async function unwrapVaultKeyWithPrf(
   }
 }
 
-export function prfExtensionSupported(
-  results: AuthenticationExtensionsClientOutputs | undefined,
-): boolean {
-  const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
-  return Boolean(prf?.results?.first || prf?.enabled);
-}
-
-export function readPrfFirst(
-  results: AuthenticationExtensionsClientOutputs | undefined,
-): ArrayBuffer | null {
-  const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
-  return prf?.results?.first ?? null;
-}
-
 export type PasskeyCeremony = {
   credential: PublicKeyCredential;
   prfOutput: ArrayBuffer;
   prfSalt: Uint8Array;
   userId: Uint8Array;
+};
+
+export type PasskeyUnlockCeremonyResult = {
+  prfOutput: ArrayBuffer;
+  record: PasskeyUnlockRecord;
+  credentialIdB64: string;
+};
+
+export type PasskeyCeremonyGetOptions = {
+  rpId?: string;
+  signal?: AbortSignal;
+  credentialIdB64?: string;
 };
 
 /** True when `hostname` is a bare IPv4/IPv6 literal (not a DNS name). */
@@ -439,6 +524,7 @@ export function formatWebauthnHostError(check: WebauthnHostCheck): string {
 /** Map browser WebAuthn failures into actionable copy. */
 function describeWebauthnErrorDefault<Thrown>(error: Thrown): string {
   if (error instanceof WebauthnHostError) return error.message;
+  if (error instanceof PrfCeremonyError) return error.message;
   if (!(error instanceof Error)) return "Passkey ceremony failed.";
   const name = error.name;
   const message = error.message.trim();
@@ -497,122 +583,6 @@ export function assertKeepsPrimaryUnlock(
   }
 }
 
-async function createPasskeyUnlockCeremonyDefault(
-  rpId: string = webauthnRpId(),
-  signal?: AbortSignal,
-): Promise<PasskeyCeremony> {
-  if (signal?.aborted) {
-    throw new DOMException("The operation was aborted.", "AbortError");
-  }
-  if (globalThis.PublicKeyCredential === undefined) {
-    throw new Error("This browser cannot create a passkey.");
-  }
-  assertWebauthnHost();
-  const prfSalt = randomBytes(SALT_BYTES);
-  const userId = randomBytes(16);
-  let result: Credential | null;
-  try {
-    result = await navigator.credentials.create({
-      publicKey: {
-        challenge: overlapCast(randomBytes(32)),
-        rp: { id: rpId, name: "OpenSesame" },
-        user: {
-          id: overlapCast(userId),
-          name: "vault-unlock",
-          displayName: "OpenSesame vault unlock",
-        },
-        pubKeyCredParams: [
-          { type: "public-key", alg: -7 },
-          { type: "public-key", alg: -257 },
-        ],
-        authenticatorSelection: {
-          residentKey: "preferred",
-          requireResidentKey: false,
-          userVerification: "required",
-        },
-        timeout: 120_000,
-        extensions: overlapCast({
-          prf: { eval: { first: prfSalt } },
-        }),
-      },
-      // First-run seal uses the same cancel path as unlock: switching tabs
-      // must abort the platform prompt instead of leaving it hanging.
-      signal,
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw error;
-    }
-    throw new Error(describeWebauthnError(error));
-  }
-  if (!result) throw new Error("Passkey creation was cancelled.");
-  if (!(result instanceof PublicKeyCredential)) {
-    throw new Error("Passkey creation returned an unexpected credential type.");
-  }
-  const credential = result;
-  const prfOutput = readPrfFirst(credential.getClientExtensionResults());
-  if (!prfOutput) {
-    throw new Error(
-      "This authenticator did not return a WebAuthn PRF result. Use a platform passkey that supports PRF, or unlock with a PIN / password.",
-    );
-  }
-  return { credential, prfOutput, prfSalt, userId };
-}
-
-async function getPasskeyUnlockCeremonyDefault(
-  record: PasskeyUnlockRecord,
-  rpId: string = webauthnRpId(),
-  signal?: AbortSignal,
-): Promise<ArrayBuffer> {
-  if (globalThis.PublicKeyCredential === undefined) {
-    throw new Error("This browser cannot use a passkey.");
-  }
-  assertWebauthnHost();
-  const prfSalt = b64ToBytes(record.prfSaltB64);
-  let result: Credential | null;
-  try {
-    result = await navigator.credentials.get({
-      publicKey: {
-        challenge: overlapCast(randomBytes(32)),
-        rpId,
-        allowCredentials: [
-          {
-            type: "public-key",
-            id: overlapCast(b64ToBytes(record.credentialIdB64)),
-          },
-        ],
-        userVerification: "required",
-        timeout: 120_000,
-        extensions: overlapCast({
-          prf: { eval: { first: prfSalt } },
-        }),
-      },
-      // Lets the UI cancel a pending platform prompt (e.g. switching to the
-      // password/PIN tab) instead of being held hostage by it.
-      signal,
-    });
-  } catch (error) {
-    // A deliberate abort must stay distinguishable from a real ceremony
-    // failure, so callers can swallow it without showing an error.
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw error;
-    }
-    throw new Error(describeWebauthnError(error));
-  }
-  if (!result) throw new Error("Passkey unlock was cancelled.");
-  if (!(result instanceof PublicKeyCredential)) {
-    throw new Error("Passkey unlock returned an unexpected credential type.");
-  }
-  const credential = result;
-  const prfOutput = readPrfFirst(credential.getClientExtensionResults());
-  if (!prfOutput) {
-    throw new Error(
-      "This authenticator did not return a WebAuthn PRF result for unlock.",
-    );
-  }
-  return prfOutput;
-}
-
 export const unlockMethodsSeams = {
   listAvailableUnlockMethods: listAvailableUnlockMethodsDefault,
   preferredUnlockMethod: preferredUnlockMethodDefault,
@@ -620,6 +590,7 @@ export const unlockMethodsSeams = {
   describeWebauthnError: describeWebauthnErrorDefault,
   createPasskeyUnlockCeremony: createPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremony: getPasskeyUnlockCeremonyDefault,
+  getPasskeyUnlockCeremonyFor: getPasskeyUnlockCeremonyForDefault,
 };
 
 export function listAvailableUnlockMethods(
@@ -662,6 +633,13 @@ export async function getPasskeyUnlockCeremony(
   return rpId === undefined
     ? unlockMethodsSeams.getPasskeyUnlockCeremony(record)
     : unlockMethodsSeams.getPasskeyUnlockCeremony(record, rpId, signal);
+}
+
+export async function getPasskeyUnlockCeremonyFor(
+  records: PasskeyUnlockRecord[],
+  options?: PasskeyCeremonyGetOptions,
+): Promise<PasskeyUnlockCeremonyResult> {
+  return unlockMethodsSeams.getPasskeyUnlockCeremonyFor(records, options);
 }
 
 export async function sealTotpSecret(

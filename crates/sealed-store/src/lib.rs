@@ -22,6 +22,9 @@ mod object_store;
 mod path;
 mod recipients;
 mod root;
+mod root_protection;
+mod piv_age;
+mod sops_interop;
 mod store;
 mod tomb_registry;
 mod update;
@@ -53,6 +56,17 @@ pub use path::{logical_to_relative, relative_to_logical};
 pub use recipients::Recipients;
 pub use root::{resolve_store_dir, StoreError, StoreRoot};
 pub use store::{init_store, init_store_key, list_names, unlock_store_key, FormatHint};
+pub use root_protection::{
+    protect_add_store_age_recipient, protect_add_store_recovery, protect_list_store,
+    protect_remove_store, protect_rewrap_store_password, protect_root_rotate_store,
+    protect_test_store_password, protect_test_store_recovery,
+};
+pub use piv_age::{discover_piv_age, refuse_destructive_ykman, PivAgeDiscovery, PivAgeError, PivAgeRuntime};
+pub use sops_interop::{resolve_sops_bin, sops_decrypt, sops_encrypt, SopsError, SopsFormat};
+pub use opensesame_human_vault::root_protection::{
+    ProtectionError, ProtectorSummary, ProofStatus, RootProtectionManifest, KEY_FILE_NAME,
+    MANIFEST_SCHEMA_VERSION,
+};
 pub use tomb_registry::{
     default_tombs_config_path, ensure_personal_project_tomb, load_tomb_registry,
     personal_project_tomb_name, resolve_project_tomb_name, resolve_tomb_paths, save_tomb_registry,

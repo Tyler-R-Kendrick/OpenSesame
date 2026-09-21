@@ -532,6 +532,27 @@ button.conn-tile__link {
   margin-left: auto;
 }
 
+.conn-tile__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding-inline-end: 0.75rem;
+}
+
+.conn-tile__row > .conn-tile__link {
+  flex: 1;
+  min-width: 0;
+}
+
+.conn-tile__row > .toggle {
+  flex-shrink: 0;
+}
+
+.conn-tile.is-on {
+  border-color: var(--accent-line);
+}
+
 .conn-tile__copy {
   flex: 1;
   min-width: 0;
@@ -808,6 +829,19 @@ button.conn-tile__link {
   column-gap: 0.75rem;
   margin: 0;
   font-size: 0.8438rem;
+}
+
+.conn-backup-sync {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.conn-backup-sync__repo {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
 }
 
 .conn-github-presence__k {

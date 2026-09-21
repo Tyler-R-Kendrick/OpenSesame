@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
+import { handleGitBackupPut } from "../git-backup-put.mjs";
+import {
+  clearGithubAppWebhookPending,
+  handleGithubAppPutContents,
+  handleGithubAppWebhook,
+  handleGithubAppWebhookPending,
+} from "../github-app-contents.mjs";
 import {
   handleGithubAppCallback,
   handleGithubAppConvert,
@@ -144,5 +152,217 @@ describe("github app installations list", () => {
         accountType: "Organization",
       },
     ]);
+  });
+});
+
+describe("github app put-contents proxy", () => {
+  it("mints an attenuated token and upserts ciphertext", async () => {
+    const { generateKeyPairSync } = await import("node:crypto");
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+    const calls = [];
+    const fetchImpl = async (url, init) => {
+      calls.push({
+        url: String(url),
+        method: init?.method ?? "GET",
+        body: init?.body,
+      });
+      if (String(url).includes("/access_tokens")) {
+        return {
+          ok: true,
+          status: 201,
+          text: async () => JSON.stringify({ token: "ghs_test" }),
+        };
+      }
+      if (String(url).includes("/contents/")) {
+        if ((init?.method ?? "GET") === "GET") {
+          return { ok: false, status: 404, text: async () => "{}" };
+        }
+        return {
+          ok: true,
+          status: 201,
+          text: async () =>
+            JSON.stringify({
+              content: { sha: "blob" },
+              commit: { sha: "commit123" },
+            }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+    const outcome = await handleGithubAppPutContents(
+      {
+        appId: "1",
+        pem,
+        installationId: "99",
+        owner: "acme",
+        repo: "vault",
+        contentBase64: Buffer.from("{}").toString("base64"),
+      },
+      "http://localhost:5180",
+      fetchImpl,
+    );
+    assert.equal(outcome.status, 200);
+    const body = JSON.parse(outcome.body);
+    assert.equal(body.commitSha, "commit123");
+    const tokenCall = calls.find((c) => c.url.includes("/access_tokens"));
+    assert.ok(tokenCall);
+    const tokenBody = JSON.parse(tokenCall.body);
+    assert.deepEqual(tokenBody.repositories, ["vault"]);
+    assert.equal(tokenBody.permissions.contents, "write");
+  });
+});
+
+describe("github app webhook pending queue", () => {
+  it("refuses enqueue when webhook secret is unset", async () => {
+    clearGithubAppWebhookPending();
+    const previous = process.env.GITHUB_WEBHOOK_SECRET;
+    process.env.GITHUB_WEBHOOK_SECRET = "";
+    const posted = await handleGithubAppWebhook(
+      { installation: { id: 42 } },
+      { "x-github-delivery": "del-1" },
+      '{"installation":{"id":42}}',
+    );
+    assert.equal(posted.status, 503);
+    if (previous === undefined) process.env.GITHUB_WEBHOOK_SECRET = "";
+    else process.env.GITHUB_WEBHOOK_SECRET = previous;
+  });
+
+  it("refuses HMAC verify without the exact raw body", async () => {
+    clearGithubAppWebhookPending();
+    const previous = process.env.GITHUB_WEBHOOK_SECRET;
+    process.env.GITHUB_WEBHOOK_SECRET = "test-webhook-secret";
+    const body = { installation: { id: 42 } };
+    const rawBody = JSON.stringify(body);
+    const digest = createHmac("sha256", "test-webhook-secret")
+      .update(rawBody)
+      .digest("hex");
+    const posted = await handleGithubAppWebhook(
+      body,
+      {
+        "x-github-delivery": "del-missing-raw",
+        "x-hub-signature-256": `sha256=${digest}`,
+      },
+      "",
+    );
+    assert.equal(posted.status, 401);
+    assert.equal(posted.body, "raw_body_required");
+    if (previous === undefined) process.env.GITHUB_WEBHOOK_SECRET = "";
+    else process.env.GITHUB_WEBHOOK_SECRET = previous;
+  });
+
+  it("enqueues and drains webhook nudges with valid HMAC and App PEM", async () => {
+    clearGithubAppWebhookPending();
+    const previous = process.env.GITHUB_WEBHOOK_SECRET;
+    process.env.GITHUB_WEBHOOK_SECRET = "test-webhook-secret";
+    const { generateKeyPairSync } = await import("node:crypto");
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+    const body = { installation: { id: 42 } };
+    const rawBody = JSON.stringify(body);
+    const digest = createHmac("sha256", "test-webhook-secret")
+      .update(rawBody)
+      .digest("hex");
+    const posted = await handleGithubAppWebhook(
+      body,
+      {
+        "x-github-delivery": "del-1",
+        "x-hub-signature-256": `sha256=${digest}`,
+      },
+      rawBody,
+    );
+    assert.equal(posted.status, 204);
+    const denied = await handleGithubAppWebhookPending(
+      {},
+      "http://localhost:5180",
+    );
+    assert.equal(denied.status, 400);
+    const pending = await handleGithubAppWebhookPending(
+      { appId: "1", pem, installationId: "42" },
+      "http://localhost:5180",
+    );
+    assert.equal(pending.status, 200);
+    const parsed = JSON.parse(pending.body);
+    assert.equal(parsed.events.length, 1);
+    assert.equal(parsed.events[0].installationId, "42");
+    const empty = await handleGithubAppWebhookPending(
+      { appId: "1", pem, installationId: "42" },
+      "http://localhost:5180",
+    );
+    assert.equal(JSON.parse(empty.body).events.length, 0);
+    if (previous === undefined) process.env.GITHUB_WEBHOOK_SECRET = "";
+    else process.env.GITHUB_WEBHOOK_SECRET = previous;
+  });
+
+  it("refuses pending drain without an allowlisted Origin", async () => {
+    const { generateKeyPairSync } = await import("node:crypto");
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+    const denied = await handleGithubAppWebhookPending(
+      { appId: "1", pem, installationId: "42" },
+      "",
+    );
+    assert.equal(denied.status, 403);
+  });
+});
+
+describe("git backup put proxy", () => {
+  it("writes ciphertext to GitLab files API", async () => {
+    const calls = [];
+    const fetchImpl = async (url, init) => {
+      calls.push({ url: String(url), method: init?.method ?? "GET" });
+      if (String(url).includes("/repository/files/") && !init?.method) {
+        return { ok: false, status: 404, text: async () => "{}" };
+      }
+      if ((init?.method ?? "") === "POST" || (init?.method ?? "") === "PUT") {
+        return {
+          ok: true,
+          status: 201,
+          text: async () => JSON.stringify({ commit_id: "gl-sha" }),
+        };
+      }
+      return { ok: false, status: 404, text: async () => "{}" };
+    };
+    const outcome = await handleGitBackupPut(
+      {
+        forge: "gitlab",
+        token: "glpat-x",
+        owner: "acme",
+        repo: "vault",
+        contentBase64: Buffer.from("{}").toString("base64"),
+      },
+      "http://localhost:5180",
+      fetchImpl,
+    );
+    assert.equal(outcome.status, 200);
+    assert.equal(JSON.parse(outcome.body).commitSha, "gl-sha");
+    assert.ok(calls.some((c) => c.url.includes("gitlab.com")));
+  });
+
+  it("writes ciphertext to Codeberg contents API", async () => {
+    const fetchImpl = async (url, init) => {
+      if ((init?.method ?? "GET") === "GET") {
+        return { ok: false, status: 404, text: async () => "{}" };
+      }
+      return {
+        ok: true,
+        status: 201,
+        text: async () =>
+          JSON.stringify({ commit: { sha: "cb-sha" }, content: { sha: "b" } }),
+      };
+    };
+    const outcome = await handleGitBackupPut(
+      {
+        forge: "codeberg",
+        token: "tok",
+        owner: "acme",
+        repo: "vault",
+        contentBase64: Buffer.from("{}").toString("base64"),
+      },
+      "http://localhost:5180",
+      fetchImpl,
+    );
+    assert.equal(outcome.status, 200);
+    assert.equal(JSON.parse(outcome.body).commitSha, "cb-sha");
   });
 });

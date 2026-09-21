@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 507,
-    "violations": 800,
-    "oversizedLines": 256819
+    "files": 504,
+    "violations": 796,
+    "oversizedLines": 254687
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -67,7 +67,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 2866
+      "max-lines": 2806
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -437,9 +437,6 @@
     "apps/gateway/src/cert_issuers/registry.rs": {
       "max-lines": 493
     },
-    "apps/gateway/src/github_webhook.rs": {
-      "max-lines": 649
-    },
     "apps/gateway/src/lifecycle/responders.rs": {
       "max-lines": 519
     },
@@ -462,7 +459,7 @@
       "max-lines": 900
     },
     "apps/gateway/src/routes/backup.rs": {
-      "max-lines": 893
+      "max-lines": 557
     },
     "apps/gateway/src/routes/certmgr_ca.rs": {
       "max-lines": 3491
@@ -662,9 +659,6 @@
     "apps/pages/src/lib/directory.ts": {
       "max-lines": 489
     },
-    "apps/pages/src/lib/embedded-catalog.ts": {
-      "max-lines": 445
-    },
     "apps/pages/src/lib/federation.test.ts": {
       "max-lines": 1418
     },
@@ -806,13 +800,10 @@
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1804
-    },
-    "apps/pages/src/lib/vault/unlock-methods-extra.test.ts": {
-      "max-lines": 534
+      "max-lines": 1773
     },
     "apps/pages/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 791
+      "max-lines": 769
     },
     "apps/pages/src/lib/vfs.ts": {
       "max-lines": 471
@@ -881,8 +872,7 @@
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
+      "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
       "max-lines": 738
@@ -1129,7 +1119,7 @@
       "max-lines": 927
     },
     "crates/connection-broker/src/lib.rs": {
-      "max-lines": 2445
+      "max-lines": 2394
     },
     "crates/connection-broker/src/model.rs": {
       "max-lines": 430
@@ -1276,7 +1266,7 @@
       "max-lines": 432
     },
     "crates/sealed-store/src/store.rs": {
-      "max-lines": 653
+      "max-lines": 649
     },
     "crates/security-events/src/notice.rs": {
       "max-lines": 406

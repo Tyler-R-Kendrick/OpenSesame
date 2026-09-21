@@ -8,7 +8,9 @@ license.workspace = true
 anyhow = { workspace = true }
 argon2 = { workspace = true }
 chacha20poly1305 = { workspace = true }
+aes-gcm = { workspace = true }
 hkdf = { workspace = true }
+hmac = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -17,8 +19,10 @@ thiserror = { workspace = true }
 zeroize = { workspace = true }
 blake3 = { workspace = true }
 base64 = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
+tempfile = "3.20.0"
 chrono = { workspace = true }
 insta = { workspace = true, features = ["redactions"] }
 opensesame-domain = { path = "../domain" }

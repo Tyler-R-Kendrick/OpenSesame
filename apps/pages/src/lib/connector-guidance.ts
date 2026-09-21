@@ -12,7 +12,7 @@ const CATEGORY_SUMMARY = {
   identity: "Use this identity device or service with OpenSesame.",
   backup_recovery:
     "Use this repository or database as a backup and recovery target.",
-  encryption: "Encrypt secrets before they are stored or committed.",
+  encryption: "Use this connection to protect a vault key.",
   password_managers: "Use secrets already managed by this password service.",
   agent_harnesses:
     "Give approved agents a runtime without exposing the credential.",
@@ -44,7 +44,7 @@ const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
       placeholder: "AGE-SECRET-KEY-…",
     },
     credential_id: {
-      help: "The credential identifier created when you registered the FIDO2 security key for this provider.",
+      help: "The credential identifier for this WebAuthn / passkey protector. Prefer enrolling under Vault key protection rather than as a connector.",
       placeholder: "Credential ID",
     },
     recipient: {
@@ -364,6 +364,8 @@ export function isConnectionCatalogProvider(
   provider: Pick<Provider, "id" | "autoConfigurable">,
 ): boolean {
   if (isSettingsEncryptionKey(provider.id)) return false;
+  // Passkeys are WebAuthn PRF protectors, not Connections catalog brokers.
+  if (provider.id === "fido2") return false;
   return !canConfigureAutomatically(provider);
 }
 

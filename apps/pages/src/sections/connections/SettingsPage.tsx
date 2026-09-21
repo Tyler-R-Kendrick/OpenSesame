@@ -13,6 +13,7 @@ import {
 import type { Connection, Provider } from "../../lib/connections.js";
 import { listIntegrations } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
+import { isGitBackupProvider } from "../../lib/git-backup-forges.js";
 import {
   readLocalGithubApp,
   subscribeLocalGithubApp,
@@ -24,12 +25,18 @@ import {
   providerVerb,
 } from "../../lib/identity-graph.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { BackupEnableSwitch, canBackupEnable } from "./BackupEnableSwitch.js";
+import { BackupSyncControls } from "./BackupSyncControls.js";
 import { authKindLabel } from "./CatalogPanel.js";
 import { ConnectForm } from "./ConnectForm.js";
 import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
+import {
+  AuthorizedAccount,
+  githubConnectorStatus,
+} from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import {
   CATEGORY_LABELS,
@@ -136,7 +143,7 @@ export function ConnectorSettingsPage({
   }
 
   const automatic = canConfigureAutomatically(provider);
-  // GitHub App already on this device / Host — no Connect chrome.
+  // GitHub App already on this device — no Connect chrome.
   const githubAppReady =
     provider.id === "github" &&
     (localGithubApp !== null || provider.configured || githubHostReady);
@@ -163,6 +170,12 @@ export function ConnectorSettingsPage({
                 localGithubApp !== null || githubHostReady,
               )}
             />
+            {canBackupEnable(provider.id) ? (
+              <BackupEnableSwitch
+                providerId={provider.id}
+                displayName={provider.displayName}
+              />
+            ) : null}
             {provider.id === "github" && localGithubApp !== null ? (
               <GithubAppForgetButton />
             ) : null}
@@ -194,6 +207,17 @@ export function ConnectorSettingsPage({
 
       {providerId === "github" ? (
         <GithubAppPresence connection={connection} />
+      ) : null}
+
+      {providerId !== "github" && isGitBackupProvider(providerId) ? (
+        <section className="panel" data-testid="forge-backup-sync">
+          <div className="panel__head">
+            <h2>Backup</h2>
+          </div>
+          <div className="panel__body">
+            <BackupSyncControls providerId={providerId} />
+          </div>
+        </section>
       ) : null}
 
       {rememberOffer ? (
@@ -232,7 +256,7 @@ export function ConnectorSettingsPage({
               onBackupReady={reportBackup}
             />
           </ul>
-          {canConfigure && provider.id === "git" ? (
+          {canConfigure && isGitBackupProvider(provider.id) ? (
             <details className="conn-add-authorization">
               <summary>Add another authorization</summary>
               <ConnectForm
@@ -265,7 +289,7 @@ export function ConnectorSettingsPage({
             ))}
           </ul>
           {canConfigure &&
-          (provider.configured || provider.id === "git") &&
+          (provider.configured || isGitBackupProvider(provider.id)) &&
           !githubAppReady ? (
             <details className="conn-add-authorization">
               <summary>Add another authorization</summary>
@@ -292,7 +316,7 @@ export function ConnectorSettingsPage({
             </div>
           ) : provider.configured ||
             provider.authKind === "oauth2_authorization_code" ||
-            provider.id === "git" ? (
+            isGitBackupProvider(provider.id) ? (
             <ConnectForm
               provider={provider}
               online={online}
@@ -317,77 +341,3 @@ export function ConnectorSettingsPage({
 }
 
 type ConnectorTitleStatus = { tone: StatusTone; label: string };
-
-function githubConnectorStatus(
-  provider: Provider,
-  connection: Connection | null,
-  connections: Connection[],
-  backupReady: boolean,
-  localApp: boolean,
-): ConnectorTitleStatus {
-  if (provider.id === "github") {
-    if (connection !== null && !backupReady) {
-      return {
-        tone: "warn",
-        label: "Needs a backup repository",
-      } satisfies ConnectorTitleStatus;
-    }
-    if (connection !== null) {
-      return {
-        tone: statusTone(VERB_CHIP[connectionVerb(connection.status)]),
-        label: VERB_LABEL[connectionVerb(connection.status)],
-      } satisfies ConnectorTitleStatus;
-    }
-    if (localApp || provider.configured) {
-      return {
-        tone: "ok",
-        label: "GitHub App ready",
-      } satisfies ConnectorTitleStatus;
-    }
-  }
-  if (connections.length > 1 && !connection) {
-    return {
-      tone: "idle",
-      label: `${connections.length} authorizations`,
-    } satisfies ConnectorTitleStatus;
-  }
-  const verb = providerVerb(provider, connection);
-  return {
-    tone: statusTone(VERB_CHIP[verb]),
-    label: VERB_LABEL[verb],
-  } satisfies ConnectorTitleStatus;
-}
-
-function AuthorizedAccount({
-  connection,
-  provider,
-  ceremonyRoot,
-}: {
-  connection: Connection;
-  provider: Provider | null;
-  ceremonyRoot: ReturnType<typeof connectorCeremonyRoot>;
-}) {
-  const chip = STATUS_CHIP[connection.status];
-  return (
-    <li className="conn-service">
-      <div className="conn-service__copy">
-        <h3>{connection.displayName}</h3>
-        <p>{statusSentence(connection, provider)}</p>
-      </div>
-      <div className="conn-service__actions">
-        <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
-        <Link
-          className="btn btn--sm"
-          to={connectorPath(
-            connection.providerId,
-            connection.connectionId,
-            ceremonyRoot,
-          )}
-          aria-label={`Settings for ${connection.displayName}`}
-        >
-          Open
-        </Link>
-      </div>
-    </li>
-  );
-}

@@ -104,6 +104,128 @@
     },
     {
       "auth": {
+        "authorize_url": "https://bitbucket.org/site/oauth2/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_basic",
+        "token_url": "https://bitbucket.org/site/oauth2/access_token"
+      },
+      "category": "backup_recovery",
+      "display_name": "Bitbucket",
+      "docs_url": "https://support.atlassian.com/bitbucket-cloud/docs/use-oauth-on-bitbucket-cloud/",
+      "egress": {
+        "authorities": ["api.bitbucket.org", "bitbucket.org"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "bitbucket",
+      "operations": [
+        "repository.read",
+        "repository.write",
+        "pullrequest.create"
+      ],
+      "provenance_url": "https://support.atlassian.com/bitbucket-cloud/docs/use-oauth-on-bitbucket-cloud/",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read the authenticated user's account profile",
+          "name": "account",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read repository files and metadata",
+          "name": "repository",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Write repository contents (required for sealed-store history)",
+          "name": "repository:write",
+          "sensitive": true
+        }
+      ],
+      "verify": {
+        "path": "/2.0/user"
+      }
+    },
+    {
+      "auth": {
+        "authorize_url": "https://codeberg.org/login/oauth/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://codeberg.org/login/oauth/access_token"
+      },
+      "category": "backup_recovery",
+      "display_name": "Codeberg",
+      "docs_url": "https://docs.codeberg.org/advanced/access-token/",
+      "egress": {
+        "authorities": ["codeberg.org"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "codeberg",
+      "operations": [
+        "repository.read",
+        "repository.write",
+        "pullrequest.create"
+      ],
+      "provenance_url": "https://docs.codeberg.org/advanced/access-token/",
+      "scopes": [],
+      "verify": {
+        "path": "/api/v1/user"
+      }
+    },
+    {
+      "auth": {
+        "authorize_url": "https://cursor.com/codebase/apps/install",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": false,
+        "token_auth": "client_secret_post",
+        "token_url": "https://api.cursor.com/v1/origin/app/installations/access_tokens"
+      },
+      "category": "backup_recovery",
+      "display_name": "Cursor Origin",
+      "docs_url": "https://cursor.com/docs/api/origin",
+      "egress": {
+        "authorities": ["api.cursor.com", "origin.cursor.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "origin",
+      "operations": [
+        "repository.read",
+        "repository.write",
+        "pullrequest.create"
+      ],
+      "provenance_url": "https://cursor.com/docs/api/origin",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read repository contents over Git HTTPS and the REST API",
+          "name": "repository:contents:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Push repository contents (required for sealed-store history)",
+          "name": "repository:contents:write",
+          "sensitive": true
+        }
+      ],
+      "verify": {
+        "path": "/v1/origin/rate_limit"
+      }
+    },
+    {
+      "auth": {
         "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
         "extra_authorize_params": [
           ["access_type", "offline"],
@@ -3038,6 +3160,6 @@
       "scopes": []
     }
   ],
-  "revision": "2026-09-17.3",
+  "revision": "2026-09-20.1",
   "schema_version": 1
 }

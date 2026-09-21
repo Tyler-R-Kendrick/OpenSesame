@@ -1,0 +1,65 @@
+{
+  "commit": "dc3d11878c90f1088d094ff18f5ee9d301e4a57d",
+  "generatedAt": "2026-09-21T02:12:20.104Z",
+  "cases": [
+    {
+      "id": "KP-model-ts",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection src/lib/capability-bind.test.ts",
+      "result": "passed",
+      "detail": "exit 0"
+    },
+    {
+      "id": "KP-cloud-adapters",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters",
+      "result": "passed",
+      "detail": "exit 0"
+    },
+    {
+      "id": "KP-age-keys",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/age-keys",
+      "result": "passed",
+      "detail": "exit 0"
+    },
+    {
+      "id": "KP-rust-human-vault",
+      "command": "cargo +1.88.0 test -p opensesame-human-vault root_protection -- --nocapture",
+      "result": "passed",
+      "detail": "exit 0"
+    },
+    {
+      "id": "KP-rust-sealed-store",
+      "command": "cargo +1.88.0 test -p opensesame-sealed-store root_protection -- --nocapture",
+      "result": "passed",
+      "detail": "exit 0"
+    },
+    {
+      "id": "KP-live-aws",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters/aws-kms.test.ts -t aws-kms live",
+      "result": "blocked",
+      "detail": "OPENSESAME_TEST_AWS_KMS_KEY_ARN unset — live AWS wrap/unwrap not run"
+    },
+    {
+      "id": "KP-live-azure",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters/azure-key-vault-keys.test.ts -t azure-key-vault-keys live",
+      "result": "blocked",
+      "detail": "OPENSESAME_TEST_AZURE_KEY_VAULT_KEY_ID unset — live Azure wrap/unwrap not run"
+    },
+    {
+      "id": "KP-live-gcp",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters/gcp-kms.test.ts -t gcp-kms live",
+      "result": "blocked",
+      "detail": "OPENSESAME_TEST_GCP_KMS_KEY_NAME unset — live GCP wrap/unwrap not run"
+    },
+    {
+      "id": "KP-live-piv",
+      "command": "cargo +1.88.0 test -p opensesame-sealed-store piv -- --nocapture",
+      "result": "blocked",
+      "detail": "OPENSESAME_TEST_PIV_SERIAL unset — physical PIV suite not run"
+    }
+  ],
+  "counts": {
+    "passed": 5,
+    "failed": 0,
+    "blocked": 4
+  }
+}

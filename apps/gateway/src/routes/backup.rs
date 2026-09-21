@@ -26,7 +26,34 @@ fn require_configurator(
     Ok(Caller::Operator)
 }
 
+/// Queue a full-snapshot resync for `organization`. Payload always carries
+/// `organization_id` so the backup actor can group the event (ADR 0039).
+async fn queue_backup_resync(
+    st: &AppState,
+    organization: &str,
+    reason: &str,
+) -> Result<String, Response> {
+    let outbox_id = st
+        .db
+        .append_outbox(
+            "backup.resync",
+            &json!({
+                "reason": reason,
+                "organization_id": organization,
+            })
+            .to_string(),
+        )
+        .await
+        .map_err(|error| internal(&error))?;
+    crate::backup_bus::publish_backup_wake(st, &outbox_id).await;
+    Ok(outbox_id)
+}
+
 fn target_view(target: &BackupTarget) -> serde_json::Value {
+    let config = target
+        .config
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok());
     json!({
         "kind": target.kind,
         "provider_id": target.provider_id,
@@ -41,6 +68,7 @@ fn target_view(target: &BackupTarget) -> serde_json::Value {
         "last_commit_sha": target.last_commit_sha,
         "last_synced_at": target.last_synced_at,
         "last_error": target.last_error,
+        "config": config,
     })
 }
 
@@ -308,18 +336,15 @@ async fn put_connector_target(
     if let Err(error) = st.db.upsert_backup_target(&target).await {
         return internal(&error);
     }
-    let outbox_id = match st
-        .db
-        .append_outbox(
-            "backup.resync",
-            &json!({"reason":"target_updated"}).to_string(),
-        )
-        .await
-    {
-        Ok(id) => id,
-        Err(error) => return internal(&error),
-    };
-    crate::backup_bus::publish_backup_wake(st, &outbox_id).await;
+    // Enabling (or first bind) must publish an initial sync; disabling must not
+    // enqueue work the actor will only dead-letter.
+    if target.enabled {
+        if let Err(response) =
+            queue_backup_resync(st, &organization.to_string(), "target_updated").await
+        {
+            return response;
+        }
+    }
     (
         StatusCode::OK,
         Json(json!({"target": target_view(&target)})),
@@ -403,20 +428,14 @@ pub async fn put_target(
     if let Err(error) = st.db.upsert_backup_target(&target).await {
         return internal(&error);
     }
-    // A fresh target gets a full snapshot immediately: the resync event both
-    // wakes the actor and reconciles anything dead-lettered while unconfigured.
-    let outbox_id = match st
-        .db
-        .append_outbox(
-            "backup.resync",
-            &json!({"reason":"target_updated"}).to_string(),
-        )
-        .await
-    {
-        Ok(id) => id,
-        Err(error) => return internal(&error),
-    };
-    crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
+    // Initial bind and re-enable publish a full sync; disable does not enqueue.
+    if target.enabled {
+        if let Err(response) =
+            queue_backup_resync(&st, &organization.to_string(), "target_updated").await
+        {
+            return response;
+        }
+    }
     (
         StatusCode::OK,
         Json(json!({"target": target_view(&target)})),
@@ -491,18 +510,9 @@ pub async fn resync(State(st): State<AppState>, headers: axum::http::HeaderMap) 
         )
             .into_response();
     }
-    let outbox_id = match st
-        .db
-        .append_outbox(
-            "backup.resync",
-            &json!({"reason":"requested","organization_id": organization}).to_string(),
-        )
-        .await
-    {
-        Ok(id) => id,
-        Err(error) => return internal(&error),
-    };
-    crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
+    if let Err(response) = queue_backup_resync(&st, &organization, "requested").await {
+        return response;
+    }
     (StatusCode::ACCEPTED, Json(json!({"status":"queued"}))).into_response()
 }
 
@@ -537,357 +547,11 @@ fn internal(error: &anyhow::Error) -> Response {
     clippy::items_after_statements,
     reason = "the backup route tests define scenario-local fault fixtures beside their use"
 )]
-mod tests {
-    use crate::app_state::{self, test_session_headers, AppState};
-    use crate::config::Args;
-    use axum::body::{to_bytes, Body};
-    use axum::http::{Request, StatusCode};
-    use opensesame_connection_broker::github_app::GithubAppCredentials;
-    use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
-    use serde_json::{json, Value};
-    use std::sync::Arc;
-    use tower::ServiceExt;
 
-    async fn state() -> AppState {
-        let mut state = app_state::build_test(Args {
-            listen: "127.0.0.1:0".parse().unwrap(),
-            resource: "https://opensesame.local".into(),
-            issuer: "https://issuer.local".into(),
-            database_url: "sqlite::memory:".into(),
-            task_database_url: String::new(),
-        })
-        .await
-        .unwrap();
-        let config = BrokerConfig::in_memory(Some([7u8; 32]), "http://127.0.0.1:8787");
-        state.connection_broker =
-            Arc::new(ConnectionBroker::new(state.db.pool().clone(), config).unwrap());
-        state
-    }
+#[cfg(test)]
+#[path = "backup_tests.rs"]
+mod tests;
 
-    async fn call(
-        state: &AppState,
-        method: &str,
-        path: &str,
-        headers: Option<axum::http::HeaderMap>,
-        body: Option<Value>,
-    ) -> (StatusCode, Value) {
-        let mut request = Request::builder().method(method).uri(path);
-        match headers {
-            Some(map) => {
-                for (name, value) in &map {
-                    request = request.header(name, value);
-                }
-            }
-            None => {
-                request = request.header(
-                    "authorization",
-                    format!("Bearer operator:{}", state.operator_token),
-                );
-            }
-        }
-        let request = match body {
-            Some(value) => request
-                .header("content-type", "application/json")
-                .body(Body::from(value.to_string()))
-                .unwrap(),
-            None => request.body(Body::empty()).unwrap(),
-        };
-        let response = super::super::router(state.clone())
-            .oneshot(request)
-            .await
-            .unwrap();
-        let status = response.status();
-        let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
-        let value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-        (status, value)
-    }
-
-    async fn register_app(state: &AppState) -> String {
-        sqlx::query(
-            "INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, 'Org', ?)",
-        )
-        .bind(state.connection_organization.to_string())
-        .bind(chrono::Utc::now().to_rfc3339())
-        .execute(state.db.pool())
-        .await
-        .unwrap();
-        state
-            .connection_broker
-            .register_github_app_credentials(
-                &state.connection_organization,
-                &GithubAppCredentials {
-                    id: 99,
-                    name: "App".into(),
-                    client_id: "Iv1.x".into(),
-                    client_secret: "s".into(),
-                    html_url: None,
-                    pem: Some(
-                        "-----BEGIN RSA PRIVATE KEY-----\nstub\n-----END RSA PRIVATE KEY-----"
-                            .into(),
-                    ),
-                    webhook_secret: None,
-                },
-                "test",
-            )
-            .await
-            .unwrap()
-            .id
-    }
-
-    #[tokio::test]
-    async fn a_member_cannot_configure_backup() {
-        let state = state().await;
-        let headers = test_session_headers(
-            &state,
-            "principal:00000000-0000-4000-8000-000000000002",
-            state.connection_organization,
-            opensesame_domain::OrganizationRole::Member,
-        );
-        let (status, _) = call(&state, "GET", "/api/v1/backup/target", Some(headers), None).await;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
-    }
-
-    #[tokio::test]
-    async fn target_requires_signing_material_then_round_trips() {
-        let state = state().await;
-        // No registered app: refused with the fix named.
-        let (status, body) = call(
-            &state,
-            "PUT",
-            "/api/v1/backup/target",
-            None,
-            Some(json!({
-                "integration_id": "missing",
-                "installation_id": "1",
-                "owner": "acme",
-                "repo": "opensesame-passwords",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-
-        let integration = register_app(&state).await;
-        let (status, body) = call(
-            &state,
-            "PUT",
-            "/api/v1/backup/target",
-            None,
-            Some(json!({
-                "integration_id": integration,
-                "installation_id": "12345",
-                "owner": "acme",
-                "repo": "opensesame-passwords",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["target"]["repo"], "opensesame-passwords");
-
-        // Configuring queued a resync event for the actor.
-        assert!(state.db.count_unpublished_outbox().await.unwrap() >= 1);
-
-        let (status, body) = call(&state, "GET", "/api/v1/backup/target", None, None).await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(body["target"]["installation_id"], "12345");
-        assert!(body["pending_events"].as_i64().unwrap() >= 1);
-
-        let (status, _) = call(&state, "POST", "/api/v1/backup/resync", None, None).await;
-        assert_eq!(status, StatusCode::ACCEPTED);
-
-        let (status, _) = call(&state, "DELETE", "/api/v1/backup/target", None, None).await;
-        assert_eq!(status, StatusCode::OK);
-        let (_, body) = call(&state, "GET", "/api/v1/backup/target", None, None).await;
-        assert!(body["target"].is_null());
-    }
-
-    #[tokio::test]
-    async fn owner_and_repo_names_are_validated() {
-        let state = state().await;
-        let integration = register_app(&state).await;
-        let (status, _) = call(
-            &state,
-            "PUT",
-            "/api/v1/backup/target",
-            None,
-            Some(json!({
-                "integration_id": integration,
-                "installation_id": "12345",
-                "owner": "acme/../etc",
-                "repo": "x",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-    }
-
-    #[tokio::test]
-    async fn put_target_defaults_to_env_production_branch() {
-        let state = state().await;
-        let integration = register_app(&state).await;
-        let (status, body) = call(
-            &state,
-            "PUT",
-            "/api/v1/backup/target",
-            None,
-            Some(json!({
-                "integration_id": integration,
-                "installation_id": "99",
-                "owner": "acme",
-                "repo": "opensesame-passwords",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["target"]["branch"], "env/production");
-    }
-
-    #[tokio::test]
-    async fn put_target_accepts_connection_id_for_github_only() {
-        let state = state().await;
-        let integration = register_app(&state).await;
-        let connection = state
-            .connection_broker
-            .create_connection(
-                &state.connection_organization,
-                opensesame_connection_broker::CreateConnection {
-                    provider_id: "github".into(),
-                    integration_id: Some(integration.clone()),
-                    owner_subject: Some("user:demo".into()),
-                    display_name: Some("History".into()),
-                    logical_name: None,
-                    project_id: None,
-                    scopes: None,
-                    shareability: None,
-                },
-            )
-            .await
-            .unwrap();
-
-        let (status, body) = call(
-            &state,
-            "PUT",
-            "/api/v1/backup/target",
-            None,
-            Some(json!({
-                "connection_id": connection.connection_id,
-                "installation_id": "4242",
-                "owner": "acme",
-                "repo": "opensesame-passwords",
-                "branch": "env/staging",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["target"]["integration_id"], integration);
-        assert_eq!(body["target"]["branch"], "env/staging");
-
-        let (status, body) = call(
-            &state,
-            "PUT",
-            "/api/v1/backup/target",
-            None,
-            Some(json!({
-                "connection_id": "connection:missing",
-                "installation_id": "1",
-                "owner": "acme",
-                "repo": "r",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    }
-
-    #[tokio::test]
-    async fn installations_route_refuses_integrations_without_app_material() {
-        let state = state().await;
-        let (status, body) = call(
-            &state,
-            "GET",
-            "/api/v1/integrations/missing/github/installations",
-            None,
-            None,
-        )
-        .await;
-        assert!(
-            status == StatusCode::NOT_FOUND || status == StatusCode::UNPROCESSABLE_ENTITY,
-            "{status} {body}"
-        );
-    }
-
-    #[tokio::test]
-    async fn list_installations_is_scoped_to_caller_organization() {
-        let state = state().await;
-        let integration = register_app(&state).await;
-        let foreign = opensesame_domain::OrganizationId::new();
-        let headers = test_session_headers(
-            &state,
-            "principal:00000000-0000-4000-8000-000000000003",
-            foreign,
-            opensesame_domain::OrganizationRole::Owner,
-        );
-        let (status, body) = call(
-            &state,
-            "GET",
-            &format!("/api/v1/integrations/{integration}/github/installations"),
-            Some(headers),
-            None,
-        )
-        .await;
-        if status == StatusCode::OK {
-            let rows = body["installations"].as_array().expect("installations");
-            assert!(
-                rows.is_empty(),
-                "foreign org must not see another org's GitHub App installs: {body}"
-            );
-        } else {
-            assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
-        }
-    }
-
-    #[tokio::test]
-    async fn resync_publishes_backup_wake_on_taskbus() {
-        let _guard = crate::app_state::test_env::lock();
-        use opensesame_task_bus::{InMemoryTaskBus, TaskBus};
-        use std::sync::Arc;
-        use tokio::sync::RwLock;
-
-        std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let mut state = state().await;
-        let mem = Arc::new(InMemoryTaskBus::default());
-        let as_dyn: Arc<dyn opensesame_task_bus::TaskBus> = mem.clone();
-        state.task_bus = Arc::new(RwLock::new(as_dyn));
-
-        let (status, body) = call(&state, "POST", "/api/v1/backup/resync", None, None).await;
-        assert_eq!(status, StatusCode::ACCEPTED, "{body}");
-        assert_eq!(state.db.count_unpublished_outbox().await.unwrap(), 1);
-
-        let events = mem.drain(10).await.unwrap();
-        assert!(
-            events.iter().any(|e| e.r#type == "system.backup.wake"),
-            "expected backup wake on bus, got {events:?}"
-        );
-        assert!(events
-            .iter()
-            .all(|e| !e.data.to_string().contains("BEGIN RSA")));
-    }
-
-    #[tokio::test]
-    async fn tenant_session_cannot_access_host_global_backup() {
-        let state = state().await;
-        state
-            .db
-            .append_outbox("backup.resync", r#"{"reason":"requested"}"#)
-            .await
-            .unwrap();
-        let headers = test_session_headers(
-            &state,
-            "principal:00000000-0000-4000-8000-000000000001",
-            state.connection_organization,
-            opensesame_domain::OrganizationRole::Owner,
-        );
-        let (status, body) =
-            call(&state, "GET", "/api/v1/backup/target", Some(headers), None).await;
-        assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
-        assert!(state.db.count_unpublished_outbox().await.unwrap() >= 1);
-    }
-}
+#[cfg(test)]
+#[path = "backup_tests_more.rs"]
+mod tests_more;

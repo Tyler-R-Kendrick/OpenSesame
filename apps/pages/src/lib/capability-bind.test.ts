@@ -5,8 +5,14 @@ import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   authorizeCapabilityConnector,
   bindCapabilityConnector,
+  bindingAuthorizedForRootProtection,
   bindingNeedsAuth,
+  bumpConsentOperationGeneration,
   capabilityBindDependencies,
+  captureConsentOperation,
+  connectionAuthorizationState,
+  consentCaptureIsCurrent,
+  currentConsentOperationGeneration,
 } from "./capability-bind.js";
 import type { PagesSettings } from "./settings.js";
 
@@ -23,6 +29,7 @@ const BASE: PagesSettings = {
 };
 
 let stored: PagesSettings;
+let vaultScope: string;
 const saveSettings = vi.fn((next: PagesSettings) => {
   stored = next;
 });
@@ -31,11 +38,13 @@ const original = { ...capabilityBindDependencies };
 
 beforeEach(() => {
   stored = structuredClone(BASE);
+  vaultScope = "personal";
   saveSettings.mockClear();
   Object.assign(capabilityBindDependencies, {
     ...original,
     loadSettings: () => stored,
     saveSettings,
+    resolveVaultScope: () => vaultScope,
   });
 });
 
@@ -57,9 +66,6 @@ describe("bindCapabilityConnector", () => {
       connectionId: "conn-github",
       remote: "https://github.com/me/store.git",
     };
-    // A connection is an authorization of one specific provider. Carrying
-    // GitHub's consent onto a GitLab binding would claim an approval nobody
-    // gave — and would then be sent as though GitLab had granted it.
     const next = bindCapabilityConnector("history", "gitlab");
     expect(next.connectionId).toBeUndefined();
     expect(next.remote).toBeUndefined();
@@ -69,10 +75,12 @@ describe("bindCapabilityConnector", () => {
     stored.capabilityConnectors.history = {
       providerId: "github",
       connectionId: "conn-github",
+      authorization: "authorized",
       remote: "https://github.com/me/store.git",
     };
     const next = bindCapabilityConnector("history", "github");
     expect(next.connectionId).toBe("conn-github");
+    expect(next.authorization).toBe("authorized");
     expect(next.remote).toBe("https://github.com/me/store.git");
   });
 
@@ -80,28 +88,72 @@ describe("bindCapabilityConnector", () => {
     bindCapabilityConnector("encryption", "aws-kms");
     expect(stored.capabilityConnectors.history.providerId).toBe("github");
   });
+
+  it("bumps the consent generation when the provider changes", () => {
+    const before = currentConsentOperationGeneration();
+    bindCapabilityConnector("encryption", "yubikey");
+    expect(currentConsentOperationGeneration()).toBeGreaterThan(before);
+  });
 });
 
-describe("bindingNeedsAuth", () => {
-  it("is false for the built-in vault, which authorizes nothing", () => {
+describe("connectionAuthorizationState / bindingNeedsAuth (KP-14)", () => {
+  it("is authorized for the built-in vault, which authorizes nothing", () => {
+    expect(
+      connectionAuthorizationState("encryption", { providerId: "webcrypto" }),
+    ).toBe("authorized");
     expect(bindingNeedsAuth("encryption", { providerId: "webcrypto" })).toBe(
       false,
     );
   });
 
-  it("is true for a connector bound but not yet consented", () => {
+  it("is missing when a connector is bound but not consented", () => {
+    expect(
+      connectionAuthorizationState("encryption", { providerId: "yubikey" }),
+    ).toBe("missing");
     expect(bindingNeedsAuth("encryption", { providerId: "yubikey" })).toBe(
       true,
     );
   });
 
-  it("is false once a connection id is recorded", () => {
-    expect(
-      bindingNeedsAuth("encryption", {
-        providerId: "yubikey",
-        connectionId: "conn-1",
-      }),
-    ).toBe(false);
+  it("treats a bare encryption connectionId as pending, not authorized", () => {
+    const binding = { providerId: "yubikey", connectionId: "conn-1" };
+    expect(connectionAuthorizationState("encryption", binding)).toBe("pending");
+    expect(bindingNeedsAuth("encryption", binding)).toBe(true);
+    expect(bindingAuthorizedForRootProtection(binding)).toBe(false);
+  });
+
+  it("treats explicit pending as not authorized for encryption", () => {
+    const binding = {
+      providerId: "yubikey",
+      connectionId: "conn-1",
+      authorization: "pending" as const,
+    };
+    expect(connectionAuthorizationState("encryption", binding)).toBe("pending");
+    expect(bindingNeedsAuth("encryption", binding)).toBe(true);
+    expect(bindingAuthorizedForRootProtection(binding)).toBe(false);
+  });
+
+  it("is authorized for encryption only after explicit authorized state", () => {
+    const binding = {
+      providerId: "yubikey",
+      connectionId: "conn-1",
+      authorization: "authorized" as const,
+    };
+    expect(connectionAuthorizationState("encryption", binding)).toBe(
+      "authorized",
+    );
+    expect(bindingNeedsAuth("encryption", binding)).toBe(false);
+    expect(bindingAuthorizedForRootProtection(binding)).toBe(true);
+  });
+
+  it("keeps legacy non-encryption binds: connectionId alone is enough", () => {
+    const binding = { providerId: "github", connectionId: "conn-gh" };
+    expect(connectionAuthorizationState("history", binding)).toBe("authorized");
+    expect(bindingNeedsAuth("history", binding)).toBe(false);
+  });
+
+  it("still needs auth for history with no connectionId", () => {
+    expect(bindingNeedsAuth("history", { providerId: "github" })).toBe(true);
   });
 });
 
@@ -143,11 +195,10 @@ describe("authorizeCapabilityConnector", () => {
       consentPopup,
     );
     expect(outcome.tone).toBe("ok");
-    // Nothing to consent to, so the popup must not be left hanging open.
     expect(shut).toHaveBeenCalled();
   });
 
-  it("records the connection when consent comes back active", async () => {
+  it("records authorized state when consent comes back active", async () => {
     stored.capabilityConnectors.encryption = { providerId: "yubikey" };
     arrange();
     const outcome = await authorizeCapabilityConnector("encryption", popup());
@@ -155,9 +206,17 @@ describe("authorizeCapabilityConnector", () => {
     expect(stored.capabilityConnectors.encryption.connectionId).toBe(
       "conn-new",
     );
+    expect(stored.capabilityConnectors.encryption.authorization).toBe(
+      "authorized",
+    );
+    expect(
+      bindingAuthorizedForRootProtection(
+        stored.capabilityConnectors.encryption,
+      ),
+    ).toBe(true);
   });
 
-  it("remembers an unfinished connection so the retry resumes it", async () => {
+  it("remembers an unfinished connection as pending, not authorized", async () => {
     stored.capabilityConnectors.encryption = { providerId: "yubikey" };
     arrange({
       awaitConsent: vi.fn().mockResolvedValue({
@@ -167,11 +226,20 @@ describe("authorizeCapabilityConnector", () => {
     });
     const outcome = await authorizeCapabilityConnector("encryption", popup());
     expect(outcome.tone).toBe("warn");
-    // Not finished is not failed: starting from nothing next time would make
-    // the person redo the half of the flow that already worked.
     expect(stored.capabilityConnectors.encryption.connectionId).toBe(
       "conn-new",
     );
+    expect(stored.capabilityConnectors.encryption.authorization).toBe(
+      "pending",
+    );
+    expect(
+      bindingNeedsAuth("encryption", stored.capabilityConnectors.encryption),
+    ).toBe(true);
+    expect(
+      bindingAuthorizedForRootProtection(
+        stored.capabilityConnectors.encryption,
+      ),
+    ).toBe(false);
   });
 
   it("does not record a connection that was refused", async () => {
@@ -241,8 +309,61 @@ describe("authorizeCapabilityConnector", () => {
       consentPopup,
     );
     expect(outcome).toEqual({ tone: "err", text: "identity is down" });
-    // A popup left open on about:blank is a window the person has to go and
-    // find and close themselves.
     expect(shut).toHaveBeenCalled();
+  });
+
+  it("discards a stale callback when the provider changed mid-consent (KP-15)", async () => {
+    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    arrange({
+      awaitConsent: vi.fn().mockImplementation(async () => {
+        bindCapabilityConnector("encryption", "aws-kms");
+        return {
+          result: "active",
+          connection: { connectionId: "conn-stale" },
+        };
+      }),
+    });
+    const outcome = await authorizeCapabilityConnector("encryption", popup());
+    expect(outcome.tone).toBe("warn");
+    expect(outcome.text).toMatch(/discarded/);
+    expect(stored.capabilityConnectors.encryption.providerId).toBe("aws-kms");
+    expect(stored.capabilityConnectors.encryption.connectionId).toBeUndefined();
+    expect(
+      bindingAuthorizedForRootProtection(
+        stored.capabilityConnectors.encryption,
+      ),
+    ).toBe(false);
+  });
+
+  it("discards a stale callback when the vault scope changed (KP-15)", async () => {
+    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    arrange({
+      awaitConsent: vi.fn().mockImplementation(async () => {
+        vaultScope = "project-other";
+        return {
+          result: "active",
+          connection: { connectionId: "conn-stale" },
+        };
+      }),
+    });
+    const outcome = await authorizeCapabilityConnector("encryption", popup());
+    expect(outcome.tone).toBe("warn");
+    expect(outcome.text).toMatch(/discarded/);
+    expect(stored.capabilityConnectors.encryption.authorization).not.toBe(
+      "authorized",
+    );
+  });
+});
+
+describe("consentCaptureIsCurrent", () => {
+  it("rejects when operation generation advances", () => {
+    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    const capture = captureConsentOperation(
+      "encryption",
+      stored.capabilityConnectors.encryption,
+      "conn-1",
+    );
+    bumpConsentOperationGeneration();
+    expect(consentCaptureIsCurrent(capture)).toBe(false);
   });
 });

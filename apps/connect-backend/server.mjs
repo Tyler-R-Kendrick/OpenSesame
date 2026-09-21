@@ -1,13 +1,22 @@
 import { createServer } from "node:http";
 import { handleCallback } from "./callback.mjs";
 import {
+  handleGitBackupPut,
+  handleGitBackupPutOptions,
+} from "./git-backup-put.mjs";
+import {
+  handleGithubAppPutContents,
+  handleGithubAppWebhook,
+  handleGithubAppWebhookPending,
+} from "./github-app-contents.mjs";
+import {
   handleGithubAppCallback,
   handleGithubAppConvert,
   handleGithubAppConvertOptions,
   handleGithubAppInstallations,
   handleGithubAppLookup,
 } from "./github-app.mjs";
-import { handleManage, readJsonBody } from "./manage.mjs";
+import { handleManage, readJsonBody, readRawBody } from "./manage.mjs";
 
 const port = Number(process.env.PORT ?? 8789);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -62,9 +71,30 @@ const server = createServer((req, res) => {
       res.end(outcome.body);
       return;
     }
+    if (url.pathname === "/api/github-app/webhook") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("POST only.");
+        return;
+      }
+      let rawBody = "";
+      let body = {};
+      try {
+        rawBody = await readRawBody(req);
+        body = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        body = {};
+      }
+      const outcome = await handleGithubAppWebhook(body, req.headers, rawBody);
+      res.writeHead(outcome.status, outcome.headers);
+      res.end(outcome.body);
+      return;
+    }
     if (
       url.pathname === "/api/github-app/installations" ||
-      url.pathname === "/api/github-app/lookup"
+      url.pathname === "/api/github-app/lookup" ||
+      url.pathname === "/api/github-app/put-contents" ||
+      url.pathname === "/api/github-app/webhook-pending"
     ) {
       if (req.method === "OPTIONS") {
         const outcome = handleGithubAppConvertOptions(origin);
@@ -88,7 +118,37 @@ const server = createServer((req, res) => {
       const outcome =
         url.pathname === "/api/github-app/lookup"
           ? await handleGithubAppLookup(body, origin)
-          : await handleGithubAppInstallations(body, origin);
+          : url.pathname === "/api/github-app/put-contents"
+            ? await handleGithubAppPutContents(body, origin)
+            : url.pathname === "/api/github-app/webhook-pending"
+              ? await handleGithubAppWebhookPending(body, origin)
+              : await handleGithubAppInstallations(body, origin);
+      res.writeHead(outcome.status, outcome.headers);
+      res.end(outcome.body);
+      return;
+    }
+
+    if (url.pathname === "/api/git-backup/put") {
+      if (req.method === "OPTIONS") {
+        const outcome = handleGitBackupPutOptions(origin);
+        res.writeHead(outcome.status, outcome.headers);
+        res.end(outcome.body);
+        return;
+      }
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("POST only.");
+        return;
+      }
+      let body = {};
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid_json" }));
+        return;
+      }
+      const outcome = await handleGitBackupPut(body, origin);
       res.writeHead(outcome.status, outcome.headers);
       res.end(outcome.body);
       return;

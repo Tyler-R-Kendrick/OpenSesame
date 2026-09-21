@@ -11,6 +11,8 @@ mod lifecycle;
 mod local_authority;
 mod providers_native;
 mod security;
+mod pass_otp;
+mod pass_protect;
 mod store;
 mod sync_commands;
 mod sync_export;
@@ -694,7 +696,7 @@ enum PassCmd {
     /// OTP tokens (pass-otp parity).
     Otp {
         #[command(subcommand)]
-        cmd: PassOtpCmd,
+        cmd: pass_otp::PassOtpCmd,
     },
     /// Update / rotate secrets (pass-update parity). Prints new secret (human TTY).
     Update {
@@ -768,6 +770,11 @@ enum PassCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
+    /// Root-protection protectors for `.opensesame-key` (human only).
+    Protect {
+        #[command(subcommand)]
+        cmd: pass_protect::PassProtectCmd,
+    },
     /// Multi-tomb registry.
     Tomb {
         #[command(subcommand)]
@@ -777,52 +784,6 @@ enum PassCmd {
     Open { name: Option<String> },
     /// Close active / named tomb.
     Close { name: Option<String> },
-}
-
-#[derive(Subcommand, Debug)]
-enum PassOtpCmd {
-    /// Generate a TOTP code.
-    Code {
-        name: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Insert a new OTP entry from an otpauth URI.
-    Insert {
-        name: Option<String>,
-        #[arg(short, long)]
-        force: bool,
-        #[arg(short, long)]
-        echo: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Append / replace otpauth URI on an existing entry.
-    Append {
-        name: String,
-        #[arg(short, long)]
-        force: bool,
-        #[arg(short, long)]
-        echo: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Show the stored otpauth URI.
-    Uri {
-        name: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Validate an otpauth URI.
-    Validate { uri: String },
 }
 
 #[derive(Subcommand, Debug)]
@@ -1254,29 +1215,8 @@ async fn main() -> anyhow::Result<()> {
                     .await?;
                 }
             },
-            PassCmd::Otp { cmd } => match cmd {
-                PassOtpCmd::Code { name, path, tomb } => {
-                    store::cmd_otp_code(&name, path.as_deref(), tomb.as_deref())?;
-                }
-                PassOtpCmd::Insert {
-                    name,
-                    force,
-                    echo,
-                    path,
-                    tomb,
-                } => store::cmd_otp_insert(name, force, echo, path.as_deref(), tomb.as_deref())?,
-                PassOtpCmd::Append {
-                    name,
-                    force,
-                    echo,
-                    path,
-                    tomb,
-                } => store::cmd_otp_append(&name, force, echo, path.as_deref(), tomb.as_deref())?,
-                PassOtpCmd::Uri { name, path, tomb } => {
-                    store::cmd_otp_uri(&name, path.as_deref(), tomb.as_deref())?;
-                }
-                PassOtpCmd::Validate { uri } => store::cmd_otp_validate(&uri)?,
-            },
+            PassCmd::Protect { cmd } => pass_protect::run(cmd)?,
+            PassCmd::Otp { cmd } => pass_otp::run(cmd)?,
             PassCmd::Update {
                 names,
                 length,

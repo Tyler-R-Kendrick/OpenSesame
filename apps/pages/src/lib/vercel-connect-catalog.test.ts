@@ -80,4 +80,31 @@ describe("Vercel Connect browse catalog", () => {
       "GitHub (bundled)",
     );
   });
+
+  it("lists Bitbucket under backup/recovery", () => {
+    const row = vercelConnectCatalog().find((item) => item.id === "bitbucket");
+    expect(row).toMatchObject({
+      displayName: "Bitbucket",
+      category: "backup_recovery",
+      authKind: "oauth2_authorization_code",
+    });
+  });
+
+  it("lists Codeberg under backup/recovery", () => {
+    const row = vercelConnectCatalog().find((item) => item.id === "codeberg");
+    expect(row).toMatchObject({
+      displayName: "Codeberg",
+      category: "backup_recovery",
+      authKind: "oauth2_authorization_code",
+    });
+  });
+
+  it("lists Cursor Origin under backup/recovery", () => {
+    const row = vercelConnectCatalog().find((item) => item.id === "origin");
+    expect(row).toMatchObject({
+      displayName: "Cursor Origin",
+      category: "backup_recovery",
+      authKind: "oauth2_authorization_code",
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { StatusMark } from "../../components/StatusMark.js";
 import type { Connection } from "../../lib/connections.js";
+import { BackupSyncControls } from "./BackupSyncControls.js";
 import {
   GithubAppInstallRows,
   GithubAppPermissionBlock,
@@ -37,6 +38,7 @@ export function GithubAppConfigSummary({
           <span>{view.backupRepo}</span>
         </div>
       ) : null}
+      <BackupSyncControls />
       <GithubAppPermissionBlock
         label="Granted"
         testId="github-app-granted"

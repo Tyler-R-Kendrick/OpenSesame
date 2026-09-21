@@ -31,7 +31,9 @@ const provider = (overrides: Partial<Provider> = {}): Provider => ({
 
 describe("connector setup guidance", () => {
   it("explains purpose and the shortest setup path", () => {
-    expect(connectorSummary(provider())).toContain("Encrypt secrets");
+    expect(connectorSummary(provider())).toContain(
+      "Use this connection to protect a vault key",
+    );
     expect(connectorSteps(provider())).toHaveLength(3);
   });
 

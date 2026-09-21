@@ -103,6 +103,10 @@ export function providerHosts(provider: Provider): string[] {
     if (host) hosts.add(host.replace(/^www\./, ""));
   }
   if (provider.id === "github") hosts.add("github.com");
+  if (provider.id === "gitlab") hosts.add("gitlab.com");
+  if (provider.id === "bitbucket") hosts.add("bitbucket.org");
+  if (provider.id === "codeberg") hosts.add("codeberg.org");
+  if (provider.id === "origin") hosts.add("origin.cursor.com");
   if (provider.id === "linear") hosts.add("linear.app");
   return [...hosts];
 }

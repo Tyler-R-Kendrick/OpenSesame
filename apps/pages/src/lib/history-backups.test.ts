@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetHistoryBackupMemory } from "./history-backup-idb.js";
 import {
   HISTORY_BACKUP_GROUPS,
+  isHistorySelected,
   loadHistorySelections,
   toggleHistoryProvider,
 } from "./history-backups.js";
@@ -27,6 +28,9 @@ describe("history backups", () => {
       "github",
       "password-store",
       "gitlab",
+      "bitbucket",
+      "codeberg",
+      "origin",
       "git",
     ]);
   });
@@ -42,5 +46,12 @@ describe("history backups", () => {
     await toggleHistoryProvider("gitlab");
     const ids = loadHistorySelections().map((row) => row.providerId);
     expect(ids).toEqual(["github", "password-store", "gitlab"]);
+  });
+
+  it("lets the last history remote turn off", async () => {
+    expect(isHistorySelected("github")).toBe(true);
+    await toggleHistoryProvider("github");
+    expect(loadHistorySelections()).toEqual([]);
+    expect(isHistorySelected("github")).toBe(false);
   });
 });

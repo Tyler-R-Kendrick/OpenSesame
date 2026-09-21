@@ -1,10 +1,12 @@
 import {
   type Unregister,
+  type WebMcpToolSpec,
   createWebMcpRegistrar,
   detectModelContext,
 } from "@opensesame/webmcp";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { assertAgentMayNotUnwrapHumanRoot } from "../lib/vault/protection/agent-boundary.js";
 import {
   getWebMcpEditorKind,
   sessionToolsFor,
@@ -28,6 +30,21 @@ const APP_ID = "opensesame-pages";
 
 export type WebMcpRouter = { navigate: (to: string) => void };
 
+function fenceRootProtectionTools(
+  tools: readonly WebMcpToolSpec[],
+): WebMcpToolSpec[] {
+  return tools.map((tool) => ({
+    ...tool,
+    execute: async (args) => {
+      assertAgentMayNotUnwrapHumanRoot({
+        alias: tool.name,
+        purpose: "workload-root",
+      });
+      return tool.execute(args);
+    },
+  }));
+}
+
 function registerScope(
   scope: "boot" | "session",
   tools = WEBMCP_TOOLS.filter((tool) => tool.scope === scope),
@@ -47,7 +64,7 @@ function registerScope(
       scope,
     })),
   );
-  const unregister = registrar.register(tools);
+  const unregister = registrar.register(fenceRootProtectionTools(tools));
   return () => {
     unregister();
     noteWebMcpUnregistered(scope);
