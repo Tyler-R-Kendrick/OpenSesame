@@ -12,6 +12,7 @@ import {
   sha256Base64Url,
 } from "@opensesame/sdk-browser";
 import {
+  type LocalPasskey,
   readLocalPasskeys,
   requireLocalPerson,
   writeLocalPasskeys,
@@ -21,6 +22,11 @@ import {
   readLocalDirectory,
   withLocalDirectoryLock,
 } from "./local-directory.js";
+import {
+  applySignInPrf,
+  prepareSignInPrf,
+  zeroSignInPrfSalts,
+} from "./local-passkey-prf.js";
 import { onVaultLock } from "./vault/lock-events.js";
 import {
   hasUsablePrfOutput,
@@ -232,7 +238,30 @@ export async function enrollLocalPasskey(
   );
 }
 
-/** Verifies possession; the returned evidence alone is not a transferable session. */
+async function getSignInCredential(
+  start: ReturnType<typeof ceremony>,
+  keys: LocalPasskey[],
+  prf: { eval: { first: Uint8Array } },
+): Promise<PublicKeyCredential> {
+  const credential = await navigator.credentials.get({
+    publicKey: {
+      challenge: start.challenge,
+      rpId: start.rp.rpID,
+      userVerification: "required",
+      timeout: CEREMONY_MS,
+      allowCredentials: keys.map((key) => ({
+        type: "public-key",
+        id: b64urlToBytes(key.credentialId),
+      })),
+      extensions: overlapCast({ prf }),
+    },
+  });
+  if (!credential || !isPublicKeyCredential(credential))
+    throw new LocalDirectoryError("Passkey verification was cancelled.");
+  return credential;
+}
+
+/** Verifies possession and evaluates WebAuthn PRF. A usable result wraps this vault when it is open. */
 export async function authenticateLocalPasskey(
   tomb: string,
   principalId: string,
@@ -263,20 +292,14 @@ export async function authenticateLocalPasskey(
   });
   if (keys.length === 0)
     throw new LocalDirectoryError("Enroll a passkey for this identity first.");
-  const credential = await navigator.credentials.get({
-    publicKey: {
-      challenge: start.challenge,
-      rpId: start.rp.rpID,
-      userVerification: "required",
-      timeout: CEREMONY_MS,
-      allowCredentials: keys.map((key) => ({
-        type: "public-key",
-        id: b64urlToBytes(key.credentialId),
-      })),
-    },
-  });
-  if (!credential || !isPublicKeyCredential(credential))
-    throw new LocalDirectoryError("Passkey verification was cancelled.");
+  const prf = await prepareSignInPrf(tomb, keys);
+  let credential: PublicKeyCredential;
+  try {
+    credential = await getSignInCredential(start, keys, prf.extension);
+  } catch (error) {
+    zeroSignInPrfSalts(prf.plan);
+    throw error;
+  }
   return withLocalDirectoryLock(tomb, async () => {
     requireLive(start);
     await requireLocalPerson(tomb, principalId);
@@ -301,10 +324,22 @@ export async function authenticateLocalPasskey(
     if (counter === null || counter === undefined)
       throw new LocalDirectoryError("The identity proof was refused.");
     requireLive(start);
+    const prfSupported = await applySignInPrf(
+      tomb,
+      principalId,
+      credential,
+      prf.plan,
+    );
     await writeLocalPasskeys(
       tomb,
       current.map((row) =>
-        row.credentialId === key.credentialId ? { ...row, counter } : row,
+        row.credentialId === key.credentialId
+          ? {
+              ...row,
+              counter,
+              ...(prfSupported ? { prfCapable: true } : {}),
+            }
+          : row,
       ),
     );
     const evidence: LocalAuthentication = Object.freeze({

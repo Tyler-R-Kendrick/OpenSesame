@@ -82,6 +82,10 @@ describe("browser local identity passkeys using real cryptographic verification"
     expect(get.mock.calls[0]?.[0].publicKey?.challenge).toEqual(
       b64urlToBytes(expected),
     );
+    const prfInput = get.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval
+      ?.first as Uint8Array | undefined;
+    expect(prfInput).toBeInstanceOf(Uint8Array);
+    expect(prfInput).toHaveLength(32);
   });
 
   it("requests a 32-byte PRF input and does not offer vault unlock when PRF is absent", async () => {
