@@ -84,6 +84,38 @@ describe("browser local identity passkeys using real cryptographic verification"
     );
   });
 
+  it("requests a 32-byte PRF input and does not offer vault unlock when PRF is absent", async () => {
+    const create = vi.spyOn(device, "create");
+    const result = await enrollLocalPasskey(tomb, principalId);
+    const first = create.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval
+      ?.first as Uint8Array | undefined;
+    expect(first).toBeInstanceOf(Uint8Array);
+    expect(first).toHaveLength(32);
+    expect(result.prfSupported).toBe(false);
+    expect(result.vaultOffer).toBeNull();
+    expect((await readLocalPasskeys(tomb))[0]?.prfCapable).toBeUndefined();
+  });
+
+  it("offers vault unlock only when registration returns a usable PRF result", async () => {
+    const original = device.create.bind(device);
+    vi.spyOn(device, "create").mockImplementation(async (options) => {
+      const credential = await original(options);
+      if (credential && "getClientExtensionResults" in credential) {
+        const output = crypto.getRandomValues(new Uint8Array(32));
+        credential.getClientExtensionResults = () => ({
+          prf: { results: { first: output.buffer } },
+        });
+      }
+      return credential;
+    });
+    const result = await enrollLocalPasskey(tomb, principalId);
+    expect(result.prfSupported).toBe(true);
+    expect(result.vaultOffer?.prfSalt).toHaveLength(32);
+    expect(result.vaultOffer?.prfOutput).toHaveLength(32);
+    expect((await readLocalPasskeys(tomb))[0]?.prfCapable).toBe(true);
+    result.vaultOffer?.discard();
+  });
+
   it("consumes request-bound evidence only once for the exact decision digest", async () => {
     await enrollLocalPasskey(tomb, principalId);
     const digest = bytesToB64url(crypto.getRandomValues(new Uint8Array(32)));

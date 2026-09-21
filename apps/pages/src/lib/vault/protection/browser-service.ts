@@ -5,7 +5,11 @@
 
 import type { VaultHeader } from "../crypto.js";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
-import { enrollAgeWebauthn } from "./adapters/age-webauthn.js";
+import {
+  type HeldWebauthnPrf,
+  contextForRecord,
+  provenEnrollmentRecord,
+} from "./browser-enroll.js";
 import {
   removeProtector as removeProtectorOp,
   rotateCompromisedRoot as rotateCompromisedRootOp,
@@ -25,10 +29,9 @@ import {
 } from "./manifest-auth.js";
 import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 import { resolveProtectionManifest } from "./protection-view.js";
-import { enrollRecoveryKey, openWithRecoveryKey } from "./recovery-key.js";
+import { openWithRecoveryKey } from "./recovery-key.js";
 import type { ProtectionSessionGuard } from "./session-guard.js";
 import type {
-  ProtectionContext,
   ProtectionRecord,
   RecoveryKeyProtectorRecord,
   RootProtectionManifest,
@@ -63,28 +66,8 @@ type PendingEnrollment = {
   baseManifest: RootProtectionManifest;
 };
 
-function contextForRecord(
-  manifest: RootProtectionManifest,
-  protectorId: string,
-): ProtectionContext {
-  return {
-    vaultId: manifest.vaultId,
-    rootKeyId: manifest.rootKeyId,
-    rootEpoch: manifest.rootEpoch,
-    protectorId,
-    purpose: manifest.purpose,
-  };
-}
-
 function manifestAuthority(header: VaultHeader): RootProtectionManifest | null {
   return resolveProtectionManifest(header, header.protection);
-}
-
-function rootsEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.byteLength !== b.byteLength) return false;
-  let diff = 0;
-  for (let i = 0; i < a.byteLength; i += 1) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
-  return diff === 0;
 }
 
 export class VaultProtectionBrowserService {
@@ -121,8 +104,25 @@ export class VaultProtectionBrowserService {
     await this.#host.persistHeader({ ...header, protection: sealed });
   }
 
+  /**
+   * Account sign-in already created a PRF-capable passkey. Wrap the vault
+   * root only when the person opts in — never from the ceremony itself.
+   */
+  async enrollHeldWebauthnPrf(
+    input: HeldWebauthnPrf,
+  ): Promise<EnrollCandidateResult> {
+    return this.#stageEnrollment("webauthn-prf", input);
+  }
+
   async enrollCandidate(
-    kind: "recovery-key" | "age-webauthn",
+    kind: "recovery-key" | "age-webauthn" | "webauthn-prf",
+  ): Promise<EnrollCandidateResult> {
+    return this.#stageEnrollment(kind);
+  }
+
+  async #stageEnrollment(
+    kind: "recovery-key" | "age-webauthn" | "webauthn-prf",
+    held?: HeldWebauthnPrf,
   ): Promise<EnrollCandidateResult> {
     this.#assertCanMutate();
     assertNotCanceled(this.#host.session.signal);
@@ -132,7 +132,6 @@ export class VaultProtectionBrowserService {
     const base = this.#requireManifest(header);
     const expectedRevision = base.revision;
     assertExpectedRevision(base, expectedRevision);
-
     const operationId = newOpaqueId("op");
     const sessionGeneration = this.#host.session.generation;
     const journal = beginMutationJournal({
@@ -140,75 +139,40 @@ export class VaultProtectionBrowserService {
       expectedRevision,
       operationId,
     });
-
-    const rootKey = this.#host.requireRawRoot();
-    let provenRecord: ProtectionRecord;
-    let recoverySecretB64: string | undefined;
-
-    if (kind === "recovery-key") {
-      const proven = await enrollRecoveryKey({
-        context: contextForRecord(base, base.vaultId),
-        rootKey,
-      });
-      const opened = await openWithRecoveryKey({
-        context: contextForRecord(base, proven.record.protectorId),
-        record: proven.record,
-        secretB64: proven.secretB64,
-      });
-      try {
-        if (!rootsEqual(opened, rootKey)) {
-          throw new ProtectionError(
-            "enrollment_proof_failed",
-            "Recovery-key enrollment recovered a different root key.",
-          );
-        }
-      } finally {
-        opened.fill(0);
-      }
-      provenRecord = proven.record;
-      recoverySecretB64 = proven.secretB64;
-    } else if (kind === "age-webauthn") {
-      const enrolled = await enrollAgeWebauthn({
-        context: contextForRecord(base, base.vaultId),
-        rootKey,
-      });
-      provenRecord = enrolled.record;
-    } else {
-      throw new ProtectionError(
-        "unsupported_runtime",
-        `Protector kind ${String(kind)} is not enrolled by this service.`,
-      );
-    }
-
+    const built = await provenEnrollmentRecord({
+      kind,
+      base,
+      rootKey: this.#host.requireRawRoot(),
+      operationId,
+      sessionGeneration,
+      signal: this.#host.session.signal,
+      held,
+    });
     journal.phase = "proven";
     journal.candidateManifest = {
       ...base,
       revision: expectedRevision + 1,
-      records: [...base.records, provenRecord],
+      records: [...base.records, built.record],
     };
-
     const pending: PendingEnrollment = {
       operationId,
       sessionGeneration,
       expectedRevision,
       journal,
-      record: provenRecord,
+      record: built.record,
       baseManifest: base,
     };
-    if (recoverySecretB64 !== undefined) {
-      pending.recoverySecretB64 = recoverySecretB64;
-    }
+    if (built.recoverySecretB64 !== undefined)
+      pending.recoverySecretB64 = built.recoverySecretB64;
     this.#pending = pending;
-
     const result: EnrollCandidateResult = {
       operationId,
       expectedRevision,
       sessionGeneration,
-      record: provenRecord,
+      record: built.record,
     };
-    if (recoverySecretB64 !== undefined) {
-      result.recoverySecretB64 = recoverySecretB64;
-    }
+    if (built.recoverySecretB64 !== undefined)
+      result.recoverySecretB64 = built.recoverySecretB64;
     return result;
   }
 

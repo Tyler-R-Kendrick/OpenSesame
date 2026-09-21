@@ -4,12 +4,7 @@
  */
 
 import { isString, overlapCast } from "@opensesame/os-domain";
-import {
-  SALT_BYTES,
-  b64ToBytes,
-  bytesToB64,
-  randomBytes,
-} from "../../crypto.js";
+import { b64ToBytes, bytesToB64, randomBytes } from "../../crypto.js";
 import {
   type PasskeyCeremony,
   type PasskeyUnlockCeremonyResult,
@@ -136,7 +131,8 @@ export async function createPasskeyUnlockCeremonyDefault(
   } catch (error) {
     mapHostError(error);
   }
-  const prfSalt = randomBytes(SALT_BYTES);
+  // Unpredictable per-credential PRF input (WebAuthn L3). Not a fixed domain string.
+  const prfSalt = randomBytes(32);
   const userId = randomBytes(16);
   let result: Credential | null;
   try {

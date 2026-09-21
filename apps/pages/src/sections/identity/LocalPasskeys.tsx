@@ -12,6 +12,11 @@ import {
 } from "../../lib/local-credentials.js";
 import { LocalDirectoryError } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+import {
+  type LocalPasskeyVaultOffer,
+  viewBuffer,
+} from "../../lib/local-passkeys.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { LocalIdentitySession } from "./LocalIdentitySession.js";
 
 type CredentialProps = {
@@ -44,16 +49,15 @@ export function LocalPasskeys({
   );
 }
 
-function useCredentialCommands(
-  { tomb, principalId, disabled, enabled }: CredentialProps,
+function useTrackedPasskeys(
+  tomb: string,
+  principalId: string,
   container: RefObject<HTMLDivElement | null>,
+  focusSource: RefObject<HTMLElement | null>,
+  setRemoving: (update: (id: string | null) => string | null) => void,
 ) {
   const [keys, setKeys] = useState<LocalPasskey[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [removing, setRemoving] = useState<string | null>(null);
-  const focusSource = useRef<HTMLElement | null>(null);
   useEffect(() => {
     let active = true;
     let generation = 0;
@@ -94,35 +98,145 @@ function useCredentialCommands(
       off();
       window.removeEventListener("focus", refresh);
     };
-  }, [tomb, principalId, container]);
+  }, [tomb, principalId, container, focusSource, setRemoving]);
+  return { keys, setKeys, error, setError };
+}
 
+function usePasskeyVaultOffer(
+  busy: boolean,
+  setBusy: (busy: boolean) => void,
+  setMessage: (message: string) => void,
+  setError: (error: string) => void,
+) {
+  const [offer, setOffer] = useState<LocalPasskeyVaultOffer | null>(null);
+  const [unlockChecked, setUnlockChecked] = useState(false);
+  const offerRef = useRef<LocalPasskeyVaultOffer | null>(null);
+  const store = useVaultStore();
+  useEffect(() => {
+    return () => {
+      offerRef.current?.discard();
+      offerRef.current = null;
+    };
+  }, []);
+  function publishOffer(next: LocalPasskeyVaultOffer | null) {
+    if (offerRef.current && offerRef.current !== next)
+      offerRef.current.discard();
+    offerRef.current = next;
+    setOffer(next);
+  }
+  function keepSignInOnly() {
+    publishOffer(null);
+    setUnlockChecked(false);
+    setMessage("Sign-in only. Vault protection was not changed.");
+  }
+  async function alsoUnlock() {
+    if (!offer || !unlockChecked || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const candidate = await store.protection.enrollHeldWebauthnPrf({
+        prfOutput: viewBuffer(offer.prfOutput),
+        prfSalt: offer.prfSalt,
+        credentialId: offer.credentialId,
+        userId: viewBuffer(offer.userId),
+      });
+      await store.protection.commitEnrollment(candidate.operationId);
+      publishOffer(null);
+      setUnlockChecked(false);
+      setMessage("This passkey can unlock the vault.");
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not add this passkey to vault protection.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return {
+    offer,
+    unlockChecked,
+    setUnlockChecked,
+    publishOffer,
+    keepSignInOnly,
+    alsoUnlock,
+  };
+}
+
+function useCredentialCommands(
+  { tomb, principalId, disabled, enabled }: CredentialProps,
+  container: RefObject<HTMLDivElement | null>,
+) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
+  const { status } = useVault();
+  const focusSource = useRef<HTMLElement | null>(null);
+  const tracked = useTrackedPasskeys(
+    tomb,
+    principalId,
+    container,
+    focusSource,
+    setRemoving,
+  );
+  const vaultOffer = usePasskeyVaultOffer(
+    busy,
+    setBusy,
+    setMessage,
+    tracked.setError,
+  );
   async function run(action: "enroll" | "revoke", id?: string) {
-    if (busy || disabled || !keys) return;
+    if (busy || disabled || !tracked.keys) return;
     if (action === "enroll" && !enabled) return;
     if (action === "revoke" && document.activeElement instanceof HTMLElement)
       focusSource.current = document.activeElement;
     setBusy(true);
-    setError("");
+    tracked.setError("");
     setMessage("");
     try {
       if (action === "revoke") {
         if (!id) return;
         await revokeLocalPasskey(tomb, principalId, id);
-      } else {
-        const passkeys = await import("../../lib/local-passkeys.js");
-        await passkeys.enrollLocalPasskey(tomb, principalId);
+        tracked.setKeys(
+          (await readLocalPasskeys(tomb)).filter(
+            (row) => row.principalId === principalId,
+          ),
+        );
+        setRemoving(null);
+        setMessage("Passkey revoked.");
+        return;
       }
-      setKeys(
+      const passkeys = await import("../../lib/local-passkeys.js");
+      const enrolled = await passkeys.enrollLocalPasskey(tomb, principalId);
+      tracked.setKeys(
         (await readLocalPasskeys(tomb)).filter(
           (row) => row.principalId === principalId,
         ),
       );
       setRemoving(null);
+      if (!enrolled.vaultOffer) {
+        vaultOffer.publishOffer(null);
+        setMessage(
+          "Passkey enrolled. This authenticator cannot unlock the vault.",
+        );
+        return;
+      }
+      if (status !== "unlocked") {
+        enrolled.vaultOffer.discard();
+        vaultOffer.publishOffer(null);
+        setMessage(
+          "Passkey enrolled. The vault is locked, so vault protection was not changed.",
+        );
+        return;
+      }
+      vaultOffer.setUnlockChecked(false);
+      vaultOffer.publishOffer(enrolled.vaultOffer);
       setMessage(
-        action === "enroll" ? "Passkey enrolled." : "Passkey revoked.",
+        "Passkey created. This passkey supports encrypted vault unlock.",
       );
     } catch (failure) {
-      setError(
+      tracked.setError(
         failure instanceof LocalDirectoryError
           ? failure.message
           : "The passkey operation did not complete. Check the vault is unlocked and retry.",
@@ -131,16 +245,16 @@ function useCredentialCommands(
       setBusy(false);
     }
   }
-
   return {
-    keys,
+    keys: tracked.keys,
     busy,
     message,
-    error,
+    error: tracked.error,
     removing,
     setRemoving,
     run,
     focusSource,
+    ...vaultOffer,
   };
 }
 
@@ -171,6 +285,37 @@ function CredentialCommands(props: CredentialProps) {
       <output aria-label="Passkey status">
         {busy ? "Complete the passkey operation…" : message}
       </output>
+      {model.offer ? (
+        <div className="identity-passkey-offer">
+          <label>
+            <input
+              type="checkbox"
+              checked={model.unlockChecked}
+              disabled={busy}
+              onChange={(event) => model.setUnlockChecked(event.target.checked)}
+            />
+            Use this passkey to unlock this vault
+          </label>
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={busy}
+              onClick={model.keepSignInOnly}
+            >
+              Keep sign-in only
+            </button>
+            <button
+              type="button"
+              className="btn btn--sm btn--primary"
+              disabled={busy || !model.unlockChecked}
+              onClick={() => void model.alsoUnlock()}
+            >
+              Also unlock this vault
+            </button>
+          </div>
+        </div>
+      ) : null}
       {!keys && !error ? <output>Loading passkeys…</output> : null}
       <div className="actions">
         <button
@@ -211,6 +356,9 @@ function CredentialRows({
             <span>Passkey · {key.credentialId.slice(-8)}</span>
             <span className="hint">
               Enrolled {new Date(key.createdAt).toLocaleDateString()}
+              {key.prfCapable
+                ? " · This passkey supports encrypted vault unlock."
+                : ""}
             </span>
             <div className="actions">
               <button
