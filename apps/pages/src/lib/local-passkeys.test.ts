@@ -82,6 +82,10 @@ describe("browser local identity passkeys using real cryptographic verification"
     expect(get.mock.calls[0]?.[0].publicKey?.challenge).toEqual(
       b64urlToBytes(expected),
     );
+    const prfInput = get.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval
+      ?.first as Uint8Array | undefined;
+    expect(prfInput).toBeInstanceOf(Uint8Array);
+    expect(prfInput).toHaveLength(32);
   });
 
   it("requests a 32-byte PRF input and does not offer vault unlock when PRF is absent", async () => {
@@ -114,6 +118,57 @@ describe("browser local identity passkeys using real cryptographic verification"
     expect(result.vaultOffer?.prfOutput).toHaveLength(32);
     expect((await readLocalPasskeys(tomb))[0]?.prfCapable).toBe(true);
     result.vaultOffer?.discard();
+  });
+
+  it("records PRF capability when sign-in evaluates a usable result", async () => {
+    await enrollLocalPasskey(tomb, principalId);
+    const original = device.get.bind(device);
+    vi.spyOn(device, "get").mockImplementation(async (options) => {
+      const credential = await original(options);
+      if (credential && "getClientExtensionResults" in credential) {
+        const output = crypto.getRandomValues(new Uint8Array(32));
+        credential.getClientExtensionResults = () => ({
+          prf: { results: { first: output.buffer } },
+        });
+      }
+      return credential;
+    });
+    await authenticateLocalPasskey(tomb, principalId);
+    expect((await readLocalPasskeys(tomb))[0]?.prfCapable).toBe(true);
+  });
+
+  it("wraps the open vault with the sign-in PRF output", async () => {
+    const { vaultStore } = await import("./vault/store.js");
+    await vaultStore.create("correct horse battery staple");
+    const directory = await changeLocalDirectory(vaultStore.activeTomb(), 0, {
+      action: "create",
+      kind: "person",
+      name: "Vault person",
+    });
+    const person = directory.entries[0];
+    if (!person) throw new Error("No person");
+    await enrollLocalPasskey(vaultStore.activeTomb(), person.id);
+    const original = device.get.bind(device);
+    vi.spyOn(device, "get").mockImplementation(async (options) => {
+      const assertion = await original(options);
+      if (assertion && "getClientExtensionResults" in assertion) {
+        const output = crypto.getRandomValues(new Uint8Array(32));
+        assertion.getClientExtensionResults = () => ({
+          prf: { results: { first: output.buffer } },
+        });
+      }
+      return assertion;
+    });
+    try {
+      await authenticateLocalPasskey(vaultStore.activeTomb(), person.id);
+      expect(
+        vaultStore.protection
+          .listProtectors()
+          .some((record) => record.kind === "webauthn-prf"),
+      ).toBe(true);
+    } finally {
+      vaultStore.lock();
+    }
   });
 
   it("consumes request-bound evidence only once for the exact decision digest", async () => {
