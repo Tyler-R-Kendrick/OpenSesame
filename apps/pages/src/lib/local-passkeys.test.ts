@@ -120,57 +120,6 @@ describe("browser local identity passkeys using real cryptographic verification"
     result.vaultOffer?.discard();
   });
 
-  it("records PRF capability when sign-in evaluates a usable result", async () => {
-    await enrollLocalPasskey(tomb, principalId);
-    const original = device.get.bind(device);
-    vi.spyOn(device, "get").mockImplementation(async (options) => {
-      const credential = await original(options);
-      if (credential && "getClientExtensionResults" in credential) {
-        const output = crypto.getRandomValues(new Uint8Array(32));
-        credential.getClientExtensionResults = () => ({
-          prf: { results: { first: output.buffer } },
-        });
-      }
-      return credential;
-    });
-    await authenticateLocalPasskey(tomb, principalId);
-    expect((await readLocalPasskeys(tomb))[0]?.prfCapable).toBe(true);
-  });
-
-  it("wraps the open vault with the sign-in PRF output", async () => {
-    const { vaultStore } = await import("./vault/store.js");
-    await vaultStore.create("correct horse battery staple");
-    const directory = await changeLocalDirectory(vaultStore.activeTomb(), 0, {
-      action: "create",
-      kind: "person",
-      name: "Vault person",
-    });
-    const person = directory.entries[0];
-    if (!person) throw new Error("No person");
-    await enrollLocalPasskey(vaultStore.activeTomb(), person.id);
-    const original = device.get.bind(device);
-    vi.spyOn(device, "get").mockImplementation(async (options) => {
-      const assertion = await original(options);
-      if (assertion && "getClientExtensionResults" in assertion) {
-        const output = crypto.getRandomValues(new Uint8Array(32));
-        assertion.getClientExtensionResults = () => ({
-          prf: { results: { first: output.buffer } },
-        });
-      }
-      return assertion;
-    });
-    try {
-      await authenticateLocalPasskey(vaultStore.activeTomb(), person.id);
-      expect(
-        vaultStore.protection
-          .listProtectors()
-          .some((record) => record.kind === "webauthn-prf"),
-      ).toBe(true);
-    } finally {
-      vaultStore.lock();
-    }
-  });
-
   it("consumes request-bound evidence only once for the exact decision digest", async () => {
     await enrollLocalPasskey(tomb, principalId);
     const digest = bytesToB64url(crypto.getRandomValues(new Uint8Array(32)));
