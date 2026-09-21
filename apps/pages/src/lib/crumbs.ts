@@ -35,7 +35,6 @@ export const WALLET_CATEGORIES = [
   "budgets",
   "methods",
   "passes",
-  "activity",
 ] as const;
 export type WalletCategory = (typeof WALLET_CATEGORIES)[number];
 
@@ -43,7 +42,6 @@ export const WALLET_CATEGORY_LABEL = {
   budgets: "Budgets",
   passes: "Spending passes",
   methods: "Payment methods",
-  activity: "Activity",
 } satisfies Record<WalletCategory, string>;
 
 /** Legacy hashes that are not themselves a settings category. */
@@ -155,6 +153,7 @@ export function crumbsFor(
   }
   if (parts[0] === "access") return accessCrumbs(parts);
   if (parts[0] === "identity") return current("Identity");
+  if (parts[0] === "activity") return current("Activity");
   if (parts[0] === "wallet") return walletCrumbs(parts);
   return [];
 }

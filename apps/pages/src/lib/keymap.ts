@@ -125,6 +125,7 @@ const SECTION_PATHS = new Map([
   ["a", "/access"],
   ["i", "/identity"],
   ["w", "/wallet"],
+  ["y", "/activity"],
   ["s", "/settings"],
 ]);
 

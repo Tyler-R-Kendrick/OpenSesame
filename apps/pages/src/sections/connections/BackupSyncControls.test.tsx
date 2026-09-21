@@ -72,32 +72,35 @@ describe("BackupSyncControls", () => {
     );
   });
 
-  it("refuses manual sync while backup is disabled", async () => {
+  it("surfaces the last sync error on the status mark", async () => {
     Object.assign(backupSeams, {
       getBackupStatus: vi.fn(async () => ({
         target: {
           kind: "github_app",
-          providerId: null,
+          providerId: "github",
           connectionId: null,
           integrationId: "int_1",
           installationId: "99",
           owner: "acme",
           repo: "vault",
           branch: "main",
-          enabled: false,
-          status: "ok",
+          enabled: true,
+          status: "error",
           lastCommitSha: null,
           lastSyncedAt: null,
-          lastError: null,
+          lastError: "GitHub App signing key is not available on this device.",
           config: null,
         },
-        pendingEvents: 0,
+        pendingEvents: 1,
       })),
     });
     render(<BackupSyncControls providerId="github" />);
-    const sync = await waitFor(() =>
-      screen.getByRole("button", { name: "Sync vault backup now" }),
+    await waitFor(() =>
+      expect(
+        screen.getByRole("img", {
+          name: "GitHub App signing key is not available on this device.",
+        }),
+      ).toBeTruthy(),
     );
-    expect(sync).toHaveProperty("disabled", true);
   });
 });

@@ -8,7 +8,6 @@ import { setStatusNotice } from "../../lib/notices.js";
 import {
   exportAgeArmored,
   importAgeArmored,
-  sopsNativeBothDirectionsHint,
 } from "../../lib/vault/protection/sops-browser.js";
 
 function formatsNotice(tone: "info" | "err", body: string): void {
@@ -136,12 +135,6 @@ function AgeInteropSheetView(props: AgeInteropSheetViewProps) {
           <CeremonyShell
             ok
             name="age armor"
-            facts={[
-              {
-                key: "SOPS",
-                value: sopsNativeBothDirectionsHint().split("\n")[0] ?? "",
-              },
-            ]}
             primary={{
               label: "Encrypt",
               busy: props.busy,

@@ -9,7 +9,6 @@ import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js"
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
-import { WalletPassPanel as DefaultWalletPassPanel } from "./settings/WalletPassPanel.js";
 
 export const settingsTabs = [
   { id: "general", label: "General", guideId: "settings.general" },
@@ -58,7 +57,6 @@ export type CategoryId = SettingsCategory;
 
 export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
-  WalletPassPanel: ComponentType;
   InstallPanel: ComponentType;
   ModelProviderPanel: ComponentType;
   VaultsPanel: ComponentType;
@@ -66,7 +64,6 @@ export type SettingsPanels = {
 
 export const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
-  WalletPassPanel: DefaultWalletPassPanel,
   InstallPanel: DefaultInstallPanel,
   ModelProviderPanel: DefaultModelProviderPanel,
   VaultsPanel: DefaultVaultsPanel,

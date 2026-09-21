@@ -37,9 +37,11 @@ with the root bytes also acting as the content key on some paths.
 6. **Trusted client boundary.** Human-root material stays in the browser and/or
    an explicitly paired personal native client. No clear wrapping-secret proxy.
    Agents/ConnectionRef must not gain human-root unwrap oracles.
-7. **SOPS.** Optional YAML/JSON interop via pinned upstream tooling in a trusted
-   native runtime. Not a root-key type. Threshold key-groups are preserved or
-   refused — never silently flattened to any-of.
+7. **SOPS.** YAML and JSON documents with local age identities run in the
+   static browser. SOPS is a document format, not a vault root protector.
+   Threshold key-groups are preserved or refused — never silently flattened
+   to any-of. A native `sops` binary is an optional operator tool and is not
+   required for the PWA.
 8. **`capabilityConnectors.encryption`.** Legacy setup preference / migration
    hint only. Never overrides cryptographic enrollment facts.
 

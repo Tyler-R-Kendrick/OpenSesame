@@ -6,15 +6,13 @@ import {
   exportNativeManifestJson,
   importAgeArmored,
   sopsCapability,
-  sopsNativeBothDirectionsHint,
 } from "./sops-browser.js";
 import type { RootProtectionManifest } from "./types.js";
 
 describe("sops-browser formats interop", () => {
   it("reports honest capabilities", () => {
     expect(ageCapability().runtime).toBe("browser");
-    expect(sopsCapability().runtime).toBe("native-client");
-    expect(sopsNativeBothDirectionsHint()).toMatch(/sops-encrypt/);
+    expect(sopsCapability().runtime).toBe("browser");
   });
 
   it("exports native manifest JSON", () => {

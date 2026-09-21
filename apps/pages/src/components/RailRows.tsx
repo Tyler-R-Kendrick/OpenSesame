@@ -7,6 +7,7 @@ import {
   IconAuthority,
   IconCard,
   IconChevronRight,
+  IconClock,
   IconConnection,
   IconSettings,
   IconUser,
@@ -54,6 +55,14 @@ export const SECTIONS = [
     guide: "nav.wallet",
     jump: "w",
     Icon: IconCard,
+  },
+  {
+    to: "/activity",
+    label: "Activity",
+    segment: "activity",
+    guide: "nav.activity",
+    jump: "y",
+    Icon: IconClock,
   },
   {
     to: "/settings",

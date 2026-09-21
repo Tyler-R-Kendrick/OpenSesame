@@ -83,10 +83,65 @@ export const bundledProviders: Provider[] = [
     provider.operations = ["key.wrap", "key.unwrap", "aead.seal"];
     return provider;
   })(),
+  (() => {
+    const provider = preview(
+      "yubikey",
+      "https://github.com/str4d/age-plugin-yubikey",
+      "configuration",
+      "encryption",
+    );
+    provider.displayName = "YubiKey";
+    provider.configured = true;
+    provider.operations = ["key.wrap", "key.unwrap"];
+    return provider;
+  })(),
+  (() => {
+    const provider = preview(
+      "aws-kms",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/",
+      "configuration",
+      "encryption",
+    );
+    provider.displayName = "AWS KMS";
+    provider.configured = true;
+    provider.operations = ["key.wrap", "key.unwrap"];
+    return provider;
+  })(),
+  (() => {
+    const provider = preview(
+      "azure-key-vault-keys",
+      "https://learn.microsoft.com/azure/key-vault/keys/",
+      "configuration",
+      "encryption",
+    );
+    provider.displayName = "Azure Key Vault Keys";
+    provider.configured = true;
+    provider.operations = ["key.wrap", "key.unwrap"];
+    return provider;
+  })(),
+  (() => {
+    const provider = preview(
+      "gcp-kms",
+      "https://cloud.google.com/kms/docs",
+      "configuration",
+      "encryption",
+    );
+    provider.displayName = "Google Cloud KMS";
+    provider.configured = true;
+    provider.operations = ["key.wrap", "key.unwrap"];
+    return provider;
+  })(),
   // fido2 is not a connector — WebAuthn PRF passkeys live under Unlock methods /
   // Vault key protection. Keep the fnox parity list intact; omit the row here.
   ...parity.providers
-    .filter((id) => id !== "fido2")
+    .filter(
+      (id) =>
+        id !== "fido2" &&
+        id !== "yubikey" &&
+        id !== "aws-kms" &&
+        id !== "azure-key-vault-keys" &&
+        id !== "gcp-kms",
+    )
     .map((id) =>
       preview(id, `https://fnox.jdx.dev/providers/${id}.html`, "configuration"),
     ),

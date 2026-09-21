@@ -133,6 +133,29 @@ export const FIELDS = new Map<string, ConfigurationField[]>(
       field("recipients", "Recipients"),
       field("identity", "Identity", true),
     ],
+    yubikey: [
+      field("recipient", "Recipient"),
+      field("slot", "PIV slot", false, false),
+      field("serial", "Serial", false, false),
+    ],
+    "aws-kms": [
+      field("key_arn", "Key ARN"),
+      field("region", "Region"),
+      field("access_key_id", "Access key ID"),
+      field("secret_access_key", "Secret access key", true),
+      field("session_token", "Session token", true, false),
+    ],
+    "azure-key-vault-keys": [
+      field("versioned_key_id", "Versioned key ID"),
+      field("tenant_id", "Tenant ID"),
+      field("client_id", "Client ID"),
+      field("client_secret", "Client secret", true),
+    ],
+    "gcp-kms": [
+      field("crypto_key_name", "Crypto key"),
+      field("project_id", "Project ID"),
+      field("service_account_json", "Service account JSON", true),
+    ],
     "better-auth": [
       field("base_url", "Base URL"),
       field("api_key", "API key", true),
@@ -303,4 +326,4 @@ export const WALLET = [
   ["apple-wallet", "https://developer.apple.com/wallet/", "configuration"],
   ["samsung-wallet", "https://developer.samsung.com/wallet", "configuration"],
 ] as const;
-export const BUNDLED_REVISION = "2026-09-20.3";
+export const BUNDLED_REVISION = "2026-09-21.3";

@@ -1,9 +1,8 @@
 /**
  * Browser-local drop claim plane — backend for the device-native Identity
- * host (ADR 0062 + ADR 0118). Pages stores sealed claim digests in origin
- * storage; `device-identity-host` exposes them as `/v1/claims*`. Deliberately
- * does not import `drop.ts` (that module calls into the transport, which
- * calls the identity plane, which calls this store).
+ * host (ADR 0062 + ADR 0118). Claim digests and the device pepper live in
+ * the OPFS kv, never localStorage. `device-identity-host` exposes them as
+ * `/v1/claims*`. Deliberately does not import `drop.ts`.
  */
 
 import {
@@ -14,6 +13,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
+import { kvDelete, kvGet, kvSet } from "../kv.js";
 
 const STORAGE_KEY = "opensesame.local-drop-claims.v1";
 const PEPPER_KEY = "opensesame.local-drop-pepper.v1";
@@ -53,44 +53,56 @@ export type LocalDropSession = {
 
 export type LocalDropPollState = "pending" | "consumed" | "expired";
 
-/** In-memory fallback when `localStorage` is unavailable (Vitest node). */
-class MemoryStorage implements Storage {
-  private readonly map = new Map<string, string>();
-  get length(): number {
-    return this.map.size;
-  }
-  clear(): void {
-    this.map.clear();
-  }
-  getItem(key: string): string | null {
-    return this.map.get(key) ?? null;
-  }
-  key(index: number): string | null {
-    return [...this.map.keys()][index] ?? null;
-  }
-  removeItem(key: string): void {
-    this.map.delete(key);
-  }
-  setItem(key: string, value: string): void {
-    this.map.set(key, value);
+let legacyMigrated = false;
+
+function legacyStorage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
   }
 }
 
-const memoryFallback = new MemoryStorage();
+/** Move a pepper or claim store off localStorage, then delete the old copy. */
+function migrateLegacyDropState(): void {
+  if (legacyMigrated) return;
+  legacyMigrated = true;
+  const slot = legacyStorage();
+  if (!slot) return;
+  for (const key of [STORAGE_KEY, PEPPER_KEY]) {
+    const existing = slot.getItem(key);
+    if (existing !== null && kvGet(key) === null) kvSet(key, existing);
+    slot.removeItem(key);
+  }
+}
+
+const kvBackedStorage: Storage = {
+  get length(): number {
+    return 0;
+  },
+  clear(): void {
+    kvDelete(STORAGE_KEY);
+    kvDelete(PEPPER_KEY);
+  },
+  getItem(key: string): string | null {
+    migrateLegacyDropState();
+    return kvGet(key);
+  },
+  key(): string | null {
+    return null;
+  },
+  removeItem(key: string): void {
+    kvDelete(key);
+  },
+  setItem(key: string, value: string): void {
+    migrateLegacyDropState();
+    kvSet(key, value);
+  },
+};
 
 export const localDropClaimSeams = {
   storage(): Storage {
-    try {
-      const slot = globalThis.localStorage;
-      if (slot) {
-        slot.setItem("__os_drop_probe__", "1");
-        slot.removeItem("__os_drop_probe__");
-        return slot;
-      }
-    } catch {
-      /* fall through to memory */
-    }
-    return memoryFallback;
+    return kvBackedStorage;
   },
   claimBase(): string {
     return pagesClaimBase();
@@ -347,7 +359,11 @@ export async function presentLocalDropClaim(
 
 /** Test seam — wipe local drop claims and pepper. */
 export function resetLocalDropClaimsForTests(): void {
-  storage().removeItem(STORAGE_KEY);
-  storage().removeItem(PEPPER_KEY);
-  memoryFallback.clear();
+  legacyMigrated = false;
+  kvDelete(STORAGE_KEY);
+  kvDelete(PEPPER_KEY);
+  const slot = legacyStorage();
+  if (!slot) return;
+  slot.removeItem(STORAGE_KEY);
+  slot.removeItem(PEPPER_KEY);
 }

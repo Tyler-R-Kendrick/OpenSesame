@@ -5,11 +5,7 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-/**
- * Connection broker client. Live list/create/authorize use Vercel Connect
- * when configured; Host is the fallback. Tokens stay off this page (ADR 0005).
- */
-
+/** Connection broker client — Vercel Connect or Host; tokens stay off-page (ADR 0005). */
 import {
   AuthorizeResponseSchema,
   BindingSchema,
@@ -37,6 +33,7 @@ import {
   buildGithubAppRegistration,
   readLocalGithubApp,
 } from "./github-app-manifest.js";
+import { emitActivity } from "./activity-log.js";
 import { claimGuestConnection } from "./guest-connections.js";
 export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
@@ -834,6 +831,7 @@ export async function createConnection(
 ): Promise<Connection> {
   const created = await connectionSeams.createConnection(body);
   if (isGuestSession()) claimGuestConnection(created.connectionId);
+  emitActivity({ category: "connection", type: "connection.created", summary: "Connection created", outcome: "succeeded", targetType: "connection", targetId: created.connectionId });
   return created;
 }
 export function authorizeConnection(
@@ -877,7 +875,9 @@ export function setConnectionConfiguration(
 export function revokeConnection(
   id: string,
 ): ReturnType<typeof revokeConnectionDefault> {
-  return connectionSeams.revokeConnection(id);
+  const result = connectionSeams.revokeConnection(id);
+  emitActivity({ category: "connection", type: "connection.revoked", summary: "Connection revoked", outcome: "succeeded", targetType: "connection", targetId: id });
+  return result;
 }
 export function updateConnectionPolicy(
   ...args: Parameters<typeof updateConnectionPolicyDefault>

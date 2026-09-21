@@ -34,6 +34,7 @@ export function ConnectionCard({
   onFlash,
   onChanged,
   onBackupReady,
+  hideRepository = false,
 }: {
   connection: Connection;
   provider: Provider | null;
@@ -41,6 +42,8 @@ export function ConnectionCard({
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
   onBackupReady?: (ready: boolean) => void;
+  /** App presence already owns the repository field. */
+  hideRepository?: boolean;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -135,7 +138,7 @@ export function ConnectionCard({
       <div className="conn-card__top">
         <div className="conn-card__title">
           <h3>{connection.displayName}</h3>
-          {provider?.id === "github" ? (
+          {provider?.id === "github" && !hideRepository ? (
             <GithubBackupField
               connection={connection}
               online={online}

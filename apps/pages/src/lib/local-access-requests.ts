@@ -31,6 +31,7 @@ import {
   type LocalSession,
   withLocalIdentitySession,
 } from "./local-sessions.js";
+import { emitActivity } from "./activity-log.js";
 import { tombUnlocked } from "./vfs.js";
 
 type RequestRef = { id: string; version: number; requestDigest: string };
@@ -98,7 +99,13 @@ export async function createLocalAccessRequest(
       assertActive();
       await writeLocalRequestRecords(tomb, [...rows, row]);
       assertActive();
-      return summarize(row);
+      const summary = summarize(row);
+      emitActivity({
+        category: "request", type: "request.inbound.created",
+        summary: "Inbound access request received", outcome: "info",
+        targetType: "access_request", targetId: summary.id,
+      });
+      return summary;
     },
   );
 }
@@ -268,7 +275,16 @@ export async function decideLocalAccessRequest(
       tomb,
       rows.map((item) => (item.id === row.id ? next : item)),
     );
-    return summarize(next);
+    const summary = summarize(next);
+    const ok = input.decision === "approve";
+    emitActivity({
+      category: "request",
+      type: ok ? "request.inbound.approved" : "request.inbound.denied",
+      summary: ok ? "Inbound access request approved" : "Inbound access request denied",
+      outcome: ok ? "succeeded" : "denied",
+      targetType: "access_request", targetId: summary.id,
+    });
+    return summary;
   });
 }
 

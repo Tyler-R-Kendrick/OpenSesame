@@ -17,6 +17,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import type { ConnectionEvent } from "./connections.js";
+import { emitActivity } from "./activity-log.js";
 import { kvRefresh } from "./kv.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
@@ -164,6 +165,18 @@ export async function recordAccessAuditEvent(
   const current = await readAll(tomb);
   const next = [event, ...current].slice(0, MAX_EVENTS);
   await writeAll(tomb, next);
+  const outcome =
+    event.outcome === "succeeded" || event.outcome === "denied"
+      ? event.outcome
+      : "failed";
+  emitActivity({
+    category: "access",
+    type: event.eventType,
+    summary: event.eventType.replaceAll(".", " "),
+    outcome,
+    targetType: event.targetType,
+    targetId: event.targetId,
+  });
   return next;
 }
 

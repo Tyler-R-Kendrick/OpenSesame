@@ -52,6 +52,7 @@ import {
   HEADER_PATH,
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
+  SEAL_BOUND_MARKER_PATH,
   ensureIndexed,
   readPlaintextFile,
   tombFileKey,
@@ -102,6 +103,7 @@ export function tombStorageKeys(tomb: string): string[] {
     tombFileKey(tomb, HEADER_PATH),
     tombFileKey(tomb, BODY_PATH),
     tombFileKey(tomb, MIGRATION_MARKER_PATH),
+    tombFileKey(tomb, SEAL_BOUND_MARKER_PATH),
   ];
 }
 
@@ -118,6 +120,12 @@ function tombSessionKeys(tomb: string): string[] {
     IDP_REGISTRY_CONFIG_PATH,
     PROJECTS_CONFIG_PATH,
     ORG_PROFILE_CONFIG_PATH,
+    "config/age-keys",
+    "config/yubikey",
+    "config/aws-kms",
+    "config/azure-key-vault-keys",
+    "config/gcp-kms",
+    "config/activity-log",
     "config/identity-directory",
     "config/identity-devices",
     "config/identity-shares",
@@ -233,8 +241,10 @@ export function discardTombCaches(): void {
  */
 export async function wipeTombOnDestroy(tomb: string): Promise<void> {
   await Promise.all(
-    [...tombSessionKeys(tomb), tombFileKey(tomb, MIGRATION_MARKER_PATH)].map(
-      (key) => vfsSeams.deleteRaw(key),
-    ),
+    [
+      ...tombSessionKeys(tomb),
+      tombFileKey(tomb, MIGRATION_MARKER_PATH),
+      tombFileKey(tomb, SEAL_BOUND_MARKER_PATH),
+    ].map((key) => vfsSeams.deleteRaw(key)),
   );
 }

@@ -10,17 +10,19 @@ import {
   getBackupStatus,
   resyncBackup,
 } from "../../lib/backup.js";
+import { subscribeLocalBackupTarget } from "../../lib/backup-target-local.js";
 import { startVaultBackupObserver } from "../../lib/vault-backup-observer.js";
 
 function syncTone(target: BackupTargetView): "ok" | "err" | "warn" | "idle" {
   if (!target.enabled) return "idle";
+  if (target.status === "error" || target.status === "suspended") return "err";
   if (target.status === "ok") return "ok";
-  if (target.status === "suspended") return "err";
   return "warn";
 }
 
 function syncLabel(target: BackupTargetView, pending: number): string {
   if (!target.enabled) return "Backup off";
+  if (target.lastError) return target.lastError;
   const synced = target.lastSyncedAt
     ? `Last sync ${target.lastSyncedAt}`
     : "Waiting for first sync";
@@ -50,26 +52,29 @@ export function BackupSyncControls({
   useEffect(() => {
     const stopObserver = startVaultBackupObserver();
     let live = true;
-    void getBackupStatus(providerId)
-      .then((status) => {
-        if (!live) return;
-        const bound = status.target;
-        if (bound && targetMatchesProvider(bound, providerId)) {
-          setTarget(bound);
-          setPending(status.pendingEvents);
-        } else {
-          setTarget(null);
-          setPending(0);
-        }
-      })
-      .catch(() => {
-        if (live) {
-          setTarget(null);
-          setPending(0);
-        }
-      });
+    const reload = (): void => {
+      void getBackupStatus(providerId)
+        .then((status) => {
+          if (!live) return;
+          const bound = status.target;
+          if (bound && targetMatchesProvider(bound, providerId)) {
+            setTarget(bound);
+            setPending(status.pendingEvents);
+          } else {
+            setTarget(null);
+            setPending(0);
+          }
+        })
+        .catch(() => {
+          // Keep the last known target; a transient status miss is not "unbound".
+          if (live) setFlash("err");
+        });
+    };
+    reload();
+    const unsubscribe = subscribeLocalBackupTarget(reload);
     return () => {
       live = false;
+      unsubscribe();
       stopObserver();
     };
   }, [providerId]);
@@ -108,7 +113,13 @@ export function BackupSyncControls({
                 if (status.target) setTarget(status.target);
                 setPending(status.pendingEvents);
               })
-              .catch(() => setFlash("err"))
+              .catch(() => {
+                setFlash("err");
+                return getBackupStatus(providerId).then((status) => {
+                  if (status.target) setTarget(status.target);
+                  setPending(status.pendingEvents);
+                });
+              })
               .finally(() => setBusy(false));
           }}
         >

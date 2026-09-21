@@ -45,7 +45,6 @@ function sectionsFor(
         panel("security", "vault-key-protection", "Vault key protection"),
         panel("security", "formats-interoperability", "Formats"),
         panel("security", "age-keys", "Age keys"),
-        panel("security", "settings-wallet-pass", "Google Wallet"),
       ];
     case "vaults":
       return (snapshot.vaults ?? []).map((vault) => ({

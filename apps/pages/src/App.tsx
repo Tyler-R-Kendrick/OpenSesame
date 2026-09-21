@@ -102,6 +102,11 @@ const DefaultWalletSection = lazy(() =>
     default: m.WalletSection,
   })),
 );
+const DefaultActivitySection = lazy(() =>
+  import("./sections/ActivitySection.js").then((m) => ({
+    default: m.ActivitySection,
+  })),
+);
 
 type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
@@ -119,6 +124,7 @@ export type AppSlots = {
   ConnectionsSection: ComponentType;
   IdentitySection: ComponentType;
   WalletSection: ComponentType;
+  ActivitySection: ComponentType;
   SettingsSection: ComponentType;
   VaultSection: ComponentType;
   VaultWelcome: ComponentType;
@@ -140,6 +146,7 @@ const defaultSlots: AppSlots = {
   ConnectionsSection: DefaultConnectionsSection,
   IdentitySection: DefaultIdentitySection,
   WalletSection: DefaultWalletSection,
+  ActivitySection: DefaultActivitySection,
   SettingsSection: DefaultSettingsSection,
   VaultSection: DefaultVaultSection,
   VaultWelcome: DefaultVaultWelcome,
@@ -288,10 +295,22 @@ function VaultApp() {
               }
             />
             <Route
+              path="/wallet/activity"
+              element={<Navigate to="/activity" replace />}
+            />
+            <Route
               path="/wallet/:category?"
               element={
                 <Framed>
                   <slots.WalletSection />
+                </Framed>
+              }
+            />
+            <Route
+              path="/activity"
+              element={
+                <Framed>
+                  <slots.ActivitySection />
                 </Framed>
               }
             />

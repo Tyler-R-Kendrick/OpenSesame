@@ -12,29 +12,13 @@ import {
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
+import { emitActivity } from "./activity-log.js";
 import { kvGet, kvSet, kvSetDurable } from "./kv.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
-/**
- * An identity provider the operator configured, which this deployment runs
- * itself — the whole OIDC code flow, in the browser, with PKCE (ADR 0078).
- *
- * This is the answer to "who signs people in here?" for a deployment that
- * brings its own IdP. It is NOT an address for an OpenSesame identity service:
- * a Google project, an Okta org, an Auth0 tenant, an Entra directory or a
- * Better Auth deployment IS the identity service once it is named here, and
- * the app needs nothing else to sign somebody in against it.
- *
- * `clientId` is a public client id — the redirect URI and PKCE are what bind
- * the flow, and there is no secret to hold. Both fields are configuration, not
- * credentials.
- */
+/** Operator-configured IdP (browser OIDC + PKCE, ADR 0078) — not Identity API. */
 export type OperatorIdp = {
-  /**
-   * The preset this came through ("google", "microsoft", "okta", …). It is
-   * what brands the button on the sign-in screen; an id with no brand gets the
-   * house treatment rather than a wrong logo.
-   */
+  /** Preset id that brands the sign-in button ("google", "okta", …). */
   providerId: string;
   /** The OIDC issuer, as published in its discovery document. */
   issuer: string;
@@ -44,22 +28,9 @@ export type OperatorIdp = {
   label: string;
 };
 
-/**
- * Every way into this deployment, as first-run setup left it.
- *
- * This is an allowlist, not a hint. The sign-in screen renders exactly what is
- * here and nothing else: a provider nobody configured is not a road, and
- * offering it would be the dead end the whole first-run rework exists to
- * remove. An OpenSesame identity service is the third way in and lives in
- * `identityApi` — where it is set, its own catalog, magic links, guest
- * sessions and org SSO come with it.
- */
+/** Allowlist of sign-in roads; the screen renders exactly this. */
 export type SignInMethods = {
-  /**
-   * Keep the browser-capable upstream compiled into this build as a way in.
-   * True until an operator says otherwise, so a deployment nobody has set up
-   * can still sign somebody in.
-   */
+  /** Keep the compiled-in broker as a way in until an operator turns it off. */
   builtin: boolean;
   /** Providers the operator configured, in the order they were added. */
   providers: OperatorIdp[];
@@ -447,6 +418,10 @@ function loadSettingsDefault(): PagesSettings {
 function emitSettings(): void {
   epoch += 1;
   for (const listener of listeners) listener();
+  emitActivity({
+    category: "settings", type: "settings.updated",
+    summary: "Settings updated", outcome: "succeeded",
+  });
 }
 
 function subscribeSettingsDefault(listener: () => void): () => void {

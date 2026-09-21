@@ -15,6 +15,10 @@ import {
   handleGithubAppWebhookPending,
 } from "../../connect-backend/github-app-contents.mjs";
 import {
+  handleGithubAppCreateRepo,
+  handleGithubAppInstallationRepos,
+} from "../../connect-backend/github-app-repos.mjs";
+import {
   handleGithubAppCallback,
   handleGithubAppConvert,
   handleGithubAppConvertOptions,
@@ -114,15 +118,21 @@ async function handleGithubAppJsonRoute(req, res, path) {
       ? await handleGithubAppLookup(body, origin)
       : path === "/api/github-app/put-contents"
         ? await handleGithubAppPutContents(body, origin)
-        : path === "/api/github-app/installations"
-          ? await handleGithubAppInstallations(body, origin)
-          : await handleGithubAppConvert(body, origin);
+        : path === "/api/github-app/installation-repos"
+          ? await handleGithubAppInstallationRepos(body, origin)
+          : path === "/api/github-app/create-repo"
+            ? await handleGithubAppCreateRepo(body, origin)
+            : path === "/api/github-app/installations"
+              ? await handleGithubAppInstallations(body, origin)
+              : await handleGithubAppConvert(body, origin);
   writeRelayOutcome(res, outcome);
 }
 
 const GITHUB_APP_JSON_PATHS = new Set([
   "/api/github-app/convert",
   "/api/github-app/installations",
+  "/api/github-app/installation-repos",
+  "/api/github-app/create-repo",
   "/api/github-app/lookup",
   "/api/github-app/put-contents",
   "/api/github-app/webhook-pending",
