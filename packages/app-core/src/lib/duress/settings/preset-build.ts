@@ -2,7 +2,10 @@
  * Preset → PolicyDocument preview builders (SETTINGS presets).
  */
 
-import type { PolicyDocument, PolicyProfile } from "@opensesame/contracts";
+import type {
+  PolicyDocument,
+  PolicyProfile,
+} from "@opensesame/contracts/duress";
 import {
   PRESET_CATALOG,
   type PresetId,

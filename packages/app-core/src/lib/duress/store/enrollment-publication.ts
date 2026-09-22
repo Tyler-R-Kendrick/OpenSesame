@@ -6,7 +6,7 @@
 import {
   type EnrollmentManifest,
   EnrollmentManifestSchema,
-} from "@opensesame/contracts";
+} from "@opensesame/contracts/duress";
 import {
   type CompartmentRegistry,
   publishCompartmentRegistry,

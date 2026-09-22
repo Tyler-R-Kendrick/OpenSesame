@@ -2,7 +2,7 @@
  * Disposable REDTEAM fixtures only — never real vaults/recipients/tokens.
  */
 
-import type { CompilerCatalog } from "@opensesame/contracts";
+import type { CompilerCatalog } from "@opensesame/contracts/duress";
 import type { JsonObject } from "../json-boundary.js";
 import type { EnrollmentState } from "../trigger/enrollment.js";
 
