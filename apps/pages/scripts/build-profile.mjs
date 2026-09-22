@@ -10,7 +10,10 @@
  * Each build runs `security-profile.mjs`, then `vite build` in a child
  * process (so `OPENSESAME_*` is read fresh by vite.config.ts and no plugin
  * state leaks between profiles), then `verify-capability-graph.mjs` against
- * the emitted directory, and writes `<out>/measurements.json`. `--all` is the
+ * the emitted directory, writes the sizes to `<out>/measurements.json` and
+ * the full report (every module → capability → chunk → entry edge) to
+ * `<out>.report.json`, beside the directory rather than inside it so the
+ * bundle-budget gate never measures the evidence. `--all` is the
  * BUILD-07 matrix: minimal-local and family-local in both modes,
  * single-provider-selected, enterprise-selected and rich-explicit selective,
  * enterprise-selected hardened; the aggregate lands in

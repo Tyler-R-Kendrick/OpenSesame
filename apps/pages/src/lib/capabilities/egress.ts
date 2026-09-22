@@ -68,16 +68,24 @@ export type EgressDecision = Readonly<
   | { ok: false; code: EgressDenialCode; destination: string }
 >;
 
-/** Assignable to the runtime contract's `EgressPort`; `decide` is a dry run. */
-export type EgressPort = Readonly<{
-  capability: CapabilityId;
-  decide(input: URL | string, meta?: EgressRequestMeta): EgressDecision;
-  fetch(
-    input: URL | string,
-    init?: RequestInit,
-    meta?: EgressRequestMeta,
-  ): Promise<Response>;
-}>;
+/**
+ * The runtime contract's `EgressPort` (runtime-contract.ts owns the base type)
+ * widened with what this adapter adds: the capability it is bound to and
+ * `decide`, a dry run of the same check `fetch` makes. The intersection keeps
+ * the dependency pointing one way — this module reads the contract, the
+ * contract never reads this module's shape — so a module written against the
+ * base port keeps compiling against the port it is actually handed.
+ */
+export type EgressPort = ContractEgressPort &
+  Readonly<{
+    capability: CapabilityId;
+    decide(input: URL | string, meta?: EgressRequestMeta): EgressDecision;
+    fetch(
+      input: URL | string,
+      init?: RequestInit,
+      meta?: EgressRequestMeta,
+    ): Promise<Response>;
+  }>;
 
 export type EgressPortOptions = Readonly<{
   capability: CapabilityDescriptor;
@@ -236,12 +244,11 @@ export function installPlanAwareEgress(
     if (descriptor === undefined) {
       throw new EgressDenied("capability-not-approved", capability, origin);
     }
-    const port: ContractEgressPort = createEgressPort({
+    return createEgressPort({
       capability: descriptor,
       plan: () => compositionStore.getSnapshot().plan,
       allowedOrigins: [origin],
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
-    return port;
   };
 }
