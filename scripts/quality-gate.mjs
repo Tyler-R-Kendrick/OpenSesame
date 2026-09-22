@@ -32,10 +32,22 @@
  *   node scripts/quality-gate.mjs --update --accept-new-debt
  *                                            # ... and let numbers rise
  *   node scripts/quality-gate.mjs --summary  # worst offenders, no exit code
+ *   node scripts/quality-gate.mjs --relocate <map.json>
+ *                                            # carry entries for moved files
+ *
+ * `--relocate` re-keys recorded entries from old paths to new ones (see
+ * scripts/lib/relocate-baseline.mjs), then records the ledger exactly as
+ * `--update` would -- including its refusal to let any number rise. It cannot
+ * be combined with `--accept-new-debt`: a move changes where debt is written
+ * down, never how much of it there is.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  readRelocationMap,
+  relocateBaseline,
+} from "./lib/relocate-baseline.mjs";
 import {
   FILE_SIZE_RULE,
   MAX_LINES,
@@ -46,10 +58,24 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const baselinePath = join(root, "quality-baseline.json");
 const oxlintConfig = join(root, "oxlint.complexity.jsonc");
 
-const args = new Set(process.argv.slice(2));
-const update = args.has("--update");
+const argv = process.argv.slice(2);
+const args = new Set(argv);
+const relocateAt = argv.indexOf("--relocate");
+const relocatePath = relocateAt === -1 ? null : argv[relocateAt + 1];
+const update = args.has("--update") || relocatePath !== null;
 const summaryOnly = args.has("--summary");
 const acceptNewDebt = args.has("--accept-new-debt");
+
+if (relocateAt !== -1 && !relocatePath) {
+  console.error("quality gate: --relocate needs a map file");
+  process.exit(2);
+}
+if (relocatePath && acceptNewDebt) {
+  console.error(
+    "quality gate: --relocate cannot be combined with --accept-new-debt",
+  );
+  process.exit(2);
+}
 
 function readBaseline() {
   try {
@@ -106,8 +132,27 @@ function serializeBaseline(counts) {
   };
 }
 
+function relocated(recorded) {
+  const map = readRelocationMap(
+    JSON.parse(readFileSync(resolve(root, relocatePath), "utf8")),
+  );
+  const { files, moved, refusals } = relocateBaseline(recorded, map, (path) =>
+    existsSync(join(root, path)),
+  );
+  if (refusals.length > 0) {
+    console.error(
+      `\nquality gate: refusing to relocate -- ${refusals.length} entr(ies) are not plain moves\n`,
+    );
+    for (const refusal of refusals) console.error(`  ${refusal}`);
+    console.error("");
+    process.exit(1);
+  }
+  console.log(`quality gate: relocated ${moved} recorded entr(ies)`);
+  return files;
+}
+
 const measured = measureStructure(root, oxlintConfig);
-const baseline = readBaseline();
+const baseline = relocatePath ? relocated(readBaseline()) : readBaseline();
 
 const regressions = [];
 const improvements = [];

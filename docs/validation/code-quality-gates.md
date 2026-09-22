@@ -94,6 +94,22 @@ block in the baseline diff:
 A split should leave `oversizedLines` flat or lower. If it rose, something
 actually grew.
 
+**A plain move does not need the override** (ADR 0133 §6). When a file only
+changes path — `git mv`, content unchanged or improved — carry its recorded
+entry instead of re-accepting it:
+
+```bash
+pnpm quality:gate --relocate relocation-map.json
+# relocation-map.json: { "moves": { "old/path.ts": "new/path.ts" } }
+```
+
+`--relocate` re-keys each moved file's entry and then records the ledger the
+way `--update` does, including the refusal to let any number rise. It
+refuses a map entry whose old path still exists or whose new path already has
+an entry. It cannot be combined with `--accept-new-debt`. A moved file that
+also got worse still fails; one that got better still has to record the
+improvement.
+
 For `max-lines` the recorded number is the file's line count, so partial
 progress counts. Every other rule records occurrences.
 
