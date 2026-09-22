@@ -77,21 +77,19 @@ export function evaluateNode(
     nodeConflicts.push({
       reasonCode: "DEPENDENCY_CONFLICT",
       capabilityId: id,
-      detail: `depends on blocked ${blockedByDeps.sort(compareStrings).join(", ")}`,
+      detail: `depends on blocked ${blockedByDeps.join(", ")}`,
       provenance: "dependency-closure",
     });
   } else if (ceilingExcludes(context.ceiling, id)) {
-    reasons.push(
-      context.ceiling.explicit ? "DENIED_BY_WORKSPACE" : "NOT_SELECTED",
-    );
+    // ceilingExcludes is only true for an explicit allow set, so the
+    // NOT_SELECTED vocabulary lives in the union and explain() but is never
+    // emitted here: a closure member is always wanted, optional, or reached
+    // as a dependency.
+    reasons.push("DENIED_BY_WORKSPACE");
     nodeConflicts.push({
-      reasonCode: context.ceiling.explicit
-        ? "DENIED_BY_WORKSPACE"
-        : "NOT_SELECTED",
+      reasonCode: "DENIED_BY_WORKSPACE",
       capabilityId: id,
-      detail: context.ceiling.explicit
-        ? "not in the explicit allow set"
-        : "not in the permitted set",
+      detail: "not in the explicit allow set",
       provenance: context.ceiling.provenance,
     });
   } else if (!availableInDistribution) {
