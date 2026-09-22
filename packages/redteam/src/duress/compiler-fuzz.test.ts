@@ -125,11 +125,12 @@ describe("packages/redteam duress compiler fuzz", () => {
   });
 
   it("mutates revision/bounds and expects schema or compile fail-closed", () => {
-    const oversized = PolicyDocumentSchema.parse({
-      ...baseDoc(),
-      revision: -1,
-    });
-    expect(PolicyDocumentSchema.safeParse(oversized).success).toBe(false);
+    expect(
+      PolicyDocumentSchema.safeParse({
+        ...baseDoc(),
+        revision: -1,
+      }).success,
+    ).toBe(false);
 
     const undisclosedHold = baseDoc({
       effects: {
