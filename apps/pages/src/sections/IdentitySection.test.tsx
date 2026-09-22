@@ -2,9 +2,26 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { IdentitySession } from "../lib/identity.js";
 import type { IdpRecord } from "../lib/idp-registry.js";
+import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
+import {
+  IDENTITY_ROUTES,
+  IDENTITY_TARGETS,
+} from "../tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "../tutorial/registry/identity-goals.js";
+import { contributeIdentityViews } from "./identity/identity-views.js";
 import { expectProseBudget, makeClient } from "./identity/test-fixtures.js";
 
 const online = vi.hoisted(() => ({ value: true }));
@@ -121,6 +138,27 @@ function firstButton(name: string): HTMLElement {
 }
 
 describe("IdentitySection", () => {
+  // The Identity tabs belong to three capabilities (local IAM, federation,
+  // directory provisioning), and each contributes its own view. These cases
+  // describe a deployment that approved them, so they register the same
+  // contributions the modules make at activation.
+  let revokeIdentityViews: (() => void) | null = null;
+  let undeclareTutorial: (() => void) | null = null;
+  beforeEach(async () => {
+    revokeIdentityViews = contributeIdentityViews(IDENTITY_VIEWS);
+    undeclareTutorial = await declareTutorialForTest("identity.federation", {
+      targets: IDENTITY_TARGETS,
+      goals: IDENTITY_GOALS,
+      routes: IDENTITY_ROUTES,
+    });
+  });
+  afterEach(() => {
+    undeclareTutorial?.();
+    undeclareTutorial = null;
+    revokeIdentityViews?.();
+    revokeIdentityViews = null;
+  });
+
   beforeEach(() => {
     online.value = true;
     registry.raw = null;
