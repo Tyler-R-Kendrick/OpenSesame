@@ -58,7 +58,12 @@ pub fn private_root(name: &str, ca: &DisposableCa) -> TrustBundle {
 /// managed custody is actually available. The key is a throwaway all-zero one
 /// that exists only for the length of the `build_test` call, exactly as
 /// `routes::certs_tests` does it; nothing is written to disk.
-pub async fn state() -> AppState {
+/// Boxed so the caller's test future stays small (`clippy::large_futures`).
+pub fn state() -> std::pin::Pin<Box<dyn std::future::Future<Output = AppState>>> {
+    Box::pin(build_state())
+}
+
+async fn build_state() -> AppState {
     let _guard = crate::app_state::test_env::lock();
     std::env::set_var("OPENSESAME_TASKBUS", "memory");
     std::env::set_var(

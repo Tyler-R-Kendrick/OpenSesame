@@ -33,7 +33,6 @@ use crate::transport_lifecycle::{crl, facts, issuance, revocation, trust};
 
 /// The routes this module contributes, merged by the coordinator in
 /// `routes::router`.
-#[must_use]
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -71,7 +70,7 @@ fn status(code: u16) -> StatusCode {
     StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-fn refuse(code: u16, error: &str, hint: String) -> Response {
+fn refuse(code: u16, error: &str, hint: &str) -> Response {
     (status(code), Json(json!({ "error": error, "hint": hint }))).into_response()
 }
 
@@ -143,7 +142,7 @@ pub async fn revoke_certificate(
     let organization = who.organization(state.connection_organization);
     match revocation::revoke_transport(&state, &organization, request).await {
         Ok(outcome) => (StatusCode::OK, Json(json!({ "revocation": outcome }))).into_response(),
-        Err(error) => refuse(error.http_status(), error.code(), error.to_string()),
+        Err(error) => refuse(error.http_status(), error.code(), &error.to_string()),
     }
 }
 
@@ -173,7 +172,7 @@ pub async fn get_trust(State(state): State<AppState>, headers: HeaderMap) -> Res
             )
                 .into_response()
         }
-        Err(error) => refuse(400, error.code(), error.to_string()),
+        Err(error) => refuse(400, error.code(), &error.to_string()),
     }
 }
 
@@ -213,7 +212,7 @@ pub async fn put_trust(
     let actor = who.actor_subject().to_owned();
     match trust::put_cas(&state, body.set, &actor, body.force).await {
         Ok(set) => (StatusCode::OK, Json(json!({ "trust": set }))).into_response(),
-        Err(error) => refuse(error.http_status(), error.code(), error.to_string()),
+        Err(error) => refuse(error.http_status(), error.code(), &error.to_string()),
     }
 }
 
@@ -248,7 +247,7 @@ pub async fn get_facts(
             })),
         )
             .into_response(),
-        Err(error) => refuse(500, "storage_error", error.to_string()),
+        Err(error) => refuse(500, "storage_error", &error.to_string()),
     }
 }
 

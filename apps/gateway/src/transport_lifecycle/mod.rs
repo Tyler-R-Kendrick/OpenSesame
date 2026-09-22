@@ -181,15 +181,6 @@ impl LifecycleState {
             .collect()
     }
 
-    /// The certificate `target` serves, if it is a managed one.
-    #[must_use]
-    pub fn certificate_for(&self, target: &str) -> Option<String> {
-        self.targets
-            .read()
-            .unwrap_or_else(poisoned)
-            .get(target)
-            .cloned()
-    }
 
     // —— identity cache ———————————————————————————————————————————
 

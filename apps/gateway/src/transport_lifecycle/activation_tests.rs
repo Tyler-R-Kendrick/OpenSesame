@@ -27,7 +27,7 @@ async fn a_malformed_candidate_leaves_the_previous_generation_serving_unchanged(
     let serving = generations.current();
     let serving_expiry = serving.identity.as_ref().expect("identity").not_after();
 
-    let served = support::serve(
+    let listener = support::serve(
         Arc::clone(&generations),
         support::profile_fn(&state),
         support::router(Arc::clone(&generations)),
@@ -35,7 +35,7 @@ async fn a_malformed_candidate_leaves_the_previous_generation_serving_unchanged(
     .await;
     let client_leaf = support::client_leaf(&client_ca, "worker.test");
     let config = support::client(&server_ca, Some(Arc::new(client_leaf.identity())));
-    let mut stream = support::connect(Arc::clone(&config), served.addr)
+    let mut stream = support::connect(Arc::clone(&config), listener.addr)
         .await
         .expect("connect");
     assert_eq!(

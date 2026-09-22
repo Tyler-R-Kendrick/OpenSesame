@@ -21,7 +21,7 @@ async fn a_revoked_leaf_is_denied_on_an_already_authenticated_connection() {
     let client_ca = DisposableCa::new("clients");
     let generations =
         support::generations(server_ca.issue_server("localhost").identity(), &client_ca);
-    let served = support::serve(
+    let listener = support::serve(
         Arc::clone(&generations),
         support::profile_fn(&state),
         support::router(Arc::clone(&generations)),
@@ -33,7 +33,7 @@ async fn a_revoked_leaf_is_denied_on_an_already_authenticated_connection() {
 
     let leaf = support::client_leaf(&client_ca, "worker.test");
     let config = support::client(&server_ca, Some(Arc::new(leaf.identity())));
-    let mut live = support::connect(Arc::clone(&config), served.addr)
+    let mut live = support::connect(Arc::clone(&config), listener.addr)
         .await
         .expect("connect");
     assert_eq!(
@@ -67,7 +67,7 @@ async fn a_revoked_leaf_is_denied_on_an_already_authenticated_connection() {
     );
 
     // Layer 1: a brand-new handshake with the same leaf.
-    let fresh = support::connect(config, served.addr).await;
+    let fresh = support::connect(config, listener.addr).await;
     match fresh {
         Err(message) => assert!(message.starts_with("tls:"), "{message}"),
         Ok(mut stream) => {

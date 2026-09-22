@@ -183,7 +183,6 @@ impl TargetFacts {
         let loaded = self.latest("loaded");
         let failed = self.latest("reload_failed");
         match (loaded, failed) {
-            (None, _) => RuntimeStatus::NotLoaded,
             (
                 Some(Fact::Loaded { generation, at }),
                 Some(Fact::ReloadFailed {
@@ -198,7 +197,7 @@ impl TargetFacts {
                 generation: *generation,
                 loaded_at: *at,
             },
-            (Some(_), _) => RuntimeStatus::NotLoaded,
+            (None | Some(_), _) => RuntimeStatus::NotLoaded,
         }
     }
 }
@@ -255,7 +254,7 @@ mod tests {
     #[test]
     fn history_is_bounded_to_the_newest_entries() {
         let mut facts = TargetFacts::new("t");
-        for i in 0..(MAX_HISTORY as i64 + 10) {
+        for i in 0..(i64::try_from(MAX_HISTORY).expect("bound") + 10) {
             facts.push(Fact::Delivered { at: at(i) });
         }
         assert_eq!(facts.history.len(), MAX_HISTORY);

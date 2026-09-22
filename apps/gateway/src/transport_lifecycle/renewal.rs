@@ -158,7 +158,7 @@ impl Scheduler {
             last_code: String::new(),
         });
         entry.attempts = entry.attempts.saturating_add(1);
-        entry.last_code = code.to_owned();
+        code.clone_into(&mut entry.last_code);
         if entry.attempts >= MAX_ATTEMPTS {
             entry.parked = true;
         } else {
@@ -194,12 +194,6 @@ impl Scheduler {
             .collect()
     }
 
-    #[must_use]
-    pub fn entry(&self, organization_id: &str, certificate_id: &str) -> Option<Retry> {
-        self.retries
-            .get(&key(organization_id, certificate_id))
-            .cloned()
-    }
 
     /// Forget a certificate (revoked, deleted).
     pub fn forget(&mut self, organization_id: &str, certificate_id: &str) {
