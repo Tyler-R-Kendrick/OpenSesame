@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 503,
-    "violations": 793,
+    "files": 507,
+    "violations": 802,
     "oversizedLines": 252752
   },
   "files": {
@@ -1352,6 +1352,22 @@
     },
     "packages/auth-upstream/src/webauthn.ts": {
       "max-lines": 422
+    },
+    "packages/capability-composition/src/descriptor.ts": {
+      "complexity": 1,
+      "max-lines-per-function": 1,
+      "max-statements": 1
+    },
+    "packages/capability-composition/src/digest.ts": {
+      "complexity": 1
+    },
+    "packages/capability-composition/src/resolver-node.ts": {
+      "complexity": 1,
+      "max-lines-per-function": 1
+    },
+    "packages/capability-composition/src/resolver.ts": {
+      "complexity": 2,
+      "max-lines-per-function": 1
     },
     "packages/capability-registry/src/index.ts": {
       "max-lines": 2078
