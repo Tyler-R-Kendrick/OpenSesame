@@ -10,6 +10,7 @@
 
 import { IconPasskey } from "../../components/Icons.js";
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import { KIND_LABEL } from "../../lib/vault/model.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "vault.passkey-records";
@@ -21,7 +22,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
     activation.register("item-kind", {
       kind: "passkey",
-      label: "Passkeys",
+      // The picker reads it beside the core kinds, so it is the same
+      // singular name the vault model already gives this kind.
+      label: KIND_LABEL.passkey,
       segment: "passkeys",
       Icon: IconPasskey,
       order: 20,
