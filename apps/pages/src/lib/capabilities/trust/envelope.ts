@@ -133,6 +133,23 @@ function readOrigins(
   return origins;
 }
 
+/** Every member an envelope must carry, at the type and length it must have. */
+function hasEnvelopeMembers(value: Readonly<Record<string, JsonValue>>): boolean {
+  return (
+    value.schemaVersion === 1 &&
+    value.kind === ENVELOPE_KIND &&
+    shortString(value.instanceId) &&
+    shortString(value.revision) &&
+    shortString(value.alg) &&
+    shortString(value.kid) &&
+    isDigest(value.payloadDigest) &&
+    isJsonObject(value.payload) &&
+    shortString(value.signature) &&
+    (value.notBefore === undefined || shortString(value.notBefore)) &&
+    (value.expires === undefined || shortString(value.expires))
+  );
+}
+
 /**
  * Structural read of an envelope. The `payload` is checked to be an object
  * naming the same instance and revision; its full validation is S01's.
@@ -161,29 +178,15 @@ export function readPolicyEnvelope(
     "signature",
   ]);
   if (!Object.keys(value).every((key) => known.has(key))) return null;
-  if (
-    value.schemaVersion !== 1 ||
-    value.kind !== ENVELOPE_KIND ||
-    !shortString(value.instanceId) ||
-    !shortString(value.revision) ||
-    !shortString(value.alg) ||
-    !shortString(value.kid) ||
-    !isDigest(value.payloadDigest) ||
-    !isJsonObject(value.payload) ||
-    !shortString(value.signature) ||
-    (value.notBefore !== undefined && !shortString(value.notBefore)) ||
-    (value.expires !== undefined && !shortString(value.expires))
-  )
-    return null;
+  if (!hasEnvelopeMembers(value)) return null;
   const allowedOrigins = readOrigins(value.allowedOrigins);
   if (allowedOrigins === null) return null;
   // SAFETY: every member was checked above. `alg` may still name a foreign
   // algorithm: the envelope stays readable so `verifyPolicyEnvelope` can
   // refuse it as `unsupported-alg` rather than as noise.
-  const envelope: SignedPolicyEnvelope = overlapCast({
-    ...value,
-    ...(allowedOrigins === undefined ? {} : { allowedOrigins }),
-  });
+  const envelope: SignedPolicyEnvelope = overlapCast(
+    allowedOrigins === undefined ? value : { ...value, allowedOrigins },
+  );
   return envelope;
 }
 

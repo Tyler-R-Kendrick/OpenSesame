@@ -70,7 +70,14 @@
           "apps/pages/src/lib/capabilities/loader.ts",
           "apps/pages/src/sw/core.ts"
         ],
-        "contracts": ["LOAD-01", "LOAD-03", "LOAD-04", "LOAD-07", "PWA-01", "BUILD-05"],
+        "contracts": [
+          "LOAD-01",
+          "LOAD-03",
+          "LOAD-04",
+          "LOAD-07",
+          "PWA-01",
+          "BUILD-05"
+        ],
         "status": "partial",
         "note": "LOAD-01 has no landed test; see contract-test-matrix.json."
       },
@@ -96,7 +103,19 @@
           "apps/pages/src/lib/capabilities/store-commit.ts",
           "apps/pages/src/lib/capabilities/migration.ts"
         ],
-        "contracts": ["CONSENT-01", "CONSENT-02", "CONSENT-03", "CONSENT-04", "CONSENT-05", "CONSENT-06", "CONSENT-07", "CONSENT-08", "CONSENT-09", "CONSENT-10", "LIFE-06"],
+        "contracts": [
+          "CONSENT-01",
+          "CONSENT-02",
+          "CONSENT-03",
+          "CONSENT-04",
+          "CONSENT-05",
+          "CONSENT-06",
+          "CONSENT-07",
+          "CONSENT-08",
+          "CONSENT-09",
+          "CONSENT-10",
+          "LIFE-06"
+        ],
         "status": "covered"
       },
       {
@@ -120,7 +139,14 @@
           "apps/pages/scripts/build-profile.mjs",
           "docs/validation/capability-composition.md"
         ],
-        "contracts": ["EVID-01", "EVID-02", "EVID-03", "EVID-08", "BUILD-04", "BUILD-07"],
+        "contracts": [
+          "EVID-01",
+          "EVID-02",
+          "EVID-03",
+          "EVID-08",
+          "BUILD-04",
+          "BUILD-07"
+        ],
         "status": "partial",
         "note": "BUILD-07 (the profile build matrix) has no landed test and was not built in this session."
       }
@@ -137,7 +163,20 @@
         "tests": 60,
         "run": "run-composition (all passed)"
       },
-      "contracts": ["MODEL-01", "MODEL-02", "MODEL-03", "MODEL-04", "MODEL-05", "MODEL-06", "MODEL-07", "MODEL-08", "MODEL-09", "MODEL-10", "CONSENT-04", "CONSENT-05"],
+      "contracts": [
+        "MODEL-01",
+        "MODEL-02",
+        "MODEL-03",
+        "MODEL-04",
+        "MODEL-05",
+        "MODEL-06",
+        "MODEL-07",
+        "MODEL-08",
+        "MODEL-09",
+        "MODEL-10",
+        "CONSENT-04",
+        "CONSENT-05"
+      ],
       "pending": []
     },
     {
@@ -196,8 +235,22 @@
       "owner": "S03",
       "role": "trust: envelope verification, provenance, join review, revision/rollback",
       "paths": ["apps/pages/src/lib/capabilities/trust/**"],
-      "landed": { "testFiles": 5, "tests": 24, "run": "run-pages-capabilities (all passed)" },
-      "contracts": ["TRUST-02", "TRUST-03", "TRUST-04", "TRUST-05", "TRUST-06", "TRUST-07", "TRUST-08", "TRUST-09", "TRUST-10"],
+      "landed": {
+        "testFiles": 5,
+        "tests": 24,
+        "run": "run-pages-capabilities (all passed)"
+      },
+      "contracts": [
+        "TRUST-02",
+        "TRUST-03",
+        "TRUST-04",
+        "TRUST-05",
+        "TRUST-06",
+        "TRUST-07",
+        "TRUST-08",
+        "TRUST-09",
+        "TRUST-10"
+      ],
       "pending": ["TRUST-01"]
     },
     {
@@ -220,17 +273,39 @@
     {
       "owner": "S05",
       "role": "bootstrap: core-only boot, parsed runtime config, core routes, unavailable route",
-      "paths": ["apps/pages/src/main.tsx", "apps/pages/src/bootstrap/**", "apps/pages/src/lib/runtime-config.ts", "apps/pages/src/app-root.tsx"],
-      "landed": { "testFiles": 2, "tests": 24, "run": "run-pages-boot (all passed)" },
+      "paths": [
+        "apps/pages/src/main.tsx",
+        "apps/pages/src/bootstrap/**",
+        "apps/pages/src/lib/runtime-config.ts",
+        "apps/pages/src/app-root.tsx"
+      ],
+      "landed": {
+        "testFiles": 2,
+        "tests": 24,
+        "run": "run-pages-boot (all passed)"
+      },
       "contracts": ["LOAD-03", "TRUST-08"],
       "pending": ["LOAD-01"]
     },
     {
       "owner": "S06",
       "role": "loader and runtime: store, loader, registry, authority, lease",
-      "paths": ["apps/pages/src/lib/capabilities/{store,store-*,loader,registry,authority,lease,facts,keys}.ts"],
+      "paths": [
+        "apps/pages/src/lib/capabilities/{store,store-*,loader,registry,authority,lease,facts,keys}.ts"
+      ],
       "landed": { "tests": 34, "run": "run-pages-capabilities (all passed)" },
-      "contracts": ["LOAD-06", "LOAD-07", "LOAD-09", "LIFE-01", "LIFE-04", "LIFE-09", "CONSENT-08", "CONSENT-09", "MODEL-01", "TRUST-08"],
+      "contracts": [
+        "LOAD-06",
+        "LOAD-07",
+        "LOAD-09",
+        "LIFE-01",
+        "LIFE-04",
+        "LIFE-09",
+        "CONSENT-08",
+        "CONSENT-09",
+        "MODEL-01",
+        "TRUST-08"
+      ],
       "pending": ["LOAD-05", "LOAD-08", "LIFE-02", "LIFE-08"]
     },
     {
@@ -248,7 +323,11 @@
           "pnpm --filter @opensesame/pages build:profile",
           "pnpm --filter @opensesame/pages verify:capability-graph"
         ],
-        "env": ["OPENSESAME_CAPABILITY_PROFILE", "OPENSESAME_BUILD_MODE", "OPENSESAME_GRAPH_GATE"],
+        "env": [
+          "OPENSESAME_CAPABILITY_PROFILE",
+          "OPENSESAME_BUILD_MODE",
+          "OPENSESAME_GRAPH_GATE"
+        ],
         "buildMatrix": [
           ["minimal-local", "selective"],
           ["minimal-local", "hardened"],
@@ -260,14 +339,28 @@
           ["rich-explicit", "selective"]
         ]
       },
-      "contracts": ["BUILD-04", "BUILD-05", "BUILD-06", "BUILD-08", "LOAD-04", "EVID-01", "EVID-02"],
+      "contracts": [
+        "BUILD-04",
+        "BUILD-05",
+        "BUILD-06",
+        "BUILD-08",
+        "LOAD-04",
+        "EVID-01",
+        "EVID-02"
+      ],
       "pending": ["BUILD-01", "BUILD-07"],
       "note": "No build was run in this session; the script suites were read, not executed."
     },
     {
       "owner": "S08",
       "role": "workers: core-only worker, push variant, owned caches, asset-plan messages, registration controller",
-      "paths": ["apps/pages/src/sw.ts", "apps/pages/src/sw-push.ts", "apps/pages/src/sw/**", "apps/pages/src/lib/capabilities/worker-controller.ts", "apps/pages/scripts/build-workers.mjs"],
+      "paths": [
+        "apps/pages/src/sw.ts",
+        "apps/pages/src/sw-push.ts",
+        "apps/pages/src/sw/**",
+        "apps/pages/src/lib/capabilities/worker-controller.ts",
+        "apps/pages/scripts/build-workers.mjs"
+      ],
       "landed": {
         "variants": [
           { "id": "core-only", "scriptPath": "sw.js", "satisfies": [] },
@@ -277,24 +370,53 @@
         "tests": 14,
         "run": "run-worker-split (worker-controller.test.ts + worker-controller-plan.test.ts, 14 tests, all passed)"
       },
-      "contracts": ["PWA-01", "PWA-02", "PWA-03", "PWA-04", "PWA-05", "PWA-06", "PWA-07", "PWA-08", "PWA-09", "EVID-03"],
+      "contracts": [
+        "PWA-01",
+        "PWA-02",
+        "PWA-03",
+        "PWA-04",
+        "PWA-05",
+        "PWA-06",
+        "PWA-07",
+        "PWA-08",
+        "PWA-09",
+        "EVID-03"
+      ],
       "pending": []
     },
     {
       "owner": "S09",
       "role": "setup and consent UI: purpose cards, capability cards, draft/review/apply, Settings › Capabilities",
-      "paths": ["apps/pages/src/screens/capabilities/**", "apps/pages/src/screens/SetupScreen.tsx", "apps/pages/src/sections/settings/CapabilitiesPanel*.tsx", "apps/pages/src/sections/settings/InstanceCapabilitiesPanel.tsx"],
+      "paths": [
+        "apps/pages/src/screens/capabilities/**",
+        "apps/pages/src/screens/SetupScreen.tsx",
+        "apps/pages/src/sections/settings/CapabilitiesPanel*.tsx",
+        "apps/pages/src/sections/settings/InstanceCapabilitiesPanel.tsx"
+      ],
       "landed": {
         "setupFirstTab": "capabilities (apps/pages/src/screens/SetupScreen.tsx CAPABILITIES_STEP); later tabs are setup-panel contributions"
       },
-      "contracts": ["CONSENT-01", "CONSENT-02", "CONSENT-03", "SURFACE-06", "SURFACE-10", "MODEL-10"],
+      "contracts": [
+        "CONSENT-01",
+        "CONSENT-02",
+        "CONSENT-03",
+        "SURFACE-06",
+        "SURFACE-10",
+        "MODEL-10"
+      ],
       "pending": [],
       "note": "These suites exist and were read; none was executed in this session."
     },
     {
       "owner": "S10",
       "role": "shell: contribution-driven navigation, commands, shortcuts, help",
-      "paths": ["apps/pages/src/components/AppShell.tsx", "apps/pages/src/components/VaultRail.tsx", "apps/pages/src/lib/keymap.ts", "apps/pages/src/lib/command-bar/types.ts", "apps/pages/src/lib/item-kinds.ts"],
+      "paths": [
+        "apps/pages/src/components/AppShell.tsx",
+        "apps/pages/src/components/VaultRail.tsx",
+        "apps/pages/src/lib/keymap.ts",
+        "apps/pages/src/lib/command-bar/types.ts",
+        "apps/pages/src/lib/item-kinds.ts"
+      ],
       "contracts": [],
       "pending": ["SURFACE-05", "SURFACE-08", "SURFACE-09"],
       "note": "SURFACE-08 and SURFACE-09 are named in the shell sources but no test names either. This is the largest pending cluster in the ledger."
@@ -325,25 +447,60 @@
     {
       "owner": "S17",
       "role": "OpenFeature: local read-only provider over the store snapshot",
-      "paths": ["apps/pages/src/lib/capabilities/openfeature.ts", "apps/pages/src/lib/capabilities/openfeature-consumer.ts"],
+      "paths": [
+        "apps/pages/src/lib/capabilities/openfeature.ts",
+        "apps/pages/src/lib/capabilities/openfeature-consumer.ts"
+      ],
       "landed": { "tests": 17, "run": "run-pages-capabilities (all passed)" },
-      "contracts": ["OF-01", "OF-02", "OF-03", "OF-04", "OF-05", "OF-06", "OF-07", "OF-08"],
+      "contracts": [
+        "OF-01",
+        "OF-02",
+        "OF-03",
+        "OF-04",
+        "OF-05",
+        "OF-06",
+        "OF-07",
+        "OF-08"
+      ],
       "pending": []
     },
     {
       "owner": "S18",
       "role": "network: egress adapter, capability-derived CSP and header templates",
-      "paths": ["apps/pages/src/lib/capabilities/egress.ts", "apps/pages/scripts/security-headers.mjs"],
-      "landed": { "tests": 8, "run": "run-pages-capabilities (egress.test.ts, all passed)" },
-      "contracts": ["NET-01", "NET-02", "NET-03", "NET-04", "NET-05", "NET-06", "NET-07", "NET-08"],
+      "paths": [
+        "apps/pages/src/lib/capabilities/egress.ts",
+        "apps/pages/scripts/security-headers.mjs"
+      ],
+      "landed": {
+        "tests": 8,
+        "run": "run-pages-capabilities (egress.test.ts, all passed)"
+      },
+      "contracts": [
+        "NET-01",
+        "NET-02",
+        "NET-03",
+        "NET-04",
+        "NET-05",
+        "NET-06",
+        "NET-07",
+        "NET-08"
+      ],
       "pending": [],
       "note": "NET-06/07/08 live in apps/pages/scripts/security-headers.test.mjs, which was read but not executed here."
     },
     {
       "owner": "S19",
       "role": "lifecycle: change coordinator, setup.v1 migration review, cross-tab invalidation",
-      "paths": ["apps/pages/src/lib/capabilities/change.ts", "apps/pages/src/lib/capabilities/migration.ts", "apps/pages/src/lib/capabilities/invalidation.ts", "apps/pages/src/lib/capabilities/channel.ts"],
-      "landed": { "tests": 3, "run": "run-pages-capabilities (migration.test.ts, all passed)" },
+      "paths": [
+        "apps/pages/src/lib/capabilities/change.ts",
+        "apps/pages/src/lib/capabilities/migration.ts",
+        "apps/pages/src/lib/capabilities/invalidation.ts",
+        "apps/pages/src/lib/capabilities/channel.ts"
+      ],
+      "landed": {
+        "tests": 3,
+        "run": "run-pages-capabilities (migration.test.ts, all passed)"
+      },
       "contracts": ["LIFE-06"],
       "pending": ["LIFE-03", "LIFE-05", "LIFE-07", "VAULT-*"]
     },

@@ -59,8 +59,18 @@
       "statement": "No selection and no policy approves only the core tier; every optional capability is off.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.test.ts", "name": "resolveComposition MODEL-01: no selection and no policy approves only core; every optional is off", "observed": "run-passed", "run": "run-composition" },
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "boot MODEL-01: personal-local with no selection resolves core-only", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "packages/capability-composition/src/resolve.test.ts",
+          "name": "resolveComposition MODEL-01: no selection and no policy approves only core; every optional is off",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "boot MODEL-01: personal-local with no selection resolves core-only",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -68,7 +78,12 @@
       "statement": "An id appearing in two of required/optional/prohibited invalidates the policy.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/documents.test.ts", "name": "parseInstancePolicy MODEL-02: an id in two of required/optional/prohibited fails with the later path", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/documents.test.ts",
+          "name": "parseInstancePolicy MODEL-02: an id in two of required/optional/prohibited fails with the later path",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -76,8 +91,18 @@
       "statement": "A workspace restriction keeps allow: null (inherit) and allow: [] (permit none) as distinct values.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/documents.test.ts", "name": "parseWorkspaceRestriction MODEL-03: preserves allow: null and allow: [] as distinct values", "observed": "run-passed", "run": "run-composition" },
-        { "file": "packages/capability-composition/src/documents.test.ts", "name": "parseWorkspaceRestriction MODEL-03: allow: null inherits the ceiling; allow: [] permits no optional capability", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/documents.test.ts",
+          "name": "parseWorkspaceRestriction MODEL-03: preserves allow: null and allow: [] as distinct values",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "packages/capability-composition/src/documents.test.ts",
+          "name": "parseWorkspaceRestriction MODEL-03: allow: null inherits the ceiling; allow: [] permits no optional capability",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -85,7 +110,12 @@
       "statement": "A selected root whose dependency is prohibited conflicts; neither root nor dependency is approved and no module ships.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.test.ts", "name": "resolveComposition MODEL-04: a selected root whose dependency is prohibited conflicts; neither is approved and no module ships", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/resolve.test.ts",
+          "name": "resolveComposition MODEL-04: a selected root whose dependency is prohibited conflicts; neither is approved and no module ships",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -93,7 +123,12 @@
       "statement": "When a chosen alternative is unavailable, another alternative is never substituted for it.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.test.ts", "name": "resolveComposition MODEL-05: when the chosen local alternative is unavailable the remote one is never substituted", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/resolve.test.ts",
+          "name": "resolveComposition MODEL-05: when the chosen local alternative is unavailable the remote one is never substituted",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -101,10 +136,30 @@
       "statement": "The catalog rejects unknown dependencies, cycles (including through an alternative), chains deeper than 16, duplicate ids, oversize and malformed module prefixes.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/catalog.test.ts", "name": "validateCatalog MODEL-06: rejects an unknown dependency", "observed": "run-passed", "run": "run-composition" },
-        { "file": "packages/capability-composition/src/catalog.test.ts", "name": "validateCatalog MODEL-06: rejects a dependency cycle, including through an alternative", "observed": "run-passed", "run": "run-composition" },
-        { "file": "packages/capability-composition/src/catalog.test.ts", "name": "validateCatalog MODEL-06: rejects a dependency chain deeper than 16 and accepts one of 16", "observed": "run-passed", "run": "run-composition" },
-        { "file": "packages/capability-composition/src/catalog.test.ts", "name": "validateCatalog MODEL-06: rejects a duplicate id, an oversized catalog, and a bad module prefix boundedly", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/catalog.test.ts",
+          "name": "validateCatalog MODEL-06: rejects an unknown dependency",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "packages/capability-composition/src/catalog.test.ts",
+          "name": "validateCatalog MODEL-06: rejects a dependency cycle, including through an alternative",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "packages/capability-composition/src/catalog.test.ts",
+          "name": "validateCatalog MODEL-06: rejects a dependency chain deeper than 16 and accepts one of 16",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "packages/capability-composition/src/catalog.test.ts",
+          "name": "validateCatalog MODEL-06: rejects a duplicate id, an oversized catalog, and a bad module prefix boundedly",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -112,7 +167,12 @@
       "statement": "Resolution is deterministic: reordering every input list yields an identical plan digest and identical explanations.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.determinism.test.ts", "name": "MODEL-07: determinism reordering every input list yields an identical plan digest and explanations", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/resolve.determinism.test.ts",
+          "name": "MODEL-07: determinism reordering every input list yields an identical plan digest and explanations",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -120,8 +180,18 @@
       "statement": "Restrictions are monotone: tightening a policy never grows approvedCapabilities, approvedModules or approvedOperations. Property test, fast-check seed 20260922.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.determinism.test.ts", "name": "MODEL-08: restrictions are monotone tightening a policy never grows approvedCapabilities, approvedModules or approvedOperations", "observed": "run-passed", "run": "run-composition" },
-        { "file": "packages/capability-composition/src/resolve.determinism.test.ts", "name": "MODEL-08: restrictions are monotone the plan digest is a pure function of the input", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/resolve.determinism.test.ts",
+          "name": "MODEL-08: restrictions are monotone tightening a policy never grows approvedCapabilities, approvedModules or approvedOperations",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "packages/capability-composition/src/resolve.determinism.test.ts",
+          "name": "MODEL-08: restrictions are monotone the plan digest is a pure function of the input",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -129,7 +199,12 @@
       "statement": "An unsupported execution environment yields UNSUPPORTED_RUNTIME and no approval.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.test.ts", "name": "resolveComposition MODEL-09: an unsupported environment yields UNSUPPORTED_RUNTIME and no approval", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/resolve.test.ts",
+          "name": "resolveComposition MODEL-09: an unsupported environment yields UNSUPPORTED_RUNTIME and no approval",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -137,8 +212,17 @@
       "statement": "A declined required root refuses the join and widens nothing; it is not an enabled capability and not a deleted vault.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/resolve.test.ts", "name": "resolveComposition MODEL-10: a declined required root refuses the join and widens nothing", "observed": "run-passed", "run": "run-composition" },
-        { "file": "apps/pages/src/screens/capabilities/InstallationRequirements.test.tsx", "name": "names MODEL-10 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "packages/capability-composition/src/resolve.test.ts",
+          "name": "resolveComposition MODEL-10: a declined required root refuses the join and widens nothing",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "apps/pages/src/screens/capabilities/InstallationRequirements.test.tsx",
+          "name": "names MODEL-10 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -153,8 +237,18 @@
       "statement": "A join document is previewed, not applied: known ids are placed and unknown ids are listed as absent.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/join-review.test.ts", "name": "previewJoinDocument (S03, TRUST-02/07) previews a bare policy: known ids placed, unknown ids listed as absent", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/trust/join-review.test.ts", "name": "previewJoinDocument (S03, TRUST-02/07) previews a signed envelope with an embedded key and shows the fingerprint to compare", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/join-review.test.ts",
+          "name": "previewJoinDocument (S03, TRUST-02/07) previews a bare policy: known ids placed, unknown ids listed as absent",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/join-review.test.ts",
+          "name": "previewJoinDocument (S03, TRUST-02/07) previews a signed envelope with an embedded key and shows the fingerprint to compare",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -162,7 +256,12 @@
       "statement": "Algorithm confusion: an envelope claiming HS256 is refused before any key is used.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts", "name": "verifyPolicyEnvelope (S03) TRUST-03: algorithm confusion — an envelope claiming HS256 is refused before any key is used", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts",
+          "name": "verifyPolicyEnvelope (S03) TRUST-03: algorithm confusion — an envelope claiming HS256 is refused before any key is used",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -170,7 +269,12 @@
       "statement": "Key substitution: an unknown kid or an attacker's key fails verification.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts", "name": "verifyPolicyEnvelope (S03) TRUST-04: key substitution — an unknown kid or an attacker's key fails", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts",
+          "name": "verifyPolicyEnvelope (S03) TRUST-04: key substitution — an unknown kid or an attacker's key fails",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -178,7 +282,12 @@
       "statement": "An older policy revision presented later is detected as a rollback, including a restored copy.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/accepted-revision.test.ts", "name": "accepted revision record (S03) TRUST-05: an older revision is a rollback, including a restored copy", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/accepted-revision.test.ts",
+          "name": "accepted revision record (S03) TRUST-05: an older revision is a rollback, including a restored copy",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -186,7 +295,12 @@
       "statement": "The same revision arriving with a different digest is a conflict.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/accepted-revision.test.ts", "name": "accepted revision record (S03) TRUST-06: the same revision with a different digest is a conflict", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/accepted-revision.test.ts",
+          "name": "accepted revision record (S03) TRUST-06: the same revision with a different digest is a conflict",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -194,9 +308,24 @@
       "statement": "A join preview follows no URL, activates nothing, names what it ignored; key rotation is accepted only when the trusted key authorized it.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/join-review.test.ts", "name": "previewJoinDocument (S03, TRUST-02/07) TRUST-07: follows no URL, activates nothing, and names what it ignored", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/trust/trust-keys.test.ts", "name": "policy keys and rotation (S03, TRUST-07) accepts a rotation signed by the trusted key and binds the new kid to its key", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/trust/trust-keys.test.ts", "name": "policy keys and rotation (S03, TRUST-07) refuses rotations the trusted key did not authorize", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/join-review.test.ts",
+          "name": "previewJoinDocument (S03, TRUST-02/07) TRUST-07: follows no URL, activates nothing, and names what it ignored",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/trust-keys.test.ts",
+          "name": "policy keys and rotation (S03, TRUST-07) accepts a rotation signed by the trusted key and binds the new kid to its key",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/trust-keys.test.ts",
+          "name": "policy keys and rotation (S03, TRUST-07) refuses rotations the trusted key did not authorize",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -204,9 +333,24 @@
       "statement": "An invalid or wrongly-addressed managed policy resolves managed-invalid: core-only plan, POLICY_UNVERIFIED on every optional capability, no permissive default.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/runtime-config.test.ts", "name": "parseRuntimeConfig TRUST-08: an invalid capability section is invalid, with a null policy", "observed": "run-passed", "run": "run-pages-boot" },
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "boot TRUST-08: an invalid managed policy is managed-invalid and core-only", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts", "name": "verifyPolicyEnvelope (S03) TRUST-08: wrong instance and wrong origin are refused", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/runtime-config.test.ts",
+          "name": "parseRuntimeConfig TRUST-08: an invalid capability section is invalid, with a null policy",
+          "observed": "run-passed",
+          "run": "run-pages-boot"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "boot TRUST-08: an invalid managed policy is managed-invalid and core-only",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts",
+          "name": "verifyPolicyEnvelope (S03) TRUST-08: wrong instance and wrong origin are refused",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -214,8 +358,18 @@
       "statement": "Policy validity is judged by an explicitly supplied clock, never Date.now().",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts", "name": "verifyPolicyEnvelope (S03) TRUST-09: validity is judged by the supplied clock, never Date.now()", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/trust/expiry-provenance.test.ts", "name": "policy validity and the offline envelope (S03, TRUST-09/10) judges the window by the supplied clock only", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts",
+          "name": "verifyPolicyEnvelope (S03) TRUST-09: validity is judged by the supplied clock, never Date.now()",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/expiry-provenance.test.ts",
+          "name": "policy validity and the offline envelope (S03, TRUST-09/10) judges the window by the supplied clock only",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -223,8 +377,18 @@
       "statement": "An expired policy keeps running and keeps governing but accepts nothing new, and the product copy states that limitation.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/trust/expiry-provenance.test.ts", "name": "policy validity and the offline envelope (S03, TRUST-09/10) an expired policy keeps running and keeps governing but accepts nothing new", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/trust/expiry-provenance.test.ts", "name": "policy validity and the offline envelope (S03, TRUST-09/10) states its limitations in product copy", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/expiry-provenance.test.ts",
+          "name": "policy validity and the offline envelope (S03, TRUST-09/10) an expired policy keeps running and keeps governing but accepts nothing new",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/trust/expiry-provenance.test.ts",
+          "name": "policy validity and the offline envelope (S03, TRUST-09/10) states its limitations in product copy",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -232,7 +396,11 @@
       "statement": "Purpose presets are data and a preset is a preview until Apply.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx", "name": "names CONSENT-01 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx",
+          "name": "names CONSENT-01 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -240,7 +408,11 @@
       "statement": "Applying a selection takes an explicit review of what it enables.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx", "name": "names CONSENT-02 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx",
+          "name": "names CONSENT-02 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -248,7 +420,11 @@
       "statement": "The setup ceremony's first tab is capability selection; every later tab is a setup-panel contribution of a selected capability.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx", "name": "names CONSENT-03 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx",
+          "name": "names CONSENT-03 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ],
       "sourceEvidence": "apps/pages/src/screens/SetupScreen.tsx builds the tab list from CAPABILITIES_STEP plus setup-panel contributions."
     },
@@ -257,7 +433,12 @@
       "statement": "A capability the catalog gains later is neither selected nor approved by an existing receipt.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/consent.test.ts", "name": "consent CONSENT-04: a capability the catalog gains later is neither selected nor approved", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/consent.test.ts",
+          "name": "consent CONSENT-04: a capability the catalog gains later is neither selected nor approved",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -265,8 +446,18 @@
       "statement": "Grown exposure re-opens consent: a changed egress declaration, and a new dependency, both produce a review delta.",
       "status": "covered",
       "tests": [
-        { "file": "packages/capability-composition/src/consent.test.ts", "name": "consent CONSENT-05: a changed egress declaration re-opens consent for that capability", "observed": "run-passed", "run": "run-composition" },
-        { "file": "packages/capability-composition/src/consent.test.ts", "name": "consent CONSENT-05: a new dependency appears as changedExposure on the root and addedDependencies for the dependency", "observed": "run-passed", "run": "run-composition" }
+        {
+          "file": "packages/capability-composition/src/consent.test.ts",
+          "name": "consent CONSENT-05: a changed egress declaration re-opens consent for that capability",
+          "observed": "run-passed",
+          "run": "run-composition"
+        },
+        {
+          "file": "packages/capability-composition/src/consent.test.ts",
+          "name": "consent CONSENT-05: a new dependency appears as changedExposure on the root and addedDependencies for the dependency",
+          "observed": "run-passed",
+          "run": "run-composition"
+        }
       ]
     },
     {
@@ -274,7 +465,11 @@
       "statement": "The configuration adapter commits a selection only through the store's reviewed path.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/configuration/capabilities-adapter.test.ts", "name": "names CONSENT-06 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/lib/configuration/capabilities-adapter.test.ts",
+          "name": "names CONSENT-06 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -282,7 +477,11 @@
       "statement": "Visual, Source and Effective are three views of the same documents and round-trip.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/configuration/capabilities-adapter.test.ts", "name": "names CONSENT-07 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/lib/configuration/capabilities-adapter.test.ts",
+          "name": "names CONSENT-07 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -290,8 +489,18 @@
       "statement": "A draft based on a superseded selection revision conflicts, and reusing the current revision is a conflict rather than a no-op.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "commit CONSENT-08: a draft based on a superseded selection conflicts", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "commit CONSENT-08: reusing the current revision is a conflict, not a no-op", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "commit CONSENT-08: a draft based on a superseded selection conflicts",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "commit CONSENT-08: reusing the current revision is a conflict, not a no-op",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -299,7 +508,12 @@
       "statement": "A failed durable write publishes nothing: the plan in memory never runs ahead of storage.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "commit CONSENT-09: a failed durable write publishes nothing", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "commit CONSENT-09: a failed durable write publishes nothing",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -307,8 +521,16 @@
       "statement": "The instance configuration exports as one file and reimports to exactly the document it was made from; no service is involved.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/configuration/capabilities-adapter.test.ts", "name": "names CONSENT-10 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx", "name": "names CONSENT-10 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/lib/configuration/capabilities-adapter.test.ts",
+          "name": "names CONSENT-10 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/src/screens/capabilities/CapabilitySetup.test.tsx",
+          "name": "names CONSENT-10 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ],
       "sourceEvidence": "apps/pages/src/lib/configuration/capabilities-export.ts reimportMatches()."
     },
@@ -331,8 +553,18 @@
       "statement": "A known optional section the plan lacks resolves to the unavailable route rather than a broken screen.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/App.test.tsx", "name": "App answers a known optional section the plan lacks with the unavailable route", "observed": "run-passed", "run": "run-pages-boot" },
-        { "file": "apps/pages/src/App.test.tsx", "name": "App withholds an optional popup route the plan did not contribute", "observed": "run-passed", "run": "run-pages-boot" }
+        {
+          "file": "apps/pages/src/App.test.tsx",
+          "name": "App answers a known optional section the plan lacks with the unavailable route",
+          "observed": "run-passed",
+          "run": "run-pages-boot"
+        },
+        {
+          "file": "apps/pages/src/App.test.tsx",
+          "name": "App withholds an optional popup route the plan did not contribute",
+          "observed": "run-passed",
+          "run": "run-pages-boot"
+        }
       ],
       "sourceEvidence": "apps/pages/src/app-root.tsx names LOAD-03."
     },
@@ -341,7 +573,11 @@
       "statement": "The generated module table contains only compile-time-known import specifiers for distributed modules.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/capability-compose-plugin.test.mjs", "name": "names LOAD-04 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/capability-compose-plugin.test.mjs",
+          "name": "names LOAD-04 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -356,7 +592,12 @@
       "statement": "An import revoked mid-flight is refused and the realm is marked dirty rather than pretending the module can be unloaded.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/loader.test.ts", "name": "activateApprovedCapability LOAD-06: an import revoked mid-flight is refused and marks the realm dirty", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/loader.test.ts",
+          "name": "activateApprovedCapability LOAD-06: an import revoked mid-flight is refused and marks the realm dirty",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -364,10 +605,30 @@
       "statement": "The loader refuses an undistributed id before touching the table, refuses an unapproved distributed module, refuses a module whose runtime names another capability, and imports once per distribution.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/loader.test.ts", "name": "loadApprovedModule (LOAD-07) refuses an id the distribution does not carry before touching the table", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/loader.test.ts", "name": "loadApprovedModule (LOAD-07) refuses a distributed module the plan did not approve", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/loader.test.ts", "name": "loadApprovedModule (LOAD-07) refuses a module whose runtime names another capability", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/loader.test.ts", "name": "loadApprovedModule (LOAD-07) imports a module once per distribution and hands the same namespace back", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/loader.test.ts",
+          "name": "loadApprovedModule (LOAD-07) refuses an id the distribution does not carry before touching the table",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/loader.test.ts",
+          "name": "loadApprovedModule (LOAD-07) refuses a distributed module the plan did not approve",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/loader.test.ts",
+          "name": "loadApprovedModule (LOAD-07) refuses a module whose runtime names another capability",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/loader.test.ts",
+          "name": "loadApprovedModule (LOAD-07) imports a module once per distribution and hands the same namespace back",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -382,8 +643,17 @@
       "statement": "Repeated enable/disable disposes every handle and never duplicates a registration.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/loader.test.ts", "name": "activatePlan (LOAD-09) repeated enable/disable disposes every handle and never duplicates a registration", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/modules/*/runtime.test.tsx", "name": "eleven per-module suites name LOAD-09 (read from source; not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/lib/capabilities/loader.test.ts",
+          "name": "activatePlan (LOAD-09) repeated enable/disable disposes every handle and never duplicates a registration",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/modules/*/runtime.test.tsx",
+          "name": "eleven per-module suites name LOAD-09 (read from source; not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -391,7 +661,12 @@
       "statement": "Emergency disable blocks in memory and aborts the lease before storage answers.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "emergencyDisable LIFE-01: blocks in memory and aborts the lease before storage answers", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "emergencyDisable LIFE-01: blocks in memory and aborts the lease before storage answers",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -413,11 +688,36 @@
       "statement": "Cross-context admission: a sensitive operation is refused when another context committed a newer durable generation, when the lease is stale, when the operation is unapproved, and when no Web Locks serialization can be established.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/authority.test.ts", "name": "admitOperation (LIFE-04) admits when the durable generation matches and the lease is current", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/authority.test.ts", "name": "admitOperation (LIFE-04) refuses when another context advanced the durable generation", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/authority.test.ts", "name": "admitOperation (LIFE-04) refuses a stale lease even when storage agrees", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/authority.test.ts", "name": "admitOperation (LIFE-04) refuses an unapproved operation", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/authority.test.ts", "name": "admitOperation (LIFE-04) fails closed without Web Locks", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "name": "admitOperation (LIFE-04) admits when the durable generation matches and the lease is current",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "name": "admitOperation (LIFE-04) refuses when another context advanced the durable generation",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "name": "admitOperation (LIFE-04) refuses a stale lease even when storage agrees",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "name": "admitOperation (LIFE-04) refuses an unapproved operation",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "name": "admitOperation (LIFE-04) fails closed without Web Locks",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -433,9 +733,24 @@
       "status": "covered",
       "alias": "S19-B",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/migration.test.ts", "name": "reviewLegacyConfiguration S19-B: a review changes nothing in the plan", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/migration.test.ts", "name": "reviewLegacyConfiguration names the capabilities the old records suggest", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/migration.test.ts", "name": "reviewLegacyConfiguration does not read a skipped tab or an empty record as anything", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/migration.test.ts",
+          "name": "reviewLegacyConfiguration S19-B: a review changes nothing in the plan",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/migration.test.ts",
+          "name": "reviewLegacyConfiguration names the capabilities the old records suggest",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/migration.test.ts",
+          "name": "reviewLegacyConfiguration does not read a skipped tab or an empty record as anything",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ],
       "note": "The landed label is S19-B, not LIFE-06; recorded here because it is the contract's only demonstration."
     },
@@ -458,7 +773,12 @@
       "statement": "Emergency disable still blocks when the durable write fails.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/store.test.ts", "name": "emergencyDisable LIFE-09: still blocks when the durable write fails", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/store.test.ts",
+          "name": "emergencyDisable LIFE-09: still blocks when the durable write fails",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -480,7 +800,11 @@
       "statement": "A member of a managed instance never sees a policy control — the operator panel renders nothing, not a disabled form.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sections/settings/CapabilitiesPanel.test.tsx", "name": "names SURFACE-06 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/sections/settings/CapabilitiesPanel.test.tsx",
+          "name": "names SURFACE-06 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ],
       "sourceEvidence": "apps/pages/src/sections/settings/InstanceCapabilitiesPanel.tsx and CapabilitiesPanel.tsx both cite SURFACE-06."
     },
@@ -503,7 +827,11 @@
       "statement": "The installation requirements panel states what a join demands before anything is accepted.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/screens/capabilities/InstallationRequirements.test.tsx", "name": "names SURFACE-10 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/screens/capabilities/InstallationRequirements.test.tsx",
+          "name": "names SURFACE-10 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -511,7 +839,12 @@
       "statement": "The OpenFeature provider installs and answers offline, with no network at all.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-01: installs and answers offline, with no network at all", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-01: installs and answers offline, with no network at all",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -519,8 +852,18 @@
       "statement": "With no provider, or a provider that is not ready, a capability flag reads false and the SDK keeps going.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-02: a store that is not ready resolves every default and the SDK keeps going", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts", "name": "openfeature-consumer (S17) OF-02/OF-04: with no provider, or a provider that is not ready, a capability reads false", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-02: a store that is not ready resolves every default and the SDK keeps going",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts",
+          "name": "openfeature-consumer (S17) OF-02/OF-04: with no provider, or a provider that is not ready, a capability reads false",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -528,8 +871,18 @@
       "statement": "An unknown key or a wrong type answers the caller's default with a code, and composition.plan carries only the digest and approved ids.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-03: an unknown key and a wrong type both answer the caller's default with a code", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-03: `composition.plan` carries only the digest and approved ids", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-03: an unknown key and a wrong type both answer the caller's default with a code",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-03: `composition.plan` carries only the digest and approved ids",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -537,7 +890,12 @@
       "statement": "No boolean flag is read with a literal true default.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature-defaults.test.ts", "name": "OpenFeature usage rules OF-04: no boolean flag is read with a literal `true` default", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-defaults.test.ts",
+          "name": "OpenFeature usage rules OF-04: no boolean flag is read with a literal `true` default",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -545,10 +903,30 @@
       "statement": "A malicious or foreign provider can lie to the UI but never to the loader; only the projection and its facade import the SDK.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts", "name": "openfeature-consumer (S17) OF-05: a malicious provider can lie to the UI but never to the loader", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature-defaults.test.ts", "name": "OpenFeature usage rules OF-05: only the projection and its facade import the SDK", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature-defaults.test.ts", "name": "OpenFeature usage rules OF-05: the loader, authority, store, registry and lease never import a flag", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-05: a foreign provider on our domain is detectable", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts",
+          "name": "openfeature-consumer (S17) OF-05: a malicious provider can lie to the UI but never to the loader",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-defaults.test.ts",
+          "name": "OpenFeature usage rules OF-05: only the projection and its facade import the SDK",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-defaults.test.ts",
+          "name": "OpenFeature usage rules OF-05: the loader, authority, store, registry and lease never import a flag",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-05: a foreign provider on our domain is detectable",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -556,8 +934,18 @@
       "statement": "Late or repeated store events cannot restore an older generation's value, and flagsChanged names exactly the flags whose values moved.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-06: late or repeated store events cannot restore an older generation's value", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-06: flagsChanged names exactly the flags whose values moved", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-06: late or repeated store events cannot restore an older generation's value",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-06: flagsChanged names exactly the flags whose values moved",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -565,7 +953,12 @@
       "statement": "Dispose and replacement both release the store subscription.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature.test.ts", "name": "LocalCompositionProvider (S17) OF-07: dispose and replacement both release the store subscription", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature.test.ts",
+          "name": "LocalCompositionProvider (S17) OF-07: dispose and replacement both release the store subscription",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -573,8 +966,18 @@
       "statement": "A release flag can only restrict; it never enables a capability, and release flags never come from the provider.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts", "name": "openfeature-consumer (S17) OF-08: a release flag can only restrict; it never enables a capability", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts", "name": "openfeature-consumer (S17) OF-08: release flags never come from the provider", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts",
+          "name": "openfeature-consumer (S17) OF-08: a release flag can only restrict; it never enables a capability",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/openfeature-consumer.test.ts",
+          "name": "openfeature-consumer (S17) OF-08: release flags never come from the provider",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -582,7 +985,12 @@
       "statement": "Application assets are same-origin only.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/egress.test.ts", "name": "createEgressPort (S18) NET-01: application assets are same-origin only", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/egress.test.ts",
+          "name": "createEgressPort (S18) NET-01: application assets are same-origin only",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -590,8 +998,18 @@
       "statement": "An external service needs the descriptor's declaration, the plan's allow and a listed origin; a deny network refuses even a declared purpose.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/egress.test.ts", "name": "createEgressPort (S18) NET-02: external services need the declaration, the plan's allow, and a listed origin", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/egress.test.ts", "name": "createEgressPort (S18) NET-02: a plan that denies external services refuses even a declared purpose", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/egress.test.ts",
+          "name": "createEgressPort (S18) NET-02: external services need the declaration, the plan's allow, and a listed origin",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/egress.test.ts",
+          "name": "createEgressPort (S18) NET-02: a plan that denies external services refuses even a declared purpose",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -599,7 +1017,12 @@
       "statement": "Peer or local-network traffic needs the deployment profile's permission.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/egress.test.ts", "name": "createEgressPort (S18) NET-03: peer or local network needs the deployment profile's permission", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/egress.test.ts",
+          "name": "createEgressPort (S18) NET-03: peer or local network needs the deployment profile's permission",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -607,7 +1030,12 @@
       "statement": "A redirect is never followed, wherever it points.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/egress.test.ts", "name": "createEgressPort (S18) NET-04: a redirect is never followed, wherever it points", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/egress.test.ts",
+          "name": "createEgressPort (S18) NET-04: a redirect is never followed, wherever it points",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -615,7 +1043,12 @@
       "statement": "An Authorization header can only travel to a destination that already passed classification.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/egress.test.ts", "name": "names NET-05 (file executed in run-pages-capabilities; all 8 tests passed)", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/egress.test.ts",
+          "name": "names NET-05 (file executed in run-pages-capabilities; all 8 tests passed)",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -623,7 +1056,11 @@
       "statement": "The CSP and security headers are derived from the distributed capability set.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/security-headers.test.mjs", "name": "names NET-06 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/security-headers.test.mjs",
+          "name": "names NET-06 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -631,7 +1068,11 @@
       "statement": "A header template never widens beyond what the profile distributes.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/security-headers.test.mjs", "name": "names NET-07 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/security-headers.test.mjs",
+          "name": "names NET-07 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -639,7 +1080,11 @@
       "statement": "The emitted security profile agrees with the emitted distribution.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/security-headers.test.mjs", "name": "names NET-08 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/security-headers.test.mjs",
+          "name": "names NET-08 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -647,8 +1092,16 @@
       "statement": "The core worker ships no push handler; the push variant adds them on top from the same source tree.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/core.test.ts", "name": "names PWA-01 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/sw/push-handlers.test.ts", "name": "names PWA-01 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/sw/core.test.ts",
+          "name": "names PWA-01 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/src/sw/push-handlers.test.ts",
+          "name": "names PWA-01 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ],
       "sourceEvidence": "apps/pages/scripts/build-workers.mjs step 3 re-checks the split against the emitted dist/sw.js."
     },
@@ -657,10 +1110,30 @@
       "statement": "The controller registers the variant the plan names, once per page, and does nothing without a service-worker container, on a cross-origin-isolated page, or before a plan exists.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "variant selection (PWA-02) registers the core-only script once, classic and never via cache, for a null variant", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "variant selection (PWA-02) does nothing without a service worker container", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "variant selection (PWA-02) does not register on a cross-origin-isolated page", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "variant selection (PWA-02) waits for a plan before deciding anything", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "variant selection (PWA-02) registers the core-only script once, classic and never via cache, for a null variant",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "variant selection (PWA-02) does nothing without a service worker container",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "variant selection (PWA-02) does not register on a cross-origin-isolated page",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "variant selection (PWA-02) waits for a plan before deciding anything",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -668,9 +1141,24 @@
       "statement": "The push worker is registered only when the capability is approved and covered by a persisted receipt, and WORKER_GRAPH_UNAVAILABLE is published when the distribution lacks the variant.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "push variant gating (PWA-03) does not register the push worker without a persisted selection and receipt", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "push variant gating (PWA-03) registers it once the capability is approved and in the receipt", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "push variant gating (PWA-03) publishes WORKER_GRAPH_UNAVAILABLE when the distribution lacks the variant", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "push variant gating (PWA-03) does not register the push worker without a persisted selection and receipt",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "push variant gating (PWA-03) registers it once the capability is approved and in the receipt",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "push variant gating (PWA-03) publishes WORKER_GRAPH_UNAVAILABLE when the distribution lacks the variant",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -678,8 +1166,16 @@
       "statement": "Cache cleanup retires only this application's caches under the same scope path, keeping any a still-open window is running from.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/cleanup.test.ts", "name": "names PWA-04 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/sw/core.test.ts", "name": "names PWA-04 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/sw/cleanup.test.ts",
+          "name": "names PWA-04 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/src/sw/core.test.ts",
+          "name": "names PWA-04 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -687,7 +1183,11 @@
       "statement": "Offline assets are staged from a module-id plan the worker resolves itself.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/plan-assets.test.ts", "name": "names PWA-05 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/sw/plan-assets.test.ts",
+          "name": "names PWA-05 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -695,8 +1195,18 @@
       "statement": "A variant change exposes transition-required instead of registering a competing worker; transitionWorker unregisters the old script and registers the new one.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "transitions (PWA-02, PWA-06) exposes transition-required instead of registering a competing worker", "observed": "run-passed", "run": "run-pages-capabilities" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "transitions (PWA-02, PWA-06) transitionWorker unregisters the old script and registers the new one", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "transitions (PWA-02, PWA-06) exposes transition-required instead of registering a competing worker",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "name": "transitions (PWA-02, PWA-06) transitionWorker unregisters the old script and registers the new one",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -704,9 +1214,23 @@
       "statement": "The worker resolves module ids to assets through the same-origin capability graph and never accepts a URL from a page.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/plan-assets.test.ts", "name": "names PWA-07 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts", "name": "plan assets and offline status asks the worker who it is, then posts module ids only — never a URL or a worker unit", "observed": "run-passed", "run": "run-worker-split" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts", "name": "plan assets and offline status posts nothing beyond the shell when the selection is shell-only", "observed": "run-passed", "run": "run-worker-split" }
+        {
+          "file": "apps/pages/src/sw/plan-assets.test.ts",
+          "name": "names PWA-07 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
+          "name": "plan assets and offline status asks the worker who it is, then posts module ids only — never a URL or a worker unit",
+          "observed": "run-passed",
+          "run": "run-worker-split"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
+          "name": "plan assets and offline status posts nothing beyond the shell when the selection is shell-only",
+          "observed": "run-passed",
+          "run": "run-worker-split"
+        }
       ]
     },
     {
@@ -714,7 +1238,11 @@
       "statement": "Fetch answers from the release cache alone.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/core.test.ts", "name": "names PWA-08 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/sw/core.test.ts",
+          "name": "names PWA-08 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -722,8 +1250,17 @@
       "statement": "The worker accepts WORKER_HELLO and PLAN_ASSETS from controlled same-scope windows and ignores everything else.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/plan-assets.test.ts", "name": "names PWA-09 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts", "name": "plan assets and offline status ignores messages that are not from the worker vocabulary", "observed": "run-passed", "run": "run-worker-split" }
+        {
+          "file": "apps/pages/src/sw/plan-assets.test.ts",
+          "name": "names PWA-09 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
+          "name": "plan assets and offline status ignores messages that are not from the worker vocabulary",
+          "observed": "run-passed",
+          "run": "run-worker-split"
+        }
       ]
     },
     {
@@ -738,7 +1275,11 @@
       "statement": "An excluded capability's module is in no chunk and no cap-<capability>-*.js chunk exists.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/verify-capability-graph.test.mjs", "name": "names BUILD-04 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/verify-capability-graph.test.mjs",
+          "name": "names BUILD-04 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -746,7 +1287,11 @@
       "statement": "The build fails on reachability of an excluded module from any entry.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/capability-compose-plugin.test.mjs", "name": "names BUILD-05 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/capability-compose-plugin.test.mjs",
+          "name": "names BUILD-05 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -754,7 +1299,11 @@
       "statement": "The emitted capability graph records source module to chunk, static and dynamic edges, CSS/asset edges, workers and public files.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/capability-compose-plugin.test.mjs", "name": "names BUILD-06 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/capability-compose-plugin.test.mjs",
+          "name": "names BUILD-06 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -769,7 +1318,11 @@
       "statement": "A hardened build omits excluded HTML entries, public files and worker variants entirely.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/capability-compose-plugin.test.mjs", "name": "names BUILD-08 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/capability-compose-plugin.test.mjs",
+          "name": "names BUILD-08 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -777,7 +1330,11 @@
       "statement": "The plugin emits the evidence artifacts the sheets are built from.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/capability-compose-plugin.test.mjs", "name": "names EVID-01 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/capability-compose-plugin.test.mjs",
+          "name": "names EVID-01 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -785,8 +1342,16 @@
       "statement": "The independent post-build verifier re-derives the closure from dist/ on disk and agrees with the plugin's claim.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/scripts/verify-capability-graph.test.mjs", "name": "names EVID-02 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/scripts/capability-compose-plugin.test.mjs", "name": "names EVID-02 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/scripts/verify-capability-graph.test.mjs",
+          "name": "names EVID-02 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/scripts/capability-compose-plugin.test.mjs",
+          "name": "names EVID-02 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -794,7 +1359,11 @@
       "statement": "Cache behaviour is measured, not asserted: cleanup touches only owned caches.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/sw/cleanup.test.ts", "name": "names EVID-03 (read from source; suite not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/sw/cleanup.test.ts",
+          "name": "names EVID-03 (read from source; suite not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -802,8 +1371,16 @@
       "statement": "Contribution and tutorial absence is demonstrated from authored registries rather than asserted.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/contributions.test-support.ts", "name": "EVID-08 support harness (read from source; consumers not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/tutorial/registry/optional-tutorials.test-support.ts", "name": "EVID-08 support harness (read from source; consumers not executed in this session)", "observed": "read-only" }
+        {
+          "file": "apps/pages/src/lib/contributions.test-support.ts",
+          "name": "EVID-08 support harness (read from source; consumers not executed in this session)",
+          "observed": "read-only"
+        },
+        {
+          "file": "apps/pages/src/tutorial/registry/optional-tutorials.test-support.ts",
+          "name": "EVID-08 support harness (read from source; consumers not executed in this session)",
+          "observed": "read-only"
+        }
       ]
     },
     {
@@ -811,8 +1388,19 @@
       "statement": "Every .ts/.tsx under src and auth is classified core, shared or optional by exactly one winning rule.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/classification.test.ts", "name": "SOURCE_CLASSIFICATION (S02-A) matches every source module the build sees", "observed": "run-failed", "run": "run-pages-capabilities", "note": "Failed at 03:37 on src/modules/ports-b.ts, src/modules/tutorial-pick-b.ts and src/modules/tutorial-test-realm.ts — three helper files written by concurrent module-owner work with no rule yet. The other seven tests in the file passed." },
-        { "file": "apps/pages/src/lib/capabilities/classification.test.ts", "name": "SOURCE_CLASSIFICATION (S02-A) an optional rule never classifies an executable root as harmless shared", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/classification.test.ts",
+          "name": "SOURCE_CLASSIFICATION (S02-A) matches every source module the build sees",
+          "observed": "run-failed",
+          "run": "run-pages-capabilities",
+          "note": "Failed at 03:37 on src/modules/ports-b.ts, src/modules/tutorial-pick-b.ts and src/modules/tutorial-test-realm.ts — three helper files written by concurrent module-owner work with no rule yet. The other seven tests in the file passed."
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/classification.test.ts",
+          "name": "SOURCE_CLASSIFICATION (S02-A) an optional rule never classifies an executable root as harmless shared",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -820,7 +1408,12 @@
       "statement": "The catalog validates as a unit, its operationIds equal OPERATION_CAPABILITY grouped by value, core descriptors carry no loadable module ids, and every exposure digest is distinct per declared exposure.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/catalog.test.ts", "name": "CAPABILITY_CATALOG (S02-F) — 14 tests, all passed", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/catalog.test.ts",
+          "name": "CAPABILITY_CATALOG (S02-F) — 14 tests, all passed",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     },
     {
@@ -828,7 +1421,12 @@
       "statement": "Every mandated profile fixture resolves to the approved count it claims, core is approved in every profile valid or not, and every expectInvalid profile is one of the rejected cases.",
       "status": "covered",
       "tests": [
-        { "file": "apps/pages/src/lib/capabilities/profiles.test.ts", "name": "capability profiles — 18 tests, all passed (minimal-local 0 optional, family-local 0, family-sharing-selected 2, single-provider-selected 2, enterprise-selected 6, rich-explicit 24, managed-prohibited 1)", "observed": "run-passed", "run": "run-pages-capabilities" }
+        {
+          "file": "apps/pages/src/lib/capabilities/profiles.test.ts",
+          "name": "capability profiles — 18 tests, all passed (minimal-local 0 optional, family-local 0, family-sharing-selected 2, single-provider-selected 2, enterprise-selected 6, rich-explicit 24, managed-prohibited 1)",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        }
       ]
     }
   ]
