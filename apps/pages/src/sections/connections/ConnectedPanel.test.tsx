@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Connection } from "../../lib/connections.js";
 import { ConnectedPanel } from "./ConnectedPanel.js";
 import { CONNECTIONS_PAGE_SIZE } from "./page-cap.js";
+import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 /**
  * What the Connected panel says when it has nothing to say.
@@ -62,6 +63,11 @@ function renderPanel(over: PanelOverrides) {
     </MemoryRouter>,
   );
 }
+
+// The panel mounts `connections.connected`, a guide target
+// `connectors.external` contributes; these cases describe a deployment
+// that approved it.
+declareConnectionsTutorial();
 
 describe("ConnectedPanel with no Host", () => {
   afterEach(cleanup);

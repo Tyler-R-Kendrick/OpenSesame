@@ -17,6 +17,7 @@ import {
   useNavigationType,
 } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { registerLegacyItemKinds } from "../lib/contributions.test-support.js";
 import { expectVaultCommands } from "./vault/commands.test-support.js";
 
 import { createKeymapHandler } from "../lib/keymap.js";
@@ -168,13 +169,23 @@ function cursorRow(): HTMLElement {
   return row;
 }
 
+/**
+ * Passkey, drop and certificate records are `item-kind` contributions from
+ * the capabilities that own them (SURFACE-08), so the type picker and the
+ * `?f=` filters only offer them while those capabilities are in the plan.
+ * This suite registers the same kinds their runtimes do.
+ */
+let revokeItemKinds: () => void;
+
 describe("VaultSection", () => {
   beforeEach(() => {
+    revokeItemKinds = registerLegacyItemKinds();
     vault.current = { items: [], folders: [], header: null };
     vaultTreeSeams.loadCollapsed = async () => [];
   });
 
   afterEach(() => {
+    revokeItemKinds();
     cleanup();
     vi.clearAllMocks();
     // A file stashed by a test must not leak into the next one.

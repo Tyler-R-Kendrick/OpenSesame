@@ -150,6 +150,7 @@ Object.assign(providersSeams, {
 });
 
 import { setupScreenDependencies } from "./SetupScreen.js";
+import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
 import { unlockScreenDependencies } from "./UnlockScreen.js";
 
 // Setup is never a gate (ADR 0090); this suite tests the unlock form and handoff.
@@ -185,6 +186,12 @@ Object.assign(setupScreenDependencies, {
   // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these
   // tests only care that it is reached and handed back from.
   completeSetup,
+  // Every tab after `capabilities` is a `setup-panel` contribution from the
+  // capability that owns it. Nothing is activated in jsdom, so the suite
+  // registers the same three panels their runtimes do — otherwise a road
+  // that lands on a named tab (the no-way-in notice opens `identity`) has
+  // nowhere to land.
+  useSetupPanels: () => SETUP_PANEL_FIXTURE,
 });
 
 export const STRONG = "correct horse battery staple";

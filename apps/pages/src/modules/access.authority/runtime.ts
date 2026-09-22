@@ -22,6 +22,7 @@
  */
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-views.js";
 import { AccessSection } from "../../sections/AccessSection.js";
 import {
   ACCESS_ROUTES,
@@ -103,6 +104,16 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 32,
     });
     activation.register("command-path", { path: "/access", label: "Access" });
+    // The section's six tabs are destinations too — the command bar and the
+    // browser tool read the same `command-path` set, and a tab is reachable
+    // exactly while the capability that draws it is in the plan. Every
+    // Access tab is this one's: the panels behind them are its own.
+    for (const view of ACCESS_VIEWS) {
+      activation.register("command-path", {
+        path: `/access?view=${view}`,
+        label: `Access · ${ACCESS_LABELS[view]}`,
+      });
+    }
     activation.register("keymap-jump", { key: "a", path: "/access" });
     registerTutorial(activation, TUTORIAL);
 

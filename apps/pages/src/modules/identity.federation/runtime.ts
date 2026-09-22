@@ -30,6 +30,7 @@ import { IDENTITY_TARGETS } from "../../tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { IDENTITY_READ_TOOL } from "../../webmcp/identity-tools.js";
 import { createActivation } from "../activation.js";
+import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
@@ -60,6 +61,10 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
+
+    // The Providers tab this capability puts on the page is a destination
+    // the command bar and the browser tool may name, and only while it is.
+    registerIdentityViewPaths(activation, IDENTITY_VIEWS_OWNED);
 
     activation.register("setup-panel", {
       id: "identity",

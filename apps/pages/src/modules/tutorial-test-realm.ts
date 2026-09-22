@@ -6,6 +6,14 @@
  * registry: it boots the fixture realm, commits a plan that approves the
  * capability, binds a child lease to it and registers through
  * `registerContribution`. The returned function tears it all down.
+ *
+ * The fixture realm swaps `kvSeams.kvGet` for the harness's in-memory
+ * "durable" map while it boots and commits. That map is not what `kvSet`
+ * writes to, so leaving the seam installed would make every later
+ * `saveSettings` in the suite invisible to `loadSettings` — a panel would
+ * read the deployment's defaults instead of what the test just saved. The
+ * storage seams are therefore handed back before this returns, and again on
+ * teardown after the second `freshRealm`.
  */
 
 import {
@@ -19,12 +27,14 @@ import {
   registerContribution,
 } from "../lib/capabilities/registry.js";
 import { compositionStore } from "../lib/capabilities/store.js";
+import { kvSeams } from "../lib/kv.js";
 import type { TutorialContributions } from "./tutorial-contributions.js";
 
 export async function declareTutorialForTest(
   capability: string,
   contributions: TutorialContributions,
 ): Promise<() => void> {
+  const storage = { ...kvSeams };
   freshRealm();
   await bootPersonalLocal();
   const { draft, receipt } = draftFor(compositionStore, [capability], "r1");
@@ -40,8 +50,10 @@ export async function declareTutorialForTest(
   for (const route of contributions.routes ?? []) {
     registerContribution("tutorial-route", route, child.lease);
   }
+  Object.assign(kvSeams, storage);
   return () => {
     child.abort("test-teardown");
     freshRealm();
+    Object.assign(kvSeams, storage);
   };
 }

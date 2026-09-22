@@ -96,9 +96,15 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     fresh();
     render(<UnlockScreen />);
     fireEvent.click(screen.getByRole("button", { name: /^Set up your own/ }));
+    // The ceremony opens on its one fixed tab — what this installation is
+    // allowed to load is asked before anything optional is configured (ADR
+    // 0130) — with each capability's own tab behind it.
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
-    ).toBe("connectors");
+    ).toBe("capabilities");
+    expect(
+      screen.getAllByRole("tab").map((tab) => tab.textContent?.trim()),
+    ).toContain("connectors");
     // One tap after that: the brokered road needs nothing typed.
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
 

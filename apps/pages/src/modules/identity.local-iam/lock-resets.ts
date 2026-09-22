@@ -3,11 +3,13 @@
  * local identity sessions, pending application authorizations — is dropped
  * on vault lock. Those lock-bus subscriptions used to be made at module
  * load (`lib/local-passkeys.ts:60`, `lib/local-sessions.ts:52`,
- * `lib/local-authorization.ts:45`); they are bound here from `activate`
- * instead, and unbinding also resets once, so disposing the capability
- * never leaves a session or an unspent authentication behind.
+ * `lib/local-authorization.ts:45`, `lib/local-agent-auth.ts:29`); they are
+ * bound here from `activate` instead, and unbinding also resets once, so
+ * disposing the capability never leaves a session, an open agent challenge
+ * or an unspent authentication behind.
  */
 
+import { bindLocalAgentAuthLockReset } from "../../lib/local-agent-auth.js";
 import { bindLocalAuthorizationLockReset } from "../../lib/local-authorization.js";
 import { bindLocalAuthenticationLockReset } from "../../lib/local-passkeys.js";
 import { bindLocalSessionLockReset } from "../../lib/local-sessions.js";
@@ -18,6 +20,7 @@ export function bindLocalIamLockResets(): () => void {
     bindLocalAuthenticationLockReset(),
     bindLocalSessionLockReset(),
     bindLocalAuthorizationLockReset(),
+    bindLocalAgentAuthLockReset(),
   ];
   let done = false;
   return () => {

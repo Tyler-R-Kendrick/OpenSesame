@@ -107,6 +107,7 @@ import {
 } from "../lib/connections.js";
 import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
+import { declareConnectionsTutorial } from "./connections/tutorial.test-support.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, {
   listProviders,
@@ -351,6 +352,13 @@ function renderAt(path: string) {
     </MemoryRouter>,
   );
 }
+
+// Every screen here mounts guide targets `connectors.external` contributes
+// (`connections.reload`, `.connected`, `.catalog`, `.provider-picker`,
+// `.custom`, `.back`). These cases describe a deployment that approved that
+// capability, so they declare the same descriptors the module registers at
+// activation.
+declareConnectionsTutorial();
 
 describe("ConnectionsSection gallery", () => {
   beforeEach(() => {

@@ -20,6 +20,7 @@ import { contributeIdentityViews } from "../../sections/identity/identity-views.
 import { IDENTITY_TARGETS } from "../../tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { createActivation } from "../activation.js";
+import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 
@@ -54,6 +55,10 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
+    // People, Agents, Devices and Organization are this capability's tabs, so
+    // their destinations are its contributions too: with the Identity API
+    // capability excluded, `/identity?view=devices` is not a place to go.
+    registerIdentityViewPaths(activation, IDENTITY_VIEWS_OWNED);
     registerTutorial(activation, TUTORIAL);
 
     return activation.handle();

@@ -27,6 +27,7 @@ import {
 import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
+import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { pickById } from "../tutorial-pick-b.js";
 import { IdentityRailTree } from "./IdentityRailTree.js";
 import { bindLocalIamLockResets } from "./lock-resets.js";
@@ -87,6 +88,11 @@ export const capabilityRuntime: CapabilityRuntime = {
       path: "/identity",
       label: "Identity",
     });
+    // One tab destination per Identity tab this capability puts on the page
+    // (`IDENTITY_VIEWS_OWNED`). The Identity section is hosted here, but its
+    // tabs belong to three capabilities, so each owner contributes its own
+    // — a destination exists exactly while the tab behind it does.
+    registerIdentityViewPaths(activation, IDENTITY_VIEWS_OWNED);
     activation.register("keymap-jump", { key: "i", path: "/identity" });
     registerTutorial(activation, TUTORIAL);
 
