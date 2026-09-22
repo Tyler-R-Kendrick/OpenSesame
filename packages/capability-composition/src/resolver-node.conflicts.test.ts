@@ -6,9 +6,11 @@ import { descriptor } from "./test-helpers.js";
 
 function mustDescriptor(
   id: string,
-  overrides: Record<string, BoundaryValue> = {},
+  overrides?: Record<string, BoundaryValue>,
 ): Parameters<typeof evaluateNode>[1] {
-  const checked = validateDescriptor(descriptor(id, overrides));
+  const checked = validateDescriptor(
+    descriptor(id, overrides ?? {}),
+  );
   if (!checked.ok) throw new Error(`fixture descriptor ${id} must validate`);
   return checked.descriptor;
 }

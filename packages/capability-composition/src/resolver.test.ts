@@ -13,34 +13,43 @@ import {
   vaultRestriction,
 } from "./test-helpers.js";
 
-function planFor(overrides: {
-  descriptors?: BoundaryValue[];
-  policy?: Record<string, BoundaryValue>;
-  vault?: Record<string, BoundaryValue>;
-  selection?: Record<string, BoundaryValue>;
-  distribution?: Partial<DistributionInventory>;
-  runtime?: ExecutionEnvironment[];
-  consented?: string[];
-}): ReturnType<typeof resolveEffectivePlan> {
+type PlanArgs = {
+  readonly descriptors?: BoundaryValue[];
+  readonly policy?: Record<string, BoundaryValue>;
+  readonly vault?: Record<string, BoundaryValue>;
+  readonly selection?: Record<string, BoundaryValue>;
+  readonly distribution?: Partial<DistributionInventory>;
+  readonly runtime?: ExecutionEnvironment[];
+  readonly consented?: string[];
+};
+
+function planFor(overrides: PlanArgs): ReturnType<typeof resolveEffectivePlan> {
   const descriptors = overrides.descriptors ?? [];
   const built = distribution(descriptors);
-  const input: ResolverInput = {
-    ...(overrides.distribution
-      ? { distribution: { ...built, ...overrides.distribution } }
-      : { distribution: built }),
+  const base = {
+    distribution:
+      overrides.distribution === undefined
+        ? built
+        : { ...built, ...overrides.distribution },
     instancePolicy: policy(overrides.policy ?? {}),
-    ...(overrides.vault
-      ? { vaultRestriction: vaultRestriction(overrides.vault) }
-      : {}),
-    ...(overrides.selection
-      ? { installationSelection: selection(overrides.selection) }
-      : {}),
     runtimeEnvironments: overrides.runtime ?? ["document"],
     evaluatedAt: "2026-01-01T00:00:00.000Z",
-    ...(overrides.consented
-      ? { consentedCapabilityIds: overrides.consented }
-      : {}),
   };
+  const withVault =
+    overrides.vault === undefined
+      ? base
+      : { ...base, vaultRestriction: vaultRestriction(overrides.vault) };
+  const withSelection =
+    overrides.selection === undefined
+      ? withVault
+      : {
+          ...withVault,
+          installationSelection: selection(overrides.selection),
+        };
+  const input: ResolverInput =
+    overrides.consented === undefined
+      ? withSelection
+      : { ...withSelection, consentedCapabilityIds: overrides.consented };
   return resolveEffectivePlan(input);
 }
 

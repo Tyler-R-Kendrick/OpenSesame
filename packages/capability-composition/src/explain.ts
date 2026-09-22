@@ -9,33 +9,82 @@ import type {
   SelectedCapability,
 } from "./resolver.js";
 
-/** One human-readable explanation per closed reason code. */
-export const REASON_EXPLANATIONS: Readonly<Record<ReasonCode, string>> = {
-  NOT_DISTRIBUTED:
+export const REASON_ENTRIES = [
+  [
+    "NOT_DISTRIBUTED",
     "This capability is not part of the distribution installed on this device.",
-  PROHIBITED_BY_INSTANCE:
+  ],
+  [
+    "PROHIBITED_BY_INSTANCE",
     "The instance policy explicitly prohibits this capability; prohibition wins over every other rule.",
-  DENIED_BY_WORKSPACE:
+  ],
+  [
+    "DENIED_BY_WORKSPACE",
     "A vault or installation allow-list excludes this capability from the permitted set.",
-  NOT_SELECTED:
+  ],
+  [
+    "NOT_SELECTED",
     "The capability is permitted and shipped but was not selected for this installation.",
-  CONSENT_REQUIRED:
+  ],
+  [
+    "CONSENT_REQUIRED",
     "The capability's declared privileges (egress, key access, browser permissions) require explicit consent that has not been granted.",
-  DEPENDENCY_CONFLICT:
+  ],
+  [
+    "DEPENDENCY_CONFLICT",
     "A capability this one depends on is blocked or missing; dependencies are never auto-enabled.",
-  UNSUPPORTED_RUNTIME:
+  ],
+  [
+    "UNSUPPORTED_RUNTIME",
     "No execution environment offered by this runtime satisfies the capability's requirements.",
-  POLICY_UNVERIFIED:
+  ],
+  [
+    "POLICY_UNVERIFIED",
     "A governing policy document could not be verified, so nothing may be loaded from it.",
-  PROFILE_MISMATCH:
+  ],
+  [
+    "PROFILE_MISMATCH",
     "The capability's requirements do not match this profile's constraints.",
-  NOT_CACHED_OFFLINE:
+  ],
+  [
+    "NOT_CACHED_OFFLINE",
     "The device is offline and the capability's assets were not pre-cached.",
-  RESTART_REQUIRED:
+  ],
+  [
+    "RESTART_REQUIRED",
     "Loading this capability requires a document reload; it is provisioned but not yet active.",
-  UNKNOWN:
+  ],
+  [
+    "UNKNOWN",
     "The id was not found in the distribution and no descriptor explains it.",
-};
+  ],
+] as const satisfies ReadonlyArray<readonly [ReasonCode, string]>;
+
+const EXPLANATIONS_BY_CODE = new Map<ReasonCode, string>(
+  REASON_ENTRIES.map(([code, text]) => [code, text]),
+);
+
+function explanationFor(code: ReasonCode): string {
+  const found = EXPLANATIONS_BY_CODE.get(code);
+  if (found === undefined) throw new Error(`explanation table missing ${code}`);
+  return found;
+}
+
+/** One human-readable explanation per closed reason code. */
+export const REASON_EXPLANATIONS = {
+  NOT_DISTRIBUTED: explanationFor("NOT_DISTRIBUTED"),
+  PROHIBITED_BY_INSTANCE: explanationFor("PROHIBITED_BY_INSTANCE"),
+  DENIED_BY_WORKSPACE: explanationFor("DENIED_BY_WORKSPACE"),
+  NOT_SELECTED: explanationFor("NOT_SELECTED"),
+  CONSENT_REQUIRED: explanationFor("CONSENT_REQUIRED"),
+  DEPENDENCY_CONFLICT: explanationFor("DEPENDENCY_CONFLICT"),
+  UNSUPPORTED_RUNTIME: explanationFor("UNSUPPORTED_RUNTIME"),
+  POLICY_UNVERIFIED: explanationFor("POLICY_UNVERIFIED"),
+  PROFILE_MISMATCH: explanationFor("PROFILE_MISMATCH"),
+  NOT_CACHED_OFFLINE: explanationFor("NOT_CACHED_OFFLINE"),
+  RESTART_REQUIRED: explanationFor("RESTART_REQUIRED"),
+  UNKNOWN: explanationFor("UNKNOWN"),
+} as const satisfies Record<ReasonCode, string>;
 
 /** The explanation string for a reason code. */
 export function explainReason(reasonCode: ReasonCode): string {

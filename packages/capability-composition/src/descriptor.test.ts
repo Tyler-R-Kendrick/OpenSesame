@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
+import type { BoundaryValue } from "@opensesame/os-domain";
+import { isJsonObject } from "@opensesame/os-domain";
 import { validateDescriptor } from "./descriptor.js";
 import { descriptor } from "./test-helpers.js";
+
+/**
+ * Hostile descriptor builder: merges hostile fields into a valid base
+ * without a type assertion. The merged value keeps the BoundaryValue
+ * contract validateDescriptor accepts, so the validator — not the type
+ * system — is what rejects the hostile fields at runtime.
+ */
+function hostileDescriptor(
+  id: string,
+  hostile: Record<string, BoundaryValue>,
+): BoundaryValue {
+  const base = descriptor(id);
+  if (!isJsonObject(base)) throw new Error("fixture descriptor must be an object");
+  return { ...base, ...hostile };
+}
 
 describe("descriptor validator", () => {
   it("accepts a well-formed descriptor", () => {
@@ -21,9 +38,10 @@ describe("descriptor validator", () => {
   });
 
   it("rejects function-valued fields", () => {
-    const base = descriptor("vault.write") as Record<string, unknown>;
-    base.summary = () => "boom";
-    const result = validateDescriptor(base as never);
+    const hostile = hostileDescriptor("vault.write", {
+      summary: () => "boom",
+    });
+    const result = validateDescriptor(hostile);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.failures.some((f) => f.field === "summary")).toBe(true);
@@ -31,18 +49,19 @@ describe("descriptor validator", () => {
   });
 
   it("rejects unknown keyAccess flags", () => {
-    const base = descriptor("vault.write") as Record<string, unknown>;
-    base.declaredPrivileges = {
-      egressOrigins: [],
-      keyAccess: {
-        vaultRead: false,
-        vaultWrite: false,
-        deviceKeys: false,
-        sudo: true,
+    const hostile = hostileDescriptor("vault.write", {
+      declaredPrivileges: {
+        egressOrigins: [],
+        keyAccess: {
+          vaultRead: false,
+          vaultWrite: false,
+          deviceKeys: false,
+          sudo: true,
+        },
+        browserPermissions: [],
       },
-      browserPermissions: [],
-    };
-    const result = validateDescriptor(base as never);
+    });
+    const result = validateDescriptor(hostile);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(

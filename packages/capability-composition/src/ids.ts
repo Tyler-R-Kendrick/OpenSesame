@@ -79,7 +79,10 @@ export type ReasonCode = (typeof REASON_CODES)[number];
 
 /** True only for one of the closed reason-code strings. */
 export function isReasonCode(value: BoundaryValue): value is ReasonCode {
-  return isString(value) && (REASON_CODES as readonly string[]).includes(value);
+  return (
+    isString(value) &&
+    REASON_CODES.some((code: ReasonCode) => code === value)
+  );
 }
 
 /** Every policy/document kind the composition layer understands. */
@@ -94,6 +97,7 @@ export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 /** True only for one of the closed document-kind strings. */
 export function isDocumentKind(value: BoundaryValue): value is DocumentKind {
   return (
-    isString(value) && (DOCUMENT_KINDS as readonly string[]).includes(value)
+    isString(value) &&
+    DOCUMENT_KINDS.some((kind: DocumentKind) => kind === value)
   );
 }

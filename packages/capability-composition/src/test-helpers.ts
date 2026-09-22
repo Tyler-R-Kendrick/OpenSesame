@@ -2,6 +2,7 @@
  * Shared test builders. Not exported from the package index — tests only.
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { isJsonObject, isString } from "@opensesame/os-domain";
 import type { DistributionInventory } from "./resolver.js";
 
 const ZERO_DIGEST = "0".repeat(16);
@@ -95,12 +96,19 @@ export function distribution(
   descriptors: readonly BoundaryValue[],
   overrides: Record<string, BoundaryValue> = {},
 ): DistributionInventory {
+  const moduleIds: string[] = [];
+  for (const raw of descriptors) {
+    if (!isJsonObject(raw) || !Array.isArray(raw.moduleIds)) continue;
+    for (const module of raw.moduleIds) {
+      if (isString(module) && !moduleIds.includes(module)) {
+        moduleIds.push(module);
+      }
+    }
+  }
   return {
     distributionId: "dist-1",
     descriptors: [...descriptors],
-    moduleIds: descriptors.flatMap(
-      (d) => (d as { moduleIds: string[] }).moduleIds,
-    ),
+    moduleIds,
     cachedCapabilityIds: [],
     ...overrides,
   };
@@ -124,7 +132,13 @@ export function shuffled<T>(items: readonly T[], prng: () => number): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = Math.floor(prng() * (i + 1));
-    [out[i], out[j]] = [out[j] as T, out[i] as T];
+    // SAFETY: i and j are both in-bounds indices the loop established (j is
+    // floored into 0..i), so indexed reads below are defined, not holes.
+    const atI = out[i];
+    const atJ = out[j];
+    if (atI === undefined || atJ === undefined) continue;
+    out[i] = atJ;
+    out[j] = atI;
   }
   return out;
 }

@@ -6,9 +6,11 @@ import { descriptor } from "./test-helpers.js";
 
 function mustDescriptor(
   id: string,
-  overrides: Record<string, BoundaryValue> = {},
+  overrides?: Record<string, BoundaryValue>,
 ): Parameters<typeof evaluateNode>[1] {
-  const checked = validateDescriptor(descriptor(id, overrides));
+  const checked = validateDescriptor(
+    descriptor(id, overrides ?? {}),
+  );
   if (!checked.ok) throw new Error(`fixture descriptor ${id} must validate`);
   return checked.descriptor;
 }
@@ -156,7 +158,7 @@ describe("node evaluation detail", () => {
   it("distinguishes wanted, optional, and dependency-only selection", () => {
     const context = {
       optionalWanted: new Set<string>(),
-      blockedByDeps: [] as readonly string[],
+      blockedByDeps: new Array<string>(),
       prohibitedBy: new Set<string>(),
       ceiling: {
         ids: new Map<string, "allow">(),

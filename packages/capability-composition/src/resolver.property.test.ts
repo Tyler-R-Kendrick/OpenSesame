@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { validateDescriptor } from "./descriptor.js";
 import { canonicalJson } from "./digest.js";
 import { validateInstancePolicy } from "./documents.js";
@@ -80,7 +81,7 @@ describe("property — hostile inputs never throw or load silently", () => {
         async (value) => {
           let threw = false;
           try {
-            canonicalJson(value as never);
+            canonicalJson(value);
           } catch {
             threw = true;
           }

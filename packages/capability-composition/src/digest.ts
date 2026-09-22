@@ -17,10 +17,12 @@
  * non-finite values rejected, `undefined` object fields dropped, and
  * `undefined` array slots and functions/symbols rejected.
  */
-import type { BoundaryValue, JsonValue } from "@opensesame/os-domain";
 import {
+  type BoundaryValue,
+  type JsonValue,
   isBigint,
   isFunction,
+  isJsonObject,
   isNumber,
   isString,
 } from "@opensesame/os-domain";
@@ -29,12 +31,16 @@ import {
  * The canonical JSON text for a boundary value, or `undefined` when the value
  * cannot be canonicalized (functions, symbols, non-finite numbers, `undefined`
  * where a value is required).
+ *
+ * Accepts unknown because hostile fixtures arrive untyped; non-JSON shapes
+ * are refused at runtime with `undefined`, never thrown.
  */
-export function canonicalJson(value: BoundaryValue): string | undefined {
+export function canonicalJson(value: unknown): string | undefined {
+  if (!isJsonValueLike(value)) return undefined;
   return canonicalize(value);
 }
 
-function canonicalize(value: BoundaryValue): string | undefined {
+function canonicalize(value: JsonValue): string | undefined {
   if (value === null) return "null";
   if (isString(value)) return JSON.stringify(value);
   if (value === true) return "true";
@@ -42,17 +48,20 @@ function canonicalize(value: BoundaryValue): string | undefined {
   if (isNumber(value)) return canonicalNumber(value);
   if (isBigint(value)) return undefined;
   if (Array.isArray(value)) return canonicalArray(value);
-  if (value instanceof Date) return undefined;
-  if (value instanceof Uint8Array) return undefined;
-  if (value instanceof ArrayBuffer) return undefined;
-  if (value instanceof Map) return undefined;
-  if (value instanceof Set) return undefined;
-  if (value instanceof Error) return undefined;
-  if (isFunction(value)) return undefined;
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, BoundaryValue>);
+  if (
+    value instanceof Date ||
+    value instanceof Uint8Array ||
+    value instanceof ArrayBuffer ||
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof Error ||
+    isFunction(value)
+  ) {
+    return undefined;
+  }
+  if (isJsonObject(value)) {
     const parts: string[] = [];
-    for (const [key, member] of entries) {
+    for (const [key, member] of Object.entries(value)) {
       if (member === undefined) continue; // dropped: absent ≡ undefined
       const encoded = canonicalize(member);
       if (encoded === undefined) return undefined;
@@ -64,7 +73,7 @@ function canonicalize(value: BoundaryValue): string | undefined {
   return undefined; // symbols and anything else
 }
 
-function canonicalArray(value: readonly BoundaryValue[]): string | undefined {
+function canonicalArray(value: readonly JsonValue[]): string | undefined {
   const parts: string[] = [];
   for (const member of value) {
     const encoded = canonicalize(member);
@@ -101,17 +110,41 @@ export function fnv1a64Hex(text: string): string {
 /**
  * Digest a value by canonicalizing it first; `undefined` when the value has no
  * canonical form. Same caveats as `fnv1a64Hex`: ordering identity, not proof.
+ *
+ * Accepts unknown because plans and hostile fixtures arrive untyped; the
+ * canonicalizer validates structure at runtime and refuses what it cannot
+ * encode, so no caller assertion is needed.
  */
-export function digestCanonical(value: BoundaryValue): string | undefined {
+export function digestCanonical(value: unknown): string | undefined {
+  if (!isJsonValueLike(value)) return undefined;
   const canonical = canonicalJson(value);
   return canonical === undefined ? undefined : fnv1a64Hex(canonical);
 }
 
+/** JSON-shaped inputs only; undefined members are dropped, not refused. */
+function isJsonValueLike(value: unknown): value is JsonValue {
+  if (value === undefined) return true;
+  if (value === null) return true;
+  if (typeof value === "string") return true;
+  if (typeof value === "number") return true;
+  if (typeof value === "boolean") return true;
+  if (Array.isArray(value)) return value.every(isJsonValueLike);
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(isJsonValueLike);
+}
+
+/** Plain records only — arrays, null, and primitives handled above. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
 /** True when two values share the same canonical form (structure equal). */
-export function canonicalEquals(
-  a: BoundaryValue,
-  b: BoundaryValue,
-): boolean | undefined {
+export function canonicalEquals(a: unknown, b: unknown): boolean | undefined {
   const left = canonicalJson(a);
   const right = canonicalJson(b);
   return left === undefined || right === undefined ? undefined : left === right;

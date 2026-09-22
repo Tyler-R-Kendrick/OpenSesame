@@ -39,7 +39,7 @@ function buildPlan(): string {
     consentedCapabilityIds: [],
   });
   if (!outcome.ok) throw new Error("fixture plan must resolve");
-  const digest = digestCanonical(outcome.plan as unknown as BoundaryValue);
+  const digest = digestCanonical(outcome.plan);
   if (digest === undefined) throw new Error("fixture plan must digest");
   const lines = [
     "# capability-composition plan — approved behaviour",

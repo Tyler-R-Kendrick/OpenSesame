@@ -12,7 +12,6 @@ import {
   isJsonObject,
   isNumber,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import { validatePrivileges } from "./descriptor-privileges.js";
 import {
@@ -37,10 +36,13 @@ export const EXECUTION_ENVIRONMENTS: readonly ExecutionEnvironment[] = [
   "service-worker",
 ];
 
-export function isExecutionEnvironment(value: BoundaryValue): boolean {
+/** True only for one of the four execution environments. */
+export function isExecutionEnvironment(
+  value: BoundaryValue,
+): value is ExecutionEnvironment {
   return (
     isString(value) &&
-    (EXECUTION_ENVIRONMENTS as readonly string[]).includes(value)
+    EXECUTION_ENVIRONMENTS.some((env: ExecutionEnvironment) => env === value)
   );
 }
 
@@ -51,6 +53,13 @@ export const DESCRIPTOR_CLASSES: readonly DescriptorClass[] = [
   "shared",
   "optional",
 ];
+
+export function isDescriptorClass(value: BoundaryValue): value is DescriptorClass {
+  return (
+    isString(value) &&
+    DESCRIPTOR_CLASSES.some((klass: DescriptorClass) => klass === value)
+  );
+}
 
 export type DeclaredPrivileges = {
   readonly egressOrigins: readonly string[];
@@ -174,8 +183,8 @@ export function validateDescriptor(value: BoundaryValue): DescriptorValidation {
     for (const env of value.environments) {
       if (!isExecutionEnvironment(env)) {
         push("environments", `unknown environment ${stringify(env)}`);
-      } else if (!environments.includes(overlapCast(env))) {
-        environments.push(overlapCast(env));
+      } else if (!environments.some((known) => known === env)) {
+        environments.push(env);
       }
     }
     if (environments.length === 0)
@@ -209,13 +218,10 @@ export function validateDescriptor(value: BoundaryValue): DescriptorValidation {
   const klass = value.class;
   if (klass === undefined) {
     // optional field stays absent
-  } else if (
-    !isString(klass) ||
-    !(DESCRIPTOR_CLASSES as readonly string[]).includes(klass)
-  ) {
+  } else if (!isDescriptorClass(klass)) {
     push("class", `"core" | "shared" | "optional"`);
   } else {
-    descriptorClass = overlapCast(klass);
+    descriptorClass = klass;
   }
 
   const declaredPrivileges = validatePrivileges(value.declaredPrivileges, push);
@@ -232,6 +238,16 @@ export function validateDescriptor(value: BoundaryValue): DescriptorValidation {
   ) {
     return { ok: false, failures };
   }
+  const validatedOptionals = [
+    workerGraphConstraint === undefined
+      ? null
+      : ({ workerGraphConstraint } as const),
+    descriptorClass === undefined ? null : ({ class: descriptorClass } as const),
+  ];
+  const optionalFields = Object.assign(
+    {},
+    ...validatedOptionals.filter((slot) => slot !== null),
+  );
   return {
     ok: true,
     descriptor: {
@@ -245,8 +261,7 @@ export function validateDescriptor(value: BoundaryValue): DescriptorValidation {
       environments,
       exposureDigest,
       requiresDocumentReload: value.requiresDocumentReload,
-      ...(workerGraphConstraint === undefined ? {} : { workerGraphConstraint }),
-      ...(descriptorClass === undefined ? {} : { class: descriptorClass }),
+      ...optionalFields,
       declaredPrivileges,
     },
   };
@@ -278,14 +293,14 @@ function validateWorkerConstraint(
           `unknown environment ${stringify(env)}`,
         );
         ok = false;
-      } else if (!allowed.includes(overlapCast(env))) {
-        allowed.push(overlapCast(env));
+      } else if (!allowed.some((known) => known === env)) {
+        allowed.push(env);
       }
     }
   }
-  if (!ok) return undefined;
+  if (!ok || !isBoolean(worker.requiresWorker)) return undefined;
   return {
-    requiresWorker: worker.requiresWorker as boolean,
+    requiresWorker: worker.requiresWorker,
     allowedEnvironments: allowed,
   };
 }

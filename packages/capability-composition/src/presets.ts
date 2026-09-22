@@ -30,52 +30,85 @@ export type PresetDefinition = {
   readonly orderedSuggestions: readonly string[];
 };
 
-export const PRESETS: Readonly<Record<PresetName, PresetDefinition>> = {
-  personal: {
-    name: "personal",
-    description:
-      "One person, their own devices; every privilege-granting capability opt-in.",
-    orderedSuggestions: ["core.credentials.view", "core.fill.manual"],
-  },
-  family: {
-    name: "family",
-    description:
-      "A household share; adds item sharing but no external egress by default.",
-    orderedSuggestions: [
-      "core.credentials.view",
-      "core.fill.manual",
-      "core.share.household",
-    ],
-  },
-  homelab: {
-    name: "homelab",
-    description:
-      "Self-hosted services; local network egress to explicitly allowed origins.",
-    orderedSuggestions: [
-      "core.credentials.view",
-      "core.fill.manual",
-      "core.share.household",
-      "core.egress.lan",
-    ],
-  },
-  organization: {
-    name: "organization",
-    description:
-      "Managed deployment; policy-owned allow-lists and audit-forwarding.",
-    orderedSuggestions: [
-      "core.credentials.view",
-      "core.fill.manual",
-      "core.share.organization",
-      "core.audit.forward",
-    ],
-  },
-  custom: {
-    name: "custom",
-    description:
-      "Fully operator-composed; no suggestions of its own, every id explicit.",
-    orderedSuggestions: [],
-  },
-};
+export const PRESET_ENTRIES = [
+  [
+    "personal",
+    {
+      name: "personal",
+      description:
+        "One person, their own devices; every privilege-granting capability opt-in.",
+      orderedSuggestions: ["core.credentials.view", "core.fill.manual"],
+    },
+  ],
+  [
+    "family",
+    {
+      name: "family",
+      description:
+        "A household share; adds item sharing but no external egress by default.",
+      orderedSuggestions: [
+        "core.credentials.view",
+        "core.fill.manual",
+        "core.share.household",
+      ],
+    },
+  ],
+  [
+    "homelab",
+    {
+      name: "homelab",
+      description:
+        "Self-hosted services; local network egress to explicitly allowed origins.",
+      orderedSuggestions: [
+        "core.credentials.view",
+        "core.fill.manual",
+        "core.share.household",
+        "core.egress.lan",
+      ],
+    },
+  ],
+  [
+    "organization",
+    {
+      name: "organization",
+      description:
+        "Managed deployment; policy-owned allow-lists and audit-forwarding.",
+      orderedSuggestions: [
+        "core.credentials.view",
+        "core.fill.manual",
+        "core.share.organization",
+        "core.audit.forward",
+      ],
+    },
+  ],
+  [
+    "custom",
+    {
+      name: "custom",
+      description:
+        "Fully operator-composed; no suggestions of its own, every id explicit.",
+      orderedSuggestions: [],
+    },
+  ],
+] as const satisfies ReadonlyArray<readonly [PresetName, PresetDefinition]>;
+
+const PRESETS_BY_NAME = new Map<PresetName, PresetDefinition>(
+  PRESET_ENTRIES.map(([name, definition]) => [name, definition]),
+);
+
+function presetOrThrow(name: PresetName): PresetDefinition {
+  const found = PRESETS_BY_NAME.get(name);
+  if (!found) throw new Error(`preset table missing ${name}`);
+  return found;
+}
+
+export const PRESETS = {
+  personal: presetOrThrow("personal"),
+  family: presetOrThrow("family"),
+  homelab: presetOrThrow("homelab"),
+  organization: presetOrThrow("organization"),
+  custom: presetOrThrow("custom"),
+} as const satisfies Readonly<Record<PresetName, PresetDefinition>>;
 
 /** A catalog mapping suggestion keys to explicit capability ids. */
 export type PresetCatalog = Readonly<Record<string, readonly string[]>>;
@@ -118,5 +151,8 @@ export function resolvePreset(
 
 /** True only for one of the five preset names. */
 export function isPresetName(value: BoundaryValue): value is PresetName {
-  return isString(value) && (PRESET_NAMES as readonly string[]).includes(value);
+  return (
+    isString(value) &&
+    PRESET_NAMES.some((name: PresetName) => name === value)
+  );
 }

@@ -6,7 +6,7 @@ import {
   validateVaultRestriction,
 } from "./documents.js";
 import { explainReason } from "./explain.js";
-import { REASON_CODES } from "./ids.js";
+import { isReasonCode } from "./ids.js";
 import { resolvePreset } from "./presets.js";
 import { resolveEffectivePlan } from "./resolver.js";
 import {
@@ -115,12 +115,16 @@ describe("adversarial — confused deputy and fail-closed", () => {
   });
 
   it("prototype pollution does not become a capability id", () => {
-    const polluted = JSON.parse(
+    // SAFETY: the boundary contract under test is attacker-shaped JSON whose
+    // parsed type is unknown; the policy builder validates it at runtime.
+    const polluted: unknown = JSON.parse(
       '{"required":["__proto__"],"optional":[],"prohibited":[]}',
-    ) as Record<string, string[]>;
+    );
     const outcome = resolveEffectivePlan({
       ...base(),
-      instancePolicy: policy(polluted),
+      instancePolicy: policy(
+        polluted as unknown as Record<string, string[]>,
+      ),
     });
     // Malformed ids fail closed at validation: no plan, no proto id anywhere.
     expect(outcome.ok).toBe(false);
@@ -149,8 +153,9 @@ describe("adversarial — confused deputy and fail-closed", () => {
     }
     for (const c of outcome.plan.conflicts) codes.add(c.reasonCode);
     for (const code of codes) {
-      expect((REASON_CODES as readonly string[]).includes(code)).toBe(true);
-      expect(explainReason(code as (typeof REASON_CODES)[number])).toBeTruthy();
+      expect(isReasonCode(code)).toBe(true);
+      if (!isReasonCode(code)) continue;
+      expect(explainReason(code)).toBeTruthy();
     }
   });
 

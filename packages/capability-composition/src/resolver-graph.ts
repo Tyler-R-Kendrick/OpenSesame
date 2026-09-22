@@ -11,9 +11,12 @@ import type {
   ExecutionEnvironment,
 } from "./descriptor.js";
 import {
+  type AllowSet,
   type InstallationSelectionDocument,
   type InstancePolicyDocument,
   type VaultRestrictionDocument,
+} from "./documents.js";
+import {
   validateInstallationSelection,
   validateInstancePolicy,
   validateVaultRestriction,
@@ -196,11 +199,9 @@ export function ceilingExcludes(ceiling: Ceiling, id: string): boolean {
   return !ceiling.ids.has(id);
 }
 
-export function idsOf(allow: unknown): readonly string[] {
-  if (allow === "inherit" || allow === undefined) return [];
-  if (typeof allow !== "object" || allow === null) return [];
-  const ids = (allow as { ids?: unknown }).ids;
-  return Array.isArray(ids) ? ids.map(String) : [];
+export function idsOf(allow: AllowSet): readonly string[] {
+  if (allow === "inherit") return [];
+  return allow.ids;
 }
 
 export function union(...lists: readonly (readonly string[])[]): Set<string> {
