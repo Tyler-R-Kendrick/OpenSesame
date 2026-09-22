@@ -98,6 +98,141 @@ fn secret(bytes: Vec<u8>) -> opensesame_transport_security::SecretBytes {
     secrecy::SecretBox::new(Box::new(bytes))
 }
 
+/// The trusted-ingress origin: the shipped `originating_peer_layer` over the
+/// shipped `SecureListener`, serving `/whoami`.
+///
+/// Extracted so the test body stays inside the complexity budget; nothing
+/// about it is test-specific beyond the three roots it is handed.
+struct Origin {
+    port: u16,
+    seen: Seen,
+    counters: Arc<opensesame_transport_security::ListenerCounters>,
+    stop: tokio::sync::oneshot::Sender<()>,
+    serving: tokio::task::JoinHandle<()>,
+}
+
+async fn start_origin(
+    origin_server: &Leaf,
+    origin_root: &std::path::Path,
+    client_root: &std::path::Path,
+) -> Result<Origin> {
+    let seen: Seen = Arc::new(Mutex::new(Vec::new()));
+    let bindings = Arc::new(RwLock::new(ServiceBindingSet {
+        revision: 1,
+        bindings: vec![ingress_binding("ingress.clients.test")],
+    }));
+    let originating_trust = Arc::new(TrustBundle::from_pem(
+        TrustProfileRef {
+            name: "iop-originating".to_string(),
+        },
+        TrustProfileKind::PrivateRoot,
+        &std::fs::read(client_root)?,
+    )?);
+    let app: Router = Router::new()
+        .route("/whoami", get(whoami))
+        .with_state(Arc::clone(&seen))
+        .layer(originating_peer_layer(
+            Arc::new(BindingSetAdmission::new(bindings)),
+            originating_trust,
+            IngressLimits::default(),
+        ));
+    let identity = Arc::new(TlsIdentity::from_pem(
+        &std::fs::read(&origin_server.chain)?,
+        &secret(std::fs::read(&origin_server.key)?),
+    )?);
+    let mut peer_trust = BTreeMap::new();
+    peer_trust.insert(
+        profile_ref(),
+        TrustBundle::from_pem(
+            profile_ref(),
+            TrustProfileKind::PrivateRoot,
+            &std::fs::read(origin_root)?,
+        )?,
+    );
+    let generations = TransportGenerations::new(Generation {
+        number: 1,
+        identity: Some(identity),
+        peer_trust,
+        activated_at: chrono::Utc::now(),
+        withdrawn: None,
+    });
+    let listener = SecureListener::bind(
+        "127.0.0.1:0".parse()?,
+        Arc::clone(&generations),
+        move |generation| {
+            let identity = generation
+                .identity
+                .clone()
+                .ok_or(opensesame_domain::transport::TransportError::IdentityMissing)?;
+            let mut profile =
+                ServerProfile::new(TransportPolicy::TrustedIngress, identity, "iop-origin");
+            profile.client_trust = Some(generation.trust(&profile_ref())?.clone());
+            Ok(profile)
+        },
+    )
+    .await?;
+    let port = listener.local_addr().port();
+    let counters = listener.counters();
+    let (stop, rx) = tokio::sync::oneshot::channel();
+    let serving = tokio::spawn(async move {
+        let _ = listener
+            .serve_until(app, async {
+                let _ = rx.await;
+            })
+            .await;
+    });
+    Ok(Origin {
+        port,
+        seen,
+        counters,
+        stop,
+        serving,
+    })
+}
+
+/// Start the **shipped** `ops/ingress/Caddyfile` against this origin.
+///
+/// Using the reference configuration verbatim means a drift in it fails this
+/// test too, which is the point of running the maintained ingress rather than
+/// a hand-written one.
+fn start_edge(
+    caddy: &std::path::Path,
+    dir: &std::path::Path,
+    edge_server: &Leaf,
+    ingress_client: &Leaf,
+    trust: (&std::path::Path, &std::path::Path),
+    origin_port: u16,
+) -> Result<(Child, u16)> {
+    let (originating_trust, origin_trust) = trust;
+    let ingress_port = free_port()?;
+    let health_port = free_port()?;
+    let caddyfile = repo_root().join("ops/ingress/Caddyfile");
+    let mut edge = Child::spawn(
+        "caddy",
+        std::process::Command::new(caddy)
+            .arg("run")
+            .arg("--config")
+            .arg(&caddyfile)
+            .arg("--adapter")
+            .arg("caddyfile")
+            .current_dir(dir)
+            .env("OPENSESAME_INGRESS_BIND", "127.0.0.1")
+            .env("OPENSESAME_INGRESS_PORT", ingress_port.to_string())
+            .env("OPENSESAME_INGRESS_HEALTH_PORT", health_port.to_string())
+            .env("OPENSESAME_INGRESS_CERT", &edge_server.chain)
+            .env("OPENSESAME_INGRESS_KEY", &edge_server.key)
+            .env("OPENSESAME_ORIGINATING_TRUST", originating_trust)
+            .env("OPENSESAME_ORIGIN_ADDR", format!("127.0.0.1:{origin_port}"))
+            .env("OPENSESAME_ORIGIN_TRUST", origin_trust)
+            .env("OPENSESAME_ORIGIN_NAME", ORIGIN_NAME)
+            .env("OPENSESAME_INGRESS_CLIENT_CERT", &ingress_client.chain)
+            .env("OPENSESAME_INGRESS_CLIENT_KEY", &ingress_client.key),
+        &dir.join("caddy.log"),
+    )?;
+    edge.wait_for_port(ingress_port, Duration::from_secs(60))?;
+    Ok((edge, ingress_port))
+}
+
 /// Two originating clients, one real Caddy, one pooled connection to the
 /// origin — and the origin's handler tells them apart.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -125,101 +260,19 @@ async fn two_originating_clients_on_one_pooled_ingress_connection_stay_distinct(
     let alice = client_root.issue(&LeafSpec::client_dns("alice", "alice.people.test"))?;
     let bob = client_root.issue(&LeafSpec::client_dns("bob", "bob.people.test"))?;
 
-    // ---- the origin ---------------------------------------------------
-    let seen: Seen = Arc::new(Mutex::new(Vec::new()));
-    let bindings = Arc::new(RwLock::new(ServiceBindingSet {
-        revision: 1,
-        bindings: vec![ingress_binding("ingress.clients.test")],
-    }));
-    let originating_trust = Arc::new(TrustBundle::from_pem(
-        TrustProfileRef {
-            name: "iop-originating".to_string(),
-        },
-        TrustProfileKind::PrivateRoot,
-        &std::fs::read(&client_root.cert)?,
-    )?);
-    let app: Router = Router::new()
-        .route("/whoami", get(whoami))
-        .with_state(Arc::clone(&seen))
-        .layer(originating_peer_layer(
-            Arc::new(BindingSetAdmission::new(Arc::clone(&bindings))),
-            originating_trust,
-            IngressLimits::default(),
-        ));
+    let origin = start_origin(&origin_server, &origin_root.cert, &client_root.cert).await?;
+    let origin_port = origin.port;
+    let counters = Arc::clone(&origin.counters);
+    let seen = Arc::clone(&origin.seen);
 
-    let identity = Arc::new(TlsIdentity::from_pem(
-        &std::fs::read(&origin_server.chain)?,
-        &secret(std::fs::read(&origin_server.key)?),
-    )?);
-    let mut peer_trust = BTreeMap::new();
-    peer_trust.insert(
-        profile_ref(),
-        TrustBundle::from_pem(
-            profile_ref(),
-            TrustProfileKind::PrivateRoot,
-            &std::fs::read(&origin_root.cert)?,
-        )?,
-    );
-    let generations = TransportGenerations::new(Generation {
-        number: 1,
-        identity: Some(Arc::clone(&identity)),
-        peer_trust,
-        activated_at: chrono::Utc::now(),
-        withdrawn: None,
-    });
-    let listener = SecureListener::bind(
-        "127.0.0.1:0".parse()?,
-        Arc::clone(&generations),
-        move |generation| {
-            let identity = generation
-                .identity
-                .clone()
-                .ok_or(opensesame_domain::transport::TransportError::IdentityMissing)?;
-            let mut profile =
-                ServerProfile::new(TransportPolicy::TrustedIngress, identity, "iop-origin");
-            profile.client_trust = Some(generation.trust(&profile_ref())?.clone());
-            Ok(profile)
-        },
-    )
-    .await?;
-    let origin_port = listener.local_addr().port();
-    let counters = listener.counters();
-    let (stop, rx) = tokio::sync::oneshot::channel();
-    let serving = tokio::spawn(async move {
-        let _ = listener
-            .serve_until(app, async {
-                let _ = rx.await;
-            })
-            .await;
-    });
-
-    // ---- the reference ingress -----------------------------------------
-    let ingress_port = free_port()?;
-    let health_port = free_port()?;
-    let caddyfile = repo_root().join("ops/ingress/Caddyfile");
-    let mut edge = Child::spawn(
-        "caddy",
-        std::process::Command::new(&caddy)
-            .arg("run")
-            .arg("--config")
-            .arg(&caddyfile)
-            .arg("--adapter")
-            .arg("caddyfile")
-            .current_dir(pki.dir())
-            .env("OPENSESAME_INGRESS_BIND", "127.0.0.1")
-            .env("OPENSESAME_INGRESS_PORT", ingress_port.to_string())
-            .env("OPENSESAME_INGRESS_HEALTH_PORT", health_port.to_string())
-            .env("OPENSESAME_INGRESS_CERT", &edge_server.chain)
-            .env("OPENSESAME_INGRESS_KEY", &edge_server.key)
-            .env("OPENSESAME_ORIGINATING_TRUST", &client_root.cert)
-            .env("OPENSESAME_ORIGIN_ADDR", format!("127.0.0.1:{origin_port}"))
-            .env("OPENSESAME_ORIGIN_TRUST", &origin_root.cert)
-            .env("OPENSESAME_ORIGIN_NAME", ORIGIN_NAME)
-            .env("OPENSESAME_INGRESS_CLIENT_CERT", &ingress_client.chain)
-            .env("OPENSESAME_INGRESS_CLIENT_KEY", &ingress_client.key),
-        &pki.dir().join("caddy.log"),
+    let (edge, ingress_port) = start_edge(
+        &caddy,
+        pki.dir(),
+        &edge_server,
+        &ingress_client,
+        (&client_root.cert, &origin_root.cert),
+        origin_port,
     )?;
-    edge.wait_for_port(ingress_port, Duration::from_secs(60))?;
 
     // ---- two originating clients through the one edge -------------------
     let through_edge = |who: &Leaf| -> Result<String> {
@@ -294,7 +347,7 @@ async fn two_originating_clients_on_one_pooled_ingress_connection_stay_distinct(
         "two originating clients, one pooled ingress connection, each request attributed correctly at the origin handler",
     );
 
-    let _ = stop.send(());
-    let _ = serving.await;
+    let _ = origin.stop.send(());
+    let _ = origin.serving.await;
     Ok(())
 }

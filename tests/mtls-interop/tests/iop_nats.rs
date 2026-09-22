@@ -76,6 +76,44 @@ async fn rust_publisher(broker: &nats::Broker) -> Result<async_nats::Client> {
         .map_err(|_| anyhow::anyhow!("the NATS connection did not complete within 25s"))??)
 }
 
+/// Run the raw consumer on a blocking thread while the production Rust
+/// client publishes, and return everything the consumer saw.
+///
+/// The consumer cannot be a `block_in_place` inside a `join!`: both branches
+/// of a `join!` share one task, so the blocking child would run to completion
+/// before the publisher was polled at all.
+async fn publish_then_consume(
+    broker: &nats::Broker,
+    subject: &str,
+    payload: &str,
+    lines: &[&str],
+) -> Result<String> {
+    let owned: Vec<String> = lines.iter().map(|l| (*l).to_string()).collect();
+    let consumer = broker.consumer.clone();
+    let anchors = broker.ca.cert.clone();
+    let port = broker.port;
+    let listening = tokio::task::spawn_blocking(move || {
+        nats::raw_session_at(port, &anchors, &consumer, &owned, Duration::from_secs(5))
+    });
+    let subject = subject.to_string();
+    let body = payload.to_string();
+    let sending = tokio::time::timeout(Duration::from_secs(40), async {
+        // Give the raw subscriber time to register before publishing.
+        tokio::time::sleep(Duration::from_millis(1200)).await;
+        let client = rust_publisher(broker).await?;
+        client.publish(subject, body.into()).await?;
+        client.flush().await?;
+        anyhow::Ok(())
+    });
+    let (sent, heard) = tokio::join!(sending, listening);
+    // Both layers are unwrapped on purpose. An earlier version let the
+    // publisher's own error stay wrapped inside a timeout result, and `?`
+    // discarded it — so a publisher that never connected read as "the
+    // consumer missed the message".
+    sent.map_err(|_| anyhow::anyhow!("the Rust publisher did not finish within 40s"))??;
+    heard?
+}
+
 /// A Rust publisher and an OpenSSL consumer on the same broker.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "real nats-server; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
@@ -102,41 +140,7 @@ async fn a_rust_publisher_and_a_raw_openssl_consumer_agree_on_one_certificate_ma
     // share one task, so the blocking child would still run to completion
     // before the publisher was ever polled. It goes on a blocking thread of
     // its own instead.
-    let transcript = {
-        let subject = subject.clone();
-        let ca = broker.ca.cert.clone();
-        let consumer = broker.consumer.clone();
-        let port = broker.port;
-        let owned: Vec<String> = lines.iter().map(|l| (*l).to_string()).collect();
-        let consume = tokio::task::spawn_blocking(move || {
-            nats::raw_session_at(port, &ca, &consumer, &owned, Duration::from_secs(5))
-        });
-        let broker_ref = &broker;
-        let publish = async {
-            let bounded = tokio::time::timeout(Duration::from_secs(40), async {
-                // Give the raw subscriber time to register before publishing.
-                tokio::time::sleep(Duration::from_millis(1200)).await;
-                let client = rust_publisher(broker_ref).await?;
-                client.publish(subject, payload.into()).await?;
-                client.flush().await?;
-                anyhow::Ok(())
-            })
-            .await;
-            // Both layers are unwrapped here on purpose. An earlier version
-            // let this block return `Result<Result<..>>`, and `?` at the join
-            // site discarded the *inner* error — so a publisher that never
-            // connected read as "the consumer missed the message".
-            match bounded {
-                Ok(inner) => inner,
-                Err(_) => Err(anyhow::anyhow!(
-                    "the Rust publisher did not finish within 40s"
-                )),
-            }
-        };
-        let (published, consumed) = tokio::join!(publish, consume);
-        published?;
-        consumed??
-    };
+    let transcript = publish_then_consume(&broker, &subject, payload, &lines).await?;
 
     if !transcript.contains("PONG") {
         return nats::fail(

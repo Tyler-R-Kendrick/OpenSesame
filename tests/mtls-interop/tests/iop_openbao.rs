@@ -139,6 +139,30 @@ fn a_real_tls_openbao_keeps_two_tenants_certificate_and_token_scoped() -> Result
         .to_string()
         .contains("tenant-a-only"));
 
+    record(
+        "IOP-OPENBAO-TENANTS",
+        &format!(
+            "openbao {} (tls_require_and_verify_client_cert) <- curl/openssl",
+            bao.version
+        ),
+        "plaintext refused; two logins; own reads 200; both cross-tenant tokens 403",
+    );
+    Ok(())
+}
+
+/// The two ways a login is refused, which must not be confused: a chain the
+/// listener cannot verify never reaches the `cert` backend at all, while a
+/// verifiable chain asking for a role its SAN does not match is refused by
+/// the backend with no token issued.
+#[test]
+#[ignore = "real OpenBao; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
+fn a_wrong_role_is_refused_by_the_backend_and_a_wrong_certificate_by_the_listener() -> Result<()> {
+    if !fixtures_enabled() {
+        eprintln!("skipped: set OPENSESAME_MTLS_FIXTURES=1");
+        return Ok(());
+    }
+    let bao = bao::Bao::start()?;
+
     // 4. Wrong role for the presented certificate: tenant A's certificate
     //    asking for tenant B's role. The chain is fine; the SAN constraint
     //    is not, so the *login* is refused rather than a token issued.
@@ -161,9 +185,9 @@ fn a_real_tls_openbao_keeps_two_tenants_certificate_and_token_scoped() -> Result
     );
 
     record(
-        "IOP-OPENBAO-TENANTS",
-        &format!("openbao {} (tls_require_and_verify_client_cert) <- curl/openssl", bao.version),
-        "plaintext refused; two logins; own reads 200; both cross-tenant tokens 403; wrong role 400; foreign root refused at TLS",
+        "IOP-OPENBAO-ROLE-VS-CERT",
+        &format!("openbao {} <- curl/openssl", bao.version),
+        "wrong role 400 with no token; foreign root refused at TLS before any role is considered",
     );
     Ok(())
 }

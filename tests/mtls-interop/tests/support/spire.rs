@@ -31,9 +31,13 @@ pub struct Spire {
     server_socket: PathBuf,
     server_bin: PathBuf,
     agent_bin: PathBuf,
-    dir: tempfile::TempDir,
-    _server: Child,
+    // Declaration order is drop order. The two processes must die before the
+    // temporary directory that holds their sockets, configuration and
+    // datastore is removed — otherwise the server loses its own socket while
+    // it is still running and reports "no such file or directory".
     _agent: Child,
+    _server: Child,
+    dir: tempfile::TempDir,
 }
 
 fn cli(binary: &Path, args: &[&str]) -> Result<String> {
@@ -134,9 +138,9 @@ impl Spire {
             server_socket,
             server_bin,
             agent_bin,
-            dir,
-            _server: server,
             _agent: agent,
+            _server: server,
+            dir,
         })
     }
 
@@ -233,8 +237,14 @@ impl Spire {
                 &socket,
                 "-id",
                 &id,
+                // `delete` would also remove every registration entry that
+                // federates with this bundle — including the workload's own —
+                // and the test would then be watching for the disappearance
+                // of something it had itself deleted. `dissociate` removes
+                // the bundle and unlinks it from the entries, which is what a
+                // federation being revoked actually looks like.
                 "-mode",
-                "delete",
+                "dissociate",
             ],
         )
         .map(|_| ())
