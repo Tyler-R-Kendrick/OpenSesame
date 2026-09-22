@@ -206,6 +206,33 @@ describe("mtls step judgement", () => {
 });
 
 describe("mtls step judgement (vitest and marker runners)", () => {
+  // The CI runner looks like a terminal to vitest, so its summary arrives
+  // wrapped in SGR escapes. Every required TypeScript step was once reported
+  // as "nothing ran" for exactly this reason while the same suites passed.
+  it("reads a summary that arrives colourized, as CI writes it", () => {
+    const colored =
+      "\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n" +
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m472 passed\u001b[39m\u001b[22m\u001b[90m (472)\u001b[39m\n";
+    expect(parseTestCounts("vitest", colored)).toMatchObject({
+      passed: 472,
+      failed: 0,
+      selected: 472,
+    });
+    const coloredFail =
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n";
+    expect(parseTestCounts("vitest", coloredFail)).toMatchObject({
+      passed: 6,
+      failed: 1,
+    });
+    // A cargo summary survives the same treatment.
+    const coloredCargo =
+      "\u001b[32mtest result\u001b[0m: ok. 12 passed; 0 failed; 1 ignored; 0 measured\n";
+    expect(parseTestCounts("cargo", coloredCargo)).toMatchObject({
+      passed: 12,
+      failed: 0,
+    });
+  });
+
   it("parses vitest summaries, including 'No test files found'", () => {
     expect(
       parseTestCounts("vitest", "      Tests  7 passed (7)\n"),

@@ -115,7 +115,44 @@ rejected every genuine callout.
 | NATS operator mode | not exercised; its issuer, audience and account rules differ from configuration mode and no claim is made about it |
 | The callout xkey envelope | unit-tested, not live-tested; the live server was not configured with it |
 | Real certificate provisioning in a browser | the browser fixture proves harness-provisioned TLS only, and says nothing about how a person obtains or selects a certificate |
-| `pnpm verify` and the whole-repository clippy gate | both fail on pre-existing debt unrelated to this work |
+| `pnpm verify` and the whole-repository clippy gate | both stop on pre-existing debt, measured rather than assumed — see below |
+
+### The two Rust gates, measured
+
+The claim that the Rust gates fail on debt this work did not create was
+checked against a clean build of the merge base rather than taken on trust.
+
+`cargo fmt --all --check` fails on **34 files at the merge base and 24 on this
+branch**, and the 24 are a strict subset of the 34. This branch introduces no
+formatting failure and brings ten files into compliance, all of them gateway
+and connection-broker files its swarms had to touch anyway. The 24 that remain
+are duress, `pass`, human-vault, sealed-store and daemon files the branch does
+not touch.
+
+The clippy gate stops before it reaches this work at all: a missing-backticks
+lint in `crates/enforcement/src/platform.rs`, last changed by an unrelated
+pull request, and four more under `crates/storage/src/authority`, none of
+which this branch touches.
+
+Scoped instead to the twelve crates this branch owns or changes, and run with
+the gate's own deny set (`-D warnings -D clippy::pedantic` plus the four
+complexity lints), clippy reports exactly two findings — and both predate the
+branch:
+
+| Finding | Why it is not this work's |
+|---|---|
+| `probe_access_token_account` trips `too_many_lines` at 125 | the same function was longer at the merge base; this branch's only change to that file deletes a stray blank line |
+| `items_after_statements` in `tests/rotation_leftover.rs` | the file is not in this branch's diff at all |
+
+Both are in the connection broker, and both are left alone: refactoring code
+this work does not touch semantically would widen the change.
+
+Three findings in that scope *were* this branch's, and all three are fixed —
+an unnested or-pattern and a `match` that reads better as `let...else` in the
+worker, and a `#[must_use]` on a function already returning a `#[must_use]`
+type. Everything else in scope is clean: transport-security, spiffe-source,
+ingress-evidence, nats-callout, domain, gateway, worker, invoke-through,
+provider-openbao, task-bus and the interop crate.
 
 ## 7. Reproducing this
 

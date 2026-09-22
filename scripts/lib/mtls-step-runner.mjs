@@ -79,12 +79,29 @@ function parseMarker(log) {
   return c;
 }
 
+// Every pattern above is anchored against plain text, and a runner that
+// believes it is talking to a terminal wraps its summary in SGR escapes —
+// which is what CI looks like to vitest, whatever the local shell does. An
+// unparsed summary is reported as "nothing ran", so the escapes come off
+// before any pattern is applied rather than being suppressed per runner.
+// Built rather than written as a literal: the pattern has to match ESC, and a
+// control character inside a regular expression is a lint error everywhere
+// else it appears, rightly.
+const ESC = String.fromCharCode(0x1b);
+const ANSI = new RegExp(`${ESC}\\[[0-9;]*[A-Za-z]`, "g");
+
+/** Strip SGR/cursor escapes so a colourized summary parses like a plain one. */
+export function decolor(log) {
+  return log.replace(ANSI, "");
+}
+
 /** @returns {{passed:number, failed:number, ignored:number, not_executed:number, selected:number|null}} */
 export function parseTestCounts(runner, log) {
-  if (runner === "cargo") return parseCargo(log);
-  if (runner === "vitest") return parseVitest(log);
+  const plain = decolor(log);
+  if (runner === "cargo") return parseCargo(plain);
+  if (runner === "vitest") return parseVitest(plain);
   // "marker" and "shell": a script may report counts; a shell step need not.
-  return parseMarker(log);
+  return parseMarker(plain);
 }
 
 /**

@@ -62,7 +62,6 @@ impl WorkerState {
     }
 }
 
-#[must_use]
 pub fn router(state: WorkerState) -> Router {
     Router::new()
         .route("/health/live", get(live))
@@ -162,11 +161,8 @@ async fn ready(
         return response;
     }
     // Providers are probed only after admission.
-    let probes = match probe_providers(&state).await {
-        Some(probes) => probes,
-        None => {
-            return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"ok": false}))).into_response()
-        }
+    let Some(probes) = probe_providers(&state).await else {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"ok": false}))).into_response();
     };
     let available = probes.iter().all(|probe| probe.available);
     let status = if available {

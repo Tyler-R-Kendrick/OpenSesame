@@ -59,7 +59,7 @@ impl WorkerTransport {
     /// `MalformedConfiguration` for any other word — never a silent default.
     pub fn parse(lookup: &Lookup<'_>) -> Result<Self, TransportError> {
         match lookup(TRANSPORT_VAR).as_deref().map(str::trim) {
-            None | Some("") | Some("existing_local") => Ok(Self::ExistingLocal),
+            None | Some("" | "existing_local") => Ok(Self::ExistingLocal),
             Some("mtls_required") => Ok(Self::MtlsRequired),
             Some(other) => Err(TransportError::malformed(format!(
                 "{TRANSPORT_VAR}: {other:?} is not existing_local|mtls_required"

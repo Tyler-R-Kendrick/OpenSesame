@@ -75,7 +75,11 @@ function bootstrap(plane: Plane, ticket: string, slug: string) {
   });
 }
 
-describe("ADV-30 first-admin enrollment", () => {
+// Every test here stands up two control-plane instances on an in-process
+// PGlite and runs the migrations against it. That is about 1.5s each on a
+// warm local checkout and several times that on a loaded shared runner, so
+// these carry a budget that fits the work rather than the 5s default.
+describe("ADV-30 first-admin enrollment", { timeout: 60_000 }, () => {
   it("mints only for the operator and refuses a public first-user-wins", async () => {
     const { first } = await replicaPair();
     const unauth = await first.app.request("/v1/enrollment/tickets", {
@@ -128,7 +132,7 @@ describe("ADV-30 first-admin enrollment", () => {
   });
 });
 
-describe("ADV-18 durable jwt replay", () => {
+describe("ADV-18 durable jwt replay", { timeout: 60_000 }, () => {
   it("shares private_key_jwt jti consumption across maps on one database", async () => {
     const { db } = await replicaPair();
     const first = new DurableJwtReplayCache(

@@ -87,6 +87,19 @@ if [[ ${#present_crates[@]} -gt 0 ]]; then
 fi
 
 # ---- 3. TypeScript ----------------------------------------------------------
+# A few workspace packages publish their main entry through `dist/` rather than
+# `src/`, so a TypeScript step that imports one cannot resolve it in a checkout
+# that has only been installed. On a developer machine an earlier build hides
+# this; on a clean runner every suite reaching `@opensesame/oauth-provider`
+# fails at import with "Failed to resolve entry for package". Build them first,
+# through turbo so the work is cached and their own dependencies come along.
+DIST_PACKAGES=(@opensesame/oauth-provider @opensesame/auth-upstream)
+build_args=(); for pkg in "${DIST_PACKAGES[@]}"; do build_args+=(--filter "${pkg}"); done
+step --id ts-dist-dependencies --claim OPS-RUNNERS --runner marker --required true --timeout 900 \
+  --profile unit --target "turbo run build" \
+  --expected "workspace packages whose entry points resolve through dist/ are built before any TypeScript step imports them" -- \
+  bash -c 'pnpm exec turbo run build "$@" >&2 && echo "MTLS_TESTS passed='"${#DIST_PACKAGES[@]}"' failed=0"' _ "${build_args[@]}"
+
 ts_step() { # id required-default path-that-must-exist command...
   local id="$1" req="$2" need="$3"; shift 3
   is_required "ts:${id}" && req=true

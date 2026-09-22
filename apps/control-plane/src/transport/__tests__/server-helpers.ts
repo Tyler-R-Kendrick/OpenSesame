@@ -53,7 +53,15 @@ export async function bootWithTls(
   return { ...started, tlsPort };
 }
 
-export async function shutdown(started: StartedControlPlane): Promise<void> {
+/**
+ * Tear a started plane down. Tolerates never having started: a `beforeAll`
+ * that threw leaves this undefined, and reporting a `TypeError` from the
+ * teardown buries the error that actually failed the suite.
+ */
+export async function shutdown(
+  started: StartedControlPlane | undefined,
+): Promise<void> {
+  if (!started) return;
   await started.transport?.close();
   await new Promise<void>((resolve) => started.server.close(() => resolve()));
 }
