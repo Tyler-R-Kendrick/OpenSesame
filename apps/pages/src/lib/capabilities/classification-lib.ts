@@ -269,6 +269,9 @@ export const LIB_RULES = [
   ...each(L, ["transport-"], (p) =>
     optional(p, "access.authority", "operator transport status and probe"),
   ),
+  ...each(L, ["capabilities/settling"], (p) =>
+    core(p, SHELL, "whether the plan is still coming up, for the router"),
+  ),
   ...each(L, ["router-seam"], (p) =>
     core(p, SHELL, "the router's navigate, read from outside React"),
   ),

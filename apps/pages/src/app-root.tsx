@@ -16,6 +16,7 @@ import {
   matchPath,
   useLocation,
 } from "react-router";
+import { Wrapped } from "./components/ShellWrappers.js";
 import { activatePlan } from "./lib/capabilities/change.js";
 import { useContributions as defaultUseContributions } from "./lib/capabilities/registry.js";
 import type {
@@ -23,6 +24,7 @@ import type {
   ShellWrapperContribution,
   UnlockEffectContribution,
 } from "./lib/capabilities/runtime-contract.js";
+import { planIsSettling } from "./lib/capabilities/settling.js";
 import { compositionStore, useComposition } from "./lib/capabilities/store.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
@@ -170,28 +172,6 @@ export function useCapabilityGate(id: string) {
 }
 
 /**
- * The shell body inside every wrapper an approved capability contributed,
- * lowest `order` outermost and ties broken by id, so the tree is the same
- * whichever sequence the modules activated in. A build that approved none
- * renders `children` and nothing else — there is no wrapper component in
- * the core tree to be empty.
- */
-function Wrapped({
-  wrappers,
-  children,
-}: {
-  wrappers: readonly ShellWrapperContribution[];
-  children: ReactNode;
-}) {
-  return [...wrappers]
-    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
-    .reduceRight(
-      (inner, entry) => <entry.Wrapper key={entry.id}>{inner}</entry.Wrapper>,
-      children,
-    );
-}
-
-/**
  * Scrolling frame for every section except the vault, which owns its own
  * panes. Arriving here — `g s`, a rail row, a Back — lands the keyboard on
  * the section itself, so the next Tab is the section's first control rather
@@ -279,6 +259,11 @@ function contributedRoute(route: RouteContribution) {
 
 function Fallback() {
   const location = useLocation();
+  const snapshot = useComposition();
+  // Nothing is decided while the plan is still coming up: an approved
+  // capability registers its routes when its module activates, and a cold
+  // deep link can match before that (`lib/capabilities/settling.ts`).
+  if (planIsSettling(snapshot)) return null;
   if (matchesOptionalSection(location.pathname)) return <UnavailableRoute />;
   return <Navigate to="/vault" replace />;
 }

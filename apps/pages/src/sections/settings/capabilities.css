@@ -4,6 +4,7 @@
 .capspanel {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .capspanel__row {
@@ -37,6 +38,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .capspanel__notice {
@@ -67,4 +70,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
+  /* The heading and the Visual/Source/Effective toggle do not both fit a
+     320px phone; without this the head pushed the panel to 331px and the
+     whole section scrolled sideways (verify:mobile ELEMENT-WIDER-THAN-PHONE). */
+  flex-wrap: wrap;
+  min-width: 0;
 }

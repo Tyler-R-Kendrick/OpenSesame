@@ -216,6 +216,45 @@ async function vaultItem(page, stop) {
   await audit(page, stop("list"));
 }
 
+/**
+ * Choose capabilities from Settings › Capabilities, at whatever width this
+ * walk is running: a phone reaches sections through the drawer, a tablet
+ * through the rail. Every control is tapped, because this is the touch gate.
+ */
+async function chooseCapabilitiesHere(page, titles) {
+  const openSettings = async () => {
+    const drawerKey = page.getByRole("button", { name: "Sections" }).first();
+    if (await drawerKey.count()) {
+      await openTab(page, "Settings");
+      return;
+    }
+    await page.locator(".railtree__row", { hasText: "settings" }).first().tap();
+    await page.waitForTimeout(700);
+  };
+  for (const title of titles) {
+    await openSettings();
+    await page.waitForTimeout(500);
+    const tab = page.getByRole("link", { name: "Capabilities", exact: true });
+    if ((await tab.count()) === 0) {
+      harness.check(false, "settings has no Capabilities tab");
+      return;
+    }
+    await tab.tap();
+    await page.waitForTimeout(700);
+    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    if ((await add.count()) === 0) continue;
+    await add.tap();
+    await page.waitForTimeout(600);
+    const apply = page.getByTestId("capability-apply");
+    if ((await apply.count()) === 0 || (await apply.isDisabled())) {
+      harness.check(false, `${title}: Apply was not offered`);
+      return;
+    }
+    await apply.tap();
+    await page.waitForTimeout(2200);
+  }
+}
+
 async function walk(browser, phone) {
   const { page, context } = await harness.newPage(browser, {
     device: phoneContext(phone),
@@ -232,6 +271,14 @@ async function walk(browser, phone) {
   await audit(page, stop("vault"));
 
   await sections(page, stop);
+
+  // The overflow the top bar carries holds what the statusline would: help,
+  // notifications and the connector glyphs. Those belong to capabilities,
+  // and a device that has chosen none has no overflow key at all
+  // (ADR 0130) — so this installation chooses them, the way a person does,
+  // before the walk measures what they draw.
+  await chooseCapabilitiesHere(page, ["Guided help", "Push notifications"]);
+  await audit(page, stop("chosen"));
 
   await openTab(page, "Vault");
   await openChromeKey(page, /^More —/, stop("more"));
@@ -273,6 +320,11 @@ async function tablet(browser, size) {
     .first()
     .tap();
   await page.waitForTimeout(1100);
+  // The strip's Support key is guided help's, so this installation chooses
+  // it before the walk asks whether the key is reachable (ADR 0130).
+  await chooseCapabilitiesHere(page, ["Guided help"]);
+  await page.locator(".railtree__row", { hasText: "vault/" }).first().tap();
+  await page.waitForTimeout(900);
   // Name the stop before any check runs, or each failure is filed under the
   // stop before it and the log points at the wrong screen.
   harness.setStep(stop("chrome"));

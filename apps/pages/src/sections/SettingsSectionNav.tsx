@@ -1,4 +1,4 @@
-import { type ComponentType, useMemo } from "react";
+import { type ComponentType, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router";
 import type { SettingsCategoryContribution } from "../lib/capabilities/runtime-contract.js";
 import {
@@ -90,10 +90,23 @@ export function CategoryLink({
   danger: boolean;
   current: boolean;
 }) {
-  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
+  const node = useRef<HTMLAnchorElement | null>(null);
+  // A strip must never hide its own selected item (DESIGN.md § Touch). The
+  // strip scrolls sideways once it outgrows the screen, and Capabilities
+  // sits far enough along that at 320px it opened partly off the right
+  // edge. Bringing the current one into view costs nothing when it is
+  // already there, and never scrolls the page: `block: "nearest"`.
+  useEffect(() => {
+    if (current)
+      node.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [current]);
   return (
     <Link
-      ref={ref}
+      ref={(element) => {
+        node.current = element;
+        guideRef(element);
+      }}
       to={to}
       className={`set__nav-link${danger ? " set__nav-link--danger" : ""}`}
       aria-current={current ? "page" : undefined}

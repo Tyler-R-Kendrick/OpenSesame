@@ -73,6 +73,53 @@ export async function localAccessJourney({
   );
 }
 
+/**
+ * Choose capabilities on a seeded installation, by URL and through the real
+ * Add and Apply.
+ *
+ * The sections and the consent screen this suite drives belong to
+ * capabilities, and a device that has not chosen one has no such route to
+ * land on (ADR 0130). A fixture cannot write the choice — a consent receipt
+ * binds exposure digests and a forged one is refused — so it goes through
+ * the UI. By URL rather than the rail, because this runs at 390 too, where
+ * the rail lives behind the Sections drawer; and unlocking after every load,
+ * because every load locks the vault. Idempotent: a row that offers no Add
+ * is already approved, arrived as a dependency, or is not in this
+ * distribution.
+ */
+export async function chooseCapabilities(context, width, titles) {
+  const page = await context.newPage();
+  await page.setViewportSize({ width, height: 900 });
+  for (const title of titles) {
+    await page.goto(`${BASE}/settings/capabilities`);
+    await unlockVault(page);
+    await expect(page.getByTestId("capabilities-panel")).toBeVisible();
+    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    if ((await add.count()) === 0) continue;
+    await add.click();
+    const apply = page.getByTestId("capability-apply");
+    await expect(apply).toBeEnabled();
+    await apply.click();
+    await expect(page.getByTestId("capability-review")).toHaveCount(0, {
+      timeout: 20_000,
+    });
+  }
+  await page.close();
+}
+
+/** The capabilities every journey in this suite needs before it starts. */
+export const LOCAL_IAM_CAPABILITIES = ["Access authority", "Browser-local IAM"];
+
+const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
+
+/** Every load locks the vault, and this suite loads more than once. */
+async function unlockVault(page) {
+  const password = page.getByLabel("Password", { exact: true });
+  await expect(password).toBeVisible();
+  await password.fill("Cedar-lantern-47-river!");
+  await password.press("Enter");
+}
+
 export async function openLocalAccessPage(
   context,
   width,
@@ -84,13 +131,9 @@ export async function openLocalAccessPage(
     throw error;
   });
   await page.setViewportSize({ width, height: 900 });
-  await page.goto(
-    `https://tyler-r-kendrick.github.io/OpenSesame/${section}?view=${view}`,
-  );
-  const password = page.getByLabel("Password", { exact: true });
-  await expect(password).toBeVisible();
-  await password.fill("Cedar-lantern-47-river!");
-  await password.press("Enter");
+  const base = BASE;
+  await page.goto(`${base}/${section}?view=${view}`);
+  await unlockVault(page);
   return page;
 }
 
