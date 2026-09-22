@@ -203,7 +203,8 @@ async fn probe_providers(state: &WorkerState) -> Option<Vec<ProviderProbe>> {
     *state
         .last_probe
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((Instant::now(), probes.clone()));
+        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+        Some((Instant::now(), probes.clone()));
     Some(probes)
 }
 

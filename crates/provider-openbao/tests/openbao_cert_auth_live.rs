@@ -29,9 +29,7 @@
 
 mod support;
 
-use opensesame_provider_openbao::cert_auth::{
-    CertTokenScope, OpenBaoAuthMode, OpenBaoCertAuth,
-};
+use opensesame_provider_openbao::cert_auth::{CertTokenScope, OpenBaoAuthMode, OpenBaoCertAuth};
 use opensesame_provider_openbao::AuthorityError;
 use secrecy::ExposeSecret;
 use support::bao::{
@@ -88,11 +86,11 @@ async fn a_real_openbao_authenticates_a_certificate_and_scopes_its_token() {
 
     // 3. A leaf from a foreign root: the listener's client CA refuses it and
     //    the handshake dies before any request body is written.
-    let stranger = bao
-        .foreign_ca
-        .issue_client(opensesame_domain::transport::PeerIdentitySelector::DnsName(
-            "a.clients.example".into(),
-        ));
+    let stranger =
+        bao.foreign_ca
+            .issue_client(opensesame_domain::transport::PeerIdentitySelector::DnsName(
+                "a.clients.example".into(),
+            ));
     let foreign = OpenBaoCertAuth::new(
         bao.base(),
         OpenBaoAuthMode::cert_role(ROLE_A).expect("role"),
@@ -100,7 +98,10 @@ async fn a_real_openbao_authenticates_a_certificate_and_scopes_its_token() {
         bao.client(Some(&stranger), &bao.ca),
     )
     .expect("adapter");
-    let error = foreign.login().await.expect_err("a foreign root is not trusted");
+    let error = foreign
+        .login()
+        .await
+        .expect_err("a foreign root is not trusted");
     assert!(
         matches!(error, AuthorityError::Provider(_)),
         "a handshake failure is a transport fault, never a token: {error:?}"

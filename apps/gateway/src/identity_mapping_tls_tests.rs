@@ -20,7 +20,6 @@ use opensesame_transport_security::{
 };
 
 use crate::identity_mapping::IdentityMappingClient;
-use crate::identity_mapping_tls::MappingAuth;
 
 const IDENTITY_DNS: &str = "identity.test";
 const HOST_DNS: &str = "host.test";

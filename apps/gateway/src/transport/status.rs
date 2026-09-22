@@ -121,9 +121,9 @@ pub fn view(
     let (credential, installed_runtime) = match (config.listener.as_ref(), installed) {
         (None, _) => (CredentialStatus::Unconfigured, RuntimeStatus::NotLoaded),
         (Some(listener), None) => (
-            runtime.spiffe_credential(Utc::now()).unwrap_or_else(|| {
-                credential_unloaded(&listener.identity)
-            }),
+            runtime
+                .spiffe_credential(Utc::now())
+                .unwrap_or_else(|| credential_unloaded(&listener.identity)),
             RuntimeStatus::NotLoaded,
         ),
         (Some(listener), Some((generation, loaded_at, not_after))) => {
@@ -161,12 +161,7 @@ pub fn view(
             .enforcement
             .clone()
             .unwrap_or(EnforcementStatus::Unverified),
-        capabilities: capabilities(
-            runtime.mapping_auth,
-            runtime.callout_auth,
-            desired,
-            managed,
-        ),
+        capabilities: capabilities(runtime.mapping_auth, runtime.callout_auth, desired, managed),
     }
     .reconciled(Utc::now())
 }
@@ -185,4 +180,3 @@ fn credential_unloaded(spec: &NativeIdentitySpec) -> CredentialStatus {
         }
     }
 }
-

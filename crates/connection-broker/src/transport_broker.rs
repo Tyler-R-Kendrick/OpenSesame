@@ -38,7 +38,10 @@ impl ConnectionCredential for ConnectionBroker {
     /// organization (`crypto::open_scoped`'s associated data), so a row moved
     /// between tenants does not decrypt. The value never leaves this
     /// `SecretString`, which the invoker zeroizes with the request.
-    async fn open_bearer(&self, ctx: &ConnectorContext) -> std::result::Result<SecretString, TransportError> {
+    async fn open_bearer(
+        &self,
+        ctx: &ConnectorContext,
+    ) -> std::result::Result<SecretString, TransportError> {
         let key = *self
             .sealing_key()
             .map_err(|_| TransportError::malformed("credential sealing unavailable"))?;
@@ -167,15 +170,14 @@ impl ConnectionBroker {
             .allows_url(&invocation.url)
             .map_err(|error| BrokerError::Invalid(error.to_string()))?;
 
-        let transport = crate::transport::store::get(
-            &self.pool,
-            &row.organization_id,
-            connection_id,
-        )
-        .await?
-        .ok_or_else(|| {
-            BrokerError::Invalid("connection has no transport requirement configured".into())
-        })?;
+        let transport =
+            crate::transport::store::get(&self.pool, &row.organization_id, connection_id)
+                .await?
+                .ok_or_else(|| {
+                    BrokerError::Invalid(
+                        "connection has no transport requirement configured".into(),
+                    )
+                })?;
 
         let ctx = ConnectorContext {
             organization_id: row.organization_id.clone(),

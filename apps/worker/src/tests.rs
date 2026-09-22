@@ -15,11 +15,13 @@ use opensesame_domain::transport::{
     ServiceBindingSet, TrustProfileRef,
 };
 use opensesame_transport_security::testkit::{DisposableCa, IssuedLeaf};
-use opensesame_transport_security::{reqwest_builder, ClientProfile, ServerNamePolicy, TrustBundle};
+use opensesame_transport_security::{
+    reqwest_builder, ClientProfile, ServerNamePolicy, TrustBundle,
+};
 
+use crate::configured_providers;
 use crate::routes::{self, require_worker_token, WorkerAuth, WorkerState};
 use crate::transport::{self, WorkerTransport, DEFAULT_TRUST_PROFILE};
-use crate::configured_providers;
 
 const SERVER_DNS: &str = "worker.test";
 const CLIENT_DNS: &str = "host.test";
@@ -65,7 +67,9 @@ fn transport_profile_is_an_explicit_word() {
     let pick = |value: Option<&str>| {
         let owned = value.map(str::to_owned);
         WorkerTransport::parse(&move |name: &str| {
-            (name == transport::TRANSPORT_VAR).then(|| owned.clone()).flatten()
+            (name == transport::TRANSPORT_VAR)
+                .then(|| owned.clone())
+                .flatten()
         })
     };
     assert_eq!(pick(None).unwrap(), WorkerTransport::ExistingLocal);
@@ -151,37 +155,24 @@ fn env_for(
     std::fs::write(&trust, pki.ca.ca_pem()).unwrap();
     let bindings_path = pki.dir.path().join("bindings.json");
     std::fs::write(&bindings_path, serde_json::to_string(bindings).unwrap()).unwrap();
-    let map: Vec<(String, String)> = vec![
+    let p = |path: &std::path::Path| path.display().to_string();
+    let map: Vec<(String, String)> = [
+        ("OPENSESAME_WORKER_TLS_IDENTITY_SOURCE", "pem".to_owned()),
+        ("OPENSESAME_WORKER_TLS_CERT_FILE", p(&cert)),
+        ("OPENSESAME_WORKER_TLS_KEY_FILE", p(&key)),
+        ("OPENSESAME_WORKER_TLS_TRUST_FILE", p(&trust)),
         (
-            "OPENSESAME_WORKER_TLS_IDENTITY_SOURCE".into(),
-            "pem".into(),
+            "OPENSESAME_WORKER_TLS_TRUST_KIND",
+            "private_root".to_owned(),
         ),
-        (
-            "OPENSESAME_WORKER_TLS_CERT_FILE".into(),
-            cert.display().to_string(),
-        ),
-        (
-            "OPENSESAME_WORKER_TLS_KEY_FILE".into(),
-            key.display().to_string(),
-        ),
-        (
-            "OPENSESAME_WORKER_TLS_TRUST_FILE".into(),
-            trust.display().to_string(),
-        ),
-        (
-            "OPENSESAME_WORKER_TLS_TRUST_KIND".into(),
-            "private_root".into(),
-        ),
-        (
-            transport::BINDINGS_VAR.into(),
-            bindings_path.display().to_string(),
-        ),
-    ];
+        (transport::BINDINGS_VAR, p(&bindings_path)),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_owned(), v))
+    .collect();
     let bindings_path2 = bindings_path.clone();
     (bindings_path2, move |name: &str| {
-        map.iter()
-            .find(|(k, _)| k == name)
-            .map(|(_, v)| v.clone())
+        map.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone())
     })
 }
 
@@ -390,7 +381,11 @@ fn a_missing_identity_or_trust_bundle_fails_startup() {
             }
         }
     };
-    assert!(transport::load("127.0.0.1:0", &without("OPENSESAME_WORKER_TLS_IDENTITY_SOURCE")).is_err());
+    assert!(transport::load(
+        "127.0.0.1:0",
+        &without("OPENSESAME_WORKER_TLS_IDENTITY_SOURCE")
+    )
+    .is_err());
     assert!(transport::load("127.0.0.1:0", &without("OPENSESAME_WORKER_TLS_TRUST_FILE")).is_err());
     assert!(transport::load("127.0.0.1:0", &without(transport::BINDINGS_VAR)).is_err());
 }

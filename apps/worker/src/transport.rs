@@ -23,7 +23,9 @@ use std::sync::Arc;
 use opensesame_domain::transport::{
     ServiceBindingSet, TransportError, TransportPolicy, TrustProfileRef,
 };
-use opensesame_transport_security::env::{self as tls_env, Lookup, NativeIdentitySpec, NativeTrustSpec};
+use opensesame_transport_security::env::{
+    self as tls_env, Lookup, NativeIdentitySpec, NativeTrustSpec,
+};
 use opensesame_transport_security::{
     GenerationCandidate, SecureListener, ServerProfile, TransportGenerations, TrustBundle,
 };
@@ -112,9 +114,7 @@ pub fn load(listen: &str, lookup: &Lookup<'_>) -> Result<SecureProfile, Transpor
                 .map_err(|e| TransportError::malformed(format!("worker client trust: {e}")))?;
             TrustBundle::from_pem(trust_profile.clone(), kind, &pem)?
         }
-        NativeTrustSpec::SpiffeTrustDomain { .. } => {
-            return Err(TransportError::SourceUnsupported)
-        }
+        NativeTrustSpec::SpiffeTrustDomain { .. } => return Err(TransportError::SourceUnsupported),
     };
     let bindings = Arc::new(read_bindings(
         &lookup(BINDINGS_VAR)

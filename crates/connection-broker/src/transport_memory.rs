@@ -58,13 +58,13 @@ impl MemoryTransportResolver {
     }
 
     /// Register `name` to `organization_id` for the connector-invoke purpose.
-    pub fn register_identity(
-        &self,
-        organization_id: &str,
-        name: &str,
-        identity: Arc<TlsIdentity>,
-    ) {
-        self.register_identity_for(organization_id, name, identity, vec![PURPOSE_CONNECTOR_INVOKE]);
+    pub fn register_identity(&self, organization_id: &str, name: &str, identity: Arc<TlsIdentity>) {
+        self.register_identity_for(
+            organization_id,
+            name,
+            identity,
+            vec![PURPOSE_CONNECTOR_INVOKE],
+        );
     }
 
     /// Register `name` for an explicit purpose list.
@@ -103,9 +103,7 @@ impl MemoryTransportResolver {
         }
     }
 
-    fn locked<T>(
-        guard: Result<T, std::sync::PoisonError<T>>,
-    ) -> Result<T, TransportError> {
+    fn locked<T>(guard: Result<T, std::sync::PoisonError<T>>) -> Result<T, TransportError> {
         guard.map_err(|_| TransportError::malformed("resolver registry lock poisoned"))
     }
 }

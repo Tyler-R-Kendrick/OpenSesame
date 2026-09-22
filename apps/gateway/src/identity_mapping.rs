@@ -81,12 +81,6 @@ impl IdentityMappingClient {
         .map_err(|e| e.to_string())
     }
 
-    #[cfg(test)]
-    pub fn local_test(base: &str) -> Self {
-        let token = uuid::Uuid::new_v4().simple().to_string();
-        Self::configured(base, MappingAuth::bearer(token).unwrap(), true, None).unwrap()
-    }
-
     /// An mTLS-mode client for an explicit endpoint and profile. The server
     /// name the profile expects must be the endpoint's host: a mismatch is
     /// refused here, before any connection is attempted.

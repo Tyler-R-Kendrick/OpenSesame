@@ -116,7 +116,11 @@ struct TransportWire {
 
 /// A connection's transport requirement. References only.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", deny_unknown_fields, try_from = "TransportWire")]
+#[serde(
+    rename_all = "snake_case",
+    deny_unknown_fields,
+    try_from = "TransportWire"
+)]
 pub struct ConnectionTransport {
     /// `server_tls` or `mtls_required`; nothing else is a connector policy.
     pub policy: TransportPolicy,
@@ -243,9 +247,11 @@ impl ConnectionTransport {
                 }
                 Ok(())
             }
-            TransportPolicy::ExistingLocal | TransportPolicy::TrustedIngress => Err(
-                TransportError::malformed("connection transport policy must be server_tls or mtls_required"),
-            ),
+            TransportPolicy::ExistingLocal | TransportPolicy::TrustedIngress => {
+                Err(TransportError::malformed(
+                    "connection transport policy must be server_tls or mtls_required",
+                ))
+            }
         }
     }
 

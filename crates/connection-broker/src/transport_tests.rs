@@ -92,7 +92,10 @@ fn only_connector_policies_are_accepted_and_they_must_be_coherent() {
         identity: Some(IdentitySourceRef::new("acme-client").unwrap()),
         ..base.clone()
     };
-    assert_eq!(with_identity.validate().unwrap_err().code(), "trust_unknown");
+    assert_eq!(
+        with_identity.validate().unwrap_err().code(),
+        "trust_unknown"
+    );
     let no_server_name = ConnectionTransport {
         trust: Some(TrustProfileRef::new("acme-root").unwrap()),
         ..with_identity.clone()
@@ -101,7 +104,10 @@ fn only_connector_policies_are_accepted_and_they_must_be_coherent() {
         no_server_name.validate().unwrap_err().code(),
         "malformed_configuration"
     );
-    for refused in [TransportPolicy::ExistingLocal, TransportPolicy::TrustedIngress] {
+    for refused in [
+        TransportPolicy::ExistingLocal,
+        TransportPolicy::TrustedIngress,
+    ] {
         let record = ConnectionTransport {
             policy: refused,
             ..good.clone()

@@ -67,8 +67,9 @@ fn a_login_response_is_read_strictly() {
         assert!(parse_login(&refused).is_err(), "{refused}");
     }
     // A role the presented certificate does not match comes back as `errors`.
-    let denied = parse_login(&json!({"errors": ["invalid certificate or no client certificate supplied"]}))
-        .expect_err("a refusal is not a token");
+    let denied =
+        parse_login(&json!({"errors": ["invalid certificate or no client certificate supplied"]}))
+            .expect_err("a refusal is not a token");
     assert!(matches!(denied, AuthorityError::Denied(_)));
     let bare = parse_login(&json!({"errors": []})).expect_err("still a refusal");
     assert!(matches!(bare, AuthorityError::Denied(_)));
@@ -78,7 +79,10 @@ fn a_login_response_is_read_strictly() {
 fn a_lease_bounds_the_cached_token() {
     let mut token = parse_login(&login_body(3600, &["connector-read"])).unwrap();
     let issued = token.issued_at;
-    assert_eq!(token.expires_at(), Some(issued + chrono::Duration::hours(1)));
+    assert_eq!(
+        token.expires_at(),
+        Some(issued + chrono::Duration::hours(1))
+    );
     assert!(token.is_usable_at(issued));
     // The headroom means a token is stale before it actually expires, so a
     // request is never made with one that dies mid-flight.
@@ -170,7 +174,12 @@ fn no_public_method_returns_openbao_credential_material() {
         let guard = body
             .find("assert_authority_base_url(&self.base)")
             .unwrap_or_else(|| panic!("{method} must re-check its base URL"));
-        let send = body.find(".send()").unwrap_or_else(|| panic!("{method} sends"));
-        assert!(guard < send, "{method}: the URL guard must precede the send");
+        let send = body
+            .find(".send()")
+            .unwrap_or_else(|| panic!("{method} sends"));
+        assert!(
+            guard < send,
+            "{method}: the URL guard must precede the send"
+        );
     }
 }

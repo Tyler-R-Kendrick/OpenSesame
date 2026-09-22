@@ -181,9 +181,12 @@ async fn right_root_wrong_name_is_refused_before_any_request_byte() {
         &spec(bundle("servers", &servers), None, None, served.addr),
     )
     .allow_http_for_tests();
-    let err = call(&invoker, format!("https://{HOST}:{}/ok", served.addr.port()))
-        .await
-        .expect_err("name mismatch");
+    let err = call(
+        &invoker,
+        format!("https://{HOST}:{}/ok", served.addr.port()),
+    )
+    .await
+    .expect_err("name mismatch");
     assert!(matches!(err, InvokeError::Transport(_)), "{err}");
     assert!(!format!("{err}").contains(CANARY));
     assert_eq!(served.seen.hits.load(Ordering::SeqCst), 0);
@@ -205,9 +208,12 @@ async fn right_name_wrong_root_is_refused_before_any_request_byte() {
         &spec(bundle("servers", &servers), None, None, served.addr),
     )
     .allow_http_for_tests();
-    let err = call(&invoker, format!("https://{HOST}:{}/ok", served.addr.port()))
-        .await
-        .expect_err("unknown root");
+    let err = call(
+        &invoker,
+        format!("https://{HOST}:{}/ok", served.addr.port()),
+    )
+    .await
+    .expect_err("unknown root");
     assert!(matches!(err, InvokeError::Transport(_)), "{err}");
     assert_eq!(served.seen.hits.load(Ordering::SeqCst), 0);
 }
@@ -229,7 +235,12 @@ async fn mtls_presents_the_injected_identity_and_returns_a_redirect_as_data() {
     )
     .allow_http_for_tests();
     let port = served.addr.port();
-    assert_eq!(call(&invoker, format!("https://{HOST}:{port}/ok")).await.unwrap(), 200);
+    assert_eq!(
+        call(&invoker, format!("https://{HOST}:{port}/ok"))
+            .await
+            .unwrap(),
+        200
+    );
     let status = call(&invoker, format!("https://{HOST}:{port}/redirect"))
         .await
         .expect("a 3xx is a response");
@@ -237,7 +248,10 @@ async fn mtls_presents_the_injected_identity_and_returns_a_redirect_as_data() {
     let peers = served.seen.peers.lock().unwrap().clone();
     assert_eq!(peers.len(), 1);
     assert_eq!(peers[0].0.as_deref(), Some(leaf.thumbprint.as_str()));
-    assert_eq!(peers[0].1.as_deref(), Some(format!("Bearer {CANARY}").as_str()));
+    assert_eq!(
+        peers[0].1.as_deref(),
+        Some(format!("Bearer {CANARY}").as_str())
+    );
     assert_eq!(served.seen.hits.load(Ordering::SeqCst), 2);
 }
 
@@ -257,9 +271,12 @@ async fn a_dns_policy_holds_when_dialed_by_address() {
     let mut tls = spec(bundle("servers", &servers), None, Some(HOST), served.addr);
     tls.pinned = None;
     let invoker = Invoker::with_tls(rules(&["127.0.0.1"]), &tls).allow_http_for_tests();
-    let status = call(&invoker, format!("https://127.0.0.1:{}/ok", served.addr.port()))
-        .await
-        .expect("verified under the fixed name");
+    let status = call(
+        &invoker,
+        format!("https://127.0.0.1:{}/ok", served.addr.port()),
+    )
+    .await
+    .expect("verified under the fixed name");
     assert_eq!(status, 200);
 }
 
@@ -280,9 +297,12 @@ async fn a_pinned_client_dials_nothing_but_its_authority() {
         &spec(bundle("servers", &servers), None, None, served.addr),
     )
     .allow_http_for_tests();
-    let err = call(&invoker, format!("https://localhost:{}/ok", served.addr.port()))
-        .await
-        .expect_err("not the pinned authority");
+    let err = call(
+        &invoker,
+        format!("https://localhost:{}/ok", served.addr.port()),
+    )
+    .await
+    .expect_err("not the pinned authority");
     assert!(matches!(err, InvokeError::Transport(_)), "{err}");
     assert_eq!(served.seen.hits.load(Ordering::SeqCst), 0);
 }
@@ -302,9 +322,12 @@ async fn no_client_identity_is_refused_by_an_mtls_listener() {
         &spec(bundle("servers", &servers), None, None, served.addr),
     )
     .allow_http_for_tests();
-    let err = call(&invoker, format!("https://{HOST}:{}/ok", served.addr.port()))
-        .await
-        .expect_err("no certificate");
+    let err = call(
+        &invoker,
+        format!("https://{HOST}:{}/ok", served.addr.port()),
+    )
+    .await
+    .expect_err("no certificate");
     assert!(matches!(err, InvokeError::Transport(_)), "{err}");
     assert_eq!(served.seen.hits.load(Ordering::SeqCst), 0);
 }

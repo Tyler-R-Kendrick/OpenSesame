@@ -82,7 +82,10 @@ async fn serve_local(args: &Args, configured: Vec<ProviderDefinition>) -> anyhow
 /// unusable identity, trust bundle or bindings file exits non-zero.
 async fn serve_mtls(args: &Args, configured: Vec<ProviderDefinition>) -> anyhow::Result<()> {
     let profile = transport::load(&args.listen, &process_env).map_err(|error| {
-        anyhow::anyhow!("worker mtls_required refused to start: {error} [{}]", error.code())
+        anyhow::anyhow!(
+            "worker mtls_required refused to start: {error} [{}]",
+            error.code()
+        )
     })?;
     let state = WorkerState::new(
         configured,
@@ -92,7 +95,10 @@ async fn serve_mtls(args: &Args, configured: Vec<ProviderDefinition>) -> anyhow:
         },
     );
     let listener = transport::bind(&profile).await.map_err(|error| {
-        anyhow::anyhow!("worker mtls_required refused to start: {error} [{}]", error.code())
+        anyhow::anyhow!(
+            "worker mtls_required refused to start: {error} [{}]",
+            error.code()
+        )
     })?;
     let app = routes::router(state).layer(axum::middleware::from_fn_with_state(
         std::sync::Arc::clone(&profile.generations),

@@ -17,8 +17,8 @@
 
 use sqlx::{Row, SqlitePool};
 
-use crate::error::{BrokerError, Result};
 use super::ConnectionTransport;
+use crate::error::{BrokerError, Result};
 
 /// Read a connection's transport record.
 ///
@@ -33,13 +33,12 @@ pub async fn get(
     organization_id: &str,
     connection_id: &str,
 ) -> Result<Option<ConnectionTransport>> {
-    let row = sqlx::query(
-        "SELECT transport_json FROM connections WHERE id = ? AND organization_id = ?",
-    )
-    .bind(connection_id)
-    .bind(organization_id)
-    .fetch_optional(pool)
-    .await?;
+    let row =
+        sqlx::query("SELECT transport_json FROM connections WHERE id = ? AND organization_id = ?")
+            .bind(connection_id)
+            .bind(organization_id)
+            .fetch_optional(pool)
+            .await?;
     let Some(row) = row else {
         return Ok(None);
     };

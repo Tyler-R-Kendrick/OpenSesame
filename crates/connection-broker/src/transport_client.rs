@@ -16,7 +16,9 @@ use std::sync::Arc;
 
 use opensesame_domain::transport::TransportError;
 use opensesame_invoke_through::{EgressRule, Invoker, TlsClientSpec};
-use opensesame_transport_security::{client_config, dial_name, ClientProfile, TlsIdentity, TrustBundle};
+use opensesame_transport_security::{
+    client_config, dial_name, ClientProfile, TlsIdentity, TrustBundle,
+};
 
 use super::ConnectionTransport;
 
@@ -113,4 +115,3 @@ pub fn build_invoker(
         invoker
     })
 }
-

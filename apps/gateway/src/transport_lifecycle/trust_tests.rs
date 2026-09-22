@@ -175,7 +175,7 @@ async fn a_profile_an_enabled_binding_names_cannot_be_removed_without_force() {
         crate::transport::bindings::BindingsSource::Stored,
         None,
         ServiceBindingSet {
-            revision: 0,
+            revision: ServiceBindingSet::empty().revision,
             bindings: vec![binding("binding:1", "peers")],
         },
     )

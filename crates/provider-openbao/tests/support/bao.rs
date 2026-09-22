@@ -89,6 +89,7 @@ pub struct LiveBao {
     pub client_b: IssuedLeaf,
     root_token: String,
     child: Child,
+    log_path: PathBuf,
     _dir: tempfile::TempDir,
 }
 
@@ -117,7 +118,11 @@ impl LiveBao {
     ///
     /// When the profile or the client cannot be built.
     #[must_use]
-    pub fn client(&self, identity: Option<&IssuedLeaf>, trust_ca: &DisposableCa) -> reqwest::Client {
+    pub fn client(
+        &self,
+        identity: Option<&IssuedLeaf>,
+        trust_ca: &DisposableCa,
+    ) -> reqwest::Client {
         let profile = ClientProfile {
             server_trust: TrustBundle::from_pem(
                 TrustProfileRef::new("bao-root").expect("ref"),
@@ -141,7 +146,12 @@ impl LiveBao {
             .expect("client")
     }
 
-    async fn admin(&self, method: reqwest::Method, path: &str, body: Option<Value>) -> (u16, Value) {
+    async fn admin(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Value>,
+    ) -> (u16, Value) {
         let client = self.client(Some(&self.client_a), &self.ca);
         let mut request = client
             .request(method, format!("{}{path}", self.base()))
@@ -152,10 +162,7 @@ impl LiveBao {
         let response = request.send().await.expect("admin request");
         let status = response.status().as_u16();
         let text = response.text().await.unwrap_or_default();
-        (
-            status,
-            serde_json::from_str(&text).unwrap_or(Value::Null),
-        )
+        (status, serde_json::from_str(&text).unwrap_or(Value::Null))
     }
 
     /// Read a KV v2 path with `token`, returning the HTTP status.
@@ -228,19 +235,13 @@ api_addr = "https://127.0.0.1:{port}"
         .expect("write config");
         std::fs::create_dir_all(dir.path().join("data")).expect("storage dir");
 
+        let log_path = dir.path().join("server.log");
+        let log = std::fs::File::create(&log_path).expect("server log");
         let child = Command::new(bao_binary())
-            .arg(format!("-config={}", config.display()))
-            .arg("server")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .args(["server", &format!("-config={}", config.display())])
+            .stdout(Stdio::from(log.try_clone().expect("log handle")))
+            .stderr(Stdio::from(log))
             .spawn()
-            .or_else(|_| {
-                Command::new(bao_binary())
-                    .args(["server", &format!("-config={}", config.display())])
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .spawn()
-            })
             .expect("spawn bao");
 
         let mut bao = Self {
@@ -251,6 +252,7 @@ api_addr = "https://127.0.0.1:{port}"
             client_b: ca_client(&dir, "b.clients.example"),
             root_token: String::new(),
             child,
+            log_path,
             _dir: dir,
         };
         // The leaves must come from the *same* CA the listener trusts.
@@ -280,7 +282,12 @@ api_addr = "https://127.0.0.1:{port}"
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
-        panic!("openbao did not become reachable on 127.0.0.1:{}", self.port);
+        let log = std::fs::read_to_string(&self.log_path).unwrap_or_default();
+        panic!(
+            "openbao did not become reachable on 127.0.0.1:{}\n{}",
+            self.port,
+            log.lines().rev().take(20).collect::<Vec<_>>().join("\n")
+        );
     }
 
     async fn initialize(&mut self) {

@@ -58,19 +58,20 @@ fn only_the_custody_module_opens_a_sealed_managed_key() {
 
 #[test]
 fn no_lifecycle_route_reaches_the_human_only_reveal() {
+    // Code lines only: the module docs name the reveal precisely to say that
+    // it lives elsewhere, and that sentence is not a call site.
     let routes = read("routes.rs");
-    assert!(
-        !routes.contains("reveal_managed_key"),
-        "the operator transport routes must not expose the human-only reveal",
-    );
-    assert!(
-        !routes.contains("private_key"),
-        "no route body names a private key field",
-    );
-    assert!(
-        !routes.contains("tls_identity_for"),
-        "a route never resolves an identity for a caller",
-    );
+    let code: String = routes
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for forbidden in ["reveal_managed_key", "private_key", "tls_identity_for"] {
+        assert!(
+            !code.contains(forbidden),
+            "an operator transport route must not name `{forbidden}`",
+        );
+    }
 }
 
 #[test]

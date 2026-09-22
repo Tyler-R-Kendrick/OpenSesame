@@ -21,10 +21,7 @@ pub(crate) type StubResponse = (u16, Vec<(&'static str, &'static str)>, &'static
     reason = "the nested tasks model the loopback server's connection and request lifetimes"
 )]
 pub(crate) async fn spawn_stub(
-    responder: impl Fn(&hyper::Request<hyper::body::Incoming>) -> StubResponse
-        + Send
-        + Sync
-        + 'static,
+    responder: impl Fn(&hyper::Request<hyper::body::Incoming>) -> StubResponse + Send + Sync + 'static,
 ) -> (String, Arc<Mutex<Recorded>>) {
     let recorded = Arc::new(Mutex::new(Recorded { hits: vec![] }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

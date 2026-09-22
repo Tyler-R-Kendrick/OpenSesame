@@ -139,14 +139,19 @@ fn native_spec_only_yields_a_source_for_the_spiffe_variant() {
         endpoint_socket: PathBuf::from("/run/spire/api.sock"),
     };
     assert_eq!(
-        SpiffeSourceConfig::from_native_spec(&spiffe).unwrap().unwrap().spiffe_id(),
+        SpiffeSourceConfig::from_native_spec(&spiffe)
+            .unwrap()
+            .unwrap()
+            .spiffe_id(),
         "spiffe://td.test/a"
     );
     let pem = NativeIdentitySpec::PemFiles {
         cert: PathBuf::from("/etc/c.pem"),
         key: PathBuf::from("/etc/k.pem"),
     };
-    assert!(SpiffeSourceConfig::from_native_spec(&pem).unwrap().is_none());
+    assert!(SpiffeSourceConfig::from_native_spec(&pem)
+        .unwrap()
+        .is_none());
     let bad = NativeIdentitySpec::Spiffe {
         spiffe_id: "spiffe://td.test/a".into(),
         endpoint_socket: PathBuf::from("tcp://127.0.0.1:8081"),

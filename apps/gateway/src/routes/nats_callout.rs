@@ -244,9 +244,31 @@ pub(crate) async fn decide(
     if let Ok(Some(stored)) = st.db.get_host_kv(&key).await {
         return replay(&stored, now.timestamp());
     }
-    let identity = match resolve_identity(&cfg, &verified).await {
+    // Every decision made about a verified request is recorded, denies
+    // included, so a retry cannot flip to a different answer because policy
+    // moved underneath it (AT-CALLOUT-REPLAY).
+    let resp = match decide_identity(st, &cfg, &verified, &to).await {
+        Ok(resp) => resp,
+        Err(refusal) => return refusal,
+    };
+    match record(st, &key, &resp).await {
+        Some(theirs) => replay(&theirs, now.timestamp()),
+        None => answer(resp),
+    }
+}
+
+/// Authenticate the end user, map them, and decide. `Err` is a refusal that
+/// is *not* a decision about this request (a misconfigured Host), so it is
+/// never recorded.
+async fn decide_identity(
+    st: &AppState,
+    cfg: &CalloutConfig,
+    verified: &verify::VerifiedCallout,
+    to: &Binding<'_>,
+) -> Result<NatsCalloutResponse, Response> {
+    let identity = match resolve_identity(cfg, verified).await {
         Ok(identity) => identity,
-        Err(code) => return answer(NatsCalloutResponse::deny(code).bind(&to, None)),
+        Err(code) => return Ok(NatsCalloutResponse::deny(code).bind(to, None)),
     };
     let enforcement = identity.enforcement;
     let req = NatsCalloutRequest {
@@ -262,7 +284,10 @@ pub(crate) async fn decide(
         None
     } else {
         let Some(mapping) = &st.identity_mapping else {
-            return refuse(StatusCode::SERVICE_UNAVAILABLE, "callout_misconfigured");
+            return Err(refuse(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "callout_misconfigured",
+            ));
         };
         match mapping.resolve_upstream(&req.issuer, &req.subject).await {
             Ok(m) => m,
@@ -270,15 +295,11 @@ pub(crate) async fn decide(
                 tracing::warn!(error = %e, "identity mapping resolve failed");
                 // An unavailable mapping denies. It never falls back to a
                 // broader grant and never adds a callout-bypass user.
-                return answer(NatsCalloutResponse::deny("mapping_unavailable").bind(&to, None));
+                return Ok(NatsCalloutResponse::deny("mapping_unavailable").bind(to, None));
             }
         }
     };
-    let resp = decide_nats_callout(&cfg, req, mapped).bind(&to, enforcement);
-    match record(st, &key, &resp).await {
-        Some(theirs) => replay(&theirs, now.timestamp()),
-        None => answer(resp),
-    }
+    Ok(decide_nats_callout(&cfg, req, mapped).bind(to, enforcement))
 }
 
 /// The end user, once authenticated.

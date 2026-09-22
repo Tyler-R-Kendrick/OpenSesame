@@ -3,6 +3,7 @@
 //! Agents never receive `SecretRef` material through this trait's agent-safe paths.
 
 pub mod cert_auth;
+mod cert_token;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

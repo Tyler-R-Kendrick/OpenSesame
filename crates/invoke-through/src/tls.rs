@@ -112,7 +112,9 @@ impl Service<Name> for Resolver {
         match self {
             Self::System(gai) => {
                 let fut = gai.call(name);
-                Box::pin(async move { fut.await.map(|addrs| addrs.collect::<Vec<_>>().into_iter()) })
+                Box::pin(
+                    async move { fut.await.map(|addrs| addrs.collect::<Vec<_>>().into_iter()) },
+                )
             }
             Self::Pinned { host, addrs } => {
                 let result = if name.as_str().eq_ignore_ascii_case(host) {
@@ -150,10 +152,7 @@ pub(crate) fn build_client(tls: Option<&TlsClientSpec>) -> HttpsClient {
                 Some(name) => builder.with_server_name_resolver(FixedServerName(name.clone())),
                 None => builder,
             };
-            builder
-                .enable_http1()
-                .enable_http2()
-                .wrap_connector(http)
+            builder.enable_http1().enable_http2().wrap_connector(http)
         }
         None => HttpsConnectorBuilder::new()
             .with_webpki_roots()
@@ -169,7 +168,10 @@ pub(crate) fn build_client(tls: Option<&TlsClientSpec>) -> HttpsClient {
 mod tests {
     use super::*;
 
-    async fn resolve(resolver: &mut Resolver, host: &str) -> Result<Vec<SocketAddr>, std::io::Error> {
+    async fn resolve(
+        resolver: &mut Resolver,
+        host: &str,
+    ) -> Result<Vec<SocketAddr>, std::io::Error> {
         let name: Name = host.parse().expect("name");
         resolver.call(name).await.map(Iterator::collect)
     }

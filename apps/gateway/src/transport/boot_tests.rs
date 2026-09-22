@@ -17,7 +17,7 @@ async fn the_plain_listener_serves_and_carries_its_provenance() {
         task_database_url: String::new(),
     };
     let app = crate::routes::router(state.clone());
-    let served = tokio::spawn(super::boot::serve(state, &args, app));
+    let served = tokio::spawn(async move { super::boot::serve(state, &args, app).await });
     // The task keeps running; nothing about an unconfigured transport makes
     // it fail.
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;

@@ -31,8 +31,9 @@ fn key(org: &str, connection: &str) -> ConnectorPoolKey {
     }
 }
 
-fn counting(built: &AtomicUsize) -> impl FnOnce() -> Result<Invoker, opensesame_domain::transport::TransportError> + '_
-{
+fn counting(
+    built: &AtomicUsize,
+) -> impl FnOnce() -> Result<Invoker, opensesame_domain::transport::TransportError> + '_ {
     move || {
         built.fetch_add(1, Ordering::SeqCst);
         Ok(Invoker::with_rules(rules()))
@@ -43,8 +44,12 @@ fn counting(built: &AtomicUsize) -> impl FnOnce() -> Result<Invoker, opensesame_
 fn one_scope_builds_one_client_and_reuses_it() {
     let pool = ConnectorClientPool::with_capacity(8);
     let built = AtomicUsize::new(0);
-    let first = pool.get_or_build(&key("org-a", "conn-1"), counting(&built)).unwrap();
-    let second = pool.get_or_build(&key("org-a", "conn-1"), counting(&built)).unwrap();
+    let first = pool
+        .get_or_build(&key("org-a", "conn-1"), counting(&built))
+        .unwrap();
+    let second = pool
+        .get_or_build(&key("org-a", "conn-1"), counting(&built))
+        .unwrap();
     assert_eq!(built.load(Ordering::SeqCst), 1);
     assert!(std::sync::Arc::ptr_eq(&first, &second));
     assert_eq!(pool.len(), 1);

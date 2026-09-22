@@ -85,8 +85,12 @@ async fn serve_mtls(ca: &DisposableCa) -> Upstream {
         identity: Some(Arc::new(ca.issue_server(HOST).identity())),
         peer_trust: [(
             clients.clone(),
-            TrustBundle::from_pem(clients.clone(), TrustProfileKind::PrivateRoot, &ca.root_pem())
-                .unwrap(),
+            TrustBundle::from_pem(
+                clients.clone(),
+                TrustProfileKind::PrivateRoot,
+                &ca.root_pem(),
+            )
+            .unwrap(),
         )]
         .into(),
         own_trust: None,

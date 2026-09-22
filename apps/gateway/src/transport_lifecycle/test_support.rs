@@ -54,10 +54,28 @@ pub fn private_root(name: &str, ca: &DisposableCa) -> TrustBundle {
     .expect("trust bundle")
 }
 
-/// A state with the lifecycle handle already on it (`test_demo_state` builds
-/// it), plus a canonical organization.
+/// A state with the lifecycle handle on it and a connection sealing key, so
+/// managed custody is actually available. The key is a throwaway all-zero one
+/// that exists only for the length of the `build_test` call, exactly as
+/// `routes::certs_tests` does it; nothing is written to disk.
 pub async fn state() -> AppState {
-    crate::app_state::test_demo_state().await
+    let _guard = crate::app_state::test_env::lock();
+    std::env::set_var("OPENSESAME_TASKBUS", "memory");
+    std::env::set_var(
+        "OPENSESAME_CONNECTION_KEY",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    );
+    let state = crate::app_state::build_test(crate::config::Args {
+        listen: "127.0.0.1:0".parse().expect("addr"),
+        resource: "https://opensesame.test".into(),
+        issuer: "https://identity.test".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .expect("test state");
+    std::env::remove_var("OPENSESAME_CONNECTION_KEY");
+    state
 }
 
 #[must_use]
