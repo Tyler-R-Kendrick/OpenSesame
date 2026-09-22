@@ -134,7 +134,9 @@ it.skip("distinguishes unreadable credentials from an empty directory and refuse
     "disabled",
     true,
   );
-  expect(screen.queryByRole("img", { name: "No passkeys enrolled." })).toBeNull();
+  expect(
+    screen.queryByRole("img", { name: "No passkeys enrolled." }),
+  ).toBeNull();
   expect(screen.queryByRole("link", { name: "Create a person" })).toBeNull();
 });
 
