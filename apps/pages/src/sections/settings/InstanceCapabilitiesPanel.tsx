@@ -98,11 +98,7 @@ export function InstanceCapabilitiesPanel() {
                 snapshot.lifecycle[descriptor.id],
               );
               return (
-                <div
-                  key={descriptor.id}
-                  className="capspanel__row"
-                  role="listitem"
-                >
+                <li key={descriptor.id} className="capspanel__row">
                   <span className="capspanel__name">
                     <strong>{descriptor.title}</strong>
                     <span>

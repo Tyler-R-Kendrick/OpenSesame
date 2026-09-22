@@ -45,7 +45,8 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { useVault } from "../lib/vault/hooks.js";
 import { vaultStore } from "../lib/vault/store.js";
-import { webmcpSupportSeam } from "../webmcp/tools.js";
+import { webmcpSupportSeam } from "../webmcp/tool-shared.js";
+import { supportAgentLoaders } from "./agent-seams.js";
 import { gateSupportAsk } from "./ask-guard.js";
 import type { PageContextInput } from "./registry/context.js";
 import {
@@ -651,7 +652,6 @@ export function chooseSupportAgent(
   return { port: absent, transport: "none" };
 }
 
-// Lazy browser wiring: narrow imports keep test fakes out of the offline bundle.
 export async function loadBrowserEngine(
   host: SupportHost,
 ): Promise<SupportEngine> {
@@ -690,8 +690,8 @@ export async function loadBrowserEngine(
     import("./registry/routes.js"),
     import("./registry/state.js"),
     import("./rendering/index.js"),
-    import("./agents/prompt-api/index.js"),
-    import("./agents/ag-ui/index.js"),
+    supportAgentLoaders.promptApi(),
+    supportAgentLoaders.agUi(),
     import("./registry/predicates.js"),
     import("../lib/connectivity-monitor.js"),
   ]);
@@ -722,7 +722,7 @@ export async function loadBrowserEngine(
     destroy: () => {},
   };
   const local = promptApi.createPromptApiAgent();
-  const providerMod = await import("./agents/provider/index.js");
+  const providerMod = await supportAgentLoaders.provider();
   const provider = providerMod.createProviderAgent();
   const { port, transport } = chooseSupportAgent(
     local,

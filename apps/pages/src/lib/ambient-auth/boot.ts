@@ -50,14 +50,21 @@ function revalidateStoredSession(): ReturnType<typeof loadSession> {
   return session;
 }
 
-export function useAmbientAuthBoot(
-  hasAuthCallback: boolean,
-  pathname: string,
-): void {
-  const started = useRef(false);
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+export type AmbientBootInput = Readonly<{
+  hasAuthCallback: boolean;
+  pathname: string;
+}>;
+
+/**
+ * One boot evaluation: revalidate a stored session, decide eligibility, and
+ * start the automatic attempt when everything lines up. Run from
+ * `identity.ambient-sso`'s `activate` (as a background job) — never at
+ * module load, and never before that capability is approved.
+ */
+export function runAmbientAuthBoot({
+  hasAuthCallback,
+  pathname,
+}: AmbientBootInput): void {
     const snapshot = vaultStore.getSnapshot();
     const session = revalidateStoredSession();
     const eligibility = evaluateEligibility({
@@ -93,5 +100,17 @@ export function useAmbientAuthBoot(
       };
     };
     void startAutomaticAttempt(eligibility, redirectUri());
+}
+
+/** Legacy hook form; the module's background job calls `runAmbientAuthBoot`. */
+export function useAmbientAuthBoot(
+  hasAuthCallback: boolean,
+  pathname: string,
+): void {
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    runAmbientAuthBoot({ hasAuthCallback, pathname });
   }, [hasAuthCallback, pathname]);
 }

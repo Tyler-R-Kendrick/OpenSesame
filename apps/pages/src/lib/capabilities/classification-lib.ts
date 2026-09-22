@@ -61,6 +61,8 @@ const SHELL_FILES = [
   "connectors",
   "command-bar/",
   "keyboard-delivery",
+  "contributions",
+  "item-kinds",
 ];
 const SIGNIN_FILES = [
   "guest-auth",
@@ -262,6 +264,11 @@ export const LIB_RULES = [
     `${L}site-broker`,
     "identity.site-broker",
     "relying-site broker consents and policy",
+  ),
+  optional(
+    `${L}auth-client`,
+    "identity.site-broker",
+    "pins the shipped static-auth SDK bytes",
   ),
   optional(
     `${L}certs`,

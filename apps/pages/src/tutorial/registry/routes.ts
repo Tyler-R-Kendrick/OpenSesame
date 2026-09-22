@@ -8,7 +8,6 @@
  * survive both the grammar's syntax check and this membership check.
  */
 
-import { isGuideRouteId } from "@opensesame/guide-lang";
 import type { SupportRouteDescription } from "@opensesame/support-agent";
 import { SETTINGS_CATEGORIES, settingsPath } from "../../lib/crumbs.js";
 
@@ -54,13 +53,12 @@ export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
   "/identity/authorize",
 ]);
 
-const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
-for (const route of GUIDE_ROUTES) {
-  if (!isGuideRouteId(route.id)) {
-    throw new Error(`guide_route_syntax:${route.id}`);
-  }
-  byId.set(route.id, route);
-}
+// Route-id syntax (`isGuideRouteId` from @opensesame/guide-lang) is asserted
+// in `routes.test.ts`, not here: this registry sits on the shell's path via
+// `useGuideTarget`, and the guide grammar belongs to `support.guided-help`.
+const byId = new Map<GuideRouteId, GuideRouteDescriptor>(
+  GUIDE_ROUTES.map((route) => [route.id, route]),
+);
 
 export function isKnownGuideRoute(id: GuideRouteId): boolean {
   return byId.has(id);
