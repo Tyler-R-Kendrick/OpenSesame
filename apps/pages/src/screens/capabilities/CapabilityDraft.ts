@@ -139,6 +139,15 @@ export type SelectionBase = Readonly<{
   revision: string;
 }>;
 
+/**
+ * Every draft carries its own revision, because the commit preflight reads a
+ * reused one as a conflict (CONSENT-08) rather than as a no-op. The wall
+ * clock alone cannot supply that: a browser clamps `Date.now()` to coarse
+ * ticks against timing attacks, and two commits inside one tick would then
+ * be indistinguishable — which is how an installation that had chosen one
+ * capability could never choose a second. The timestamp stays because it
+ * orders drafts legibly; the nonce is what makes each one its own.
+ */
 export function baseFromSnapshot(
   snapshot: CompositionSnapshot,
   now: string,
@@ -153,7 +162,7 @@ export function baseFromSnapshot(
       snapshot.plan?.identity.policyRevision ??
       snapshot.policy?.revision ??
       "0",
-    revision: `draft-${now}`,
+    revision: `draft-${now}-${crypto.randomUUID().slice(0, 8)}`,
   };
 }
 

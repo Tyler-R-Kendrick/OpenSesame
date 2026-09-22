@@ -28,6 +28,7 @@ import {
 } from "./CapabilitiesPanel.js";
 
 const realUseVault = vaultHooksSeams.useVault;
+const realNow = capabilitiesPanelSeams.now;
 let vault = { tomb: "personal", guest: false };
 
 const PERSONAL_SELECTION = {
@@ -67,9 +68,11 @@ beforeEach(() => {
   resetDouble({ selection: PERSONAL_SELECTION, receipt: withReceipt() });
   double.setActive("agents.webmcp");
   capabilitiesPanelSeams.reload = vi.fn();
+  capabilitiesPanelSeams.now = realNow;
 });
 afterEach(() => {
   cleanup();
+  capabilitiesPanelSeams.now = realNow;
   vaultHooksSeams.useVault = realUseVault;
 });
 
@@ -133,6 +136,33 @@ describe("what this device uses", () => {
     );
     // Adding is not disabling: nothing was force-stopped on the way.
     expect(double.disabled).toHaveLength(0);
+  });
+
+  it("gives every commit its own revision, even when the clock does not move", async () => {
+    // The wall clock is not a source of uniqueness. A browser clamps
+    // `Date.now()` for Spectre, a test harness freezes it outright, and two
+    // commits inside one tick then carry the same revision — which the
+    // commit preflight rightly reads as a conflict (CONSENT-08), refusing
+    // the second with `selection-revision`. That is how a person who had
+    // chosen one capability could never choose a second.
+    capabilitiesPanelSeams.now = () => "2026-09-10T00:00:00.000Z";
+    render(<CapabilitiesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(1));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Retire Agent tools (WebMCP) safely",
+      }),
+    );
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(2));
+    expect(double.commits[1]?.draft.revision).not.toEqual(
+      double.commits[0]?.draft.revision,
+    );
+    expect(double.commits[1]?.receipt.selectionRevision).toEqual(
+      double.commits[1]?.draft.revision,
+    );
   });
 
   it("offers no way in for a capability already running, or one this distribution lacks", () => {

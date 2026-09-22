@@ -3,9 +3,10 @@
  * section it hosts (its rail row `g i`, the `/identity` route and the
  * Applications tab), the local application sign-in ceremony at
  * `/identity/authorize`, local passkeys, local identity sessions and grants.
+ * Devices is here too: its list is the browsers that unlocked this vault.
  * The other identity tabs are contributed by `identity.federation`
  * (Providers) and `enterprise.directory-provisioning` (People, Agents,
- * Devices, Organization) through `sections/identity/identity-views.ts`.
+ * Organization) through `sections/identity/identity-views.ts`.
  *
  * Egress: none. Every record is sealed in the tomb; the only navigation is
  * the redirect back to a registered local application after consent
@@ -34,12 +35,27 @@ import { bindLocalIamLockResets } from "./lock-resets.js";
 
 export const CAPABILITY = "identity.local-iam";
 
-/** The Identity tabs this capability puts on the page. */
-export const IDENTITY_VIEWS_OWNED = ["service-accounts"] as const;
+/**
+ * The Identity tabs this capability puts on the page.
+ *
+ * Devices is here because the list it leads with is local: the browsers and
+ * installs that have unlocked *this vault*, read from the tomb, renamed and
+ * removed with no Identity API in the picture (`LocalDevicesPanel`). It was
+ * `enterprise.directory-provisioning`'s alone, so a household that ran
+ * browser-local IAM and no directory had no way to see its own devices —
+ * ADR 0090's rule read backwards, gating a panel on a service it does not
+ * need. The directory's own device approval still arrives from that
+ * capability, inside the same tab.
+ */
+export const IDENTITY_VIEWS_OWNED = ["devices", "service-accounts"] as const;
 
 export const TUTORIAL = {
+  // The tab strip is this capability's component (`IdentityTabs`), and a
+  // target may be declared once, so the host declares every tab button it
+  // can draw — including Devices, which it now draws by itself.
   targets: pickById(IDENTITY_TARGETS, [
     "nav.identity",
+    "identity.devices",
     "identity.service-accounts",
   ]),
   goals: pickById(IDENTITY_GOALS, [

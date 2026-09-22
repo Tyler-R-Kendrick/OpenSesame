@@ -52,9 +52,9 @@ describe("identity.local-iam runtime", () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "identity.local-iam",
       kinds: KINDS,
-      // 1 section + 2 routes + 1 section command + 1 tab command + 1 jump
+      // 1 section + 2 routes + 1 section command + 2 tab commands + 1 jump
       // + tutorial descriptors
-      count: 1 + 2 + 1 + 1 + 1 + targets.length + goals.length + routes.length,
+      count: 1 + 2 + 1 + 2 + 1 + targets.length + goals.length + routes.length,
     });
   });
 
@@ -68,10 +68,11 @@ describe("identity.local-iam runtime", () => {
       ["identity", "/identity", true],
       ["identity-authorize", "/identity/authorize", true],
     ]);
-    // The section, plus the one Identity tab this capability owns. The other
-    // tabs' destinations belong to the capabilities that draw them.
+    // The section, plus the Identity tabs this capability draws. The rest
+    // belong to the capabilities that draw them.
     expect(t.entries("command-path")).toEqual([
       { path: "/identity", label: "Identity" },
+      { path: "/identity?view=devices", label: "Identity · Devices" },
       {
         path: "/identity?view=service-accounts",
         label: "Identity · Applications",
@@ -80,6 +81,7 @@ describe("identity.local-iam runtime", () => {
     expect(t.entries("keymap-jump")).toEqual([{ key: "i", path: "/identity" }]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       "nav.identity",
+      "identity.devices",
       "identity.service-accounts",
     ]);
     // The whole identity partition of the route registry: the two Identity
@@ -93,11 +95,14 @@ describe("identity.local-iam runtime", () => {
     await handle.dispose();
   });
 
-  it("puts only the Applications tab on the page, and takes it back on dispose", async () => {
+  it("puts Devices and Applications on the page, and takes them back on dispose", async () => {
+    // Devices is here without the Identity API directory: its list is the
+    // browsers that unlocked this vault, and a household that runs only
+    // browser-local IAM could not see them until this capability drew it.
     expect(enabledIdentityViews()).toEqual([]);
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(enabledIdentityViews()).toEqual(["service-accounts"]);
+    expect(enabledIdentityViews()).toEqual(["devices", "service-accounts"]);
     await handle.dispose();
     expect(enabledIdentityViews()).toEqual([]);
   });

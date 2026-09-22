@@ -35,10 +35,12 @@ export const IDENTITY_VIEWS_OWNED = [
 ] as const;
 
 export const TUTORIAL = {
+  // Not `identity.devices`: that tab button is drawn whenever
+  // `identity.local-iam` is, so the host declares it and a target is
+  // declared exactly once.
   targets: pickById(IDENTITY_TARGETS, [
     "identity.people",
     "identity.agents",
-    "identity.devices",
     "identity.organization",
   ]),
   goals: pickById(IDENTITY_GOALS, [
@@ -55,9 +57,10 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
-    // People, Agents, Devices and Organization are this capability's tabs, so
-    // their destinations are its contributions too: with the Identity API
-    // capability excluded, `/identity?view=devices` is not a place to go.
+    // People, Agents and Organization are this capability's tabs, so their
+    // destinations are its contributions too: with the Identity API
+    // capability excluded, `/identity?view=people` is not a place to go.
+    // Devices is shared — the tab stays while either owner draws it.
     registerIdentityViewPaths(activation, IDENTITY_VIEWS_OWNED);
     registerTutorial(activation, TUTORIAL);
 

@@ -59,10 +59,11 @@ describe("enterprise.directory-provisioning runtime", () => {
       { path: "/identity?view=devices", label: "Identity · Devices" },
       { path: "/identity?view=organization", label: "Identity · Organization" },
     ]);
+    // Devices is drawn by the section host too, and a target is declared
+    // once: the button's id comes from `identity.local-iam`.
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       "identity.people",
       "identity.agents",
-      "identity.devices",
       "identity.organization",
     ]);
     expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([

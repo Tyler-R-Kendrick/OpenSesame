@@ -3,10 +3,13 @@
  *
  * The Identity section is one component hosted by `identity.local-iam`, but
  * its tabs belong to three capabilities: Applications to local IAM itself,
- * Providers to `identity.federation`, and People / Agents / Devices /
- * Organization to `enterprise.directory-provisioning`. Each runtime
- * contributes its tabs in `activate` and takes them back in `dispose`; the
- * tabs, the rail subtree and the URL fallback all read the same set here.
+ * Providers to `identity.federation`, and People / Agents / Organization to
+ * `enterprise.directory-provisioning`. Devices belongs to both, because both
+ * draw in it — the local device list and the directory's device approval —
+ * and the count below is what lets a shared tab stay while either owner is
+ * live. Each runtime contributes its tabs in `activate` and takes them back
+ * in `dispose`; the tabs, the rail subtree and the URL fallback all read the
+ * same set here.
  *
  * Nothing is enabled by default. A tab nobody contributed is not on the page,
  * so a capability that was never approved leaves no way into its panel —
