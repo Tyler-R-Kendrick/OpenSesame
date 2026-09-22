@@ -7,8 +7,11 @@ import {
   type PageTreeSource,
   pageTabTree,
 } from "../../lib/page-to-tree.js";
-import { IDENTITY_LABELS, IDENTITY_VIEWS } from "../../lib/section-views.js";
 
+import {
+  IDENTITY_LABELS,
+  IDENTITY_VIEWS,
+} from "../../lib/section-view-names.js";
 export type IdentityRailSnapshot = {
   directory?: readonly LocalIdentity[];
   providers?: readonly { id: string; label: string }[];

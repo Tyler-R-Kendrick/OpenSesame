@@ -19,8 +19,8 @@ import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb, vfsSeams } from "./vfs.js";
 
-import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 
 let tomb: string;
 let principalId: string;

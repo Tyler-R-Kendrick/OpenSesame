@@ -11,10 +11,11 @@
  */
 
 import { IconUser } from "../../components/Icons.js";
-import { useAccount } from "../../lib/account.js";
+
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { brandFor } from "./ProviderBrand.js";
 
+import { useAccount } from "../../bindings/account.js";
 type Props = {
   disabled?: boolean;
   onSwitch: () => void;

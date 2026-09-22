@@ -69,11 +69,11 @@ Object.assign(crumbsSeams, {
   Crumbs: () => <nav data-testid="crumbs" aria-label="Breadcrumb" />,
 });
 
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
 import { contributeIdentityViews } from "../sections/identity/identity-views.js";
 import { AppShell } from "./AppShell.js";
 import { registerLegacyShell } from "./legacy-sections.test-support.js";
 
+import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
 export const ITEMS = [
   { kind: "login", deletedAt: null, favorite: true, folderId: "f1" },
   { kind: "login", deletedAt: null, favorite: false, folderId: null },

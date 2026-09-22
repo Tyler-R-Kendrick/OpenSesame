@@ -18,7 +18,7 @@
   "totals": {
     "files": 493,
     "violations": 783,
-    "oversizedLines": 249045
+    "oversizedLines": 248995
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -665,7 +665,7 @@
       "max-lines": 475
     },
     "apps/pages/src/lib/identity.ts": {
-      "max-lines": 797
+      "max-lines": 748
     },
     "apps/pages/src/lib/idp-registry.ts": {
       "complexity": 1
@@ -955,7 +955,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemDetail.test.tsx": {
-      "max-lines": 679
+      "max-lines": 678
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,

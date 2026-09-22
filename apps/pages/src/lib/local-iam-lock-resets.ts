@@ -9,10 +9,10 @@
  * or an unspent authentication behind.
  */
 
-import { bindLocalAgentAuthLockReset } from "../../lib/local-agent-auth.js";
-import { bindLocalAuthorizationLockReset } from "../../lib/local-authorization.js";
-import { bindLocalAuthenticationLockReset } from "../../lib/local-passkeys.js";
-import { bindLocalSessionLockReset } from "../../lib/local-sessions.js";
+import { bindLocalAgentAuthLockReset } from "./local-agent-auth.js";
+import { bindLocalAuthorizationLockReset } from "./local-authorization.js";
+import { bindLocalAuthenticationLockReset } from "./local-passkeys.js";
+import { bindLocalSessionLockReset } from "./local-sessions.js";
 
 /** Bind every lock reset; the returned unbind resets and is idempotent. */
 export function bindLocalIamLockResets(): () => void {

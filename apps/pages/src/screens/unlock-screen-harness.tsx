@@ -127,6 +127,7 @@ Object.assign(federationSeams, {
 
 export const FEDERATED_BUTTON = `Continue with ${UPSTREAM.accountKind}`;
 
+import { identityHookSeams } from "../bindings/identity.js";
 import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { identitySeams } from "../lib/identity.js";
 import type { IdentitySession } from "../lib/identity.js";
@@ -134,7 +135,7 @@ identitySeams.identityBase = () => "http://127.0.0.1:18788";
 export const endSession = vi.fn();
 export type SessionHolder = { current: IdentitySession | null };
 export const sessionHolder: SessionHolder = { current: null };
-identitySeams.useIdentitySession = () => sessionHolder.current;
+identityHookSeams.useIdentitySession = () => sessionHolder.current;
 identitySeams.endSession = endSession;
 
 import { orgSeams } from "../lib/orgs.js";

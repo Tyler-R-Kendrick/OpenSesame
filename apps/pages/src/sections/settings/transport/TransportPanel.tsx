@@ -17,7 +17,6 @@ import {
   type TransportStatusResult,
   lastTransportStatus,
   readTransportStatus,
-  useTransportVerifierConfigured,
 } from "../../../lib/transport-status.js";
 import { runTransportVerify } from "../../../lib/transport-verify.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
@@ -26,6 +25,7 @@ import { TransportStatusRows } from "./TransportStatusRows.js";
 import { TransportTargetForm } from "./TransportTargetForm.js";
 import "./transport.css";
 
+import { useTransportVerifierConfigured } from "../../../bindings/transport.js";
 /**
  * Settings › Security › Transport.
  *

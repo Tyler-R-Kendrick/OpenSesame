@@ -6,6 +6,7 @@ import {
   createKeymapHandler,
   registerRailKeymap,
   registerVaultKeymap,
+  typing,
 } from "./keymap.js";
 
 function target(): VaultKeymapTarget {
@@ -378,5 +379,15 @@ describe("application keymap", () => {
     press(handler, "c");
     expect(navigate).not.toHaveBeenCalled();
     release();
+  });
+});
+
+describe("typing", () => {
+  it("ADV-12: a configuration source editor counts as typing", () => {
+    const area = document.createElement("textarea");
+    area.setAttribute("data-config-source", "true");
+    document.body.appendChild(area);
+    expect(typing(area)).toBe(true);
+    area.remove();
   });
 });

@@ -10,19 +10,14 @@
  * sorted by `order` then id.
  *
  * What this adds is a synchronous snapshot for the places that cannot call a
- * hook (the keymap handler, the crumb builders, the WebMCP tool table, the
+ * hook (the hook itself is `bindings/contributions.ts`) (the keymap handler, the crumb builders, the WebMCP tool table, the
  * tutorial registries), and a test-only side channel that lets a jsdom test
  * inject a contribution without booting a store, resolving a plan and
  * minting a lease. Nothing in production code calls the test channel.
  */
 
 import type { ContributionKind } from "@opensesame/capability-composition";
-import { useMemo, useSyncExternalStore } from "react";
-import {
-  contributions,
-  subscribeRegistry,
-  useContributions as useRegistryContributions,
-} from "./capabilities/registry.js";
+import { contributions, subscribeRegistry } from "./capabilities/registry.js";
 import type { ContributionEntry } from "./capabilities/runtime-contract.js";
 
 type Injected<K extends ContributionKind> = Readonly<{
@@ -100,7 +95,7 @@ export function contributionsSnapshot<K extends ContributionKind>(
   return out as readonly ContributionEntry<K>[];
 }
 
-function subscribeInjected(listener: () => void): () => void {
+export function subscribeInjected(listener: () => void): () => void {
   injectedListeners.add(listener);
   return () => {
     injectedListeners.delete(listener);
@@ -136,22 +131,9 @@ export function subscribeContributions(listener: () => void): () => void {
   };
 }
 
-/** Generation-fenced hook over the same set the sync accessor returns. */
-export function useContributions<K extends ContributionKind>(
-  kind: K,
-): readonly ContributionEntry<K>[] {
-  const fromRegistry = useRegistryContributions(kind);
-  const version = useSyncExternalStore(
-    subscribeInjected,
-    () => injectedVersion,
-    () => injectedVersion,
-  );
-  // The snapshot is keyed by exactly these two; the deps say when it moves.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fromRegistry/version are the snapshot's cache keys
-  return useMemo(
-    () => contributionsSnapshot(kind),
-    [kind, fromRegistry, version],
-  );
+/** Moves whenever the test channel changes; a hook's cache key. */
+export function injectedContributionsVersion(): number {
+  return injectedVersion;
 }
 
 function announceInjected(): void {

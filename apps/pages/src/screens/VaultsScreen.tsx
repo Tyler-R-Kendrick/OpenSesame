@@ -19,17 +19,13 @@ import { VaultList } from "../components/VaultList.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
 import { signOut, switchAccount } from "../lib/session-exit.js";
-import {
-  type DeviceVault,
-  sealNewVault,
-  switchVault,
-  useDeviceVaults,
-} from "../lib/vaults.js";
+import { type DeviceVault, sealNewVault, switchVault } from "../lib/vaults.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { AccountRow } from "./unlock/AccountRow.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 
+import { useDeviceVaults } from "../bindings/vaults.js";
 type Props = {
   providers: FederatedProviderSummary[];
   /** A vault was picked and the store has moved to it: show its unlock form. */

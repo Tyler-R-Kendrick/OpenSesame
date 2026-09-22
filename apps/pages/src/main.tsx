@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
 import { compositionStore } from "./lib/capabilities/store.js";
+import { registerDuressUiModule } from "./lib/duress/feature/mode.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
 // their stylesheets stay in the first bundle, ahead of styles.css: a
@@ -46,6 +47,12 @@ if (framed()) {
 // OPFS. Miss that event and there is no second chance until the next load, so
 // the listener goes on before anything asynchronous.
 armInstall();
+
+// The shared core never imports UI (ADR 0133); the shell says how to load the
+// duress settings panel when the duress runtime warms its capabilities.
+registerDuressUiModule(
+  () => import("./components/duress/DuressSettingsPanel.js"),
+);
 
 /**
  * The worker registration controller (S08) picks the variant the plan

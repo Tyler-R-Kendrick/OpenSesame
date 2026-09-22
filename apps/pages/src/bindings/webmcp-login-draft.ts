@@ -5,7 +5,7 @@ import {
   loginDraftView,
 } from "../lib/vault/login-draft.js";
 import type { Folder, VaultItem } from "../lib/vault/model.js";
-import { setWebMcpEditorKind } from "./context.js";
+import { setWebMcpEditorKind } from "../webmcp/context.js";
 
 /** Publishes the live login editor to WebMCP for as long as it is mounted. */
 export function useWebMcpLoginDraft(

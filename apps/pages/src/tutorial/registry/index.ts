@@ -28,7 +28,6 @@ export {
   rankHelpTopics,
   searchHelpTopics,
 } from "./goals.js";
-export { GuideTarget, useGuideTarget } from "./react.jsx";
 export {
   CORE_GUIDE_ROUTES,
   GUIDE_ROUTES,

@@ -5,9 +5,10 @@ import {
   walletPath,
 } from "../lib/crumbs.js";
 import { itemKindsSnapshot } from "../lib/item-kinds.js";
-import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-views.js";
+
 import { sectionForPath } from "./RailRows.js";
 
+import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-view-names.js";
 export function selectedRailPath(
   pathname: string,
   hash: string,

@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 import { InMemoryProvider, OpenFeature } from "@openfeature/web-sdk";
-import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { bootPersonalLocal, freshRealm } from "./__tests__/harness.js";
 import {
@@ -16,7 +15,6 @@ import {
   isReleaseFlagName,
   releaseFlagRestricts,
   releaseFlagSeams,
-  useCapabilityFlag,
 } from "./openfeature-consumer.js";
 import {
   OPENFEATURE_DOMAIN,
@@ -47,22 +45,6 @@ describe("openfeature-consumer (S17)", () => {
     });
     await installCompositionProvider({ snapshotSource: store });
     expect(capabilityEnabled(CONNECTORS)).toBe(false);
-  });
-
-  it("useCapabilityFlag follows the store through the provider's events", async () => {
-    const store = storeDouble(readySnapshot(approvedPlan([]), 1));
-    await installCompositionProvider({ snapshotSource: store });
-    const { result, unmount } = renderHook(() => useCapabilityFlag(CONNECTORS));
-    expect(result.current).toBe(false);
-    act(() => {
-      store.set(readySnapshot(approvedPlan([CONNECTORS]), 2));
-    });
-    expect(result.current).toBe(true);
-    act(() => {
-      store.set(readySnapshot(approvedPlan([]), 3));
-    });
-    expect(result.current).toBe(false);
-    unmount();
   });
 
   it("OF-05: a malicious provider can lie to the UI but never to the loader", async () => {

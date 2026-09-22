@@ -1,6 +1,7 @@
-/** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+/** @vitest-environment jsdom */
+import { identityHookSeams } from "../../bindings/identity.js";
 
 import type { OperatorIdp, PagesSettings } from "../../lib/settings.js";
 import { defaultSignInMethods, settingsSeams } from "../../lib/settings.js";
@@ -36,6 +37,8 @@ import { deviceIdentitySeams } from "../../lib/device-identity.js";
 import { identitySeams } from "../../lib/identity.js";
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
+});
+Object.assign(identityHookSeams, {
   useIdentitySession: () => null,
 });
 Object.assign(deviceIdentitySeams, {

@@ -68,6 +68,11 @@ What stands in the way was measured on 2026-09-22:
      - the DOM, focus and keyboard helpers;
      - the PWA shell (service worker, install offer, push, update);
      - the tutorial renderer and its DOM target registry.
+   - Moving code imports no React value. A type-only import
+     (`import type { ComponentType } from "react"`) is allowed: it is erased
+     at build time, and the contribution contract uses it to name the shell's
+     component type without calling React. The package therefore takes
+     `@types/react` as a dev dependency, never `react`.
 2. **Standard web APIs are the runtime contract; ports cover what differs.**
    - **Contract, not ports.** These globals exist in both browsers and
      Node: `crypto` and `crypto.subtle`, `fetch` with `Headers`/`Request`/

@@ -8,8 +8,10 @@
  * entry from its old path to its new one, unchanged, and refuses anything that
  * is not a plain move:
  *
- *   - the old path must have a baseline entry, and must no longer exist
- *   - the new path must not already have one
+ *   - the old path must no longer exist, and must differ from the new one
+ *   - the new path must not already have a baseline entry
+ *
+ * A moved file with no recorded entry carries nothing and is not an error.
  *
  * The caller then runs the ordinary ratchet against the re-keyed ledger, so a
  * moved file that got worse still fails, and one that got better must still
@@ -65,7 +67,12 @@ export function readRelocationMap(parsed) {
     if (typeof to !== "string" || to.length === 0 || from.length === 0) {
       throw new Error(`relocation map entry for ${from} is not a path`);
     }
-    if (from.startsWith("/") || to.startsWith("/") || to.includes("\\")) {
+    if (
+      from.startsWith("/") ||
+      to.startsWith("/") ||
+      from.includes("\\") ||
+      to.includes("\\")
+    ) {
       throw new Error(`relocation map paths must be repo-relative: ${from}`);
     }
     moves[from] = to;

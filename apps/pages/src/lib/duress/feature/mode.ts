@@ -126,6 +126,25 @@ export async function loadDuressRuntime(
   return { mode, loaded: true, modules, unsupported };
 }
 
+/**
+ * The settings panel is UI, and the shared core never imports UI (ADR 0133).
+ * The shell that renders it registers how to load its chunk; a shell that
+ * registers nothing cannot load `duress.ui`, and says so rather than
+ * pretending the asset is warm (INV-30).
+ */
+let duressUiModule: (() => Promise<unknown>) | null = null;
+
+export function registerDuressUiModule(load: () => Promise<unknown>): void {
+  duressUiModule = load;
+}
+
+async function importDuressUi(): Promise<void> {
+  if (!duressUiModule) {
+    throw new Error("duress.ui: no settings panel registered by this shell");
+  }
+  await duressUiModule();
+}
+
 async function importCapability(cap: DuressCapability): Promise<void> {
   switch (cap.id) {
     case "duress.access":
@@ -168,7 +187,7 @@ async function importCapability(cap: DuressCapability): Promise<void> {
       await import("../peer/envelope.js");
       return;
     case "duress.ui":
-      await import("../../../components/duress/DuressSettingsPanel.js");
+      await importDuressUi();
       return;
     default: {
       const _exhaustive: never = cap.id;

@@ -21,12 +21,12 @@ import type {
   InstanceCapabilityPolicy,
   PolicyProvenance,
 } from "@opensesame/capability-composition";
-import type { ContributionEntry } from "../../lib/capabilities/runtime-contract.js";
+import type { ContributionEntry } from "../../capabilities/runtime-contract.js";
 import type {
   CommitOutcome,
   CompositionSnapshot,
   EmergencyDisableOutcome,
-} from "../../lib/capabilities/store-types.js";
+} from "../../capabilities/store-types.js";
 import { FIXTURE_CATALOG, FIXTURE_IDS } from "./composition-fixture.js";
 import {
   type DoubleInput,

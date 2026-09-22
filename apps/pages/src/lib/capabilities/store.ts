@@ -18,7 +18,6 @@ import {
   type ActivationLease,
   type CapabilityCatalog,
   type CapabilityId,
-  type CapabilityState,
   type CompositionChangeReview,
   type ConsentReceipt,
   type DistributionContract,
@@ -26,7 +25,6 @@ import {
   type InstallationCapabilitySelection,
   resolveComposition,
 } from "@opensesame/capability-composition";
-import { useSyncExternalStore } from "react";
 import { postCapabilitiesChanged } from "./channel.js";
 import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { compositionLockName } from "./keys.js";
@@ -382,16 +380,3 @@ export class CompositionStore {
 }
 
 export const compositionStore = new CompositionStore();
-
-export function useComposition(): CompositionSnapshot {
-  return useSyncExternalStore(
-    compositionStore.subscribe,
-    compositionStore.getSnapshot,
-    compositionStore.getSnapshot,
-  );
-}
-
-export function useCapability(id: CapabilityId): CapabilityState | null {
-  const snapshot = useComposition();
-  return snapshot.plan?.capabilities[id] ?? null;
-}

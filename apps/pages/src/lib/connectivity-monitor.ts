@@ -20,7 +20,6 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
-import { useSyncExternalStore } from "react";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
 import { identityBase, probeIdentityDetailed } from "./identity.js";
 import { type FailureClass, classifyThrown } from "./probe-failure.js";
@@ -382,13 +381,4 @@ export function resetConnectivityMonitorForTests(): void {
   dirty = true;
   snapshot = buildSnapshot();
   dirty = false;
-}
-
-/** Subscribe a component to the monitor. Starts it on the first subscriber. */
-export function useConnectivityMonitor(): MonitorSnapshot {
-  return useSyncExternalStore(
-    subscribeConnectivityMonitor,
-    connectivitySnapshot,
-    connectivitySnapshot,
-  );
 }

@@ -18,8 +18,8 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { IDENTITY_VIEWS } from "../../lib/section-views.js";
 
+import { IDENTITY_VIEWS } from "../../lib/section-view-names.js";
 export type IdentityView = (typeof IDENTITY_VIEWS)[number];
 
 const counts = new Map<IdentityView, number>();

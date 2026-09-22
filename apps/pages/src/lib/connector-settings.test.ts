@@ -1,5 +1,4 @@
 /** @vitest-environment jsdom */
-import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   DEFAULT_CONNECTOR_SETTING,
@@ -16,7 +15,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanup();
   lockAllTombs();
   vi.unstubAllGlobals();
 });

@@ -15,14 +15,16 @@ import {
   IconChevronRight,
   IconUser,
 } from "../../components/Icons.js";
-import { type Account, useAccount } from "../../lib/account.js";
+import type { Account } from "../../lib/account.js";
 import { guestVaultLabel } from "../../lib/local-guest.js";
 import { signOut, switchAccount } from "../../lib/session-exit.js";
-import { type DeviceVault, useDeviceVaults } from "../../lib/vaults.js";
+import type { DeviceVault } from "../../lib/vaults.js";
 import { GUEST_TOMB } from "../../lib/vfs.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { brandFor } from "./ProviderBrand.js";
 
+import { useAccount } from "../../bindings/account.js";
+import { useDeviceVaults } from "../../bindings/vaults.js";
 /** Label for the unlock trigger: follows the vault being unlocked, not a stale claim. */
 export function unlockAccountLabel(
   currentVaultId: string,

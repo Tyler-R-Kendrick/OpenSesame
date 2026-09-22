@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { planeHookSeams } from "../../bindings/planes.js";
 
 import type {
   CardItem,
@@ -48,9 +49,7 @@ Object.assign(vaultHooksSeams, {
   useCopySecret: () => copySecret,
 });
 
-import { planeSeams } from "../../lib/planes.js";
-const originalPlaneSeams = { ...planeSeams };
-Object.assign(planeSeams, { usePlaneStatus: () => planes.value });
+Object.assign(planeHookSeams, { usePlaneStatus: () => planes.value });
 import { connectionSeams } from "../../lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { listConnections, connectionEvents });

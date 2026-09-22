@@ -14,7 +14,7 @@ import * as deviceIdentity from "../lib/device-identity.js";
 import { ensureDefaultAccess } from "../lib/local-access-bootstrap.js";
 import { mintGuestSessionPerson } from "../lib/local-guest.js";
 import { listLocalShares } from "../lib/local-share-grants.js";
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
+
 import { vaultStore } from "../lib/vault/store.js";
 import { GUEST_TOMB, lockAllTombs } from "../lib/vfs.js";
 import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
@@ -26,6 +26,7 @@ import { IDENTITY_GOALS } from "../tutorial/registry/identity-goals.js";
 import { IdentitySection } from "./IdentitySection.js";
 import { contributeIdentityViews } from "./identity/identity-views.js";
 
+import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning), and each contributes its own view. These cases
 // describe a deployment that approved them, so they register the same

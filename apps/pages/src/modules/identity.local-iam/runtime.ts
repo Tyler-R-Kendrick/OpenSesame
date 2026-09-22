@@ -14,10 +14,11 @@
  *
  * Side effects removed from import: the three `onVaultLock` subscriptions in
  * `lib/local-passkeys.ts`, `lib/local-sessions.ts` and
- * `lib/local-authorization.ts` are bound in `activate` (`lock-resets.ts`).
+ * `lib/local-authorization.ts` are bound in `activate` (`lib/local-iam-lock-resets.ts`).
  */
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import { bindLocalIamLockResets } from "../../lib/local-iam-lock-resets.js";
 import { LocalAuthorize } from "../../screens/LocalAuthorize.js";
 import { IdentitySection } from "../../sections/IdentitySection.js";
 import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
@@ -31,7 +32,6 @@ import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 import { IdentityRailTree } from "./IdentityRailTree.js";
-import { bindLocalIamLockResets } from "./lock-resets.js";
 
 export const CAPABILITY = "identity.local-iam";
 

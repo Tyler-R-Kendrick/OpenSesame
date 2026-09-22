@@ -16,7 +16,6 @@ import type {
   ContributionKind,
   RegistrationHandle,
 } from "@opensesame/capability-composition";
-import { useSyncExternalStore } from "react";
 import { leaseIsCurrent } from "./lease.js";
 import {
   CapabilityDenied,
@@ -154,16 +153,6 @@ export function subscribeRegistry(listener: () => void): () => void {
   return () => {
     listeners.delete(listener);
   };
-}
-
-export function useContributions<K extends ContributionKind>(
-  kind: K,
-): readonly ContributionEntry<K>[] {
-  return useSyncExternalStore(
-    subscribeRegistry,
-    () => contributions(kind),
-    () => contributions(kind),
-  );
 }
 
 /** Test-only: forget every registration. */

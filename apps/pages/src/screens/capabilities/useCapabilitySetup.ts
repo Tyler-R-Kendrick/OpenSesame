@@ -29,7 +29,6 @@ import {
   buildConsentReceipt,
   compositionStore,
   previewPlan,
-  useComposition,
   viewOutcome,
 } from "../../lib/configuration/capabilities-ports.js";
 import {
@@ -46,6 +45,7 @@ import {
   toggleRoot,
 } from "./CapabilityDraft.js";
 
+import { useComposition } from "../../bindings/capabilities.js";
 export type SetupStage =
   | "roads"
   | "join"

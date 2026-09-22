@@ -14,7 +14,7 @@ import type {
   CapabilityId,
   InstanceCapabilityPolicy,
 } from "@opensesame/capability-composition";
-import type { CapabilityPreset } from "../../lib/configuration/capabilities-ports.js";
+import type { CapabilityPreset } from "../capabilities-ports.js";
 
 type Draft = Partial<CapabilityDescriptor> &
   Pick<CapabilityDescriptor, "id" | "title">;

@@ -36,7 +36,6 @@
     "**/*.css",
     "lib/agent-page-dump*.ts",
     "lib/command-bar/focus*.ts",
-    "lib/crumbs*.ts",
     "lib/focus*.ts",
     "lib/gestures*.ts",
     "lib/install*.ts",
@@ -51,8 +50,6 @@
     "lib/tree-motion*.ts",
     "lib/use-*.ts",
     "lib/vault/hooks*.ts",
-    "tutorial/registry/targets*.ts",
-    "webmcp/lifecycle*.ts",
-    "webmcp/registration*.ts"
+    "webmcp/lifecycle*.ts"
   ]
 }

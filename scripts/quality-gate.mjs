@@ -66,7 +66,7 @@ const update = args.has("--update") || relocatePath !== null;
 const summaryOnly = args.has("--summary");
 const acceptNewDebt = args.has("--accept-new-debt");
 
-if (relocateAt !== -1 && !relocatePath) {
+if (relocateAt !== -1 && (!relocatePath || relocatePath.startsWith("--"))) {
   console.error("quality gate: --relocate needs a map file");
   process.exit(2);
 }

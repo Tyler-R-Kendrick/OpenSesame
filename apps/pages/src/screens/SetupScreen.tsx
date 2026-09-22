@@ -31,7 +31,7 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
-import { useContributions } from "../lib/configuration/capabilities-ports.js";
+
 import { landFocus } from "../lib/focus.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
@@ -41,6 +41,7 @@ import { CapabilitySetup } from "./capabilities/CapabilitySetup.js";
 import { KeepIt } from "./setup/KeepIt.js";
 import "./setup.css";
 
+import { useCompositionContributions } from "../bindings/capabilities.js";
 /** One tab: the fixed capabilities tab, or a `setup-panel` contribution. */
 export type SetupPanel = Readonly<{
   id: string;
@@ -53,7 +54,7 @@ export type SetupPanel = Readonly<{
 export const CAPABILITIES_STEP = "capabilities";
 
 function useContributedPanels(): readonly SetupPanel[] {
-  return useContributions("setup-panel").map((entry) => ({
+  return useCompositionContributions("setup-panel").map((entry) => ({
     id: entry.id,
     tab: entry.tab,
     rail: entry.rail,

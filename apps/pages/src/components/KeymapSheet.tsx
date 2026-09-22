@@ -1,10 +1,11 @@
 import { useRef } from "react";
 import { keysForAction } from "../lib/configuration/nav-persist.js";
-import { useContributions } from "../lib/contributions.js";
+
 import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
 
+import { useContributions } from "../bindings/contributions.js";
 export function KeymapSheet({
   open,
   close,

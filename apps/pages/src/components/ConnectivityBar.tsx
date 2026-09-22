@@ -1,18 +1,14 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import {
-  checkNow,
-  useConnectivityMonitor,
-} from "../lib/connectivity-monitor.js";
+import { checkNow } from "../lib/connectivity-monitor.js";
 import {
   type ConnectorId,
   type ConnectorStatus,
   isOfflineSet,
   needsAttention,
-  useConnectors,
 } from "../lib/connectors.js";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
 import { claimGuestAuth } from "../lib/guest-auth.js";
-import { useConnect } from "../lib/identity.js";
+
 import { useModalFocus } from "../lib/modal-focus.js";
 import { failureSentence } from "../lib/probe-failure.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -22,6 +18,9 @@ import { KeyVaultCeremony } from "./KeyVaultCeremony.js";
 import { StatusMark } from "./StatusMark.js";
 import { StatusNote } from "./StatusNote.js";
 
+import { useConnectivityMonitor } from "../bindings/connectivity-monitor.js";
+import { useConnectors } from "../bindings/connectors.js";
+import { useConnect } from "../bindings/identity.js";
 /**
  * The connectivity bar — a phone status bar for the authorization fabric.
  *

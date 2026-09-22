@@ -17,13 +17,9 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router";
-import { useAccount } from "../lib/account.js";
+
 import { beginSignIn } from "../lib/federation.js";
-import {
-  IdentityError,
-  ensureIdentitySession,
-  useIdentitySession,
-} from "../lib/identity.js";
+import { IdentityError, ensureIdentitySession } from "../lib/identity.js";
 import { guestVaultLabel } from "../lib/local-guest.js";
 import {
   GUEST_PROFILE_ID,
@@ -44,6 +40,8 @@ import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconCheck, IconPlus, IconUser } from "./Icons.js";
 
+import { useAccount } from "../bindings/account.js";
+import { useIdentitySession } from "../bindings/identity.js";
 function guestLabel(hasSession: boolean, assurance?: string): string {
   if (!hasSession) return guestVaultLabel();
   if (assurance === "provisional" || !assurance) {

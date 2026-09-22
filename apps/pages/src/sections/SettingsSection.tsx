@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useContributions } from "../lib/contributions.js";
+
 import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
 import { resolveDuressMode } from "../lib/duress/feature/mode.js";
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
@@ -27,6 +27,7 @@ import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import type { RawFormat } from "./settings/settings-files.js";
 import "./settings.css";
 
+import { useContributions } from "../bindings/contributions.js";
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>
   import("./settings/transport/TransportPanel.js").then((module) => ({

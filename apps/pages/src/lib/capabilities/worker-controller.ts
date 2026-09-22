@@ -16,7 +16,7 @@
  * `selected-only` offline delivery, posts the approved module ids as
  * `PLAN_ASSETS` (`worker/plan-sync.ts`). It never posts a URL. The worker's
  * answers become the `offlineStatus` a settings surface reads through
- * `useWorkerStatus`.
+ * `useWorkerStatus` (`bindings/capabilities.ts`).
  *
  * The parts live under `worker/`: the platform seams, the page-level state
  * and its external store, the plan conversation, and the shared types.
@@ -41,7 +41,7 @@ export { CORE_ONLY_VARIANT, WORKER_GRAPH_UNAVAILABLE };
 export { workerControllerSeams } from "./worker/seams.js";
 export {
   resetWorkerController,
-  useWorkerStatus,
+  subscribeWorkerStatus,
   workerStatus,
 } from "./worker/state.js";
 export type {

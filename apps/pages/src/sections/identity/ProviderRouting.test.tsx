@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -11,6 +10,8 @@ import {
   it,
   vi,
 } from "vitest";
+/** @vitest-environment jsdom */
+import { identityHookSeams } from "../../bindings/identity.js";
 import { federationSeams } from "../../lib/federation.js";
 import { identitySeams } from "../../lib/identity.js";
 import {
@@ -19,7 +20,7 @@ import {
   registerIdp,
 } from "../../lib/idp-registry.js";
 import { providersSeams } from "../../lib/providers.js";
-import { IDENTITY_VIEWS } from "../../lib/section-views.js";
+
 import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
 import {
   IDENTITY_ROUTES,
@@ -29,6 +30,7 @@ import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { IdentitySection } from "../IdentitySection.js";
 import { contributeIdentityViews } from "./identity-views.js";
 
+import { IDENTITY_VIEWS } from "../../lib/section-view-names.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning), and each contributes its own view. These cases
 // describe a deployment that approved them, so they register the same
@@ -57,7 +59,7 @@ beforeEach(() => {
     stored = value;
   });
   vi.spyOn(identitySeams, "identityBase").mockReturnValue("");
-  vi.spyOn(identitySeams, "useIdentitySession").mockReturnValue(null);
+  vi.spyOn(identityHookSeams, "useIdentitySession").mockReturnValue(null);
   vi.spyOn(providersSeams, "listFederatedProviders").mockResolvedValue([]);
   vi.spyOn(federationSeams, "beginSignIn").mockResolvedValue();
   vi.stubGlobal(

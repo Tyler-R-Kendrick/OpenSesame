@@ -1,9 +1,9 @@
-/** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+/** @vitest-environment jsdom */
+import { planeHookSeams } from "../../../bindings/planes.js";
 
 import { defaultCapabilityConnectors } from "../../../lib/capabilities.js";
-import { planeSeams } from "../../../lib/planes.js";
 import { settingsSeams } from "../../../lib/settings.js";
 import { createSetupSeams } from "../test-seams.js";
 import { MfaStep } from "./MfaStep.js";
@@ -15,7 +15,7 @@ let capabilityConnectors = defaultCapabilityConnectors();
 beforeEach(() => {
   seams.reset();
   capabilityConnectors = defaultCapabilityConnectors();
-  planeSeams.usePlaneStatus = () => ({
+  planeHookSeams.usePlaneStatus = () => ({
     identity: "down",
     identityBase: "",
   });

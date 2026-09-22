@@ -1,8 +1,9 @@
 import { Link } from "react-router";
 import { accessPath } from "../../lib/access-routes.js";
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-views.js";
+
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
+import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-view-names.js";
 /** The Access views as tabs, each named so a guide can point at it. */
 export const ACCESS_TABS = ACCESS_VIEWS.map((id) => ({
   id,

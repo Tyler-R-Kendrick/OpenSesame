@@ -11,10 +11,10 @@
  * destination from each, and the registry keeps it while either is live.
  */
 
-import { IDENTITY_LABELS } from "../lib/section-views.js";
 import type { IdentityView } from "../sections/identity/identity-views.js";
 import type { Activation } from "./activation.js";
 
+import { IDENTITY_LABELS } from "../lib/section-view-names.js";
 /** One `command-path` per tab, in the order the capability names them. */
 export function registerIdentityViewPaths(
   activation: Activation,

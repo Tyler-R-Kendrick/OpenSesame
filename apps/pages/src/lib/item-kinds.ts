@@ -10,9 +10,8 @@
  * type uses.
  */
 
-import { useMemo } from "react";
 import type { ItemKindContribution } from "./capabilities/runtime-contract.js";
-import { contributionsSnapshot, useContributions } from "./contributions.js";
+import { contributionsSnapshot } from "./contributions.js";
 import { KIND_LABEL } from "./vault/model.js";
 
 export type ItemKindRow = Readonly<{
@@ -57,11 +56,6 @@ export function itemKindsFrom(
 /** Core kinds plus the approved `item-kind` contributions, sorted. */
 export function itemKindsSnapshot(): readonly ItemKindRow[] {
   return itemKindsFrom(contributionsSnapshot("item-kind"));
-}
-
-export function useItemKinds(): readonly ItemKindRow[] {
-  const contributions = useContributions("item-kind");
-  return useMemo(() => itemKindsFrom(contributions), [contributions]);
 }
 
 /**

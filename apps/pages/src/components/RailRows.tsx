@@ -5,10 +5,7 @@ import type {
   SectionContribution,
   TreeProps,
 } from "../lib/capabilities/runtime-contract.js";
-import {
-  contributionsSnapshot,
-  useContributions,
-} from "../lib/contributions.js";
+import { contributionsSnapshot } from "../lib/contributions.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
   ICONS_BY_NAME,
@@ -19,6 +16,7 @@ import {
 } from "./Icons.js";
 import { setRailCursor, useRailCursor } from "./rail-cursor.js";
 
+import { useContributions } from "../bindings/contributions.js";
 /** One rail directory, whether core or contributed. */
 export type SectionRowModel = Readonly<{
   id: string;

@@ -56,7 +56,6 @@ import {
   type IdentitySession,
   identityBase,
   remoteIdentityApi,
-  useIdentitySession,
 } from "../lib/identity.js";
 import {
   IDP_PRESETS,
@@ -106,6 +105,7 @@ import { useEnabledIdentityViews } from "./identity/identity-views.js";
 import "../screens/unlock.css";
 import "./identity.css";
 
+import { useIdentitySession } from "../bindings/identity.js";
 /**
  * Browser-local identity management, with optional hosted Identity
  * surfaces. Provider registration is an explicit ceremony, not an entry gate.

@@ -17,9 +17,8 @@ import {
   isJsonObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { useSyncExternalStore } from "react";
-import type { ContributionEntry } from "../../lib/capabilities/runtime-contract.js";
-import type { OutcomeView } from "../../lib/configuration/capabilities-ports.js";
+import type { ContributionEntry } from "../../capabilities/runtime-contract.js";
+import type { OutcomeView } from "../capabilities-ports.js";
 import type { CompositionDouble } from "./composition-double.js";
 import {
   FIXTURE_CATALOG,
@@ -132,30 +131,29 @@ function strictParse<T>(fields: ReadonlySet<string>, kind: string) {
   };
 }
 
-export function useContributionsDouble(double: CompositionDouble) {
-  return <K extends ContributionKind>(
-    kind: K,
-  ): readonly ContributionEntry<K>[] => {
-    useSyncExternalStore(double.subscribe, double.getSnapshot);
-    const entries: ContributionEntry<K>[] = overlapCast(
-      double.contributions
-        .filter((item) => item.kind === kind)
-        .map((item) => item.entry),
-    );
-    return entries;
+/** The seam's contribution source, over the double's registrations. */
+export function contributionSourceDouble(double: CompositionDouble) {
+  return {
+    subscribe: double.subscribe,
+    version: () => double.getSnapshot(),
+    read: <K extends ContributionKind>(
+      kind: K,
+    ): readonly ContributionEntry<K>[] => {
+      const entries: ContributionEntry<K>[] = overlapCast(
+        double.contributions
+          .filter((item) => item.kind === kind)
+          .map((item) => item.entry),
+      );
+      return entries;
+    },
   };
 }
 
 /** The module `vi.mock` hands to every importer of the seam. */
 export function fakePortsModule(double: CompositionDouble) {
-  const useComposition = () =>
-    useSyncExternalStore(double.subscribe, double.getSnapshot);
   return {
     compositionStore: double,
-    useComposition,
-    useCapability: (id: CapabilityId) =>
-      useComposition().plan?.capabilities[id] ?? null,
-    useContributions: useContributionsDouble(double),
+    contributionSource: contributionSourceDouble(double),
     CAPABILITY_CATALOG: FIXTURE_CATALOG,
     PRESETS: FIXTURE_PRESETS,
     presetToInstancePolicy: fixturePresetToInstancePolicy,

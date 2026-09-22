@@ -10,16 +10,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FIXTURE_CATALOG,
   FIXTURE_MANAGED_POLICY,
-} from "./composition-fixture.js";
-import { double, moduleTableSpy, resetDouble } from "./test-support.js";
+} from "../../lib/configuration/doubles/composition-fixture.js";
+import {
+  double,
+  moduleTableSpy,
+  resetDouble,
+} from "../../lib/configuration/doubles/test-support.js";
 
 vi.mock("../../lib/configuration/capabilities-ports.js", async () => {
-  const { fakePortsModule } = await import("./composition-ports-double.js");
-  const { double } = await import("./test-support.js");
-  return fakePortsModule(double);
+  const { mockedPorts } = await import(
+    "../../lib/configuration/doubles/test-support.js"
+  );
+  return mockedPorts();
 });
 vi.mock("../../lib/capabilities/module-table.js", async () => {
-  const { moduleTableSpy } = await import("./test-support.js");
+  const { moduleTableSpy } = await import(
+    "../../lib/configuration/doubles/test-support.js"
+  );
   return {
     MODULE_TABLE: new Proxy({}, { get: (_t, key) => moduleTableSpy(key) }),
   };

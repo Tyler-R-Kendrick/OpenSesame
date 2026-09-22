@@ -3,7 +3,6 @@
  * hook runs. Default personal mode performs no network I/O.
  */
 
-import { useEffect, useRef } from "react";
 import { restoreAuthenticatedSession } from "../federation-restoration.js";
 import { readFederationSessionJson } from "../federation-session-store.js";
 import {
@@ -100,17 +99,4 @@ export function runAmbientAuthBoot({
     };
   };
   void startAutomaticAttempt(eligibility, redirectUri());
-}
-
-/** Legacy hook form; the module's background job calls `runAmbientAuthBoot`. */
-export function useAmbientAuthBoot(
-  hasAuthCallback: boolean,
-  pathname: string,
-): void {
-  const started = useRef(false);
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    runAmbientAuthBoot({ hasAuthCallback, pathname });
-  }, [hasAuthCallback, pathname]);
 }

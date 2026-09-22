@@ -7,13 +7,11 @@
  */
 
 import { useState } from "react";
-import {
-  CAPABILITY_CATALOG,
-  useComposition,
-} from "../../lib/configuration/capabilities-ports.js";
+import { CAPABILITY_CATALOG } from "../../lib/configuration/capabilities-ports.js";
 import { InstallationRequirements } from "./InstallationRequirements.js";
 import "./capabilities.css";
 
+import { useComposition } from "../../bindings/capabilities.js";
 export function RequirementsGate({
   onOpenSetup,
 }: {

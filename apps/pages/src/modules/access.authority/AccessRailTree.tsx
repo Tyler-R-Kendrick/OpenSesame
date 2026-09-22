@@ -8,7 +8,7 @@
 import { useLocation, useSearchParams } from "react-router";
 import { PageTreeBranch } from "../../components/PageTreeBranch.js";
 import type { TreeProps } from "../../lib/capabilities/runtime-contract.js";
-import { ACCESS_VIEWS } from "../../lib/section-views.js";
+
 import {
   useHostConfigured,
   useIdentityConfigured,
@@ -17,6 +17,7 @@ import { useVault } from "../../lib/vault/hooks.js";
 import { useLocalShares } from "../../sections/access/LocalSharePanel.js";
 import { accessPageTree } from "../../sections/access/page-tree.js";
 
+import { ACCESS_VIEWS } from "../../lib/section-view-names.js";
 export function AccessRailTree(_props: TreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();

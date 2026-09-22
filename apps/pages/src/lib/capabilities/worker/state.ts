@@ -8,7 +8,6 @@
  */
 
 import type { DistributionContract } from "@opensesame/capability-composition";
-import { useSyncExternalStore } from "react";
 import type {
   CompositionSnapshotForWorker,
   PendingTransition,
@@ -78,7 +77,7 @@ export function resetWorkerController(): void {
   notify();
 }
 
-function subscribeStatus(listener: () => void): () => void {
+export function subscribeWorkerStatus(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -87,8 +86,4 @@ function subscribeStatus(listener: () => void): () => void {
 
 export function workerStatus(): WorkerStatus {
   return state.status;
-}
-
-export function useWorkerStatus(): WorkerStatus {
-  return useSyncExternalStore(subscribeStatus, workerStatus, workerStatus);
 }

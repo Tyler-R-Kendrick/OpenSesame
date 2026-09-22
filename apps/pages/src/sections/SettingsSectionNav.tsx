@@ -1,10 +1,7 @@
 import { type ComponentType, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router";
 import type { SettingsCategoryContribution } from "../lib/capabilities/runtime-contract.js";
-import {
-  contributionsSnapshot,
-  useContributions,
-} from "../lib/contributions.js";
+import { contributionsSnapshot } from "../lib/contributions.js";
 import {
   type SettingsCategory,
   settingsCategoryFromHash,
@@ -15,6 +12,7 @@ import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/Mode
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
 
+import { useContributions } from "../bindings/contributions.js";
 export type SettingsTab = Readonly<{
   id: string;
   label: string;

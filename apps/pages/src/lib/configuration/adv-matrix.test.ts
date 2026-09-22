@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
-import { typing } from "../keymap.js";
 import { isBindableAction } from "./actions.js";
 import { COMMENTED, PREFS, draft, record } from "./adv-fixtures.js";
 import {
@@ -236,11 +235,9 @@ describe("ADV-01..17 against shipped functions", () => {
     ).toBe(false);
   });
 
-  it("ADV-12: source typing and unsafe bindings do not mutate", () => {
-    const area = document.createElement("textarea");
-    area.setAttribute("data-config-source", "true");
-    document.body.appendChild(area);
-    expect(typing(area)).toBe(true);
+  it("ADV-12: unsafe bindings do not mutate", () => {
+    // The other half of ADV-12, a source editor counting as typing, is a DOM
+    // property of the keymap and is asserted in lib/keymap.test.ts.
     expect(DEFAULT_KEYBINDINGS["/"]).toBe("listing.search");
     const refused = importKeybindings({ x: "https://evil.example/hook" });
     expect(refused.ok).toBe(false);

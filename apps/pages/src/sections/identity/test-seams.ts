@@ -22,10 +22,11 @@ export const registry: { raw: string | null } = { raw: null };
 import { deviceIdentitySeams } from "../../lib/device-identity.js";
 
 export { deviceIdentitySeams };
+import { identityHookSeams } from "../../bindings/identity.js";
 import { identitySeams } from "../../lib/identity.js";
 export const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
-Object.assign(identitySeams, {
-  identityBase: () => "http://127.0.0.1:8788",
+identitySeams.identityBase = () => "http://127.0.0.1:8788";
+Object.assign(identityHookSeams, {
   useConnect: () => ({ connect, connecting: false, error: null }),
   useIdentitySession: () => session.current,
 });

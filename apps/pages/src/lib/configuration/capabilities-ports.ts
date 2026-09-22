@@ -4,8 +4,9 @@
  * Every capability surface — the setup tab, Settings › Capabilities, the
  * front-door requirements panel, the configuration editor — reaches the
  * store, the registrar, the inventory and the pure semantics through this
- * one module, and nothing else. Tests replace it whole (`vi.mock`) with the
- * double in `screens/capabilities/composition-fixture.ts`, so a surface's
+ * one module, and nothing else. Its hooks (`bindings/capabilities.ts`) read
+ * the store and the contributions through it too. Tests replace it whole
+ * (`vi.mock`) with the double in `lib/configuration/doubles/composition-fixture.ts`, so a surface's
  * suite never depends on the loader landing first and never touches a real
  * store. Production code re-exports the owners' exact names
  * (ownership.md §4.1, §4.2, §7); this file adds no behaviour.
@@ -13,6 +14,7 @@
 
 import type {
   CapabilityId,
+  ContributionKind,
   EffectivePlan,
   InstallationCapabilitySelection,
   InstanceCapabilityPolicy,
@@ -27,20 +29,27 @@ import {
   type Preset,
   presetToInstancePolicy as projectPreset,
 } from "../capabilities/presets.js";
+import { contributions, subscribeRegistry } from "../capabilities/registry.js";
 import type { CommitOutcome } from "../capabilities/store-types.js";
 import { compositionStore } from "../capabilities/store.js";
 
-export {
-  compositionStore,
-  useCapability,
-  useComposition,
-} from "../capabilities/store.js";
+export { compositionStore } from "../capabilities/store.js";
+
+/**
+ * The registry's contributions as the surfaces read them: `version` is a
+ * cheap, reference-stable token that moves when `read` would answer
+ * differently.
+ */
+export const contributionSource = {
+  subscribe: subscribeRegistry,
+  version: <K extends ContributionKind>(kind: K) => contributions(kind),
+  read: <K extends ContributionKind>(kind: K) => contributions(kind),
+};
 export type {
   CommitOutcome,
   CompositionSnapshot,
   EmergencyDisableOutcome,
 } from "../capabilities/store-types.js";
-export { useContributions } from "../capabilities/registry.js";
 export { CAPABILITY_CATALOG } from "../capabilities/catalog.js";
 export { PRESETS } from "../capabilities/presets.js";
 export {

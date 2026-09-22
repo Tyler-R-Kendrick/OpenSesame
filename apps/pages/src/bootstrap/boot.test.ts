@@ -1,13 +1,18 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bootCore } from "../../bootstrap/boot.js";
-import { CAPABILITY_CATALOG } from "../capabilities/catalog.js";
-import { distributionFromOwnership } from "../capabilities/ownership.js";
-import { compositionStore, storeSeams } from "../capabilities/store.js";
-import { kvDelete, kvGet, kvSet } from "../kv.js";
-import { LAST_VAULT_KEY } from "../last-vault.js";
+import { CAPABILITY_CATALOG } from "../lib/capabilities/catalog.js";
+import { distributionFromOwnership } from "../lib/capabilities/ownership.js";
+import { compositionStore, storeSeams } from "../lib/capabilities/store.js";
+import { kvDelete, kvGet, kvSet } from "../lib/kv.js";
+import { LAST_VAULT_KEY } from "../lib/last-vault.js";
+import { bootCore } from "./boot.js";
 
-import { PROJECTS_KEY } from "../projects.js";
+import { PROJECTS_KEY } from "../lib/projects.js";
+import { vaultStore } from "../lib/vault/store.js";
+import {
+  LEGACY_BODY_KEY,
+  LEGACY_HEADER_KEY,
+} from "../lib/vault/tomb-migration.js";
 import {
   BODY_PATH,
   GUEST_TOMB,
@@ -20,9 +25,7 @@ import {
   tombFileKey,
   vfsFlush,
   vfsSeams,
-} from "../vfs.js";
-import { vaultStore } from "./store.js";
-import { LEGACY_BODY_KEY, LEGACY_HEADER_KEY } from "./tomb-migration.js";
+} from "../lib/vfs.js";
 
 /**
  * Boot-path boundary (ADR 0063): before unlock the app may read only the
@@ -43,8 +46,8 @@ const touched = vi.hoisted(() => ({ keys: new Set<string>(), crypto: 0 }));
  * request is the observable, so it is recorded.
  */
 const hydrated = vi.hoisted(() => ({ keys: [] as string[] }));
-vi.mock("../kv.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../kv.js")>();
+vi.mock("../lib/kv.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/kv.js")>();
   return {
     ...actual,
     kvHydrate: async (keys: readonly string[]) => {

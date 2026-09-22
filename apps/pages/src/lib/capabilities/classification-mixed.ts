@@ -141,8 +141,8 @@ export const MIXED_MODULES: readonly MixedModule[] = [
     ],
   },
   {
-    path: "src/lib/section-views.ts",
-    keeps: "useSectionView",
+    path: "src/lib/section-view-names.ts",
+    keeps: "nothing core — `useSectionView` stays in section-views.ts",
     extract: [
       { capability: "access.authority", what: "ACCESS_VIEWS/LABELS" },
       { capability: "identity.local-iam", what: "IDENTITY_VIEWS/LABELS" },

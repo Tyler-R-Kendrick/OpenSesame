@@ -17,7 +17,27 @@ import {
   statusLabelsForAudience,
   statusViewForPresentation,
 } from "../../../lib/duress/settings/index.js";
-import type { DuressEnrollmentPanelProps } from "./DuressEnrollmentPanel.js";
+
+/** Props of the Settings → Security duress enrollment panel (SETTINGS-A..E). */
+export type DuressEnrollmentPanelProps = {
+  catalog?: CompilerCatalog;
+  scope?: {
+    ownerPrincipalRef: string;
+    organizationRef: string | null;
+    vaultRef: string;
+    deviceBindingRef: string;
+    compartmentRefs: readonly string[];
+  };
+  onArm?: (args: {
+    checklist: ArmingChecklist;
+    presetId: PresetId | null;
+    document: PolicyDocument;
+  }) => void;
+  onDisarm?: () => void;
+  authorizedOwner?: boolean;
+  presentation?: "normal" | "restricted" | "decoy" | "locked" | "unchanged";
+  viewportWidth?: number;
+};
 
 type EnrollmentPanelInput = {
   props: DuressEnrollmentPanelProps;

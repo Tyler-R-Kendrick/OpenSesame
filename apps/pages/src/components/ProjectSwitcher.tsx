@@ -29,13 +29,13 @@ import {
   enterActiveProjectScope,
   guestVaultLabel,
   switchToGuest,
-  useDeviceVaults,
   vaultLabel,
 } from "../lib/vaults.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconPlus } from "./Icons.js";
 import { VaultList } from "./VaultList.js";
 
+import { useDeviceVaults } from "../bindings/vaults.js";
 function ProjectSwitcherDefault() {
   const state = useSyncExternalStore(subscribeProjects, projectsState);
   const navigate = useNavigate();

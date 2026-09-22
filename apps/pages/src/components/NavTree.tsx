@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { settingsCategoryFromLocation } from "../lib/crumbs.js";
-import { type ItemKindRow, useItemKinds } from "../lib/item-kinds.js";
+import type { ItemKindRow } from "../lib/item-kinds.js";
 import { useVault } from "../lib/vault/hooks.js";
 import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
@@ -25,6 +25,7 @@ import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
+import { useItemKinds } from "../bindings/contributions.js";
 type SectionExpand = {
   expanded: boolean;
   here: boolean;

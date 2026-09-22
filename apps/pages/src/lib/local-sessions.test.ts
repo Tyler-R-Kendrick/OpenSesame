@@ -1,9 +1,9 @@
 import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import { readLocalPasskeys, revokeLocalPasskey } from "./local-credentials.js";
 import { changeLocalDirectory, readLocalDirectory } from "./local-directory.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import {
   authenticateLocalPasskey,
   consumeLocalAuthentication,

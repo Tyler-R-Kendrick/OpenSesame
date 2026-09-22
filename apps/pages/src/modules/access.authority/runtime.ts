@@ -22,7 +22,7 @@
  */
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-views.js";
+
 import { AccessSection } from "../../sections/AccessSection.js";
 import {
   ACCESS_ROUTES,
@@ -38,6 +38,7 @@ import { pickById } from "../tutorial-pick-b.js";
 import { AccessRailTree } from "./AccessRailTree.js";
 import { AccessRedirect } from "./AccessRedirect.js";
 
+import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-view-names.js";
 export const CAPABILITY = "access.authority";
 
 /**

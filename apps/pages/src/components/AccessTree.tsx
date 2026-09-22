@@ -1,5 +1,5 @@
 import { useLocation, useSearchParams } from "react-router";
-import { ACCESS_VIEWS } from "../lib/section-views.js";
+
 import {
   useHostConfigured,
   useIdentityConfigured,
@@ -10,6 +10,7 @@ import { accessPageTree } from "../sections/access/page-tree.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 import { SectionRow, type SectionTreeProps } from "./RailRows.js";
 
+import { ACCESS_VIEWS } from "../lib/section-view-names.js";
 export function AccessTree({
   section,
   open,

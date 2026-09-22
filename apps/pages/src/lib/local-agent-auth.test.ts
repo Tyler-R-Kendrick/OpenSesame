@@ -1,6 +1,5 @@
 import { createLocalAgentKey } from "@opensesame/static-auth";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
 import { beginLocalAgentAuthentication } from "./local-agent-auth.js";
 import {
   readLocalAgentKeys,
@@ -13,6 +12,7 @@ import {
   changeLocalDirectory,
   readLocalDirectory,
 } from "./local-directory.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import {
   changeLocalOrganizationMembership,
   readLocalOrganization,

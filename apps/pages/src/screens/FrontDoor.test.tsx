@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import {
   cleanup,
   fireEvent,
@@ -7,6 +6,8 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+/** @vitest-environment jsdom */
+import { identityHookSeams } from "../bindings/identity.js";
 
 import { isFunction } from "@opensesame/os-domain";
 import { deviceIdentitySeams } from "../lib/device-identity.js";
@@ -34,6 +35,8 @@ Object.assign(settingsSeams, {
 });
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
+});
+Object.assign(identityHookSeams, {
   useIdentitySession: () => null,
 });
 Object.assign(deviceIdentitySeams, {

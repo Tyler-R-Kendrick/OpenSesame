@@ -18,14 +18,14 @@ import {
 } from "react-router";
 import { Wrapped } from "./components/ShellWrappers.js";
 import { activatePlan } from "./lib/capabilities/change.js";
-import { useContributions as defaultUseContributions } from "./lib/capabilities/registry.js";
+
 import type {
   RouteContribution,
   ShellWrapperContribution,
   UnlockEffectContribution,
 } from "./lib/capabilities/runtime-contract.js";
 import { planIsSettling } from "./lib/capabilities/settling.js";
-import { compositionStore, useComposition } from "./lib/capabilities/store.js";
+import { compositionStore } from "./lib/capabilities/store.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "./lib/guest-auth.js";
@@ -38,6 +38,8 @@ import {
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 
+import { useComposition } from "./bindings/capabilities.js";
+import { useRegistryContributions as defaultUseContributions } from "./bindings/contributions.js";
 // The core shell (ownership.md §5): unlock, the vault, Settings, and the
 // federation return. Every other section arrives as a `route` contribution
 // from an approved capability's runtime, so nothing optional is imported

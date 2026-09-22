@@ -10,6 +10,7 @@ import {
   type DoubleOptions,
   createCompositionDouble,
 } from "./composition-double.js";
+import { fakePortsModule } from "./composition-ports-double.js";
 
 export const double: CompositionDouble = createCompositionDouble();
 
@@ -19,4 +20,9 @@ export const moduleTableSpy = vi.fn();
 export function resetDouble(options?: DoubleOptions): void {
   double.reset(options);
   moduleTableSpy.mockClear();
+}
+
+/** What `vi.mock` returns for the composition seam: the double over `double`. */
+export function mockedPorts() {
+  return fakePortsModule(double);
 }

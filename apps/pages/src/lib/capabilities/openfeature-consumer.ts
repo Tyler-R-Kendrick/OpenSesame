@@ -15,7 +15,6 @@
  */
 import { OpenFeature, ProviderEvents } from "@openfeature/web-sdk";
 import type { CapabilityId } from "@opensesame/capability-composition";
-import { useSyncExternalStore } from "react";
 import { OPENFEATURE_DOMAIN, capabilityFlagKey } from "./openfeature.js";
 
 function client() {
@@ -27,7 +26,8 @@ export function capabilityEnabled(id: CapabilityId): boolean {
   return client().getBooleanValue(capabilityFlagKey(id), false);
 }
 
-function subscribeToFlags(listener: () => void): () => void {
+/** Calls `listener` on every provider event that can change a flag read. */
+export function subscribeCapabilityFlags(listener: () => void): () => void {
   const c = client();
   const handler = () => listener();
   c.addHandler(ProviderEvents.ConfigurationChanged, handler);
@@ -42,15 +42,6 @@ function subscribeToFlags(listener: () => void): () => void {
     c.removeHandler(ProviderEvents.Error, handler);
     c.removeHandler(ProviderEvents.ContextChanged, handler);
   };
-}
-
-/** React binding of `capabilityEnabled`; re-renders on provider events. */
-export function useCapabilityFlag(id: CapabilityId): boolean {
-  return useSyncExternalStore(
-    subscribeToFlags,
-    () => capabilityEnabled(id),
-    () => false,
-  );
 }
 
 // ---------------------------------------------------------------------------

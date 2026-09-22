@@ -2,18 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FIXTURE_CATALOG,
   FIXTURE_MANAGED_POLICY,
-} from "../../screens/capabilities/composition-fixture.js";
-import {
-  double,
-  resetDouble,
-} from "../../screens/capabilities/test-support.js";
+} from "./doubles/composition-fixture.js";
+import { double, resetDouble } from "./doubles/test-support.js";
 
 vi.mock("./capabilities-ports.js", async () => {
-  const { fakePortsModule } = await import(
-    "../../screens/capabilities/composition-ports-double.js"
-  );
-  const { double } = await import("../../screens/capabilities/test-support.js");
-  return fakePortsModule(double);
+  const { mockedPorts } = await import("./doubles/test-support.js");
+  return mockedPorts();
 });
 
 import { PREFS_PATH_ALIASES } from "./aliases.js";

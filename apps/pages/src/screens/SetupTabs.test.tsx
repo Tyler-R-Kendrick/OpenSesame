@@ -17,11 +17,10 @@ import {
 import { createSetupSeams } from "./setup/test-seams.js";
 
 vi.mock("../lib/configuration/capabilities-ports.js", async () => {
-  const { fakePortsModule } = await import(
-    "./capabilities/composition-ports-double.js"
+  const { mockedPorts } = await import(
+    "../lib/configuration/doubles/test-support.js"
   );
-  const { double } = await import("./capabilities/test-support.js");
-  return fakePortsModule(double);
+  return mockedPorts();
 });
 
 const seams = createSetupSeams();

@@ -27,7 +27,6 @@ import {
   buildConsentReceipt,
   compositionStore,
   previewPlan,
-  useComposition,
   viewOutcome,
 } from "../../lib/configuration/capabilities-ports.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -48,6 +47,7 @@ import {
 import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
 import "./capabilities.css";
 
+import { useComposition } from "../../bindings/capabilities.js";
 export const capabilitiesPanelSeams = {
   reload: () => window.location.reload(),
   now: () => new Date().toISOString(),

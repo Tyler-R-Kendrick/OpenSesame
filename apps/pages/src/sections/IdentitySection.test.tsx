@@ -14,7 +14,7 @@ import {
 } from "vitest";
 import type { IdentitySession } from "../lib/identity.js";
 import type { IdpRecord } from "../lib/idp-registry.js";
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
 import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
 import {
   IDENTITY_ROUTES,

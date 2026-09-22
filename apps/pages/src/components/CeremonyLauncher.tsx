@@ -1,8 +1,9 @@
 import { type ReactNode, useState } from "react";
 
-import { type ConnectorId, useConnectors } from "../lib/connectors.js";
+import type { ConnectorId } from "../lib/connectors.js";
 import { ConnectionCeremony } from "./ConnectivityBar.js";
 
+import { useConnectors } from "../bindings/connectors.js";
 /**
  * Open a connector's ceremony from anywhere — a section note, an error panel.
  *

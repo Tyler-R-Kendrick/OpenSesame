@@ -1,13 +1,17 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FIXTURE_MANAGED_POLICY } from "./composition-fixture.js";
-import { double, resetDouble } from "./test-support.js";
+import { FIXTURE_MANAGED_POLICY } from "../../lib/configuration/doubles/composition-fixture.js";
+import {
+  double,
+  resetDouble,
+} from "../../lib/configuration/doubles/test-support.js";
 
 vi.mock("../../lib/configuration/capabilities-ports.js", async () => {
-  const { fakePortsModule } = await import("./composition-ports-double.js");
-  const { double } = await import("./test-support.js");
-  return fakePortsModule(double);
+  const { mockedPorts } = await import(
+    "../../lib/configuration/doubles/test-support.js"
+  );
+  return mockedPorts();
 });
 
 import { CapabilitySetup } from "./CapabilitySetup.js";

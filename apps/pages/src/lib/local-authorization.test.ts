@@ -1,7 +1,6 @@
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { createPkcePair } from "@opensesame/sdk-browser";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import {
@@ -21,6 +20,7 @@ import {
   listRecordedLocalGrants,
   revokeRecordedLocalGrant,
 } from "./local-grant-admin.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";
 import { consumedApplicationRequest } from "./local-request.fixture.js";
 import {

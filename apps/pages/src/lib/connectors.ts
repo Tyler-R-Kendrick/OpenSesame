@@ -17,19 +17,10 @@ import {
   capabilityDef,
   connectorLabel,
 } from "./capabilities.js";
-import {
-  type MonitorSnapshot,
-  type TargetState,
-  useConnectivityMonitor,
-} from "./connectivity-monitor.js";
-import {
-  type IdentityPlane,
-  type PlaneStatus,
-  usePlaneStatus,
-} from "./planes.js";
+import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
+import type { IdentityPlane, PlaneStatus } from "./planes.js";
 import { type FailureClass, failureLabel } from "./probe-failure.js";
 import { type PagesSettings, loadSettings } from "./settings.js";
-import { useSettingsEpoch } from "./use-settings.js";
 
 export { briefOrigin, repoHint };
 
@@ -207,15 +198,6 @@ export function buildConnectors(
     ),
     classifyKeysConnector(settings),
   ];
-}
-
-export function useConnectors(): ConnectorStatus[] {
-  const plane = usePlaneStatus();
-  const monitor = useConnectivityMonitor();
-  // Capability bindings live in settings, and change without any probe
-  // result changing.
-  useSettingsEpoch();
-  return buildConnectors(plane, monitor, loadSettings());
 }
 
 /**

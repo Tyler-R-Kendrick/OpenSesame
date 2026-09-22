@@ -1,7 +1,7 @@
-import { useDeviceVaults } from "../lib/vaults.js";
 import { settingsPageTree } from "../sections/settings/page-tree.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 
+import { useDeviceVaults } from "../bindings/vaults.js";
 /**
  * Settings in the rail: one row per tab the page renders, then the headings
  * on that tab. Hierarchy comes from settingsPageTree — never a parallel list.

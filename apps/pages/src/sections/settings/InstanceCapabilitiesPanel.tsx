@@ -21,7 +21,6 @@ import {
   PRESETS,
   explainCapability,
   presetToInstancePolicy,
-  useComposition,
 } from "../../lib/configuration/capabilities-ports.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { PERSONAL_TOMB } from "../../lib/vfs.js";
@@ -34,6 +33,7 @@ import {
   capabilitySourceSeams,
 } from "./CapabilitiesPanelViews.js";
 
+import { useComposition } from "../../bindings/capabilities.js";
 export const instancePanelSeams = {
   now: () => new Date().toISOString(),
 };
