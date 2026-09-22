@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canonicalJson, digestCanonical, fnv1a64Hex } from "./digest.js";
+import {
+  canonicalEquals,
+  canonicalJson,
+  digestCanonical,
+  fnv1a64Hex,
+} from "./digest.js";
 import { REASON_CODES, capabilityId, isReasonCode } from "./ids.js";
 
 describe("ids", () => {
@@ -10,6 +15,8 @@ describe("ids", () => {
     expect(capabilityId(".leading")).toBeUndefined();
     expect(capabilityId(null)).toBeUndefined();
     expect(capabilityId(42)).toBeUndefined();
+    // Overlong ids fail closed rather than truncating.
+    expect(capabilityId(`a${"x".repeat(200)}`)).toBeUndefined();
   });
 
   it("keeps the reason-code union closed", () => {
@@ -48,5 +55,11 @@ describe("digest", () => {
       digestCanonical({ b: 2, a: 1 }),
     );
     expect(digestCanonical({ a: 1 })).not.toBe(digestCanonical({ a: 2 }));
+  });
+
+  it("canonicalEquals compares structure, not identity", () => {
+    expect(canonicalEquals({ a: 1 }, { a: 1 })).toBe(true);
+    expect(canonicalEquals({ a: 1 }, { a: 2 })).toBe(false);
+    expect(canonicalEquals({ f: () => 1 }, { f: () => 1 })).toBeUndefined();
   });
 });
