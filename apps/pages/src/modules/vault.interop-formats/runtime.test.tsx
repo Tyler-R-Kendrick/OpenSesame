@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
+import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ContextWithPorts } from "../ports-b.js";
+import type {
+  ContextWithPorts,
+  SettingsPanelContribution,
+} from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -34,12 +38,14 @@ describe("vault.interop-formats runtime", () => {
 
   it("offers the Formats panel under Security and revokes it on dispose", async () => {
     const revoke = vi.fn();
-    const registerSettingsPanel = vi.fn(() => ({
-      kind: "settings-category" as const,
-      capability: "vault.interop-formats",
-      generation: 1,
-      revoke,
-    }));
+    const registerSettingsPanel = vi.fn(
+      (_entry: SettingsPanelContribution): RegistrationHandle => ({
+        kind: "settings-category",
+        capability: "vault.interop-formats",
+        generation: 1,
+        revoke,
+      }),
+    );
     const t = createTestContext();
     const ctx: ContextWithPorts = { ...t.ctx, registerSettingsPanel };
     const handle = await runtime.capabilityRuntime.activate(ctx);

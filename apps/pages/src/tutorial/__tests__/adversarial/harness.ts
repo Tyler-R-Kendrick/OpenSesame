@@ -37,6 +37,7 @@ import {
   supportVocabulary,
 } from "@opensesame/support-agent";
 import { buildSupportPageContext } from "../../registry/context.js";
+import { registerTutorialRealm } from "../../registry/optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "../../registry/predicates.js";
 import { isKnownGuideRoute } from "../../registry/routes.js";
 import {
@@ -189,6 +190,10 @@ export type SupportChain = {
  */
 export function createSupportChain(route = "/vault"): SupportChain {
   registerGuidePredicates();
+  // The attack surface is the whole corpus, not the core-only default: a
+  // chain opened on `/connections` must see the route and the targets the
+  // connectors capability contributes, or the refusals prove nothing.
+  const revokeRealm = registerTutorialRealm();
   const context = buildSupportPageContext({
     pageId: "pages",
     route,
@@ -232,6 +237,7 @@ export function createSupportChain(route = "/vault"): SupportChain {
       runtime.cancel("user");
       targets.unmountAll();
       renderer.reset();
+      revokeRealm();
     },
   };
 }

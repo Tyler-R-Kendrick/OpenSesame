@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   deployedAmbientPolicy,
@@ -10,7 +11,10 @@ import {
   importUnderSpies,
   runtimeOf,
 } from "../runtime-test-kit.js";
-import type { ContextWithPorts } from "../ports-b.js";
+import type {
+  ContextWithPorts,
+  SettingsPanelContribution,
+} from "../ports-b.js";
 import { createTestContext } from "../test-context.js";
 import type * as Runtime from "./runtime.js";
 
@@ -79,12 +83,14 @@ describe("identity.ambient-sso runtime", () => {
 
   it("offers the Security panel through the optional port and revokes it", async () => {
     const revoke = vi.fn();
-    const registerSettingsPanel = vi.fn(() => ({
-      kind: "settings-category" as const,
-      capability: "identity.ambient-sso",
-      generation: 1,
-      revoke,
-    }));
+    const registerSettingsPanel = vi.fn(
+      (_entry: SettingsPanelContribution): RegistrationHandle => ({
+        kind: "settings-category",
+        capability: "identity.ambient-sso",
+        generation: 1,
+        revoke,
+      }),
+    );
     const t = createTestContext();
     const ctx: ContextWithPorts = { ...t.ctx, registerSettingsPanel };
     const handle = await runtime.capabilityRuntime.activate(ctx);

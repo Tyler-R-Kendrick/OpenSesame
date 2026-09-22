@@ -13,8 +13,19 @@
 
 import type { SupportAgentPort } from "@opensesame/support-agent";
 
+/**
+ * The engine asks the on-device agent for three things: the port itself,
+ * the model acquisition it can report progress on, and the release that
+ * drops the shared session on lock. The absent loader answers all three —
+ * "no agent", nothing to acquire, nothing to release — so the engine needs
+ * no branch for a capability that was never approved.
+ */
 export type PromptApiAgentModule = Readonly<{
   createPromptApiAgent: () => SupportAgentPort | null;
+  acquirePromptApiModel: (
+    onProgress: (progress: number) => void,
+  ) => Promise<void>;
+  releaseLocalModelSession: () => void;
 }>;
 export type ProviderAgentModule = Readonly<{
   createProviderAgent: () => SupportAgentPort | null;
@@ -30,7 +41,12 @@ export type SupportAgentLoaders = {
 };
 
 const ABSENT: SupportAgentLoaders = {
-  promptApi: () => Promise.resolve({ createPromptApiAgent: () => null }),
+  promptApi: () =>
+    Promise.resolve({
+      createPromptApiAgent: () => null,
+      acquirePromptApiModel: () => Promise.resolve(),
+      releaseLocalModelSession: () => {},
+    }),
   provider: () => Promise.resolve({ createProviderAgent: () => null }),
   agUi: () => Promise.resolve({ createAgUiAgent: () => null }),
 };

@@ -135,10 +135,12 @@ export function createTestContext(
         destination: String(input),
       }),
       fetch: async (input, _init, meta) => {
+        // The S18 port's `meta` is optional; a module that leaves it out is
+        // recorded as having named neither, which the assertions can see.
         egressCalls.push({
           input: String(input),
-          capability: meta.capability,
-          purpose: meta.purpose,
+          capability: meta?.capability ?? "",
+          purpose: meta?.purpose ?? "",
         });
         return options.egressResponse
           ? options.egressResponse()

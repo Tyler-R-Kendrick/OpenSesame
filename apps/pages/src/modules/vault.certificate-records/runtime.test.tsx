@@ -31,7 +31,7 @@ describe("vault.certificate-records runtime", () => {
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(
       t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
-    ).toEqual([["certificate", "Certificates", "certs", 70]]);
+    ).toEqual([["certificate", "Certificate", "certs", 70]]);
     expect(t.entries("item-kind")[0]?.Icon).toBeTypeOf("function");
     await handle.dispose();
   });

@@ -280,3 +280,70 @@ export const CORE = new Set(["vault.passwords"]);
 export const errorsOf = (list) =>
   list.filter((v) => v.severity === "error").map((v) => v.code);
 
+/**
+ * A synthetic Rollup bundle plus the module-graph context `buildGraph` reads:
+ * one core entry chunk that dynamically imports an optional module both
+ * through MODULE_TABLE and directly, a preloaded vendor chunk and a CSS
+ * asset. `bundle()` returns a fresh copy so a caller can build twice and
+ * compare the two records byte for byte (BUILD-08).
+ */
+export function fakeBundle(appRoot, html) {
+  const ids = {
+    main: `${appRoot}/src/main.tsx`,
+    table: "\0virtual:opensesame-capability-modules",
+    drops: `${appRoot}/src/modules/sharing.drops/runtime.ts`,
+    react: `${appRoot}/../../node_modules/.pnpm/react@19/node_modules/react/index.js`,
+  };
+  const info = {
+    [ids.main]: {
+      importedIds: [ids.react],
+      dynamicallyImportedIds: [ids.drops],
+    },
+    [ids.table]: { importedIds: [], dynamicallyImportedIds: [ids.drops] },
+    [ids.drops]: { importedIds: [], dynamicallyImportedIds: [] },
+    [ids.react]: { importedIds: [], dynamicallyImportedIds: [] },
+  };
+  const ctx = {
+    getModuleIds: () => Object.keys(info),
+    getModuleInfo: (id) => info[id],
+  };
+  const bundle = () => ({
+    "index.html": { type: "asset", source: html },
+    "assets/main-1.js": {
+      type: "chunk",
+      name: "main",
+      isEntry: true,
+      isDynamicEntry: false,
+      imports: ["assets/pre-1.js"],
+      dynamicImports: ["assets/cap-sharing.drops-1.js"],
+      modules: {
+        [ids.main]: { renderedLength: 10 },
+        [ids.table]: { renderedLength: 2 },
+      },
+      viteMetadata: {
+        importedCss: new Set(["assets/main.css"]),
+        importedAssets: new Set(),
+      },
+    },
+    "assets/pre-1.js": {
+      type: "chunk",
+      name: "pre",
+      isEntry: false,
+      isDynamicEntry: false,
+      imports: [],
+      dynamicImports: [],
+      modules: { [ids.react]: { renderedLength: 100 } },
+    },
+    "assets/cap-sharing.drops-1.js": {
+      type: "chunk",
+      name: "cap-sharing.drops",
+      isEntry: false,
+      isDynamicEntry: true,
+      imports: [],
+      dynamicImports: [],
+      modules: { [ids.drops]: { renderedLength: 5 } },
+    },
+    "assets/main.css": { type: "asset", source: "body{}" },
+  });
+  return { ids, ctx, bundle };
+}

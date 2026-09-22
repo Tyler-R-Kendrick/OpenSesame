@@ -13,6 +13,7 @@
 import { compileGuide } from "@opensesame/guide-lang";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
+import { registerTutorialRealm } from "../../registry/optional-tutorials.test-support.js";
 import {
   GUIDE_OVERLAY_ROUTES,
   GUIDE_ROUTES,
@@ -92,11 +93,21 @@ describe("an identifier this build does not declare", () => {
 
 describe("a route that is well-formed but nobody registered", () => {
   it("identifies local consent as a ceremony, not a navigable directory view", () => {
-    expect(guideRouteForPath("/identity/authorize")).toBe(
-      "/identity/authorize",
-    );
-    expect(GUIDE_OVERLAY_ROUTES.has("/identity/authorize")).toBe(true);
-    expect(guideRouteForPath("/identity/authorize-extra")).toBe("/identity");
+    // `/identity` and its consent leg are the identity capability's routes,
+    // so the question only has an answer while that capability is in the plan.
+    const revokeRealm = registerTutorialRealm();
+    try {
+      expect(guideRouteForPath("/identity/authorize")).toBe(
+        "/identity/authorize",
+      );
+      expect(GUIDE_OVERLAY_ROUTES.has("/identity/authorize")).toBe(true);
+      expect(guideRouteForPath("/identity/authorize-extra")).toBe("/identity");
+    } finally {
+      revokeRealm();
+    }
+    // And with nothing registered the shell does not claim a screen it has no
+    // route for: the deep path reports the vault it actually lives in.
+    expect(guideRouteForPath("/identity/authorize")).toBe("/vault");
   });
   it("is refused by the registry, the compiler and the runtime alike", async () => {
     const active = open();

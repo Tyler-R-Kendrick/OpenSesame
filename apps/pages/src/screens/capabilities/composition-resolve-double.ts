@@ -95,7 +95,7 @@ function statesOf(
   input: DoubleInput,
   axes: AxesMap,
   pass: ApprovalPass,
-): Record<CapabilityId, CapabilityState> {
+): EffectivePlan["capabilities"] {
   const capabilities: Record<CapabilityId, CapabilityState> = {};
   for (const entry of input.catalog.capabilities) {
     const state = axes.get(entry.id);

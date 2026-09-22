@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The SDK is exclusive to this capability and must not be touched unless
@@ -14,7 +15,10 @@ vi.mock("@opensesame/webmcp", () => ({
 
 import { resetContributionsForTest } from "../../lib/contributions.js";
 import { webmcpNavigationSeam } from "../../webmcp/navigation.js";
-import type { ContextWithPorts } from "../ports-b.js";
+import type {
+  ContextWithPorts,
+  ShellWrapperContribution,
+} from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -93,12 +97,14 @@ describe("agents.webmcp runtime", () => {
 
   it("offers the session binding through the wrapper port and revokes it", async () => {
     const revoke = vi.fn();
-    const registerShellWrapper = vi.fn(() => ({
-      kind: "section" as const,
-      capability: "agents.webmcp",
-      generation: 1,
-      revoke,
-    }));
+    const registerShellWrapper = vi.fn(
+      (_entry: ShellWrapperContribution): RegistrationHandle => ({
+        kind: "section",
+        capability: "agents.webmcp",
+        generation: 1,
+        revoke,
+      }),
+    );
     const t = createTestContext();
     const ctx: ContextWithPorts = { ...t.ctx, registerShellWrapper };
     const handle = await runtime.capabilityRuntime.activate(ctx);

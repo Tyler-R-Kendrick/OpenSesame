@@ -25,6 +25,18 @@ export const SHELL_RULES = [
     "fake ApprovedCapabilityContext for tests",
   ),
   shared("src/modules/tutorial-contributions", "declares live tutorial ids"),
+  shared(
+    "src/modules/ports-b",
+    "optional context ports the wave-B runtimes read",
+  ),
+  shared(
+    "src/modules/tutorial-pick-b",
+    "picks authored tutorial ids from a shared partition",
+  ),
+  shared(
+    "src/modules/tutorial-test-realm",
+    "boots a fixture realm so contributed guides render in tests",
+  ),
   core("src/vite-env.d.ts", null, "type shim"),
   core("src/styles.css", SHELL, "shared stylesheet"),
   core("src/native-controls.css", SHELL, "shared stylesheet"),

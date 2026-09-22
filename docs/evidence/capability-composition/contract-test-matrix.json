@@ -41,6 +41,16 @@
       "tests": 24,
       "passed": 24,
       "failed": 0
+    },
+    {
+      "id": "run-worker-split",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities/worker-controller.test.ts src/lib/capabilities/worker-controller-plan.test.ts",
+      "vitest": "4.1.10",
+      "testFiles": 2,
+      "tests": 14,
+      "passed": 14,
+      "failed": 0,
+      "note": "Re-run at 03:42 after the worker owner split the plan-assets and offline-status block out of worker-controller.test.ts into worker-controller-plan.test.ts. The 14 tests are the same 14 counted inside run-pages-capabilities, now in two files; PWA-07 and PWA-09 cite the new file."
     }
   ],
   "contracts": [
@@ -695,7 +705,8 @@
       "status": "covered",
       "tests": [
         { "file": "apps/pages/src/sw/plan-assets.test.ts", "name": "names PWA-07 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "plan assets and offline status asks the worker who it is, then posts module ids only — never a URL or a worker unit", "observed": "run-passed", "run": "run-pages-capabilities" }
+        { "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts", "name": "plan assets and offline status asks the worker who it is, then posts module ids only — never a URL or a worker unit", "observed": "run-passed", "run": "run-worker-split" },
+        { "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts", "name": "plan assets and offline status posts nothing beyond the shell when the selection is shell-only", "observed": "run-passed", "run": "run-worker-split" }
       ]
     },
     {
@@ -712,7 +723,7 @@
       "status": "covered",
       "tests": [
         { "file": "apps/pages/src/sw/plan-assets.test.ts", "name": "names PWA-09 (read from source; suite not executed in this session)", "observed": "read-only" },
-        { "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts", "name": "plan assets and offline status ignores messages that are not from the worker vocabulary", "observed": "run-passed", "run": "run-pages-capabilities" }
+        { "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts", "name": "plan assets and offline status ignores messages that are not from the worker vocabulary", "observed": "run-passed", "run": "run-worker-split" }
       ]
     },
     {

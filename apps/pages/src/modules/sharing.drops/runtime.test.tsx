@@ -34,7 +34,7 @@ describe("sharing.drops runtime", () => {
     ).toEqual([["claim", "/claim", false, "any"]]);
     expect(
       t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
-    ).toEqual([["drop", "Drops", "drops", 50]]);
+    ).toEqual([["drop", "Drop", "drops", 50]]);
     await handle.dispose();
   });
 

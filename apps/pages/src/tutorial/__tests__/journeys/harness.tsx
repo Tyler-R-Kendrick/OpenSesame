@@ -45,6 +45,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { accountSwitcherSeams } from "../../../components/AccountSwitcher.js";
+import { registerLegacyShell } from "../../../components/legacy-sections.test-support.js";
 import { AppShell } from "../../../components/AppShell.js";
 import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
 import { crumbsSeams } from "../../../components/Crumbs.js";
@@ -291,6 +292,10 @@ export type Journey = {
 
 const originalSeams = { ...supportSessionSeams };
 let built: JourneyEngine | null = null;
+// The sections a journey walks — Connections above all — are contributions.
+// A journey is a story about a deployment that has them, so the fixture
+// registers the plan before the shell is drawn and revokes it on reset.
+let revokeShell: (() => void) | null = null;
 
 export function renderJourney(
   agent: FakeSupportAgent,
@@ -314,6 +319,8 @@ export function renderJourney(
       clearMountedGuideTargets();
     },
   });
+  revokeShell?.();
+  revokeShell = registerLegacyShell();
   const user = userEvent.setup();
   render(
     <MemoryRouter initialEntries={[options.at ?? "/vault"]}>
@@ -346,6 +353,8 @@ export function renderJourney(
 
 export function resetJourney(): void {
   cleanup();
+  revokeShell?.();
+  revokeShell = null;
   clearMountedGuideTargets();
   Object.assign(supportSessionSeams, originalSeams);
   lockHandlers.clear();

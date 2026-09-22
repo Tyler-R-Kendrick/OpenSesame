@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
+import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ContextWithPorts } from "../ports-b.js";
+import type {
+  ContextWithPorts,
+  ShellWrapperContribution,
+} from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -50,12 +54,14 @@ describe("support.guided-help runtime", () => {
 
   it("wraps the shell with the support tree and takes it back", async () => {
     const revoke = vi.fn();
-    const registerShellWrapper = vi.fn(() => ({
-      kind: "section" as const,
-      capability: "support.guided-help",
-      generation: 1,
-      revoke,
-    }));
+    const registerShellWrapper = vi.fn(
+      (_entry: ShellWrapperContribution): RegistrationHandle => ({
+        kind: "section",
+        capability: "support.guided-help",
+        generation: 1,
+        revoke,
+      }),
+    );
     const t = createTestContext();
     const ctx: ContextWithPorts = { ...t.ctx, registerShellWrapper };
     const handle = await runtime.capabilityRuntime.activate(ctx);

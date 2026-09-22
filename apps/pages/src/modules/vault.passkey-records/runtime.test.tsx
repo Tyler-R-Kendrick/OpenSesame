@@ -31,7 +31,7 @@ describe("vault.passkey-records runtime", () => {
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(
       t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
-    ).toEqual([["passkey", "Passkeys", "passkeys", 20]]);
+    ).toEqual([["passkey", "Passkey", "passkeys", 20]]);
     expect(t.entries("item-kind")[0]?.Icon).toBeTypeOf("function");
     await handle.dispose();
   });
