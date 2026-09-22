@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Vaults" },
+        { "scrollTo": "Vaults on this device" },
+        { "shot": "1280-item-types" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Vaults" },
+        { "scrollTo": "Vaults on this device" },
+        { "shot": "390-item-types" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-item-types",
+      "width": 1280,
+      "title": "Settings › Vaults — 1280 × 900",
+      "caption": "Before, the Vaults category ended at the vault switcher: the item-type install/remove capability (ADR 0087 §7 — \"install and uninstall are data writes … a user can do the same thing at runtime\", registered as vault.item_types.install → route:/settings) had no surface at all. The store methods were there and tested; nothing rendered them. After, the Item types panel sits under the switcher: paste a VaultItemType manifest, inspect its fields through the same Source/Visual pair the rest of Settings uses, install it with no reload, and remove it without rewriting the item values it shaped.",
+      "before": "panels in Settings › Vaults: 1 (Vaults on this device); item-type rows: 0 — no panel",
+      "after": "panels in Settings › Vaults: 2 (Vaults on this device, Item types); item-type rows: 23; remove keys: 23; plus the paste field and the Install type key"
+    },
+    {
+      "shot": "390-item-types",
+      "width": 390,
+      "title": "Settings › Vaults on a phone — 390 × 844",
+      "caption": "The same change at phone width. The panel stacks under the vault list with the same controls in the same order; nothing floats over them and every key keeps its 44px target.",
+      "before": "panels: 1 (Vaults on this device); item-type rows: 0",
+      "after": "panels: 2 (Vaults on this device, Item types); item-type rows: 23"
+    }
+  ]
+}

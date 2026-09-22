@@ -1,5 +1,6 @@
 /**
- * J-TYPES: paste an inert VaultItemType, install without reload, remove it.
+ * J-TYPES: paste an inert VaultItemType, install without reload, remove it
+ * without rewriting the item values it shaped (ADR 0087 §7).
  */
 import { openSettingsCategory, sealWithPassword } from "./pages-journey.mjs";
 
@@ -44,13 +45,15 @@ const TICKET = JSON.stringify({
 export async function walkJTypes({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
-  await openSettingsCategory(page, "Vault data");
+  await openSettingsCategory(page, "Vaults");
   await page.getByRole("heading", { name: "Item types" }).waitFor({
     timeout: 15000,
   });
+  const list = page.getByRole("list", { name: "Installed types" });
+  await list.waitFor({ timeout: 8000 });
   check(
-    (await page.getByText(/built in/).count()) > 0,
-    "built-in types are listed",
+    (await list.locator("li").count()) > 0,
+    "built-in types are listed before anything is installed",
   );
   await page.getByLabel("Add a type").fill(TICKET);
   await page.getByRole("button", { name: "Install type" }).click();
@@ -59,13 +62,16 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
     .filter({ hasText: /no reload/i })
     .waitFor({ timeout: 10000 });
   check(true, "install reports no reload needed");
-  await page.getByText("Event ticket").first().waitFor({ timeout: 8000 });
+  await page
+    .getByRole("list", { name: "Installed types" })
+    .getByText("Event ticket")
+    .waitFor({ timeout: 8000 });
   await snap(page, "J-TYPES-installed");
   await page.getByRole("button", { name: "Remove Event ticket" }).click();
-  await page.getByRole("button", { name: /Really remove/ }).click();
+  await page.getByRole("button", { name: "Confirm removal" }).click();
   await page
     .getByRole("status")
-    .filter({ hasText: /keep everything/i })
+    .filter({ hasText: /kept/i })
     .waitFor({ timeout: 10000 });
   check(true, "remove keeps item values");
   await snap(page, "J-TYPES-removed");

@@ -41,8 +41,15 @@ export async function lockVault(page) {
 }
 
 export async function openSection(page, label) {
+  // Section rows for access/identity/wallet/activity are capability
+  // contributions and land after the core rows: wait before concluding the
+  // row is absent.
   const rail = page.locator(".railtree__row", { hasText: label }).first();
-  if (await rail.count()) {
+  const appeared = await rail
+    .waitFor({ state: "visible", timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  if (appeared) {
     await rail.click();
     return;
   }
@@ -51,6 +58,25 @@ export async function openSection(page, label) {
     .locator("visible=true")
     .first()
     .click();
+}
+
+/**
+ * Choose capabilities the way a person does — Settings › Capabilities, Add,
+ * Apply. A device that has approved nothing has no rail row for the sections
+ * those capabilities contribute (ADR 0130), so a walk that needs one says
+ * which it needs instead of pretending the row is there.
+ */
+export async function addCapabilities(page, titles) {
+  await openSettingsCategory(page, "Capabilities");
+  for (const title of titles) {
+    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    await add.waitFor({ timeout: 15000 });
+    await add.click();
+    const review = page.getByTestId("capability-review");
+    await review.waitFor({ timeout: 10000 });
+    await page.getByTestId("capability-apply").click();
+    await review.waitFor({ state: "detached", timeout: 15000 });
+  }
 }
 
 export async function openGeneral(page) {

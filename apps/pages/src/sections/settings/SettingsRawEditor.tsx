@@ -11,6 +11,10 @@ import {
   persistKeybindings,
 } from "../../lib/configuration/nav-persist.js";
 import type { SettingsCategory } from "../../lib/crumbs.js";
+import {
+  loadSettingsSource,
+  saveSettingsSource,
+} from "../../lib/settings-source.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import type { VaultPrefs } from "../../lib/vault/store.js";
@@ -38,7 +42,12 @@ export function SettingsRawEditor({
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setSource(encodeSettings(category, readDoc(category, prefs), format));
+    // A document keeps its comments: the raw source is the stored spelling of
+    // this file, and the typed projection below is what it parses to.
+    setSource(
+      loadSettingsSource(settingsFilePath(category, format)) ??
+        encodeSettings(category, readDoc(category, prefs), format),
+    );
     setMessage("");
   }, [category, format, prefs]);
 
@@ -68,6 +77,8 @@ export function SettingsRawEditor({
     if (category === "connections" || category === "vaults") {
       saveSettings(mergePages(decoded.doc));
     }
+    // Keep the document as written: comments and ordering are the person's.
+    saveSettingsSource(settingsFilePath(category, format), source);
     setMessage(
       settingsFields(category).length === 0 ? "Nothing to write." : "Saved.",
     );

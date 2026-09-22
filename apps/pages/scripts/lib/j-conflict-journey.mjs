@@ -4,6 +4,7 @@
  * grants.
  */
 import {
+  addCapabilities,
   openSection,
   sealWithPassword,
   setTextarea,
@@ -34,9 +35,8 @@ async function registerApp(page, name) {
   await nameField.waitFor({ timeout: 8000 });
   await nameField.click();
   await page.keyboard.type(name, { delay: 15 });
-  await panel
-    .getByRole("button", { name: "Create application", exact: true })
-    .click();
+  // The name field commits on Enter: there is no separate Create button.
+  await page.keyboard.press("Enter");
   await nameField.waitFor({ state: "hidden", timeout: 10000 });
   const row = panel.getByRole("listitem").filter({ hasText: name });
   await row.waitFor({ timeout: 10000 });
@@ -71,6 +71,13 @@ export async function walkJConflict({
 }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
+  // Identity belongs to a capability: choose it before its rail row exists.
+  await addCapabilities(page, [
+    "External connectors",
+    "Access authority",
+    "Browser-local IAM",
+    "Directory provisioning",
+  ]);
   await openApplications(page);
   const rowA = await registerApp(page, "Conflict relying party");
   await snap(page, "J-CONFLICT-registered");
