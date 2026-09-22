@@ -12,7 +12,7 @@ import type { Connection, Provider } from "../../lib/connections.js";
 import { ConnectionsSection } from "../ConnectionsSection.js";
 
 /** Six bundled providers, one per catalog branch the suites exercise. */
-export const CONNECTIONS_CATALOG: readonly Provider[] = (() => {
+export const CONNECTIONS_CATALOG: Provider[] = (() => {
   const githubProvider: Provider = {
     id: "github",
     displayName: "GitHub",
