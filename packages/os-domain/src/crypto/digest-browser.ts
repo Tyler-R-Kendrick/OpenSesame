@@ -12,7 +12,7 @@ import {
   overlapCast,
 } from "../json.js";
 
-function u32At(values: readonly number[], index: number): number {
+function u32At(values: ArrayLike<number>, index: number): number {
   const value = values[index];
   if (value === undefined) {
     throw new Error("sha256 index out of range");
