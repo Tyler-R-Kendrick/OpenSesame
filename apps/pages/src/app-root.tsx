@@ -27,6 +27,7 @@ import type {
 import { compositionStore, useComposition } from "./lib/capabilities/store.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
+import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "./lib/guest-auth.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
@@ -85,6 +86,8 @@ export type AppSlots = {
   useSessionGuards: () => void;
   useRouteContributions: () => readonly RouteContribution[];
   useUnlockEffects: () => readonly UnlockEffectContribution[];
+  /** Core sign-in: raise a federated link a locked vault deferred (ADR 0033). */
+  recoverPendingFederatedLink: () => void;
   AppShell: ComponentType<{ children?: ReactNode }>;
   FederationReturn: ComponentType;
   UnlockScreen: ComponentType;
@@ -103,6 +106,7 @@ const defaultSlots: AppSlots = {
   useSessionGuards: defaultUseSessionGuards,
   useRouteContributions: () => defaultUseContributions("route"),
   useUnlockEffects: () => defaultUseContributions("unlock-effect"),
+  recoverPendingFederatedLink: defaultRecoverPendingFederatedLink,
   AppShell: DefaultAppShell,
   FederationReturn: DefaultFederationReturn,
   UnlockScreen: DefaultUnlockScreen,
@@ -194,9 +198,11 @@ function useAfterUnlock(
   tomb: string | undefined,
   guest: boolean | undefined,
   effects: readonly UnlockEffectContribution[],
+  recover: () => void,
 ): void {
   useEffect(() => {
     if (status !== "unlocked" || !tomb) return;
+    recover();
     const controller = new AbortController();
     let leaseSignal: AbortSignal | null = null;
     try {
@@ -215,7 +221,7 @@ function useAfterUnlock(
       leaseSignal?.removeEventListener("abort", onLeaseAbort);
       controller.abort("unmount");
     };
-  }, [status, tomb, guest, effects]);
+  }, [status, tomb, guest, effects, recover]);
 }
 
 function contributedRoute(route: RouteContribution) {
@@ -251,7 +257,7 @@ function VaultApp() {
   const effects = slots.useUnlockEffects();
   slots.useTheme();
   slots.useSessionGuards();
-  useAfterUnlock(status, tomb, guest, effects);
+  useAfterUnlock(status, tomb, guest, effects, slots.recoverPendingFederatedLink);
 
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;

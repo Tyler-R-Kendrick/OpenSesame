@@ -1,7 +1,7 @@
 import { type SettingsCategory, settingsPath } from "../../lib/crumbs.js";
 import { getBundledProviders } from "../../lib/embedded-catalog.js";
 import { type PageTreeSource, pageTabTree } from "../../lib/page-to-tree.js";
-import { settingsTabs } from "../SettingsSection.js";
+import { settingsTabsSnapshot } from "../SettingsSectionNav.js";
 import { featureBindingSections } from "../connections/page-tree.js";
 
 /** Live lists a Settings tab may mirror (Vaults on this device). */
@@ -34,7 +34,7 @@ export function connectionsSettingsSections(): PageTreeSource[] {
 }
 
 function sectionsFor(
-  category: SettingsCategory,
+  category: string,
   snapshot: SettingsRailSnapshot,
 ): PageTreeSource[] {
   switch (category) {
@@ -55,7 +55,7 @@ function sectionsFor(
       }));
     case "connections":
       return connectionsSettingsSections();
-    case "danger":
+    default:
       return [];
   }
 }
@@ -67,7 +67,7 @@ function sectionsFor(
 export function settingsPageSources(
   snapshot: SettingsRailSnapshot = {},
 ): PageTreeSource[] {
-  return settingsTabs.map((tab) => ({
+  return settingsTabsSnapshot().map((tab) => ({
     id: tab.id,
     label: tab.label,
     href: settingsPath(tab.id),

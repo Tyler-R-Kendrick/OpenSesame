@@ -10,10 +10,9 @@ import {
   type SettingsPanels,
   categoryFromHash,
   defaultPanels,
-  settingsTabs,
+  useSettingsTabs,
 } from "./SettingsSectionNav.js";
 import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
-import { FeatureBindingsPanel } from "./settings/FeatureBindingsPanel.js";
 import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperabilityPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
@@ -33,7 +32,9 @@ export function SettingsSection({
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { hash, pathname } = useLocation();
   const navigate = useNavigate();
+  const tabs = useSettingsTabs();
   const category = settingsCategoryFromLocation(pathname, hash);
+  const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
   const [representation, setRepresentation] = useState<"form" | RawFormat>(
     "form",
   );
@@ -73,7 +74,7 @@ export function SettingsSection({
       </div>
 
       <nav className="set__nav" aria-label="Settings sections">
-        {settingsTabs.map((entry) => (
+        {tabs.map((entry) => (
           <CategoryLink
             key={entry.id}
             guideId={entry.guideId}
@@ -87,11 +88,7 @@ export function SettingsSection({
       {representation === "yaml" || representation === "toml" ? (
         <SettingsRawEditor category={category} format={representation} />
       ) : null}
-      {form && category === "connections" ? (
-        <FeatureBindingsPanel
-          ModelProviderPanel={resolvedPanels.ModelProviderPanel}
-        />
-      ) : null}
+      {form && ContributedPanel ? <ContributedPanel /> : null}
       {form && category === "general" ? (
         <>
           <GuideTarget id="settings.install">

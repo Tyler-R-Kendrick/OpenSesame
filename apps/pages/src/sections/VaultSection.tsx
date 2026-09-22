@@ -13,6 +13,7 @@ import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconPlus } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
+import { isCreatableItemKind } from "../lib/item-kinds.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { itemCreatePath } from "../lib/vault/item-path.js";
@@ -134,8 +135,12 @@ export function VaultSection() {
 
   const detailOpen = location.pathname !== "/vault";
   const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
+  // A filtered "+ new" creates the filter's kind only when that kind may be
+  // created on this installation (SURFACE-08); otherwise the default kind.
   const createPath = itemCreatePath(
-    itemTypeRegistry().has(filter) ? filter : undefined,
+    itemTypeRegistry().has(filter) && isCreatableItemKind(filter)
+      ? filter
+      : undefined,
     folderId,
   );
   const treeFolders = useMemo(() => {

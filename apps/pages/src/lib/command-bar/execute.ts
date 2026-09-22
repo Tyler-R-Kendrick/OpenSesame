@@ -1,7 +1,10 @@
 import { isString } from "@opensesame/os-domain";
 import { definitionFor, readItemField } from "../vault/item-types.js";
 import type { VaultItem } from "../vault/model.js";
-import type { AppCommand, CommandOutcome } from "./types.js";
+import { type AppCommand, type CommandOutcome, isCommandSection } from "./types.js";
+
+/** What a person hears when a command names a section the plan excludes. */
+export const NOT_AVAILABLE_MESSAGE = "Not available on this installation";
 
 export type CommandPorts = {
   navigate: (path: string) => void;
@@ -97,6 +100,11 @@ export async function executeCommand(
           "Try: go to vault · copy password for … · open … · search … · hold the mic to speak",
       };
     case "navigate":
+      // Refused, not imported: a section that is not registered has no route
+      // to open, and nothing here reaches for the module that would have one.
+      if (!isCommandSection(command.path)) {
+        return { ok: false, message: NOT_AVAILABLE_MESSAGE };
+      }
       ports.navigate(command.path);
       return { ok: true, message: `Opened ${command.path}` };
     case "open_path":

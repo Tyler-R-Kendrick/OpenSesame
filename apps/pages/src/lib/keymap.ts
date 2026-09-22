@@ -5,6 +5,8 @@ import {
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
 import { dispatchUserBinding } from "./configuration/nav-persist.js";
+import { contributionsSnapshot } from "./contributions.js";
+import { keymapHelpRows } from "./keymap-help.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 export type ListingMotion = {
@@ -95,10 +97,17 @@ function movementTarget(event: KeyboardEvent): ListingMotion | null {
 }
 
 export {
-  KEYMAP_HELP,
+  KEYMAP_HELP_CORE,
+  type KeymapHelpRow,
+  keymapHelpRows,
   registerKeymapHelp,
   showKeymapHelp,
 } from "./keymap-help.js";
+
+/** The sheet for the jumps registered right now. */
+export function keymapHelp() {
+  return keymapHelpRows(sectionJumpKeys());
+}
 
 export function focusRailListing(): void {
   railTarget?.focus?.();
@@ -119,15 +128,37 @@ export function typing(target: EventTarget | null): boolean {
   );
 }
 
-const SECTION_PATHS = new Map([
+/**
+ * The `g` jumps the core shell always has. Every other letter is a
+ * `keymap-jump` contribution from the capability whose section it opens, so
+ * a letter for an excluded capability is not bound at all (SURFACE-09).
+ */
+const CORE_JUMPS: ReadonlyMap<string, string> = new Map([
   ["v", "/vault"],
-  ["c", "/connections"],
-  ["a", "/access"],
-  ["i", "/identity"],
-  ["w", "/wallet"],
-  ["y", "/activity"],
   ["s", "/settings"],
 ]);
+
+/** The path `g <key>` opens, or null when nothing registered that key. */
+export function sectionJumpPath(key: string): string | null {
+  const core = CORE_JUMPS.get(key);
+  if (core !== undefined) return core;
+  return (
+    contributionsSnapshot("keymap-jump").find((jump) => jump.key === key)
+      ?.path ?? null
+  );
+}
+
+/** Every jump key that exists right now, core first, in registration order. */
+export function sectionJumpKeys(): readonly string[] {
+  const keys = [...CORE_JUMPS.keys()];
+  for (const jump of contributionsSnapshot("keymap-jump")) {
+    if (!keys.includes(jump.key)) keys.push(jump.key);
+  }
+  return keys;
+}
+
+/** Listing motions that keep their meaning after a `g`: `gj` is still down. */
+const GO_MOTIONS = new Set(["j", "k", "h", "l"]);
 
 const COUNT_MAX = 999;
 
@@ -170,8 +201,18 @@ function applyGoChord(
     event.preventDefault();
     return true;
   }
-  const path = SECTION_PATHS.get(event.key.toLowerCase());
-  if (!path) return false;
+  const key = event.key.toLowerCase();
+  const path = sectionJumpPath(key);
+  if (path === null) {
+    // A letter that is no jump on this plan is swallowed, not reinterpreted:
+    // a stale `g y` must not become `y` (copy the secret) because the
+    // activity capability left. Motions keep working after a `g`.
+    if (/^[a-z]$/.test(key) && !GO_MOTIONS.has(key)) {
+      event.preventDefault();
+      return true;
+    }
+    return false;
+  }
   if (railTarget?.goTo) {
     railTarget.goTo(path);
     railTarget.focus?.();

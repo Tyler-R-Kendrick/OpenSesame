@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { isCreatableItemKind } from "../../lib/item-kinds.js";
 import { itemTypeRegistry, typeExtension } from "../../lib/vault/item-types.js";
 
 export function UnknownItemType() {
@@ -31,12 +32,23 @@ export function EditorType({
       aria-label="Type"
       value={typeId}
       onChange={(event) => {
-        if (itemTypeRegistry().has(event.target.value))
+        if (
+          itemTypeRegistry().has(event.target.value) &&
+          isCreatableItemKind(event.target.value)
+        )
           onChange(event.target.value);
       }}
     >
       {itemTypeRegistry()
         .list()
+        // Only kinds this installation may create are offered (SURFACE-08);
+        // a community type is creatable like the core ones, an excluded
+        // capability's kind is not.
+        .filter(
+          ({ definition }) =>
+            !definition.metadata.id.startsWith("__") &&
+            isCreatableItemKind(definition.metadata.id),
+        )
         .map(({ definition }) => (
           <option key={definition.metadata.id} value={definition.metadata.id}>
             {definition.spec.extension}
