@@ -134,9 +134,15 @@ export function LocalIdentitySession({
         </button>
         <StatusMark tone={tone} label={label || "No active local session."} />
       </div>
-      <output className="visually-hidden" aria-label="Local session status">
-        {busy ? "Complete the local session operation…" : message}
-      </output>
+      {error ? (
+        <span role="alert" className="visually-hidden">
+          {error}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Local session status">
+          {busy ? "Complete the local session operation…" : message}
+        </output>
+      )}
     </div>
   );
 }

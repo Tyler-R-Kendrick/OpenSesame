@@ -54,7 +54,14 @@ export function LocalAgentEnrollment({
           autoComplete="off"
         />
       </div>
-      {error ? <StatusMark tone="err" label={error} /> : null}
+      {error ? (
+        <>
+          <StatusMark tone="err" label={error} />
+          <span role="alert" className="visually-hidden">
+            {error}
+          </span>
+        </>
+      ) : null}
       <div className="actions">
         <button
           type="submit"

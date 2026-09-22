@@ -5,8 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { IconPlus, IconTrash, IconX } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
+import { IconCheck, IconPlus, IconX } from "../../components/Icons.js";
+import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
 import {
   type LocalPasskey,
   readLocalPasskeys,
@@ -261,12 +261,14 @@ function useCredentialCommands(
   };
 }
 
+type PasskeySurfaceStatus = { tone: StatusTone; label: string };
+
 function passkeySurfaceStatus(
   error: string,
   busy: boolean,
   message: string,
   keys: LocalPasskey[] | null,
-): { tone: "ok" | "warn" | "err" | "idle"; label: string } {
+): PasskeySurfaceStatus {
   if (error) return { tone: "err", label: error };
   if (busy) return { tone: "idle", label: "Complete the passkey operation…" };
   if (message)
@@ -306,9 +308,15 @@ function CredentialCommands(props: CredentialProps) {
           <IconPlus size={16} />
         </button>
       </div>
-      <output className="visually-hidden" aria-label="Passkey status">
-        {busy ? "Complete the passkey operation…" : message}
-      </output>
+      {error ? (
+        <span role="alert" className="visually-hidden">
+          {error}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Passkey status">
+          {busy ? "Complete the passkey operation…" : message}
+        </output>
+      )}
       {model.offer ? (
         <div className="identity-passkey-offer">
           <label>
@@ -323,19 +331,23 @@ function CredentialCommands(props: CredentialProps) {
           <div className="actions">
             <button
               type="button"
-              className="btn btn--sm"
+              className="icon-btn icon-btn--sm"
               disabled={busy}
               onClick={model.keepSignInOnly}
+              aria-label="Keep sign-in only"
+              title="Keep sign-in only"
             >
-              Keep sign-in only
+              <IconX size={16} />
             </button>
             <button
               type="button"
-              className="btn btn--sm btn--primary"
+              className="icon-btn go"
               disabled={busy || !model.unlockChecked}
               onClick={() => void model.alsoUnlock()}
+              aria-label="Also unlock this vault"
+              title="Also unlock this vault"
             >
-              Also unlock this vault
+              <IconCheck size={16} />
             </button>
           </div>
         </div>

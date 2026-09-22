@@ -223,12 +223,24 @@ function AgentKeyStatus({
     <div className="actions">
       <StatusMark tone={keyTone} label={keyLabel} />
       <StatusMark tone={sessionTone} label={sessionLabel} />
-      <output className="visually-hidden" aria-label="Agent key status">
-        {model.message}
-      </output>
-      <output className="visually-hidden" aria-label="Agent session status">
-        {session.message}
-      </output>
+      {model.error ? (
+        <span role="alert" className="visually-hidden">
+          {model.error}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Agent key status">
+          {model.message}
+        </output>
+      )}
+      {session.error ? (
+        <span role="alert" className="visually-hidden">
+          {session.error}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Agent session status">
+          {session.message}
+        </output>
+      )}
     </div>
   );
 }
