@@ -35,6 +35,7 @@
     "@opensesame/api-client": "workspace:*",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
+    "@opensesame/capability-composition": "workspace:*",
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/guide-lang": "workspace:*",

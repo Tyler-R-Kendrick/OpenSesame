@@ -1,0 +1,63 @@
+/**
+ * Loader table: capability id → module chunk + asset ids.
+ *
+ * Pure reader over the table the build plugin (vite.composition.ts)
+ * generates. assertKnown fails closed on unknown ids — a loader that
+ * cannot name a module must refuse, never guess.
+ */
+import {
+  isJsonObject,
+  isString,
+  overlapCast,
+  type BoundaryValue,
+  type JsonObject,
+} from "@opensesame/os-domain";
+
+export type LoaderEntry = {
+  readonly id: string;
+  readonly moduleIds: string[];
+  readonly assetIds: string[];
+};
+
+export type LoaderTable = {
+  readonly generatedAt: string;
+  readonly entries: LoaderEntry[];
+};
+
+/** All entries keyed by capability id. */
+export function entries(table: LoaderTable): ReadonlyMap<string, LoaderEntry> {
+  return new Map(table.entries.map((e) => [e.id, e]));
+}
+
+/** Module ids for a known capability; throws on unknown ids. */
+export function modulesFor(table: LoaderTable, id: string): readonly string[] {
+  return assertKnown(table, id).moduleIds;
+}
+
+/** The entry for an id, or throws when the table never shipped it. */
+export function assertKnown(table: LoaderTable, id: string): LoaderEntry {
+  const entry = entries(table).get(id);
+  if (!entry) throw new Error(`loader table has no module for ${id}`);
+  return entry;
+}
+
+/** Loader tables arrive as parsed JSON; isJsonObject is the I/O boundary. */
+export function isLoaderTable(value: BoundaryValue): boolean {
+  if (!isJsonObject(value)) return false;
+  // SAFETY: isJsonObject established a string-keyed JSON record above, so
+  // reading its entries member through the boundary record is structural.
+  const entries = overlapCast(value).entries;
+  if (!Array.isArray(entries)) return false;
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (!isJsonObject(entry)) return false;
+    if (!isString(entry.id) || entry.id === "") return false;
+    if (!Array.isArray(entry.moduleIds) || entry.moduleIds.length === 0) {
+      return false;
+    }
+    if (!Array.isArray(entry.assetIds)) return false;
+    if (seen.has(entry.id)) return false;
+    seen.add(entry.id);
+  }
+  return true;
+}

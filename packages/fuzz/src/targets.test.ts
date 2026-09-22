@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fuzz as fuzzAgentAuthContracts } from "./agent_auth_contracts.js";
 import { fuzz as fuzzAgentAuthTokens } from "./agent_auth_tokens.js";
 import { fuzz as fuzzAuditRedact } from "./audit_redact.js";
+import { fuzz as fuzzCapabilityComposition } from "./capability_composition.js";
 import { fuzz as fuzzClaimEngine } from "./claim_engine.js";
 import { fuzz as fuzzClientAdmission } from "./client_admission.js";
 import { fuzz as fuzzContractsParse } from "./contracts_parse.js";
@@ -111,6 +112,18 @@ describe("claim_engine fuzz target", () => {
     // pending -> presented is a legitimate transition
     const data = Buffer.from([...word(0), ...word(1)]);
     expect(() => fuzzClaimEngine(data)).not.toThrow();
+  });
+});
+
+describe("capability_composition fuzz target", () => {
+  it("resolves hostile documents without escaping throws", () => {
+    expect(() =>
+      fuzzCapabilityComposition(Buffer.from("random fuzz bytes")),
+    ).not.toThrow();
+    expect(() => fuzzCapabilityComposition(Buffer.alloc(0))).not.toThrow();
+    expect(() =>
+      fuzzCapabilityComposition(Buffer.from([0, 1, 2, 3, 255, 254, 253])),
+    ).not.toThrow();
   });
 });
 
