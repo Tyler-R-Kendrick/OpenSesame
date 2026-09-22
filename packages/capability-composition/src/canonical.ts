@@ -20,6 +20,7 @@ import type {
   ConsentReceipt,
   DependencyAlternatives,
   EffectivePlan,
+  EgressClass,
   EgressDeclaration,
   NetworkPolicy,
   PlanConflict,
@@ -118,7 +119,7 @@ function egressKey(e: EgressDeclaration): string {
 /** Sorted, de-duplicated plain copies of egress declarations. */
 export function normalizeEgress(
   egress: readonly EgressDeclaration[],
-): Array<{ automatic: boolean; class: string; purpose: string }> {
+): Array<{ automatic: boolean; class: EgressClass; purpose: string }> {
   const byKey = new Map<string, EgressDeclaration>();
   for (const e of egress) byKey.set(egressKey(e), e);
   return [...byKey.keys()].sort(compareIds).map((key) => {

@@ -74,7 +74,11 @@ export function buildContext(input: ResolveInput): ResolveContext {
     (workspace.instanceId !== instanceId || workspace.vaultId !== input.vaultId);
   const required = new Set(policy === null || !input.policyValid ? [] : policy.capabilities.required);
   const accepted = new Set(installation === null ? [] : installation.acceptedRequired);
-  const network = policy === null ? PERSONAL_LOCAL_NETWORK : input.policyValid ? policy.network : DENY_ALL_NETWORK;
+  const network = !input.policyValid
+    ? DENY_ALL_NETWORK
+    : policy === null
+      ? PERSONAL_LOCAL_NETWORK
+      : policy.network;
   return {
     input,
     index: indexCatalog(input.catalog),

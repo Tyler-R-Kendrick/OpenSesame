@@ -68,7 +68,7 @@ export function reviewCompositionChange(
     addedOperations,
     removedOperations: difference(before.approvedOperations, after.approvedOperations),
     addedEgress: addedEgress.map((e) => ({
-      class: e.class as EgressDeclaration["class"] /* SAFETY: normalizeEgress copies the class verbatim from EgressDeclaration values. */,
+      class: e.class,
       purpose: e.purpose,
       automatic: e.automatic,
     })),

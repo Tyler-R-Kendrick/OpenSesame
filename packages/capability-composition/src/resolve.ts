@@ -136,15 +136,30 @@ function collect(ctx: ResolveContext, approved: ReadonlySet<CapabilityId>, pick:
   return sortIds(out);
 }
 
+/**
+ * One pass normally; a second when the approved set's worker constraints
+ * cannot be served together, with those capabilities blocked. The second
+ * pass approves a subset of the first, so it always terminates clean.
+ */
+function resolvePasses(ctx: ResolveContext, joinRefused: boolean): Pass {
+  const first = runPass(ctx, computeAxes(ctx), joinRefused);
+  if (first.worker.unavailable.size === 0) return first;
+  const blocked = blockAxes(first.axes, first.worker.unavailable, "WORKER_GRAPH_UNAVAILABLE");
+  const second = runPass(ctx, blocked, joinRefused);
+  return {
+    ...second,
+    worker: {
+      variant: second.worker.variant,
+      unavailable: new Set([...first.worker.unavailable, ...second.worker.unavailable]),
+      conflicts: [...first.worker.conflicts, ...second.worker.conflicts],
+    },
+  };
+}
+
 export function resolveComposition(input: ResolveInput): EffectivePlan {
   const ctx = buildContext(input);
   const joinRefused = ctx.requiredNotAccepted.length > 0;
-  let pass = runPass(ctx, computeAxes(ctx), joinRefused);
-  if (pass.worker.unavailable.size > 0) {
-    const workerConflicts = pass.worker.conflicts;
-    pass = runPass(ctx, blockAxes(pass.axes, pass.worker.unavailable, "WORKER_GRAPH_UNAVAILABLE"), joinRefused);
-    pass = { ...pass, worker: { ...pass.worker, unavailable: new Set([...workerConflicts.map((c) => c.capability), ...pass.worker.unavailable]), conflicts: [...workerConflicts, ...pass.worker.conflicts] } };
-  }
+  const pass = resolvePasses(ctx, joinRefused);
   const capabilities: Record<CapabilityId, CapabilityState> = {};
   for (const id of ctx.ids) {
     const axis = pass.axes.get(id);

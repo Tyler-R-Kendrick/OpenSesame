@@ -1,89 +1,124 @@
 import { overlapCast } from "@opensesame/os-domain";
-import type { ReactNode } from "react";
+import { type ComponentType, type ReactNode, useMemo } from "react";
 import { NavLink } from "react-router";
-import type { ItemKind } from "../lib/vault/model.js";
+import type { SectionContribution } from "../lib/capabilities/runtime-contract.js";
+import { contributionsSnapshot, useContributions } from "../lib/contributions.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
-  IconAuthority,
-  IconCard,
+  ICONS_BY_NAME,
   IconChevronRight,
-  IconClock,
-  IconConnection,
+  type IconProps,
   IconSettings,
-  IconUser,
   IconVault,
 } from "./Icons.js";
 import { setRailCursor, useRailCursor } from "./rail-cursor.js";
 
-export const SECTIONS = [
+/** One rail directory, whether core or contributed. */
+export type SectionRowModel = Readonly<{
+  id: string;
+  to: string;
+  label: string;
+  segment: string;
+  /** The tutorial target the row is bound to: `nav.<segment>`. */
+  guide: string;
+  jump: string;
+  order: number;
+  Icon: ComponentType<IconProps>;
+  /** A section's own subtree; absent, the row is a leaf. */
+  Tree?: ComponentType<SectionTreeProps>;
+}>;
+
+/**
+ * What the shell hands a contributed section's tree. A superset of the
+ * module contract's `TreeProps` (`{ pathname }`), so a tree written to that
+ * contract works unchanged and one that draws its own `SectionRow` has the
+ * open state and toggle the shell keeps for `aria-activedescendant`.
+ */
+export type SectionTreeProps = Readonly<{
+  section: SectionRowModel;
+  open: boolean;
+  active: boolean;
+  onToggle: () => void;
+  pathname: string;
+}>;
+
+/**
+ * The directories the core shell always has. Everything else — connections,
+ * access, identity, wallet, activity — is a `section` contribution from the
+ * capability that owns it, present only while that capability is in the plan.
+ */
+export const SECTIONS: readonly SectionRowModel[] = [
   {
+    id: "vault",
     to: "/vault",
     label: "Vault",
     segment: "vault",
     guide: "nav.vault",
     jump: "v",
+    order: 0,
     Icon: IconVault,
   },
   {
-    to: "/connections",
-    label: "Connections",
-    segment: "connections",
-    guide: "nav.connections",
-    jump: "c",
-    Icon: IconConnection,
-  },
-  {
-    to: "/access",
-    label: "Access",
-    segment: "access",
-    guide: "nav.access",
-    jump: "a",
-    Icon: IconAuthority,
-  },
-  {
-    to: "/identity",
-    label: "Identity",
-    segment: "identity",
-    guide: "nav.identity",
-    jump: "i",
-    Icon: IconUser,
-  },
-  {
-    to: "/wallet",
-    label: "Wallet",
-    segment: "wallet",
-    guide: "nav.wallet",
-    jump: "w",
-    Icon: IconCard,
-  },
-  {
-    to: "/activity",
-    label: "Activity",
-    segment: "activity",
-    guide: "nav.activity",
-    jump: "y",
-    Icon: IconClock,
-  },
-  {
+    id: "settings",
     to: "/settings",
     label: "Settings",
     segment: "settings",
     guide: "nav.settings",
     jump: "s",
+    order: 1000,
     Icon: IconSettings,
   },
-] as const;
-
-/** Vault filter views, read as path segments under vault/. */
-export const KIND_SEGMENTS: Array<{ id: ItemKind; segment: string }> = [
-  { id: "login", segment: "logins" },
-  { id: "passkey", segment: "passkeys" },
-  { id: "card", segment: "cards" },
-  { id: "secret", segment: "secrets" },
-  { id: "drop", segment: "drops" },
-  { id: "note", segment: "notes" },
-  { id: "certificate", segment: "certs" },
 ];
+
+function rowFromContribution(entry: SectionContribution): SectionRowModel {
+  return {
+    id: entry.id,
+    to: entry.to,
+    label: entry.label,
+    segment: entry.segment,
+    guide: `nav.${entry.segment}`,
+    jump: entry.jump,
+    order: entry.order,
+    Icon: ICONS_BY_NAME[entry.icon],
+    Tree: entry.Tree,
+  };
+}
+
+/** Core rows plus the contributed ones, in `order`; a core path wins a clash. */
+export function sectionsFrom(
+  contributions: readonly SectionContribution[],
+): readonly SectionRowModel[] {
+  const rows = [
+    ...SECTIONS,
+    ...contributions
+      .filter((entry) => !SECTIONS.some((core) => core.to === entry.to))
+      .map(rowFromContribution),
+  ];
+  return rows.sort((left, right) =>
+    left.order !== right.order
+      ? left.order - right.order
+      : left.id.localeCompare(right.id),
+  );
+}
+
+export function sectionsSnapshot(): readonly SectionRowModel[] {
+  return sectionsFrom(contributionsSnapshot("section"));
+}
+
+export function useSections(): readonly SectionRowModel[] {
+  const contributions = useContributions("section");
+  return useMemo(() => sectionsFrom(contributions), [contributions]);
+}
+
+/** The rail directory a pathname lives under, if a registered one. */
+export function sectionForPath(
+  pathname: string,
+  sections: readonly SectionRowModel[] = sectionsSnapshot(),
+): SectionRowModel | undefined {
+  return sections.find(
+    ({ to }) => pathname === to || pathname.startsWith(`${to}/`),
+  );
+}
 
 export function railRowId(to: string, child = false): string {
   return `rail-${child ? "c" : "s"}-${to.replace(/[^\w]+/g, "-")}`;
@@ -187,7 +222,7 @@ export function SectionRow({
   active = open,
   onToggle,
 }: {
-  section: (typeof SECTIONS)[number];
+  section: SectionRowModel;
   open: boolean;
   count?: number;
   /** True when this directory is open. */
