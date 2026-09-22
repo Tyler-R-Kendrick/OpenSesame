@@ -19,6 +19,7 @@ import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
 import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperabilityPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
+import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
 import { SettingsRawEditor } from "./settings/SettingsRawEditor.js";
 import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
@@ -121,7 +122,7 @@ export function SettingsSection({
         />
       ) : null}
 
-      {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}
+      {form && category === "vaults" && <VaultsAndTypes {...resolvedPanels} />}
       {form
         ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
         : null}
