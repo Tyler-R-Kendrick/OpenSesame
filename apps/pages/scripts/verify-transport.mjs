@@ -25,6 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
+import { addCapability } from "./lib/capability-walk-contract.mjs";
 import {
   AUDIT,
   PHONES,
@@ -151,6 +152,11 @@ async function emptyJourney(browser, width) {
 async function configureBadRemote(page) {
   setStep("badremote-configure");
   await guest(page, ORIGIN, BASE);
+  await openSection(page, "settings/");
+  // Connections is the external-connectors capability's own settings
+  // category (ADR 0130), so a device that has approved nothing does not have
+  // it. Add it the way a person does, then carry on into the file.
+  await addCapability(page, check, snap, "External connectors", "connections/");
   await openSection(page, "settings/");
   await page
     .getByRole("link", { name: "Connections", exact: true })

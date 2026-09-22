@@ -1,9 +1,11 @@
 import { useRef } from "react";
 import { keysForAction } from "../lib/configuration/nav-persist.js";
-import { KEYMAP_HELP } from "../lib/keymap.js";
+
+import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
 
+import { useContributions } from "../bindings/contributions.js";
 export function KeymapSheet({
   open,
   close,
@@ -11,6 +13,11 @@ export function KeymapSheet({
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   useModalFocus(open, sheetRef, closeRef, close);
+  // Re-render when a jump is registered or revoked; the rows themselves come
+  // from the same accessor the handler binds, so the sheet cannot advertise a
+  // key the handler would swallow.
+  useContributions("keymap-jump");
+  const rows = keymapHelp();
 
   if (!open) return null;
   return (
@@ -46,7 +53,7 @@ export function KeymapSheet({
         <div className="sheet__body">
           <table className="keymap__table">
             <tbody>
-              {KEYMAP_HELP.map(([keys, action]) => (
+              {rows.map(([keys, action]) => (
                 <tr key={keys}>
                   <th scope="row">
                     <kbd>{keys}</kbd>

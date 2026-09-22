@@ -10,8 +10,11 @@
 
 import type { GuideGoalId } from "@opensesame/guide-lang";
 import type { SupportGoalDescription } from "@opensesame/support-agent";
-import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
-import { IDENTITY_GOALS } from "./identity-goals.js";
+import { contributionsSnapshot } from "../../lib/contributions.js";
+import { ACCESS_HELP } from "./access-goals.js";
+import { AUTHORITY_HELP } from "./authority-help.js";
+import { CONNECTIONS_HELP } from "./connections-goals.js";
+import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
 import { SETUP_GOALS, SHELL_GOALS, TRANSPORT_GOALS } from "./setup-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
@@ -44,7 +47,13 @@ export type HelpTopic = {
   readonly keywords: readonly string[];
 };
 
-export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
+/**
+ * The goals the core shell always offers. A goal that walks an optional
+ * section belongs to that capability (`connections-goals.ts`,
+ * `access-goals.ts`, `authority-help.ts`, `identity-goals.ts`) and arrives as
+ * a `tutorial-goal` contribution while the capability is in the plan.
+ */
+export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "vault.lock",
     title: "Lock the vault",
@@ -89,20 +98,6 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
-    id: "connection.create",
-    title: "Connect a provider",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "connection.create"',
-      'say "A provider connection is approved once. Every project and agent bound to it uses that authorization, and none of them ever holds the credential."',
-      'navigate "/connections"',
-      'wait route "/connections" timeout=15000',
-      'focus "connections.provider-picker" "Find the provider here — a name, a category or a connector id all match." side=bottom',
-      'wait target "connections.authorize" event=appear timeout=60000',
-    ].join("\n"),
-  },
-  {
     id: "vault.item.create",
     title: "Add an item to the vault",
     routes: [],
@@ -131,7 +126,6 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
-  ...IDENTITY_GOALS,
   {
     id: "settings.security.review",
     title: "Review the security settings",
@@ -191,107 +185,6 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
-    id: "access.grant",
-    title: "Grant an agent access",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "access.grant"',
-      'say "A grant is a delegation. The agent receives a handle, never the credential behind it."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
-      'focus "access.grant-access" "This starts the ceremony: what is shared, how narrowly, and who it is for." side=bottom',
-      'wait target "access.grant-ceremony" event=appear timeout=60000',
-    ].join("\n"),
-  },
-  {
-    id: "access.claim",
-    title: "Claim a grant",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "access.claim"',
-      'say "In Access → Grants, choose Claim access. Enter the token and code, review the offered scope, then accept. Presentation is single-use."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "access.relay",
-    title: "Create and review access requests",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "access.relay"',
-      'say "Requests contains your approval inbox and relay asks. New requests need an approver inbox address and an exact action. Review the digest and complete any required passkey or comparison ceremony. Consent alone does not mint a grant."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
-      'focus "access.requests" "Create, approve or deny on Requests. Each request is its own decision; nothing is auto-approved." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "access.sessions.review",
-    title: "Review running agent tasks",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "access.sessions.review"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
-      'focus "access.sessions" "Sessions starts task runs with an explicit action, resource and deadline. Inspect the ceiling or terminate a run here; its ceiling does not grant resource access." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "identity.device.approve",
-    title: "Approve a device sign-in",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "identity.device.approve"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/identity"',
-      'wait route "/identity" timeout=15000',
-      'focus "identity.devices" "Device sign-ins waiting for a person are listed here." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "connection.repair",
-    title: "Repair a broken connection",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "connection.repair"',
-      'say "A connection that only needs a fresh credential offers Renew. One the provider invalidated has to be authorized again."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/connections"',
-      'wait route "/connections" timeout=15000',
-      'focus "connections.attention" "Anything that needs a person is collected here." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.backup",
-    title: "Configure backup",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.backup"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/connections"',
-      'wait route "/connections" timeout=15000',
-      'focus "connections.catalog" "GitHub backup is a field on the GitHub connection." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
     id: "vault.second-step.code",
     title: "Add a fallback second step by email or text",
     routes: [],
@@ -332,48 +225,6 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/settings"',
       'wait route "/settings" timeout=15000',
       'focus "settings.general" "What this build shipped is not a settings page." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.model-provider",
-    title: "Choose voice and inference models",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.model-provider"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/connections"',
-      'wait route "/settings/connections" timeout=15000',
-      'focus "settings.model-provider" "Pick one provider/model slug for voice and one for inference. Hosted providers appear after Agent Harnesses connects them." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.secret-config",
-    title: "Set a secret-config value",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.secret-config"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/connections"',
-      'wait route "/settings/connections" timeout=15000',
-      'focus "settings.secret-configs" "Values go in and never come back out. The list is keys and metadata only." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.sync",
-    title: "Replicate the sealed store",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.sync"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/connections"',
-      'wait route "/settings/connections" timeout=15000',
-      'focus "settings.sync-targets" "Each target is a replica of ciphertext. Triggering a run copies; it does not decrypt." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -444,10 +295,10 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   ...SHELL_GOALS,
   ...TRANSPORT_GOALS,
-  ...AUTHORITY_GOALS,
 ];
 
-export const HELP_TOPICS: readonly HelpTopic[] = [
+/** Authored help whose walkthrough is a core goal. */
+export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
   {
     id: "help.lock",
     title: "Where do I lock the vault?",
@@ -485,50 +336,6 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "plane",
       "statusline",
       "working",
-    ],
-  },
-  {
-    id: "help.connection.create",
-    title: "How do I connect a provider?",
-    answer:
-      "Connections → Add a connection. Search the catalog, open the provider's page, and approve it once on its Authorization panel. The credential is sealed with the connection; projects and agents are bound to the connection afterwards, and never receive the credential itself.",
-    routes: [],
-    goal: "connection.create",
-    keywords: [
-      "connection",
-      "connect",
-      "provider",
-      "integration",
-      "oauth",
-      "authorize",
-      "link",
-      "catalog",
-      "github",
-      "google",
-      "slack",
-      "api",
-    ],
-  },
-  {
-    id: "help.connection.broken",
-    title: "A connection stopped working. What now?",
-    answer:
-      "Open that connector's page from Connections. An authorization that only needs a fresh credential offers Renew now; one the provider has invalidated has to be authorized again. If the whole list fails to load, check connectivity on the statusline first.",
-    routes: [],
-    goal: "connection.repair",
-    keywords: [
-      "broken",
-      "stopped working",
-      "failed",
-      "failing",
-      "error",
-      "renew",
-      "expired",
-      "revoked",
-      "reauthorize",
-      "fix",
-      "repair",
-      "not working",
     ],
   },
   {
@@ -599,36 +406,6 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     ],
   },
   {
-    id: "help.identity.account.add",
-    title: "How do I add someone to this deployment?",
-    answer:
-      "Identity → Providers, then Register an IdP. People sign in through a registered identity provider, so the provider is bound first; the shipped presets cover the common enterprise issuers and a custom OIDC issuer is the fallback.",
-    routes: [],
-    goal: "identity.account.add",
-    keywords: [
-      "user",
-      "users",
-      "person",
-      "people",
-      "someone",
-      "member",
-      "members",
-      "team",
-      "invite",
-      "add account",
-      "account",
-      "sign in",
-      "sign-in",
-      "idp",
-      "provider",
-      "register",
-      "deployment",
-      "onboard",
-      "seat",
-      "colleague",
-    ],
-  },
-  {
     id: "help.settings.security.review",
     title: "Where are the unlock and master-password settings?",
     answer:
@@ -647,28 +424,6 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "reset",
       "settings",
       "lock timer",
-    ],
-  },
-  {
-    id: "help.access.grant",
-    title: "How do I give an agent access to something?",
-    answer:
-      "Access → Grants → Grant access. You choose what is being shared, narrow what may be done with it, decide who it is for, and mint a claim code. The agent receives a delegation, never the credential behind it.",
-    routes: [],
-    goal: "access.grant",
-    keywords: [
-      "agent",
-      "access",
-      "grant",
-      "delegate",
-      "delegation",
-      "share",
-      "permission",
-      "claim code",
-      "scope",
-      "allow",
-      "authority",
-      "token",
     ],
   },
   {
@@ -709,228 +464,88 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "install",
     ],
   },
-  {
-    id: "help.backup",
-    title: "How do I back up the vault?",
-    answer:
-      "GitHub backup is a field on the GitHub connection. It is not a settings page.",
-    routes: [],
-    goal: "settings.backup",
-    keywords: [
-      "backup",
-      "back up",
-      "export",
-      "restore",
-      "github",
-      "sync",
-      "copy",
-      "another device",
-      "recover",
-      "move vault",
-    ],
-  },
-  {
-    id: "help.account.register",
-    title: "How do I register a new account?",
-    answer:
-      "People sign in through a registered identity provider. Identity → Providers → Register an IdP binds the issuer; the sign-in screen then offers it. First-run setup is the same allowlist before anyone has unlocked.",
-    routes: [],
-    goal: "identity.account.add",
-    keywords: [
-      "register",
-      "sign up",
-      "signup",
-      "new account",
-      "create account",
-      "user",
-      "account",
-      "join",
-      "onboard",
-      "enroll",
-    ],
-  },
-  ...AUTHORITY_HELP,
 ];
+
+/**
+ * Authored help whose walkthrough is an optional capability's goal. A topic
+ * is live exactly when its goal is: a help answer never names a screen the
+ * plan does not have, and no second contribution kind is needed for it.
+ */
+export const OPTIONAL_HELP_TOPICS: readonly HelpTopic[] = [
+  ...CONNECTIONS_HELP,
+  ...ACCESS_HELP,
+  ...AUTHORITY_HELP,
+  ...IDENTITY_HELP,
+];
+
+let contributedGoals: readonly GuideGoalDescriptor[] | null = null;
+
+/** The live goals: core plus contributed. A live binding; see `mergedGuideGoals`. */
+export let GUIDE_GOALS: readonly GuideGoalDescriptor[] = CORE_GUIDE_GOALS;
+/** The live help: core topics plus the optional ones whose goal is live. */
+export let HELP_TOPICS: readonly HelpTopic[] = CORE_HELP_TOPICS;
+
+export function mergedGuideGoals(): readonly GuideGoalDescriptor[] {
+  const contributed = contributionsSnapshot("tutorial-goal");
+  if (contributed === contributedGoals) return GUIDE_GOALS;
+  contributedGoals = contributed;
+  const seen = new Set(CORE_GUIDE_GOALS.map((goal) => goal.id));
+  const extra: GuideGoalDescriptor[] = [];
+  for (const goal of contributed) {
+    if (seen.has(goal.id)) continue;
+    seen.add(goal.id);
+    extra.push(goal);
+  }
+  GUIDE_GOALS =
+    extra.length === 0
+      ? CORE_GUIDE_GOALS
+      : Object.freeze([...CORE_GUIDE_GOALS, ...extra]);
+  HELP_TOPICS =
+    extra.length === 0
+      ? CORE_HELP_TOPICS
+      : Object.freeze([
+          ...CORE_HELP_TOPICS,
+          ...OPTIONAL_HELP_TOPICS.filter((topic) => seen.has(topic.goal)),
+        ]);
+  return GUIDE_GOALS;
+}
+
+export function mergedHelpTopics(): readonly HelpTopic[] {
+  mergedGuideGoals();
+  return HELP_TOPICS;
+}
 
 export function describeGuideGoals(
   route: GuideRouteId,
 ): readonly SupportGoalDescription[] {
-  return GUIDE_GOALS.filter(
-    (goal) =>
-      goal.routes.length === 0 ||
-      goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
-  ).map((goal) => ({ id: goal.id, title: goal.title }));
+  return mergedGuideGoals()
+    .filter(
+      (goal) =>
+        goal.routes.length === 0 ||
+        goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
+    )
+    .map((goal) => ({ id: goal.id, title: goal.title }));
 }
 
 export function guideGoalIds(): readonly GuideGoalId[] {
-  return GUIDE_GOALS.map((goal) => goal.id);
+  return mergedGuideGoals().map((goal) => goal.id);
 }
 
 export function guideGoal(id: GuideGoalId): GuideGoalDescriptor | null {
-  return GUIDE_GOALS.find((goal) => goal.id === id) ?? null;
+  return mergedGuideGoals().find((goal) => goal.id === id) ?? null;
 }
 
 /** Authored topics relevant to where the person currently is. */
 export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {
-  return HELP_TOPICS.filter(
+  return mergedHelpTopics().filter(
     (topic) =>
       topic.routes.length === 0 ||
       topic.routes.some((candidate) => guideRouteWithin(route, candidate)),
   );
 }
 
-/**
- * Words that carry no topic on their own. A question is mostly these, and a
- * ranking that counted them would find every topic equally relevant.
- */
-const STOPWORDS: ReadonlySet<string> = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "by",
-  "can",
-  "do",
-  "does",
-  "for",
-  "from",
-  "get",
-  "have",
-  "here",
-  "how",
-  "i",
-  "if",
-  "in",
-  "is",
-  "it",
-  "its",
-  "me",
-  "my",
-  "of",
-  "on",
-  "one",
-  "or",
-  "our",
-  "should",
-  "so",
-  "the",
-  "there",
-  "this",
-  "to",
-  "up",
-  "want",
-  "we",
-  "what",
-  "when",
-  "where",
-  "which",
-  "why",
-  "with",
-  "would",
-  "you",
-  "your",
-]);
-
-/** Lowercase word stems: plural and progressive endings dropped. */
-function stem(word: string): string {
-  if (word.length > 4 && word.endsWith("ing")) return word.slice(0, -3);
-  if (word.length > 3 && word.endsWith("es")) return word.slice(0, -2);
-  if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
-  return word;
-}
-
-function tokenize(text: string): readonly string[] {
-  const out: string[] = [];
-  for (const raw of text.toLowerCase().split(/[^a-z0-9]+/u)) {
-    if (raw.length < 2 || STOPWORDS.has(raw)) continue;
-    const word = stem(raw);
-    if (!out.includes(word)) out.push(word);
-  }
-  return out;
-}
-
-const KEYWORD_WEIGHT = 3;
-const TITLE_WEIGHT = 2;
-const ANSWER_WEIGHT = 1;
-/** A keyword hit, or a title word plus anything else, is a confident match. */
-const STRONG_SCORE = 3;
-
-type IndexedTopic = {
-  readonly topic: HelpTopic;
-  readonly keywords: ReadonlySet<string>;
-  readonly title: ReadonlySet<string>;
-  readonly answer: ReadonlySet<string>;
-};
-
-const INDEX: readonly IndexedTopic[] = HELP_TOPICS.map((topic) => ({
-  topic,
-  keywords: new Set(topic.keywords.flatMap((keyword) => tokenize(keyword))),
-  title: new Set(tokenize(topic.title)),
-  answer: new Set(tokenize(topic.answer)),
-}));
-
-export type RankedHelpTopic = {
-  readonly topic: HelpTopic;
-  readonly score: number;
-  /** Confident enough to stand in for an answer that cited nothing. */
-  readonly strong: boolean;
-};
-
-function scoreTopic(indexed: IndexedTopic, words: readonly string[]): number {
-  let score = 0;
-  for (const word of words) {
-    if (indexed.keywords.has(word)) score += KEYWORD_WEIGHT;
-    else if (indexed.title.has(word)) score += TITLE_WEIGHT;
-    else if (indexed.answer.has(word)) score += ANSWER_WEIGHT;
-  }
-  return score;
-}
-
-/**
- * The written help that answers a question, best first. Lexical, offline and
- * deterministic: a word of the question against each topic's authored
- * keywords, title and answer. This is the retrieval step that puts the
- * checked-in answer in front of a model before it is asked — and, when a model
- * cites nothing, decides whether a written answer can stand in for it.
- */
-export function rankHelpTopics(
-  question: string,
-  route: GuideRouteId | null = null,
-): readonly RankedHelpTopic[] {
-  const words = tokenize(question);
-  if (words.length === 0) return [];
-  const ranked: RankedHelpTopic[] = [];
-  for (const indexed of INDEX) {
-    const { topic } = indexed;
-    const scoped =
-      route === null ||
-      topic.routes.length === 0 ||
-      topic.routes.some((candidate) => guideRouteWithin(route, candidate));
-    if (!scoped) continue;
-    const score = scoreTopic(indexed, words);
-    if (score === 0) continue;
-    ranked.push({ topic, score, strong: score >= STRONG_SCORE });
-  }
-  // A stable sort keeps authored order among equals.
-  return ranked.sort((left, right) => right.score - left.score);
-}
-
-/**
- * Search over authored help: ranked by the words that match, with the old
- * substring match kept as the fallback so a fragment of a title still finds
- * it. No index, no model, works offline.
- */
-export function searchHelpTopics(query: string): readonly HelpTopic[] {
-  const needle = query.trim().toLowerCase();
-  if (needle.length === 0) return HELP_TOPICS;
-  const ranked = rankHelpTopics(needle).map((entry) => entry.topic);
-  if (ranked.length > 0) return ranked;
-  return HELP_TOPICS.filter(
-    (topic) =>
-      topic.title.toLowerCase().includes(needle) ||
-      topic.answer.toLowerCase().includes(needle),
-  );
-}
+export {
+  rankHelpTopics,
+  searchHelpTopics,
+  type RankedHelpTopic,
+} from "./goals-search.js";

@@ -4,8 +4,9 @@ import {
   walletCategoryFromLocation,
   walletPath,
 } from "../lib/crumbs.js";
+import { itemKindsSnapshot } from "../lib/item-kinds.js";
 
-import { KIND_SEGMENTS, SECTIONS } from "./RailRows.js";
+import { sectionForPath } from "./RailRows.js";
 
 import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-view-names.js";
 export function selectedRailPath(
@@ -44,7 +45,7 @@ export function selectedRailPath(
       pathname + (hash || (pathname === "/connections" ? "#connected" : ""))
     );
   }
-  return SECTIONS.find(({ to }) => pathname.startsWith(to))?.to ?? "/vault";
+  return sectionForPath(pathname)?.to ?? "/vault";
 }
 
 function vaultRailPath(
@@ -53,7 +54,7 @@ function vaultRailPath(
   folderKind: string | null,
 ) {
   if (!folder) return filter === "all" ? "/vault" : `/vault?f=${filter}`;
-  const kind = KIND_SEGMENTS.some((entry) => entry.id === filter)
+  const kind = itemKindsSnapshot().some((entry) => entry.id === filter)
     ? filter
     : folderKind;
   return kind

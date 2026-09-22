@@ -20,12 +20,21 @@ import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb, vfsSeams } from "./vfs.js";
 
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 
 let tomb: string;
 let principalId: string;
 let vaultKey: CryptoKey;
 let device: Awaited<ReturnType<typeof authenticator>>;
+/**
+ * The lock resets local IAM's evidence depends on are bound by
+ * `identity.local-iam`'s `activate`, not at module load (ownership.md §4.3).
+ * This suite binds the same ones the capability does, so a lock drops
+ * unspent evidence here exactly as it does with the capability approved.
+ */
+let unbindLockResets: () => void;
 beforeEach(async () => {
+  unbindLockResets = bindLocalIamLockResets();
   tomb = `iam-${crypto.randomUUID()}`;
   vaultKey = (await mintVaultKey()).vaultKey;
   unlockTomb(tomb, vaultKey);
@@ -56,6 +65,7 @@ beforeEach(async () => {
   principalId = person.id;
 });
 afterEach(() => {
+  unbindLockResets();
   lockAllTombs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();

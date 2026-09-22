@@ -25,6 +25,7 @@ import {
   onWalletTombChange,
   readWalletStorage,
   walletStorageKey,
+  walletStorageScope,
   walletStorageTomb,
 } from "./wallet-storage-scope.js";
 
@@ -55,10 +56,29 @@ export type LeaseRecord = {
 };
 
 let cache: LeaseRecord[] | null = null;
+let cacheScope = -1;
 
-onWalletTombChange(() => {
-  cache = null;
-});
+/**
+ * Follow the active tomb: a switch drops the process cache so a guest never
+ * reads the personal vault's leases. Subscribed by the `wallet.spending`
+ * runtime while it is active (never at import), and the cache is keyed by
+ * the scope epoch as well, so a read after an unobserved switch still
+ * misses.
+ */
+export function watchSpendingLeaseScope(): () => void {
+  return onWalletTombChange(() => {
+    cache = null;
+    cacheScope = -1;
+  });
+}
+
+/** Remember `rows` against the scope they were read in. */
+function cacheRows(rows: LeaseRecord[]): LeaseRecord[] {
+  const scope = walletStorageScope();
+  cache = rows;
+  cacheScope = scope;
+  return rows;
+}
 
 function parseStatus(value: BoundaryValue): SpendingLeaseStatus | undefined {
   if (
@@ -123,35 +143,28 @@ function parseLease(value: BoundaryValue): LeaseRecord | undefined {
 }
 
 function readAll(): LeaseRecord[] {
-  if (cache !== null) return cache;
+  const scope = walletStorageScope();
+  if (cache !== null && cacheScope === scope) return cache;
   try {
     const text = readWalletStorage(STORAGE_KEY);
-    if (text === null || text === "") {
-      cache = [];
-      return cache;
-    }
+    if (text === null || text === "") return cacheRows([]);
     const parsed: BoundaryValue = overlapCast(JSON.parse(text));
-    if (!Array.isArray(parsed)) {
-      cache = [];
-      return cache;
-    }
+    if (!Array.isArray(parsed)) return cacheRows([]);
     const rows: LeaseRecord[] = [];
     for (const entry of parsed) {
       const row = parseLease(entry);
       if (row !== undefined) rows.push(row);
     }
-    cache = rows;
-    return rows;
+    return cacheRows(rows);
   } catch {
-    cache = [];
-    return cache;
+    return cacheRows([]);
   }
 }
 
 function writeAll(rows: readonly LeaseRecord[]): void {
-  cache = [...rows];
+  const next = cacheRows([...rows]);
   try {
-    localStorage.setItem(leaseKey(), JSON.stringify(cache));
+    localStorage.setItem(leaseKey(), JSON.stringify(next));
   } catch {
     // Keep memory copy if storage is unavailable.
   }
@@ -205,7 +218,7 @@ export function removeSpendingLease(id: string): void {
 }
 
 export function clearSpendingLeases(): void {
-  cache = [];
+  cacheRows([]);
   try {
     localStorage.removeItem(leaseKey());
     localStorage.removeItem(walletStorageKey(SPENT_ASSERTIONS_KEY));

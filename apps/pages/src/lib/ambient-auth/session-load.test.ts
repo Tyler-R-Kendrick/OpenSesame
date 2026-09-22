@@ -1,13 +1,17 @@
 /** @vitest-environment jsdom */
 import type { JsonObject } from "@opensesame/os-domain";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ambientAuthSeams,
+  resetAmbientAuthSeams,
+} from "../ambient-auth-seam.js";
 import {
   type UpstreamIdentity,
   loadSession,
   originClientId,
   saveSession,
 } from "../federation.js";
-import { fenceLocalSignOut } from "./generation.js";
+import { fenceLocalSignOut, isAutoAuthSuppressed } from "./generation.js";
 
 function b64url(value: string): string {
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -31,6 +35,14 @@ function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
     ...overrides,
   };
 }
+
+// Suppression is the ambient capability's fence, so core restoration reads
+// it through the seam. These cases describe an installation that approved
+// ambient SSO, so they install the real check the way the module does.
+beforeEach(() => {
+  ambientAuthSeams.autoAuthSuppressed = isAutoAuthSuppressed;
+});
+afterEach(resetAmbientAuthSeams);
 
 beforeEach(() => {
   const memory = new Map<string, string>();

@@ -167,7 +167,7 @@ function usePasskeyVaultOffer(
   };
 }
 
-function useCredentialCommands(
+export function useCredentialCommands(
   { tomb, principalId, disabled, enabled }: CredentialProps,
   container: RefObject<HTMLDivElement | null>,
 ) {

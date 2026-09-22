@@ -58,6 +58,7 @@ import { useSupportRoute } from "../tutorial/session.js";
 import { FrontDoor } from "./FrontDoor.js";
 import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
+import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
@@ -86,23 +87,18 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * Sign-in is the first screen, and nothing gates it (ADR 0090).
- *
- * This static app is complete without a backend: the compiled-in broker runs
- * the whole code flow in the browser, guest seals a local vault, and a
- * local-only seal needs nothing at all. So an empty device opens on the
- * sign-in form, never on an operator's question. Deployment setup lives
- * behind unlock (Settings); the front door's "Set up your own" road is the
- * only pre-unlock setup path. An invite link still opens join directly
- * because the link is the request.
- *
- * The split exists so the early return happens above the form's hooks rather
- * than among them.
+ * Sign-in is the first screen, and nothing gates it (ADR 0090): the broker
+ * runs in the browser, guest seals a local vault, a local-only seal needs
+ * nothing. Setup lives behind unlock; the front door's "Set up your own" is
+ * the only pre-unlock setup path, and an invite link opens join directly. A
+ * managed instance's required roots (`RequirementsGate`) sit beside sign-in,
+ * never in front of it. The split keeps the early return above the hooks.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
   const [ceremony, setCeremony] = useState<{
     step?: SetupStep;
+    join?: boolean;
   } | null>(null);
   // Several vaults open on the choice (ADR 0089); one goes straight to it.
   const [vaultsOpen, setVaultsOpen] = useState(() =>
@@ -126,18 +122,15 @@ export function UnlockScreen() {
       cancelled = true;
     };
   }, []);
-  // A locked screen is idle time: ask the service worker for a newer shell
-  // and let it start downloading while the person unlocks (esp. installed PWA).
+  // A locked screen is idle time: ask the service worker for a newer shell.
   useEffect(() => {
     void checkForAppUpdate();
   }, []);
-  // The front door (ADR 0115): a device with no vault and no setup record
-  // opens on the two roads made large, with sign-in whole beneath them. A
-  // person who chose the local-only seal is past the door until they say
-  // "Sign in instead"; an answered — or skipped — ceremony retires it for good.
+  // The front door (ADR 0115): no vault and no setup record opens on the
+  // roads made large, sign-in whole beneath them; the local-only seal and an
+  // answered or skipped ceremony retire it. Guest prepare leaves status
+  // empty (no wrap on disk) — that is Unlock, not the front door.
   const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
-  // Guest prepare leaves status empty (no wrap on disk) — that is Unlock,
-  // not the front door's first-run roads.
   const frontDoor =
     status === "empty" &&
     tomb !== GUEST_TOMB &&
@@ -146,7 +139,11 @@ export function UnlockScreen() {
 
   if (ceremony) {
     return (
-      <SetupScreen step={ceremony.step} onDone={() => setCeremony(null)} />
+      <SetupScreen
+        step={ceremony.step}
+        join={ceremony.join}
+        onDone={() => setCeremony(null)}
+      />
     );
   }
   if (vaultsOpen) {
@@ -161,7 +158,7 @@ export function UnlockScreen() {
     return (
       <FrontDoor
         providers={providers}
-        onOpenSetup={() => setCeremony({ step: undefined })}
+        onOpenSetup={(join) => setCeremony({ step: undefined, join })}
         onUseLocalOnly={() => setLocalOnlyPicked(true)}
       />
     );
@@ -173,7 +170,7 @@ export function UnlockScreen() {
       onSignInInstead={
         localOnlyPicked ? () => setLocalOnlyPicked(false) : undefined
       }
-      onOpenSetup={(step) => setCeremony({ step })}
+      onOpenSetup={(step, join) => setCeremony({ step, join })}
       onOpenVaults={() => setVaultsOpen(true)}
     />
   );
@@ -191,7 +188,7 @@ function UnlockForm({
   initialLocalOnly?: boolean;
   /** Where "Sign in instead" goes when the front door is what sign-in is. */
   onSignInInstead?: () => void;
-  onOpenSetup: (step?: SetupStep) => void;
+  onOpenSetup: (step?: SetupStep, join?: boolean) => void;
   /** Back to the front door: every vault on this device (ADR 0089). */
   onOpenVaults: () => void;
 }) {
@@ -515,8 +512,10 @@ function UnlockForm({
           ) : null}
         </div>
 
-        {/* Setup left no way in at all. One sentence and the road that fixes
-            it — landing on the identity tab, where the fix lives. */}
+        <RequirementsGate
+          onOpenSetup={(join) => onOpenSetup("capabilities", join)}
+        />
+        {/* Setup left no way in: one sentence and the road that fixes it. */}
         {nothingSignsIn && (signInStage || showSignIn) ? (
           <div className="note unlock__unset">
             <span>

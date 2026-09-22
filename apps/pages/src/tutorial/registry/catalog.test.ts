@@ -9,18 +9,21 @@ import {
   isGuideSemanticId,
 } from "@opensesame/guide-lang";
 import { isFunction, isTypeofObject } from "@opensesame/os-domain";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { GUIDE_TARGETS } from "./catalog.js";
+import { AUTHORED_GUIDE_TARGETS, AUTHORED_HELP_TOPICS } from "./authored.js";
+import { mergedGuideTargets } from "./catalog.js";
+import * as devModule from "./dev.js";
 import {
   CAPABILITY_TUTORIALS,
-  GUIDE_GOALS,
-  HELP_TOPICS,
   guideGoal,
   guideGoalIds,
+  mergedGuideGoals,
+  mergedHelpTopics,
 } from "./goals.js";
+import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import { GUIDE_PREDICATES, registerGuidePredicates } from "./predicates.js";
-import { GUIDE_ROUTES, isKnownGuideRoute } from "./routes.js";
+import { isKnownGuideRoute, mergedGuideRoutes } from "./routes.js";
 import { guidePredicateIds } from "./state.js";
 import {
   describeGuideTargets,
@@ -29,6 +32,7 @@ import {
   isMountedGuideTarget,
   mountGuideTarget,
   resolveGuideTargetElement,
+  undeclaredGuideTargetMounts,
 } from "./targets.js";
 
 const CATALOG_MORE_SOURCE = readFileSync(
@@ -44,10 +48,6 @@ const CATALOG_SOURCE = readFileSync(
   "utf8",
 )
   .replace(
-    "...IDENTITY_TARGETS,",
-    readFileSync(join(import.meta.dirname, "identity-catalog.ts"), "utf8"),
-  )
-  .replace(
     "...SHELL_TARGETS,",
     readFileSync(join(import.meta.dirname, "shell-catalog.ts"), "utf8"),
   )
@@ -57,30 +57,61 @@ const CATALOG_SOURCE = readFileSync(
   )
   .replace("...GUIDE_TARGETS_MORE,", CATALOG_MORE_SOURCE);
 
-const GOALS_SOURCES = ["goals.ts", "authority-help.ts"].map((file) =>
-  readFileSync(join(import.meta.dirname, file), "utf8"),
-);
+/**
+ * The whole authored corpus, in `authored.ts`'s order: the core catalog
+ * first, then one file per optional partition. The live registries answer
+ * only what the plan approved, so the prose-integrity sweeps below read the
+ * corpus rather than the view — a description a plan happens to exclude is
+ * still checked-in prose that must never interpolate a user value.
+ */
+const OPTIONAL_TARGET_SOURCES = [
+  "connections-catalog.ts",
+  "access-catalog.ts",
+  "identity-catalog.ts",
+  "wallet-catalog.ts",
+  "activity-catalog.ts",
+];
+
+const TARGET_SOURCES = [
+  CATALOG_SOURCE,
+  ...OPTIONAL_TARGET_SOURCES.map((file) =>
+    readFileSync(join(import.meta.dirname, file), "utf8"),
+  ),
+];
+
+const GOALS_SOURCES = [
+  "goals.ts",
+  "connections-goals.ts",
+  "access-goals.ts",
+  "authority-help.ts",
+  "identity-goals.ts",
+].map((file) => readFileSync(join(import.meta.dirname, file), "utf8"));
 
 const CAPABILITY_IDS = new Set(CAPABILITIES.map((capability) => capability.id));
 
+// Every optional partition, registered the way its module registers it, so
+// the live registries below are the ones a full plan draws.
+let revokeRealm = () => {};
 beforeAll(() => {
   registerGuidePredicates();
+  revokeRealm = registerTutorialRealm();
 });
+afterAll(() => revokeRealm());
 
 describe("the target catalog", () => {
   it("names every control with a semantic id, unique and within budget", () => {
     const seen = new Set<string>();
-    for (const descriptor of GUIDE_TARGETS) {
+    for (const descriptor of mergedGuideTargets()) {
       expect(isGuideSemanticId(descriptor.id)).toBe(true);
       expect(descriptor.id.length).toBeLessThanOrEqual(MAX_SEMANTIC_ID_CHARS);
       expect(seen.has(descriptor.id)).toBe(false);
       seen.add(descriptor.id);
     }
-    expect(seen.size).toBe(GUIDE_TARGETS.length);
+    expect(seen.size).toBe(mergedGuideTargets().length);
   });
 
   it("scopes every target to routes the route registry actually declares", () => {
-    for (const descriptor of GUIDE_TARGETS) {
+    for (const descriptor of mergedGuideTargets()) {
       for (const route of descriptor.routes) {
         expect(isKnownGuideRoute(route)).toBe(true);
       }
@@ -88,7 +119,7 @@ describe("the target catalog", () => {
   });
 
   it("cites only capabilities that exist in the ADR-0065 registry", () => {
-    for (const descriptor of GUIDE_TARGETS) {
+    for (const descriptor of mergedGuideTargets()) {
       if (descriptor.capabilityId === null) continue;
       expect(CAPABILITY_IDS.has(descriptor.capabilityId)).toBe(true);
     }
@@ -102,10 +133,10 @@ describe("the target catalog", () => {
    * interpolation, no concatenation and no computed value anywhere in it.
    */
   it("carries no description that could interpolate a user-created value", () => {
-    const literals = [
-      ...CATALOG_SOURCE.matchAll(/\n\s*description:\s*([\s\S]*?),\n\s*role:/g),
-    ];
-    expect(literals.length).toBe(GUIDE_TARGETS.length);
+    const literals = TARGET_SOURCES.flatMap((source) => [
+      ...source.matchAll(/\n\s*description:\s*([\s\S]*?),\n\s*role:/g),
+    ]);
+    expect(literals.length).toBe(AUTHORED_GUIDE_TARGETS.length);
 
     literals.forEach(([, raw], index) => {
       const text = raw.trim();
@@ -116,7 +147,7 @@ describe("the target catalog", () => {
       expect(text.endsWith('"')).toBe(true);
       // JSON.parse only accepts one complete string literal, so a value built
       // from several pieces cannot survive this.
-      expect(JSON.parse(text)).toBe(GUIDE_TARGETS[index]?.description);
+      expect(JSON.parse(text)).toBe(AUTHORED_GUIDE_TARGETS[index]?.description);
     });
   });
 
@@ -124,13 +155,13 @@ describe("the target catalog", () => {
     const literals = GOALS_SOURCES.flatMap((source) => [
       ...source.matchAll(/\n\s*answer:\s*([\s\S]*?),\n\s*routes:/g),
     ]);
-    expect(literals.length).toBe(HELP_TOPICS.length);
+    expect(literals.length).toBe(AUTHORED_HELP_TOPICS.length);
 
     literals.forEach(([, raw], index) => {
       const text = raw.trim();
       expect(text.includes("`")).toBe(false);
       expect(text.includes("${")).toBe(false);
-      expect(JSON.parse(text)).toBe(HELP_TOPICS[index]?.answer);
+      expect(JSON.parse(text)).toBe(AUTHORED_HELP_TOPICS[index]?.answer);
     });
   });
 });
@@ -139,7 +170,7 @@ describe("the page context a model is handed", () => {
   const ALLOWED_KEYS = new Set(["id", "description", "role", "mounted"]);
 
   it("describes targets without leaking an element, a closure or an extra field", () => {
-    for (const route of GUIDE_ROUTES) {
+    for (const route of mergedGuideRoutes()) {
       const described = describeGuideTargets(route.id);
       for (const entry of described) {
         for (const [key, value] of Object.entries(entry)) {
@@ -172,11 +203,11 @@ describe("the authored guides", () => {
     const vocabulary = {
       goals: guideGoalIds(),
       targets: guideTargetIds(),
-      routes: GUIDE_ROUTES.map((route) => route.id),
+      routes: mergedGuideRoutes().map((route) => route.id),
       predicates: guidePredicateIds(),
     };
 
-    for (const goal of GUIDE_GOALS) {
+    for (const goal of mergedGuideGoals()) {
       const compiled = compileGuide(goal.guide, vocabulary);
       if (!compiled.ok) {
         throw new Error(
@@ -189,7 +220,7 @@ describe("the authored guides", () => {
 
   it("are offered under ids that are themselves semantic and unique", () => {
     const seen = new Set<string>();
-    for (const goal of GUIDE_GOALS) {
+    for (const goal of mergedGuideGoals()) {
       expect(isGuideSemanticId(goal.id)).toBe(true);
       expect(seen.has(goal.id)).toBe(false);
       seen.add(goal.id);
@@ -198,7 +229,7 @@ describe("the authored guides", () => {
 
   it("are the only goals help topics point at", () => {
     const goals = new Set(guideGoalIds());
-    for (const topic of HELP_TOPICS) {
+    for (const topic of mergedHelpTopics()) {
       expect(topic.goal.length).toBeGreaterThan(0);
       expect(goals.has(topic.goal)).toBe(true);
     }
@@ -322,6 +353,28 @@ describe("mount bookkeeping", () => {
     expect(() => mountGuideTarget("vault.definitely-not", element)).toThrow(
       /guide_target_undeclared/,
     );
+  });
+
+  it("binds nothing rather than throwing in a production build", () => {
+    // A capability declares its targets when its module activates, so a
+    // control from one capability can mount before the capability that
+    // declares its id has landed. Approving `backup.git-remote` did exactly
+    // that — its settings category names `settings.backup`, declared by
+    // `connectors.external` — and the throw ran inside a React ref and took
+    // the whole document down. Production fails closed instead: nothing is
+    // bound, so a guide still cannot point at it.
+    const dev = vi.spyOn(devModule, "inDevelopment").mockReturnValue(false);
+    try {
+      const element = document.createElement("button");
+      const detach = mountGuideTarget("vault.definitely-not", element);
+      expect(typeof detach).toBe("function");
+      expect(isMountedGuideTarget("vault.definitely-not")).toBe(false);
+      expect(resolveGuideTargetElement("vault.definitely-not")).toBeNull();
+      expect(undeclaredGuideTargetMounts()).toContain("vault.definitely-not");
+      detach();
+    } finally {
+      dev.mockRestore();
+    }
   });
 });
 

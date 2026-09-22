@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { registerLegacyShellData } from "../contributions.test-support.js";
 import type { VaultItem } from "../vault/model.js";
 import { createItem } from "../vault/model.js";
-import { executeCommand, matchItem } from "./execute.js";
+import {
+  type CommandPorts,
+  NOT_AVAILABLE_MESSAGE,
+  executeCommand,
+  matchItem,
+} from "./execute.js";
 import { parseCommand } from "./parse.js";
+import {
+  COMMAND_SECTIONS,
+  commandSections,
+  isCommandSection,
+} from "./types.js";
 
 describe("parseCommand", () => {
   it("navigates to known sections", () => {
@@ -115,5 +126,66 @@ describe("executeCommand copy_field", () => {
       },
     );
     expect(outcome.ok).toBe(false);
+  });
+});
+
+/**
+ * SURFACE-09. A command names a destination; the plan decides whether that
+ * destination exists. An unregistered path is refused in the command bar
+ * itself — nothing reaches for the module that would have served the route.
+ */
+describe("executeCommand navigate", () => {
+  function ports(navigated: string[]): CommandPorts {
+    return {
+      navigate: (path) => navigated.push(path),
+      copy: async () => "copied",
+      items: () => [],
+      vaultLocked: () => false,
+    };
+  }
+
+  it("refuses a section no capability registered, and never navigates", async () => {
+    const navigated: string[] = [];
+    const outcome = await executeCommand(
+      { action: "navigate", path: "/connections" },
+      ports(navigated),
+    );
+    expect(outcome).toEqual({ ok: false, message: NOT_AVAILABLE_MESSAGE });
+    expect(navigated).toEqual([]);
+    expect(isCommandSection("/connections")).toBe(false);
+  });
+
+  it("always opens the two core sections", async () => {
+    const navigated: string[] = [];
+    for (const path of COMMAND_SECTIONS) {
+      const outcome = await executeCommand(
+        { action: "navigate", path },
+        ports(navigated),
+      );
+      expect(outcome.ok).toBe(true);
+    }
+    expect(navigated).toEqual(["/vault", "/settings"]);
+  });
+
+  it("opens a contributed section while its capability is in the plan", async () => {
+    const revoke = registerLegacyShellData();
+    const navigated: string[] = [];
+    expect(commandSections()).toContain("/connections");
+    const outcome = await executeCommand(
+      { action: "navigate", path: "/connections" },
+      ports(navigated),
+    );
+    expect(outcome).toEqual({ ok: true, message: "Opened /connections" });
+    expect(navigated).toEqual(["/connections"]);
+    revoke();
+
+    // Gone with the capability: the same command is refused again.
+    expect(
+      await executeCommand(
+        { action: "navigate", path: "/connections" },
+        ports(navigated),
+      ),
+    ).toEqual({ ok: false, message: NOT_AVAILABLE_MESSAGE });
+    expect(navigated).toEqual(["/connections"]);
   });
 });

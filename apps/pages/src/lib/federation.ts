@@ -8,16 +8,16 @@ import {
 } from "@opensesame/os-domain";
 import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
-import { parseAuthCallback } from "./ambient-auth/callback.js";
-import { clearAutoAuthSuppression } from "./ambient-auth/generation.js";
-import { readStoredSessionSync } from "./ambient-auth/restoration.js";
+import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
+import { parseAuthCallback } from "./federation-callback.js";
 import { b64urlDecode, b64urlEncode } from "./federation-encoding.js";
 import {
   type PendingAuth,
   storePending,
   takeMatchingPending,
 } from "./federation-pending.js";
+import { readStoredSessionSync } from "./federation-restoration.js";
 import {
   clearFederationSessionJson,
   readFederationSessionJson,
@@ -401,7 +401,7 @@ async function beginSignInDefault(
       "This deployment isn't connected to an identity service yet, so this sign-in can't start.",
     );
   }
-  clearAutoAuthSuppression();
+  ambientAuthSeams.clearAutoAuthSuppression();
   const discovery = await discoveryFor(upstream);
   const { verifier, challenge } = await createPkce();
   const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));

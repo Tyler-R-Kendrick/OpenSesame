@@ -1,14 +1,46 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import * as idp from "../lib/idp-registry.js";
 import * as accessBootstrap from "../lib/local-access-bootstrap.js";
 import * as devices from "../lib/local-devices.js";
 import * as directory from "../lib/local-directory.js";
 import { notifyLocalIamChange } from "../lib/local-iam-events.js";
+
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
+import { contributeIdentityViews } from "../sections/identity/identity-views.js";
+import { IconUser } from "./Icons.js";
 import { IdentityTree } from "./IdentityTree.js";
+import type { SectionRowModel } from "./RailRows.js";
+import { registerLegacyShell } from "./legacy-sections.test-support.js";
+
+import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
+// the Identity section's rail targets are the identity capability's, so the row only exists on a plan that approved it.
+// The Identity tabs belong to three capabilities (local IAM, federation,
+// directory provisioning) and each contributes its own; this subtree is the
+// one a deployment that approved all of them draws.
+let revokeShell: readonly (() => void)[] = [];
+beforeAll(() => {
+  revokeShell = [
+    registerLegacyShell(),
+    contributeIdentityViews(IDENTITY_VIEWS),
+  ];
+});
+afterAll(() => {
+  for (const revoke of revokeShell) revoke();
+});
+
+const IDENTITY_SECTION: SectionRowModel = {
+  id: "identity",
+  to: "/identity",
+  label: "Identity",
+  segment: "identity",
+  guide: "nav.identity",
+  jump: "i",
+  order: 40,
+  Icon: IconUser,
+};
 
 const originalVault = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
@@ -31,7 +63,13 @@ function countOf(name: string): string | null {
 function renderTree() {
   return render(
     <MemoryRouter>
-      <IdentityTree open active onToggle={() => undefined} />
+      <IdentityTree
+        section={IDENTITY_SECTION}
+        open
+        active
+        onToggle={() => undefined}
+        pathname="/identity"
+      />
     </MemoryRouter>,
   );
 }

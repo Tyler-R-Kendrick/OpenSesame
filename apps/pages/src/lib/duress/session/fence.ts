@@ -110,9 +110,23 @@ export class DuressSessionFence {
       };
     }
     this.rehydrateFromDurable({ bumpIfChanged: false });
-    this.#bindBfcache();
   }
 
+  /**
+   * Bind the BFCache guard, on first use rather than at construction.
+   *
+   * This module exports a singleton, so binding in the constructor made
+   * `import`ing anything that reaches the fence add a `pageshow` listener —
+   * and an optional capability's module reaches it through Access ›
+   * Requests, whose approval flow uses the duress unlock bridge. A module
+   * runtime must do nothing at import (ADR 0130), and the per-module purity
+   * test caught exactly this listener.
+   *
+   * Binding later loses nothing: the guard exists to drop a *live* context
+   * on a BFCache restore, and until a caller has touched the fence there is
+   * no live context to drop. Every entry point that can create one calls
+   * this first.
+   */
   #bindBfcache(): void {
     if (this.#pageshowBound || globalThis.addEventListener === undefined) {
       return;
@@ -133,14 +147,17 @@ export class DuressSessionFence {
   }
 
   readFence(): FenceState {
+    this.#bindBfcache();
     return this.#fence;
   }
 
   currentContext(): AccessContext | null {
+    this.#bindBfcache();
     return this.#context;
   }
 
   setContext(ctx: AccessContext | null): void {
+    this.#bindBfcache();
     this.#context = ctx;
   }
 

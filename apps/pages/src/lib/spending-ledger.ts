@@ -32,6 +32,7 @@ import { unbindBudget } from "./wallet-assignments.js";
 import {
   onWalletTombChange,
   walletStorageKey,
+  walletStorageScope,
   walletStorageTomb,
 } from "./wallet-storage-scope.js";
 
@@ -60,19 +61,32 @@ class PersistingBudgetStore implements BudgetStore {
 }
 
 let cached: BudgetLedger | null = null;
-let cachedTomb = "";
+let cachedScope = -1;
 let labelCache: Record<string, string> | null = null;
+let labelScope = -1;
 
-onWalletTombChange(() => {
+function dropCaches(): void {
   cached = null;
-  cachedTomb = "";
+  cachedScope = -1;
   labelCache = null;
-});
+  labelScope = -1;
+}
+
+/**
+ * Follow the active tomb: a switch drops the process caches so a guest never
+ * reads the personal ledger's labels. Subscribed by the `wallet.spending`
+ * runtime while it is active (never at import), and the caches are keyed by
+ * the scope epoch as well, so a read after an unobserved switch — including
+ * a switch away and straight back — still misses.
+ */
+export function watchSpendingLedgerScope(): () => void {
+  return onWalletTombChange(dropCaches);
+}
 
 export function getSpendingLedger(): BudgetLedger {
-  const tomb = walletStorageTomb();
-  if (cached !== null && cachedTomb === tomb) return cached;
-  cachedTomb = tomb;
+  const scope = walletStorageScope();
+  if (cached !== null && cachedScope === scope) return cached;
+  cachedScope = scope;
   cached = createBudgetLedger(new PersistingBudgetStore(readPersisted()));
   return cached;
 }
@@ -80,6 +94,7 @@ export function getSpendingLedger(): BudgetLedger {
 /** Test seam: drop the process cache (does not clear storage). */
 export function resetSpendingLedgerCache(): void {
   cached = null;
+  cachedScope = -1;
 }
 
 export function clearSpendingLedgerStorage(): void {
@@ -93,9 +108,7 @@ export function clearSpendingLedgerStorage(): void {
   } catch {
     // Ignore missing Storage (SSR / Node without stub).
   }
-  cached = null;
-  cachedTomb = "";
-  labelCache = null;
+  dropCaches();
 }
 
 export function formatUnits(amount: AmountUnits, decimals = 0): string {
@@ -114,7 +127,9 @@ export type BudgetRow = BudgetProjection & {
 };
 
 function readLabels(): Record<string, string> {
-  if (labelCache !== null) return labelCache;
+  const scope = walletStorageScope();
+  if (labelCache !== null && labelScope === scope) return labelCache;
+  labelScope = scope;
   try {
     let raw = localStorage.getItem(walletStorageKey(LABELS_KEY));
     if ((raw === null || raw === "") && walletStorageTomb() === "personal") {
@@ -143,6 +158,7 @@ function readLabels(): Record<string, string> {
 
 function writeLabels(labels: Record<string, string>): void {
   labelCache = labels;
+  labelScope = walletStorageScope();
   try {
     localStorage.setItem(walletStorageKey(LABELS_KEY), JSON.stringify(labels));
   } catch {

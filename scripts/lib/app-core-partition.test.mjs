@@ -128,6 +128,27 @@ describe("findViolations", () => {
     expect(result.viteEnv).toEqual(["lib/a.ts"]);
   });
 
+  it("keeps type-only React apart and counts test-library React", () => {
+    const files = new Map([
+      [
+        "lib/c.ts",
+        [
+          'import type { ComponentType } from "react";',
+          'import { waitFor } from "@testing-library/react";',
+          'import { useSyncExternalStore } from "use-sync-external-store/shim";',
+        ].join("\n"),
+      ],
+    ]);
+    const result = findViolations(files, classify);
+    expect(result.reactTypes).toEqual([
+      { from: "lib/c.ts", to: "react", typeOnly: true },
+    ]);
+    expect(result.react.map((edge) => edge.to)).toEqual([
+      "@testing-library/react",
+      "use-sync-external-store/shim",
+    ]);
+  });
+
   it("does not inspect staying code", () => {
     const files = new Map([["lib/theme.ts", 'import "react";']]);
     expect(findViolations(files, classify).react).toEqual([]);

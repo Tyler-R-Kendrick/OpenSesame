@@ -1,0 +1,72 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "family-sharing-selected",
+  "notes": "Family preset policy with household sharing selected and its transport slot answered with sharing.drops. Drops declare non-automatic Identity-API egress, so the family network deny does not block them.",
+  "instancePolicy": {
+    "schemaVersion": 1,
+    "kind": "InstanceCapabilityPolicy",
+    "instanceId": "inst-family",
+    "revision": "2026-09-22.1",
+    "presetProvenance": {
+      "id": "family",
+      "version": 1
+    },
+    "capabilities": {
+      "default": "deny",
+      "required": [],
+      "optional": [
+        "access.authority",
+        "activity.log",
+        "identity.local-iam",
+        "identity.siop",
+        "identity.site-broker",
+        "sharing.drops",
+        "sharing.household",
+        "support.guided-help",
+        "support.local-ai",
+        "vault.certificate-records",
+        "vault.interop-formats",
+        "vault.passkey-records"
+      ],
+      "prohibited": [
+        "agents.webmcp",
+        "backup.cloud-secrets",
+        "backup.git-remote",
+        "connectors.external",
+        "enterprise.ca-administration",
+        "enterprise.directory-provisioning",
+        "identity.ambient-sso",
+        "identity.federation",
+        "notifications.web-push",
+        "support.remote-ai",
+        "telemetry.external",
+        "wallet.spending"
+      ]
+    },
+    "network": {
+      "externalServices": "deny",
+      "allowedServiceOrigins": []
+    },
+    "updates": {
+      "unknownCapabilities": "deny",
+      "expandedExposure": "require-approval"
+    }
+  },
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "inst-family",
+    "installationId": "device-fam-2",
+    "basePolicyRevision": "2026-09-22.1",
+    "revision": "2",
+    "acceptedRequired": [],
+    "selectedOptional": ["sharing.drops", "sharing.household"],
+    "chosenAlternatives": {
+      "transport": "sharing.drops"
+    },
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  }
+}

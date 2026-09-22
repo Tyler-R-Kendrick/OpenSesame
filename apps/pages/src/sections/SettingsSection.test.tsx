@@ -71,6 +71,8 @@ Object.assign(passwordSeams, {
   defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
   generate: () => "harbor-cinder-lattice-quarry",
 });
+import { registerLegacySettingsCategories } from "../lib/contributions.test-support.js";
+import { registerOptionalTutorials } from "../tutorial/registry/optional-tutorials.test-support.js";
 import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
@@ -85,6 +87,35 @@ const endpoints = {
   mfaAppUrl: "",
   capabilityConnectors: { encryption: { providerId: "webcrypto" } },
 };
+/**
+ * Connections is not a core Settings category: the connectors capability
+ * contributes it, with the panel it draws. These tests are about the shell —
+ * that the hash alias, the rest path and the nav all reach the contributed
+ * category and mount its panel — so the panel here is a stand-in, and what
+ * the real one renders is `modules/connectors.external`'s own test.
+ */
+function ConnectionsCategoryStub() {
+  return (
+    <>
+      <h2>Connections</h2>
+      <stubPanels.ModelProviderPanel />
+    </>
+  );
+}
+
+let revokeConnections: readonly (() => void)[] = [];
+beforeEach(() => {
+  revokeConnections = [
+    // The tutorial targets first: a category link binds `settings.connections`,
+    // and the registry refuses an id the live catalog does not declare.
+    registerOptionalTutorials(),
+    registerLegacySettingsCategories(ConnectionsCategoryStub),
+  ];
+});
+afterEach(() => {
+  for (const revoke of revokeConnections) revoke();
+});
+
 function renderSettings(entry = "") {
   const path = entry.startsWith("/") ? entry : `/settings${entry}`;
   return render(
@@ -184,6 +215,13 @@ describe("SettingsSection", () => {
     expect(
       screen.getByRole("heading", { name: "Delete this vault" }),
     ).toBeTruthy();
+  });
+
+  // The nav has declared a Capabilities tab since the composition work
+  // landed, but the section drew nothing for it, so the tab opened empty.
+  it("draws the capabilities panel on its own category", () => {
+    renderSettings("#capabilities");
+    expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
   });
 
   it("shows the security category with unlock methods and master password", async () => {

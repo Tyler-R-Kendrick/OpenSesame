@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,
@@ -44,14 +45,14 @@ function press(
   key: string,
   init: KeyboardEventInit = {},
 ) {
-  handler(
-    new KeyboardEvent("keydown", {
-      key,
-      cancelable: true,
-      shiftKey: init.shiftKey ?? shifted(key),
-      ...init,
-    }),
-  );
+  const event = new KeyboardEvent("keydown", {
+    key,
+    cancelable: true,
+    shiftKey: init.shiftKey ?? shifted(key),
+    ...init,
+  });
+  handler(event);
+  return event;
 }
 
 afterEach(() => {
@@ -85,6 +86,7 @@ describe("application keymap", () => {
   });
 
   it("drives the active vault tree and section jumps", () => {
+    const revokeShell = registerLegacyShellData();
     const tree = target();
     const release = registerVaultKeymap(tree);
     const navigate = vi.fn();
@@ -120,6 +122,7 @@ describe("application keymap", () => {
     expect(tree.share).toHaveBeenCalledOnce();
     expect(navigate).toHaveBeenCalledWith("/access");
     release();
+    revokeShell();
   });
 
   it("ignores typing and modal ceremonies", () => {
@@ -345,6 +348,37 @@ describe("application keymap", () => {
     expect(tree.next).toHaveBeenCalledWith(1);
     release();
     vi.useRealTimers();
+  });
+
+  /**
+   * SURFACE-09. A letter no capability registered opens nothing and is not
+   * reinterpreted: `g c` beside no connectors capability must not become the
+   * bare `c`, and must not navigate anywhere.
+   */
+  it("g c is a silent no-op until a capability registers the jump", () => {
+    const tree = target();
+    const release = registerVaultKeymap(tree);
+    const navigate = vi.fn();
+    const handler = createKeymapHandler({ navigate, showHelp: vi.fn() });
+
+    press(handler, "g");
+    const swallowed = press(handler, "c");
+    expect(navigate).not.toHaveBeenCalled();
+    expect(swallowed.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(document.body);
+
+    const revokeShell = registerLegacyShellData();
+    press(handler, "g");
+    press(handler, "c");
+    expect(navigate).toHaveBeenCalledWith("/connections");
+    revokeShell();
+
+    // And gone again the moment the capability leaves.
+    navigate.mockClear();
+    press(handler, "g");
+    press(handler, "c");
+    expect(navigate).not.toHaveBeenCalled();
+    release();
   });
 });
 

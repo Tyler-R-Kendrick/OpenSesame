@@ -3,7 +3,7 @@
  * Report what stands between Pages and the app-core relocation (ADR 0133).
  *
  *   node scripts/app-core-partition.mjs            # report, exit 0
- *   node scripts/app-core-partition.mjs --check    # exit 1 on any crossing or React import
+ *   node scripts/app-core-partition.mjs --check    # exit 1 on any crossing or React value import
  *   node scripts/app-core-partition.mjs --json     # machine-readable report
  *
  * `--check` is the step-3 gate: the relocation runs only when moving code no
@@ -41,7 +41,10 @@ for (const [path, full] of paths) {
   files.set(path, /\.(ts|tsx)$/.test(path) ? readFileSync(full, "utf8") : "");
 }
 const classify = createClassifier(manifest);
-const { crossings, outside, react, viteEnv } = findViolations(files, classify);
+const { crossings, outside, react, reactTypes, viteEnv } = findViolations(
+  files,
+  classify,
+);
 
 const TEST = /(\.test\.|\.property\.|__tests__\/|\.fixture\.)/;
 const tally = { source: [0, 0], test: [0, 0] };
@@ -54,13 +57,18 @@ for (const [path, source] of files) {
 
 if (argv.has("--json")) {
   console.log(
-    JSON.stringify({ tally, crossings, outside, react, viteEnv }, null, 2),
+    JSON.stringify(
+      { tally, crossings, outside, react, reactTypes, viteEnv },
+      null,
+      2,
+    ),
   );
 } else {
   console.log(
     `app-core partition: ${tally.source[0]} source files (${tally.source[1]} lines) ` +
       `and ${tally.test[0]} test files (${tally.test[1]} lines) move\n` +
-      `  ${crossings.length} crossing edge(s), ${react.length} React/tsx import(s), ` +
+      `  ${crossings.length} crossing edge(s), ${react.length} React/tsx import(s) ` +
+      `(+${reactTypes.length} type-only), ` +
       `${outside.length} import(s) outside src, ${viteEnv.length} import.meta.env user(s)`,
   );
   const show = (title, rows, fmt) => {
@@ -72,6 +80,7 @@ if (argv.has("--json")) {
     `${from} -> ${to}${typeOnly ? " (type)" : ""}`;
   show("moving code → staying code:", crossings, edge);
   show("moving code → React / .tsx:", react, edge);
+  show("type-only React imports (allowed, erased at build):", reactTypes, edge);
   show("moving code → files outside src (paths to rewrite):", outside, edge);
   show("import.meta.env (step 2):", viteEnv, (path) => path);
 }

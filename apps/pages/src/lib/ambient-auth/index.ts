@@ -30,7 +30,7 @@ export {
   parseAuthCallback,
   isAuthCallbackSearch,
   assertSafeReturnTo,
-} from "./callback.js";
+} from "../federation-callback.js";
 export {
   fenceLocalSignOut,
   clearAutoAuthSuppression,
@@ -69,7 +69,7 @@ export {
 export {
   restoreAuthenticatedSession,
   readStoredSessionSync,
-} from "./restoration.js";
+} from "../federation-restoration.js";
 export { applyAmbientReturn, ambientReturnSeams } from "./return-path.js";
 export {
   cancelAllTransactions,

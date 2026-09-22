@@ -5,20 +5,18 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import { SETTINGS_CATEGORIES, settingsPath } from "../lib/crumbs.js";
-
+import { COMMAND_SECTIONS, commandSections } from "../lib/command-bar/types.js";
+import { settingsCategories, settingsPath } from "../lib/crumbs.js";
 import { itemTypeRegistry } from "../lib/vault/item-types.js";
 import { readDraftPrefill } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
 
-import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-view-names.js";
-export const SECTION_PATHS = [
-  "/vault",
-  "/connections",
-  "/access",
-  "/identity",
-  "/settings",
-] as const;
+/**
+ * The core sections a browser agent may name. Optional sections and their
+ * tabs arrive as `command-path` contributions — the same set the command bar
+ * accepts — so the two surfaces can never disagree about what exists.
+ */
+export const SECTION_PATHS = COMMAND_SECTIONS;
 
 export const webmcpNavigationSeam = {
   navigate: (_to: string): void => {
@@ -30,10 +28,8 @@ export const webmcpNavigationSeam = {
 export function navigationPaths(): string[] {
   return [
     ...new Set([
-      ...SECTION_PATHS,
-      ...SETTINGS_CATEGORIES.map((category) => settingsPath(category)),
-      ...ACCESS_VIEWS.map((view) => `/access?view=${view}`),
-      ...IDENTITY_VIEWS.map((view) => `/identity?view=${view}`),
+      ...commandSections(),
+      ...settingsCategories().map((category) => settingsPath(category)),
       "/vault/new",
       "/vault?f=favorites",
       "/vault?f=trash",
@@ -64,11 +60,8 @@ function itemDestination(section: string, args: JsonObject): string {
   return `/${encodeURIComponent(args.itemId)}${args.edit === true ? "/edit" : ""}`;
 }
 
-export const navigationTool: WebMcpToolSpec = {
-  name: "opensesame_navigate",
-  description:
-    "Navigate any main section, Access or Identity tab, Settings category, favorites, trash, or a new-item ceremony. Use section with an authored path; for a typed new item use /vault/new and itemType. Credential entry and approvals stay with the human.",
-  inputSchema: {
+function navigationInputSchema(): WebMcpToolSpec["inputSchema"] {
+  return {
     type: "object",
     properties: {
       section: { type: "string", enum: navigationPaths() },
@@ -107,6 +100,17 @@ export const navigationTool: WebMcpToolSpec = {
     },
     required: ["section"],
     additionalProperties: false,
+  };
+}
+
+export const navigationTool: WebMcpToolSpec = {
+  name: "opensesame_navigate",
+  description:
+    "Navigate any registered section or tab, Settings category, favorites, trash, or a new-item ceremony. Use section with an authored path; for a typed new item use /vault/new and itemType. Credential entry and approvals stay with the human.",
+  // Read on access, so a registration after a plan change advertises the
+  // destinations that exist then; a spread copies the value at that moment.
+  get inputSchema() {
+    return navigationInputSchema();
   },
   execute(args) {
     if (!isString(args.section)) throw new Error("missing_argument:section");
