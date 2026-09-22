@@ -192,7 +192,12 @@ function useAfterUnlock(
   guest: boolean | undefined,
 ): void {
   useEffect(() => {
-    if (status !== "unlocked") return;
+    if (status !== "unlocked") {
+      void import("./lib/duress/compartment/presentation-runtime.js").then(
+        ({ clearActivePresentation }) => clearActivePresentation(),
+      );
+      return;
+    }
     recoverPendingFederatedLink();
     if (tomb) {
       // A guest tomb is wiped on lock, so it gets the list without taking

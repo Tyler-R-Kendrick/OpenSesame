@@ -24,6 +24,7 @@ import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccessTree } from "./AccessTree.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
+import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
@@ -287,6 +288,7 @@ function Shell({ children }: { children?: ReactNode }) {
 
         <Crumbs />
 
+        <DuressPresentationOverlay />
         {children}
       </div>
 

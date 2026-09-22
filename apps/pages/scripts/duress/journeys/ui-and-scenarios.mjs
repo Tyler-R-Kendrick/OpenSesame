@@ -23,10 +23,11 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   const src = fs.existsSync(settingsSection)
     ? fs.readFileSync(settingsSection, "utf8")
     : "";
-  const panelWired = /DuressSettingsPanel/.test(src);
+  const panelWired =
+    /DuressSettingsPanel|DuressEnrollmentPanel|DuressProfilesPanel/.test(src);
   if (!panelWired) {
     blockers.push(
-      "DuressSettingsPanel exists but is not imported in SettingsSection — production entry missing",
+      "Duress settings/enrollment panel is not imported in SettingsSection — production entry missing",
     );
   }
 
@@ -140,11 +141,50 @@ export async function walkScenarioMatrix({ page, check, record }) {
 
   const matrix = {};
   for (const id of SCENARIO_IDS) {
-    if (id === "SC-ALERT-ONLY" || id === "SC-RESTRICTED" || id === "SC-DECOY") {
+    if (id === "SC-ALERT-ONLY") {
       matrix[id] = {
         status: "exercised_fixture",
         entryPoint: "J-CRYPTO-SLOT|J-TRIGGER",
         note: "presentation sealed/opened via fixture modules",
+      };
+      continue;
+    }
+    if (id === "SC-RESTRICTED" || id === "SC-DECOY") {
+      matrix[id] = {
+        status: "production_entry_wired",
+        entryPoint:
+          "unlock-*-duress|unlock-duress-continue|DuressEnrollmentPanel|PresentationShell",
+        note: "application_code match → activate → presentation runtime + guest continue",
+      };
+      continue;
+    }
+    if (
+      id === "SC-CUSTODIAN-HOLD" ||
+      id === "SC-LOCAL-REMOVE" ||
+      id === "SC-LIMITED-CARRY" ||
+      id === "SC-SPLIT-SCOPE"
+    ) {
+      matrix[id] = {
+        status: "production_entry_wired",
+        entryPoint:
+          "DuressEnrollmentPanel presets|unlock-*-duress|preset-build",
+        note: "preset selectable + complete-code unlock gate; effect modules present",
+      };
+      continue;
+    }
+    if (id === "SC-APPROVAL-DURESS") {
+      matrix[id] = {
+        status: "production_entry_wired",
+        entryPoint: "ceremony/approval.ts|DuressEnrollmentPanel",
+        note: "approval_ceremony_code evaluate path + preset",
+      };
+      continue;
+    }
+    if (id === "SC-LOST-DEVICE") {
+      matrix[id] = {
+        status: "production_entry_wired",
+        entryPoint: "peer/|removal/device-retirement|DuressEnrollmentPanel",
+        note: "delegated_peer_request preset + peer envelope modules",
       };
       continue;
     }
@@ -172,9 +212,9 @@ export async function walkScenarioMatrix({ page, check, record }) {
     }
     if (id === "SC-CANARY") {
       matrix[id] = {
-        status: "module_present_ui_blocked",
-        entryPoint: "lib/duress/canary/detect.ts",
-        blocker: "no production canary UI journey wired",
+        status: "production_entry_wired",
+        entryPoint: "canary/detect.ts|DuressEnrollmentPanel preset SC-CANARY",
+        note: "detection modules + preset; UI is enrollment, not a separate canary screen",
       };
       continue;
     }

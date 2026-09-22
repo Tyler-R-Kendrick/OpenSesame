@@ -6,6 +6,11 @@ import {
   recordActivityEvent,
 } from "../activity-log.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
+import {
+  probePasskeyPrf,
+  unlockVaultWithHeldPrf,
+  unlockVaultWithPasskey,
+} from "./passkey-unlock-session.js";
 import { sessionRootDigestFromHeader } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
@@ -113,8 +118,7 @@ import {
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
   createPasskeyUnlockCeremony,
-  getPasskeyUnlockCeremony,
-  hasSecondStep,
+    hasSecondStep,
   normalizeRecoveryCode,
   openRecoveryLedger,
   openText,
@@ -125,8 +129,7 @@ import {
   sealText,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
-  unwrapVaultKeyWithPrf,
-  webauthnRpId,
+    webauthnRpId,
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
@@ -781,39 +784,27 @@ export class VaultStore {
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
+  async probePasskeyPrf(signal?: AbortSignal): Promise<ArrayBuffer> {
+    return probePasskeyPrf(this.#passkeyUnlockHost(), signal);
+  }
+
+  async unlockWithHeldPrf(prfOutput: ArrayBuffer): Promise<void> {
+    await unlockVaultWithHeldPrf(this.#passkeyUnlockHost(), prfOutput);
+  }
+
   async unlockWithPasskey(signal?: AbortSignal): Promise<void> {
-    this.#assertNotLockedOut();
-    if (!this.#header) throw new Error("There is no vault on this device yet.");
-    const record = this.#header.unlocks?.passkey;
-    // Unenrolled challenge: fail like a wrong passkey, lockout included (see unlock).
-    if (!record) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That passkey did not unlock the vault.");
-    }
+    await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
+  }
 
-    let prfOutput: ArrayBuffer;
-    try {
-      prfOutput = await getPasskeyUnlockCeremony(record, undefined, signal);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw error;
-      }
-      throw error instanceof Error
-        ? error
-        : new Error("Passkey unlock failed.");
-    }
-
-    let raw: Uint8Array;
-    try {
-      raw = await unwrapVaultKeyWithPrf(record, prfOutput);
-    } catch (error) {
-      if (!(error instanceof WrongPasswordError)) throw error;
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That passkey did not unlock the vault.");
-    }
-    this.#stashRaw(raw);
-    const vaultKey = await importVaultKey(raw);
-    await this.#afterPrimaryUnwrap(vaultKey);
+  #passkeyUnlockHost() {
+    return {
+      header: () => this.#header,
+      assertNotLockedOut: () => this.#assertNotLockedOut(),
+      recordFailedUnlock: () => this.#recordFailedUnlock(),
+      stashRaw: (raw: Uint8Array) => this.#stashRaw(raw),
+      afterPrimaryUnwrap: (vaultKey: CryptoKey) =>
+        this.#afterPrimaryUnwrap(vaultKey),
+    };
   }
 
   async confirmTotp(code: string): Promise<void> {

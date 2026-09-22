@@ -68,8 +68,10 @@ import {
   METHOD_LABEL,
   RESEND_COOLDOWN_MS,
   SECOND_STEP_LABEL,
+  unlockGoVerb,
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
+import { cancelPasskeyDuressCode } from "./unlock/unlock-passkey-duress.js";
 import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
@@ -257,6 +259,8 @@ function UnlockForm({
   const secondSteps = firstRun ? [] : listSecondSteps(header);
   const hasTotpStep = !firstRun && !noPrimary && secondSteps.length > 0;
   const [method, setMethod] = useState<UnlockMethodId | null>(null);
+  const [awaitingPasskeyDuressCode, setAwaitingPasskeyDuressCode] =
+    useState(false);
   const fallbackMethod: UnlockMethodId = firstRun
     ? passkeyHost.ok
       ? "passkey"
@@ -265,7 +269,11 @@ function UnlockForm({
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
   const showMethodTabs =
-    !guestUnlock && !awaitingSecondStep && !noPrimary && methods.length > 0;
+    !guestUnlock &&
+    !awaitingSecondStep &&
+    !awaitingPasskeyDuressCode &&
+    !noPrimary &&
+    methods.length > 0;
 
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -303,9 +311,12 @@ function UnlockForm({
   // platform prompt — a blocking WebAuthn request must never hold the other
   // unlock modes hostage.
   const cancelPasskeyCeremony = useCallback(() => {
-    if (!passkeyAbort.current) return;
-    passkeyAbort.current.abort();
-    passkeyAbort.current = null;
+    if (passkeyAbort.current) {
+      passkeyAbort.current.abort();
+      passkeyAbort.current = null;
+    }
+    cancelPasskeyDuressCode();
+    setAwaitingPasskeyDuressCode(false);
     setBusy(false);
   }, []);
 
@@ -315,6 +326,7 @@ function UnlockForm({
     showSignIn,
     formGated,
     awaitingSecondStep,
+    awaitingPasskeyDuressCode,
     guestUnlock,
     activeMethod,
     status,
@@ -374,6 +386,8 @@ function UnlockForm({
       firstRun,
       guestUnlock,
       awaitingSecondStep,
+      awaitingPasskeyDuressCode,
+      setAwaitingPasskeyDuressCode,
       recoveryMode,
       activeMethod,
       activeSecondStep,
@@ -416,12 +430,21 @@ function UnlockForm({
     unlockBlocked = recoveryMode
       ? recovery.replace(/[^a-z0-9]/gi, "").length < 8
       : totp.replace(/\s/g, "").length < 6;
+  else if (awaitingPasskeyDuressCode) unlockBlocked = pin.length < 4;
   else if (activeMethod === "passkey") unlockBlocked = !passkeyHost.ok;
   else if (activeMethod === "pin") unlockBlocked = pin.length < 4;
   else unlockBlocked = !password;
 
   const disabled =
     busy || lockedFor > 0 || (firstRun ? createBlocked : unlockBlocked);
+  const goVerb = unlockGoVerb({
+    busy,
+    firstRun,
+    awaitingSecondStep,
+    awaitingPasskeyDuressCode,
+    guestUnlock,
+    activeMethod,
+  });
 
   return (
     <div className="unlock">
@@ -779,10 +802,16 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {!guestUnlock && !awaitingSecondStep && activeMethod === "pin" ? (
+            {!guestUnlock &&
+            !awaitingSecondStep &&
+            (activeMethod === "pin" || awaitingPasskeyDuressCode) ? (
               <div className="field">
                 <label htmlFor="unlock-pin">
-                  {firstRun ? "Device PIN" : "PIN"}
+                  {awaitingPasskeyDuressCode
+                    ? "Code"
+                    : firstRun
+                      ? "Device PIN"
+                      : "PIN"}
                 </label>
                 <input
                   id="unlock-pin"
@@ -957,62 +986,33 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {noPrimary
-              ? null
-              : (() => {
-                  // The submit is the terminal's enter key: an ink square whose
-                  // glyph is the ceremony, with the sentence in its name.
-                  const verb = busy
-                    ? firstRun
-                      ? activeMethod === "passkey"
-                        ? "Waiting for passkey…"
-                        : activeMethod === "pin"
-                          ? "Sealing…"
-                          : "Deriving key…"
-                      : awaitingSecondStep
-                        ? "Checking code…"
-                        : activeMethod === "passkey"
-                          ? "Waiting for passkey…"
-                          : "Unlocking…"
-                    : firstRun
-                      ? activeMethod === "passkey"
-                        ? "Seal with passkey"
-                        : activeMethod === "pin"
-                          ? "Seal with PIN"
-                          : "Seal this device"
-                      : awaitingSecondStep
-                        ? "Confirm MFA"
-                        : guestUnlock
-                          ? "Unlock"
-                          : activeMethod === "passkey"
-                            ? "Unlock with passkey"
-                            : "Unlock";
-                  return (
-                    <div className="go-row">
-                      <button
-                        ref={(element) => {
-                          goRef.current = element;
-                          submitRef(element);
-                        }}
-                        type="submit"
-                        className="go"
-                        disabled={disabled}
-                        aria-busy={busy}
-                        aria-label={verb}
-                        title={verb}
-                      >
-                        {activeMethod === "passkey" && !awaitingSecondStep ? (
-                          <IconPasskey size={18} />
-                        ) : (
-                          <IconArrowRight size={18} />
-                        )}
-                      </button>
-                      <span className="go-verb" aria-hidden="true">
-                        {verb}
-                      </span>
-                    </div>
-                  );
-                })()}
+            {noPrimary ? null : (
+              <div className="go-row">
+                <button
+                  ref={(element) => {
+                    goRef.current = element;
+                    submitRef(element);
+                  }}
+                  type="submit"
+                  className="go"
+                  disabled={disabled}
+                  aria-busy={busy}
+                  aria-label={goVerb}
+                  title={goVerb}
+                >
+                  {activeMethod === "passkey" &&
+                  !awaitingSecondStep &&
+                  !awaitingPasskeyDuressCode ? (
+                    <IconPasskey size={18} />
+                  ) : (
+                    <IconArrowRight size={18} />
+                  )}
+                </button>
+                <span className="go-verb" aria-hidden="true">
+                  {goVerb}
+                </span>
+              </div>
+            )}
 
             {firstRun &&
             activeMethod === "password" &&

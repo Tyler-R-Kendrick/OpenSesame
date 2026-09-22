@@ -39,7 +39,10 @@ export async function unlockWithPinAfterDuressGate(
   if (duressOutcome.kind === "duress") {
     return continueAfterDuressMatch(
       store,
-      duressOutcome.match.plaintext.presentation,
+      {
+        profileId: duressOutcome.match.profileId,
+        plaintext: duressOutcome.match.plaintext,
+      },
       "That PIN did not unlock the vault.",
     );
   }
