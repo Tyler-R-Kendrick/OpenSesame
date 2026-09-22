@@ -32,7 +32,6 @@ import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { compositionLockName } from "./keys.js";
 import { type MintedLease, mintLease } from "./lease.js";
 import { type LegacyReview, reviewLegacyConfiguration } from "./migration.js";
-import { reviewDraft } from "./store-review.js";
 import {
   type CommitPorts,
   commitLocked,
@@ -52,6 +51,7 @@ import {
   refreshAuthorityRecords,
   writeVaultSelection,
 } from "./store-persist.js";
+import { reviewDraft } from "./store-review.js";
 import { storeSeams } from "./store-seams.js";
 import {
   type BootInput,
