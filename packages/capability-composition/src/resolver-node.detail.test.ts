@@ -188,6 +188,107 @@ describe("node evaluation detail", () => {
     expect(neither.entry.activationStatus).toBe("not-selected");
   });
 
+  it("pins prohibited and not-shipped conflict objects exactly", () => {
+    const prohibited = evaluateNode("a", mustDescriptor("a"), 1, {
+      wanted: new Set(["a"]),
+      optionalWanted: new Set(),
+      blockedByDeps: [],
+      prohibitedBy: new Set(["instance-policy"]),
+      ceiling: {
+        ids: new Map(),
+        explicit: false,
+        provenance: "instance-policy",
+      },
+      shipped: new Set(["a"]),
+      shippedModules: new Set(["mod.a"]),
+      runtime: new Set(["document"]),
+      consented: new Set(),
+      cached: new Set(),
+    });
+    expect(prohibited.entry.reasonCodes).toEqual(["PROHIBITED_BY_INSTANCE"]);
+    expect(prohibited.conflicts).toHaveLength(1);
+    expect(prohibited.conflicts[0]).toMatchObject({
+      reasonCode: "PROHIBITED_BY_INSTANCE",
+      capabilityId: "a",
+      detail: "prohibited by instance-policy",
+      provenance: "instance-policy",
+    });
+    const unshipped = evaluateNode("a", mustDescriptor("a"), 1, {
+      wanted: new Set(["a"]),
+      optionalWanted: new Set(),
+      blockedByDeps: [],
+      prohibitedBy: new Set(),
+      ceiling: {
+        ids: new Map(),
+        explicit: false,
+        provenance: "instance-policy",
+      },
+      shipped: new Set(),
+      shippedModules: new Set(["mod.a"]),
+      runtime: new Set(["document"]),
+      consented: new Set(),
+      cached: new Set(),
+    });
+    expect(unshipped.entry.reasonCodes).toEqual(["NOT_DISTRIBUTED"]);
+    expect(unshipped.conflicts).toHaveLength(1);
+    expect(unshipped.conflicts[0]).toMatchObject({
+      reasonCode: "NOT_DISTRIBUTED",
+      capabilityId: "a",
+      detail: "not shipped (or its modules are not) in this build",
+      provenance: "distribution",
+    });
+  });
+
+  it("pins runtime and consent conflict objects exactly", () => {
+    const runtime = evaluateNode(
+      "w",
+      mustDescriptor("w", { environments: ["service-worker"] }),
+      1,
+      {
+        wanted: new Set(["w"]),
+        optionalWanted: new Set(),
+        blockedByDeps: [],
+        prohibitedBy: new Set(),
+        ceiling: {
+          ids: new Map(),
+          explicit: false,
+          provenance: "instance-policy",
+        },
+        shipped: new Set(["w"]),
+        shippedModules: new Set(["mod.w"]),
+        runtime: new Set(["document"]),
+        consented: new Set(),
+        cached: new Set(),
+      },
+    );
+    expect(runtime.entry.reasonCodes).toEqual(["UNSUPPORTED_RUNTIME"]);
+    expect(runtime.conflicts).toHaveLength(1);
+    expect(runtime.conflicts[0]).toMatchObject({
+      reasonCode: "UNSUPPORTED_RUNTIME",
+      capabilityId: "w",
+      detail: "needs one of service-worker",
+      provenance: "runtime",
+    });
+    const consent = evaluateNode("a", mustDescriptor("a"), 1, {
+      wanted: new Set(["a"]),
+      optionalWanted: new Set(),
+      blockedByDeps: [],
+      prohibitedBy: new Set(),
+      ceiling: {
+        ids: new Map(),
+        explicit: false,
+        provenance: "instance-policy",
+      },
+      shipped: new Set(["a"]),
+      shippedModules: new Set(["mod.a"]),
+      runtime: new Set(["document"]),
+      consented: new Set(),
+      cached: new Set(),
+    });
+    expect(consent.entry.reasonCodes).toEqual([]);
+    expect(consent.entry.activationStatus).toBe("active");
+  });
+
   it("names the missing runtime environments in the conflict", () => {
     const evaluation = evaluateNode(
       "w",
