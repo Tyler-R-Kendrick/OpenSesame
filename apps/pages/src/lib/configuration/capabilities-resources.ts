@@ -82,12 +82,7 @@ export type CapabilityResourceLocation = Readonly<{
   schemaId: string;
 }>;
 
-type CapabilityResourceTable = Record<
-  CapabilityResourceKind,
-  CapabilityResourceLocation
->;
-
-const RESOURCES: CapabilityResourceTable = {
+const RESOURCES = {
   "instance-policy": {
     key: INSTANCE_POLICY_RESOURCE_KEY,
     path: INSTANCE_POLICY_DISPLAY_PATH,
@@ -108,7 +103,7 @@ const RESOURCES: CapabilityResourceTable = {
     path: EFFECTIVE_PLAN_DISPLAY_PATH,
     schemaId: EFFECTIVE_PLAN_SCHEMA_ID,
   },
-};
+} satisfies Record<CapabilityResourceKind, CapabilityResourceLocation>;
 
 /** Whether the Source view may write this kind under this snapshot. */
 export function capabilityResourceEditable(

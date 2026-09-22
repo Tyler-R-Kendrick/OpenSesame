@@ -69,16 +69,14 @@ type SourceCommit = (
 ) => Promise<CommitResult>;
 
 /** One commit per editable resource; the effective plan is read-only. */
-type SourceCommits = Record<
-  Exclude<CapabilityResourceKind, "effective-plan">,
-  SourceCommit
->;
-
-const COMMITS: SourceCommits = {
+const COMMITS = {
   "instance-policy": commitInstancePolicySource,
   "installation-selection": commitInstallationSelectionSource,
   "vault-restriction": commitVaultRestrictionSource,
-};
+} satisfies Record<
+  Exclude<CapabilityResourceKind, "effective-plan">,
+  SourceCommit
+>;
 
 function toneOf(result: CommitResult): "ok" | "warn" | "err" {
   if (result.status === "applied_durable") return "ok";

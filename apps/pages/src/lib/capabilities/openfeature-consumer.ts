@@ -71,9 +71,10 @@ export const RELEASE_FLAGS: Readonly<Record<string, ReleaseFlagState>> =
     "release.composition-explain": "shown",
   });
 
-export const releaseFlagSeams: {
-  table: Readonly<Record<string, ReleaseFlagState>>;
-} = { table: RELEASE_FLAGS };
+/** The one thing a test may replace: which release table is consulted. */
+export type ReleaseFlagSeams = { table: Readonly<Record<string, ReleaseFlagState>> };
+
+export const releaseFlagSeams: ReleaseFlagSeams = { table: RELEASE_FLAGS };
 
 export function isReleaseFlagName(name: string): boolean {
   return name.startsWith(RELEASE_PREFIX) && name.length > RELEASE_PREFIX.length;

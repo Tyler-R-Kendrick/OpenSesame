@@ -217,7 +217,7 @@ export function readPolicyKeyRotation(
 }
 
 /** Who the rotation claims to be for, before any key material is consulted. */
-function rotationShape(
+function rotationSubjectRefusal(
   rotation: PolicyKeyRotation,
   instanceId: string,
 ): RotationFailure | null {
@@ -253,8 +253,8 @@ export async function rotatePolicyKey(
 ): Promise<RotationResult> {
   const rotation = readPolicyKeyRotation(candidate);
   if (rotation === null) return { ok: false, reason: "malformed-rotation" };
-  const shape = rotationShape(rotation, options.instanceId);
-  if (shape !== null) return { ok: false, reason: shape };
+  const subject = rotationSubjectRefusal(rotation, options.instanceId);
+  if (subject !== null) return { ok: false, reason: subject };
   const signer = Object.hasOwn(current, rotation.signedBy)
     ? current[rotation.signedBy]
     : undefined;

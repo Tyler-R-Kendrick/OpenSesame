@@ -329,7 +329,9 @@ export type InstalledCompositionProvider = Readonly<{
  * `SnapshotSource` as-is; tests inject a store double here or pass one to
  * `installCompositionProvider` directly.
  */
-export const openfeatureSeams: { snapshotSource: SnapshotSource } = {
+export type OpenFeatureSeams = { snapshotSource: SnapshotSource };
+
+export const openfeatureSeams: OpenFeatureSeams = {
   snapshotSource: compositionStore,
 };
 
@@ -351,8 +353,14 @@ export function foreignProviderInstalled(): boolean {
  * Bind a fresh provider to `OPENFEATURE_DOMAIN`. The SDK closes the provider
  * it replaces, which drops that provider's store subscription (OF-07).
  */
+export type InstallProviderOptions = Readonly<{
+  snapshotSource?: SnapshotSource;
+}>;
+
+const NO_INSTALL_OPTIONS: InstallProviderOptions = {};
+
 export async function installCompositionProvider(
-  options: { snapshotSource?: SnapshotSource } = {},
+  options: InstallProviderOptions = NO_INSTALL_OPTIONS,
 ): Promise<InstalledCompositionProvider> {
   const source = options.snapshotSource ?? openfeatureSeams.snapshotSource;
   const provider = new LocalCompositionProvider(source);

@@ -152,10 +152,16 @@ function readNetwork(value: JsonValue | undefined): NetworkPreview {
   return { externalServices, allowedServiceOrigins };
 }
 
+/** What an embedded key is worth to the person comparing it out of band. */
+type EmbeddedKey = Readonly<{
+  fingerprint: string | null;
+  mismatch: boolean;
+}>;
+
 async function embeddedKey(
   value: JsonValue | undefined,
   kid: string | null,
-): Promise<{ fingerprint: string | null; mismatch: boolean }> {
+): Promise<EmbeddedKey> {
   if (value === undefined) return { fingerprint: null, mismatch: false };
   const jwk: PolicyPublicJwk | null = policyPublicJwk(value);
   if (jwk === null) return { fingerprint: null, mismatch: kid !== null };

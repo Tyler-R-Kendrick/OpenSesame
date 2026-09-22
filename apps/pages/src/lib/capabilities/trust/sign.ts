@@ -68,7 +68,7 @@ export async function signPolicyEnvelope(
   key: PolicySigningKey,
   input: EnvelopeInput,
 ): Promise<SignedPolicyEnvelope> {
-  const header: EnvelopeHeader = {
+  const required: EnvelopeHeader = {
     schemaVersion: 1,
     kind: ENVELOPE_KIND,
     instanceId: input.payload.instanceId,
@@ -76,12 +76,15 @@ export async function signPolicyEnvelope(
     alg: ENVELOPE_ALG,
     kid: key.kid,
     payloadDigest: await policyPayloadDigest(input.payload),
-    ...(input.notBefore === undefined ? {} : { notBefore: input.notBefore }),
-    ...(input.expires === undefined ? {} : { expires: input.expires }),
-    ...(input.allowedOrigins === undefined
-      ? {}
-      : { allowedOrigins: input.allowedOrigins }),
   };
+  // The optional members are written only when the caller gave one, so an
+  // absent window is absent from the signed bytes rather than present as
+  // `undefined`.
+  const header: EnvelopeHeader = { ...required };
+  if (input.notBefore !== undefined) header.notBefore = input.notBefore;
+  if (input.expires !== undefined) header.expires = input.expires;
+  if (input.allowedOrigins !== undefined)
+    header.allowedOrigins = input.allowedOrigins;
   return {
     ...header,
     payload: input.payload,
@@ -106,8 +109,8 @@ export async function signPolicyKeyRotation(
     kid: input.next.kid,
     key: input.next.publicJwk,
     retire: input.retire,
-    ...(input.notBefore === undefined ? {} : { notBefore: input.notBefore }),
   };
+  if (input.notBefore !== undefined) unsigned.notBefore = input.notBefore;
   return {
     ...unsigned,
     signature: await signBytes(
