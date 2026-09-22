@@ -5,16 +5,16 @@ import {
   deployedAmbientPolicy,
   resetDeployedAmbientPolicy,
 } from "../../lib/ambient-auth/runtime.js";
+import type {
+  ContextWithPorts,
+  SettingsPanelContribution,
+} from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
   importUnderSpies,
   runtimeOf,
 } from "../runtime-test-kit.js";
-import type {
-  ContextWithPorts,
-  SettingsPanelContribution,
-} from "../ports-b.js";
 import { createTestContext } from "../test-context.js";
 import type * as Runtime from "./runtime.js";
 

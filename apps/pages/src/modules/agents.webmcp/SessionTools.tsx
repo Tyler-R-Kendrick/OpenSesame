@@ -13,9 +13,8 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useLocation } from "react-router";
-import { useSyncExternalStore } from "react";
 import {
   getWebMcpEditorKind,
   sessionToolsFor,

@@ -20,9 +20,7 @@ describe("notifications.web-push runtime", () => {
     const loaded = await importUnderSpies(() => import("./runtime.js"));
     runtime = loaded.module;
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
-    expect(runtime.capabilityRuntime.capability).toBe(
-      "notifications.web-push",
-    );
+    expect(runtime.capabilityRuntime.capability).toBe("notifications.web-push");
   });
 
   it("registers nothing on the document side: enrolment is a permission the person grants", async () => {

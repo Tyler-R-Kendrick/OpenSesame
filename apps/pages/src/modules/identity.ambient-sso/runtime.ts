@@ -21,13 +21,13 @@
  * disabling the capability leaves no ambient providers on record.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { runAmbientAuthBoot } from "../../lib/ambient-auth/boot.js";
 import { isAuthCallbackSearch } from "../../lib/ambient-auth/callback.js";
 import {
   applyDeployedAmbientPolicy,
   resetDeployedAmbientPolicy,
 } from "../../lib/ambient-auth/runtime.js";
+import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { AmbientAuthPanel } from "../../sections/settings/AmbientAuthPanel.js";
 import { createActivation } from "../activation.js";
 import type { ContextWithPorts } from "../ports-b.js";

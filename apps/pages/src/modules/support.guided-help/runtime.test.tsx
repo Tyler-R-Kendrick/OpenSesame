@@ -1,10 +1,7 @@
 /** @vitest-environment jsdom */
 import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type {
-  ContextWithPorts,
-  ShellWrapperContribution,
-} from "../ports-b.js";
+import type { ContextWithPorts, ShellWrapperContribution } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,

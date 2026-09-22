@@ -15,7 +15,12 @@ import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
 
-const KINDS = ["setup-panel", "tutorial-goal", "tutorial-target", "webmcp-tool"];
+const KINDS = [
+  "setup-panel",
+  "tutorial-goal",
+  "tutorial-target",
+  "webmcp-tool",
+];
 
 describe("identity.federation runtime", () => {
   afterEach(() => {
@@ -54,8 +59,9 @@ describe("identity.federation runtime", () => {
       "opensesame_identity_read",
     ]);
     // SURFACE-05: the core filters contributions by approved operations.
-    expect((tools[0] as { operationIds?: readonly string[] }).operationIds)
-      .toEqual(["identity.whoami", "identity.admin"]);
+    expect(
+      (tools[0] as { operationIds?: readonly string[] }).operationIds,
+    ).toEqual(["identity.whoami", "identity.admin"]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       "identity.providers",
       "identity.register-idp",

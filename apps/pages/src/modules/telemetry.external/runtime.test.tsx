@@ -20,9 +20,7 @@ describe("telemetry.external runtime", () => {
     const loaded = await importUnderSpies(() => import("./runtime.js"));
     runtime = loaded.module;
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
-    expect(runtime.capabilityRuntime.capability).toBe(
-      "telemetry.external",
-    );
+    expect(runtime.capabilityRuntime.capability).toBe("telemetry.external");
   });
 
   it("registers nothing: a prohibited id must still resolve", async () => {

@@ -15,10 +15,7 @@ vi.mock("@opensesame/webmcp", () => ({
 
 import { resetContributionsForTest } from "../../lib/contributions.js";
 import { webmcpNavigationSeam } from "../../webmcp/navigation.js";
-import type {
-  ContextWithPorts,
-  ShellWrapperContribution,
-} from "../ports-b.js";
+import type { ContextWithPorts, ShellWrapperContribution } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
