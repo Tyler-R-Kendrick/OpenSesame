@@ -1,16 +1,57 @@
 {
-  "id": "2026-09-22-duress-passkey-code",
-  "title": "Duress passkey-then-code unlock",
-  "widths": [390, 1280],
-  "steps": [
+  "out": ".",
+  "screens": [
     {
-      "id": "unlock-front",
-      "path": "/",
-      "actions": [
-        { "role": "button", "name": "Continue as guest", "exact": true }
-      ],
-      "claim": "Guest unlock still available beside the passkey road",
-      "measure": "guest continue control visible"
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "shot": "390-front-door" },
+        { "guest": null },
+        { "shot": "390-guest-vault" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "shot": "1280-front-door" },
+        { "guest": null },
+        { "shot": "1280-guest-vault" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-front-door",
+      "width": 390,
+      "title": "Front door — 390 × 844",
+      "caption": "Passkey-then-code unlock wiring must not remove the guest road or the front-door composition. Phone width.",
+      "before": "front door with guest continue",
+      "after": "front door with guest continue (unchanged entry)"
+    },
+    {
+      "shot": "390-guest-vault",
+      "width": 390,
+      "title": "Guest vault — 390 × 844",
+      "caption": "Continue as guest still opens the isolated guest tomb after unlock chrome changes.",
+      "before": "guest vault shell",
+      "after": "guest vault shell"
+    },
+    {
+      "shot": "1280-front-door",
+      "width": 1280,
+      "title": "Front door — 1280 × 800",
+      "caption": "Desktop front door still offers guest beside sign-in after passkey-then-code work.",
+      "before": "front door with guest continue",
+      "after": "front door with guest continue"
+    },
+    {
+      "shot": "1280-guest-vault",
+      "width": 1280,
+      "title": "Guest vault — 1280 × 800",
+      "caption": "Desktop guest continue still lands in the vault shell.",
+      "before": "guest vault shell",
+      "after": "guest vault shell"
     }
   ]
 }

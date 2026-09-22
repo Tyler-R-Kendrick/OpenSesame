@@ -40,9 +40,65 @@ describe("unlock duress continue", () => {
         continueMatch("locked"),
         "That PIN did not unlock the vault.",
       ),
-    ).rejects.toBeInstanceOf(WrongPasswordError);
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof WrongPasswordError &&
+        err.message === "That PIN did not unlock the vault.",
+    );
     expect(createGuest).not.toHaveBeenCalled();
   });
+});
+
+it("sets presentation runtime for decoy and clears on locked", async () => {
+  const { readActivePresentation, clearActivePresentation } = await import(
+    "../compartment/presentation-runtime.js"
+  );
+  clearActivePresentation();
+  const createGuest = vi.fn(async () => undefined);
+  await continueAfterDuressMatch(
+    { createGuest },
+    continueMatch("decoy", "p-decoy"),
+    "That PIN did not unlock the vault.",
+  );
+  const active = readActivePresentation();
+  expect(active?.profileId).toBe("p-decoy");
+  expect(active?.outcome.kind).toBe("locked");
+  expect(active?.view.locked).toBe(true);
+
+  await expect(
+    continueAfterDuressMatch(
+      { createGuest },
+      continueMatch("locked"),
+      "That PIN did not unlock the vault.",
+    ),
+  ).rejects.toBeInstanceOf(WrongPasswordError);
+  expect(readActivePresentation()).toBeNull();
+});
+
+it("treats unchanged like a wrong secret", async () => {
+  const createGuest = vi.fn(async () => undefined);
+  await expect(
+    continueAfterDuressMatch(
+      { createGuest },
+      continueMatch("unchanged"),
+      "That PIN did not unlock the vault.",
+    ),
+  ).rejects.toBeInstanceOf(WrongPasswordError);
+  expect(createGuest).not.toHaveBeenCalled();
+});
+
+it("opens guest for normal and restricted presentations", async () => {
+  for (const presentation of ["normal", "restricted"] as const) {
+    const createGuest = vi.fn(async () => undefined);
+    await expect(
+      continueAfterDuressMatch(
+        { createGuest },
+        continueMatch(presentation),
+        "That PIN did not unlock the vault.",
+      ),
+    ).resolves.toBe("duress_session");
+    expect(createGuest, presentation).toHaveBeenCalledOnce();
+  }
 });
 
 describe("passkey duress gate", () => {
@@ -61,5 +117,21 @@ describe("passkey duress gate", () => {
     ).resolves.toBe("vault_opened");
     expect(unlockWithPasskey).toHaveBeenCalledOnce();
     expect(probePasskeyPrf).not.toHaveBeenCalled();
+  });
+});
+
+describe("pin duress gate kinds", () => {
+  it("opens vault when duress is inactive", async () => {
+    const { unlockWithPinAfterDuressGate } = await import(
+      "../../../screens/unlock/unlock-pin-duress.js"
+    );
+    const unlockWithPin = vi.fn(async () => undefined);
+    const createGuest = vi.fn(async () => undefined);
+    await expect(
+      unlockWithPinAfterDuressGate({ unlockWithPin, createGuest }, "11223344", {
+        requireDurable: false,
+      }),
+    ).resolves.toBe("vault_opened");
+    expect(unlockWithPin).toHaveBeenCalledOnce();
   });
 });
