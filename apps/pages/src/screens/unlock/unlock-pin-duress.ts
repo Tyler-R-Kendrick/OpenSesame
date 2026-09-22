@@ -19,8 +19,11 @@ type PinUnlockStore = DuressContinueStore &
 export async function unlockWithPinAfterDuressGate(
   store: PinUnlockStore,
   pin: string,
+  options: { requireDurable?: boolean } = {},
 ): Promise<PinUnlockResult> {
-  const duressOutcome = await onCompleteUnlockCodeSubmission(pin);
+  const duressOutcome = await onCompleteUnlockCodeSubmission(pin, {
+    requireDurable: options.requireDurable ?? true,
+  });
   if (
     duressOutcome.kind === "throttled" ||
     duressOutcome.kind === "ambiguous" ||

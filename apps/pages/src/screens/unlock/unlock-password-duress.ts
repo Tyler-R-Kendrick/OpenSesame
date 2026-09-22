@@ -19,8 +19,11 @@ type PasswordUnlockStore = DuressContinueStore &
 export async function unlockWithPasswordAfterDuressGate(
   store: PasswordUnlockStore,
   password: string,
+  options: { requireDurable?: boolean } = {},
 ): Promise<PasswordUnlockResult> {
-  const duressOutcome = await onCompleteUnlockCodeSubmission(password);
+  const duressOutcome = await onCompleteUnlockCodeSubmission(password, {
+    requireDurable: options.requireDurable ?? true,
+  });
   if (
     duressOutcome.kind === "throttled" ||
     duressOutcome.kind === "ambiguous" ||
