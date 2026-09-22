@@ -1,0 +1,98 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "int": "1"
+          }
+        },
+        {
+          "key": "b",
+          "value": {
+            "seq": [
+              {
+                "str": "x"
+              },
+              {
+                "seq": [
+                  {
+                    "int": "1"
+                  },
+                  {
+                    "int": "2"
+                  }
+                ]
+              },
+              {
+                "map": [
+                  {
+                    "key": "c",
+                    "value": {
+                      "str": "d"
+                    }
+                  }
+                ]
+              },
+              {
+                "null": true
+              },
+              {
+                "str": ""
+              },
+              {
+                "map": []
+              },
+              {
+                "seq": []
+              }
+            ]
+          }
+        },
+        {
+          "key": "u",
+          "value": {
+            "str": "héllo 🌍"
+          }
+        },
+        {
+          "key": "u2",
+          "value": {
+            "str": "héllo"
+          }
+        },
+        {
+          "key": "key with spaces",
+          "value": {
+            "str": "v"
+          }
+        },
+        {
+          "key": "quoted key",
+          "value": {
+            "str": "v"
+          }
+        },
+        {
+          "key": "complex",
+          "value": {
+            "str": "v"
+          }
+        },
+        {
+          "key": "yes",
+          "value": {
+            "str": "no"
+          }
+        },
+        {
+          "key": "num_key_str",
+          "value": {
+            "str": "10"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -37,11 +37,15 @@ with the root bytes also acting as the content key on some paths.
 6. **Trusted client boundary.** Human-root material stays in the browser and/or
    an explicitly paired personal native client. No clear wrapping-secret proxy.
    Agents/ConnectionRef must not gain human-root unwrap oracles.
-7. **SOPS.** YAML and JSON documents with local age identities run in the
-   static browser. SOPS is a document format, not a vault root protector.
-   Threshold key-groups are preserved or refused — never silently flattened
-   to any-of. A native `sops` binary is an optional operator tool and is not
-   required for the PWA.
+7. **SOPS.** *Superseded by [ADR 0130](0130-browser-local-sops.md).* This
+   decision was right and, at the time, unimplemented: SOPS YAML/JSON was
+   "not available in-browser" and the person was pointed at a native binary
+   via `OPENSESAME_SOPS_BIN`, which the static deployment cannot reach. The
+   partial engine that replaced that wording still had no way to open a SOPS
+   document and was never checked against upstream. ADR 0130 replaces this
+   clause with an implemented, verified browser engine. SOPS remains a
+   document format, not a vault root protector, and threshold key-groups are
+   still preserved or refused — never silently flattened to any-of.
 8. **`capabilityConnectors.encryption`.** Legacy setup preference / migration
    hint only. Never overrides cryptographic enrollment facts.
 

@@ -1,0 +1,24 @@
+# head one
+# head two
+# inline a
+a: 1
+#  indented comment
+b:
+    # before c
+    c: two
+    d:
+        # inline d
+        - x
+        - "y"
+e:
+    # before first item
+    # inline one
+    - one
+    - two
+    # after blank line
+    - three
+f: |
+    multi
+    line
+g: 'quoted # not a comment'
+# foot comment

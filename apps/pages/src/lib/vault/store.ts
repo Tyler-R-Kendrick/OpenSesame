@@ -96,6 +96,11 @@ import {
   withSelfAuthenticatorRegistration,
 } from "./self-authenticator.js";
 import {
+  deviceHoldsSealedVault,
+  readTombHeader,
+  sharesWrapRecord,
+} from "./store-header.js";
+import {
   discardTombCaches,
   hydrateAndMigrateTombOnUnlock,
   wipeTombOnDestroy,
@@ -126,31 +131,22 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-/** Lockout counters stay plaintext (ADR 0063): must work while the tomb is locked. */
-export const ATTEMPTS_KEY = "vault.attempts.v1";
-import {
-  deviceHoldsSealedVault,
-  readTombHeader,
-  sharesWrapRecord,
-} from "./store-header.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
-type VaultScope = {
-  /** The active project vault's tomb — the project id, `personal` for the base vault. */
-  tomb: string;
-  attempts: string;
-};
-
-function scopedVaultScope(): VaultScope {
-  return {
-    tomb: activeProject().id,
-    attempts: scopedKey(ATTEMPTS_KEY),
-  };
-}
-
 /** Guest-beside-vault tomb — isolated, throwaway, never a project id. */
 export { GUEST_TOMB };
+import {
+  ATTEMPTS_KEY,
+  BASE_LOCKOUT_MS,
+  LOCK_AFTER_FAILS,
+  MAX_LOCKOUT_MS,
+  type VaultScope,
+  guestVaultScope,
+  readJson,
+  scopedVaultScope,
+} from "./store-scope.js";
+export { ATTEMPTS_KEY };
 export {
   type VaultPrefs,
   VAULT_PREFS_REVISION,
@@ -158,13 +154,6 @@ export {
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
-
-function guestVaultScope(): VaultScope {
-  return {
-    tomb: GUEST_TOMB,
-    attempts: `${ATTEMPTS_KEY}.${GUEST_TOMB}`,
-  };
-}
 
 export type VaultStatus = "empty" | "locked" | "unlocked";
 
@@ -188,20 +177,6 @@ export type VaultState = {
 };
 
 type Listener = () => void;
-
-const LOCK_AFTER_FAILS = 5;
-const BASE_LOCKOUT_MS = 5_000;
-const MAX_LOCKOUT_MS = 15 * 60_000;
-
-function readJson<T>(key: string, fallback: T): T {
-  const raw = kvGet(key);
-  if (!raw) return fallback;
-  try {
-    return overlapCast(JSON.parse(raw));
-  } catch {
-    return fallback;
-  }
-}
 
 export class VaultStore {
   #vaultKey: CryptoKey | null = null;
@@ -1445,6 +1420,19 @@ export class VaultStore {
   async saveItem(item: VaultItem, folder?: Folder): Promise<void> {
     await this.#mutate((body) => {
       writeItem(body, item, folder);
+    });
+  }
+
+  /**
+   * Write several items as one change: one seal, one file write, and one
+   * link in the write chain. An import must land whole or not at all — a
+   * loop of `saveItem` leaves half an import behind when the quota runs
+   * out, the write fails, or the tab loses its handle (ADR 0130, SB-069).
+   */
+  async saveItems(items: readonly VaultItem[]): Promise<void> {
+    if (items.length === 0) return;
+    await this.#mutate((body) => {
+      for (const item of items) writeItem(body, item);
     });
   }
 

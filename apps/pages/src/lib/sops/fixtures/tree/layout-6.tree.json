@@ -1,0 +1,65 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "list",
+          "value": {
+            "seq": [
+              {
+                "comment": " before first map item",
+                "inline": false
+              },
+              {
+                "map": [
+                  {
+                    "comment": " line on v",
+                    "inline": true
+                  },
+                  {
+                    "key": "k",
+                    "value": {
+                      "str": "v"
+                    }
+                  },
+                  {
+                    "comment": " inside first map after k",
+                    "inline": false
+                  }
+                ]
+              },
+              {
+                "comment": " between items",
+                "inline": false
+              },
+              {
+                "map": [
+                  {
+                    "key": "k2",
+                    "value": {
+                      "str": "v2"
+                    }
+                  }
+                ]
+              },
+              {
+                "map": [
+                  {
+                    "comment": " comment after dash",
+                    "inline": false
+                  },
+                  {
+                    "key": "k3",
+                    "value": {
+                      "str": "v3"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

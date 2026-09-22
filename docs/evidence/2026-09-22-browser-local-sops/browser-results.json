@@ -1,0 +1,682 @@
+[
+  {
+    "caseId": "SB-001",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-002",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-006",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-007",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-008",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-009",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-010",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-011",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-012",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-013",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-014",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-015",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-016",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-017",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-018",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-020",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-021",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-022",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-023",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-024",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-025",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-026",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-029",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-030",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-031",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-032",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-033",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-034",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-036",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-037",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-038",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-039",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-040",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-041",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-042",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-043",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-044",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-045",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-046",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-047",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-048",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-049",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-050",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-051",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-052",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-056",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-057",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-059",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-060",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-061",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-062",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-063",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-065",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-066",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-068",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-069",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-070",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-077",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-078",
+    "evidenceKind": "unit-contract",
+    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "node v22.22.2",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
+    "reason": "Suite passed.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-035",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-064",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-067",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-071",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-072",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-074",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-075",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-076",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /OpenSesame/)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static/results.json",
+    "reason": "The compiled app completed the journeys at base /OpenSesame/.",
+    "status": "passed"
+  },
+  {
+    "caseId": "SB-073",
+    "evidenceKind": "real-browser",
+    "test": "verify-sops-static.mjs (base /)",
+    "command": "pnpm verify:sops-browser",
+    "runtime": "chromium /opt/pw-browsers/chromium",
+    "artifact": "artifacts/sops-static-root/results.json",
+    "reason": "The compiled app completed the journeys at base /.",
+    "status": "passed"
+  }
+]

@@ -1,21 +1,25 @@
 import { useState } from "react";
-import { IconDownload, IconNote, IconPlus } from "../../components/Icons.js";
+import {
+  IconDownload,
+  IconNote,
+  IconPlus,
+  IconVault,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { setStatusNotice } from "../../lib/notices.js";
+import { sopsCapability } from "../../lib/sops/capability.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   ageCapability,
-  exportAgeArmored,
   exportNativeManifestJson,
   gpgCapability,
-  importAgeArmored,
   nativeManifestCapability,
-  sopsCapability,
 } from "../../lib/vault/protection/sops-browser.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import "./vault-key-protection.css";
 import { AgeInteropSheet } from "./AgeInteropSheet.js";
-import { SopsDocumentSheet } from "./SopsDocumentSheet.js";
+import { SopsDocumentSheet } from "./sops/SopsDocumentSheet.js";
+import { SopsVaultSheet } from "./sops/SopsVaultSheet.js";
 
 type Capability = "ok" | "warn" | "idle";
 
@@ -113,6 +117,65 @@ function exportNativeManifest(store: ReturnType<typeof useVaultStore>): void {
   }
 }
 
+function FormatsActions({
+  canExport,
+  onExportNative,
+  onSops,
+  onVault,
+  onAge,
+}: {
+  canExport: boolean;
+  onExportNative: () => void;
+  onSops: () => void;
+  onVault: () => void;
+  onAge: () => void;
+}) {
+  return (
+    <div className="actions">
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="Export native protection manifest"
+        title={
+          canExport ? "Export native protection manifest" : "Unlock to export"
+        }
+        disabled={!canExport}
+        onClick={onExportNative}
+      >
+        <IconDownload size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="SOPS document"
+        title="SOPS document"
+        onClick={onSops}
+      >
+        <IconNote size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="Vault SOPS"
+        title="Vault SOPS"
+        disabled={!canExport}
+        onClick={onVault}
+      >
+        <IconVault size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="age armor"
+        title="age armor"
+        onClick={onAge}
+      >
+        <IconPlus size={16} />
+      </button>
+    </div>
+  );
+}
+
 export function FormatsInteroperabilityPanel() {
   const panelRef = useGuideTarget<HTMLElement>(
     "settings.formats-interoperability",
@@ -123,6 +186,7 @@ export function FormatsInteroperabilityPanel() {
   const canExport = status === "unlocked" && !guest;
   const [ageSheet, setAgeSheet] = useState(false);
   const [sopsSheet, setSopsSheet] = useState(false);
+  const [vaultSheet, setVaultSheet] = useState(false);
 
   const onExportNative = () => exportNativeManifest(store);
 
@@ -138,40 +202,13 @@ export function FormatsInteroperabilityPanel() {
           <div>
             <h2 id="formats-interoperability-title">Formats</h2>
           </div>
-          <div className="actions">
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
-              aria-label="Export native protection manifest"
-              title={
-                canExport
-                  ? "Export native protection manifest"
-                  : "Unlock to export"
-              }
-              disabled={!canExport}
-              onClick={onExportNative}
-            >
-              <IconDownload size={16} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
-              aria-label="Vault SOPS"
-              title="Vault SOPS"
-              onClick={() => setSopsSheet(true)}
-            >
-              <IconNote size={16} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
-              aria-label="age armor"
-              title="age armor"
-              onClick={() => setAgeSheet(true)}
-            >
-              <IconPlus size={16} />
-            </button>
-          </div>
+          <FormatsActions
+            canExport={canExport}
+            onExportNative={onExportNative}
+            onSops={() => setSopsSheet(true)}
+            onVault={() => setVaultSheet(true)}
+            onAge={() => setAgeSheet(true)}
+          />
         </div>
         <div className="panel__body fmt__grid">
           {formats.map((format) => (
@@ -202,6 +239,9 @@ export function FormatsInteroperabilityPanel() {
       {ageSheet ? <AgeInteropSheet onClose={() => setAgeSheet(false)} /> : null}
       {sopsSheet ? (
         <SopsDocumentSheet onClose={() => setSopsSheet(false)} />
+      ) : null}
+      {vaultSheet ? (
+        <SopsVaultSheet onClose={() => setVaultSheet(false)} />
       ) : null}
     </>
   );

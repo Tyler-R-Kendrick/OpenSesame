@@ -1,0 +1,29 @@
+# sops:enc
+secret_a: ENC[AES256_GCM,data:TYUW,iv:t8NHU7vA01yurkNgxc9Wm6OQhknUFjZQAiT3wdi8ISA=,tag:ailbQnVsJGLZoADvF1Jq7A==,type:str]
+# plain
+public_b: two
+nested:
+    # sops:enc
+    inner: ENC[AES256_GCM,data:wgpRoAA=,iv:oVtY/RA5tKRkYWk0vWo3yH7MfI8LKP/3hE6xn9qxoLc=,tag:q2r9FNz/6A6gmaq75N5X/g==,type:str]
+    other: four
+list:
+    # sops:enc
+    - ENC[AES256_GCM,data:i3sOUQ==,iv:wdkih9xI0WpFMOAQyB2G4aVgrGBWNF2cVj24qOiSeEQ=,tag:D7CjtCQMXSfkrVrCvE1iWg==,type:str]
+    - six
+pw: p
+token: t
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB1S3d3dlBEb1ppWUlFMmto
+            RTBTMVcwRExrMzdxc2p5WVVqUjNqU1JKcmtNCkQ0dmo0amszcHhpT0pkb2VlYy94
+            QVJ2cFZSTThPWkFXZUdxbWdPaGt1K3cKLS0tIGhCNXIxaittTzl2WGZHUmxxQzNq
+            UmdEa3hPMlhMU0JESFJzN0hDS2ZONUUK/kUXoqr+mfFIjAs25WvziWkDfAzxJxZO
+            vFBBjcmh78pe/PtQWXoG//nMCtKKG3V6x5vGwL2ocOCav0NDYU7JCQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+    encrypted_comment_regex: sops:enc
+    lastmodified: "2026-09-22T14:04:39Z"
+    mac: ENC[AES256_GCM,data:AyQIOkNP/2I/vOOYHgvnJkyapmROPVATkUxakN8ASA/TMrYN9bjsi/N/bKTcpuykBOktdxnLBRRGTCgcyR0vdz2+ORPU8y7ME1mG3pH2Kg95bOFAHJrkZ364LC+oaZM3SBoNbO+n3liMhOD878dMoGuRhhrZ1xU8+oRHv+maWPs=,iv:ru+clxbtNwa9cP2XG9fVyWLNSYWociPXr1AjJ0MmVJs=,tag:XFusrQEFfUn0Ro7wVQ1qHw==,type:str]
+    version: 3.13.3

@@ -1,0 +1,25 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "list",
+          "value": {
+            "seq": [
+              {
+                "comment": " c then scalar",
+                "inline": false
+              },
+              {
+                "str": "x"
+              },
+              {
+                "str": "y"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

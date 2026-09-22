@@ -1,95 +1,149 @@
 /** @vitest-environment node */
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
-import * as age from "age-encryption";
+/**
+ * Conformance against the pinned upstream SOPS v3.13.3.
+ *
+ * Part A runs everywhere: every checked-in fixture the pinned binary
+ * produced opens in the browser engine and matches the binary's own
+ * decrypt output (SB-001, SB-002, SB-006 … SB-013, SB-036, SB-037).
+ *
+ * The other direction — browser → upstream, and both edit directions —
+ * runs against the live pinned binary in `engine.oracle.test.ts`.
+ */
 import { describe, expect, it } from "vitest";
-import { decryptSopsDocument, encryptSopsDocument } from "./engine.js";
+import {
+  provisionOracle,
+  runSops,
+} from "../../../scripts/sops-oracle/oracle.mjs";
+import { SopsError } from "./errors.js";
+import {
+  type FixtureCase,
+  looseDocuments,
+  readFixture,
+  readIdentities,
+  readManifest,
+} from "./fixtures.js";
+import { NEVER, TestSession } from "./test-support.js";
 
-const exec = promisify(execFile);
-const bin = process.env.SOPS_BIN;
+const manifest = readManifest();
+const ids = readIdentities();
+const identitiesFor = (fixture: FixtureCase) =>
+  fixture.identities.map((index) => ids[index]?.identity ?? "");
+const NOW = new Date("2026-09-22T00:00:00Z");
 
-describe.skipIf(!bin)("sops v3.13.3 oracle", () => {
-  it("browser ciphertext decrypts with upstream sops", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "sops-browser-"));
-    try {
-      const identity = await age.generateX25519Identity();
-      const recipient = await age.identityToRecipient(identity);
-      const ciphertext = await encryptSopsDocument({
-        format: "yaml",
-        plaintext: "hello: world\ncount: 2\n",
-        recipients: [recipient],
-        now: new Date("2026-09-21T12:00:00Z"),
+describe("SB-001/002 upstream fixtures open in the browser engine", () => {
+  expect(manifest.sopsVersion).toBe("3.13.3");
+  expect(manifest.sourceCommit).toBe(
+    "26e2f4784ca61353082c32dbd987c25eda086dc9",
+  );
+  for (const fixture of manifest.cases) {
+    it(`opens ${fixture.name} and matches upstream's decrypt output`, async () => {
+      const session = new TestSession();
+      const cipher = readFixture(`${fixture.name}.enc.${fixture.format}`);
+      const opened = await session.engine.open(cipher, fixture.format, {
+        identities: identitiesFor(fixture),
+        permit: session.permit(),
+        signal: NEVER,
       });
-      const file = join(dir, "doc.yaml");
-      const keyFile = join(dir, "key.txt");
-      await writeFile(file, ciphertext);
-      await writeFile(keyFile, `${identity}\n`, { mode: 0o600 });
-      const opened = await exec(bin ?? "", ["--decrypt", file], {
-        env: { ...process.env, SOPS_AGE_KEY_FILE: keyFile },
-        timeout: 15_000,
-        maxBuffer: 1024 * 1024,
-      });
-      expect(opened.stdout).toMatch(/hello: world/);
-      expect(opened.stdout).toMatch(/count: 2/);
-      const json = await encryptSopsDocument({
-        format: "json",
-        plaintext: '{"hello":"world","count":2}',
-        recipients: [recipient],
-        now: new Date("2026-09-21T12:00:00Z"),
-      });
-      const jsonFile = join(dir, "doc.json");
-      await writeFile(jsonFile, json);
-      const jsonOpened = await exec(bin ?? "", ["--decrypt", jsonFile], {
-        env: { ...process.env, SOPS_AGE_KEY_FILE: keyFile },
-        timeout: 15_000,
-        maxBuffer: 1024 * 1024,
-      });
-      expect(jsonOpened.stdout).toMatch(/"hello": "world"/);
-      expect(jsonOpened.stdout).toMatch(/"count": 2/);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+      const expected = looseDocuments(
+        readFixture(`${fixture.name}.dec.${fixture.format}`),
+        fixture.format,
+      );
+      expect(looseDocuments(opened.plaintext, fixture.format)).toEqual(
+        expected,
+      );
+      expect(opened.inspection.version).toBe("3.13.3");
+      if (
+        fixture.decryptedJsonAvailable &&
+        fixture.format === "yaml" &&
+        fixture.name !== "multi"
+      ) {
+        // The JSON rendering upstream produced from the same file: comments
+        // vanish, so compare entries and values only.
+        const stripComments = (
+          value: ReturnType<typeof looseDocuments>[number],
+        ): unknown => {
+          if ("map" in value)
+            return {
+              map: value.map
+                .filter((item) => !("comment" in item))
+                .map((item) =>
+                  "key" in item
+                    ? { key: item.key, value: stripComments(item.value) }
+                    : item,
+                ),
+            };
+          if ("seq" in value)
+            return {
+              seq: value.seq
+                .filter((item) => !("comment" in item))
+                .map(stripComments),
+            };
+          return value;
+        };
+        const asJson = looseDocuments(
+          readFixture(`${fixture.name}.dec.json`),
+          "json",
+        );
+        expect([
+          stripComments(
+            looseDocuments(opened.plaintext, "yaml")[0] ?? { null: true },
+          ),
+        ]).toEqual(asJson.map(stripComments));
+      }
+    });
+  }
+
+  it("SB-037: the 2-of-3 fixture needs two distinct groups", async () => {
+    const session = new TestSession();
+    const cipher = readFixture("groups-2of3.enc.yaml");
+    await expect(
+      session.engine.open(cipher, "yaml", {
+        identities: [ids[0]?.identity ?? ""],
+        permit: session.permit(),
+        signal: NEVER,
+      }),
+    ).rejects.toMatchObject({ code: "insufficient_groups" });
+    await expect(
+      session.engine.open(cipher, "yaml", {
+        identities: [ids[0]?.identity ?? "", ids[3]?.identity ?? ""],
+        permit: session.permit(),
+        signal: NEVER,
+      }),
+    ).rejects.toMatchObject({ code: "insufficient_groups" });
+    const opened = await session.engine.open(cipher, "yaml", {
+      identities: [ids[1]?.identity ?? "", ids[2]?.identity ?? ""],
+      permit: session.permit(),
+      signal: NEVER,
+    });
+    expect(opened.report.openedGroups).toBe(2);
   });
 
-  it("upstream ciphertext opens in the browser engine", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "sops-upstream-"));
-    try {
-      const identity = await age.generateX25519Identity();
-      const recipient = await age.identityToRecipient(identity);
-      const plain = join(dir, "plain.yaml");
-      const keyFile = join(dir, "key.txt");
-      await writeFile(plain, "hello: world\ncount: 2\n");
-      await writeFile(keyFile, `${identity}\n`, { mode: 0o600 });
-      const encrypted = await exec(
-        bin ?? "",
-        [
-          "--encrypt",
-          "--age",
-          recipient,
-          "--input-type",
-          "yaml",
-          "--output-type",
-          "yaml",
-          plain,
-        ],
-        {
-          env: { ...process.env, SOPS_AGE_KEY_FILE: keyFile },
-          timeout: 15_000,
-          maxBuffer: 1024 * 1024,
-        },
-      );
-      const opened = await decryptSopsDocument({
-        format: "yaml",
-        ciphertext: encrypted.stdout,
-        identity,
-      });
-      expect(opened).toMatch(/hello: world/);
-      expect(opened).toMatch(/count/);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+  it("SB-014/015: a legacy clear comment is kept unauthenticated; a broken encrypted comment is refused", async () => {
+    const session = new TestSession();
+    const cipher = readFixture("basic-yaml.enc.yaml");
+    const withLegacy = cipher.replace(
+      "hello:",
+      "# legacy clear comment\nhello:",
+    );
+    // SAFETY: the manifest is generated by sops-fixtures.mjs and always
+    // carries at least one case; `--check` fails the build otherwise.
+    const opened = await session.engine.open(withLegacy, "yaml", {
+      identities: identitiesFor(manifest.cases[0] as FixtureCase),
+      permit: session.permit(),
+      signal: NEVER,
+    });
+    expect(opened.plaintext).toMatch(/# legacy clear comment/u);
+    const broken = cipher.replace(
+      "hello:",
+      "#ENC[AES256_GCM,data:AAAA,iv:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=,tag:AAAAAAAAAAAAAAAAAAAAAA==,type:comment]\nhello:",
+    );
+    // SAFETY: as above — the first fixture case is guaranteed present.
+    await expect(
+      session.engine.open(broken, "yaml", {
+        identities: identitiesFor(manifest.cases[0] as FixtureCase),
+        permit: session.permit(),
+        signal: NEVER,
+      }),
+    ).rejects.toMatchObject({ code: "authentication_failed" });
   });
 });

@@ -1,0 +1,11 @@
+creation_rules:
+  - path_regex: \.yaml$
+    shamir_threshold: 2
+    key_groups:
+      - age:
+          - age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+          - age1rytszyw4a65fz4xq6h60jk5g5d2sczur6ggvaz74n6u3hu5sxfeqg0snpx
+      - age:
+          - age1q4n92kra6cz0yv9tmcya65pnju4s87gxjxl4y738rnydxu8f6c3qz9x5rd
+      - age:
+          - age1s5nfak060tuuyxf2nwhs6v0nrvysupluhffg32xrjmznh0avasmsr020gm

@@ -1,0 +1,4 @@
+a:
+  b: 1
+# column zero before c
+c: 2
