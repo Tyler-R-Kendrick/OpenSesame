@@ -83,13 +83,7 @@ export function presetToInstancePolicy(
 export function previewPlan(
   draft: InstallationCapabilitySelection,
 ): EffectivePlan {
-  const store: {
-    preview?: (d: InstallationCapabilitySelection) => EffectivePlan;
-  } = overlapCast(compositionStore);
-  if (typeof store.preview !== "function") {
-    throw new Error("The composition store cannot preview a draft yet.");
-  }
-  return store.preview(draft);
+  return compositionStore.preview(draft);
 }
 
 /**

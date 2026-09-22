@@ -75,10 +75,19 @@ export type CapabilityResourceKind =
   | "vault-restriction"
   | "effective-plan";
 
-const RESOURCES: Record<
+/** Where one capability resource lives, and which schema names it. */
+export type CapabilityResourceLocation = Readonly<{
+  key: string;
+  path: string;
+  schemaId: string;
+}>;
+
+type CapabilityResourceTable = Record<
   CapabilityResourceKind,
-  { key: string; path: string; schemaId: string }
-> = {
+  CapabilityResourceLocation
+>;
+
+const RESOURCES: CapabilityResourceTable = {
   "instance-policy": {
     key: INSTANCE_POLICY_RESOURCE_KEY,
     path: INSTANCE_POLICY_DISPLAY_PATH,

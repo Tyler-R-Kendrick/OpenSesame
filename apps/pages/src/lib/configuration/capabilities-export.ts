@@ -43,9 +43,15 @@ export function instanceConfigurationDocument(
   };
 }
 
+/** The file the Export control hands the person: a name and YAML bytes. */
+export type InstanceConfigurationFile = Readonly<{
+  fileName: string;
+  yaml: string;
+}>;
+
 export function exportInstanceConfiguration(
   snapshot: CompositionSnapshot = compositionStore.getSnapshot(),
-): { fileName: string; yaml: string } {
+): InstanceConfigurationFile {
   return {
     fileName: INSTANCE_EXPORT_FILE_NAME,
     yaml: documentToYaml(

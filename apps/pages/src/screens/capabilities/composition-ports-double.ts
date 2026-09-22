@@ -171,10 +171,7 @@ export function fakePortsModule(double: CompositionDouble) {
     parseVaultSelection: strictParse(VAULT_FIELDS, "VaultCapabilitySelection"),
     previewPlan: (draft: InstallationCapabilitySelection) =>
       double.preview(draft),
-    // SAFETY: `backup.git-remote` is a capability id in the fixture catalog
-    // (`composition-fixture.ts`), so the literal widens to its own element
-    // type and nothing unchecked enters the list.
-    PUBLICATION_CAPABILITIES: ["backup.git-remote"] as readonly CapabilityId[],
+    PUBLICATION_CAPABILITIES: FIXTURE_PUBLICATION_CAPABILITIES,
     viewOutcome: (
       outcome: BoundaryValue,
       durability = "unknown",

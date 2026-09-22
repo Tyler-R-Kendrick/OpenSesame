@@ -62,13 +62,19 @@ export const capabilitySourceSeams = {
     defaultCapabilityPorts(() => tomb),
 };
 
-const COMMITS: Record<
+/** What it takes to commit one editable resource's source bytes. */
+type SourceCommit = (
+  ports: CapabilityConfigPorts,
+  input: { source: string; baseRevision: string },
+) => Promise<CommitResult>;
+
+/** One commit per editable resource; the effective plan is read-only. */
+type SourceCommits = Record<
   Exclude<CapabilityResourceKind, "effective-plan">,
-  (
-    ports: CapabilityConfigPorts,
-    input: { source: string; baseRevision: string },
-  ) => Promise<CommitResult>
-> = {
+  SourceCommit
+>;
+
+const COMMITS: SourceCommits = {
   "instance-policy": commitInstancePolicySource,
   "installation-selection": commitInstallationSelectionSource,
   "vault-restriction": commitVaultRestrictionSource,
