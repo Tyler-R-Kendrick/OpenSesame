@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { IconTrash } from "../../components/Icons.js";
 import {
   IconLock,
   IconPasskey,
@@ -339,16 +338,6 @@ function AgentKeyRows({
                     : "icon-btn icon-btn--sm icon-btn--danger"
                 }
                 disabled={disabled}
-                aria-label={
-                  removing === key.credentialId
-                    ? "Confirm key revocation"
-                    : "Revoke agent key"
-                }
-                title={
-                  removing === key.credentialId
-                    ? "Confirm key revocation"
-                    : "Revoke agent key"
-                }
                 onClick={(event) => {
                   if (removing === key.credentialId)
                     void revoke(key, event.currentTarget).then((saved) => {
