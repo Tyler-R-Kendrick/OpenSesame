@@ -57,6 +57,16 @@ async function signBytes(key: CryptoKey, bytes: Uint8Array): Promise<string> {
   return encodeBase64Url(new Uint8Array(signature));
 }
 
+/** The header while it is still being written; `EnvelopeHeader` is frozen. */
+type HeaderDraft = {
+  -readonly [K in keyof EnvelopeHeader]: EnvelopeHeader[K];
+};
+
+/** The rotation while it is still being written, signature not yet computed. */
+type RotationDraft = {
+  -readonly [K in keyof Omit<PolicyKeyRotation, "signature">]: PolicyKeyRotation[K];
+};
+
 export type EnvelopeInput = Readonly<{
   payload: InstanceCapabilityPolicy;
   notBefore?: string;
@@ -80,11 +90,12 @@ export async function signPolicyEnvelope(
   // The optional members are written only when the caller gave one, so an
   // absent window is absent from the signed bytes rather than present as
   // `undefined`.
-  const header: EnvelopeHeader = { ...required };
-  if (input.notBefore !== undefined) header.notBefore = input.notBefore;
-  if (input.expires !== undefined) header.expires = input.expires;
+  const draft: HeaderDraft = { ...required };
+  if (input.notBefore !== undefined) draft.notBefore = input.notBefore;
+  if (input.expires !== undefined) draft.expires = input.expires;
   if (input.allowedOrigins !== undefined)
-    header.allowedOrigins = input.allowedOrigins;
+    draft.allowedOrigins = input.allowedOrigins;
+  const header: EnvelopeHeader = draft;
   return {
     ...header,
     payload: input.payload,
@@ -101,7 +112,7 @@ export async function signPolicyKeyRotation(
     notBefore?: string;
   }>,
 ): Promise<PolicyKeyRotation> {
-  const unsigned: Omit<PolicyKeyRotation, "signature"> = {
+  const unsigned: RotationDraft = {
     schemaVersion: 1,
     kind: "PolicyKeyRotation",
     instanceId: input.instanceId,

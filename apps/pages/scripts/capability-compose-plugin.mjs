@@ -19,13 +19,20 @@
  * precache manifest) and an `enforce: "post"` one (graph + gate, after the
  * HTML plugin has emitted the documents and the worker has been built).
  */
-import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { buildGraph } from "./lib/capability-build-graph.mjs";
 import { composeState } from "./lib/capability-compose-state.mjs";
 import { publicPathTarget } from "./lib/capability-distribution.mjs";
 import { VIRTUAL_MODULES, canonicalJson } from "./lib/capability-graph.mjs";
 import { formatViolations, violations } from "./lib/capability-invariants.mjs";
+import { walk } from "./lib/verify-dist-checks.mjs";
 
 export { loadInventory } from "./lib/capability-compose-state.mjs";
 export { buildGraph } from "./lib/capability-build-graph.mjs";
@@ -99,6 +106,32 @@ const graphJson = (graph) => canonicalJson(graph, 0);
 function writeGraph(outDir, graph) {
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "capability-graph.json"), graphJson(graph));
+}
+
+/**
+ * Vite deletes a pure-CSS chunk after `generateBundle` has run (the dynamic
+ * import is rewritten to its CSS loader), so the bundle snapshot can name
+ * chunks that never reach disk. Drop them and the edges into them, and keep
+ * what they held under `removedChunks` so nothing disappears unrecorded.
+ */
+function pruneRemovedChunks(graph, dist) {
+  if (!existsSync(dist)) return;
+  const onDisk = new Set(
+    walk(dist).map((f) => relative(dist, f).split("\\").join("/")),
+  );
+  const removed = graph.chunks.filter((c) => !onDisk.has(c.file));
+  if (removed.length === 0) return;
+  const gone = new Set(removed.map((c) => c.file));
+  graph.chunks = graph.chunks
+    .filter((c) => !gone.has(c.file))
+    .map((c) => ({
+      ...c,
+      imports: c.imports.filter((f) => !gone.has(f)),
+      dynamicImports: c.dynamicImports.filter((f) => !gone.has(f)),
+    }));
+  graph.removedChunks = removed
+    .map((c) => ({ file: c.file, modules: c.modules.map((m) => m.id) }))
+    .sort((a, b) => (a.file < b.file ? -1 : 1));
 }
 
 /**
@@ -230,6 +263,7 @@ function graphPlugin(ctx) {
         const { state, graph } = ctx;
         if (!graph) return;
         const dist = ctx.outDir();
+        pruneRemovedChunks(graph, dist);
         measureEmittedFiles(state, graph, dist);
         writeGraph(dist, graph);
         gateOrReport(state, graph, ctx.logger(), "closeBundle");
