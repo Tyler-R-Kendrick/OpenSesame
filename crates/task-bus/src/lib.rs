@@ -19,6 +19,8 @@ mod nats;
 #[cfg(feature = "jetstream")]
 mod nats_connect;
 #[cfg(feature = "jetstream")]
+mod nats_policy;
+#[cfg(feature = "jetstream")]
 mod nats_transport;
 
 pub use memory::{InMemoryTaskBus, UnavailableTaskBus};
@@ -27,10 +29,12 @@ pub use nats::{NatsBusError, NatsJetStreamConfig, NatsJetStreamTaskBus};
 #[cfg(feature = "jetstream")]
 pub use nats_connect::{event_code, BusHealth, InjectedMaterial, NatsRole};
 #[cfg(feature = "jetstream")]
-pub use nats_transport::{
-    url_hosts, IdentityRef, NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy,
-    NatsTransportPublic, NatsTransportSource, NatsTransportSpec, NatsTransportView, TrustRef,
+pub use nats_policy::{
+    IdentityRef, NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy, NatsTransportPublic,
+    NatsTransportSource, NatsTransportView, TrustRef,
 };
+#[cfg(feature = "jetstream")]
+pub use nats_transport::{url_hosts, NatsTransportSpec};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -220,6 +224,52 @@ pub async fn create_with(
     })
     .await?;
     Ok(Arc::new(bus))
+}
+
+/// The `JetStream` configuration for the Host *backup wake* consumer: the
+/// durable `opensesame-backup` filtered to `opensesame.events.system.>`. One
+/// definition so the provisioning action and the runtime consumer cannot
+/// drift apart (and so a backup identity never opens the worker consumer).
+#[cfg(feature = "jetstream")]
+#[must_use]
+pub fn backup_consumer_config(
+    nats_url: &str,
+    transport: NatsTransportSpec,
+    role: NatsRole,
+    provision: bool,
+) -> NatsJetStreamConfig {
+    NatsJetStreamConfig {
+        nats_url: nats_url.to_string(),
+        consumer_name: BACKUP_CONSUMER_NAME.to_string(),
+        filter_subject: Some(format!("{SYSTEM_SUBJECT_PREFIX}.>")),
+        fetch_expires: std::time::Duration::from_secs(2),
+        transport,
+        role,
+        provision,
+        ..NatsJetStreamConfig::default()
+    }
+}
+
+/// Create the backup wake consumer as part of the one-time provisioning
+/// action. Separate from [`create_with`] because the worker consumer and the
+/// backup consumer are two durables and a runtime role creates neither.
+///
+/// # Errors
+///
+/// Returns an error when the connection or the consumer creation fails.
+#[cfg(feature = "jetstream")]
+pub async fn provision_backup_consumer(
+    nats_url: &str,
+    transport: NatsTransportSpec,
+) -> anyhow::Result<()> {
+    NatsJetStreamTaskBus::connect(backup_consumer_config(
+        nats_url,
+        transport,
+        NatsRole::Provisioner,
+        true,
+    ))
+    .await?;
+    Ok(())
 }
 
 /// Build memory or nats from explicit backend + optional URL.

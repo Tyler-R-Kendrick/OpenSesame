@@ -1,10 +1,11 @@
 //! Unit tests for the NATS adapter's configuration surface (no server).
 
 use super::*;
-use crate::nats_transport::{
-    url_hosts, NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy, NatsTransportPublic,
-    NatsTransportSource, NatsTransportSpec, TrustRef,
+use crate::nats_policy::{
+    NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy, NatsTransportPublic,
+    NatsTransportSource, TrustRef,
 };
+use crate::nats_transport::{url_hosts, NatsTransportSpec};
 use opensesame_domain::transport::{TransportError, TrustProfileKind};
 use serde_json::json;
 use std::collections::HashMap;

@@ -27,6 +27,11 @@ pub struct BridgeCore {
     pub xkey: Option<CalloutXKey>,
     /// Config mode: the target account's name for issued users.
     pub target_account: String,
+    /// The callout issuer nats-server puts in the request's `sub`. `None`
+    /// means the signing account's public key, which is what config mode
+    /// (`auth_callout.issuer`) sends. Operator mode sends the account
+    /// *name*, so that deployment must set this explicitly.
+    pub callout_subject: Option<String>,
     pub source: Arc<dyn DecisionSource>,
 }
 
@@ -37,6 +42,7 @@ impl std::fmt::Debug for BridgeCore {
             .field("pinned_servers", &self.server_public_keys.len())
             .field("xkey", &self.xkey.as_ref().map(CalloutXKey::public_key))
             .field("target_account", &self.target_account)
+            .field("callout_subject", &self.callout_subject)
             .finish_non_exhaustive()
     }
 }
@@ -54,7 +60,11 @@ impl BridgeCore {
     fn expectations(&self, now: i64) -> Expectations {
         Expectations {
             server_public_keys: self.server_public_keys.clone(),
-            audience: Some(self.signer.account_public_key()),
+            callout_subject: Some(
+                self.callout_subject
+                    .clone()
+                    .unwrap_or_else(|| self.signer.account_public_key()),
+            ),
             now,
         }
     }

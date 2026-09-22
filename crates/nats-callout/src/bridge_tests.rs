@@ -57,6 +57,7 @@ fn core_with(
         server_public_keys: vec![p.server.public_key()],
         xkey,
         target_account: "APP".into(),
+        callout_subject: None,
         source: source.clone(),
     };
     (core, source)

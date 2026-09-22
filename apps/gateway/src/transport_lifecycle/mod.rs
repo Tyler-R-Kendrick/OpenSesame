@@ -19,15 +19,19 @@
 //! | [`issuance`] | `issue_for_transport`: exact selector, purpose-shaped EKUs, validity policy |
 //! | [`renewal`] | the lifecycle-feed subscriber, lease, bounded retry with jitter |
 //! | [`activation`] | candidate → `TransportGenerations::activate`, facts either way |
-//! | [`revocation`] | denylist, binding denials, CRL freshness, the revoke verb |
+//! | [`revocation`] | denylist, binding denials, the revoke verb |
+//! | [`crl`] | CRL freshness: stale is `degraded`, never silently ignored |
+//! | [`minting`] | the leaf shape a purpose implies, and the signing itself |
 //! | [`trust`] | operator trust profiles: validation, CAS, overlap rollover, re-activation |
 //! | [`facts`] | the independent per-target facts, persisted in `host_kv` |
 //! | [`routes`] | the operator routes, merged by the coordinator |
 
 pub mod activation;
+pub mod crl;
 pub mod custody;
 pub mod facts;
 pub mod issuance;
+pub mod minting;
 pub mod renewal;
 pub mod revocation;
 pub mod routes;
@@ -37,6 +41,8 @@ pub mod trust;
 pub(crate) mod test_support;
 #[cfg(test)]
 mod activation_tests;
+#[cfg(test)]
+mod boundary_tests;
 #[cfg(test)]
 mod custody_tests;
 #[cfg(test)]
@@ -81,7 +87,7 @@ pub struct LifecycleState {
     /// target → certificate id, for facts and renewal-driven activation.
     targets: RwLock<BTreeMap<String, String>>,
     renewal: Mutex<renewal::Scheduler>,
-    crl: RwLock<Option<revocation::CrlFreshness>>,
+    crl: RwLock<Option<crl::CrlFreshness>>,
     /// The stored-trust revision last activated, and the overlap epoch it
     /// was activated under, so a passed `overlap_until` re-activates once.
     trust_epoch: Mutex<trust::ActivatedEpoch>,
@@ -280,12 +286,12 @@ impl LifecycleState {
         f(&mut self.renewal.lock().unwrap_or_else(poisoned))
     }
 
-    pub(crate) fn set_crl(&self, freshness: Option<revocation::CrlFreshness>) {
+    pub(crate) fn set_crl(&self, freshness: Option<crl::CrlFreshness>) {
         *self.crl.write().unwrap_or_else(poisoned) = freshness;
     }
 
     #[must_use]
-    pub fn crl(&self) -> Option<revocation::CrlFreshness> {
+    pub fn crl(&self) -> Option<crl::CrlFreshness> {
         self.crl.read().unwrap_or_else(poisoned).clone()
     }
 

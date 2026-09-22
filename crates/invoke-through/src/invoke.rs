@@ -14,19 +14,18 @@
 //! cert store, no reqwest, no cookie store — the ADR 0048 D5 budget), or the
 //! scoped profile the authority plane injects through [`Invoker::with_tls`].
 
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full, Limited};
-use hyper::header::{HeaderName, HeaderValue};
-use hyper::{Method, Uri};
+use hyper::header::HeaderValue;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 use zeroize::Zeroizing;
 
-use crate::egress::{rule_for, EgressRule, EGRESS_RULES};
+use crate::egress::{EgressRule, EGRESS_RULES};
 use crate::error::InvokeError;
+use crate::fence::{EgressFence, PreparedRequest};
 use crate::source::TokenSource;
 use crate::tls::{build_client, HttpsClient, TlsClientSpec};
 
@@ -43,7 +42,6 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Request headers a caller may set. `authorization` is absent on purpose:
 /// the token is the daemon's to place, never the caller's.
-const REQUEST_HEADER_ALLOWLIST: &[&str] = &["accept", "content-type", "user-agent"];
 
 /// Response headers passed back to the caller. Everything else upstream sent
 /// is dropped here — `set-cookie` above all.
@@ -104,31 +102,12 @@ pub struct ReceiptMeta {
     pub actor: Option<String>,
 }
 
-/// A request that has passed every pre-connect fence. Constructing one is
-/// proof the egress allowlist, scheme, method, header allowlist, and body cap
-/// all checked out. Carries no credential — the token is added in
-/// [`Invoker::execute`] and dies with the wire request.
-#[derive(Debug)]
-pub struct PreparedRequest {
-    provider_id: String,
-    method: Method,
-    uri: Uri,
-    scheme: String,
-    host: String,
-    path: String,
-    headers: Vec<(HeaderName, HeaderValue)>,
-    body: Bytes,
-    subject: Option<String>,
-    actor: Option<String>,
-}
-
 /// The broker. Cheap to build; the daemon holds one in shared state.
 pub struct Invoker {
     client: HttpsClient,
-    rules: Arc<Vec<EgressRule>>,
-    /// Loopback-only HTTP for tests. Never set in production construction.
-    allow_http_for_tests: bool,
-    request_body_cap: usize,
+    /// Every pre-connect check, separable so a caller can run it before any
+    /// identity is resolved or credential opened.
+    fence: EgressFence,
     response_body_cap: usize,
     timeout: Duration,
 }
@@ -166,12 +145,17 @@ impl Invoker {
     fn from_client(client: HttpsClient, rules: Vec<EgressRule>) -> Self {
         Self {
             client,
-            rules: Arc::new(rules),
-            allow_http_for_tests: false,
-            request_body_cap: DEFAULT_REQUEST_BODY_CAP,
+            fence: EgressFence::new(rules, DEFAULT_REQUEST_BODY_CAP),
             response_body_cap: DEFAULT_RESPONSE_BODY_CAP,
             timeout: DEFAULT_TIMEOUT,
         }
+    }
+
+    /// The pre-connect fence alone, for a caller that must clear a request
+    /// before resolving an identity or opening a credential.
+    #[must_use]
+    pub fn fence(&self) -> &EgressFence {
+        &self.fence
     }
 
     /// Test mode: permit plain HTTP **to loopback hosts only**, for
@@ -181,14 +165,14 @@ impl Invoker {
     /// localhost.
     #[must_use]
     pub fn allow_http_for_tests(mut self) -> Self {
-        self.allow_http_for_tests = true;
+        self.fence.allow_http_for_tests = true;
         self
     }
 
     /// Override the body caps (tests exercise them with small values).
     #[must_use]
     pub fn with_caps(mut self, request_body_cap: usize, response_body_cap: usize) -> Self {
-        self.request_body_cap = request_body_cap;
+        self.fence.request_body_cap = request_body_cap;
         self.response_body_cap = response_body_cap;
         self
     }
@@ -207,60 +191,7 @@ impl Invoker {
     ///
     /// Returns an error when validation or the underlying operation fails.
     pub fn preflight(&self, req: InvokeRequest) -> Result<PreparedRequest, InvokeError> {
-        let method = parse_method(&req.method)?;
-        let uri: Uri = req.url.parse().map_err(|_| InvokeError::InvalidUrl)?;
-        let authority = uri.authority().ok_or(InvokeError::InvalidUrl)?;
-        // Userinfo must never be honored: it is a credential embedded in a
-        // string that receipts and errors legitimately name.
-        if authority.as_str().contains('@') {
-            return Err(InvokeError::InvalidUrl);
-        }
-        let host = authority.host().to_ascii_lowercase();
-        if host.is_empty() {
-            return Err(InvokeError::InvalidUrl);
-        }
-        let rule = rule_for(&self.rules, &req.provider_id)
-            .ok_or_else(|| InvokeError::UnsupportedProvider(req.provider_id.clone()))?;
-        // Egress fence, before anything else (I8): exact host match.
-        if !rule.hosts.iter().any(|allowed| *allowed == host) {
-            return Err(InvokeError::EgressDenied {
-                provider: req.provider_id.clone(),
-                host,
-            });
-        }
-        let scheme = uri.scheme_str().unwrap_or("").to_ascii_lowercase();
-        let loopback_http =
-            self.allow_http_for_tests && scheme == "http" && is_loopback_host(&host);
-        if scheme != rule.scheme && !loopback_http {
-            return Err(InvokeError::HttpsRequired(scheme));
-        }
-        // A non-default port is fine in test mode; on the real path the
-        // allowlisted hosts are served on the scheme's default.
-        if !self.allow_http_for_tests && uri.port_u16().is_some_and(|port| port != 443) {
-            return Err(InvokeError::EgressDenied {
-                provider: req.provider_id.clone(),
-                host: authority.as_str().to_string(),
-            });
-        }
-        let headers = filter_request_headers(&req.headers)?;
-        let body = req.body.unwrap_or_default();
-        if body.len() > self.request_body_cap {
-            return Err(InvokeError::RequestBodyTooLarge {
-                cap: self.request_body_cap,
-            });
-        }
-        Ok(PreparedRequest {
-            provider_id: req.provider_id,
-            method,
-            path: uri.path().to_string(),
-            uri,
-            scheme,
-            host,
-            headers,
-            body,
-            subject: req.subject,
-            actor: req.actor,
-        })
+        self.fence.preflight(req)
     }
 
     /// Execute a preflighted request with an acquired credential. The token
@@ -382,41 +313,6 @@ impl Invoker {
         let token = source.acquire()?;
         self.execute(&token, prepared).await
     }
-}
-
-fn parse_method(method: &str) -> Result<Method, InvokeError> {
-    match method.to_ascii_uppercase().as_str() {
-        "GET" => Ok(Method::GET),
-        "POST" => Ok(Method::POST),
-        "PUT" => Ok(Method::PUT),
-        "PATCH" => Ok(Method::PATCH),
-        "DELETE" => Ok(Method::DELETE),
-        "HEAD" => Ok(Method::HEAD),
-        _ => Err(InvokeError::MethodNotAllowed(method.to_string())),
-    }
-}
-
-fn filter_request_headers(
-    headers: &[(String, String)],
-) -> Result<Vec<(HeaderName, HeaderValue)>, InvokeError> {
-    headers
-        .iter()
-        .map(|(name, value)| {
-            let lowered = name.trim().to_ascii_lowercase();
-            if !REQUEST_HEADER_ALLOWLIST.contains(&lowered.as_str()) {
-                return Err(InvokeError::HeaderNotAllowed(lowered));
-            }
-            let name = HeaderName::from_bytes(lowered.as_bytes())
-                .map_err(|_| InvokeError::HeaderNotAllowed(lowered.clone()))?;
-            let value = HeaderValue::from_str(value)
-                .map_err(|_| InvokeError::HeaderNotAllowed(lowered.clone()))?;
-            Ok((name, value))
-        })
-        .collect()
-}
-
-fn is_loopback_host(host: &str) -> bool {
-    matches!(host, "127.0.0.1" | "::1" | "localhost")
 }
 
 #[cfg(test)]

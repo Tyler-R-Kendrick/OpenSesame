@@ -18,6 +18,11 @@ use crate::MAX_REQUEST_BYTES;
 pub const ALG: &str = "ed25519-nkey";
 /// The only `typ`.
 pub const TYP: &str = "JWT";
+/// The fixed `aud` nats-server puts on every `authorization_request`
+/// (`server/auth_callout.go`: `AuthRequestSubject`). It is a protocol
+/// constant, not the callout account: the account key is the request's
+/// `sub`.
+pub const REQUEST_AUDIENCE: &str = "nats-authorization-request";
 /// A request older than this (by `iat`) is refused even if it has no `exp`.
 pub const REQUEST_WINDOW_SECS: i64 = 120;
 /// Clock skew tolerated on `iat`, `nbf` and `exp`.
@@ -39,8 +44,13 @@ pub struct Expectations {
     /// knows the request came in on an authenticated NATS connection (the
     /// bridge); the Host always pins a list.
     pub server_public_keys: Vec<String>,
-    /// The callout account the request must be addressed to (`aud`).
-    pub audience: Option<String>,
+    /// The callout issuer this deployment configured, which nats-server
+    /// puts in the request's `sub`: the account public key (`A…`) in config
+    /// mode, the account *name* in operator mode. `None` accepts any — only
+    /// acceptable where the caller already knows the request arrived on an
+    /// authenticated NATS connection into that account (the bridge); the
+    /// Host always pins it.
+    pub callout_subject: Option<String>,
     /// Verification instant (unix seconds).
     pub now: i64,
 }
@@ -71,6 +81,12 @@ impl VerifiedRequest {
     #[must_use]
     pub fn raw(&self) -> &str {
         &self.raw
+    }
+
+    /// The one-time user nkey the server minted for this CONNECT.
+    #[must_use]
+    pub fn user_nkey(&self) -> &str {
+        &self.claims.nats.user_nkey
     }
 }
 
@@ -122,8 +138,16 @@ fn check_window(claims: &AuthorizationRequestClaims, now: i64) -> Result<(), Cal
 /// Verify a server-signed `authorization_request`.
 ///
 /// Order: shape and algorithm → issuer is a server nkey (and pinned when a
-/// list is configured) → signature → claim type/version → subject is the
-/// one-time user nkey → audience → time window.
+/// list is configured) → signature → claim type/version → the issuer is the
+/// server the claims name → `aud` is the protocol constant → `sub` is this
+/// deployment's callout issuer → `nats.user_nkey` is a public user key →
+/// time window.
+///
+/// The field names matter and are easy to get backwards: nats-server signs
+/// with its own key, addresses the request to the fixed string
+/// [`REQUEST_AUDIENCE`], puts the *callout issuer* in `sub`, and carries the
+/// one-time user key in `nats.user_nkey` — verified against nats-server
+/// 2.11 (`server/auth_callout.go`) and ADR-26.
 ///
 /// # Errors
 ///
@@ -152,14 +176,23 @@ pub fn decode_request(token: &str, expect: &Expectations) -> Result<VerifiedRequ
     if claims.nats.kind != REQUEST_TYPE || claims.nats.version != CLAIMS_VERSION {
         return Err(malformed("claims are not an authorization_request v2"));
     }
-    if claims.sub.is_empty() || !claims.sub.starts_with('U') || claims.sub != claims.nats.user_nkey {
-        return Err(CalloutError::SubjectNotUser);
+    if claims.nats.server_id.id != issuer {
+        return Err(CalloutError::ServerIdMismatch);
     }
-    nkeys::KeyPair::from_public_key(&claims.sub).map_err(|_| CalloutError::SubjectNotUser)?;
-    if let Some(aud) = &expect.audience {
-        if &claims.aud != aud {
-            return Err(CalloutError::AudienceMismatch);
-        }
+    if claims.aud != REQUEST_AUDIENCE {
+        return Err(CalloutError::AudienceMismatch);
+    }
+    if claims.sub.is_empty()
+        || expect
+            .callout_subject
+            .as_ref()
+            .is_some_and(|expected| expected != &claims.sub)
+    {
+        return Err(CalloutError::SubjectNotCallout);
+    }
+    let user_nkey = claims.nats.user_nkey.as_str();
+    if !user_nkey.starts_with('U') || nkeys::KeyPair::from_public_key(user_nkey).is_err() {
+        return Err(CalloutError::UserNkeyInvalid);
     }
     check_window(&claims, expect.now)?;
     Ok(VerifiedRequest {

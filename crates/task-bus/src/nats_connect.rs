@@ -24,7 +24,8 @@ use opensesame_transport_security::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::nats_transport::{NatsAuth, NatsServerName, NatsTransportSpec};
+use crate::nats_policy::{NatsAuth, NatsServerName};
+use crate::nats_transport::NatsTransportSpec;
 
 /// The least-privilege identity a client runs as. Decides the client name
 /// the server sees and which `JetStream` API calls the adapter makes.

@@ -1,18 +1,22 @@
 # ## Dependency notes
 #
 # * rustls / tokio-rustls / rustls-webpki are pinned to the workspace's locked
-#   0.23 / 0.26 / 0.103 generation with the `aws_lc_rs` provider only. rustls
-#   is never asked for a process-wide default provider: every config in this
-#   crate is built with `builder_with_provider`, so the `ring` feature other
-#   crates enable on the same graph can never be picked up by accident.
+#   0.23 / 0.26 / 0.103 generation with the `ring` provider only — the same
+#   provider the rest of the workspace already pulls in through
+#   `hyper-rustls` and `reqwest`. Enabling a second rustls provider feature
+#   anywhere in the graph makes cargo feature unification hand rustls two
+#   candidates, and `CryptoProvider::get_default()` then refuses to choose
+#   (this broke `opensesame-connection-broker`'s `rotation_verify` tests).
+#   Independently of that, rustls is never asked for a process-wide default
+#   here: every config in this crate is built with `builder_with_provider`.
 # * `x509-parser` 0.18 (not the 0.16 that `apps/gateway` and `pki-core` use):
-#   0.18 is the generation whose signature verification and CRL types sit on
-#   `aws-lc-rs`, the same provider rustls uses here, and it is already in the
-#   lock through `rcgen` 0.14. It is used only to *read* an already-verified
-#   leaf (SANs, EKU, validity); chain building, signatures and revocation are
-#   `rustls-webpki`'s job.
-# * `rcgen` 0.14 (behind `testkit`) pairs with `x509-parser` 0.18 and
-#   `aws-lc-rs`; the 0.13 used elsewhere pairs with 0.16 and `ring`.
+#   it is already in the lock through `rcgen` 0.14, and it is used only to
+#   *read* an already-verified leaf (SANs, EKU, validity); chain building,
+#   signatures and revocation are `rustls-webpki`'s job, so it contributes no
+#   crypto backend of its own.
+# * `rcgen` 0.14 (behind `testkit`) keeps its own `aws_lc_rs` backend. rcgen
+#   links aws-lc-rs directly, not through rustls, so it adds no rustls
+#   provider feature and cannot re-create the two-provider ambiguity.
 # * `rustls-pemfile` is not in the lock and is not needed: `rustls-pki-types`'
 #   `PemObject` reads PEM.
 # * Never a dependency of `crates/core`, `crates/client-core`, or
@@ -47,15 +51,15 @@ http = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
 hyper-util = { workspace = true, features = ["server", "server-auto", "server-graceful", "http1", "http2", "tokio"] }
 reqwest = { workspace = true }
-rustls = { version = "0.23.43", default-features = false, features = ["aws_lc_rs", "logging", "std", "tls12"] }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 rustls-pki-types = { version = "1.15.1", features = ["std"] }
-rustls-webpki = { version = "0.103.13", default-features = false, features = ["aws-lc-rs", "std"] }
+rustls-webpki = { version = "0.103.13", default-features = false, features = ["ring", "std"] }
 secrecy = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tokio-rustls = { version = "0.26.4", default-features = false, features = ["aws_lc_rs", "logging", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
 tower = { workspace = true }
 tracing = { workspace = true }
 x509-parser = "0.18.1"

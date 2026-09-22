@@ -17,8 +17,12 @@ pub enum CalloutError {
     ServerUnknown,
     #[error("request audience is not this callout account")]
     AudienceMismatch,
-    #[error("request subject is not the one-time user nkey")]
-    SubjectNotUser,
+    #[error("request subject is not this deployment's callout issuer")]
+    SubjectNotCallout,
+    #[error("request does not name a valid one-time user nkey")]
+    UserNkeyInvalid,
+    #[error("request issuer is not the server it names in server_id")]
+    ServerIdMismatch,
     #[error("request is outside its time window")]
     OutsideWindow,
     #[error("request nonce, server or user key disagree with the envelope")]
@@ -52,7 +56,9 @@ impl CalloutError {
             Self::IssuerNotServer => "issuer_not_server",
             Self::ServerUnknown => "server_unknown",
             Self::AudienceMismatch => "audience_mismatch",
-            Self::SubjectNotUser => "subject_not_user",
+            Self::SubjectNotCallout => "subject_not_callout",
+            Self::UserNkeyInvalid => "user_nkey_invalid",
+            Self::ServerIdMismatch => "server_id_mismatch",
             Self::OutsideWindow => "outside_window",
             Self::EnvelopeMismatch => "envelope_mismatch",
             Self::XkeyRequired => "xkey_required",

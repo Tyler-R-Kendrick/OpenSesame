@@ -243,7 +243,7 @@ mod tests {
             &token,
             &Expectations {
                 server_public_keys: vec![],
-                audience: None,
+                callout_subject: None,
                 now,
             },
         )

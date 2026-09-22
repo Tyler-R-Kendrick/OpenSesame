@@ -13,7 +13,8 @@
 //! [`NatsBusError::NotProvisioned`] when it is absent.
 
 use crate::nats_connect::{connect_options, BusHealth, InjectedMaterial, NatsRole};
-use crate::nats_transport::{NatsTransportSpec, NatsTransportView};
+use crate::nats_policy::NatsTransportView;
+use crate::nats_transport::NatsTransportSpec;
 use crate::{
     BusEvent, TaskBus, DEFAULT_CONSUMER_NAME, DEFAULT_STREAM_NAME, DEFAULT_SUBJECT_PREFIX,
 };

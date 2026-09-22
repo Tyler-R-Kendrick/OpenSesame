@@ -18,6 +18,7 @@ mod host_authorization;
 mod identity_mapping;
 mod lifecycle;
 mod managed_certs;
+mod managed_certs_tls;
 mod middleware;
 mod oci_component;
 mod openfga_project;
@@ -31,6 +32,8 @@ mod task_engine;
 mod taskbus_config;
 #[cfg(test)]
 mod test_principals;
+mod transport;
+mod transport_lifecycle;
 
 use clap::Parser;
 use config::Args;
@@ -45,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     config::assert_cors_origins().map_err(anyhow::Error::msg)?;
     let state = app_state::build(args.clone()).await?;
+    let state_for_serve = state.clone();
     // The backup actor drains the transactional outbox for the process's
     // lifetime; secret mutations wake it via `backup_notify` (ADR 0039).
     tokio::spawn(backup::run(state.clone()));
@@ -71,12 +75,10 @@ async fn main() -> anyhow::Result<()> {
         hsts,
     );
 
-    let listen = args.listen.to_string();
-    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
-    tracing::info!(%listen, "opensesame gateway listening");
-    let listener = tokio::net::TcpListener::bind(args.listen).await?;
-    axum::serve(listener, app).await?;
-    Ok(())
+    // Plain listener always; the optional mTLS / workload-identity secure
+    // listener beside it when configured (ADR 0130). A configured-but-broken
+    // secure profile returns Err here, so nothing serves.
+    transport::boot::serve(state_for_serve, &args, app).await
 }
 
 #[cfg(test)]

@@ -9,6 +9,7 @@
 //! | `OPENSESAME_NATS_CALLOUT_SIGNING_SEED_FILE` | account seed (`SA…`) that signs responses |
 //! | `OPENSESAME_NATS_CALLOUT_XKEY_SEED_FILE` | curve seed (`SX…`) when callouts are sealed |
 //! | `OPENSESAME_NATS_CALLOUT_TARGET_ACCOUNT` | account name issued users are placed in |
+//! | `OPENSESAME_NATS_CALLOUT_SUBJECT` | the callout issuer the server puts in the request's `sub` (operator mode: the account name; unset = the signing account's public key, which is config mode) |
 //! | `OPENSESAME_NATS_SERVER_NKEYS` | optional comma list of server keys to pin |
 //! | `OPENSESAME_NATS_CALLOUT_MAX_EXP_SECS` | response/user JWT validity (default 300) |
 //! | `OPENSESAME_NATS_CALLOUT_HOST_URL` | Host base URL (https) |
@@ -61,6 +62,7 @@ pub struct BridgeConfig {
     pub signing_seed: SecretBox<String>,
     pub xkey_seed: Option<SecretBox<String>>,
     pub target_account: String,
+    pub callout_subject: Option<String>,
     pub server_public_keys: Vec<String>,
     pub max_exp_secs: i64,
     pub host_url: url::Url,
@@ -74,6 +76,7 @@ impl std::fmt::Debug for BridgeConfig {
             .field("nats_auth", &self.nats_auth)
             .field("nats_tls", &self.nats_tls.is_some())
             .field("target_account", &self.target_account)
+            .field("callout_subject", &self.callout_subject)
             .field("pinned_servers", &self.server_public_keys.len())
             .field("max_exp_secs", &self.max_exp_secs)
             .field("host_url", &self.host_url.as_str())
@@ -218,6 +221,7 @@ impl BridgeConfig {
             .map(|p| read_secret_file(&p))
             .transpose()?;
         let target_account = expect(lookup, "OPENSESAME_NATS_CALLOUT_TARGET_ACCOUNT")?;
+        let callout_subject = get(lookup, "OPENSESAME_NATS_CALLOUT_SUBJECT");
         let server_public_keys = get(lookup, "OPENSESAME_NATS_SERVER_NKEYS")
             .map(|list| {
                 list.split(',')
@@ -249,6 +253,7 @@ impl BridgeConfig {
             signing_seed,
             xkey_seed,
             target_account,
+            callout_subject,
             server_public_keys,
             max_exp_secs,
             host_url,

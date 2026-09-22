@@ -6,7 +6,7 @@ const NOW: i64 = 1_800_000_000;
 fn expect_for(p: &Parties) -> Expectations {
     Expectations {
         server_public_keys: vec![p.server.public_key()],
-        audience: Some(p.account.public_key()),
+        callout_subject: Some(p.account.public_key()),
         now: NOW,
     }
 }
@@ -17,7 +17,9 @@ fn valid_request_round_trips() {
     let token = p.signed_request(NOW, "tok");
     let verified = decode_request(&token, &expect_for(&p)).expect("verifies");
     assert_eq!(verified.server_public_key, p.server.public_key());
-    assert_eq!(verified.claims.sub, p.user.public_key());
+    assert_eq!(verified.claims.sub, p.account.public_key());
+    assert_eq!(verified.user_nkey(), p.user.public_key());
+    assert_eq!(verified.claims.aud, REQUEST_AUDIENCE);
     assert_eq!(verified.claims.nats.connect_opts.auth_token, "tok");
     assert_eq!(verified.raw(), token);
     assert!(!verified.claims.jti.is_empty());
@@ -99,34 +101,74 @@ fn algorithm_and_type_are_pinned() {
 }
 
 #[test]
-fn subject_must_be_the_user_nkey() {
+fn subject_must_be_the_configured_callout_issuer() {
     let p = Parties::generate();
+    // Another account's callout: same server, wrong issuer in `sub`.
     let mut claims = p.request_claims(NOW, "tok");
-    claims.sub = nkeys::KeyPair::new_user().public_key();
-    let token = p.sign_request(claims);
+    claims.sub = nkeys::KeyPair::new_account().public_key();
     assert_eq!(
-        decode_request(&token, &expect_for(&p)).unwrap_err(),
-        CalloutError::SubjectNotUser
+        decode_request(&p.sign_request(claims), &expect_for(&p)).unwrap_err(),
+        CalloutError::SubjectNotCallout
     );
     let mut claims = p.request_claims(NOW, "tok");
-    claims.sub = p.account.public_key();
-    claims.nats.user_nkey = p.account.public_key();
-    let token = p.sign_request(claims);
+    claims.sub = String::new();
     assert_eq!(
-        decode_request(&token, &expect_for(&p)).unwrap_err(),
-        CalloutError::SubjectNotUser
+        decode_request(&p.sign_request(claims), &expect_for(&p)).unwrap_err(),
+        CalloutError::SubjectNotCallout
+    );
+    // With no pin the subject is accepted (the bridge case), but the user
+    // key is still checked.
+    let mut expect = expect_for(&p);
+    expect.callout_subject = None;
+    let mut claims = p.request_claims(NOW, "tok");
+    claims.sub = nkeys::KeyPair::new_account().public_key();
+    assert!(decode_request(&p.sign_request(claims), &expect).is_ok());
+}
+
+#[test]
+fn user_nkey_must_be_a_public_user_key() {
+    let p = Parties::generate();
+    for bad in [
+        String::new(),
+        "not a key".to_owned(),
+        nkeys::KeyPair::new_account().public_key(),
+        nkeys::KeyPair::new_user().seed().unwrap(),
+    ] {
+        let mut claims = p.request_claims(NOW, "tok");
+        claims.nats.user_nkey = bad.clone();
+        assert_eq!(
+            decode_request(&p.sign_request(claims), &expect_for(&p)).unwrap_err(),
+            CalloutError::UserNkeyInvalid,
+            "{bad:?}"
+        );
+    }
+}
+
+#[test]
+fn audience_is_the_protocol_constant_not_the_account() {
+    let p = Parties::generate();
+    let mut claims = p.request_claims(NOW, "tok");
+    claims.aud = p.account.public_key();
+    assert_eq!(
+        decode_request(&p.sign_request(claims), &expect_for(&p)).unwrap_err(),
+        CalloutError::AudienceMismatch
+    );
+    let mut claims = p.request_claims(NOW, "tok");
+    claims.aud = String::new();
+    assert_eq!(
+        decode_request(&p.sign_request(claims), &expect_for(&p)).unwrap_err(),
+        CalloutError::AudienceMismatch
     );
 }
 
 #[test]
-fn audience_is_the_callout_account() {
+fn the_signing_server_must_be_the_server_the_claims_name() {
     let p = Parties::generate();
-    let token = p.signed_request(NOW, "tok");
-    let mut expect = expect_for(&p);
-    expect.audience = Some(nkeys::KeyPair::new_account().public_key());
+    let mut claims = p.request_claims(NOW, "tok");
+    claims.nats.server_id.id = nkeys::KeyPair::new_server().public_key();
     assert_eq!(
-        decode_request(&token, &expect).unwrap_err(),
-        CalloutError::AudienceMismatch
+        decode_request(&p.sign_request(claims), &expect_for(&p)).unwrap_err(),
+        CalloutError::ServerIdMismatch
     );
 }
 

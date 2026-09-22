@@ -51,6 +51,9 @@ fn view(
         source: resolved.source.clone(),
         status: status.into(),
         last_error,
+        // References and booleans only: the view type cannot carry a path,
+        // a seed or a token, so an operator GET never discloses material.
+        transport: resolved.transport.view(),
     }
 }
 
@@ -85,6 +88,11 @@ pub struct PutBody {
     pub backend: String,
     #[serde(default)]
     pub nats_url: Option<String>,
+    /// Run the one-time provisioning action (create the stream and both
+    /// durable consumers) with the provisioner credential before applying.
+    /// Default false: a runtime apply never provisions on a secure profile.
+    #[serde(default)]
+    pub provision: bool,
 }
 
 pub async fn put_config(
@@ -139,6 +147,20 @@ pub async fn put_config(
                 .into_response();
         }
     };
+
+    if body.provision {
+        if let Err(error) = taskbus_config::provision(&resolved).await {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({
+                    "taskbus": view(&resolved, "provisioning_failed", Some(error.to_string())),
+                    "applied": false,
+                    "hint": "The provisioning identity could not create the stream or the durable consumers",
+                })),
+            )
+                .into_response();
+        }
+    }
 
     match taskbus_config::build_bus(&resolved).await {
         Ok(bus) => {

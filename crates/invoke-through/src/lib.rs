@@ -30,14 +30,16 @@
 
 pub mod egress;
 mod error;
+pub mod fence;
 mod invoke;
 mod source;
 pub mod tls;
 
 pub use egress::{rule_for, AuthStyle, EgressRule, EGRESS_RULES};
 pub use error::InvokeError;
+pub use fence::{EgressFence, PreparedRequest};
 pub use invoke::{
-    InvokeRequest, InvokeResponse, Invoker, PreparedRequest, ReceiptMeta, DEFAULT_REQUEST_BODY_CAP,
+    InvokeRequest, InvokeResponse, Invoker, ReceiptMeta, DEFAULT_REQUEST_BODY_CAP,
     DEFAULT_RESPONSE_BODY_CAP, DEFAULT_TIMEOUT,
 };
 pub use source::{source_tool, SourceToolSpec, TokenSource};

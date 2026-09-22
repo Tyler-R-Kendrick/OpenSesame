@@ -3,7 +3,7 @@
 //! Nothing here is ever a real deployment's material; every key is made at
 //! call time and dropped with the test.
 
-use crate::jwt::{encode, jti_for};
+use crate::jwt::{encode, jti_for, REQUEST_AUDIENCE};
 use crate::model::{
     AuthorizationRequestClaims, ClientInfo, ConnectOpts, RequestNats, ServerId, CLAIMS_VERSION,
     REQUEST_TYPE,
@@ -41,8 +41,10 @@ impl Parties {
             exp: Some(now + 2),
             nbf: None,
             iss: self.server.public_key(),
-            sub: self.user.public_key(),
-            aud: self.account.public_key(),
+            // nats-server puts the configured callout issuer here, not the
+            // user key, and addresses every request to the fixed audience.
+            sub: self.account.public_key(),
+            aud: REQUEST_AUDIENCE.into(),
             nats: RequestNats {
                 server_id: ServerId {
                     name: "test-server".into(),

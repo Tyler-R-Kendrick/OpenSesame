@@ -67,6 +67,7 @@ pub fn router(state: AppState) -> Router {
     let router = Router::new()
         .merge(local_authority_routes::router())
         .merge(health::routes())
+        .merge(crate::transport::routes::routes())
         .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
         .route(
             "/api/v1/operator/taskbus",

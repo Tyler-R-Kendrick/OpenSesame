@@ -79,5 +79,5 @@ pub const MAX_CHAIN_DEPTH: usize = 5;
 /// process-wide rustls default is never consulted.
 #[must_use]
 pub fn provider() -> std::sync::Arc<rustls::crypto::CryptoProvider> {
-    std::sync::Arc::new(rustls::crypto::aws_lc_rs::default_provider())
+    std::sync::Arc::new(rustls::crypto::ring::default_provider())
 }

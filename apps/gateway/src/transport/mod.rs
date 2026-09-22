@@ -33,6 +33,7 @@ pub mod boot;
 pub mod config;
 pub mod managed;
 pub mod probe;
+pub mod proof;
 pub mod routes;
 pub mod runtime;
 pub mod status;
@@ -50,10 +51,13 @@ mod config_tests;
 #[cfg(test)]
 mod probe_tests;
 #[cfg(test)]
+mod proof_tests;
+#[cfg(test)]
 mod routes_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 
+pub use admission::{require_delegated_caller, require_service_caller};
 pub use managed::ManagedIdentityResolver;
 pub use runtime::TransportRuntime;
 

@@ -61,6 +61,7 @@ async fn start() -> Result<(), &'static str> {
         server_public_keys: config.server_public_keys.clone(),
         xkey,
         target_account: config.target_account.clone(),
+        callout_subject: config.callout_subject.clone(),
         source: Arc::new(host),
     });
     tracing::info!(
