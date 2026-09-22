@@ -18,7 +18,8 @@
     "packages/siop-v2/src/issuer.ts",
     "packages/siop-v2/src/audience.ts",
     "packages/siop-v2/src/validity.ts",
-    "packages/siop-v2/src/link-profile.ts"
+    "packages/siop-v2/src/link-profile.ts",
+    "packages/capability-composition/src/resolver-node.ts"
   ],
   "ignorePatterns": [
     ".agents/**",
