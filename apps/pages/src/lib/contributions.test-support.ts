@@ -116,7 +116,9 @@ export function registerLegacySettingsCategories(
     label: "Connections",
     guideId: "settings.connections",
     Panel,
-    order: 40,
+    // Between Vaults (200) and Capabilities (400), where Connections sat
+    // when the tab list was still static.
+    order: 300,
   });
 }
 

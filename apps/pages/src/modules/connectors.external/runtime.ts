@@ -122,7 +122,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       label: "Connections",
       guideId: "settings.connections",
       Panel: ConnectionsSettingsPanel,
-      order: 40,
+      order: 300,
     });
     activation.register("setup-panel", {
       id: "connectors",
