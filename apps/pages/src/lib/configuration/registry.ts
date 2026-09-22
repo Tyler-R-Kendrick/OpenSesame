@@ -1,4 +1,5 @@
 import { resolveResourceAlias } from "./aliases.js";
+import { isCapabilityResourceKey } from "./capabilities-keys.js";
 import { isForbiddenConfigPath } from "./forbidden.js";
 import { PREFS_RESOURCE_KEY } from "./prefs-keys.js";
 
@@ -16,5 +17,6 @@ export function lookupConfigResource(rawPath: string): RegistryLookup {
   }
   const key = resolveResourceAlias(rawPath);
   if (key === PREFS_RESOURCE_KEY) return { ok: true, resourceKey: key };
+  if (key && isCapabilityResourceKey(key)) return { ok: true, resourceKey: key };
   return { ok: false, reason: "unknown" };
 }

@@ -37,6 +37,11 @@ export {
   INTERACTION_SETTLEMENT_PATTERN,
   assertsNoInteractionSettlementTool,
 } from "./interaction-boundary.js";
+export {
+  OPERATION_CAPABILITY,
+  capabilitiesWithOperations,
+  operationsForCapabilities,
+} from "./capability-map.js";
 
 export type Surface = "cli" | "pwa" | "mcp_host" | "mcp_client" | "webmcp";
 export type AgentSurface = "mcp_host" | "mcp_client" | "webmcp";
