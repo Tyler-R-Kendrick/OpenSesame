@@ -1,3 +1,4 @@
+import { env } from "@opensesame/app-core/host.js";
 /**
  * Where Connect OAuth authorizations return (`apps/connect-backend`).
  *
@@ -9,7 +10,9 @@
  * vault value.
  */
 
-const built = import.meta.env.VITE_CONNECT_CALLBACK_BASE?.trim() || "";
+function built(): string {
+  return env().VITE_CONNECT_CALLBACK_BASE?.trim() || "";
+}
 
 let deployed = "";
 
@@ -20,5 +23,5 @@ export function applyConnectCallbackBase(value: string | undefined): void {
 
 /** The relay base, or "" where authorizations skip the callback leg. */
 export function connectCallbackBase(): string {
-  return deployed || built;
+  return deployed || built();
 }

@@ -14,6 +14,8 @@ export default defineConfig({
     env: {
       OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
     },
+    // Pages' own test setup: installs the app-core host (ADR 0133).
+    setupFiles: ["apps/pages/src/host/test-setup.ts"],
     testTimeout: 60_000,
     hookTimeout: 30_000,
   },

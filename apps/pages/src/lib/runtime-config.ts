@@ -19,6 +19,7 @@
  * optional modules that own them from `runtimeConfigSnapshot()`.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import {
   type InstanceCapabilityPolicy,
   parseInstancePolicy,
@@ -155,7 +156,7 @@ export function parseRuntimeConfig(body: BoundaryValue): ParsedRuntimeConfig {
 }
 
 async function fetchRuntimeConfigDefault(): Promise<BoundaryValue | null> {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = env().BASE_URL || "/";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RUNTIME_CONFIG_FETCH_MS);
   try {

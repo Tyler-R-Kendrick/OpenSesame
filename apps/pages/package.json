@@ -38,6 +38,7 @@
     "@openfeature/core": "1.12.0",
     "@openfeature/web-sdk": "1.10.0",
     "@opensesame/api-client": "workspace:*",
+    "@opensesame/app-core": "workspace:*",
     "@opensesame/audit": "workspace:*",
     "@opensesame/capability-composition": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",

@@ -17,6 +17,7 @@
  * server-side and validates the current Identity session. See README.md.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -102,7 +103,7 @@ const RUNTIME_CONFIG_FETCH_MS = 3000;
  * endpoint" rather than blocking anything.
  */
 async function fetchAgUiConfigDefault(): Promise<AgUiEndpointConfig | null> {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = env().BASE_URL || "/";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RUNTIME_CONFIG_FETCH_MS);
   try {
@@ -133,7 +134,9 @@ export const agUiEndpointSeams = {
  * the runtime file above exists; a `pnpm dev` session or a self-hosted build
  * can use this instead and needs no boot fetch at all.
  */
-const builtSupportAgentUrl = import.meta.env.VITE_SUPPORT_AGENT_URL?.trim();
+function builtSupportAgentUrl(): string | undefined {
+  return env().VITE_SUPPORT_AGENT_URL?.trim();
+}
 
 let appliedEndpoint: AgUiEndpoint | null = null;
 
@@ -151,9 +154,8 @@ export function applyAgUiEndpoint(
  */
 export function currentAgUiEndpoint(): AgUiEndpoint | null {
   if (appliedEndpoint !== null) return appliedEndpoint;
-  return builtSupportAgentUrl
-    ? readAgUiEndpointUrl(builtSupportAgentUrl)
-    : null;
+  const built = builtSupportAgentUrl();
+  return built ? readAgUiEndpointUrl(built) : null;
 }
 
 /** Test-only: forget an applied endpoint so a case starts from the default. */

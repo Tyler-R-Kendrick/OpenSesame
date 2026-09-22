@@ -2,6 +2,7 @@
  * Connect list/create/authorize/revoke — relay preferred, sealed token fallback.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -237,7 +238,7 @@ export type VercelAuthorizeResult = {
  * connection id the consent poll (and the popup-closer) keys on.
  */
 export function connectReturnTo(connectionId: string, origin?: string): string {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = env().BASE_URL || "/";
   const root = origin ?? globalThis.location?.origin ?? "http://localhost";
   return `${root}${base}connections?connection=${encodeURIComponent(connectionId)}`;
 }

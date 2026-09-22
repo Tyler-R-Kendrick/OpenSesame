@@ -5,6 +5,7 @@
  * `/v1/claims*`. Deliberately does not import `drop.ts`.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -197,7 +198,7 @@ function toPollState(state: LocalClaimRecord["state"]): LocalDropPollState {
 /** Origin + Vite base, no trailing slash — the Pages claim host. */
 export function pagesClaimBase(
   origin = globalThis.location?.origin ?? "",
-  base = import.meta.env.BASE_URL || "/",
+  base = env().BASE_URL || "/",
 ): string {
   if (!isString(origin) || origin.length === 0) {
     throw new LocalDropClaimError(

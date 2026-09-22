@@ -5,6 +5,7 @@
  * `dropSeams` from here).
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -55,7 +56,7 @@ function obj(value: BoundaryValue): Record<string, BoundaryValue> {
 }
 
 function ceremoniesBaseDefault(): string {
-  const fromEnv: BoundaryValue = import.meta.env?.VITE_OPENSESAME_CEREMONIES;
+  const fromEnv: BoundaryValue = env().VITE_OPENSESAME_CEREMONIES;
   if (isString(fromEnv) && fromEnv.trim()) {
     return fromEnv.trim().replace(/\/$/, "");
   }

@@ -1,0 +1,22 @@
+{
+  "name": "@opensesame/app-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133) — no React, no DOM shell",
+  "exports": {
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

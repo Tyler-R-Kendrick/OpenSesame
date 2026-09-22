@@ -68,6 +68,7 @@ export const SHELL_RULES = [
     "route table (S05); MIXED — optional imports move to contributions",
   ),
   core("src/bootstrap/", null, "core-only boot (S05)"),
+  core("src/host/", null, "installs the app-core host before boot (ADR 0133)"),
   core("src/bindings/", null, "React hooks over the core's stores (ADR 0133)"),
   core(
     "src/screens/capabilities/",

@@ -3,14 +3,14 @@
  * Report what stands between Pages and the app-core relocation (ADR 0133).
  *
  *   node scripts/app-core-partition.mjs            # report, exit 0
- *   node scripts/app-core-partition.mjs --check    # exit 1 on any crossing or React value import
+ *   node scripts/app-core-partition.mjs --check    # exit 1 on any crossing, React value import or import.meta.env use
  *   node scripts/app-core-partition.mjs --json     # machine-readable report
  *
  * `--check` is the step-3 gate: the relocation runs only when moving code no
  * longer imports staying code or React. Imports that reach outside `src`
  * (public assets, fixtures, scripts) are listed for the relocation script to
- * rewrite; `import.meta.env` uses are listed for step 2, which replaces them
- * with the runtime env port.
+ * rewrite. Moving code reads build configuration through the host's `env()`
+ * (step 2), so an `import.meta.env` use in it fails the check too.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -82,9 +82,12 @@ if (argv.has("--json")) {
   show("moving code → React / .tsx:", react, edge);
   show("type-only React imports (allowed, erased at build):", reactTypes, edge);
   show("moving code → files outside src (paths to rewrite):", outside, edge);
-  show("import.meta.env (step 2):", viteEnv, (path) => path);
+  show("import.meta.env (read env() instead):", viteEnv, (path) => path);
 }
 
-if (argv.has("--check") && crossings.length + react.length > 0) {
+if (
+  argv.has("--check") &&
+  crossings.length + react.length + viteEnv.length > 0
+) {
   process.exit(1);
 }

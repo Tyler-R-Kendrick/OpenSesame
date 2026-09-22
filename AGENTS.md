@@ -260,6 +260,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/browser-extension` | WXT browser extension |
 | `apps/example-rp-alpha` / `apps/example-rp-beta` | Example relying-party apps |
 | `apps/example-agent` / `apps/example-headless` | Example agent / headless client |
+| `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133). Today: the host (`configureHost`/`env()`); step 3 relocates Pages' non-UI logic here with `git mv`. No React; Pages installs the browser host first thing in `main.tsx` (`src/host/boot.ts`) |
 | `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |

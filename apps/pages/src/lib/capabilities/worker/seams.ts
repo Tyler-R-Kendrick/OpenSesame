@@ -8,6 +8,7 @@
  * registration call is the platform's own.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import { overlapCast } from "@opensesame/os-domain";
 
 function serviceWorkerContainerDefault(): ServiceWorkerContainer | null {
@@ -23,10 +24,8 @@ function crossOriginIsolatedDefault(): boolean {
 
 function baseUrlDefault(): string {
   const scope: { location?: { href: string } } = overlapCast(globalThis);
-  return new URL(
-    import.meta.env.BASE_URL,
-    scope.location?.href ?? "https://localhost/",
-  ).href;
+  return new URL(env().BASE_URL, scope.location?.href ?? "https://localhost/")
+    .href;
 }
 
 function reloadDefault(): void {

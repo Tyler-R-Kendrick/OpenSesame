@@ -1,3 +1,4 @@
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -37,8 +38,6 @@ export type DomainRule = {
 export type BrokerPolicy = {
   rules: DomainRule[];
 };
-
-const DEFAULT_POLICY: BrokerPolicy = { rules: [] };
 
 export type BrokerRequest = {
   clientId: string;
@@ -99,7 +98,7 @@ export type DeliverToRpOptions = {
 const MIN_STATE_BYTES = 16;
 
 export function pagesPublicBase(origin: string = location.origin): string {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = env().BASE_URL || "/";
   const normalised = base.endsWith("/") ? base : `${base}/`;
   return `${origin}${normalised}`;
 }

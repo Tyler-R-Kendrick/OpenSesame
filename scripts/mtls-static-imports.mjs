@@ -31,6 +31,7 @@ const noBuild = process.argv.includes("--no-build");
 
 const BROWSER_PACKAGES = [
   "@opensesame/pages",
+  "@opensesame/app-core",
   "@opensesame/os-domain",
   "@opensesame/contracts",
   "@opensesame/capability-registry",

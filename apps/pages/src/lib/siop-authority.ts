@@ -3,6 +3,7 @@
  * application, gate on passkey identity, mint a fragment redirect.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import { isString } from "@opensesame/os-domain";
 import {
   type NormalizedAuthorizationRequest,
@@ -51,7 +52,7 @@ function refused(
 /** Dynamic Self-Issued issuer on this Pages origin (`…/identity/siop`). */
 export function dynamicSiopIssuer(
   origin = globalThis.location?.origin ?? "",
-  base = import.meta.env.BASE_URL || "/",
+  base = env().BASE_URL || "/",
 ): string {
   if (!isString(origin) || origin.length === 0)
     refused("Pages origin is unavailable.");

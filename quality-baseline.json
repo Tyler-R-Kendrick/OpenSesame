@@ -18,7 +18,7 @@
   "totals": {
     "files": 493,
     "violations": 783,
-    "oversizedLines": 248995
+    "oversizedLines": 248992
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -646,7 +646,7 @@
     },
     "apps/pages/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 945,
+      "max-lines": 944,
       "max-lines-per-function": 1
     },
     "apps/pages/src/lib/github-app-presence.ts": {
@@ -688,7 +688,7 @@
     },
     "apps/pages/src/lib/settings.ts": {
       "complexity": 1,
-      "max-lines": 518
+      "max-lines": 517
     },
     "apps/pages/src/lib/siop-keys.ts": {
       "complexity": 1
@@ -698,7 +698,7 @@
     },
     "apps/pages/src/lib/site-broker.ts": {
       "complexity": 1,
-      "max-lines": 618
+      "max-lines": 617
     },
     "apps/pages/src/lib/vault/drop.test.ts": {
       "max-lines": 526

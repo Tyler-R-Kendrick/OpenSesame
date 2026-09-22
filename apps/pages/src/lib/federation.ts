@@ -1,7 +1,7 @@
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   type JsonObject,
-  isJsonObject,
   isNumber,
   isString,
   overlapCast,
@@ -25,7 +25,6 @@ import {
 } from "./federation-session-store.js";
 import {
   type IdentitySession,
-  identityBase,
   remoteIdentityApi,
   restoreSession,
 } from "./identity.js";
@@ -205,7 +204,7 @@ export function originClientId(origin: string = location.origin): string {
  * the client id from, so the path buys nothing and costs a 404.
  */
 export function redirectUri(): string {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = env().BASE_URL || "/";
   return `${location.origin}${base}`;
 }
 

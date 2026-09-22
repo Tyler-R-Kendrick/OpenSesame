@@ -1,3 +1,4 @@
+import { env } from "@opensesame/app-core/host.js";
 /**
  * Whether this build is a development or test build.
  *
@@ -7,5 +8,5 @@
  * developer rather than quietly degrading what a person sees.
  */
 export function inDevelopment(): boolean {
-  return import.meta.env.DEV === true;
+  return env().DEV === true;
 }

@@ -1,3 +1,4 @@
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -240,7 +241,7 @@ export function pagesApplicationRedirect(): string | null {
   try {
     const origin = globalThis.location?.origin;
     if (!origin) return null;
-    const href = new URL(import.meta.env.BASE_URL || "/", origin).href;
+    const href = new URL(env().BASE_URL || "/", origin).href;
     return validRedirect(href) ? href : null;
   } catch {
     return null;
