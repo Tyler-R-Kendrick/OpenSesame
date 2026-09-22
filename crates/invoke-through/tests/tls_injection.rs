@@ -39,11 +39,15 @@ fn bundle(name: &str, ca: &DisposableCa) -> TrustBundle {
     .unwrap()
 }
 
+/// `(client leaf thumbprint, authorization header)` for one request, in
+/// arrival order. The whole point of the recording, so it gets a name.
+type PeerRecord = (Option<String>, Option<String>);
+
 #[derive(Clone, Default)]
 struct Seen {
     hits: Arc<AtomicU64>,
     /// `(client leaf thumbprint, authorization header)` per hit.
-    peers: Arc<Mutex<Vec<(Option<String>, Option<String>)>>>,
+    peers: Arc<Mutex<Vec<PeerRecord>>>,
 }
 
 async fn ok(State(seen): State<Seen>, req: Request) -> Response {

@@ -29,7 +29,7 @@ use serde_json::json;
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, Caller};
-use crate::transport_lifecycle::{facts, issuance, revocation, trust};
+use crate::transport_lifecycle::{crl, facts, issuance, revocation, trust};
 
 /// The routes this module contributes, merged by the coordinator in
 /// `routes::router`.
@@ -161,21 +161,14 @@ pub async fn get_trust(State(state): State<AppState>, headers: HeaderMap) -> Res
                 .keys()
                 .map(|profile| profile.name.clone())
                 .collect();
-            let crl = state.transport_lifecycle.crl();
-            let crl_state = crl.as_ref().map_or("none", |freshness| {
-                if freshness.is_stale(now) {
-                    "stale"
-                } else {
-                    "fresh"
-                }
-            });
             (
                 StatusCode::OK,
                 Json(json!({
                     "trust": stored,
                     "deployment_plane_profiles": base,
-                    "crl": crl,
-                    "crl_state": crl_state,
+                    // A configured CRL past its nextUpdate reads `degraded`
+                    // here; it is never silently treated as fresh.
+                    "revocation": crl::status(&state, now),
                 })),
             )
                 .into_response()

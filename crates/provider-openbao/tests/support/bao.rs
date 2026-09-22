@@ -7,7 +7,7 @@
 //! sha256-verified `bao` binary `scripts/mtls-fixtures.sh` fetches — never a
 //! system install and never `sudo`.
 //!
-//! The listener is configured exactly as OpenBao's own documentation requires
+//! The listener is configured exactly as `OpenBao`'s own documentation requires
 //! for the `cert` auth method (<https://openbao.org/docs/configuration/listener/tcp/>):
 //!
 //! ```hcl
@@ -79,7 +79,7 @@ fn free_port() -> u16 {
         .port()
 }
 
-/// A running, initialized, unsealed OpenBao with the `cert` auth method
+/// A running, initialized, unsealed `OpenBao` with the `cert` auth method
 /// configured and two roles whose SAN constraints differ.
 pub struct LiveBao {
     pub port: u16,
@@ -198,7 +198,7 @@ impl LiveBao {
         assert!((200..300).contains(&status), "delete role: {status}");
     }
 
-    /// Boot, initialize, unseal and configure a live OpenBao.
+    /// Boot, initialize, unseal and configure a live `OpenBao`.
     ///
     /// # Panics
     ///
@@ -300,7 +300,10 @@ api_addr = "https://127.0.0.1:{port}"
             .await;
         assert!((200..300).contains(&status), "init: {status} {body}");
         let key = body["keys"][0].as_str().expect("unseal key").to_owned();
-        self.root_token = body["root_token"].as_str().expect("root token").to_owned();
+        body["root_token"]
+            .as_str()
+            .expect("root token")
+            .clone_into(&mut self.root_token);
         let (status, body) = self
             .admin(
                 reqwest::Method::PUT,

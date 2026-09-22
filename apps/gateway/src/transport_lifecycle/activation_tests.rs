@@ -24,8 +24,8 @@ async fn a_malformed_candidate_leaves_the_previous_generation_serving_unchanged(
     let client_ca = DisposableCa::new("clients");
     let server = server_ca.issue_server("localhost");
     let generations = support::generations(server.identity(), &client_ca);
-    let before = generations.current();
-    let before_expiry = before.identity.as_ref().expect("identity").not_after();
+    let serving = generations.current();
+    let serving_expiry = serving.identity.as_ref().expect("identity").not_after();
 
     let served = support::serve(
         Arc::clone(&generations),
@@ -61,10 +61,10 @@ async fn a_malformed_candidate_leaves_the_previous_generation_serving_unchanged(
     assert_eq!(error, TransportError::KeyPairMismatch);
 
     let after = generations.current();
-    assert_eq!(after.number, before.number, "no generation was swapped");
+    assert_eq!(after.number, serving.number, "no generation was swapped");
     assert_eq!(
         after.identity.as_ref().expect("identity").not_after(),
-        before_expiry,
+        serving_expiry,
         "a failed candidate must never extend the serving identity's expiry",
     );
     // …and the open connection is still good.

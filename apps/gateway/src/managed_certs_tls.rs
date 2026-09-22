@@ -148,13 +148,12 @@ pub(crate) async fn tls_identity_for(
         return Err(CustodyError::NotInCustody);
     }
     match recorded_purpose(&row) {
-        Some(recorded) if recorded == purpose => {}
-        Some(_) => return Err(CustodyError::PurposeMismatch),
         // A plain managed certificate (issued before transport issuance
         // existed) is a serverAuth leaf; it may serve a listener and nothing
         // else. Client purposes need an explicit clientAuth issuance.
+        Some(recorded) if recorded == purpose => {}
         None if purpose.is_listener() => {}
-        None => return Err(CustodyError::PurposeMismatch),
+        Some(_) | None => return Err(CustodyError::PurposeMismatch),
     }
     let leaf_pem = retained_leaf_pem(&row).ok_or(CustodyError::LeafNotRetained)?;
     let held = state
@@ -207,6 +206,7 @@ pub(crate) async fn tls_identity_for(
 }
 
 /// The number of sealed-key opens so far (tests).
+#[cfg(test)]
 #[must_use]
 pub(crate) fn unseal_count() -> u64 {
     UNSEALS.load(Ordering::SeqCst)

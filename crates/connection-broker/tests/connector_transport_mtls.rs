@@ -51,11 +51,15 @@ impl ConnectionCredential for TenantCredential {
     }
 }
 
+/// `(client leaf thumbprint, authorization header)` for one request, in
+/// arrival order. The whole point of the recording, so it gets a name.
+type PeerRecord = (Option<String>, Option<String>);
+
 #[derive(Clone, Default)]
 struct Seen {
     hits: Arc<AtomicU64>,
     /// `(client leaf thumbprint, authorization header)` in arrival order.
-    pairs: Arc<Mutex<Vec<(Option<String>, Option<String>)>>>,
+    pairs: Arc<Mutex<Vec<PeerRecord>>>,
 }
 
 async fn record(State(seen): State<Seen>, req: Request) -> Response {

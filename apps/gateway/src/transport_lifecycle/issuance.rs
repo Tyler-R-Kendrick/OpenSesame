@@ -21,7 +21,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use opensesame_domain::transport::{PeerIdentitySelector, TransportError};
 use opensesame_domain::OrganizationId;
 use opensesame_pki_core::policy::PolicyViolation;
@@ -242,12 +242,4 @@ pub async fn issue_for_transport(
         issuer_pem: issued.material.ca_certificate,
         managed: true,
     })
-}
-
-/// Parse a stored RFC 3339 time.
-#[must_use]
-pub fn parse_time(raw: &str) -> Option<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(raw)
-        .ok()
-        .map(|t| t.with_timezone(&Utc))
 }

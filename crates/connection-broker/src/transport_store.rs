@@ -33,7 +33,7 @@ pub async fn get(
     organization_id: &str,
     connection_id: &str,
 ) -> Result<Option<ConnectionTransport>> {
-    let row =
+    let found =
         sqlx::query("SELECT transport_json FROM connections WHERE id = ? AND organization_id = ?")
             .bind(connection_id)
             .bind(organization_id)

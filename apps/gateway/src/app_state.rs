@@ -183,16 +183,7 @@ async fn build_with_security(
     )
     .await?;
     let resolved = crate::taskbus_config::resolve(&db).await?;
-    let task_bus = match crate::taskbus_config::build_bus(&resolved).await {
-        Ok(bus) => bus,
-        Err(error) => {
-            tracing::warn!(
-                %error,
-                "TaskBus connect failed at boot — falling back to in-memory"
-            );
-            Arc::new(opensesame_task_bus::InMemoryTaskBus::default())
-        }
-    };
+    let task_bus = crate::taskbus_config::build_bus_or_unavailable(&resolved).await;
 
     let transport_config =
         crate::transport::config::TransportConfig::from_env().map_err(anyhow::Error::new)?;

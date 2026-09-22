@@ -74,6 +74,9 @@ pub enum Fact {
 }
 
 impl Fact {
+    /// When the fact was recorded (used by the history tests and by any
+    /// consumer walking the raw history).
+    #[cfg(test)]
     #[must_use]
     pub const fn at(&self) -> DateTime<Utc> {
         match self {
