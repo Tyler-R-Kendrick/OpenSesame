@@ -132,8 +132,17 @@ const MIME = {
   ".webmanifest": "application/manifest+json",
   ".woff2": "font/woff2",
 };
+// A document on the app's own origin that carries no script and therefore
+// never navigates. The CORS check below needs an origin, not the application:
+// driving the real app made the probe race its client-side navigation, which
+// destroyed the evaluate's execution context on a loaded runner.
+const CORS_PROBE_PATH = "/__cors-probe";
 const staticServer = createServer((req, res) => {
   const path = (req.url ?? "/").split("?")[0];
+  if (path === CORS_PROBE_PATH) {
+    res.writeHead(200, { "content-type": "text/html" });
+    return res.end("<!doctype html><title>cors probe</title>");
+  }
   const rel = path.replace(/^\/OpenSesame\//, "").replace(/^\//, "");
   const file = join(DIST, rel);
   const send = (body, type) => {
@@ -215,39 +224,23 @@ try {
     ],
   });
   const corsPage = await corsContext.newPage();
-  // The app is a PWA and settles with its own navigation after the document
-  // loads, which on a slower runner lands in the middle of the evaluate below
-  // and destroys its execution context. Wait for it to come to rest, and if a
-  // late navigation still beats us, run the probe again on the new context —
-  // the assertion is about the browser's CORS behaviour from this origin, not
-  // about which of the app's navigations we happen to catch.
-  const readCrossOrigin = async (url) => {
-    const probeFetch = async (target) =>
-      await corsPage.evaluate(async (u) => {
-        try {
-          const r = await fetch(u, { credentials: "include", mode: "cors" });
-          return {
-            ok: true,
-            status: r.status,
-            text: (await r.text()).slice(0, 80),
-          };
-        } catch (error) {
-          return { ok: false, error: String(error).slice(0, 120) };
-        }
-      }, target);
-    await corsPage.waitForLoadState("load");
-    try {
-      return await probeFetch(url);
-    } catch (error) {
-      if (!/Execution context was destroyed/.test(String(error))) throw error;
-      await corsPage.waitForLoadState("load");
-      return await probeFetch(url);
-    }
-  };
-  await corsPage.goto(`${staticOrigin}/OpenSesame/`, {
+  // Same origin as the app, served by the same server, but a static document
+  // that cannot navigate out from under the evaluate.
+  await corsPage.goto(`${staticOrigin}${CORS_PROBE_PATH}`, {
     waitUntil: "domcontentloaded",
   });
-  const cors = await readCrossOrigin(probe);
+  const cors = await corsPage.evaluate(async (url) => {
+    try {
+      const r = await fetch(url, { credentials: "include", mode: "cors" });
+      return {
+        ok: true,
+        status: r.status,
+        text: (await r.text()).slice(0, 80),
+      };
+    } catch (error) {
+      return { ok: false, error: String(error).slice(0, 120) };
+    }
+  }, probe);
   check(
     "cross-origin-read-is-refused-despite-the-certificate",
     cors.ok === false,
