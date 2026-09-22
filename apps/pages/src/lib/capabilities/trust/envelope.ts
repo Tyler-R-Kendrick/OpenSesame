@@ -16,6 +16,7 @@
 import type { InstanceCapabilityPolicy } from "@opensesame/capability-composition";
 import {
   type BoundaryValue,
+  type JsonObject,
   type JsonValue,
   isJsonObject,
   isString,
@@ -134,7 +135,7 @@ function readOrigins(
 }
 
 /** Every member an envelope must carry, at the type and length it must have. */
-function hasEnvelopeMembers(value: Readonly<Record<string, JsonValue>>): boolean {
+function hasEnvelopeMembers(value: JsonObject): boolean {
   return (
     value.schemaVersion === 1 &&
     value.kind === ENVELOPE_KIND &&
