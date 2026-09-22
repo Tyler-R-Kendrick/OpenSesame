@@ -109,7 +109,9 @@ const asArray = (value) => (Array.isArray(value) ? value : []);
 
 /** Accept the catalog as `{ capabilities }` or a bare descriptor array. */
 function catalogEntries(catalog) {
-  const list = Array.isArray(catalog) ? catalog : asArray(catalog?.capabilities);
+  const list = Array.isArray(catalog)
+    ? catalog
+    : asArray(catalog?.capabilities);
   const byId = new Map();
   for (const descriptor of list) {
     if (!descriptor || typeof descriptor.id !== "string") continue;
@@ -120,7 +122,8 @@ function catalogEntries(catalog) {
 
 function requireKnown(byId, ids, where, diagnostics) {
   for (const id of ids) {
-    if (!byId.has(id)) diagnostics.push(`${where} names unknown capability "${id}"`);
+    if (!byId.has(id))
+      diagnostics.push(`${where} names unknown capability "${id}"`);
   }
 }
 
@@ -149,27 +152,66 @@ export function distributedCapabilities(catalog, profile, mode) {
   const selectedOptional = new Set(asArray(selection?.selectedOptional));
   const chosen = selection?.chosenAlternatives ?? {};
 
-  requireKnown(byId, required, "instancePolicy.capabilities.required", diagnostics);
-  requireKnown(byId, allowed, "instancePolicy.capabilities.optional", diagnostics);
-  requireKnown(byId, prohibited, "instancePolicy.capabilities.prohibited", diagnostics);
-  requireKnown(byId, acceptedRequired, "installationSelection.acceptedRequired", diagnostics);
-  requireKnown(byId, selectedOptional, "installationSelection.selectedOptional", diagnostics);
-  requireKnown(byId, Object.values(chosen), "installationSelection.chosenAlternatives", diagnostics);
+  requireKnown(
+    byId,
+    required,
+    "instancePolicy.capabilities.required",
+    diagnostics,
+  );
+  requireKnown(
+    byId,
+    allowed,
+    "instancePolicy.capabilities.optional",
+    diagnostics,
+  );
+  requireKnown(
+    byId,
+    prohibited,
+    "instancePolicy.capabilities.prohibited",
+    diagnostics,
+  );
+  requireKnown(
+    byId,
+    acceptedRequired,
+    "installationSelection.acceptedRequired",
+    diagnostics,
+  );
+  requireKnown(
+    byId,
+    selectedOptional,
+    "installationSelection.selectedOptional",
+    diagnostics,
+  );
+  requireKnown(
+    byId,
+    Object.values(chosen),
+    "installationSelection.chosenAlternatives",
+    diagnostics,
+  );
   for (const id of [...required, ...allowed, ...prohibited]) {
     if (byId.has(id) && !optional.has(id))
-      diagnostics.push(`core capability "${id}" may not appear in a policy set`);
+      diagnostics.push(
+        `core capability "${id}" may not appear in a policy set`,
+      );
   }
   for (const id of required) {
     if (prohibited.has(id))
       diagnostics.push(`"${id}" is both required and prohibited`);
   }
-  if (policy && policy.capabilities?.default !== undefined && policy.capabilities.default !== "deny") {
+  if (
+    policy &&
+    policy.capabilities?.default !== undefined &&
+    policy.capabilities.default !== "deny"
+  ) {
     diagnostics.push(`instancePolicy.capabilities.default must be "deny"`);
   }
   const permitted = (id) =>
     optional.has(id) &&
     !prohibited.has(id) &&
-    (policy === null || policy === undefined || required.has(id) || allowed.has(id));
+    (policy === null ||
+      policy === undefined ||
+      required.has(id) ||
+      allowed.has(id));
 
   // Acceptance and selection are runtime facts the resolver answers with a
   // reason code (REQUIRED_NOT_ACCEPTED, PROHIBITED_BY_INSTANCE, ...). A build
@@ -180,17 +222,25 @@ export function distributedCapabilities(catalog, profile, mode) {
   // (above) are.
   const notes = [];
   for (const id of required) {
-    if (!acceptedRequired.has(id)) notes.push(`required "${id}" is not yet accepted; distributed regardless`);
+    if (!acceptedRequired.has(id))
+      notes.push(
+        `required "${id}" is not yet accepted; distributed regardless`,
+      );
   }
   for (const id of acceptedRequired) {
     if (byId.has(id) && !required.has(id))
-      diagnostics.push(`acceptedRequired names "${id}", which the policy does not require`);
+      diagnostics.push(
+        `acceptedRequired names "${id}", which the policy does not require`,
+      );
   }
   const roots = [];
   for (const id of [...required, ...selectedOptional]) {
     if (!byId.has(id)) continue;
     if (permitted(id)) roots.push(id);
-    else notes.push(`selected "${id}" is not permitted by the policy; not distributed`);
+    else
+      notes.push(
+        `selected "${id}" is not permitted by the policy; not distributed`,
+      );
   }
 
   // Closure: roots + hard dependencies + chosen alternatives, each permitted.
@@ -203,26 +253,36 @@ export function distributedCapabilities(catalog, profile, mode) {
     const descriptor = byId.get(id);
     for (const dependency of asArray(descriptor?.dependencies)) {
       if (!byId.has(dependency)) {
-        diagnostics.push(`"${id}" depends on unknown capability "${dependency}"`);
+        diagnostics.push(
+          `"${id}" depends on unknown capability "${dependency}"`,
+        );
         continue;
       }
       if (byId.get(dependency).tier === "core") continue;
       if (!permitted(dependency))
-        diagnostics.push(`"${id}" depends on "${dependency}", which is not permitted`);
+        diagnostics.push(
+          `"${id}" depends on "${dependency}", which is not permitted`,
+        );
       queue.push(dependency);
     }
     for (const slot of asArray(descriptor?.alternatives)) {
       const pick = chosen[slot.slot];
       if (pick === undefined) {
-        diagnostics.push(`"${id}" needs a choice for alternatives slot "${slot.slot}"`);
+        diagnostics.push(
+          `"${id}" needs a choice for alternatives slot "${slot.slot}"`,
+        );
         continue;
       }
       if (!asArray(slot.oneOf).includes(pick)) {
-        diagnostics.push(`slot "${slot.slot}" chose "${pick}", not one of ${JSON.stringify(slot.oneOf)}`);
+        diagnostics.push(
+          `slot "${slot.slot}" chose "${pick}", not one of ${JSON.stringify(slot.oneOf)}`,
+        );
         continue;
       }
       if (!permitted(pick))
-        diagnostics.push(`alternative "${pick}" for slot "${slot.slot}" is not permitted`);
+        diagnostics.push(
+          `alternative "${pick}" for slot "${slot.slot}" is not permitted`,
+        );
       queue.push(pick);
     }
   }
@@ -253,14 +313,18 @@ export function normalizeModuleOwnership(ownership, catalog) {
   const records = [];
   const push = (id, value) => {
     if (typeof id !== "string" || !id.includes("/")) return;
-    const [capability, unit] = [id.slice(0, id.indexOf("/")), id.slice(id.indexOf("/") + 1)];
+    const [capability, unit] = [
+      id.slice(0, id.indexOf("/")),
+      id.slice(id.indexOf("/") + 1),
+    ];
     const object = typeof value === "string" ? { entry: value } : (value ?? {});
     const declared = object.entry ?? object.path ?? object.file ?? null;
     // Only document-environment units are page-loadable; a worker unit is
     // satisfied by a worker variant and never enters the MODULE_TABLE.
     const pageLoadable =
       unit !== "worker" &&
-      (!Array.isArray(object.environments) || object.environments.includes("document"));
+      (!Array.isArray(object.environments) ||
+        object.environments.includes("document"));
     const entry = declared ?? `src/modules/${capability}/${unit}.ts`;
     records.push({
       id,
@@ -271,7 +335,8 @@ export function normalizeModuleOwnership(ownership, catalog) {
     });
   };
   if (Array.isArray(ownership)) {
-    for (const record of ownership) push(record?.id ?? record?.moduleId, record);
+    for (const record of ownership)
+      push(record?.id ?? record?.moduleId, record);
   } else if (ownership && typeof ownership === "object") {
     for (const [id, value] of Object.entries(ownership)) push(id, value);
   }
@@ -294,13 +359,15 @@ export function normalizeFileOwnership(ownership) {
   if (Array.isArray(ownership)) {
     for (const record of ownership) {
       const path = record?.path ?? record?.file ?? record?.id;
-      if (typeof path === "string") out.push({ path, capability: record.capability ?? null });
+      if (typeof path === "string")
+        out.push({ path, capability: record.capability ?? null });
     }
   } else if (ownership && typeof ownership === "object") {
     for (const [path, value] of Object.entries(ownership)) {
       out.push({
         path,
-        capability: typeof value === "string" ? value : (value?.capability ?? null),
+        capability:
+          typeof value === "string" ? value : (value?.capability ?? null),
       });
     }
   }
@@ -317,7 +384,9 @@ export function ownedWorkerVariants(catalog, variants = WORKER_VARIANTS) {
   return variants.map((variant) => {
     if (variant.capability !== undefined) return variant;
     const owner = descriptors.find(
-      (d) => d.workerGraphConstraint && asArray(variant.satisfies).includes(d.workerGraphConstraint),
+      (d) =>
+        d.workerGraphConstraint &&
+        asArray(variant.satisfies).includes(d.workerGraphConstraint),
     );
     return { ...variant, capability: owner?.id ?? null };
   });
@@ -328,9 +397,14 @@ export function publicPathTarget(path) {
   return path.replace(/\/\*\*$/, "").replace(/\/\*$/, "");
 }
 
-export function workerVariantsFor(distributed, catalog = FALLBACK_EMPTY_CATALOG, variants = WORKER_VARIANTS) {
+export function workerVariantsFor(
+  distributed,
+  catalog = FALLBACK_EMPTY_CATALOG,
+  variants = WORKER_VARIANTS,
+) {
   return ownedWorkerVariants(catalog, variants).filter(
-    (variant) => variant.capability === null || distributed.has(variant.capability),
+    (variant) =>
+      variant.capability === null || distributed.has(variant.capability),
   );
 }
 
@@ -338,11 +412,13 @@ const FALLBACK_EMPTY_CATALOG = Object.freeze({ capabilities: [] });
 
 /** The `DistributionContract.workerVariants` projection (no `capability`). */
 export function contractWorkerVariants(distributed, catalog, variants) {
-  return workerVariantsFor(distributed, catalog, variants).map(({ id, scriptPath, satisfies }) => ({
-    id,
-    scriptPath,
-    satisfies: [...satisfies],
-  }));
+  return workerVariantsFor(distributed, catalog, variants).map(
+    ({ id, scriptPath, satisfies }) => ({
+      id,
+      scriptPath,
+      satisfies: [...satisfies],
+    }),
+  );
 }
 
 /** Throws when a distributed capability needs a worker graph no variant provides. */

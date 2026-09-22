@@ -42,9 +42,10 @@ const toPosix = (path) => path.replace(/\\/g, "/");
 export function normalizeModuleId(id, { repoRoot }) {
   if (id.startsWith("\0")) return id.slice(1);
   if (id.startsWith("virtual:")) return id;
-  let path = toPosix(id).replace(/[?#].*$/, "");
+  const path = toPosix(id).replace(/[?#].*$/, "");
   const nodeModules = path.lastIndexOf("/node_modules/");
-  if (nodeModules >= 0) return `node_modules/${path.slice(nodeModules + "/node_modules/".length)}`;
+  if (nodeModules >= 0)
+    return `node_modules/${path.slice(nodeModules + "/node_modules/".length)}`;
   const root = toPosix(repoRoot).replace(/\/$/, "");
   if (path.startsWith(`${root}/`)) return path.slice(root.length + 1);
   // A workspace package reached through a symlinked checkout (a worktree, a
@@ -62,10 +63,19 @@ export function moduleDirectoryOwner(normalized) {
   return slash > 0 ? rest.slice(0, slash) : null;
 }
 
-/** Candidate strings a prefix rule may match: repo-relative and app-relative. */
+/**
+ * Candidate strings a prefix rule may match: repo-relative, app-relative,
+ * and — for a workspace package Vite resolved to its real `packages/<dir>/`
+ * path — the `node_modules/@opensesame/<dir>/` spelling the authored rules
+ * use, so one rule covers both resolutions.
+ */
 function matchCandidates(normalized) {
   const candidates = [normalized];
-  if (normalized.startsWith("apps/pages/")) candidates.push(normalized.slice("apps/pages/".length));
+  if (normalized.startsWith("apps/pages/"))
+    candidates.push(normalized.slice("apps/pages/".length));
+  const workspace = normalized.match(/^packages\/([^/]+)\/(.*)$/);
+  if (workspace)
+    candidates.push(`node_modules/@opensesame/${workspace[1]}/${workspace[2]}`);
   return candidates;
 }
 
@@ -82,7 +92,11 @@ export function ruleMatches(pattern, path) {
   return next === "" || next === "." || next === "-" || next === "/";
 }
 
-const MODULES_DIR_PATTERNS = new Set([MODULES_DIR, "src/modules/", "src/modules"]);
+const MODULES_DIR_PATTERNS = new Set([
+  MODULES_DIR,
+  "src/modules/",
+  "src/modules",
+]);
 
 /**
  * Classify one module by the longest matching prefix rule. Rules are
@@ -95,7 +109,12 @@ const MODULES_DIR_PATTERNS = new Set([MODULES_DIR, "src/modules/", "src/modules"
 export function classifyModule(id, rules, { repoRoot }) {
   const normalized = normalizeModuleId(id, { repoRoot });
   if (id.startsWith("\0") || normalized.startsWith("virtual:")) {
-    return { id: normalized, classification: "core", capability: null, rationale: "virtual" };
+    return {
+      id: normalized,
+      classification: "core",
+      capability: null,
+      rationale: "virtual",
+    };
   }
   const candidates = matchCandidates(normalized);
   const directoryOwner = moduleDirectoryOwner(normalized);
@@ -106,12 +125,16 @@ export function classifyModule(id, rules, { repoRoot }) {
     const pattern = toPosix(rule.pattern);
     if (inModules && MODULES_DIR_PATTERNS.has(pattern)) continue;
     if (candidates.some((c) => ruleMatches(pattern, c))) {
-      if (best === null || pattern.length > best.pattern.length) best = { ...rule, pattern };
+      if (best === null || pattern.length > best.pattern.length)
+        best = { ...rule, pattern };
     }
   }
   if (best === null) {
     for (const rule of rules ?? []) {
-      if (rule.pattern instanceof RegExp && candidates.some((c) => rule.pattern.test(c))) {
+      if (
+        rule.pattern instanceof RegExp &&
+        candidates.some((c) => rule.pattern.test(c))
+      ) {
         best = rule;
         break;
       }
@@ -126,15 +149,35 @@ export function classifyModule(id, rules, { repoRoot }) {
     };
   }
   if (normalized.startsWith("node_modules/")) {
-    return { id: normalized, classification: "shared", capability: null, rationale: "unclassified dependency" };
+    return {
+      id: normalized,
+      classification: "shared",
+      capability: null,
+      rationale: "unclassified dependency",
+    };
   }
   if (directoryOwner !== null) {
-    return { id: normalized, classification: "optional", capability: directoryOwner, rationale: "module directory" };
+    return {
+      id: normalized,
+      classification: "optional",
+      capability: directoryOwner,
+      rationale: "module directory",
+    };
   }
   if (normalized.startsWith("apps/pages/")) {
-    return { id: normalized, classification: "core", capability: null, rationale: "unclassified source" };
+    return {
+      id: normalized,
+      classification: "core",
+      capability: null,
+      rationale: "unclassified source",
+    };
   }
-  return { id: normalized, classification: "shared", capability: null, rationale: "unclassified workspace package" };
+  return {
+    id: normalized,
+    classification: "shared",
+    capability: null,
+    rationale: "unclassified workspace package",
+  };
 }
 
 export function isUnclassified(entry) {
@@ -162,7 +205,9 @@ export function entryClosure(graph, { staticOnly = false } = {}) {
       const file = queue.shift();
       const chunk = chunks.get(file);
       if (!chunk) continue;
-      const next = staticOnly ? chunk.imports : [...chunk.imports, ...chunk.dynamicImports];
+      const next = staticOnly
+        ? chunk.imports
+        : [...chunk.imports, ...chunk.dynamicImports];
       for (const target of next) {
         if (!via.has(target)) {
           via.set(target, file);
@@ -172,7 +217,8 @@ export function entryClosure(graph, { staticOnly = false } = {}) {
     }
     result.set(label, { chunks: new Set(via.keys()), via });
   };
-  for (const entry of graph.entries) walk(entry.html, [...entry.scripts, ...entry.preloads]);
+  for (const entry of graph.entries)
+    walk(entry.html, [...entry.scripts, ...entry.preloads]);
   for (const worker of graph.workers ?? []) {
     if (worker.file) walk(`worker:${worker.variant}`, [worker.file]);
   }
@@ -191,7 +237,9 @@ export function pathTo(via, file) {
 
 function entryOwner(graph, label) {
   if (label.startsWith("worker:")) {
-    const worker = (graph.workers ?? []).find((w) => `worker:${w.variant}` === label);
+    const worker = (graph.workers ?? []).find(
+      (w) => `worker:${w.variant}` === label,
+    );
     return worker?.capability ?? null;
   }
   return graph.entries.find((e) => e.html === label)?.capability ?? null;
@@ -212,9 +260,12 @@ function entryOwner(graph, label) {
 export function violations(graph, distributed, mode, options = {}) {
   const core = options.coreCapabilities ?? new Set();
   const out = [];
-  const add = (severity, code, fields) => out.push({ severity, code, ...fields });
+  const add = (severity, code, fields) =>
+    out.push({ severity, code, ...fields });
   const optionalIn = (chunk) =>
-    chunk.modules.filter((m) => m.classification === "optional" && m.capability);
+    chunk.modules.filter(
+      (m) => m.classification === "optional" && m.capability,
+    );
   const chunkByFile = new Map(graph.chunks.map((c) => [c.file, c]));
 
   for (const chunk of graph.chunks) {
@@ -239,7 +290,12 @@ export function violations(graph, distributed, mode, options = {}) {
           });
         }
       }
-      if (mode === "hardened" && module.classification === "optional" && module.capability && !distributed.has(module.capability)) {
+      if (
+        mode === "hardened" &&
+        module.classification === "optional" &&
+        module.capability &&
+        !distributed.has(module.capability)
+      ) {
         add("error", "EXCLUDED_MODULE_EMITTED", {
           module: module.id,
           capability: module.capability,
@@ -290,7 +346,11 @@ export function violations(graph, distributed, mode, options = {}) {
       }
     }
     for (const entry of graph.entries) {
-      if (entry.capability && !distributed.has(entry.capability) && !core.has(entry.capability)) {
+      if (
+        entry.capability &&
+        !distributed.has(entry.capability) &&
+        !core.has(entry.capability)
+      ) {
         add("error", "EXCLUDED_HTML_ENTRY", {
           chunk: entry.html,
           capability: entry.capability,
@@ -300,7 +360,11 @@ export function violations(graph, distributed, mode, options = {}) {
     }
     for (const file of graph.publicFiles ?? []) {
       if (file.present === false) continue;
-      if (file.capability && !distributed.has(file.capability) && !core.has(file.capability)) {
+      if (
+        file.capability &&
+        !distributed.has(file.capability) &&
+        !core.has(file.capability)
+      ) {
         add("error", "EXCLUDED_PUBLIC_FILE", {
           chunk: file.file,
           capability: file.capability,
@@ -331,7 +395,8 @@ export function violations(graph, distributed, mode, options = {}) {
   }
 
   return out.sort((a, b) => {
-    const key = (v) => `${v.severity}|${v.code}|${v.entry ?? ""}|${v.chunk ?? ""}|${v.module ?? ""}`;
+    const key = (v) =>
+      `${v.severity}|${v.code}|${v.entry ?? ""}|${v.chunk ?? ""}|${v.module ?? ""}`;
     return key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0;
   });
 }
@@ -347,9 +412,19 @@ export function formatViolations(list) {
     v.chunk ?? "-",
     v.entry ?? "-",
   ]);
-  const header = ["severity", "code", "module", "capability", "chunk", "reachable from"];
-  const widths = header.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i]).length)));
-  const line = (cells) => cells.map((c, i) => String(c).padEnd(widths[i])).join("  ");
+  const header = [
+    "severity",
+    "code",
+    "module",
+    "capability",
+    "chunk",
+    "reachable from",
+  ];
+  const widths = header.map((h, i) =>
+    Math.max(h.length, ...rows.map((r) => String(r[i]).length)),
+  );
+  const line = (cells) =>
+    cells.map((c, i) => String(c).padEnd(widths[i])).join("  ");
   const errors = list.filter((v) => v.severity === "error").length;
   return [
     line(header),
@@ -365,7 +440,11 @@ export function canonicalJson(value, indent = 2) {
   const sort = (v) => {
     if (Array.isArray(v)) return v.map(sort);
     if (v && typeof v === "object") {
-      return Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])]));
+      return Object.fromEntries(
+        Object.keys(v)
+          .sort()
+          .map((k) => [k, sort(v[k])]),
+      );
     }
     return v;
   };
@@ -384,7 +463,9 @@ export function parseHtmlEntry(html, { base, htmlFile }) {
     const clean = ref.replace(/[?#].*$/, "");
     if (base && clean.startsWith(base)) return clean.slice(base.length);
     if (clean.startsWith("/")) return clean.slice(1);
-    const dir = htmlFile.includes("/") ? htmlFile.slice(0, htmlFile.lastIndexOf("/")) : "";
+    const dir = htmlFile.includes("/")
+      ? htmlFile.slice(0, htmlFile.lastIndexOf("/"))
+      : "";
     const parts = [...(dir ? dir.split("/") : []), ...clean.split("/")];
     const out = [];
     for (const part of parts) {
@@ -406,5 +487,8 @@ export function parseHtmlEntry(html, { base, htmlFile }) {
     const href = attrs.match(/\bhref\s*=\s*["']([^"']+)["']/i);
     if (href && !/^[a-z]+:/i.test(href[1])) preloads.push(resolveRef(href[1]));
   }
-  return { scripts: [...new Set(scripts)].sort(), preloads: [...new Set(preloads)].sort() };
+  return {
+    scripts: [...new Set(scripts)].sort(),
+    preloads: [...new Set(preloads)].sort(),
+  };
 }

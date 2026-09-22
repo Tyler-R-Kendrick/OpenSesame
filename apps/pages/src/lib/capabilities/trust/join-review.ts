@@ -33,6 +33,8 @@ const MAX_FIELD = 256;
 const READ_MEMBERS = new Set([
   "schemaVersion", "kind", "instanceId", "revision", "alg", "kid", "payloadDigest",
   "payload", "notBefore", "expires", "allowedOrigins", "signature", "publicKey",
+  // Bare-policy members (a document that is the payload itself).
+  "presetProvenance", "capabilities", "network", "updates",
 ]);
 
 export type JoinPreviewEntry = Readonly<{

@@ -62,7 +62,6 @@ export const MODULE_OWNERSHIP: Readonly<Record<ModuleId, ModuleOwnership>> =
  */
 export const PLANNED_MODULE_ENTRIES: readonly string[] = [
   "vault.interop-formats",
-  "access.authority",
   "identity.federation",
   "identity.ambient-sso",
   "identity.local-iam",
