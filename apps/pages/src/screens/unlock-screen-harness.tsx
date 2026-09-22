@@ -150,8 +150,8 @@ Object.assign(providersSeams, {
 });
 
 import { setupScreenDependencies } from "./SetupScreen.js";
-import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
 import { unlockScreenDependencies } from "./UnlockScreen.js";
+import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
 
 // Setup is never a gate (ADR 0090); this suite tests the unlock form and handoff.
 export const identityBaseHolder = { current: "http://127.0.0.1:18788" };

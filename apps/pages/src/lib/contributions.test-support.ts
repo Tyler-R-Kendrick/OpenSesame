@@ -11,13 +11,13 @@ import type {
   SectionContribution,
   TreeProps,
 } from "./capabilities/runtime-contract.js";
+import { registerContributionForTest } from "./contributions.js";
 import {
   ACCESS_LABELS,
   ACCESS_VIEWS,
   IDENTITY_LABELS,
   IDENTITY_VIEWS,
 } from "./section-views.js";
-import { registerContributionForTest } from "./contributions.js";
 
 /** `keymap-jump` + `command-path` for every legacy section, in rail order. */
 export const LEGACY_JUMPS = [

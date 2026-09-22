@@ -40,8 +40,7 @@ describe("access.authority runtime", () => {
       kinds: KINDS,
       // 1 section + 3 routes + 1 section command + 6 tab commands + 1 jump
       // + tutorial descriptors
-      count:
-        1 + 3 + 1 + 6 + 1 + targets.length + goals.length + routes.length,
+      count: 1 + 3 + 1 + 6 + 1 + targets.length + goals.length + routes.length,
     });
   });
 

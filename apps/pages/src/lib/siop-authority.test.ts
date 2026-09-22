@@ -4,8 +4,8 @@ import {
   verifySelfIssuedIdToken,
 } from "@opensesame/siop-v2";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { configureLocalApplication } from "./local-applications.js";
 import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
+import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import {
   type LocalDirectoryChange,

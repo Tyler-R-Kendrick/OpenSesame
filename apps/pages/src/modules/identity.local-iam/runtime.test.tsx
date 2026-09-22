@@ -54,8 +54,7 @@ describe("identity.local-iam runtime", () => {
       kinds: KINDS,
       // 1 section + 2 routes + 1 section command + 1 tab command + 1 jump
       // + tutorial descriptors
-      count:
-        1 + 2 + 1 + 1 + 1 + targets.length + goals.length + routes.length,
+      count: 1 + 2 + 1 + 1 + 1 + targets.length + goals.length + routes.length,
     });
   });
 

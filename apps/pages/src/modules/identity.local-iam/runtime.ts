@@ -26,8 +26,8 @@ import {
 } from "../../tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { createActivation } from "../activation.js";
-import { registerTutorial } from "../tutorial-contributions.js";
 import { registerIdentityViewPaths } from "../identity-view-paths.js";
+import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 import { IdentityRailTree } from "./IdentityRailTree.js";
 import { bindLocalIamLockResets } from "./lock-resets.js";
