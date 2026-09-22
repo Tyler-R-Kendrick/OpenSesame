@@ -76,6 +76,17 @@ export function validationOf(diagnostics: readonly Diagnostic[]): ValidationResu
   return diagnostics.length === 0 ? { ok: true } : { ok: false, diagnostics };
 }
 
+/** A failed parse; the diagnostics say why (never empty in practice). */
+export function parseFailure<T>(diagnostics: readonly Diagnostic[]): ParseResult<T> {
+  return {
+    ok: false,
+    diagnostics:
+      diagnostics.length > 0
+        ? diagnostics
+        : [diagnostic("INVALID_VALUE", "", "document could not be assembled")],
+  };
+}
+
 export function parseResultOf<T>(
   diagnostics: readonly Diagnostic[],
   value: T | undefined,

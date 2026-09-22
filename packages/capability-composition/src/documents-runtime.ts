@@ -6,7 +6,12 @@
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { DIGEST_RE, receiptDigest } from "./canonical.js";
-import { type Diagnostic, type ParseResult, parseResultOf } from "./diagnostics.js";
+import {
+  type Diagnostic,
+  type ParseResult,
+  parseFailure,
+  parseResultOf,
+} from "./diagnostics.js";
 import {
   MAX_ID_LENGTH,
   MAX_MODULE_ID_LENGTH,
@@ -36,7 +41,7 @@ const DIGEST_BOUNDS = { min: 71, max: 71, pattern: DIGEST_RE, code: "INVALID_DIG
 export function parseConsentReceipt(v: BoundaryValue): ParseResult<ConsentReceipt> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
-  if (reader === undefined) return parseResultOf(diags, undefined);
+  if (reader === undefined) return parseFailure(diags);
   const schemaVersion = reader.literal("schemaVersion", 1);
   const instanceId = reader.opaqueId("instanceId");
   const installationId = reader.opaqueId("installationId");
@@ -64,7 +69,7 @@ export function parseConsentReceipt(v: BoundaryValue): ParseResult<ConsentReceip
     exposure === undefined ||
     storedDigest === undefined
   ) {
-    return parseResultOf(diags, undefined);
+    return parseFailure(diags);
   }
   if (Number.isNaN(Date.parse(acceptedAt))) {
     reader.report("INVALID_VALUE", "acceptedAt", "`acceptedAt` is not an ISO 8601 instant");
@@ -144,7 +149,7 @@ export function parseDistributionContract(
 ): ParseResult<DistributionContract> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
-  if (reader === undefined) return parseResultOf(diags, undefined);
+  if (reader === undefined) return parseFailure(diags);
   const distributionId = reader.opaqueId("distributionId");
   const mode = reader.enumOf("mode", ["selective", "hardened"]);
   const capabilityIds = reader.idList("capabilityIds");
@@ -168,7 +173,7 @@ export function parseDistributionContract(
     workerVariants === undefined ||
     basePath === undefined
   ) {
-    return parseResultOf(diags, undefined);
+    return parseFailure(diags);
   }
   moduleIds.forEach((moduleId, index) => {
     if (!isModuleId(moduleId)) {

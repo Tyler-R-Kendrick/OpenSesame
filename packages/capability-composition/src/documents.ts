@@ -8,7 +8,12 @@
  * lenient mode and no default fill-in.
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { type Diagnostic, type ParseResult, parseResultOf } from "./diagnostics.js";
+import {
+  type Diagnostic,
+  type ParseResult,
+  parseFailure,
+  parseResultOf,
+} from "./diagnostics.js";
 import { MAX_OPAQUE_ID_LENGTH, isCapabilityId } from "./ids.js";
 import {
   MAX_ORIGIN_LENGTH,
@@ -103,7 +108,7 @@ export function parseInstancePolicy(
 ): ParseResult<InstanceCapabilityPolicy> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
-  if (reader === undefined) return parseResultOf(diags, undefined);
+  if (reader === undefined) return parseFailure(diags);
   const schemaVersion = reader.literal("schemaVersion", 1);
   const kind = reader.literal("kind", "InstanceCapabilityPolicy");
   const instanceId = reader.opaqueId("instanceId");
@@ -123,7 +128,7 @@ export function parseInstancePolicy(
     network === undefined ||
     updates === undefined
   ) {
-    return parseResultOf(diags, undefined);
+    return parseFailure(diags);
   }
   return parseResultOf(diags, {
     schemaVersion,
@@ -142,7 +147,7 @@ export function parseWorkspaceRestriction(
 ): ParseResult<WorkspaceCapabilityRestriction> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
-  if (reader === undefined) return parseResultOf(diags, undefined);
+  if (reader === undefined) return parseFailure(diags);
   const schemaVersion = reader.literal("schemaVersion", 1);
   const kind = reader.literal("kind", "WorkspaceCapabilityRestriction");
   const instanceId = reader.opaqueId("instanceId");
@@ -160,7 +165,7 @@ export function parseWorkspaceRestriction(
     allow === undefined ||
     prohibited === undefined
   ) {
-    return parseResultOf(diags, undefined);
+    return parseFailure(diags);
   }
   if (allow !== null) {
     checkDisjoint(reader, [
@@ -194,7 +199,7 @@ export function parseInstallationSelection(
 ): ParseResult<InstallationCapabilitySelection> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
-  if (reader === undefined) return parseResultOf(diags, undefined);
+  if (reader === undefined) return parseFailure(diags);
   const schemaVersion = reader.literal("schemaVersion", 1);
   const kind = reader.literal("kind", "InstallationCapabilitySelection");
   const instanceId = reader.opaqueId("instanceId");
@@ -224,7 +229,7 @@ export function parseInstallationSelection(
     chosenAlternatives === undefined ||
     delivery === undefined
   ) {
-    return parseResultOf(diags, undefined);
+    return parseFailure(diags);
   }
   checkDisjoint(reader, [
     { name: "acceptedRequired", path: "acceptedRequired", ids: acceptedRequired },
@@ -249,7 +254,7 @@ export function parseVaultSelection(
 ): ParseResult<VaultCapabilitySelection> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
-  if (reader === undefined) return parseResultOf(diags, undefined);
+  if (reader === undefined) return parseFailure(diags);
   const schemaVersion = reader.literal("schemaVersion", 1);
   const kind = reader.literal("kind", "VaultCapabilitySelection");
   const instanceId = reader.opaqueId("instanceId");
@@ -267,7 +272,7 @@ export function parseVaultSelection(
     revision === undefined ||
     disabled === undefined
   ) {
-    return parseResultOf(diags, undefined);
+    return parseFailure(diags);
   }
   return parseResultOf(diags, {
     schemaVersion,
