@@ -1,0 +1,33 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "map": [
+              {
+                "key": "b",
+                "value": {
+                  "str": "x\n# y"
+                }
+              },
+              {
+                "key": "c",
+                "value": {
+                  "str": "folded text\n"
+                }
+              },
+              {
+                "key": "d",
+                "value": {
+                  "str": "multi\nline"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

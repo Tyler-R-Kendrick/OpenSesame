@@ -1,0 +1,36 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "comment": " on marker",
+          "inline": false
+        },
+        {
+          "comment": " own",
+          "inline": false
+        },
+        {
+          "key": "a",
+          "value": {
+            "int": "1"
+          }
+        }
+      ]
+    },
+    {
+      "map": [
+        {
+          "comment": " second",
+          "inline": false
+        },
+        {
+          "key": "b",
+          "value": {
+            "int": "2"
+          }
+        }
+      ]
+    }
+  ]
+}

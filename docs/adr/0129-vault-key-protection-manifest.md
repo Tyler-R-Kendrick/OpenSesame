@@ -37,23 +37,21 @@ with the root bytes also acting as the content key on some paths.
 6. **Trusted client boundary.** Human-root material stays in the browser and/or
    an explicitly paired personal native client. No clear wrapping-secret proxy.
    Agents/ConnectionRef must not gain human-root unwrap oracles.
-7. **SOPS.** YAML and JSON documents with local age identities run in the
-   static browser. SOPS is a document format, not a vault root protector.
-   Threshold key-groups are preserved or refused — never silently flattened
-   to any-of. A native `sops` binary is an optional operator tool and is not
-   required for the PWA.
-   - **Amendment (2026-09-21):** the browser engine is complete and
-     machine-checked against a pinned upstream oracle: `pnpm
-     verify:sops-conformance` proves browser→sops and sops→browser
-     interoperability for YAML and JSON with no shared code. Multi-document
-     streams, comment preservation, Shamir key groups, and the RE2-subset
-     selectors are verified; YAML aliases/anchors/explicit tags/merge keys
-     fail closed by design (the lossless claim outranks them); metadata is
-     structurally complete but not byte-identical (`shamir_threshold` only
-     when >1, plus the `opensesame` origin field). The wire profile and its
-     divergences are specified in `docs/security/sops-wire-compatibility.md`;
-     the evidence artifacts live in
-     `docs/evidence/2026-09-21-sops-browser/`.
+7. **SOPS.** *Superseded by [ADR 0130](0130-browser-local-sops.md).* This
+   decision was right and, at the time, unimplemented: SOPS YAML/JSON was
+   "not available in-browser" and the person was pointed at a native binary
+   via `OPENSESAME_SOPS_BIN`, which the static deployment cannot reach. The
+   partial engine that replaced that wording still had no way to open a SOPS
+   document. A 2026-09-21 amendment here (evidence in
+   `docs/evidence/2026-09-21-sops-browser/`) called that engine "complete and
+   machine-checked"; it was ahead of the code, and ADR 0130 replaces both this
+   clause and that amendment with an implemented, oracle-verified engine and a
+   reachable document workflow. Two divergences that amendment recorded no
+   longer apply: the engine emits no `opensesame` origin field, and
+   `shamir_threshold` only above one group, which is upstream's own rule.
+   SOPS remains a document format, not a vault root protector, and threshold
+   key-groups are still preserved or refused — never silently flattened to
+   any-of.
 8. **`capabilityConnectors.encryption`.** Legacy setup preference / migration
    hint only. Never overrides cryptographic enrollment facts.
 

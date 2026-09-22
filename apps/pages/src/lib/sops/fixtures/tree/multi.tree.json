@@ -1,0 +1,31 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "int": "1"
+          }
+        }
+      ]
+    },
+    {
+      "map": [
+        {
+          "comment": " doc two",
+          "inline": false
+        },
+        {
+          "key": "b",
+          "value": {
+            "int": "2"
+          }
+        }
+      ]
+    },
+    {
+      "map": []
+    }
+  ]
+}

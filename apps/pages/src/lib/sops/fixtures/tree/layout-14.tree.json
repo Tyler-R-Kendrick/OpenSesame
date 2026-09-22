@@ -1,0 +1,48 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "e",
+          "value": {
+            "seq": [
+              {
+                "comment": " fc",
+                "inline": true
+              },
+              {
+                "int": "1"
+              },
+              {
+                "int": "2"
+              }
+            ]
+          }
+        },
+        {
+          "key": "f",
+          "value": {
+            "map": [
+              {
+                "comment": " fm",
+                "inline": true
+              },
+              {
+                "key": "a",
+                "value": {
+                  "int": "1"
+                }
+              },
+              {
+                "key": "b",
+                "value": {
+                  "int": "2"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

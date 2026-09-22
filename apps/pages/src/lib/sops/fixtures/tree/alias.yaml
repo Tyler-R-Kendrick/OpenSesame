@@ -1,0 +1,6 @@
+base: &b
+  x: 1
+other: *b
+merged:
+  <<: *b
+  y: 2

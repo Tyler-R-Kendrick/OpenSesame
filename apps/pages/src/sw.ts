@@ -50,6 +50,27 @@ function isolated(response: Response, requestUrl: URL): Response {
   });
 }
 
+/**
+ * A dedicated worker inherits its owner document's cross-origin isolation.
+ * Navigations above are served `Cross-Origin-Embedder-Policy: require-corp`,
+ * and Chromium then refuses a worker script that does not carry the same
+ * header — reporting it as an `error` event with no message, no filename and
+ * nothing in the console, which is why it is easy to miss. A worker built
+ * from a `blob:` URL inherits the document's policy and works, so only the
+ * same-origin script path is affected.
+ */
+function isolatedWorkerScript(response: Response): Response {
+  if (response.status === 0) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 /** Fetch the current shell and refresh the cache; null when offline. */
 async function freshShell(url: URL): Promise<Response | null> {
   try {
@@ -141,7 +162,14 @@ sw.addEventListener("fetch", (event) => {
         return (await caches.match(request)) ?? fetch(request);
       }
       const cached = await caches.match(request);
-      return cached ?? fetch(request);
+      const response = cached ?? (await fetch(request));
+      if (
+        request.destination === "worker" ||
+        request.destination === "sharedworker"
+      ) {
+        return isolatedWorkerScript(response);
+      }
+      return response;
     })(),
   );
 });

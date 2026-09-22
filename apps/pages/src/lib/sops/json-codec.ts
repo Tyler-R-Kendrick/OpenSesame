@@ -1,9 +1,24 @@
-/** Ordered JSON codec. Integer-looking keys stay in source order. */
+/**
+ * Ordered JSON codec matching upstream's `stores/json` (26e2f478): keys
+ * keep source order (including `"10"`, `"2"`, `"__proto__"`), integers in
+ * the int64 range stay exact, and `-0` normalizes to `0` as Go's
+ * `json.Number.Int64` does.
+ *
+ * Stricter than upstream on purpose: a duplicate key is refused (upstream
+ * keeps both entries), an integer beyond int64 is refused (upstream silently
+ * converts it to a float), and a lone surrogate escape is refused (Go
+ * substitutes U+FFFD).
+ */
 
-import type { SopsScalar } from "./aes-record.js";
-import type { SopsNode } from "./tree.js";
-
-const MAX_INPUT = 8 * 1024 * 1024;
+import { SopsError } from "./errors.js";
+import { MAX_INPUT_BYTES, MAX_KEY_LENGTH } from "./limits.js";
+import { type SopsNode, assertTreeBudget } from "./model.js";
+import {
+  type SopsScalar,
+  assertScalarBudget,
+  canonicalInt,
+  goParseFloatText,
+} from "./scalars.js";
 
 function jsonEscape(esc: string): string {
   switch (esc) {
@@ -24,24 +39,40 @@ function jsonEscape(esc: string): string {
     case "t":
       return "\t";
     default:
-      throw new Error("bad JSON escape");
+      throw new SopsError(
+        "invalid_document",
+        "A JSON string has a bad escape.",
+      );
   }
 }
 
 class Parser {
-  #text: string;
+  readonly #text: string;
   #i = 0;
 
   constructor(text: string) {
-    if (text.length > MAX_INPUT) throw new Error("sops input exceeds 8 MiB");
+    if (text.length > MAX_INPUT_BYTES) {
+      throw new SopsError(
+        "resource_limit",
+        "The document exceeds the input budget.",
+      );
+    }
     this.#text = text;
   }
 
   parse(): SopsNode {
     this.#skip();
-    const node = this.#value();
+    if (this.#peek() !== "{") {
+      throw new SopsError(
+        "invalid_document",
+        "A SOPS JSON document must be a top-level object.",
+      );
+    }
+    const node = this.#object();
     this.#skip();
-    if (this.#i !== this.#text.length) throw new Error("trailing JSON");
+    if (this.#i !== this.#text.length) {
+      throw new SopsError("invalid_document", "JSON has trailing content.");
+    }
     return node;
   }
 
@@ -50,7 +81,7 @@ class Parser {
   }
 
   #skip(): void {
-    while (this.#i < this.#text.length && /\s/u.test(this.#peek()))
+    while (this.#i < this.#text.length && /[ \t\n\r]/u.test(this.#peek()))
       this.#i += 1;
   }
 
@@ -59,59 +90,120 @@ class Parser {
     const ch = this.#peek();
     if (ch === "{") return this.#object();
     if (ch === "[") return this.#array();
-    if (ch === '"')
-      return { kind: "scalar", scalar: { kind: "str", value: this.#string() } };
+    if (ch === '"') {
+      const value = this.#string();
+      assertScalarBudget(value);
+      return { kind: "scalar", scalar: { kind: "str", value } };
+    }
     if (ch === "t" || ch === "f") return this.#bool();
     if (ch === "n") return this.#null();
     if (ch === "-" || (ch >= "0" && ch <= "9")) return this.#number();
-    throw new Error("malformed JSON");
+    throw new SopsError("invalid_document", "JSON is malformed.");
   }
 
   #object(): SopsNode {
     this.#i += 1;
-    const entries: { key: string; value: SopsNode }[] = [];
+    const items: SopsNode & { kind: "map" } = { kind: "map", items: [] };
     const seen = new Set<string>();
     this.#skip();
     if (this.#peek() === "}") {
       this.#i += 1;
-      return { kind: "map", entries };
+      return items;
     }
     while (this.#i < this.#text.length) {
       this.#skip();
-      if (this.#peek() !== '"') throw new Error("JSON key must be a string");
+      if (this.#peek() !== '"') {
+        throw new SopsError("invalid_document", "A JSON key must be a string.");
+      }
       const key = this.#string();
-      if (seen.has(key)) throw new Error("duplicate JSON key");
+      if (key.length > MAX_KEY_LENGTH) {
+        throw new SopsError(
+          "resource_limit",
+          "A mapping key exceeds the key budget.",
+        );
+      }
+      if (seen.has(key))
+        throw new SopsError("duplicate_key", "A mapping repeats a key.");
       seen.add(key);
       this.#skip();
-      if (this.#peek() !== ":") throw new Error("JSON key missing colon");
+      if (this.#peek() !== ":") {
+        throw new SopsError(
+          "invalid_document",
+          "A JSON key is missing its colon.",
+        );
+      }
       this.#i += 1;
-      entries.push({ key, value: this.#value() });
+      items.items.push({ kind: "entry", key, value: this.#value() });
       this.#skip();
       const sep = this.#peek();
       this.#i += 1;
-      if (sep === "}") return { kind: "map", entries };
-      if (sep !== ",") throw new Error("malformed JSON object");
+      if (sep === "}") return items;
+      if (sep !== ",")
+        throw new SopsError("invalid_document", "A JSON object is malformed.");
     }
-    throw new Error("unterminated JSON object");
+    throw new SopsError("invalid_document", "A JSON object is unterminated.");
   }
 
   #array(): SopsNode {
     this.#i += 1;
-    const items: SopsNode[] = [];
+    const node: SopsNode & { kind: "seq" } = { kind: "seq", items: [] };
     this.#skip();
     if (this.#peek() === "]") {
       this.#i += 1;
-      return { kind: "seq", items };
+      return node;
     }
     while (this.#i < this.#text.length) {
-      items.push(this.#value());
+      node.items.push(this.#value());
       this.#skip();
       const sep = this.#peek();
       this.#i += 1;
-      if (sep === "]") return { kind: "seq", items };
-      if (sep !== ",") throw new Error("malformed JSON array");
+      if (sep === "]") return node;
+      if (sep !== ",")
+        throw new SopsError("invalid_document", "A JSON array is malformed.");
     }
-    throw new Error("unterminated JSON array");
+    throw new SopsError("invalid_document", "A JSON array is unterminated.");
+  }
+
+  #unicodeEscape(): string {
+    const hex = this.#text.slice(this.#i, this.#i + 4);
+    if (!/^[0-9a-fA-F]{4}$/u.test(hex)) {
+      throw new SopsError(
+        "invalid_document",
+        "A JSON unicode escape is malformed.",
+      );
+    }
+    this.#i += 4;
+    const code = Number.parseInt(hex, 16);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      if (this.#text.slice(this.#i, this.#i + 2) !== "\\u") {
+        throw new SopsError(
+          "malformed_encoding",
+          "A JSON string has a lone surrogate.",
+        );
+      }
+      this.#i += 2;
+      const low = this.#text.slice(this.#i, this.#i + 4);
+      const lowCode = Number.parseInt(low, 16);
+      if (
+        !/^[0-9a-fA-F]{4}$/u.test(low) ||
+        lowCode < 0xdc00 ||
+        lowCode > 0xdfff
+      ) {
+        throw new SopsError(
+          "malformed_encoding",
+          "A JSON string has a lone surrogate.",
+        );
+      }
+      this.#i += 4;
+      return String.fromCharCode(code, lowCode);
+    }
+    if (code >= 0xdc00 && code <= 0xdfff) {
+      throw new SopsError(
+        "malformed_encoding",
+        "A JSON string has a lone surrogate.",
+      );
+    }
+    return String.fromCharCode(code);
   }
 
   #string(): string {
@@ -124,87 +216,112 @@ class Parser {
       if (ch === "\\") {
         const esc = this.#peek();
         this.#i += 1;
-        if (esc === "u") {
-          const hex = this.#text.slice(this.#i, this.#i + 4);
-          if (!/^[0-9a-fA-F]{4}$/u.test(hex))
-            throw new Error("bad unicode escape");
-          out += String.fromCharCode(Number.parseInt(hex, 16));
-          this.#i += 4;
-          continue;
-        }
-        const mapped = jsonEscape(esc);
-        out += mapped;
+        out += esc === "u" ? this.#unicodeEscape() : jsonEscape(esc);
         continue;
       }
-      if (ch.charCodeAt(0) < 0x20)
-        throw new Error("raw control in JSON string");
+      if (ch.charCodeAt(0) < 0x20) {
+        throw new SopsError(
+          "invalid_document",
+          "A JSON string has a raw control character.",
+        );
+      }
       out += ch;
     }
-    throw new Error("unterminated JSON string");
+    throw new SopsError("invalid_document", "A JSON string is unterminated.");
   }
 
   #bool(): SopsNode {
     const word = this.#peek() === "t" ? "true" : "false";
     if (this.#text.slice(this.#i, this.#i + word.length) !== word) {
-      throw new Error("malformed JSON bool");
+      throw new SopsError("invalid_document", "JSON is malformed.");
     }
     this.#i += word.length;
     return { kind: "scalar", scalar: { kind: "bool", value: word === "true" } };
   }
 
   #null(): SopsNode {
-    if (this.#text.slice(this.#i, this.#i + 4) !== "null")
-      throw new Error("malformed JSON null");
+    if (this.#text.slice(this.#i, this.#i + 4) !== "null") {
+      throw new SopsError("invalid_document", "JSON is malformed.");
+    }
     this.#i += 4;
     return { kind: "null" };
+  }
+
+  #digits(): void {
+    if (!/[0-9]/u.test(this.#peek())) {
+      throw new SopsError("invalid_document", "A JSON number is malformed.");
+    }
+    while (/[0-9]/u.test(this.#peek())) this.#i += 1;
   }
 
   #number(): SopsNode {
     const start = this.#i;
     if (this.#peek() === "-") this.#i += 1;
     if (this.#peek() === "0") this.#i += 1;
-    else {
-      if (!/[1-9]/u.test(this.#peek()))
-        throw new Error("malformed JSON number");
-      while (/[0-9]/u.test(this.#peek())) this.#i += 1;
-    }
-    let kind: "int" | "float" = "int";
+    else this.#digits();
+    let float = false;
     if (this.#peek() === ".") {
-      kind = "float";
+      float = true;
       this.#i += 1;
-      if (!/[0-9]/u.test(this.#peek()))
-        throw new Error("malformed JSON number");
-      while (/[0-9]/u.test(this.#peek())) this.#i += 1;
+      this.#digits();
     }
     if (this.#peek() === "e" || this.#peek() === "E") {
-      kind = "float";
+      float = true;
       this.#i += 1;
       if (this.#peek() === "+" || this.#peek() === "-") this.#i += 1;
-      if (!/[0-9]/u.test(this.#peek()))
-        throw new Error("malformed JSON number");
-      while (/[0-9]/u.test(this.#peek())) this.#i += 1;
+      this.#digits();
     }
     const raw = this.#text.slice(start, this.#i);
-    const scalar: SopsScalar =
-      kind === "int"
-        ? { kind: "int", value: raw }
-        : { kind: "float", value: raw };
-    return { kind: "scalar", scalar };
+    if (!float) {
+      const value = canonicalInt(BigInt(raw));
+      if (value === null) {
+        throw new SopsError(
+          "unsupported_feature",
+          "An integer is outside the 64-bit signed range SOPS supports.",
+        );
+      }
+      return { kind: "scalar", scalar: { kind: "int", value } };
+    }
+    const value = goParseFloatText(raw);
+    if (value === null) {
+      throw new SopsError(
+        "unsupported_feature",
+        "A number is outside the float64 range.",
+      );
+    }
+    return { kind: "scalar", scalar: { kind: "float", value } };
   }
 }
 
 export function parseJsonTree(text: string): SopsNode {
-  return new Parser(text).parse();
+  const root = new Parser(text).parse();
+  assertTreeBudget([root]);
+  return root;
+}
+
+function withFraction(text: string): string {
+  return /[.eE]/u.test(text) ? text : `${text}.0`;
 }
 
 function emitScalar(scalar: SopsScalar): string {
   switch (scalar.kind) {
     case "str":
-    case "comment":
+    case "time":
       return JSON.stringify(scalar.value);
     case "int":
-    case "float":
       return scalar.value;
+    case "float":
+      if (!Number.isFinite(scalar.value)) {
+        // Upstream's encoder refuses these too (`json: unsupported value`).
+        throw new SopsError(
+          "unsupported_feature",
+          "JSON cannot carry an infinite or NaN number.",
+        );
+      }
+      if (Object.is(scalar.value, -0)) return "-0.0";
+      // Upstream's `json.Marshal` writes 1 for 1.0; that reads back as an
+      // int, so the fraction is kept here to preserve the float kind.
+      return withFraction(JSON.stringify(scalar.value));
     case "bool":
       return scalar.value ? "true" : "false";
     default: {
@@ -214,11 +331,37 @@ function emitScalar(scalar: SopsScalar): string {
   }
 }
 
+function emit(node: SopsNode, indent: string, depth: number): string {
+  const pad = indent.repeat(depth + 1);
+  const close = indent.repeat(depth);
+  switch (node.kind) {
+    case "null":
+      return "null";
+    case "scalar":
+      return emitScalar(node.scalar);
+    case "seq": {
+      const items = node.items.filter((item) => item.kind !== "comment");
+      if (items.length === 0) return "[]";
+      return `[\n${items.map((item) => `${pad}${emit(item, indent, depth + 1)}`).join(",\n")}\n${close}]`;
+    }
+    case "map": {
+      const items = node.items.filter((item) => item.kind === "entry");
+      if (items.length === 0) return "{}";
+      return `{\n${items
+        .map(
+          (item) =>
+            `${pad}${JSON.stringify(item.key)}: ${emit(item.value, indent, depth + 1)}`,
+        )
+        .join(",\n")}\n${close}}`;
+    }
+    default: {
+      const unreachable: never = node;
+      return unreachable;
+    }
+  }
+}
+
+/** Pretty JSON with a trailing newline, comments dropped as upstream does. */
 export function emitJsonTree(node: SopsNode): string {
-  if (node.kind === "null") return "null";
-  if (node.kind === "scalar") return emitScalar(node.scalar);
-  if (node.kind === "seq") return `[${node.items.map(emitJsonTree).join(",")}]`;
-  return `{${node.entries
-    .map((entry) => `${JSON.stringify(entry.key)}:${emitJsonTree(entry.value)}`)
-    .join(",")}}`;
+  return `${emit(node, "\t", 0)}\n`;
 }

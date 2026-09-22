@@ -1,0 +1,29 @@
+#ENC[AES256_GCM,data:Ww1vRnNShaWQ,iv:DHNPkDIjwLV3uymxlLVWPzuv/EVNe1p799fR4hbDuBs=,tag:PgOgrkCqIgV77N+9JJaBeQ==,type:comment]
+secret_a: ENC[AES256_GCM,data:LFLh,iv:8adUCXKqBiTIK0m0GmxUVsAv8oyzsjva1pk02qDKj2o=,tag:zf7oTWM5rBIqoRrN8wJo0Q==,type:str]
+#ENC[AES256_GCM,data:8upOy8Hy,iv:Yx0ykvJWdyvw53UUzc6/eQgnOMRIMDSO+BNN2a7paZ0=,tag:V4GAOLDw98lVrBpSFcfl7w==,type:comment]
+public_b: two
+nested:
+    #ENC[AES256_GCM,data:GpJeo1ufbYPE,iv:53A3O7EablpNp4b4ZQv93P0U5A8lV/eHXujJs6nIPI0=,tag:ffCRSWs4IO/BNCCjNHl4HQ==,type:comment]
+    inner: ENC[AES256_GCM,data:njt9US4=,iv:xBV1a+6h/70IY82fOCNetcRn95vrEjsdR9B7hU4PRXc=,tag:6cq4hNXlltOhEiiYbAhL/A==,type:str]
+    other: ENC[AES256_GCM,data:+kXa3w==,iv:I5IQ7qFerJA/8XNapidUHdih8gK8p2t5v6lJJutC7Z0=,tag:HHk1pzrVgPIPVBHqcq9XTg==,type:str]
+list:
+    - ENC[AES256_GCM,data:yexhyPIEaZ3I,iv:bcB6FlGgyqKedLvR7YlL+QSGBEQ3JaKgIZJ8RieqY0I=,tag:izUyXNfpUdauzkLYQGg/OQ==,type:comment]
+    - ENC[AES256_GCM,data:Kzwpww==,iv:7XRx2xEFxqwQgvzXdkaTk2IWZztocXhJzxc8WJJkSQU=,tag:kvO+Vi9Fmbnw/mLQ6wDS0Q==,type:str]
+    - ENC[AES256_GCM,data:xO5q,iv:Iryz52SuaHj0WCZ4/4rrarxH+NBkt7Z2Tsky8ZENcoc=,tag:HLU3zbxV/hQSS/umFXBv1Q==,type:str]
+pw: ENC[AES256_GCM,data:0Q==,iv:4V+DiKEEQaPWZAtwyHlr0Ik6qNpY1lGevT2YIVPCX4k=,tag:1z1EarZ6PEFx2SBOiIuGhA==,type:str]
+token: ENC[AES256_GCM,data:oA==,iv:+O/98CBAyHohKYN8MANMoeEmd0RvtuMJvd1aZQluAIM=,tag:3DDSywQeiE9cxGNaFpvWWA==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBlTFh5QVZWT2luSHZmR2pO
+            WWxVcmlCcTNOUTZXWlowY1RNNElrLzliYUhzCldPTisxdjVYRWdTeEJLR2JiOTVM
+            R0pEaVEyYU9BWGpQWXhDWE12Z21VWEEKLS0tIHJqcDg0VUxKQU03LzhESWlva0g2
+            R29iRmJnRXZRT0VvSWxJb3RCdFhSZk0KYKrUULd3LsBoou2VYK+IVsoiK+tA5gJo
+            7djZmpdcwJAhIso+iSt3h/BOY+NWYmITXBwxAid48djLX4gaG1yEmQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+    lastmodified: "2026-09-22T14:04:39Z"
+    mac: ENC[AES256_GCM,data:4rXQvs2ay5Dgt/UCW5GYF2n+qamS26iB8wwABRcSQjBZHL6xkExD+OL/6iyCTI6BoYofkfELz6kIzaslZwDHVK2+lrwifo8rue8xOM80qfZHmfnNLlo5LOEmS3bLKXJiUxQMGQHCYwSq7JQ7ZEjZry8880IDppJGNMsB7HXDiBY=,iv:tcNaTJ5rUAJopQt/EOBvUEl4Z/91oGWWcrdW5fVeGuQ=,tag:UJ4kDcUVC0XhUzjnUtTHug==,type:str]
+    unencrypted_regex: ^public
+    version: 3.13.3

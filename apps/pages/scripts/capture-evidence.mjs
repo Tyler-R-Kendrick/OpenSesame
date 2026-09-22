@@ -116,11 +116,17 @@ const STEPS = {
       `capture-evidence press("${name}"): no button or tab matched — refusing a silent miss`,
     );
   },
+  /**
+   * Optional means "skip when it is not there to press" — which includes a
+   * control that is present but disabled. A base build that has not grown
+   * the key yet, and a branch that correctly withholds it from a guest,
+   * are both legitimate, and neither should hang the capture.
+   */
   async pressOptional(page, name) {
     const target = page
       .getByRole("button", { name: new RegExp(name, "i") })
       .first();
-    if (await target.count()) {
+    if ((await target.count()) && (await target.isEnabled())) {
       await press(target);
       await page.waitForTimeout(1000);
     }
@@ -154,6 +160,24 @@ const STEPS = {
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
+  },
+  /**
+   * Bring a named heading to the top of the viewport. A panel below the
+   * fold is still a screen someone looks at, and a full-page screenshot
+   * would shrink the thing being evidenced until nobody could read it.
+   */
+  async scrollTo(page, name) {
+    const heading = page
+      .getByRole("heading", { name: new RegExp(name, "i") })
+      .first();
+    if (!(await heading.count()))
+      throw new Error(
+        `capture-evidence scrollTo("${name}"): no heading matched — refusing a silent miss`,
+      );
+    await heading.evaluate((node) => {
+      node.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    await page.waitForTimeout(600);
   },
 };
 

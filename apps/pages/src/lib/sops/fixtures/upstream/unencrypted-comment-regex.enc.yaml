@@ -1,0 +1,29 @@
+#ENC[AES256_GCM,data:+yfwSKmG2R6S,iv:tXZodeOuWnTh/s+v++Wl/X7322XM7LQYWxnMGviN6TE=,tag:ih+hy1VO4PMPPdxgJmSx0w==,type:comment]
+secret_a: ENC[AES256_GCM,data:xNX7,iv:hWtYL4I5J8uEFxaVEfqsRSu+9Rjb0Jl5wrt5/TBKzm0=,tag:jfA6eTUVv4IwUCD9H4deNA==,type:str]
+# plain
+public_b: two
+nested:
+    #ENC[AES256_GCM,data:5WeC/9rcVeU7,iv:dpgmNzZSvXDDolqlFa8l2LxjEdmfb40oas5yvhgl5vI=,tag:FIUuQeU84bD4SssNDvei0w==,type:comment]
+    inner: ENC[AES256_GCM,data:WHP3/5M=,iv:U/KF+JE1yMDE4YpoIIEeE70Zvf6JnUl07z5NyeRk158=,tag:dsCmNiKvScTMQNXZtEkhVg==,type:str]
+    other: ENC[AES256_GCM,data:ocOn4w==,iv:YGErQDcegjQlBzdloLGfwi+vddwxMod5O/SgNClCkRs=,tag:z360LrkGwJbKuvam0oo/3g==,type:str]
+list:
+    - ENC[AES256_GCM,data:qH2bB63lWw0I,iv:WXdhi8dkoIrNNGRYLwhVQ8praiBLG7hd3NTLNsm5QyI=,tag:9HWxVZ7ojGq2J8N0vEJj0Q==,type:comment]
+    - ENC[AES256_GCM,data:aFkk0g==,iv:9lbPD0+V/pfmsoyRPUhz+qjB1WEAfG+VSupewcfU7NQ=,tag:vgaxByiv1RnwraAa3BVy/w==,type:str]
+    - ENC[AES256_GCM,data:yd6W,iv:oCPG9aGlx2w9D6Bn58pVvFGrDfgdVadkWwa2OcaFt+A=,tag:WJWaxwHiHomIqu8/Fabf+A==,type:str]
+pw: ENC[AES256_GCM,data:yw==,iv:RSHfAq9MC13XNWQulTifvjuH45ZluHtpo2W2qXdO9yg=,tag:yvTVzEM4bf2fc5KFCC+x0w==,type:str]
+token: ENC[AES256_GCM,data:sQ==,iv:1D1qXJkuJGqslDMey+N9xNKupBwALqzbCpPNIF8SS+k=,tag:lIgl3jATzI/LDKldIYVBEQ==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBYVHJVRGV3ZmpFVTQ1TCtD
+            R1IrRHZBcHI4TTRFODJuYmlnUUd4aGhKQmo4CktxNXdUSWN5OG85TFVOMzlTSmJh
+            WWFlS2RyMWFwcS9rMjhzcm5wbEljaGcKLS0tIDR6NGw1VXlkdDg4dmdmTGZRWlJR
+            bit5eml4K3JFN0U3NDRvYkVhL0NCQUkKNE4DZEdz6nr2caHZfu8+vZNn7DhDLEJL
+            7nYGRjgsh+DjmsdMwEnF/y2be7E9XDkWZtLvSiEqaMkOh2Mo9g+6OA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+    lastmodified: "2026-09-22T14:04:39Z"
+    mac: ENC[AES256_GCM,data:9ID87l/nJASFS2coAqOmrrn43H6Cg/STblZr34LB+DczzpCjM5PjIFFVxlTBURt4wBtnC9OG0MFI8WcDgxXnHyCBe378qB1km73dIOLThIO+YcNhJiGTVc1OoKw1E5JmzccNt/CIAET7NvpqdhAK0HoXP3c04KcLhpeV1MNz7js=,iv:8ZaKmIoOQo7eDO81YzqOchZNkcsO91L5y0xBQTDl0oI=,tag:LfZUzUSNqafhSEWSBdpHgA==,type:str]
+    unencrypted_comment_regex: plain
+    version: 3.13.3

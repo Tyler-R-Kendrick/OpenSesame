@@ -1,0 +1,30 @@
+# sops:enc
+secret_a: one
+# plain
+public_b: two
+nested:
+    # sops:enc
+    inner: three
+    other: four
+list:
+    # sops:enc
+    - five
+    - six
+pw: ENC[AES256_GCM,data:hg==,iv:wy1g9nmrEfWoT26YreqO+lNfDmkdpz94BQ/7vTMxWy8=,tag:zWgH9YxR3ZVQzym4lSLSbw==,type:str]
+token: ENC[AES256_GCM,data:ZA==,iv:C4Pyww+rHYfmHGR36EXCeGMF8dBrAg05PbgXZca0hGk=,tag:e2ZzzWuv848sVC/uDcjIwg==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBHTnJwam9vKzJaQ2ZXUXpt
+            TmpyTFNiYjN5TDRFdmRGUHBCY3FpeEh0V1E0ClM1WVEwS1BROGVncE92UEFoMmNp
+            OS9ObWNLbjl6Qk43ZUgrQU9OMXNhV3MKLS0tIGVLeCsxK3ZOZk1QZWp1V1Z2VDYx
+            cFBvUTY3ZWN2bG1sbzUxQTlzZDZZaGMK46AKCLJP4FoSVrtGBKSju0RvYA0ykg0A
+            cDQVZg95kFOmsiJU/GtXMQKgdIzlnQxYgxPnLttT11CUJRcsaBaYiQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+    encrypted_regex: ^(pw|token)$
+    lastmodified: "2026-09-22T14:04:39Z"
+    mac: ENC[AES256_GCM,data:ZwNFiCchghEqoXStSa8jCJeEphwVAzS+Zp2rhDd1LbD/k9Pee4wn2Mptl8MLvHa6A6Wg7vSFH0SfZ/ugkjVOyf/Q8BYvTWT+7PELmPuhktSFmLuLvT+hEDvZmM9v/LHbYTndZwxKQIDXqLd9zlaJGtlru2DlYPczIo7MuT59qdg=,iv:qY7BzXKvFaRQ2Xn/UQKAs5T+nZmSk2a4+wAtZifwyvY=,tag:4HInvhflcZz6ig6OzE9CyA==,type:str]
+    mac_only_encrypted: true
+    version: 3.13.3

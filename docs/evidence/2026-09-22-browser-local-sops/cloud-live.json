@@ -1,0 +1,45 @@
+[
+  {
+    "caseId": "SB-053",
+    "provider": "aws-kms",
+    "status": "blocked-external",
+    "evidenceKind": "real-browser",
+    "test": "verify:sops-cloud-live",
+    "command": "pnpm verify:sops-cloud-live",
+    "runtime": "static origin, real browser",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/cloud-live.json",
+    "reason": "No disposable aws-kms resource was supplied (OPENSESAME_SOPS_LIVE_AWS_KEY_ARN unset). Local age SOPS is unaffected; the provider's wire contract is covered by unit tests, which are a different evidence class."
+  },
+  {
+    "caseId": "SB-054",
+    "provider": "azure-key-vault",
+    "status": "blocked-external",
+    "evidenceKind": "real-browser",
+    "test": "verify:sops-cloud-live",
+    "command": "pnpm verify:sops-cloud-live",
+    "runtime": "static origin, real browser",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/cloud-live.json",
+    "reason": "No disposable azure-key-vault resource was supplied (OPENSESAME_SOPS_LIVE_AZURE_KEY_URL, AZURE_CLIENT_ID unset). Local age SOPS is unaffected; the provider's wire contract is covered by unit tests, which are a different evidence class."
+  },
+  {
+    "caseId": "SB-055",
+    "provider": "gcp-kms",
+    "status": "blocked-external",
+    "evidenceKind": "real-browser",
+    "test": "verify:sops-cloud-live",
+    "command": "pnpm verify:sops-cloud-live",
+    "runtime": "static origin, real browser",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/cloud-live.json",
+    "reason": "No disposable gcp-kms resource was supplied (OPENSESAME_SOPS_LIVE_GCP_RESOURCE_ID, GOOGLE_APPLICATION_CREDENTIALS unset). Local age SOPS is unaffected; the provider's wire contract is covered by unit tests, which are a different evidence class."
+  },
+  {
+    "caseId": "SB-058",
+    "status": "blocked-external",
+    "evidenceKind": "real-browser",
+    "test": "verify:sops-cloud-live",
+    "command": "pnpm verify:sops-cloud-live",
+    "runtime": "static origin, real browser",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/cloud-live.json",
+    "reason": "No live cross-origin provider call was executed from the compiled static origin. This is not evidence that a browser can reach these providers."
+  }
+]

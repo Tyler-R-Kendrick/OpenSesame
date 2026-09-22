@@ -1,0 +1,40 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "map": [
+              {
+                "key": "b",
+                "value": {
+                  "map": [
+                    {
+                      "key": "c",
+                      "value": {
+                        "int": "1"
+                      }
+                    },
+                    {
+                      "comment": " deep foot",
+                      "inline": false
+                    }
+                  ]
+                }
+              },
+              {
+                "comment": " mid foot",
+                "inline": false
+              }
+            ]
+          }
+        },
+        {
+          "comment": " root foot",
+          "inline": false
+        }
+      ]
+    }
+  ]
+}

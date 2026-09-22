@@ -1,0 +1,8 @@
+list:
+  # before first map item
+  - k: v # line on v
+    # inside first map after k
+  # between items
+  - k2: v2
+  - # comment after dash
+    k3: v3

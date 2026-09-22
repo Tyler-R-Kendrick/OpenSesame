@@ -1,0 +1,25 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "map": [
+              {
+                "comment": " col0 inside",
+                "inline": false
+              },
+              {
+                "key": "b",
+                "value": {
+                  "int": "1"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

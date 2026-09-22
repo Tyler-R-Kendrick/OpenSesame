@@ -1,0 +1,34 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "k",
+          "value": {
+            "int": "1"
+          }
+        },
+        {
+          "key": "m",
+          "value": {
+            "map": [
+              {
+                "key": "\u003c\u003c",
+                "value": {
+                  "map": [
+                    {
+                      "key": "q",
+                      "value": {
+                        "int": "1"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

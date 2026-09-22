@@ -1,0 +1,108 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "comment": " head one",
+          "inline": false
+        },
+        {
+          "comment": " head two",
+          "inline": false
+        },
+        {
+          "comment": " inline a",
+          "inline": true
+        },
+        {
+          "key": "a",
+          "value": {
+            "int": "1"
+          }
+        },
+        {
+          "comment": "  indented comment",
+          "inline": false
+        },
+        {
+          "key": "b",
+          "value": {
+            "map": [
+              {
+                "comment": " before c",
+                "inline": false
+              },
+              {
+                "key": "c",
+                "value": {
+                  "str": "two"
+                }
+              },
+              {
+                "key": "d",
+                "value": {
+                  "seq": [
+                    {
+                      "comment": " inline d",
+                      "inline": false
+                    },
+                    {
+                      "str": "x"
+                    },
+                    {
+                      "str": "y"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "e",
+          "value": {
+            "seq": [
+              {
+                "comment": " before first item",
+                "inline": false
+              },
+              {
+                "comment": " inline one",
+                "inline": true
+              },
+              {
+                "str": "one"
+              },
+              {
+                "str": "two"
+              },
+              {
+                "comment": " after blank line",
+                "inline": false
+              },
+              {
+                "str": "three"
+              }
+            ]
+          }
+        },
+        {
+          "key": "f",
+          "value": {
+            "str": "multi\nline\n"
+          }
+        },
+        {
+          "key": "g",
+          "value": {
+            "str": "quoted # not a comment"
+          }
+        },
+        {
+          "comment": " foot comment",
+          "inline": false
+        }
+      ]
+    }
+  ]
+}

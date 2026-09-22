@@ -1,0 +1,14 @@
+# sops:enc
+secret_a: one
+# plain
+public_b: two
+nested:
+  # sops:enc
+  inner: three
+  other: four
+list:
+  # sops:enc
+  - five
+  - six
+pw: p
+token: t

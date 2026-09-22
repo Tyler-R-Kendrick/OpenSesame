@@ -1,0 +1,145 @@
+[
+  {
+    "caseId": "SB-003",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-004",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-005",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-012",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-019",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-026",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-027",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-028",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-037",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-039",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-045",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-079",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  {
+    "caseId": "SB-080",
+    "status": "passed",
+    "evidenceKind": "upstream-oracle",
+    "test": "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    "command": "pnpm verify:sops-conformance",
+    "runtime": "sops 3.13.3 (26e2f4784ca6)",
+    "artifact": "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    "reason": "Both wire directions and both edit directions ran against the verified pinned oracle (sha256 e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b).",
+    "oracleSha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  }
+]

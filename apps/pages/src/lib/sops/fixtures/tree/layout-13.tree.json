@@ -1,0 +1,48 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "comment": " hdr",
+          "inline": true
+        },
+        {
+          "key": "k",
+          "value": {
+            "str": "blk\n"
+          }
+        },
+        {
+          "comment": " fold",
+          "inline": true
+        },
+        {
+          "key": "l",
+          "value": {
+            "str": "txt"
+          }
+        },
+        {
+          "comment": " after quoted",
+          "inline": true
+        },
+        {
+          "key": "m",
+          "value": {
+            "str": "q"
+          }
+        },
+        {
+          "comment": " after tagged",
+          "inline": true
+        },
+        {
+          "key": "n",
+          "value": {
+            "str": "42"
+          }
+        }
+      ]
+    }
+  ]
+}

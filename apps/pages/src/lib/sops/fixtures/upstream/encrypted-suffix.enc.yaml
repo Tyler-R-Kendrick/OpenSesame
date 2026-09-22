@@ -1,0 +1,21 @@
+secret: s
+public_unencrypted: ENC[AES256_GCM,data:BQ==,iv:+gs1xBupgJhrSonAq5cBOC90gK+jREmwPNY4Er/6Du0=,tag:dsSSyMLT53NhltVXF2dihw==,type:str]
+nested:
+    inner_unencrypted:
+        deep: ENC[AES256_GCM,data:mRysp2/FACYEmck=,iv:nDLo3DQqIsDK2s3SY9pTEOhtzsNFXRJw/gmQJCDFv/o=,tag:nemGTZjWDoT3kBTNRUdU2Q==,type:str]
+    other: hidden
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBEdHZRS0RhUkRLalU3S1ln
+            TkNmNGZnUXAwYVRKZm13QjdqdVZvNzU3SGdzCk8xTGZyNE0vcHBXb2F5eGxOa1FH
+            L0Q2eEZwc25iaWZ3NlRjUlI2cEwya2MKLS0tIFgrRnc5SDZUNFYyeUV2UHNyRVMx
+            ZlZ3V2NHUVpxTGlRNEhzeFN0NVpDK1EKD3u9NT1EuzuwaifVqyg1+Yn17FB9LVgT
+            omKx1JgEU39GsnfI4hk4LlvviKBGHssn4aTzhpnsG9MVy6f4oMzGbg==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+    encrypted_suffix: _unencrypted
+    lastmodified: "2026-09-22T14:04:39Z"
+    mac: ENC[AES256_GCM,data:s0dO1b8nkqO4qLtMlq6Md+zRzBr2vrVr684AymYKTaNdFM4JbUiEaAgolZzyyVUr1PrvNbPozq7xexAHqcHDYZ7l5uLaB+7OLEQ0kBROhxYY2wGAum8xq7zSnLm0XT/jXvf3gu8V3ZLV9Gn8sNW5IDwiOblbTpK+8J0GLW74924=,iv:/L1i7vRijreU9pSdMUo8oMP6Ue+Kl16olUYqrD1gbps=,tag:WkRiwSVPI5E5o64qPh208g==,type:str]
+    version: 3.13.3
