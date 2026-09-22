@@ -71,7 +71,7 @@ async function enroll() {
     </>,
   );
   await userEvent.click(screen.getByText("Agent keys", { exact: true }));
-  await screen.findByText("No agent keys enrolled.");
+  await screen.findByRole("img", { name: "No agent keys enrolled." });
   await userEvent.click(
     screen.getByRole("button", { name: "Enroll public key" }),
   );
@@ -81,7 +81,11 @@ async function enroll() {
   await userEvent.click(
     screen.getByRole("button", { name: "Save public key" }),
   );
-  await screen.findByText("Agent key enrolled.");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("status", { name: "Agent key status" }).textContent,
+    ).toBe("Agent key enrolled."),
+  );
   expect(await readLocalAgentKeys(tomb)).toHaveLength(1);
   await waitFor(() =>
     expect(document.activeElement).toBe(
@@ -109,8 +113,12 @@ it("enrolls, authenticates with a real signature, and revokes the agent session"
     target: { value: proof },
   });
   await userEvent.click(screen.getByRole("button", { name: "Verify agent" }));
-  await screen.findByText(
-    "Signed in locally with an agent key. No human approval or application access was granted.",
+  await waitFor(() =>
+    expect(
+      screen.getByRole("status", { name: "Agent session status" }).textContent,
+    ).toBe(
+      "Signed in locally with an agent key. No human approval or application access was granted.",
+    ),
   );
   expect(
     (await currentLocalIdentitySession(tomb, principalId))?.authentication,
@@ -121,7 +129,11 @@ it("enrolls, authenticates with a real signature, and revokes the agent session"
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm key revocation" }),
   );
-  await screen.findByText("Agent key revoked.");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("status", { name: "Agent key status" }).textContent,
+    ).toBe("Agent key revoked."),
+  );
   await waitFor(async () =>
     expect(await currentLocalIdentitySession(tomb, principalId)).toBeNull(),
   );
