@@ -118,9 +118,7 @@ export async function onCompleteUnlockCodeSubmission(
     requireDurable: options.requireDurable ?? true,
   });
 
-  match.plaintext.compartmentKey.fill(0);
-  match.plaintext.actionCapability?.fill(0);
-
+  // Compartment key stays live for continueAfterDuressMatch; that path wipes.
   return { kind: "duress", match };
 }
 

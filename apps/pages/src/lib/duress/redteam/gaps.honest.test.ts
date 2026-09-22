@@ -71,6 +71,8 @@ describe("REDTEAM-F honest gaps (must not force-pass)", () => {
     expect(secondBody).toMatch(/onCompleteUnlockCodeSubmission/);
     expect(passkeyBody).toMatch(/armedTwoInputTrigger|prf_and_code/);
     expect(continueBody).toMatch(/createGuest/);
+    expect(continueBody).toMatch(/mintPresentationSession/);
+    expect(continueBody).toMatch(/openPresentation/);
     expect(readFileSync(bridge, "utf8")).toMatch(/options\.select|select\?:/);
     expect(
       existsSync(

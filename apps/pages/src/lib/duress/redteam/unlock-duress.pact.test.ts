@@ -6,6 +6,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { continueAfterDuressMatch } from "../../../screens/unlock/unlock-duress-continue.js";
 import { WrongPasswordError } from "../../vault/crypto.js";
+
+function continueMatch(presentation: string, profileId = "p-test") {
+  return {
+    profileId,
+    plaintext: {
+      compartmentKey: crypto.getRandomValues(new Uint8Array(32)),
+      actionCapability: null,
+      presentation,
+    },
+  };
+}
 import { TriggerAttemptPolicy } from "../trigger/attempt-policy.js";
 
 describe("PACT — duress unlock", () => {
@@ -32,7 +43,7 @@ describe("PACT — duress unlock", () => {
     await expect(
       continueAfterDuressMatch(
         { createGuest },
-        "locked",
+        continueMatch("locked"),
         "That PIN did not unlock the vault.",
       ),
     ).rejects.toBeInstanceOf(WrongPasswordError);
@@ -45,7 +56,7 @@ describe("PACT — duress unlock", () => {
       Array.from({ length: 8 }, () =>
         continueAfterDuressMatch(
           { createGuest },
-          "decoy",
+          continueMatch("decoy"),
           "That PIN did not unlock the vault.",
         ),
       ),
@@ -59,7 +70,7 @@ describe("PACT — duress unlock", () => {
       const createGuest = vi.fn(async () => undefined);
       await continueAfterDuressMatch(
         { createGuest },
-        presentation,
+        continueMatch(presentation),
         "That PIN did not unlock the vault.",
       );
       expect(createGuest, presentation).toHaveBeenCalledOnce();

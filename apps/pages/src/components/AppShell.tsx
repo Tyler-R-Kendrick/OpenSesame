@@ -41,6 +41,7 @@ import { Statusline } from "./Statusline.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { VaultRail, uniqueFolderKind } from "./VaultRail.js";
 import { Wordmark } from "./Wordmark.js";
+import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
@@ -287,6 +288,7 @@ function Shell({ children }: { children?: ReactNode }) {
 
         <Crumbs />
 
+        <DuressPresentationOverlay />
         {children}
       </div>
 

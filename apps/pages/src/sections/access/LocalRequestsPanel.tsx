@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import "./local-authority.css";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import {
@@ -8,13 +8,12 @@ import {
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import {
   type LocalAccessRequest,
-  decideLocalAccessRequest,
-  localRequestMemberMayDecide,
   removeSettledLocalAccessRequest,
   revokeLocalAccessRequest,
 } from "../../lib/local-access-requests.js";
 import type { LocalDirectory } from "../../lib/local-directory.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
+import { RequestApproval } from "./RequestApproval.js";
 import { useLocalRequests } from "./useLocalRequests.js";
 
 function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
@@ -302,90 +301,5 @@ function RequestDecision({
         </button>
       </div>
     </fieldset>
-  );
-}
-
-function RequestApproval({
-  tomb,
-  row,
-  directory,
-  run,
-  close,
-}: {
-  tomb: string;
-  row: LocalAccessRequest;
-  directory: LocalDirectory;
-  run: (
-    action: () => Promise<LocalAccessRequest> | Promise<void>,
-    success: string,
-  ) => Promise<boolean>;
-  close: () => void;
-}) {
-  const id = useId();
-  const approvers = directory.entries.filter(
-    (entry) =>
-      entry.kind === "person" &&
-      entry.enabled &&
-      directory.memberships.some(
-        (member) =>
-          member.principalId === entry.id &&
-          localRequestMemberMayDecide(row, member),
-      ),
-  );
-  const [principalId, setPrincipalId] = useState(approvers[0]?.id ?? "");
-  async function decide(decision: "approve" | "deny") {
-    if (
-      await run(
-        () => decideLocalAccessRequest(tomb, { ...row, principalId, decision }),
-        decision === "approve"
-          ? "Request approved; awaiting single-use consumption by its requester."
-          : "Request denied.",
-      )
-    )
-      close();
-  }
-  return (
-    <>
-      {" "}
-      {row.status === "pending" ? (
-        <>
-          <div className="field">
-            <label className="label" htmlFor={`${id}-approver`}>
-              Approving person
-            </label>
-            <select
-              id={`${id}-approver`}
-              value={principalId}
-              onChange={(event) => setPrincipalId(event.target.value)}
-            >
-              <option value="">Choose an authorized person</option>
-              {approvers.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name} · {person.id}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={!principalId}
-              onClick={() => void decide("approve")}
-            >
-              Approve with passkey
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={!principalId}
-              onClick={() => void decide("deny")}
-            >
-              Deny with passkey
-            </button>
-          </div>
-        </>
-      ) : null}
-    </>
   );
 }

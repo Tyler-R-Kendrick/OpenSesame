@@ -15,7 +15,7 @@
 - Concurrent swarm test suites still include API-alignment failures — not force-passed.
 - Physical WebAuthn/PRF hardware and live provider revocation not verified in this environment.
 - Host live authority hold remains optional and environment-dependent.
-- Two-input duress (UV+code / PRF+code) still has no dedicated passkey-then-code unlock UI; passkey alone refuses to open the protected root while those triggers are armed.
+- Two-input duress (UV+code / PRF+code) unlock UI is wired (passkey ceremony → code → complete-code); hardware WebAuthn/PRF live proof remains environment-dependent.
 
 ## Rejected unsupported claims
 Personal safety, undetectability, forensic erasure, UV⇒biometrics, emergency response guarantee.

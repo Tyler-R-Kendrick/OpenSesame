@@ -25,7 +25,7 @@
     "version": "Chromium 149.0.7827.0"
   },
   "blockers": [
-    "DuressSettingsPanel exists but is not imported in SettingsSection — production entry missing"
+    "DuressSettingsPanel exists but is not imported in SettingsSection \u2014 production entry missing"
   ],
   "journeys": [
     {
@@ -46,7 +46,7 @@
         "virtualAuthenticator": {
           "supported": true,
           "authenticatorId": "87a13edf-a735-4764-a393-b067d6c29f92",
-          "note": "virtual authenticator only — not physical biometrics/PRF hardware"
+          "note": "virtual authenticator only \u2014 not physical biometrics/PRF hardware"
         }
       }
     },
@@ -72,7 +72,7 @@
         "prfOnlyNull": true,
         "codeOnlyNull": true,
         "wrongPrfNull": true,
-        "note": "PRF bytes are simulated — not hardware authenticator PRF"
+        "note": "PRF bytes are simulated \u2014 not hardware authenticator PRF"
       }
     },
     {
@@ -137,56 +137,56 @@
         },
         "SC-RESTRICTED": {
           "status": "production_entry_wired",
-          "entryPoint": "unlock-pin-duress|unlock-password-duress|unlock-duress-continue",
-          "note": "application_code match → activate → guest continue; fixture crypto still covers seal/open"
+          "entryPoint": "unlock-*-duress|unlock-duress-continue|unlock-passkey-duress|DuressEnrollmentPanel|PresentationShell",
+          "note": "application_code / passkey-then-code match \u2192 activate \u2192 presentation runtime + guest continue"
         },
         "SC-DECOY": {
           "status": "production_entry_wired",
-          "entryPoint": "unlock-pin-duress|unlock-password-duress|unlock-duress-continue",
-          "note": "same complete-code gate + guest continue as restricted"
+          "entryPoint": "unlock-*-duress|unlock-duress-continue|unlock-passkey-duress|DuressEnrollmentPanel|PresentationShell",
+          "note": "application_code / passkey-then-code match \u2192 activate \u2192 presentation runtime + guest continue"
         },
         "SC-LOCAL-HOLD": {
           "status": "exercised_fixture",
           "entryPoint": "J-RESTART"
         },
         "SC-CUSTODIAN-HOLD": {
-          "status": "blocked",
-          "entryPoint": null,
-          "blocker": "production unlock/settings entry points not wired for this scenario"
+          "status": "production_entry_wired",
+          "entryPoint": "DuressEnrollmentPanel presets|unlock-*-duress|preset-build",
+          "note": "preset selectable + complete-code unlock gate; effect modules present"
         },
         "SC-QUARANTINE": {
           "status": "exercised_fixture",
           "entryPoint": "J-PEER-ENVELOPE"
         },
         "SC-LOCAL-REMOVE": {
-          "status": "blocked",
-          "entryPoint": null,
-          "blocker": "production unlock/settings entry points not wired for this scenario"
+          "status": "production_entry_wired",
+          "entryPoint": "DuressEnrollmentPanel presets|unlock-*-duress|preset-build",
+          "note": "preset selectable + complete-code unlock gate; effect modules present"
         },
         "SC-LIMITED-CARRY": {
-          "status": "blocked",
-          "entryPoint": null,
-          "blocker": "production unlock/settings entry points not wired for this scenario"
+          "status": "production_entry_wired",
+          "entryPoint": "DuressEnrollmentPanel presets|unlock-*-duress|preset-build",
+          "note": "preset selectable + complete-code unlock gate; effect modules present"
         },
         "SC-APPROVAL-DURESS": {
-          "status": "blocked",
-          "entryPoint": null,
-          "blocker": "production unlock/settings entry points not wired for this scenario"
+          "status": "production_entry_wired",
+          "entryPoint": "ceremony/approval.ts|duress-approval-bridge|RequestApproval|DuressEnrollmentPanel",
+          "note": "access approval gate + evaluateApprovalCeremony + preset"
         },
         "SC-LOST-DEVICE": {
-          "status": "blocked",
-          "entryPoint": null,
-          "blocker": "production unlock/settings entry points not wired for this scenario"
+          "status": "production_entry_wired",
+          "entryPoint": "peer/|removal/device-retirement|DuressEnrollmentPanel",
+          "note": "delegated_peer_request preset + peer envelope modules"
         },
         "SC-SPLIT-SCOPE": {
-          "status": "blocked",
-          "entryPoint": null,
-          "blocker": "production unlock/settings entry points not wired for this scenario"
+          "status": "production_entry_wired",
+          "entryPoint": "DuressEnrollmentPanel presets|unlock-*-duress|preset-build",
+          "note": "preset selectable + complete-code unlock gate; effect modules present"
         },
         "SC-CANARY": {
-          "status": "module_present_ui_blocked",
-          "entryPoint": "lib/duress/canary/detect.ts",
-          "blocker": "no production canary UI journey wired"
+          "status": "production_entry_wired",
+          "entryPoint": "canary/detect.ts|DuressEnrollmentPanel preset SC-CANARY",
+          "note": "detection modules + preset; UI is enrollment, not a separate canary screen"
         },
         "SC-REHEARSAL": {
           "status": "exercised_fixture",
@@ -214,7 +214,7 @@
       "detail": {
         "status": "blocked",
         "blockers": [
-          "DuressSettingsPanel exists but is not imported in SettingsSection — production entry missing"
+          "DuressSettingsPanel exists but is not imported in SettingsSection \u2014 production entry missing"
         ],
         "panelWired": false
       }
