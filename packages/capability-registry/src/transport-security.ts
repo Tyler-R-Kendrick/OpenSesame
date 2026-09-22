@@ -60,7 +60,7 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "admin",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-bindings.ts:putServiceBindings",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -78,7 +78,7 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "admin",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-trust.ts:putTrustProfile",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -115,7 +115,7 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "admin",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-identity.ts:listIdentitySourceRefs",
+      pwa: "lib/transport-settings.ts:withTransportTarget",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

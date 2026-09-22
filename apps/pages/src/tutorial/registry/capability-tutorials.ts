@@ -8,8 +8,6 @@ import { AUTHORITY_TUTORIALS } from "./authority-help.js";
 export const CAPABILITY_TUTORIALS = {
   ...AUTHORITY_TUTORIALS,
   "transport.status.view": "settings.transport",
-  "transport.bindings.manage": "settings.transport",
-  "transport.trust.manage": "settings.transport",
   "transport.verify.run": "settings.transport",
   "transport.identity.reference": "settings.transport",
   "transport.capabilities.discover": "settings.transport",
