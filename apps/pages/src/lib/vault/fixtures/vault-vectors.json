@@ -1,0 +1,89 @@
+{
+  "about": "Golden vault vectors (ADR 0133 §7). Synthetic data. Never regenerate to make a test pass.",
+  "password": "Ｐassphrase ﬁxture vector 2026",
+  "passwordNfkc": "Passphrase fixture vector 2026",
+  "pin": "73915286",
+  "prfOutputB64": "9Bb8qF6XCaY7h1q3AQWtu1P7s1Iw1aXXfurDFooRnNY=",
+  "vectors": {
+    "export-personal": {
+      "file": "{\n  \"format\": \"opensesame-vault-export\",\n  \"v\": 1,\n  \"exportedAt\": \"2026-09-22T19:45:36.542Z\",\n  \"tomb\": \"personal\",\n  \"header\": {\n    \"v\": 1,\n    \"kdf\": {\n      \"alg\": \"PBKDF2-SHA256\",\n      \"saltB64\": \"q4fOCUGpyzKZ0sHwcBzTzg==\",\n      \"iterations\": 600000\n    },\n    \"wrap\": {\n      \"ivB64\": \"/VyHEx0pmvf+Bovu\",\n      \"ctB64\": \"xlJKC+ACB/dlcnKE1sp6eTZemiE5ktoYae3ArMWNDccD3ucUjfPiJZwXVXCUbpFk\"\n    },\n    \"createdAt\": \"2026-09-22T19:45:36.536Z\",\n    \"hint\": \"vector hint\",\n    \"bodyRev\": 2\n  },\n  \"body\": {\n    \"ivB64\": \"Usk8Gs1u03fCrd63\",\n    \"ctB64\": \"gFmvfykQdFyu/rWFqOsqEDEitwSa1bBle58iQcpWybocWB5hAIW9rF2d3gQO7+WFkhoX0oQlPMk+di2icxuuMBYNV0p6Wm0yYQJAQNXBeyd72cI5OumYdX18nUMeQDwXF4hpIvU+v+XyfXkanKpVjX3Hlp37hwugmxxlLUtpZOkv6T03HzBpdhv7OlsC2uSM0AZSw1J/4GrrXi9N6kp36fdfYgLlXls/czJvHUr5UDjkNE0Dbdy5UJ5oBbWVlqPpvZE4ZTPh/JBMeGWRdlg58hQc3IdoidgCLdSqcajqjGLfEeLlz+H61mstxUCMnO/4/sZcjS9wp7i/HgOpcJKjOfJ2gbdCyYzDSwACvkMiMaWREoXucIXQVd/mEImrBxY2FxOlCl+wNI0EW6mX9g2At5zQzFfswQu5/98gwfQ85Cl1/KgFbqIE4n2XLNAHH2V8neR/X933HBX+MJ5IBLJSnYNcfn3SG7jpMJHwbKJMFZNafMPqMkGc8130CVJriKHndXwa9de+8AKQtKvFzM9+OcFME6QjP8o0FhNcEIVNUK6ttucBDya9FSmq+kj+3r2FPZbonlpspWXdpr5yiFMsB5a9AZ2jBZCeGCY3+0H+clYi7NPqGm/L+vZTTcpjFXT3P+OpZWBV9X5u55zSmBhD9ntpk5lqfQvo4kt4wbQOez/jirAtnbNMgK2nHUKlmpWmkiPZ6JSFvrtgg/X284MV9Ccvkti+3th1HEdROMh3qUcklGEKidDz1xV/9ulWEOBemoWdtStwxnEx/k/x2EJtSiFS5qJHXOpgrDYHQhvooAIjrCLZCz6ZZvWEWlALR6RYmnUEuTy5xD1nPINMOHV0yORCH4L3lWXuDfGBgW8zDQvuOM12FPfQp/lD/QvrzX63CXSk2Ejsv5Y13P2Xv7A7APAchwjHHdgINpr1wUUnK/yEEX8tdptG5IwdCdePxm7dyEdKVK2uhg==\"\n  }\n}",
+      "expect": {
+        "tomb": "personal",
+        "bound": true,
+        "rev": 2,
+        "items": [
+          {
+            "id": "a0061d88-54ff-40f1-8532-c4097c6586a5",
+            "name": "Personal login",
+            "kind": "login"
+          },
+          {
+            "id": "8ffb712d-da96-4508-98c7-7e0173f009a9",
+            "name": "Personal note",
+            "kind": "note"
+          }
+        ]
+      }
+    },
+    "backup-personal": {
+      "file": "{\n  \"format\": \"opensesame-offline-backup\",\n  \"v\": 1,\n  \"projectId\": null,\n  \"exportedAt\": \"2026-09-22T00:00:00.000Z\",\n  \"vault\": {\n    \"header\": {\n      \"v\": 1,\n      \"kdf\": {\n        \"alg\": \"PBKDF2-SHA256\",\n        \"saltB64\": \"q4fOCUGpyzKZ0sHwcBzTzg==\",\n        \"iterations\": 600000\n      },\n      \"wrap\": {\n        \"ivB64\": \"/VyHEx0pmvf+Bovu\",\n        \"ctB64\": \"xlJKC+ACB/dlcnKE1sp6eTZemiE5ktoYae3ArMWNDccD3ucUjfPiJZwXVXCUbpFk\"\n      },\n      \"createdAt\": \"2026-09-22T19:45:36.536Z\",\n      \"hint\": \"vector hint\",\n      \"bodyRev\": 2\n    },\n    \"body\": {\n      \"ivB64\": \"Usk8Gs1u03fCrd63\",\n      \"ctB64\": \"gFmvfykQdFyu/rWFqOsqEDEitwSa1bBle58iQcpWybocWB5hAIW9rF2d3gQO7+WFkhoX0oQlPMk+di2icxuuMBYNV0p6Wm0yYQJAQNXBeyd72cI5OumYdX18nUMeQDwXF4hpIvU+v+XyfXkanKpVjX3Hlp37hwugmxxlLUtpZOkv6T03HzBpdhv7OlsC2uSM0AZSw1J/4GrrXi9N6kp36fdfYgLlXls/czJvHUr5UDjkNE0Dbdy5UJ5oBbWVlqPpvZE4ZTPh/JBMeGWRdlg58hQc3IdoidgCLdSqcajqjGLfEeLlz+H61mstxUCMnO/4/sZcjS9wp7i/HgOpcJKjOfJ2gbdCyYzDSwACvkMiMaWREoXucIXQVd/mEImrBxY2FxOlCl+wNI0EW6mX9g2At5zQzFfswQu5/98gwfQ85Cl1/KgFbqIE4n2XLNAHH2V8neR/X933HBX+MJ5IBLJSnYNcfn3SG7jpMJHwbKJMFZNafMPqMkGc8130CVJriKHndXwa9de+8AKQtKvFzM9+OcFME6QjP8o0FhNcEIVNUK6ttucBDya9FSmq+kj+3r2FPZbonlpspWXdpr5yiFMsB5a9AZ2jBZCeGCY3+0H+clYi7NPqGm/L+vZTTcpjFXT3P+OpZWBV9X5u55zSmBhD9ntpk5lqfQvo4kt4wbQOez/jirAtnbNMgK2nHUKlmpWmkiPZ6JSFvrtgg/X284MV9Ccvkti+3th1HEdROMh3qUcklGEKidDz1xV/9ulWEOBemoWdtStwxnEx/k/x2EJtSiFS5qJHXOpgrDYHQhvooAIjrCLZCz6ZZvWEWlALR6RYmnUEuTy5xD1nPINMOHV0yORCH4L3lWXuDfGBgW8zDQvuOM12FPfQp/lD/QvrzX63CXSk2Ejsv5Y13P2Xv7A7APAchwjHHdgINpr1wUUnK/yEEX8tdptG5IwdCdePxm7dyEdKVK2uhg==\"\n    }\n  },\n  \"syncBlobs\": [],\n  \"deploymentSealUsed\": false\n}\n",
+      "expect": {
+        "tomb": "personal",
+        "bound": true,
+        "rev": 2,
+        "items": [
+          {
+            "id": "a0061d88-54ff-40f1-8532-c4097c6586a5",
+            "name": "Personal login",
+            "kind": "login"
+          },
+          {
+            "id": "8ffb712d-da96-4508-98c7-7e0173f009a9",
+            "name": "Personal note",
+            "kind": "note"
+          }
+        ]
+      }
+    },
+    "backup-project": {
+      "file": "{\n  \"format\": \"opensesame-offline-backup\",\n  \"v\": 1,\n  \"projectId\": \"proj_vectors01\",\n  \"exportedAt\": \"2026-09-22T00:00:00.000Z\",\n  \"vault\": {\n    \"header\": {\n      \"v\": 1,\n      \"kdf\": {\n        \"alg\": \"PBKDF2-SHA256\",\n        \"saltB64\": \"3ZYDGXqUjwrUNs0i0OGIXQ==\",\n        \"iterations\": 600000\n      },\n      \"wrap\": {\n        \"ivB64\": \"/t92A2zkXxjEAhkP\",\n        \"ctB64\": \"hZXead6GkCzohOaNFcIhiU8Bz+Qa1TDsCS64FX5b6opneoBiT4l8+mq8W/yGyDnK\"\n      },\n      \"createdAt\": \"2026-09-22T19:45:36.640Z\",\n      \"unlocks\": {\n        \"pin\": {\n          \"kdf\": {\n            \"alg\": \"PBKDF2-SHA256\",\n            \"saltB64\": \"OUapxavzr9ceLRqziWzQ3A==\",\n            \"iterations\": 1200000\n          },\n          \"wrap\": {\n            \"ivB64\": \"ss9Vs5LB3um4FT7K\",\n            \"ctB64\": \"Nn5QwSmRRgCMjYfDLrl4vG1Z7wVIQx63GKGGPzqqKLDNqHJTV0MTz9oWVkwBaUfk\"\n          }\n        },\n        \"passkeys\": [\n          {\n            \"credentialIdB64\": \"AQEBAQEBAQEBAQEBAQEBAQ==\",\n            \"userIdB64\": \"AgICAgICAgICAgICAgICAg==\",\n            \"prfSaltB64\": \"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\",\n            \"wrap\": {\n              \"ivB64\": \"y2UvAyBG1SE7qyOf\",\n              \"ctB64\": \"JMriagCwhlf5UgwOHj8uMYHNNprS0aqwZY5fCXJoPmo6XYOPb3OvXF7j15YgtOzr\"\n            }\n          }\n        ]\n      },\n      \"bodyRev\": 1\n    },\n    \"body\": {\n      \"ivB64\": \"WtAeQhEnlJsnlwDi\",\n      \"ctB64\": \"aJF8CjhSame1VTIt/fbOVLj1z0YAeTnFAPHkPobgFfgXzFsNCyxV4OjmuoFZaby3rjawrGCgAy3PHstqZ9IdNisqHEtp6TNqc/uF5dlsr20Ycrz9P6B4QZct29aswPdfrt7id8HXR8a/Qk+ujXIX0fHqPUJW/TNKiJ8vikBncZg8t2NFh88de/eEuL01WkRxtl/b5QBJNyn/AUlWs2lFd+LSCf7rCRjM9+TNJkJW8SOZybv9WJqsRKEqbEdP9fGpebS4cj0LplTXPkUEHmAdc1dQVfiHcmfy4aJ6M12Drg4A/lmddtXlIktiyDb+pbMrDTSByEiGqOIG8eR7V6ST02l9cIHmM0iLqnacv9M0QvzE+UddZcdNLTP+I8kge+Hl6DUt237PoHaF/mZiENPl2/ACJrPcf5Hczuf8xWRUttt6VZk7EbN8Yn7Nrim4aOzaNmrAkIDg0XjbOmdKpgHnxpoG+mohwiN0gGQutUBJvdKPpmeqUGfwNMayQAPY4daDa7JxiByBi/3AJtOE2g6u2I3+Jpx3qF+n2IKbW1BEEdQC+40Zo4bMdGtidh/1kCSGTqdajJ/vHC5UDztQeeSwxqw1H6Iz6kDix0oCGCty/bGshZGhJmo/oHC97bRJMJ9XZU4agAeK9UcHBxur3/4pVZvdTmrth9v5Cyt6ZHDUCQE8XmkApXoGQ2Hk2WGHvP6z3jgjCpDJ7t6XkE9lDP5JiU/SkcjCzyl2exNpKkedqZBGzJBr69Q4w44E/Uvyop+AThTxKGIYGjA5w+QO47ZF9uKtVv0/Re60dYZ4EAcwaKrS/Vc15tMt3w9nV4gQBmZs6vIhVLB9WgduZ80CR3r+81A7980pwtXB/t+p+6YSf5/d3uJkll8tXyMvMS4MpYY/D4CpYlk1BFCgHEXQAOH6X8+i9d8Exj2fQTC3Lz6aSqDLFI8FQAtw2pc+ovs3BmqGaOyQLyg=\"\n    }\n  },\n  \"syncBlobs\": [],\n  \"deploymentSealUsed\": false\n}\n",
+      "expect": {
+        "tomb": "proj_vectors01",
+        "bound": true,
+        "rev": 1,
+        "items": [
+          {
+            "id": "2fa32135-72ac-4d18-9e66-445ec40a68a2",
+            "name": "Project login",
+            "kind": "login"
+          },
+          {
+            "id": "dff825a5-5a9e-4da6-a156-5255872248af",
+            "name": "Project note",
+            "kind": "note"
+          }
+        ]
+      }
+    },
+    "export-legacy-unbound": {
+      "file": "{\n  \"format\": \"opensesame-vault-export\",\n  \"v\": 1,\n  \"exportedAt\": \"2026-09-22T00:00:00.000Z\",\n  \"tomb\": \"personal\",\n  \"header\": {\n    \"v\": 1,\n    \"kdf\": {\n      \"alg\": \"PBKDF2-SHA256\",\n      \"saltB64\": \"aelI1S26tw0t388rY3Zf2A==\",\n      \"iterations\": 600000\n    },\n    \"wrap\": {\n      \"ivB64\": \"QoMd6BogvjdAelaI\",\n      \"ctB64\": \"jA99yYwYBNCx514gCkqhKG5VpzfCJW2GpY0Jyg/U1sZALibzpeoGG8TgyeCoZ57I\"\n    },\n    \"createdAt\": \"2026-09-22T19:45:36.914Z\"\n  },\n  \"body\": {\n    \"ivB64\": \"d83Bstlmw2ey2bBs\",\n    \"ctB64\": \"bhMjoprwbN/Hb1MQIrV7E1QIcOJpdTYUz78iy6mrLsRtYtW7cdZ9QaybSTevGJn9t13ACVEqNGm9h5rd0NSe21uywRKtU4iWwhkGue0/S9uIMURNMVT966cid0smtDWr0U+eSVGoQROdH2UGOzjWH6pt7XAJcA4u4uP6+xWtCmitet5fFXr0UlTyrQe0qh0xV9G1Ihax2z5XboCAesslOVA1ctU9r6zuFeFp5Zv7bPz83/DX8uwuceyauKF9bnX+DIS+0NwlvRJh5TjMv/Ae3AI8LvD4DxkCQ040PZaUeZLTzFze9wtbv6/SofrsTm+tM07qSqIPbvDnNFMjjeDBmqdnKUU+aNEh7P19CM5CmzX4t4U1pwleS+HrGIgdoFGWGOi6Vq+yxLm0gXPe0ram3c/C56p1+l4stOXIdv6rpJ6IvDjqJwNwQt5Eyc01sonwGUmYDLtlhHcx3Qm62BmJUk2pcAeazpuuJnsuBrQ5EBKOmKvhHY5P3HXzHOaYqFix5Co7g/qxYIw8dvpKlEiBQksYEmaVrBi2B7lKhdgLmrp6dtxt1xT+aLzYjzT9e1TJXt59tS4mWAHNFGWuJRcrsV/+0dC7DMW8iE5mH5gXV3J9Xu1hqvw2jtlG87/78pBUaSyUIVI4kB14k8kaFnDIl7L1s1+NRe4BXXXOy9CHKqCz87lcz/Du6qJK4GuVdmgvRNRBDyrB3fIrhpTGXDKx2dLMgFcQyhQ7lBMELTfxgdPlCmnWuq49F+UTnAl4XQGZgQbaPYh8t8iUbq98YwtlS+x5FT7IqoBhYtMoz0L5QyHP/OCX8fy9Szzdv6gH7KMdMQqUKQdp5F7J0AMUvGXZXma4LsjIsurYaLwGp4sU3kHTHJXZy80VyJnQMM6rbkXBVN6YjBzGQO0yBHg3aT/PPmnpOwaWEoArcyPoBsjycoLKYBordlgCq4C/GA==\"\n  }\n}",
+      "expect": {
+        "tomb": "personal",
+        "bound": false,
+        "rev": null,
+        "items": [
+          {
+            "id": "8c353e0f-2de2-426f-9da4-2847f48a6260",
+            "name": "Legacy login",
+            "kind": "login"
+          },
+          {
+            "id": "08ea9258-7182-42f2-a5b2-6e598074cd7d",
+            "name": "Legacy note",
+            "kind": "note"
+          }
+        ]
+      }
+    }
+  }
+}
