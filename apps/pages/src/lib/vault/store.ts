@@ -6,11 +6,6 @@ import {
   recordActivityEvent,
 } from "../activity-log.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
-import {
-  probePasskeyPrf,
-  unlockVaultWithHeldPrf,
-  unlockVaultWithPasskey,
-} from "./passkey-unlock-session.js";
 import { sessionRootDigestFromHeader } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
@@ -78,6 +73,11 @@ import {
   mergeVaultBodies,
 } from "./model.js";
 import {
+  probePasskeyPrf,
+  unlockVaultWithHeldPrf,
+  unlockVaultWithPasskey,
+} from "./passkey-unlock-session.js";
+import {
   readPrefsJson,
   readPrefsSourceFile,
   writePrefsJson,
@@ -118,7 +118,7 @@ import {
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
   createPasskeyUnlockCeremony,
-    hasSecondStep,
+  hasSecondStep,
   normalizeRecoveryCode,
   openRecoveryLedger,
   openText,
@@ -129,7 +129,7 @@ import {
   sealText,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
-    webauthnRpId,
+  webauthnRpId,
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";

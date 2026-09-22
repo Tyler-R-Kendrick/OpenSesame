@@ -3,8 +3,8 @@
  * Never holds the protected vault root — only admitted compartment material.
  */
 
-import type { OpenOutcome } from "./session.js";
 import type { ScopedView } from "./scope.js";
+import type { OpenOutcome } from "./session.js";
 
 export type ActivePresentation = Readonly<{
   profileId: string;

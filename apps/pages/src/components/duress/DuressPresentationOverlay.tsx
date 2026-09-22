@@ -19,9 +19,13 @@ export function DuressPresentationOverlay() {
   );
   const [search, setSearch] = useState("");
 
-  useEffect(() => subscribeActivePresentation(() => {
-    setActive(readActivePresentation());
-  }), []);
+  useEffect(
+    () =>
+      subscribeActivePresentation(() => {
+        setActive(readActivePresentation());
+      }),
+    [],
+  );
 
   if (!active) return null;
 
@@ -32,7 +36,11 @@ export function DuressPresentationOverlay() {
 
   return createElement(
     "div",
-    { className: "duress-presentation-overlay", role: "region", "aria-label": "Presentation" },
+    {
+      className: "duress-presentation-overlay",
+      role: "region",
+      "aria-label": "Presentation",
+    },
     createElement(DecoyStatus, { outcome: active.outcome }),
     createElement(PresentationShell, {
       view,

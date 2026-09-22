@@ -4,8 +4,8 @@
  */
 
 import {
-  WrongPasswordError,
   type VaultHeader,
+  WrongPasswordError,
   importVaultKey,
 } from "./crypto.js";
 import {

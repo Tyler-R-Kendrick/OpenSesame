@@ -17,7 +17,6 @@ export const SECOND_STEP_LABEL = {
 /** A code by email or text may be asked for again after this long. */
 export const RESEND_COOLDOWN_MS = 30_000;
 
-
 /** Sentence for the unlock `.go` key — lives in aria-label / title, not on the face. */
 export function unlockGoVerb(input: {
   busy: boolean;
