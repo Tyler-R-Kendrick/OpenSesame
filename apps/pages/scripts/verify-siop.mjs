@@ -11,6 +11,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
+import { chooseCapabilities } from "./lib/choose-capabilities.mjs";
 import {
   SIOP_RP,
   approveSiopConsent,
@@ -199,6 +200,18 @@ try {
     siopFixture,
   );
   await installPasskeyCredentials(page, credentials);
+  // `/siop` belongs to a capability, and an installation that has not chosen
+  // it has no such route to land on (ADR 0130) — the request answers with the
+  // shell's fallback and no consent heading is ever drawn. A fixture cannot
+  // write the choice, because a consent receipt binds exposure digests, so it
+  // goes through the real Add and Apply. `identity.local-iam` arrives with it
+  // as a dependency, which is what hosts the local applications this seeds.
+  await chooseCapabilities(
+    context,
+    1280,
+    ["Self-issued OpenID"],
+    `${origin}${base}`.replace(/\/$/, ""),
+  );
   await gotoUnlocked(page, `${origin}${base}`);
   const { appOneId, appTwoId, personName } = identities;
 
