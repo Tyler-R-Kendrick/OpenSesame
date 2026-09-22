@@ -6,7 +6,7 @@
 //!
 //! - [`UnavailableTaskBus`] — what a *secure* NATS profile becomes when its
 //!   connection cannot be established: every call fails with the reason.
-//!   Never a memory or plaintext fallback (ADR 0130, EXPLICIT-ENFORCEMENT).
+//!   Never a memory or plaintext fallback (ADR 0132, EXPLICIT-ENFORCEMENT).
 //!
 //! Subject namespace: `opensesame.events.>`. The NATS auth callout is the
 //! server's native `$SYS.REQ.USER.AUTH` request in the AUTH account (see

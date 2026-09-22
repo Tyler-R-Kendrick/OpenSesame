@@ -36,7 +36,7 @@ async-nats = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
-# Native TLS client configuration (ADR 0130); never a daemon/wasm dependency.
+# Native TLS client configuration (ADR 0132); never a daemon/wasm dependency.
 opensesame-transport-security = { path = "../transport-security", optional = true }
 opensesame-domain = { path = "../domain", optional = true }
 tracing = { workspace = true, optional = true }

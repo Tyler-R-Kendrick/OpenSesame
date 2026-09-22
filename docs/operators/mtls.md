@@ -1,7 +1,7 @@
 # Optional mTLS and workload identity
 
 Reference configuration for the native planes' transport security
-([ADR 0130](../adr/0130-optional-mtls-and-workload-identity.md)). Nothing on
+([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md)). Nothing on
 this page applies to the static PWA: `apps/pages` boots, unlocks and runs with
 no certificate, no environment variable and no backend, and a misconfigured
 remote target here breaks that one target and nothing else.

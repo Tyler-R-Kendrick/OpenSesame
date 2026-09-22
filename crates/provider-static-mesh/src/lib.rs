@@ -6,7 +6,7 @@
 //! socket, holds no certificate or key, verifies no peer, and offers no TLS
 //! or mTLS guarantee. An address it returns is a string the caller then
 //! dials through whatever transport policy that caller is configured with
-//! (ADR 0130 — `crates/transport-security` for native TLS, `existing_local`
+//! (ADR 0132 — `crates/transport-security` for native TLS, `existing_local`
 //! for loopback/UDS). Discovery and transport are deliberately separate:
 //! resolving a name here proves nothing about who answers at that address.
 //!

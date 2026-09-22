@@ -23,4 +23,5 @@ export * from "./notifications.js";
 export * from "./webhooks.js";
 export * from "./authentication-service.js";
 export * from "./authority-grant.js";
+export * from "./duress/index.js";
 export * from "./transport-security.js";

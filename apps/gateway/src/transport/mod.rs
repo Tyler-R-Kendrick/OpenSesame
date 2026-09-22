@@ -1,5 +1,5 @@
 //! Host service identity: the secure listener, service-caller admission,
-//! service bindings, and the operator diagnostics over them (ADR 0130,
+//! service bindings, and the operator diagnostics over them (ADR 0132,
 //! SW-SERVICE).
 //!
 //! Two kinds of operation are modeled here and they are never merged:

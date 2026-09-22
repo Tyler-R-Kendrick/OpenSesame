@@ -1,9 +1,9 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
 
-const ADR_MTLS = "0130-optional-mtls-and-workload-identity.md";
+const ADR_MTLS = "0132-optional-mtls-and-workload-identity.md";
 
 /**
- * Transport configuration is authority (ADR 0130 § configuration): trust
+ * Transport configuration is authority (ADR 0132 § configuration): trust
  * roots, service bindings, identity sources and enforcement probes are
  * mutated only under the existing operator authorization, and an agent
  * surface that could touch them could bind itself to a service principal.
@@ -33,7 +33,7 @@ const REFERENCE_ONLY_VIA_CONNECTIONREF: CapabilityExclusion = {
 };
 
 export const transportSecurityCapabilities: readonly Capability[] = [
-  // ── Host plane: optional mTLS and workload identity (ADR 0130) ────────
+  // ── Host plane: optional mTLS and workload identity (ADR 0132) ────────
   {
     id: "transport.status.view",
     title:

@@ -1195,6 +1195,9 @@ importers:
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
+      yaml:
+        specifier: 2.8.1
+        version: 2.8.1
       zod:
         specifier: 3.25.67
         version: 3.25.67
@@ -1205,6 +1208,9 @@ importers:
       '@types/node':
         specifier: 22.15.29
         version: 22.15.29
+      fast-check:
+        specifier: 4.9.0
+        version: 4.9.0
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1580,6 +1586,9 @@ importers:
 
   packages/redteam:
     dependencies:
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain

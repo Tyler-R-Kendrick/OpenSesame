@@ -1,6 +1,6 @@
 #![no_main]
 
-//! Transport configuration parsing (ADR 0130).
+//! Transport configuration parsing (ADR 0132).
 //!
 //! `ServiceBindingSet::parse_json` is the only door by which a binding
 //! document — a file in the deployment plane, a stored `host_kv` value or an

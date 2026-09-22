@@ -1,5 +1,5 @@
 //! SW-INTEROP: cross-runtime interoperability oracles for optional mTLS and
-//! workload identity (ADR 0130).
+//! workload identity (ADR 0132).
 //!
 //! Nothing in this crate is production code. It exists to answer one question
 //! the implementing swarms cannot answer about themselves: *does the entry

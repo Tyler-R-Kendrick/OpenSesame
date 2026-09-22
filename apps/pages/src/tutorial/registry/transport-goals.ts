@@ -2,7 +2,7 @@
  * The transport walkthrough — kept out of `goals.ts` so that file's recorded
  * line debt does not rise (ADR 0093).
  *
- * Transport is optional (ADR 0130). A device with no endpoint configured has
+ * Transport is optional (ADR 0132). A device with no endpoint configured has
  * nothing to ask, so the guide says that rather than sending somebody looking
  * for a service that is not there, and it names no address of its own.
  */

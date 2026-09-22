@@ -1,4 +1,4 @@
-//! Operator routes over the certificate lifecycle (ADR 0130).
+//! Operator routes over the certificate lifecycle (ADR 0132).
 //!
 //! Every handler is configurator-gated exactly like `taskbus_config`
 //! (`resolve_caller` → `can_configure_integrations`); none of them reads

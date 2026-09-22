@@ -1,5 +1,5 @@
 //! In-memory [`ClientIdentityResolver`] / [`TrustProfileResolver`]
-//! (ADR 0130, SW-CONNECTOR).
+//! (ADR 0132, SW-CONNECTOR).
 //!
 //! The broker never reads a file, a socket or a Workload API endpoint: it asks
 //! a resolver for a *reference* it was given, and the resolver decides whether

@@ -1,0 +1,28 @@
+schemaVersion: 1
+policyId: example-SC-LIMITED-CARRY
+revision: 1
+enabled: false
+profiles:
+  - profileId: limited-carry
+    label: Limited carry operations
+    scope:
+      ownerPrincipalRef: owner-1
+      organizationRef: null
+      vaultRef: vault-1
+      deviceBindingRef: device-1
+      compartmentRefs:
+        - comp-normal
+        - comp-carry
+    triggerKind: application_code
+    effects:
+      presentation: restricted
+      presentationCompartmentRef: comp-carry
+      hold:
+        kind: none
+      alert: null
+      quarantinePeerRefs: []
+      providerRevocationRefs: []
+      removal:
+        kind: none
+      recoveryPolicyRef: null
+      operationCeilingRef: ceiling-carry

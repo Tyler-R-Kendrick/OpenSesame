@@ -2,7 +2,7 @@
 
 ```
 Clients (CLI, extension, SDK, MCP, PWA, toolbar)
-        │  HTTPS / DPoP / local daemon (UDS) / optional mTLS (ADR 0130)
+        │  HTTPS / DPoP / local daemon (UDS) / optional mTLS (ADR 0132)
         ▼
 ┌───────────────────────┐     ┌──────────────────────────┐
 │ Identity API (:8788)  │     │ Host API gateway (:8787) │
@@ -24,7 +24,7 @@ Clients (CLI, extension, SDK, MCP, PWA, toolbar)
 - ConnectionRef over SecretRef: ADR 0005
 - In-product contextual support and GuideLang: `docs/architecture/ai-contextual-support.md`, ADR 0087
 
-## Transport security (ADR 0130)
+## Transport security (ADR 0132)
 
 The planes above talk to each other over hops that are each declared, never
 inferred. A hop is one of `existing_local` (loopback, Unix socket with kernel

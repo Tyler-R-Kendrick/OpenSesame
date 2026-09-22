@@ -1,6 +1,6 @@
 #![no_main]
 
-//! NATS auth-callout envelope decoding (ADR 0130).
+//! NATS auth-callout envelope decoding (ADR 0132).
 //!
 //! The bridge forwards a server-signed `$SYS.REQ.USER.AUTH` request and the
 //! Host re-verifies it against the operator's pinned server nkeys. Both the

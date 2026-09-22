@@ -232,13 +232,13 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
 | `crates/invoke-through` | Memory-resident invoke-through broker — egress allowlist, no redirects (ADR 0048 D6/D7) |
-| `crates/transport-security` | Native TLS for the authority plane — rustls listeners/clients, `TlsIdentity` / `TrustBundle`, atomic `TransportGenerations`, SPIFFE and RFC 9525 verifiers; `testkit` feature issues disposable PKI for tests (ADR 0130) |
-| `crates/domain/src/transport` | Pure transport contracts — `TransportPolicy`, `ServiceBindingSet` (default deny, exact selectors), non-deserializable `VerifiedPeer`, status views, stable error codes; TS mirror in `packages/os-domain` / `packages/contracts` (ADR 0130) |
-| `crates/spiffe-source` | SPIFFE Workload API X.509-SVID source → `TransportGenerations`; exact configured SPIFFE ID, per-domain bundles, snapshot replacement; SPIRE is an optional issuer (ADR 0130 §2) |
-| `crates/ingress-evidence`, `packages/ingress-evidence` | RFC 9440 `Client-Cert` / `Client-Cert-Chain` bounded parsing; accepted only from a bound ingress on a `trusted_ingress` listener (ADR 0130 §8) |
-| `crates/nats-callout` | Native `$SYS.REQ.USER.AUTH` bridge (`opensesame-nats-auth-bridge`) — NKey/JWT verification, request/response binding; a high-trust component, narrowly bound to the Host (ADR 0130 §8) |
-| `apps/gateway/src/transport` | Host transport runtime — config, admission (`ServiceCallerExtractor`), bindings CAS, status, verify probe, trust/lifecycle routes under `/api/v1/operator/transport/*` (ADR 0130) |
-| `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0130 §8) |
+| `crates/transport-security` | Native TLS for the authority plane — rustls listeners/clients, `TlsIdentity` / `TrustBundle`, atomic `TransportGenerations`, SPIFFE and RFC 9525 verifiers; `testkit` feature issues disposable PKI for tests (ADR 0132) |
+| `crates/domain/src/transport` | Pure transport contracts — `TransportPolicy`, `ServiceBindingSet` (default deny, exact selectors), non-deserializable `VerifiedPeer`, status views, stable error codes; TS mirror in `packages/os-domain` / `packages/contracts` (ADR 0132) |
+| `crates/spiffe-source` | SPIFFE Workload API X.509-SVID source → `TransportGenerations`; exact configured SPIFFE ID, per-domain bundles, snapshot replacement; SPIRE is an optional issuer (ADR 0132 §2) |
+| `crates/ingress-evidence`, `packages/ingress-evidence` | RFC 9440 `Client-Cert` / `Client-Cert-Chain` bounded parsing; accepted only from a bound ingress on a `trusted_ingress` listener (ADR 0132 §8) |
+| `crates/nats-callout` | Native `$SYS.REQ.USER.AUTH` bridge (`opensesame-nats-auth-bridge`) — NKey/JWT verification, request/response binding; a high-trust component, narrowly bound to the Host (ADR 0132 §8) |
+| `apps/gateway/src/transport` | Host transport runtime — config, admission (`ServiceCallerExtractor`), bindings CAS, status, verify probe, trust/lifecycle routes under `/api/v1/operator/transport/*` (ADR 0132) |
+| `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
@@ -366,7 +366,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0122).
+  0001–0132).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -473,7 +473,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   half the lifetime so renewal terminates
   ([ADR 0075](docs/adr/0075-host-certificate-key-custody.md)).
 - **mTLS is optional, per hop, and never a fallback**
-  ([ADR 0130](docs/adr/0130-optional-mtls-and-workload-identity.md)). The
+  ([ADR 0132](docs/adr/0132-optional-mtls-and-workload-identity.md)). The
   static core is untouched: `apps/pages` needs no certificate, no environment
   and no backend, and a browser cannot attach a vault key to `fetch`'s TLS —
   `browser_vault_key_injection` is always `unsupported`. Authentication is not

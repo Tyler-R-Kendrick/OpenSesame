@@ -1,7 +1,7 @@
 # Threat model: optional mTLS and workload identity
 
 Scope: the transport-authentication work of
-[ADR 0130](../adr/0130-optional-mtls-and-workload-identity.md) — the Host
+[ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md) — the Host
 secure listener, the worker listener, the Host→Identity mapping client, the
 NATS auth-callout bridge and its Host decision route, the trusted-ingress
 profile, connector transport to upstream targets, and the browser-managed
@@ -239,7 +239,7 @@ part of the feature.
 
 ## 6. See also
 
-- [ADR 0130](../adr/0130-optional-mtls-and-workload-identity.md) — the decision
+- [ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md) — the decision
 - [docs/operators/mtls.md](../operators/mtls.md) — configuration and recovery
 - [docs/security/threat-model.md](threat-model.md) — the product-wide model
 - [docs/security/security-boundaries.md](security-boundaries.md)

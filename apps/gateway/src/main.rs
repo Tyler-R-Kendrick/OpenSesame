@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     // to that feed rather than a second due-check of its own, so our own
     // rotations exercise the same hook a third-party tool receives.
     tokio::spawn(lifecycle::scanner::run(state.clone()));
-    // Transport renewal retries and bounded trust-overlap reconcile (ADR 0130).
+    // Transport renewal retries and bounded trust-overlap reconcile (ADR 0132).
     transport_lifecycle::boot::attach(&state);
     tokio::spawn(transport_lifecycle::renewal::run(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Plain listener always; the optional mTLS / workload-identity secure
-    // listener beside it when configured (ADR 0130). A configured-but-broken
+    // listener beside it when configured (ADR 0132). A configured-but-broken
     // secure profile returns Err here, so nothing serves.
     transport::boot::serve(state_for_serve, &args, app).await
 }

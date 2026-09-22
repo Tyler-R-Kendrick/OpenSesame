@@ -1,5 +1,5 @@
 //! The connector invoke path over an optional client identity
-//! (ADR 0130, CONN-EXECUTE).
+//! (ADR 0132, CONN-EXECUTE).
 //!
 //! ## The order is the security property
 //!

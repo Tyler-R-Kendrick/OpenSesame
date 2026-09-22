@@ -169,3 +169,51 @@ describe("local RBAC", () => {
     expect(await resolveCurrentAccessRole(GUEST_TOMB)).toBe("guest");
   });
 });
+
+describe("duress AUTH-B/F directory failures", () => {
+  it("fails closed to guest when directory read fails under active fence", async () => {
+    const { duressSessionFence } = await import("./duress/session/fence.js");
+    const { issueAccessContext } = await import("./duress/access/context.js");
+    const directory = await import("./local-directory.js");
+    duressSessionFence.activate({
+      incidentId: "i-dir-fail",
+      policyRevision: 1,
+      keyEpoch: 1,
+      denyOperations: ["manage_grants"],
+      admittedCompartmentRefs: ["c1"],
+    });
+    const ctx = issueAccessContext({
+      principalRef: "p1",
+      tenantRef: null,
+      vaultRef: tomb,
+      compartmentRefs: ["c1"],
+      deviceBindingRef: "d1",
+      presentation: "restricted",
+      authorizationCeiling: [],
+      denyOperations: ["manage_grants"],
+      policyRevision: 1,
+      incidentEpoch: duressSessionFence.readFence().incidentEpoch,
+      keyEpoch: 1,
+      sessionGeneration: duressSessionFence.guard.generation,
+      profileId: "p",
+      evidenceDigest: "digest0123456789ab",
+    });
+    duressSessionFence.setContext(ctx);
+    const spy = vi
+      .spyOn(directory, "readLocalDirectory")
+      .mockRejectedValue(new Error("directory unavailable"));
+    try {
+      expect(await resolveCurrentAccessRole(tomb)).toBe("guest");
+    } finally {
+      spy.mockRestore();
+      const ids = [...duressSessionFence.readFence().activeIncidentIds];
+      if (ids.length > 0) {
+        duressSessionFence.resolve(
+          ids,
+          true,
+          duressSessionFence.readFence().incidentEpoch,
+        );
+      }
+    }
+  });
+});

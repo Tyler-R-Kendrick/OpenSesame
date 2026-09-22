@@ -15,7 +15,7 @@ opensesame-domain = { path = "../domain" }
 opensesame-relay = { path = "../relay" }
 opensesame-rotation = { path = "../rotation" }
 opensesame-invoke-through = { path = "../invoke-through" }
-# ADR 0130 (SW-CONNECTOR): the connector's optional client identity. Verification,
+# ADR 0132 (SW-CONNECTOR): the connector's optional client identity. Verification,
 # client configs and the disposable test PKI all live there; the broker never
 # builds a TLS stack of its own.
 opensesame-transport-security = { path = "../transport-security" }

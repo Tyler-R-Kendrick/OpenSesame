@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "policyId": "example-SC-CUSTODIAN-HOLD",
+  "revision": 1,
+  "enabled": false,
+  "profiles": [
+    {
+      "profileId": "custodian-hold",
+      "label": "Custodian hold",
+      "scope": {
+        "ownerPrincipalRef": "owner-1",
+        "organizationRef": null,
+        "vaultRef": "vault-1",
+        "deviceBindingRef": "device-1",
+        "compartmentRefs": ["comp-normal"]
+      },
+      "triggerKind": "verified_uv_then_code",
+      "effects": {
+        "presentation": "locked",
+        "presentationCompartmentRef": null,
+        "hold": {
+          "kind": "custodial_reenrollment",
+          "recoveryPolicyRef": "recovery-1",
+          "disclosureAck": true
+        },
+        "alert": null,
+        "quarantinePeerRefs": [],
+        "providerRevocationRefs": [],
+        "removal": {
+          "kind": "none"
+        },
+        "recoveryPolicyRef": null,
+        "operationCeilingRef": null
+      }
+    }
+  ]
+}

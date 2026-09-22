@@ -1,4 +1,4 @@
--- ADR 0130 (SW-CONNECTOR, CONN-MODEL): a connection's optional transport
+-- ADR 0132 (SW-CONNECTOR, CONN-MODEL): a connection's optional transport
 -- requirement, as *references* the deployment plane resolves — a registered
 -- identity name, a registered trust-profile name, the exact server identity
 -- expected, and where the connection may be executed.

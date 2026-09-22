@@ -1,5 +1,5 @@
 //! Building one scoped connector client: which addresses it may dial, and
-//! the TLS profile it presents (ADR 0130, CONN-POOLS/CONN-EXECUTE).
+//! the TLS profile it presents (ADR 0132, CONN-POOLS/CONN-EXECUTE).
 //!
 //! Two fences live here. The **address** fence refuses an upstream that
 //! resolves to somebody's internal network — loopback, link-local, private,

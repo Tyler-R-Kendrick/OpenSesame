@@ -123,10 +123,10 @@ pub struct AppState {
     pub sync_notify: Arc<tokio::sync::Notify>,
     /// Host event bus (`OPENSESAME_TASKBUS` / `NATS_URL` / stored operator config).
     pub task_bus: Arc<RwLock<Arc<dyn TaskBus>>>,
-    /// Certificate lifecycle for the optional mTLS profiles (ADR 0130):
+    /// Certificate lifecycle for the optional mTLS profiles (ADR 0132):
     /// custody cache, revoked-leaf denylist, renewal lease and trust epoch.
     pub transport_lifecycle: Arc<crate::transport_lifecycle::LifecycleState>,
-    /// Optional mTLS / workload-identity transport (ADR 0130): generations,
+    /// Optional mTLS / workload-identity transport (ADR 0132): generations,
     /// the live service-binding set, and the operator status facts. `None`
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,

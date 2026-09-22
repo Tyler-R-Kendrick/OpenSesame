@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
+import { resolveDuressMode } from "../lib/duress/feature/mode.js";
+import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import { SettingsMasterPasswordPanel } from "./SettingsMasterPasswordPanel.js";
@@ -110,6 +112,9 @@ export function SettingsSection({
       ) : null}
 
       {form && category === "security" ? <VaultKeyProtectionPanel /> : null}
+      {form && category === "security" && resolveDuressMode({}) !== "off" ? (
+        <DuressEnrollmentPanel />
+      ) : null}
       {form && category === "security" ? (
         <resolvedPanels.UnlockMethodsPanel />
       ) : null}

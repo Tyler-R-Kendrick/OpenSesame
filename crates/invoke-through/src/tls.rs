@@ -1,4 +1,4 @@
-//! TLS client injection for invoke-through (ADR 0130, SW-CONNECTOR).
+//! TLS client injection for invoke-through (ADR 0132, SW-CONNECTOR).
 //!
 //! The authority plane builds a *scoped* `rustls::ClientConfig` — the bundle
 //! that verifies the server, the exact server identity expected, and

@@ -65,7 +65,7 @@ function webmcpMapped(id: string): boolean {
 /**
  * What the registrar may expose: exactly the candidates whose every
  * capability the registry maps onto WebMCP (ADR 0065). With
- * `transport.status.view` excluded as operator topology (ADR 0130), this is
+ * `transport.status.view` excluded as operator topology (ADR 0132), this is
  * empty — the registry decides, not this file.
  */
 export const TRANSPORT_AGENT_TOOLS: readonly TransportAgentTool[] = [

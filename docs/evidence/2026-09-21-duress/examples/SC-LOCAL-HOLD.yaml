@@ -1,0 +1,29 @@
+schemaVersion: 1
+policyId: example-SC-LOCAL-HOLD
+revision: 1
+enabled: false
+profiles:
+  - profileId: local-hold
+    label: Local application hold
+    scope:
+      ownerPrincipalRef: owner-1
+      organizationRef: null
+      vaultRef: vault-1
+      deviceBindingRef: device-1
+      compartmentRefs:
+        - comp-normal
+    triggerKind: verified_uv_then_code
+    effects:
+      presentation: locked
+      presentationCompartmentRef: null
+      hold:
+        kind: local_application
+        durationMs: 86400000
+        disclosureAck: true
+      alert: null
+      quarantinePeerRefs: []
+      providerRevocationRefs: []
+      removal:
+        kind: none
+      recoveryPolicyRef: recovery-1
+      operationCeilingRef: null

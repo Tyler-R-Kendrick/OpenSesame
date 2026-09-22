@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "testedCommit": "424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716",
+  "discoveredAt": "2026-09-22T03:43:49.712Z",
+  "chromium": {
+    "path": "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux/chrome",
+    "source": "ms-playwright-cache",
+    "probed": [
+      "env:PLAYWRIGHT_CHROMIUM=(unset)",
+      "env:CHROMIUM_PATH=(unset)",
+      "env:CHROME_PATH=(unset)",
+      "/opt/pw-browsers/chromium",
+      "/usr/bin/chromium",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/google-chrome",
+      "/usr/bin/google-chrome-stable",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux-arm64/chrome",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux/chrome",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux64/chrome",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-win/chrome.exe",
+      "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux-arm64/chrome",
+      "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux/chrome"
+    ],
+    "version": "Chromium 149.0.7827.0"
+  },
+  "webcrypto": {
+    "crypto": true,
+    "subtle": true,
+    "pbkdf2": true,
+    "aesGcm": true,
+    "hkdf": true,
+    "ecdsa": true,
+    "digest": true,
+    "getRandomValues": true
+  },
+  "virtualAuthenticator": {
+    "supported": true,
+    "authenticatorId": "87a13edf-a735-4764-a393-b067d6c29f92",
+    "note": "virtual authenticator only — not physical biometrics/PRF hardware"
+  },
+  "claims": {
+    "physicalBiometrics": false,
+    "hardwarePrf": false,
+    "note": "Virtual authenticator ≠ physical UV; simulated PRF bytes ≠ hardware PRF"
+  }
+}

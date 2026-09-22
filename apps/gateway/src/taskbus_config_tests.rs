@@ -1,6 +1,6 @@
 //! `TaskBus` configuration: URL guards, redaction, env precedence, and the
 //! rule that the public (stored and returned) transport view carries no
-//! locator — no path, no seed, no token (ADR 0130 §8).
+//! locator — no path, no seed, no token (ADR 0132 §8).
 
 use super::*;
 use opensesame_task_bus::{NatsTransportPublic, NatsTransportView};

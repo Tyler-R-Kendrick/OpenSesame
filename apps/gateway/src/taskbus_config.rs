@@ -8,7 +8,7 @@
 //! over the stored public policy in `host_kv` (`taskbus.transport`), which
 //! holds references only. Everything an operator can read back — the view, the
 //! stored row — is [`NatsTransportView`] / `NatsTransportPublic`: booleans,
-//! profile names, a server name. No locator is expressible there (ADR 0130 §8).
+//! profile names, a server name. No locator is expressible there (ADR 0132 §8).
 //!
 //! Provisioning is separate from runtime use: [`provision`] is the one-time
 //! operator action that may create the stream and the durable consumers, with
@@ -236,7 +236,7 @@ pub async fn build_bus(resolved: &ResolvedTaskBus) -> anyhow::Result<Arc<dyn Tas
 
 /// Boot-time construction. A *secure* profile that cannot connect becomes an
 /// [`UnavailableTaskBus`] carrying the reason — never in-memory, never
-/// plaintext (ADR 0130, EXPLICIT-ENFORCEMENT). The legacy plaintext loopback
+/// plaintext (ADR 0132, EXPLICIT-ENFORCEMENT). The legacy plaintext loopback
 /// profile keeps its in-memory fallback so an unconfigured dev box still boots.
 pub async fn build_bus_or_unavailable(resolved: &ResolvedTaskBus) -> Arc<dyn TaskBus> {
     match build_bus(resolved).await {

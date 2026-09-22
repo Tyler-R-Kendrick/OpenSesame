@@ -231,7 +231,7 @@ async fn interleaved_tenants_are_each_seen_with_their_own_certificate_and_token(
     let b = TenantCredential("token-for-org-b");
 
     // A, B, A, B — interleaved on purpose, so a pool keyed less strictly than
-    // ADR 0130 requires would hand the second tenant the first one's already
+    // ADR 0132 requires would hand the second tenant the first one's already
     // authenticated connection.
     for (ctx, transport, credential) in [
         (ctx("org-a"), record_for("acme-client"), &a),

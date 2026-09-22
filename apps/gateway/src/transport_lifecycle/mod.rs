@@ -1,5 +1,5 @@
 //! Certificate lifecycle for the optional mTLS / workload-identity profiles
-//! (ADR 0130, SW-LIFECYCLE): custody access, transport issuance, autonomous
+//! (ADR 0132, SW-LIFECYCLE): custody access, transport issuance, autonomous
 //! renewal, atomic activation, revocation, and operator-managed trust.
 //!
 //! One handle, [`LifecycleState`], lives on `AppState` and holds everything

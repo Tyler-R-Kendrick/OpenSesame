@@ -1,6 +1,6 @@
 #![no_main]
 
-//! RFC 9440 `Client-Cert` / `Client-Cert-Chain` decoding (ADR 0130).
+//! RFC 9440 `Client-Cert` / `Client-Cert-Chain` decoding (ADR 0132).
 //!
 //! These fields arrive from a proxy on the trusted-ingress listener and are
 //! decoded *before* anything is verified, so the decoder is the first thing

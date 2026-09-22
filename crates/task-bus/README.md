@@ -20,7 +20,7 @@ request/reply in the AUTH account (`ops/nats/secure-callout.conf`, bridge in
 `crates/nats-callout`). `opensesame.callout.>` is an unrelated reserved
 application prefix and is never that wire.
 
-## Transport profiles (ADR 0130)
+## Transport profiles (ADR 0132)
 
 The client transport is resolved from the deployment plane
 (`OPENSESAME_NATS_*`) or, failing that, a stored *public* policy that can only

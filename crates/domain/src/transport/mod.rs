@@ -1,5 +1,5 @@
 //! Transport policy, workload identity, and service-binding contracts
-//! (ADR 0130).
+//! (ADR 0132).
 //!
 //! Pure, serde-only. Everything here is either an operator/config DTO that
 //! must reject unknown fields and coerce nothing, or an internal verified

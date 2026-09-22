@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 503,
-    "violations": 796,
-    "oversizedLines": 252831
+    "violations": 793,
+    "oversizedLines": 252761
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -408,7 +408,7 @@
       "max-lines": 801
     },
     "apps/daemon/src/main.rs": {
-      "max-lines": 1625
+      "max-lines": 1622
     },
     "apps/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -800,7 +800,7 @@
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1758
+      "max-lines": 1747
     },
     "apps/pages/src/lib/vault/unlock-methods.ts": {
       "max-lines": 769
@@ -827,11 +827,10 @@
       "max-lines": 1438
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
-      "complexity": 2,
-      "max-depth": 1,
-      "max-lines": 1168,
+      "complexity": 1,
+      "max-lines": 1112,
       "max-lines-per-function": 1,
-      "max-statements": 2
+      "max-statements": 1
     },
     "apps/pages/src/screens/VaultsScreen.tsx": {
       "max-lines-per-function": 1

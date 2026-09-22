@@ -1,4 +1,4 @@
-//! Narrow custody access for TLS consumers (ADR 0075 §custody, ADR 0130
+//! Narrow custody access for TLS consumers (ADR 0075 §custody, ADR 0132
 //! LIFE-CUSTODY).
 //!
 //! [`tls_identity_for`] is the one path by which a managed private key is
@@ -100,7 +100,7 @@ pub fn recorded_purpose(row: &StoredManagedCertificate) -> Option<TransportPurpo
 }
 
 /// Whether the certificate's identity source is a Workload API stream, which
-/// this host must never renew or unseal on its own (ADR 0130: a SPIFFE source
+/// this host must never renew or unseal on its own (ADR 0132: a SPIFFE source
 /// owns its snapshots).
 #[must_use]
 pub fn is_spiffe_sourced(row: &StoredManagedCertificate) -> bool {

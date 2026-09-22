@@ -36,9 +36,9 @@ afterEach(() => {
 });
 
 describe("transport agent surface (UI-AGENTS)", () => {
-  it("ships nothing while the registry excludes transport.status.view from WebMCP (ADR 0130)", () => {
+  it("ships nothing while the registry excludes transport.status.view from WebMCP (ADR 0132)", () => {
     const entry = CAPABILITIES.find((c) => c.id === "transport.status.view");
-    expect(entry?.excluded?.webmcp?.adr).toMatch(/^0130-/);
+    expect(entry?.excluded?.webmcp?.adr).toMatch(/^0132-/);
     expect(TRANSPORT_AGENT_TOOLS).toEqual([]);
   });
 

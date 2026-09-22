@@ -1,5 +1,5 @@
 /**
- * Transport-security wire contract (ADR 0130) — the TypeScript mirror of
+ * Transport-security wire contract (ADR 0132) — the TypeScript mirror of
  * `opensesame_domain::transport`. Every name here is a wire spelling shared
  * with the Rust plane: snake_case fields, externally tagged enums, strict
  * RFC 3339 timestamps in canonical UTC-millisecond form. Nothing in this

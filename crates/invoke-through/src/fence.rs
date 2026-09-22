@@ -8,7 +8,7 @@
 //!
 //! Keeping the fence separate from the wire client is what lets a caller run
 //! it *first* and only afterwards resolve an identity or build a credentialed
-//! client (ADR 0130, CONN-EXECUTE): a request the fence denies never causes a
+//! client (ADR 0132, CONN-EXECUTE): a request the fence denies never causes a
 //! TLS identity to be resolved, a sealed credential to be opened, or a pooled
 //! client to be created.
 

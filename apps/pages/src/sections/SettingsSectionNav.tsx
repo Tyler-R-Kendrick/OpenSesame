@@ -81,4 +81,5 @@ export const SECURITY_FRAGMENT_REDIRECT = new Map<string, string>([
   ["formats", "formats-interoperability"],
   ["formats-interop", "formats-interoperability"],
   ["interoperability", "formats-interoperability"],
+  ["duress", "duress-profiles"],
 ]);

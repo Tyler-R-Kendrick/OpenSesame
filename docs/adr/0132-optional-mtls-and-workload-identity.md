@@ -1,4 +1,4 @@
-# ADR 0130 — Optional mTLS and workload identity
+# ADR 0132 — Optional mTLS and workload identity
 
 Status: Accepted
 Date: 2026-09-22

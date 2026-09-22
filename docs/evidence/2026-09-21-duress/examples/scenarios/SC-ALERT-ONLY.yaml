@@ -1,0 +1,32 @@
+schemaVersion: 1
+policyId: example-SC-ALERT-ONLY
+revision: 1
+enabled: true
+profiles:
+  - profileId: alert-only
+    label: Alert only
+    scope:
+      ownerPrincipalRef: owner-1
+      organizationRef: null
+      vaultRef: vault-1
+      deviceBindingRef: device-1
+      compartmentRefs:
+        - comp-normal
+    triggerKind: application_code
+    effects:
+      presentation: normal
+      presentationCompartmentRef: null
+      hold:
+        kind: none
+      alert:
+        routeRef: route-alert-1
+        templateRef: tpl-duress
+        retainOutboxAcrossRemoval: false
+        maxRetries: 3
+        expiryMs: 3600000
+      quarantinePeerRefs: []
+      providerRevocationRefs: []
+      removal:
+        kind: none
+      recoveryPolicyRef: null
+      operationCeilingRef: null

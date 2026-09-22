@@ -21,7 +21,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "NATS auth-callout protocol (ADR-26) and the native $SYS.REQ.USER.AUTH bridge to the Host decision route (ADR 0130)"
+description = "NATS auth-callout protocol (ADR-26) and the native $SYS.REQ.USER.AUTH bridge to the Host decision route (ADR 0132)"
 
 [lib]
 name = "opensesame_nats_callout"

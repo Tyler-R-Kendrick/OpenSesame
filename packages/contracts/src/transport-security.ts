@@ -1,5 +1,5 @@
 /**
- * Transport-security wire schemas (ADR 0130): zod mirrors of
+ * Transport-security wire schemas (ADR 0132): zod mirrors of
  * `opensesame_domain::transport`, sharing one JSON corpus with the Rust plane
  * (`fixtures/transport-security`). Fields are snake_case because the wire is;
  * every object is `.strict()`, timestamps must be strict RFC 3339 with an

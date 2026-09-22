@@ -1,5 +1,5 @@
 //! What a certificate login produced, and the scope it belongs to
-//! (ADR 0130, CONN-TOKEN-LIFECYCLE).
+//! (ADR 0132, CONN-TOKEN-LIFECYCLE).
 //!
 //! A token from `OpenBao` has its own lifetime. It is issued with a
 //! `lease_duration` and a policy list, and neither is derived from the

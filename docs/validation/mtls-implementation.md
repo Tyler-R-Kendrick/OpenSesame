@@ -1,6 +1,6 @@
 # Optional mTLS and workload identity — implementation evidence
 
-Companion to [ADR 0130](../adr/0130-optional-mtls-and-workload-identity.md) and
+Companion to [ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md) and
 [the operator guide](../operators/mtls.md). The threat model is
 [`docs/security/mtls-threat-model.md`](../security/mtls-threat-model.md).
 

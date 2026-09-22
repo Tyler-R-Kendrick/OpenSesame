@@ -329,7 +329,7 @@ async fn release_policy(
 ///
 /// The call goes through the transport lifecycle's renewal seam, which adds
 /// the per-certificate lease, bounded retry, the Workload-API skip and the
-/// activation-after-issue that a background actor needs (ADR 0130). The
+/// activation-after-issue that a background actor needs (ADR 0132). The
 /// trigger is still this feed and only this feed.
 async fn renew_certificate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     crate::transport_lifecycle::renewal::respond(state, event).await

@@ -1,5 +1,5 @@
 //! A real, TLS-enabled, client-certificate-requiring `OpenBao` for the
-//! certificate-auth integration test (ADR 0130, AT-OPENBAO-REAL).
+//! certificate-auth integration test (ADR 0132, AT-OPENBAO-REAL).
 //!
 //! Everything is disposable and loopback-only: a fresh CA per run, a
 //! `tempfile` directory that takes the file storage backend and the PEMs with

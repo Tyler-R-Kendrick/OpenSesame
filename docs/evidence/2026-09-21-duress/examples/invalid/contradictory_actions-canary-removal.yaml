@@ -1,0 +1,33 @@
+schemaVersion: 1
+policyId: bad
+revision: 1
+enabled: false
+profiles:
+  - profileId: bad-canary
+    label: bad
+    scope:
+      ownerPrincipalRef: owner-1
+      organizationRef: null
+      vaultRef: vault-1
+      deviceBindingRef: device-1
+      compartmentRefs: [comp-normal]
+    triggerKind: canary_activation
+    effects:
+      presentation: unchanged
+      presentationCompartmentRef: null
+      hold: { kind: none }
+      alert:
+        routeRef: route-alert-1
+        templateRef: tpl
+        retainOutboxAcrossRemoval: false
+        maxRetries: 1
+        expiryMs: 60000
+      quarantinePeerRefs: []
+      providerRevocationRefs: []
+      removal:
+        kind: local_enumerated
+        resourceRefs: [comp-normal]
+        preserveSealedOutbox: false
+        acceptUnrecoverability: true
+      recoveryPolicyRef: null
+      operationCeilingRef: null

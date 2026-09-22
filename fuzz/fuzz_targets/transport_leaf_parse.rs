@@ -1,6 +1,6 @@
 #![no_main]
 
-//! Certificate/identity extraction (ADR 0130).
+//! Certificate/identity extraction (ADR 0132).
 //!
 //! `ParsedLeaf::parse` reads the facts that become peer identity selectors
 //! out of a certificate rustls has already verified — and, on the ingress

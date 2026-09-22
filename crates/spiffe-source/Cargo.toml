@@ -3,7 +3,7 @@ name = "opensesame-spiffe-source"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "SPIFFE X.509 Workload API identity source: exact SVID selection, X509-SVID profile validation, per-trust-domain bundles, snapshot replacement and bounded outage (ADR 0130)"
+description = "SPIFFE X.509 Workload API identity source: exact SVID selection, X509-SVID profile validation, per-trust-domain bundles, snapshot replacement and bounded outage (ADR 0132)"
 
 [lib]
 name = "opensesame_spiffe_source"

@@ -1,7 +1,7 @@
 //! Verifying the **end user's** evidence in a NATS auth callout.
 //!
 //! Bridge authentication and end-user authentication are separate facts
-//! (ADR 0130 / [R-CALLOUT]). The bridge proves only that a request arrived on
+//! (ADR 0132 / [R-CALLOUT]). The bridge proves only that a request arrived on
 //! its authenticated NATS connection; this module is what turns the client's
 //! CONNECT token into an authenticated `(issuer, subject)`. Mapping an
 //! arbitrary issuer+subject is not authentication, so nothing here hands a

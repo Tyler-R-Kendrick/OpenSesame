@@ -24,7 +24,7 @@
 //!    path its policy allows and is refused the one it does not.
 //! 6. Revoking the **certificate's** authorization stops new logins and leaves
 //!    the already-issued token working. Only `revoke_token` kills the token.
-//!    That split is the honest statement of ADR 0130's revocation boundary,
+//!    That split is the honest statement of ADR 0132's revocation boundary,
 //!    and it is asserted rather than described.
 
 mod support;

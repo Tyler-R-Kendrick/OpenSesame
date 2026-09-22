@@ -1,4 +1,4 @@
-//! The broker's own transport surface (ADR 0130, CONN-MODEL/CONN-EXECUTE).
+//! The broker's own transport surface (ADR 0132, CONN-MODEL/CONN-EXECUTE).
 //!
 //! This is the production call site: the methods a gateway route reaches, and
 //! the one implementation of [`ConnectionCredential`] that opens a real sealed

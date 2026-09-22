@@ -1,4 +1,4 @@
-//! Connection transport (ADR 0130, SW-CONNECTOR): how a connection reaches
+//! Connection transport (ADR 0132, SW-CONNECTOR): how a connection reaches
 //! its upstream — server-authenticated TLS, or mTLS with a client identity the
 //! Host holds — expressed as *references* the deployment plane resolves.
 //!

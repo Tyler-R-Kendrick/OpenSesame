@@ -1027,15 +1027,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_client": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "webmcp": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       }
     }
   },
@@ -1054,15 +1054,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_client": {
         "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "webmcp": {
         "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       }
     }
   },
@@ -1081,15 +1081,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_client": {
         "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "webmcp": {
         "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       }
     }
   },
@@ -1108,15 +1108,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_client": {
         "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "webmcp": {
         "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       }
     }
   },
@@ -1135,15 +1135,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_client": {
         "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "webmcp": {
         "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       }
     }
   },
@@ -1162,15 +1162,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_client": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "webmcp": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
-        "adr": "0130-optional-mtls-and-workload-identity.md"
+        "adr": "0132-optional-mtls-and-workload-identity.md"
       }
     }
   },

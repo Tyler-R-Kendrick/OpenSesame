@@ -19,7 +19,7 @@ Human, device, workload, service, agent, agent instance, malicious connector, co
 3. Authority plane (OpenBao/KMS)
 4. WASM capability boundary
 5. Public callback edge (narrow)
-6. Transport admission — a native TLS peer or a bound ingress (authentication, never authorization; ADR 0130)
+6. Transport admission — a native TLS peer or a bound ingress (authentication, never authorization; ADR 0132)
 
 ## Browser-to-Host authority lifecycle
 
@@ -130,13 +130,13 @@ create; each is the file that will hold the test, per the implementation plan.
 | Discovery scanner used as an SSRF probe | Sanctioned raw-egress path constrained to the job's declared targets; job caps (≤20 domains, ≤256 IPs, CIDR ≥ /24, ≤5 ports); allow-internal flag honored; concurrency and timeout capped | `apps/gateway/src/cert_discovery.rs` limit-enforcement tests |
 | Discovered certificate silently enters the authoritative inventory | Discovery writes installation records only; promotion to inventory requires an explicit import action | `certmgr_discovery.rs` + `certmgr_inventory.rs` tests (ADR 0066 §4) |
 
-## Transport security and workload identity (ADR 0130)
+## Transport security and workload identity (ADR 0132)
 
 The full trust-boundary matrix, attack corpus and property tests for this
 area are in [mtls-threat-model.md](mtls-threat-model.md). This section states
 the shape of the claim and the residual realities the design does not remove.
 As in the Certificate Manager section, an anchor under a path that is not yet
-in the tree is the file its owning swarm names; ADR 0130 § Evidence records,
+in the tree is the file its owning swarm names; ADR 0132 § Evidence records,
 with a timestamp, which anchors were present and which suites had run.
 
 The claim is narrow: on a hop configured `mtls_required` or `trusted_ingress`,

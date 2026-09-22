@@ -18,4 +18,9 @@ export * from "./interaction-links.js";
 export * from "./interaction.js";
 export * from "./authorization-details.js";
 export * from "./trust.js";
+export {
+  canonicalize,
+  digestManifest,
+  sha256Hex,
+} from "./crypto/digest-browser.js";
 export * from "./transport-security/index.js";

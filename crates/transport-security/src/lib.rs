@@ -1,6 +1,6 @@
 //! Native TLS for the authority plane: verification, secure listeners, and
 //! outbound clients for the optional mTLS / workload-identity profiles
-//! (ADR 0130).
+//! (ADR 0132).
 //!
 //! Everything cryptographic is delegated to maintained libraries: `rustls`
 //! runs the handshake and verifies handshake signatures, `rustls-webpki`

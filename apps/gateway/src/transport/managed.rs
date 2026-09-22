@@ -37,7 +37,7 @@ pub trait ManagedIdentityResolver: Send + Sync {
 pub const UNWIRED_REASON: &str =
     "managed certificate custody is not bridged to the transport runtime on this host";
 
-/// The custody bridge (ADR 0130 LIFE-CUSTODY), implemented by the lifecycle
+/// The custody bridge (ADR 0132 LIFE-CUSTODY), implemented by the lifecycle
 /// owner in `crate::transport_lifecycle::custody`: the id is resolved under
 /// the deployment's own organization, for the listener purpose, and what
 /// comes back is a `TlsIdentity` — never PEM, never a path.

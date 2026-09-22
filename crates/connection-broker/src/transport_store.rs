@@ -1,4 +1,4 @@
-//! Persistence of a connection's transport record (ADR 0130, CONN-MODEL).
+//! Persistence of a connection's transport record (ADR 0132, CONN-MODEL).
 //!
 //! Additive: one nullable `transport_json` column on `connections`
 //! (`migrations/0040_connection_transport.sql`). A connection with no record

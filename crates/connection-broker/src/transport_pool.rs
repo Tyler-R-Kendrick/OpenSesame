@@ -1,10 +1,10 @@
-//! Scoped connector client pools (ADR 0130, CONN-POOLS).
+//! Scoped connector client pools (ADR 0132, CONN-POOLS).
 //!
 //! A client certificate authenticates a *connection*, not an HTTP request
 //! object. Two tenants talking to the same upstream must therefore never share
 //! a pooled client, or the second tenant's request rides the first tenant's
 //! already-authenticated TLS connection and the upstream sees the wrong
-//! certificate (credential substitution — the central threat of ADR 0130).
+//! certificate (credential substitution — the central threat of ADR 0132).
 //!
 //! So every pooled client is keyed by everything that could differ between two
 //! requests and change what the upstream authenticates:
@@ -148,7 +148,7 @@ impl ConnectorClientPool {
     /// This is what a revocation, a re-authorization or a transport-record
     /// change calls. It bounds *new* connections only: an HTTP request already
     /// in flight on a dropped client finishes, which is the honest bound
-    /// (ADR 0130 "revocation and session boundaries") — the Host does not
+    /// (ADR 0132 "revocation and session boundaries") — the Host does not
     /// promise that revoking a certificate tears down established sessions.
     pub fn forget_connection(&self, organization_id: &str, connection_id: &str) {
         let Ok(mut entries) = self.entries.lock() else {

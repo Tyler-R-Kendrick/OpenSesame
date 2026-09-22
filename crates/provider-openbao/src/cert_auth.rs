@@ -1,4 +1,4 @@
-//! `OpenBao` TLS-certificate authentication (ADR 0130, CONN-OPENBAO /
+//! `OpenBao` TLS-certificate authentication (ADR 0132, CONN-OPENBAO /
 //! CONN-TOKEN-LIFECYCLE).
 //!
 //! `POST /v1/auth/cert/login` with `{"name":"<role>"}` over a connection that
