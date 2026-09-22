@@ -17,6 +17,7 @@
     "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
+    "fast-check": "4.9.0",
     "typescript": "5.8.3",
     "vitest": "4.1.10"
   }
