@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 509,
-    "violations": 807,
-    "oversizedLines": 254226
+    "files": 507,
+    "violations": 802,
+    "oversizedLines": 252752
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -209,7 +209,7 @@
     },
     "apps/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 497,
+      "max-lines": 484,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -344,7 +344,7 @@
     },
     "apps/control-plane/src/routes/principals.ts": {
       "complexity": 2,
-      "max-lines": 755,
+      "max-lines": 738,
       "max-lines-per-function": 3
     },
     "apps/control-plane/src/routes/projects.ts": {
@@ -408,7 +408,7 @@
       "max-lines": 801
     },
     "apps/daemon/src/main.rs": {
-      "max-lines": 1625
+      "max-lines": 1622
     },
     "apps/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -438,7 +438,7 @@
       "max-lines": 493
     },
     "apps/gateway/src/lifecycle/responders.rs": {
-      "max-lines": 519
+      "max-lines": 517
     },
     "apps/gateway/src/lifecycle/scanner.rs": {
       "max-lines": 638
@@ -447,7 +447,7 @@
       "max-lines": 713
     },
     "apps/gateway/src/managed_certs.rs": {
-      "max-lines": 731
+      "max-lines": 637
     },
     "apps/gateway/src/routes/agent_runs.rs": {
       "max-lines": 966
@@ -459,7 +459,7 @@
       "max-lines": 900
     },
     "apps/gateway/src/routes/backup.rs": {
-      "max-lines": 557
+      "max-lines": 556
     },
     "apps/gateway/src/routes/certmgr_ca.rs": {
       "max-lines": 3491
@@ -492,7 +492,7 @@
       "max-lines": 1639
     },
     "apps/gateway/src/routes/mod.rs": {
-      "max-lines": 505
+      "max-lines": 504
     },
     "apps/gateway/src/routes/relay.rs": {
       "max-lines": 955
@@ -508,9 +508,6 @@
     },
     "apps/gateway/src/routes/shared_sessions/tests.rs": {
       "max-lines": 1169
-    },
-    "apps/gateway/src/routes/taskbus_config.rs": {
-      "max-lines": 552
     },
     "apps/gateway/src/routes/tasks.rs": {
       "max-lines": 979
@@ -803,7 +800,7 @@
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1758
+      "max-lines": 1738
     },
     "apps/pages/src/lib/vault/unlock-methods.ts": {
       "max-lines": 769
@@ -830,11 +827,10 @@
       "max-lines": 1438
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
-      "complexity": 2,
-      "max-depth": 1,
-      "max-lines": 1168,
+      "complexity": 1,
+      "max-lines": 1112,
       "max-lines-per-function": 1,
-      "max-statements": 2
+      "max-statements": 1
     },
     "apps/pages/src/screens/VaultsScreen.tsx": {
       "max-lines-per-function": 1
@@ -1111,7 +1107,7 @@
       "max-lines": 676
     },
     "crates/connection-broker/src/delegation.rs": {
-      "max-lines": 1618
+      "max-lines": 1570
     },
     "crates/connection-broker/src/egress.rs": {
       "max-lines": 526
@@ -1198,7 +1194,7 @@
       "max-lines": 792
     },
     "crates/invoke-through/src/invoke.rs": {
-      "max-lines": 765
+      "max-lines": 602
     },
     "crates/kdbx-bridge/src/import.rs": {
       "max-lines": 426
@@ -1250,9 +1246,6 @@
     },
     "crates/provider-bitwarden/tests/common/mod.rs": {
       "max-lines": 485
-    },
-    "crates/provider-openbao/src/lib.rs": {
-      "max-lines": 504
     },
     "crates/provider-openfga/src/lib.rs": {
       "max-lines": 432
