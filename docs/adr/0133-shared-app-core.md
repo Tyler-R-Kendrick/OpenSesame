@@ -78,7 +78,7 @@ What stands in the way was measured on 2026-09-22:
        checks it with a DOM-free tsconfig.
      - A host that lacks them installs them before the core loads: Android
        bridges them to the platform, and CI uses a pure-JS reference.
-   - **Ports** are defined in `src/host/types.ts`. They cover behaviour
+   - **Ports** are fields of `Host` in `src/host.ts`. They cover behaviour
      that differs by platform:
      - storage: `kv`, `sessionKv`, `legacyKv` (localStorage in a browser),
        `blobStore` (IndexedDB)
@@ -150,10 +150,10 @@ Each step is one pull request and green on its own:
    partition manifest with a checker for imports from moving code into
    staying code.
 1. Take React and UI imports out of the logic, in place.
-2. Create the package, the runtime env and the host skeleton; make
-   singletons lazy.
+2. Create the package, the runtime env and the host skeleton.
 3. The wholesale `git mv` relocation.
-4. Ports, one domain per PR, under the portability ledger.
+4. Ports, one domain per PR, under the portability ledger. A singleton
+   becomes lazy in the PR that gives its constructor a port.
 5. The Node host and the CLI verbs.
 6. The sandbox reference host and a bare-isolate test.
 7. Break the cycle and split domain packages.

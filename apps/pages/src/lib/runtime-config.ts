@@ -13,6 +13,7 @@
  * same power the Settings screen already grants.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -32,7 +33,7 @@ function readEndpoint(value: BoundaryValue | undefined): string | undefined {
 async function fetchRuntimeConfigDefault(): Promise<
   (RuntimeEndpointConfig & { connectCallbackBase?: string }) | null
 > {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = env().BASE_URL || "/";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RUNTIME_CONFIG_FETCH_MS);
   try {

@@ -132,9 +132,9 @@ export async function loadDuressRuntime(
  * registers nothing cannot load `duress.ui`, and says so rather than
  * pretending the asset is warm (INV-30).
  */
-let duressUiModule: (() => Promise<unknown>) | null = null;
+let duressUiModule: (() => Promise<object>) | null = null;
 
-export function registerDuressUiModule(load: () => Promise<unknown>): void {
+export function registerDuressUiModule(load: () => Promise<object>): void {
   duressUiModule = load;
 }
 

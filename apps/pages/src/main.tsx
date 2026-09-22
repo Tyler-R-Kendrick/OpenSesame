@@ -1,3 +1,5 @@
+// Must stay first: installs the host the shared core reads (ADR 0133).
+import "./host/boot.js";
 import { registerSW } from "virtual:pwa-register";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

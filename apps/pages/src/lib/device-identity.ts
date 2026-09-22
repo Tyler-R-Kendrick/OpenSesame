@@ -6,6 +6,7 @@
  * whether those resolve to the in-tab host or a networked control-plane.
  */
 
+import { env } from "@opensesame/app-core/host.js";
 import { isString } from "@opensesame/os-domain";
 import { deviceIdentityFetch } from "./device-identity-host.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
@@ -49,7 +50,7 @@ export function resolveIdentityBase(): string {
 /** Origin + Vite base, no trailing slash — the device identity issuer URL. */
 export function pagesIdentityPublicBase(
   origin = globalThis.location?.origin ?? "",
-  base = import.meta.env.BASE_URL || "/",
+  base = env().BASE_URL || "/",
 ): string {
   if (!isString(origin) || origin.length === 0) {
     return DEVICE_FALLBACK_BASE;

@@ -1,3 +1,4 @@
+import { type RuntimeEnv, env } from "@opensesame/app-core/host.js";
 import {
   type BoundaryValue,
   type JsonValue,
@@ -95,10 +96,8 @@ const LEGACY_IDENTITY_APIS = [
   "http://localhost:18788",
 ] as const;
 
-const builtHostApi = import.meta.env.VITE_HOST_API?.trim();
-const builtIdentityApi = import.meta.env.VITE_IDENTITY_API?.trim();
-const builtDaemonApi = import.meta.env.VITE_DAEMON_API?.trim();
-const builtMfaAppUrl = import.meta.env.VITE_MFA_APP_URL?.trim();
+const built = (key: Extract<keyof RuntimeEnv, `VITE_${string}`>) =>
+  env()[key]?.trim();
 
 /**
  * Deployment-provided endpoints, loaded at boot from a same-origin
@@ -140,19 +139,19 @@ export function applyRuntimeConfig(config: RuntimeEndpointConfig): void {
 }
 
 function runtimeHostApiValue(): string | undefined {
-  return deployedConfig.hostApi || builtHostApi;
+  return deployedConfig.hostApi || built("VITE_HOST_API");
 }
 
 function runtimeIdentityApiValue(): string | undefined {
-  return deployedConfig.identityApi || builtIdentityApi;
+  return deployedConfig.identityApi || built("VITE_IDENTITY_API");
 }
 
 function runtimeDaemonApiValue(): string | undefined {
-  return deployedConfig.daemonApi || builtDaemonApi;
+  return deployedConfig.daemonApi || built("VITE_DAEMON_API");
 }
 
 function runtimeMfaAppUrlValue(): string | undefined {
-  return deployedConfig.mfaAppUrl || builtMfaAppUrl;
+  return deployedConfig.mfaAppUrl || built("VITE_MFA_APP_URL");
 }
 
 const listeners = new Set<() => void>();
@@ -183,9 +182,9 @@ function pageIsLoopbackDefault(hostname?: string): boolean {
 function defaultIdentityApi(): string {
   const deployed = deployedConfig.identityApi?.trim();
   if (deployed) return deployed;
-  const built = builtIdentityApi?.trim();
-  if (!built || isLoopbackUrl(built)) return "";
-  return built;
+  const baked = built("VITE_IDENTITY_API");
+  if (!baked || isLoopbackUrl(baked)) return "";
+  return baked;
 }
 
 /**

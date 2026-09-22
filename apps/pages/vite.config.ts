@@ -95,6 +95,7 @@ export default defineConfig({
   test: {
     testTimeout: 20_000,
     hookTimeout: 20_000,
+    setupFiles: ["./src/host/test-setup.ts"],
   },
   base,
   define: { "process.env.NODE_DEBUG_NATIVE": "false" },
