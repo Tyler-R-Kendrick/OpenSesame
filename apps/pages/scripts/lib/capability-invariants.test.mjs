@@ -95,7 +95,6 @@ describe("violations", () => {
       [["warning", "CORE_DYNAMIC_OPTIONAL", "apps/pages/src/App.tsx"]],
     );
   });
-
 });
 
 describe("violations: hardened exclusions", () => {

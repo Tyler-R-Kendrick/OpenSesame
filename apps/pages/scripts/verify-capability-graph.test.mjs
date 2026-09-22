@@ -229,7 +229,9 @@ describe("verify-capability-graph", () => {
     const { report } = await verifyDist({ dist, mode: "hardened" });
     assert.deepEqual(codes(report), ["MISSING_REFERENCE", "UNACCOUNTED_HTML"]);
   });
+});
 
+describe("verify-capability-graph: exclusion and record agreement", () => {
   test("BUILD-04: --expect-absent fails when the capability's chunk, module or table entry survives", async () => {
     const dist = scaffold();
     const { report } = await verifyDist({
