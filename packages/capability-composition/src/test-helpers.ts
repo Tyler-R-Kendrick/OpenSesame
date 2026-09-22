@@ -1,7 +1,7 @@
 /**
  * Shared test builders. Not exported from the package index — tests only.
  */
-import type { BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue, RawDocument } from "@opensesame/os-domain";
 import {
   isBoolean,
   isJsonObject,
@@ -125,21 +125,21 @@ export type HostilePolicyFields = {
   readonly [extra: string]: BoundaryValue | undefined;
 };
 
-/**
- * A raw JSON document under construction: every fixture builder assembles
- * one of these, encodes its hostile-aware fields through the shared guards,
- * then returns it as the `BoundaryValue` contract the validators accept.
- */
-export type RawDocument = Record<string, BoundaryValue>;
+/** A raw JSON document under construction: the os-domain owner contract. */
+export type { RawDocument } from "@opensesame/os-domain";
 
 /**
  * Parse attacker-shaped JSON into the hostile-fields contract: the only
  * producer of `HostilePolicyFields`, so no test parses raw JSON inline.
+ * Returns the parsed document, or `undefined` when the text is not JSON.
  */
-export function hostileFields(text: string): HostilePolicyFields {
+export function hostileFields(text: string): HostilePolicyFields | undefined {
   // SAFETY: JSON.parse validated the JSON boundary contract at runtime; the
   // hostile-fields view preserves that same validated contract.
-  return JSON.parse(text) as HostilePolicyFields;
+  const parsed: HostilePolicyFields | undefined = overlapCast(
+    JSON.parse(text),
+  );
+  return parsed;
 }
 
 /** Overrides for a fixture policy: partial raw fields, type-checked. */

@@ -10,7 +10,6 @@ import { isReasonCode } from "./ids.js";
 import { resolvePreset } from "./presets.js";
 import { resolveEffectivePlan } from "./resolver.js";
 import {
-  type HostilePolicyFields,
   descriptor,
   distribution,
   hostileFields,
@@ -120,9 +119,10 @@ describe("adversarial — confused deputy and fail-closed", () => {
     // The boundary contract under test is attacker-shaped JSON; the hostile
     // fields type is the boundary parser's own output contract, and the
     // policy validator refuses the polluted shape at runtime.
-    const polluted: HostilePolicyFields = hostileFields(
+    const polluted = hostileFields(
       '{"required":["__proto__"],"optional":[],"prohibited":[]}',
     );
+    if (polluted === undefined) throw new Error("hostile JSON must parse");
     const outcome = resolveEffectivePlan({
       ...base(),
       instancePolicy: policy(polluted),

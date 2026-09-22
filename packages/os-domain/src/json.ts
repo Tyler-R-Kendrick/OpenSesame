@@ -23,6 +23,17 @@ export type BoundaryObject = {
   [key: string]: BoundaryValue | undefined;
 };
 
+/**
+ * A raw JSON document under construction: builders assemble one of these
+ * field-by-field through the shared guards, then return it as the
+ * `BoundaryValue` contract the validators accept. Mutable (not readonly):
+ * fixtures write fields after construction; readonly views are taken at the
+ * validator boundary, never during assembly.
+ */
+export type RawDocument = {
+  [key: string]: BoundaryValue | undefined;
+};
+
 export type MutableBoundaryObject = {
   [key: string]: BoundaryValue | undefined;
 };
