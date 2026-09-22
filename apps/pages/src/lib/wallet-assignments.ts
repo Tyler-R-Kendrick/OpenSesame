@@ -10,33 +10,34 @@ import {
 import {
   onWalletTombChange,
   walletStorageKey,
+  walletStorageScope,
   walletStorageTomb,
 } from "./wallet-storage-scope.js";
 
 const STORAGE_KEY = "opensesame.wallet.instrument-budgets.v1";
 
 let cache: Record<string, string> | null = null;
-let cacheTomb = "";
+let cacheScope = -1;
 
 /**
  * Follow the active tomb: a switch drops the process cache so a guest never
  * reads the personal vault's instrument bindings. Subscribed by the
  * `wallet.spending` runtime while it is active (never at import), and the
- * cache is keyed by tomb as well, so a read after an unobserved switch
- * still misses.
+ * cache is keyed by the scope epoch as well, so a read after an unobserved
+ * switch still misses.
  */
 export function watchWalletAssignmentScope(): () => void {
   return onWalletTombChange(() => {
     cache = null;
-    cacheTomb = "";
+    cacheScope = -1;
   });
 }
 
-/** Remember `next` against the tomb it was read or written for. */
+/** Remember `next` against the scope it was read or written in. */
 function cacheAll(next: Record<string, string>): Record<string, string> {
-  const tomb = walletStorageTomb();
+  const scope = walletStorageScope();
   cache = next;
-  cacheTomb = tomb;
+  cacheScope = scope;
   return next;
 }
 
@@ -45,8 +46,8 @@ function assignmentKey(): string {
 }
 
 function readAll(): Record<string, string> {
-  const tomb = walletStorageTomb();
-  if (cache !== null && cacheTomb === tomb) return cache;
+  const scope = walletStorageScope();
+  if (cache !== null && cacheScope === scope) return cache;
   try {
     const raw = localStorage.getItem(assignmentKey());
     if (raw === null || raw === "") return cacheAll({});

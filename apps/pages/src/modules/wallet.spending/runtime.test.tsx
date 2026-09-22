@@ -76,4 +76,36 @@ describe("wallet.spending runtime", () => {
     scope.setWalletStorageTomb("personal");
     expect(ledger.getSpendingLedger()).not.toBe(a);
   });
+
+  it("keeps leases and instrument bindings tomb-scoped with the capability disabled", async () => {
+    const scope = await import("../../lib/wallet-storage-scope.js");
+    const leases = await import("../../lib/spending-leases.js");
+    const assignments = await import("../../lib/wallet-assignments.js");
+
+    // Never activated: no listener exists, and the caches must still miss
+    // on a tomb switch — suppression is not isolation.
+    scope.setWalletStorageTomb("personal");
+    leases.clearSpendingLeases();
+    assignments.clearInstrumentBudgets();
+    assignments.assignInstrumentBudget("item-1", "budget-1");
+    expect(assignments.budgetIdForInstrument("item-1")).toBe("budget-1");
+    scope.setWalletStorageTomb("project-b");
+    expect(assignments.budgetIdForInstrument("item-1")).toBeNull();
+    expect(leases.listSpendingLeases()).toEqual([]);
+
+    // Active: the same reads answer from the tomb that is open now.
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    assignments.assignInstrumentBudget("item-2", "budget-2");
+    scope.setWalletStorageTomb("personal");
+    expect(assignments.budgetIdForInstrument("item-2")).toBeNull();
+    expect(assignments.budgetIdForInstrument("item-1")).toBe("budget-1");
+    await handle.dispose();
+
+    scope.setWalletStorageTomb("project-b");
+    expect(assignments.budgetIdForInstrument("item-1")).toBeNull();
+    assignments.clearInstrumentBudgets();
+    scope.setWalletStorageTomb("personal");
+    assignments.clearInstrumentBudgets();
+  });
 });

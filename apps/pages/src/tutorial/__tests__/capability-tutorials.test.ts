@@ -11,26 +11,43 @@ import {
   createSupportSession,
   fakeAgentAnswering,
 } from "@opensesame/support-agent";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   CAPABILITY_TUTORIALS,
   guideGoal,
   guideGoalIds,
 } from "../registry/goals.js";
 import { registerGuidePredicates } from "../registry/predicates.js";
-import { GUIDE_ROUTES } from "../registry/routes.js";
+import { mergedGuideRoutes } from "../registry/routes.js";
 import { guidePredicateIds } from "../registry/state.js";
+import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
+import { registerOptionalTutorials } from "../registry/optional-tutorials.test-support.js";
 import { guideTargetIds } from "../registry/targets.js";
 
+/**
+ * The whole authored corpus, not the core-only default: every optional
+ * partition is registered the way its module registers it on activation, so
+ * this sweep still proves a compiling guide exists for each PWA capability.
+ */
+let revokeTutorials: readonly (() => void)[] = [];
 beforeAll(() => {
   registerGuidePredicates();
+  revokeTutorials = [
+    registerOptionalTutorials(),
+    // `/settings/connections` is a route because the connectors capability
+    // contributes that Settings category, not because it is authored twice.
+    registerLegacySettingsCategories(),
+  ];
+});
+afterAll(() => {
+  for (const revoke of revokeTutorials) revoke();
 });
 
 function vocabulary() {
   return {
     goals: guideGoalIds(),
     targets: guideTargetIds(),
-    routes: GUIDE_ROUTES.map((route) => route.id),
+    routes: mergedGuideRoutes().map((route) => route.id),
     predicates: guidePredicateIds(),
   };
 }

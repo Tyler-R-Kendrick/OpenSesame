@@ -136,8 +136,7 @@ function validateSets(byId, optional, sets, diagnostics) {
     [sets.selectedOptional, "installationSelection.selectedOptional"],
     [Object.values(sets.chosen), "installationSelection.chosenAlternatives"],
   ];
-  for (const [ids, where] of named)
-    requireKnown(byId, ids, where, diagnostics);
+  for (const [ids, where] of named) requireKnown(byId, ids, where, diagnostics);
   for (const id of [...sets.required, ...sets.allowed, ...sets.prohibited]) {
     if (byId.has(id) && !optional.has(id))
       diagnostics.push(
@@ -170,7 +169,9 @@ function validateSets(byId, optional, sets, diagnostics) {
 function resolveRoots(byId, sets, permitted, notes) {
   for (const id of sets.required) {
     if (!sets.acceptedRequired.has(id))
-      notes.push(`required "${id}" is not yet accepted; distributed regardless`);
+      notes.push(
+        `required "${id}" is not yet accepted; distributed regardless`,
+      );
   }
   const roots = [];
   for (const id of [...sets.required, ...sets.selectedOptional]) {

@@ -231,8 +231,7 @@ function Join({ model }: { model: CapabilitySetupModel }) {
 }
 
 function Purpose({ model }: { model: CapabilitySetupModel }) {
-  const onPurposeStage =
-    model.stage === "purpose" || model.stage === "cards";
+  const onPurposeStage = model.stage === "purpose" || model.stage === "cards";
   if (!onPurposeStage || model.managed) return null;
   return (
     <PurposeCards

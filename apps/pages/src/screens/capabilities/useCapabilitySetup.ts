@@ -110,6 +110,47 @@ function useDraftEditors(args: DraftEditorArgs): DraftEditors {
   );
 }
 
+type RoadArgs = Readonly<{
+  selection: InstallationCapabilitySelection | null;
+  requiredNotAccepted: readonly CapabilityId[];
+  managed: boolean;
+  setDraft: Dispatch<SetStateAction<CapabilityDraft | null>>;
+  setStage: Dispatch<SetStateAction<SetupStage>>;
+  openReview: (next: CapabilityDraft) => void;
+}>;
+
+/**
+ * The three roads in, and the explicit yes that follows the join road. Each
+ * is a choice object on the entry screen and none of them commits: minimal
+ * goes straight to the review, customize opens the cards, join opens the
+ * requirements panel (MODEL-10).
+ */
+function useRoads(args: RoadArgs) {
+  const { selection, requiredNotAccepted, managed } = args;
+  const { setDraft, setStage, openReview } = args;
+  const roads = useMemo(
+    () => ({
+      minimal: () => openReview(minimalDraft()),
+      customize: () => {
+        setDraft(draftFromSelection(selection, "customize"));
+        setStage(managed ? "cards" : "purpose");
+      },
+      join: () => setStage("join"),
+    }),
+    [managed, openReview, selection, setDraft, setStage],
+  );
+  const accept = useCallback(() => {
+    setDraft(
+      acceptRequired(
+        draftFromSelection(selection, "join"),
+        requiredNotAccepted,
+      ),
+    );
+    setStage("cards");
+  }, [requiredNotAccepted, selection, setDraft, setStage]);
+  return { roads, accept };
+}
+
 type ApplyArgs = Readonly<{
   draft: CapabilityDraft | null;
   busy: boolean;
@@ -202,27 +243,14 @@ export function useCapabilitySetup(initialJoin: boolean) {
     setStage("roads");
   }, []);
 
-  const roads = useMemo(
-    () => ({
-      minimal: () => openReview(minimalDraft()),
-      customize: () => {
-        setDraft(draftFromSelection(snapshot.selection, "customize"));
-        setStage(managed ? "cards" : "purpose");
-      },
-      join: () => setStage("join"),
-    }),
-    [managed, openReview, snapshot.selection],
-  );
-
-  const accept = useCallback(() => {
-    setDraft(
-      acceptRequired(
-        draftFromSelection(snapshot.selection, "join"),
-        requiredNotAccepted,
-      ),
-    );
-    setStage("cards");
-  }, [requiredNotAccepted, snapshot.selection]);
+  const { roads, accept } = useRoads({
+    selection: snapshot.selection,
+    requiredNotAccepted,
+    managed,
+    setDraft,
+    setStage,
+    openReview,
+  });
 
   const edit = useDraftEditors({
     draft,

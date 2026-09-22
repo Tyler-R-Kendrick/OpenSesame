@@ -120,12 +120,11 @@ function readVersion(appRoot) {
 }
 
 /** Everything the two plugins share, computed once in the `config` hook. */
-export async function composeState(options, userConfig, command = "build") {
+/** The build variables, profile and gate this run is configured with. */
+function resolveSettings(options, command) {
   const appRoot = options.appRoot ?? DEFAULT_APP_ROOT;
-  const repoRoot = options.repoRoot ?? resolve(appRoot, "../..");
   const variables = options.env ?? process.env;
   const env = resolveBuildEnvironment(variables);
-  const mode = options.mode ?? env.mode;
   // The dev server is a debugging surface, not a merge gate: unless the gate
   // is named explicitly it reports, so a tree whose module owners have not
   // landed still serves.
@@ -135,50 +134,98 @@ export async function composeState(options, userConfig, command = "build") {
       ? env.gate
       : "report");
   const profilePath = options.profilePath ?? env.profilePath;
-  const profile = profilePath
-    ? loadProfile(profilePath, appRoot)
-    : IMPLICIT_PROFILE;
-  const inventory =
-    options.inventory ??
-    (await (options.loadInventory ?? loadInventory)(appRoot, {
-      alias: userConfig?.resolve?.alias,
-      lenient: gate === "report",
-      logger: options.logger ?? console,
-    }));
-  const sets = distributedCapabilities(inventory.catalog, profile, mode);
-  const isExcluded = (capability) =>
-    capability !== null &&
-    sets.all.has(capability) &&
-    !sets.distributed.has(capability);
+  return {
+    appRoot,
+    repoRoot: options.repoRoot ?? resolve(appRoot, "../.."),
+    mode: options.mode ?? env.mode,
+    gate,
+    profile: profilePath ? loadProfile(profilePath, appRoot) : IMPLICIT_PROFILE,
+  };
+}
+
+/**
+ * The MODULE_TABLE rows: distributed, page-loadable modules whose entry file
+ * exists. An absent entry is a build error under `enforce` and a dropped row
+ * with a warning under `report` (the diagnostic run over a tree whose module
+ * owners have not landed yet).
+ */
+function resolveModuleTable(inventory, sets, settings, logger, diagnostics) {
   const modules = normalizeModuleOwnership(
     inventory.moduleOwnership,
     inventory.catalog,
   );
-  const diagnostics = [];
   for (const record of modules) {
     if (!sets.all.has(record.capability))
       diagnostics.push(
         `module "${record.id}" is owned by unknown capability "${record.capability}"`,
       );
   }
-  let table = modules
+  const table = modules
     .filter((m) => sets.distributed.has(m.capability) && m.entry !== null)
     .map((m) => ({
       ...m,
-      absolute: isAbsolute(m.entry) ? m.entry : resolve(appRoot, m.entry),
+      absolute: isAbsolute(m.entry)
+        ? m.entry
+        : resolve(settings.appRoot, m.entry),
     }));
   const absent = table.filter((m) => !existsSync(m.absolute));
-  if (gate === "enforce") {
+  if (settings.gate === "enforce") {
     for (const m of absent)
       diagnostics.push(`module "${m.id}" entry file is absent: ${m.entry}`);
-  } else if (absent.length > 0) {
-    // Report mode is the diagnostic run over a tree whose module owners have
-    // not landed yet: drop what is absent from the table and say so.
-    (options.logger ?? console).warn(
-      `[capability-compose] report gate: ${absent.length} module entr${absent.length === 1 ? "y" : "ies"} absent, dropped from MODULE_TABLE: ${absent.map((m) => m.id).join(", ")}`,
-    );
-    table = table.filter((m) => existsSync(m.absolute));
+    return table;
   }
+  if (absent.length === 0) return table;
+  logger.warn(
+    `[capability-compose] report gate: ${absent.length} module entr${absent.length === 1 ? "y" : "ies"} absent, dropped from MODULE_TABLE: ${absent.map((m) => m.id).join(", ")}`,
+  );
+  return table.filter((m) => existsSync(m.absolute));
+}
+
+/** The `DistributionContract` the virtual module hands the runtime. */
+function buildContract(settings, inventory, sets, table, workerVariants, base) {
+  const moduleIds = table.map((m) => m.id).sort();
+  return {
+    distributionId: distributionId({
+      mode: settings.mode,
+      moduleIds,
+      profileName: settings.profile.name,
+      version: readVersion(settings.appRoot),
+    }),
+    mode: settings.mode,
+    capabilityIds: [...sets.distributed].sort(),
+    moduleIds,
+    workerVariants: contractWorkerVariants(
+      sets.distributed,
+      inventory.catalog,
+      workerVariants,
+    ),
+    basePath: base ?? "/",
+  };
+}
+
+export async function composeState(options, userConfig, command = "build") {
+  const settings = resolveSettings(options, command);
+  const logger = options.logger ?? console;
+  const inventory =
+    options.inventory ??
+    (await (options.loadInventory ?? loadInventory)(settings.appRoot, {
+      alias: userConfig?.resolve?.alias,
+      lenient: settings.gate === "report",
+      logger,
+    }));
+  const sets = distributedCapabilities(
+    inventory.catalog,
+    settings.profile,
+    settings.mode,
+  );
+  const diagnostics = [];
+  const table = resolveModuleTable(
+    inventory,
+    sets,
+    settings,
+    logger,
+    diagnostics,
+  );
   const htmlEntries = normalizeFileOwnership(inventory.htmlEntryOwnership);
   const publicFiles = normalizeFileOwnership(inventory.publicFileOwnership);
   for (const { path, capability } of [...htmlEntries, ...publicFiles]) {
@@ -189,7 +236,7 @@ export async function composeState(options, userConfig, command = "build") {
   }
   if (diagnostics.length > 0)
     throw new InvalidProfileError(
-      `capability inventory rejects profile "${profile.name}"`,
+      `capability inventory rejects profile "${settings.profile.name}"`,
       diagnostics,
     );
   const workerVariants = inventory.workerVariants ?? undefined;
@@ -198,46 +245,32 @@ export async function composeState(options, userConfig, command = "build") {
     sets.distributed,
     workerVariants,
   );
-  const moduleIds = table.map((m) => m.id).sort();
-  const contract = {
-    distributionId: distributionId({
-      mode,
-      moduleIds,
-      profileName: profile.name,
-      version: readVersion(appRoot),
-    }),
-    mode,
-    capabilityIds: [...sets.distributed].sort(),
-    moduleIds,
-    workerVariants: contractWorkerVariants(
+  const rules = inventory.classification;
+  return {
+    ...settings,
+    inventory,
+    sets,
+    isExcluded: (capability) =>
+      capability !== null &&
+      sets.all.has(capability) &&
+      !sets.distributed.has(capability),
+    table,
+    htmlEntries,
+    publicFiles,
+    contract: buildContract(
+      settings,
+      inventory,
+      sets,
+      table,
+      workerVariants,
+      userConfig?.base,
+    ),
+    classify: (id) =>
+      classifyModule(id, rules, { repoRoot: settings.repoRoot }),
+    workers: workerVariantsFor(
       sets.distributed,
       inventory.catalog,
       workerVariants,
     ),
-    basePath: userConfig?.base ?? "/",
-  };
-  const rules = inventory.classification;
-  const classify = (id) => classifyModule(id, rules, { repoRoot });
-  const workers = workerVariantsFor(
-    sets.distributed,
-    inventory.catalog,
-    workerVariants,
-  );
-  return {
-    appRoot,
-    repoRoot,
-    mode,
-    gate,
-    profile,
-    inventory,
-    sets,
-    isExcluded,
-    table,
-    htmlEntries,
-    publicFiles,
-    contract,
-    classify,
-    workers,
   };
 }
-

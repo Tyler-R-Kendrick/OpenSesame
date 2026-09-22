@@ -95,10 +95,7 @@ function optionalAxes(entry: CapabilityDescriptor, input: DoubleInput): Axes {
   };
 }
 
-export function axesOf(
-  entry: CapabilityDescriptor,
-  input: DoubleInput,
-): Axes {
+export function axesOf(entry: CapabilityDescriptor, input: DoubleInput): Axes {
   if (entry.tier !== "core") return optionalAxes(entry, input);
   return {
     permitted: true,
@@ -192,7 +189,10 @@ export function closureOf(
     else out.members.push(dep);
   }
   slotClosure(root, axes, input, out);
-  return { members: out.members.filter((id) => byId.has(id)), conflicts: out.conflicts };
+  return {
+    members: out.members.filter((id) => byId.has(id)),
+    conflicts: out.conflicts,
+  };
 }
 
 /** Consent covers a capability only when the receipt bound its exposure. */

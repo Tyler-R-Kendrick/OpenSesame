@@ -6,6 +6,8 @@ import {
   CONNECTIONS_TARGETS,
 } from "../../tutorial/registry/connections-catalog.js";
 import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
+import { describeCapability } from "../../lib/capabilities/catalog.js";
+import type { PagesWebMcpTool } from "../../webmcp/tool-shared.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -20,6 +22,9 @@ import type * as Effects from "./unlock-effects.js";
 let runtime: typeof Runtime;
 let effects: typeof Effects;
 
+const CONNECTOR_OPERATIONS =
+  describeCapability("connectors.external")?.operationIds ?? [];
+
 const KINDS = [
   "command-path",
   "keymap-jump",
@@ -31,9 +36,11 @@ const KINDS = [
   "tutorial-route",
   "tutorial-target",
   "unlock-effect",
+  "webmcp-tool",
 ];
 // 1 section + 2 routes + 1 settings + 1 setup + 1 command + 1 jump
-// + the authored connections targets, goals and route + 2 unlock effects
+// + the authored connections targets, goals and route + 2 webmcp tools
+// + 2 unlock effects
 const COUNT =
   1 +
   2 +
@@ -44,6 +51,7 @@ const COUNT =
   CONNECTIONS_TARGETS.length +
   CONNECTIONS_GOALS.length +
   CONNECTIONS_ROUTES.length +
+  2 +
   2;
 
 describe("connectors.external runtime", () => {
@@ -110,6 +118,33 @@ describe("connectors.external runtime", () => {
       "hydrate-vercel-connect",
     ]);
     await handle.dispose();
+  });
+
+  it("contributes the connection tools, tagged with the operations they perform", async () => {
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const tools = t.entries("webmcp-tool");
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "opensesame_connections_read",
+      "opensesame_open_connect_ceremony",
+    ]);
+    // Every tool names its operation ids, so the core can drop the ones the
+    // plan has not approved before the browser is told about any of them.
+    expect(
+      tools.map((tool) => (tool as PagesWebMcpTool).capabilityIds),
+    ).toEqual([
+      ["connections.list", "connections.inspect"],
+      ["connections.create", "connections.bindings"],
+    ]);
+    for (const id of tools.flatMap(
+      (tool) => (tool as PagesWebMcpTool).capabilityIds,
+    )) {
+      expect(CONNECTOR_OPERATIONS).toContain(id);
+    }
+    // Disabling connectors takes the tools with it: nothing survives the
+    // revoke for `agents.webmcp` to register.
+    await handle.dispose();
+    expect(t.entries("webmcp-tool")).toEqual([]);
   });
 
   it("hydrates its own keys and applies the Connect callback base from runtime config", async () => {

@@ -19,50 +19,17 @@
  * precache manifest) and an `enforce: "post"` one (graph + gate, after the
  * HTML plugin has emitted the documents and the worker has been built).
  */
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import {
-  IMPLICIT_PROFILE,
-  InvalidProfileError,
-  assertWorkerVariantsCover,
-  contractWorkerVariants,
-  distributedCapabilities,
-  distributionId,
-  loadProfile,
-  normalizeFileOwnership,
-  normalizeModuleOwnership,
-  publicPathTarget,
-  resolveBuildEnvironment,
-  workerVariantsFor,
-} from "./lib/capability-distribution.mjs";
-import {
-  VIRTUAL_MODULES,
-  canonicalJson,
-  classifyModule,
-  isUnclassified,
-  parseHtmlEntry,
-} from "./lib/capability-graph.mjs";
-import {
-  formatViolations,
-  violations,
-} from "./lib/capability-invariants.mjs";
-import { FALLBACK_INVENTORY } from "./lib/capability-inventory-fallback.mjs";
+import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import { buildGraph } from "./lib/capability-build-graph.mjs";
+import { composeState } from "./lib/capability-compose-state.mjs";
+import { publicPathTarget } from "./lib/capability-distribution.mjs";
+import { VIRTUAL_MODULES, canonicalJson } from "./lib/capability-graph.mjs";
+import { formatViolations, violations } from "./lib/capability-invariants.mjs";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_APP_ROOT = resolve(here, "..");
-const INVENTORY_FILES = {
-  catalog: "src/lib/capabilities/catalog.ts",
-  ownership: "src/lib/capabilities/ownership.ts",
-  classification: "src/lib/capabilities/classification.ts",
-};
+export { loadInventory } from "./lib/capability-compose-state.mjs";
+export { buildGraph } from "./lib/capability-build-graph.mjs";
+
 const toPosix = (path) => path.replace(/\\/g, "/");
 
 function pruneInputs(build, state) {
@@ -134,28 +101,54 @@ function writeGraph(outDir, graph) {
   writeFileSync(join(outDir, "capability-graph.json"), graphJson(graph));
 }
 
-export function capabilityCompose(options = {}) {
-  let state = null;
-  let resolved = null;
-  let graph = null;
-  const outDir = () => resolve(resolved.root, resolved.build.outDir);
-  const virtualIds = new Set(Object.values(VIRTUAL_MODULES));
-  const logger = () => resolved?.logger ?? console;
+/**
+ * Record what each worker variant and public file actually became on disk,
+ * and refuse a hardened build in which an excluded public file survived.
+ */
+function measureEmittedFiles(state, graph, dist) {
+  const stat = (file) => {
+    try {
+      return statSync(join(dist, file)).size;
+    } catch {
+      return null;
+    }
+  };
+  graph.workers = graph.workers.map((w) => {
+    const size = stat(w.file);
+    return { ...w, size, present: size !== null };
+  });
+  graph.publicFiles = graph.publicFiles.map((p) => {
+    const size = stat(publicPathTarget(p.file));
+    return { ...p, size, present: size !== null };
+  });
+  for (const file of state.publicFiles) {
+    if (
+      state.isExcluded(file.capability) &&
+      stat(publicPathTarget(file.path)) !== null
+    )
+      throw new Error(
+        `[capability-compose] excluded public file survived: ${file.path}`,
+      );
+  }
+}
 
-  const main = {
+/** Config, virtual modules and hardened public-file pruning. */
+function mainPlugin(options, ctx) {
+  const virtualIds = new Set(Object.values(VIRTUAL_MODULES));
+  return {
     name: "opensesame-capability-compose",
     /** Test seam: the state the `config` hook computed. */
-    __state: () => state,
+    __state: () => ctx.state,
     async config(userConfig, env) {
       // Vitest resolves this config for every test run; the virtual modules
       // are substituted through the loader/store seams there and never
       // evaluated (virtual.d.ts), so the plugin stays inert under test.
       if (env?.mode === "test" || (options.env ?? process.env).VITEST) return;
-      state = await composeState(options, userConfig, env?.command);
+      const state = await composeState(options, userConfig, env?.command);
+      ctx.state = state;
       if (!userConfig.build) userConfig.build = {};
-      const build = userConfig.build;
-      pruneInputs(build, state);
-      installManualChunks(build, state);
+      pruneInputs(userConfig.build, state);
+      installManualChunks(userConfig.build, state);
       return {
         define: {
           "import.meta.env.OPENSESAME_BUILD_MODE": JSON.stringify(state.mode),
@@ -166,34 +159,35 @@ export function capabilityCompose(options = {}) {
       };
     },
     configResolved(config) {
-      resolved = config;
-      if (!state) return;
-      state.contract = { ...state.contract, basePath: config.base };
-      if (state.inventory.source !== "authored") {
+      ctx.resolved = config;
+      if (!ctx.state) return;
+      ctx.state.contract = { ...ctx.state.contract, basePath: config.base };
+      if (ctx.state.inventory.source !== "authored") {
         config.logger.warn(
-          `[capability-compose] inventory is ${state.inventory.source}; missing: ${state.inventory.missing.join(", ")}`,
+          `[capability-compose] inventory is ${ctx.state.inventory.source}; missing: ${ctx.state.inventory.missing.join(", ")}`,
         );
       }
     },
     resolveId(id) {
-      return state && virtualIds.has(id) ? `\0${id}` : null;
+      return ctx.state && virtualIds.has(id) ? `\0${id}` : null;
     },
     load(id) {
-      if (!state) return null;
+      if (!ctx.state) return null;
       if (id === `\0${VIRTUAL_MODULES.table}`)
-        return moduleTableSource(state, resolved.command);
+        return moduleTableSource(ctx.state, ctx.resolved.command);
       if (id === `\0${VIRTUAL_MODULES.distribution}`)
-        return `export const DISTRIBUTION = Object.freeze(${JSON.stringify(state.contract)});\n`;
+        return `export const DISTRIBUTION = Object.freeze(${JSON.stringify(ctx.state.contract)});\n`;
       return null;
     },
     closeBundle: {
       sequential: true,
       handler() {
+        const { state, resolved } = ctx;
         if (!state || state.mode !== "hardened" || resolved.command !== "build")
           return;
         for (const file of state.publicFiles) {
           if (state.isExcluded(file.capability))
-            rmSync(join(outDir(), publicPathTarget(file.path)), {
+            rmSync(join(ctx.outDir(), publicPathTarget(file.path)), {
               force: true,
               recursive: true,
             });
@@ -201,24 +195,28 @@ export function capabilityCompose(options = {}) {
       },
     },
   };
+}
 
-  const post = {
+/** The post-order half: the graph, the records it emits, and the gate. */
+function graphPlugin(ctx) {
+  return {
     name: "opensesame-capability-compose:graph",
     enforce: "post",
     apply: "build",
-    generateBundle(outputOptions, bundle) {
+    generateBundle(_outputOptions, bundle) {
+      const { state } = ctx;
       if (!state) return;
-      graph = buildGraph(this, bundle, state, resolved.base);
+      ctx.graph = buildGraph(this, bundle, state, ctx.resolved.base);
       try {
-        gateOrReport(state, graph, logger(), "generateBundle");
+        gateOrReport(state, ctx.graph, ctx.logger(), "generateBundle");
       } catch (error) {
-        writeGraph(outDir(), graph);
+        writeGraph(ctx.outDir(), ctx.graph);
         throw error;
       }
       this.emitFile({
         type: "asset",
         fileName: "capability-graph.json",
-        source: graphJson(graph),
+        source: graphJson(ctx.graph),
       });
       this.emitFile({
         type: "asset",
@@ -229,37 +227,24 @@ export function capabilityCompose(options = {}) {
     closeBundle: {
       sequential: true,
       handler() {
+        const { state, graph } = ctx;
         if (!graph) return;
-        const dist = outDir();
-        const stat = (file) => {
-          try {
-            return statSync(join(dist, file)).size;
-          } catch {
-            return null;
-          }
-        };
-        graph.workers = graph.workers.map((w) => ({
-          ...w,
-          size: stat(w.file),
-          present: stat(w.file) !== null,
-        }));
-        graph.publicFiles = graph.publicFiles.map((p) => {
-          const size = stat(publicPathTarget(p.file));
-          return { ...p, size, present: size !== null };
-        });
-        for (const file of state.publicFiles) {
-          if (
-            state.isExcluded(file.capability) &&
-            stat(publicPathTarget(file.path)) !== null
-          )
-            throw new Error(
-              `[capability-compose] excluded public file survived: ${file.path}`,
-            );
-        }
+        const dist = ctx.outDir();
+        measureEmittedFiles(state, graph, dist);
         writeGraph(dist, graph);
-        gateOrReport(state, graph, logger(), "closeBundle");
+        gateOrReport(state, graph, ctx.logger(), "closeBundle");
       },
     },
   };
-  return [main, post];
+}
+
+export function capabilityCompose(options = {}) {
+  const ctx = {
+    state: null,
+    resolved: null,
+    graph: null,
+    outDir: () => resolve(ctx.resolved.root, ctx.resolved.build.outDir),
+    logger: () => ctx.resolved?.logger ?? console,
+  };
+  return [mainPlugin(options, ctx), graphPlugin(ctx)];
 }

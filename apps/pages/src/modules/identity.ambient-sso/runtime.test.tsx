@@ -10,6 +10,7 @@ import {
   importUnderSpies,
   runtimeOf,
 } from "../runtime-test-kit.js";
+import type { ContextWithPorts } from "../ports-b.js";
 import { createTestContext } from "../test-context.js";
 import type * as Runtime from "./runtime.js";
 
@@ -85,10 +86,8 @@ describe("identity.ambient-sso runtime", () => {
       revoke,
     }));
     const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate({
-      ...t.ctx,
-      registerSettingsPanel,
-    });
+    const ctx: ContextWithPorts = { ...t.ctx, registerSettingsPanel };
+    const handle = await runtime.capabilityRuntime.activate(ctx);
     expect(registerSettingsPanel).toHaveBeenCalledTimes(1);
     expect(registerSettingsPanel.mock.calls[0]?.[0]).toMatchObject({
       id: "ambient-auth",

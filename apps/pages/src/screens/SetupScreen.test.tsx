@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,7 +45,6 @@ afterEach(() => {
   cleanup();
   clearInstallOffer();
 });
-
 
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
   it("opens the operator ceremony on its capabilities tab when asked for", () => {

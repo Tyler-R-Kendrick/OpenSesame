@@ -184,7 +184,10 @@ export function classifyModule(id, rules, { repoRoot }) {
       rationale: best.rationale ?? "rule",
     };
   }
-  return { id: normalized, ...fallbackClassification(normalized, directoryOwner) };
+  return {
+    id: normalized,
+    ...fallbackClassification(normalized, directoryOwner),
+  };
 }
 
 export function isUnclassified(entry) {

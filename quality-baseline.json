@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 505,
-    "violations": 798,
-    "oversizedLines": 254226
+    "files": 504,
+    "violations": 797,
+    "oversizedLines": 253749
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -816,9 +816,6 @@
     },
     "apps/pages/src/screens/DropClaimScreen.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/screens/SetupScreen.test.tsx": {
-      "max-lines": 477
     },
     "apps/pages/src/screens/SetupScreen.tsx": {
       "max-lines-per-function": 1
