@@ -58,9 +58,27 @@ function matchCandidates(normalized) {
 }
 
 /**
+ * Same boundary rule as `classification.ts`'s `ruleMatches`: a prefix ending
+ * in `/` or `-` matches anything under it; any other prefix matches the exact
+ * path or a continuation by `.`, `-` or `/` (`src/lib/push` matches
+ * `push.ts`, not `pushover.ts`).
+ */
+export function ruleMatches(pattern, path) {
+  if (!path.startsWith(pattern)) return false;
+  if (pattern.endsWith("/") || pattern.endsWith("-")) return true;
+  const next = path.charAt(pattern.length);
+  return next === "" || next === "." || next === "-" || next === "/";
+}
+
+const MODULES_DIR_PATTERNS = new Set([MODULES_DIR, "src/modules/", "src/modules"]);
+
+/**
  * Classify one module by the longest matching prefix rule. Rules are
  * `{ pattern: string | RegExp, classification, capability, rationale }`; a
- * RegExp rule is consulted only when no prefix rule matches.
+ * RegExp rule is consulted only when no prefix rule matches. Under
+ * `src/modules/` the directory name is the owner (§4.3), so a rule naming
+ * the bare directory is ignored there; a rule naming a specific module
+ * directory still wins, and `violations()` checks it (BUILD-06).
  */
 export function classifyModule(id, rules, { repoRoot }) {
   const normalized = normalizeModuleId(id, { repoRoot });
@@ -68,11 +86,13 @@ export function classifyModule(id, rules, { repoRoot }) {
     return { id: normalized, classification: "core", capability: null, rationale: "virtual" };
   }
   const candidates = matchCandidates(normalized);
+  const inModules = normalized.startsWith(MODULES_DIR);
   let best = null;
   for (const rule of rules ?? []) {
     if (typeof rule.pattern !== "string") continue;
     const pattern = toPosix(rule.pattern);
-    if (candidates.some((c) => c.startsWith(pattern))) {
+    if (inModules && MODULES_DIR_PATTERNS.has(pattern)) continue;
+    if (candidates.some((c) => ruleMatches(pattern, c))) {
       if (best === null || pattern.length > best.pattern.length) best = { ...rule, pattern };
     }
   }
