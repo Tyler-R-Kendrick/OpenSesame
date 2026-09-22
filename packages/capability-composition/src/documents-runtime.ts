@@ -18,12 +18,9 @@ import {
   isCapabilityId,
   isModuleId,
 } from "./ids.js";
-import {
-  type ObjectReader,
-  REVISION_BOUNDS,
-  indexPath,
-  rootReader,
-} from "./parse-fields.js";
+import type { ObjectReader } from "./parse-fields.js";
+import { REVISION_BOUNDS, indexPath } from "./parse-primitives.js";
+import { rootReader } from "./parse-support.js";
 import type {
   ConsentReceipt,
   DistributionContract,

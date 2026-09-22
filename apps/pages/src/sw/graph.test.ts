@@ -60,6 +60,15 @@ describe("parseCapabilityGraph", () => {
     ]);
   });
 
+  it("reads the build's `importedCss` edge as well as `css`", () => {
+    const parsed = parseCapabilityGraph({
+      chunks: [
+        { file: "a.js", importedCss: ["a.css"], css: ["b.css"], modules: [] },
+      ],
+    });
+    expect(parsed?.chunks[0]?.css).toEqual(["a.css", "b.css"]);
+  });
+
   it("reads core from `core`, `ownership` or an all-core module list", () => {
     const parsed = parseCapabilityGraph({
       chunks: [

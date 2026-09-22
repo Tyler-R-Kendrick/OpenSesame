@@ -139,17 +139,12 @@ export type ContributionEntry<K extends ContributionKind> =
   ContributionEntryMap[K];
 
 /**
- * Destination-validated fetch. The implementation (S18, `egress.ts`) checks
- * the destination against the plan's network envelope and the capability's
- * declared egress classes; `egress-default.ts` allows same-origin only.
+ * Destination-validated fetch (S18, `egress.ts`): decides against the plan's
+ * network envelope and the capability's declared egress classes before any
+ * socket opens. `egress-default.ts` is the same-origin-only stand-in used
+ * until a plan and descriptor are in hand.
  */
-export type EgressPort = Readonly<{
-  fetch(
-    input: URL | string,
-    init: RequestInit | undefined,
-    meta: { capability: CapabilityId; purpose: string },
-  ): Promise<Response>;
-}>;
+export type { EgressPort } from "./egress.js";
 
 export type ApprovedCapabilityContext = Readonly<{
   lease: ActivationLease;
@@ -162,7 +157,7 @@ export type ApprovedCapabilityContext = Readonly<{
   /** `kvHydrate` for the module's own keys. */
   hydrate: (keys: readonly string[]) => Promise<void>;
   vault: Readonly<{ tomb: string | null; guest: boolean }>;
-  egress: EgressPort;
+  egress: import("./egress.js").EgressPort;
 }>;
 
 export type CapabilityRuntime = Readonly<{

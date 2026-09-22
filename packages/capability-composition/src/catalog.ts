@@ -14,7 +14,13 @@ import {
   pushDiagnostic,
   validationOf,
 } from "./diagnostics.js";
-import { compareIds, isCapabilityId, isModuleId, isUnitName } from "./ids.js";
+import {
+  MAX_DEPENDENCY_DEPTH,
+  checkGraph,
+  checkReferences,
+  hasDuplicates,
+} from "./catalog-graph.js";
+import { isCapabilityId, isModuleId, isUnitName } from "./ids.js";
 import type {
   CapabilityCatalog,
   CapabilityDescriptor,
@@ -22,8 +28,8 @@ import type {
 } from "./types.js";
 
 export const MAX_CATALOG_CAPABILITIES = 256;
-export const MAX_DEPENDENCY_DEPTH = 16;
 export const MAX_TITLE_LENGTH = 80;
+export { MAX_DEPENDENCY_DEPTH };
 export const MAX_SUMMARY_LENGTH = 400;
 const MAX_PURPOSE_LENGTH = 120;
 
@@ -66,16 +72,6 @@ export function buildCatalog(
 }
 
 /** Outgoing edges that shape the closure: hard dependencies and every alternative. */
-function graphEdges(d: CapabilityDescriptor): CapabilityId[] {
-  const out = new Set<CapabilityId>(d.dependencies);
-  for (const slot of d.alternatives) for (const id of slot.oneOf) out.add(id);
-  return [...out].sort(compareIds);
-}
-
-function hasDuplicates(values: readonly string[]): boolean {
-  return new Set(values).size !== values.length;
-}
-
 function checkText(
   d: CapabilityDescriptor,
   path: string,
@@ -235,131 +231,6 @@ function checkModules(
       );
     }
   });
-}
-
-function checkReferences(
-  d: CapabilityDescriptor,
-  path: string,
-  index: ReadonlyMap<CapabilityId, CapabilityDescriptor>,
-  diags: Diagnostic[],
-): void {
-  const refCheck = (id: CapabilityId, refPath: string): void => {
-    const target = index.get(id);
-    if (target === undefined) {
-      pushDiagnostic(
-        diags,
-        diagnostic(
-          "UNKNOWN_CAPABILITY",
-          refPath,
-          `\`${id}\` is not in the catalog`,
-        ),
-      );
-      return;
-    }
-    if (id === d.id) {
-      pushDiagnostic(
-        diags,
-        diagnostic("DEPENDENCY_CYCLE", refPath, `\`${id}\` refers to itself`),
-      );
-    }
-    if (d.tier === "core" && target.tier === "optional") {
-      pushDiagnostic(
-        diags,
-        diagnostic(
-          "CORE_DEPENDS_ON_OPTIONAL",
-          refPath,
-          `core \`${d.id}\` may not depend on optional \`${id}\``,
-        ),
-      );
-    }
-  };
-  if (hasDuplicates(d.dependencies)) {
-    pushDiagnostic(
-      diags,
-      diagnostic("DUPLICATE_ID", `${path}.dependencies`, "dependencies repeat"),
-    );
-  }
-  d.dependencies.forEach((id, i) => refCheck(id, `${path}.dependencies[${i}]`));
-  const slots = new Set<string>();
-  d.alternatives.forEach((slot, i) => {
-    const slotPath = `${path}.alternatives[${i}]`;
-    if (!isUnitName(slot.slot) || slots.has(slot.slot)) {
-      pushDiagnostic(
-        diags,
-        diagnostic(
-          "INVALID_ID",
-          `${slotPath}.slot`,
-          `slot \`${slot.slot}\` must be well-formed and unique`,
-        ),
-      );
-    }
-    slots.add(slot.slot);
-    if (slot.oneOf.length === 0 || hasDuplicates(slot.oneOf)) {
-      pushDiagnostic(
-        diags,
-        diagnostic(
-          "INVALID_VALUE",
-          `${slotPath}.oneOf`,
-          "a slot needs at least one distinct option",
-        ),
-      );
-    }
-    slot.oneOf.forEach((id, j) => refCheck(id, `${slotPath}.oneOf[${j}]`));
-  });
-}
-
-/**
- * Longest-path depth over the dependency graph; a cycle is reported once at
- * the lexicographically smallest capability on it. Iterative and bounded by
- * the catalog size.
- */
-function checkGraph(
-  index: ReadonlyMap<CapabilityId, CapabilityDescriptor>,
-  diags: Diagnostic[],
-): void {
-  const depth = new Map<CapabilityId, number>();
-  const onStack = new Set<CapabilityId>();
-  const cyclic = new Set<CapabilityId>();
-  const visit = (id: CapabilityId): number => {
-    const known = depth.get(id);
-    if (known !== undefined) return known;
-    if (onStack.has(id)) {
-      cyclic.add(id);
-      return 0;
-    }
-    const d = index.get(id);
-    if (d === undefined) return 0;
-    onStack.add(id);
-    let deepest = 0;
-    for (const edge of graphEdges(d))
-      deepest = Math.max(deepest, visit(edge) + 1);
-    onStack.delete(id);
-    depth.set(id, deepest);
-    return deepest;
-  };
-  for (const id of [...index.keys()].sort(compareIds)) {
-    const d = visit(id);
-    if (d > MAX_DEPENDENCY_DEPTH) {
-      pushDiagnostic(
-        diags,
-        diagnostic(
-          "DEPENDENCY_DEPTH",
-          `capabilities.${id}`,
-          `dependency depth ${d} exceeds ${MAX_DEPENDENCY_DEPTH}`,
-        ),
-      );
-    }
-  }
-  for (const id of [...cyclic].sort(compareIds)) {
-    pushDiagnostic(
-      diags,
-      diagnostic(
-        "DEPENDENCY_CYCLE",
-        `capabilities.${id}`,
-        `\`${id}\` is on a dependency cycle`,
-      ),
-    );
-  }
 }
 
 export function validateCatalog(c: CapabilityCatalog): ValidationResult {

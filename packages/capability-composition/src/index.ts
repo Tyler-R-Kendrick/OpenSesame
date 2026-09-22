@@ -51,7 +51,7 @@ export {
   parseConsentReceipt,
   parseDistributionContract,
 } from "./documents-runtime.js";
-export { MAX_LIST_IDS } from "./parse-fields.js";
+export { MAX_LIST_IDS } from "./parse-primitives.js";
 export type { ResolveInput } from "./resolve-input.js";
 export {
   NO_SELECTION_REVISION,

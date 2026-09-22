@@ -15,14 +15,9 @@ import {
   parseResultOf,
 } from "./diagnostics.js";
 import { MAX_OPAQUE_ID_LENGTH, isCapabilityId } from "./ids.js";
-import {
-  MAX_ORIGIN_LENGTH,
-  type ObjectReader,
-  REVISION_BOUNDS,
-  checkDisjoint,
-  isSlotName,
-  rootReader,
-} from "./parse-fields.js";
+import type { ObjectReader } from "./parse-fields.js";
+import { MAX_ORIGIN_LENGTH, REVISION_BOUNDS } from "./parse-primitives.js";
+import { checkDisjoint, isSlotName, rootReader } from "./parse-support.js";
 import type {
   DeliveryPreference,
   InstallationCapabilitySelection,

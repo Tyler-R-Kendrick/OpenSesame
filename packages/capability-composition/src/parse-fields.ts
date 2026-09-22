@@ -7,7 +7,6 @@
  * every field came back defined and the diagnostic list is empty.
  */
 import {
-  type BoundaryValue,
   type JsonObject,
   type JsonValue,
   isBoolean,
@@ -15,44 +14,18 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { type Diagnostic, diagnostic, pushDiagnostic } from "./diagnostics.js";
+import { isOpaqueId } from "./ids.js";
 import {
-  type Diagnostic,
-  type DiagnosticCode,
-  diagnostic,
-  pushDiagnostic,
-} from "./diagnostics.js";
-import {
-  MAX_REVISION_LENGTH,
-  isCapabilityId,
-  isOpaqueId,
-  isUnitName,
-} from "./ids.js";
-
-/** Longest list of ids any document may carry. */
-export const MAX_LIST_IDS = 256;
-/** Longest list of free-form strings (origins, constraints) a document may carry. */
-export const MAX_STRING_LIST = 256;
-export const MAX_ORIGIN_LENGTH = 256;
-
-export type StringBounds = Readonly<{
-  min: number;
-  max: number;
-  pattern?: RegExp;
-  code?: DiagnosticCode;
-}>;
-
-export const REVISION_BOUNDS: StringBounds = {
-  min: 1,
-  max: MAX_REVISION_LENGTH,
-};
-
-function joinPath(base: string, key: string): string {
-  return base === "" ? key : `${base}.${key}`;
-}
-
-export function indexPath(base: string, index: number): string {
-  return `${base}[${index}]`;
-}
+  MAX_LIST_IDS,
+  MAX_STRING_LIST,
+  type Report,
+  type StringBounds,
+  checkIdList,
+  checkString,
+  indexPath,
+  joinPath,
+} from "./parse-primitives.js";
 
 export class ObjectReader {
   private readonly seen = new Set<string>();
@@ -63,9 +36,9 @@ export class ObjectReader {
     readonly diags: Diagnostic[],
   ) {}
 
-  report(code: DiagnosticCode, path: string, message: string): void {
+  readonly report: Report = (code, path, message) => {
     pushDiagnostic(this.diags, diagnostic(code, path, message));
-  }
+  };
 
   /** Raw access; marks the key consumed. `undefined` when absent (reported). */
   raw(key: string): { value: JsonValue; path: string } | undefined {
@@ -97,7 +70,7 @@ export class ObjectReader {
   string(key: string, bounds: StringBounds): string | undefined {
     const field = this.raw(key);
     if (field === undefined) return undefined;
-    return checkString(this, field.value, field.path, key, bounds);
+    return checkString(this.report, field.value, field.path, key, bounds);
   }
 
   opaqueId(key: string): string | undefined {
@@ -161,7 +134,7 @@ export class ObjectReader {
   idList(key: string): string[] | undefined {
     const field = this.raw(key);
     if (field === undefined) return undefined;
-    return checkIdList(this, field.value, field.path, key);
+    return checkIdList(this.report, field.value, field.path, key);
   }
 
   /** `null` and `[]` are distinct outcomes and both survive the parse. */
@@ -169,7 +142,7 @@ export class ObjectReader {
     const field = this.raw(key);
     if (field === undefined) return undefined;
     if (field.value === null) return null;
-    return checkIdList(this, field.value, field.path, key);
+    return checkIdList(this.report, field.value, field.path, key);
   }
 
   /** Bounded list of strings, each within `bounds`, duplicate-free. */
@@ -196,7 +169,7 @@ export class ObjectReader {
     let valid = true;
     field.value.forEach((entry, index) => {
       const path = indexPath(field.path, index);
-      const value = checkString(this, entry, path, key, bounds);
+      const value = checkString(this.report, entry, path, key, bounds);
       if (value === undefined) {
         valid = false;
         return;
@@ -331,123 +304,3 @@ export class ObjectReader {
     }
   }
 }
-
-function checkString(
-  reader: ObjectReader,
-  value: BoundaryValue,
-  path: string,
-  key: string,
-  bounds: StringBounds,
-): string | undefined {
-  if (!isString(value)) {
-    reader.report("INVALID_TYPE", path, `\`${key}\` must be a string`);
-    return undefined;
-  }
-  if (value.length < bounds.min || value.length > bounds.max) {
-    reader.report(
-      bounds.code ?? "INVALID_LENGTH",
-      path,
-      `\`${key}\` must be ${bounds.min}–${bounds.max} characters`,
-    );
-    return undefined;
-  }
-  if (bounds.pattern !== undefined && !bounds.pattern.test(value)) {
-    reader.report(
-      bounds.code ?? "INVALID_VALUE",
-      path,
-      `\`${key}\` is malformed`,
-    );
-    return undefined;
-  }
-  return value;
-}
-
-function checkIdList(
-  reader: ObjectReader,
-  value: JsonValue,
-  path: string,
-  key: string,
-): string[] | undefined {
-  if (!Array.isArray(value)) {
-    reader.report("INVALID_TYPE", path, `\`${key}\` must be an array`);
-    return undefined;
-  }
-  if (value.length > MAX_LIST_IDS) {
-    reader.report(
-      "TOO_MANY_ITEMS",
-      path,
-      `\`${key}\` exceeds ${MAX_LIST_IDS} entries`,
-    );
-    return undefined;
-  }
-  const out: string[] = [];
-  let valid = true;
-  value.forEach((entry, index) => {
-    const entryPath = indexPath(path, index);
-    if (!isString(entry) || !isCapabilityId(entry)) {
-      reader.report(
-        "INVALID_ID",
-        entryPath,
-        `entry in \`${key}\` is not a capability id`,
-      );
-      valid = false;
-      return;
-    }
-    if (out.includes(entry)) {
-      reader.report(
-        "DUPLICATE_ID",
-        entryPath,
-        `\`${entry}\` repeats in \`${key}\``,
-      );
-      valid = false;
-      return;
-    }
-    out.push(entry);
-  });
-  return valid ? out : undefined;
-}
-
-export type NamedIdList = Readonly<{
-  name: string;
-  path: string;
-  ids: readonly string[];
-}>;
-
-/** An id in two of the lists is an error, reported at its later occurrence. */
-export function checkDisjoint(
-  reader: ObjectReader,
-  lists: readonly NamedIdList[],
-): void {
-  const firstSeen = new Map<string, string>();
-  for (const list of lists) {
-    list.ids.forEach((id, index) => {
-      const earlier = firstSeen.get(id);
-      if (earlier === undefined) {
-        firstSeen.set(id, list.name);
-        return;
-      }
-      reader.report(
-        "CONFLICTING_SETS",
-        indexPath(list.path, index),
-        `\`${id}\` appears in both \`${earlier}\` and \`${list.name}\``,
-      );
-    });
-  }
-}
-
-/** Entry point: the document must be a JSON object. */
-export function rootReader(
-  v: BoundaryValue,
-  diags: Diagnostic[],
-): ObjectReader | undefined {
-  if (!isJsonObject(v)) {
-    pushDiagnostic(
-      diags,
-      diagnostic("NOT_OBJECT", "", "document must be a JSON object"),
-    );
-    return undefined;
-  }
-  return new ObjectReader(v, "", diags);
-}
-
-export const isSlotName = isUnitName;

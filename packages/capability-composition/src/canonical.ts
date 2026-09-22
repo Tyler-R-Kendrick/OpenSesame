@@ -161,10 +161,13 @@ export function exposureDigest(
   });
 }
 
-export function normalizeNetwork(n: NetworkPolicy): {
+/** A network policy with sorted origins, as a plain digest body. */
+export type NormalizedNetwork = {
   allowedServiceOrigins: string[];
   externalServices: string;
-} {
+};
+
+export function normalizeNetwork(n: NetworkPolicy): NormalizedNetwork {
   return {
     allowedServiceOrigins: sortIds(n.allowedServiceOrigins),
     externalServices: n.externalServices,

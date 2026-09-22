@@ -24,10 +24,7 @@ function optionalIds(plan: EffectivePlan): CapabilityId[] {
 }
 
 /** Resolve once to learn the closure, sign it, resolve again with the receipt. */
-function resolveWithConsent(input: ResolveInput): {
-  plan: EffectivePlan;
-  receipt: ConsentReceipt;
-} {
+function resolveWithConsent(input: ResolveInput) {
   const first = resolveComposition(input);
   const receipt = buildConsentReceipt(first, input.catalog, NOW);
   return { plan: resolveComposition({ ...input, receipt }), receipt };

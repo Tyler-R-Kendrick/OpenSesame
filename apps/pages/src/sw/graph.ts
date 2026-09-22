@@ -1,11 +1,15 @@
 /**
  * `capability-graph.json`, as the worker reads it (ownership.md §4.6, S07).
  *
- * The build emits one chunk record per output file: which source modules it
- * carries (each tagged with the capability that owns it, `null` for core),
- * its static and dynamic import edges, and the stylesheets it pulls in. The
- * worker needs exactly one question answered — "which files does this set of
- * approved module ids need offline?" — and this module answers it from data.
+ * The build emits one chunk record per output file (`scripts/lib/
+ * capability-graph.mjs`): `file`, `isEntry`, `imports`, `dynamicImports`,
+ * `importedCss`, and `modules[]`, each module tagged `classification`
+ * (`core` | `shared` | `optional`) and `capability` (the owning capability id,
+ * `null` for core and shared code). The worker needs exactly one question
+ * answered — "which files does this set of approved module ids need
+ * offline?" — and this module answers it from that data. A module id maps to
+ * the chunks whose modules the id's capability owns; a record that also
+ * carries a `moduleId` is matched on it first.
  *
  * Everything here is parsed from a boundary value with an allowlist: a file
  * is a relative dist path (no scheme, no leading slash, no `..`), never a
@@ -81,7 +85,7 @@ function chunkOf(record: JsonObject): GraphChunk | null {
       ownership === "core" ||
       (modules.length > 0 && modules.every((m) => m.capability === null)),
     imports: pathList(record.imports),
-    css: pathList(record.css),
+    css: [...pathList(record.importedCss), ...pathList(record.css)],
     modules,
   };
 }

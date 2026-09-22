@@ -35,7 +35,7 @@ import {
   toggleRoot,
 } from "../../screens/capabilities/CapabilityDraft.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
-import { CapabilitySourceView, CapabilitiesViewToggle, type CapabilityView } from "./CapabilitiesViews.js";
+import { CapabilitySourceView, CapabilitiesViewToggle, type CapabilityView } from "./CapabilitiesPanelViews.js";
 import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
 import "./capabilities.css";
 

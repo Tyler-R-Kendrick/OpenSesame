@@ -59,17 +59,50 @@ export type ResolveContext = Readonly<{
   evaluatedModules: ReadonlySet<ModuleId>;
 }>;
 
-export function buildContext(input: ResolveInput): ResolveContext {
-  const policy = input.instancePolicy;
+type Identity = Readonly<{
+  instanceId: string;
+  installation: InstallationCapabilitySelection | null;
+  profileMismatch: boolean;
+}>;
+
+/** The installation counts only when it names this instance and this device. */
+function resolveIdentity(input: ResolveInput): Identity {
   const instanceId =
-    policy?.instanceId ??
+    input.instancePolicy?.instanceId ??
     input.installation?.instanceId ??
     PERSONAL_LOCAL_INSTANCE;
-  const installationMatches =
+  const matches =
     input.installation !== null &&
     input.installation.instanceId === instanceId &&
     input.installation.installationId === input.installationId;
-  const installation = installationMatches ? input.installation : null;
+  return {
+    instanceId,
+    installation: matches ? input.installation : null,
+    profileMismatch: input.installation !== null && !matches,
+  };
+}
+
+/** An unverified policy is fail-closed on the network; no policy is personal-local. */
+function networkFor(input: ResolveInput): NetworkPolicy {
+  if (!input.policyValid) return DENY_ALL_NETWORK;
+  return input.instancePolicy === null
+    ? PERSONAL_LOCAL_NETWORK
+    : input.instancePolicy.network;
+}
+
+function selectedRootsOf(
+  installation: InstallationCapabilitySelection | null,
+): CapabilityId[] {
+  if (installation === null) return [];
+  return sortIds([
+    ...installation.acceptedRequired,
+    ...installation.selectedOptional,
+  ]);
+}
+
+export function buildContext(input: ResolveInput): ResolveContext {
+  const policy = input.instancePolicy;
+  const { instanceId, installation, profileMismatch } = resolveIdentity(input);
   const workspace = input.workspace;
   const workspaceMismatch =
     workspace !== null &&
@@ -78,14 +111,7 @@ export function buildContext(input: ResolveInput): ResolveContext {
   const required = new Set(
     policy === null || !input.policyValid ? [] : policy.capabilities.required,
   );
-  const accepted = new Set(
-    installation === null ? [] : installation.acceptedRequired,
-  );
-  const network = !input.policyValid
-    ? DENY_ALL_NETWORK
-    : policy === null
-      ? PERSONAL_LOCAL_NETWORK
-      : policy.network;
+  const accepted = new Set(installation?.acceptedRequired ?? []);
   return {
     input,
     index: indexCatalog(input.catalog),
@@ -94,22 +120,16 @@ export function buildContext(input: ResolveInput): ResolveContext {
     policyRevision: policy?.revision ?? PERSONAL_LOCAL_REVISION,
     selectionRevision: installation?.revision ?? NO_SELECTION_REVISION,
     installation,
-    profileMismatch: input.installation !== null && !installationMatches,
+    profileMismatch,
     workspaceMismatch,
     receipt: applicableReceipt(input.receipt, instanceId, input.installationId),
-    network,
+    network: networkFor(input),
     distributed: new Set(input.distribution.capabilityIds),
     distributedModules: new Set(input.distribution.moduleIds),
-    vaultDisabled: new Set(input.vault === null ? [] : input.vault.disabled),
+    vaultDisabled: new Set(input.vault?.disabled ?? []),
     required,
     accepted,
-    selectedRoots:
-      installation === null
-        ? []
-        : sortIds([
-            ...installation.acceptedRequired,
-            ...installation.selectedOptional,
-          ]),
+    selectedRoots: selectedRootsOf(installation),
     requiredNotAccepted: sortIds(
       [...required].filter((id) => !accepted.has(id)),
     ),

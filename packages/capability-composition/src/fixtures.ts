@@ -232,11 +232,14 @@ const UPDATES = {
   expandedExposure: "require-approval",
 } as const;
 
-export const FIXTURE_POLICIES: {
+/** The three policy postures every consumer's tests exercise. */
+export type FixturePolicies = Readonly<{
   personalLocal: null;
   family: InstanceCapabilityPolicy;
   managedProhibited: InstanceCapabilityPolicy;
-} = {
+}>;
+
+export const FIXTURE_POLICIES: FixturePolicies = {
   personalLocal: null,
   family: {
     schemaVersion: 1,

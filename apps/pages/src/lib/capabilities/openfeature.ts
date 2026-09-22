@@ -39,6 +39,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { compositionStore } from "./store.js";
 
 export const PROVIDER_NAME = "opensesame-local-composition";
 /** One SDK domain, so a second provider bound here is detectable, never silent. */
@@ -308,12 +309,12 @@ export type InstalledCompositionProvider = Readonly<{
 }>;
 
 /**
- * Wired by the core boot (S05): `openfeatureSeams.snapshotSource =
- * compositionStore` before `installCompositionProvider()`. Tests inject a
- * store double the same way, or pass it directly.
+ * The store the provider projects. `compositionStore` (S06) satisfies
+ * `SnapshotSource` as-is; tests inject a store double here or pass one to
+ * `installCompositionProvider` directly.
  */
-export const openfeatureSeams: { snapshotSource: SnapshotSource | null } = {
-  snapshotSource: null,
+export const openfeatureSeams: { snapshotSource: SnapshotSource } = {
+  snapshotSource: compositionStore,
 };
 
 /** The provider currently bound to our domain, when it is ours. */
@@ -336,11 +337,6 @@ export async function installCompositionProvider(
   options: { snapshotSource?: SnapshotSource } = {},
 ): Promise<InstalledCompositionProvider> {
   const source = options.snapshotSource ?? openfeatureSeams.snapshotSource;
-  if (source === null) {
-    throw new Error(
-      "installCompositionProvider: no snapshot source; the boot wires compositionStore first",
-    );
-  }
   const provider = new LocalCompositionProvider(source);
   await OpenFeature.setProviderAndWait(OPENFEATURE_DOMAIN, provider);
   const client = OpenFeature.getClient(OPENFEATURE_DOMAIN);

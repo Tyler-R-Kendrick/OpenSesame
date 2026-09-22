@@ -179,6 +179,8 @@ describe("parseInstancePolicy", () => {
   });
 });
 
+const NO_IDS: string[] = [];
+
 describe("parseWorkspaceRestriction", () => {
   const base = {
     schemaVersion: 1 as const,
@@ -186,7 +188,7 @@ describe("parseWorkspaceRestriction", () => {
     instanceId: "fixture-family",
     vaultId: "tomb-1",
     revision: "w1",
-    prohibited: [] as string[],
+    prohibited: NO_IDS,
   };
 
   it("MODEL-03: preserves allow: null and allow: [] as distinct values", () => {
