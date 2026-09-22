@@ -1,5 +1,5 @@
 import { isGuideRouteId } from "@opensesame/guide-lang";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import {
   CORE_GUIDE_ROUTES,
@@ -10,13 +10,13 @@ import {
 
 // A route belongs to the capability that owns the screen. The realm is the
 // whole authored set; the core-only default is asserted on its own below.
-let revokeRealm = () => {};
-beforeAll(() => {
-  revokeRealm = registerTutorialRealm();
-});
-afterAll(() => revokeRealm());
-
 describe("guide route registry", () => {
+  let revokeRealm = () => {};
+  beforeEach(() => {
+    revokeRealm = registerTutorialRealm();
+  });
+  afterEach(() => revokeRealm());
+
   it("declares only ids the guide grammar accepts (checked here, not at load)", () => {
     for (const route of mergedGuideRoutes()) {
       expect(isGuideRouteId(route.id), route.id).toBe(true);
@@ -38,8 +38,6 @@ describe("guide route registry", () => {
 
 describe("a core-only plan", () => {
   it("declares the shell's own routes and nothing a capability owns", () => {
-    const revoke = registerTutorialRealm();
-    revoke();
     expect(mergedGuideRoutes()).toEqual(CORE_GUIDE_ROUTES);
     expect(isKnownGuideRoute("/connections")).toBe(false);
     expect(isKnownGuideRoute("/identity/authorize")).toBe(false);
