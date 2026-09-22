@@ -99,3 +99,7 @@ packages/wallet-x402/forge/out/
 packages/wallet-x402/forge/cache/
 **/forge/out/
 **/forge/cache/
+
+# mTLS fixture downloads (scripts/mtls-fixtures.sh) and suite artifacts
+.cache/mtls-fixtures/
+artifacts/mtls/

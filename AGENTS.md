@@ -72,6 +72,13 @@ pnpm test:redteam        # @opensesame/redteam structural pact suite
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
 pnpm test:nats-dogfood   # scripts/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
+pnpm test:mtls           # scripts/mtls-test.sh — native transport-security + TS contract suites, no fixtures
+pnpm test:mtls:integration # scripts/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
+                          #   fixtures (scripts/mtls-fixtures.sh); fails, never skips, when a fixture is absent
+pnpm test:mtls:browser   # scripts/mtls-browser-test.mjs — Playwright clientCertificates against the
+                          #   ingress reference, plus the static app with no certificate
+pnpm test:mtls:fixtures  # scripts/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
+                          #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:all            # typecheck + test + test:integration
 
 # Test-depth suites (none of these are in `pnpm verify`)
@@ -225,6 +232,14 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
 | `crates/invoke-through` | Memory-resident invoke-through broker — egress allowlist, no redirects (ADR 0048 D6/D7) |
+| `crates/transport-security` | Native TLS for the authority plane — rustls listeners/clients, `TlsIdentity` / `TrustBundle`, atomic `TransportGenerations`, SPIFFE and RFC 9525 verifiers; `testkit` feature issues disposable PKI for tests (ADR 0130) |
+| `crates/domain/src/transport` | Pure transport contracts — `TransportPolicy`, `ServiceBindingSet` (default deny, exact selectors), non-deserializable `VerifiedPeer`, status views, stable error codes; TS mirror in `packages/os-domain` / `packages/contracts` (ADR 0130) |
+| `crates/spiffe-source` | SPIFFE Workload API X.509-SVID source → `TransportGenerations`; exact configured SPIFFE ID, per-domain bundles, snapshot replacement; SPIRE is an optional issuer (ADR 0130 §2) |
+| `crates/ingress-evidence`, `packages/ingress-evidence` | RFC 9440 `Client-Cert` / `Client-Cert-Chain` bounded parsing; accepted only from a bound ingress on a `trusted_ingress` listener (ADR 0130 §8) |
+| `crates/nats-callout` | Native `$SYS.REQ.USER.AUTH` bridge (`opensesame-nats-auth-bridge`) — NKey/JWT verification, request/response binding; a high-trust component, narrowly bound to the Host (ADR 0130 §8) |
+| `apps/gateway/src/transport` | Host transport runtime — config, admission (`ServiceCallerExtractor`), bindings CAS, status, verify probe, trust/lifecycle routes under `/api/v1/operator/transport/*` (ADR 0130) |
+| `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0130 §8) |
+| `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
@@ -457,6 +472,25 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   (`managed: true`), never agent-reachable, and its renewal lead is clamped to
   half the lifetime so renewal terminates
   ([ADR 0075](docs/adr/0075-host-certificate-key-custody.md)).
+- **mTLS is optional, per hop, and never a fallback**
+  ([ADR 0130](docs/adr/0130-optional-mtls-and-workload-identity.md)). The
+  static core is untouched: `apps/pages` needs no certificate, no environment
+  and no backend, and a browser cannot attach a vault key to `fetch`'s TLS —
+  `browser_vault_key_injection` is always `unsupported`. Authentication is not
+  authorization: a verified peer (`VerifiedPeer`, never deserialized from a
+  header or body) must resolve to exactly one operator-written service
+  binding — exact `spiffe_id` / `dns_name` / `uri_san` / thumbprint, no CN,
+  email, IP or wildcard, no fleet role — and then pass the ordinary PEP,
+  grant and ConnectionRef checks. Custody is stated truthfully: PEM files are
+  file-readable, a managed certificate is Host-sealed and exportable to the
+  Host, a Workload API SVID is delivered to the process; nothing is called
+  hardware-bound. A configured `mtls_required` hop with missing or invalid
+  material refuses to start; it does not downgrade to bearer, plaintext, the
+  memory bus or a shared certificate. Revocation is bounded per layer (next
+  handshake, next protected request, NATS server-side expiry, the token's own
+  TTL) and erases nothing from a browser. The daemon keeps its serde + std
+  budget; browser packages get no `node:tls`. Operator reference:
+  `docs/operators/mtls.md`.
 - Where a person is notified and what it takes for them to approve are separate
   mechanisms. A preference may reorder and narrow the destinations policy
   allows; it can never admit a channel policy refused, and never lowers an

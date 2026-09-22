@@ -11,6 +11,8 @@ path = "src/main.rs"
 [dependencies]
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-domain = { path = "../../crates/domain" }
+opensesame-transport-security = { path = "../../crates/transport-security" }
+chrono = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true }
 clap = { workspace = true }
@@ -19,3 +21,10 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 sha2 = { workspace = true }
+
+[dev-dependencies]
+opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
+reqwest = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["aws_lc_rs", "tls12"] }
+tempfile = { workspace = true }

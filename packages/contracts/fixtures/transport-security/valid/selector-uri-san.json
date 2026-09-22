@@ -1,0 +1,12 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "uri_san": "urn:opensesame:worker:alpha"
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "uri_san": "urn:opensesame:worker:alpha"
+    }
+  }
+}

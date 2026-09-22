@@ -1,7 +1,6 @@
 import http from "node:http";
 import type { OutgoingHttpHeader, OutgoingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
-import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { getRequestListener } from "@hono/node-server";
 import {
@@ -15,6 +14,17 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { createControlPlane } from "./create-app.js";
+import { loadTransportMaterial } from "./transport/config.js";
+import {
+  PLAIN_LISTENER_ID,
+  TLS_LISTENER_ID,
+  type TransportListener,
+  createTransportListener,
+  preparePlainRequest,
+} from "./transport/listener.js";
+import { readBody, replayRequest } from "./transport/replay.js";
+import { rejectMismatchedBoundBearer } from "./transport/resource-binding.js";
+import { EMPTY_BINDINGS } from "./transport/service-admission.js";
 
 export interface StartedControlPlane {
   server: http.Server;
@@ -22,6 +32,12 @@ export interface StartedControlPlane {
   host: string;
   app: ReturnType<typeof createControlPlane>["app"];
   ctx: ReturnType<typeof createControlPlane>["ctx"];
+  /**
+   * The optional native TLS listener (`OPENSESAME_TLS_LISTEN`), serving the
+   * same dispatcher with verified peer evidence. Absent when unconfigured;
+   * the plain listener above keeps its existing scope either way.
+   */
+  transport?: TransportListener & { port: number; host: string };
 }
 
 function applyHeaders(
@@ -84,47 +100,22 @@ function attachTokenCors(
   };
 }
 
-async function readBody(req: http.IncomingMessage): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    if (!(chunk instanceof Uint8Array)) {
-      throw new TypeError("HTTP request body yielded a non-byte chunk");
-    }
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
+type RawDispatcher = (
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+) => void;
 
 /**
- * The CORS gate must read the form body to learn the client_id, so the
- * request stream handed to oidc-provider is replayed from the buffer.
+ * The raw split shared by the plain and TLS listeners. Peer evidence for
+ * the request is already recorded by the listener that received it; both
+ * the oidc-provider branch and Hono read it from the same request object.
  */
-function replayRequest(
-  req: http.IncomingMessage,
-  body: Buffer,
-): http.IncomingMessage {
-  // SAFETY: oidc-provider only reads this as a stream plus IncomingMessage
-  // header/method fields, which we copy onto the replayed Readable below.
-  const forwarded: http.IncomingMessage = overlapCast(Readable.from([body]));
-  forwarded.headers = req.headers;
-  forwarded.rawHeaders = req.rawHeaders;
-  forwarded.method = req.method;
-  forwarded.url = req.url;
-  forwarded.httpVersion = req.httpVersion;
-  forwarded.httpVersionMajor = req.httpVersionMajor;
-  forwarded.httpVersionMinor = req.httpVersionMinor;
-  forwarded.socket = req.socket;
-  return forwarded;
-}
-
-export async function startServer(
-  options: Parameters<typeof createControlPlane>[0] = {},
-): Promise<StartedControlPlane> {
-  const { app, ctx, config } = createControlPlane(options);
-  const honoListener = getRequestListener(app.fetch);
-  const oidcCallback = ctx.oauth.provider.callback();
-
-  const server = http.createServer((req, res) => {
+function createDispatcher(
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  honoListener: RawDispatcher,
+  oidcCallback: RawDispatcher,
+): RawDispatcher {
+  return (req, res) => {
     const url = req.url ?? "/";
     const path = url.split("?")[0] ?? "/";
     // Mount panva oidc-provider for protocol endpoints + OIDC discovery.
@@ -152,6 +143,9 @@ export async function startServer(
       path.startsWith("/revocation/") ||
       path === "/.well-known/openid-configuration";
     if (!isOidcPath) {
+      // A certificate-bound bearer is refused before any Hono route unless
+      // this request's binding peer matches it (ID-RESOURCE).
+      if (rejectMismatchedBoundBearer(req, res)) return;
       honoListener(req, res);
       return;
     }
@@ -194,6 +188,7 @@ export async function startServer(
           ) {
             const forwarded = replayRequest(req, body);
             forwarded.url = "/oauth2/token";
+            if (rejectMismatchedBoundBearer(forwarded, res)) return;
             honoListener(forwarded, res);
             return;
           }
@@ -280,6 +275,37 @@ export async function startServer(
     }
 
     oidcCallback(req, res);
+  };
+}
+
+export async function startServer(
+  options: Parameters<typeof createControlPlane>[0] = {},
+): Promise<StartedControlPlane> {
+  const { app, ctx, config } = createControlPlane(options);
+  const honoListener = getRequestListener(app.fetch);
+  const oidcCallback = ctx.oauth.provider.callback();
+  const dispatch = createDispatcher(ctx, honoListener, oidcCallback);
+
+  // Optional native TLS listener (ID-LISTENER). Material was validated by
+  // assertSecureConfig; a failure here is still a refused boot, never a
+  // fallback to the plain listener.
+  const listenerConfig = config.transport.listener;
+  const transport: TransportListener | undefined = listenerConfig
+    ? createTransportListener({
+        config: listenerConfig,
+        material: loadTransportMaterial(listenerConfig),
+        dispatch,
+        onPeerError: (code) =>
+          ctx.log.warn({ listener: TLS_LISTENER_ID, code }, "peer_refused"),
+      })
+    : undefined;
+  const bindings = () => transport?.bindings() ?? EMPTY_BINDINGS;
+
+  const server = http.createServer((req, res) => {
+    // Plain provenance, no peer: a header on this listener can never become
+    // evidence (AT-TLS-FAKECONTEXT).
+    preparePlainRequest(req, bindings());
+    dispatch(req, res);
   });
 
   // The system owner principal row must exist before the first /auth prefetch
@@ -299,11 +325,46 @@ export async function startServer(
   const boundPort = addressInfo?.port ?? config.port;
 
   ctx.log.info(
-    { host: config.host, port: boundPort, issuer: config.issuer },
+    {
+      host: config.host,
+      port: boundPort,
+      issuer: config.issuer,
+      listener: PLAIN_LISTENER_ID,
+    },
     "control-plane listening",
   );
 
-  return { server, port: boundPort, host: config.host, app, ctx };
+  const started: StartedControlPlane = {
+    server,
+    port: boundPort,
+    host: config.host,
+    app,
+    ctx,
+  };
+  if (transport && listenerConfig) {
+    let tlsAddress: AddressInfo;
+    try {
+      tlsAddress = await transport.start();
+    } catch (error) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      throw error;
+    }
+    ctx.log.info(
+      {
+        host: listenerConfig.host,
+        port: tlsAddress.port,
+        policy: listenerConfig.policy,
+        listener: TLS_LISTENER_ID,
+      },
+      "control-plane tls listening",
+    );
+    started.transport = {
+      ...transport,
+      port: tlsAddress.port,
+      host: listenerConfig.host,
+    };
+  }
+  return started;
 }
 
 const isDirectRun =

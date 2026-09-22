@@ -1,0 +1,57 @@
+[package]
+name = "opensesame-spiffe-source"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SPIFFE X.509 Workload API identity source: exact SVID selection, X509-SVID profile validation, per-trust-domain bundles, snapshot replacement and bounded outage (ADR 0130)"
+
+[lib]
+name = "opensesame_spiffe_source"
+path = "src/lib.rs"
+
+[features]
+default = []
+# In-process fake Workload API (tonic server over a unix socket in a tempdir)
+# plus an rcgen issuer for SVID fixtures. Test-only; never enabled by a binary.
+fake-workload-api = [
+  "dep:tonic",
+  "dep:tonic-prost",
+  "dep:prost",
+  "dep:tokio-stream",
+  "dep:rcgen",
+  "dep:time",
+  "dep:tempfile",
+]
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+opensesame-transport-security = { path = "../transport-security" }
+# SPIFFE Workload API SDK (rust-spiffe). Brings tonic 0.14 / prost 0.14.
+spiffe = { version = "0.16.1", default-features = false, features = ["workload-api-x509"] }
+x509-parser = "0.18.1"
+rustls-webpki = { version = "0.103.13", default-features = false, features = ["aws-lc-rs", "std"] }
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
+base64 = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+secrecy = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+zeroize = { workspace = true }
+
+# fake-workload-api only
+tonic = { version = "0.14", optional = true }
+tonic-prost = { version = "0.14", optional = true }
+prost = { version = "0.14", optional = true }
+tokio-stream = { version = "0.1.17", optional = true, features = ["net"] }
+rcgen = { version = "0.14.9", default-features = false, features = ["crypto", "pem", "aws_lc_rs"], optional = true }
+time = { version = "0.3.41", default-features = false, features = ["std"], optional = true }
+tempfile = { workspace = true, optional = true }
+
+[dev-dependencies]
+opensesame-spiffe-source = { path = ".", features = ["fake-workload-api"] }
+tempfile = { workspace = true }
+serde = { workspace = true }

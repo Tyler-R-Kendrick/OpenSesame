@@ -2460,6 +2460,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-timeout"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0"
+dependencies = [
+ "hyper",
+ "hyper-util",
+ "pin-project-lite",
+ "tokio",
+ "tower-service",
+]
+
+[[package]]
 name = "hyper-util"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3229,6 +3242,7 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879011babc47a1c7fdf5a935ae3cfe94f34645ca0cac1c7f6424b36fc743d1bf"
 dependencies = [
+ "crypto_box",
  "data-encoding",
  "ed25519",
  "ed25519-dalek",
@@ -3920,6 +3934,7 @@ dependencies = [
  "opensesame-connector-host",
  "opensesame-domain",
  "opensesame-host-core",
+ "opensesame-ingress-evidence",
  "opensesame-lifecycle",
  "opensesame-pki-core",
  "opensesame-proof",
@@ -3930,20 +3945,27 @@ dependencies = [
  "opensesame-relay",
  "opensesame-security-events",
  "opensesame-session-observe",
+ "opensesame-spiffe-source",
  "opensesame-storage",
  "opensesame-task-access",
  "opensesame-task-bus",
+ "opensesame-transport-security",
  "proptest",
  "rand 0.8.7",
  "rcgen 0.13.2",
  "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "secrecy",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "sqlx",
+ "tempfile",
  "thiserror 2.0.19",
  "time",
  "tokio",
+ "tokio-rustls",
  "tower",
  "tower-http",
  "tracing",
@@ -4015,20 +4037,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-ingress-evidence"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "hex",
+ "http",
+ "http-body-util",
+ "opensesame-domain",
+ "opensesame-transport-security",
+ "proptest",
+ "reqwest",
+ "rustls-pki-types",
+ "rustls-webpki",
+ "serde",
+ "serde_json",
+ "sfv",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tower",
+ "tracing",
+ "x509-parser 0.18.1",
+]
+
+[[package]]
 name = "opensesame-invoke-through"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "bytes",
+ "chrono",
  "http",
  "http-body-util",
  "hyper",
  "hyper-rustls",
  "hyper-util",
+ "opensesame-domain",
+ "opensesame-transport-security",
+ "rustls",
  "secrecy",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
+ "tower-service",
  "zeroize",
 ]
 
@@ -4055,6 +4111,37 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.19",
+]
+
+[[package]]
+name = "opensesame-nats-callout"
+version = "0.1.0"
+dependencies = [
+ "async-nats",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "futures",
+ "hex",
+ "http",
+ "nkeys",
+ "opensesame-authz",
+ "opensesame-domain",
+ "opensesame-transport-security",
+ "reqwest",
+ "rustls",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -4310,6 +4397,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-spiffe-source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "futures",
+ "hex",
+ "opensesame-domain",
+ "opensesame-spiffe-source",
+ "opensesame-transport-security",
+ "prost",
+ "rcgen 0.14.9",
+ "rustls-pki-types",
+ "rustls-webpki",
+ "secrecy",
+ "serde",
+ "sha2 0.10.9",
+ "spiffe",
+ "tempfile",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tonic-prost",
+ "tracing",
+ "x509-parser 0.18.1",
+ "zeroize",
+]
+
+[[package]]
 name = "opensesame-storage"
 version = "0.1.0"
 dependencies = [
@@ -4364,10 +4482,16 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "futures",
+ "nkeys",
+ "opensesame-domain",
+ "opensesame-transport-security",
  "opensesame-xkeys",
  "serde",
  "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
  "tokio",
+ "tracing",
  "x25519-dalek",
 ]
 
@@ -4381,6 +4505,40 @@ dependencies = [
  "reqwest",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "opensesame-transport-security"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "axum",
+ "chrono",
+ "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "opensesame-domain",
+ "rcgen 0.14.9",
+ "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "rustls-webpki",
+ "secrecy",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "toml 0.5.11",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "x509-parser 0.18.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -4408,12 +4566,18 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "clap",
  "opensesame-connector-host",
  "opensesame-domain",
+ "opensesame-transport-security",
+ "reqwest",
+ "rustls",
  "serde_json",
  "sha2 0.10.9",
+ "tempfile",
  "tokio",
+ "tokio-rustls",
  "tracing",
  "tracing-subscriber",
 ]
@@ -4921,6 +5085,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "528ac67416ff8646872a3c02cad9cc4ee5dc9f9540c9b10771855c95cb2e5ae1"
+dependencies = [
+ "bytes",
+ "prost-derive",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
+dependencies = [
+ "anyhow",
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f94967dc7688f3054c7fac87473ffae4cc4c3904800e2d9f5b857246d8963b0a"
+dependencies = [
+ "prost",
+]
+
+[[package]]
 name = "pulley-interpreter"
 version = "36.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5294,6 +5490,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ref-cast"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e440fb4e4b4147295338efb76001ab9e4efc0e5839df2c47fc5ac2381d365c3"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ecd8964f8453721699a1ed72037b0db49ce2f5a5138486ee89bed6f67cdf3a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.3",
+]
+
+[[package]]
 name = "regalloc2"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5523,6 +5739,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06"
 dependencies = [
  "aws-lc-rs",
+ "log",
  "once_cell",
  "ring",
  "rustls-pki-types",
@@ -5910,6 +6127,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sfv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "890ef0e5532daf21fdaa3dbaf991417187f3a87ab69231fe69be942495746480"
+dependencies = [
+ "base64 0.22.1",
+ "indexmap",
+ "ref-cast",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6175,6 +6403,30 @@ checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "spiffe"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7d0a770f9a8571eb96f9c319b3b55dd7118e3047bd3629b894882506b9e8295"
+dependencies = [
+ "arc-swap",
+ "fastrand",
+ "futures",
+ "hyper-util",
+ "pkcs8 0.10.2",
+ "prost",
+ "prost-types",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tonic-prost",
+ "tower",
+ "url",
+ "x509-parser 0.18.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -6817,6 +7069,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
+name = "tonic"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac2a5518c70fa84342385732db33fb3f44bc4cc748936eb5833d2df34d6445ef"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "h2",
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-timeout",
+ "hyper-util",
+ "percent-encoding",
+ "pin-project",
+ "socket2",
+ "sync_wrapper",
+ "tokio",
+ "tokio-stream",
+ "tower",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tonic-prost"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50849f68853be452acf590cde0b146665b8d507b3b8af17261df47e02c209ea0"
+dependencies = [
+ "bytes",
+ "prost",
+ "tonic",
+]
+
+[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6824,9 +7116,12 @@ checksum = "ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4"
 dependencies = [
  "futures-core",
  "futures-util",
+ "indexmap",
  "pin-project-lite",
+ "slab",
  "sync_wrapper",
  "tokio",
+ "tokio-util",
  "tower-layer",
  "tower-service",
  "tracing",

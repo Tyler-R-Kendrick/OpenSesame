@@ -1,0 +1,8 @@
+{
+  "kind": "transport_policy",
+  "input": "existing_local",
+  "expect": {
+    "ok": true,
+    "canonical": "existing_local"
+  }
+}

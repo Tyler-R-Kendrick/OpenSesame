@@ -1,0 +1,73 @@
+# ## Dependency notes
+#
+# * rustls / tokio-rustls / rustls-webpki are pinned to the workspace's locked
+#   0.23 / 0.26 / 0.103 generation with the `aws_lc_rs` provider only. rustls
+#   is never asked for a process-wide default provider: every config in this
+#   crate is built with `builder_with_provider`, so the `ring` feature other
+#   crates enable on the same graph can never be picked up by accident.
+# * `x509-parser` 0.18 (not the 0.16 that `apps/gateway` and `pki-core` use):
+#   0.18 is the generation whose signature verification and CRL types sit on
+#   `aws-lc-rs`, the same provider rustls uses here, and it is already in the
+#   lock through `rcgen` 0.14. It is used only to *read* an already-verified
+#   leaf (SANs, EKU, validity); chain building, signatures and revocation are
+#   `rustls-webpki`'s job.
+# * `rcgen` 0.14 (behind `testkit`) pairs with `x509-parser` 0.18 and
+#   `aws-lc-rs`; the 0.13 used elsewhere pairs with 0.16 and `ring`.
+# * `rustls-pemfile` is not in the lock and is not needed: `rustls-pki-types`'
+#   `PemObject` reads PEM.
+# * Never a dependency of `crates/core`, `crates/client-core`, or
+#   `apps/daemon` (a test in `tests/dependency_fence.rs` parses the manifests).
+
+[package]
+name = "opensesame-transport-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Native TLS verification, secure listeners, and outbound TLS clients for optional mTLS and workload identity (ADR 0130)"
+
+[lib]
+name = "opensesame_transport_security"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Disposable PKI for every swarm's tests. Never enabled by a production
+# binary.
+testkit = ["dep:rcgen", "dep:time", "dep:tempfile"]
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+arc-swap = "1.9.2"
+axum = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true, features = ["server", "http1", "http2"] }
+hyper-util = { workspace = true, features = ["server", "server-auto", "server-graceful", "http1", "http2", "tokio"] }
+reqwest = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["aws_lc_rs", "logging", "std", "tls12"] }
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
+rustls-webpki = { version = "0.103.13", default-features = false, features = ["aws-lc-rs", "std"] }
+secrecy = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["aws_lc_rs", "logging", "tls12"] }
+tower = { workspace = true }
+tracing = { workspace = true }
+x509-parser = "0.18.1"
+zeroize = { workspace = true }
+
+# testkit
+rcgen = { version = "0.14.9", default-features = false, features = ["crypto", "pem", "aws_lc_rs"], optional = true }
+time = { version = "0.3.41", default-features = false, features = ["std"], optional = true }
+tempfile = { workspace = true, optional = true }
+
+[dev-dependencies]
+http-body-util = { workspace = true }
+tempfile = { workspace = true }
+toml = "0.5.11"
+tracing-subscriber = { workspace = true }

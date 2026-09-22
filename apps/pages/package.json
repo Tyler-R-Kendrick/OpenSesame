@@ -18,6 +18,7 @@
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:siop": "vitest run scripts/siop-headers.test.mjs && node scripts/verify-siop.mjs",
     "verify:webmcp": "node scripts/verify-webmcp.mjs",
+    "verify:transport": "node scripts/verify-transport.mjs",
     "verify:access-pathbar": "node scripts/verify-access-pathbar.mjs",
     "verify:ambient-sso": "node scripts/verify-ambient-sso.mjs",
     "verify:experience": "node scripts/verify-experience.mjs",

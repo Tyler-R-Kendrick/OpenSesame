@@ -1,4 +1,18 @@
-//! Static mTLS mesh adapter for tests and Headscale-oriented deployments.
+//! Static service-discovery adapter for tests and Headscale-oriented
+//! deployments.
+//!
+//! This crate answers "which endpoints advertise service `x`?" from a
+//! mutex-protected in-memory map. It is **not** a transport: it opens no
+//! socket, holds no certificate or key, verifies no peer, and offers no TLS
+//! or mTLS guarantee. An address it returns is a string the caller then
+//! dials through whatever transport policy that caller is configured with
+//! (ADR 0130 — `crates/transport-security` for native TLS, `existing_local`
+//! for loopback/UDS). Discovery and transport are deliberately separate:
+//! resolving a name here proves nothing about who answers at that address.
+//!
+//! Earlier wording called this an "mTLS mesh adapter". That was a description
+//! of the deployments it was written alongside, not of anything the code
+//! does, and it has been corrected here without adding any transport behavior.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -37,6 +51,10 @@ pub struct DevicePosture {
     pub healthy: bool,
 }
 
+/// Discovery contract: advertise, withdraw and resolve service endpoints.
+///
+/// Implementations return addresses. They do not authenticate the peer at
+/// those addresses; that is the dialing transport's job.
 #[async_trait]
 pub trait MeshProvider: Send + Sync {
     async fn current_node(&self) -> Result<MeshNodeIdentity, MeshError>;
@@ -46,6 +64,9 @@ pub trait MeshProvider: Send + Sync {
     async fn resolve(&self, service_id: &str) -> Result<Vec<MeshEndpoint>, MeshError>;
 }
 
+/// In-memory, single-node discovery: a service id maps to a list of endpoint
+/// strings. `peers()` is always empty and `current_node()` carries no
+/// credential material. Nothing here is a TLS identity or a trust decision.
 #[derive(Default)]
 pub struct StaticMesh {
     pub node_id: String,

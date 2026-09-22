@@ -1013,6 +1013,168 @@
     }
   },
   {
+    "id": "transport.status.view",
+    "title": "Read desired policy, credential, runtime, observation and enforcement status per target",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/transport-status.ts:readTransportStatus",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "mcp_client": {
+        "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "webmcp": {
+        "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      }
+    }
+  },
+  {
+    "id": "transport.bindings.manage",
+    "title": "Read and replace the service binding set (revisioned, CAS)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/transport-bindings.ts:putServiceBindings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "mcp_client": {
+        "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "webmcp": {
+        "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      }
+    }
+  },
+  {
+    "id": "transport.trust.manage",
+    "title": "Read and replace registered trust profiles",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/transport-trust.ts:putTrustProfile",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "mcp_client": {
+        "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "webmcp": {
+        "reason": "trust, identity-source and service-binding configuration is deployment-plane authority under operator authorization; an agent that could change it could bind its own certificate to a service principal",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      }
+    }
+  },
+  {
+    "id": "transport.verify.run",
+    "title": "Run the positive/negative enforcement probe against a target",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/transport-verify.ts:runTransportVerify",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "mcp_client": {
+        "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "webmcp": {
+        "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      }
+    }
+  },
+  {
+    "id": "transport.identity.reference",
+    "title": "Select a registered identity source by public reference (never a path or socket)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/transport-identity.ts:listIdentitySourceRefs",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "mcp_client": {
+        "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "webmcp": {
+        "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      }
+    }
+  },
+  {
+    "id": "transport.capabilities.discover",
+    "title": "Discover which identity sources this runtime supports and whether it presents or enforces certificates",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/transport-capabilities.ts:transportCapabilities",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "mcp_client": {
+        "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      },
+      "webmcp": {
+        "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
+        "adr": "0130-optional-mtls-and-workload-identity.md"
+      }
+    }
+  },
+  {
     "id": "delegations.list",
     "title": "List delegations",
     "plane": "host",

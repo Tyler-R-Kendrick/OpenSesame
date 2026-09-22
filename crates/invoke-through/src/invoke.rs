@@ -11,7 +11,8 @@
 //! never be chased onto a host the allowlist did not name.
 //!
 //! The wire client is hyper over rustls with **webpki roots only** (no native
-//! cert store, no reqwest, no cookie store — the ADR 0048 D5 budget).
+//! cert store, no reqwest, no cookie store — the ADR 0048 D5 budget), or the
+//! scoped profile the authority plane injects through [`Invoker::with_tls`].
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -20,10 +21,6 @@ use bytes::Bytes;
 use http_body_util::{BodyExt, Full, Limited};
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Method, Uri};
-use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use hyper_util::client::legacy::connect::HttpConnector;
-use hyper_util::client::legacy::Client;
-use hyper_util::rt::TokioExecutor;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 use zeroize::Zeroizing;
@@ -31,6 +28,11 @@ use zeroize::Zeroizing;
 use crate::egress::{rule_for, EgressRule, EGRESS_RULES};
 use crate::error::InvokeError;
 use crate::source::TokenSource;
+use crate::tls::{build_client, HttpsClient, TlsClientSpec};
+
+#[cfg(test)]
+#[path = "invoke_stub.rs"]
+mod stub;
 
 /// Outbound body cap: generous for an API payload, useless for exfiltration.
 pub const DEFAULT_REQUEST_BODY_CAP: usize = 256 * 1024;
@@ -57,8 +59,6 @@ const RESPONSE_HEADER_ALLOWLIST: &[&str] = &[
 ];
 
 const DEFAULT_USER_AGENT: &str = concat!("opensesame-invoke-through/", env!("CARGO_PKG_VERSION"));
-
-type HttpsClient = Client<HttpsConnector<HttpConnector>, Full<Bytes>>;
 
 /// One validated invoke-through call.
 pub struct InvokeRequest {
@@ -150,8 +150,22 @@ impl Invoker {
     /// [`Invoker::allow_http_for_tests`].
     #[must_use]
     pub fn with_rules(rules: Vec<EgressRule>) -> Self {
+        Self::from_client(build_client(None), rules)
+    }
+
+    /// Broker over an explicit rule set and an injected, already-validated
+    /// TLS profile (server trust, expected server name, optional client
+    /// identity, pinned addresses). Https only: the injected config is the
+    /// only trust this client has. The egress allowlist, no-redirect, header
+    /// and body fences are exactly those of [`Invoker::with_rules`].
+    #[must_use]
+    pub fn with_tls(rules: Vec<EgressRule>, tls: &TlsClientSpec) -> Self {
+        Self::from_client(build_client(Some(tls)), rules)
+    }
+
+    fn from_client(client: HttpsClient, rules: Vec<EgressRule>) -> Self {
         Self {
-            client: build_client(),
+            client,
             rules: Arc::new(rules),
             allow_http_for_tests: false,
             request_body_cap: DEFAULT_REQUEST_BODY_CAP,
@@ -160,9 +174,11 @@ impl Invoker {
         }
     }
 
-    /// Permit plain HTTP **to loopback hosts only**, for in-process test
-    /// stubs. The egress allowlist still applies; this relaxes the scheme
-    /// check alone, and only for 127.0.0.1 / `::1` / localhost.
+    /// Test mode: permit plain HTTP **to loopback hosts only**, for
+    /// in-process stubs, and a non-default port on either scheme (a test TLS
+    /// listener binds port 0). The egress allowlist still applies; this
+    /// relaxes the scheme check alone, and only for 127.0.0.1 / `::1` /
+    /// localhost.
     #[must_use]
     pub fn allow_http_for_tests(mut self) -> Self {
         self.allow_http_for_tests = true;
@@ -218,9 +234,9 @@ impl Invoker {
         if scheme != rule.scheme && !loopback_http {
             return Err(InvokeError::HttpsRequired(scheme));
         }
-        // A non-default port is fine on the loopback test path; on the real
-        // path the allowlisted hosts are served on the scheme's default.
-        if !loopback_http && uri.port_u16().is_some_and(|port| port != 443) {
+        // A non-default port is fine in test mode; on the real path the
+        // allowlisted hosts are served on the scheme's default.
+        if !self.allow_http_for_tests && uri.port_u16().is_some_and(|port| port != 443) {
             return Err(InvokeError::EgressDenied {
                 provider: req.provider_id.clone(),
                 host: authority.as_str().to_string(),
@@ -368,16 +384,6 @@ impl Invoker {
     }
 }
 
-fn build_client() -> HttpsClient {
-    let connector = HttpsConnectorBuilder::new()
-        .with_webpki_roots()
-        .https_or_http()
-        .enable_http1()
-        .enable_http2()
-        .build();
-    Client::builder(TokioExecutor::new()).build(connector)
-}
-
 fn parse_method(method: &str) -> Result<Method, InvokeError> {
     match method.to_ascii_uppercase().as_str() {
         "GET" => Ok(Method::GET),
@@ -415,73 +421,11 @@ fn is_loopback_host(host: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::stub::spawn_stub;
     use super::*;
     use crate::egress::AuthStyle;
-    use hyper::service::service_fn;
-    use hyper_util::rt::TokioIo;
-    use std::sync::Mutex;
 
     const CANARY: &str = "CANARY-TOKEN-7f3d9b-never-leaks";
-
-    struct Recorded {
-        hits: Vec<(String, Option<String>)>,
-    }
-
-    /// A loopback HTTP stub recording (path, authorization) per hit. The hit
-    /// log is how egress tests prove the wire was never touched.
-    #[expect(
-        clippy::excessive_nesting,
-        reason = "the nested tasks model the loopback server's connection and request lifetimes"
-    )]
-    async fn spawn_stub(
-        responder: impl Fn(
-                &hyper::Request<hyper::body::Incoming>,
-            ) -> (u16, Vec<(&'static str, &'static str)>, &'static str)
-            + Send
-            + Sync
-            + 'static,
-    ) -> (String, Arc<Mutex<Recorded>>) {
-        let recorded = Arc::new(Mutex::new(Recorded { hits: vec![] }));
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let recorded_task = recorded.clone();
-        let responder = Arc::new(responder);
-        tokio::spawn(async move {
-            loop {
-                let (stream, _) = listener.accept().await.unwrap();
-                let io = TokioIo::new(stream);
-                let recorded = recorded_task.clone();
-                let responder = responder.clone();
-                tokio::spawn(async move {
-                    let service = service_fn(move |req| {
-                        let recorded = recorded.clone();
-                        let responder = responder.clone();
-                        async move {
-                            let auth = req
-                                .headers()
-                                .get("authorization")
-                                .and_then(|v| v.to_str().ok())
-                                .map(str::to_string);
-                            let target = req.uri().path().to_string();
-                            recorded.lock().unwrap().hits.push((target, auth));
-                            let (status, headers, body) = responder(&req);
-                            let mut response = hyper::Response::builder().status(status);
-                            for (name, value) in headers {
-                                response = response.header(name, value);
-                            }
-                            Ok::<_, std::convert::Infallible>(
-                                response.body(Full::new(Bytes::from(body))).unwrap(),
-                            )
-                        }
-                    });
-                    let _ = hyper::server::conn::http1::Builder::new()
-                        .serve_connection(io, service)
-                        .await;
-                });
-            }
-        });
-        (format!("http://127.0.0.1:{}", addr.port()), recorded)
-    }
 
     fn test_rule(hosts: &'static [&'static str]) -> EgressRule {
         EgressRule {

@@ -52,6 +52,7 @@ mod session_link_adversarial;
 pub mod shared_session;
 mod shared_session_adversarial;
 pub mod task;
+pub mod transport;
 pub mod validated_grant_chain;
 pub mod verification_evidence;
 
@@ -137,4 +138,5 @@ pub use session_coordination::*;
 pub use session_invite::*;
 pub use shared_session::*;
 pub use task::*;
+pub use transport::*;
 pub use verification_evidence::*;

@@ -1,0 +1,65 @@
+# ## Dependency notes
+#
+# * `nkeys` 0.4.5 (already in the lock through `async-nats`) is the maintained
+#   implementation of NATS Ed25519 nkeys. It signs and verifies the
+#   `ed25519-nkey` JWTs of the auth-callout protocol (ADR-26). Its `xkeys`
+#   feature (`crypto_box`, also in the lock) implements the exact `xkv1`
+#   NaCl-box envelope nats-server uses when `auth_callout.xkey` is set.
+#   `crates/xkeys` was deliberately NOT reused for the envelope: its format
+#   (`version || eph_pk || 24-byte nonce || XChaCha20-Poly1305`, HKDF-derived
+#   key) is OpenSesame's own bus E2EE, not the NATS wire format, and a
+#   protocol-compatible envelope has to be the server's.
+# * `rustls` 0.23 is named only so `async_nats::ConnectOptions::tls_client_config`
+#   receives the `ClientConfig` `opensesame-transport-security` builds; the
+#   crate never builds a config itself.
+# * Never a dependency of `crates/core`, `crates/client-core` or `apps/daemon`.
+
+[package]
+name = "opensesame-nats-callout"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "NATS auth-callout protocol (ADR-26) and the native $SYS.REQ.USER.AUTH bridge to the Host decision route (ADR 0130)"
+
+[lib]
+name = "opensesame_nats_callout"
+path = "src/lib.rs"
+
+[[bin]]
+name = "opensesame-nats-auth-bridge"
+path = "src/bin/opensesame-nats-auth-bridge.rs"
+
+[features]
+default = []
+
+[dependencies]
+opensesame-authz = { path = "../authz" }
+opensesame-domain = { path = "../domain" }
+opensesame-transport-security = { path = "../transport-security" }
+async-nats = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+nkeys = { version = "0.4.5", features = ["xkeys"] }
+reqwest = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["aws_lc_rs", "logging", "std", "tls12"] }
+secrecy = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+axum = { workspace = true }
+http = { workspace = true }
+tempfile = { workspace = true }

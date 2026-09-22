@@ -3,7 +3,7 @@ name = "opensesame-provider-static-mesh"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Static mTLS mesh adapter"
+description = "Static service-discovery adapter (in-memory endpoint map; not a TLS transport)"
 
 [dependencies]
 async-trait = { workspace = true }

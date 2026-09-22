@@ -1,0 +1,80 @@
+{
+  "kind": "transport_status_view",
+  "input": {
+    "target": "worker-tls",
+    "desired": "existing_local",
+    "credential": "unconfigured",
+    "runtime": "not_loaded",
+    "observed": null,
+    "enforcement": "unverified",
+    "capabilities": {
+      "native_pem": {
+        "unsupported": {
+          "reason": "a PEM identity needs a native runtime; the static app has none"
+        }
+      },
+      "managed_certificate": {
+        "unsupported": {
+          "reason": "a managed certificate needs a native runtime; the static app has none"
+        }
+      },
+      "spiffe_workload_api": {
+        "unsupported": {
+          "reason": "the SPIFFE Workload API needs a native runtime; the static app has none"
+        }
+      },
+      "browser_managed_external": {
+        "external_provisioning_required": {
+          "reason": "the browser or OS must hold the certificate; the app only selects a remote profile that expects one"
+        }
+      },
+      "browser_vault_key_injection": {
+        "unsupported": {
+          "reason": "a browser cannot attach a vault-held key to its TLS handshake; certificates a browser presents are provisioned outside the app"
+        }
+      },
+      "client_presents_certificate": false,
+      "server_enforces_certificate": false
+    }
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "target": "worker-tls",
+      "desired": "existing_local",
+      "credential": "unconfigured",
+      "runtime": "not_loaded",
+      "observed": null,
+      "enforcement": "unverified",
+      "capabilities": {
+        "native_pem": {
+          "unsupported": {
+            "reason": "a PEM identity needs a native runtime; the static app has none"
+          }
+        },
+        "managed_certificate": {
+          "unsupported": {
+            "reason": "a managed certificate needs a native runtime; the static app has none"
+          }
+        },
+        "spiffe_workload_api": {
+          "unsupported": {
+            "reason": "the SPIFFE Workload API needs a native runtime; the static app has none"
+          }
+        },
+        "browser_managed_external": {
+          "external_provisioning_required": {
+            "reason": "the browser or OS must hold the certificate; the app only selects a remote profile that expects one"
+          }
+        },
+        "browser_vault_key_injection": {
+          "unsupported": {
+            "reason": "a browser cannot attach a vault-held key to its TLS handshake; certificates a browser presents are provisioned outside the app"
+          }
+        },
+        "client_presents_certificate": false,
+        "server_enforces_certificate": false
+      }
+    }
+  }
+}

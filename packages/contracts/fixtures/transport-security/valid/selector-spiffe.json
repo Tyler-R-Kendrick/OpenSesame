@@ -1,0 +1,12 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+    }
+  }
+}

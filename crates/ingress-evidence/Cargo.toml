@@ -1,0 +1,53 @@
+# ## Dependency notes
+#
+# * `sfv` 0.15 is the established RFC 8941 / RFC 9651 structured-field parser
+#   (rust-version 1.85; verified on the pinned 1.88 toolchain). RFC 9440 fields
+#   are parsed with `Version::Rfc8941` so Dates and Display Strings are refused.
+# * `x509-parser` 0.18 is already in the lockfile (pulled by rcgen 0.14). It is
+#   used only to confirm a byte sequence is one whole DER certificate and to
+#   read its CA flag and names. Chain building and signature checks are
+#   rustls-webpki's job (`verify`), never this crate's.
+# * `base64` is used to re-encode a decoded byte sequence so a non-canonical
+#   encoding (unpadded, stray pad bits) is refused identically in both the Rust
+#   and the TypeScript parser, whose underlying libraries are each lenient in
+#   their own way.
+
+[package]
+name = "opensesame-ingress-evidence"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "RFC 9440 originating-client evidence: bounded Client-Cert parsing, origin re-validation, request-local attachment"
+
+[lib]
+name = "opensesame_ingress_evidence"
+path = "src/lib.rs"
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+opensesame-transport-security = { path = "../transport-security" }
+sfv = "0.15.0"
+x509-parser = "0.18.1"
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
+rustls-webpki = { version = "0.103.13", default-features = false, features = ["aws-lc-rs", "std"] }
+axum = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+http = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tower = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+http-body-util = { workspace = true }
+proptest = { workspace = true }
+reqwest = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }

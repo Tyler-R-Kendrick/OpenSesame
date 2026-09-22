@@ -1,0 +1,10 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "leaf_thumbprint_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

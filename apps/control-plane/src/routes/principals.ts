@@ -1,9 +1,4 @@
-import {
-  createHash,
-  randomBytes,
-  randomUUID,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import {
@@ -30,6 +25,7 @@ import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
+import { authorizeMappingResolve } from "../transport/mapping-auth.js";
 import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
 import {
   authenticatedPrincipalId,
@@ -670,22 +666,15 @@ principalRoutes.delete("/identities/:id", requirePrincipal(), async (c) => {
  *
  * Looks up canonical principal by upstream issuer + subject only.
  * Email is never accepted as a join key — requests that send `email` are denied.
- * Authenticated with OPENSESAME_MAPPING_RESOLVE_TOKEN (service secret), not a user session.
+ * Authenticated as a service — the shared secret or a bound mTLS service
+ * identity per `OPENSESAME_MAPPING_AUTH` (`transport/mapping-auth.ts`) —
+ * never a user session, and that identity is good for nothing else.
  */
 principalRoutes.get("/mapping/resolve", async (c) => {
   const ctx = c.get("ctx");
-  const expected = ctx.config.mappingResolveToken;
-  if (!expected) {
-    return c.json({ error: "mapping_resolve_disabled" }, 503);
-  }
-  const auth = c.req.header("authorization") ?? "";
-  const bearer = auth.toLowerCase().startsWith("bearer ")
-    ? auth.slice(7).trim()
-    : "";
-  const headerToken = c.req.header("x-opensesame-mapping-token")?.trim() ?? "";
-  const presented = bearer || headerToken;
-  if (!presented || !tokenEq(presented, expected)) {
-    return c.json({ error: "unauthorized" }, 401);
+  const authorization = authorizeMappingResolve(c, ctx);
+  if (!authorization.ok) {
+    return c.json({ error: authorization.error }, authorization.status);
   }
 
   const email = c.req.query("email")?.trim();
@@ -742,12 +731,6 @@ principalRoutes.get("/mapping/resolve", async (c) => {
     subject: identity.subject,
   });
 });
-
-function tokenEq(presented: string, expected: string): boolean {
-  const left = createHash("sha256").update(presented).digest();
-  const right = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(left, right);
-}
 import {
   removeOrphanTokens,
   revokeSessionTokens,

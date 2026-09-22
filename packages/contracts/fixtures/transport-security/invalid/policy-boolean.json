@@ -1,0 +1,8 @@
+{
+  "kind": "transport_policy",
+  "input": true,
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

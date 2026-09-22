@@ -1,0 +1,33 @@
+{
+  "kind": "peer_evidence_view",
+  "input": {
+    "source": "direct_tls",
+    "identities": [
+      {
+        "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+      },
+      {
+        "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "not_before": "2026-09-22T00:00:00.000Z",
+    "not_after": "2026-09-23T00:00:00.000Z",
+    "trust_profile": {
+      "name": "private-root"
+    },
+    "trust_generation": 3,
+    "credential_generation": 7,
+    "listener": "host-tls",
+    "policy": "mtls_required",
+    "tls_version": "tls13",
+    "authenticated_at": "2026-09-22T09:59:00.000Z",
+    "usable_until": "2026-09-22T10:29:00.000Z",
+    "ingress": null,
+    "subject": "CN=nats-bridge"
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

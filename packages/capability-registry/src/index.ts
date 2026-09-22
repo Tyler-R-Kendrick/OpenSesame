@@ -27,6 +27,7 @@ import { sharedSessionCapabilities } from "./shared-sessions.js";
 
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
 import { securityAuthorityCapabilities } from "./security-authority.js";
+import { transportSecurityCapabilities } from "./transport-security.js";
 import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
 import { walletSpendingCapabilities } from "./wallet-spending.js";
 export {
@@ -414,9 +415,8 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: SCOPED_AGENT_ONLY,
     },
   },
-
   ...sharedSessionCapabilities,
-
+  ...transportSecurityCapabilities,
   // ── Host plane: delegations, offers, relay ────────────────────────────
   {
     id: "delegations.list",

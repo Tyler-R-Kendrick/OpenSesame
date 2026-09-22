@@ -22,7 +22,6 @@ use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::{LifecycleEvent, SubjectKind};
 
 use crate::app_state::AppState;
-use crate::managed_certs;
 
 /// Responder id recorded on an internal hook row and in outcome details.
 pub const ROTATION_RESPONDER: &str = "rotation";
@@ -37,14 +36,14 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    fn ok(detail: impl Into<String>) -> Self {
+    pub(crate) fn ok(detail: impl Into<String>) -> Self {
         Self {
             succeeded: true,
             detail: detail.into(),
         }
     }
 
-    fn failed(detail: impl Into<String>) -> Self {
+    pub(crate) fn failed(detail: impl Into<String>) -> Self {
         Self {
             succeeded: false,
             detail: detail.into(),
@@ -324,17 +323,13 @@ async fn release_policy(
 /// subscriber reading the hook feed. A certificate whose key was delivered to
 /// its requester reports `not_in_custody`: the platform genuinely cannot renew
 /// it, because a new key would have nobody to go to.
+///
+/// The call goes through the transport lifecycle's renewal seam, which adds
+/// the per-certificate lease, bounded retry, the Workload-API skip and the
+/// activation-after-issue that a background actor needs (ADR 0130). The
+/// trigger is still this feed and only this feed.
 async fn renew_certificate(state: &AppState, event: &LifecycleEvent) -> Outcome {
-    let Ok(organization_id) = OrganizationId::parse(&event.subject.organization_id) else {
-        return Outcome::failed("subject carries a non-canonical organization id");
-    };
-    match managed_certs::renew_managed(state, &organization_id, &event.subject.subject_id).await {
-        Ok(renewed) => Outcome::ok(format!(
-            "reissued as {} valid until {}",
-            renewed.id, renewed.expires_at
-        )),
-        Err(error) => Outcome::failed(format!("{}: {error}", error.code())),
-    }
+    crate::transport_lifecycle::renewal::respond(state, event).await
 }
 
 fn rotation_target(event: &LifecycleEvent) -> Option<RotationTarget> {
