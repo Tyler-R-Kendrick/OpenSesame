@@ -6,9 +6,9 @@
  */
 
 import type { SetupPanel } from "../SetupScreen.js";
-import { ConnectorsStep } from "./steps/ConnectorsStep.js";
-import { IdentityStep } from "./steps/IdentityStep.js";
-import { MfaStep } from "./steps/MfaStep.js";
+import { ConnectorsStep } from "../setup/steps/ConnectorsStep.js";
+import { IdentityStep } from "../setup/steps/IdentityStep.js";
+import { MfaStep } from "../setup/steps/MfaStep.js";
 
 export const SETUP_PANEL_FIXTURE: readonly SetupPanel[] = [
   {

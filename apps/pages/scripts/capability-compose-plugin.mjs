@@ -340,8 +340,8 @@ export function buildGraph(ctx, bundle, state, base) {
         name: output.name,
         isEntry: output.isEntry,
         isDynamicEntry: output.isDynamicEntry,
-        imports: [...output.imports].sort(),
-        dynamicImports: [...output.dynamicImports].sort(),
+        imports: [...new Set(output.imports)].sort(),
+        dynamicImports: [...new Set(output.dynamicImports)].sort(),
         importedCss: [...(output.viteMetadata?.importedCss ?? [])].sort(),
         importedAssets: [...(output.viteMetadata?.importedAssets ?? [])].sort(),
         modules: Object.keys(output.modules)
@@ -437,9 +437,12 @@ function gateOrReport(state, graph, logger, stage) {
   return found;
 }
 
+/** The graph ships (the worker reads it), so it is written compact. */
+const graphJson = (graph) => canonicalJson(graph, 0);
+
 function writeGraph(outDir, graph) {
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "capability-graph.json"), canonicalJson(graph));
+  writeFileSync(join(outDir, "capability-graph.json"), graphJson(graph));
 }
 
 export function capabilityCompose(options = {}) {
@@ -526,7 +529,7 @@ export function capabilityCompose(options = {}) {
       this.emitFile({
         type: "asset",
         fileName: "capability-graph.json",
-        source: canonicalJson(graph),
+        source: graphJson(graph),
       });
       this.emitFile({
         type: "asset",

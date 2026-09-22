@@ -12,16 +12,22 @@ import type { InstallOutcome, InstallState } from "../lib/install.js";
 import type { PagesSettings } from "../lib/settings.js";
 import { installViewSeams } from "../lib/use-install.js";
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
+import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
+import { resetDouble } from "./capabilities/test-support.js";
 import { createSetupSeams } from "./setup/test-seams.js";
+
+vi.mock("../lib/configuration/capabilities-ports.js", async () => {
+  const { fakePortsModule } = await import(
+    "./capabilities/composition-ports-double.js"
+  );
+  const { double } = await import("./capabilities/test-support.js");
+  return fakePortsModule(double);
+});
 
 const seams = createSetupSeams();
 const { written, currentSettings, discover, completeSetup } = seams;
 
-/**
- * What the browser is offering, for the ceremony's benefit. jsdom offers
- * nothing, which is also the honest default: most of these tests are about the
- * screen that browser gets.
- */
+/** What the browser is offering; jsdom offers nothing, the honest default. */
 function offering(state: InstallState): void {
   installViewSeams.state = state;
 }
@@ -36,6 +42,8 @@ type ProviderFields = {
 
 beforeEach(() => {
   seams.reset();
+  resetDouble();
+  setupScreenDependencies.useSetupPanels = () => SETUP_PANEL_FIXTURE;
   installViewSeams.state = "unavailable";
   installNow.mockClear();
   installViewSeams.install = installNow;
@@ -110,13 +118,9 @@ async function addProvider(
   });
   const add = screen.getByRole("button", { name: /^Add / });
   fireEvent.click(add);
-  // Wait for *this* add to land, not for some earlier one to have happened:
-  // `discover` is one mock for the whole test, so a provider added a moment
-  // ago satisfies `toHaveBeenCalled` on the spot and this returns while the
-  // add is still in flight. An add is finished only once discovery has come
-  // back and the form has closed behind it — until then the screen is `busy`,
-  // every preset button is disabled, and the next caller's click lands on
-  // nothing.
+  // Wait for *this* add to land: `discover` is one mock for the whole test,
+  // and an add is finished only once discovery came back and the form
+  // closed — until then every preset button is disabled.
   await waitFor(() => {
     expect(discover.mock.calls.length).toBe(discoveries + 1);
     expect(screen.queryByLabelText("Client ID")).toBeNull();
@@ -124,12 +128,13 @@ async function addProvider(
 }
 
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
-  it.skip("opens the operator ceremony on its first tab when asked for", () => {
+  it("opens the operator ceremony on its capabilities tab when asked for", () => {
     openSetup();
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
-    ).toBe("connectors");
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    ).toBe("capabilities");
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    expect(screen.getByTestId("capability-setup")).toBeTruthy();
     expect(screen.queryByText("This device is empty")).toBeNull();
   });
 
@@ -144,22 +149,20 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
     render(<SetupScreen onDone={vi.fn()} />);
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
-    ).toBe("connectors");
+    ).toBe("capabilities");
   });
 });
 
 describe("the setup ceremony", () => {
-  it.skip("is a tab per concern, each skippable, with a skip-all (ADR 0114)", () => {
+  it("is capabilities, then a tab per registered panel, each skippable, with a skip-all (ADR 0114)", () => {
     openSetup();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "capabilities",
       "connectors",
-      "backups",
-      "ai",
       "identity",
       "mfa",
-      "sync",
     ]);
-    expect(document.querySelectorAll(".steps__seg")).toHaveLength(6);
+    expect(document.querySelectorAll(".steps__seg")).toHaveLength(4);
     expect(screen.getByRole("button", { name: "Skip this step" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip all" })).toBeTruthy();
   });
@@ -405,12 +408,12 @@ describe("keeping it on this device", () => {
     ).toBeNull();
   });
 
-  it.skip("rides beneath the active step, never a tab of its own", () => {
+  it("rides beneath the active step, never a tab of its own", () => {
     // A tab per concern (ADR 0114); installing is not one of them.
     offering("prompt");
     openSetup();
 
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
     expect(screen.getByText("Keep it on this device")).toBeDefined();
     expect(
       document

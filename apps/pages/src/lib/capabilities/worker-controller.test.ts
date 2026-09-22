@@ -4,11 +4,12 @@ import type {
   EffectivePlan,
   InstallationCapabilitySelection,
 } from "@opensesame/capability-composition";
-import { overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type CompositionSnapshotForWorker,
   type CompositionStoreForWorker,
+  type PageToWorkerMessage,
   WORKER_GRAPH_UNAVAILABLE,
   registerWorkerForPlan,
   resetWorkerController,
@@ -102,7 +103,8 @@ function selection(
   };
 }
 
-function receipt(exposure: Readonly<Record<string, string>>): ConsentReceipt {
+function receipt(capability: string, digest = "sha256:x"): ConsentReceipt {
+  const exposure = { [capability]: digest };
   return {
     schemaVersion: 1,
     instanceId: "inst",
@@ -141,14 +143,14 @@ class FakeStore implements CompositionStoreForWorker {
   }
 }
 
-type Handler = (event: { data: object }) => void;
+type Handler = (event: { data: JsonObject }) => void;
 
 class FakeContainer {
   readonly registered: {
     url: string;
     options: RegistrationOptions | undefined;
   }[] = [];
-  readonly posted: object[] = [];
+  readonly posted: PageToWorkerMessage[] = [];
   readonly unregistered: string[] = [];
   activeScript: string | null;
   hasController: boolean;
@@ -162,7 +164,7 @@ class FakeContainer {
     this.hasController = hasController;
   }
 
-  get controller(): { postMessage: (m: object) => void } | null {
+  get controller(): { postMessage: (m: PageToWorkerMessage) => void } | null {
     if (!this.hasController) return null;
     return { postMessage: (m) => this.posted.push(m) };
   }
@@ -210,9 +212,9 @@ class FakeContainer {
     this.handlers.set(type, list);
   }
 
-  emit(type: string, data: object = {}): void {
+  emit(type: string, data?: JsonObject): void {
     for (const handler of [...(this.handlers.get(type) ?? [])])
-      handler({ data });
+      handler({ data: data ?? {} });
   }
 
   asContainer(): ServiceWorkerContainer {
@@ -338,7 +340,7 @@ describe("push variant gating (PWA-03)", () => {
     store.set({
       plan: pushPlan,
       selection: selection("shell-only"),
-      receipt: receipt({ "vault.passwords": "d" }),
+      receipt: receipt("vault.passwords", "d"),
     });
     await settled();
     expect(container.registered).toEqual([]);
@@ -349,7 +351,7 @@ describe("push variant gating (PWA-03)", () => {
     const store = new FakeStore({
       plan: pushPlan,
       selection: selection("shell-only"),
-      receipt: receipt({ "notifications.web-push": "sha256:x" }),
+      receipt: receipt("notifications.web-push"),
     });
     const { settled } = arm(container, store);
     await settled();
@@ -362,7 +364,7 @@ describe("push variant gating (PWA-03)", () => {
     const store = new FakeStore({
       plan: pushPlan,
       selection: selection("shell-only"),
-      receipt: receipt({ "notifications.web-push": "sha256:x" }),
+      receipt: receipt("notifications.web-push"),
     });
     const { settled } = arm(container, store, CORE_ONLY_DISTRIBUTION);
     await settled();
@@ -381,7 +383,7 @@ describe("transitions (PWA-02, PWA-06)", () => {
         approvedCapabilities: ["notifications.web-push"],
       }),
       selection: selection("selected-only"),
-      receipt: receipt({ "notifications.web-push": "sha256:x" }),
+      receipt: receipt("notifications.web-push"),
     });
     const { settled } = arm(container, store);
     await settled();
@@ -402,7 +404,7 @@ describe("transitions (PWA-02, PWA-06)", () => {
         approvedCapabilities: ["notifications.web-push"],
       }),
       selection: selection("shell-only"),
-      receipt: receipt({ "notifications.web-push": "sha256:x" }),
+      receipt: receipt("notifications.web-push"),
     });
     const { settled } = arm(container, store);
     await settled();

@@ -50,7 +50,9 @@ describe("access.authority runtime", () => {
       t.entries("section").map((s) => [s.id, s.to, s.jump, s.icon, s.order]),
     ).toEqual([["access", "/access", "a", "authority", 30]]);
     expect(t.entries("section")[0]?.Tree).toBeTypeOf("function");
-    expect(t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate])).toEqual([
+    expect(
+      t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate]),
+    ).toEqual([
       ["access", "/access/:tab?/:rest?", true, undefined],
       ["agents-alias", "/agents", false, undefined],
       ["sites-alias", "/sites", false, undefined],

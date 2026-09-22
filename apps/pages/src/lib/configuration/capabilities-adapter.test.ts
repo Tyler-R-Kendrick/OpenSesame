@@ -3,10 +3,15 @@ import {
   FIXTURE_CATALOG,
   FIXTURE_MANAGED_POLICY,
 } from "../../screens/capabilities/composition-fixture.js";
-import { double, resetDouble } from "../../screens/capabilities/test-support.js";
+import {
+  double,
+  resetDouble,
+} from "../../screens/capabilities/test-support.js";
 
 vi.mock("./capabilities-ports.js", async () => {
-  const { fakePortsModule } = await import("../../screens/capabilities/composition-ports-double.js");
+  const { fakePortsModule } = await import(
+    "../../screens/capabilities/composition-ports-double.js"
+  );
   const { double } = await import("../../screens/capabilities/test-support.js");
   return fakePortsModule(double);
 });
@@ -18,15 +23,25 @@ import {
   commitVaultRestrictionSource,
   readCapabilitySource,
 } from "./capabilities-adapter.js";
-import { documentToYaml, parseCapabilityYaml } from "./capabilities-document.js";
-import { exportInstanceConfiguration, reimportMatches } from "./capabilities-export.js";
+import {
+  documentToYaml,
+  parseCapabilityYaml,
+} from "./capabilities-document.js";
+import {
+  exportInstanceConfiguration,
+  reimportMatches,
+} from "./capabilities-export.js";
 import {
   CAPABILITY_PATH_ALIASES,
   LOCAL_POLICY_KV_KEY,
   LOCAL_POLICY_SOURCE_KV_KEY,
   SELECTION_SOURCE_KV_KEY,
 } from "./capabilities-keys.js";
-import { type CapabilityConfigPorts, capabilityResource, revisionToken } from "./capabilities-resources.js";
+import {
+  type CapabilityConfigPorts,
+  capabilityResource,
+  revisionToken,
+} from "./capabilities-resources.js";
 import { lookupConfigResource } from "./registry.js";
 
 const SELECTION = {
@@ -70,25 +85,47 @@ function base() {
 describe("resources resolve by display path (ADV-01 stays closed)", () => {
   it("registers every capability alias and keeps prefs and ledgers as they were", () => {
     for (const [alias, key] of CAPABILITY_PATH_ALIASES) {
-      expect(lookupConfigResource(alias)).toEqual({ ok: true, resourceKey: key });
+      expect(lookupConfigResource(alias)).toEqual({
+        ok: true,
+        resourceKey: key,
+      });
     }
-    expect(lookupConfigResource(PREFS_PATH_ALIASES[0] ?? "")).toMatchObject({ ok: true });
-    expect(lookupConfigResource("capabilities/../config/identity-grants").ok).toBe(false);
+    expect(lookupConfigResource(PREFS_PATH_ALIASES[0] ?? "")).toMatchObject({
+      ok: true,
+    });
+    expect(
+      lookupConfigResource("capabilities/../config/identity-grants").ok,
+    ).toBe(false);
     expect(lookupConfigResource("capabilities/receipt.yaml").ok).toBe(false);
   });
 
   it("marks the effective plan read-only and a managed policy read-only", () => {
-    expect(capabilityResource("effective-plan", double.getSnapshot()).capabilities.edit).toBe(false);
-    expect(capabilityResource("instance-policy", double.getSnapshot()).capabilities.edit).toBe(true);
-    resetDouble({ policy: FIXTURE_MANAGED_POLICY, provenance: "same-origin-deployment" });
-    expect(capabilityResource("instance-policy", double.getSnapshot()).capabilities.edit).toBe(false);
+    expect(
+      capabilityResource("effective-plan", double.getSnapshot()).capabilities
+        .edit,
+    ).toBe(false);
+    expect(
+      capabilityResource("instance-policy", double.getSnapshot()).capabilities
+        .edit,
+    ).toBe(true);
+    resetDouble({
+      policy: FIXTURE_MANAGED_POLICY,
+      provenance: "same-origin-deployment",
+    });
+    expect(
+      capabilityResource("instance-policy", double.getSnapshot()).capabilities
+        .edit,
+    ).toBe(false);
   });
 });
 
 describe("CONSENT-06 — a comments-only save is presentation-only", () => {
   it("keeps the authored bytes and commits nothing", async () => {
     const source = `# my note\n${readCapabilitySource("installation-selection", ports)}`;
-    const result = await commitInstallationSelectionSource(ports, { source, baseRevision: base() });
+    const result = await commitInstallationSelectionSource(ports, {
+      source,
+      baseRevision: base(),
+    });
     expect(result.status).toBe("applied_durable");
     expect(result.message).toContain("Nothing else changed");
     expect(double.commits).toHaveLength(0);
@@ -101,11 +138,19 @@ describe("CONSENT-06 — a comments-only save is presentation-only", () => {
       .replace("- agents.webmcp", "- agents.webmcp\n  - vault.passkey-records")
       .replace("revision: '1'", "revision: '2'")
       .replace('revision: "1"', 'revision: "2"');
-    const result = await commitInstallationSelectionSource(ports, { source, baseRevision: base() });
+    const result = await commitInstallationSelectionSource(ports, {
+      source,
+      baseRevision: base(),
+    });
     expect(result.status).toBe("applied_durable");
     expect(double.commits).toHaveLength(1);
-    expect(double.commits[0]?.draft.selectedOptional).toEqual(["agents.webmcp", "vault.passkey-records"]);
-    expect(double.commits[0]?.receipt.selectionRevision).toBe(double.commits[0]?.draft.revision);
+    expect(double.commits[0]?.draft.selectedOptional).toEqual([
+      "agents.webmcp",
+      "vault.passkey-records",
+    ]);
+    expect(double.commits[0]?.receipt.selectionRevision).toBe(
+      double.commits[0]?.draft.revision,
+    );
   });
 });
 
@@ -114,11 +159,24 @@ describe("CONSENT-07 — clever YAML is refused before any commit", () => {
 
   it.each([
     ["duplicate key", (s: string) => `${s}revision: '9'\n`, "Duplicate"],
-    ["alias", (s: string) => `${s.replace("delivery:", "x: &a 1\ndelivery:")}y: *a\n`, "anchors"],
+    [
+      "alias",
+      (s: string) => `${s.replace("delivery:", "x: &a 1\ndelivery:")}y: *a\n`,
+      "anchors",
+    ],
     ["alias only", (s: string) => `${s}y: *a\n`, "alias"],
-    ["tag", (s: string) => s.replace("kind:", "kind: !!js/function 'x'\nunused:"), "tag"],
+    [
+      "tag",
+      (s: string) => s.replace("kind:", "kind: !!js/function 'x'\nunused:"),
+      "tag",
+    ],
     ["unknown field", (s: string) => `${s}extra: true\n`, "unknown field"],
-    ["depth", (s: string) => `${s}deep: {a: {b: {c: {d: {e: {f: {g: {h: {i: 1}}}}}}}}}\n`, "deeper"],
+    [
+      "depth",
+      (s: string) =>
+        `${s}deep: {a: {b: {c: {d: {e: {f: {g: {h: {i: 1}}}}}}}}}\n`,
+      "deeper",
+    ],
   ])("rejects %s with no commit", async (_name, mutate, expected) => {
     const result = await commitInstallationSelectionSource(ports, {
       source: mutate(good()),
@@ -136,7 +194,10 @@ describe("CONSENT-07 — clever YAML is refused before any commit", () => {
   });
 
   it("conflicts on a stale base revision and hands back the current source", async () => {
-    const result = await commitInstallationSelectionSource(ports, { source: good(), baseRevision: "stale" });
+    const result = await commitInstallationSelectionSource(ports, {
+      source: good(),
+      baseRevision: "stale",
+    });
     expect(result.status).toBe("conflict");
     expect(result.currentSource).toBe(good());
     expect(double.commits).toHaveLength(0);
@@ -145,18 +206,32 @@ describe("CONSENT-07 — clever YAML is refused before any commit", () => {
 
 describe("the personal-local policy and the vault restriction", () => {
   it("writes capabilities.policy.local.v1 for a personal-local device and invalidates the store", async () => {
-    const source = readCapabilitySource("instance-policy", ports).replace("optional: []", "optional:\n  - agents.webmcp");
-    const result = await commitInstancePolicySource(ports, { source, baseRevision: base() });
+    const source = readCapabilitySource("instance-policy", ports).replace(
+      "optional: []",
+      "optional:\n  - agents.webmcp",
+    );
+    const result = await commitInstancePolicySource(ports, {
+      source,
+      baseRevision: base(),
+    });
     expect(result.status).toBe("applied_durable");
-    expect(JSON.parse(store.get(LOCAL_POLICY_KV_KEY) ?? "{}").capabilities.optional).toEqual(["agents.webmcp"]);
+    expect(
+      JSON.parse(store.get(LOCAL_POLICY_KV_KEY) ?? "{}").capabilities.optional,
+    ).toEqual(["agents.webmcp"]);
     expect(store.get(LOCAL_POLICY_SOURCE_KV_KEY)).toBe(source);
     expect(double.invalidations).toEqual(["local-policy-updated"]);
   });
 
   it("refuses to edit a policy the deployment or a signature provided", async () => {
-    resetDouble({ policy: FIXTURE_MANAGED_POLICY, provenance: "same-origin-deployment" });
+    resetDouble({
+      policy: FIXTURE_MANAGED_POLICY,
+      provenance: "same-origin-deployment",
+    });
     const source = readCapabilitySource("instance-policy", ports);
-    const result = await commitInstancePolicySource(ports, { source: `# c\n${source}`, baseRevision: base() });
+    const result = await commitInstancePolicySource(ports, {
+      source: `# c\n${source}`,
+      baseRevision: base(),
+    });
     expect(result.status).toBe("refused");
     expect(result.message).toContain("read-only");
     expect(store.size).toBe(0);
@@ -172,9 +247,14 @@ describe("the personal-local policy and the vault restriction", () => {
       revision: "1",
       disabled: ["agents.webmcp"],
     };
-    const ok = await commitVaultRestrictionSource(ports, { source: documentToYaml(doc), baseRevision: base() });
+    const ok = await commitVaultRestrictionSource(ports, {
+      source: documentToYaml(doc),
+      baseRevision: base(),
+    });
     expect(ok.status).toBe("applied_durable");
-    expect(store.get("tomb/personal/capabilities.v1")).toContain("agents.webmcp");
+    expect(store.get("tomb/personal/capabilities.v1")).toContain(
+      "agents.webmcp",
+    );
     const other = await commitVaultRestrictionSource(ports, {
       source: documentToYaml({ ...doc, vaultId: "project-1" }),
       baseRevision: base(),
@@ -188,6 +268,8 @@ describe("CONSENT-10 — export reads back as the same document", () => {
     const file = exportInstanceConfiguration(double.getSnapshot());
     expect(file.fileName).toBe("opensesame-instance-configuration.yaml");
     expect(reimportMatches(file.yaml, double.getSnapshot())).toBe(true);
-    expect(reimportMatches(`${file.yaml}extra: 1\n`, double.getSnapshot())).toBe(false);
+    expect(
+      reimportMatches(`${file.yaml}extra: 1\n`, double.getSnapshot()),
+    ).toBe(false);
   });
 });

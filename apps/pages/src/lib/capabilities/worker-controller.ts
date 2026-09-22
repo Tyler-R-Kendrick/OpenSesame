@@ -80,6 +80,16 @@ export type RegisterWorkerOptions = Readonly<{
   distribution: DistributionContract;
 }>;
 
+/** What the page may say to its worker (`src/sw/messages.ts` is the other side). */
+export type PageToWorkerMessage =
+  | Readonly<{ type: "WORKER_HELLO" }>
+  | Readonly<{
+      type: "PLAN_ASSETS";
+      releaseId: string;
+      planDigest: string;
+      moduleIds: readonly string[];
+    }>;
+
 export const CORE_ONLY_VARIANT = "core-only";
 export const WORKER_GRAPH_UNAVAILABLE = "WORKER_GRAPH_UNAVAILABLE";
 
@@ -258,7 +268,7 @@ async function register(
   }
 }
 
-function postToController(message: object): boolean {
+function postToController(message: PageToWorkerMessage): boolean {
   const controller = state.container?.controller;
   if (!controller) return false;
   try {

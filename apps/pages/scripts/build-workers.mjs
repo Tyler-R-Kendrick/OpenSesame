@@ -33,6 +33,9 @@ const EXTRA_VARIANTS = new Map([
   ["push", { config: "vite.sw-push.config.ts", output: "sw-push.js" }],
 ]);
 
+const isText = (value) =>
+  Object.prototype.toString.call(value) === "[object String]";
+
 const PUSH_HANDLER = /addEventListener\(\s*["'](?:push|notificationclick)["']/;
 
 function distributedVariants(env) {
@@ -51,9 +54,7 @@ function distributedVariants(env) {
       const parsed = JSON.parse(readFileSync(contract, "utf8"));
       if (Array.isArray(parsed.workerVariants)) {
         return new Set(
-          parsed.workerVariants
-            .map((v) => (v && typeof v.id === "string" ? v.id : null))
-            .filter((id) => id !== null),
+          parsed.workerVariants.map((v) => v?.id).filter((id) => isText(id)),
         );
       }
     } catch {

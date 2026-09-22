@@ -437,6 +437,7 @@ export function formatViolations(list) {
 
 /** Deterministic JSON: stable key order for objects, arrays kept as given. */
 export function canonicalJson(value, indent = 2) {
+  const space = indent > 0 ? indent : undefined;
   const sort = (v) => {
     if (Array.isArray(v)) return v.map(sort);
     if (v && typeof v === "object") {
@@ -448,7 +449,7 @@ export function canonicalJson(value, indent = 2) {
     }
     return v;
   };
-  return `${JSON.stringify(sort(value), null, indent)}\n`;
+  return `${JSON.stringify(sort(value), null, space)}\n`;
 }
 
 /**

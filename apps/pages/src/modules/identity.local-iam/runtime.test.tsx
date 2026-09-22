@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import { emitVaultLock } from "../../lib/vault/lock-events.js";
 import {
   enabledIdentityViews,
@@ -33,13 +34,16 @@ describe("identity.local-iam runtime", () => {
   });
 
   it("imports with no fetch, timer, DOM, storage or lock-bus side effect", async () => {
-    const lockEvents = await import("../../lib/vault/lock-events.js");
-    const spy = vi.spyOn(lockEvents, "onVaultLock");
+    const changes = vi.fn();
+    const off = subscribeLocalIamChanges(changes);
     const loaded = await importUnderSpies(() => import("./runtime.js"));
     runtime = loaded.module;
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
-    // The lock resets that used to subscribe at module load no longer do.
-    expect(spy).not.toHaveBeenCalled();
+    // The lock resets that used to subscribe at module load no longer do:
+    // a lock right after import reaches no session reset.
+    emitVaultLock();
+    expect(changes).not.toHaveBeenCalled();
+    off();
     expect(runtime.capabilityRuntime.capability).toBe("identity.local-iam");
   });
 
@@ -87,20 +91,23 @@ describe("identity.local-iam runtime", () => {
   });
 
   it("binds the lock resets only while active (no top-level onVaultLock)", async () => {
-    const sessions = await import("../../lib/local-sessions.js");
-    const reset = vi.spyOn(sessions, "resetLocalSessions");
+    // `resetLocalSessions` notifies the local IAM change bus; that is the
+    // observable of the lock reset having run.
+    const changes = vi.fn();
+    const off = subscribeLocalIamChanges(changes);
     emitVaultLock();
-    expect(reset).not.toHaveBeenCalled();
+    expect(changes).not.toHaveBeenCalled();
 
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     emitVaultLock();
-    expect(reset).toHaveBeenCalledTimes(1);
+    expect(changes).toHaveBeenCalledTimes(1);
 
     // Disposal resets once more and unbinds: a later lock reaches nothing.
     await handle.dispose();
-    expect(reset).toHaveBeenCalledTimes(2);
+    expect(changes).toHaveBeenCalledTimes(2);
     emitVaultLock();
-    expect(reset).toHaveBeenCalledTimes(2);
+    expect(changes).toHaveBeenCalledTimes(2);
+    off();
   });
 });

@@ -51,6 +51,30 @@ export class FakeClient {
   }
 }
 
+export type MatchOptions = Readonly<{
+  type?: string;
+  includeUncontrolled?: boolean;
+}>;
+
+/** A push body as the worker reads it: `event.data.json()`. */
+export type FakePushData = Readonly<{ json: () => JsonObject }>;
+
+export type FakeNotification = Readonly<{
+  data: JsonObject;
+  close: () => void;
+}>;
+
+/** The fields the worker's handlers read off a dispatched event. */
+export type DispatchedEvent = Readonly<
+  Partial<{
+    data: JsonObject | string | FakePushData;
+    source: FakeClient | null;
+    request: Request;
+    respondWith: (response: Promise<Response>) => void;
+    notification: FakeNotification;
+  }>
+>;
+
 export class FakeClients {
   readonly all: FakeClient[] = [];
   claimed = 0;
@@ -67,13 +91,11 @@ export class FakeClients {
     if (index >= 0) this.all.splice(index, 1);
   }
 
-  async matchAll(
-    options: { type?: string; includeUncontrolled?: boolean } = {},
-  ): Promise<FakeClient[]> {
+  async matchAll(options?: MatchOptions): Promise<FakeClient[]> {
     return this.all.filter(
       (c) =>
-        (options.includeUncontrolled === true || c.controlled) &&
-        (options.type === undefined ||
+        (options?.includeUncontrolled === true || c.controlled) &&
+        (options?.type === undefined ||
           options.type === "all" ||
           c.type === options.type),
     );
@@ -264,7 +286,7 @@ export class FakeWorkerEnv {
   }
 
   /** Dispatch an extendable event and await every `waitUntil` promise. */
-  async dispatch(type: string, event: object): Promise<void> {
+  async dispatch(type: string, event: DispatchedEvent): Promise<void> {
     const pending: Promise<void>[] = [];
     const extendable = {
       ...event,

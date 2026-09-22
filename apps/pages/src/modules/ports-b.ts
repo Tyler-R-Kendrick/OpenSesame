@@ -48,7 +48,8 @@ export type OptionalPorts = Readonly<{
 }>;
 
 /** The context as the wave-B runtimes read it: the contract plus optional ports. */
-export type ContextWithPorts = ApprovedCapabilityContext & Partial<OptionalPorts>;
+export type ContextWithPorts = ApprovedCapabilityContext &
+  Partial<OptionalPorts>;
 
 /** A tool spec carrying the operation ids its dispatch is gated on. */
 export type TaggedWebMcpTool = PagesWebMcpTool & {

@@ -232,7 +232,8 @@ export async function verifyDist(options) {
     }
     const disk = diskChunks.get(chunk.file);
     const same = (a, b) =>
-      JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+      JSON.stringify([...new Set(a)].sort()) ===
+      JSON.stringify([...new Set(b)].sort());
     if (!same(chunk.imports, disk.static))
       note(
         "STATIC_EDGE_MISMATCH",
@@ -256,10 +257,13 @@ export async function verifyDist(options) {
         );
     }
   }
+  // A JS file is accounted for as a chunk, a worker variant, a public file,
+  // or a bundled asset (a dedicated web worker Vite emits as an asset).
   const knownJs = new Set([
     ...graphChunks.keys(),
     ...graph.workers.map((w) => w.file),
     ...graph.publicFiles.map((p) => p.file.replace(/\/\*\*$/, "")),
+    ...(graph.assets ?? []).map((a) => a.file),
   ]);
   for (const file of diskChunks.keys()) {
     const covered = [...knownJs].some(
@@ -364,7 +368,7 @@ export async function verifyDist(options) {
     if (ext === ".js" || ext === ".mjs") {
       sizes.javascript += bytes.byteLength;
       sizes.javascriptGzip += gzipSync(bytes, { level: 9 }).byteLength;
-      const cap = file.match(/^assets\/cap-(.+?)-[A-Za-z0-9_-]+\.js$/);
+      const cap = file.match(/^assets\/cap-(.+)-[A-Za-z0-9_-]{8}\.js$/);
       if (cap)
         sizes.capabilityChunks[cap[1]] =
           (sizes.capabilityChunks[cap[1]] ?? 0) + bytes.byteLength;

@@ -68,11 +68,16 @@ export type EgressDecision = Readonly<
   | { ok: false; code: EgressDenialCode; destination: string }
 >;
 
-export type EgressPort = ContractEgressPort &
-  Readonly<{
-    capability: CapabilityId;
-    decide(input: URL | string, meta?: EgressRequestMeta): EgressDecision;
-  }>;
+/** Assignable to the runtime contract's `EgressPort`; `decide` is a dry run. */
+export type EgressPort = Readonly<{
+  capability: CapabilityId;
+  decide(input: URL | string, meta?: EgressRequestMeta): EgressDecision;
+  fetch(
+    input: URL | string,
+    init?: RequestInit,
+    meta?: EgressRequestMeta,
+  ): Promise<Response>;
+}>;
 
 export type EgressPortOptions = Readonly<{
   capability: CapabilityDescriptor;
@@ -231,11 +236,12 @@ export function installPlanAwareEgress(
     if (descriptor === undefined) {
       throw new EgressDenied("capability-not-approved", capability, origin);
     }
-    return createEgressPort({
+    const port: ContractEgressPort = createEgressPort({
       capability: descriptor,
       plan: () => compositionStore.getSnapshot().plan,
       allowedOrigins: [origin],
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
+    return port;
   };
 }

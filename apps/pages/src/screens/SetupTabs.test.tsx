@@ -9,8 +9,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
+import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
 import { resetDouble } from "./capabilities/test-support.js";
-import { SETUP_PANEL_FIXTURE } from "./setup/panel-fixture.js";
 import { createSetupSeams } from "./setup/test-seams.js";
 
 vi.mock("../lib/configuration/capabilities-ports.js", async () => {
