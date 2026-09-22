@@ -1,16 +1,24 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import * as idp from "../lib/idp-registry.js";
 import * as accessBootstrap from "../lib/local-access-bootstrap.js";
 import * as devices from "../lib/local-devices.js";
 import * as directory from "../lib/local-directory.js";
 import { notifyLocalIamChange } from "../lib/local-iam-events.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
+import { registerLegacyShell } from "./legacy-sections.test-support.js";
 import { IdentityTree } from "./IdentityTree.js";
 import { IconUser } from "./Icons.js";
 import type { SectionRowModel } from "./RailRows.js";
+
+// the Identity section's rail targets are the identity capability's, so the row only exists on a plan that approved it.
+let revokeShell = () => {};
+beforeAll(() => {
+  revokeShell = registerLegacyShell();
+});
+afterAll(() => revokeShell());
 
 const IDENTITY_SECTION: SectionRowModel = {
   id: "identity",

@@ -2,11 +2,19 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 import { ACCESS_LABELS, ACCESS_VIEWS } from "../lib/section-views.js";
+import { registerLegacyShell } from "./legacy-sections.test-support.js";
 import { AccessTree } from "./AccessTree.js";
 import { IconAuthority } from "./Icons.js";
 import type { SectionRowModel } from "./RailRows.js";
+
+// the Access section's rail targets are the access capability's, so the row only exists on a plan that approved it.
+let revokeShell = () => {};
+beforeAll(() => {
+  revokeShell = registerLegacyShell();
+});
+afterAll(() => revokeShell());
 
 const ACCESS_SECTION: SectionRowModel = {
   id: "access",
