@@ -68,8 +68,8 @@ function canonicalize(value: BoundaryValue): string | undefined {
   if (isBigint(value)) return undefined;
   if (Array.isArray(value)) return canonicalArray(value);
   if (isDigestRecord(value)) {
-    // SAFETY: isDigestRecord already established the plain-object boundary
-    // contract at runtime; the entries view preserves that same contract.
+    // SAFETY: isDigestRecord validated the plain-object boundary contract at
+    // runtime; the entries view preserves that same validated contract.
     const entries = Object.entries(value as Record<string, DigestInput>);
     const parts: string[] = [];
     for (const [key, member] of entries) {
@@ -138,8 +138,8 @@ function isDigestJson(value: DigestInput): value is BoundaryValue {
   if (isDigestNumber(value)) return true;
   if (isDigestBoolean(value)) return true;
   if (Array.isArray(value)) {
-    // SAFETY: Array.isArray established the array boundary contract at
-    // runtime; the readonly view preserves that same contract.
+    // SAFETY: Array.isArray validated the array boundary contract at runtime;
+    // the readonly view preserves that same validated contract.
     return (value as readonly DigestInput[]).every(isDigestJson);
   }
   if (isDigestFunction(value)) return false;
@@ -153,9 +153,9 @@ function isDigestJson(value: DigestInput): value is BoundaryValue {
  * never a fresh `typeof` at the call site.
  */
 function isDigestString(value: DigestInput): value is string {
+  // SAFETY: the os-domain guards validate the string boundary contract at
+  // runtime; the BoundaryValue view preserves that same validated contract.
   return (
-    // SAFETY: isTypeofObject established the boundary contract at runtime;
-    // the BoundaryValue view preserves that same validated contract.
     !isTypeofObject(value as BoundaryValue) &&
     !Array.isArray(value) &&
     value !== null &&
@@ -165,9 +165,9 @@ function isDigestString(value: DigestInput): value is string {
 
 /** Same as `isDigestString`, for numbers. */
 function isDigestNumber(value: DigestInput): value is number {
+  // SAFETY: the os-domain guards validate the number boundary contract at
+  // runtime; the BoundaryValue view preserves that same validated contract.
   return (
-    // SAFETY: isTypeofObject established the boundary contract at runtime;
-    // the BoundaryValue view preserves that same validated contract.
     !isTypeofObject(value as BoundaryValue) &&
     !Array.isArray(value) &&
     value !== null &&
@@ -177,9 +177,9 @@ function isDigestNumber(value: DigestInput): value is number {
 
 /** Same as `isDigestString`, for booleans. */
 function isDigestBoolean(value: DigestInput): value is boolean {
+  // SAFETY: the os-domain guards validate the boolean boundary contract at
+  // runtime; the BoundaryValue view preserves that same validated contract.
   return (
-    // SAFETY: isTypeofObject established the boundary contract at runtime;
-    // the BoundaryValue view preserves that same validated contract.
     !isTypeofObject(value as BoundaryValue) &&
     !Array.isArray(value) &&
     value !== null &&
@@ -189,8 +189,8 @@ function isDigestBoolean(value: DigestInput): value is boolean {
 
 /** Same as `isDigestString`, for functions (refused, never encoded). */
 function isDigestFunction(value: DigestInput): value is DigestFunction {
-  // SAFETY: isFunction established the function boundary contract at
-  // runtime; the DigestFunction view preserves that same contract.
+  // SAFETY: isFunction validated the function boundary contract at runtime;
+  // the DigestFunction view preserves that same validated contract.
   return isFunction(value as BoundaryValue);
 }
 

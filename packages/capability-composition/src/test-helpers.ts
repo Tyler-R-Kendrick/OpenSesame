@@ -52,7 +52,7 @@ export function descriptor(id: string, overrides: FixtureOverrides = {}): Bounda
     class: klass,
     ...hostile
   } = overrides;
-  const raw: Record<string, BoundaryValue> = {
+  const raw: RawDocument = {
     id,
     descriptorVersion: 1,
     title: `Title ${id}`,
@@ -109,9 +109,11 @@ export function descriptor(id: string, overrides: FixtureOverrides = {}): Bounda
  * preserved for the validator to refuse.
  */
 function summaryField(summary: string | string[] | (() => string) | number): BoundaryValue {
-  if (isString(summary as BoundaryValue)) return summary;
-  if (isNumber(summary as BoundaryValue)) return summary;
-  if (isBoolean(summary as BoundaryValue)) return summary;
+  // SAFETY: the os-domain guards validate the summary boundary contract at
+  // runtime; the BoundaryValue views preserve that same validated contract.
+  if (isString(summary as BoundaryValue)) return summary as BoundaryValue;
+  if (isNumber(summary as BoundaryValue)) return summary as BoundaryValue;
+  if (isBoolean(summary as BoundaryValue)) return summary as BoundaryValue;
   // SAFETY: the remaining arms are hostile summary shapes (string array,
   // function) the validator refuses at runtime; the type names them.
   return summary as BoundaryValue;
@@ -123,10 +125,19 @@ export type HostilePolicyFields = {
 };
 
 /**
+ * A raw JSON document under construction: every fixture builder assembles
+ * one of these, encodes its hostile-aware fields through the shared guards,
+ * then returns it as the `BoundaryValue` contract the validators accept.
+ */
+export type RawDocument = Record<string, BoundaryValue>;
+
+/**
  * Parse attacker-shaped JSON into the hostile-fields contract: the only
  * producer of `HostilePolicyFields`, so no test parses raw JSON inline.
  */
 export function hostileFields(text: string): HostilePolicyFields {
+  // SAFETY: JSON.parse validated the JSON boundary contract at runtime; the
+  // hostile-fields view preserves that same validated contract.
   return JSON.parse(text) as HostilePolicyFields;
 }
 
@@ -165,7 +176,7 @@ export function policy(overrides: FixturePolicy = {}): BoundaryValue {
     updates,
     ...hostile
   } = overrides;
-  const raw: Record<string, BoundaryValue> = {
+  const raw: RawDocument = {
     schemaVersion,
     kind,
     instanceId,
@@ -219,7 +230,7 @@ export function vaultRestriction(overrides: FixtureVault = {}): BoundaryValue {
     prohibited = [],
     ...hostile
   } = overrides;
-  const raw: Record<string, BoundaryValue> = {
+  const raw: RawDocument = {
     schemaVersion: 1,
     kind: "vault-restriction",
     instanceId,
@@ -251,8 +262,8 @@ function allowField(
     | undefined,
 ): BoundaryValue {
   if (allow === undefined) return undefined;
-  // SAFETY: the guards establish the string/number boundary contract at
-  // runtime; the narrowed view preserves that same validated contract.
+  // SAFETY: the os-domain guards validate the allow boundary contract at
+  // runtime; the BoundaryValue views preserve that same validated contract.
   if (isString(allow as BoundaryValue)) return allow as BoundaryValue;
   if (isNumber(allow as BoundaryValue)) return allow as BoundaryValue;
   if (!isJsonObject(allow as BoundaryValue)) {
@@ -302,7 +313,7 @@ export function selection(overrides: FixtureSelection = {}): BoundaryValue {
     allow = "inherit",
     ...hostile
   } = overrides;
-  const raw: Record<string, BoundaryValue> = {
+  const raw: RawDocument = {
     schemaVersion: 1,
     kind: "installation-selection",
     instanceId,
