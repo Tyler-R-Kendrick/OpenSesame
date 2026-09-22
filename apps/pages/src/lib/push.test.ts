@@ -150,13 +150,31 @@ describe("where a click lands", () => {
   });
 });
 
+/**
+ * The push worker is three files now, not one: `sw-push.ts` installs the core
+ * worker (`sw/core.ts`, which owns install/activate/fetch/message) and then
+ * the push handlers (`sw/push-handlers.ts`, the only place a notification is
+ * rendered — `sw.ts`, the core-only variant, must not import them). The sweep
+ * below is the same sweep, over the whole of what the push variant ships.
+ */
 describe("the service worker's own listeners", () => {
-  const sw = readFileSync(join(here, "../sw.ts"), "utf8");
+  const source = (name: string) => readFileSync(join(here, "..", name), "utf8");
+  const core = source("sw/core.ts");
+  const sw = [source("sw-push.ts"), source("sw/push-handlers.ts"), core].join(
+    "\n",
+  );
   // Comments explain what must not happen and therefore name it; the sweep is
   // about what the worker actually executes.
   const code = sw
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^[ \t]*\/\/.*$/gm, "");
+
+  it("keeps the push handlers out of the core-only worker (PWA-01)", () => {
+    const coreOnly = source("sw.ts");
+    expect(coreOnly).not.toContain("push-handlers");
+    expect(coreOnly).not.toContain("showNotification");
+    expect(source("sw-push.ts")).toContain("installPushHandlers(sw)");
+  });
 
   it("renders notifications only through the helper", () => {
     // The single call to showNotification is fed by pushNotificationBody, so
@@ -179,9 +197,14 @@ describe("the service worker's own listeners", () => {
 
   it("leaves the pre-existing listeners intact", () => {
     for (const listener of ["install", "activate", "fetch"]) {
-      expect(sw).toContain(`sw.addEventListener("${listener}"`);
+      expect(core).toContain(`sw.addEventListener("${listener}"`);
     }
-    expect(sw).toContain('const CACHE = "opensesame-pages-v3"');
+    // The single fixed cache name became one this application builds for its
+    // own scope, release and variant; the worker still never reaches for a
+    // cache it did not name itself.
+    expect(core).toContain('from "./cache-names.js"');
+    expect(code).not.toMatch(/caches\.match\(/);
+    expect(code).not.toMatch(/"opensesame-pages[-:][^"]*"/);
   });
 });
 

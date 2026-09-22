@@ -5,129 +5,91 @@ import {
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
 import { dispatchUserBinding } from "./configuration/nav-persist.js";
+import { contributionsSnapshot } from "./contributions.js";
+import { keymapHelpRows } from "./keymap-help.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
-export type ListingMotion = {
-  next: (count?: number) => void;
-  previous: (count?: number) => void;
-  first: () => void;
-  last: () => void;
-  enter: () => void;
-  parent: () => void;
-  activate: () => void;
-  page?: (direction: 1 | -1, size: "half" | "full") => void;
-  edge?: (where: "high" | "mid" | "low") => void;
-  focus?: () => void;
-  /** 0-based. `5G` lands here instead of first()+next(4), which reshapes the rail. */
-  toIndex?: (index: number) => void;
-  /** `gv` / `gs` — move the rail index to that section, not only the page. */
-  goTo?: (path: string) => void;
-};
+import {
+  type ListingMotion,
+  currentRailTarget,
+  currentSearchTarget,
+  currentVaultTarget,
+  listingOf,
+  movementTarget,
+  typing,
+} from "./keymap-targets.js";
 
-export type VaultKeymapTarget = ListingMotion & {
-  hasRows?: () => boolean;
-  search: () => void;
-  closeSearch: () => void;
-  copySecret: () => void;
-  copyUsername: () => void;
-  edit: () => void;
-  trash: () => void;
-  create: () => void;
-  favorite: () => void;
-  share: () => void;
-};
-
-export type RailKeymapTarget = ListingMotion;
-
-export type SearchKeymapTarget = {
-  search: () => void;
-  closeSearch: () => void;
-};
+export {
+  type ListingMotion,
+  type RailKeymapTarget,
+  type SearchKeymapTarget,
+  type VaultKeymapTarget,
+  focusRailListing,
+  focusVaultListing,
+  registerRailKeymap,
+  registerSearchKeymap,
+  registerVaultKeymap,
+  typing,
+} from "./keymap-targets.js";
 
 type KeymapOptions = {
   navigate: (path: string) => void;
   showHelp: () => void;
 };
 
-let vaultTarget: VaultKeymapTarget | null = null;
-
-export function registerVaultKeymap(target: VaultKeymapTarget): () => void {
-  vaultTarget = target;
-  return () => {
-    if (vaultTarget === target) vaultTarget = null;
-  };
-}
-
-let railTarget: RailKeymapTarget | null = null;
-
-export function registerRailKeymap(target: RailKeymapTarget): () => void {
-  railTarget = target;
-  return () => {
-    if (railTarget === target) railTarget = null;
-  };
-}
-
-let searchTarget: SearchKeymapTarget | null = null;
-
-export function registerSearchKeymap(target: SearchKeymapTarget): () => void {
-  searchTarget = target;
-  return () => {
-    if (searchTarget === target) searchTarget = null;
-  };
-}
-
-function listingOf(event: KeyboardEvent): "rail" | "vault" | null {
-  const node = event.target;
-  if (node instanceof Element) {
-    if (node.closest(".railtree")) return "rail";
-    if (node.closest(".vtree__rows")) return "vault";
-  }
-  return null;
-}
-
-function movementTarget(event: KeyboardEvent): ListingMotion | null {
-  const listing = listingOf(event);
-  if (listing === "rail") return railTarget;
-  if (listing === "vault") return vaultTarget;
-  return vaultTarget?.hasRows?.() === false
-    ? railTarget
-    : (vaultTarget ?? railTarget);
-}
-
 export {
-  KEYMAP_HELP,
+  KEYMAP_HELP_CORE,
+  type KeymapHelpRow,
+  keymapHelpRows,
   registerKeymapHelp,
   showKeymapHelp,
 } from "./keymap-help.js";
 
-export function focusRailListing(): void {
-  railTarget?.focus?.();
+/** The sheet for the jumps registered right now. */
+export function keymapHelp() {
+  return keymapHelpRows(sectionJumpKeys());
 }
 
-export function focusVaultListing(): void {
-  vaultTarget?.focus?.();
-}
+/**
+ * The `g` jumps the core shell always has. Every other letter is a
+ * `keymap-jump` contribution from the capability whose section it opens, so
+ * a letter for an excluded capability is not bound at all (SURFACE-09).
+ */
+const CORE_JUMPS: ReadonlyMap<string, string> = new Map([
+  ["v", "/vault"],
+  ["s", "/settings"],
+]);
 
-export function typing(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.closest("[data-config-source]")) return true;
+/** The path `g <key>` opens, or null when nothing registered that key. */
+export function sectionJumpPath(key: string): string | null {
+  const core = CORE_JUMPS.get(key);
+  if (core !== undefined) return core;
   return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    target.isContentEditable
+    contributionsSnapshot("keymap-jump").find((jump) => jump.key === key)
+      ?.path ?? null
   );
 }
 
-const SECTION_PATHS = new Map([
-  ["v", "/vault"],
-  ["c", "/connections"],
-  ["a", "/access"],
-  ["i", "/identity"],
-  ["w", "/wallet"],
-  ["y", "/activity"],
-  ["s", "/settings"],
-]);
+/** Every jump key that exists right now, in the rail's order. */
+export function sectionJumpKeys(): readonly string[] {
+  const sections = contributionsSnapshot("section");
+  const orderOf = (path: string): number =>
+    path === "/vault"
+      ? 0
+      : path === "/settings"
+        ? 1000
+        : (sections.find((section) => section.to === path)?.order ?? 500);
+  const jumps = new Map<string, string>(CORE_JUMPS);
+  for (const jump of contributionsSnapshot("keymap-jump")) {
+    if (!jumps.has(jump.key)) jumps.set(jump.key, jump.path);
+  }
+  return [...jumps]
+    .sort(([, left], [, right]) => orderOf(left) - orderOf(right))
+    .map(([key]) => key);
+}
+
+/** Listing motions that keep their meaning after a `g`: `gj` is still down. */
+const GO_MOTIONS = new Set(["j", "k", "h", "l"]);
 
 const COUNT_MAX = 999;
 
@@ -170,11 +132,22 @@ function applyGoChord(
     event.preventDefault();
     return true;
   }
-  const path = SECTION_PATHS.get(event.key.toLowerCase());
-  if (!path) return false;
-  if (railTarget?.goTo) {
-    railTarget.goTo(path);
-    railTarget.focus?.();
+  const key = event.key.toLowerCase();
+  const path = sectionJumpPath(key);
+  if (path === null) {
+    // A letter that is no jump on this plan is swallowed, not reinterpreted:
+    // a stale `g y` must not become `y` (copy the secret) because the
+    // activity capability left. Motions keep working after a `g`.
+    if (/^[a-z]$/.test(key) && !GO_MOTIONS.has(key)) {
+      event.preventDefault();
+      return true;
+    }
+    return false;
+  }
+  const rail = currentRailTarget();
+  if (rail?.goTo) {
+    rail.goTo(path);
+    rail.focus?.();
   } else navigate(path);
   event.preventDefault();
   return true;
@@ -271,21 +244,25 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     "Control+n": run((listing, steps) => listing?.next(steps)),
     "Control+p": run((listing, steps) => listing?.previous(steps)),
     Enter: run((listing) => listing?.activate()),
-    "/": verb(() => (searchTarget ?? vaultTarget)?.search()),
+    "/": verb(() => (currentSearchTarget() ?? currentVaultTarget())?.search()),
     Escape: (event) => {
       count = 0;
-      searchTarget?.closeSearch();
-      vaultTarget?.closeSearch();
-      (movementTarget(event) ?? vaultTarget ?? railTarget)?.focus?.();
+      currentSearchTarget()?.closeSearch();
+      currentVaultTarget()?.closeSearch();
+      (
+        movementTarget(event) ??
+        currentVaultTarget() ??
+        currentRailTarget()
+      )?.focus?.();
       event.preventDefault();
     },
-    y: verb(() => vaultTarget?.copySecret()),
-    u: verb(() => vaultTarget?.copyUsername()),
-    e: verb(() => vaultTarget?.edit()),
-    x: verb(() => vaultTarget?.trash()),
-    n: verb(() => vaultTarget?.create()),
-    ".": verb(() => vaultTarget?.favorite()),
-    s: verb(() => vaultTarget?.share()),
+    y: verb(() => currentVaultTarget()?.copySecret()),
+    u: verb(() => currentVaultTarget()?.copyUsername()),
+    e: verb(() => currentVaultTarget()?.edit()),
+    x: verb(() => currentVaultTarget()?.trash()),
+    n: verb(() => currentVaultTarget()?.create()),
+    ".": verb(() => currentVaultTarget()?.favorite()),
+    s: verb(() => currentVaultTarget()?.share()),
     "Shift+?": verb(() => showHelp()),
     "?": verb(() => showHelp()),
     ":": verb(() => focusCommandBar()),
@@ -293,7 +270,8 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     F6: (event) => {
       count = 0;
       const listing = listingOf(event);
-      const other = listing === "rail" ? vaultTarget : railTarget;
+      const other =
+        listing === "rail" ? currentVaultTarget() : currentRailTarget();
       if (!other?.focus) return;
       other.focus();
       event.preventDefault();
@@ -385,9 +363,10 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     if (
       dispatchUserBinding(event, false, {
         "command.palette": () => focusCommandBar(),
-        "listing.search": () => (searchTarget ?? vaultTarget)?.search(),
+        "listing.search": () =>
+          (currentSearchTarget() ?? currentVaultTarget())?.search(),
         "listing.next": (ev) => movementTarget(ev)?.next(takeCount().steps),
-        "item.edit": () => vaultTarget?.edit(),
+        "item.edit": () => currentVaultTarget()?.edit(),
         "help.keymap": () => showHelp(),
       })
     ) {

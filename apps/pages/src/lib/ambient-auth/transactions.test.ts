@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseAuthCallback } from "./callback.js";
+import { parseAuthCallback } from "../federation-callback.js";
 import { providerConnectionKey } from "./provider.js";
 import {
   cancelTransaction,

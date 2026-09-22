@@ -1,4 +1,9 @@
-import type { GuideGoalDescriptor } from "./goals.js";
+/**
+ * Goals and authored help the `identity.*` capabilities contribute
+ * (`tutorial-goal` and help-topic contributions, registered on activation).
+ */
+
+import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 
 export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
   {
@@ -167,5 +172,73 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Audience templates list the versioned vocabulary and default limits available on Access. Reading them does not change grants or enforcement."',
       "end",
     ].join("\n"),
+  },
+
+  {
+    id: "identity.device.approve",
+    title: "Approve a device sign-in",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "identity.device.approve"',
+      'wait state "vault.unlocked" is=true timeout=60000',
+      'navigate "/identity"',
+      'wait route "/identity" timeout=15000',
+      'focus "identity.devices" "Device sign-ins waiting for a person are listed here." side=bottom',
+      "end",
+    ].join("\n"),
+  },
+];
+
+export const IDENTITY_HELP: readonly HelpTopic[] = [
+  {
+    id: "help.identity.account.add",
+    title: "How do I add someone to this deployment?",
+    answer:
+      "Identity → Providers, then Register an IdP. People sign in through a registered identity provider, so the provider is bound first; the shipped presets cover the common enterprise issuers and a custom OIDC issuer is the fallback.",
+    routes: [],
+    goal: "identity.account.add",
+    keywords: [
+      "user",
+      "users",
+      "person",
+      "people",
+      "someone",
+      "member",
+      "members",
+      "team",
+      "invite",
+      "add account",
+      "account",
+      "sign in",
+      "sign-in",
+      "idp",
+      "provider",
+      "register",
+      "deployment",
+      "onboard",
+      "seat",
+      "colleague",
+    ],
+  },
+  {
+    id: "help.account.register",
+    title: "How do I register a new account?",
+    answer:
+      "People sign in through a registered identity provider. Identity → Providers → Register an IdP binds the issuer; the sign-in screen then offers it. First-run setup is the same allowlist before anyone has unlocked.",
+    routes: [],
+    goal: "identity.account.add",
+    keywords: [
+      "register",
+      "sign up",
+      "signup",
+      "new account",
+      "create account",
+      "user",
+      "account",
+      "join",
+      "onboard",
+      "enroll",
+    ],
   },
 ];

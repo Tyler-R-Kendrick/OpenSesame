@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { chooseInSetup } from "./lib/capability-walk-contract.mjs";
 import { nativeWebMcp } from "./lib/native-webmcp.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -20,6 +21,32 @@ const VAULT_SESSION_WALLET_TOOLS = [
 ];
 /** 4 boot tools + 7 vault/help tools + 8 Wallet session tools. */
 const VAULT_UNLOCKED_TOOL_COUNT = 19;
+/**
+ * What this installation is asked to support before anything is measured.
+ *
+ * Every tool below belongs to a capability, and a capability nobody chose
+ * has no tool — which is the product requirement (ADR 0130, SURFACE-05),
+ * and is asserted first. These are the owners of the tools and destinations
+ * this gate goes on to walk: the surface itself, the wallet, guided help,
+ * the three item kinds the creation sweep visits, and the sections the
+ * navigation sweep names.
+ */
+const CHOSEN = [
+  "WebMCP tools",
+  "Wallet",
+  "Guided help",
+  "Passkey records",
+  "Secret drops",
+  "Certificate records",
+  "Access authority",
+  "Browser-local IAM",
+  "Activity log",
+  "External connectors",
+  "Operator identity providers",
+  "Git remote backup",
+  "Cloud key services",
+  "On-device model",
+];
 const harness = createHarness({
   dist: path.resolve(import.meta.dirname, "../dist"),
   origin,
@@ -45,6 +72,14 @@ try {
     true,
     "Chrome must expose native WebMCP; absence is a failure, never a skipped test",
   );
+  // A device that has chosen nothing exposes nothing: not a disabled tool,
+  // not an advertisement, no tool at all, and the SDK behind the surface is
+  // never even fetched (ADR 0130).
+  await native.expectCount(0);
+  assert.deepEqual(native.names(), []);
+
+  // Now choose, the way a person does, before there is a vault to choose in.
+  await chooseInSetup(page, CHOSEN);
   await native.expectCount(4);
   const boot = native.names();
   assert.deepEqual(boot, [

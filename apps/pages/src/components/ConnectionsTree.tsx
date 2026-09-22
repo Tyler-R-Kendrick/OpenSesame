@@ -17,14 +17,33 @@ import {
 } from "../sections/connections/page-tree.js";
 import { useConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
-import { SECTIONS, SectionRow, TreeRow } from "./RailRows.js";
+import { SectionRow, type SectionTreeProps, TreeRow } from "./RailRows.js";
 import "./connections-tree.css";
 
-export function ConnectionsTree({
-  open,
-  onToggle,
-}: { open: boolean; onToggle: () => void }) {
-  const { pathname, hash } = useLocation();
+/**
+ * The section row plus its entries — what the shell rendered before rail
+ * sections became contributions. The `connectors.external` runtime
+ * contributes `ConnectionsTreeEntries` alone; the shell draws the row.
+ */
+export function ConnectionsTree({ section, open, onToggle }: SectionTreeProps) {
+  const { pathname } = useLocation();
+  return (
+    <>
+      <SectionRow
+        section={section}
+        open={open}
+        active={pathname.startsWith("/connections")}
+        branch={open}
+        onToggle={onToggle}
+      />
+      {open ? <ConnectionsTreeEntries pathname={pathname} /> : null}
+    </>
+  );
+}
+
+/** The entries under connections/: connected, attention, and the catalog. */
+export function ConnectionsTreeEntries({ pathname }: { pathname: string }) {
+  const { hash } = useLocation();
   const current =
     pathname + (hash || (pathname === "/connections" ? "#connected" : ""));
   const { providers, connections } = useConnectionsNavigation();
@@ -34,50 +53,39 @@ export function ConnectionsTree({
     sources.filter((section) => section.id !== "catalog"),
   );
   return (
-    <>
-      <SectionRow
-        section={SECTIONS[1]}
-        open={open}
-        active={pathname.startsWith("/connections")}
-        branch={open}
-        onToggle={onToggle}
-      />
-      {open ? (
-        <div className="railtree__kids" id="connections-tree">
-          {outline.map((node) => (
-            <PageTreeBranch
-              key={node.id}
-              node={node}
-              level={2}
-              current={current}
-              empty={
-                node.id === "connected" ? (
-                  <span className="connections-tree__note">
-                    No connected services
-                  </span>
-                ) : null
-              }
-            />
-          ))}
-          {catalog ? (
-            <PageTreeBranch
-              node={{
-                id: catalog.id,
-                label: catalog.label,
-                href: catalog.href,
-                children: [],
-                branch: true,
-                count: pageTreeItemTotal(pageToTree(catalog.sections ?? [])),
-              }}
-              level={2}
-              current={current}
-            >
-              <CatalogEntries providers={providers} current={current} />
-            </PageTreeBranch>
-          ) : null}
-        </div>
+    <div className="railtree__kids" id="connections-tree">
+      {outline.map((node) => (
+        <PageTreeBranch
+          key={node.id}
+          node={node}
+          level={2}
+          current={current}
+          empty={
+            node.id === "connected" ? (
+              <span className="connections-tree__note">
+                No connected services
+              </span>
+            ) : null
+          }
+        />
+      ))}
+      {catalog ? (
+        <PageTreeBranch
+          node={{
+            id: catalog.id,
+            label: catalog.label,
+            href: catalog.href,
+            children: [],
+            branch: true,
+            count: pageTreeItemTotal(pageToTree(catalog.sections ?? [])),
+          }}
+          level={2}
+          current={current}
+        >
+          <CatalogEntries providers={providers} current={current} />
+        </PageTreeBranch>
       ) : null}
-    </>
+    </div>
   );
 }
 

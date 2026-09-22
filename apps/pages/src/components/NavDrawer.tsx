@@ -14,7 +14,9 @@
  * this removes.
  *
  * The rail is still the desktop's navigation, unchanged. This is the same
- * `SECTIONS` list it draws, so a section is never named twice in two places.
+ * section list it draws — the core directories plus every registered
+ * `section` contribution — so a section is never named twice in two places,
+ * and an excluded capability has no row here either.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -22,14 +24,14 @@ import { NavLink } from "react-router";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconMenu, IconX } from "./Icons.js";
-import { SECTIONS } from "./RailRows.js";
+import { type SectionRowModel, useSections } from "./RailRows.js";
 import { Wordmark } from "./Wordmark.js";
 
 /** One section, bound to the same semantic target as its rail row. */
 function DrawerRow({
   section,
   onGo,
-}: { section: (typeof SECTIONS)[number]; onGo: () => void }) {
+}: { section: SectionRowModel; onGo: () => void }) {
   const ref = useGuideTarget<HTMLAnchorElement>(section.guide);
   const { to, label, Icon } = section;
   return (
@@ -50,6 +52,7 @@ export function NavDrawer() {
   const closeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const keyRef = useGuideTarget<HTMLButtonElement>("nav.menu");
+  const sections = useSections();
   // Stable: `useModalFocus` keeps this in its effect deps, and a fresh
   // arrow each render would re-run the effect — re-focusing Close and
   // taking the keyboard off whatever the person was on. `useConnectors`
@@ -101,7 +104,7 @@ export function NavDrawer() {
               </button>
             </div>
             <nav className="drawer__rows" aria-label="Sections">
-              {SECTIONS.map((section) => (
+              {sections.map((section) => (
                 <DrawerRow key={section.to} section={section} onGo={close} />
               ))}
             </nav>

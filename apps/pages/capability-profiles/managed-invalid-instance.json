@@ -1,0 +1,71 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "managed-invalid-instance",
+  "notes": "The installation selection names a different instanceId than the policy. Must be rejected (PROFILE_MISMATCH); nothing optional approved.",
+  "instancePolicy": {
+    "schemaVersion": 1,
+    "kind": "InstanceCapabilityPolicy",
+    "instanceId": "inst-managed",
+    "revision": "14",
+    "presetProvenance": {
+      "id": "custom",
+      "version": 1
+    },
+    "capabilities": {
+      "default": "deny",
+      "required": [],
+      "optional": [
+        "access.authority",
+        "activity.log",
+        "identity.local-iam",
+        "identity.siop",
+        "identity.site-broker",
+        "sharing.drops",
+        "support.guided-help",
+        "support.local-ai",
+        "vault.certificate-records",
+        "vault.interop-formats",
+        "vault.passkey-records"
+      ],
+      "prohibited": [
+        "agents.webmcp",
+        "backup.cloud-secrets",
+        "backup.git-remote",
+        "connectors.external",
+        "enterprise.ca-administration",
+        "enterprise.directory-provisioning",
+        "identity.ambient-sso",
+        "identity.federation",
+        "notifications.web-push",
+        "sharing.household",
+        "support.remote-ai",
+        "telemetry.external",
+        "wallet.spending"
+      ]
+    },
+    "network": {
+      "externalServices": "allow",
+      "allowedServiceOrigins": []
+    },
+    "updates": {
+      "unknownCapabilities": "deny",
+      "expandedExposure": "require-approval"
+    }
+  },
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "inst-other",
+    "installationId": "device-managed-3",
+    "basePolicyRevision": "14",
+    "revision": "1",
+    "acceptedRequired": [],
+    "selectedOptional": ["vault.passkey-records"],
+    "chosenAlternatives": {},
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  },
+  "expectInvalid": true
+}

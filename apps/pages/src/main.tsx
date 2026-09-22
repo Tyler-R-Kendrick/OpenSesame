@@ -1,33 +1,14 @@
-import { registerSW } from "virtual:pwa-register";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
-import { App } from "./App.js";
-import { DIRECTORY_KEY } from "./lib/connector-directory.js";
+import { bootCore } from "./bootstrap/boot.js";
+import { compositionStore } from "./lib/capabilities/store.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
-import { kvHydrate } from "./lib/kv.js";
-import { LAST_VAULT_KEY, lastVaultIsGuest } from "./lib/last-vault.js";
-import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "./lib/local-guest.js";
-import { MODEL_PROVIDER_KEY } from "./lib/model-provider.js";
-import {
-  PROJECTS_KEY,
-  activeProject,
-  projectScopedKeys,
-  rehydrateProjects,
-} from "./lib/projects.js";
-import { loadRuntimeConfig } from "./lib/runtime-config.js";
-import { THEME_KEY, bootstrapTheme } from "./lib/theme.js";
-import { vaultStore } from "./lib/vault/store.js";
-import {
-  migrateLegacyVaultStorage,
-  tombStorageKeys,
-} from "./lib/vault/tomb-migration.js";
-import { GUEST_TOMB, TOMBS_REGISTRY_KEY } from "./lib/vfs.js";
-// The shell and the vault load behind the unlock gate (App.tsx), but their
-// stylesheets stay in the first bundle, ahead of styles.css: a stylesheet
-// that arrives with a lazy chunk lands after the shared rules and wins every
-// cascade tie they used to win — the editor's type chip lost its 44px floor
-// that way. Order here is the order the bundle always had.
+// The shell and the vault load behind the unlock gate (app-root.tsx), but
+// their stylesheets stay in the first bundle, ahead of styles.css: a
+// stylesheet that arrives with a lazy chunk lands after the shared rules and
+// wins every cascade tie they used to win — the editor's type chip lost its
+// 44px floor that way. Order here is the order the bundle always had.
 import "./components/command-bar.css";
 import "./components/connections-tree.css";
 import "./components/slash-search.css";
@@ -35,7 +16,6 @@ import "./components/statusline.css";
 import "./components/wordmark.css";
 import "./sections/vault.css";
 import "./styles.css";
-import "./lib/agent-page-dump.js";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
@@ -67,62 +47,36 @@ if (framed()) {
 // the listener goes on before anything asynchronous.
 armInstall();
 
-void (async () => {
-  // OPFS is async and the store reads its header synchronously, so pull the
-  // persisted keys into the KV cache and re-read before the first paint.
-  // The boot record and tomb registry hydrate first: which tomb is active
-  // decides which vault header and consent keys exist. Deployment endpoints
-  // load before settings are first read, so an unbaked static deploy still
-  // knows its Identity API without a rebuild.
-  await loadRuntimeConfig();
-  await kvHydrate([
-    PROJECTS_KEY,
-    TOMBS_REGISTRY_KEY,
-    "settings.v1",
-    "setup.v1",
-    // The connector directory's endpoint (ADR 0115) — its key and list are
-    // sealed in the tomb and hydrate with it.
-    DIRECTORY_KEY,
-    "outbox.v1",
-    "connections.firstRun.v1",
-    // The model-provider record reads synchronously (`loadModelProvider`),
-    // so a choice made in setup or Settings › AI models is lost on reload
-    // unless it hydrates here with the rest of the plaintext boundary.
-    MODEL_PROVIDER_KEY,
-    // Day/night must survive a locked reload — not a vault secret.
-    THEME_KEY,
-    // Last authorized vault (guest included). Missing this on a cold load —
-    // e.g. GitHub App install return — makes unlock default to personal.
-    LAST_VAULT_KEY,
-    // Guest slug ordinal + durable principal — same install-return cold load.
-    GUEST_ORDINAL_KEY,
-    GUEST_PERSON_KEY,
-  ]);
-  rehydrateProjects();
-  // The active project's plaintext boundary is what legacy storage migrates
-  // into. But the tomb the unlock screen will ask about is the guest tomb when
-  // that was the last authorized account (AGENTS.md §5), so its header has to
-  // be hydrated too: reading only the active project left a guest's enrolled
-  // gate unreadable on reload, and the unlock form then offered a road with no
-  // challenge behind it.
-  const tomb = activeProject().id;
-  const guestTomb = lastVaultIsGuest() ? GUEST_TOMB : null;
-  await kvHydrate([
-    ...projectScopedKeys(),
-    ...tombStorageKeys(tomb),
-    ...(guestTomb ? tombStorageKeys(guestTomb) : []),
-  ]);
-  // Move any legacy flat vault keys into the tomb before the store reads it.
-  // Pre-unlock this is plaintext moves only (header params, sealed body
-  // bytes); sealed config migrates on unlock.
-  await migrateLegacyVaultStorage(tomb);
-  vaultStore.rehydrate();
-  bootstrapTheme();
+/**
+ * The worker registration controller (S08) picks the variant the plan
+ * requires and registers it. Until it lands, boot proceeds without a worker
+ * rather than registering one the plan did not ask for.
+ */
+async function registerWorker(): Promise<void> {
+  try {
+    const [controller, { DISTRIBUTION }] = await Promise.all([
+      import("./lib/capabilities/worker-controller.js"),
+      import("./lib/capabilities/distribution.js"),
+    ]);
+    controller.registerWorkerForPlan(compositionStore, {
+      distribution: DISTRIBUTION,
+    });
+  } catch {
+    // No controller in this build: no worker is registered.
+  }
+}
 
+void (async () => {
+  await bootCore();
+  if (import.meta.env.DEV) await import("./lib/agent-page-dump.js");
+
+  // The shell arrives only after the plan is resolved: optional code is
+  // imported by the loader under a lease, never by the entry.
+  const { AppRoot } = await import("./app-root.js");
   createRoot(root).render(
     <StrictMode>
       <BrowserRouter basename={basename === "/" ? undefined : basename}>
-        <App />
+        <AppRoot />
       </BrowserRouter>
     </StrictMode>,
   );
@@ -133,7 +87,7 @@ void (async () => {
       { once: true },
     );
   }
-  registerSW({ immediate: true });
+  void registerWorker();
   // A launch of the already-installed app fires no `appinstalled` and may never
   // mount the install card at all — the reader has no cause to open Settings —
   // so this is the only thing covering them.

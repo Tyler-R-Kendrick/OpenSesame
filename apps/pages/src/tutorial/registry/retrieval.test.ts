@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { HELP_TOPICS, rankHelpTopics, searchHelpTopics } from "./goals.js";
+import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
+
+// The identity topics are the identity capability's; retrieval can only find
+// them on a deployment that has it.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 /**
  * The question that started this: asked on the Identity screen, the on-device

@@ -546,6 +546,33 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   entry with checked-in prose; a new authored guide is compiled by the same
   parser and validator model output goes through
   ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
+- **Every new user-facing feature is a capability, and an optional one never
+  loads before consent**
+  ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
+  Adding a feature is five things beside ADR 0065's registry entry: a
+  descriptor in `apps/pages/src/lib/capabilities/catalog-*.ts`, a module entry
+  `apps/pages/src/modules/<capability-id>/runtime.ts` exporting
+  `capabilityRuntime`, an ownership rule in `lib/capabilities/ownership.ts`
+  plus a source-classification rule, an operation mapping in
+  `packages/capability-registry/src/capability-map.ts`, and a profile fixture
+  that proves its **absence** (`minimal-local` resolves to zero optional
+  capabilities). A capability owns operations; it is not one, and nothing in
+  the registry is renamed to make it fit. Optional code reaches the page only
+  through `loadApprovedModule` under a current lease, after the plan approved
+  it and a `ConsentReceipt` covered its exposure digest — a configured
+  endpoint, a skipped setup tab, a remembered provider or a cached chunk is
+  none of them consent. **The bootstrap may not statically import an optional
+  module**: `main.tsx` resolves the plan and then `import()`s `app-root.js`,
+  modules have no top-level side effects, and the build fails on reachability
+  of an excluded module from any entry. Scopes only narrow — distribution,
+  instance, workspace, installation, vault session — so a smaller permitted
+  set can never enlarge the approved one. Changes to the bootstrap, a module,
+  a worker or the build run `pnpm --filter @opensesame/pages build:profile`
+  and `verify:capability-graph`; a contract with no landed test is recorded
+  `pending` in `docs/evidence/capability-composition/contract-test-matrix.json`
+  rather than left to read as covered. Operator guide:
+  `docs/operators/capability-composition.md`; verification method:
+  `docs/validation/capability-composition.md`.
 - **A source file stays under 400 lines and the debt ledger only falls**
   ([ADR 0093](docs/adr/0093-structural-quality-gates.md)). `pnpm quality`
   measures module size and TypeScript complexity against thresholds that mirror

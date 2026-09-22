@@ -6,6 +6,48 @@
     "deliberate line in a diff with a reason, not a regenerated file.",
     "Seeded from the 2026-09-03 build with roughly 5% headroom."
   ],
+  "profiles": {
+    "$comment": [
+      "Per-capability-profile budgets for the hardened composition builds",
+      "(ownership.md 4.6). Unlike `apps`, these are measured against",
+      "`apps/pages/dist-profiles/<name>`, which only exists after",
+      "`pnpm --filter @opensesame/pages build:profile --profile",
+      "capability-profiles/<name>.json --mode hardened`. The gate measures a",
+      "profile when its directory is there and prints a skip notice when it is",
+      "not, so a checkout that never ran a profile build still passes.",
+      "2026-09-22: seeded from the first real hardened builds of minimal-local",
+      "and family-local at /OpenSesame/, plus ~5% headroom. The two measure",
+      "identically today (total 2290.5 KiB, javascript 1855.1, javascriptGzip",
+      "569.0, css 103.3, largestAsset 386.0) because the core entry still",
+      "statically reaches every optional capability, so hardened exclusion has",
+      "nothing it can drop yet -- the forbidden-reachability gate reports those",
+      "leaks. These numbers are therefore a ceiling, not a target: as the",
+      "bootstrap cut lands, minimal-local must fall well below family-local and",
+      "both must fall. Never raise one to make a build pass."
+    ],
+    "builds": {
+      "minimal-local-hardened": {
+        "dist": "apps/pages/dist-profiles/minimal-local-hardened",
+        "budgets": {
+          "total": 2404,
+          "javascript": 1947,
+          "javascriptGzip": 598,
+          "css": 109,
+          "largestAsset": 406
+        }
+      },
+      "family-local-hardened": {
+        "dist": "apps/pages/dist-profiles/family-local-hardened",
+        "budgets": {
+          "total": 2404,
+          "javascript": 1947,
+          "javascriptGzip": 598,
+          "css": 109,
+          "largestAsset": 406
+        }
+      }
+    }
+  },
   "apps": {
     "apps/pages": {
       "dist": "apps/pages/dist",
@@ -44,7 +86,15 @@
         "total": 17900,
         "javascript": 4330,
         "javascriptGzip": 1240,
-        "css": 147,
+        "_cssReason": [
+          "Raised 147 -> 153 for the capability selection surface: the setup",
+          "tab and the Settings panel a person chooses capabilities in add",
+          "318 authored lines across two stylesheets (measured 150 KiB).",
+          "The number is a ceiling, not a target; it falls again when the",
+          "optional capabilities stop reaching the core entry and their CSS",
+          "leaves the always-loaded graph."
+        ],
+        "css": 153,
         "largestAsset": 12800
       }
     },

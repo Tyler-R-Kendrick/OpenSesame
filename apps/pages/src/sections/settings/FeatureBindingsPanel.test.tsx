@@ -14,12 +14,26 @@ import {
   loadHistorySelections,
 } from "../../lib/history-backups.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
+import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
+import { CONNECTIONS_TARGETS } from "../../tutorial/registry/connections-catalog.js";
 import { FeatureBindingsPanel } from "./FeatureBindingsPanel.js";
 
 const originalBackup = { ...backupSeams };
 
+// The panel mounts guide targets `connectors.external` contributes
+// (`settings.connectivity`, `settings.model-provider`); declare them the way
+// the loader would.
+let undeclare: (() => void) | null = null;
+beforeEach(async () => {
+  undeclare = await declareTutorialForTest("connectors.external", {
+    targets: CONNECTIONS_TARGETS,
+  });
+});
+
 afterEach(() => {
   cleanup();
+  undeclare?.();
+  undeclare = null;
   Object.assign(backupSeams, originalBackup);
   const settings = loadSettings();
   saveSettings({

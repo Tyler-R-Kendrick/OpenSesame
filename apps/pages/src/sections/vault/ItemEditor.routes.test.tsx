@@ -9,6 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { registerLegacyItemKinds } from "../../lib/contributions.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { createItem } from "../../lib/vault/model.js";
 import { ItemEditor } from "./ItemEditor.js";
@@ -18,13 +19,22 @@ const saveItem = vi.fn();
 const existing = createItem("note", "Existing note");
 const folders = [{ id: "work", name: "Work", createdAt: "2026-01-01" }];
 
+/**
+ * Passkey, drop and certificate records are `item-kind` contributions from
+ * the capabilities that own them (SURFACE-08), so the type picker and the
+ * `?f=` filters only offer them while those capabilities are in the plan.
+ * This suite registers the same kinds their runtimes do.
+ */
+let revokeItemKinds: () => void;
 beforeEach(() => {
+  revokeItemKinds = registerLegacyItemKinds();
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ items: [existing], folders }),
     useVaultStore: () => ({ saveItem }),
   });
 });
 afterEach(() => {
+  revokeItemKinds();
   cleanup();
   Object.assign(vaultHooksSeams, original);
   vi.clearAllMocks();

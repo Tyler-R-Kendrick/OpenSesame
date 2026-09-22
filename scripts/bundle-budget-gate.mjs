@@ -84,6 +84,22 @@ const failures = [];
 const missing = [];
 const results = [];
 
+function check(app, config, measurement) {
+  for (const [metric, budgetKib] of Object.entries(config.budgets)) {
+    const actualKib = kib(measurement[metric]);
+    if (actualKib > budgetKib) {
+      failures.push({
+        app,
+        metric,
+        budgetKib,
+        actualKib,
+        note:
+          metric === "largestAsset" ? ` (${measurement.largestAssetName})` : "",
+      });
+    }
+  }
+}
+
 for (const [app, config] of Object.entries(budgets.apps)) {
   const distDirectory = join(root, config.dist);
   let exists = false;
@@ -99,19 +115,28 @@ for (const [app, config] of Object.entries(budgets.apps)) {
   const measurement = measure(distDirectory);
   results.push({ app, config, measurement });
 
-  for (const [metric, budgetKib] of Object.entries(config.budgets)) {
-    const actualKib = kib(measurement[metric]);
-    if (actualKib > budgetKib) {
-      failures.push({
-        app,
-        metric,
-        budgetKib,
-        actualKib,
-        note:
-          metric === "largestAsset" ? ` (${measurement.largestAssetName})` : "",
-      });
-    }
+  check(app, config, measurement);
+}
+
+// Capability-profile builds (ownership.md 4.6). These live under
+// `apps/pages/dist-profiles/<name>` and only exist once someone ran
+// `build:profile`, so an absent one is a skip, never a failure.
+const skippedProfiles = [];
+for (const [name, config] of Object.entries(budgets.profiles?.builds ?? {})) {
+  const distDirectory = join(root, config.dist);
+  let exists = false;
+  try {
+    exists = statSync(distDirectory).isDirectory();
+  } catch {
+    exists = false;
   }
+  if (!exists) {
+    skippedProfiles.push({ name, dist: config.dist });
+    continue;
+  }
+  const measurement = measure(distDirectory);
+  results.push({ app: `profile ${name}`, config, measurement });
+  check(`profile ${name}`, config, measurement);
 }
 
 console.log("\nShipped bundle sizes (KiB)\n");
@@ -137,6 +162,16 @@ for (const { app, config, measurement } of results) {
     );
   }
   console.log("");
+}
+
+if (skippedProfiles.length > 0) {
+  console.log("Capability profiles not measured -- no build output at:");
+  for (const { name, dist } of skippedProfiles)
+    console.log(`  ${name}: ${dist}`);
+  console.log(
+    "Run `pnpm --filter @opensesame/pages build:profile --profile" +
+      " capability-profiles/<name>.json --mode hardened` to measure one.\n",
+  );
 }
 
 if (missing.length > 0) {

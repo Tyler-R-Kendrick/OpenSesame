@@ -26,6 +26,7 @@ import { landFocus } from "../lib/focus.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
+import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -38,8 +39,9 @@ export function FrontDoor({
   onUseLocalOnly,
 }: {
   providers: FederatedProviderSummary[];
-  /** The operator ceremony — every tab of it optional (ADR 0114). */
-  onOpenSetup: () => void;
+  /** The operator ceremony — every tab of it optional (ADR 0114). `join`
+   *  lands on a managed instance's required roots to accept. */
+  onOpenSetup: (join?: boolean) => void;
   /** Seal a local vault with no account at all. */
   onUseLocalOnly: () => void;
 }) {
@@ -66,6 +68,10 @@ export function FrontDoor({
           <p className="door__lede">Set up your own vault.</p>
         </header>
 
+        {/* A managed instance's required roots, when this deployment has
+            any nobody has accepted yet. Never in front of sign-in. */}
+        <RequirementsGate onOpenSetup={onOpenSetup} />
+
         <fieldset className="door__roads" aria-label="Roads in">
           {/* The name is the road; the second line describes it, so a
               screen reader hears "Set up your own" and then what it takes. */}
@@ -78,7 +84,7 @@ export function FrontDoor({
             className="road"
             aria-label="Set up your own"
             aria-describedby="door-setup-kind"
-            onClick={onOpenSetup}
+            onClick={() => onOpenSetup()}
           >
             <span className="road__mark" aria-hidden="true">
               <IconAuthority size={20} />

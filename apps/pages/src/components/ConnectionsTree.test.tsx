@@ -17,8 +17,26 @@ import {
   usePublishConnections,
 } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
+import { IconConnection } from "./Icons.js";
 import { setRailCursor } from "./rail-cursor.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
+
+/**
+ * The row model the `connectors.external` runtime contributes. Its guide
+ * target (`nav.connections`) is contributed with it rather than declared in
+ * the static catalog, so this unit test binds the row to a core target: the
+ * tree under test, not the guide binding, is what it exercises.
+ */
+const CONNECTIONS_SECTION = {
+  id: "connections",
+  to: "/connections",
+  label: "Connections",
+  segment: "connections",
+  guide: "nav.vault",
+  jump: "c",
+  order: 20,
+  Icon: IconConnection,
+};
 
 const template = getBundledProviders()[0];
 if (!template) throw new Error("Bundled catalog must not be empty");
@@ -94,7 +112,13 @@ function Page({ catalog }: { catalog: Provider[] | null }) {
         // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
         tabIndex={0}
       >
-        <ConnectionsTree open={open} onToggle={() => setOpen(!open)} />
+        <ConnectionsTree
+          section={CONNECTIONS_SECTION}
+          open={open}
+          active={location.pathname.startsWith("/connections")}
+          onToggle={() => setOpen(!open)}
+          pathname={location.pathname}
+        />
       </nav>
       <output aria-label="Current route">
         {location.pathname + location.hash}
