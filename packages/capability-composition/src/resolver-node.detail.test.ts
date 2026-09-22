@@ -126,6 +126,68 @@ describe("node evaluation detail", () => {
     expect(reload.entry.activationStatus).toBe("restart-required");
   });
 
+  it("pins every reason-code literal against the closed union", () => {
+    const evaluation = evaluateNode("a", mustDescriptor("a"), 1, {
+      wanted: new Set(["a"]),
+      optionalWanted: new Set(),
+      blockedByDeps: ["dep"],
+      prohibitedBy: new Set(),
+      ceiling: {
+        ids: new Map(),
+        explicit: false,
+        provenance: "instance-policy",
+      },
+      shipped: new Set(["a"]),
+      shippedModules: new Set(["mod.a"]),
+      runtime: new Set(["document"]),
+      consented: new Set(),
+      cached: new Set(),
+    });
+    expect(evaluation.entry.reasonCodes).toEqual(["DEPENDENCY_CONFLICT"]);
+    expect(evaluation.conflicts).toHaveLength(1);
+    expect(evaluation.conflicts[0]).toMatchObject({
+      reasonCode: "DEPENDENCY_CONFLICT",
+      capabilityId: "a",
+      detail: "depends on blocked dep",
+      provenance: "dependency-closure",
+    });
+  });
+
+  it("distinguishes wanted, optional, and dependency-only selection", () => {
+    const context = {
+      optionalWanted: new Set<string>(),
+      blockedByDeps: [] as readonly string[],
+      prohibitedBy: new Set<string>(),
+      ceiling: {
+        ids: new Map<string, "allow">(),
+        explicit: false,
+        provenance: "instance-policy",
+      },
+      shipped: new Set(["a"]),
+      shippedModules: new Set(["mod.a"]),
+      runtime: new Set(["document"] as const),
+      consented: new Set<string>(),
+      cached: new Set<string>(),
+    };
+    const wanted = evaluateNode("a", mustDescriptor("a"), 0, {
+      ...context,
+      wanted: new Set(["a"]),
+    });
+    expect(wanted.entry.stateAxes.selected).toBe(true);
+    const optional = evaluateNode("a", mustDescriptor("a"), 0, {
+      ...context,
+      wanted: new Set<string>(),
+      optionalWanted: new Set(["a"]),
+    });
+    expect(optional.entry.stateAxes.selected).toBe(true);
+    const neither = evaluateNode("a", mustDescriptor("a"), 0, {
+      ...context,
+      wanted: new Set<string>(),
+    });
+    expect(neither.entry.stateAxes.selected).toBe(false);
+    expect(neither.entry.activationStatus).toBe("not-selected");
+  });
+
   it("names the missing runtime environments in the conflict", () => {
     const evaluation = evaluateNode(
       "w",
