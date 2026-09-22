@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { cacheName, stagingCacheName } from "./cache-names.js";
 import { installCoreWorker } from "./core.js";
@@ -41,8 +42,16 @@ async function ready(): Promise<Ready> {
   return { env, page, shell };
 }
 
-function plan(moduleIds: readonly string[], releaseId = RELEASE_ID) {
-  return { type: "PLAN_ASSETS", releaseId, planDigest: PLAN_DIGEST, moduleIds };
+function plan(
+  moduleIds: readonly string[],
+  releaseId = RELEASE_ID,
+): JsonObject {
+  return {
+    type: "PLAN_ASSETS",
+    releaseId,
+    planDigest: PLAN_DIGEST,
+    moduleIds: [...moduleIds],
+  };
 }
 
 function abs(env: FakeWorkerEnv, file: string): string {

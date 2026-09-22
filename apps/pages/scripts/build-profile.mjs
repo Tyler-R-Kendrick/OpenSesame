@@ -90,7 +90,9 @@ export async function buildProfile({ profile, mode, out, base, gate, expectAbsen
   console.error(`\n[build-profile] ${name} (${mode}) → ${relative(APP_ROOT, outDir)}`);
   run(join(here, "security-profile.mjs"), [], env);
   mkdirSync(dirname(outDir), { recursive: true });
-  run(require.resolve("vite/bin/vite.js"), ["build", "--outDir", outDir, "--emptyOutDir"], env);
+  // `vite/bin/vite.js` is not an exported subpath; go through package.json.
+  const viteBin = join(dirname(require.resolve("vite/package.json")), "bin/vite.js");
+  run(viteBin, ["build", "--outDir", outDir, "--emptyOutDir"], env);
   const { report, table } = await verifyDist({ dist: outDir, profile: path, mode, base, expectAbsent });
   console.error(table);
   writeFileSync(join(outDir, "measurements.json"), canonicalJson({ ...report, name: `${name}-${mode}` }));
