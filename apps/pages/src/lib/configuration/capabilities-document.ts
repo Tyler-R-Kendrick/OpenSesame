@@ -100,10 +100,11 @@ function plainValue(node: BoundaryValue): JsonValue {
   if (isMap(node)) {
     const record: JsonObject = {};
     for (const item of node.items) {
-      if (!isScalar(item.key) || !isString(item.key.value)) continue;
-      if (DANGEROUS_KEYS.has(item.key.value)) continue;
+      if (!isScalar(item.key)) continue;
+      const key: BoundaryValue = overlapCast(item.key.value);
+      if (!isString(key) || DANGEROUS_KEYS.has(key)) continue;
       const child: BoundaryValue = overlapCast(item.value);
-      record[item.key.value] = plainValue(child);
+      record[key] = plainValue(child);
     }
     return record;
   }

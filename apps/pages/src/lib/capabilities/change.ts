@@ -11,7 +11,10 @@
  * activation with the disposal that should have preceded it.
  */
 
-import type { CapabilityId, EffectivePlan } from "@opensesame/capability-composition";
+import type {
+  CapabilityId,
+  EffectivePlan,
+} from "@opensesame/capability-composition";
 import { vaultStore } from "../vault/store.js";
 import { vaultIdOf } from "./invalidation.js";
 import { leaseIsCurrent } from "./lease.js";
@@ -88,10 +91,13 @@ export function activatePlan(store: CompositionStore): () => void {
 
   const follow = () => {
     const snapshot = store.getSnapshot();
-    if (stopped || !snapshot.plan || snapshot.generation === activeGeneration) return;
+    if (stopped || !snapshot.plan || snapshot.generation === activeGeneration)
+      return;
     const previous = activeGeneration;
     activeGeneration = snapshot.generation;
-    queue = queue.then(() => transition(snapshot.generation, previous)).catch(() => undefined);
+    queue = queue
+      .then(() => transition(snapshot.generation, previous))
+      .catch(() => undefined);
   };
 
   const unsubscribe = store.subscribe(follow);
@@ -101,6 +107,7 @@ export function activatePlan(store: CompositionStore): () => void {
     unsubscribe();
     const last = activeGeneration;
     activeGeneration = -1;
-    if (last >= 0) queue = queue.then(() => changeSeams.deactivateGeneration(last));
+    if (last >= 0)
+      queue = queue.then(() => changeSeams.deactivateGeneration(last));
   };
 }

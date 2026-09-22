@@ -46,8 +46,20 @@ export function normalizeModuleId(id, { repoRoot }) {
   const nodeModules = path.lastIndexOf("/node_modules/");
   if (nodeModules >= 0) return `node_modules/${path.slice(nodeModules + "/node_modules/".length)}`;
   const root = toPosix(repoRoot).replace(/\/$/, "");
-  if (path.startsWith(`${root}/`)) path = path.slice(root.length + 1);
+  if (path.startsWith(`${root}/`)) return path.slice(root.length + 1);
+  // A workspace package reached through a symlinked checkout (a worktree, a
+  // scratch copy) resolves to its real path: anchor on the workspace roots.
+  const workspace = path.match(/\/(packages|apps|crates)\/[^/]+\//);
+  if (workspace) return path.slice(workspace.index + 1);
   return path;
+}
+
+/** `apps/pages/src/modules/<cap>/...` → `<cap>`; a bare file there is not a module directory. */
+export function moduleDirectoryOwner(normalized) {
+  if (!normalized.startsWith(MODULES_DIR)) return null;
+  const rest = normalized.slice(MODULES_DIR.length);
+  const slash = rest.indexOf("/");
+  return slash > 0 ? rest.slice(0, slash) : null;
 }
 
 /** Candidate strings a prefix rule may match: repo-relative and app-relative. */
@@ -86,7 +98,8 @@ export function classifyModule(id, rules, { repoRoot }) {
     return { id: normalized, classification: "core", capability: null, rationale: "virtual" };
   }
   const candidates = matchCandidates(normalized);
-  const inModules = normalized.startsWith(MODULES_DIR);
+  const directoryOwner = moduleDirectoryOwner(normalized);
+  const inModules = directoryOwner !== null;
   let best = null;
   for (const rule of rules ?? []) {
     if (typeof rule.pattern !== "string") continue;
@@ -115,9 +128,8 @@ export function classifyModule(id, rules, { repoRoot }) {
   if (normalized.startsWith("node_modules/")) {
     return { id: normalized, classification: "shared", capability: null, rationale: "unclassified dependency" };
   }
-  if (normalized.startsWith(MODULES_DIR)) {
-    const capability = normalized.slice(MODULES_DIR.length).split("/")[0];
-    return { id: normalized, classification: "optional", capability, rationale: "module directory" };
+  if (directoryOwner !== null) {
+    return { id: normalized, classification: "optional", capability: directoryOwner, rationale: "module directory" };
   }
   if (normalized.startsWith("apps/pages/")) {
     return { id: normalized, classification: "core", capability: null, rationale: "unclassified source" };
@@ -215,8 +227,8 @@ export function violations(graph, distributed, mode, options = {}) {
       });
     }
     for (const module of chunk.modules) {
-      if (module.id.startsWith(MODULES_DIR)) {
-        const owner = module.id.slice(MODULES_DIR.length).split("/")[0];
+      const owner = moduleDirectoryOwner(module.id);
+      if (owner !== null) {
         const expected = core.has(owner) ? "core" : "optional";
         if (module.capability !== owner || module.classification !== expected) {
           add("error", "MISCLASSIFIED_MODULE_PATH", {

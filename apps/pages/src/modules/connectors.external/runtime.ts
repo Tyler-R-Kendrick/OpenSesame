@@ -31,6 +31,11 @@ import { FIRST_RUN_KEY } from "../../lib/identity-graph.js";
 import { disarmVercelConnectAuth } from "../../lib/vercel-connect-session.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
+import {
+  CONNECTIONS_ROUTES,
+  CONNECTIONS_TARGETS,
+} from "../../tutorial/registry/connections-catalog.js";
+import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { ConnectionsSettingsPanel } from "./ConnectionsSettingsPanel.js";
@@ -41,26 +46,18 @@ export const CAPABILITY = "connectors.external";
 /** Plaintext keys this capability hydrates before its first read. */
 export const HYDRATE_KEYS: readonly string[] = [DIRECTORY_KEY, FIRST_RUN_KEY];
 
+/**
+ * Authored beside the registry (`connections-catalog.ts`, `-goals.ts`):
+ * the Connections targets and route, plus the settings ceremonies that live
+ * on connector pages (`settings.backup`, `settings.model-provider`,
+ * `settings.secret-configs`, `settings.sync-targets`). `backup.git-remote`
+ * depends on this capability, so `settings.backup` is declared whenever its
+ * category link can mount. `CONNECTIONS_HELP` has no contribution kind yet.
+ */
 export const TUTORIAL = {
-  targets: [
-    "nav.connections",
-    "connections.reload",
-    "connections.connected",
-    "connections.attention",
-    "connections.catalog",
-    "connections.provider-picker",
-    "connections.custom",
-    "connections.back",
-    "connections.authorize",
-    "connections.renew",
-    "connections.revoke",
-    "connections.bindings",
-    "setup.connectors",
-    "settings.connections",
-    "settings.connectivity",
-  ],
-  goals: ["connection.create", "connection.repair"],
-  routes: ["/connections"],
+  targets: CONNECTIONS_TARGETS,
+  goals: CONNECTIONS_GOALS,
+  routes: CONNECTIONS_ROUTES,
 } as const;
 
 export const capabilityRuntime: CapabilityRuntime = {

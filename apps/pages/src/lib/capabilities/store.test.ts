@@ -12,8 +12,6 @@ import {
   FIXTURE_POLICIES,
 } from "@opensesame/capability-composition";
 import { beforeEach, describe, expect, it } from "vitest";
-import { GENERATION_KEY, SELECTION_KEY, vaultSelectionKey } from "./keys.js";
-import { compositionStore, storeSeams } from "./store.js";
 import {
   NOW,
   approved,
@@ -25,6 +23,8 @@ import {
   invalidRuntimeConfig,
   managedRuntimeConfig,
 } from "./__tests__/harness.js";
+import { GENERATION_KEY, SELECTION_KEY, vaultSelectionKey } from "./keys.js";
+import { compositionStore, storeSeams } from "./store.js";
 
 const PASSKEYS = "vault.passkey-records";
 
@@ -36,7 +36,10 @@ describe("boot", () => {
     const snap = compositionStore.getSnapshot();
     expect(snap.status).toBe("ready");
     expect(snap.provenance).toBe("personal-local");
-    expect(approved(compositionStore)).toEqual(["settings.core", "vault.passwords"]);
+    expect(approved(compositionStore)).toEqual([
+      "settings.core",
+      "vault.passwords",
+    ]);
     expect(snap.plan?.capabilities[PASSKEYS]?.approved).toBe(false);
     expect(snap.lifecycle[PASSKEYS]).toBe("not-selected");
     expect(snap.generation).toBeGreaterThan(0);
@@ -48,8 +51,13 @@ describe("boot", () => {
     await bootPersonalLocal();
     const snap = compositionStore.getSnapshot();
     expect(snap.selection).toBeNull();
-    expect(snap.diagnostics.some((d) => d.startsWith(SELECTION_KEY))).toBe(true);
-    expect(approved(compositionStore)).toEqual(["settings.core", "vault.passwords"]);
+    expect(snap.diagnostics.some((d) => d.startsWith(SELECTION_KEY))).toBe(
+      true,
+    );
+    expect(approved(compositionStore)).toEqual([
+      "settings.core",
+      "vault.passwords",
+    ]);
   });
 
   it("TRUST-08: an invalid managed policy is managed-invalid and core-only", async () => {
@@ -61,7 +69,10 @@ describe("boot", () => {
     const snap = compositionStore.getSnapshot();
     expect(snap.status).toBe("managed-invalid");
     expect(snap.plan?.policyValid).toBe(false);
-    expect(approved(compositionStore)).toEqual(["settings.core", "vault.passwords"]);
+    expect(approved(compositionStore)).toEqual([
+      "settings.core",
+      "vault.passwords",
+    ]);
     const { draft, receipt } = draftFor(compositionStore, [PASSKEYS], "r1");
     expect(await compositionStore.commit(draft, receipt)).toEqual({
       status: "refused",
@@ -82,7 +93,9 @@ describe("boot", () => {
     const snap = compositionStore.getSnapshot();
     expect(snap.status).toBe("managed-invalid");
     expect(snap.provenance).toBe("same-origin-deployment");
-    expect(snap.diagnostics).toContain("policy envelope: signature did not verify");
+    expect(snap.diagnostics).toContain(
+      "policy envelope: signature did not verify",
+    );
   });
 });
 
@@ -107,13 +120,16 @@ describe("commit", () => {
   it("CONSENT-08: a draft based on a superseded selection conflicts", async () => {
     await bootPersonalLocal();
     const first = draftFor(compositionStore, [PASSKEYS], "r1");
-    expect((await compositionStore.commit(first.draft, first.receipt)).status).toBe(
-      "committed",
-    );
+    expect(
+      (await compositionStore.commit(first.draft, first.receipt)).status,
+    ).toBe("committed");
     // Another tab committed r2 behind our back.
     const other = draftFor(compositionStore, [], "r2");
     durable.set(SELECTION_KEY, JSON.stringify(other.draft));
-    durable.set(GENERATION_KEY, JSON.stringify({ generation: 2, committedAt: NOW }));
+    durable.set(
+      GENERATION_KEY,
+      JSON.stringify({ generation: 2, committedAt: NOW }),
+    );
 
     const third = draftFor(compositionStore, [PASSKEYS], "r3");
     const outcome = await compositionStore.commit(third.draft, third.receipt);
@@ -211,7 +227,9 @@ describe("emergencyDisable", () => {
     expect(approved(compositionStore)).not.toContain(PASSKEYS);
     expect(durable.has(vaultSelectionKey("personal"))).toBe(false);
     expect(
-      compositionStore.getSnapshot().diagnostics.some((d) => d.includes("durable write failed")),
+      compositionStore
+        .getSnapshot()
+        .diagnostics.some((d) => d.includes("durable write failed")),
     ).toBe(true);
   });
 });
@@ -225,7 +243,9 @@ describe("invalidation", () => {
     const second = compositionStore.currentLease();
     compositionStore.invalidate("vault-lock");
     expect(second.signal.aborted).toBe(true);
-    expect(compositionStore.getSnapshot().generation).toBe(lease.generation + 2);
+    expect(compositionStore.getSnapshot().generation).toBe(
+      lease.generation + 2,
+    );
   });
 
   it("revalidate adopts a newer durable commit and re-resolves", async () => {
@@ -233,7 +253,10 @@ describe("invalidation", () => {
     const lease = compositionStore.currentLease();
     const { draft } = draftFor(compositionStore, [PASSKEYS], "r9");
     durable.set(SELECTION_KEY, JSON.stringify(draft));
-    durable.set(GENERATION_KEY, JSON.stringify({ generation: 4, committedAt: NOW }));
+    durable.set(
+      GENERATION_KEY,
+      JSON.stringify({ generation: 4, committedAt: NOW }),
+    );
 
     await compositionStore.revalidate("broadcast-hint");
 
@@ -241,6 +264,8 @@ describe("invalidation", () => {
     expect(compositionStore.getSnapshot().selection?.revision).toBe("r9");
     // Selected but never consented in a receipt: still not approved.
     expect(approved(compositionStore)).not.toContain(PASSKEYS);
-    expect(compositionStore.getSnapshot().lifecycle[PASSKEYS]).toBe("consent-required");
+    expect(compositionStore.getSnapshot().lifecycle[PASSKEYS]).toBe(
+      "consent-required",
+    );
   });
 });

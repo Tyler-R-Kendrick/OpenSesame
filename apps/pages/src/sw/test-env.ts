@@ -8,7 +8,7 @@
  * lookup that would have crossed a release boundary.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type Listener = (event: never) => void;
 
@@ -25,7 +25,7 @@ export class FakeClient {
   readonly type: string;
   readonly frameType = "top-level";
   controlled: boolean;
-  readonly messages: object[] = [];
+  readonly messages: JsonObject[] = [];
   focused = 0;
   navigatedTo: string[] = [];
 
@@ -36,7 +36,7 @@ export class FakeClient {
     this.controlled = init.controlled ?? true;
   }
 
-  postMessage(message: object): void {
+  postMessage(message: JsonObject): void {
     this.messages.push(message);
   }
 
@@ -223,6 +223,13 @@ export class FakeWorkerEnv {
     return route();
   };
 
+  /** The fake Cache Storage, typed as the platform's for the handlers. */
+  get caches(): CacheStorage {
+    // SAFETY: the fake implements open/keys/delete/has and a match that
+    // throws; the handlers reach nothing else on CacheStorage.
+    return overlapCast(this.cacheStorage);
+  }
+
   /** The `ServiceWorkerGlobalScope` handed to `installCoreWorker`. */
   get sw(): ServiceWorkerGlobalScope {
     const env = this;
@@ -281,7 +288,10 @@ export class FakeWorkerEnv {
   }
 
   /** Send a page message from `source` and settle the handlers. */
-  async message(source: FakeClient | null, data: object): Promise<void> {
+  async message(
+    source: FakeClient | null,
+    data: JsonObject | string,
+  ): Promise<void> {
     await this.dispatch("message", { data, source });
   }
 

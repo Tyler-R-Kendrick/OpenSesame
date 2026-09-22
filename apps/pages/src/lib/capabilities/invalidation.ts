@@ -21,7 +21,10 @@ export function vaultIdOf(state: VaultState): string | null {
   return state.status === "unlocked" ? state.tomb : null;
 }
 
-async function switchVault(store: CompositionStore, vaultId: string | null): Promise<void> {
+async function switchVault(
+  store: CompositionStore,
+  vaultId: string | null,
+): Promise<void> {
   if (vaultId !== null) {
     try {
       await kvHydrate([vaultSelectionKey(vaultId)]);
@@ -51,12 +54,15 @@ export function startInvalidationWatch(store: CompositionStore): () => void {
     if (event.persisted) void store.revalidate("bfcache-resume");
   };
   const onVisibility = () => {
-    if (document.visibilityState === "visible") void store.revalidate("visible");
+    if (document.visibilityState === "visible")
+      void store.revalidate("visible");
   };
   window.addEventListener("pageshow", onPageShow);
   document.addEventListener("visibilitychange", onVisibility);
   stops.push(() => window.removeEventListener("pageshow", onPageShow));
-  stops.push(() => document.removeEventListener("visibilitychange", onVisibility));
+  stops.push(() =>
+    document.removeEventListener("visibilitychange", onVisibility),
+  );
 
   const vault = invalidationSeams.vaultStore();
   let lastVault = vaultIdOf(vault.getSnapshot());
@@ -68,7 +74,9 @@ export function startInvalidationWatch(store: CompositionStore): () => void {
       void switchVault(store, next);
     }),
   );
-  stops.push(invalidationSeams.onVaultLock(() => store.invalidate("vault-lock")));
+  stops.push(
+    invalidationSeams.onVaultLock(() => store.invalidate("vault-lock")),
+  );
 
   return () => {
     for (const stop of stops.splice(0)) stop();

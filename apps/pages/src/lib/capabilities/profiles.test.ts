@@ -2,7 +2,6 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  type BoundaryValue,
   type EffectivePlan,
   type InstallationCapabilitySelection,
   type InstanceCapabilityPolicy,
@@ -13,6 +12,7 @@ import {
   parseInstancePolicy,
   resolveComposition,
 } from "@opensesame/capability-composition";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   CAPABILITY_CATALOG,

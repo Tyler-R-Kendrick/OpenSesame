@@ -93,7 +93,9 @@ export const INITIAL_SNAPSHOT: CompositionSnapshot = Object.freeze({
   diagnostics: Object.freeze([]),
 });
 
-export function durabilityOf(kv: KvDurability = kvDurability()): CompositionDurability {
+export function durabilityOf(
+  kv: KvDurability = kvDurability(),
+): CompositionDurability {
   if (kv === "persistent") return "durable";
   if (kv === "memory") return "session-only";
   return "unknown";

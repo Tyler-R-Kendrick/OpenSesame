@@ -6,10 +6,11 @@
  * config" without blocking boot.
  */
 
-import { FIXTURE_POLICIES } from "@opensesame/capability-composition";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { FIXTURE_POLICIES } from "@opensesame/capability-composition";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   loadRuntimeConfig,
@@ -21,6 +22,11 @@ import {
 import { applyRuntimeConfig, loadSettings } from "./settings.js";
 
 const REAL_FETCH = runtimeConfigSeams.fetchRuntimeConfig;
+
+/** A typed fixture as the untyped JSON a deploy would serve. */
+function served(value: unknown): BoundaryValue {
+  return JSON.parse(JSON.stringify(value)) as BoundaryValue;
+}
 
 afterEach(() => {
   runtimeConfigSeams.fetchRuntimeConfig = REAL_FETCH;
@@ -69,15 +75,21 @@ describe("parseRuntimeConfig", () => {
   });
 
   it("carries a valid instance policy with same-origin provenance", () => {
-    const parsed = parseRuntimeConfig({
-      capabilityComposition: {
-        schemaVersion: 1,
-        instancePolicy: FIXTURE_POLICIES.family,
-      },
-    });
+    const parsed = parseRuntimeConfig(
+      served({
+        capabilityComposition: {
+          schemaVersion: 1,
+          instancePolicy: FIXTURE_POLICIES.family,
+        },
+      }),
+    );
     expect(parsed.status).toBe("ok");
-    expect(parsed.capabilityComposition?.provenance).toBe("same-origin-deployment");
-    expect(parsed.capabilityComposition?.instancePolicy?.instanceId).toBe("fixture-family");
+    expect(parsed.capabilityComposition?.provenance).toBe(
+      "same-origin-deployment",
+    );
+    expect(parsed.capabilityComposition?.instancePolicy?.instanceId).toBe(
+      "fixture-family",
+    );
   });
 
   it("TRUST-08: an invalid capability section is invalid, with a null policy", () => {
@@ -85,10 +97,15 @@ describe("parseRuntimeConfig", () => {
       "nope",
       { schemaVersion: 2, instancePolicy: FIXTURE_POLICIES.family },
       { schemaVersion: 1 },
-      { schemaVersion: 1, instancePolicy: { kind: "InstanceCapabilityPolicy" } },
+      {
+        schemaVersion: 1,
+        instancePolicy: { kind: "InstanceCapabilityPolicy" },
+      },
       { schemaVersion: 1, instancePolicy: null },
     ]) {
-      const parsed = parseRuntimeConfig({ capabilityComposition: section });
+      const parsed = parseRuntimeConfig(
+        served({ capabilityComposition: section }),
+      );
       expect(parsed.status).toBe("invalid");
       expect(parsed.capabilityComposition?.instancePolicy).toBeNull();
       expect(parsed.diagnostics.length).toBeGreaterThan(0);
@@ -141,9 +158,13 @@ describe("fetchRuntimeConfig", () => {
   it("returns the raw body of a valid config file", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json({ identityApi: "https://id.example.com" })),
+      vi.fn(async () =>
+        Response.json({ identityApi: "https://id.example.com" }),
+      ),
     );
-    expect(await REAL_FETCH()).toEqual({ identityApi: "https://id.example.com" });
+    expect(await REAL_FETCH()).toEqual({
+      identityApi: "https://id.example.com",
+    });
   });
 
   it("answers null for a missing file", async () => {

@@ -65,7 +65,10 @@ export function initialState(): StoreState {
 }
 
 /** The instance id as the resolver derives it (policy, then selection, then personal-local). */
-export function instanceIdOf(state: StoreState, planInstanceId: string | undefined): string {
+export function instanceIdOf(
+  state: StoreState,
+  planInstanceId: string | undefined,
+): string {
   return (
     planInstanceId ??
     state.policy?.instanceId ??
@@ -136,7 +139,10 @@ export function scopedVaultSelection(
 ): VaultCapabilitySelection | null {
   const v = docs.vaultSelection;
   if (!v) return null;
-  if (v.installationId !== state.installationId || v.vaultId !== state.vaultId) {
+  if (
+    v.installationId !== state.installationId ||
+    v.vaultId !== state.vaultId
+  ) {
     note("vault selection: scoped to another installation; ignored");
     return null;
   }
@@ -144,7 +150,11 @@ export function scopedVaultSelection(
 }
 
 /** Take persisted documents as this installation's, dropping foreign ones. */
-export function adoptDocs(state: StoreState, docs: PersistedDocs, note: Note): void {
+export function adoptDocs(
+  state: StoreState,
+  docs: PersistedDocs,
+  note: Note,
+): void {
   for (const d of docs.diagnostics) note(d);
   state.selection = scopedSelection(state, docs.selection, note);
   if (docs.receipt && docs.receipt.installationId !== state.installationId) {

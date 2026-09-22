@@ -198,7 +198,7 @@ export async function verifyDist(options) {
   const found = violations(diskGraph, distributed, mode, { coreCapabilities: new Set(graph.coreCapabilities ?? []) });
 
   // BUILD-04: physically absent.
-  const expectAbsent = options.expectAbsent.map((moduleId) => {
+  const expectAbsent = (options.expectAbsent ?? []).map((moduleId) => {
     const capability = moduleId.includes("/") ? moduleId.slice(0, moduleId.indexOf("/")) : moduleId;
     const inChunk = graph.chunks.filter((c) => c.modules.some((m) => m.id.startsWith(`apps/pages/src/modules/${capability}/`) || m.capability === capability)).map((c) => c.file);
     const chunkFiles = files.filter((f) => f.startsWith(`assets/cap-${capability}-`) || f === `assets/cap-${capability}.js`);

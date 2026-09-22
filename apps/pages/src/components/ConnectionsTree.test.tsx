@@ -21,13 +21,18 @@ import { IconConnection } from "./Icons.js";
 import { setRailCursor } from "./rail-cursor.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
-/** The row model the `connectors.external` runtime contributes. */
+/**
+ * The row model the `connectors.external` runtime contributes. Its guide
+ * target (`nav.connections`) is contributed with it rather than declared in
+ * the static catalog, so this unit test binds the row to a core target: the
+ * tree under test, not the guide binding, is what it exercises.
+ */
 const CONNECTIONS_SECTION = {
   id: "connections",
   to: "/connections",
   label: "Connections",
   segment: "connections",
-  guide: "nav.connections",
+  guide: "nav.vault",
   jump: "c",
   order: 20,
   Icon: IconConnection,

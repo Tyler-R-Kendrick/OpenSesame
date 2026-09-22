@@ -6,6 +6,11 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import {
+  bootPersonalLocal,
+  draftFor,
+  freshRealm,
+} from "./__tests__/harness.js";
 import { deriveLease } from "./lease.js";
 import {
   bindLeaseToCapability,
@@ -14,7 +19,6 @@ import {
   revokeGeneration,
 } from "./registry.js";
 import { compositionStore } from "./store.js";
-import { bootPersonalLocal, draftFor, freshRealm } from "./__tests__/harness.js";
 
 const PASSKEYS = "vault.passkey-records";
 
@@ -37,9 +41,9 @@ describe("registerContribution", () => {
     await bootPersonalLocal();
     const child = deriveLease(compositionStore.currentLease());
     bindLeaseToCapability(child.lease, PASSKEYS);
-    expect(() => registerContribution("route", route("a", 1), child.lease)).toThrow(
-      /NOT_APPROVED/,
-    );
+    expect(() =>
+      registerContribution("route", route("a", 1), child.lease),
+    ).toThrow(/NOT_APPROVED/);
   });
 
   it("refuses a stale lease and hides older entries after a bump", async () => {
@@ -58,9 +62,9 @@ describe("registerContribution", () => {
 
     // Fenced before anything disposed: the entries are simply not current.
     expect(contributions("route")).toEqual([]);
-    expect(() => registerContribution("route", route("d", 1), child.lease)).toThrow(
-      /STALE_LEASE/,
-    );
+    expect(() =>
+      registerContribution("route", route("d", 1), child.lease),
+    ).toThrow(/STALE_LEASE/);
     revokeGeneration(handle.generation);
     expect(contributions("route")).toEqual([]);
   });
@@ -71,7 +75,11 @@ describe("registerContribution", () => {
     await compositionStore.commit(draft, receipt);
     const child = deriveLease(compositionStore.currentLease());
     bindLeaseToCapability(child.lease, PASSKEYS);
-    const handle = registerContribution("command-path", { path: "/x", label: "X" }, child.lease);
+    const handle = registerContribution(
+      "command-path",
+      { path: "/x", label: "X" },
+      child.lease,
+    );
     const first = contributions("command-path");
     expect(contributions("command-path")).toBe(first);
     handle.revoke();

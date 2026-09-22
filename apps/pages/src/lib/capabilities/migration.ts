@@ -10,7 +10,11 @@
  * was configured, never consent to run it now.
  */
 
-import { type BoundaryValue, isJsonObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { kvGet, kvHydrate } from "../kv.js";
 import { runtimeConfigSnapshot } from "../runtime-config.js";
 import { loadSettings } from "../settings.js";
@@ -71,7 +75,8 @@ function identitySuggestions(out: LegacySuggestion[]): void {
     out.push({
       capability: "identity.federation",
       source: "setup.v1",
-      evidence: "the setup ceremony kept a provider besides the built-in broker",
+      evidence:
+        "the setup ceremony kept a provider besides the built-in broker",
     });
   }
 }
@@ -104,7 +109,11 @@ function supportSuggestions(out: LegacySuggestion[]): void {
 
 function connectorSuggestions(out: LegacySuggestion[]): void {
   const record = readJson(DIRECTORY_KEY);
-  if (isJsonObject(record) && isString(record.endpoint) && record.endpoint.trim()) {
+  if (
+    isJsonObject(record) &&
+    isString(record.endpoint) &&
+    record.endpoint.trim()
+  ) {
     out.push({
       capability: "connectors.external",
       source: "connector-directory.v1",

@@ -139,12 +139,18 @@ export type ContributionEntry<K extends ContributionKind> =
   ContributionEntryMap[K];
 
 /**
- * Destination-validated fetch (S18, `egress.ts`): decides against the plan's
- * network envelope and the capability's declared egress classes before any
- * socket opens. `egress-default.ts` is the same-origin-only stand-in used
- * until a plan and descriptor are in hand.
+ * Destination-validated fetch. The contract every module codes against;
+ * S18's `egress.ts` implements it (adding `capability` and `decide`) against
+ * the plan's network envelope and the capability's declared egress classes,
+ * and `egress-default.ts` is the same-origin-only stand-in.
  */
-export type { EgressPort } from "./egress.js";
+export type EgressPort = Readonly<{
+  fetch(
+    input: URL | string,
+    init: RequestInit | undefined,
+    meta: { capability: CapabilityId; purpose: string },
+  ): Promise<Response>;
+}>;
 
 export type ApprovedCapabilityContext = Readonly<{
   lease: ActivationLease;
@@ -165,7 +171,9 @@ export type CapabilityRuntime = Readonly<{
   activate(ctx: ApprovedCapabilityContext): Promise<RuntimeHandle>;
 }>;
 
-export type CapabilityModule = Readonly<{ capabilityRuntime: CapabilityRuntime }>;
+export type CapabilityModule = Readonly<{
+  capabilityRuntime: CapabilityRuntime;
+}>;
 
 export type CapabilityDenialCode =
   | "NOT_DISTRIBUTED"

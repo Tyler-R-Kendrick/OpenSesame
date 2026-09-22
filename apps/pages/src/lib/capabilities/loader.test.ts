@@ -9,6 +9,14 @@
 
 import type { RuntimeHandle } from "@opensesame/capability-composition";
 import { beforeEach, describe, expect, it } from "vitest";
+import {
+  approved,
+  bootPersonalLocal,
+  draftFor,
+  freshRealm,
+  settle,
+  until,
+} from "./__tests__/harness.js";
 import { activatePlan } from "./change.js";
 import { evaluatedModuleIds } from "./facts.js";
 import {
@@ -21,18 +29,10 @@ import {
 import { contributions } from "./registry.js";
 import {
   type ApprovedCapabilityContext,
-  type CapabilityModule,
   CapabilityDenied,
+  type CapabilityModule,
 } from "./runtime-contract.js";
 import { compositionStore } from "./store.js";
-import {
-  approved,
-  bootPersonalLocal,
-  draftFor,
-  freshRealm,
-  settle,
-  until,
-} from "./__tests__/harness.js";
 
 const PASSKEYS = "vault.passkey-records";
 const MODULE = `${PASSKEYS}/runtime`;
@@ -83,7 +83,10 @@ describe("loadApprovedModule (LOAD-07)", () => {
     const lease = compositionStore.currentLease();
     await expect(
       loadApprovedModule("nope.unknown/runtime", lease),
-    ).rejects.toMatchObject({ name: "CapabilityDenied", code: "NOT_DISTRIBUTED" });
+    ).rejects.toMatchObject({
+      name: "CapabilityDenied",
+      code: "NOT_DISTRIBUTED",
+    });
     expect(tableAsked).toBe(0);
   });
 
@@ -110,7 +113,10 @@ describe("loadApprovedModule (LOAD-07)", () => {
       [MODULE]: async () => ({
         capabilityRuntime: {
           capability: "telemetry.external",
-          activate: async () => ({ capability: "telemetry.external", dispose() {} }),
+          activate: async () => ({
+            capability: "telemetry.external",
+            dispose() {},
+          }),
         },
       }),
     });
@@ -190,7 +196,9 @@ describe("activateApprovedCapability", () => {
       }),
     });
     const lease = compositionStore.currentLease();
-    await expect(activateApprovedCapability(PASSKEYS, lease)).rejects.toMatchObject({
+    await expect(
+      activateApprovedCapability(PASSKEYS, lease),
+    ).rejects.toMatchObject({
       code: "STALE_LEASE",
     });
     expect(counters.disposals).toBe(1);
@@ -200,11 +208,15 @@ describe("activateApprovedCapability", () => {
   it("registers contributions under the lease and revokes them with the generation", async () => {
     await bootWithPasskeys();
     const counters = { activations: 0, disposals: 0 };
-    loaderSeams.moduleTable = async () => ({ [MODULE]: async () => fakeModule(counters) });
+    loaderSeams.moduleTable = async () => ({
+      [MODULE]: async () => fakeModule(counters),
+    });
     const lease = compositionStore.currentLease();
     const handles = await activateApprovedCapability(PASSKEYS, lease);
     expect(handles).toHaveLength(1);
-    expect(contributions("route").map((r) => r.id)).toEqual(["passkeys.section"]);
+    expect(contributions("route").map((r) => r.id)).toEqual([
+      "passkeys.section",
+    ]);
     expect(compositionStore.getSnapshot().lifecycle[PASSKEYS]).toBe("active");
 
     await deactivateGeneration(lease.generation);
@@ -219,7 +231,9 @@ describe("activatePlan (LOAD-09)", () => {
   it("repeated enable/disable disposes every handle and never duplicates a registration", async () => {
     await bootWithPasskeys();
     const counters = { activations: 0, disposals: 0 };
-    loaderSeams.moduleTable = async () => ({ [MODULE]: async () => fakeModule(counters) });
+    loaderSeams.moduleTable = async () => ({
+      [MODULE]: async () => fakeModule(counters),
+    });
 
     const stop = activatePlan(compositionStore);
     await until(() => counters.activations === 1);

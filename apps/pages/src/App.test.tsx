@@ -156,9 +156,17 @@ describe("App", () => {
 
   it("answers a known optional section the plan lacks with the unavailable route", () => {
     env.vaultStatus = "unlocked";
-    for (const route of ["/access", "/identity", "/connections/github", "/wallet", "/activity"]) {
+    for (const route of [
+      "/access",
+      "/identity",
+      "/connections/github",
+      "/wallet",
+      "/activity",
+    ]) {
       const { unmount } = renderApp(route);
-      expect(screen.getByText("Not available on this installation.")).toBeTruthy();
+      expect(
+        screen.getByText("Not available on this installation."),
+      ).toBeTruthy();
       expect(screen.getByRole("link", { name: "Vault" })).toBeTruthy();
       expect(screen.queryByText("vault welcome")).toBeNull();
       unmount();
@@ -167,7 +175,11 @@ describe("App", () => {
 
   it("redirects unknown routes to the vault", () => {
     env.vaultStatus = "unlocked";
-    for (const route of ["/definitely-not-a-route", "/authority", "/authentication"]) {
+    for (const route of [
+      "/definitely-not-a-route",
+      "/authority",
+      "/authentication",
+    ]) {
       const { unmount } = renderApp(route);
       expect(screen.getByText("vault welcome")).toBeTruthy();
       unmount();

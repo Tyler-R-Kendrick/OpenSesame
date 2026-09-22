@@ -23,7 +23,11 @@ import { resetCapabilitiesChannelForTest } from "../channel.js";
 import { resetEvaluatedModulesForTest } from "../facts.js";
 import { resetLoaderForTest } from "../loader.js";
 import { resetRegistryForTest } from "../registry.js";
-import { type CompositionStore, compositionStore, storeSeams } from "../store.js";
+import {
+  type CompositionStore,
+  compositionStore,
+  storeSeams,
+} from "../store.js";
 
 export const NOW = "2026-09-22T12:00:00.000Z";
 
@@ -154,7 +158,10 @@ export function draftFor(
       facts: { ...FIXTURE_FACTS, now: NOW },
     }),
   );
-  return { draft, receipt: buildConsentReceipt(candidate, FIXTURE_CATALOG, NOW) };
+  return {
+    draft,
+    receipt: buildConsentReceipt(candidate, FIXTURE_CATALOG, NOW),
+  };
 }
 
 export function approved(store: CompositionStore): readonly string[] {

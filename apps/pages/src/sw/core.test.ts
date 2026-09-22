@@ -16,7 +16,7 @@ function coreWorker(env: FakeWorkerEnv) {
   return installCoreWorker(env.sw, {
     variant: "core-only",
     manifest: RELEASE_MANIFEST,
-    caches: env.cacheStorage,
+    caches: env.caches,
     fetch: env.fetch,
   });
 }
@@ -38,7 +38,7 @@ describe("core worker listener table (PWA-01)", () => {
     installCoreWorker(env.sw, {
       variant: "push",
       manifest: RELEASE_MANIFEST,
-      caches: env.cacheStorage,
+      caches: env.caches,
       fetch: env.fetch,
     });
     installPushHandlers(env.sw);

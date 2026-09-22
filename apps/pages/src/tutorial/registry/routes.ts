@@ -33,16 +33,65 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   { id: "/settings", title: "Settings — this deployment's preferences" },
 ];
 
-const SETTINGS_ROUTES: readonly GuideRouteDescriptor[] =
-  SETTINGS_CATEGORIES.map((category) => ({
-    id: settingsPath(category),
-    title: `Settings — ${category}`,
-  }));
+function settingsRoute(category: string): GuideRouteDescriptor {
+  return { id: settingsPath(category), title: `Settings — ${category}` };
+}
 
-export const GUIDE_ROUTES: readonly GuideRouteDescriptor[] = [
+const SETTINGS_ROUTES: readonly GuideRouteDescriptor[] =
+  SETTINGS_CATEGORIES.map(settingsRoute);
+
+/**
+ * The routes the core shell always has. An optional section's routes arrive
+ * as `tutorial-route` contributions, and a contributed settings category
+ * brings its `/settings/<id>` route with it.
+ */
+export const CORE_GUIDE_ROUTES: readonly GuideRouteDescriptor[] = [
   ...SECTION_ROUTES,
   ...SETTINGS_ROUTES,
 ];
+
+let contributedRoutes: readonly GuideRouteDescriptor[] | null = null;
+let contributedCategories: readonly { id: string }[] | null = null;
+const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
+
+/** The live routes: core plus contributed. A live binding; see `mergedGuideRoutes`. */
+export let GUIDE_ROUTES: readonly GuideRouteDescriptor[] = CORE_GUIDE_ROUTES;
+
+function reindex(routes: readonly GuideRouteDescriptor[]): void {
+  byId.clear();
+  for (const route of routes) {
+    if (!isGuideRouteId(route.id)) {
+      throw new Error(`guide_route_syntax:${route.id}`);
+    }
+    if (!byId.has(route.id)) byId.set(route.id, route);
+  }
+}
+
+export function mergedGuideRoutes(): readonly GuideRouteDescriptor[] {
+  const routes = contributionsSnapshot("tutorial-route");
+  const categories = contributionsSnapshot("settings-category");
+  if (routes === contributedRoutes && categories === contributedCategories) {
+    return GUIDE_ROUTES;
+  }
+  contributedRoutes = routes;
+  contributedCategories = categories;
+  const extra: GuideRouteDescriptor[] = [
+    ...routes,
+    ...categories.map((category) => settingsRoute(category.id)),
+  ];
+  const seen = new Set(CORE_GUIDE_ROUTES.map((route) => route.id));
+  const added = extra.filter((route) => {
+    if (seen.has(route.id)) return false;
+    seen.add(route.id);
+    return true;
+  });
+  GUIDE_ROUTES =
+    added.length === 0
+      ? CORE_GUIDE_ROUTES
+      : Object.freeze([...CORE_GUIDE_ROUTES, ...added]);
+  reindex(GUIDE_ROUTES);
+  return GUIDE_ROUTES;
+}
 
 /** Named by `useSupportRoute`; a guide may wait on them, never navigate to them. */
 export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
@@ -94,7 +143,7 @@ export function guideRouteWithin(
 export function guideRouteForPath(pathname: string): GuideRouteId {
   let best = "/vault";
   let bestLength = 0;
-  for (const route of GUIDE_ROUTES) {
+  for (const route of mergedGuideRoutes()) {
     if (
       (pathname === route.id || pathname.startsWith(`${route.id}/`)) &&
       route.id.length > bestLength

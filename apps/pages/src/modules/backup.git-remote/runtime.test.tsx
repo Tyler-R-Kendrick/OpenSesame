@@ -18,11 +18,11 @@ describe("backup.git-remote runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the Backups settings category and its tutorial entries (LOAD-09)", async () => {
+  it("registers the Backups settings category (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "backup.git-remote",
-      kinds: ["settings-category", "tutorial-goal", "tutorial-target"],
-      count: 3,
+      kinds: ["settings-category"],
+      count: 1,
     });
   });
 
@@ -34,12 +34,6 @@ describe("backup.git-remote runtime", () => {
         .entries("settings-category")
         .map((c) => [c.id, c.label, c.guideId, c.order]),
     ).toEqual([["backups", "Backups", "settings.backup", 45]]);
-    expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
-      "settings.backup",
-    ]);
-    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
-      "settings.backup",
-    ]);
     expect(t.hydrated).toEqual([]);
     expect(t.egressCalls).toEqual([]);
     await handle.dispose();

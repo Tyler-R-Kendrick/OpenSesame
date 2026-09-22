@@ -95,8 +95,11 @@ export function readPersistedDocs(vaultId: string | null): PersistedDocs {
     parseInstallationSelection,
     diagnostics,
   ).value;
-  const receipt = readParsed(RECEIPT_KEY, parseConsentReceipt, diagnostics)
-    .value;
+  const receipt = readParsed(
+    RECEIPT_KEY,
+    parseConsentReceipt,
+    diagnostics,
+  ).value;
   const local = readParsed(LOCAL_POLICY_KEY, parseInstancePolicy, diagnostics);
   const vaultSelection =
     vaultId === null

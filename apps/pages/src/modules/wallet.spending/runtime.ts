@@ -20,6 +20,10 @@
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { watchSpendingLedgerScope } from "../../lib/spending-ledger.js";
 import { WalletSection } from "../../sections/WalletSection.js";
+import {
+  WALLET_ROUTES,
+  WALLET_TARGETS,
+} from "../../tutorial/registry/wallet-catalog.js";
 import { WALLET_TOOLS } from "../../webmcp/wallet-tools.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
@@ -28,8 +32,8 @@ import { WalletTree } from "./WalletTree.js";
 export const CAPABILITY = "wallet.spending";
 
 export const TUTORIAL = {
-  targets: ["nav.wallet"],
-  routes: ["/wallet"],
+  targets: WALLET_TARGETS,
+  routes: WALLET_ROUTES,
 } as const;
 
 export const capabilityRuntime: CapabilityRuntime = {

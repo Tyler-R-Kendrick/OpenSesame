@@ -2,6 +2,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { connectCallbackBase } from "../../lib/connect-callback.js";
 import {
+  CONNECTIONS_ROUTES,
+  CONNECTIONS_TARGETS,
+} from "../../tutorial/registry/connections-catalog.js";
+import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
+import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
   importUnderSpies,
@@ -28,8 +33,18 @@ const KINDS = [
   "unlock-effect",
 ];
 // 1 section + 2 routes + 1 settings + 1 setup + 1 command + 1 jump
-// + 15 targets + 2 goals + 1 route + 2 unlock effects
-const COUNT = 1 + 2 + 1 + 1 + 1 + 1 + 15 + 2 + 1 + 2;
+// + the authored connections targets, goals and route + 2 unlock effects
+const COUNT =
+  1 +
+  2 +
+  1 +
+  1 +
+  1 +
+  1 +
+  CONNECTIONS_TARGETS.length +
+  CONNECTIONS_GOALS.length +
+  CONNECTIONS_ROUTES.length +
+  2;
 
 describe("connectors.external runtime", () => {
   afterEach(() => {
@@ -79,12 +94,14 @@ describe("connectors.external runtime", () => {
     expect(t.entries("keymap-jump")).toEqual([
       { key: "c", path: "/connections" },
     ]);
-    expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
-      ...runtime.TUTORIAL.targets,
-    ]);
-    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
-      ...runtime.TUTORIAL.goals,
-    ]);
+    const targetIds = t.entries("tutorial-target").map((d) => d.id);
+    expect(targetIds).toEqual(CONNECTIONS_TARGETS.map((d) => d.id));
+    expect(targetIds).toContain("nav.connections");
+    expect(targetIds).toContain("settings.connections");
+    expect(targetIds).toContain("settings.backup");
+    const goalIds = t.entries("tutorial-goal").map((d) => d.id);
+    expect(goalIds).toEqual(CONNECTIONS_GOALS.map((d) => d.id));
+    expect(goalIds).toContain("connection.create");
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual([
       "/connections",
     ]);

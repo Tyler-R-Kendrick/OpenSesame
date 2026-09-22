@@ -16,7 +16,7 @@ import type {
   SupportTargetDescription,
   SupportTargetRole,
 } from "@opensesame/support-agent";
-import { GUIDE_TARGETS } from "./catalog.js";
+import { mergedGuideTargets } from "./catalog.js";
 import { inDevelopment } from "./dev.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
 
@@ -43,11 +43,24 @@ type MountedTarget = {
 type ActivationListener = () => void;
 
 const descriptorsById = new Map<GuideTargetId, GuideTargetDescriptor>();
-for (const descriptor of GUIDE_TARGETS) {
-  if (descriptorsById.has(descriptor.id)) {
-    throw new Error(`guide_target_declared_twice:${descriptor.id}`);
+let indexed: readonly GuideTargetDescriptor[] | null = null;
+
+/**
+ * The declared targets, by id, over the live catalog: the core entries plus
+ * what approved capabilities contributed. Rebuilt when that catalog moves.
+ */
+function declared(): ReadonlyMap<GuideTargetId, GuideTargetDescriptor> {
+  const live = mergedGuideTargets();
+  if (live === indexed) return descriptorsById;
+  descriptorsById.clear();
+  for (const descriptor of live) {
+    if (descriptorsById.has(descriptor.id)) {
+      throw new Error(`guide_target_declared_twice:${descriptor.id}`);
+    }
+    descriptorsById.set(descriptor.id, descriptor);
   }
-  descriptorsById.set(descriptor.id, descriptor);
+  indexed = live;
+  return descriptorsById;
 }
 
 /**
@@ -91,7 +104,7 @@ export function mountGuideTarget(
   id: GuideTargetId,
   element: HTMLElement,
 ): () => void {
-  const descriptor = descriptorsById.get(id);
+  const descriptor = declared().get(id);
   if (!descriptor) {
     throw new Error(`guide_target_undeclared:${id}`);
   }
@@ -135,7 +148,7 @@ export function mountGuideTarget(
 }
 
 export function isKnownGuideTarget(id: GuideTargetId): boolean {
-  return descriptorsById.has(id);
+  return declared().has(id);
 }
 
 /**
@@ -188,15 +201,15 @@ export function resolveGuideTargetElement(
 export function guideTargetDescriptor(
   id: GuideTargetId,
 ): GuideTargetDescriptor | null {
-  return descriptorsById.get(id) ?? null;
+  return declared().get(id) ?? null;
 }
 
 export function guideTargetIds(): readonly GuideTargetId[] {
-  return [...descriptorsById.keys()];
+  return [...declared().keys()];
 }
 
 export function guideTargetDescriptors(): readonly GuideTargetDescriptor[] {
-  return GUIDE_TARGETS;
+  return mergedGuideTargets();
 }
 
 /** Duplicate mounts seen this session; the registry test asserts it is empty. */
@@ -220,7 +233,7 @@ export function describeGuideTargets(
   route: GuideRouteId,
 ): readonly SupportTargetDescription[] {
   const out: SupportTargetDescription[] = [];
-  for (const descriptor of GUIDE_TARGETS) {
+  for (const descriptor of mergedGuideTargets()) {
     const scoped =
       descriptor.routes.length === 0 ||
       descriptor.routes.some((candidate) => guideRouteWithin(route, candidate));

@@ -1,46 +1,34 @@
 /**
- * Tutorial descriptors a module contributes are the *existing* authored
- * entries of `tutorial/registry`, named by id. The prose stays in one place
- * (ADR 0088: checked-in, never interpolated), and a module only says which
- * ids are live while it is active. An id that is not declared is a bug in
- * the module, so it throws at activation rather than registering nothing.
+ * Tutorial descriptors a module contributes are authored, checked-in prose
+ * kept beside the registry (`tutorial/registry/<capability>-catalog.ts`,
+ * `-goals.ts`), never written inside a runtime and never interpolated
+ * (ADR 0088). A module only says which authored arrays are live while it is
+ * active; the core registry declares them for `mountGuideTarget`, GuideLang
+ * `navigate` and the support page context, and forgets them on revoke.
  */
 
-import { GUIDE_TARGETS } from "../tutorial/registry/catalog.js";
-import { GUIDE_GOALS } from "../tutorial/registry/goals.js";
-import { GUIDE_ROUTES } from "../tutorial/registry/routes.js";
+import type { GuideGoalDescriptor } from "../tutorial/registry/goals.js";
+import type { GuideRouteDescriptor } from "../tutorial/registry/routes.js";
+import type { GuideTargetDescriptor } from "../tutorial/registry/targets.js";
 import type { Activation } from "./activation.js";
 
-export type TutorialSelection = Readonly<{
-  targets?: readonly string[];
-  goals?: readonly string[];
-  routes?: readonly string[];
+export type TutorialContributions = Readonly<{
+  targets?: readonly GuideTargetDescriptor[];
+  goals?: readonly GuideGoalDescriptor[];
+  routes?: readonly GuideRouteDescriptor[];
 }>;
-
-function pick<T extends { readonly id: string }>(
-  all: readonly T[],
-  ids: readonly string[],
-  kind: string,
-): T[] {
-  const byId = new Map(all.map((entry) => [entry.id, entry]));
-  return ids.map((id) => {
-    const entry = byId.get(id);
-    if (!entry) throw new Error(`tutorial ${kind} not declared: ${id}`);
-    return entry;
-  });
-}
 
 export function registerTutorial(
   activation: Activation,
-  selection: TutorialSelection,
+  contributions: TutorialContributions,
 ): void {
-  for (const target of pick(GUIDE_TARGETS, selection.targets ?? [], "target")) {
+  for (const target of contributions.targets ?? []) {
     activation.register("tutorial-target", target);
   }
-  for (const goal of pick(GUIDE_GOALS, selection.goals ?? [], "goal")) {
+  for (const goal of contributions.goals ?? []) {
     activation.register("tutorial-goal", goal);
   }
-  for (const route of pick(GUIDE_ROUTES, selection.routes ?? [], "route")) {
+  for (const route of contributions.routes ?? []) {
     activation.register("tutorial-route", route);
   }
 }

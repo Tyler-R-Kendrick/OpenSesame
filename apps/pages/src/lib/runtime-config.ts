@@ -94,14 +94,22 @@ function readCapabilityComposition(
   const diagnostics: string[] = [];
   if (!isJsonObject(value)) {
     diagnostics.push("capabilityComposition: not an object");
-    return { instancePolicy: null, provenance: "same-origin-deployment", diagnostics };
+    return {
+      instancePolicy: null,
+      provenance: "same-origin-deployment",
+      diagnostics,
+    };
   }
   if (value.schemaVersion !== 1) {
     diagnostics.push("capabilityComposition.schemaVersion: expected 1");
   }
   if (!("instancePolicy" in value)) {
     diagnostics.push("capabilityComposition.instancePolicy: missing");
-    return { instancePolicy: null, provenance: "same-origin-deployment", diagnostics };
+    return {
+      instancePolicy: null,
+      provenance: "same-origin-deployment",
+      diagnostics,
+    };
   }
   const parsed = parseInstancePolicy(value.instancePolicy);
   if (!parsed.ok) {
@@ -110,7 +118,11 @@ function readCapabilityComposition(
         `capabilityComposition.instancePolicy${d.path ? `.${d.path}` : ""}: ${d.code}`,
       );
     }
-    return { instancePolicy: null, provenance: "same-origin-deployment", diagnostics };
+    return {
+      instancePolicy: null,
+      provenance: "same-origin-deployment",
+      diagnostics,
+    };
   }
   return {
     instancePolicy: diagnostics.length === 0 ? parsed.value : null,

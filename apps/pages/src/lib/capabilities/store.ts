@@ -36,7 +36,11 @@ import { installationId as readInstallationId } from "./installation.js";
 import { compositionLockName } from "./keys.js";
 import { type MintedLease, mintLease } from "./lease.js";
 import { type LegacyReview, reviewLegacyConfiguration } from "./migration.js";
-import { type CommitPorts, commitLocked, preflightCommit } from "./store-commit.js";
+import {
+  type CommitPorts,
+  commitLocked,
+  preflightCommit,
+} from "./store-commit.js";
 import {
   type ManagedPolicyReview,
   type StoreState,
@@ -91,7 +95,9 @@ export const storeSeams = {
     _vaultId: string | null,
   ): WorkspaceCapabilityRestriction | null => null,
   /** S03: envelope/revision/rollback verification of a managed policy. */
-  reviewManagedPolicy: (_policy: InstanceCapabilityPolicy): ManagedPolicyReview => ({
+  reviewManagedPolicy: (
+    _policy: InstanceCapabilityPolicy,
+  ): ManagedPolicyReview => ({
     ok: true,
     diagnostics: [],
   }),
@@ -138,7 +144,13 @@ export class CompositionStore {
     state.baseFacts = input.facts;
     this.#diagnostics = [...input.runtimeConfig.diagnostics];
     const docs = readPersistedDocs(input.vaultId);
-    readPolicy(state, input.runtimeConfig, docs, storeSeams.reviewManagedPolicy, this.#note);
+    readPolicy(
+      state,
+      input.runtimeConfig,
+      docs,
+      storeSeams.reviewManagedPolicy,
+      this.#note,
+    );
     adoptDocs(state, docs, this.#note);
     this.#bump("boot");
     this.#resolve();
@@ -151,7 +163,8 @@ export class CompositionStore {
 
   /** The plan a draft would resolve to under the current receipt; commits nothing. */
   preview(draft: InstallationCapabilitySelection): EffectivePlan {
-    if (!this.#snapshot.plan) throw new Error("composition store has not resolved");
+    if (!this.#snapshot.plan)
+      throw new Error("composition store has not resolved");
     return this.#plan(draft, this.#state.receipt);
   }
 
@@ -160,7 +173,11 @@ export class CompositionStore {
     if (!current || !this.#state.catalog) {
       throw new Error("composition store has not resolved");
     }
-    return reviewCompositionChange(current, this.preview(draft), this.#state.catalog);
+    return reviewCompositionChange(
+      current,
+      this.preview(draft),
+      this.#state.catalog,
+    );
   }
 
   async commit(
@@ -173,8 +190,9 @@ export class CompositionStore {
     const locks = storeSeams.locks();
     if (!locks) return { status: "refused", reason: "no-serialization" };
     try {
-      const outcome = await locks.request(compositionLockName(ports.instanceId), () =>
-        commitLocked(ports, draft, receipt),
+      const outcome = await locks.request(
+        compositionLockName(ports.instanceId),
+        () => commitLocked(ports, draft, receipt),
       );
       if (outcome.status === "committed") postCapabilitiesChanged();
       return outcome;
@@ -213,7 +231,12 @@ export class CompositionStore {
     for (const d of docs.diagnostics) this.#note(d);
     state.vaultSelection = scopedVaultSelection(state, docs, this.#note);
     for (const id of state.emergencyDisabled) {
-      state.vaultSelection = vaultSelectionWith(state, this.instanceId(), id, storeSeams.now());
+      state.vaultSelection = vaultSelectionWith(
+        state,
+        this.instanceId(),
+        id,
+        storeSeams.now(),
+      );
     }
     this.#bump(`vault:${vaultId ?? "none"}`);
     this.#resolve();
@@ -317,7 +340,10 @@ export class CompositionStore {
       instancePolicy: state.policy,
       provenance: state.provenance,
       policyValid: state.policyValid,
-      workspace: storeSeams.workspaceRestriction(this.instanceId(), state.vaultId),
+      workspace: storeSeams.workspaceRestriction(
+        this.instanceId(),
+        state.vaultId,
+      ),
       installation,
       vault: state.vaultSelection,
       receipt,
@@ -344,7 +370,11 @@ export class CompositionStore {
       policy: state.policy,
       selection: state.selection,
       receipt: state.receipt,
-      lifecycle: lifecycleMap(plan, state.distribution as DistributionContract, this.#activity),
+      lifecycle: lifecycleMap(
+        plan,
+        state.distribution as DistributionContract,
+        this.#activity,
+      ),
       durability: durabilityOf(),
       diagnostics: [...this.#diagnostics],
     };

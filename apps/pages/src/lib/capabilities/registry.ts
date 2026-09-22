@@ -35,7 +35,10 @@ type Registration = Readonly<{
 const registrations = new Map<number, Registration>();
 const leaseCapability = new WeakMap<ActivationLease, CapabilityId>();
 const listeners = new Set<() => void>();
-const cache = new Map<ContributionKind, { version: number; entries: readonly unknown[] }>();
+const cache = new Map<
+  ContributionKind,
+  { version: number; entries: readonly unknown[] }
+>();
 let version = 0;
 let nextToken = 1;
 const EMPTY: readonly unknown[] = Object.freeze([]);

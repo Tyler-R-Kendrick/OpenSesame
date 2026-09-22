@@ -10,8 +10,11 @@
 
 import type { GuideGoalId } from "@opensesame/guide-lang";
 import type { SupportGoalDescription } from "@opensesame/support-agent";
-import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
-import { IDENTITY_GOALS } from "./identity-goals.js";
+import { contributionsSnapshot } from "../../lib/contributions.js";
+import { ACCESS_HELP } from "./access-goals.js";
+import { AUTHORITY_HELP } from "./authority-help.js";
+import { CONNECTIONS_HELP } from "./connections-goals.js";
+import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
 import { SETUP_GOALS, SHELL_GOALS } from "./setup-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
@@ -45,7 +48,13 @@ export type HelpTopic = {
   readonly keywords: readonly string[];
 };
 
-export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
+/**
+ * The goals the core shell always offers. A goal that walks an optional
+ * section belongs to that capability (`connections-goals.ts`,
+ * `access-goals.ts`, `authority-help.ts`, `identity-goals.ts`) and arrives as
+ * a `tutorial-goal` contribution while the capability is in the plan.
+ */
+export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "vault.lock",
     title: "Lock the vault",
@@ -288,7 +297,8 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   ...SHELL_GOALS,
 ];
 
-export const HELP_TOPICS: readonly HelpTopic[] = [
+/** Authored help whose walkthrough is a core goal. */
+export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
   {
     id: "help.lock",
     title: "Where do I lock the vault?",
@@ -456,10 +466,61 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   },
 ];
 
+/**
+ * Authored help whose walkthrough is an optional capability's goal. A topic
+ * is live exactly when its goal is: a help answer never names a screen the
+ * plan does not have, and no second contribution kind is needed for it.
+ */
+export const OPTIONAL_HELP_TOPICS: readonly HelpTopic[] = [
+  ...CONNECTIONS_HELP,
+  ...ACCESS_HELP,
+  ...AUTHORITY_HELP,
+  ...IDENTITY_HELP,
+];
+
+let contributedGoals: readonly GuideGoalDescriptor[] | null = null;
+
+/** The live goals: core plus contributed. A live binding; see `mergedGuideGoals`. */
+export let GUIDE_GOALS: readonly GuideGoalDescriptor[] = CORE_GUIDE_GOALS;
+/** The live help: core topics plus the optional ones whose goal is live. */
+export let HELP_TOPICS: readonly HelpTopic[] = CORE_HELP_TOPICS;
+let index: readonly IndexedTopic[] = [];
+
+export function mergedGuideGoals(): readonly GuideGoalDescriptor[] {
+  const contributed = contributionsSnapshot("tutorial-goal");
+  if (contributed === contributedGoals) return GUIDE_GOALS;
+  contributedGoals = contributed;
+  const seen = new Set(CORE_GUIDE_GOALS.map((goal) => goal.id));
+  const extra: GuideGoalDescriptor[] = [];
+  for (const goal of contributed) {
+    if (seen.has(goal.id)) continue;
+    seen.add(goal.id);
+    extra.push(goal);
+  }
+  GUIDE_GOALS =
+    extra.length === 0
+      ? CORE_GUIDE_GOALS
+      : Object.freeze([...CORE_GUIDE_GOALS, ...extra]);
+  HELP_TOPICS =
+    extra.length === 0
+      ? CORE_HELP_TOPICS
+      : Object.freeze([
+          ...CORE_HELP_TOPICS,
+          ...OPTIONAL_HELP_TOPICS.filter((topic) => seen.has(topic.goal)),
+        ]);
+  index = HELP_TOPICS.map(indexTopic);
+  return GUIDE_GOALS;
+}
+
+export function mergedHelpTopics(): readonly HelpTopic[] {
+  mergedGuideGoals();
+  return HELP_TOPICS;
+}
+
 export function describeGuideGoals(
   route: GuideRouteId,
 ): readonly SupportGoalDescription[] {
-  return GUIDE_GOALS.filter(
+  return mergedGuideGoals().filter(
     (goal) =>
       goal.routes.length === 0 ||
       goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
@@ -467,16 +528,16 @@ export function describeGuideGoals(
 }
 
 export function guideGoalIds(): readonly GuideGoalId[] {
-  return GUIDE_GOALS.map((goal) => goal.id);
+  return mergedGuideGoals().map((goal) => goal.id);
 }
 
 export function guideGoal(id: GuideGoalId): GuideGoalDescriptor | null {
-  return GUIDE_GOALS.find((goal) => goal.id === id) ?? null;
+  return mergedGuideGoals().find((goal) => goal.id === id) ?? null;
 }
 
 /** Authored topics relevant to where the person currently is. */
 export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {
-  return HELP_TOPICS.filter(
+  return mergedHelpTopics().filter(
     (topic) =>
       topic.routes.length === 0 ||
       topic.routes.some((candidate) => guideRouteWithin(route, candidate)),
@@ -569,12 +630,23 @@ type IndexedTopic = {
   readonly answer: ReadonlySet<string>;
 };
 
-const INDEX: readonly IndexedTopic[] = HELP_TOPICS.map((topic) => ({
-  topic,
-  keywords: new Set(topic.keywords.flatMap((keyword) => tokenize(keyword))),
-  title: new Set(tokenize(topic.title)),
-  answer: new Set(tokenize(topic.answer)),
-}));
+function indexTopic(topic: HelpTopic): IndexedTopic {
+  return {
+    topic,
+    keywords: new Set(topic.keywords.flatMap((keyword) => tokenize(keyword))),
+    title: new Set(tokenize(topic.title)),
+    answer: new Set(tokenize(topic.answer)),
+  };
+}
+
+/** The lexical index over the live help, rebuilt when the live help moves. */
+function helpIndex(): readonly IndexedTopic[] {
+  const topics = mergedHelpTopics();
+  if (index.length !== topics.length || index[0]?.topic !== topics[0]) {
+    index = topics.map(indexTopic);
+  }
+  return index;
+}
 
 export type RankedHelpTopic = {
   readonly topic: HelpTopic;
@@ -607,7 +679,7 @@ export function rankHelpTopics(
   const words = tokenize(question);
   if (words.length === 0) return [];
   const ranked: RankedHelpTopic[] = [];
-  for (const indexed of INDEX) {
+  for (const indexed of helpIndex()) {
     const { topic } = indexed;
     const scoped =
       route === null ||
@@ -629,10 +701,11 @@ export function rankHelpTopics(
  */
 export function searchHelpTopics(query: string): readonly HelpTopic[] {
   const needle = query.trim().toLowerCase();
-  if (needle.length === 0) return HELP_TOPICS;
+  const topics = mergedHelpTopics();
+  if (needle.length === 0) return topics;
   const ranked = rankHelpTopics(needle).map((entry) => entry.topic);
   if (ranked.length > 0) return ranked;
-  return HELP_TOPICS.filter(
+  return topics.filter(
     (topic) =>
       topic.title.toLowerCase().includes(needle) ||
       topic.answer.toLowerCase().includes(needle),

@@ -17,9 +17,7 @@ import {
   useLocation,
 } from "react-router";
 import { activatePlan } from "./lib/capabilities/change.js";
-import {
-  useContributions as defaultUseContributions,
-} from "./lib/capabilities/registry.js";
+import { useContributions as defaultUseContributions } from "./lib/capabilities/registry.js";
 import type {
   RouteContribution,
   UnlockEffectContribution,
@@ -257,7 +255,13 @@ function VaultApp() {
   const effects = slots.useUnlockEffects();
   slots.useTheme();
   slots.useSessionGuards();
-  useAfterUnlock(status, tomb, guest, effects, slots.recoverPendingFederatedLink);
+  useAfterUnlock(
+    status,
+    tomb,
+    guest,
+    effects,
+    slots.recoverPendingFederatedLink,
+  );
 
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;
@@ -334,7 +338,9 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
 
-  const ungated = isAuthCallback ? null : ungatedRoute(routes, location.pathname);
+  const ungated = isAuthCallback
+    ? null
+    : ungatedRoute(routes, location.pathname);
   const Ungated = ungated?.element;
   const body = isAuthCallback ? (
     <resolved.FederationReturn />

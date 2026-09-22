@@ -6,10 +6,18 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { admitOperation, assertCurrentOperationAuthority } from "./authority.js";
+import {
+  NOW,
+  bootPersonalLocal,
+  durable,
+  freshRealm,
+} from "./__tests__/harness.js";
+import {
+  admitOperation,
+  assertCurrentOperationAuthority,
+} from "./authority.js";
 import { GENERATION_KEY } from "./keys.js";
 import { compositionStore, storeSeams } from "./store.js";
-import { NOW, bootPersonalLocal, durable, freshRealm } from "./__tests__/harness.js";
 
 const CORE_OP = "pages.items.list";
 const OPTIONAL_OP = "pages.items.passkey.create";
@@ -27,7 +35,10 @@ describe("assertCurrentOperationAuthority", () => {
   it("refuses an operation whose capability is not approved", async () => {
     await bootPersonalLocal();
     expect(() =>
-      assertCurrentOperationAuthority(OPTIONAL_OP, compositionStore.currentLease()),
+      assertCurrentOperationAuthority(
+        OPTIONAL_OP,
+        compositionStore.currentLease(),
+      ),
     ).toThrow(/NOT_APPROVED/);
   });
 
@@ -35,21 +46,33 @@ describe("assertCurrentOperationAuthority", () => {
     await bootPersonalLocal();
     const lease = compositionStore.currentLease();
     compositionStore.invalidate("test");
-    expect(() => assertCurrentOperationAuthority(CORE_OP, lease)).toThrow(/STALE_LEASE/);
+    expect(() => assertCurrentOperationAuthority(CORE_OP, lease)).toThrow(
+      /STALE_LEASE/,
+    );
   });
 });
 
 describe("admitOperation (LIFE-04)", () => {
   it("admits when the durable generation matches and the lease is current", async () => {
     await bootPersonalLocal();
-    const decision = await admitOperation(CORE_OP, compositionStore.currentLease());
-    expect(decision).toEqual({ admitted: true, committedGeneration: 0, reason: "current" });
+    const decision = await admitOperation(
+      CORE_OP,
+      compositionStore.currentLease(),
+    );
+    expect(decision).toEqual({
+      admitted: true,
+      committedGeneration: 0,
+      reason: "current",
+    });
   });
 
   it("refuses when another context advanced the durable generation", async () => {
     await bootPersonalLocal();
     const lease = compositionStore.currentLease();
-    durable.set(GENERATION_KEY, JSON.stringify({ generation: 7, committedAt: NOW }));
+    durable.set(
+      GENERATION_KEY,
+      JSON.stringify({ generation: 7, committedAt: NOW }),
+    );
     const decision = await admitOperation(CORE_OP, lease);
     expect(decision).toEqual({
       admitted: false,
@@ -69,14 +92,24 @@ describe("admitOperation (LIFE-04)", () => {
 
   it("refuses an unapproved operation", async () => {
     await bootPersonalLocal();
-    const decision = await admitOperation(OPTIONAL_OP, compositionStore.currentLease());
-    expect(decision).toEqual({ admitted: false, committedGeneration: 0, reason: "not-approved" });
+    const decision = await admitOperation(
+      OPTIONAL_OP,
+      compositionStore.currentLease(),
+    );
+    expect(decision).toEqual({
+      admitted: false,
+      committedGeneration: 0,
+      reason: "not-approved",
+    });
   });
 
   it("fails closed without Web Locks", async () => {
     await bootPersonalLocal();
     storeSeams.locks = () => undefined;
-    const decision = await admitOperation(CORE_OP, compositionStore.currentLease());
+    const decision = await admitOperation(
+      CORE_OP,
+      compositionStore.currentLease(),
+    );
     expect(decision).toEqual({
       admitted: false,
       committedGeneration: 0,

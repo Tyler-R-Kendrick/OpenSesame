@@ -6,9 +6,14 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import {
+  approved,
+  bootPersonalLocal,
+  durable,
+  freshRealm,
+} from "./__tests__/harness.js";
 import { reviewLegacyConfiguration } from "./migration.js";
 import { compositionStore } from "./store.js";
-import { approved, bootPersonalLocal, durable, freshRealm } from "./__tests__/harness.js";
 
 beforeEach(freshRealm);
 
@@ -35,7 +40,10 @@ describe("reviewLegacyConfiguration", () => {
     );
     durable.set(
       "setup.v1",
-      JSON.stringify({ completedAt: "2026-01-01T00:00:00Z", ways: ["builtin", "okta"] }),
+      JSON.stringify({
+        completedAt: "2026-01-01T00:00:00Z",
+        ways: ["builtin", "okta"],
+      }),
     );
     durable.set("model-provider.v1", JSON.stringify({ kind: "hosted" }));
     durable.set(
@@ -47,7 +55,11 @@ describe("reviewLegacyConfiguration", () => {
 
     const capabilities = new Set(review.suggestions.map((s) => s.capability));
     expect(capabilities).toEqual(
-      new Set(["identity.federation", "support.remote-ai", "connectors.external"]),
+      new Set([
+        "identity.federation",
+        "support.remote-ai",
+        "connectors.external",
+      ]),
     );
     expect(review.enabled).toEqual([]);
     for (const s of review.suggestions) {
@@ -65,7 +77,10 @@ describe("reviewLegacyConfiguration", () => {
       }),
     );
     durable.set("model-provider.v1", JSON.stringify({ kind: "none" }));
-    expect(reviewLegacyConfiguration()).toEqual({ suggestions: [], enabled: [] });
+    expect(reviewLegacyConfiguration()).toEqual({
+      suggestions: [],
+      enabled: [],
+    });
   });
 
   it("S19-B: a review changes nothing in the plan", async () => {
@@ -75,8 +90,13 @@ describe("reviewLegacyConfiguration", () => {
 
     const review = compositionStore.legacyReview();
 
-    expect(review.suggestions.map((s) => s.capability)).toEqual(["support.local-ai"]);
+    expect(review.suggestions.map((s) => s.capability)).toEqual([
+      "support.local-ai",
+    ]);
     expect(compositionStore.getSnapshot()).toBe(before);
-    expect(approved(compositionStore)).toEqual(["settings.core", "vault.passwords"]);
+    expect(approved(compositionStore)).toEqual([
+      "settings.core",
+      "vault.passwords",
+    ]);
   });
 });

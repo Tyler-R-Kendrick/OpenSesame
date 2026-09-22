@@ -25,7 +25,11 @@ import { runtimeConfigSnapshot } from "../runtime-config.js";
 import { egressSeams } from "./egress-default.js";
 import { markModuleEvaluated } from "./facts.js";
 import { assertLeaseCurrent, deriveLease, leaseIsCurrent } from "./lease.js";
-import { bindLeaseToCapability, registerContribution, revokeGeneration } from "./registry.js";
+import {
+  bindLeaseToCapability,
+  registerContribution,
+  revokeGeneration,
+} from "./registry.js";
 import {
   type ApprovedCapabilityContext,
   CapabilityDenied,
@@ -33,7 +37,9 @@ import {
 } from "./runtime-contract.js";
 import { compositionStore } from "./store.js";
 
-export type ModuleTable = Readonly<Record<ModuleId, () => Promise<CapabilityModule>>>;
+export type ModuleTable = Readonly<
+  Record<ModuleId, () => Promise<CapabilityModule>>
+>;
 
 export const loaderSeams = {
   moduleTable: (): Promise<ModuleTable> =>
@@ -93,7 +99,10 @@ export async function loadApprovedModule(
   if (!plan) throw new CapabilityDenied("NOT_RESOLVED", id);
   if (!plan.approvedModules.includes(id)) {
     const distributed = plan.capabilities[moduleCapability(id)]?.distributed;
-    throw new CapabilityDenied(distributed ? "NOT_APPROVED" : "NOT_DISTRIBUTED", id);
+    throw new CapabilityDenied(
+      distributed ? "NOT_APPROVED" : "NOT_DISTRIBUTED",
+      id,
+    );
   }
   const entries = await table();
   assertLeaseCurrent(lease, currentGeneration(), id);
@@ -114,7 +123,9 @@ export async function loadApprovedModule(
   return loaded;
 }
 
-async function disposeHandles(handles: readonly RuntimeHandle[]): Promise<void> {
+async function disposeHandles(
+  handles: readonly RuntimeHandle[],
+): Promise<void> {
   for (const handle of handles) {
     try {
       await handle.dispose();
@@ -127,7 +138,10 @@ async function disposeHandles(handles: readonly RuntimeHandle[]): Promise<void> 
 }
 
 /** Keep a handle for its generation, or dispose it at once when that generation is gone. */
-async function track(generation: number, handle: RuntimeHandle): Promise<boolean> {
+async function track(
+  generation: number,
+  handle: RuntimeHandle,
+): Promise<boolean> {
   if (generation !== currentGeneration()) {
     await disposeHandles([handle]);
     return false;
@@ -160,7 +174,10 @@ function contextFor(
   };
 }
 
-function pageModulesOf(capability: CapabilityId, approved: readonly ModuleId[]): ModuleId[] {
+function pageModulesOf(
+  capability: CapabilityId,
+  approved: readonly ModuleId[],
+): ModuleId[] {
   return approved.filter(
     (id) => moduleCapability(id) === capability && !id.endsWith("/worker"),
   );

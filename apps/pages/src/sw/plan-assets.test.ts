@@ -31,7 +31,7 @@ async function ready(): Promise<Ready> {
   installCoreWorker(env.sw, {
     variant: "core-only",
     manifest: RELEASE_MANIFEST,
-    caches: env.cacheStorage,
+    caches: env.caches,
     fetch: env.fetch,
   });
   await env.install();

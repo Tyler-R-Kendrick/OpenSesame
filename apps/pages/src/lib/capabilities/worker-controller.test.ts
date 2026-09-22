@@ -191,14 +191,28 @@ class FakeContainer {
     };
   }
 
-  addEventListener(type: string, handler: Handler): void {
+  addEventListener(
+    type: string,
+    handler: Handler,
+    options?: { once?: boolean },
+  ): void {
     const list = this.handlers.get(type) ?? [];
-    list.push(handler);
+    const wrapped: Handler = options?.once
+      ? (event) => {
+          this.handlers.set(
+            type,
+            (this.handlers.get(type) ?? []).filter((h) => h !== wrapped),
+          );
+          handler(event);
+        }
+      : handler;
+    list.push(wrapped);
     this.handlers.set(type, list);
   }
 
   emit(type: string, data: object = {}): void {
-    for (const handler of this.handlers.get(type) ?? []) handler({ data });
+    for (const handler of [...(this.handlers.get(type) ?? [])])
+      handler({ data });
   }
 
   asContainer(): ServiceWorkerContainer {

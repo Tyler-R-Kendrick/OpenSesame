@@ -7,18 +7,24 @@
  * can run before a person's selection has been read.
  */
 
-import { compositionStore } from "../lib/capabilities/store.js";
 import { collectRuntimeFacts } from "../lib/capabilities/facts.js";
 import { ensureInstallationId } from "../lib/capabilities/installation.js";
-import { startInvalidationWatch, vaultIdOf } from "../lib/capabilities/invalidation.js";
+import {
+  startInvalidationWatch,
+  vaultIdOf,
+} from "../lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "../lib/capabilities/keys.js";
+import { compositionStore } from "../lib/capabilities/store.js";
 import { kvHydrate } from "../lib/kv.js";
 import {
   activeProject,
   projectScopedKeys,
   rehydrateProjects,
 } from "../lib/projects.js";
-import { type ParsedRuntimeConfig, loadRuntimeConfig } from "../lib/runtime-config.js";
+import {
+  type ParsedRuntimeConfig,
+  loadRuntimeConfig,
+} from "../lib/runtime-config.js";
 import { bootstrapTheme } from "../lib/theme.js";
 import { vaultStore } from "../lib/vault/store.js";
 import {

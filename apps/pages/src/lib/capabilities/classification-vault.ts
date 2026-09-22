@@ -121,6 +121,11 @@ export const TUTORIAL_RULES = [
       ),
   ),
   optional(
+    `${T}agent-seams`,
+    "support.guided-help",
+    "agent loader seams the AI runtimes fill in activate",
+  ),
+  optional(
     `${T}agents/prompt-api/`,
     "support.local-ai",
     "browser Prompt API agent",

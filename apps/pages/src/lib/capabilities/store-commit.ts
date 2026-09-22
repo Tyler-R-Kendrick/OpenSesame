@@ -56,7 +56,8 @@ export function preflightCommit(
 ): CommitOutcome | null {
   const { state, plan, catalog } = ports;
   if (!plan || !catalog) return { status: "refused", reason: "not-ready" };
-  if (!state.policyValid) return { status: "refused", reason: "managed-invalid" };
+  if (!state.policyValid)
+    return { status: "refused", reason: "managed-invalid" };
   if (
     draft.installationId !== state.installationId ||
     draft.instanceId !== ports.instanceId
@@ -72,7 +73,11 @@ export function preflightCommit(
   if (state.selection && draft.revision === state.selection.revision) {
     return { status: "conflict", reason: "selection-revision" };
   }
-  const delta = computeConsentDelta(ports.resolveWith(draft, receipt), catalog, receipt);
+  const delta = computeConsentDelta(
+    ports.resolveWith(draft, receipt),
+    catalog,
+    receipt,
+  );
   if (
     delta.addedRoots.length > 0 ||
     delta.changedExposure.length > 0 ||

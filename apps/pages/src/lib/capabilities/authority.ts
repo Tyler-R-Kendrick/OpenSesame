@@ -18,7 +18,11 @@ import type {
   OperationId,
 } from "@opensesame/capability-composition";
 import { kvRefresh } from "../kv.js";
-import { GENERATION_KEY, MAX_RECORD_BYTES, compositionLockName } from "./keys.js";
+import {
+  GENERATION_KEY,
+  MAX_RECORD_BYTES,
+  compositionLockName,
+} from "./keys.js";
 import { assertLeaseCurrent, leaseIsCurrent } from "./lease.js";
 import { CapabilityDenied } from "./runtime-contract.js";
 import { readCommittedGeneration } from "./store-persist.js";

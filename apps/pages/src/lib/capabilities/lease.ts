@@ -67,9 +67,10 @@ export function deriveLease(parent: ActivationLease): MintedLease {
     if (!controller.signal.aborted) controller.abort(reason);
   };
   if (parent.signal.aborted) abort("parent-aborted");
-  else parent.signal.addEventListener("abort", () => abort("parent-aborted"), {
-    once: true,
-  });
+  else
+    parent.signal.addEventListener("abort", () => abort("parent-aborted"), {
+      once: true,
+    });
   const lease: ActivationLease = Object.freeze({
     identity: parent.identity,
     generation: parent.generation,

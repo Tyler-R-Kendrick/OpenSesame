@@ -10,6 +10,7 @@ import type { CapabilityId } from "@opensesame/capability-composition";
 import {
   EgressDenied,
   type EgressPort,
+  type EgressRequestMeta,
   createEgressPort,
   redactUrl,
 } from "./egress.js";
@@ -38,9 +39,14 @@ export function createSameOriginEgress(capability: CapabilityId): EgressPort {
     const origin = destinationOrigin(input);
     const own = pageOrigin();
     const destination = redactUrl(input);
-    if (!origin) return { ok: false as const, code: "invalid-url" as const, destination };
+    if (!origin)
+      return { ok: false as const, code: "invalid-url" as const, destination };
     if (!own || origin !== own) {
-      return { ok: false as const, code: "not-same-origin" as const, destination };
+      return {
+        ok: false as const,
+        code: "not-same-origin" as const,
+        destination,
+      };
     }
     return {
       ok: true as const,
@@ -52,7 +58,11 @@ export function createSameOriginEgress(capability: CapabilityId): EgressPort {
   return {
     capability,
     decide,
-    async fetch(input, init) {
+    async fetch(
+      input: URL | string,
+      init?: RequestInit,
+      _meta?: EgressRequestMeta,
+    ) {
       const decision = decide(input);
       if (!decision.ok) {
         throw new EgressDenied(decision.code, capability, decision.destination);
@@ -69,14 +79,17 @@ export function createPlanEgress(capability: CapabilityId): EgressPort {
     .catalog()
     ?.capabilities.find((d) => d.id === capability);
   const origin = pageOrigin();
-  if (!plan || !descriptor || !origin) return createSameOriginEgress(capability);
+  if (!plan || !descriptor || !origin)
+    return createSameOriginEgress(capability);
   return createEgressPort({
     capability: descriptor,
-    plan,
+    plan: () => compositionStore.getSnapshot().plan,
     allowedOrigins: [origin],
   });
 }
 
 export const egressSeams = {
-  createEgressPort: createPlanEgress as (capability: CapabilityId) => EgressPort,
+  createEgressPort: createPlanEgress as (
+    capability: CapabilityId,
+  ) => EgressPort,
 };

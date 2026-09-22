@@ -68,7 +68,7 @@ describe("cleanup (PWA-04)", () => {
     const env = new FakeWorkerEnv();
     for (const name of EVERYTHING) await env.cacheStorage.seed(name, {});
     const deleted = await cleanupCaches({
-      caches: env.cacheStorage,
+      caches: env.caches,
       scopePath: SCOPE,
       releaseId: "cur",
       retained: new Set(["older"]),
@@ -83,7 +83,7 @@ describe("cleanup (PWA-04)", () => {
   it("EVID-03: the origin-wide mutant fails the same assertion", async () => {
     const env = new FakeWorkerEnv();
     for (const name of EVERYTHING) await env.cacheStorage.seed(name, {});
-    await originWideDeletion(env.cacheStorage);
+    await originWideDeletion(env.caches);
     const remaining = await env.cacheStorage.keys();
     expect(() => assertForeignAndCurrentSurvive(remaining)).toThrow();
     expect(remaining).toEqual([CURRENT]);

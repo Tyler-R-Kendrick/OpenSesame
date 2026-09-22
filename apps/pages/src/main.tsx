@@ -54,8 +54,13 @@ armInstall();
  */
 async function registerWorker(): Promise<void> {
   try {
-    const controller = await import("./lib/capabilities/worker-controller.js");
-    await controller.registerWorkerForPlan(compositionStore);
+    const [controller, { DISTRIBUTION }] = await Promise.all([
+      import("./lib/capabilities/worker-controller.js"),
+      import("./lib/capabilities/distribution.js"),
+    ]);
+    controller.registerWorkerForPlan(compositionStore, {
+      distribution: DISTRIBUTION,
+    });
   } catch {
     // No controller in this build: no worker is registered.
   }

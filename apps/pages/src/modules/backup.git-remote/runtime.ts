@@ -6,8 +6,10 @@
  * connector's settings page.
  *
  * Contributed: the Backups settings category (the backup/recovery tiles
- * that used to sit in Settings › Connections) and the backup tutorial
- * descriptors. The per-connector pages (`GithubInstallationPanel`,
+ * that used to sit in Settings › Connections). Its guide target
+ * `settings.backup` and goal are authored in the registry's connections
+ * files and contributed by `connectors.external`, which this capability
+ * depends on (catalog), so they are declared whenever this category mounts. The per-connector pages (`GithubInstallationPanel`,
  * `GithubHistoryRemotePicker`, `BackupSyncControls`) are reached through
  * `connectors.external`'s connector route, which is that capability's
  * surface; they stay where they are and are listed in the catalog as this
@@ -34,15 +36,9 @@
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
-import { registerTutorial } from "../tutorial-contributions.js";
 import { BackupBindingsPanel } from "./BackupBindingsPanel.js";
 
 export const CAPABILITY = "backup.git-remote";
-
-export const TUTORIAL = {
-  targets: ["settings.backup"],
-  goals: ["settings.backup"],
-} as const;
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
@@ -57,7 +53,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       Panel: BackupBindingsPanel,
       order: 45,
     });
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

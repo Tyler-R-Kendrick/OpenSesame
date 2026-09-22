@@ -11,13 +11,21 @@
  * person authored — the whole catalog is handed to a model as page context.
  */
 
+import { contributionsSnapshot } from "../../lib/contributions.js";
 import { GUIDE_TARGETS_MORE } from "./catalog-more.js";
-import { IDENTITY_TARGETS } from "./identity-catalog.js";
 import { SHELL_TARGETS } from "./shell-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { VAULT_TARGETS } from "./vault-catalog.js";
 
-export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
+/**
+ * The targets the core shell always has. Every other control belongs to the
+ * capability that draws it and arrives as a `tutorial-target` contribution
+ * while that capability is in the plan (`connections-catalog.ts`,
+ * `access-catalog.ts`, `identity-catalog.ts`, `wallet-catalog.ts`,
+ * `activity-catalog.ts`); `authored.ts` is the whole corpus for a module to
+ * pick its entries from.
+ */
+export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   ...SHELL_TARGETS,
   ...VAULT_TARGETS,
 
@@ -76,6 +84,14 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "action",
     routes: ["/settings"],
     capabilityId: "vault.recovery_codes",
+  },
+  {
+    id: "settings.capabilities",
+    description:
+      "The Capabilities settings category: which optional features this installation has selected, what each one would expose, and the way to add or remove one.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
   },
   {
     id: "settings.vaults",
@@ -146,3 +162,31 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
 
   ...GUIDE_TARGETS_MORE,
 ];
+
+let contributedTargets: readonly GuideTargetDescriptor[] | null = null;
+
+/**
+ * The live catalog: core targets plus the ones approved capabilities have
+ * contributed. A live binding, so a reader that holds the array sees what
+ * the accessor last computed; readers call `mergedGuideTargets()` to be sure.
+ */
+export let GUIDE_TARGETS: readonly GuideTargetDescriptor[] = CORE_GUIDE_TARGETS;
+
+export function mergedGuideTargets(): readonly GuideTargetDescriptor[] {
+  const contributed = contributionsSnapshot("tutorial-target");
+  if (contributed === contributedTargets) return GUIDE_TARGETS;
+  contributedTargets = contributed;
+  if (contributed.length === 0) {
+    GUIDE_TARGETS = CORE_GUIDE_TARGETS;
+    return GUIDE_TARGETS;
+  }
+  const seen = new Set(CORE_GUIDE_TARGETS.map((target) => target.id));
+  const extra: GuideTargetDescriptor[] = [];
+  for (const target of contributed) {
+    if (seen.has(target.id)) continue;
+    seen.add(target.id);
+    extra.push(target);
+  }
+  GUIDE_TARGETS = Object.freeze([...CORE_GUIDE_TARGETS, ...extra]);
+  return GUIDE_TARGETS;
+}
