@@ -33,15 +33,22 @@ export function toSecretFreeDiagnostic(
   pkg: DuressAlertWirePackage,
   transport?: DeliveryOutcome,
 ): DuressAlertDiagnostic {
-  return {
+  const base: DuressAlertDiagnostic = {
     packageId: pkg.packageId,
     routeRef: pkg.routeRef,
     templateRef: pkg.templateRef,
     issuedAt: pkg.issuedAt,
     expiresAt: pkg.expiresAt,
-    transportStatus: transport?.status,
-    error: transport?.error,
   };
+  if (transport?.status !== undefined) {
+    return transport.error !== undefined
+      ? { ...base, transportStatus: transport.status, error: transport.error }
+      : { ...base, transportStatus: transport.status };
+  }
+  if (transport?.error !== undefined) {
+    return { ...base, error: transport.error };
+  }
+  return base;
 }
 
 /**
