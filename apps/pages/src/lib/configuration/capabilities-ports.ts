@@ -61,8 +61,15 @@ export type CapabilityPreset = Readonly<{
  * after-plan's exposure digests, so the store has to lend it out
  * (`compositionStore.preview`, requested of S06 in the S09 report).
  */
-export function previewPlan(draft: InstallationCapabilitySelection): EffectivePlan {
-  return compositionStore.preview(draft);
+export function previewPlan(
+  draft: InstallationCapabilitySelection,
+): EffectivePlan {
+  const store: { preview?: (d: InstallationCapabilitySelection) => EffectivePlan } =
+    overlapCast(compositionStore);
+  if (typeof store.preview !== "function") {
+    throw new Error("The composition store cannot preview a draft yet.");
+  }
+  return store.preview(draft);
 }
 
 /**

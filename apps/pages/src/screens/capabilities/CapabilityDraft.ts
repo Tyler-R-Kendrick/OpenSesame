@@ -141,7 +141,8 @@ export function baseFromSnapshot(
   return {
     instanceId: snapshot.plan?.identity.instanceId ?? snapshot.policy?.instanceId ?? "personal-local",
     installationId: snapshot.plan?.identity.installationId ?? "",
-    basePolicyRevision: snapshot.policy?.revision ?? "0",
+    basePolicyRevision:
+      snapshot.plan?.identity.policyRevision ?? snapshot.policy?.revision ?? "0",
     revision: `draft-${now}`,
   };
 }
