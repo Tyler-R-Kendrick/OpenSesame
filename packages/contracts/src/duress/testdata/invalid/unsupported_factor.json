@@ -14,9 +14,7 @@
           "organizationRef": null,
           "vaultRef": "vault-1",
           "deviceBindingRef": "device-1",
-          "compartmentRefs": [
-            "comp-normal"
-          ]
+          "compartmentRefs": ["comp-normal"]
         },
         "triggerKind": "application_code",
         "effects": {
@@ -27,9 +25,7 @@
           },
           "alert": null,
           "quarantinePeerRefs": [],
-          "providerRevocationRefs": [
-            "prov-unknown"
-          ],
+          "providerRevocationRefs": ["prov-unknown"],
           "removal": {
             "kind": "none"
           },
