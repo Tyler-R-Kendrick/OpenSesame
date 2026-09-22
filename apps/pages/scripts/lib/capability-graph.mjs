@@ -1,8 +1,10 @@
 /**
  * Shared helpers for the capability build plugin and the post-build verifier:
  * module classification, entry closures over the emitted chunk graph, and the
- * forbidden-reachability rules (ownership.md §4.6). Pure over plain data so
- * the same rules run inside Vite and again from disk.
+ * JSON/HTML readers both sides use. Pure over plain data so the same rules run
+ * inside Vite and again from disk. The forbidden-reachability rules themselves
+ * (ownership.md §4.6) live in `capability-invariants.mjs`, which imports from
+ * here — never the other way round.
  *
  * Graph shape (also `dist/capability-graph.json`):
  *   entries:  [{ html, capability, scripts: [file], preloads: [file] }]
@@ -106,6 +108,59 @@ const MODULES_DIR_PATTERNS = new Set([
  * the bare directory is ignored there; a rule naming a specific module
  * directory still wins, and `violations()` checks it (BUILD-06).
  */
+/** The longest matching string-prefix rule, or null. */
+function bestPrefixRule(rules, candidates, inModules) {
+  let best = null;
+  for (const rule of rules ?? []) {
+    if (typeof rule.pattern !== "string") continue;
+    const pattern = toPosix(rule.pattern);
+    if (inModules && MODULES_DIR_PATTERNS.has(pattern)) continue;
+    if (!candidates.some((c) => ruleMatches(pattern, c))) continue;
+    if (best === null || pattern.length > best.pattern.length)
+      best = { ...rule, pattern };
+  }
+  return best;
+}
+
+/** The first matching RegExp rule, consulted only when no prefix rule hit. */
+function bestRegexRule(rules, candidates) {
+  for (const rule of rules ?? []) {
+    if (
+      rule.pattern instanceof RegExp &&
+      candidates.some((c) => rule.pattern.test(c))
+    )
+      return rule;
+  }
+  return null;
+}
+
+/** What a module is when no authored rule names it. */
+function fallbackClassification(normalized, directoryOwner) {
+  if (normalized.startsWith("node_modules/"))
+    return {
+      classification: "shared",
+      capability: null,
+      rationale: "unclassified dependency",
+    };
+  if (directoryOwner !== null)
+    return {
+      classification: "optional",
+      capability: directoryOwner,
+      rationale: "module directory",
+    };
+  if (normalized.startsWith("apps/pages/"))
+    return {
+      classification: "core",
+      capability: null,
+      rationale: "unclassified source",
+    };
+  return {
+    classification: "shared",
+    capability: null,
+    rationale: "unclassified workspace package",
+  };
+}
+
 export function classifyModule(id, rules, { repoRoot }) {
   const normalized = normalizeModuleId(id, { repoRoot });
   if (id.startsWith("\0") || normalized.startsWith("virtual:")) {
@@ -118,28 +173,9 @@ export function classifyModule(id, rules, { repoRoot }) {
   }
   const candidates = matchCandidates(normalized);
   const directoryOwner = moduleDirectoryOwner(normalized);
-  const inModules = directoryOwner !== null;
-  let best = null;
-  for (const rule of rules ?? []) {
-    if (typeof rule.pattern !== "string") continue;
-    const pattern = toPosix(rule.pattern);
-    if (inModules && MODULES_DIR_PATTERNS.has(pattern)) continue;
-    if (candidates.some((c) => ruleMatches(pattern, c))) {
-      if (best === null || pattern.length > best.pattern.length)
-        best = { ...rule, pattern };
-    }
-  }
-  if (best === null) {
-    for (const rule of rules ?? []) {
-      if (
-        rule.pattern instanceof RegExp &&
-        candidates.some((c) => rule.pattern.test(c))
-      ) {
-        best = rule;
-        break;
-      }
-    }
-  }
+  const best =
+    bestPrefixRule(rules, candidates, directoryOwner !== null) ??
+    bestRegexRule(rules, candidates);
   if (best !== null) {
     return {
       id: normalized,
@@ -148,36 +184,7 @@ export function classifyModule(id, rules, { repoRoot }) {
       rationale: best.rationale ?? "rule",
     };
   }
-  if (normalized.startsWith("node_modules/")) {
-    return {
-      id: normalized,
-      classification: "shared",
-      capability: null,
-      rationale: "unclassified dependency",
-    };
-  }
-  if (directoryOwner !== null) {
-    return {
-      id: normalized,
-      classification: "optional",
-      capability: directoryOwner,
-      rationale: "module directory",
-    };
-  }
-  if (normalized.startsWith("apps/pages/")) {
-    return {
-      id: normalized,
-      classification: "core",
-      capability: null,
-      rationale: "unclassified source",
-    };
-  }
-  return {
-    id: normalized,
-    classification: "shared",
-    capability: null,
-    rationale: "unclassified workspace package",
-  };
+  return { id: normalized, ...fallbackClassification(normalized, directoryOwner) };
 }
 
 export function isUnclassified(entry) {
@@ -233,206 +240,6 @@ export function pathTo(via, file) {
     cursor = via.get(cursor);
   }
   return path;
-}
-
-function entryOwner(graph, label) {
-  if (label.startsWith("worker:")) {
-    const worker = (graph.workers ?? []).find(
-      (w) => `worker:${w.variant}` === label,
-    );
-    return worker?.capability ?? null;
-  }
-  return graph.entries.find((e) => e.html === label)?.capability ?? null;
-}
-
-/**
- * The forbidden-reachability rules. Returns `{ severity, code, module,
- * capability, chunk, entry, path, message }` records; `severity: "error"`
- * fails a build, `"warning"` is diagnostic (a dynamic edge from core code to
- * an optional module that bypasses the MODULE_TABLE).
- *
- * @param graph the graph above
- * @param distributed Set<CapabilityId> present in this build
- * @param mode "selective" | "hardened"
- * @param options.coreCapabilities Set<CapabilityId> with tier core (so a
- *   module directory owned by a core capability may be classified core)
- */
-export function violations(graph, distributed, mode, options = {}) {
-  const core = options.coreCapabilities ?? new Set();
-  const out = [];
-  const add = (severity, code, fields) =>
-    out.push({ severity, code, ...fields });
-  const optionalIn = (chunk) =>
-    chunk.modules.filter(
-      (m) => m.classification === "optional" && m.capability,
-    );
-  const chunkByFile = new Map(graph.chunks.map((c) => [c.file, c]));
-
-  for (const chunk of graph.chunks) {
-    const capabilities = new Set(optionalIn(chunk).map((m) => m.capability));
-    if (capabilities.size > 1) {
-      add("error", "MIXED_CAPABILITY_CHUNK", {
-        chunk: chunk.file,
-        capability: [...capabilities].sort().join(", "),
-        message: `chunk mixes optional capabilities ${[...capabilities].sort().join(", ")}`,
-      });
-    }
-    for (const module of chunk.modules) {
-      const owner = moduleDirectoryOwner(module.id);
-      if (owner !== null) {
-        const expected = core.has(owner) ? "core" : "optional";
-        if (module.capability !== owner || module.classification !== expected) {
-          add("error", "MISCLASSIFIED_MODULE_PATH", {
-            module: module.id,
-            capability: module.capability,
-            chunk: chunk.file,
-            message: `module under ${MODULES_DIR}${owner}/ classified ${module.classification}/${module.capability ?? "-"} (${module.rationale}); expected ${expected}/${owner}`,
-          });
-        }
-      }
-      if (
-        mode === "hardened" &&
-        module.classification === "optional" &&
-        module.capability &&
-        !distributed.has(module.capability)
-      ) {
-        add("error", "EXCLUDED_MODULE_EMITTED", {
-          module: module.id,
-          capability: module.capability,
-          chunk: chunk.file,
-          message: `excluded capability "${module.capability}" was emitted in ${chunk.file}`,
-        });
-      }
-    }
-  }
-
-  const staticClosure = entryClosure(graph, { staticOnly: true });
-  for (const [label, { chunks, via }] of staticClosure) {
-    const owner = entryOwner(graph, label);
-    for (const file of chunks) {
-      const chunk = chunkByFile.get(file);
-      if (!chunk) continue;
-      for (const module of optionalIn(chunk)) {
-        if (module.capability === owner) continue;
-        add("error", "ENTRY_STATIC_OPTIONAL", {
-          module: module.id,
-          capability: module.capability,
-          chunk: file,
-          entry: label,
-          path: pathTo(via, file),
-          message: `${label} reaches optional "${module.capability}" through static imports`,
-        });
-      }
-    }
-  }
-
-  if (mode === "hardened") {
-    const fullClosure = entryClosure(graph);
-    for (const [label, { chunks, via }] of fullClosure) {
-      for (const file of chunks) {
-        const chunk = chunkByFile.get(file);
-        if (!chunk) continue;
-        for (const module of optionalIn(chunk)) {
-          if (distributed.has(module.capability)) continue;
-          add("error", "EXCLUDED_REACHABLE", {
-            module: module.id,
-            capability: module.capability,
-            chunk: file,
-            entry: label,
-            path: pathTo(via, file),
-            message: `${label} can reach excluded "${module.capability}"`,
-          });
-        }
-      }
-    }
-    for (const entry of graph.entries) {
-      if (
-        entry.capability &&
-        !distributed.has(entry.capability) &&
-        !core.has(entry.capability)
-      ) {
-        add("error", "EXCLUDED_HTML_ENTRY", {
-          chunk: entry.html,
-          capability: entry.capability,
-          message: `HTML entry ${entry.html} belongs to excluded "${entry.capability}"`,
-        });
-      }
-    }
-    for (const file of graph.publicFiles ?? []) {
-      if (file.present === false) continue;
-      if (
-        file.capability &&
-        !distributed.has(file.capability) &&
-        !core.has(file.capability)
-      ) {
-        add("error", "EXCLUDED_PUBLIC_FILE", {
-          chunk: file.file,
-          capability: file.capability,
-          message: `public file ${file.file} belongs to excluded "${file.capability}"`,
-        });
-      }
-    }
-    for (const worker of graph.workers ?? []) {
-      if (worker.present === false) continue;
-      if (worker.capability && !distributed.has(worker.capability)) {
-        add("error", "EXCLUDED_WORKER", {
-          chunk: worker.file,
-          capability: worker.capability,
-          message: `worker variant ${worker.variant} belongs to excluded "${worker.capability}"`,
-        });
-      }
-    }
-  }
-
-  for (const edge of graph.moduleEdges ?? []) {
-    if (edge.kind !== "dynamic" || edge.viaTable) continue;
-    add("warning", "CORE_DYNAMIC_OPTIONAL", {
-      module: edge.from,
-      capability: edge.toCapability ?? null,
-      chunk: edge.to,
-      message: `${edge.from} imports optional ${edge.to} dynamically outside MODULE_TABLE`,
-    });
-  }
-
-  return out.sort((a, b) => {
-    const key = (v) =>
-      `${v.severity}|${v.code}|${v.entry ?? ""}|${v.chunk ?? ""}|${v.module ?? ""}`;
-    return key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0;
-  });
-}
-
-/** A fixed-width table: module → capability → chunk → reachable-from entry. */
-export function formatViolations(list) {
-  if (list.length === 0) return "capability graph: CLEAN";
-  const rows = list.map((v) => [
-    v.severity,
-    v.code,
-    v.module ?? "-",
-    v.capability ?? "-",
-    v.chunk ?? "-",
-    v.entry ?? "-",
-  ]);
-  const header = [
-    "severity",
-    "code",
-    "module",
-    "capability",
-    "chunk",
-    "reachable from",
-  ];
-  const widths = header.map((h, i) =>
-    Math.max(h.length, ...rows.map((r) => String(r[i]).length)),
-  );
-  const line = (cells) =>
-    cells.map((c, i) => String(c).padEnd(widths[i])).join("  ");
-  const errors = list.filter((v) => v.severity === "error").length;
-  return [
-    line(header),
-    line(widths.map((w) => "-".repeat(w))),
-    ...rows.map(line),
-    "",
-    `${errors} error(s), ${list.length - errors} warning(s)`,
-  ].join("\n");
 }
 
 /** Deterministic JSON: stable key order for objects, arrays kept as given. */

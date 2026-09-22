@@ -109,6 +109,58 @@ function useDraftEditors(args: DraftEditorArgs): DraftEditors {
   );
 }
 
+type ApplyArgs = Readonly<{
+  draft: CapabilityDraft | null;
+  busy: boolean;
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  setOutcome: Dispatch<SetStateAction<OutcomeView | null>>;
+  setStage: Dispatch<SetStateAction<SetupStage>>;
+  selectionOf: (next: CapabilityDraft) => InstallationCapabilitySelection;
+  catalog: CapabilityCatalog;
+  durability: CompositionSnapshot["durability"];
+}>;
+
+/**
+ * The one path that reaches the store. It previews the selection, binds a
+ * receipt to that plan, commits, and only then reports durable, session-only,
+ * conflict or refused — never before the store has answered (CONSENT-03).
+ */
+function useApply(args: ApplyArgs): () => Promise<void> {
+  const { draft, busy, setBusy, setOutcome, setStage } = args;
+  const { selectionOf, catalog, durability } = args;
+  return useCallback(async () => {
+    if (!draft || busy) return;
+    setBusy(true);
+    try {
+      const selection = selectionOf(draft);
+      const receipt = buildConsentReceipt(
+        previewPlan(selection),
+        catalog,
+        capabilitySetupSeams.now(),
+      );
+      const result = await compositionStore.commit(selection, receipt);
+      setOutcome(viewOutcome(result, durability));
+    } catch (caught) {
+      setOutcome({
+        status: "refused",
+        message: caught instanceof Error ? caught.message : "not applied",
+      });
+    } finally {
+      setBusy(false);
+      setStage("outcome");
+    }
+  }, [
+    busy,
+    catalog,
+    draft,
+    durability,
+    selectionOf,
+    setBusy,
+    setOutcome,
+    setStage,
+  ]);
+}
+
 export function useCapabilitySetup(initialJoin: boolean) {
   const snapshot = useComposition();
   const catalog = CAPABILITY_CATALOG;
@@ -180,29 +232,16 @@ export function useCapabilitySetup(initialJoin: boolean) {
     plan: snapshot.plan,
   });
 
-  const apply = useCallback(async () => {
-    if (!draft || busy) return;
-    setBusy(true);
-    try {
-      const selection = selectionOf(draft);
-      const plan = previewPlan(selection);
-      const receipt = buildConsentReceipt(
-        plan,
-        catalog,
-        capabilitySetupSeams.now(),
-      );
-      const result = await compositionStore.commit(selection, receipt);
-      setOutcome(viewOutcome(result, snapshot.durability));
-    } catch (caught) {
-      setOutcome({
-        status: "refused",
-        message: caught instanceof Error ? caught.message : "not applied",
-      });
-    } finally {
-      setBusy(false);
-      setStage("outcome");
-    }
-  }, [busy, catalog, draft, selectionOf, snapshot.durability]);
+  const apply = useApply({
+    draft,
+    busy,
+    setBusy,
+    setOutcome,
+    setStage,
+    selectionOf,
+    catalog,
+    durability: snapshot.durability,
+  });
 
   return {
     snapshot,
