@@ -33,16 +33,16 @@ export type DuressContinueMatch = Readonly<{
 }>;
 
 function presentationOf(value: string): PresentationClass {
-  if (
-    value === "normal" ||
-    value === "restricted" ||
-    value === "decoy" ||
-    value === "locked" ||
-    value === "unchanged"
-  ) {
-    return value;
+  switch (value) {
+    case "normal":
+    case "restricted":
+    case "decoy":
+    case "locked":
+    case "unchanged":
+      return value;
+    default:
+      return "restricted";
   }
-  return "restricted";
 }
 
 /**

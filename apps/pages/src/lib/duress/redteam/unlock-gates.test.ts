@@ -147,3 +147,27 @@ describe("pin duress gate kinds", () => {
     expect(unlockWithPin).toHaveBeenCalledOnce();
   });
 });
+
+describe("passkey duress code completion", () => {
+  it("completePasskeyDuressCode without evidence looks like a wrong passkey", async () => {
+    const { completePasskeyDuressCode, cancelPasskeyDuressCode } = await import(
+      "../../../screens/unlock/unlock-passkey-duress.js"
+    );
+    cancelPasskeyDuressCode();
+    const unlockWithPasskey = vi.fn(async () => undefined);
+    const probePasskeyPrf = vi.fn(async () => new ArrayBuffer(32));
+    const unlockWithHeldPrf = vi.fn(async () => undefined);
+    const createGuest = vi.fn(async () => undefined);
+    await expect(
+      completePasskeyDuressCode(
+        { unlockWithPasskey, probePasskeyPrf, unlockWithHeldPrf, createGuest },
+        "11223344",
+        { requireDurable: false },
+      ),
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof WrongPasswordError &&
+        err.message === "That passkey did not unlock the vault.",
+    );
+  });
+});
