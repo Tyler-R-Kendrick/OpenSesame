@@ -99,17 +99,6 @@ describe("virtual modules", () => {
       ["core-only"],
       "push variant only when web-push is distributed",
     );
-    const chunkFor = userConfig.build.rollupOptions.output.manualChunks;
-    assert.equal(
-      chunkFor(`${tree.appRoot}/src/sections/connections/List.tsx`),
-      "cap-connectors.external",
-    );
-    assert.equal(chunkFor(`${tree.appRoot}/src/lib/kv.ts`), undefined);
-    assert.equal(
-      chunkFor(`${tree.appRoot}/src/sections/connections/a.css`),
-      undefined,
-      "stylesheets keep Vite's own placement",
-    );
   });
 
   test("distributionId is stable across runs and moves with the distributed set", async () => {
@@ -118,6 +107,38 @@ describe("virtual modules", () => {
     assert.equal(a, b);
     const c = (await compose(tree, { mode: "hardened" })).distribution;
     assert.notEqual(a, c);
+  });
+});
+
+// Chunk layout, not exclusion: what a hardened build drops is decided by
+// the profile before bundling and proved by the reachability gate.
+describe("chunk partition", () => {
+  test("only a capability's own module directory is partitioned into its chunk", async () => {
+    const { userConfig } = await compose(tree, { mode: "selective" });
+    const chunkFor = userConfig.build.rollupOptions.output.manualChunks;
+    assert.equal(
+      chunkFor(`${tree.appRoot}/src/modules/sharing.drops/runtime.ts`),
+      "cap-sharing.drops",
+      "a capability's module directory is its own chunk",
+    );
+    // Optional source outside the module directories keeps Rollup's own
+    // chunking. Partitioning it by capability cut cycles across chunk
+    // boundaries — a section reaches a shared list which reaches another
+    // section — and the emitted chunks then imported each other: React
+    // Router's `createContext` ran in one chunk before the chunk holding
+    // React had, and the production page threw on load and rendered
+    // nothing. What a hardened build drops is decided by the profile
+    // before bundling, not by this layout.
+    assert.equal(
+      chunkFor(`${tree.appRoot}/src/sections/connections/List.tsx`),
+      undefined,
+    );
+    assert.equal(chunkFor(`${tree.appRoot}/src/lib/kv.ts`), undefined);
+    assert.equal(
+      chunkFor(`${tree.appRoot}/src/modules/sharing.drops/a.css`),
+      undefined,
+      "stylesheets keep Vite's own placement",
+    );
   });
 });
 

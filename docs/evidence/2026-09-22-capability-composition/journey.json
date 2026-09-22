@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "press": "Set up your own" },
+        { "shot": "1280-setup-first-tab" },
+        { "pressOptional": "Customize this installation" },
+        { "pressOptional": "Family" },
+        { "shot": "1280-setup-choice" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "press": "Set up your own" },
+        { "shot": "390-setup-first-tab" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "open": "Capabilities" },
+        { "shot": "1280-settings-capabilities" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "open": "Capabilities" },
+        { "shot": "390-settings-capabilities" }
+      ]
+    }
+  ],
+  "sheets": []
+}

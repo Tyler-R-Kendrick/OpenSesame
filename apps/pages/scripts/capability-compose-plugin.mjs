@@ -49,6 +49,36 @@ function pruneInputs(build, state) {
   }
 }
 
+/**
+ * Which modules the capability partition may move.
+ *
+ * Only a capability's own module directory, `src/modules/<capability-id>/`.
+ * Those files are reached exclusively through the generated module table's
+ * dynamic imports, so a chunk built from them is a leaf: the loader fetches
+ * it when the plan and the lease say so, and nothing static points into it.
+ *
+ * Every other optional file stays on Rollup's own chunking, and that is not
+ * a concession — it is the condition for the build working at all. Optional
+ * source outside the module directories imports across capability lines
+ * (a section reaches a shared list, which reaches another section), so
+ * partitioning it by capability cut those cycles across chunk boundaries:
+ * 53 chunks with 55 cyclic static imports, in which `cap-agents.webmcp`
+ * evaluated React Router's `createContext` before the chunk holding React
+ * had run. The production page threw on load and rendered nothing —
+ * `verify:static` could not find the wordmark. Rollup's default chunking is
+ * acyclic by construction, and a module only one capability reaches still
+ * lands in a chunk only that capability loads.
+ *
+ * This is chunk layout, not exclusion: what a hardened build actually drops
+ * is decided by the profile before bundling, and proved by the reachability
+ * gate over the emitted graph. Neither reads this function.
+ */
+function partitionable(id) {
+  if (id.startsWith("\0")) return false;
+  if (/\.(css|scss|sass|less|styl)(\?|$)/.test(id)) return false;
+  return toPosix(id).includes("/src/modules/");
+}
+
 function installManualChunks(build, state) {
   if (!build.rollupOptions) build.rollupOptions = {};
   const rollupOptions = build.rollupOptions;
@@ -60,10 +90,7 @@ function installManualChunks(build, state) {
     const previous =
       typeof output.manualChunks === "function" ? output.manualChunks : null;
     output.manualChunks = (id, api) => {
-      if (
-        !id.startsWith("\0") &&
-        !/\.(css|scss|sass|less|styl)(\?|$)/.test(id)
-      ) {
+      if (partitionable(id)) {
         const entry = state.classify(id);
         if (entry.classification === "optional" && entry.capability)
           return `cap-${entry.capability}`;

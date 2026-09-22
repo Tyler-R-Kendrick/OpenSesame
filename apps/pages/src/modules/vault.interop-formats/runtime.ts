@@ -38,13 +38,12 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    const panel = ctx.registerSettingsPanel?.({
+    activation.register("settings-panel", {
       id: "formats-interoperability",
       category: "security",
       Panel: FormatsInteroperabilityPanel,
       order: 40,
     });
-    if (panel) activation.onDispose(() => panel.revoke());
 
     return activation.handle();
   },

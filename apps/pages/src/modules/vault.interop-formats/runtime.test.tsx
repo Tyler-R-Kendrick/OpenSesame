@@ -1,10 +1,6 @@
 /** @vitest-environment jsdom */
-import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type {
-  ContextWithPorts,
-  SettingsPanelContribution,
-} from "../ports-b.js";
+import type { ContextWithPorts } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -28,44 +24,33 @@ describe("vault.interop-formats runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("vault.interop-formats");
   });
 
-  it("registers no shell contribution of its own (LOAD-09)", async () => {
+  it("registers its Settings panel and disposes it (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.interop-formats",
-      kinds: [],
-      count: 0,
+      kinds: ["settings-panel"],
+      count: 1,
     });
   });
 
   it("offers the Formats panel under Security and revokes it on dispose", async () => {
-    const revoke = vi.fn();
-    const registerSettingsPanel = vi.fn(
-      (_entry: SettingsPanelContribution): RegistrationHandle => ({
-        kind: "settings-category",
-        capability: "vault.interop-formats",
-        generation: 1,
-        revoke,
-      }),
-    );
     const t = createTestContext();
-    const ctx: ContextWithPorts = { ...t.ctx, registerSettingsPanel };
-    const handle = await runtime.capabilityRuntime.activate(ctx);
-    expect(registerSettingsPanel.mock.calls[0]?.[0]).toMatchObject({
+    const handle = await runtime.capabilityRuntime.activate(
+      t.ctx as ContextWithPorts,
+    );
+    const record = t.registered.find(
+      (entry) => entry.kind === "settings-panel",
+    );
+    expect(record?.entry).toMatchObject({
       id: "formats-interoperability",
       category: "security",
     });
     // Nothing is fetched and no Wasm is pulled by activating: KDBX and
     // Argon2 are import()ed from `parse()`, not from the module graph.
     expect(t.egressCalls).toEqual([]);
+    expect(t.liveKinds()).toContain("settings-panel");
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(t.liveKinds()).not.toContain("settings-panel");
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
-  });
-
-  it("activates without the optional port", async () => {
-    const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(t.registered).toEqual([]);
-    await handle.dispose();
+    expect(record?.revokeCalls).toBe(1);
   });
 });

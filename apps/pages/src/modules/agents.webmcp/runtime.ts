@@ -59,12 +59,11 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     // Session tools are filtered by the route, so they bind where the
     // router is: a wrapper the shell mounts only while unlocked (ports-b).
-    const wrapper = ctx.registerShellWrapper?.({
+    activation.register("shell-wrapper", {
       id: "webmcp-session",
       Wrapper: WebMcpSessionTools,
       order: 20,
     });
-    if (wrapper) activation.onDispose(() => wrapper.revoke());
 
     return activation.handle();
   },

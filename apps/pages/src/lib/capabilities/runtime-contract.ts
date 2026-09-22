@@ -18,7 +18,7 @@ import type {
   RuntimeHandle,
 } from "@opensesame/capability-composition";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { GuideGoalDescriptor } from "../../tutorial/registry/goals.js";
 import type { GuideRouteDescriptor } from "../../tutorial/registry/routes.js";
 import type { GuideTargetDescriptor } from "../../tutorial/registry/targets.js";
@@ -132,11 +132,28 @@ export type UnlockEffectContribution = Readonly<{
   run: (ctx: UnlockEffectContext) => Promise<void>;
 }>;
 
+/**
+ * A component a capability wraps the shell body in — a provider and the one
+ * control that opens what it provides. Guided help needs `SupportProvider`
+ * and its launcher around the shell; agent tools need their registrar. The
+ * core shell knows only "a capability wraps the body", so nothing of either
+ * tree is reachable from a build that excluded the capability.
+ *
+ * Wrappers nest by `order`, lowest outermost, then by `id`, so two
+ * capabilities arriving in either sequence produce the same tree.
+ */
+export type ShellWrapperContribution = Readonly<{
+  id: string;
+  Wrapper: ComponentType<{ children?: ReactNode }>;
+  order: number;
+}>;
+
 export type ContributionEntryMap = {
   section: SectionContribution;
   route: RouteContribution;
   "settings-category": SettingsCategoryContribution;
   "settings-panel": SettingsPanelContribution;
+  "shell-wrapper": ShellWrapperContribution;
   "setup-panel": SetupPanelContribution;
   "command-path": CommandPathContribution;
   "keymap-jump": KeymapJumpContribution;

@@ -99,6 +99,37 @@ describe("boot", () => {
   });
 });
 
+describe("review", () => {
+  it("CONSENT-01: states the capabilities Apply would start, not an empty delta", async () => {
+    await bootPersonalLocal();
+    const { draft } = draftFor(compositionStore, [PASSKEYS], "r1");
+
+    const review = compositionStore.review(draft);
+
+    // The consent screen's own claim. Resolving the draft under the receipt
+    // the installation still holds approves nothing new, so this row read
+    // "—" while Apply was about to start a capability.
+    expect(review.enabled).toContain(PASSKEYS);
+    expect(review.addedModules).toContain(`${PASSKEYS}/runtime`);
+    expect(review.widened).toBe(true);
+    // And the delta stays the strict one: this is still a root being asked
+    // for, not one already covered.
+    expect(review.consent.addedRoots).toContain(PASSKEYS);
+  });
+
+  it("CONSENT-02: reviewing commits nothing", async () => {
+    await bootPersonalLocal();
+    const generation = compositionStore.getSnapshot().generation;
+    const { draft } = draftFor(compositionStore, [PASSKEYS], "r1");
+
+    compositionStore.review(draft);
+
+    expect(approved(compositionStore)).not.toContain(PASSKEYS);
+    expect(compositionStore.getSnapshot().generation).toBe(generation);
+    expect(durable.get(SELECTION_KEY)).toBeUndefined();
+  });
+});
+
 describe("commit", () => {
   it("writes durably, then publishes a new generation that aborts the old lease", async () => {
     await bootPersonalLocal();

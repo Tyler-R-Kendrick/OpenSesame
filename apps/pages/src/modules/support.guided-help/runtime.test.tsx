@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
-import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ContextWithPorts, ShellWrapperContribution } from "../ports-b.js";
+import type { ContextWithPorts } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -28,8 +27,9 @@ describe("support.guided-help runtime", () => {
   it("registers the two guidance tools and disposes them (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "support.guided-help",
-      kinds: ["webmcp-tool"],
-      count: 2,
+      kinds: ["shell-wrapper", "webmcp-tool"],
+      // two guidance tools + the support tree around the shell
+      count: 2 + 1,
     });
   });
 
@@ -50,28 +50,23 @@ describe("support.guided-help runtime", () => {
   });
 
   it("wraps the shell with the support tree and takes it back", async () => {
-    const revoke = vi.fn();
-    const registerShellWrapper = vi.fn(
-      (_entry: ShellWrapperContribution): RegistrationHandle => ({
-        kind: "section",
-        capability: "support.guided-help",
-        generation: 1,
-        revoke,
-      }),
-    );
+    // Through the contribution registry, not an optional port: the port this
+    // used to call was never implemented, so it was `undefined` on every
+    // real context and the Support key never appeared for an installation
+    // that had approved guided help.
     const t = createTestContext();
-    const ctx: ContextWithPorts = { ...t.ctx, registerShellWrapper };
-    const handle = await runtime.capabilityRuntime.activate(ctx);
-    expect(registerShellWrapper.mock.calls[0]?.[0]).toMatchObject({
-      id: "support",
-      order: 10,
-    });
-    expect(registerShellWrapper.mock.calls[0]?.[0].Wrapper).toBeTypeOf(
-      "function",
+    const handle = await runtime.capabilityRuntime.activate(
+      t.ctx as ContextWithPorts,
     );
+    const record = t.registered.find((entry) => entry.kind === "shell-wrapper");
+    expect(record?.entry).toMatchObject({ id: "support", order: 10 });
+    expect(
+      (record?.entry as { Wrapper?: unknown } | undefined)?.Wrapper,
+    ).toBeTypeOf("function");
+    expect(t.liveKinds()).toContain("shell-wrapper");
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(t.liveKinds()).not.toContain("shell-wrapper");
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(record?.revokeCalls).toBe(1);
   });
 });

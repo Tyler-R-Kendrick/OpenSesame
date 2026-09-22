@@ -25,7 +25,6 @@ import {
   type EffectivePlan,
   type InstallationCapabilitySelection,
   resolveComposition,
-  reviewCompositionChange,
 } from "@opensesame/capability-composition";
 import { useSyncExternalStore } from "react";
 import { postCapabilitiesChanged } from "./channel.js";
@@ -33,6 +32,7 @@ import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { compositionLockName } from "./keys.js";
 import { type MintedLease, mintLease } from "./lease.js";
 import { type LegacyReview, reviewLegacyConfiguration } from "./migration.js";
+import { reviewDraft } from "./store-review.js";
 import {
   type CommitPorts,
   commitLocked,
@@ -140,16 +140,20 @@ export class CompositionStore {
     return this.#plan(draft, this.#state.receipt);
   }
 
+  /** What the draft would change (`store-review.ts`); commits nothing. */
   review(draft: InstallationCapabilitySelection): CompositionChangeReview {
     const current = this.#snapshot.plan;
-    if (!current || !this.#state.catalog) {
+    const catalog = this.#state.catalog;
+    if (!current || !catalog) {
       throw new Error("composition store has not resolved");
     }
-    return reviewCompositionChange(
+    return reviewDraft(draft, {
       current,
-      this.preview(draft),
-      this.#state.catalog,
-    );
+      catalog,
+      receipt: this.#state.receipt,
+      resolveWith: (installation, receipt) => this.#plan(installation, receipt),
+      now: storeSeams.now,
+    });
   }
 
   async commit(

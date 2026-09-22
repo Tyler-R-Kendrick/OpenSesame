@@ -14,7 +14,12 @@
 
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useState } from "react";
-import { IconRefresh, IconTrash, IconX } from "../../components/Icons.js";
+import {
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { effectivePlanToYaml } from "../../lib/configuration/capabilities-document.js";
 import {
@@ -48,7 +53,19 @@ export const capabilitiesPanelSeams = {
   now: () => new Date().toISOString(),
 };
 
-function Rows({ onRetire }: { onRetire: (id: CapabilityId) => void }) {
+/**
+ * One row per catalog capability, with the actions that row actually has.
+ *
+ * A running optional capability can be disabled now or retired safely. One
+ * this installation has not taken can be added, which is the same toggle
+ * read the other way: before this, a capability could be chosen once — in
+ * the setup ceremony, which lives before sign-in — and afterwards only ever
+ * narrowed, so a person who signed in and then wanted drops had no road
+ * back. Adding goes through the same review and the same receipt; a
+ * capability the distribution does not carry, or policy does not permit,
+ * offers nothing rather than a disabled key.
+ */
+function Rows({ onToggle }: { onToggle: (id: CapabilityId) => void }) {
   const snapshot = useComposition();
   return (
     <ul className="capspanel" aria-label="What this device uses">
@@ -58,8 +75,14 @@ function Rows({ onRetire }: { onRetire: (id: CapabilityId) => void }) {
           state,
           snapshot.lifecycle[descriptor.id],
         );
-        const running =
-          Boolean(state?.approved) && descriptor.tier === "optional";
+        const optional = descriptor.tier === "optional";
+        const running = Boolean(state?.approved) && optional;
+        const addable =
+          optional &&
+          !running &&
+          state !== undefined &&
+          state.permitted &&
+          state.distributed;
         return (
           <li key={descriptor.id} className="capspanel__row">
             <span className="capspanel__name">
@@ -86,11 +109,22 @@ function Rows({ onRetire }: { onRetire: (id: CapabilityId) => void }) {
                     className="icon-btn icon-btn--sm"
                     aria-label={`Retire ${descriptor.title} safely`}
                     title={`Retire ${descriptor.title} safely`}
-                    onClick={() => onRetire(descriptor.id)}
+                    onClick={() => onToggle(descriptor.id)}
                   >
                     <IconTrash size={14} />
                   </button>
                 </>
+              ) : null}
+              {addable ? (
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--sm"
+                  aria-label={`Add ${descriptor.title}`}
+                  title={`Add ${descriptor.title}`}
+                  onClick={() => onToggle(descriptor.id)}
+                >
+                  <IconPlus size={14} />
+                </button>
               ) : null}
             </span>
           </li>
@@ -127,7 +161,7 @@ export function CapabilitiesPanel() {
   const snapshot = useComposition();
   const { tomb } = useVault();
   const [view, setView] = useState<CapabilityView>("visual");
-  const [retiring, setRetiring] = useState<CapabilityId | null>(null);
+  const [pending, setPending] = useState<CapabilityId | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const selectionFor = (id: CapabilityId) =>
@@ -141,14 +175,15 @@ export function CapabilitiesPanel() {
       ),
       baseFromSnapshot(snapshot, capabilitiesPanelSeams.now()),
     );
-  const review = retiring
-    ? compositionStore.review(selectionFor(retiring))
+  const review = pending
+    ? compositionStore.review(selectionFor(pending))
     : null;
-  async function retire() {
-    if (!retiring) return;
+  /** Commit the one root the row toggled — added or removed, same ceremony. */
+  async function applyToggle() {
+    if (!pending) return;
     setBusy(true);
     try {
-      const selection = selectionFor(retiring);
+      const selection = selectionFor(pending);
       const plan = previewPlan(selection);
       const receipt = buildConsentReceipt(
         plan,
@@ -166,7 +201,7 @@ export function CapabilitiesPanel() {
       );
     } finally {
       setBusy(false);
-      setRetiring(null);
+      setPending(null);
     }
   }
   return (
@@ -183,7 +218,7 @@ export function CapabilitiesPanel() {
             <span>{notice}</span>
           </p>
         ) : null}
-        {view === "visual" && !review ? <Rows onRetire={setRetiring} /> : null}
+        {view === "visual" && !review ? <Rows onToggle={setPending} /> : null}
         {view === "visual" && review ? (
           <CapabilityReview
             review={review}
@@ -192,9 +227,9 @@ export function CapabilitiesPanel() {
               alternativesFor(root, CAPABILITY_CATALOG, snapshot.plan)
             }
             busy={busy}
-            onApply={() => void retire()}
-            onCancel={() => setRetiring(null)}
-            onReplace={() => setRetiring(null)}
+            onApply={() => void applyToggle()}
+            onCancel={() => setPending(null)}
+            onReplace={() => setPending(null)}
           />
         ) : null}
         {view === "source" ? (

@@ -117,6 +117,31 @@ describe("what this device uses", () => {
     expect(double.disabled).toHaveLength(0);
   });
 
+  it("Add reviews, then commits with the root added — a choice is not one-way", async () => {
+    render(<CapabilitiesPanel />);
+    // Not running here, and this installation may have it: the row offers a
+    // way in. Before this, setup was the only place to choose, and setup
+    // lives before sign-in.
+    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
+    expect(screen.getByTestId("capability-review").textContent).toContain(
+      "Shared drops",
+    );
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(1));
+    expect(double.commits[0]?.draft.selectedOptional).toContain(
+      "sharing.drops",
+    );
+    // Adding is not disabling: nothing was force-stopped on the way.
+    expect(double.disabled).toHaveLength(0);
+  });
+
+  it("offers no way in for a capability already running, or one this distribution lacks", () => {
+    render(<CapabilitiesPanel />);
+    expect(
+      screen.queryByRole("button", { name: "Add Agent tools (WebMCP)" }),
+    ).toBeNull();
+  });
+
   it("says a reload is owed while an unloaded module is still evaluated here", () => {
     resetDouble({
       selection: {

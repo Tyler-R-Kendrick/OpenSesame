@@ -1,14 +1,10 @@
 /** @vitest-environment jsdom */
-import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   deployedAmbientPolicy,
   resetDeployedAmbientPolicy,
 } from "../../lib/ambient-auth/runtime.js";
-import type {
-  ContextWithPorts,
-  SettingsPanelContribution,
-} from "../ports-b.js";
+import type { ContextWithPorts } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,

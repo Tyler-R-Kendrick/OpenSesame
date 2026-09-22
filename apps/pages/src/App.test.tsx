@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App, type AppSlots } from "./App.js";
 import type {
   RouteContribution,
+  ShellWrapperContribution,
   UnlockEffectContribution,
 } from "./lib/capabilities/runtime-contract.js";
 
@@ -14,6 +15,7 @@ const env = {
   vaultStatus: "locked",
   routes: [] as RouteContribution[],
   effects: [] as UnlockEffectContribution[],
+  wrappers: [] as ShellWrapperContribution[],
   recovered: 0,
 };
 
@@ -24,6 +26,7 @@ const testSlots: Partial<AppSlots> = {
   useSessionGuards: () => {},
   useRouteContributions: () => env.routes,
   useUnlockEffects: () => env.effects,
+  useShellWrappers: () => env.wrappers,
   recoverPendingFederatedLink: () => {
     env.recovered += 1;
   },
@@ -75,6 +78,7 @@ describe("App", () => {
     env.routes = [];
     env.effects = [];
     env.recovered = 0;
+    env.wrappers = [];
   });
 
   afterEach(cleanup);
@@ -171,6 +175,44 @@ describe("App", () => {
       expect(screen.queryByText("vault welcome")).toBeNull();
       unmount();
     }
+  });
+
+  it("nests contributed shell wrappers around the shell, outermost first", () => {
+    // A capability that needs a provider and its one control around the
+    // whole body — guided help's Support tree, the WebMCP registrar — has
+    // nowhere else to put it, and a build that approved none renders the
+    // shell with no wrapper component at all.
+    const wrap = (id: string): ShellWrapperContribution => ({
+      id,
+      order: id === "outer" ? 10 : 20,
+      Wrapper: ({ children }) => <div data-testid={id}>{children}</div>,
+    });
+    env.vaultStatus = "unlocked";
+    env.wrappers = [wrap("inner"), wrap("outer")];
+
+    render(
+      <MemoryRouter initialEntries={["/vault"]}>
+        <App slots={testSlots} />
+      </MemoryRouter>,
+    );
+
+    const outer = screen.getByTestId("outer");
+    const inner = screen.getByTestId("inner");
+    expect(outer.contains(inner)).toBe(true);
+    expect(inner.contains(screen.getByTestId("app-shell"))).toBe(true);
+  });
+
+  it("renders the shell alone when no capability contributed a wrapper", () => {
+    env.vaultStatus = "unlocked";
+
+    render(
+      <MemoryRouter initialEntries={["/vault"]}>
+        <App slots={testSlots} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("app-shell")).toBeTruthy();
+    expect(screen.queryByTestId("outer")).toBeNull();
   });
 
   it("redirects unknown routes to the vault", () => {

@@ -47,12 +47,11 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     // Without the port the panel is not mounted (ports-b.ts); the tools
     // still register and stay harmless — their seam defaults are no-ops.
-    const wrapper = ctx.registerShellWrapper?.({
+    activation.register("shell-wrapper", {
       id: "support",
       Wrapper: SupportShell,
       order: 10,
     });
-    if (wrapper) activation.onDispose(() => wrapper.revoke());
 
     for (const tool of SUPPORT_TOOLS) {
       activation.register("webmcp-tool", tagWebMcpTool(tool));

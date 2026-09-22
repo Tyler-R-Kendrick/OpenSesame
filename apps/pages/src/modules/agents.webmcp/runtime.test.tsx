@@ -1,5 +1,4 @@
 /** @vitest-environment jsdom */
-import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The SDK is exclusive to this capability and must not be touched unless
@@ -15,7 +14,7 @@ vi.mock("@opensesame/webmcp", () => ({
 
 import { resetContributionsForTest } from "../../lib/contributions.js";
 import { webmcpNavigationSeam } from "../../webmcp/navigation.js";
-import type { ContextWithPorts, ShellWrapperContribution } from "../ports-b.js";
+import type { ContextWithPorts } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -50,9 +49,9 @@ describe("agents.webmcp runtime", () => {
   it("registers the boot tools and the job, and disposes them (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "agents.webmcp",
-      kinds: ["background-job", "webmcp-tool"],
-      // three boot tools + the registration job
-      count: 3 + 1,
+      kinds: ["background-job", "shell-wrapper", "webmcp-tool"],
+      // three boot tools + the registration job + the session wrapper
+      count: 3 + 1 + 1,
     });
   });
 
@@ -92,26 +91,17 @@ describe("agents.webmcp runtime", () => {
     expect(webmcpNavigationSeam.navigate).toBe(before);
   });
 
-  it("offers the session binding through the wrapper port and revokes it", async () => {
-    const revoke = vi.fn();
-    const registerShellWrapper = vi.fn(
-      (_entry: ShellWrapperContribution): RegistrationHandle => ({
-        kind: "section",
-        capability: "agents.webmcp",
-        generation: 1,
-        revoke,
-      }),
-    );
+  it("contributes the session binding as a shell wrapper and revokes it", async () => {
     const t = createTestContext();
-    const ctx: ContextWithPorts = { ...t.ctx, registerShellWrapper };
-    const handle = await runtime.capabilityRuntime.activate(ctx);
-    expect(registerShellWrapper.mock.calls[0]?.[0]).toMatchObject({
-      id: "webmcp-session",
-      order: 20,
-    });
+    const handle = await runtime.capabilityRuntime.activate(
+      t.ctx as ContextWithPorts,
+    );
+    const record = t.registered.find((entry) => entry.kind === "shell-wrapper");
+    expect(record?.entry).toMatchObject({ id: "webmcp-session", order: 20 });
+    expect(t.liveKinds()).toContain("shell-wrapper");
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(t.liveKinds()).not.toContain("shell-wrapper");
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(record?.revokeCalls).toBe(1);
   });
 });

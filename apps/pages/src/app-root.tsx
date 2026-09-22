@@ -20,6 +20,7 @@ import { activatePlan } from "./lib/capabilities/change.js";
 import { useContributions as defaultUseContributions } from "./lib/capabilities/registry.js";
 import type {
   RouteContribution,
+  ShellWrapperContribution,
   UnlockEffectContribution,
 } from "./lib/capabilities/runtime-contract.js";
 import { compositionStore, useComposition } from "./lib/capabilities/store.js";
@@ -84,6 +85,7 @@ export type AppSlots = {
   useSessionGuards: () => void;
   useRouteContributions: () => readonly RouteContribution[];
   useUnlockEffects: () => readonly UnlockEffectContribution[];
+  useShellWrappers: () => readonly ShellWrapperContribution[];
   /** Core sign-in: raise a federated link a locked vault deferred (ADR 0033). */
   recoverPendingFederatedLink: () => void;
   AppShell: ComponentType<{ children?: ReactNode }>;
@@ -104,6 +106,7 @@ const defaultSlots: AppSlots = {
   useSessionGuards: defaultUseSessionGuards,
   useRouteContributions: () => defaultUseContributions("route"),
   useUnlockEffects: () => defaultUseContributions("unlock-effect"),
+  useShellWrappers: () => defaultUseContributions("shell-wrapper"),
   recoverPendingFederatedLink: defaultRecoverPendingFederatedLink,
   AppShell: DefaultAppShell,
   FederationReturn: DefaultFederationReturn,
@@ -164,6 +167,28 @@ export function useCapabilityGate(id: string) {
     lifecycle: snapshot.lifecycle[id] ?? null,
     state,
   };
+}
+
+/**
+ * The shell body inside every wrapper an approved capability contributed,
+ * lowest `order` outermost and ties broken by id, so the tree is the same
+ * whichever sequence the modules activated in. A build that approved none
+ * renders `children` and nothing else — there is no wrapper component in
+ * the core tree to be empty.
+ */
+function Wrapped({
+  wrappers,
+  children,
+}: {
+  wrappers: readonly ShellWrapperContribution[];
+  children: ReactNode;
+}) {
+  return [...wrappers]
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+    .reduceRight(
+      (inner, entry) => <entry.Wrapper key={entry.id}>{inner}</entry.Wrapper>,
+      children,
+    );
 }
 
 /**
@@ -252,6 +277,7 @@ function VaultApp() {
   const { status, tomb, guest } = slots.useVault();
   const location = useLocation();
   const routes = slots.useRouteContributions();
+  const wrappers = slots.useShellWrappers();
   const effects = slots.useUnlockEffects();
   slots.useTheme();
   slots.useSessionGuards();
@@ -278,36 +304,38 @@ function VaultApp() {
     // The shell is one Suspense boundary and the section inside it another,
     // so a section still loading never blanks the rail around it.
     <Suspense fallback={null}>
-      <slots.AppShell>
-        <Suspense fallback={<p className="hint">Loading…</p>}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/vault" replace />} />
-            <Route path="/vault" element={<slots.VaultSection />}>
-              <Route index element={<slots.VaultWelcome />} />
-              <Route path="health" element={<slots.HealthPanel />} />
+      <Wrapped wrappers={wrappers}>
+        <slots.AppShell>
+          <Suspense fallback={<p className="hint">Loading…</p>}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/vault" replace />} />
+              <Route path="/vault" element={<slots.VaultSection />}>
+                <Route index element={<slots.VaultWelcome />} />
+                <Route path="health" element={<slots.HealthPanel />} />
+                <Route
+                  path="new/:kind?"
+                  element={<slots.ItemEditor mode="new" />}
+                />
+                <Route
+                  path=":itemId/edit"
+                  element={<slots.ItemEditor mode="edit" />}
+                />
+                <Route path=":itemId" element={<slots.ItemDetail />} />
+              </Route>
+              {routes.map(contributedRoute)}
               <Route
-                path="new/:kind?"
-                element={<slots.ItemEditor mode="new" />}
+                path="/settings/:category?"
+                element={
+                  <Framed>
+                    <slots.SettingsSection />
+                  </Framed>
+                }
               />
-              <Route
-                path=":itemId/edit"
-                element={<slots.ItemEditor mode="edit" />}
-              />
-              <Route path=":itemId" element={<slots.ItemDetail />} />
-            </Route>
-            {routes.map(contributedRoute)}
-            <Route
-              path="/settings/:category?"
-              element={
-                <Framed>
-                  <slots.SettingsSection />
-                </Framed>
-              }
-            />
-            <Route path="*" element={<Fallback />} />
-          </Routes>
-        </Suspense>
-      </slots.AppShell>
+              <Route path="*" element={<Fallback />} />
+            </Routes>
+          </Suspense>
+        </slots.AppShell>
+      </Wrapped>
     </Suspense>
   );
 }
