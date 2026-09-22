@@ -101,6 +101,18 @@ it("opens guest for normal and restricted presentations", async () => {
   }
 });
 
+it("unknown presentation maps to restricted guest continue", async () => {
+  const createGuest = vi.fn(async () => undefined);
+  await expect(
+    continueAfterDuressMatch(
+      { createGuest },
+      continueMatch("not-a-real-class"),
+      "That PIN did not unlock the vault.",
+    ),
+  ).resolves.toBe("duress_session");
+  expect(createGuest).toHaveBeenCalledOnce();
+});
+
 describe("passkey duress gate", () => {
   it("allows passkey when duress is inactive", async () => {
     const unlockWithPasskey = vi.fn(async () => undefined);
