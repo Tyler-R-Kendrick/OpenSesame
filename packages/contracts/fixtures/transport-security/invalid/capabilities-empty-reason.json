@@ -1,0 +1,28 @@
+{
+  "kind": "transport_capabilities",
+  "input": {
+    "native_pem": "supported",
+    "managed_certificate": "supported",
+    "spiffe_workload_api": {
+      "unsupported": {
+        "reason": ""
+      }
+    },
+    "browser_managed_external": {
+      "unsupported": {
+        "reason": "a native runtime has no browser certificate store to consume"
+      }
+    },
+    "browser_vault_key_injection": {
+      "unsupported": {
+        "reason": "a browser cannot attach a vault-held key to its TLS handshake; certificates a browser presents are provisioned outside the app"
+      }
+    },
+    "client_presents_certificate": true,
+    "server_enforces_certificate": true
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

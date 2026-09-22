@@ -24,6 +24,14 @@ export interface OAuthClientRecord {
   metadataDigest?: string;
   /** Public JWKS for `private_key_jwt`. Never stores private key material. */
   jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
+  /**
+   * RFC 8705 registration (pre-registered/admin path only — never DCR).
+   * Exactly one SAN selector for `tls_client_auth`; compared exactly.
+   */
+  tlsClientAuthSanDns?: string;
+  tlsClientAuthSanUri?: string;
+  /** Every access token this client obtains carries `cnf["x5t#S256"]`. */
+  tlsClientCertificateBoundAccessTokens?: boolean;
   state: ClientState;
   /** Origin-profile clients are constrained (no offline_access / admin scopes). */
   origin?: string;

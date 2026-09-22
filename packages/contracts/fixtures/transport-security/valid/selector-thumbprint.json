@@ -1,0 +1,12 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}

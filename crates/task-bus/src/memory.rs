@@ -28,3 +28,35 @@ impl TaskBus for InMemoryTaskBus {
         Ok(out)
     }
 }
+
+/// A bus that refuses every operation with the reason its secure profile
+/// could not be established. Installed instead of a fallback so the Host
+/// boots, reports the fault and never publishes in the clear.
+pub struct UnavailableTaskBus {
+    reason: String,
+}
+
+impl UnavailableTaskBus {
+    #[must_use]
+    pub fn new(reason: impl Into<String>) -> Self {
+        Self {
+            reason: reason.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.reason
+    }
+}
+
+#[async_trait]
+impl TaskBus for UnavailableTaskBus {
+    async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+        anyhow::bail!("taskbus_unavailable: {}", self.reason)
+    }
+
+    async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
+        anyhow::bail!("taskbus_unavailable: {}", self.reason)
+    }
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "policyId": "example-SC-SPLIT-SCOPE",
+  "revision": 1,
+  "enabled": false,
+  "profiles": [
+    {
+      "profileId": "split-a",
+      "label": "Vault A alert",
+      "scope": {
+        "ownerPrincipalRef": "owner-1",
+        "organizationRef": null,
+        "vaultRef": "vault-1",
+        "deviceBindingRef": "device-1",
+        "compartmentRefs": ["comp-normal"]
+      },
+      "triggerKind": "application_code",
+      "effects": {
+        "presentation": "normal",
+        "presentationCompartmentRef": null,
+        "hold": {
+          "kind": "none"
+        },
+        "alert": {
+          "routeRef": "route-alert-1",
+          "templateRef": "tpl-a",
+          "retainOutboxAcrossRemoval": false,
+          "maxRetries": 1,
+          "expiryMs": 60000
+        },
+        "quarantinePeerRefs": [],
+        "providerRevocationRefs": [],
+        "removal": {
+          "kind": "none"
+        },
+        "recoveryPolicyRef": null,
+        "operationCeilingRef": null
+      }
+    },
+    {
+      "profileId": "split-b",
+      "label": "Restricted B",
+      "scope": {
+        "ownerPrincipalRef": "owner-1",
+        "organizationRef": null,
+        "vaultRef": "vault-1",
+        "deviceBindingRef": "device-1",
+        "compartmentRefs": ["comp-restricted"]
+      },
+      "triggerKind": "verified_uv_then_code",
+      "effects": {
+        "presentation": "restricted",
+        "presentationCompartmentRef": "comp-restricted",
+        "hold": {
+          "kind": "none"
+        },
+        "alert": null,
+        "quarantinePeerRefs": [],
+        "providerRevocationRefs": [],
+        "removal": {
+          "kind": "none"
+        },
+        "recoveryPolicyRef": null,
+        "operationCeilingRef": "ceiling-restricted"
+      }
+    }
+  ]
+}

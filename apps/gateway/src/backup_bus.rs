@@ -8,8 +8,8 @@
 //! drained here or it would steal sync/rotation events).
 
 use opensesame_task_bus::{
-    BusEvent, NatsJetStreamConfig, NatsJetStreamTaskBus, TaskBus, TaskBusBackend,
-    BACKUP_CONSUMER_NAME, DEFAULT_STREAM_NAME, DEFAULT_SUBJECT_PREFIX, SYSTEM_SUBJECT_PREFIX,
+    backup_consumer_config, BusEvent, NatsJetStreamTaskBus, NatsRole, TaskBus, TaskBusBackend,
+    DEFAULT_SUBJECT_PREFIX, SYSTEM_SUBJECT_PREFIX,
 };
 use serde_json::json;
 use std::time::Duration;
@@ -66,15 +66,20 @@ async fn connect_system_wake_bus(state: &AppState) -> Option<NatsJetStreamTaskBu
     }
     let url = resolved.nats_url.as_deref()?;
 
-    let filter = format!("{}.>", SYSTEM_SUBJECT_PREFIX.trim_end_matches('.'));
-    match NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
-        nats_url: url.to_string(),
-        stream_name: DEFAULT_STREAM_NAME.into(),
-        subject_prefix: DEFAULT_SUBJECT_PREFIX.into(),
-        consumer_name: BACKUP_CONSUMER_NAME.into(),
-        filter_subject: Some(filter),
-        fetch_expires: Duration::from_secs(2),
-    })
+    // The backup wake consumer runs as its own least-privilege identity
+    // (`opensesame-backup`, durable `opensesame-backup`, filtered to
+    // `opensesame.events.system.>`) on the *resolved* transport — the same
+    // policy and references as every other NATS client in this process. On a
+    // secure profile it never provisions: the durable is the one-time
+    // provisioning action's to create, and an absent one is `not_provisioned`,
+    // never a silent create with a runtime identity.
+    let provision = !resolved.transport.is_secure();
+    match NatsJetStreamTaskBus::connect(backup_consumer_config(
+        url,
+        resolved.transport.clone(),
+        NatsRole::Backup,
+        provision,
+    ))
     .await
     {
         Ok(bus) => Some(bus),

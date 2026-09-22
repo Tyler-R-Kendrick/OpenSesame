@@ -157,4 +157,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0039_authority_offer_live_writer",
         include_str!("../../../migrations/0039_authority_offer_live_writer.sql"),
     ),
+    (
+        "0040_connection_transport",
+        include_str!("../../../migrations/0040_connection_transport.sql"),
+    ),
 ];

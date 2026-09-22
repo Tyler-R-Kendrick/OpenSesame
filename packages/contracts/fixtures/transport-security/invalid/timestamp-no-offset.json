@@ -1,0 +1,8 @@
+{
+  "kind": "timestamp",
+  "input": "2026-09-22T10:00:00",
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

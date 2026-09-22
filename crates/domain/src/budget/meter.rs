@@ -201,7 +201,7 @@ impl MeterReading {
         Amount::new(self.available(), self.unit.clone())
     }
 
-    /// Proportion of the cap already committed, in basis points (0..=10_000).
+    /// Proportion of the cap already committed, in basis points (`0..=10_000`).
     ///
     /// A cap of zero reads as fully used, because nothing is available under it.
     #[must_use]

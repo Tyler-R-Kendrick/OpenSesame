@@ -1,6 +1,6 @@
 //! GA-V-29 — authority evaluation under shuttle interleaving.
 //!
-//! Two schedulers race ValidatedGrantChain validation: a well-formed child and a
+//! Two schedulers race `ValidatedGrantChain` validation: a well-formed child and a
 //! forged parent pointer. Evaluation must terminate, and the forged chain must
 //! never validate.
 

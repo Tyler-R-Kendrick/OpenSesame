@@ -1,0 +1,8 @@
+{
+  "kind": "transport_policy",
+  "input": "MtlsRequired",
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

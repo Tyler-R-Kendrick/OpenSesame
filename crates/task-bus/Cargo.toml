@@ -10,7 +10,19 @@ description = "TaskBus trait with in-memory and optional NATS JetStream adapters
 ## path; runtime still defaults to in-memory unless `NATS_URL` /
 ## `OPENSESAME_TASKBUS=nats` is set.
 default = ["jetstream"]
-jetstream = ["dep:async-nats", "dep:bytes", "dep:futures", "dep:tokio"]
+jetstream = [
+  "dep:async-nats",
+  "dep:bytes",
+  "dep:futures",
+  "dep:tokio",
+  "dep:opensesame-transport-security",
+  "dep:opensesame-domain",
+  "dep:tracing",
+  "dep:thiserror",
+]
+## Real-server suites (`#[ignore]`, `OPENSESAME_MTLS_FIXTURES=1`): disposable
+## PKI from transport-security's testkit plus nkeys for test JWTs.
+live-tests = ["jetstream", "opensesame-transport-security/testkit", "dep:nkeys", "dep:tempfile"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -24,6 +36,13 @@ async-nats = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+# Native TLS client configuration (ADR 0132); never a daemon/wasm dependency.
+opensesame-transport-security = { path = "../transport-security", optional = true }
+opensesame-domain = { path = "../domain", optional = true }
+tracing = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+nkeys = { version = "0.4.5", optional = true }
+tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

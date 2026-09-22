@@ -1,0 +1,11 @@
+{
+  "kind": "service_binding_set",
+  "input": {
+    "revision": 1,
+    "bindings": null
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

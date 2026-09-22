@@ -9,7 +9,6 @@ pub(crate) async fn probe_access_token_account(
     provider_id: &str,
     token: &str,
 ) -> Result<Option<String>> {
-
     match provider_id {
         "github" => {
             let url = format!("{}/user", config.github_api_base());
@@ -137,5 +136,4 @@ pub(crate) async fn probe_access_token_account(
         }
         _ => Ok(None),
     }
-    
 }

@@ -1,0 +1,66 @@
+# OpenSesame reference trusted ingress (RFC 9440) — Caddy 2.11.x
+#
+# Two TLS hops, not one session:
+#   browser/client ──TLS, client cert required──▶ this ingress
+#   this ingress   ──TLS, ingress cert presented─▶ origin (trusted_ingress listener)
+# The origin authenticates *this proxy* on hop 2; the originating client's
+# certificate reaches it only as the Client-Cert field this file writes on
+# every proxied request. See README.md for what that does and does not prove.
+#
+# Every {$VAR} is substituted when the config is adapted. All are required;
+# nothing here defaults to any address.
+#   OPENSESAME_INGRESS_BIND            IP the two listeners bind (e.g. 127.0.0.1)
+#   OPENSESAME_INGRESS_PORT            client-facing TLS port
+#   OPENSESAME_INGRESS_CERT / _KEY     this ingress's server certificate + key (hop 1)
+#   OPENSESAME_ORIGINATING_TRUST       PEM bundle originating clients must chain to
+#   OPENSESAME_ORIGIN_ADDR             host:port of the origin's trusted_ingress listener
+#   OPENSESAME_ORIGIN_TRUST            PEM bundle the origin's server certificate chains to
+#   OPENSESAME_ORIGIN_NAME             DNS name verified on the origin certificate (SNI)
+#   OPENSESAME_INGRESS_CLIENT_CERT / _KEY  this ingress's *client* identity toward the origin (hop 2)
+#   OPENSESAME_INGRESS_HEALTH_PORT     plaintext health port (proxy liveness only)
+#
+# The site address is a bare port on purpose: a hostname there becomes an SNI
+# matcher, and Caddy then adds a fallback connection policy *without* client
+# authentication for any other SNI. With a bare port there is exactly one
+# policy and it requires a verified client certificate on every handshake.
+{
+	admin off
+	auto_https off
+}
+
+https://:{$OPENSESAME_INGRESS_PORT} {
+	bind {$OPENSESAME_INGRESS_BIND}
+
+	tls {$OPENSESAME_INGRESS_CERT} {$OPENSESAME_INGRESS_KEY} {
+		client_auth {
+			mode require_and_verify
+			trust_pool file {$OPENSESAME_ORIGINATING_TRUST}
+		}
+	}
+
+	reverse_proxy https://{$OPENSESAME_ORIGIN_ADDR} {
+		# RFC 9440 §2.4 rule 3: whatever the client sent in these fields is
+		# discarded. `header_up <name> <value>` is a *set*: it replaces every
+		# incoming value of that field, so Client-Cert is always exactly the
+		# certificate this proxy verified on hop 1. The chain field has no
+		# Caddy placeholder, so it is deleted and never forwarded.
+		header_up Client-Cert ":{http.request.tls.client.certificate_der_base64}:"
+		header_up -Client-Cert-Chain
+
+		transport http {
+			tls_client_auth {$OPENSESAME_INGRESS_CLIENT_CERT} {$OPENSESAME_INGRESS_CLIENT_KEY}
+			tls_trust_pool file {$OPENSESAME_ORIGIN_TRUST}
+			tls_server_name {$OPENSESAME_ORIGIN_NAME}
+		}
+	}
+}
+
+# Health exception: a separate plaintext listener that answers for the proxy
+# process itself and never forwards to the origin. TLS client authentication
+# is decided at the handshake, before any path exists, so a path cannot be
+# exempted on the listener above; the exception is a different listener.
+http://:{$OPENSESAME_INGRESS_HEALTH_PORT} {
+	bind {$OPENSESAME_INGRESS_BIND}
+	respond /healthz "ok" 200
+	respond 404
+}

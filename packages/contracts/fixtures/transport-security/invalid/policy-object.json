@@ -1,0 +1,10 @@
+{
+  "kind": "transport_policy",
+  "input": {
+    "mtls_required": {}
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

@@ -18,6 +18,9 @@ declare module "oidc-provider" {
     scope?: string;
     application_type?: "web" | "native";
     jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
+    tls_client_auth_san_dns?: string;
+    tls_client_auth_san_uri?: string;
+    tls_client_certificate_bound_access_tokens?: boolean;
   };
 
   export type AdapterPayload = import("@opensesame/os-domain").JsonObject & {
@@ -99,6 +102,9 @@ declare module "oidc-provider" {
           | null
         >;
     ttl?: import("@opensesame/os-domain").JsonObject;
+    /** Static additions merged into the discovery document. */
+    discovery?: import("@opensesame/os-domain").JsonObject;
+    clientAuthMethods?: string[];
     routes?: Record<string, string>;
     scopes?: string[];
     claims?: import("@opensesame/os-domain").JsonObject;

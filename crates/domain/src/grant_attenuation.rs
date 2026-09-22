@@ -7,6 +7,12 @@
 use crate::{resource_pattern_matches, DomainError, Grant, GrantConstraints, OfflineUse};
 
 /// Child may only narrow (or keep) every inherited restriction.
+///
+/// # Errors
+///
+/// [`DomainError::GrantAttenuation`] naming the first dimension the child
+/// widened: validity window, assurance, authentication age, networks,
+/// parameter rules, offline use, or a budget key.
 pub fn validate_constraint_attenuation(
     parent: &GrantConstraints,
     child: &GrantConstraints,
@@ -22,6 +28,11 @@ pub fn validate_constraint_attenuation(
 }
 
 /// Flat replacement against the grant being replaced (same dimensions, no depth rule).
+///
+/// # Errors
+///
+/// As [`validate_constraint_attenuation`]: the first dimension the
+/// replacement widened.
 pub fn validate_constraint_narrowing(
     current: &GrantConstraints,
     replacement: &GrantConstraints,
@@ -35,6 +46,7 @@ pub fn validate_constraint_narrowing(
 /// child exact id or a nested `prefix/…/*` under the same separator. A bare
 /// string prefix never widens. A child wildcard is never covered by a parent
 /// exact id.
+#[must_use]
 pub fn resources_attenuate(child: &[String], parent: &[String]) -> bool {
     child
         .iter()
@@ -148,18 +160,18 @@ fn validate_auth_age(
     parent: &GrantConstraints,
     child: &GrantConstraints,
 ) -> Result<(), DomainError> {
-    match (
-        parent.authentication_max_age_seconds,
-        child.authentication_max_age_seconds,
-    ) {
-        (None, _) => Ok(()),
-        (Some(_), None) => Err(DomainError::GrantAttenuation(
+    // A parent that set no maximum constrains nothing here.
+    let Some(parent_max) = parent.authentication_max_age_seconds else {
+        return Ok(());
+    };
+    match child.authentication_max_age_seconds {
+        None => Err(DomainError::GrantAttenuation(
             "authentication_max_age_seconds omitted under restricted parent".into(),
         )),
-        (Some(p), Some(c)) if c > p => Err(DomainError::GrantAttenuation(
+        Some(child_max) if child_max > parent_max => Err(DomainError::GrantAttenuation(
             "authentication_max_age_seconds expanded".into(),
         )),
-        _ => Ok(()),
+        Some(_) => Ok(()),
     }
 }
 
@@ -191,18 +203,18 @@ fn validate_parameter_rules(
     parent: &GrantConstraints,
     child: &GrantConstraints,
 ) -> Result<(), DomainError> {
-    match (
-        &parent.parameter_rules_digest,
-        &child.parameter_rules_digest,
-    ) {
-        (None, _) => Ok(()),
-        (Some(_), None) => Err(DomainError::GrantAttenuation(
+    // A parent that pinned no rules digest constrains nothing here.
+    let Some(parent_digest) = parent.parameter_rules_digest.as_ref() else {
+        return Ok(());
+    };
+    match child.parameter_rules_digest.as_ref() {
+        None => Err(DomainError::GrantAttenuation(
             "parameter_rules_digest dropped".into(),
         )),
-        (Some(p), Some(c)) if p != c => Err(DomainError::GrantAttenuation(
+        Some(child_digest) if child_digest != parent_digest => Err(DomainError::GrantAttenuation(
             "parameter_rules_digest changed without proven narrowing".into(),
         )),
-        _ => Ok(()),
+        Some(_) => Ok(()),
     }
 }
 
@@ -225,6 +237,12 @@ fn validate_offline(
 }
 
 /// Lineage pointer + org + depth checks shared by attenuation entry points.
+///
+/// # Errors
+///
+/// [`DomainError::OrganizationMismatch`] when the child names another
+/// organization, or [`DomainError::GrantAttenuation`] when it does not point
+/// at its parent or does not increment the delegation depth by exactly one.
 pub fn validate_lineage_pointers(parent: &Grant, child: &Grant) -> Result<(), DomainError> {
     if child.organization_id != parent.organization_id {
         return Err(DomainError::OrganizationMismatch);

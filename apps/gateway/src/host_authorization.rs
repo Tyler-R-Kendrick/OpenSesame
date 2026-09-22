@@ -45,6 +45,11 @@ pub struct HostEvidence {
     pub nbf: Option<i64>,
     pub exp: i64,
     pub jti: String,
+    /// RFC 8705 / RFC 9449 confirmation. Absent on an unbound token, which
+    /// is unchanged behaviour; `x5t#S256` binds the token to the client
+    /// certificate the request actually arrived on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cnf: Option<crate::transport::proof::Confirmation>,
 }
 
 impl HostAuthorizationVerifier {
@@ -155,6 +160,27 @@ impl HostAuthorizationVerifier {
         {
             return Err(INVALID);
         }
+        Ok(evidence)
+    }
+
+    /// [`Self::verify`] plus the certificate binding the token asked for.
+    /// A token with no `cnf` behaves exactly as before; one that names a
+    /// certificate must be presented on a connection authenticated by that
+    /// certificate (the originating client behind a trusted ingress, never
+    /// the ingress's own leaf).
+    ///
+    /// # Errors
+    /// `invalid_host_authorization` as [`Self::verify`], or `proof_mismatch`.
+    pub fn verify_bound(
+        &self,
+        token: &str,
+        audience: &str,
+        now: i64,
+        extensions: &axum::http::Extensions,
+    ) -> Result<HostEvidence, &'static str> {
+        let evidence = self.verify(token, audience, now)?;
+        crate::transport::proof::require_certificate_binding(evidence.cnf.as_ref(), extensions)
+            .map_err(|_| "proof_mismatch")?;
         Ok(evidence)
     }
 }

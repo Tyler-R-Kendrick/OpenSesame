@@ -1,0 +1,98 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "pressOptional": "Refresh transport status"
+        },
+        {
+          "shot": "390-settings-security-transport"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "pressOptional": "Refresh transport status"
+        },
+        {
+          "shot": "320-settings-security-transport"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "expand": "Security"
+        },
+        {
+          "pressOptional": "Refresh transport status"
+        },
+        {
+          "shot": "1280-settings-security-transport"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-settings-security-transport",
+      "width": 390,
+      "title": "Settings › Security › Transport — 390 × 844",
+      "caption": "Guest, no endpoint configured. The base build has no Transport section; the branch adds one panel at the foot of Security: a desired-transport record (target, policy, where it runs, identity and trust by reference, remote profile) and five status rows — desired, credential, runtime, observed, enforcement — each a glyph. With nothing configured every row is idle, nothing was asked of any origin, and no verification key is offered. The branch is scrolled to the new panel by pressing its refresh key; the base has no such key and stays where Security opens.",
+      "before": "Security: 7 panels, no #transport",
+      "after": "8 panels; panel 358×850; refresh key 44×44; rows 65/45/45/45/44, all idle; select 16px; 0 requests"
+    },
+    {
+      "shot": "320-settings-security-transport",
+      "width": 320,
+      "title": "The smallest phone — 320 × 568",
+      "caption": "Same walk at 320. The record's fields keep the shared field grid, the selects sit at 16px so iOS does not zoom, and the icon keys keep the 44px floor. verify:transport measures this in a coarse-pointer context rather than reading it off the screenshot.",
+      "before": "Security: 7 panels, no #transport; document 320 wide",
+      "after": "panel 288×850; refresh key 44×44; select 16px; document 320 wide"
+    },
+    {
+      "shot": "1280-settings-security-transport",
+      "width": 1280,
+      "title": "Desktop with the rail — 1280 × 800",
+      "caption": "On a desktop the rail's Settings › Security branch is opened in both builds. The base lists three panels there; the branch lists four — Transport is the new one — and pressing its refresh key scrolls the panel into view. Tab reaches that key, then every field of the record in document order, and Shift+Tab returns (verify:transport at 1280).",
+      "before": "rail branch: Vault key protection / Formats / Age keys; no #transport",
+      "after": "rail branch adds Transport; panel 960×596; refresh key 24×24; rows 65/45/45/45/44"
+    }
+  ]
+}

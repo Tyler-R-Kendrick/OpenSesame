@@ -2,6 +2,7 @@
 
 import {
   Document,
+  Pair,
   Scalar,
   YAMLMap,
   isMap,
@@ -141,18 +142,15 @@ function toYaml(node: SopsNode): YamlEmit {
   if (node.kind === "scalar") return scalarEmit(node.scalar);
   const map = new YAMLMap();
   for (const entry of node.entries) {
-    map.set(entry.key, toYaml(entry.value));
-    const pair = map.items.at(-1);
-    if (
-      entry.comments &&
-      entry.comments.length > 0 &&
-      pair &&
-      isScalar(pair.key)
-    ) {
-      pair.key.commentBefore = entry.comments
+    // The key must be a real Scalar node: YAMLMap.set() would keep a plain
+    // string key, and commentBefore on a plain string never renders.
+    const keyNode = new Scalar(entry.key);
+    if (entry.comments && entry.comments.length > 0) {
+      keyNode.commentBefore = entry.comments
         .map((comment) => ` ${comment}`)
         .join("\n");
     }
+    map.items.push(new Pair(keyNode, toYaml(entry.value)));
   }
   return map;
 }

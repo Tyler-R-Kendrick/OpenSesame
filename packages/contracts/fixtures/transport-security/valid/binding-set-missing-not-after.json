@@ -1,0 +1,53 @@
+{
+  "kind": "service_binding_set",
+  "input": {
+    "revision": 1,
+    "bindings": [
+      {
+        "id": "bridge",
+        "revision": 1,
+        "enabled": true,
+        "revoked": false,
+        "scope": "deployment",
+        "trust_profile": {
+          "name": "private-root"
+        },
+        "peer": {
+          "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+        },
+        "service_principal": "svc:nats-bridge",
+        "purpose": "nats_auth_bridge",
+        "allowed_operations": ["nats.callout.decide"],
+        "allowed_audiences": ["host"],
+        "denied_thumbprints": []
+      }
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "revision": 1,
+      "bindings": [
+        {
+          "id": "bridge",
+          "revision": 1,
+          "enabled": true,
+          "revoked": false,
+          "scope": "deployment",
+          "trust_profile": {
+            "name": "private-root"
+          },
+          "peer": {
+            "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+          },
+          "service_principal": "svc:nats-bridge",
+          "purpose": "nats_auth_bridge",
+          "allowed_operations": ["nats.callout.decide"],
+          "allowed_audiences": ["host"],
+          "not_after": null,
+          "denied_thumbprints": []
+        }
+      ]
+    }
+  }
+}

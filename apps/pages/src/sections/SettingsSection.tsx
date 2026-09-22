@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useContributions } from "../lib/contributions.js";
 import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
+import { resolveDuressMode } from "../lib/duress/feature/mode.js";
+import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import { SettingsMasterPasswordPanel } from "./SettingsMasterPasswordPanel.js";
@@ -23,6 +25,13 @@ import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import type { RawFormat } from "./settings/settings-files.js";
 import "./settings.css";
+
+/** Its own chunk: Transport is read on a Security visit, never on boot. */
+const TransportPanel = lazy(() =>
+  import("./settings/transport/TransportPanel.js").then((module) => ({
+    default: module.TransportPanel,
+  })),
+);
 
 export { settingsTabs, type SettingsPanels } from "./SettingsSectionNav.js";
 
@@ -106,15 +115,11 @@ export function SettingsSection({
         </>
       ) : null}
 
-      {form && category === "security" ? <VaultKeyProtectionPanel /> : null}
       {form && category === "security" ? (
-        <resolvedPanels.UnlockMethodsPanel />
+        <SecurityPanels
+          UnlockMethodsPanel={resolvedPanels.UnlockMethodsPanel}
+        />
       ) : null}
-      {form && category === "security" ? (
-        <FormatsInteroperabilityPanel />
-      ) : null}
-      {form && category === "security" ? <AgeKeysPanel /> : null}
-      {form && category === "security" ? <SettingsMasterPasswordPanel /> : null}
 
       {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}
       {form
@@ -123,5 +128,26 @@ export function SettingsSection({
       {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
       {form && category === "danger" ? <SettingsDangerPanel /> : null}
     </div>
+  );
+}
+
+/** The Security category's own panels, in the order the screen draws them. */
+function SecurityPanels({
+  UnlockMethodsPanel,
+}: {
+  UnlockMethodsPanel: SettingsPanels["UnlockMethodsPanel"];
+}) {
+  return (
+    <>
+      <VaultKeyProtectionPanel />
+      {resolveDuressMode({}) !== "off" ? <DuressEnrollmentPanel /> : null}
+      <UnlockMethodsPanel />
+      <FormatsInteroperabilityPanel />
+      <AgeKeysPanel />
+      <Suspense fallback={null}>
+        <TransportPanel />
+      </Suspense>
+      <SettingsMasterPasswordPanel />
+    </>
   );
 }

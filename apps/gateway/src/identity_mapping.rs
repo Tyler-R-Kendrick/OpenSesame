@@ -8,6 +8,8 @@ use std::{net::IpAddr, time::Duration};
 use serde::Deserialize;
 use thiserror::Error;
 
+use crate::identity_mapping_tls::MappingAuth;
+
 #[cfg(test)]
 #[path = "identity_mapping_tests.rs"]
 mod transport_tests;
@@ -34,35 +36,64 @@ pub struct MappedPrincipal {
 #[derive(Clone)]
 pub struct IdentityMappingClient {
     endpoint: url::Url,
-    token: String,
+    auth: MappingAuth,
     allow_private: bool,
 }
 
+/// Never prints a credential: the endpoint and the *mode*, nothing else.
+impl std::fmt::Debug for IdentityMappingClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IdentityMappingClient")
+            .field("endpoint", &self.endpoint.as_str())
+            .field("auth", &self.auth)
+            .finish_non_exhaustive()
+    }
+}
+
 impl IdentityMappingClient {
-    /// Construct from explicit endpoint and dedicated service credential configuration.
+    /// The startup predicate (SVC-STARTUP). Exactly one authentication mode
+    /// is honoured; a certificate-only deployment never needs the bearer
+    /// secret, and a missing configured certificate is a startup error rather
+    /// than a silent downgrade to "legacy auth".
     ///
     /// # Errors
-    /// Refuses missing credentials or endpoints outside the resolved deployment policy.
-    pub fn from_env(
+    /// The configured mode's own material failure, or an endpoint outside
+    /// the deployment policy.
+    pub fn from_startup(
         deployment: opensesame_host_core::deployment_mode::Deployment,
-    ) -> Result<Self, MappingClientError> {
-        let base_url = std::env::var("OPENSESAME_API_URL")
-            .or_else(|_| std::env::var("OPENSESAME_IDENTITY_URL"))
-            .map_err(|_| refused("mapping endpoint is required"))?;
-        let token = std::env::var("OPENSESAME_MAPPING_RESOLVE_TOKEN")
-            .map_err(|_| refused("mapping credential is required"))?;
-        let private = std::env::var("OPENSESAME_MAPPING_PRIVATE_ENDPOINT").ok();
+        mode: crate::transport::config::AuthMode,
+    ) -> Result<Option<Self>, String> {
+        let lookup = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty());
+        let Some(auth) = crate::identity_mapping_tls::resolve(mode, &lookup)? else {
+            return Ok(None);
+        };
+        let base_url = lookup("OPENSESAME_API_URL")
+            .or_else(|| lookup("OPENSESAME_IDENTITY_URL"))
+            .ok_or_else(|| "mapping endpoint is required".to_owned())?;
+        let private = lookup("OPENSESAME_MAPPING_PRIVATE_ENDPOINT");
         Self::configured(
             &base_url,
-            token,
+            auth,
             !deployment.production_safeguards(),
             private.as_deref(),
         )
+        .map(Some)
+        .map_err(|e| e.to_string())
     }
 
+    /// An mTLS-mode client for an explicit endpoint and profile. The server
+    /// name the profile expects must be the endpoint's host: a mismatch is
+    /// refused here, before any connection is attempted.
+    ///
+    /// # Errors
+    /// As [`Self::configured`], plus `mapping server name mismatch`.
     #[cfg(test)]
-    pub fn local_test(base: &str) -> Self {
-        Self::configured(base, uuid::Uuid::new_v4().simple().to_string(), true, None).unwrap()
+    pub fn with_mtls(
+        base_url: &str,
+        profile: opensesame_transport_security::ClientProfile,
+        local: bool,
+    ) -> Result<Self, MappingClientError> {
+        Self::configured(base_url, MappingAuth::Mtls(Box::new(profile)), local, None)
     }
 
     #[cfg(test)]
@@ -72,12 +103,17 @@ impl IdentityMappingClient {
         base_url: impl AsRef<str>,
         token: impl Into<String>,
     ) -> Result<Self, MappingClientError> {
-        Self::configured(base_url.as_ref(), token.into(), false, None)
+        Self::configured(
+            base_url.as_ref(),
+            MappingAuth::bearer(token.into())?,
+            false,
+            None,
+        )
     }
 
     fn configured(
         base: &str,
-        token: String,
+        auth: MappingAuth,
         local: bool,
         private: Option<&str>,
     ) -> Result<Self, MappingClientError> {
@@ -98,12 +134,19 @@ impl IdentityMappingClient {
             || endpoint.fragment().is_some()
             || endpoint.path() != "/"
             || endpoint.host_str().is_none_or(|h| h.ends_with('.'))
-            || !(endpoint.scheme() == "https" || (local && loopback && endpoint.scheme() == "http"))
+            || !(endpoint.scheme() == "https"
+                || (local && loopback && !auth.is_mtls() && endpoint.scheme() == "http"))
         {
             return Err(refused("invalid mapping endpoint"));
         }
-        if token.len() < 32 || token.len() > 4096 || !token.bytes().all(|b| b.is_ascii_graphic()) {
-            return Err(refused("invalid mapping credential"));
+        // Under `mtls` the expected server identity and the endpoint host are
+        // the same name or the configuration is a mistake; refusing here means
+        // a wrong server name never reaches a socket.
+        if auth
+            .expected_server_name()
+            .is_some_and(|name| Some(name) != endpoint.host_str())
+        {
+            return Err(refused("mapping server name mismatch"));
         }
         let allow_private = (local && loopback) || private == Some(endpoint.as_str());
         if !allow_private
@@ -114,7 +157,7 @@ impl IdentityMappingClient {
         endpoint.set_path("/v1/principals/mapping/resolve");
         Ok(Self {
             endpoint,
-            token,
+            auth,
             allow_private,
         })
     }
@@ -163,17 +206,20 @@ impl IdentityMappingClient {
         {
             return Err(refused("mapping destination refused"));
         }
-        let http = reqwest::Client::builder()
+        let base = reqwest::Client::builder()
             .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(2))
             .timeout(Duration::from_secs(5))
-            .resolve_to_addrs(host, &addresses)
+            .resolve_to_addrs(host, &addresses);
+        let http = self
+            .auth
+            .apply_builder(base)?
             .build()
             .map_err(|_| refused("mapping transport unavailable"))?;
-        let resp = http
-            .get(url)
-            .bearer_auth(&self.token)
+        let resp = self
+            .auth
+            .apply_request(http.get(url))
             .send()
             .await
             .map_err(|_| refused("mapping request failed"))?;

@@ -1,0 +1,12 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "dns_name": "gateway.internal.example"
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "dns_name": "gateway.internal.example"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@opensesame/ingress-evidence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RFC 9440 originating-client evidence: bounded Client-Cert parsing (browser-safe) and Node origin re-validation",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./node": {
+      "types": "./src/node.ts",
+      "default": "./src/node.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "structured-headers": "2.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

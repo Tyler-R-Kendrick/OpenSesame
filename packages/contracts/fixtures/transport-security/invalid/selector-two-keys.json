@@ -1,0 +1,11 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "dns_name": "a.example",
+    "uri_san": "urn:x"
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

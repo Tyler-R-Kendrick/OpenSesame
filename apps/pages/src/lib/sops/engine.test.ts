@@ -10,6 +10,65 @@ import { shamirCombine, shamirSplit } from "./shamir.js";
 import { exportVaultSecrets, importVaultSecrets } from "./vault-secrets.js";
 
 describe("browser SOPS", () => {
+  it("preserves comments through a round-trip", async () => {
+    const identity = await age.generateX25519Identity();
+    const recipient = await age.identityToRecipient(identity);
+    const plain = "# top note\nhello: world # trailing\ncount: 2\n";
+    const cipher = await encryptSopsDocument({
+      format: "yaml",
+      plaintext: plain,
+      recipients: [recipient],
+    });
+    const opened = await decryptSopsDocument({
+      format: "yaml",
+      ciphertext: cipher,
+      identity,
+    });
+    expect(opened).toContain("# top note");
+    expect(opened).toContain("hello: world");
+    expect(opened).toContain("count: 2");
+    expect(opened).not.toContain("ENC[");
+  });
+
+  it("fails closed on YAML aliases and explicit tags", async () => {
+    const identity = await age.generateX25519Identity();
+    const recipient = await age.identityToRecipient(identity);
+    await expect(
+      encryptSopsDocument({
+        format: "yaml",
+        plaintext: "a: &x 1\nb: *x\n",
+        recipients: [recipient],
+      }),
+    ).rejects.toThrow(/YAML parse failed|unsupported/);
+    await expect(
+      encryptSopsDocument({
+        format: "yaml",
+        plaintext: "a: !!binary aGk=\n",
+        recipients: [recipient],
+      }),
+    ).rejects.toThrow(/unsupported|YAML parse failed/);
+  });
+
+  it("round-trips a two-document YAML stream", async () => {
+    const identity = await age.generateX25519Identity();
+    const recipient = await age.identityToRecipient(identity);
+    const plain = "hello: world\n---\ncount: 2\n";
+    const cipher = await encryptSopsDocument({
+      format: "yaml",
+      plaintext: plain,
+      recipients: [recipient],
+    });
+    expect(cipher).toContain("---\n");
+    const opened = await decryptSopsDocument({
+      format: "yaml",
+      ciphertext: cipher,
+      identity,
+    });
+    expect(opened).toContain("hello: world");
+    expect(opened).toContain("count: 2");
+    expect(opened).not.toContain("ENC[");
+  });
+
   it("round-trips YAML and JSON with a local age identity", async () => {
     const identity = await age.generateX25519Identity();
     const recipient = await age.identityToRecipient(identity);

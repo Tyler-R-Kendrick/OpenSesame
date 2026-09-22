@@ -1,0 +1,12 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "spiffe_id": "spiffe://td/Mixed.Case_seg-1"
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "spiffe_id": "spiffe://td/Mixed.Case_seg-1"
+    }
+  }
+}
