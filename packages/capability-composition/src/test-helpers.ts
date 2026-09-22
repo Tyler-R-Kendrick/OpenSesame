@@ -7,12 +7,47 @@ import type { DistributionInventory } from "./resolver.js";
 
 const ZERO_DIGEST = "0".repeat(16);
 
+/** Overrides for a fixture builder: partial raw fields, type-checked. */
+export type FixtureOverrides = {
+  readonly dependencies?: readonly string[] | string;
+  readonly operationIds?: readonly (string | number)[];
+  readonly moduleIds?: readonly string[];
+  readonly environments?: readonly string[];
+  readonly exposureDigest?: string;
+  readonly title?: string | string[];
+  readonly summary?: string | (() => string) | number;
+  readonly requiresDocumentReload?: boolean;
+  readonly declaredPrivileges?: {
+    readonly egressOrigins?: readonly string[];
+    readonly keyAccess?: Record<string, boolean | string>;
+    readonly browserPermissions?: readonly string[];
+  };
+  readonly workerGraphConstraint?: {
+    readonly requiresWorker?: boolean;
+    readonly allowedEnvironments?: readonly string[];
+  };
+  readonly class?: string;
+} & {
+  readonly [extra: string]: BoundaryValue | undefined;
+};
+
 /** A minimal descriptor object (unvalidated) for a capability. */
-export function descriptor(
-  id: string,
-  overrides: Record<string, BoundaryValue> = {},
-): BoundaryValue {
-  return {
+export function descriptor(id: string, overrides: FixtureOverrides = {}): BoundaryValue {
+  const {
+    dependencies,
+    operationIds,
+    moduleIds,
+    environments,
+    exposureDigest,
+    title,
+    summary,
+    requiresDocumentReload,
+    declaredPrivileges,
+    workerGraphConstraint,
+    class: klass,
+    ...hostile
+  } = overrides;
+  const raw: Record<string, BoundaryValue> = {
     id,
     descriptorVersion: 1,
     title: `Title ${id}`,
@@ -28,67 +63,215 @@ export function descriptor(
       keyAccess: { vaultRead: false, vaultWrite: false, deviceKeys: false },
       browserPermissions: [],
     },
-    ...overrides,
   };
+  if (dependencies !== undefined) raw.dependencies = [...dependencies];
+  if (operationIds !== undefined) raw.operationIds = [...operationIds];
+  if (moduleIds !== undefined) raw.moduleIds = [...moduleIds];
+  if (environments !== undefined) raw.environments = [...environments];
+  if (exposureDigest !== undefined) raw.exposureDigest = exposureDigest;
+  if (title !== undefined) raw.title = title;
+  if (summary !== undefined) {
+    // SAFETY: the hostile summary shapes under test (function, number) are
+    // the validator's own rejection cases; the fixture type names them.
+    raw.summary = summary as BoundaryValue;
+  }
+  if (requiresDocumentReload !== undefined) {
+    raw.requiresDocumentReload = requiresDocumentReload;
+  }
+  if (declaredPrivileges !== undefined) {
+    raw.declaredPrivileges = {
+      egressOrigins: [...(declaredPrivileges.egressOrigins ?? [])],
+      keyAccess: { ...(declaredPrivileges.keyAccess ?? {}) },
+      browserPermissions: [...(declaredPrivileges.browserPermissions ?? [])],
+    };
+  }
+  if (workerGraphConstraint !== undefined) {
+    raw.workerGraphConstraint = {
+      requiresWorker: workerGraphConstraint.requiresWorker,
+      allowedEnvironments: [...(workerGraphConstraint.allowedEnvironments ?? [])],
+    };
+  }
+  if (klass !== undefined) raw.class = klass;
+  for (const [key, value] of Object.entries(hostile)) {
+    raw[key] = value;
+  }
+  return raw;
 }
+
+/** Overrides for a fixture policy: partial raw fields, type-checked. */
+export type FixturePolicy = {
+  readonly schemaVersion?: number;
+  readonly kind?: string;
+  readonly instanceId?: string;
+  readonly revision?: number;
+  readonly required?: readonly string[];
+  readonly optional?: readonly string[];
+  readonly prohibited?: readonly string[];
+  readonly network?: {
+    readonly externalServices?: string;
+    readonly allowedServiceOrigins?: readonly string[];
+  };
+  readonly updates?: {
+    readonly unknownCapabilities?: string;
+    readonly expandedExposure?: string;
+  };
+} & {
+  readonly [extra: string]: BoundaryValue | undefined;
+};
 
 /** An instance policy document with sensible defaults. */
-export function policy(
-  overrides: Record<string, BoundaryValue> = {},
-): BoundaryValue {
-  return {
-    schemaVersion: 1,
-    kind: "instance-policy",
-    instanceId: "inst-1",
-    revision: 3,
-    required: [],
-    optional: [],
-    prohibited: [],
-    network: { externalServices: "deny", allowedServiceOrigins: [] },
-    updates: {
-      unknownCapabilities: "deny",
-      expandedExposure: "require-approval",
+export function policy(overrides: FixturePolicy = {}): BoundaryValue {
+  const {
+    schemaVersion = 1,
+    kind = "instance-policy",
+    instanceId = "inst-1",
+    revision = 3,
+    required = [],
+    optional = [],
+    prohibited = [],
+    network,
+    updates,
+    ...hostile
+  } = overrides;
+  const raw: Record<string, BoundaryValue> = {
+    schemaVersion,
+    kind,
+    instanceId,
+    revision,
+    required: [...required],
+    optional: [...optional],
+    prohibited: [...prohibited],
+    network: {
+      externalServices: network?.externalServices ?? "deny",
+      allowedServiceOrigins: [...(network?.allowedServiceOrigins ?? [])],
     },
-    ...overrides,
+    updates: {
+      unknownCapabilities: updates?.unknownCapabilities ?? "deny",
+      expandedExposure: updates?.expandedExposure ?? "require-approval",
+    },
   };
+  for (const [key, value] of Object.entries(hostile)) {
+    raw[key] = value;
+  }
+  return raw;
 }
+
+/** Overrides for a fixture vault restriction: partial raw fields. */
+export type FixtureVault = {
+  readonly instanceId?: string;
+  readonly vaultId?: string;
+  readonly basePolicyRevision?: number;
+  readonly revision?: number;
+  readonly allow?:
+    | string
+    | { readonly ids: readonly string[] }
+    | { readonly ids?: BoundaryValue }
+    | Record<string, BoundaryValue>
+    | number
+    | undefined;
+  readonly optional?: readonly string[];
+  readonly prohibited?: readonly string[];
+} & {
+  readonly [extra: string]: BoundaryValue | undefined;
+};
 
 /** A vault restriction document. */
-export function vaultRestriction(
-  overrides: Record<string, BoundaryValue> = {},
-): BoundaryValue {
-  return {
+export function vaultRestriction(overrides: FixtureVault = {}): BoundaryValue {
+  const {
+    instanceId = "inst-1",
+    vaultId = "vault-1",
+    basePolicyRevision = 3,
+    revision = 1,
+    allow = "inherit",
+    optional = [],
+    prohibited = [],
+    ...hostile
+  } = overrides;
+  const raw: Record<string, BoundaryValue> = {
     schemaVersion: 1,
     kind: "vault-restriction",
-    instanceId: "inst-1",
-    vaultId: "vault-1",
-    basePolicyRevision: 3,
-    revision: 1,
-    allow: "inherit",
-    optional: [],
-    prohibited: [],
-    ...overrides,
+    instanceId,
+    vaultId,
+    basePolicyRevision,
+    revision,
+    allow:
+      typeof allow === "string" || typeof allow === "number" || allow === undefined
+        ? allow
+        : Array.isArray(allow.ids)
+          ? { ids: [...allow.ids] }
+          : // SAFETY: hostile allow.ids shapes ({}, "x") are the validator's
+            // own rejection cases; the fixture type names every variant.
+            { ids: allow.ids as BoundaryValue },
+    optional: [...optional],
+    prohibited: [...prohibited],
   };
+  for (const [key, value] of Object.entries(hostile)) {
+    raw[key] = value;
+  }
+  return raw;
 }
 
+/** Overrides for a fixture selection: partial raw fields. */
+export type FixtureSelection = {
+  readonly instanceId?: string;
+  readonly vaultId?: string | null;
+  readonly vaultIdSource?: string;
+  readonly installationId?: string;
+  readonly revision?: number;
+  readonly required?: readonly string[] | string;
+  readonly optional?: readonly string[] | string;
+  readonly prohibited?: readonly string[];
+  readonly allow?:
+    | string
+    | { readonly ids: readonly string[] }
+    | { readonly ids?: BoundaryValue }
+    | Record<string, BoundaryValue>
+    | number
+    | undefined;
+} & {
+  readonly [extra: string]: BoundaryValue | undefined;
+};
+
 /** An installation selection document. */
-export function selection(
-  overrides: Record<string, BoundaryValue> = {},
-): BoundaryValue {
-  return {
+export function selection(overrides: FixtureSelection = {}): BoundaryValue {
+  const {
+    instanceId = "inst-1",
+    vaultId = null,
+    vaultIdSource = "derived",
+    installationId = "install-1",
+    revision = 7,
+    required = [],
+    optional = [],
+    prohibited = [],
+    allow = "inherit",
+    ...hostile
+  } = overrides;
+  const raw: Record<string, BoundaryValue> = {
     schemaVersion: 1,
     kind: "installation-selection",
-    instanceId: "inst-1",
-    vaultId: null,
-    vaultIdSource: "derived",
-    installationId: "install-1",
-    revision: 7,
-    required: [],
-    optional: [],
-    prohibited: [],
-    allow: "inherit",
-    ...overrides,
+    instanceId,
+    vaultId,
+    vaultIdSource,
+    installationId,
+    revision,
+    // SAFETY: hostile required/optional shapes (plain "x") are the
+    // validator's own rejection cases; the fixture type names them.
+    required: (Array.isArray(required) ? [...required] : required) as BoundaryValue,
+    optional: (Array.isArray(optional) ? [...optional] : optional) as BoundaryValue,
+    prohibited: [...prohibited],
+    allow:
+      typeof allow === "string" || typeof allow === "number" || allow === undefined
+        ? allow
+        : Array.isArray(allow.ids)
+          ? { ids: [...allow.ids] }
+          : // SAFETY: hostile allow.ids shapes ({}, "x") are the validator's
+            // own rejection cases; the fixture type names every variant.
+            { ids: allow.ids as BoundaryValue },
   };
+  for (const [key, value] of Object.entries(hostile)) {
+    raw[key] = value;
+  }
+  return raw;
 }
 
 /** A distribution inventory from descriptors. */

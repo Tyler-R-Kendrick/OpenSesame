@@ -28,19 +28,38 @@ import {
 } from "@opensesame/os-domain";
 
 /**
- * The canonical JSON text for a boundary value, or `undefined` when the value
+ * Anything a caller may hand to the digest pipeline: every boundary value,
+ * every validated domain record (descriptors, policies, plans), plus the
+ * hostile function shape the canonicalizer refuses with `undefined`.
+ * Non-JSON shapes are refused at runtime, never thrown.
+ *
+ * `BoundaryValue` is os-domain's own boundary union; the record and array
+ * arms widen it recursively — not to `BoundaryValue` at each level — so
+ * nested plans, descriptor lists, and capability entries stay in contract
+ * at every depth.
+ */
+export type DigestInput =
+  | BoundaryValue
+  | DigestFunction
+  | { readonly [key: string]: DigestInput | undefined }
+  | { [key: string]: DigestInput | undefined }
+  | readonly DigestInput[]
+  | DigestInput[];
+
+/** A hostile function value the canonicalizer refuses with `undefined`. */
+export type DigestFunction = (...args: never[]) => unknown;
+
+/**
+ * The canonical JSON text for a digest input, or `undefined` when the value
  * cannot be canonicalized (functions, symbols, non-finite numbers, `undefined`
  * where a value is required).
- *
- * Accepts unknown because hostile fixtures arrive untyped; non-JSON shapes
- * are refused at runtime with `undefined`, never thrown.
  */
-export function canonicalJson(value: unknown): string | undefined {
-  if (!isJsonValueLike(value)) return undefined;
+export function canonicalJson(value: DigestInput): string | undefined {
+  if (!isDigestJson(value)) return undefined;
   return canonicalize(value);
 }
 
-function canonicalize(value: JsonValue): string | undefined {
+function canonicalize(value: BoundaryValue): string | undefined {
   if (value === null) return "null";
   if (isString(value)) return JSON.stringify(value);
   if (value === true) return "true";
@@ -48,21 +67,12 @@ function canonicalize(value: JsonValue): string | undefined {
   if (isNumber(value)) return canonicalNumber(value);
   if (isBigint(value)) return undefined;
   if (Array.isArray(value)) return canonicalArray(value);
-  if (
-    value instanceof Date ||
-    value instanceof Uint8Array ||
-    value instanceof ArrayBuffer ||
-    value instanceof Map ||
-    value instanceof Set ||
-    value instanceof Error ||
-    isFunction(value)
-  ) {
-    return undefined;
-  }
-  if (isJsonObject(value)) {
+  if (isDigestRecord(value)) {
+    const entries = Object.entries(value as Record<string, DigestInput>);
     const parts: string[] = [];
-    for (const [key, member] of Object.entries(value)) {
+    for (const [key, member] of entries) {
       if (member === undefined) continue; // dropped: absent ≡ undefined
+      if (!isDigestJson(member)) return undefined;
       const encoded = canonicalize(member);
       if (encoded === undefined) return undefined;
       parts.push(`${JSON.stringify(key)}:${encoded}`);
@@ -70,10 +80,12 @@ function canonicalize(value: JsonValue): string | undefined {
     parts.sort(compareEntries);
     return `{${parts.join(",")}}`;
   }
-  return undefined; // symbols and anything else
+  // Date, Map, Set, Error, functions, symbols, class instances: no canonical
+  // form, so the digest refuses the whole value via the caller-side guard.
+  return undefined;
 }
 
-function canonicalArray(value: readonly JsonValue[]): string | undefined {
+function canonicalArray(value: readonly BoundaryValue[]): string | undefined {
   const parts: string[] = [];
   for (const member of value) {
     const encoded = canonicalize(member);
@@ -110,31 +122,56 @@ export function fnv1a64Hex(text: string): string {
 /**
  * Digest a value by canonicalizing it first; `undefined` when the value has no
  * canonical form. Same caveats as `fnv1a64Hex`: ordering identity, not proof.
- *
- * Accepts unknown because plans and hostile fixtures arrive untyped; the
- * canonicalizer validates structure at runtime and refuses what it cannot
- * encode, so no caller assertion is needed.
  */
-export function digestCanonical(value: unknown): string | undefined {
-  if (!isJsonValueLike(value)) return undefined;
+export function digestCanonical(value: DigestInput): string | undefined {
+  if (!isDigestJson(value)) return undefined;
   const canonical = canonicalJson(value);
   return canonical === undefined ? undefined : fnv1a64Hex(canonical);
 }
 
+/** True when the input is composed only of JSON-compatible leaves. */
+function isDigestJson(value: DigestInput): value is BoundaryValue {
+  if (value === undefined || value === null) return true;
+  if (isDigestString(value)) return true;
+  if (isDigestNumber(value)) return true;
+  if (value === true || value === false) return true;
+  if (Array.isArray(value)) {
+    return (value as readonly DigestInput[]).every(isDigestJson);
+  }
+  if (typeof value === "function") return false;
+  if (!isDigestRecord(value)) return false;
+  return Object.values(value).every(isDigestJson);
+}
+
+/**
+ * `isString` takes `BoundaryValue`; these shims accept the wider digest arm
+ * after the hostile shapes (function, class record) are excluded above.
+ */
+function isDigestString(value: DigestInput): value is string {
+  return typeof value === "string";
+}
+
+/** Same as `isDigestString`, for numbers. */
+function isDigestNumber(value: DigestInput): value is number {
+  return typeof value === "number";
+}
+
 /** JSON-shaped inputs only; undefined members are dropped, not refused. */
-function isJsonValueLike(value: unknown): value is JsonValue {
+function isJsonValueLike(value: BoundaryValue): value is JsonValue {
   if (value === undefined) return true;
   if (value === null) return true;
-  if (typeof value === "string") return true;
-  if (typeof value === "number") return true;
-  if (typeof value === "boolean") return true;
+  if (isString(value)) return true;
+  if (isNumber(value)) return true;
+  // `boolean` has no os-domain guard; exclude the other JSON primitives first,
+  // then reject every non-boolean scalar explicitly below.
+  if (value === true || value === false) return true;
   if (Array.isArray(value)) return value.every(isJsonValueLike);
-  if (!isRecord(value)) return false;
+  if (!isDigestRecord(value)) return false;
   return Object.values(value).every(isJsonValueLike);
 }
 
 /** Plain records only — arrays, null, and primitives handled above. */
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isDigestRecord(value: DigestInput): value is BoundaryValue {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -144,11 +181,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** True when two values share the same canonical form (structure equal). */
-export function canonicalEquals(a: unknown, b: unknown): boolean | undefined {
+export function canonicalEquals(
+  a: DigestInput,
+  b: DigestInput,
+): boolean | undefined {
   const left = canonicalJson(a);
   const right = canonicalJson(b);
   return left === undefined || right === undefined ? undefined : left === right;
 }
 
 /** Type helper: any value that can flow into the digest pipeline. */
-export type CanonicalInput = JsonValue | BoundaryValue;
+export type CanonicalInput = DigestInput;

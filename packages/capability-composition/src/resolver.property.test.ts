@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { validateDescriptor } from "./descriptor.js";
-import { canonicalJson } from "./digest.js";
+import { type DigestInput, canonicalJson } from "./digest.js";
 import { validateInstancePolicy } from "./documents.js";
 import { resolveEffectivePlan } from "./resolver.js";
 import { descriptor, distribution, makePrng, policy } from "./test-helpers.js";
@@ -77,8 +77,8 @@ describe("property — hostile inputs never throw or load silently", () => {
   it("canonicalJson never throws on hostile boundary values", async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.anything({ withNullPrototype: true }),
-        async (value) => {
+        fc.anything({ withNullPrototype: true }) as fc.Arbitrary<DigestInput>,
+        async (value: DigestInput) => {
           let threw = false;
           try {
             canonicalJson(value);

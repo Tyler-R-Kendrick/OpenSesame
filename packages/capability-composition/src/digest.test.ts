@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { BoundaryObject } from "@opensesame/os-domain";
 import {
+  type DigestFunction,
   canonicalEquals,
   canonicalJson,
   digestCanonical,
@@ -38,7 +40,10 @@ describe("digest", () => {
   });
 
   it("rejects functions and non-finite numbers", () => {
-    expect(canonicalJson({ f: () => 1 })).toBeUndefined();
+    const hostile: BoundaryObject = {
+      f: (() => 1) as unknown as DigestFunction,
+    };
+    expect(canonicalJson(hostile)).toBeUndefined();
     expect(canonicalJson({ n: Number.NaN })).toBeUndefined();
     expect(canonicalJson({ n: Number.POSITIVE_INFINITY })).toBeUndefined();
   });
@@ -60,6 +65,8 @@ describe("digest", () => {
   it("canonicalEquals compares structure, not identity", () => {
     expect(canonicalEquals({ a: 1 }, { a: 1 })).toBe(true);
     expect(canonicalEquals({ a: 1 }, { a: 2 })).toBe(false);
-    expect(canonicalEquals({ f: () => 1 }, { f: () => 1 })).toBeUndefined();
+    const left: BoundaryObject = { f: (() => 1) as unknown as DigestFunction };
+    const right: BoundaryObject = { f: (() => 1) as unknown as DigestFunction };
+    expect(canonicalEquals(left, right)).toBeUndefined();
   });
 });
