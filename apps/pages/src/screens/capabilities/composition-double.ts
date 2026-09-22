@@ -230,11 +230,12 @@ export function createCompositionDouble(
       };
     },
     invalidate(reason) {
-      bump(double.invalidations, reason);
+      double.invalidations.push(reason);
+      bump();
     },
     onVaultChange(vaultId) {
       core.options = { ...core.options, vaultId };
-      bump([]);
+      bump();
     },
     commits: [],
     disabled: [],

@@ -2,6 +2,7 @@ import {
   ErrorCode,
   type EventDetails,
   InMemoryProvider,
+  type JsonValue,
   OpenFeature,
   ProviderEvents,
   ProviderStatus,
@@ -114,7 +115,9 @@ describe("LocalCompositionProvider (S17)", () => {
     const plan = approvedPlan([CONNECTORS], FAMILY_POLICY);
     const store = storeDouble(readySnapshot(plan, 1));
     const { client } = await installCompositionProvider({ snapshotSource: store });
-    const value = client.getObjectValue(FLAG_PLAN, {});
+    // The default is empty on purpose: a flag that failed to resolve has no
+    // keys and this assertion fails rather than matching the default's shape.
+    const value = client.getObjectValue<Record<string, JsonValue>>(FLAG_PLAN, {});
     expect(Object.keys(value).sort()).toEqual(["approvedCapabilities", "planDigest"]);
     expect(JSON.stringify(value)).not.toContain(FAMILY_POLICY.instanceId);
     expect(JSON.stringify(value)).not.toContain("prohibited");
