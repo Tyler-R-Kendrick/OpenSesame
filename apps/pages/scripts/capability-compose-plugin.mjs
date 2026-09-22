@@ -32,6 +32,7 @@ import {
   loadProfile,
   normalizeFileOwnership,
   normalizeModuleOwnership,
+  publicPathTarget,
   resolveBuildEnvironment,
   workerVariantsFor,
 } from "./lib/capability-distribution.mjs";
@@ -92,6 +93,7 @@ export async function loadInventory(appRoot = DEFAULT_APP_ROOT, { alias } = {}) 
       inventory.moduleOwnership = m.MODULE_OWNERSHIP ?? {};
       inventory.htmlEntryOwnership = m.HTML_ENTRY_OWNERSHIP ?? {};
       inventory.publicFileOwnership = m.PUBLIC_FILE_OWNERSHIP ?? {};
+      if (Array.isArray(m.WORKER_VARIANTS)) inventory.workerVariants = m.WORKER_VARIANTS;
     } else inventory.missing.push(INVENTORY_FILES.ownership);
     if (present.classification) {
       const m = await load(INVENTORY_FILES.classification);
@@ -133,11 +135,19 @@ async function composeState(options, userConfig) {
     if (!sets.all.has(record.capability))
       diagnostics.push(`module "${record.id}" is owned by unknown capability "${record.capability}"`);
   }
-  const table = modules
+  let table = modules
     .filter((m) => sets.distributed.has(m.capability) && m.entry !== null)
     .map((m) => ({ ...m, absolute: isAbsolute(m.entry) ? m.entry : resolve(appRoot, m.entry) }));
-  for (const m of table) {
-    if (!existsSync(m.absolute)) diagnostics.push(`module "${m.id}" entry file is absent: ${m.entry}`);
+  const absent = table.filter((m) => !existsSync(m.absolute));
+  if (gate === "enforce") {
+    for (const m of absent) diagnostics.push(`module "${m.id}" entry file is absent: ${m.entry}`);
+  } else if (absent.length > 0) {
+    // Report mode is the diagnostic run over a tree whose module owners have
+    // not landed yet: drop what is absent from the table and say so.
+    (options.logger ?? console).warn(
+      `[capability-compose] report gate: ${absent.length} module entr${absent.length === 1 ? "y" : "ies"} absent, dropped from MODULE_TABLE: ${absent.map((m) => m.id).join(", ")}`,
+    );
+    table = table.filter((m) => existsSync(m.absolute));
   }
   const htmlEntries = normalizeFileOwnership(inventory.htmlEntryOwnership);
   const publicFiles = normalizeFileOwnership(inventory.publicFileOwnership);
@@ -147,19 +157,21 @@ async function composeState(options, userConfig) {
   }
   if (diagnostics.length > 0)
     throw new InvalidProfileError(`capability inventory rejects profile "${profile.name}"`, diagnostics);
-  assertWorkerVariantsCover(inventory.catalog, sets.distributed);
+  const workerVariants = inventory.workerVariants ?? undefined;
+  assertWorkerVariantsCover(inventory.catalog, sets.distributed, workerVariants);
   const moduleIds = table.map((m) => m.id).sort();
   const contract = {
     distributionId: distributionId({ mode, moduleIds, profileName: profile.name, version: readVersion(appRoot) }),
     mode,
     capabilityIds: [...sets.distributed].sort(),
     moduleIds,
-    workerVariants: contractWorkerVariants(sets.distributed),
+    workerVariants: contractWorkerVariants(sets.distributed, inventory.catalog, workerVariants),
     basePath: userConfig?.base ?? "/",
   };
   const rules = inventory.classification;
   const classify = (id) => classifyModule(id, rules, { repoRoot });
-  return { appRoot, repoRoot, mode, gate, profile, inventory, sets, isExcluded, table, htmlEntries, publicFiles, contract, classify };
+  const workers = workerVariantsFor(sets.distributed, inventory.catalog, workerVariants);
+  return { appRoot, repoRoot, mode, gate, profile, inventory, sets, isExcluded, table, htmlEntries, publicFiles, contract, classify, workers };
 }
 
 function pruneInputs(build, state) {
@@ -260,7 +272,7 @@ function buildGraph(ctx, bundle, state, base) {
     entries,
     chunks,
     assets,
-    workers: workerVariantsFor(state.sets.distributed).map((v) => ({ variant: v.id, file: v.scriptPath, capability: v.capability })),
+    workers: state.workers.map((v) => ({ variant: v.id, file: v.scriptPath, capability: v.capability })),
     publicFiles: state.publicFiles.map((p) => ({ file: p.path, capability: p.capability })),
     moduleEdges,
     unclassified: [...unclassified].sort(),
@@ -325,7 +337,8 @@ export function capabilityCompose(options = {}) {
       handler() {
         if (state.mode !== "hardened" || resolved.command !== "build") return;
         for (const file of state.publicFiles) {
-          if (state.isExcluded(file.capability)) rmSync(join(outDir(), file.path), { force: true, recursive: true });
+          if (state.isExcluded(file.capability))
+            rmSync(join(outDir(), publicPathTarget(file.path)), { force: true, recursive: true });
         }
       },
     },
@@ -359,9 +372,12 @@ export function capabilityCompose(options = {}) {
           }
         };
         graph.workers = graph.workers.map((w) => ({ ...w, size: stat(w.file), present: stat(w.file) !== null }));
-        graph.publicFiles = graph.publicFiles.map((p) => ({ ...p, size: stat(p.file), present: stat(p.file) !== null }));
+        graph.publicFiles = graph.publicFiles.map((p) => {
+          const size = stat(publicPathTarget(p.file));
+          return { ...p, size, present: size !== null };
+        });
         for (const file of state.publicFiles) {
-          if (state.isExcluded(file.capability) && stat(file.path) !== null)
+          if (state.isExcluded(file.capability) && stat(publicPathTarget(file.path)) !== null)
             throw new Error(`[capability-compose] excluded public file survived: ${file.path}`);
         }
         writeGraph(dist, graph);

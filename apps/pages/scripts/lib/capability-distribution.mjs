@@ -246,13 +246,18 @@ export function normalizeModuleOwnership(ownership, catalog) {
     const [capability, unit] = [id.slice(0, id.indexOf("/")), id.slice(id.indexOf("/") + 1)];
     const object = typeof value === "string" ? { entry: value } : (value ?? {});
     const declared = object.entry ?? object.path ?? object.file ?? null;
-    const entry =
-      declared ?? (unit === "worker" ? null : `src/modules/${capability}/${unit}.ts`);
+    // Only document-environment units are page-loadable; a worker unit is
+    // satisfied by a worker variant and never enters the MODULE_TABLE.
+    const pageLoadable =
+      unit !== "worker" &&
+      (!Array.isArray(object.environments) || object.environments.includes("document"));
+    const entry = declared ?? `src/modules/${capability}/${unit}.ts`;
     records.push({
       id,
       capability: object.capability ?? capability,
       unit,
-      entry: unit === "worker" ? null : entry,
+      entry: pageLoadable ? entry : null,
+      source: declared,
     });
   };
   if (Array.isArray(ownership)) {
@@ -292,15 +297,38 @@ export function normalizeFileOwnership(ownership) {
   return out.sort((a, b) => (a.path < b.path ? -1 : 1));
 }
 
-export function workerVariantsFor(distributed) {
-  return WORKER_VARIANTS.filter(
+/**
+ * Attach the owning capability to each variant: the catalogued capability
+ * whose `workerGraphConstraint` the variant satisfies (null for core-only).
+ * `variants` defaults to `WORKER_VARIANTS`; S02 may export its own list.
+ */
+export function ownedWorkerVariants(catalog, variants = WORKER_VARIANTS) {
+  const descriptors = [...catalogEntries(catalog).values()];
+  return variants.map((variant) => {
+    if (variant.capability !== undefined) return variant;
+    const owner = descriptors.find(
+      (d) => d.workerGraphConstraint && asArray(variant.satisfies).includes(d.workerGraphConstraint),
+    );
+    return { ...variant, capability: owner?.id ?? null };
+  });
+}
+
+/** `static-auth/**` → `static-auth` (a directory); other paths unchanged. */
+export function publicPathTarget(path) {
+  return path.replace(/\/\*\*$/, "").replace(/\/\*$/, "");
+}
+
+export function workerVariantsFor(distributed, catalog = FALLBACK_EMPTY_CATALOG, variants = WORKER_VARIANTS) {
+  return ownedWorkerVariants(catalog, variants).filter(
     (variant) => variant.capability === null || distributed.has(variant.capability),
   );
 }
 
+const FALLBACK_EMPTY_CATALOG = Object.freeze({ capabilities: [] });
+
 /** The `DistributionContract.workerVariants` projection (no `capability`). */
-export function contractWorkerVariants(distributed) {
-  return workerVariantsFor(distributed).map(({ id, scriptPath, satisfies }) => ({
+export function contractWorkerVariants(distributed, catalog, variants) {
+  return workerVariantsFor(distributed, catalog, variants).map(({ id, scriptPath, satisfies }) => ({
     id,
     scriptPath,
     satisfies: [...satisfies],
@@ -308,14 +336,14 @@ export function contractWorkerVariants(distributed) {
 }
 
 /** Throws when a distributed capability needs a worker graph no variant provides. */
-export function assertWorkerVariantsCover(catalog, distributed) {
-  const variants = workerVariantsFor(distributed);
+export function assertWorkerVariantsCover(catalog, distributed, variants) {
+  const workerVariants = workerVariantsFor(distributed, catalog, variants);
   const missing = [];
   for (const descriptor of catalogEntries(catalog).values()) {
     if (!distributed.has(descriptor.id)) continue;
     const constraint = descriptor.workerGraphConstraint;
     if (constraint === null || constraint === undefined) continue;
-    if (!variants.some((v) => v.satisfies.includes(constraint)))
+    if (!workerVariants.some((v) => asArray(v.satisfies).includes(constraint)))
       missing.push(`"${descriptor.id}" needs worker graph "${constraint}"`);
   }
   if (missing.length > 0)

@@ -17,6 +17,7 @@ import {
   type ActivationLease,
   type CapabilityCatalog,
   type CapabilityId,
+  type CapabilityState,
   type CompositionChangeReview,
   type ConsentReceipt,
   type DistributionContract,
@@ -27,6 +28,7 @@ import {
   type RuntimeFacts,
   type VaultCapabilitySelection,
   type WorkspaceCapabilityRestriction,
+  PERSONAL_LOCAL_INSTANCE,
   computeConsentDelta,
   resolveComposition,
   reviewCompositionChange,
@@ -124,9 +126,14 @@ export class CompositionStore {
     };
   };
 
-  /** The instance this installation belongs to; derived, never stored twice. */
+  /** The instance this installation belongs to, as the resolver derives it. */
   instanceId(): string {
-    return this.#policy?.instanceId ?? `local:${this.#installationId}`;
+    return (
+      this.#snapshot.plan?.identity.instanceId ??
+      this.#policy?.instanceId ??
+      this.#selection?.instanceId ??
+      PERSONAL_LOCAL_INSTANCE
+    );
   }
 
   async boot(input: BootInput): Promise<void> {
@@ -324,8 +331,10 @@ export class CompositionStore {
       : this.#dropped(v, "vault selection");
   }
 
-  #dropped<T>(_doc: T | null, label: string): null {
-    if (_doc !== null) this.#note(`${label}: scoped to another installation; ignored`);
+  #dropped<T>(doc: T | null, label: string): null {
+    if (doc !== null) {
+      this.#note(`${label}: scoped to another installation; ignored`);
+    }
     return null;
   }
 
@@ -507,7 +516,7 @@ export function useComposition(): CompositionSnapshot {
   );
 }
 
-export function useCapability(id: CapabilityId) {
+export function useCapability(id: CapabilityId): CapabilityState | null {
   const snapshot = useComposition();
   return snapshot.plan?.capabilities[id] ?? null;
 }

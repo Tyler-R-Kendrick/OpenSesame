@@ -78,6 +78,24 @@ function requiredConflicts(ctx: ResolveContext, axes: ReadonlyMap<CapabilityId, 
   return out;
 }
 
+/** A selected root no distributed worker variant can serve is a conflict on itself. */
+function blockedRootWorkerConflicts(ctx: ResolveContext, axes: ReadonlyMap<CapabilityId, Axis>): PlanConflict[] {
+  const out: PlanConflict[] = [];
+  for (const id of ctx.selectedRoots) {
+    const axis = axes.get(id);
+    const constraint = ctx.index.get(id)?.workerGraphConstraint;
+    if (axis === undefined || constraint === undefined || constraint === null) continue;
+    if (!axis.blocked.includes("WORKER_GRAPH_UNAVAILABLE")) continue;
+    out.push({
+      code: "WORKER_GRAPH_UNAVAILABLE",
+      capability: id,
+      subject: constraint,
+      message: `no distributed worker variant satisfies \`${constraint}\``,
+    });
+  }
+  return out;
+}
+
 function optionalReasons(
   ctx: ResolveContext,
   pass: Pass,
@@ -171,6 +189,7 @@ export function resolveComposition(input: ResolveInput): EffectivePlan {
   const conflicts = sortConflicts([
     ...[...pass.closure.rootConflicts.values()].flat(),
     ...requiredConflicts(ctx, pass.axes),
+    ...blockedRootWorkerConflicts(ctx, pass.axes),
     ...pass.worker.conflicts,
   ]);
   const body = {
