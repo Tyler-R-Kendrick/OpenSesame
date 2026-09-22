@@ -21,7 +21,7 @@
 //!    certificate served, and a `transport.certificate.revoked` notice on
 //!    the security feed.
 //!
-//! What it does **not** do: it does not revoke OpenBao, OAuth or session
+//! What it does **not** do: it does not revoke `OpenBao`, OAuth or session
 //! tokens a connector minted while the certificate was valid. Those have
 //! their own lifetimes and their own revoke (`opensesame_provider_openbao`'s
 //! `revoke_token`); the response carries `tokens: "not_revoked"` so nobody

@@ -66,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     // rotations exercise the same hook a third-party tool receives.
     tokio::spawn(lifecycle::scanner::run(state.clone()));
     // Transport renewal retries and bounded trust-overlap reconcile (ADR 0130).
+    transport_lifecycle::boot::attach(&state);
     tokio::spawn(transport_lifecycle::renewal::run(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
     // saga — claim under lease, exponential backoff, visible dead letters.

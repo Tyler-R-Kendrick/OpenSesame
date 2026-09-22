@@ -70,13 +70,13 @@ async fn build_state() -> AppState {
         "OPENSESAME_CONNECTION_KEY",
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     );
-    let state = crate::app_state::build_test(crate::config::Args {
+    let state = Box::pin(crate::app_state::build_test(crate::config::Args {
         listen: "127.0.0.1:0".parse().expect("addr"),
         resource: "https://opensesame.test".into(),
         issuer: "https://identity.test".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
-    })
+    }))
     .await
     .expect("test state");
     std::env::remove_var("OPENSESAME_CONNECTION_KEY");
@@ -123,7 +123,6 @@ pub fn profile_fn(
 }
 
 /// `/health` unguarded, `/protected` behind `enforce_current_generation`.
-#[must_use]
 pub fn router(generations: Arc<TransportGenerations>) -> Router {
     let guarded = Router::new()
         .route("/protected", get(|| async { "protected ok" }))

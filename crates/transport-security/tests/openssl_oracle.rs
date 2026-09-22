@@ -14,6 +14,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use chrono::{Duration, Utc};
+use common::openssl::openssl_s_client;
 use common::*;
 use opensesame_domain::transport::{PeerIdentitySelector, TransportPolicy};
 use opensesame_transport_security::testkit::{tempdir, DisposableCa, IssuedLeaf, LeafSpec};

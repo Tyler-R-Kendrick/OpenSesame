@@ -64,6 +64,7 @@ members = [
   "apps/cli",
   "apps/credential-helpers",
   "apps/pm-bridges",
+  "tests/mtls-interop",
 ]
 default-members = ["apps/gateway", "apps/cli", "apps/worker"]
 exclude = ["fuzz"]

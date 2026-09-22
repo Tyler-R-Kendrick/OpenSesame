@@ -27,6 +27,7 @@
 //! | [`routes`] | the operator routes, merged by the coordinator |
 
 pub mod activation;
+pub mod boot;
 pub mod crl;
 pub mod custody;
 pub mod facts;
@@ -181,7 +182,6 @@ impl LifecycleState {
             .collect()
     }
 
-
     // —— identity cache ———————————————————————————————————————————
 
     fn cache_key(organization: &str, certificate_id: &str, purpose: TransportPurpose) -> String {
@@ -263,6 +263,11 @@ impl LifecycleState {
         self.denied.read().unwrap_or_else(poisoned).len()
     }
 
+    // Awaiting its production call site: `transport::boot` builds the
+    // listener's hook from the binding set alone, which misses a revocation
+    // by thumbprint (integration-requests/SW-LIFECYCLE.md §6). Exercised by
+    // `test_support::profile_fn`, which wires it as the runtime should.
+    #[allow(dead_code)]
     /// The per-listener denylist hook (`ServerProfile::deny_thumbprint`):
     /// consulted at the handshake and by `enforce_current_generation`.
     #[must_use]

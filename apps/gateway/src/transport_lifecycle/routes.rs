@@ -91,7 +91,7 @@ pub async fn issue_certificate(
         return refuse(
             400,
             "invalid_request",
-            "body is not a transport issuance request".into(),
+            "body is not a transport issuance request",
         );
     };
     let organization = who.organization(state.connection_organization);
@@ -133,11 +133,7 @@ pub async fn revoke_certificate(
         Err(response) => return response,
     };
     let Ok(Json(request)) = body else {
-        return refuse(
-            400,
-            "invalid_request",
-            "body is not a revocation request".into(),
-        );
+        return refuse(400, "invalid_request", "body is not a revocation request");
     };
     let organization = who.organization(state.connection_organization);
     match revocation::revoke_transport(&state, &organization, request).await {
@@ -203,11 +199,7 @@ pub async fn put_trust(
         Err(response) => return response,
     };
     let Ok(Json(body)) = body else {
-        return refuse(
-            400,
-            "invalid_request",
-            "body is not a trust profile set".into(),
-        );
+        return refuse(400, "invalid_request", "body is not a trust profile set");
     };
     let actor = who.actor_subject().to_owned();
     match trust::put_cas(&state, body.set, &actor, body.force).await {
@@ -230,11 +222,7 @@ pub async fn get_facts(
         return response;
     }
     if target.len() > 128 || !target.chars().all(|c| c.is_ascii_graphic()) {
-        return refuse(
-            400,
-            "invalid_request",
-            "target is not a bounded ascii name".into(),
-        );
+        return refuse(400, "invalid_request", "target is not a bounded ascii name");
     }
     match facts::load(&state, &target).await {
         Ok(loaded) => (

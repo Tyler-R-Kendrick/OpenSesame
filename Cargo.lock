@@ -4120,6 +4120,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-mtls-interop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "http",
+ "opensesame-domain",
+ "opensesame-transport-security",
+ "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "secrecy",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-rustls",
+]
+
+[[package]]
 name = "opensesame-nats-callout"
 version = "0.1.0"
 dependencies = [

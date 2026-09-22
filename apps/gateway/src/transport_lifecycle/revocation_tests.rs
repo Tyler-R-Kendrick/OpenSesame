@@ -73,10 +73,8 @@ async fn a_revoked_leaf_is_denied_on_an_already_authenticated_connection() {
         Ok(mut stream) => {
             // TLS 1.3 can complete the client's half before the server's
             // rejection arrives; the request then fails or is denied.
-            let answered = support::request_on(&mut stream, "/protected").await;
-            match answered {
-                Ok((status, _)) => assert_eq!(status, 403),
-                Err(_) => {}
+            if let Ok((status, _)) = support::request_on(&mut stream, "/protected").await {
+                assert_eq!(status, 403);
             }
         }
     }

@@ -73,7 +73,13 @@ async fn failed_activation_leaves_the_old_generation_serving_and_in_flight_reque
     let w = world().await;
     let (config, _) = w.client("a.internal");
     let slow = tokio::spawn(raw_get(config.clone(), w.served.addr, localhost(), "/slow"));
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    // Wait for the handler to be *entered*, not for a guessed interval: the
+    // listener only owes a request that is already in flight, and on a loaded
+    // machine the connect plus handshake alone can outlast a fixed sleep.
+    assert!(
+        w.hits.await_slow(1, Duration::from_secs(5)).await,
+        "the slow request never reached the handler"
+    );
 
     // A candidate whose identity is expired: refused whole.
     let expired = w.server_ca.issue_with(
@@ -138,7 +144,12 @@ async fn valid_activation_under_concurrent_requests_switches_new_connections_onl
             "/slow",
         )));
     }
-    tokio::time::sleep(Duration::from_millis(30)).await;
+    // Every one of the eight must be inside the handler before the swap: an
+    // activation only owes requests that are already in flight.
+    assert!(
+        w.hits.await_slow(8, Duration::from_secs(5)).await,
+        "the eight slow requests never all reached the handler"
+    );
     // Concurrent activations from several tasks: every one is validated and
     // applied in order; numbers stay monotonic and unique.
     let mut activations = Vec::new();
@@ -348,7 +359,13 @@ async fn graceful_shutdown_finishes_in_flight_requests() {
     let w = world().await;
     let (config, _) = w.client("bye.internal");
     let slow = tokio::spawn(raw_get(config.clone(), w.served.addr, localhost(), "/slow"));
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    // Wait for the handler to be *entered*, not for a guessed interval: the
+    // listener only owes a request that is already in flight, and on a loaded
+    // machine the connect plus handshake alone can outlast a fixed sleep.
+    assert!(
+        w.hits.await_slow(1, Duration::from_secs(5)).await,
+        "the slow request never reached the handler"
+    );
     let addr = w.served.addr;
     let World { served, .. } = w;
     tokio::time::timeout(Duration::from_secs(5), served.shutdown())

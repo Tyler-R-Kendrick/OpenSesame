@@ -194,7 +194,6 @@ impl Scheduler {
             .collect()
     }
 
-
     /// Forget a certificate (revoked, deleted).
     pub fn forget(&mut self, organization_id: &str, certificate_id: &str) {
         let key = key(organization_id, certificate_id);

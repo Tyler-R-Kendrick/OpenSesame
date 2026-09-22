@@ -14,6 +14,7 @@
  * so this module is the Identity plane's privileged producer.
  */
 import { X509Certificate, createHash } from "node:crypto";
+import { decodeSelector, selectorsEqual } from "@opensesame/os-domain";
 import type {
   EvidenceSource,
   PeerEvidenceView,
@@ -48,6 +49,9 @@ export interface AttestedPeer {
   ingress?: VerifiedPeer;
 }
 
+/** The capability `attestPeer` holds and nothing else can obtain. */
+const ATTEST_ONLY: unique symbol = Symbol("attestPeer");
+
 export class PeerEvidenceError extends Error {
   constructor(
     readonly code: string,
@@ -61,9 +65,6 @@ export class PeerEvidenceError extends Error {
 const SAN_SPLIT =
   /, (?=(?:DNS|URI|IP Address|email|othername|DirName|Registered ID):)/;
 const HEX64 = /^[0-9a-f]{64}$/;
-/** RFC 9525 reference identity: lowercase labels, no wildcard, no trailing dot. */
-const DNS_LABELS =
-  /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*$/;
 
 /** Lowercase hex SHA-256 of the leaf DER — the `leaf_thumbprint_sha256` selector. */
 export function leafThumbprintHex(leaf: X509Certificate): string {
@@ -76,47 +77,56 @@ export function leafThumbprintB64u(leaf: X509Certificate): string {
 }
 
 /**
+ * Accept a candidate selector only if the canonical `@opensesame/os-domain`
+ * decoder — the rule-for-rule mirror of the Rust validator — accepts it.
+ * Validating here with a second, looser set of regexes is how the two planes
+ * come to disagree about what a certificate says, so there is only one.
+ */
+function accepted(
+  kind: "dns_name" | "uri_san" | "spiffe_id",
+  value: string,
+): PeerIdentitySelector | undefined {
+  const decoded = decodeSelector("peer", { [kind]: value });
+  return decoded.ok ? decoded.value : undefined;
+}
+
+/**
  * The selectors a leaf presents: validated DNS and URI SANs plus the
  * thumbprint. Anything else on the certificate (CN, email, IP) is not an
  * identity here and is dropped, never lowered into a name.
+ *
+ * A SPIFFE identity is derived only when the leaf carries **exactly one**
+ * `spiffe://` URI SAN and it is well formed. Two of them are an ambiguous
+ * SVID: neither is an identity, and neither is demoted to a plain URI
+ * selector either. This mirrors `ParsedLeaf::parse` in
+ * `crates/transport-security`.
  */
 export function selectorsOf(leaf: X509Certificate): PeerIdentitySelector[] {
-  const out: PeerIdentitySelector[] = [];
+  const entries: Array<["dns_name" | "uri_san", string]> = [];
   const raw = leaf.subjectAltName ?? "";
   for (const entry of raw ? raw.split(SAN_SPLIT) : []) {
     if (entry.startsWith("DNS:")) {
-      const name = entry.slice(4).toLowerCase();
-      if (DNS_LABELS.test(name) && !name.includes("*")) {
-        out.push({ dns_name: name });
-      }
+      entries.push(["dns_name", entry.slice(4).toLowerCase()]);
     } else if (entry.startsWith("URI:")) {
-      const uri = entry.slice(4);
-      if (uri.startsWith("spiffe://")) {
-        if (validSpiffeId(uri)) out.push({ spiffe_id: uri });
-      } else if (validUri(uri)) {
-        out.push({ uri_san: uri });
-      }
+      entries.push(["uri_san", entry.slice(4)]);
+    }
+  }
+  const spiffeCount = entries.filter(
+    ([kind, value]) => kind === "uri_san" && value.startsWith("spiffe://"),
+  ).length;
+  const out: PeerIdentitySelector[] = [];
+  for (const [kind, value] of entries) {
+    const isSpiffe = kind === "uri_san" && value.startsWith("spiffe://");
+    // Two SPIFFE SANs are an ambiguous SVID: neither is an identity, and
+    // neither is demoted to a plain URI selector either.
+    if (isSpiffe && spiffeCount !== 1) continue;
+    const selector = accepted(isSpiffe ? "spiffe_id" : kind, value);
+    if (selector && !out.some((s) => selectorsEqual(s, selector))) {
+      out.push(selector);
     }
   }
   out.push({ leaf_thumbprint_sha256: leafThumbprintHex(leaf) });
   return out;
-}
-
-function validUri(value: string): boolean {
-  if (value.length > 2048 || /[\s"<>\\^`{|}]/.test(value)) return false;
-  try {
-    return new URL(value).href.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-/** SPIFFE ID spec: `spiffe://<trust-domain>/<path>`, no query/fragment/userinfo. */
-function validSpiffeId(value: string): boolean {
-  if (value.length > 2048) return false;
-  const match = /^spiffe:\/\/([a-z0-9._-]+)(\/[A-Za-z0-9._-]+)+$/.exec(value);
-  if (!match) return false;
-  return !value.split("/").some((seg) => seg === "." || seg === "..");
 }
 
 /**
@@ -144,12 +154,15 @@ export function attestPeer(input: AttestedPeer): VerifiedPeer {
   const usableUntil = new Date(
     Math.min(now + input.usableForMs, notAfter.getTime()),
   );
-  return new VerifiedPeer(input, thumbprint, usableUntil);
+  return new VerifiedPeer(ATTEST_ONLY, input, thumbprint, usableUntil);
 }
 
 /**
- * Internal verified evidence. No `fromJSON`, no public constructor: the class
- * is exported for its type and its getters only; `attestPeer` is the door.
+ * Internal verified evidence. No `fromJSON`, and no reachable constructor:
+ * the class is exported for its type and its getters, and the constructor
+ * demands a module-private token no caller outside this file can name. The
+ * door is {@link attestPeer}, which is where the validity window is checked
+ * and the thumbprint is computed rather than supplied.
  */
 export class VerifiedPeer {
   readonly #input: AttestedPeer;
@@ -157,8 +170,19 @@ export class VerifiedPeer {
   readonly #thumbprint: string;
   readonly #usableUntil: Date;
 
-  /** @internal Only {@link attestPeer} calls this. */
-  constructor(input: AttestedPeer, thumbprint: string, usableUntil: Date) {
+  /** @internal Only {@link attestPeer} can name `ATTEST_ONLY`. */
+  constructor(
+    token: symbol,
+    input: AttestedPeer,
+    thumbprint: string,
+    usableUntil: Date,
+  ) {
+    if (token !== ATTEST_ONLY) {
+      throw new PeerEvidenceError(
+        "source_unsupported",
+        "verified peer evidence is produced by attestPeer only",
+      );
+    }
     if (!(input.leaf instanceof X509Certificate)) {
       throw new PeerEvidenceError("source_unsupported", "leaf is not X.509");
     }

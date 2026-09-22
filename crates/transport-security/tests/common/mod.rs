@@ -29,6 +29,10 @@ use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
 
+/// The `openssl s_client` oracle lives in its own module: it is only used by
+/// `tests/openssl_oracle.rs`, which imports it directly.
+pub mod openssl;
+
 pub const CLIENTS: &str = "clients";
 pub const LISTENER: &str = "test-tls";
 
@@ -101,11 +105,25 @@ pub fn profile_fn_with(
 #[derive(Clone, Default)]
 pub struct Hits {
     pub protected: Arc<AtomicU64>,
+    /// Bumped as `/slow` *enters*, so a test can wait for a request to be
+    /// genuinely in flight instead of guessing with a sleep.
+    pub entered_slow: Arc<AtomicU64>,
 }
 
 impl Hits {
     pub fn protected(&self) -> u64 {
         self.protected.load(Ordering::SeqCst)
+    }
+    /// Wait until `/slow` has been entered `at_least` times, or give up
+    /// after `within`.
+    pub async fn await_slow(&self, at_least: u64, within: Duration) -> bool {
+        tokio::time::timeout(within, async {
+            while self.entered_slow.load(Ordering::SeqCst) < at_least {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .is_ok()
     }
 }
 
@@ -133,7 +151,8 @@ async fn protected(State(hits): State<Hits>) -> &'static str {
     "protected ok"
 }
 
-async fn slow() -> &'static str {
+async fn slow(State(hits): State<Hits>) -> &'static str {
+    hits.entered_slow.fetch_add(1, Ordering::SeqCst);
     tokio::time::sleep(Duration::from_millis(400)).await;
     "slow ok"
 }
@@ -151,12 +170,12 @@ pub fn router(generations: Arc<TransportGenerations>, hits: Hits) -> Router {
             generations,
             enforce_current_generation,
         ))
-        .with_state(hits);
+        .with_state(hits.clone());
     Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/whoami", get(whoami))
-        .route("/slow", get(slow))
         .route("/echo", post(echo_len))
+        .merge(Router::new().route("/slow", get(slow)).with_state(hits))
         .merge(guarded)
 }
 
@@ -289,112 +308,4 @@ pub async fn raw_get(
 
 pub fn localhost() -> ServerName<'static> {
     ServerName::try_from("localhost").expect("server name")
-}
-
-/// Run `openssl s_client` against `addr` with `extra` arguments, feeding a
-/// `GET /health` request, and return combined stdout+stderr. The child is
-/// driven on a blocking thread: the test runtime is single-threaded, and a
-/// test body that blocks on the child would starve the listener task it is
-/// talking to (the TCP connect then succeeds through the kernel backlog, the
-/// handshake is never serviced, and `s_client` prints `CONNECTED` and nothing
-/// else). The output starts with `exit=<code> timeout=<bool>`.
-pub async fn openssl_s_client(addr: SocketAddr, extra: &[&str]) -> String {
-    let extra: Vec<String> = extra.iter().map(|s| (*s).to_string()).collect();
-    tokio::task::spawn_blocking(move || {
-        let refs: Vec<&str> = extra.iter().map(String::as_str).collect();
-        openssl_s_client_blocking(addr, &refs)
-    })
-    .await
-    .expect("openssl driver thread")
-}
-
-/// Copy everything a child pipe produces into `sink` until it closes.
-fn pump(pipe: &mut dyn std::io::Read, sink: &std::sync::Mutex<String>) {
-    let mut buf = [0u8; 4096];
-    while let Ok(n) = pipe.read(&mut buf) {
-        if n == 0 {
-            break;
-        }
-        let text = String::from_utf8_lossy(&buf[..n]).into_owned();
-        sink.lock().unwrap().push_str(&text);
-    }
-}
-
-/// Blocking body of [`openssl_s_client`]: line-buffered through `stdbuf` so
-/// a killed child still leaves its output behind. stdin stays open until the
-/// HTTP response has been seen, the child has exited, or ten seconds pass;
-/// then stdin closes (which ends `s_client`) and a child still alive after
-/// that is killed.
-fn openssl_s_client_blocking(addr: SocketAddr, extra: &[&str]) -> String {
-    use std::io::{Read, Write};
-    use std::sync::Mutex;
-    let openssl = std::path::Path::new("/usr/bin/openssl");
-    assert!(
-        openssl.exists(),
-        "openssl oracle missing at /usr/bin/openssl"
-    );
-    let mut cmd = std::process::Command::new("/usr/bin/stdbuf");
-    cmd.arg("-oL")
-        .arg("-eL")
-        .arg(openssl)
-        .arg("s_client")
-        .arg("-connect")
-        .arg(addr.to_string())
-        .arg("-servername")
-        .arg("localhost")
-        .args(extra)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    let mut child = cmd.spawn().expect("spawn openssl");
-    let collected = Arc::new(Mutex::new(String::new()));
-    let mut readers = Vec::new();
-    for mut pipe in [
-        Box::new(child.stdout.take().expect("stdout")) as Box<dyn Read + Send>,
-        Box::new(child.stderr.take().expect("stderr")) as Box<dyn Read + Send>,
-    ] {
-        let sink = Arc::clone(&collected);
-        readers.push(std::thread::spawn(move || pump(pipe.as_mut(), &sink)));
-    }
-    let mut stdin = child.stdin.take().expect("stdin");
-    let _ =
-        stdin.write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
-    let _ = stdin.flush();
-    let started = std::time::Instant::now();
-    let mut timed_out = false;
-    loop {
-        if child.try_wait().expect("try_wait").is_some() {
-            break;
-        }
-        let seen_response = collected.lock().unwrap().contains("\r\n\r\nok");
-        if seen_response {
-            break;
-        }
-        if started.elapsed() > Duration::from_secs(10) {
-            timed_out = true;
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    drop(stdin);
-    let closed = std::time::Instant::now();
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("try_wait") {
-            break Some(status);
-        }
-        if closed.elapsed() > Duration::from_secs(3) {
-            let _ = child.kill();
-            let _ = child.wait();
-            break None;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    };
-    for reader in readers {
-        let _ = reader.join();
-    }
-    let output = collected.lock().unwrap().clone();
-    format!(
-        "exit={:?} timeout={timed_out}\n{output}",
-        status.and_then(|s| s.code())
-    )
 }

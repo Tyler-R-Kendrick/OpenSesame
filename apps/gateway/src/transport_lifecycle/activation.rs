@@ -167,6 +167,10 @@ pub async fn activate_managed(
     Ok(number)
 }
 
+// Awaiting its production call site: the file-reload path in
+// `transport::boot` (integration-requests/SW-LIFECYCLE.md §6). Exercised by
+// `activation_tests`.
+#[allow(dead_code)]
 /// Activate a PEM pair handed in by a file reload. The key bytes are wrapped
 /// before parsing and never retained; a pair that does not match is a
 /// recorded `reload_failed` with `key_pair_mismatch`.
@@ -200,6 +204,10 @@ pub async fn activate_pem(
     activate_candidate(state, target, generations, candidate).await
 }
 
+// Awaiting its production call site: `transport::status` currently builds its
+// own credential view, which has no revoked arm (integration-requests/
+// SW-LIFECYCLE.md §6). Exercised by `activation_tests` and `boundary_tests`.
+#[allow(dead_code)]
 /// The credential dimension of a status view for the generation serving
 /// now: custody is truthfully `HostSealedExportableToHost` for a managed
 /// identity (the operator can still reveal it through the human-only route)
