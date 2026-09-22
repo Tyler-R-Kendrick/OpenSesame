@@ -70,6 +70,7 @@ import {
   SECOND_STEP_LABEL,
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
+import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -364,92 +365,35 @@ function UnlockForm({
     };
   }, [awaitingSecondStep, activeSecondStep, recoveryMode, store]);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (busy) return;
-    setError(null);
-    setBusy(true);
-    try {
-      if (firstRun) {
-        if (activeMethod === "passkey") {
-          const controller = new AbortController();
-          passkeyAbort.current = controller;
-          try {
-            await store.createWithPasskey(controller.signal);
-          } finally {
-            if (passkeyAbort.current === controller)
-              passkeyAbort.current = null;
-          }
-        } else if (activeMethod === "pin") {
-          if (pin !== confirm) {
-            throw new Error("The two entries do not match.");
-          }
-          await store.createWithPin(pin);
-          setPin("");
-        } else {
-          if (password !== confirm) {
-            throw new Error("The two entries do not match.");
-          }
-          await store.create(password, hint.trim() || undefined);
-        }
-      } else if (guestUnlock) {
-        await resumeGuestSession();
-      } else if (awaitingSecondStep) {
-        if (recoveryMode) {
-          await store.redeemRecoveryCode(recovery);
-          setRecovery("");
-        } else if (activeSecondStep === "totp") {
-          await store.confirmTotp(totp);
-        } else {
-          await store.confirmRemoteCode(totp);
-        }
-        setTotp("");
-      } else if (activeMethod === "passkey") {
-        const controller = new AbortController();
-        passkeyAbort.current = controller;
-        try {
-          await store.unlockWithPasskey(controller.signal);
-        } finally {
-          if (passkeyAbort.current === controller) passkeyAbort.current = null;
-        }
-      } else if (activeMethod === "pin") {
-        await store.unlockWithPin(pin);
-        setPin("");
-      } else {
-        await store.unlock(password);
-        setPassword("");
-      }
-      setConfirm("");
-    } catch (caught) {
-      // A passkey abort comes from the user switching methods — not an error.
-      if (caught instanceof DOMException && caught.name === "AbortError") {
-        return;
-      }
-      setError(
-        // A wrong-or-unenrolled credential already says exactly what the
-        // screen may say — WebAuthn remediation would invent a browser problem
-        // that did not happen. The TOTP step is never a WebAuthn problem
-        // either.
-        caught instanceof WrongPasswordError
-          ? caught.message
-          : !awaitingSecondStep &&
-              (activeMethod === "passkey" ||
-                (caught instanceof Error &&
-                  /invalid domain|SecurityError/i.test(caught.message)))
-            ? describeWebauthnError(caught)
-            : caught instanceof Error
-              ? caught.message
-              : "Unlock failed.",
-      );
-      setPassword("");
-      setPin("");
-      setTotp("");
-      if (awaitingSecondStep) totpRef.current?.focus();
-      else if (activeMethod === "pin") pinRef.current?.focus();
-      else passwordRef.current?.focus();
-    } finally {
-      setBusy(false);
-    }
+  function onSubmit(event: FormEvent) {
+    void submitUnlockForm({
+      event,
+      busy,
+      setBusy,
+      setError,
+      firstRun,
+      guestUnlock,
+      awaitingSecondStep,
+      recoveryMode,
+      activeMethod,
+      activeSecondStep,
+      store,
+      passkeyAbort,
+      pin,
+      confirm,
+      password,
+      hint,
+      recovery,
+      totp,
+      setPin,
+      setConfirm,
+      setPassword,
+      setRecovery,
+      setTotp,
+      pinRef,
+      passwordRef,
+      totpRef,
+    });
   }
 
   const strength = estimateStrength(password);

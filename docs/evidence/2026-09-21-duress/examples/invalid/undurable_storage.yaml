@@ -1,0 +1,38 @@
+expectedError: undurable_storage
+document:
+  schemaVersion: 1
+  policyId: bad-policy
+  revision: 1
+  enabled: false
+  profiles:
+    - profileId: p1
+      label: bad
+      scope:
+        ownerPrincipalRef: owner-1
+        organizationRef: null
+        vaultRef: vault-1
+        deviceBindingRef: device-1
+        compartmentRefs:
+          - comp-normal
+      triggerKind: application_code
+      effects:
+        presentation: normal
+        presentationCompartmentRef: null
+        hold:
+          kind: none
+        alert:
+          routeRef: route-alert-1
+          templateRef: tpl
+          retainOutboxAcrossRemoval: true
+          maxRetries: 1
+          expiryMs: 60000
+        quarantinePeerRefs: []
+        providerRevocationRefs: []
+        removal:
+          kind: local_enumerated
+          resourceRefs:
+            - comp-normal
+          preserveSealedOutbox: true
+          acceptUnrecoverability: true
+        recoveryPolicyRef: null
+        operationCeilingRef: null

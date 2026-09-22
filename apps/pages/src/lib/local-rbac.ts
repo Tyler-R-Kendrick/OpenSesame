@@ -6,6 +6,10 @@
  * Operator (owner/admin), Member, and Guest. Guest is any unclaimed
  * `Guest N` / legacy guest person — never an operator once a claimed person
  * holds owner/admin.
+ *
+ * Duress (AUTH-B): active restricted/decoy fences demote effective role and
+ * intersect IAM capabilities with incident deny ceilings. Guest onboarding
+ * without an active fence is unchanged.
  */
 
 import {
@@ -92,15 +96,67 @@ export function canAccess(
   return ROLE_CAPABILITIES[role].includes(capability);
 }
 
+async function readDuressFenceView(): Promise<{
+  fence: import("./duress/session/fence.js").FenceState;
+  ctx: import("./duress/access/context.js").AccessContext | null;
+} | null> {
+  try {
+    const { duressSessionFence } = await import("./duress/session/fence.js");
+    // Lost broadcasts: prefer durable fence before IAM decisions (AUTH-C).
+    duressSessionFence.rehydrateFromDurable({ bumpIfChanged: false });
+    const ctx = duressSessionFence.currentContext();
+    return {
+      fence: duressSessionFence.readFence(),
+      ctx,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Who is acting in this unlocked vault. A guest session is Operator only
  * while no claimed (non-guest) owner/admin exists — so a first-run guest can
  * set up Access, then loses operator powers once an admin is assigned.
+ *
+ * Restricted/decoy/locked duress presentations never promote via missing
+ * identity lookup (INV-11 / AUTH-B).
  */
+function guestUnderActiveFence(
+  fence: NonNullable<Awaited<ReturnType<typeof readDuressFenceView>>>["fence"],
+  ctx: NonNullable<Awaited<ReturnType<typeof readDuressFenceView>>>["ctx"],
+): boolean {
+  if (fence.activeIncidentIds.length === 0) return false;
+  if (!ctx) return true;
+  return (
+    ctx.claims.presentation === "restricted" ||
+    ctx.claims.presentation === "decoy" ||
+    ctx.claims.presentation === "locked" ||
+    fence.retiredDevice
+  );
+}
+
 export async function resolveCurrentAccessRole(
   tomb: string,
 ): Promise<AccessRole> {
-  const directory = await readLocalDirectory(tomb);
+  const duress = await readDuressFenceView();
+  if (duress && guestUnderActiveFence(duress.fence, duress.ctx)) {
+    return "guest";
+  }
+
+  let directory: LocalDirectory;
+  try {
+    directory = await readLocalDirectory(tomb);
+  } catch (error) {
+    // Directory failure: fail closed — never fall through to custodian operator
+    // while a duress fence is active (AUTH-F). Guest onboarding without a fence
+    // still needs directory; rethrow so callers surface the error.
+    if (duress && duress.fence.activeIncidentIds.length > 0) {
+      return "guest";
+    }
+    throw error;
+  }
+
   const claimed = hasClaimedOperator(directory);
   if (vaultStore.getSnapshot().guest) {
     // Sole guest setup can administer; once a claimed operator exists, stop.
@@ -118,7 +174,10 @@ export async function resolveCurrentAccessRole(
   } catch {
     /* no local identity session — vault custodian */
   }
-  // Unlocked non-guest vault custodian administers Access.
+
+  // Unlocked non-guest vault custodian administers Access — unless a fence
+  // deny ceiling stripped operator capabilities (still labeled operator only
+  // when no restricted presentation; assertAccessCapability intersects).
   return "operator";
 }
 
@@ -132,6 +191,20 @@ export async function assertAccessCapability(
       "Only an operator can change Access or Identity administration once an operator identity is assigned.",
     );
   }
+
+  // AUTH-B: intersect with incident deny ceilings even if role stayed operator
+  // (e.g. alert-only profile that denies mint_grant without decoy presentation).
+  const duress = await readDuressFenceView();
+  if (duress) {
+    const { canAccessWithFence } = await import("./duress/access/iam.js");
+    const ctx = duress.ctx;
+    if (!canAccessWithFence(role, capability, duress.fence, ctx, canAccess)) {
+      throw new LocalDirectoryError(
+        "Access capability denied by active duress incident ceiling.",
+      );
+    }
+  }
+
   return role;
 }
 

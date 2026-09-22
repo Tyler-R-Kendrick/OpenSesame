@@ -1,0 +1,32 @@
+expectedError: unavailable_authority
+document:
+  schemaVersion: 1
+  policyId: bad-policy
+  revision: 1
+  enabled: false
+  profiles:
+    - profileId: p1
+      label: bad
+      scope:
+        ownerPrincipalRef: owner-1
+        organizationRef: null
+        vaultRef: vault-1
+        deviceBindingRef: device-1
+        compartmentRefs:
+          - comp-normal
+      triggerKind: application_code
+      effects:
+        presentation: normal
+        presentationCompartmentRef: null
+        hold:
+          kind: independent_authority
+          authorityRef: missing-authority
+          durationMs: 60000
+          disclosureAck: true
+        alert: null
+        quarantinePeerRefs: []
+        providerRevocationRefs: []
+        removal:
+          kind: none
+        recoveryPolicyRef: null
+        operationCeilingRef: null

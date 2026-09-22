@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "swarm": "BUILD",
+  "testedCommit": "424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716",
+  "generatedAt": "2026-09-22T03:44:05.008Z",
+  "cases": [
+    {
+      "id": "BUILD-A-F-feature-vitest",
+      "command": "pnpm exec vitest run src/lib/duress/feature/feature.test.ts --maxWorkers=2",
+      "result": "passed",
+      "exitCode": 0,
+      "required": true,
+      "detail": "exit 0"
+    },
+    {
+      "id": "BUILD-D-static-constraints",
+      "command": "inline:feature-source-scan",
+      "result": "passed",
+      "exitCode": 0,
+      "required": true,
+      "detail": "no violations"
+    },
+    {
+      "id": "REDTEAM-vitest",
+      "command": "pnpm exec vitest run src/lib/duress/redteam --maxWorkers=2 --exclude **/gaps.honest.test.ts",
+      "result": "passed",
+      "exitCode": 0,
+      "required": false,
+      "detail": "exit 0"
+    },
+    {
+      "id": "BROWSER-QA-journeys",
+      "command": "node scripts/duress/run-journeys.mjs",
+      "result": "passed",
+      "exitCode": 0,
+      "required": false,
+      "detail": "exit 0"
+    },
+    {
+      "id": "BUILD-B-F-offline-probe",
+      "command": "node /home/codex/repos/opensesame/apps/pages/scripts/verify-duress-offline.mjs",
+      "result": "passed",
+      "exitCode": 0,
+      "required": true,
+      "detail": "exit 0"
+    },
+    {
+      "id": "REPORT-contracts-duress",
+      "command": "pnpm --filter @opensesame/contracts test -- src/duress",
+      "result": "passed",
+      "exitCode": 0,
+      "required": false,
+      "detail": "exit 0"
+    },
+    {
+      "id": "REPORT-duress-integration-vitest",
+      "command": "pnpm exec vitest run src/lib/duress/duress-alert-outbox.test.ts src/lib/duress/duress-canary-executor-ceiling.test.ts src/lib/duress/duress-canary-feature.test.ts src/lib/duress/duress-compartment-projection.test.ts src/lib/duress/duress-context-operation-checks.test.ts src/lib/duress/duress-duress-access-context.test.ts src/lib/duress/duress-duress-fence.test.ts src/lib/duress/duress-duress-slots-prf-and-code.test.ts src/lib/duress/duress-feature-registration.test.ts src/lib/duress/duress-local-removal.test.ts src/lib/duress/duress-peer-envelopes.test.ts src/lib/duress/duress-recovery-shares.test.ts src/lib/duress/duress-settings-consent-rehearsal.test.ts src/lib/duress/duress-trigger-enrollment.test.ts --maxWorkers=2",
+      "result": "passed",
+      "exitCode": 0,
+      "required": false,
+      "detail": "exit 0"
+    },
+    {
+      "id": "REPORT-static-origin-optional",
+      "command": "pnpm --filter @opensesame/pages verify:static",
+      "result": "failed",
+      "exitCode": 1,
+      "required": false,
+      "detail": "exit 1\n\n> @opensesame/pages@0.1.0 verify:static /home/codex/repos/opensesame/apps/pages\n> node scripts/verify-static-origin.mjs\n\n/home/codex/repos/opensesame/apps/pages:\n ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @opensesame/pages@0.1.0 verify:static: `node scripts/verify-static-origin.mjs`\nExit status 1\n\nnode:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nbrowserType.launch: Executable doesn't exist at /home/codex/.cache/ms-playwright/chromium_headless_shell-1193/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     pnpm exec playwright install                                        ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝\n    at launch (/home/codex/repos/opensesame/apps/pages/scripts/lib/static-origin-harness.mjs:228:16)\n    at /home/codex/repos/opensesame/apps/pages/scripts/verify-static-origin.mjs:60:23\n    at async node:internal/modules/esm/loader:650:26 {\n  name: 'Error'\n}\n\nNode.js v26.5.0\n"
+    }
+  ],
+  "counts": {
+    "passed": 7,
+    "failed": 1,
+    "blocked": 0,
+    "requiredFailed": 0
+  },
+  "gate": "passed",
+  "notProved": [
+    "physical biometric independence",
+    "forensic erasure",
+    "hardware PRF across real authenticators",
+    "live external provider revocation",
+    "production unlock UI routing (SETTINGS/TRIGGER bridge)"
+  ]
+}

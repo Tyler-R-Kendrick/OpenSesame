@@ -11,6 +11,7 @@ pub mod callout;
 pub mod combine;
 pub mod condition;
 pub mod condition_set;
+pub mod duress;
 pub mod enforcement_gate;
 pub mod engine;
 pub mod error;

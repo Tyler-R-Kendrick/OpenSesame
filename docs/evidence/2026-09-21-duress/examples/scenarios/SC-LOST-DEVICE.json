@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "policyId": "example-SC-LOST-DEVICE",
+  "revision": 1,
+  "enabled": false,
+  "profiles": [
+    {
+      "profileId": "lost-device",
+      "label": "Lost device response",
+      "scope": {
+        "ownerPrincipalRef": "owner-1",
+        "organizationRef": null,
+        "vaultRef": "vault-1",
+        "deviceBindingRef": "device-1",
+        "compartmentRefs": ["comp-normal"]
+      },
+      "triggerKind": "delegated_peer_request",
+      "effects": {
+        "presentation": "locked",
+        "presentationCompartmentRef": null,
+        "hold": {
+          "kind": "independent_authority",
+          "authorityRef": "host-authority-1",
+          "durationMs": "indefinite",
+          "disclosureAck": true
+        },
+        "alert": null,
+        "quarantinePeerRefs": [],
+        "providerRevocationRefs": [],
+        "removal": {
+          "kind": "none"
+        },
+        "recoveryPolicyRef": "recovery-1",
+        "operationCeilingRef": null
+      }
+    }
+  ]
+}

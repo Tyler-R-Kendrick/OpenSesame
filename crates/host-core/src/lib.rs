@@ -34,6 +34,9 @@ pub mod http_security;
 /// plane does not invent a one-off assertion style.
 pub mod pact;
 
+/// Optional independent-authority duress hold / quarantine / recovery.
+pub mod duress;
+
 #[cfg(test)]
 mod tests;
 
