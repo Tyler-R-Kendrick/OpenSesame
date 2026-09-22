@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { connectivityBarDependencies } from "../../components/ConnectivityBar.js";
 import type { Connection, Provider } from "../../lib/connections.js";
@@ -10,6 +10,14 @@ import type { ConnectorStatus } from "../../lib/connectors.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import type { Folder, LoginItem, VaultItem } from "../../lib/vault/model.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";
+import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
+
+// The connector surfaces bind targets the connectors capability declares.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 type VaultSnapshot = {
   items: VaultItem[];
