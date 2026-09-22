@@ -27,7 +27,12 @@ import type {
   EffectivePlan,
   InstallationCapabilitySelection,
 } from "@opensesame/capability-composition";
-import { type BoundaryValue, isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { useSyncExternalStore } from "react";
 
 export type OfflineStatus =
@@ -96,7 +101,10 @@ function crossOriginIsolatedDefault(): boolean {
 
 function baseUrlDefault(): string {
   const scope: { location?: { href: string } } = overlapCast(globalThis);
-  return new URL(import.meta.env.BASE_URL, scope.location?.href ?? "https://localhost/").href;
+  return new URL(
+    import.meta.env.BASE_URL,
+    scope.location?.href ?? "https://localhost/",
+  ).href;
 }
 
 function reloadDefault(): void {
@@ -201,7 +209,9 @@ function variantOfScript(scriptUrl: string): string | null {
   return variant?.id ?? null;
 }
 
-function registeredScript(registration: ServiceWorkerRegistration | undefined): string | null {
+function registeredScript(
+  registration: ServiceWorkerRegistration | undefined,
+): string | null {
   if (!registration) return null;
   return (
     registration.active?.scriptURL ??
@@ -217,16 +227,25 @@ function registeredScript(registration: ServiceWorkerRegistration | undefined): 
  * variant that serves one capability, only when that capability is approved
  * and named in the receipt (PWA-03).
  */
-function variantEligible(id: string, snapshot: CompositionSnapshotForWorker): boolean {
+function variantEligible(
+  id: string,
+  snapshot: CompositionSnapshotForWorker,
+): boolean {
   if (id === CORE_ONLY_VARIANT) return true;
   const { plan, selection, receipt } = snapshot;
   if (!plan || !selection || !receipt) return false;
   const capability = VARIANT_CAPABILITY.get(id);
   if (!capability) return true;
-  return plan.approvedCapabilities.includes(capability) && capability in receipt.exposure;
+  return (
+    plan.approvedCapabilities.includes(capability) &&
+    capability in receipt.exposure
+  );
 }
 
-async function register(container: ServiceWorkerContainer, scriptUrl: string): Promise<void> {
+async function register(
+  container: ServiceWorkerContainer,
+  scriptUrl: string,
+): Promise<void> {
   state.registeredThisPage = true;
   try {
     await container.register(scriptUrl, {
@@ -259,7 +278,8 @@ function syncPlan(snapshot: CompositionSnapshotForWorker): void {
   const { plan, selection } = snapshot;
   if (!plan || state.status.transition) return;
   if (selection?.delivery.offlineCache !== "selected-only") {
-    if (state.status.offlineStatus !== "online-only") publish({ offlineStatus: "online-only" });
+    if (state.status.offlineStatus !== "online-only")
+      publish({ offlineStatus: "online-only" });
     return;
   }
   if (!state.container?.controller) return;
@@ -300,7 +320,9 @@ function onWorkerMessage(data: BoundaryValue): void {
       publish({ offlineStatus: "storage-unavailable" });
       return;
     case "PLAN_REJECTED":
-      diagnose(`PLAN_REJECTED:${isString(data.reason) ? data.reason : "unknown"}`);
+      diagnose(
+        `PLAN_REJECTED:${isString(data.reason) ? data.reason : "unknown"}`,
+      );
       publish({ offlineStatus: "online-only" });
       if (data.reason === "release-mismatch") {
         // The controller changed under us; ask again and repost.
@@ -333,7 +355,9 @@ function attachContainerListeners(container: ServiceWorkerContainer): void {
   );
 }
 
-async function reconcile(snapshot: CompositionSnapshotForWorker): Promise<void> {
+async function reconcile(
+  snapshot: CompositionSnapshotForWorker,
+): Promise<void> {
   const { container, distribution } = state;
   const plan = snapshot.plan;
   if (!container || !distribution || !plan) return;
@@ -348,25 +372,46 @@ async function reconcile(snapshot: CompositionSnapshotForWorker): Promise<void> 
   const requiredUrl = scriptUrlFor(variant.scriptPath);
   let registration: ServiceWorkerRegistration | undefined;
   try {
-    registration = await container.getRegistration(workerControllerSeams.baseUrl());
+    registration = await container.getRegistration(
+      workerControllerSeams.baseUrl(),
+    );
   } catch {
     registration = undefined;
   }
   const current = registeredScript(registration);
   if (current && current !== requiredUrl && registration) {
-    state.pendingTransition = { registration, scriptUrl: requiredUrl, to: requiredId };
+    state.pendingTransition = {
+      registration,
+      scriptUrl: requiredUrl,
+      to: requiredId,
+    };
     publish({
       variant: variantOfScript(current),
-      transition: { from: variantOfScript(current), to: requiredId, status: "transition-required" },
+      transition: {
+        from: variantOfScript(current),
+        to: requiredId,
+        status: "transition-required",
+      },
     });
     return;
   }
   state.pendingTransition = null;
-  if (state.status.transition?.status === "transition-required") publish({ transition: null });
-  if (!current && !state.registeredThisPage && !workerControllerSeams.crossOriginIsolated()) {
+  if (state.status.transition?.status === "transition-required")
+    publish({ transition: null });
+  if (
+    !current &&
+    !state.registeredThisPage &&
+    !workerControllerSeams.crossOriginIsolated()
+  ) {
     await register(container, requiredUrl);
   }
-  publish({ variant: current ? variantOfScript(current) : state.registeredThisPage ? requiredId : null });
+  publish({
+    variant: current
+      ? variantOfScript(current)
+      : state.registeredThisPage
+        ? requiredId
+        : null,
+  });
   syncPlan(snapshot);
 }
 
@@ -392,7 +437,9 @@ export function registerWorkerForPlan(
   const apply = () => {
     const snapshot = store.getSnapshot();
     state.latest = snapshot;
-    state.reconciling = state.reconciling.then(() => reconcile(snapshot)).catch(() => undefined);
+    state.reconciling = state.reconciling
+      .then(() => reconcile(snapshot))
+      .catch(() => undefined);
   };
   const unsubscribe = store.subscribe(apply);
   apply();

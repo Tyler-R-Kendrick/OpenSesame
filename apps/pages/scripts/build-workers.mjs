@@ -89,7 +89,9 @@ function assertCoreWorkerHasNoPush() {
 async function buildVariant(id, manifest) {
   const variant = EXTRA_VARIANTS.get(id);
   if (!variant) {
-    console.log(`build-workers: no extra script for variant "${id}" (core-only ships as sw.js)`);
+    console.log(
+      `build-workers: no extra script for variant "${id}" (core-only ships as sw.js)`,
+    );
     return;
   }
   const loaded = await loadConfigFromFile(
@@ -97,7 +99,8 @@ async function buildVariant(id, manifest) {
     join(root, variant.config),
     root,
   );
-  if (!loaded) throw new Error(`build-workers: could not load ${variant.config}`);
+  if (!loaded)
+    throw new Error(`build-workers: could not load ${variant.config}`);
   const config = loaded.config;
   await build({
     ...config,
@@ -109,12 +112,15 @@ async function buildVariant(id, manifest) {
     },
   });
   const out = join(dist, variant.output);
-  if (!existsSync(out)) throw new Error(`build-workers: ${out} was not emitted`);
+  if (!existsSync(out))
+    throw new Error(`build-workers: ${out} was not emitted`);
   const source = readFileSync(out, "utf8");
   if (!PUSH_HANDLER.test(source)) {
     throw new Error(`build-workers: ${variant.output} carries no push handler`);
   }
-  console.log(`build-workers: wrote dist/${variant.output} (${source.length} bytes)`);
+  console.log(
+    `build-workers: wrote dist/${variant.output} (${source.length} bytes)`,
+  );
 }
 
 async function main() {
@@ -127,7 +133,9 @@ async function main() {
   }
   const skipped = [...EXTRA_VARIANTS.keys()].filter((id) => !wanted.has(id));
   for (const id of skipped) {
-    console.log(`build-workers: variant "${id}" not distributed; ${EXTRA_VARIANTS.get(id).output} not emitted`);
+    console.log(
+      `build-workers: variant "${id}" not distributed; ${EXTRA_VARIANTS.get(id).output} not emitted`,
+    );
   }
 }
 
