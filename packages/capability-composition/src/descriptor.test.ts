@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { isJsonObject } from "@opensesame/os-domain";
 import { validateDescriptor } from "./descriptor.js";
-import { descriptor } from "./test-helpers.js";
+import { type FixtureOverrides, descriptor } from "./test-helpers.js";
 
 /**
  * Hostile descriptor builder: merges hostile fields into a valid base
@@ -10,10 +10,7 @@ import { descriptor } from "./test-helpers.js";
  * contract validateDescriptor accepts, so the validator — not the type
  * system — is what rejects the hostile fields at runtime.
  */
-function hostileDescriptor(
-  id: string,
-  hostile: Record<string, BoundaryValue>,
-): BoundaryValue {
+function hostileDescriptor(id: string, hostile: FixtureOverrides): BoundaryValue {
   const base = descriptor(id);
   if (!isJsonObject(base)) throw new Error("fixture descriptor must be an object");
   return { ...base, ...hostile };

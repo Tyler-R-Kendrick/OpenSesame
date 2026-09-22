@@ -10,8 +10,10 @@ import { isReasonCode } from "./ids.js";
 import { resolvePreset } from "./presets.js";
 import { resolveEffectivePlan } from "./resolver.js";
 import {
+  type HostilePolicyFields,
   descriptor,
   distribution,
+  hostileFields,
   policy,
   selection,
   vaultRestriction,
@@ -115,16 +117,15 @@ describe("adversarial — confused deputy and fail-closed", () => {
   });
 
   it("prototype pollution does not become a capability id", () => {
-    // SAFETY: the boundary contract under test is attacker-shaped JSON whose
-    // parsed type is unknown; the policy builder validates it at runtime.
-    const polluted: unknown = JSON.parse(
+    // The boundary contract under test is attacker-shaped JSON; the hostile
+    // fields type is the boundary parser's own output contract, and the
+    // policy validator refuses the polluted shape at runtime.
+    const polluted: HostilePolicyFields = hostileFields(
       '{"required":["__proto__"],"optional":[],"prohibited":[]}',
     );
     const outcome = resolveEffectivePlan({
       ...base(),
-      instancePolicy: policy(
-        polluted as unknown as Record<string, string[]>,
-      ),
+      instancePolicy: policy(polluted),
     });
     // Malformed ids fail closed at validation: no plan, no proto id anywhere.
     expect(outcome.ok).toBe(false);

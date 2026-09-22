@@ -1,12 +1,11 @@
-import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { validateDescriptor } from "./descriptor.js";
 import { evaluateNode } from "./resolver-node.js";
-import { descriptor } from "./test-helpers.js";
+import { type FixtureOverrides, descriptor } from "./test-helpers.js";
 
 function mustDescriptor(
   id: string,
-  overrides?: Record<string, BoundaryValue>,
+  overrides?: FixtureOverrides,
 ): Parameters<typeof evaluateNode>[1] {
   const checked = validateDescriptor(
     descriptor(id, overrides ?? {}),

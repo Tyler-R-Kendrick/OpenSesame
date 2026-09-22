@@ -98,6 +98,19 @@ export function descriptor(id: string, overrides: FixtureOverrides = {}): Bounda
   return raw;
 }
 
+/** Policy overrides parsed from attacker-shaped JSON at the test boundary. */
+export type HostilePolicyFields = {
+  readonly [extra: string]: BoundaryValue | undefined;
+};
+
+/**
+ * Parse attacker-shaped JSON into the hostile-fields contract: the only
+ * producer of `HostilePolicyFields`, so no test parses raw JSON inline.
+ */
+export function hostileFields(text: string): HostilePolicyFields {
+  return JSON.parse(text) as HostilePolicyFields;
+}
+
 /** Overrides for a fixture policy: partial raw fields, type-checked. */
 export type FixturePolicy = {
   readonly schemaVersion?: number;

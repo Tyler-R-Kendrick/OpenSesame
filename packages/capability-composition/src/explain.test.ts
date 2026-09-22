@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildExplanation, explainReason } from "./explain.js";
 import { REASON_CODES } from "./ids.js";
-import type { ModuleId } from "./ids.js";
+import { moduleId } from "./ids.js";
 import type { ModuleActivationLease } from "./lifecycle.js";
 import { PRESETS, isPresetName, resolvePreset } from "./presets.js";
 
@@ -134,10 +134,10 @@ describe("presets", () => {
 
 describe("lifecycle types (compile-shape only)", () => {
   it("lease shape carries plan-generation expiry", () => {
+    const module = moduleId("mod.a");
+    if (module === undefined) throw new Error("fixture module id must parse");
     const lease: ModuleActivationLease = {
-      // SAFETY: the shape under test is the lease contract, not a real
-      // module id; the branded id is validated at the loader boundary.
-      moduleId: "mod.a" as ModuleId,
+      moduleId: module,
       planDigest: "0".repeat(16),
       generation: 1,
       expiresAtKind: "plan-generation",

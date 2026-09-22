@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { BoundaryObject } from "@opensesame/os-domain";
 import {
   type DigestFunction,
   canonicalEquals,
@@ -8,6 +7,17 @@ import {
   fnv1a64Hex,
 } from "./digest.js";
 import { REASON_CODES, capabilityId, isReasonCode } from "./ids.js";
+
+/** A hostile function literal already inside the digest function contract. */
+const hostileFn: DigestFunction = () => undefined;
+
+/**
+ * Hostile function value for refusal cases: a module-level literal typed by
+ * the boundary contract itself, so no call site carries an assertion.
+ */
+function hostileFunction(): DigestFunction {
+  return hostileFn;
+}
 
 describe("ids", () => {
   it("brands valid capability ids and rejects malformed ones", () => {
@@ -40,9 +50,7 @@ describe("digest", () => {
   });
 
   it("rejects functions and non-finite numbers", () => {
-    const hostile: BoundaryObject = {
-      f: (() => 1) as unknown as DigestFunction,
-    };
+    const hostile = { f: hostileFunction() };
     expect(canonicalJson(hostile)).toBeUndefined();
     expect(canonicalJson({ n: Number.NaN })).toBeUndefined();
     expect(canonicalJson({ n: Number.POSITIVE_INFINITY })).toBeUndefined();
@@ -65,8 +73,8 @@ describe("digest", () => {
   it("canonicalEquals compares structure, not identity", () => {
     expect(canonicalEquals({ a: 1 }, { a: 1 })).toBe(true);
     expect(canonicalEquals({ a: 1 }, { a: 2 })).toBe(false);
-    const left: BoundaryObject = { f: (() => 1) as unknown as DigestFunction };
-    const right: BoundaryObject = { f: (() => 1) as unknown as DigestFunction };
+    const left = { f: hostileFunction() };
+    const right = { f: hostileFunction() };
     expect(canonicalEquals(left, right)).toBeUndefined();
   });
 });

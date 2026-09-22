@@ -19,12 +19,12 @@
  */
 import {
   type BoundaryValue,
-  type JsonValue,
   isBigint,
+  isBoolean,
   isFunction,
-  isJsonObject,
   isNumber,
   isString,
+  isTypeofObject,
 } from "@opensesame/os-domain";
 
 /**
@@ -47,7 +47,7 @@ export type DigestInput =
   | DigestInput[];
 
 /** A hostile function value the canonicalizer refuses with `undefined`. */
-export type DigestFunction = (...args: never[]) => unknown;
+export type DigestFunction = (...args: never[]) => BoundaryValue;
 
 /**
  * The canonical JSON text for a digest input, or `undefined` when the value
@@ -134,37 +134,61 @@ function isDigestJson(value: DigestInput): value is BoundaryValue {
   if (value === undefined || value === null) return true;
   if (isDigestString(value)) return true;
   if (isDigestNumber(value)) return true;
-  if (value === true || value === false) return true;
+  if (isDigestBoolean(value)) return true;
   if (Array.isArray(value)) {
     return (value as readonly DigestInput[]).every(isDigestJson);
   }
-  if (typeof value === "function") return false;
+  if (isDigestFunction(value)) return false;
   if (!isDigestRecord(value)) return false;
   return Object.values(value).every(isDigestJson);
 }
 
 /**
- * `isString` takes `BoundaryValue`; these shims accept the wider digest arm
- * after the hostile shapes (function, class record) are excluded above.
+ * Guards below take `BoundaryValue`; these shims accept the wider digest arm.
+ * Each narrows `DigestInput` through the os-domain guard's own contract,
+ * never a fresh `typeof` at the call site.
  */
 function isDigestString(value: DigestInput): value is string {
-  return typeof value === "string";
+  return (
+    !isTypeofObject(value as BoundaryValue) &&
+    !Array.isArray(value) &&
+    value !== null &&
+    isString(value as BoundaryValue)
+  );
 }
 
 /** Same as `isDigestString`, for numbers. */
 function isDigestNumber(value: DigestInput): value is number {
-  return typeof value === "number";
+  return (
+    !isTypeofObject(value as BoundaryValue) &&
+    !Array.isArray(value) &&
+    value !== null &&
+    isNumber(value as BoundaryValue)
+  );
+}
+
+/** Same as `isDigestString`, for booleans. */
+function isDigestBoolean(value: DigestInput): value is boolean {
+  return (
+    !isTypeofObject(value as BoundaryValue) &&
+    !Array.isArray(value) &&
+    value !== null &&
+    isBoolean(value as BoundaryValue)
+  );
+}
+
+/** Same as `isDigestString`, for functions (refused, never encoded). */
+function isDigestFunction(value: DigestInput): value is DigestFunction {
+  return isFunction(value as BoundaryValue);
 }
 
 /** JSON-shaped inputs only; undefined members are dropped, not refused. */
-function isJsonValueLike(value: BoundaryValue): value is JsonValue {
+function isJsonValueLike(value: BoundaryValue): value is BoundaryValue {
   if (value === undefined) return true;
   if (value === null) return true;
   if (isString(value)) return true;
   if (isNumber(value)) return true;
-  // `boolean` has no os-domain guard; exclude the other JSON primitives first,
-  // then reject every non-boolean scalar explicitly below.
-  if (value === true || value === false) return true;
+  if (isBoolean(value)) return true;
   if (Array.isArray(value)) return value.every(isJsonValueLike);
   if (!isDigestRecord(value)) return false;
   return Object.values(value).every(isJsonValueLike);

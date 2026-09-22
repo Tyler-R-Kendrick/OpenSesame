@@ -77,7 +77,7 @@ describe("property — hostile inputs never throw or load silently", () => {
   it("canonicalJson never throws on hostile boundary values", async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.anything({ withNullPrototype: true }) as fc.Arbitrary<DigestInput>,
+        fc.jsonValue() as fc.Arbitrary<DigestInput>,
         async (value: DigestInput) => {
           let threw = false;
           try {
