@@ -86,3 +86,54 @@ export async function addCapability(page, check, snap, title, rail = null) {
     `${rail} appears once ${title} is approved`,
   );
 }
+
+/**
+ * C. Choose capabilities in the setup ceremony, before any vault exists.
+ *
+ * The other road into composition is Settings, which needs an open vault.
+ * A gate that has to measure a surface *before* unlocking — the WebMCP boot
+ * tools are registered on an empty vault — has to choose here instead.
+ *
+ * Returns the number of cards left selected, so a caller can assert that
+ * what it asked for is what the ceremony carried into the review.
+ */
+export async function chooseInSetup(page, titles) {
+  await page.getByRole("button", { name: "Set up your own" }).click();
+  await page.waitForTimeout(900);
+  await page
+    .getByRole("button", { name: /Customize this installation/ })
+    .click();
+  await page.waitForTimeout(700);
+  await page.getByRole("button", { name: /^Custom/ }).click();
+  await page.waitForTimeout(900);
+  for (const title of titles) {
+    const pick = page.locator(".capcard__pick", { hasText: title }).first();
+    if ((await pick.count()) === 0) {
+      throw new Error(`chooseInSetup: no capability card titled ${title}`);
+    }
+    if ((await pick.getAttribute("aria-pressed")) !== "true")
+      await pick.click();
+    await page.waitForTimeout(120);
+  }
+  const selected = await page
+    .locator('.capcard__pick[aria-pressed="true"]')
+    .count();
+  await page.getByRole("button", { name: /Save on this device/ }).click();
+  await page.waitForTimeout(1400);
+  // A slot whose alternatives both got selected blocks Apply until one is
+  // picked; the review offers them, so take the first of each.
+  const alternatives = page.locator(".caprev__conflict .preset__opt");
+  while ((await alternatives.count()) > 0) {
+    await alternatives.first().click();
+    await page.waitForTimeout(700);
+  }
+  const apply = page.getByRole("button", { name: /Apply configuration/ });
+  if (await apply.isDisabled()) {
+    throw new Error("chooseInSetup: Apply stayed blocked after the review");
+  }
+  await apply.click();
+  await page.waitForTimeout(2400);
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await page.waitForTimeout(2600);
+  return selected;
+}

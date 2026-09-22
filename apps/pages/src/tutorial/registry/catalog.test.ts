@@ -9,10 +9,11 @@ import {
   isGuideSemanticId,
 } from "@opensesame/guide-lang";
 import { isFunction, isTypeofObject } from "@opensesame/os-domain";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { AUTHORED_GUIDE_TARGETS, AUTHORED_HELP_TOPICS } from "./authored.js";
 import { mergedGuideTargets } from "./catalog.js";
+import * as devModule from "./dev.js";
 import {
   CAPABILITY_TUTORIALS,
   guideGoal,
@@ -31,6 +32,7 @@ import {
   isMountedGuideTarget,
   mountGuideTarget,
   resolveGuideTargetElement,
+  undeclaredGuideTargetMounts,
 } from "./targets.js";
 
 const CATALOG_MORE_SOURCE = readFileSync(
@@ -351,6 +353,28 @@ describe("mount bookkeeping", () => {
     expect(() => mountGuideTarget("vault.definitely-not", element)).toThrow(
       /guide_target_undeclared/,
     );
+  });
+
+  it("binds nothing rather than throwing in a production build", () => {
+    // A capability declares its targets when its module activates, so a
+    // control from one capability can mount before the capability that
+    // declares its id has landed. Approving `backup.git-remote` did exactly
+    // that — its settings category names `settings.backup`, declared by
+    // `connectors.external` — and the throw ran inside a React ref and took
+    // the whole document down. Production fails closed instead: nothing is
+    // bound, so a guide still cannot point at it.
+    const dev = vi.spyOn(devModule, "inDevelopment").mockReturnValue(false);
+    try {
+      const element = document.createElement("button");
+      const detach = mountGuideTarget("vault.definitely-not", element);
+      expect(typeof detach).toBe("function");
+      expect(isMountedGuideTarget("vault.definitely-not")).toBe(false);
+      expect(resolveGuideTargetElement("vault.definitely-not")).toBeNull();
+      expect(undeclaredGuideTargetMounts()).toContain("vault.definitely-not");
+      detach();
+    } finally {
+      dev.mockRestore();
+    }
   });
 });
 

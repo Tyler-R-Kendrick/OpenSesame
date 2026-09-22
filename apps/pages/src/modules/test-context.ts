@@ -38,6 +38,8 @@ export type TestContext = Readonly<{
   ctx: ApprovedCapabilityContext;
   registered: RegisteredContribution[];
   hydrated: string[][];
+  /** Destinations a module asked the router for, in order. */
+  navigated: string[];
   egressCalls: EgressCall[];
   /** Abort the lease (a commit, a lock, a vault switch, a revocation). */
   abort: (reason?: string) => void;
@@ -68,6 +70,38 @@ const IDENTITY: PlanIdentity = Object.freeze({
   planDigest: "sha256:test",
 });
 
+/**
+ * The egress port a test context hands a module: every call is recorded and
+ * answered, so a module's declared destinations can be asserted without a
+ * network. Split out to keep `createTestContext` inside the function budget.
+ */
+function testEgressPort(
+  egressCalls: EgressCall[],
+  egressResponse: TestContextOptions["egressResponse"],
+): ApprovedCapabilityContext["egress"] {
+  return {
+    capability: "test",
+    decide: (input) => ({
+      ok: true,
+      class: "application-assets",
+      crossOrigin: false,
+      destination: String(input),
+    }),
+    fetch: async (input, _init, meta) => {
+      // The S18 port's `meta` is optional; a module that leaves it out is
+      // recorded as having named neither, which the assertions can see.
+      egressCalls.push({
+        input: String(input),
+        capability: meta?.capability ?? "",
+        purpose: meta?.purpose ?? "",
+      });
+      return egressResponse
+        ? egressResponse()
+        : new Response(null, { status: 204 });
+    },
+  };
+}
+
 export function createTestContext(
   options: TestContextOptions = {},
 ): TestContext {
@@ -80,6 +114,7 @@ export function createTestContext(
   });
   const registered: RegisteredContribution[] = [];
   const hydrated: string[][] = [];
+  const navigated: string[] = [];
   const egressCalls: EgressCall[] = [];
 
   const register = <K extends ContributionKind>(
@@ -126,27 +161,10 @@ export function createTestContext(
       hydrated.push([...keys]);
     },
     vault: { tomb: options.tomb ?? null, guest: options.guest ?? false },
-    egress: {
-      capability: "test",
-      decide: (input) => ({
-        ok: true,
-        class: "application-assets",
-        crossOrigin: false,
-        destination: String(input),
-      }),
-      fetch: async (input, _init, meta) => {
-        // The S18 port's `meta` is optional; a module that leaves it out is
-        // recorded as having named neither, which the assertions can see.
-        egressCalls.push({
-          input: String(input),
-          capability: meta?.capability ?? "",
-          purpose: meta?.purpose ?? "",
-        });
-        return options.egressResponse
-          ? options.egressResponse()
-          : new Response(null, { status: 204 });
-      },
+    navigate: (to: string) => {
+      navigated.push(to);
     },
+    egress: testEgressPort(egressCalls, options.egressResponse),
   };
 
   const live = () => registered.filter((record) => !record.revoked);
@@ -155,6 +173,7 @@ export function createTestContext(
     ctx,
     registered,
     hydrated,
+    navigated,
     egressCalls,
     abort: (reason = "test-abort") => {
       if (!controller.signal.aborted) controller.abort(reason);

@@ -7,6 +7,10 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  contributionsSnapshot,
+  subscribeContributions,
+} from "../contributions.js";
+import {
   bootPersonalLocal,
   draftFor,
   freshRealm,
@@ -27,6 +31,56 @@ function route(id: string, order: number) {
 }
 
 beforeEach(freshRealm);
+
+describe("the synchronous face (lib/contributions.ts)", () => {
+  it("notifies a non-React subscriber when a capability registers", async () => {
+    // The WebMCP surface is the caller that matters: it re-reads the tool
+    // table on change, and its doc says "approving or disabling another
+    // capability mid-session is reflected without a reload". This
+    // subscription used to reach only the test-injection channel, so in
+    // production it never fired — the surface held whatever snapshot
+    // existed when it mounted, and eight wallet session tools that
+    // registered a moment later never reached the browser at all.
+    await bootPersonalLocal();
+    const { draft, receipt } = draftFor(compositionStore, [PASSKEYS], "r1");
+    await compositionStore.commit(draft, receipt);
+    const child = deriveLease(compositionStore.currentLease());
+    bindLeaseToCapability(child.lease, PASSKEYS);
+
+    let notifications = 0;
+    const stop = subscribeContributions(() => {
+      notifications += 1;
+    });
+    try {
+      expect(contributionsSnapshot("route")).toHaveLength(0);
+      const handle = registerContribution("route", route("a", 1), child.lease);
+      expect(notifications).toBeGreaterThan(0);
+      expect(contributionsSnapshot("route").map((r) => r.id)).toEqual(["a"]);
+
+      const before = notifications;
+      handle.revoke();
+      expect(notifications).toBeGreaterThan(before);
+      expect(contributionsSnapshot("route")).toHaveLength(0);
+    } finally {
+      stop();
+    }
+  });
+
+  it("stops notifying once the subscriber unsubscribes", async () => {
+    await bootPersonalLocal();
+    const { draft, receipt } = draftFor(compositionStore, [PASSKEYS], "r1");
+    await compositionStore.commit(draft, receipt);
+    const child = deriveLease(compositionStore.currentLease());
+    bindLeaseToCapability(child.lease, PASSKEYS);
+
+    let notifications = 0;
+    subscribeContributions(() => {
+      notifications += 1;
+    })();
+    registerContribution("route", route("a", 1), child.lease);
+    expect(notifications).toBe(0);
+  });
+});
 
 describe("registerContribution", () => {
   it("refuses an unbound lease", async () => {

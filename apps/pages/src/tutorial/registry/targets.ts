@@ -80,6 +80,7 @@ const mounted = new Map<GuideTargetId, MountedTarget[]>();
 const mountListeners = new Set<() => void>();
 const activationListeners = new Map<GuideTargetId, Set<ActivationListener>>();
 const duplicateMounts: string[] = [];
+const undeclaredMounts: string[] = [];
 
 function announce(): void {
   for (const listener of [...mountListeners]) listener();
@@ -106,7 +107,21 @@ export function mountGuideTarget(
 ): () => void {
   const descriptor = declared().get(id);
   if (!descriptor) {
-    throw new Error(`guide_target_undeclared:${id}`);
+    // Fail closed, not loudly. A guide may never point at a target nobody
+    // declared, so nothing is bound and nothing is observed — but throwing
+    // here runs inside a React ref and takes the document with it, and the
+    // id is not always the author's mistake: a capability declares its
+    // targets when its module activates, so a control from one capability
+    // can render before the capability that declares its id has landed.
+    // Approving `backup.git-remote` did exactly that and white-screened the
+    // app, because its settings category names `settings.backup`, which
+    // `connectors.external` declares. Development still throws, which is
+    // where an id genuinely nobody declares gets caught.
+    undeclaredMounts.push(id);
+    if (inDevelopment()) {
+      throw new Error(`guide_target_undeclared:${id}`);
+    }
+    return () => {};
   }
   const candidates = mounted.get(id) ?? [];
   if (candidates.some((candidate) => candidate.element === element)) {
@@ -217,6 +232,11 @@ export function duplicateGuideTargetMounts(): readonly string[] {
   return [...duplicateMounts];
 }
 
+/** Ids a control claimed that no capability had declared when it mounted. */
+export function undeclaredGuideTargetMounts(): readonly string[] {
+  return [...undeclaredMounts];
+}
+
 export function subscribeToGuideTargets(listener: () => void): () => void {
   mountListeners.add(listener);
   return () => {
@@ -321,5 +341,6 @@ export function clearMountedGuideTargets(): void {
   }
   mounted.clear();
   activationListeners.clear();
+  undeclaredMounts.length = 0;
   announce();
 }

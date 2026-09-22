@@ -215,6 +215,11 @@ function Framed({ children }: { children: ReactNode }) {
 /**
  * Unlock effects an approved module registered run once per unlock, under
  * the lease that approved them: a bump aborts the signal they were handed.
+ *
+ * Locking clears any active duress presentation first (ADR 0131). That is
+ * core, not an unlock effect: it must run whether or not a tomb is open and
+ * whether or not a capability contributed anything, so it sits ahead of the
+ * early return rather than inside the effect list.
  */
 function useAfterUnlock(
   status: string,
@@ -224,7 +229,13 @@ function useAfterUnlock(
   recover: () => void,
 ): void {
   useEffect(() => {
-    if (status !== "unlocked" || !tomb) return;
+    if (status !== "unlocked") {
+      void import("./lib/duress/compartment/presentation-runtime.js").then(
+        ({ clearActivePresentation }) => clearActivePresentation(),
+      );
+      return;
+    }
+    if (!tomb) return;
     recover();
     const controller = new AbortController();
     let leaseSignal: AbortSignal | null = null;

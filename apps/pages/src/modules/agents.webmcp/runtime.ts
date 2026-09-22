@@ -3,12 +3,20 @@
  * (`document.modelContext`, with the legacy `navigator.modelContext` as a
  * fallback), so an in-browser agent can read and navigate the app.
  *
- * This capability owns the *surface*, not the tools. Every other capability
- * contributes its own `webmcp-tool` entries and the core keeps only those
- * whose operations the plan approves; this module registers that filtered
- * set with the browser and takes it all back on dispose. The three boot
- * tools (status, navigate, health) are its own, since they describe the app
- * itself rather than a feature.
+ * This capability owns the *surface*, not the tools. Every optional
+ * capability contributes its own `webmcp-tool` entries and the core keeps
+ * only those whose operations the plan approves; this module registers that
+ * filtered set with the browser and takes it all back on dispose.
+ *
+ * Two groups are registered here because nothing else can. The boot tools
+ * (status, navigate, health) describe the app itself rather than a feature.
+ * And the core's own tools — the vault item tools, the login draft and the
+ * reveal ceremony — belong to capabilities that are always on and therefore
+ * have no module to contribute from: when registration moved to
+ * contributions they were left with no registrar at all, and every vault
+ * tool an agent had disappeared from the surface. They are tagged like
+ * everyone else's, so the plan's approved operations still decide which of
+ * them a given installation exposes.
  *
  * `@opensesame/webmcp` is exclusive to this capability *and* is reached
  * only through `import()` inside `registrar.ts`. So an installation that
@@ -31,6 +39,8 @@
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { BOOT_TOOLS } from "../../webmcp/boot-tools.js";
+import { LOGIN_DRAFT_TOOLS } from "../../webmcp/login-tools.js";
+import { OPEN_REVEAL_TOOL, VAULT_TOOLS } from "../../webmcp/vault-tools.js";
 import { createActivation } from "../activation.js";
 import { type ContextWithPorts, tagWebMcpTool } from "../ports-b.js";
 import { WebMcpSessionTools } from "./SessionTools.js";
@@ -45,9 +55,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    // The app's own tools, tagged so the core filters them by the plan's
-    // approved operations exactly as it does everyone else's.
-    for (const tool of BOOT_TOOLS) {
+    // The app's own tools and the core's, tagged so the core filters them by
+    // the plan's approved operations exactly as it does everyone else's.
+    for (const tool of [
+      ...BOOT_TOOLS,
+      ...VAULT_TOOLS,
+      OPEN_REVEAL_TOOL,
+      ...LOGIN_DRAFT_TOOLS,
+    ]) {
       activation.register("webmcp-tool", tagWebMcpTool(tool));
     }
 

@@ -6,6 +6,7 @@ import type {
 import {
   submitFirstRunUnlock,
   submitGuestUnlock,
+  submitPasskeyDuressCode,
   submitPrimaryMethodUnlock,
   submitSecondStepUnlock,
 } from "./unlock-form-paths.js";
@@ -21,6 +22,8 @@ type UnlockStore = Readonly<{
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
   unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
+  probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
+  unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
 }>;
@@ -33,6 +36,8 @@ export async function submitUnlockForm(input: {
   firstRun: boolean;
   guestUnlock: boolean;
   awaitingSecondStep: boolean;
+  awaitingPasskeyDuressCode: boolean;
+  setAwaitingPasskeyDuressCode: (value: boolean) => void;
   recoveryMode: boolean;
   activeMethod: UnlockMethodId;
   activeSecondStep: SecondStepId | null;
@@ -62,12 +67,20 @@ export async function submitUnlockForm(input: {
       await submitFirstRunUnlock(input);
     } else if (input.guestUnlock) {
       await submitGuestUnlock();
+    } else if (input.awaitingPasskeyDuressCode) {
+      const outcome = await submitPasskeyDuressCode(input);
+      if (outcome === "duress_stop") return;
+      input.setAwaitingPasskeyDuressCode(false);
     } else if (input.awaitingSecondStep) {
       const outcome = await submitSecondStepUnlock(input);
       if (outcome === "duress_stop") return;
     } else {
       const outcome = await submitPrimaryMethodUnlock(input);
       if (outcome === "duress_stop") return;
+      if (outcome === "needs_duress_code") {
+        input.setAwaitingPasskeyDuressCode(true);
+        return;
+      }
     }
     input.setConfirm("");
   } catch (caught) {

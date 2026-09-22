@@ -269,6 +269,9 @@ export const LIB_RULES = [
   ...each(L, ["transport-"], (p) =>
     optional(p, "access.authority", "operator transport status and probe"),
   ),
+  ...each(L, ["router-seam"], (p) =>
+    core(p, SHELL, "the router's navigate, read from outside React"),
+  ),
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),
   ),

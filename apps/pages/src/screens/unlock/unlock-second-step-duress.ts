@@ -71,7 +71,10 @@ export async function unlockSecondStepAfterDuressGate(input: {
   if (duressOutcome.kind === "duress") {
     return continueAfterDuressMatch(
       input.store,
-      duressOutcome.match.plaintext.presentation,
+      {
+        profileId: duressOutcome.match.profileId,
+        plaintext: duressOutcome.match.plaintext,
+      },
       wrong,
     );
   }

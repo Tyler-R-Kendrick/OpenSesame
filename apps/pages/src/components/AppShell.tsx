@@ -13,6 +13,7 @@ import {
   focusVaultListing,
   registerKeymapHelp,
 } from "../lib/keymap.js";
+import { installRouterNavigate } from "../lib/router-seam.js";
 import { useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccountSwitcher } from "./AccountSwitcher.js";
@@ -32,6 +33,7 @@ import {
 import { Statusline } from "./Statusline.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { Wordmark } from "./Wordmark.js";
+import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 
 /**
  * A capability removed while its route is current leaves the person on a
@@ -107,6 +109,12 @@ function Shell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("keydown", keymap, true);
   }, [keymap]);
 
+  // The loader builds a module's context before any component renders, so a
+  // capability whose tools navigate reads the router through this seam
+  // (router-seam.ts). It is installed while the shell is mounted and taken
+  // back when it is not.
+  useEffect(() => installRouterNavigate(navigate), [navigate]);
+
   useEffect(() => registerKeymapHelp(showKeymap), [showKeymap]);
 
   return (
@@ -144,6 +152,7 @@ function Shell({ children }: { children?: ReactNode }) {
 
         <Crumbs />
 
+        <DuressPresentationOverlay />
         {children}
       </div>
 

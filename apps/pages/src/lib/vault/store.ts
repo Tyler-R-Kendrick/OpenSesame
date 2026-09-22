@@ -73,6 +73,11 @@ import {
   mergeVaultBodies,
 } from "./model.js";
 import {
+  probePasskeyPrf,
+  unlockVaultWithHeldPrf,
+  unlockVaultWithPasskey,
+} from "./passkey-unlock-session.js";
+import {
   readPrefsJson,
   readPrefsSourceFile,
   writePrefsJson,
@@ -113,7 +118,6 @@ import {
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
   createPasskeyUnlockCeremony,
-  getPasskeyUnlockCeremony,
   hasSecondStep,
   normalizeRecoveryCode,
   openRecoveryLedger,
@@ -125,7 +129,6 @@ import {
   sealText,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
-  unwrapVaultKeyWithPrf,
   webauthnRpId,
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
@@ -781,39 +784,27 @@ export class VaultStore {
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
+  async probePasskeyPrf(signal?: AbortSignal): Promise<ArrayBuffer> {
+    return probePasskeyPrf(this.#passkeyUnlockHost(), signal);
+  }
+
+  async unlockWithHeldPrf(prfOutput: ArrayBuffer): Promise<void> {
+    await unlockVaultWithHeldPrf(this.#passkeyUnlockHost(), prfOutput);
+  }
+
   async unlockWithPasskey(signal?: AbortSignal): Promise<void> {
-    this.#assertNotLockedOut();
-    if (!this.#header) throw new Error("There is no vault on this device yet.");
-    const record = this.#header.unlocks?.passkey;
-    // Unenrolled challenge: fail like a wrong passkey, lockout included (see unlock).
-    if (!record) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That passkey did not unlock the vault.");
-    }
+    await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
+  }
 
-    let prfOutput: ArrayBuffer;
-    try {
-      prfOutput = await getPasskeyUnlockCeremony(record, undefined, signal);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw error;
-      }
-      throw error instanceof Error
-        ? error
-        : new Error("Passkey unlock failed.");
-    }
-
-    let raw: Uint8Array;
-    try {
-      raw = await unwrapVaultKeyWithPrf(record, prfOutput);
-    } catch (error) {
-      if (!(error instanceof WrongPasswordError)) throw error;
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That passkey did not unlock the vault.");
-    }
-    this.#stashRaw(raw);
-    const vaultKey = await importVaultKey(raw);
-    await this.#afterPrimaryUnwrap(vaultKey);
+  #passkeyUnlockHost() {
+    return {
+      header: () => this.#header,
+      assertNotLockedOut: () => this.#assertNotLockedOut(),
+      recordFailedUnlock: () => this.#recordFailedUnlock(),
+      stashRaw: (raw: Uint8Array) => this.#stashRaw(raw),
+      afterPrimaryUnwrap: (vaultKey: CryptoKey) =>
+        this.#afterPrimaryUnwrap(vaultKey),
+    };
   }
 
   async confirmTotp(code: string): Promise<void> {

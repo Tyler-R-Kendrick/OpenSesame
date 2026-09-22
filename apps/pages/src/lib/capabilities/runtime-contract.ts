@@ -195,6 +195,15 @@ export type ApprovedCapabilityContext = Readonly<{
   hydrate: (keys: readonly string[]) => Promise<void>;
   vault: Readonly<{ tomb: string | null; guest: boolean }>;
   egress: import("./egress.js").EgressPort;
+  /**
+   * The router, for a module whose tools move the person between authored
+   * destinations. The loader builds this context before any component has
+   * rendered, so it reads the shell's navigate through a seam and throws
+   * `router_unavailable` until the shell is mounted (`lib/router-seam.ts`).
+   * It used to be an optional port nothing implemented, which is why
+   * `opensesame_navigate` answered `router_unavailable` on every call.
+   */
+  navigate: (to: string) => void;
 }>;
 
 export type CapabilityRuntime = Readonly<{

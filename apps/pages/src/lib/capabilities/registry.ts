@@ -149,7 +149,7 @@ export function contributions<K extends ContributionKind>(
   return stable as readonly ContributionEntry<K>[];
 }
 
-function subscribeRegistry(listener: () => void): () => void {
+export function subscribeRegistry(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

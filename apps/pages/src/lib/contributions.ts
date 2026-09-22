@@ -20,6 +20,7 @@ import type { ContributionKind } from "@opensesame/capability-composition";
 import { useMemo, useSyncExternalStore } from "react";
 import {
   contributions,
+  subscribeRegistry,
   useContributions as useRegistryContributions,
 } from "./capabilities/registry.js";
 import type { ContributionEntry } from "./capabilities/runtime-contract.js";
@@ -112,8 +113,27 @@ function subscribeInjected(listener: () => void): () => void {
  * know about those compares snapshot references instead (they are stable
  * per registry version), which is what the tutorial registries do.
  */
+/**
+ * Notify on every change to the set `contributionsSnapshot` returns — the
+ * registry's own registrations *and* the test channel's.
+ *
+ * This used to subscribe to the test channel alone, so in production it
+ * never fired: a module registering a `webmcp-tool` announced nothing, and
+ * the one caller that re-reads on change — the WebMCP surface, whose doc
+ * says "both re-register when that set changes, so approving or disabling
+ * another capability mid-session is reflected without a reload" — held
+ * whatever snapshot happened to exist when it mounted. With three
+ * capabilities approved that was the whole set; with six the wallet's eight
+ * session tools registered after the surface mounted and never reached the
+ * browser at all.
+ */
 export function subscribeContributions(listener: () => void): () => void {
-  return subscribeInjected(listener);
+  const stopRegistry = subscribeRegistry(listener);
+  const stopInjected = subscribeInjected(listener);
+  return () => {
+    stopRegistry();
+    stopInjected();
+  };
 }
 
 /** Generation-fenced hook over the same set the sync accessor returns. */

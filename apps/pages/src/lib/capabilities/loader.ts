@@ -21,6 +21,7 @@ import type {
   RuntimeHandle,
 } from "@opensesame/capability-composition";
 import { kvHydrate } from "../kv.js";
+import { routerSeam } from "../router-seam.js";
 import { runtimeConfigSnapshot } from "../runtime-config.js";
 import { egressSeams } from "./egress-default.js";
 import { markModuleEvaluated } from "./facts.js";
@@ -171,6 +172,10 @@ function contextFor(
     hydrate: (keys) => loaderSeams.hydrate(keys),
     vault,
     egress: egressSeams.createEgressPort(capability),
+    // The router, for a module whose tools move the person between authored
+    // destinations. The seam throws until the shell is mounted, which is the
+    // honest answer outside the app (router-seam.ts).
+    navigate: (to: string) => routerSeam.navigate(to),
   };
 }
 

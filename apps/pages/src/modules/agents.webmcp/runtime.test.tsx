@@ -50,8 +50,10 @@ describe("agents.webmcp runtime", () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "agents.webmcp",
       kinds: ["background-job", "shell-wrapper", "webmcp-tool"],
-      // three boot tools + the registration job + the session wrapper
-      count: 3 + 1 + 1,
+      // three boot tools, the core's five (four vault tools and the reveal
+      // ceremony) and the login draft, plus the registration job and the
+      // session wrapper
+      count: 3 + 5 + 1 + 1 + 1,
     });
   });
 
@@ -59,14 +61,36 @@ describe("agents.webmcp runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const tools = t.entries("webmcp-tool");
-    expect(tools.map((tool) => tool.name)).toEqual([
+    // The three that describe the app itself, then the core's own — which
+    // have no module of their own to be contributed from, and had no
+    // registrar at all until this capability took them.
+    expect(tools.map((tool) => tool.name).slice(0, 3)).toEqual([
       "opensesame_status",
       "opensesame_navigate",
       "opensesame_health",
     ]);
     expect(
       tools.map((tool) => (tool as { operationId?: string }).operationId),
-    ).toEqual(["app.status", "app.navigate", "identity.health.pages"]);
+    ).toEqual(
+      expect.arrayContaining([
+        "app.status",
+        "app.navigate",
+        "identity.health.pages",
+      ]),
+    );
+    for (const name of [
+      "opensesame_vault_search",
+      "opensesame_vault_item_read",
+      "opensesame_vault_item_write",
+      "opensesame_totp_code",
+      "opensesame_open_reveal",
+    ]) {
+      expect(tools.map((tool) => tool.name)).toContain(name);
+    }
+    // Every one carries its operations, or the core could not filter it.
+    for (const tool of tools) {
+      expect((tool as { operationId?: string }).operationId).toBeTruthy();
+    }
     expect(t.entries("background-job").map((job) => job.id)).toEqual([
       "webmcp-boot",
     ]);
