@@ -1,5 +1,4 @@
 /** @vitest-environment jsdom */
-import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { authorizeHost, hostAuthorizationSeams } from "./host-authorization.js";
 
@@ -87,7 +86,7 @@ it("binds popup source, exact origin, state, challenge and one-use redemption", 
   message({ type: "opensesame:host-authorization-ready", state: "wrong" });
   expect(fetched).not.toHaveBeenCalled();
   message({ type: "opensesame:host-authorization-ready" });
-  await waitFor(() => expect(popup.postMessage).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(popup.postMessage).toHaveBeenCalledOnce());
   expect(popup.postMessage.mock.calls[0][1]).toBe("https://identity.example");
   message({
     type: "opensesame:host-authorization",
@@ -119,7 +118,7 @@ it("lock cancels the pending popup and cannot redeem a late assertion", async ()
   const result = authorizeHost(request, new AbortController().signal);
   const rejected = expect(result).rejects.toThrow(/refused or expired/);
   message({ type: "opensesame:host-authorization-ready" });
-  await waitFor(() => expect(popup.postMessage).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(popup.postMessage).toHaveBeenCalledOnce());
   seam.signal.abort();
   message({ type: "opensesame:host-authorization", assertion: "late" });
   await rejected;

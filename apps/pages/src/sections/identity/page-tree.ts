@@ -61,8 +61,9 @@ function itemsFor(
 /** Identity page: each tab is a subtree of the records that tab shows. */
 export function identityPageSources(
   snapshot: IdentityRailSnapshot = {},
+  views: readonly (typeof IDENTITY_VIEWS)[number][] = IDENTITY_VIEWS,
 ): PageTreeSource[] {
-  return IDENTITY_VIEWS.map((id) => ({
+  return views.map((id) => ({
     id,
     label: IDENTITY_LABELS[id],
     href: `/identity?view=${id}`,
@@ -70,6 +71,9 @@ export function identityPageSources(
   }));
 }
 
-export function identityPageTree(snapshot: IdentityRailSnapshot = {}) {
-  return pageTabTree(identityPageSources(snapshot));
+export function identityPageTree(
+  snapshot: IdentityRailSnapshot = {},
+  views: readonly (typeof IDENTITY_VIEWS)[number][] = IDENTITY_VIEWS,
+) {
+  return pageTabTree(identityPageSources(snapshot, views));
 }

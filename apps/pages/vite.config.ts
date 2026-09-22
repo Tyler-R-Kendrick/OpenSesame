@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { crossOriginOpenerPolicy } from "./src/lib/opener-policy.ts";
@@ -122,6 +123,10 @@ export default defineConfig({
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
     rollupOptions: {
+      // Every HTML entry is listed here; `capabilityCompose()`'s config hook
+      // removes the ones owned by a capability a hardened build excludes
+      // (`auth/redirect.html` → identity.ambient-sso) and partitions optional
+      // modules into `cap-<capability>` chunks. `main` is always kept.
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         msalRedirect: fileURLToPath(
@@ -204,6 +209,13 @@ export default defineConfig({
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },
     }),
+    // Capability composition (ownership.md §4.6): virtual MODULE_TABLE and
+    // DISTRIBUTION, hardened pruning, `dist/capability-graph.json` and the
+    // forbidden-reachability gate. Placed after VitePWA so its post-order
+    // closeBundle sees `sw.js`; its normal-order closeBundle prunes excluded
+    // public files before VitePWA globs the precache manifest. Env:
+    // OPENSESAME_CAPABILITY_PROFILE, OPENSESAME_BUILD_MODE, OPENSESAME_GRAPH_GATE.
+    capabilityCompose(),
     {
       // Dev-only: Vite injects inline module scripts that CSP would block.
       name: "csp-inline-script-hashes",

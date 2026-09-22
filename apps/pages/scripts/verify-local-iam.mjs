@@ -2,7 +2,12 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
-import { localAccessJourney } from "./lib/local-access-journey.mjs";
+
+import {
+  LOCAL_IAM_CAPABILITIES,
+  chooseCapabilities,
+  localAccessJourney,
+} from "./lib/local-access-journey.mjs";
 import { localDevicesJourney } from "./lib/local-devices-journey.mjs";
 import { localPolicyJourney } from "./lib/local-policy-journey.mjs";
 import {
@@ -229,6 +234,10 @@ async function seedJourney(agentMode) {
       { principalId: identities.agent, publicKey },
     );
   }
+  // This installation chooses the capabilities the suite drives before any
+  // of it runs: the consent screen and the Access section belong to them,
+  // and a device that has not chosen one has no such route (ADR 0130).
+  await chooseCapabilities(context, 1280, LOCAL_IAM_CAPABILITIES);
   return { page, context, credentials, identities };
 }
 

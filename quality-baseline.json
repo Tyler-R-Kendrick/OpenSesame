@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 499,
-    "violations": 789,
-    "oversizedLines": 252220
+    "files": 493,
+    "violations": 783,
+    "oversizedLines": 248992
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -579,14 +579,8 @@
     "apps/pages/scripts/lib/j-app-recipe-journey.mjs": {
       "max-statements": 1
     },
-    "apps/pages/src/App.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/components/AppShell.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/CeremonyShell.tsx": {
@@ -600,9 +594,6 @@
     },
     "apps/pages/src/components/FieldShell.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/components/Icons.tsx": {
-      "max-lines": 583
     },
     "apps/pages/src/components/IdentityCeremony.tsx": {
       "complexity": 1,
@@ -683,7 +674,7 @@
       "max-lines": 495
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
-      "max-lines": 956
+      "max-lines": 623
     },
     "apps/pages/src/lib/keymap.ts": {
       "complexity": 1,
@@ -805,9 +796,6 @@
     "apps/pages/src/screens/DropClaimScreen.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/screens/SetupScreen.test.tsx": {
-      "max-lines": 477
-    },
     "apps/pages/src/screens/SetupScreen.tsx": {
       "max-lines-per-function": 1
     },
@@ -819,7 +807,7 @@
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 1110,
+      "max-lines": 1109,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -847,25 +835,25 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 793
+      "max-lines": 605
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 890
+      "max-lines": 864
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2344,
+      "max-lines": 2343,
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
       "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 738
+      "max-lines": 697
     },
     "apps/pages/src/sections/VaultSection.tsx": {
       "max-lines-per-function": 1
@@ -999,9 +987,6 @@
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
       "max-nested-callbacks": 1
     },
-    "apps/pages/src/tutorial/__tests__/adversarial/harness.ts": {
-      "max-lines": 413
-    },
     "apps/pages/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
       "max-lines": 678
     },
@@ -1013,7 +998,7 @@
       "max-lines": 451
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
-      "max-lines": 936
+      "max-lines": 551
     },
     "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
       "max-lines-per-function": 1
@@ -1027,10 +1012,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 726
-    },
-    "apps/pages/src/webmcp/tools.ts": {
-      "max-lines": 696
+      "max-lines": 642
     },
     "apps/pm-bridges/src/keepassxc/actions.rs": {
       "max-lines": 649

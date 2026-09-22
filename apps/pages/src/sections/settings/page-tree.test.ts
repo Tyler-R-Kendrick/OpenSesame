@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
 import {
   connectionsSettingsSections,
   settingsPageSources,
@@ -6,6 +7,18 @@ import {
 } from "./page-tree.js";
 
 describe("settingsPageTree", () => {
+  // Connections is the connectors capability's settings category, so it is
+  // on the tree only where that capability is approved. These cases describe
+  // such a deployment and register the contribution the module makes.
+  let revokeCategories: (() => void) | null = null;
+  beforeEach(() => {
+    revokeCategories = registerLegacySettingsCategories();
+  });
+  afterEach(() => {
+    revokeCategories?.();
+    revokeCategories = null;
+  });
+
   it("lists each settings tab as a first-level child, never nested under another tab", () => {
     const tabs = settingsPageTree();
     expect(tabs.map((node) => node.label)).toEqual([
@@ -13,6 +26,7 @@ describe("settingsPageTree", () => {
       "Security",
       "Vaults",
       "Connections",
+      "Capabilities",
       "Danger",
     ]);
     expect(tabs.map((node) => node.href)).toEqual([
@@ -20,6 +34,7 @@ describe("settingsPageTree", () => {
       "/settings/security",
       "/settings/vaults",
       "/settings/connections",
+      "/settings/capabilities",
       "/settings/danger",
     ]);
     for (const tab of tabs) {
@@ -70,6 +85,7 @@ describe("settingsPageTree", () => {
       "security",
       "vaults",
       "connections",
+      "capabilities",
       "danger",
     ]);
   });

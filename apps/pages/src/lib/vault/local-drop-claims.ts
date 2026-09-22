@@ -18,6 +18,16 @@ import { kvDelete, kvGet, kvSet } from "../kv.js";
 
 const STORAGE_KEY = "opensesame.local-drop-claims.v1";
 const PEPPER_KEY = "opensesame.local-drop-pepper.v1";
+
+/**
+ * The plaintext kv keys this plane reads synchronously. `sharing.drops`
+ * hydrates them in `activate`; the core boot does not (ownership.md §4.3),
+ * so nothing about drops is pulled into an installation that has none.
+ */
+export const LOCAL_DROP_CLAIM_KEYS: readonly string[] = [
+  STORAGE_KEY,
+  PEPPER_KEY,
+];
 const MAX_ATTEMPTS = 5;
 
 export class LocalDropClaimError extends Error {

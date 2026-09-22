@@ -1,0 +1,559 @@
+{
+  "$comment": "Who owns what, and what has actually landed, for operator-controlled capability composition (ADR 0130). Seeded 2026-09-22 on branch claude/new-session-9wpwbh from docs/implementation/capability-composition/ownership.md §3 and from the checkout on disk. Nothing here is asserted that was not read from a file or produced by a run recorded in contract-test-matrix.json. Per-contract coverage lives in contract-test-matrix.json; this file is the ownership and landed-surface view.",
+  "generatedAt": "2026-09-22",
+  "branch": "claude/new-session-9wpwbh",
+  "baseline": "docs/evidence/capability-composition/baseline.md",
+  "contract": "docs/implementation/capability-composition/ownership.md",
+  "decision": "docs/adr/0130-operator-controlled-capability-composition.md",
+  "catalog": {
+    "source": "apps/pages/src/lib/capabilities/catalog.ts",
+    "catalogVersion": 1,
+    "coreCount": 7,
+    "optionalCount": 24,
+    "core": [
+      "backup.local-encrypted",
+      "identity.brokered-signin",
+      "install.pwa",
+      "settings.core",
+      "shell.navigation",
+      "vault.local-unlock",
+      "vault.passwords"
+    ],
+    "optional": [
+      "access.authority",
+      "activity.log",
+      "agents.webmcp",
+      "backup.cloud-secrets",
+      "backup.git-remote",
+      "connectors.external",
+      "enterprise.ca-administration",
+      "enterprise.directory-provisioning",
+      "identity.ambient-sso",
+      "identity.federation",
+      "identity.local-iam",
+      "identity.site-broker",
+      "identity.siop",
+      "notifications.web-push",
+      "sharing.drops",
+      "sharing.household",
+      "support.guided-help",
+      "support.local-ai",
+      "support.remote-ai",
+      "telemetry.external",
+      "vault.certificate-records",
+      "vault.interop-formats",
+      "vault.passkey-records",
+      "wallet.spending"
+    ]
+  },
+  "principles": {
+    "$comment": "The delivery mandate names principles P-LOCAL .. P-EVIDENCE. Only two of those labels appear anywhere in the checkout: P-TRUTH and P-NOLOAD. The other rows below carry the mandate's label with labelSource saying so, and are anchored to the ADR section and the file that actually implements them, so no reader mistakes a label for a citation. Searched: apps/pages, packages, docs, scripts (2026-09-22).",
+    "rows": [
+      {
+        "id": "P-LOCAL",
+        "labelSource": "delivery mandate; label not present in the checkout",
+        "statement": "Resolution is local, offline and deterministic: the resolver reads documents and explicit facts, never a clock, a network, storage or the DOM.",
+        "anchors": [
+          "packages/capability-composition/src/resolve.ts",
+          "packages/capability-composition/src/types-documents.ts (RuntimeFacts.now is supplied)",
+          "apps/pages/src/lib/capabilities/openfeature.ts (local read-only provider)"
+        ],
+        "contracts": ["MODEL-07", "MODEL-08", "OF-01", "TRUST-09"],
+        "status": "covered"
+      },
+      {
+        "id": "P-NOLOAD",
+        "labelSource": "source: apps/pages/src/sw/core.ts",
+        "statement": "An implementation that was not selected is not loaded. The bootstrap imports app-root dynamically after the plan resolves; optional code enters only through loadApprovedModule; a service worker cannot load a script it did not ship with.",
+        "anchors": [
+          "apps/pages/src/main.tsx",
+          "apps/pages/src/lib/capabilities/loader.ts",
+          "apps/pages/src/sw/core.ts"
+        ],
+        "contracts": [
+          "LOAD-01",
+          "LOAD-03",
+          "LOAD-04",
+          "LOAD-07",
+          "PWA-01",
+          "BUILD-05"
+        ],
+        "status": "partial",
+        "note": "LOAD-01 has no landed test; see contract-test-matrix.json."
+      },
+      {
+        "id": "P-SCOPE",
+        "labelSource": "delivery mandate; label not present in the checkout",
+        "statement": "Five scopes narrow in one direction and never collapse into one another; a narrower scope can only subtract.",
+        "anchors": [
+          "packages/capability-composition/src/resolve-axes.ts",
+          "packages/capability-composition/src/types-documents.ts",
+          "docs/adr/0130-operator-controlled-capability-composition.md §2"
+        ],
+        "contracts": ["MODEL-02", "MODEL-03", "MODEL-08", "VAULT-*"],
+        "status": "partial",
+        "note": "The vault-session scope has no contract id anywhere in the checkout; see the VAULT-* row in contract-test-matrix.json."
+      },
+      {
+        "id": "P-CONSENT",
+        "labelSource": "delivery mandate; label not present in the checkout",
+        "statement": "Consent is a receipt over exact roots and exposure digests, taken before activation and re-opened when exposure grows. A configuration record is not consent.",
+        "anchors": [
+          "packages/capability-composition/src/consent.ts",
+          "apps/pages/src/lib/capabilities/store-commit.ts",
+          "apps/pages/src/lib/capabilities/migration.ts"
+        ],
+        "contracts": [
+          "CONSENT-01",
+          "CONSENT-02",
+          "CONSENT-03",
+          "CONSENT-04",
+          "CONSENT-05",
+          "CONSENT-06",
+          "CONSENT-07",
+          "CONSENT-08",
+          "CONSENT-09",
+          "CONSENT-10",
+          "LIFE-06"
+        ],
+        "status": "covered"
+      },
+      {
+        "id": "P-TRUTH",
+        "labelSource": "source: packages/capability-composition/src/types-plan.ts, apps/pages/src/screens/capabilities/status.ts, docs/adr/0130 §'What this decision does not claim'",
+        "statement": "Each claim is its own and none implies another: not-distributed, not-selected, consent-required, approved-not-loaded, active, disabled, disabled-restart-required, cached-offline. A preview never reads as applied, and the limits are written down rather than glossed.",
+        "anchors": [
+          "packages/capability-composition/src/types-plan.ts (CapabilityLifecycle)",
+          "apps/pages/src/screens/capabilities/status.ts",
+          "docs/evidence/capability-composition/limitations.md"
+        ],
+        "contracts": ["LOAD-06", "TRUST-10", "PWA-06"],
+        "status": "covered"
+      },
+      {
+        "id": "P-EVIDENCE",
+        "labelSource": "delivery mandate; label not present in the checkout",
+        "statement": "Absence is measured from an emitted artifact by an independent verifier, not asserted by the thing that produced it.",
+        "anchors": [
+          "apps/pages/scripts/verify-capability-graph.mjs",
+          "apps/pages/scripts/build-profile.mjs",
+          "docs/validation/capability-composition.md"
+        ],
+        "contracts": [
+          "EVID-01",
+          "EVID-02",
+          "EVID-03",
+          "EVID-08",
+          "BUILD-04",
+          "BUILD-07"
+        ],
+        "status": "partial",
+        "note": "BUILD-07 (the profile build matrix) has no landed test and was not built in this session."
+      }
+    ]
+  },
+  "areas": [
+    {
+      "owner": "S01",
+      "role": "pure semantics",
+      "paths": ["packages/capability-composition/**"],
+      "landed": {
+        "sourceFiles": 26,
+        "testFiles": 10,
+        "tests": 60,
+        "run": "run-composition (all passed)"
+      },
+      "contracts": [
+        "MODEL-01",
+        "MODEL-02",
+        "MODEL-03",
+        "MODEL-04",
+        "MODEL-05",
+        "MODEL-06",
+        "MODEL-07",
+        "MODEL-08",
+        "MODEL-09",
+        "MODEL-10",
+        "CONSENT-04",
+        "CONSENT-05"
+      ],
+      "pending": []
+    },
+    {
+      "owner": "S02",
+      "role": "inventory: catalog, ownership map, presets, profile fixtures, operation map",
+      "paths": [
+        "apps/pages/src/lib/capabilities/catalog.ts",
+        "apps/pages/src/lib/capabilities/catalog-core.ts",
+        "apps/pages/src/lib/capabilities/catalog-optional-identity.ts",
+        "apps/pages/src/lib/capabilities/catalog-optional-services.ts",
+        "apps/pages/src/lib/capabilities/catalog-optional-vault.ts",
+        "apps/pages/src/lib/capabilities/ownership.ts",
+        "apps/pages/src/lib/capabilities/presets.ts",
+        "apps/pages/src/lib/capabilities/classification*.ts",
+        "apps/pages/capability-profiles/*.json",
+        "packages/capability-registry/src/capability-map.ts"
+      ],
+      "landed": {
+        "profiles": [
+          "minimal-local",
+          "family-local",
+          "family-sharing-selected",
+          "single-provider-selected",
+          "enterprise-selected",
+          "rich-explicit",
+          "managed-prohibited",
+          "managed-invalid-instance",
+          "managed-invalid-revision",
+          "managed-invalid-signature",
+          "managed-missing-required"
+        ],
+        "presets": ["personal", "family", "homelab", "organization", "custom"],
+        "plannedModuleEntries": [
+          "vault.interop-formats",
+          "identity.federation",
+          "identity.ambient-sso",
+          "identity.local-iam",
+          "identity.siop",
+          "identity.site-broker",
+          "enterprise.directory-provisioning",
+          "enterprise.ca-administration",
+          "agents.webmcp",
+          "support.guided-help",
+          "support.local-ai",
+          "support.remote-ai",
+          "notifications.web-push",
+          "telemetry.external"
+        ],
+        "plannedModuleEntriesNote": "As listed in PLANNED_MODULE_ENTRIES in apps/pages/src/lib/capabilities/ownership.ts at the time of writing. Concurrent module-owner work was landing src/modules/agents.webmcp/ and src/modules/support.remote-ai/ during this session, so that list falls as entries arrive."
+      },
+      "contracts": ["S02-A", "S02-F", "PROFILES"],
+      "pending": [],
+      "note": "classification.test.ts's 'matches every source module the build sees' was failing at 03:37 on three concurrently-written helper files (src/modules/ports-b.ts, tutorial-pick-b.ts, tutorial-test-realm.ts) that have no rule yet. Recorded as observed, not as a design defect."
+    },
+    {
+      "owner": "S03",
+      "role": "trust: envelope verification, provenance, join review, revision/rollback",
+      "paths": ["apps/pages/src/lib/capabilities/trust/**"],
+      "landed": {
+        "testFiles": 5,
+        "tests": 24,
+        "run": "run-pages-capabilities (all passed)"
+      },
+      "contracts": [
+        "TRUST-02",
+        "TRUST-03",
+        "TRUST-04",
+        "TRUST-05",
+        "TRUST-06",
+        "TRUST-07",
+        "TRUST-08",
+        "TRUST-09",
+        "TRUST-10"
+      ],
+      "pending": ["TRUST-01"]
+    },
+    {
+      "owner": "S04",
+      "role": "configuration resources: instance policy / installation selection / vault restriction, Visual-Source-Effective, export",
+      "paths": ["apps/pages/src/lib/configuration/capabilities-*.ts"],
+      "landed": {
+        "resources": [
+          "capabilities/instance-policy.yaml",
+          "capabilities/installation-selection.yaml",
+          "capabilities/vault-restriction.yaml",
+          "capabilities/effective-plan.yaml (read-only)"
+        ],
+        "exportFile": "opensesame-instance-configuration.yaml"
+      },
+      "contracts": ["CONSENT-06", "CONSENT-07", "CONSENT-10"],
+      "pending": [],
+      "note": "capabilities-adapter.test.ts exists and was read but was not executed in this session."
+    },
+    {
+      "owner": "S05",
+      "role": "bootstrap: core-only boot, parsed runtime config, core routes, unavailable route",
+      "paths": [
+        "apps/pages/src/main.tsx",
+        "apps/pages/src/bootstrap/**",
+        "apps/pages/src/lib/runtime-config.ts",
+        "apps/pages/src/app-root.tsx"
+      ],
+      "landed": {
+        "testFiles": 2,
+        "tests": 24,
+        "run": "run-pages-boot (all passed)"
+      },
+      "contracts": ["LOAD-03", "TRUST-08"],
+      "pending": ["LOAD-01"]
+    },
+    {
+      "owner": "S06",
+      "role": "loader and runtime: store, loader, registry, authority, lease",
+      "paths": [
+        "apps/pages/src/lib/capabilities/{store,store-*,loader,registry,authority,lease,facts,keys}.ts"
+      ],
+      "landed": { "tests": 34, "run": "run-pages-capabilities (all passed)" },
+      "contracts": [
+        "LOAD-06",
+        "LOAD-07",
+        "LOAD-09",
+        "LIFE-01",
+        "LIFE-04",
+        "LIFE-09",
+        "CONSENT-08",
+        "CONSENT-09",
+        "MODEL-01",
+        "TRUST-08"
+      ],
+      "pending": ["LOAD-05", "LOAD-08", "LIFE-02", "LIFE-08"]
+    },
+    {
+      "owner": "S07",
+      "role": "build: compose plugin, profile builds, graph verifier, forbidden-reachability gate",
+      "paths": [
+        "apps/pages/scripts/capability-compose-plugin.mjs",
+        "apps/pages/scripts/build-profile.mjs",
+        "apps/pages/scripts/verify-capability-graph.mjs",
+        "apps/pages/scripts/lib/capability-*.mjs",
+        "apps/pages/vite.config.ts"
+      ],
+      "landed": {
+        "commands": [
+          "pnpm --filter @opensesame/pages build:profile",
+          "pnpm --filter @opensesame/pages verify:capability-graph"
+        ],
+        "env": [
+          "OPENSESAME_CAPABILITY_PROFILE",
+          "OPENSESAME_BUILD_MODE",
+          "OPENSESAME_GRAPH_GATE"
+        ],
+        "buildMatrix": [
+          ["minimal-local", "selective"],
+          ["minimal-local", "hardened"],
+          ["family-local", "selective"],
+          ["family-local", "hardened"],
+          ["single-provider-selected", "selective"],
+          ["enterprise-selected", "selective"],
+          ["enterprise-selected", "hardened"],
+          ["rich-explicit", "selective"]
+        ]
+      },
+      "contracts": [
+        "BUILD-04",
+        "BUILD-05",
+        "BUILD-06",
+        "BUILD-08",
+        "LOAD-04",
+        "EVID-01",
+        "EVID-02"
+      ],
+      "pending": ["BUILD-01", "BUILD-07"],
+      "note": "No build was run in this session; the script suites were read, not executed."
+    },
+    {
+      "owner": "S08",
+      "role": "workers: core-only worker, push variant, owned caches, asset-plan messages, registration controller",
+      "paths": [
+        "apps/pages/src/sw.ts",
+        "apps/pages/src/sw-push.ts",
+        "apps/pages/src/sw/**",
+        "apps/pages/src/lib/capabilities/worker-controller.ts",
+        "apps/pages/scripts/build-workers.mjs"
+      ],
+      "landed": {
+        "variants": [
+          { "id": "core-only", "scriptPath": "sw.js", "satisfies": [] },
+          { "id": "push", "scriptPath": "sw-push.js", "satisfies": ["push"] }
+        ],
+        "cacheName": "opensesame-pages:<scopePath>:<releaseId>:<variant>",
+        "tests": 14,
+        "run": "run-worker-split (worker-controller.test.ts + worker-controller-plan.test.ts, 14 tests, all passed)"
+      },
+      "contracts": [
+        "PWA-01",
+        "PWA-02",
+        "PWA-03",
+        "PWA-04",
+        "PWA-05",
+        "PWA-06",
+        "PWA-07",
+        "PWA-08",
+        "PWA-09",
+        "EVID-03"
+      ],
+      "pending": []
+    },
+    {
+      "owner": "S09",
+      "role": "setup and consent UI: purpose cards, capability cards, draft/review/apply, Settings › Capabilities",
+      "paths": [
+        "apps/pages/src/screens/capabilities/**",
+        "apps/pages/src/screens/SetupScreen.tsx",
+        "apps/pages/src/sections/settings/CapabilitiesPanel*.tsx",
+        "apps/pages/src/sections/settings/InstanceCapabilitiesPanel.tsx"
+      ],
+      "landed": {
+        "setupFirstTab": "capabilities (apps/pages/src/screens/SetupScreen.tsx CAPABILITIES_STEP); later tabs are setup-panel contributions"
+      },
+      "contracts": [
+        "CONSENT-01",
+        "CONSENT-02",
+        "CONSENT-03",
+        "SURFACE-06",
+        "SURFACE-10",
+        "MODEL-10"
+      ],
+      "pending": [],
+      "note": "These suites exist and were read; none was executed in this session."
+    },
+    {
+      "owner": "S10",
+      "role": "shell: contribution-driven navigation, commands, shortcuts, help",
+      "paths": [
+        "apps/pages/src/components/AppShell.tsx",
+        "apps/pages/src/components/VaultRail.tsx",
+        "apps/pages/src/lib/keymap.ts",
+        "apps/pages/src/lib/command-bar/types.ts",
+        "apps/pages/src/lib/item-kinds.ts"
+      ],
+      "contracts": [],
+      "pending": ["SURFACE-05", "SURFACE-08", "SURFACE-09"],
+      "note": "SURFACE-08 and SURFACE-09 are named in the shell sources but no test names either. This is the largest pending cluster in the ledger."
+    },
+    {
+      "owner": "S11-S16",
+      "role": "module owners: one capabilityRuntime per optional capability",
+      "paths": ["apps/pages/src/modules/<capability-id>/runtime.ts"],
+      "landed": {
+        "moduleDirectoriesOnDisk": [
+          "access.authority",
+          "activity.log",
+          "backup.cloud-secrets",
+          "backup.git-remote",
+          "connectors.external",
+          "identity.local-iam",
+          "sharing.drops",
+          "sharing.household",
+          "vault.certificate-records",
+          "vault.passkey-records",
+          "wallet.spending"
+        ],
+        "note": "Eleven directories at the time of writing, each with a runtime.test.tsx naming LOAD-09. agents.webmcp/ and support.remote-ai/ were untracked and in flight during this session."
+      },
+      "contracts": ["LOAD-09"],
+      "pending": ["LOAD-02"]
+    },
+    {
+      "owner": "S17",
+      "role": "OpenFeature: local read-only provider over the store snapshot",
+      "paths": [
+        "apps/pages/src/lib/capabilities/openfeature.ts",
+        "apps/pages/src/lib/capabilities/openfeature-consumer.ts"
+      ],
+      "landed": { "tests": 17, "run": "run-pages-capabilities (all passed)" },
+      "contracts": [
+        "OF-01",
+        "OF-02",
+        "OF-03",
+        "OF-04",
+        "OF-05",
+        "OF-06",
+        "OF-07",
+        "OF-08"
+      ],
+      "pending": []
+    },
+    {
+      "owner": "S18",
+      "role": "network: egress adapter, capability-derived CSP and header templates",
+      "paths": [
+        "apps/pages/src/lib/capabilities/egress.ts",
+        "apps/pages/scripts/security-headers.mjs"
+      ],
+      "landed": {
+        "tests": 8,
+        "run": "run-pages-capabilities (egress.test.ts, all passed)"
+      },
+      "contracts": [
+        "NET-01",
+        "NET-02",
+        "NET-03",
+        "NET-04",
+        "NET-05",
+        "NET-06",
+        "NET-07",
+        "NET-08"
+      ],
+      "pending": [],
+      "note": "NET-06/07/08 live in apps/pages/scripts/security-headers.test.mjs, which was read but not executed here."
+    },
+    {
+      "owner": "S19",
+      "role": "lifecycle: change coordinator, setup.v1 migration review, cross-tab invalidation",
+      "paths": [
+        "apps/pages/src/lib/capabilities/change.ts",
+        "apps/pages/src/lib/capabilities/migration.ts",
+        "apps/pages/src/lib/capabilities/invalidation.ts",
+        "apps/pages/src/lib/capabilities/channel.ts"
+      ],
+      "landed": {
+        "tests": 3,
+        "run": "run-pages-capabilities (migration.test.ts, all passed)"
+      },
+      "contracts": ["LIFE-06"],
+      "pending": ["LIFE-03", "LIFE-05", "LIFE-07", "VAULT-*"]
+    },
+    {
+      "owner": "S20",
+      "role": "registry parity: operation → capability prerequisites",
+      "paths": ["packages/capability-registry/src/capability-map.ts"],
+      "landed": { "operationMappings": 98 },
+      "contracts": ["S02-F"],
+      "pending": [],
+      "note": "Coverage is enforced from both sides: the Pages catalog test asserts operationIds equal OPERATION_CAPABILITY grouped by value, and the registry's own parity tests assert completeness. The registry suites were not executed in this session."
+    },
+    {
+      "owner": "S21-S24",
+      "role": "verification and documentation",
+      "paths": [
+        "apps/pages/scripts/verify-capabilit*.mjs",
+        "docs/operators/capability-composition.md",
+        "docs/validation/capability-composition.md",
+        "docs/evidence/capability-composition/**",
+        "docs/adr/0130-operator-controlled-capability-composition.md"
+      ],
+      "landed": {
+        "documents": [
+          "docs/evidence/capability-composition/baseline.md",
+          "docs/evidence/capability-composition/limitations.md",
+          "docs/evidence/capability-composition/assignment-ledger.json",
+          "docs/evidence/capability-composition/contract-test-matrix.json",
+          "docs/operators/capability-composition.md",
+          "docs/validation/capability-composition.md"
+        ]
+      },
+      "contracts": ["EVID-01", "EVID-02", "EVID-03", "EVID-08"],
+      "pending": [],
+      "note": "implementation-summary.md, referenced by baseline.md, is not written by this area and did not exist at the time of writing."
+    }
+  ],
+  "pendingSummary": [
+    { "contract": "TRUST-01", "owner": "S03 trust" },
+    { "contract": "LOAD-01", "owner": "S05 bootstrap / S07 build" },
+    { "contract": "LOAD-02", "owner": "S11-S16 module owners" },
+    { "contract": "LOAD-05", "owner": "S06 loader" },
+    { "contract": "LOAD-08", "owner": "S06 loader" },
+    { "contract": "LIFE-02", "owner": "S06 store/lease" },
+    { "contract": "LIFE-03", "owner": "S19 lifecycle / S06 store" },
+    { "contract": "LIFE-05", "owner": "S19 lifecycle" },
+    { "contract": "LIFE-07", "owner": "S19 lifecycle / S06 store" },
+    { "contract": "LIFE-08", "owner": "S06 store" },
+    { "contract": "VAULT-*", "owner": "S19 lifecycle / S01 resolver" },
+    { "contract": "SURFACE-05", "owner": "S10 shell / S11-S16 module owners" },
+    { "contract": "SURFACE-08", "owner": "S10 shell" },
+    { "contract": "SURFACE-09", "owner": "S10 shell" },
+    { "contract": "BUILD-01", "owner": "S07 build" },
+    { "contract": "BUILD-07", "owner": "S07 build" }
+  ]
+}

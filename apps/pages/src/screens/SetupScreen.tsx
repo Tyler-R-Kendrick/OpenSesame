@@ -7,19 +7,20 @@
  * question first. This screen is reached on purpose — `Deployment setup`
  * from the sign-in screen's foot.
  *
- * The operator road is a tab per concern (ADR 0114): connectors
- * (ADR 0115), ai, identity, mfa. Backups and sync were tabs once, but both
- * configured a Host and a daemon address, and ADR 0128 took those surfaces
- * away rather than leave controls with nothing behind them. Every tab writes
- * its record as it is answered — `settings.v1`, or the connector directory's
- * own — every tab is skippable, and "Skip all" takes the whole tour off the
- * table — skipping is recorded, so "looked and passed" stays distinct from
- * "never looked". The foot is icon keys for previous / skip / next, and the
- * shared `.go` Finish.
+ * The first tab is always `capabilities` — what this installation runs, as
+ * a draft reviewed and applied (CONSENT-03). Every further tab is a
+ * `setup-panel` contribution registered by a capability the person has
+ * applied: nothing is hardcoded here any more, so a deselected capability
+ * has no tab. Every tab writes its record as it is answered — `settings.v1`,
+ * or the connector directory's own — every tab is skippable, and "Skip all"
+ * takes the whole tour off the table. Skipping is recorded so "looked and
+ * passed" stays distinct from "never looked"; it is never consent. The foot
+ * is icon keys for previous / skip / next, and the shared `.go` Finish.
  *
  * Designed in `docs/design/first-run-setup/`.
  */
 
+import type { ComponentType } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   IconCheck,
@@ -30,43 +31,54 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
+
 import { landFocus } from "../lib/focus.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
+import { CapabilitySetup } from "./capabilities/CapabilitySetup.js";
 import { KeepIt } from "./setup/KeepIt.js";
-import { AiStep } from "./setup/steps/AiStep.js";
-import { ConnectorsStep } from "./setup/steps/ConnectorsStep.js";
-import { IdentityStep } from "./setup/steps/IdentityStep.js";
-import { MfaStep } from "./setup/steps/MfaStep.js";
 import "./setup.css";
+
+import { useCompositionContributions } from "../bindings/capabilities.js";
+/** One tab: the fixed capabilities tab, or a `setup-panel` contribution. */
+export type SetupPanel = Readonly<{
+  id: string;
+  tab: string;
+  rail: string;
+  Panel: ComponentType;
+  order?: number;
+}>;
+
+export const CAPABILITIES_STEP = "capabilities";
+
+function useContributedPanels(): readonly SetupPanel[] {
+  return useCompositionContributions("setup-panel").map((entry) => ({
+    id: entry.id,
+    tab: entry.tab,
+    rail: entry.rail,
+    Panel: entry.Panel,
+    order: entry.order,
+  }));
+}
 
 export const setupScreenDependencies = {
   completeSetup,
   loadSettings,
+  /** The tabs after `capabilities` — a seam so a suite can register a fixture. */
+  useSetupPanels: useContributedPanels,
 };
 
 export type SetupRoad = "setup";
 
-const STEPS = [
-  {
-    id: "connectors",
-    tab: "connectors",
-    rail: "Connectors",
-    Panel: ConnectorsStep,
-  },
-  { id: "ai", tab: "ai", rail: "AI", Panel: AiStep },
-  { id: "identity", tab: "identity", rail: "Identity", Panel: IdentityStep },
-  { id: "mfa", tab: "mfa", rail: "MFA", Panel: MfaStep },
-] as const;
-
-/** A tab of the operator ceremony (ADR 0114). */
-export type SetupStep = (typeof STEPS)[number]["id"];
+/** A tab of the ceremony: `capabilities`, or a contribution's id. */
+export type SetupStep = string;
 
 export function SetupScreen({
   onDone,
   step,
+  join = false,
 }: {
   /** Back to the sign-in screen — after finishing, or by backing out. */
   onDone: () => void;
@@ -75,16 +87,33 @@ export function SetupScreen({
    * lands on it directly; anything else takes the tour from the top.
    */
   step?: SetupStep;
+  /** Arrive on the join road: a managed instance's required roots to accept. */
+  join?: boolean;
 }) {
   useSupportRoute("/setup");
   const finishRef = useGuideTarget<HTMLButtonElement>("setup.finish");
   const [finishing, setFinishing] = useState(false);
-  const [index, setIndex] = useState(() =>
+  const contributed = setupScreenDependencies.useSetupPanels();
+  const STEPS: readonly SetupPanel[] = [
+    {
+      id: CAPABILITIES_STEP,
+      tab: CAPABILITIES_STEP,
+      rail: "Capabilities",
+      Panel: CapabilitySetup,
+    },
+    ...[...contributed].sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id),
+    ),
+  ];
+  const [rawIndex, setIndex] = useState(() =>
     Math.max(
       0,
       STEPS.findIndex((entry) => entry.id === step),
     ),
   );
+  // A contribution can leave between renders (a capability retired); the
+  // tab strip never points past its end.
+  const index = Math.min(rawIndex, STEPS.length - 1);
   const [skipped, setSkipped] = useState<SetupStep[]>([]);
   const frameRef = useRef<HTMLDivElement>(null);
 
@@ -210,7 +239,13 @@ export function SetupScreen({
         </div>
 
         <main className="setup__body" id="main">
-          <current.Panel />
+          {/* The capabilities tab takes the join road as a prop; a
+              contributed panel takes nothing — it reads its own settings. */}
+          {current?.id === CAPABILITIES_STEP ? (
+            <CapabilitySetup join={join} />
+          ) : current ? (
+            <current.Panel />
+          ) : null}
 
           {/* Not a question — an offer with no wrong answer, below the
                   step that is on screen and withheld entirely where the

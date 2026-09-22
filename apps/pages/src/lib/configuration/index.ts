@@ -95,3 +95,8 @@ export {
   SERVICE_ACCESS_TOKEN_MAX_SECONDS,
   offlineJwtExposureBoundSeconds,
 } from "./service-token-bound.js";
+export {
+  CAPABILITY_PATH_ALIASES,
+  CAPABILITY_RESOURCE_KEYS,
+  isCapabilityResourceKey,
+} from "./capabilities-keys.js";

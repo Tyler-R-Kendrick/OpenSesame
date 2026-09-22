@@ -7,7 +7,11 @@
  * Once moved it lives in a package, and a package cannot import the app, so
  * every edge from moving code into staying code has to be gone before the
  * relocation. React is the same problem one step removed: the shared core runs
- * in Node and a bare isolate, where React has no business loading.
+ * in Node and a bare isolate, where React has no business loading. A
+ * type-only import of React (`import type { ComponentType } from "react"`) is
+ * erased at build time and loads nothing, so it is reported apart
+ * (`reactTypes`) and does not fail the check: the contribution contract names
+ * the shell's component type without calling React.
  */
 
 /** Globs with `**` (any depth, including none) and `*` (within a segment). */
@@ -59,7 +63,8 @@ export function parseImports(source) {
   return found;
 }
 
-const REACT = /^(react|react-dom|react-router|react-router-dom|preact)(\/|$)/;
+const REACT =
+  /^(react|react-dom|react-router|react-router-dom|preact|@testing-library\/react|use-sync-external-store)(\/|$)/;
 
 function candidates(base) {
   if (/\.(js|mjs|jsx)$/.test(base)) {
@@ -98,13 +103,18 @@ export function findViolations(files, classify) {
   const crossings = [];
   const outside = [];
   const react = [];
+  const reactTypes = [];
   const viteEnv = [];
   for (const [path, source] of files) {
     if (classify(path) !== "move") continue;
     if (source.includes("import.meta.env")) viteEnv.push(path);
     for (const { specifier, typeOnly } of parseImports(source)) {
       if (REACT.test(specifier)) {
-        react.push({ from: path, to: specifier, typeOnly });
+        (typeOnly ? reactTypes : react).push({
+          from: path,
+          to: specifier,
+          typeOnly,
+        });
         continue;
       }
       const target = resolveRelative(path, specifier, files);
@@ -116,5 +126,5 @@ export function findViolations(files, classify) {
       else crossings.push(edge);
     }
   }
-  return { crossings, outside, react, viteEnv };
+  return { crossings, outside, react, reactTypes, viteEnv };
 }

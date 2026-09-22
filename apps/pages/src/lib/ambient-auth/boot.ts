@@ -1,9 +1,9 @@
 /**
  * Pages startup: callback classification happens in App.tsx before this
- * runs. Default personal mode performs no network I/O. React runs it once
- * through `useAmbientAuthBoot` (bindings/ambient-auth.ts).
+ * hook runs. Default personal mode performs no network I/O.
  */
 
+import { restoreAuthenticatedSession } from "../federation-restoration.js";
 import { readFederationSessionJson } from "../federation-session-store.js";
 import {
   clearSession,
@@ -20,7 +20,6 @@ import {
   startAutomaticAttempt,
 } from "./controller.js";
 import { readUserAmbientPreference } from "./policy.js";
-import { restoreAuthenticatedSession } from "./restoration.js";
 import { deployedAmbientPolicy, deployedAmbientProviders } from "./runtime.js";
 
 function revalidateStoredSession(): ReturnType<typeof loadSession> {
@@ -50,11 +49,21 @@ function revalidateStoredSession(): ReturnType<typeof loadSession> {
   return session;
 }
 
-/** Revalidate a stored session and, when eligible, start ambient sign-in. */
-export function bootAmbientAuth(
-  hasAuthCallback: boolean,
-  pathname: string,
-): void {
+export type AmbientBootInput = Readonly<{
+  hasAuthCallback: boolean;
+  pathname: string;
+}>;
+
+/**
+ * One boot evaluation: revalidate a stored session, decide eligibility, and
+ * start the automatic attempt when everything lines up. Run from
+ * `identity.ambient-sso`'s `activate` (as a background job) — never at
+ * module load, and never before that capability is approved.
+ */
+export function runAmbientAuthBoot({
+  hasAuthCallback,
+  pathname,
+}: AmbientBootInput): void {
   const snapshot = vaultStore.getSnapshot();
   const session = revalidateStoredSession();
   const eligibility = evaluateEligibility({

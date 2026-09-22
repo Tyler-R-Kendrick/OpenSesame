@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+
 import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
 import { resolveDuressMode } from "../lib/duress/feature/mode.js";
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
@@ -12,12 +13,13 @@ import {
   type SettingsPanels,
   categoryFromHash,
   defaultPanels,
-  settingsTabs,
+  useSettingsTabs,
 } from "./SettingsSectionNav.js";
 import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
-import { FeatureBindingsPanel } from "./settings/FeatureBindingsPanel.js";
+import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
 import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperabilityPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
+import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
 import { SettingsRawEditor } from "./settings/SettingsRawEditor.js";
 import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
@@ -25,6 +27,7 @@ import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import type { RawFormat } from "./settings/settings-files.js";
 import "./settings.css";
 
+import { useContributions } from "../bindings/contributions.js";
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>
   import("./settings/transport/TransportPanel.js").then((module) => ({
@@ -42,7 +45,14 @@ export function SettingsSection({
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { hash, pathname } = useLocation();
   const navigate = useNavigate();
+  const tabs = useSettingsTabs();
   const category = settingsCategoryFromLocation(pathname, hash);
+  const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
+  // Panels a capability draws inside a category the core already has, so
+  // Security can carry the ambient opt-in without this file importing it.
+  const contributedPanels = [...useContributions("settings-panel")]
+    .filter((panel) => panel.category === category)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
   const [representation, setRepresentation] = useState<"form" | RawFormat>(
     "form",
   );
@@ -82,7 +92,7 @@ export function SettingsSection({
       </div>
 
       <nav className="set__nav" aria-label="Settings sections">
-        {settingsTabs.map((entry) => (
+        {tabs.map((entry) => (
           <CategoryLink
             key={entry.id}
             guideId={entry.guideId}
@@ -96,11 +106,7 @@ export function SettingsSection({
       {representation === "yaml" || representation === "toml" ? (
         <SettingsRawEditor category={category} format={representation} />
       ) : null}
-      {form && category === "connections" ? (
-        <FeatureBindingsPanel
-          ModelProviderPanel={resolvedPanels.ModelProviderPanel}
-        />
-      ) : null}
+      {form && ContributedPanel ? <ContributedPanel /> : null}
       {form && category === "general" ? (
         <>
           <GuideTarget id="settings.install">
@@ -111,26 +117,39 @@ export function SettingsSection({
         </>
       ) : null}
 
-      {form && category === "security" ? <VaultKeyProtectionPanel /> : null}
-      {form && category === "security" && resolveDuressMode({}) !== "off" ? (
-        <DuressEnrollmentPanel />
-      ) : null}
       {form && category === "security" ? (
-        <resolvedPanels.UnlockMethodsPanel />
+        <SecurityPanels
+          UnlockMethodsPanel={resolvedPanels.UnlockMethodsPanel}
+        />
       ) : null}
-      {form && category === "security" ? (
-        <FormatsInteroperabilityPanel />
-      ) : null}
-      {form && category === "security" ? <AgeKeysPanel /> : null}
-      {form && category === "security" ? (
-        <Suspense fallback={null}>
-          <TransportPanel />
-        </Suspense>
-      ) : null}
-      {form && category === "security" ? <SettingsMasterPasswordPanel /> : null}
 
-      {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}
+      {form && category === "vaults" && <VaultsAndTypes {...resolvedPanels} />}
+      {form
+        ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
+        : null}
+      {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
       {form && category === "danger" ? <SettingsDangerPanel /> : null}
     </div>
+  );
+}
+
+/** The Security category's own panels, in the order the screen draws them. */
+function SecurityPanels({
+  UnlockMethodsPanel,
+}: {
+  UnlockMethodsPanel: SettingsPanels["UnlockMethodsPanel"];
+}) {
+  return (
+    <>
+      <VaultKeyProtectionPanel />
+      {resolveDuressMode({}) !== "off" ? <DuressEnrollmentPanel /> : null}
+      <UnlockMethodsPanel />
+      <FormatsInteroperabilityPanel />
+      <AgeKeysPanel />
+      <Suspense fallback={null}>
+        <TransportPanel />
+      </Suspense>
+      <SettingsMasterPasswordPanel />
+    </>
   );
 }

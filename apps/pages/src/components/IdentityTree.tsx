@@ -1,30 +1,27 @@
 import { useLocation, useSearchParams } from "react-router";
-
+import { useEnabledIdentityViews } from "../sections/identity/identity-views.js";
 import { identityPageTree } from "../sections/identity/page-tree.js";
 import { useIdentityRailSnapshot } from "../sections/identity/use-local-directory.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
-import { SECTIONS, SectionRow } from "./RailRows.js";
+import { SectionRow, type SectionTreeProps } from "./RailRows.js";
 
-import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
 export function IdentityTree({
+  section,
   open,
   active,
   onToggle,
-}: {
-  open: boolean;
-  active: boolean;
-  onToggle: () => void;
-}) {
+}: SectionTreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();
+  const views = useEnabledIdentityViews();
   const view =
-    IDENTITY_VIEWS.find((id) => id === params.get("view")) ?? "people";
+    views.find((id) => id === params.get("view")) ?? views[0] ?? "people";
   const current = `/identity?view=${view}${hash}`;
-  const tabs = identityPageTree(useIdentityRailSnapshot());
+  const tabs = identityPageTree(useIdentityRailSnapshot(), views);
   return (
     <>
       <SectionRow
-        section={SECTIONS[3]}
+        section={section}
         open={open}
         active={active}
         branch={open}

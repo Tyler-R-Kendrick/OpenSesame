@@ -75,6 +75,7 @@ describe("readRelocationMap", () => {
     [{ moves: { "a/x.ts": 3 } }],
     [{ moves: { "/abs/x.ts": "b/x.ts" } }],
     [{ moves: { "a/x.ts": "b\\x.ts" } }],
+    [{ moves: { "a\\x.ts": "b/x.ts" } }],
   ])("refuses a malformed map %j", (parsed) => {
     expect(() => readRelocationMap(parsed)).toThrow();
   });

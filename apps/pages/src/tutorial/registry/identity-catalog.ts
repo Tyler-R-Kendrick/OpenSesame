@@ -1,4 +1,12 @@
+/**
+ * Targets and routes the `identity.*` capabilities contribute (federation,
+ * local IAM, SIOP). Registered as `tutorial-target` and `tutorial-route`
+ * contributions on activation; absent on a plan without them.
+ */
+
+import type { GuideRouteDescriptor } from "./routes.js";
 import type { GuideTargetDescriptor } from "./targets.js";
+
 export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   // ── Identity administration ─────────────────────────────────────────
   {
@@ -56,5 +64,34 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "ceremony",
     routes: ["/identity"],
     capabilityId: "identity.admin",
+  },
+
+  {
+    id: "identity.claim-access",
+    description:
+      "Starts the ceremony that claims a grant minted for this person, by entering the claim code.",
+    role: "ceremony",
+    routes: ["/identity"],
+    capabilityId: "delegations.claim",
+  },
+  {
+    id: "nav.identity",
+    description:
+      "Rail entry that opens Identity, where accounts, upstream providers and linked identities are managed.",
+    role: "navigation",
+    routes: [],
+    capabilityId: "app.navigate",
+  },
+];
+
+export const IDENTITY_ROUTES: readonly GuideRouteDescriptor[] = [
+  { id: "/federation", title: "Federation return — finish a sign-in" },
+  {
+    id: "/identity/authorize",
+    title: "Local application — review a sign-in request",
+  },
+  {
+    id: "/identity",
+    title: "Identity — accounts, providers and linked identities",
   },
 ];

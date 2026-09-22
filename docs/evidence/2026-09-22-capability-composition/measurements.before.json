@@ -1,0 +1,24 @@
+{
+  "setupTabs": ["connectors", "ai", "identity", "mfa"],
+  "setupRoads": [],
+  "reachedCustomize": false,
+  "purposeCards": 0,
+  "capabilityCards": 0,
+  "capabilityCardsSelected": 0,
+  "settingsNav_desktop": [
+    "General",
+    "Security",
+    "Vaults",
+    "Connections",
+    "Danger"
+  ],
+  "settingsHasCapabilities_desktop": false,
+  "settingsNav_phone": [
+    "General",
+    "Security",
+    "Vaults",
+    "Connections",
+    "Danger"
+  ],
+  "settingsHasCapabilities_phone": false
+}

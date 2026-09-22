@@ -1,0 +1,248 @@
+/* Capability composition — the setup tab, the review, the front-door
+   requirements panel. Cards reuse the setup ceremony's `.preset__opt` and
+   `.xcard` geometry; nothing here redefines a shared control. */
+
+.capset {
+  display: grid;
+  gap: 1rem;
+}
+
+.capset__roads {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.capset__tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.capset__title {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.purpose {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.purpose .preset__opt {
+  min-height: 4.25rem;
+  width: 100%;
+}
+
+.capcards {
+  display: grid;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capcard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 0.35rem 0.6rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.capcard.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.capcard__pick {
+  appearance: none;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capcard__pick:disabled {
+  cursor: default;
+  color: var(--ink-3);
+}
+
+.capcard__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.capcard__summary {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.capcard__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.capcard__state {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.capcard__facts {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.capcard__facts dt {
+  color: var(--ink-3);
+}
+
+.capcard__facts dd {
+  margin: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.capcard__alts {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.capcard__alts .preset__opt {
+  min-height: 2.75rem;
+}
+
+.caprev {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.caprev:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.caprev__delta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.caprev__delta dt {
+  color: var(--ink-3);
+}
+
+.caprev__delta dd {
+  margin: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.caprev__conflict {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--err) 30%, var(--line));
+  border-radius: var(--radius);
+}
+
+.caprev__conflict p {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.caprev__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.capout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.reqs {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.reqs__list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reqs__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.reqs__item small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+}
+
+.reqs__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+@media (pointer: coarse), (max-width: 30rem) {
+  .capcard__pick,
+  .purpose .preset__opt,
+  .capcard__alts .preset__opt {
+    min-height: 2.75rem;
+  }
+}

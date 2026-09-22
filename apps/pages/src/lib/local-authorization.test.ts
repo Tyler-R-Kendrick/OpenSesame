@@ -20,6 +20,7 @@ import {
   listRecordedLocalGrants,
   revokeRecordedLocalGrant,
 } from "./local-grant-admin.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";
 import { consumedApplicationRequest } from "./local-request.fixture.js";
 import {
@@ -88,7 +89,15 @@ function redeem(code: string, codeVerifier = verifier) {
     redirectUri: request.redirectUri,
   });
 }
+/**
+ * The lock resets local IAM's evidence depends on are bound by
+ * `identity.local-iam`'s `activate`, not at module load (ownership.md §4.3).
+ * This suite binds the same ones the capability does, so a lock drops
+ * unspent evidence here exactly as it does with the capability approved.
+ */
+let unbindLockResets: () => void;
 beforeEach(async () => {
+  unbindLockResets = bindLocalIamLockResets();
   // Real crypto/timers run, but VM wall-clock corrections must not invalidate fixtures.
   vi.spyOn(Date, "now").mockReturnValue(1788998400000);
   tomb = `authorization-${crypto.randomUUID()}`;
@@ -141,6 +150,7 @@ beforeEach(async () => {
   session = await signInLocalIdentity(tomb, person);
 });
 afterEach(() => {
+  unbindLockResets();
   vaultStore.lock();
   lockAllTombs();
   vi.unstubAllGlobals();

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import { readLocalPasskeys, revokeLocalPasskey } from "./local-credentials.js";
 import { changeLocalDirectory, readLocalDirectory } from "./local-directory.js";
+import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import {
   authenticateLocalPasskey,
   consumeLocalAuthentication,
@@ -28,7 +29,15 @@ import {
 let tomb: string;
 let principalId: string;
 let device: Awaited<ReturnType<typeof authenticator>>;
+/**
+ * The lock resets local IAM's evidence depends on are bound by
+ * `identity.local-iam`'s `activate`, not at module load (ownership.md §4.3).
+ * This suite binds the same ones the capability does, so a lock drops
+ * unspent evidence here exactly as it does with the capability approved.
+ */
+let unbindLockResets: () => void;
 beforeEach(async () => {
+  unbindLockResets = bindLocalIamLockResets();
   // Keep successful session flows independent of VM wall-clock corrections.
   // Expiry and rollback cases below set their own explicit boundary times.
   vi.spyOn(Date, "now").mockReturnValue(1788998400000);
@@ -62,6 +71,7 @@ beforeEach(async () => {
   await enrollLocalPasskey(tomb, principalId);
 });
 afterEach(() => {
+  unbindLockResets();
   vaultStore.lock();
   lockAllTombs();
   vi.unstubAllGlobals();

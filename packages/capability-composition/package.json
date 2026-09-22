@@ -1,0 +1,28 @@
+{
+  "name": "@opensesame/capability-composition",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure, browser-safe capability composition: identities, policy documents, the deterministic resolver, reason codes, consent deltas, and the lifecycle contracts every runtime and editor consumes.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/hashes": "1.8.0",
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "fast-check": "4.9.0",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

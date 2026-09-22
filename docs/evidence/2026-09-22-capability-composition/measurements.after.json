@@ -1,0 +1,31 @@
+{
+  "setupTabs": ["capabilities"],
+  "setupRoads": [
+    "Use the minimal configuration",
+    "Customize this installation"
+  ],
+  "reachedCustomize": true,
+  "purposeCards": 5,
+  "capabilityCards": 31,
+  "capabilityCardsSelected": 11,
+  "settingsNav_desktop": [
+    "General",
+    "Security",
+    "Vaults",
+    "Capabilities",
+    "Danger"
+  ],
+  "settingsHasCapabilities_desktop": true,
+  "capabilityRows_desktop": 31,
+  "capabilityRowHeights_desktop": 62,
+  "settingsNav_phone": [
+    "General",
+    "Security",
+    "Vaults",
+    "Capabilities",
+    "Danger"
+  ],
+  "settingsHasCapabilities_phone": true,
+  "capabilityRows_phone": 31,
+  "capabilityRowHeights_phone": 62
+}

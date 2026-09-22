@@ -21,6 +21,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  addCapability,
+  checkGatedSectionsAbsent,
+} from "./lib/capability-walk-contract.mjs";
 import { checkEditorPaths } from "./lib/editor-path-contract.mjs";
 import { checkEditorRoutes } from "./lib/editor-routes-contract.mjs";
 import { checkEditorTabOrder } from "./lib/editor-tab-order-contract.mjs";
@@ -76,6 +80,30 @@ const browser = await launch();
   // chrome naming it is what "you are inside the app as the guest" looks like.
   check(/guest-\d+/.test(inApp), "guest landed inside the app");
   check(!/Claim this guest session/.test(inApp), "no claim notice");
+  // What this installation carries, and how it changes (ADR 0130). This runs
+  // before the surface contracts below, because those describe an
+  // installation that has the capabilities they measure: the statusline's
+  // Support key is guided help's, and the sections are their capabilities'.
+  // Absence is checked first, so a surface that is missing for the wrong
+  // reason cannot pass as one that was never chosen.
+  setStep("E-gated");
+  await checkGatedSectionsAbsent(page, check);
+  for (const [title, rail] of [
+    ["Guided help", null],
+    ["External connectors", "connections/"],
+    ["Access authority", "access/"],
+    ["Browser-local IAM", "identity/"],
+  ]) {
+    setStep(`E-add-${(rail ?? title).replace("/", "")}`);
+    await addCapability(page, check, snap, title, rail);
+  }
+
+  // Back where the walk landed: the adds above finish on Settings, and the
+  // contracts below measure the vault pane.
+  setStep("B-back-to-vault");
+  await page.locator(".railtree__row", { hasText: "vault/" }).first().click();
+  await page.waitForTimeout(1200);
+
   await checkStatusline(page, check);
   await checkVaultPane(page, check);
   await checkEditorTabOrder(page, check);
@@ -249,6 +277,11 @@ const browser = await launch();
     Boolean(session?.includes("pw_verify")),
     "federation session saved on device",
   );
+  // This is a fresh device: the identity section and the provider directory
+  // are capabilities, so they are added here the way a person adds them.
+  setStep("C-add-identity");
+  await addCapability(page, check, snap, "Browser-local IAM", "identity/");
+  await addCapability(page, check, snap, "Operator identity providers");
   setStep("C-provider-registration");
   await page.getByText("identity/", { exact: true }).first().click();
   await page.getByRole("tab", { name: "Providers", exact: true }).click();

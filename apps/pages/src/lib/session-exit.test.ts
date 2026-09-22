@@ -7,6 +7,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ambientAuthSeams,
+  resetAmbientAuthSeams,
+} from "./ambient-auth-seam.js";
+import {
+  fenceLocalSignOut,
+  isAutoAuthSuppressed,
+} from "./ambient-auth/generation.js";
+import { cancelAllTransactions } from "./ambient-auth/transactions.js";
 import { readAuthOutcome } from "./auth-outcome.js";
 import { federationSeams } from "./federation.js";
 import { identitySeams } from "./identity.js";
@@ -44,6 +53,18 @@ function ensureWebStorage(): void {
   vi.stubGlobal("localStorage", memory());
   vi.stubGlobal("sessionStorage", memory());
 }
+
+// Fencing auto sign-in and cancelling ambient transactions belong to the
+// ambient capability, so sign-out reaches them through the seam. This case
+// describes an installation that approved it.
+beforeEach(() => {
+  Object.assign(ambientAuthSeams, {
+    autoAuthSuppressed: isAutoAuthSuppressed,
+    fenceLocalSignOut,
+    cancelAllTransactions,
+  });
+});
+afterEach(resetAmbientAuthSeams);
 
 beforeEach(() => {
   ensureWebStorage();

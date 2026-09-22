@@ -3,11 +3,17 @@
  * filterInboxRows. Hosted Identity inbox remains absent without a remote
  * session — do not launder verify:local-iam as this walk.
  */
-import { openSection, sealWithPassword } from "./pages-journey.mjs";
+import {
+  addCapabilities,
+  openSection,
+  sealWithPassword,
+} from "./pages-journey.mjs";
 
 export async function walkJApproval({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
+  // Access belongs to a capability: choose it before its rail row exists.
+  await addCapabilities(page, ["Access authority"]);
   await openSection(page, "access/");
   await page.getByRole("tab", { name: "Requests", exact: true }).click();
   const panel = page.getByRole("region", {

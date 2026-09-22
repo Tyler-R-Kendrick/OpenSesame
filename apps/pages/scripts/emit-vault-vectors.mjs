@@ -2,8 +2,10 @@
 /**
  * Writes src/lib/vault/fixtures/vault-vectors.json (ADR 0133 §7).
  *
- * The vault modules read `import.meta.env`, so they load through Vite's SSR
- * module runner rather than plain Node. Run once; the fixture is the contract:
+ * The vault modules read the runtime env through the app-core host, which
+ * `src/host/boot.ts` installs from Vite's `import.meta.env`, so they load
+ * through Vite's SSR module runner rather than plain Node, with the host
+ * installed first. Run once; the fixture is the contract:
  *   pnpm --filter @opensesame/pages vectors:vault -- --force
  */
 import { existsSync, writeFileSync } from "node:fs";
@@ -28,6 +30,7 @@ const server = await createServer({
   server: { middlewareMode: true, hmr: false },
 });
 try {
+  await server.ssrLoadModule("/src/host/boot.ts");
   const { emitVaultVectors } = await server.ssrLoadModule(
     "/scripts/vault-vectors/emit.ts",
   );

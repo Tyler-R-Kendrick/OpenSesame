@@ -1,6 +1,7 @@
 /** In-app `?` sheet rows — must stay in lockstep with DESIGN.md and the handler. */
 
-export const KEYMAP_HELP = [
+/** Every row but the section jumps, which depend on what is registered. */
+export const KEYMAP_HELP_CORE = [
   ["Ctrl-l / :", "Command bar"],
   ["m", "Push to speak"],
   ["j / k or arrows", "Move"],
@@ -17,8 +18,21 @@ export const KEYMAP_HELP = [
   ["e / x", "Edit or trash"],
   ["n / .", "New or favorite"],
   ["s", "Share once"],
-  ["g v/c/a/i/w/s", "Go to a section"],
 ] as const;
+
+export type KeymapHelpRow = readonly [keys: string, action: string];
+
+/** The `g` row spells out exactly the jumps that exist: `g v/s` on a core-only plan. */
+export function keymapJumpHelpRow(jumpKeys: readonly string[]): KeymapHelpRow {
+  return [`g ${jumpKeys.join("/")}`, "Go to a section"];
+}
+
+/** The whole sheet for a given set of registered jump keys. */
+export function keymapHelpRows(
+  jumpKeys: readonly string[],
+): readonly KeymapHelpRow[] {
+  return [...KEYMAP_HELP_CORE, keymapJumpHelpRow(jumpKeys)];
+}
 
 let helpTarget: (() => void) | null = null;
 

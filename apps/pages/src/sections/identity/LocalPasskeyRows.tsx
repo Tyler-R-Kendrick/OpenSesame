@@ -1,3 +1,9 @@
+/**
+ * One row per enrolled passkey. The revoke action is an armed icon key
+ * (DESIGN.md § Actions are symbols): the first press arms it, the second
+ * runs the revocation, and the sibling control keeps the passkey.
+ */
+
 import { IconTrash, IconX } from "../../components/Icons.js";
 import type { LocalPasskey } from "../../lib/local-credentials.js";
 
@@ -25,6 +31,9 @@ export function CredentialRows({
             <span>Passkey · {key.credentialId.slice(-8)}</span>
             <span className="hint">
               Enrolled {new Date(key.createdAt).toLocaleDateString()}
+              {key.prfCapable
+                ? " · This passkey supports encrypted vault unlock."
+                : ""}
             </span>
             <div className="actions">
               <button

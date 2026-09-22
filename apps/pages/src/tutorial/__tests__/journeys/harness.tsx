@@ -50,6 +50,7 @@ import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
 import { crumbsSeams } from "../../../components/Crumbs.js";
 import { notificationsBarSeams } from "../../../components/NotificationsBar.js";
 import { projectSwitcherSeams } from "../../../components/ProjectSwitcher.js";
+import { registerLegacyShell } from "../../../components/legacy-sections.test-support.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { CatalogPanel } from "../../../sections/connections/CatalogPanel.js";
 import { HealthPanel } from "../../../sections/vault/HealthPanel.js";
@@ -291,6 +292,10 @@ export type Journey = {
 
 const originalSeams = { ...supportSessionSeams };
 let built: JourneyEngine | null = null;
+// The sections a journey walks — Connections above all — are contributions.
+// A journey is a story about a deployment that has them, so the fixture
+// registers the plan before the shell is drawn and revokes it on reset.
+let revokeShell: (() => void) | null = null;
 
 export function renderJourney(
   agent: FakeSupportAgent,
@@ -314,6 +319,8 @@ export function renderJourney(
       clearMountedGuideTargets();
     },
   });
+  revokeShell?.();
+  revokeShell = registerLegacyShell();
   const user = userEvent.setup();
   render(
     <MemoryRouter initialEntries={[options.at ?? "/vault"]}>
@@ -346,6 +353,8 @@ export function renderJourney(
 
 export function resetJourney(): void {
   cleanup();
+  revokeShell?.();
+  revokeShell = null;
   clearMountedGuideTargets();
   Object.assign(supportSessionSeams, originalSeams);
   lockHandlers.clear();
