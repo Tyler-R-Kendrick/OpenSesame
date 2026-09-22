@@ -11,6 +11,7 @@
 
 import {
   type BoundaryValue,
+  type JsonObject,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -102,23 +103,27 @@ export function isWorkerHello(data: BoundaryValue): boolean {
   return isJsonObject(data) && data.type === "WORKER_HELLO";
 }
 
-/** Strict parse of a `PLAN_ASSETS` request; anything off-grammar is refused. */
-export function parsePlanAssets(data: BoundaryValue): PlanAssetsParse {
-  if (!isJsonObject(data) || data.type !== "PLAN_ASSETS")
-    return { ok: false, reason: "malformed" };
-  const keys = Object.keys(data);
-  if (keys.length !== PLAN_KEYS.length || !PLAN_KEYS.every((k) => k in data))
-    return { ok: false, reason: "malformed" };
-  const { releaseId, planDigest, moduleIds } = data;
-  if (!isString(releaseId) || !RELEASE_ID.test(releaseId))
-    return { ok: false, reason: "malformed" };
-  if (!isString(planDigest) || !PLAN_DIGEST.test(planDigest))
-    return { ok: false, reason: "malformed" };
-  if (!Array.isArray(moduleIds) || moduleIds.length > 512)
-    return { ok: false, reason: "malformed" };
+const MALFORMED = { ok: false, reason: "malformed" } as const;
+
+type ModuleIdsParse =
+  | Readonly<{ ok: true; ids: readonly string[] }>
+  | Readonly<{ ok: false; reason: "malformed" | "carries-url" }>;
+
+/** Exactly the four known fields, no more and no fewer. */
+function hasPlanShape(data: BoundaryValue): data is JsonObject {
+  if (!isJsonObject(data) || data.type !== "PLAN_ASSETS") return false;
+  return (
+    Object.keys(data).length === PLAN_KEYS.length &&
+    PLAN_KEYS.every((key) => key in data)
+  );
+}
+
+/** The `moduleIds` array: module ids only, deduplicated and ordered. */
+function parseModuleIds(value: BoundaryValue): ModuleIdsParse {
+  if (!Array.isArray(value) || value.length > 512) return MALFORMED;
   const ids: string[] = [];
-  for (const id of moduleIds) {
-    if (!isString(id)) return { ok: false, reason: "malformed" };
+  for (const id of value) {
+    if (!isString(id)) return MALFORMED;
     if (!MODULE_ID.test(id) || id.length > 129)
       return {
         ok: false,
@@ -126,13 +131,24 @@ export function parsePlanAssets(data: BoundaryValue): PlanAssetsParse {
       };
     ids.push(id);
   }
+  return { ok: true, ids: [...new Set(ids)].sort() };
+}
+
+/** Strict parse of a `PLAN_ASSETS` request; anything off-grammar is refused. */
+export function parsePlanAssets(data: BoundaryValue): PlanAssetsParse {
+  if (!hasPlanShape(data)) return MALFORMED;
+  const { releaseId, planDigest } = data;
+  if (!isString(releaseId) || !RELEASE_ID.test(releaseId)) return MALFORMED;
+  if (!isString(planDigest) || !PLAN_DIGEST.test(planDigest)) return MALFORMED;
+  const parsed = parseModuleIds(data.moduleIds);
+  if (!parsed.ok) return parsed;
   return {
     ok: true,
     message: {
       type: "PLAN_ASSETS",
       releaseId,
       planDigest,
-      moduleIds: [...new Set(ids)].sort(),
+      moduleIds: parsed.ids,
     },
   };
 }

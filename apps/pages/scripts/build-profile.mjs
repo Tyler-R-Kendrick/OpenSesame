@@ -133,8 +133,28 @@ export async function buildProfile({
     expectAbsent,
   });
   console.error(table);
+  // `measurements.json` ships inside the build, so it stays small and stable:
+  // the sizes plus a tally, never the violation list. The full report (every
+  // module -> capability -> chunk -> entry edge) lands beside the directory,
+  // outside anything the bundle-budget gate measures.
+  const counts = {};
+  for (const violation of report.violations)
+    counts[violation.code] = (counts[violation.code] ?? 0) + 1;
+  const measurements = {
+    name: `${name}-${mode}`,
+    profile: report.profile,
+    mode: report.mode,
+    ok: report.ok,
+    distributionId: report.distributionId,
+    capabilityIds: report.capabilityIds,
+    moduleIds: report.moduleIds,
+    sizes: report.sizes,
+    mismatchCount: report.mismatches.length,
+    violationCounts: counts,
+  };
+  writeFileSync(join(outDir, "measurements.json"), canonicalJson(measurements));
   writeFileSync(
-    join(outDir, "measurements.json"),
+    `${outDir}.report.json`,
     canonicalJson({ ...report, name: `${name}-${mode}` }),
   );
   return { ...report, name: `${name}-${mode}` };
