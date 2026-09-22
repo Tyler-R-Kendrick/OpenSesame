@@ -1,0 +1,32 @@
+{
+  "schema": "opensesame/sops-engine-dependency-lock@1",
+  "recordedAt": "2026-09-21",
+  "baseCommit": "424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716",
+  "deps": [
+    {
+      "name": "age-encryption",
+      "version": "0.4.1",
+      "resolution": "https://registry.npmjs.org/age-encryption/-/age-encryption-0.4.1.tgz",
+      "integrity": "sha512-88Z6r96MNMiP8Jc8pI5ha WorcKPy4hMCLBsfhoScP5IrLJLucgKAZVZqtRNMedUebCHTWNpQTKUxQc2ga0v9Q=="
+    },
+    {
+      "name": "@noble/ciphers",
+      "version": "2.0.1",
+      "resolution": "https://registry.npmjs.org/@noble/ciphers/-/ciphers-2.0.1.tgz",
+      "integrity": "sha512-1BZs7CsQs1KVySTL+tnG1j19eQF2h+0Nvw2EYfKLZWwNHnpxXLgukXTwwHyYQxNJzZ9Yt4la3bSc6kw3Ew9ugw=="
+    },
+    {
+      "name": "yaml",
+      "version": "2.8.1",
+      "resolution": "https://registry.npmjs.org/yaml/-/yaml-2.8.1.tgz",
+      "integrity": "sha512-lcZcJwU8MW3nA19uM6/udyt6r7ejD9RrhAKgLQvL3Q6duJEW2i6AEDLD8LEBCeMYuzf8YfODfHrytCanQDUeA=="
+    }
+  ],
+  "oracle": {
+    "name": "sops (getsops) pinned binary",
+    "version": "v3.13.3",
+    "platform": "linux/arm64",
+    "sha256": "53b0abac…",
+    "role": "conformance oracle only — never shipped, never executed from the app; runs in verify gates under scripts/verify-sops-conformance.mjs"
+  }
+}
