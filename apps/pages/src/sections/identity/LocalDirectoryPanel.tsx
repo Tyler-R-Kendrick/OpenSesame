@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { kvDurability } from "../../lib/kv.js";
 import { ensureDefaultAccess } from "../../lib/local-access-bootstrap.js";
 import {
@@ -154,29 +155,32 @@ function DirectoryEditor({
         </fieldset>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Local to this encrypted vault. Manage credentials and registrations
-          below. Creating a record does not grant resource access.
-        </p>
-        {kvDurability() === "memory" ? (
-          <p className="note note--warn">
-            Browser storage is unavailable. Changes last only until this tab
-            closes.
-          </p>
-        ) : null}
-        {error ? (
-          <p role="alert" className="note note--err">
-            {error}
-          </p>
-        ) : null}
-        {!directory && !error ? <output>Loading directory…</output> : null}
-        {directory?.entries.filter((entry) => entry.kind === kind).length ===
-        0 ? (
-          <p className="hint">
-            No {label.heading.toLowerCase()} yet. Create the first{" "}
-            {label.singular} in this vault.
-          </p>
-        ) : null}
+        <div className="actions">
+          {kvDurability() === "memory" ? (
+            <StatusMark
+              tone="warn"
+              label="Browser storage is unavailable. Changes last only until this tab closes."
+            />
+          ) : null}
+          {error ? (
+            <>
+              <StatusMark tone="err" label={error} />
+              <span role="alert" className="visually-hidden">
+                {error}
+              </span>
+            </>
+          ) : null}
+          {!directory && !error ? (
+            <StatusMark tone="idle" label="Loading directory…" />
+          ) : null}
+          {directory?.entries.filter((entry) => entry.kind === kind).length ===
+          0 ? (
+            <StatusMark
+              tone="idle"
+              label={`No ${label.heading.toLowerCase()} yet.`}
+            />
+          ) : null}
+        </div>
         <DirectoryRows model={model} kind={kind} tomb={tomb} />
         <DirectoryForm model={model} kind={kind} />
       </div>
