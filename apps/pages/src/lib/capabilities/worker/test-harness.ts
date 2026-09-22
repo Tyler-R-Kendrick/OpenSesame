@@ -15,7 +15,10 @@ import type {
   InstallationCapabilitySelection,
 } from "@opensesame/capability-composition";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
-import { registerWorkerForPlan, workerControllerSettled } from "../worker-controller.js";
+import {
+  registerWorkerForPlan,
+  workerControllerSettled,
+} from "../worker-controller.js";
 import { workerControllerSeams } from "./seams.js";
 import { resetWorkerController } from "./state.js";
 import type {
@@ -108,7 +111,10 @@ export function selection(
   };
 }
 
-export function receipt(capability: string, digest = "sha256:x"): ConsentReceipt {
+export function receipt(
+  capability: string,
+  digest = "sha256:x",
+): ConsentReceipt {
   const exposure = { [capability]: digest };
   return {
     schemaVersion: 1,

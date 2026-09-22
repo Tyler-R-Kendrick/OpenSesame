@@ -10,42 +10,55 @@ import {
 import {
   onWalletTombChange,
   walletStorageKey,
+  walletStorageTomb,
 } from "./wallet-storage-scope.js";
 
 const STORAGE_KEY = "opensesame.wallet.instrument-budgets.v1";
 
 let cache: Record<string, string> | null = null;
+let cacheTomb = "";
 
-onWalletTombChange(() => {
-  cache = null;
-});
+/**
+ * Follow the active tomb: a switch drops the process cache so a guest never
+ * reads the personal vault's instrument bindings. Subscribed by the
+ * `wallet.spending` runtime while it is active (never at import), and the
+ * cache is keyed by tomb as well, so a read after an unobserved switch
+ * still misses.
+ */
+export function watchWalletAssignmentScope(): () => void {
+  return onWalletTombChange(() => {
+    cache = null;
+    cacheTomb = "";
+  });
+}
+
+/** Remember `next` against the tomb it was read or written for. */
+function cacheAll(next: Record<string, string>): Record<string, string> {
+  const tomb = walletStorageTomb();
+  cache = next;
+  cacheTomb = tomb;
+  return next;
+}
 
 function assignmentKey(): string {
   return walletStorageKey(STORAGE_KEY);
 }
 
 function readAll(): Record<string, string> {
-  if (cache !== null) return cache;
+  const tomb = walletStorageTomb();
+  if (cache !== null && cacheTomb === tomb) return cache;
   try {
     const raw = localStorage.getItem(assignmentKey());
-    if (raw === null || raw === "") {
-      cache = {};
-      return cache;
-    }
+    if (raw === null || raw === "") return cacheAll({});
     const parsed: BoundaryValue = JSON.parse(raw);
-    if (!isJsonObject(parsed)) {
-      cache = {};
-      return cache;
-    }
+    if (!isJsonObject(parsed)) return cacheAll({});
     const out: Record<string, string> = {};
     for (const [itemId, budgetId] of Object.entries(parsed)) {
       if (isString(budgetId) && budgetId !== "") out[itemId] = budgetId;
     }
-    cache = out;
-    return cache;
+    return cacheAll(out);
   } catch {
-    cache = {};
-    return cache;
+    return cacheAll({});
   }
 }
 
@@ -75,7 +88,7 @@ export function assignInstrumentBudget(
   const next = { ...readAll() };
   if (budgetId === null || budgetId === "") delete next[itemId];
   else next[itemId] = budgetId;
-  cache = next;
+  cacheAll(next);
   persistCache();
 }
 
@@ -88,7 +101,7 @@ export function setBudgetInstruments(
     if (bound === budgetId) delete next[itemId];
   }
   for (const itemId of itemIds) next[itemId] = budgetId;
-  cache = next;
+  cacheAll(next);
   persistCache();
 }
 
@@ -97,7 +110,7 @@ export function unbindBudget(budgetId: string): void {
 }
 
 export function clearInstrumentBudgets(): void {
-  cache = {};
+  cacheAll({});
   try {
     localStorage.removeItem(assignmentKey());
   } catch {

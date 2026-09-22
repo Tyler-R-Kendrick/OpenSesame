@@ -1,12 +1,12 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,
   keymapHelp,
   registerVaultKeymap,
 } from "./keymap.js";
-import { registerLegacySections } from "./contributions.test-support.js";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 
 /**
  * Characterization snapshots for the listing keymap.
@@ -52,6 +52,16 @@ function target() {
   return Object.assign(listing, { calls });
 }
 
+// The sheet and the `g` jumps are both the plan's: with nothing registered
+// this shell has `g v/s` and no `/access`. The snapshots characterize the
+// full set of sections, so the fixture stands for the whole file rather than
+// one test — a release inside a test never runs when its expect throws.
+let revokeShell = () => {};
+beforeAll(() => {
+  revokeShell = registerLegacyShellData();
+});
+afterAll(() => revokeShell());
+
 afterEach(() => {
   document.body.replaceChildren();
   vi.useRealTimers();
@@ -59,9 +69,7 @@ afterEach(() => {
 
 describe("listing keymap copy", () => {
   it("says exactly this on the ? sheet", () => {
-    const release = registerLegacySections();
     expect([...keymapHelp()]).toMatchSnapshot();
-    release();
   });
 });
 

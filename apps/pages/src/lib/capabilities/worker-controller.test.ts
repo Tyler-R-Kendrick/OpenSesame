@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  WORKER_GRAPH_UNAVAILABLE,
+  transitionWorker,
+  workerStatus,
+} from "./worker-controller.js";
+import {
   CORE_ONLY_DISTRIBUTION,
   CORE_URL,
   FakeContainer,
@@ -13,11 +18,6 @@ import {
   restoreSeams,
   selection,
 } from "./worker/test-harness.js";
-import {
-  WORKER_GRAPH_UNAVAILABLE,
-  transitionWorker,
-  workerStatus,
-} from "./worker-controller.js";
 
 beforeEach(installSeams);
 afterEach(restoreSeams);

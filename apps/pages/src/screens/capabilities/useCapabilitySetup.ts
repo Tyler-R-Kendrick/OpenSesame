@@ -24,6 +24,7 @@ import {
 import {
   CAPABILITY_CATALOG,
   type CapabilityPreset,
+  type CompositionSnapshot,
   type OutcomeView,
   buildConsentReceipt,
   compositionStore,

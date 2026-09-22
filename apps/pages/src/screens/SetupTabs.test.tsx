@@ -1,16 +1,13 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
-import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
-import { resetDouble } from "./capabilities/test-support.js";
+import {
+  openSetup,
+  resetSetupScreen,
+  selectedTab,
+} from "./setup/test-harness.js";
 import { createSetupSeams } from "./setup/test-seams.js";
 
 vi.mock("../lib/configuration/capabilities-ports.js", async () => {
@@ -24,23 +21,12 @@ vi.mock("../lib/configuration/capabilities-ports.js", async () => {
 const seams = createSetupSeams();
 const { completeSetup } = seams;
 
-beforeEach(() => {
-  seams.reset();
-  resetDouble();
-  // The tabs after `capabilities` are whatever applied capabilities
-  // registered. This fixture stands in for three module owners.
-  setupScreenDependencies.useSetupPanels = () => SETUP_PANEL_FIXTURE;
-});
+// The tabs after `capabilities` are whatever applied capabilities
+// registered; `resetSetupScreen` installs a fixture standing in for three
+// module owners, so this suite's tab list is explicit rather than whatever
+// a loader happened to activate.
+beforeEach(() => resetSetupScreen(seams));
 afterEach(cleanup);
-
-function openSetup(onDone: () => void = vi.fn()): () => void {
-  render(<SetupScreen onDone={onDone} />);
-  return onDone;
-}
-
-function selectedTab(): string {
-  return screen.getByRole("tab", { selected: true }).textContent?.trim() ?? "";
-}
 
 describe("the tabs and their skips (ADR 0114)", () => {
   it("walks from capabilities to the last registered panel as steps are skipped, recording each", async () => {

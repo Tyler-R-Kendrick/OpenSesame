@@ -6,7 +6,8 @@
  * connector's settings page.
  *
  * Contributed: the Backups settings category (the backup/recovery tiles
- * that used to sit in Settings › Connections). Its guide target
+ * that used to sit in Settings › Connections) and the backup observer as a
+ * background job. Its guide target
  * `settings.backup` and goal are authored in the registry's connections
  * files and contributed by `connectors.external`, which this capability
  * depends on (catalog), so they are declared whenever this category mounts. The per-connector pages (`GithubInstallationPanel`,
@@ -35,10 +36,30 @@
  */
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import {
+  startVaultBackupObserver,
+  stopVaultBackupObserver,
+} from "../../lib/vault-backup-observer.js";
 import { createActivation } from "../activation.js";
 import { BackupBindingsPanel } from "./BackupBindingsPanel.js";
 
 export const CAPABILITY = "backup.git-remote";
+
+/**
+ * The observer is what makes this capability's egress automatic: it follows
+ * the vault store, nudges a sync after a mutation, and polls the GitHub App
+ * relay for webhook-pending events. It used to be started from whichever
+ * settings panel happened to mount (`BackupSyncControls`) and from
+ * `enableBackup`, so it outlived the surface that started it. As a
+ * background job it runs exactly while this capability is active.
+ *
+ * Every road out of it is already fenced by a bound, enabled target: with
+ * none configured `runSync` returns before any request and the webhook
+ * drain returns 0 without a fetch. Disabling the capability calls
+ * `stopVaultBackupObserver`, which only unsubscribes and clears the timer —
+ * no request, no write, no ceremony.
+ */
+export const BACKUP_OBSERVER_JOB = "vault-backup-observer";
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
@@ -53,6 +74,19 @@ export const capabilityRuntime: CapabilityRuntime = {
       Panel: BackupBindingsPanel,
       order: 45,
     });
+    activation.register("background-job", {
+      id: BACKUP_OBSERVER_JOB,
+      start: (signal) => {
+        if (signal.aborted) return;
+        startVaultBackupObserver();
+        signal.addEventListener("abort", stopVaultBackupObserver, {
+          once: true,
+        });
+      },
+    });
+    // A dispose that never ran the job must still leave nothing behind, and
+    // the observer's own `started` guard makes a second stop a no-op.
+    activation.onDispose(stopVaultBackupObserver);
 
     return activation.handle();
   },

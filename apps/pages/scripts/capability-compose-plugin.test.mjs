@@ -9,10 +9,12 @@ import {
   classifyModule,
   distributedCapabilities,
   entryClosure,
-  formatViolations,
   parseHtmlEntry,
-  violations,
 } from "./lib/capability-graph.mjs";
+import {
+  formatViolations,
+  violations,
+} from "./lib/capability-invariants.mjs";
 
 // --- fixture inventory (stands in for S02 until its files land) ------------
 

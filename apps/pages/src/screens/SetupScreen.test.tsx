@@ -1,19 +1,22 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { InstallOutcome, InstallState } from "../lib/install.js";
-import type { PagesSettings } from "../lib/settings.js";
-import { installViewSeams } from "../lib/use-install.js";
-import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
-import { SETUP_PANEL_FIXTURE } from "./capabilities/setup-panel-fixture.js";
-import { resetDouble } from "./capabilities/test-support.js";
+import { SetupScreen } from "./SetupScreen.js";
+import {
+  type ProviderFields,
+  addProvider as addProviderWith,
+  clearInstallOffer,
+  commit,
+  fieldNamed,
+  installNow,
+  offering,
+  openSetup,
+  openWaysIn,
+  resetSetupScreen,
+  type as typeInto,
+  ways,
+} from "./setup/test-harness.js";
 import { createSetupSeams } from "./setup/test-seams.js";
 
 vi.mock("../lib/configuration/capabilities-ports.js", async () => {
@@ -25,107 +28,18 @@ vi.mock("../lib/configuration/capabilities-ports.js", async () => {
 });
 
 const seams = createSetupSeams();
-const { written, currentSettings, discover, completeSetup } = seams;
+const { written, discover, completeSetup } = seams;
 
-/** What the browser is offering; jsdom offers nothing, the honest default. */
-function offering(state: InstallState): void {
-  installViewSeams.state = state;
-}
-const installNow = vi.fn<() => Promise<InstallOutcome>>(async () => "accepted");
+const addProvider = (preset: RegExp, fields: ProviderFields) =>
+  addProviderWith(seams, preset, fields);
 
-/** What `addProvider` needs to fill one preset's form. */
-type ProviderFields = {
-  /** `[field label, value]` for the presets whose issuer is typed. */
-  issuer?: [string, string];
-  clientId: string;
-};
-
-beforeEach(() => {
-  seams.reset();
-  resetDouble();
-  setupScreenDependencies.useSetupPanels = () => SETUP_PANEL_FIXTURE;
-  installViewSeams.state = "unavailable";
-  installNow.mockClear();
-  installViewSeams.install = installNow;
-});
+beforeEach(() => resetSetupScreen(seams));
 
 afterEach(() => {
   cleanup();
-  installViewSeams.state = null;
-  installViewSeams.persisted = null;
-  installViewSeams.install = null;
+  clearInstallOffer();
 });
 
-function fieldNamed(label: string | RegExp): HTMLInputElement {
-  const element = screen.getByLabelText(label);
-  if (!(element instanceof HTMLInputElement)) {
-    throw new Error(`${String(label)} is not an input`);
-  }
-  return element;
-}
-
-function type(label: string | RegExp, value: string): void {
-  const input = fieldNamed(label);
-  fireEvent.change(input, { target: { value } });
-  // Setup fields commit on blur, exactly as the Settings panel's do.
-  fireEvent.blur(input);
-}
-
-function heading(): string {
-  return screen.getByRole("heading", { level: 1 }).textContent ?? "";
-}
-
-/** The screen's terminal commit — an ink square, never a text button. */
-function commit(): HTMLElement {
-  const foot = document.querySelector(".setup__foot");
-  const go = foot?.querySelector(".go");
-  if (!(go instanceof HTMLElement)) throw new Error("no commit control");
-  return go;
-}
-
-function openSetup(onDone: () => void = vi.fn()): () => void {
-  render(<SetupScreen onDone={onDone} />);
-  return onDone;
-}
-
-/** Setup opened on the identity tab, where the ways-in allowlist lives (ADR 0114). */
-function openWaysIn(onDone: () => void = vi.fn()): () => void {
-  const done = openSetup(onDone);
-  fireEvent.click(screen.getByRole("tab", { name: "identity" }));
-  return done;
-}
-
-/** The ways-in list, as it reads on screen. */
-function ways(): string[] {
-  return [...document.querySelectorAll(".ways__name")].map(
-    (node) => node.textContent ?? "",
-  );
-}
-
-async function addProvider(
-  preset: RegExp,
-  fields: ProviderFields,
-): Promise<void> {
-  const discoveries = discover.mock.calls.length;
-  fireEvent.click(screen.getByRole("button", { name: preset }));
-  if (fields.issuer) {
-    fireEvent.change(fieldNamed(fields.issuer[0]), {
-      target: { value: fields.issuer[1] },
-    });
-  }
-  fireEvent.change(fieldNamed("Client ID"), {
-    target: { value: fields.clientId },
-  });
-  const add = screen.getByRole("button", { name: /^Add / });
-  fireEvent.click(add);
-  // Wait for *this* add to land: `discover` is one mock for the whole test,
-  // and an add is finished only once discovery came back and the form
-  // closed — until then every preset button is disabled.
-  await waitFor(() => {
-    expect(discover.mock.calls.length).toBe(discoveries + 1);
-    expect(screen.queryByLabelText("Client ID")).toBeNull();
-  });
-}
 
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
   it("opens the operator ceremony on its capabilities tab when asked for", () => {
@@ -367,7 +281,7 @@ describe("building the list of ways in", () => {
 describe("an OpenSesame identity service", () => {
   it("is a peer way in, and joins the list when it is named", async () => {
     const onDone = openWaysIn(vi.fn());
-    type("Identity service", "https://id.acme.com/");
+    typeInto("Identity service", "https://id.acme.com/");
 
     expect(written.identityApi).toBe("https://id.acme.com");
     expect(ways()).toContain("OpenSesame identity service");

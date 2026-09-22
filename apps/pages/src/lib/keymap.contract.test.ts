@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { registerLegacySections } from "./contributions.test-support.js";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import { keymapHelp } from "./keymap.js";
 
 /**
@@ -35,7 +35,7 @@ const REQUIRED_IN_DESIGN = [
 describe("listing keymap contract", () => {
   it("the in-app sheet spells out only the jumps that are registered", () => {
     expect(keymapHelp().at(-1)).toEqual(["g v/s", "Go to a section"]);
-    const release = registerLegacySections();
+    const release = registerLegacyShellData();
     const keys = keymapHelp().map(([keys]) => keys);
     release();
     expect(keys).toEqual([
@@ -55,7 +55,7 @@ describe("listing keymap contract", () => {
       "e / x",
       "n / .",
       "s",
-      "g v/c/a/i/w/s",
+      "g v/c/a/i/w/y/s",
     ]);
   });
 

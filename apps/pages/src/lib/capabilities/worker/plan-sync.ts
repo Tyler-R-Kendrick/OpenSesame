@@ -90,16 +90,21 @@ export function onWorkerMessage(data: BoundaryValue): void {
   if (!isJsonObject(data) || !isString(data.type)) return;
   switch (data.type) {
     case "WORKER_INFO":
-      return onWorkerInfo(data.releaseId);
+      onWorkerInfo(data.releaseId);
+      break;
     case "OFFLINE_READY":
-      return publish({ offlineStatus: "saved" });
+      publish({ offlineStatus: "saved" });
+      break;
     case "OFFLINE_PARTIAL":
-      return publish({ offlineStatus: "partial" });
+      publish({ offlineStatus: "partial" });
+      break;
     case "OFFLINE_STORAGE_UNAVAILABLE":
-      return publish({ offlineStatus: "storage-unavailable" });
+      publish({ offlineStatus: "storage-unavailable" });
+      break;
     case "PLAN_REJECTED":
-      return onPlanRejected(data.reason);
+      onPlanRejected(data.reason);
+      break;
     default:
-      return;
+      break;
   }
 }

@@ -12,13 +12,17 @@
  *
  * Egress: none. The ledger, assignments and passes are browser-local
  * (localStorage scoped by tomb); the agent broker settles in memory.
- * Top-level side effect removed: `lib/spending-ledger.ts` subscribed to
- * tomb changes at import; it is now `watchSpendingLedgerScope()`, called
- * here and unsubscribed on dispose.
+ * Top-level side effects removed: `lib/spending-ledger.ts`,
+ * `lib/spending-leases.ts` and `lib/wallet-assignments.ts` each subscribed
+ * to tomb changes at import; each is now a `watch…Scope()` the runtime
+ * calls here and unsubscribes on dispose. Every one of those caches is
+ * keyed by tomb as well, so a switch nobody observed still misses.
  */
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import { watchSpendingLeaseScope } from "../../lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "../../lib/spending-ledger.js";
+import { watchWalletAssignmentScope } from "../../lib/wallet-assignments.js";
 import { WalletSection } from "../../sections/WalletSection.js";
 import {
   WALLET_ROUTES,
@@ -42,7 +46,11 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
+    // The wallet's three tomb-scoped caches follow the active tomb only
+    // while this capability is active; dispose unsubscribes all three.
     activation.onDispose(watchSpendingLedgerScope());
+    activation.onDispose(watchSpendingLeaseScope());
+    activation.onDispose(watchWalletAssignmentScope());
 
     activation.register("section", {
       id: "wallet",

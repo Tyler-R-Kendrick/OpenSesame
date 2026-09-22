@@ -1,8 +1,9 @@
 /**
  * `connectors.external` — provider connections by reference (ADR 0115):
  * the Connections section and its rail entries, the connector settings
- * pages, the Connections settings category, the setup connectors tab, and
- * the unlock effects that seal a parked directory sync and arm Connect.
+ * pages, the Connections settings category, the setup connectors tab, the
+ * connection WebMCP tools, and the unlock effects that seal a parked
+ * directory sync and arm Connect.
  *
  * Egress this module wraps (existing transport code, listed for the
  * catalog's declaration; new code goes through `ctx.egress`):
@@ -36,6 +37,10 @@ import {
   CONNECTIONS_TARGETS,
 } from "../../tutorial/registry/connections-catalog.js";
 import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
+import {
+  CONNECTIONS_READ_TOOL,
+  OPEN_CONNECT_CEREMONY_TOOL,
+} from "../../webmcp/connections-tools.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { ConnectionsSettingsPanel } from "./ConnectionsSettingsPanel.js";
@@ -59,6 +64,18 @@ export const TUTORIAL = {
   goals: CONNECTIONS_GOALS,
   routes: CONNECTIONS_ROUTES,
 } as const;
+
+/**
+ * The connection tools, each tagged with the operations it performs
+ * (`connections.list` / `.inspect`, `connections.create` / `.bindings`).
+ * The core keeps only those the plan approves before `agents.webmcp`
+ * registers anything with the browser, so an unapproved operation has no
+ * tool and the connection client is never imported by that surface.
+ */
+export const WEBMCP_TOOLS = [
+  CONNECTIONS_READ_TOOL,
+  OPEN_CONNECT_CEREMONY_TOOL,
+] as const;
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
@@ -117,6 +134,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     });
     activation.register("keymap-jump", { key: "c", path: "/connections" });
     registerTutorial(activation, TUTORIAL);
+    for (const tool of WEBMCP_TOOLS) {
+      activation.register("webmcp-tool", tool);
+    }
     for (const effect of connectorUnlockEffects(ctx.lease.signal)) {
       activation.register("unlock-effect", effect);
     }

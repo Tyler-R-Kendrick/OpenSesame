@@ -15,15 +15,25 @@
 
 import { IconDrop } from "../../components/Icons.js";
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import { LOCAL_DROP_CLAIM_KEYS } from "../../lib/vault/local-drop-claims.js";
 import { DropClaimScreen } from "../../screens/DropClaimScreen.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "sharing.drops";
 
+/**
+ * The claim plane's plaintext keys. `/claim` reads them synchronously on a
+ * locked device, so they must be in the kv cache before the route renders —
+ * and the core boot no longer pulls them for an installation without drops.
+ */
+export const HYDRATE_KEYS: readonly string[] = LOCAL_DROP_CLAIM_KEYS;
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
+
+    await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
 
     // `gate: "any"`: rendered whether or not the vault is unlocked, the way

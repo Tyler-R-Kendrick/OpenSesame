@@ -32,10 +32,12 @@ import { gzipSync } from "node:zlib";
 import {
   canonicalJson,
   entryClosure,
-  formatViolations,
   parseHtmlEntry,
-  violations,
 } from "./lib/capability-graph.mjs";
+import {
+  formatViolations,
+  violations,
+} from "./lib/capability-invariants.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(here, "..");

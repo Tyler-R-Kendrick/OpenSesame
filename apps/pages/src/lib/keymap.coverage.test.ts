@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type ListingMotion,
   type VaultKeymapTarget,
@@ -12,6 +12,16 @@ import {
   registerVaultKeymap,
   showKeymapHelp,
 } from "./keymap.js";
+import { registerLegacyShellData } from "./contributions.test-support.js";
+
+// The `g` jumps past `v` and `s` are contributions. Register the full set
+// once for the file so these motions characterize the shell a whole plan
+// draws; SURFACE-09's core-only behaviour is asserted in `keymap.test.ts`.
+let revokeShell = () => {};
+beforeAll(() => {
+  revokeShell = registerLegacyShellData();
+});
+afterAll(() => revokeShell());
 function vault(overrides: Partial<VaultKeymapTarget> = {}): VaultKeymapTarget {
   return {
     next: vi.fn(),

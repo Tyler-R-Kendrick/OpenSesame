@@ -171,7 +171,10 @@ async function ensureRegistered(
 }
 
 function publishVariant(current: string | null, requiredId: string): void {
-  if (current) return publish({ variant: variantOfScript(current) });
+  if (current) {
+    publish({ variant: variantOfScript(current) });
+    return;
+  }
   publish({ variant: state.registeredThisPage ? requiredId : null });
 }
 
@@ -184,13 +187,18 @@ async function reconcile(
   const requiredId = plan.requiredWorkerVariant ?? CORE_ONLY_VARIANT;
   publish({ requiredVariant: requiredId });
   const variant = distribution.workerVariants.find((v) => v.id === requiredId);
-  if (!variant) return diagnose(WORKER_GRAPH_UNAVAILABLE);
+  if (!variant) {
+    diagnose(WORKER_GRAPH_UNAVAILABLE);
+    return;
+  }
   if (!variantEligible(requiredId, snapshot)) return;
   const requiredUrl = scriptUrlFor(variant.scriptPath);
   const registration = await currentRegistration(container);
   const current = registeredScript(registration);
-  if (registration && current && current !== requiredUrl)
-    return enterTransition(registration, current, requiredId, requiredUrl);
+  if (registration && current && current !== requiredUrl) {
+    enterTransition(registration, current, requiredId, requiredUrl);
+    return;
+  }
   state.pendingTransition = null;
   if (state.status.transition?.status === "transition-required")
     publish({ transition: null });
