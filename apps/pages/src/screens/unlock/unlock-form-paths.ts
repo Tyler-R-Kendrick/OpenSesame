@@ -4,13 +4,17 @@ import type {
   SecondStepId,
   UnlockMethodId,
 } from "../../lib/vault/unlock-methods.js";
+import { unlockWithPasskeyAfterDuressGate } from "./unlock-passkey-duress.js";
 import { unlockWithPasswordAfterDuressGate } from "./unlock-password-duress.js";
 import { unlockWithPinAfterDuressGate } from "./unlock-pin-duress.js";
+import { unlockSecondStepAfterDuressGate } from "./unlock-second-step-duress.js";
 
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
   create: (password: string, hint?: string) => Promise<void>;
+  createGuest: (options?: { resume?: boolean }) => Promise<void>;
+  cancelTotpChallenge: () => void;
   redeemRecoveryCode: (code: string) => Promise<void>;
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
@@ -62,18 +66,17 @@ export async function submitSecondStepUnlock(input: {
   totp: string;
   setRecovery: (value: string) => void;
   setTotp: (value: string) => void;
-}): Promise<void> {
-  if (input.recoveryMode) {
-    await input.store.redeemRecoveryCode(input.recovery);
-    input.setRecovery("");
-    return;
-  }
-  if (input.activeSecondStep === "totp") {
-    await input.store.confirmTotp(input.totp);
-  } else {
-    await input.store.confirmRemoteCode(input.totp);
-  }
-  input.setTotp("");
+}): Promise<"duress_stop" | "done"> {
+  const outcome = await unlockSecondStepAfterDuressGate({
+    store: input.store,
+    recoveryMode: input.recoveryMode,
+    activeSecondStep: input.activeSecondStep,
+    recovery: input.recovery,
+    totp: input.totp,
+  });
+  if (input.recoveryMode) input.setRecovery("");
+  else input.setTotp("");
+  return outcome === "duress_session" ? "duress_stop" : "done";
 }
 
 export async function submitPrimaryMethodUnlock(input: {
@@ -90,7 +93,7 @@ export async function submitPrimaryMethodUnlock(input: {
     const controller = new AbortController();
     input.passkeyAbort.current = controller;
     try {
-      await input.store.unlockWithPasskey(controller.signal);
+      await unlockWithPasskeyAfterDuressGate(input.store, controller.signal);
     } finally {
       if (input.passkeyAbort.current === controller)
         input.passkeyAbort.current = null;
@@ -102,24 +105,16 @@ export async function submitPrimaryMethodUnlock(input: {
       input.store,
       input.pin,
     );
-    if (pinOutcome === "duress_incident") {
-      input.setPin("");
-      input.setConfirm("");
-      return "duress_stop";
-    }
     input.setPin("");
-    return "done";
+    input.setConfirm("");
+    return pinOutcome === "duress_session" ? "duress_stop" : "done";
   }
   const passwordOutcome = await unlockWithPasswordAfterDuressGate(
     input.store,
     input.password,
   );
-  if (passwordOutcome === "duress_incident") {
-    input.setPassword("");
-    return "duress_stop";
-  }
   input.setPassword("");
-  return "done";
+  return passwordOutcome === "duress_session" ? "duress_stop" : "done";
 }
 
 export async function submitGuestUnlock(): Promise<void> {
