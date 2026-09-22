@@ -1,0 +1,65 @@
+/**
+ * Which item kinds a person may *create* here (SURFACE-08).
+ *
+ * The core vault owns logins, cards, secrets and notes. Every other kind —
+ * passkey records, certificates, drops — is an `item-kind` contribution from
+ * the capability that owns it, so its creation surfaces (the rail filter, the
+ * type picker, the filtered "+ new") exist only while that capability is in
+ * the plan. Existing records of an excluded kind still render: the parsers
+ * are untouched and the unknown-type fallback is the same one a community
+ * type uses.
+ */
+
+import { useMemo } from "react";
+import type { ItemKindContribution } from "./capabilities/runtime-contract.js";
+import { contributionsSnapshot, useContributions } from "./contributions.js";
+
+export type ItemKindRow = Readonly<{
+  /** The item type id, also the `?f=` filter value. */
+  id: string;
+  /** The rail's directory name under `vault/`. */
+  segment: string;
+  label: string;
+  order: number;
+}>;
+
+/** The kinds the core vault ships. Order is the rail's order. */
+export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
+  { id: "login", segment: "logins", label: "Login", order: 0 },
+  { id: "card", segment: "cards", label: "Card", order: 20 },
+  { id: "secret", segment: "secrets", label: "Secret", order: 30 },
+  { id: "note", segment: "notes", label: "Secure note", order: 50 },
+];
+
+export function itemKindsFrom(
+  contributions: readonly ItemKindContribution[],
+): readonly ItemKindRow[] {
+  const contributed = contributions
+    .filter((entry) => !CORE_ITEM_KINDS.some((core) => core.id === entry.kind))
+    .map((entry) => ({
+      id: entry.kind,
+      segment: entry.segment,
+      label: entry.label,
+      order: entry.order,
+    }));
+  return [...CORE_ITEM_KINDS, ...contributed].sort((left, right) =>
+    left.order !== right.order
+      ? left.order - right.order
+      : left.id.localeCompare(right.id),
+  );
+}
+
+/** Core kinds plus the approved `item-kind` contributions, sorted. */
+export function itemKindsSnapshot(): readonly ItemKindRow[] {
+  return itemKindsFrom(contributionsSnapshot("item-kind"));
+}
+
+export function useItemKinds(): readonly ItemKindRow[] {
+  const contributions = useContributions("item-kind");
+  return useMemo(() => itemKindsFrom(contributions), [contributions]);
+}
+
+/** Whether a creation surface may offer `kind` on this installation. */
+export function isCreatableItemKind(kind: string): boolean {
+  return itemKindsSnapshot().some((row) => row.id === kind);
+}

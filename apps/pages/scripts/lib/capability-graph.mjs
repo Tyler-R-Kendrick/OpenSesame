@@ -339,3 +339,40 @@ export function canonicalJson(value, indent = 2) {
   };
   return `${JSON.stringify(sort(value), null, indent)}\n`;
 }
+
+/**
+ * Module scripts and modulepreload links of an emitted HTML document,
+ * resolved to dist-relative files. `base` is the build's public base
+ * (`/OpenSesame/`); `htmlFile` is the document's own dist-relative path.
+ */
+export function parseHtmlEntry(html, { base, htmlFile }) {
+  const scripts = [];
+  const preloads = [];
+  const resolveRef = (ref) => {
+    const clean = ref.replace(/[?#].*$/, "");
+    if (base && clean.startsWith(base)) return clean.slice(base.length);
+    if (clean.startsWith("/")) return clean.slice(1);
+    const dir = htmlFile.includes("/") ? htmlFile.slice(0, htmlFile.lastIndexOf("/")) : "";
+    const parts = [...(dir ? dir.split("/") : []), ...clean.split("/")];
+    const out = [];
+    for (const part of parts) {
+      if (part === "." || part === "") continue;
+      if (part === "..") out.pop();
+      else out.push(part);
+    }
+    return out.join("/");
+  };
+  for (const tag of html.matchAll(/<script\b[^>]*>/gi)) {
+    const attrs = tag[0];
+    if (!/\btype\s*=\s*["']module["']/i.test(attrs)) continue;
+    const src = attrs.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+    if (src && !/^[a-z]+:/i.test(src[1])) scripts.push(resolveRef(src[1]));
+  }
+  for (const tag of html.matchAll(/<link\b[^>]*>/gi)) {
+    const attrs = tag[0];
+    if (!/\brel\s*=\s*["']modulepreload["']/i.test(attrs)) continue;
+    const href = attrs.match(/\bhref\s*=\s*["']([^"']+)["']/i);
+    if (href && !/^[a-z]+:/i.test(href[1])) preloads.push(resolveRef(href[1]));
+  }
+  return { scripts: [...new Set(scripts)].sort(), preloads: [...new Set(preloads)].sort() };
+}
