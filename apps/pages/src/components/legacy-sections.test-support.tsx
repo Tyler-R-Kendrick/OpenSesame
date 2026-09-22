@@ -5,12 +5,15 @@
  * way the modules do on activation. Returns one revoke for all of it.
  */
 
-import { registerLegacySections } from "../lib/contributions.test-support.js";
-import { registerContributionForTest } from "../lib/contributions.js";
-import { registerOptionalTutorials } from "../tutorial/registry/optional-tutorials.test-support.js";
+import {
+  registerLegacySectionRows,
+  registerLegacySections,
+  registerLegacySettingsCategories,
+} from "../lib/contributions.test-support.js";
 import { AccessRailTree } from "../modules/access.authority/AccessRailTree.js";
 import { IdentityRailTree } from "../modules/identity.local-iam/IdentityRailTree.js";
 import { WalletTree } from "../modules/wallet.spending/WalletTree.js";
+import { registerOptionalTutorials } from "../tutorial/registry/optional-tutorials.test-support.js";
 import { ConnectionsTreeEntries } from "./ConnectionsTree.js";
 
 function ConnectionsSettingsStub() {
@@ -23,62 +26,13 @@ export function registerLegacyShell(): () => void {
     // id the live catalog does not declare, exactly as it would in the app.
     registerOptionalTutorials(),
     registerLegacySections(),
-    registerContributionForTest("section", {
-      id: "connections",
-      to: "/connections",
-      label: "Connections",
-      segment: "connections",
-      jump: "c",
-      icon: "connection",
-      order: 20,
-      Tree: ConnectionsTreeEntries,
+    registerLegacySectionRows({
+      connections: ConnectionsTreeEntries,
+      access: AccessRailTree,
+      identity: IdentityRailTree,
+      wallet: WalletTree,
     }),
-    registerContributionForTest("section", {
-      id: "access",
-      to: "/access",
-      label: "Access",
-      segment: "access",
-      jump: "a",
-      icon: "authority",
-      order: 30,
-      Tree: AccessRailTree,
-    }),
-    registerContributionForTest("section", {
-      id: "identity",
-      to: "/identity",
-      label: "Identity",
-      segment: "identity",
-      jump: "i",
-      icon: "user",
-      order: 40,
-      Tree: IdentityRailTree,
-    }),
-    registerContributionForTest("section", {
-      id: "wallet",
-      to: "/wallet",
-      label: "Wallet",
-      segment: "wallet",
-      jump: "w",
-      icon: "card",
-      order: 50,
-      Tree: WalletTree,
-    }),
-    registerContributionForTest("section", {
-      id: "activity",
-      to: "/activity",
-      label: "Activity",
-      segment: "activity",
-      jump: "y",
-      icon: "clock",
-      order: 60,
-    }),
-    registerContributionForTest("settings-category", {
-      id: "connections",
-      label: "Connections",
-      guideId: "settings.connections",
-      Panel: ConnectionsSettingsStub,
-      order: 40,
-    }),
+    registerLegacySettingsCategories(ConnectionsSettingsStub),
   ];
   return () => {
     for (const revoke of revokes) revoke();

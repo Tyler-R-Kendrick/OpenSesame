@@ -6,6 +6,11 @@
  * the default, with nothing registered, is the core-only shell.
  */
 
+import type { ComponentType } from "react";
+import type {
+  SectionContribution,
+  TreeProps,
+} from "./capabilities/runtime-contract.js";
 import { registerContributionForTest } from "./contributions.js";
 
 /** `keymap-jump` + `command-path` for every legacy section, in rail order. */
@@ -24,29 +29,118 @@ export const LEGACY_ITEM_KINDS = [
   { kind: "certificate", label: "Certificates", segment: "certs", order: 70 },
 ] as const;
 
-export function registerLegacyJumps(): () => void {
-  const revokes = LEGACY_JUMPS.flatMap((jump) => [
-    registerContributionForTest("keymap-jump", {
-      key: jump.key,
-      path: jump.path,
-    }),
-    registerContributionForTest("command-path", {
-      path: jump.path,
-      label: jump.label,
-    }),
-  ]);
+/**
+ * The five optional rail directories, without their trees. A module supplies
+ * `Tree` as an already-imported component; a test that only needs the row —
+ * a crumb, a jump, a command path — registers these as they are.
+ */
+export const LEGACY_SECTION_ROWS: readonly Omit<SectionContribution, "Tree">[] =
+  [
+    {
+      id: "connections",
+      to: "/connections",
+      label: "Connections",
+      segment: "connections",
+      jump: "c",
+      icon: "connection",
+      order: 20,
+    },
+    {
+      id: "access",
+      to: "/access",
+      label: "Access",
+      segment: "access",
+      jump: "a",
+      icon: "authority",
+      order: 30,
+    },
+    {
+      id: "identity",
+      to: "/identity",
+      label: "Identity",
+      segment: "identity",
+      jump: "i",
+      icon: "user",
+      order: 40,
+    },
+    {
+      id: "wallet",
+      to: "/wallet",
+      label: "Wallet",
+      segment: "wallet",
+      jump: "w",
+      icon: "card",
+      order: 50,
+    },
+    {
+      id: "activity",
+      to: "/activity",
+      label: "Activity",
+      segment: "activity",
+      jump: "y",
+      icon: "clock",
+      order: 60,
+    },
+  ];
+
+function revokeAll(revokes: readonly (() => void)[]): () => void {
   return () => {
     for (const revoke of revokes) revoke();
   };
 }
 
-export function registerLegacyItemKinds(): () => void {
-  const revokes = LEGACY_ITEM_KINDS.map((kind) =>
-    registerContributionForTest("item-kind", kind),
+/** The five rail directories; `trees` supplies each one's entries by id. */
+export function registerLegacySectionRows(
+  trees: Readonly<Record<string, ComponentType<TreeProps>>> = {},
+): () => void {
+  return revokeAll(
+    LEGACY_SECTION_ROWS.map((row) =>
+      registerContributionForTest("section", {
+        ...row,
+        ...(trees[row.id] ? { Tree: trees[row.id] } : {}),
+      }),
+    ),
   );
-  return () => {
-    for (const revoke of revokes) revoke();
-  };
+}
+
+function EmptySettingsPanel(): null {
+  return null;
+}
+
+/** The one contributed Settings category: Connections, from the connectors capability. */
+export function registerLegacySettingsCategories(
+  Panel: ComponentType = EmptySettingsPanel,
+): () => void {
+  return registerContributionForTest("settings-category", {
+    id: "connections",
+    label: "Connections",
+    guideId: "settings.connections",
+    Panel,
+    order: 40,
+  });
+}
+
+export function registerLegacyJumps(): () => void {
+  return revokeAll(
+    LEGACY_JUMPS.flatMap((jump) => [
+      registerContributionForTest("keymap-jump", {
+        key: jump.key,
+        path: jump.path,
+      }),
+      registerContributionForTest("command-path", {
+        path: jump.path,
+        label: jump.label,
+      }),
+    ]),
+  );
+}
+
+export function registerLegacyItemKinds(): () => void {
+  return revokeAll(
+    LEGACY_ITEM_KINDS.map((kind) =>
+      registerContributionForTest("item-kind", kind),
+    ),
+  );
 }
 
 /**
@@ -55,8 +149,19 @@ export function registerLegacyItemKinds(): () => void {
  * `components/legacy-sections.test-support.tsx`.
  */
 export function registerLegacySections(): () => void {
-  const revokes = [registerLegacyJumps(), registerLegacyItemKinds()];
-  return () => {
-    for (const revoke of revokes) revoke();
-  };
+  return revokeAll([registerLegacyJumps(), registerLegacyItemKinds()]);
+}
+
+/**
+ * Everything but the components: jumps, command paths, item kinds, the five
+ * rail directories as leaves, and the Connections settings category with an
+ * empty panel. What a non-React test (crumbs, keymap, WebMCP) needs to see
+ * the shell a full plan draws.
+ */
+export function registerLegacyShellData(): () => void {
+  return revokeAll([
+    registerLegacySections(),
+    registerLegacySectionRows(),
+    registerLegacySettingsCategories(),
+  ]);
 }

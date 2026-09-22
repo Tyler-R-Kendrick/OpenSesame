@@ -8,11 +8,19 @@
  */
 
 import type {
+  CapabilityCatalog,
   CapabilityId,
   CompositionChangeReview,
+  EffectivePlan,
   InstallationCapabilitySelection,
 } from "@opensesame/capability-composition";
-import { useCallback, useMemo, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   CAPABILITY_CATALOG,
   type CapabilityPreset,
@@ -57,32 +65,38 @@ type DraftEditors = Readonly<{
   review: () => void;
 }>;
 
+type DraftEditorArgs = Readonly<{
+  draft: CapabilityDraft | null;
+  setDraft: Dispatch<SetStateAction<CapabilityDraft | null>>;
+  setStage: Dispatch<SetStateAction<SetupStage>>;
+  openReview: (next: CapabilityDraft) => void;
+  catalog: CapabilityCatalog;
+  plan: EffectivePlan | null;
+}>;
+
 /**
  * Every edit is a pure transform of the draft. `replace` and `review` are
  * the only two that open the review, and neither commits anything.
  */
-function useDraftEditors(args: {
-  draft: CapabilityDraft | null;
-  setDraft: (next: (current: CapabilityDraft | null) => CapabilityDraft) => void;
-  setStage: (stage: SetupStage) => void;
-  openReview: (next: CapabilityDraft) => void;
-  catalog: typeof CAPABILITY_CATALOG;
-  plan: ReturnType<typeof useComposition>["plan"];
-}): DraftEditors {
+function useDraftEditors(args: DraftEditorArgs): DraftEditors {
   const { draft, setDraft, setStage, openReview, catalog, plan } = args;
   return useMemo(
     () => ({
       preset: (preset: CapabilityPreset) => {
         setDraft((current) =>
-          applyPreset(current ?? draftFromSelection(null, "customize"), preset, plan),
+          applyPreset(
+            current ?? draftFromSelection(null, "customize"),
+            preset,
+            plan,
+          ),
         );
         setStage("cards");
       },
       toggle: (id: CapabilityId) =>
-        setDraft((current) => (current ? toggleRoot(current, id) : EMPTY)),
+        setDraft((current) => (current ? toggleRoot(current, id) : current)),
       alternative: (slot: string, id: CapabilityId) =>
         setDraft((current) =>
-          current ? chooseAlternative(current, slot, id) : EMPTY,
+          current ? chooseAlternative(current, slot, id) : current,
         ),
       replace: (from: CapabilityId, to: CapabilityId) => {
         if (draft) openReview(replaceRoot(draft, from, to, catalog));
@@ -94,8 +108,6 @@ function useDraftEditors(args: {
     [catalog, draft, openReview, plan, setDraft, setStage],
   );
 }
-
-const EMPTY: CapabilityDraft = draftFromSelection(null, "customize");
 
 export function useCapabilitySetup(initialJoin: boolean) {
   const snapshot = useComposition();
