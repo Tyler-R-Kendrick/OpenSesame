@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 504,
-    "violations": 797,
-    "oversizedLines": 253749
+    "files": 501,
+    "violations": 794,
+    "oversizedLines": 252600
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -592,9 +592,6 @@
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/pages/src/components/AppShell.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/components/CeremonyShell.tsx": {
       "complexity": 1
     },
@@ -606,9 +603,6 @@
     },
     "apps/pages/src/components/FieldShell.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/components/Icons.tsx": {
-      "max-lines": 583
     },
     "apps/pages/src/components/IdentityCeremony.tsx": {
       "complexity": 1,
@@ -689,7 +683,7 @@
       "max-lines": 495
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
-      "max-lines": 956
+      "max-lines": 887
     },
     "apps/pages/src/lib/keymap.ts": {
       "complexity": 1,
@@ -1012,9 +1006,6 @@
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
       "max-nested-callbacks": 1
     },
-    "apps/pages/src/tutorial/__tests__/adversarial/harness.ts": {
-      "max-lines": 413
-    },
     "apps/pages/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
       "max-lines": 678
     },
@@ -1040,7 +1031,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 726
+      "max-lines": 642
     },
     "apps/pages/src/webmcp/tools.ts": {
       "max-lines": 696
