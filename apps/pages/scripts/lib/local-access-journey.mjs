@@ -95,14 +95,41 @@ export async function chooseCapabilities(context, width, titles) {
     await unlockVault(page);
     await expect(page.getByTestId("capabilities-panel")).toBeVisible();
     const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
-    if ((await add.count()) === 0) continue;
-    await add.click();
-    const apply = page.getByTestId("capability-apply");
-    await expect(apply).toBeEnabled();
-    await apply.click();
-    await expect(page.getByTestId("capability-review")).toHaveCount(0, {
-      timeout: 20_000,
-    });
+    if ((await add.count()) > 0) {
+      await add.click();
+      const apply = page.getByTestId("capability-apply");
+      await expect(apply).toBeEnabled();
+      await apply.click();
+      await expect(page.getByTestId("capability-review")).toHaveCount(0, {
+        timeout: 20_000,
+      });
+    }
+    // Assert the postcondition rather than assuming it: a helper that
+    // silently skips is a helper that reports success for a walk which then
+    // fails somewhere else entirely. A row that still offers Add did not
+    // take, and one that is running offers Disable instead.
+    // Assert the postcondition, and say what the panel said when it fails:
+    // a helper that skips silently reports success for a walk that then
+    // fails somewhere else entirely, which is how this took a while to
+    // find. A row that still offers Add did not take; one that is running
+    // offers Disable instead.
+    const row = page.locator(".capspanel__row").filter({ hasText: title });
+    const notice = page.locator(".capspanel__notice");
+    const state = `${await row.first().innerText()} — ${
+      (await notice.count()) ? await notice.first().innerText() : "no notice"
+    }`;
+    expect(
+      await page
+        .getByRole("button", { name: `Add ${title}`, exact: true })
+        .count(),
+      `${title} was not taken: ${state}`,
+    ).toBe(0);
+    expect(
+      await page
+        .getByRole("button", { name: `Disable ${title} now`, exact: true })
+        .count(),
+      `${title} is not running: ${state}`,
+    ).toBe(1);
   }
   await page.close();
 }
