@@ -11,13 +11,15 @@
 //! useful if it ever escaped the temporary directory.
 
 mod spec;
+mod util;
 
 pub use spec::{LeafSpec, Window};
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use util::{concat, openssl, thumbprint_of, write};
 
-use anyhow::{bail, Context as _, Result};
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
 
 /// One certificate authority: its key, its self-signed or issued certificate,
 /// and the chain a peer must present to be verified against the root.
@@ -34,6 +36,10 @@ pub struct Ca {
 }
 
 /// One end-entity certificate plus the files a client or server loads.
+///
+/// Cloning copies paths only; the files stay in the one temporary directory
+/// the [`Pki`] owns and removes.
+#[derive(Clone)]
 pub struct Leaf {
     /// Leaf first, then every intermediate below the root.
     pub chain: PathBuf,
@@ -57,39 +63,6 @@ pub struct Leaf {
 /// A whole disposable world: several unrelated roots, under one temp dir.
 pub struct Pki {
     dir: tempfile::TempDir,
-}
-
-fn openssl(dir: &Path, args: &[&str]) -> Result<Vec<u8>> {
-    let out = Command::new("/usr/bin/openssl")
-        .current_dir(dir)
-        .args(args)
-        .output()
-        .with_context(|| format!("spawn openssl {}", args.join(" ")))?;
-    if !out.status.success() {
-        bail!(
-            "openssl {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr)
-        );
-    }
-    Ok(out.stdout)
-}
-
-fn write(path: &Path, bytes: &[u8]) -> Result<()> {
-    std::fs::write(path, bytes).with_context(|| format!("write {}", path.display()))
-}
-
-fn concat(dir: &Path, name: &str, parts: &[&Path]) -> Result<PathBuf> {
-    let mut buf = Vec::new();
-    for part in parts {
-        buf.extend_from_slice(&std::fs::read(part).with_context(|| format!("{}", part.display()))?);
-        if !buf.ends_with(b"\n") {
-            buf.push(b'\n');
-        }
-    }
-    let path = dir.join(name);
-    write(&path, &buf)?;
-    Ok(path)
 }
 
 impl Pki {
@@ -380,26 +353,4 @@ impl Ca {
             thumbprint: cert_of.thumbprint.clone(),
         })
     }
-}
-
-fn thumbprint_of(dir: &Path, cert: &Path) -> Result<String> {
-    let out = openssl(
-        dir,
-        &[
-            "x509",
-            "-in",
-            &cert.to_string_lossy(),
-            "-outform",
-            "DER",
-            "-fingerprint",
-            "-sha256",
-            "-noout",
-        ],
-    )?;
-    let text = String::from_utf8_lossy(&out);
-    let hex = text
-        .split('=')
-        .nth(1)
-        .context("openssl fingerprint had no value")?;
-    Ok(hex.trim().replace(':', "").to_lowercase())
 }

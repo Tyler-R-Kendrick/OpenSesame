@@ -1,4 +1,4 @@
-//! IOP-OPENBAO — a real, TLS-enabled OpenBao with certificate auth, driven
+//! IOP-OPENBAO — a real, TLS-enabled `OpenBao` with certificate auth, driven
 //! by `curl`.
 //!
 //! SW-CONNECTOR already proved its own client against a live `bao` 2.3.2

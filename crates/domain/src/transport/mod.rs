@@ -62,8 +62,12 @@ pub mod operations {
     pub const WORKER_HEALTH_READY: &str = "worker.health.ready";
     pub const PRINCIPALS_MAPPING_RESOLVE: &str = "principals.mapping.resolve";
     pub const INGRESS_FORWARD: &str = "ingress.forward";
-    pub const TRANSPORT_PROBE: &str = "transport.probe";
     pub const CONNECTOR_INVOKE: &str = "connector.invoke";
+
+    // There is deliberately no `transport.probe`: see the note beside
+    // [`super::BindingPurpose`]. The enforcement probe authorizes nothing,
+    // and `ObservedAuthentication::observer` may still carry the free-text
+    // label `"transport.probe"` — an observer name is not an operation.
 
     /// Every operation string the platform ships. A binding may name one of
     /// these or a well-formed operator-defined string; the list exists so
@@ -74,7 +78,6 @@ pub mod operations {
         WORKER_HEALTH_READY,
         PRINCIPALS_MAPPING_RESOLVE,
         INGRESS_FORWARD,
-        TRANSPORT_PROBE,
         CONNECTOR_INVOKE,
     ];
 }

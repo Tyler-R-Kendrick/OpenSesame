@@ -100,57 +100,77 @@ impl Broker {
     ///
     /// `openssl` could not be started.
     pub fn raw_session(&self, client: &Leaf, lines: &[&str], dwell: Duration) -> Result<String> {
-        let mut args = vec![
-            "s_client".to_string(),
-            "-connect".to_string(),
-            format!("127.0.0.1:{}", self.port),
-            "-servername".to_string(),
-            SERVER_DNS.to_string(),
-            "-CAfile".to_string(),
-            self.ca.cert.to_string_lossy().into_owned(),
-            "-cert".to_string(),
-            client.chain.to_string_lossy().into_owned(),
-            "-key".to_string(),
-            client.key.to_string_lossy().into_owned(),
-            "-verify_return_error".to_string(),
-            "-quiet".to_string(),
-        ];
-        if let Some(extra) = client.intermediates.as_ref() {
-            args.push("-cert_chain".to_string());
-            args.push(extra.to_string_lossy().into_owned());
-        }
-        let mut child = Command::new("/usr/bin/openssl")
-            .args(&args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .context("spawn openssl s_client for NATS")?;
+        let owned: Vec<String> = lines.iter().map(|l| (*l).to_string()).collect();
+        raw_session_at(self.port, &self.ca.cert, client, &owned, dwell)
+    }
+}
+
+/// The same session, addressable without a borrow of the broker, so it can
+/// run on a blocking thread while an async publisher runs beside it.
+///
+/// # Errors
+///
+/// `openssl` could not be started.
+pub fn raw_session_at(
+    port: u16,
+    anchors: &Path,
+    client: &Leaf,
+    lines: &[String],
+    dwell: Duration,
+) -> Result<String> {
+    let mut args = vec![
+        "s_client".to_string(),
+        "-connect".to_string(),
+        format!("127.0.0.1:{port}"),
+        "-servername".to_string(),
+        SERVER_DNS.to_string(),
+        "-CAfile".to_string(),
+        anchors.to_string_lossy().into_owned(),
+        "-cert".to_string(),
+        client.chain.to_string_lossy().into_owned(),
+        "-key".to_string(),
+        client.key.to_string_lossy().into_owned(),
+        "-verify_return_error".to_string(),
+        "-quiet".to_string(),
+    ];
+    if let Some(extra) = client.intermediates.as_ref() {
+        args.push("-cert_chain".to_string());
+        args.push(extra.to_string_lossy().into_owned());
+    }
+    let mut child = Command::new("/usr/bin/openssl")
+        .args(&args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("spawn openssl s_client for NATS")?;
+    let stdin = child.stdin.take().context("s_client stdin")?;
+    // Closing stdin afterwards does not end the session: `-quiet` implies
+    // `-ign_eof`.
+    write_lines(stdin, lines);
+    std::thread::sleep(dwell);
+    let _ = child.kill();
+    let out = child.wait_with_output()?;
+    Ok(format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    ))
+}
+
+/// Send each protocol line, stopping the moment the child goes away.
+///
+/// A write failure means the peer already refused — a *result*, not a harness
+/// error — so it must not mask the transcript that explains it.
+fn write_lines(mut stdin: std::process::ChildStdin, lines: &[String]) {
+    for line in lines {
+        if stdin.write_all(line.as_bytes()).is_err()
+            || stdin.write_all(b"\r\n").is_err()
+            || stdin.flush().is_err()
         {
-            let mut stdin = child.stdin.take().context("s_client stdin")?;
-            for line in lines {
-                // A write failure means the child already went away (a TLS
-                // refusal, say). That is a *result*, not a harness error, so
-                // it must not mask the transcript that explains it.
-                if stdin.write_all(line.as_bytes()).is_err()
-                    || stdin.write_all(b"\r\n").is_err()
-                    || stdin.flush().is_err()
-                {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(60));
-            }
-            // Leaving stdin open would block the read below; `-quiet` implies
-            // `-ign_eof`, so closing it does not end the TLS session.
+            return;
         }
-        std::thread::sleep(dwell);
-        let _ = child.kill();
-        let out = child.wait_with_output()?;
-        Ok(format!(
-            "{}{}",
-            String::from_utf8_lossy(&out.stdout),
-            String::from_utf8_lossy(&out.stderr)
-        ))
+        std::thread::sleep(Duration::from_millis(60));
     }
 }
 

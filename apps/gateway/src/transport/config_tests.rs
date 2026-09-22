@@ -181,7 +181,6 @@ fn callout_mtls_has_no_secret_and_needs_an_authenticating_listener() {
     )]))
     .expect("callout mtls with an authenticating listener");
     assert!(ok.requires_mtls(BindingPurpose::NatsAuthBridge));
-    assert!(ok.requires_mtls(BindingPurpose::ServiceProbe));
     assert!(ok.mapping_client_required());
 }
 

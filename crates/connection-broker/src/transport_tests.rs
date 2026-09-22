@@ -239,7 +239,7 @@ async fn a_revoked_or_wrong_purpose_identity_stops_resolving() {
         "org-a",
         "probe-only",
         Arc::new(leaf.identity()),
-        vec!["transport.probe"],
+        vec!["worker.health.ready"],
     );
     resolver.register_identity("org-a", "connector", Arc::new(leaf.identity()));
 

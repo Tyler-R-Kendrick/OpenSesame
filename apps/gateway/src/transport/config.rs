@@ -176,9 +176,6 @@ impl TransportConfig {
             BindingPurpose::TrustedIngress => {
                 listener_policy == Some(TransportPolicy::TrustedIngress)
             }
-            BindingPurpose::ServiceProbe => {
-                listener_policy.is_some_and(TransportPolicy::authenticates_client)
-            }
             // The Host is the *client* toward Identity and has no worker or
             // upstream-connector receiver of its own.
             BindingPurpose::WorkerClient

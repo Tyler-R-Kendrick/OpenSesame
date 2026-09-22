@@ -188,7 +188,6 @@ fn operation_strings_are_the_contract_spellings() {
             "worker.health.ready",
             "principals.mapping.resolve",
             "ingress.forward",
-            "transport.probe",
             "connector.invoke",
         ]
     );

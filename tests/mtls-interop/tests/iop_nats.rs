@@ -79,7 +79,7 @@ async fn a_rust_publisher_and_a_raw_openssl_consumer_agree_on_one_certificate_ma
 
     // The consumer subscribes first, from a runtime that knows nothing about
     // async-nats, and dwells while the publisher runs.
-    let consumer_lines = vec![
+    let consumer_lines = [
         nats::connect_line(),
         format!("SUB {}.> 1", nats::EVENTS),
         "PING".to_string(),
@@ -143,7 +143,7 @@ async fn reconnecting_never_widens_the_destinations_a_certificate_authorizes() -
 
     // The consumer's certificate maps to a user that may subscribe to the
     // events tree and publish nowhere.
-    let probe = vec![
+    let probe = [
         nats::connect_line(),
         format!("SUB {}.> 1", nats::EVENTS),
         format!("SUB {}.> 2", nats::FORBIDDEN),
@@ -231,7 +231,7 @@ async fn an_unmapped_certificate_is_refused_after_the_handshake_not_during_it() 
             "stranger",
             "stranger.iop.test",
         ))?;
-    let lines = vec![nats::connect_line(), "PING".to_string()];
+    let lines = [nats::connect_line(), "PING".to_string()];
     let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
     let transcript = tokio::task::block_in_place(|| {
         broker.raw_session(&stranger, &refs, Duration::from_secs(2))

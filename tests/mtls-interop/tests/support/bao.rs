@@ -1,4 +1,4 @@
-//! A disposable, genuinely TLS-enabled OpenBao with certificate auth.
+//! A disposable, genuinely TLS-enabled `OpenBao` with certificate auth.
 //!
 //! This is SW-INTEROP's own harness, not SW-CONNECTOR's: the PKI comes from
 //! the system `openssl` and every request is made by `curl`, so neither the
@@ -43,7 +43,7 @@ impl Answer {
     }
 }
 
-/// A running OpenBao plus the disposable world around it.
+/// A running `OpenBao` plus the disposable world around it.
 pub struct Bao {
     pub port: u16,
     pub version: String,
@@ -255,17 +255,18 @@ impl Bao {
     fn wait_for_api(&self) -> Result<()> {
         let deadline = Instant::now() + Duration::from_secs(60);
         while Instant::now() < deadline {
-            if let Ok(answer) = self.request(
-                "GET",
-                "/v1/sys/health",
-                Some(&self.tenant_a),
-                &self.ca.cert,
-                None,
-                None,
-            ) {
-                if answer.curl_exit == 0 {
-                    return Ok(());
-                }
+            let reachable = self
+                .request(
+                    "GET",
+                    "/v1/sys/health",
+                    Some(&self.tenant_a),
+                    &self.ca.cert,
+                    None,
+                    None,
+                )
+                .is_ok_and(|answer| answer.curl_exit == 0);
+            if reachable {
+                return Ok(());
             }
             std::thread::sleep(Duration::from_millis(200));
         }
@@ -285,10 +286,10 @@ impl Bao {
             .as_str()
             .context("no unseal key")?
             .to_owned();
-        self.root_token = init.body["root_token"]
+        init.body["root_token"]
             .as_str()
             .context("no root token")?
-            .to_owned();
+            .clone_into(&mut self.root_token);
         let unseal = self.request(
             "PUT",
             "/v1/sys/unseal",

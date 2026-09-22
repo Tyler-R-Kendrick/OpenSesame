@@ -95,7 +95,10 @@ pub fn fixture_binary(tool: &str) -> Result<PathBuf> {
     }
     let path = PathBuf::from(stdout.trim());
     if !path.is_file() {
-        bail!("mtls-fixtures.sh printed a path that is not a file: {path:?}");
+        bail!(
+            "mtls-fixtures.sh printed a path that is not a file: {}",
+            path.display()
+        );
     }
     Ok(path)
 }

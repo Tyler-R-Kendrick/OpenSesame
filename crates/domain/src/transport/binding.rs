@@ -26,7 +26,13 @@ pub enum BindingPurpose {
     IdentityMappingClient,
     TrustedIngress,
     UpstreamConnector,
-    ServiceProbe,
+    // There is deliberately no probe purpose. The enforcement probe
+    // (`apps/gateway/src/transport/probe.rs`) is an outbound client only: it
+    // dials one of three fixed target words and asks the *unauthenticated*
+    // `/health/live`, because its negative half is precisely "connect with no
+    // certificate and observe the refusal". Nothing ever receives a request
+    // under a probe purpose, so advertising one would be an authority the
+    // platform never checks.
 }
 
 /// Who owns the binding. A deployment-scoped binding never satisfies an

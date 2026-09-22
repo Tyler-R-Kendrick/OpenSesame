@@ -54,7 +54,6 @@ export const BINDING_PURPOSES = [
   "identity_mapping_client",
   "trusted_ingress",
   "upstream_connector",
-  "service_probe",
 ] as const;
 export type BindingPurpose = (typeof BINDING_PURPOSES)[number];
 
@@ -86,7 +85,6 @@ export const TRANSPORT_OPERATIONS = {
   workerHealthReady: "worker.health.ready",
   principalsMappingResolve: "principals.mapping.resolve",
   ingressForward: "ingress.forward",
-  transportProbe: "transport.probe",
   connectorInvoke: "connector.invoke",
 } as const;
 

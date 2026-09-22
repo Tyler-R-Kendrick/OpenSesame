@@ -105,7 +105,6 @@ async fn probe(
 }
 
 /// The router every IOP-TLS listener serves.
-#[must_use]
 pub fn router(bindings: ServiceBindingSet) -> Router {
     Router::new()
         .route("/probe/{operation}", get(probe))

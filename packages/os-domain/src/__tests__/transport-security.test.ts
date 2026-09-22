@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { JsonValue } from "../json.js";
 import {
-  type BINDING_PURPOSES,
+  BINDING_PURPOSES,
   type BindingScope,
   type PeerIdentitySelector,
   type ServiceBinding,
@@ -316,5 +316,35 @@ describe("service binding resolution (default deny)", () => {
     expect(parseServiceBindingSet(JSON.stringify(set(binding()))).ok).toBe(
       true,
     );
+  });
+});
+
+describe("advertised authority", () => {
+  // SW-SECURITY: `service_probe` / `transport.probe` were advertised here and
+  // enforced nowhere. The enforcement probe is an outbound client that asks the
+  // unauthenticated /health/live on a fixed three-word target list, so it
+  // authorizes nothing and carries no purpose. Reintroducing either without an
+  // admission call site must fail here and in
+  // apps/gateway/src/transport/probe_tests.rs.
+  it("names only purposes a receiver actually admits", () => {
+    expect([...BINDING_PURPOSES]).toEqual([
+      "nats_auth_bridge",
+      "worker_client",
+      "identity_mapping_client",
+      "trusted_ingress",
+      "upstream_connector",
+    ]);
+  });
+
+  it("names only operations a route actually checks", () => {
+    expect(Object.values(TRANSPORT_OPERATIONS)).not.toContain("transport.probe");
+    expect(Object.values(TRANSPORT_OPERATIONS)).toEqual([
+      "nats.callout.decide",
+      "worker.providers.list",
+      "worker.health.ready",
+      "principals.mapping.resolve",
+      "ingress.forward",
+      "connector.invoke",
+    ]);
   });
 });
