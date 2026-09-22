@@ -13,6 +13,8 @@
     "apps/pages/src/lib/certs.ts",
     "apps/pages/src/lib/keymap.ts",
     "apps/pages/src/lib/tree-motion.ts",
+    "apps/pages/src/screens/unlock/unlock-duress-continue.ts",
+    "apps/pages/src/screens/unlock/unlock-pin-duress.ts",
     "packages/audit/src/chain.ts",
     "apps/control-plane/src/ui/agent-auth-pages.ts",
     "packages/siop-v2/src/issuer.ts",

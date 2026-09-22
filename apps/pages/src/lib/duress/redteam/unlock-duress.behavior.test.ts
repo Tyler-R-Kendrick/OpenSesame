@@ -91,7 +91,7 @@ describe("duress unlock behaviour", () => {
     await disarmPersistedUnlockEnrollment();
   });
 
-  it("Given armed UV+code trigger, When passkey alone, Then root stays sealed", async () => {
+  it("Given armed UV+code trigger, When passkey alone, Then root stays sealed pending code", async () => {
     const sealed = await sealUnlockTriggerFromCeremony({
       code: "11223344",
       profileId: "p-uv",
@@ -119,10 +119,20 @@ describe("duress unlock behaviour", () => {
     );
 
     const unlockWithPasskey = vi.fn(async () => undefined);
+    const probePasskeyPrf = vi.fn(async () => new ArrayBuffer(32));
+    const unlockWithHeldPrf = vi.fn(async () => undefined);
+    const createGuest = vi.fn(async () => undefined);
     await expect(
-      unlockWithPasskeyAfterDuressGate({ unlockWithPasskey }),
-    ).rejects.toBeInstanceOf(WrongPasswordError);
+      unlockWithPasskeyAfterDuressGate({
+        unlockWithPasskey,
+        probePasskeyPrf,
+        unlockWithHeldPrf,
+        createGuest,
+      }),
+    ).resolves.toBe("needs_duress_code");
     expect(unlockWithPasskey).not.toHaveBeenCalled();
+    expect(probePasskeyPrf).toHaveBeenCalledOnce();
+    expect(unlockWithHeldPrf).not.toHaveBeenCalled();
 
     clearEnrollmentStateForUnlock();
     resetFence();

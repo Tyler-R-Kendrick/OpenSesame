@@ -7,6 +7,7 @@ export function useUnlockFormFocus(args: {
   showSignIn: boolean;
   formGated: boolean;
   awaitingSecondStep: boolean;
+  awaitingPasskeyDuressCode?: boolean;
   guestUnlock: boolean;
   activeMethod: string;
   status: string;
@@ -22,6 +23,7 @@ export function useUnlockFormFocus(args: {
     showSignIn,
     formGated,
     awaitingSecondStep,
+    awaitingPasskeyDuressCode = false,
     guestUnlock,
     activeMethod,
     status,
@@ -36,6 +38,7 @@ export function useUnlockFormFocus(args: {
   useEffect(() => {
     if (signInStage || showSignIn || formGated) return;
     if (awaitingSecondStep) landFocus(totpRef.current);
+    else if (awaitingPasskeyDuressCode) landFocus(pinRef.current);
     else if (guestUnlock || activeMethod === "passkey") {
       if (!landFocus(goRef.current) && !landFocus(acceptRef.current))
         landFocus(firstControl(formRef.current));
@@ -44,6 +47,7 @@ export function useUnlockFormFocus(args: {
   }, [
     activeMethod,
     awaitingSecondStep,
+    awaitingPasskeyDuressCode,
     guestUnlock,
     signInStage,
     showSignIn,

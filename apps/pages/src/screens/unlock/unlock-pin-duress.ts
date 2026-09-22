@@ -3,7 +3,10 @@
  */
 
 import { WrongPasswordError } from "../../lib/vault/crypto.js";
-import { onCompleteUnlockCodeSubmission } from "../../sections/settings/security/duress-unlock-bridge.js";
+import {
+  type UnlockDuressOutcome,
+  onCompleteUnlockCodeSubmission,
+} from "../../sections/settings/security/duress-unlock-bridge.js";
 import {
   type DuressContinueStore,
   continueAfterDuressMatch,
@@ -18,6 +21,10 @@ type PinUnlockStore = DuressContinueStore &
 
 type PinDuressGateOptions = Readonly<{
   requireDurable?: boolean;
+  submit?: (
+    code: string,
+    options: { requireDurable?: boolean },
+  ) => Promise<UnlockDuressOutcome>;
 }>;
 const defaultPinDuressGateOptions = {} satisfies PinDuressGateOptions;
 
@@ -26,9 +33,9 @@ export async function unlockWithPinAfterDuressGate(
   pin: string,
   options: PinDuressGateOptions = defaultPinDuressGateOptions,
 ): Promise<PinUnlockResult> {
-  const duressOutcome = await onCompleteUnlockCodeSubmission(pin, {
-    requireDurable: options.requireDurable ?? true,
-  });
+  const submit = options.submit ?? onCompleteUnlockCodeSubmission;
+  const requireDurable = options.requireDurable ?? true;
+  const duressOutcome = await submit(pin, { requireDurable });
   if (
     duressOutcome.kind === "throttled" ||
     duressOutcome.kind === "ambiguous" ||
@@ -39,7 +46,10 @@ export async function unlockWithPinAfterDuressGate(
   if (duressOutcome.kind === "duress") {
     return continueAfterDuressMatch(
       store,
-      duressOutcome.match.plaintext.presentation,
+      {
+        profileId: duressOutcome.match.profileId,
+        plaintext: duressOutcome.match.plaintext,
+      },
       "That PIN did not unlock the vault.",
     );
   }
