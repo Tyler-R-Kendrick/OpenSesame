@@ -25,7 +25,8 @@ import { classifyModule } from "./capability-graph.mjs";
 import { FALLBACK_INVENTORY } from "./capability-inventory-fallback.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_APP_ROOT = resolve(here, "..");
+// This module lives in `apps/pages/scripts/lib/`, so the app root is two up.
+export const DEFAULT_APP_ROOT = resolve(here, "../..");
 const INVENTORY_FILES = {
   catalog: "src/lib/capabilities/catalog.ts",
   ownership: "src/lib/capabilities/ownership.ts",

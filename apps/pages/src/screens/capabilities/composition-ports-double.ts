@@ -27,6 +27,15 @@ import {
   fixturePresetToInstancePolicy,
 } from "./composition-fixture.js";
 
+/**
+ * The fixture's publication capability — the one whose approval offers
+ * "Publish deployment configuration". Declared, not asserted, so the list
+ * carries the catalog's own element type.
+ */
+const FIXTURE_PUBLICATION_CAPABILITIES: readonly CapabilityId[] = [
+  "backup.git-remote",
+];
+
 /** `buildConsentReceipt` over the fixture: roots plus every closure digest. */
 export function fixtureConsentReceipt(
   plan: EffectivePlan,

@@ -239,25 +239,33 @@ installation, hydrated by the core boot.
 - Cleanup deletes only `opensesame-pages:<same scopePath>:*` names that are
   neither current nor retained for active clients.
 
-## 5. Core versus optional (initial classification; S02 finalizes)
+## 5. Core versus optional (as landed: 7 core, 24 optional)
 
-Core (`tier: "core"`, always present): `vault.passwords` (items, editor,
-login/note/card/secret kinds, health), `vault.local-unlock` (password, PIN,
-passkey-PRF protectors and the second-step ceremony), `backup.local-encrypted`
-(encrypted file export/import/recovery), `identity.brokered-signin`
-(compiled-in broker + guest + local-only seal — the ADR 0090 front door),
-`settings.core` (General, Security, Vaults, Danger, Capabilities),
-`install.pwa` (install offer + core-only worker).
+Core (`tier: "core"`, always present), 7: `shell.navigation` (the rail,
+routes, crumbs, command bar, keymap and statusline every other capability
+contributes into), `vault.passwords` (items, editor, login/note/card/secret
+kinds, health), `vault.local-unlock` (password, PIN, passkey-PRF protectors
+and the second-step ceremony), `backup.local-encrypted` (encrypted file
+export/import/recovery), `identity.brokered-signin` (compiled-in broker +
+guest + local-only seal — the ADR 0090 front door), `settings.core` (General,
+Security, Vaults, Danger, Capabilities), `install.pwa` (install offer +
+core-only worker).
 
-Optional (default off): `vault.passkey-records`, `vault.certificate-records`,
-`sharing.drops`, `sharing.household` (alternatives slot `transport` →
-`sharing.drops`), `connectors.external`, `backup.git-remote`,
-`backup.cloud-secrets`, `access.authority`, `identity.federation`,
+Optional (default off), 24: `access.authority`, `identity.federation`,
 `identity.ambient-sso`, `identity.local-iam`, `identity.siop`,
-`enterprise.directory-provisioning`, `enterprise.ca-administration`,
-`agents.webmcp`, `support.guided-help`, `support.local-ai`,
-`support.remote-ai`, `wallet.spending`, `activity.log`,
-`notifications.web-push`, `telemetry.external`.
+`identity.site-broker`, `enterprise.directory-provisioning`,
+`enterprise.ca-administration`, `connectors.external`, `agents.webmcp`,
+`support.guided-help`, `support.local-ai`, `support.remote-ai`,
+`wallet.spending`, `activity.log`, `notifications.web-push`,
+`telemetry.external`, `vault.passkey-records`, `vault.certificate-records`,
+`vault.interop-formats`, `sharing.drops`, `sharing.household` (alternatives
+slot `transport` → `sharing.drops`), `backup.git-remote`,
+`backup.cloud-secrets`.
+
+The two counts are the ones `catalog-core.ts` and the three
+`catalog-optional-*.ts` files actually declare; `catalog.test.ts` asserts the
+catalog and `OPERATION_CAPABILITY` agree, so a later catalog change that
+leaves this paragraph behind is visible to a reader rather than silent.
 
 The prompt's example IDs (`vault.passwords`, `backup.local-encrypted`,
 `vault.passkey-records`, `sharing.household`, `connectors.external`,
