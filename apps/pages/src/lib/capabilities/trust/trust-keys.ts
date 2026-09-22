@@ -35,11 +35,23 @@ export type TrustedKeySet = Readonly<Record<string, PolicyPublicJwk>>;
 export const ECDSA_P256 = Object.freeze({ name: "ECDSA", namedCurve: "P-256" });
 export const ECDSA_SHA256 = Object.freeze({ name: "ECDSA", hash: "SHA-256" });
 const COORD_RE = /^[A-Za-z0-9_-]{43}$/;
-const PUBLIC_FIELDS = new Set(["kty", "crv", "x", "y", "alg", "use", "ext", "key_ops", "kid"]);
+const PUBLIC_FIELDS = new Set([
+  "kty",
+  "crv",
+  "x",
+  "y",
+  "alg",
+  "use",
+  "ext",
+  "key_ops",
+  "kid",
+]);
 /** ECDSA P-256 signatures are r||s, 32 bytes each, in WebCrypto and JWS alike. */
 export const P256_SIGNATURE_BYTES = 64;
 
-function metadataAllowed(value: Readonly<Record<string, JsonValue | undefined>>): boolean {
+function metadataAllowed(
+  value: Readonly<Record<string, JsonValue | undefined>>,
+): boolean {
   return (
     (value.alg === undefined || value.alg === "ES256") &&
     (value.use === undefined || value.use === "sig") &&
@@ -155,7 +167,12 @@ export function rotationSignedBytes(
 ): Uint8Array {
   return canonicalizeToBytes({
     instanceId: rotation.instanceId,
-    key: { crv: rotation.key.crv, kty: rotation.key.kty, x: rotation.key.x, y: rotation.key.y },
+    key: {
+      crv: rotation.key.crv,
+      kty: rotation.key.kty,
+      x: rotation.key.x,
+      y: rotation.key.y,
+    },
     kid: rotation.kid,
     kind: rotation.kind,
     notBefore: rotation.notBefore ?? null,
@@ -213,7 +230,8 @@ export async function rotatePolicyKey(
   if (rotation === null) return { ok: false, reason: "malformed-rotation" };
   if (rotation.instanceId !== options.instanceId)
     return { ok: false, reason: "wrong-instance" };
-  if (rotation.signedBy === rotation.kid) return { ok: false, reason: "self-signed" };
+  if (rotation.signedBy === rotation.kid)
+    return { ok: false, reason: "self-signed" };
   const signer = Object.hasOwn(current, rotation.signedBy)
     ? current[rotation.signedBy]
     : undefined;
@@ -227,7 +245,11 @@ export async function rotatePolicyKey(
   if (notBefore !== null && now !== null && now < notBefore)
     return { ok: false, reason: "not-yet-valid" };
   const { signature, ...unsigned } = rotation;
-  const verdict = await verifyEs256(signer, rotationSignedBytes(unsigned), signature);
+  const verdict = await verifyEs256(
+    signer,
+    rotationSignedBytes(unsigned),
+    signature,
+  );
   if (verdict !== "ok") return { ok: false, reason: verdict };
   const keys: Record<string, PolicyPublicJwk> = {};
   for (const kid of Object.keys(current)) {

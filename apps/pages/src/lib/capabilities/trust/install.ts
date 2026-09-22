@@ -199,7 +199,8 @@ export function readWorkspaceRestriction(
   const parsed = parseWorkspaceRestriction(body);
   if (!parsed.ok) return narrowest(instanceId, vaultId);
   const restriction = parsed.value;
-  return restriction.instanceId === instanceId && restriction.vaultId === vaultId
+  return restriction.instanceId === instanceId &&
+    restriction.vaultId === vaultId
     ? restriction
     : null;
 }

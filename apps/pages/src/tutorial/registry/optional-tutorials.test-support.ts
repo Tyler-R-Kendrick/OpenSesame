@@ -5,6 +5,7 @@
  * core-only. Returns the revoke for all of it.
  */
 
+import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
 import { registerContributionForTest } from "../../lib/contributions.js";
 import { OPTIONAL_TUTORIALS, type TutorialPartition } from "./authored.js";
 
@@ -29,6 +30,22 @@ export function registerTutorialPartition(
 
 export function registerOptionalTutorials(): () => void {
   const revokes = OPTIONAL_TUTORIALS.map(registerTutorialPartition);
+  return () => {
+    for (const revoke of revokes) revoke();
+  };
+}
+
+/**
+ * Every optional partition *and* the Settings categories the same modules
+ * contribute — `/settings/connections` is a guide route because the
+ * connectors capability contributes that category, not because any catalog
+ * authors it twice. What a tutorial suite needs to see the whole corpus.
+ */
+export function registerTutorialRealm(): () => void {
+  const revokes = [
+    registerOptionalTutorials(),
+    registerLegacySettingsCategories(),
+  ];
   return () => {
     for (const revoke of revokes) revoke();
   };

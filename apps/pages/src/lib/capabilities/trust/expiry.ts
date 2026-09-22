@@ -36,12 +36,16 @@ export type ValidityWindow = Readonly<{
 }>;
 
 /** `now` is ISO 8601 and supplied by the caller; a bad `now` is `malformed-time`. */
-export function policyValidity(window: ValidityWindow, now: string): PolicyValidity {
+export function policyValidity(
+  window: ValidityWindow,
+  now: string,
+): PolicyValidity {
   const at = parseIsoTime(now);
   if (at === null) return "malformed-time";
   const notBefore = parseIsoTime(window.notBefore);
   const expires = parseIsoTime(window.expires);
-  if (window.notBefore !== undefined && notBefore === null) return "malformed-time";
+  if (window.notBefore !== undefined && notBefore === null)
+    return "malformed-time";
   if (window.expires !== undefined && expires === null) return "malformed-time";
   if (notBefore !== null && at < notBefore) return "not-yet-valid";
   if (expires !== null && at >= expires) return "expired";
@@ -58,13 +62,22 @@ export type OfflineAllowance = Readonly<{
   remainsCeiling: boolean;
 }>;
 
-export const OFFLINE_ENVELOPE: Readonly<Record<PolicyValidity, OfflineAllowance>> =
-  Object.freeze({
-    valid: { keepRunning: true, acceptNew: true, remainsCeiling: true },
-    expired: { keepRunning: true, acceptNew: false, remainsCeiling: true },
-    "not-yet-valid": { keepRunning: false, acceptNew: false, remainsCeiling: true },
-    "malformed-time": { keepRunning: false, acceptNew: false, remainsCeiling: true },
-  });
+export const OFFLINE_ENVELOPE: Readonly<
+  Record<PolicyValidity, OfflineAllowance>
+> = Object.freeze({
+  valid: { keepRunning: true, acceptNew: true, remainsCeiling: true },
+  expired: { keepRunning: true, acceptNew: false, remainsCeiling: true },
+  "not-yet-valid": {
+    keepRunning: false,
+    acceptNew: false,
+    remainsCeiling: true,
+  },
+  "malformed-time": {
+    keepRunning: false,
+    acceptNew: false,
+    remainsCeiling: true,
+  },
+});
 
 export function offlineAllowance(validity: PolicyValidity): OfflineAllowance {
   return OFFLINE_ENVELOPE[validity];

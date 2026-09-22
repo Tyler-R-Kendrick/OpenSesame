@@ -32,7 +32,11 @@ export function classifyPolicySource(source: PolicySource): PolicyProvenance {
   }
 }
 
-export type ProvenanceTrust = "local" | "deployment" | "verified" | "unverified";
+export type ProvenanceTrust =
+  | "local"
+  | "deployment"
+  | "verified"
+  | "unverified";
 
 export type ProvenanceCopy = Readonly<{
   /** Short noun for a row or a badge. */

@@ -66,10 +66,25 @@ enforces it.
 An absent restriction inherits; an explicit empty allow set permits none of
 the optional capabilities; an explicit empty selection selects no optional
 roots. A required root a person declines is a refused join, not an enabled
-capability and not a deleted vault. Core-tier capabilities (`vault.passwords`,
-`vault.local-unlock`, `backup.local-encrypted`, `identity.brokered-signin`,
-`settings.core`, `install.pwa`) are always present and cannot be prohibited;
-they are listed so their exposure is declared, not so they can be turned off.
+capability and not a deleted vault.
+
+The catalog has **7 core and 24 optional** capabilities
+(`apps/pages/src/lib/capabilities/catalog.ts` and the three
+`catalog-optional-*.ts` files; the counts are stated here so a later catalog
+change is visible to a reader of this decision). Core-tier capabilities —
+`shell.navigation`, `vault.passwords`, `vault.local-unlock`,
+`backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
+`install.pwa` — are always present and cannot be prohibited; they are listed
+so their exposure is declared, not so they can be turned off. The optional 24
+are `access.authority`, `activity.log`, `agents.webmcp`,
+`backup.cloud-secrets`, `backup.git-remote`, `connectors.external`,
+`enterprise.ca-administration`, `enterprise.directory-provisioning`,
+`identity.ambient-sso`, `identity.federation`, `identity.local-iam`,
+`identity.site-broker`, `identity.siop`, `notifications.web-push`,
+`sharing.drops`, `sharing.household`, `support.guided-help`,
+`support.local-ai`, `support.remote-ai`, `telemetry.external`,
+`vault.certificate-records`, `vault.interop-formats`, `vault.passkey-records`
+and `wallet.spending`.
 
 ### 3. Consent is a receipt, not a checkbox
 

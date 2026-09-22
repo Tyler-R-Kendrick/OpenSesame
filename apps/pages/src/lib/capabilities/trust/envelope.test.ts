@@ -32,7 +32,12 @@ async function verify(
   candidate: BoundaryValue | SignedPolicyEnvelope,
   options: Partial<Parameters<typeof verifyPolicyEnvelope>[1]> = {},
 ) {
-  return verifyPolicyEnvelope(candidate, { trustedKeys, origin: ORIGIN, now: NOW, ...options });
+  return verifyPolicyEnvelope(candidate, {
+    trustedKeys,
+    origin: ORIGIN,
+    now: NOW,
+    ...options,
+  });
 }
 
 describe("verifyPolicyEnvelope (S03)", () => {
@@ -72,7 +77,9 @@ describe("verifyPolicyEnvelope (S03)", () => {
   });
 
   it("TRUST-04: key substitution — an unknown kid or an attacker's key fails", async () => {
-    const forged = await signPolicyEnvelope(attacker, { payload: FAMILY_POLICY });
+    const forged = await signPolicyEnvelope(attacker, {
+      payload: FAMILY_POLICY,
+    });
     expect(await verify(forged)).toEqual({ ok: false, reason: "unknown-kid" });
     // Attacker signs but claims the trusted kid.
     expect(await verify(mutate(forged, { kid: signer.kid }))).toEqual({
@@ -92,7 +99,10 @@ describe("verifyPolicyEnvelope (S03)", () => {
       ...FAMILY_POLICY,
       capabilities: {
         ...FAMILY_POLICY.capabilities,
-        optional: [...FAMILY_POLICY.capabilities.optional, "telemetry.external"],
+        optional: [
+          ...FAMILY_POLICY.capabilities.optional,
+          "telemetry.external",
+        ],
         prohibited: [],
       },
     };
@@ -100,18 +110,24 @@ describe("verifyPolicyEnvelope (S03)", () => {
       ok: false,
       reason: "payload-digest-mismatch",
     });
-    expect(await verify(mutate(envelope, { expires: "2099-01-01T00:00:00.000Z" }))).toEqual({
+    expect(
+      await verify(mutate(envelope, { expires: "2099-01-01T00:00:00.000Z" })),
+    ).toEqual({
       ok: false,
       reason: "bad-signature",
     });
-    expect(await verify(mutate(envelope, { allowedOrigins: undefined }))).toEqual({
+    expect(
+      await verify(mutate(envelope, { allowedOrigins: undefined })),
+    ).toEqual({
       ok: false,
       reason: "bad-signature",
     });
   });
 
   it("refuses malformed signatures and malformed envelopes", async () => {
-    expect(await verify(mutate(envelope, { signature: "not base64url!" }))).toEqual({
+    expect(
+      await verify(mutate(envelope, { signature: "not base64url!" })),
+    ).toEqual({
       ok: false,
       reason: "malformed-signature",
     });
@@ -123,16 +139,26 @@ describe("verifyPolicyEnvelope (S03)", () => {
       ok: false,
       reason: "malformed-envelope",
     });
-    expect(await verify(mutate(envelope, { payloadDigest: "md5:abc" }))).toEqual({
+    expect(
+      await verify(mutate(envelope, { payloadDigest: "md5:abc" })),
+    ).toEqual({
       ok: false,
       reason: "malformed-envelope",
     });
-    expect(await verify("string")).toEqual({ ok: false, reason: "malformed-envelope" });
-    expect(await verify(null)).toEqual({ ok: false, reason: "malformed-envelope" });
+    expect(await verify("string")).toEqual({
+      ok: false,
+      reason: "malformed-envelope",
+    });
+    expect(await verify(null)).toEqual({
+      ok: false,
+      reason: "malformed-envelope",
+    });
   });
 
   it("TRUST-08: wrong instance and wrong origin are refused", async () => {
-    expect(await verify(envelope, { instanceId: "some-other-instance" })).toEqual({
+    expect(
+      await verify(envelope, { instanceId: "some-other-instance" }),
+    ).toEqual({
       ok: false,
       reason: "wrong-instance",
     });
@@ -140,31 +166,45 @@ describe("verifyPolicyEnvelope (S03)", () => {
       payload: { ...FAMILY_POLICY, instanceId: "fixture-other" },
     });
     // Header says one instance, payload another.
-    expect(await verify(mutate(other, { instanceId: FAMILY_POLICY.instanceId }))).toEqual({
+    expect(
+      await verify(mutate(other, { instanceId: FAMILY_POLICY.instanceId })),
+    ).toEqual({
       ok: false,
       reason: "bad-signature",
     });
-    expect(await verify(envelope, { origin: "https://evil.example.test" })).toEqual({
+    expect(
+      await verify(envelope, { origin: "https://evil.example.test" }),
+    ).toEqual({
       ok: false,
       reason: "origin-not-allowed",
     });
-    const anywhere = await signPolicyEnvelope(signer, { payload: FAMILY_POLICY });
-    expect((await verify(anywhere, { origin: "https://elsewhere.test" })).ok).toBe(true);
+    const anywhere = await signPolicyEnvelope(signer, {
+      payload: FAMILY_POLICY,
+    });
+    expect(
+      (await verify(anywhere, { origin: "https://elsewhere.test" })).ok,
+    ).toBe(true);
   });
 
   it("TRUST-09: validity is judged by the supplied clock, never Date.now()", async () => {
-    expect(await verify(envelope, { now: "2026-08-31T23:59:59.000Z" })).toEqual({
-      ok: false,
-      reason: "not-yet-valid",
-    });
-    expect(await verify(envelope, { now: "2027-01-01T00:00:00.000Z" })).toEqual({
-      ok: false,
-      reason: "expired",
-    });
+    expect(await verify(envelope, { now: "2026-08-31T23:59:59.000Z" })).toEqual(
+      {
+        ok: false,
+        reason: "not-yet-valid",
+      },
+    );
+    expect(await verify(envelope, { now: "2027-01-01T00:00:00.000Z" })).toEqual(
+      {
+        ok: false,
+        reason: "expired",
+      },
+    );
     expect(await verify(envelope, { now: "yesterday" })).toEqual({
       ok: false,
       reason: "malformed-envelope",
     });
-    expect((await verify(envelope, { now: "2026-12-31T23:59:59.000Z" })).ok).toBe(true);
+    expect(
+      (await verify(envelope, { now: "2026-12-31T23:59:59.000Z" })).ok,
+    ).toBe(true);
   });
 });

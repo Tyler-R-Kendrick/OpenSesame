@@ -10,7 +10,11 @@
  * `LIMITATIONS` in `expiry.ts` (TRUST-10).
  */
 import type { PolicyProvenance } from "@opensesame/capability-composition";
-import { type BoundaryValue, isJsonObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { kvGet, kvSetDurable } from "../../kv.js";
 import { isDigest, parseIsoTime } from "./digest.js";
 
@@ -46,7 +50,9 @@ function isProvenance(value: BoundaryValue): value is PolicyProvenance {
   return isString(value) && PROVENANCES.some((p) => p === value);
 }
 
-export function readAcceptedRecord(value: BoundaryValue): AcceptedPolicyRecord | null {
+export function readAcceptedRecord(
+  value: BoundaryValue,
+): AcceptedPolicyRecord | null {
   if (
     !isJsonObject(value) ||
     !isString(value.instanceId) ||
@@ -79,8 +85,11 @@ export function readAcceptedPolicy(): AcceptedPolicyRecord | null {
 }
 
 /** Durable write; rejects when storage refuses so the caller never claims acceptance it cannot keep. */
-export async function recordAcceptedPolicy(record: AcceptedPolicyRecord): Promise<void> {
-  if (readAcceptedRecord(record) === null) throw new Error("invalid accepted-policy record");
+export async function recordAcceptedPolicy(
+  record: AcceptedPolicyRecord,
+): Promise<void> {
+  if (readAcceptedRecord(record) === null)
+    throw new Error("invalid accepted-policy record");
   await kvSetDurable(ACCEPTED_POLICY_KEY, JSON.stringify(record));
 }
 
@@ -124,7 +133,9 @@ export function checkRevision(
   const order = compareRevisions(candidate.revision, accepted.revision);
   if (order < 0) return "rollback";
   if (order === 0) {
-    return candidate.digest === accepted.digest ? "ok" : "conflict-same-revision";
+    return candidate.digest === accepted.digest
+      ? "ok"
+      : "conflict-same-revision";
   }
   return "ok";
 }

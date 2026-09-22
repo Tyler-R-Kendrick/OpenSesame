@@ -11,6 +11,28 @@
 - Supplemented by: [ADR 0115](0115-front-door-and-connector-directory.md)
   (the `connectors` tab, first of six, and the front door that opens the
   ceremony)
+- Superseded in part by: [ADR 0130](0130-operator-controlled-capability-composition.md)
+  (§5 — the tab list is derived, and its first tab is capability selection)
+
+## Superseded in part by ADR 0130
+
+The fixed six-tab list below is no longer the contract. Under
+[ADR 0130](0130-operator-controlled-capability-composition.md) §5 the setup
+ceremony's **first tab is always capability selection**, and every later tab is
+a `setup-panel` contribution of a capability the installation selected — so the
+list is derived from the plan, and a capability that is not selected has no tab
+at all (`apps/pages/src/screens/SetupScreen.tsx`).
+
+The count was already wrong before that change: when ADR 0130 was taken the
+executable declared **four** statically imported tabs (connectors, ai, identity,
+mfa), not six. That discrepancy is recorded in
+`docs/evidence/capability-composition/baseline.md`, and neither number is a
+target now.
+
+Everything else here stands: the steps-rail idiom, plain `role="tab"` buttons in
+Tab order, the pinned rail and strip above the scrollport, one skippable panel
+per tab, "Skip all", the `.go` commit, and the rule that setup is optional and
+never a gate (ADR 0090).
 
 ## Context
 

@@ -26,11 +26,18 @@ function policy(overrides = {}) {
     capabilities: {
       default: "deny",
       required: [],
-      optional: ["backup.git-remote", "connectors.external", "access.authority"],
+      optional: [
+        "backup.git-remote",
+        "connectors.external",
+        "access.authority",
+      ],
       prohibited: ["telemetry.external"],
     },
     network: { externalServices: "deny", allowedServiceOrigins: [] },
-    updates: { unknownCapabilities: "deny", expandedExposure: "require-approval" },
+    updates: {
+      unknownCapabilities: "deny",
+      expandedExposure: "require-approval",
+    },
     ...overrides,
   };
 }
@@ -79,10 +86,14 @@ test("NET-06: header CSP carries frame-ancestors; the meta variant drops what br
   assert.deepEqual(directive(result.csp, "frame-ancestors"), ["'none'"]);
   assert.deepEqual(directive(result.csp, "frame-src"), ["'none'"]);
   assert.deepEqual(directive(result.csp, "worker-src"), ["'self'"]);
-  assert.deepEqual(directive(result.csp, "script-src"), ["'self'", "'wasm-unsafe-eval'"]);
+  assert.deepEqual(directive(result.csp, "script-src"), [
+    "'self'",
+    "'wasm-unsafe-eval'",
+  ]);
   assert.equal(result.metaCsp.includes("frame-ancestors"), false);
   assert.deepEqual(result.unsupportedInMeta, [...META_UNSUPPORTED]);
-  for (const name of META_UNSUPPORTED) assert.equal(result.metaCsp.includes(name), false);
+  for (const name of META_UNSUPPORTED)
+    assert.equal(result.metaCsp.includes(name), false);
   assert.equal(result.headers["Content-Security-Policy"], result.csp);
   assert.equal(result.headers["Cross-Origin-Opener-Policy"], "same-origin");
   assert.equal(result.headers["Cross-Origin-Embedder-Policy"], "require-corp");
@@ -101,10 +112,27 @@ test("NET-07: a strict profile has no http:/https: wildcard and no unlisted orig
 
 test("NET-07: allowed service origins appear exactly, and an open allow is named as a widening", () => {
   const listed = generate(
-    profile(policy({ network: { externalServices: "allow", allowedServiceOrigins: ["https://id.example.test", "not-an-origin"] } })),
+    profile(
+      policy({
+        network: {
+          externalServices: "allow",
+          allowedServiceOrigins: ["https://id.example.test", "not-an-origin"],
+        },
+      }),
+    ),
   );
-  assert.deepEqual(directive(listed.csp, "connect-src"), ["'self'", ...BROKERS, "https://id.example.test"]);
-  const open = generate(profile(policy({ network: { externalServices: "allow", allowedServiceOrigins: [] } })));
+  assert.deepEqual(directive(listed.csp, "connect-src"), [
+    "'self'",
+    ...BROKERS,
+    "https://id.example.test",
+  ]);
+  const open = generate(
+    profile(
+      policy({
+        network: { externalServices: "allow", allowedServiceOrigins: [] },
+      }),
+    ),
+  );
   assert.ok(directive(open.csp, "connect-src").includes("https:"));
   assert.ok(open.notes.some((n) => n.includes("widened")));
 });
@@ -113,29 +141,73 @@ test("NET-08: form-action follows approved navigation targets only", () => {
   const none = generate(profile(policy(), []));
   assert.deepEqual(directive(none.csp, "form-action"), ["'self'"]);
   const backup = generate(profile(policy(), ["backup.git-remote"]));
-  assert.deepEqual(directive(backup.csp, "form-action"), ["'self'", "https://github.com"]);
-  const prohibited = generate(profile(policy({ capabilities: { ...policy().capabilities, prohibited: ["backup.git-remote"] } }), ["backup.git-remote"]));
+  assert.deepEqual(directive(backup.csp, "form-action"), [
+    "'self'",
+    "https://github.com",
+  ]);
+  const prohibited = generate(
+    profile(
+      policy({
+        capabilities: {
+          ...policy().capabilities,
+          prohibited: ["backup.git-remote"],
+        },
+      }),
+      ["backup.git-remote"],
+    ),
+  );
   assert.deepEqual(directive(prohibited.csp, "form-action"), ["'self'"]);
   const unpermitted = generate(profile(policy(), ["wallet.spending"]));
-  assert.equal(unpermitted.approvedCapabilities.includes("wallet.spending"), false);
-  assert.deepEqual(approvedCapabilities(null).includes("vault.passwords"), true);
+  assert.equal(
+    unpermitted.approvedCapabilities.includes("wallet.spending"),
+    false,
+  );
+  assert.deepEqual(
+    approvedCapabilities(null).includes("vault.passwords"),
+    true,
+  );
 });
 
 test("NET-08: a purpose preset cannot move the deployment prerequisites", () => {
-  const family = generate(profile(policy({ presetProvenance: { id: "family", version: 1 } })));
+  const family = generate(
+    profile(policy({ presetProvenance: { id: "family", version: 1 } })),
+  );
   const managed = generate(
-    profile(policy({ presetProvenance: { id: "managed", version: 3 }, network: { externalServices: "allow", allowedServiceOrigins: ["https://id.example.test"] } }), ["connectors.external"]),
+    profile(
+      policy({
+        presetProvenance: { id: "managed", version: 3 },
+        network: {
+          externalServices: "allow",
+          allowedServiceOrigins: ["https://id.example.test"],
+        },
+      }),
+      ["connectors.external"],
+    ),
   );
   assert.equal(family.canonicalOrigin, managed.canonicalOrigin);
   assert.equal(family.deploymentProfile, managed.deploymentProfile);
   assert.equal(family.headerSecurity, managed.headerSecurity);
-  for (const name of ["Cross-Origin-Opener-Policy", "Cross-Origin-Embedder-Policy", "Cross-Origin-Resource-Policy", "Referrer-Policy", "X-Frame-Options"]) {
+  for (const name of [
+    "Cross-Origin-Opener-Policy",
+    "Cross-Origin-Embedder-Policy",
+    "Cross-Origin-Resource-Policy",
+    "Referrer-Policy",
+    "X-Frame-Options",
+  ]) {
     assert.equal(family.headers[name], managed.headers[name]);
   }
   assert.notEqual(family.csp, managed.csp);
-  assert.throws(() => generate(profile(policy()), { deploymentProfile: "production" }));
-  assert.throws(() => generate(profile(policy()), { canonicalOrigin: "https://vault.example.test/" }));
-  assert.throws(() => generate(profile(policy()), { brokerOrigins: ["shoo.dev"] }));
+  assert.throws(() =>
+    generate(profile(policy()), { deploymentProfile: "production" }),
+  );
+  assert.throws(() =>
+    generate(profile(policy()), {
+      canonicalOrigin: "https://vault.example.test/",
+    }),
+  );
+  assert.throws(() =>
+    generate(profile(policy()), { brokerOrigins: ["shoo.dev"] }),
+  );
 });
 
 test("loopback development admits local dev sources; shared origin is marked meta-only", () => {
@@ -158,33 +230,56 @@ test("loopback development admits local dev sources; shared origin is marked met
 
 test("broker origins come from federation.ts and exclude the loopback mock", async () => {
   assert.deepEqual(
-    brokerOrigins('export const TRUSTED_UPSTREAMS = [ { issuer: "https://shoo.dev/x" }, { issuer: "http://127.0.0.1:9090" } ];'),
+    brokerOrigins(
+      'export const TRUSTED_UPSTREAMS = [ { issuer: "https://shoo.dev/x" }, { issuer: "http://127.0.0.1:9090" } ];',
+    ),
     ["https://shoo.dev"],
   );
   assert.throws(() => brokerOrigins("nothing here"));
   const real = await readBrokerOrigins();
   assert.ok(real.includes("https://shoo.dev"));
-  assert.equal(real.some((o) => o.startsWith("http://")), false);
+  assert.equal(
+    real.some((o) => o.startsWith("http://")),
+    false,
+  );
 });
 
 test("the _headers file carries the COOP exceptions and the CLI writes both artefacts", async () => {
   const result = generate(profile(policy()));
   const text = renderHeadersFile(result);
   assert.ok(text.startsWith("/*\n  Content-Security-Policy: "));
-  assert.ok(text.includes("/OpenSesame/identity/authorize\n  Cross-Origin-Opener-Policy: unsafe-none"));
-  assert.ok(text.includes("/OpenSesame/auth/redirect.html\n  ! Cross-Origin-Opener-Policy"));
+  assert.ok(
+    text.includes(
+      "/OpenSesame/identity/authorize\n  Cross-Origin-Opener-Policy: unsafe-none",
+    ),
+  );
+  assert.ok(
+    text.includes(
+      "/OpenSesame/auth/redirect.html\n  ! Cross-Origin-Opener-Policy",
+    ),
+  );
   const dir = await mkdtemp(join(tmpdir(), "security-headers-"));
   const profilePath = join(dir, "profile.json");
-  await import("node:fs/promises").then((fs) => fs.writeFile(profilePath, JSON.stringify(profile(policy()))));
+  await import("node:fs/promises").then((fs) =>
+    fs.writeFile(profilePath, JSON.stringify(profile(policy()))),
+  );
   const emit = join(dir, "dist", "_headers");
-  const out = await main(["--profile", profilePath, "--emit", emit, "--base", "/OpenSesame/"], {
-    PAGES_DEPLOYMENT_PROFILE: "dedicated_origin",
-    PAGES_CANONICAL_ORIGIN: ORIGIN,
-    PAGES_HEADER_SECURITY: "1",
-  });
+  const out = await main(
+    ["--profile", profilePath, "--emit", emit, "--base", "/OpenSesame/"],
+    {
+      PAGES_DEPLOYMENT_PROFILE: "dedicated_origin",
+      PAGES_CANONICAL_ORIGIN: ORIGIN,
+      PAGES_HEADER_SECURITY: "1",
+    },
+  );
   assert.equal(out.canonicalOrigin, ORIGIN);
   assert.equal(await readFile(emit, "utf8"), renderHeadersFile(out));
-  const json = JSON.parse(await readFile(join(dir, "dist", "headers.json"), "utf8"));
+  const json = JSON.parse(
+    await readFile(join(dir, "dist", "headers.json"), "utf8"),
+  );
   assert.equal(json.csp, out.csp);
-  assert.deepEqual(directive(json.csp, "connect-src"), ["'self'", "https://shoo.dev"]);
+  assert.deepEqual(directive(json.csp, "connect-src"), [
+    "'self'",
+    "https://shoo.dev",
+  ]);
 });

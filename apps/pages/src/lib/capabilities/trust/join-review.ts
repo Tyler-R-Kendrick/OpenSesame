@@ -20,8 +20,8 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import type { SignedPolicyEnvelope } from "./envelope.js";
 import { isDigest } from "./digest.js";
+import type { SignedPolicyEnvelope } from "./envelope.js";
 import {
   type PolicyPublicJwk,
   jwkThumbprintHex,
@@ -34,10 +34,24 @@ const MAX_IDS = 256;
 const MAX_FIELD = 256;
 /** Members a join document may carry and that this preview will read. */
 const READ_MEMBERS = new Set([
-  "schemaVersion", "kind", "instanceId", "revision", "alg", "kid", "payloadDigest",
-  "payload", "notBefore", "expires", "allowedOrigins", "signature", "publicKey",
+  "schemaVersion",
+  "kind",
+  "instanceId",
+  "revision",
+  "alg",
+  "kid",
+  "payloadDigest",
+  "payload",
+  "notBefore",
+  "expires",
+  "allowedOrigins",
+  "signature",
+  "publicKey",
   // Bare-policy members (a document that is the payload itself).
-  "presetProvenance", "capabilities", "network", "updates",
+  "presetProvenance",
+  "capabilities",
+  "network",
+  "updates",
 ]);
 
 export type JoinPreviewEntry = Readonly<{
@@ -80,7 +94,9 @@ export type JoinPreview = Readonly<
 type Body = Readonly<Record<string, JsonValue | undefined>>;
 
 function shortString(value: JsonValue | undefined): string | null {
-  return isString(value) && value.length > 0 && value.length <= MAX_FIELD ? value : null;
+  return isString(value) && value.length > 0 && value.length <= MAX_FIELD
+    ? value
+    : null;
 }
 
 function idList(value: JsonValue | undefined): string[] {
@@ -152,10 +168,16 @@ async function embeddedKey(
 
 /** Bare policy or signed envelope: the policy body is the envelope's payload when present. */
 function policyBody(document: Body): Body | null {
-  if (document.kind === "InstanceCapabilityPolicy" && isJsonObject(document.payload)) {
+  if (
+    document.kind === "InstanceCapabilityPolicy" &&
+    isJsonObject(document.payload)
+  ) {
     return document.payload;
   }
-  if (document.kind === "InstanceCapabilityPolicy" && document.payload === undefined) {
+  if (
+    document.kind === "InstanceCapabilityPolicy" &&
+    document.payload === undefined
+  ) {
     return document;
   }
   return null;
@@ -171,20 +193,39 @@ export async function previewJoinDocument(
   if (!isJsonObject(candidate)) return { ok: false, reason: "malformed" };
   if (JSON.stringify(candidate).length > MAX_JOIN_DOCUMENT_CHARS)
     return { ok: false, reason: "too-large" };
-  if (candidate.kind !== "InstanceCapabilityPolicy") return { ok: false, reason: "wrong-kind" };
+  if (candidate.kind !== "InstanceCapabilityPolicy")
+    return { ok: false, reason: "wrong-kind" };
   const body = policyBody(candidate);
   if (body === null) return { ok: false, reason: "malformed" };
-  const instanceId = shortString(body.instanceId) ?? shortString(candidate.instanceId);
-  const revision = shortString(body.revision) ?? shortString(candidate.revision);
-  if (instanceId === null || revision === null) return { ok: false, reason: "malformed" };
+  const instanceId =
+    shortString(body.instanceId) ?? shortString(candidate.instanceId);
+  const revision =
+    shortString(body.revision) ?? shortString(candidate.revision);
+  if (instanceId === null || revision === null)
+    return { ok: false, reason: "malformed" };
   const signed = isString(candidate.signature);
   const kid = signed ? shortString(candidate.kid) : null;
   const key = await embeddedKey(candidate.publicKey, kid);
   const capabilities = isJsonObject(body.capabilities) ? body.capabilities : {};
   const absent = new Set<string>();
-  const required = place(idList(capabilities.required), catalog, ceiling, absent);
-  const optional = place(idList(capabilities.optional), catalog, ceiling, absent);
-  const prohibited = place(idList(capabilities.prohibited), catalog, ceiling, absent);
+  const required = place(
+    idList(capabilities.required),
+    catalog,
+    ceiling,
+    absent,
+  );
+  const optional = place(
+    idList(capabilities.optional),
+    catalog,
+    ceiling,
+    absent,
+  );
+  const prohibited = place(
+    idList(capabilities.prohibited),
+    catalog,
+    ceiling,
+    absent,
+  );
   return {
     ok: true,
     instanceId,
@@ -193,7 +234,9 @@ export async function previewJoinDocument(
     kid,
     keyFingerprint: key.fingerprint,
     kidMismatch: key.mismatch,
-    payloadDigest: isDigest(candidate.payloadDigest) ? candidate.payloadDigest : null,
+    payloadDigest: isDigest(candidate.payloadDigest)
+      ? candidate.payloadDigest
+      : null,
     required,
     optional,
     prohibited,
@@ -204,7 +247,9 @@ export async function previewJoinDocument(
       expires: shortString(candidate.expires),
     },
     allowedOrigins: idList(candidate.allowedOrigins),
-    ignoredMembers: Object.keys(candidate).filter((k) => !READ_MEMBERS.has(k)).sort(),
+    ignoredMembers: Object.keys(candidate)
+      .filter((k) => !READ_MEMBERS.has(k))
+      .sort(),
     provenance: "invitation-unverified",
   };
 }

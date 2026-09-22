@@ -93,7 +93,10 @@ export function releaseFlagRestricts(name: string): boolean {
  * The only way the two namespaces meet: a release flag may subtract from what
  * the composition allows, never add to it.
  */
-export function capabilityShown(id: CapabilityId, releaseFlag?: string): boolean {
+export function capabilityShown(
+  id: CapabilityId,
+  releaseFlag?: string,
+): boolean {
   const enabled = capabilityEnabled(id);
   if (releaseFlag === undefined) return enabled;
   return enabled && !releaseFlagRestricts(releaseFlag);

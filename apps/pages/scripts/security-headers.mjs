@@ -77,7 +77,8 @@ function isOrigin(value) {
  */
 export function brokerOrigins(federationSource) {
   const start = federationSource.indexOf("TRUSTED_UPSTREAMS");
-  if (start < 0) throw new Error("TRUSTED_UPSTREAMS not found in federation source");
+  if (start < 0)
+    throw new Error("TRUSTED_UPSTREAMS not found in federation source");
   const end = federationSource.indexOf("];", start);
   const block = federationSource.slice(start, end < 0 ? undefined : end);
   const origins = new Set();
@@ -85,7 +86,8 @@ export function brokerOrigins(federationSource) {
     const origin = new URL(match[1]).origin;
     if (origin.startsWith("https://")) origins.add(origin);
   }
-  if (origins.size === 0) throw new Error("no https issuer in TRUSTED_UPSTREAMS");
+  if (origins.size === 0)
+    throw new Error("no https issuer in TRUSTED_UPSTREAMS");
   return [...origins].sort();
 }
 
@@ -230,7 +232,9 @@ export function generateSecurityHeaders(input) {
   };
   const csp = directiveString(directives);
   const metaDirectives = Object.fromEntries(
-    Object.entries(directives).filter(([name]) => !META_UNSUPPORTED.includes(name)),
+    Object.entries(directives).filter(
+      ([name]) => !META_UNSUPPORTED.includes(name),
+    ),
   );
   const metaCsp = directiveString(metaDirectives);
   const headers = {

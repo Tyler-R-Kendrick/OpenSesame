@@ -16,7 +16,11 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
     const path = join(dir, entry);
     if (entry === "node_modules") continue;
     if (statSync(path).isDirectory()) sourceFiles(path, out);
-    else if (/\.(ts|tsx)$/.test(entry) && !entry.endsWith(".d.ts") && path !== THIS_FILE)
+    else if (
+      /\.(ts|tsx)$/.test(entry) &&
+      !entry.endsWith(".d.ts") &&
+      path !== THIS_FILE
+    )
       out.push(path);
   }
   return out;

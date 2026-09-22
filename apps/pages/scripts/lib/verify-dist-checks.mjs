@@ -158,7 +158,10 @@ function compareChunk(chunk, edges, onDisk, note) {
     ...chunk.importedAssets,
   ]) {
     if (!onDisk.has(ref))
-      note("MISSING_REFERENCE", `${chunk.file} references ${ref}, absent on disk`);
+      note(
+        "MISSING_REFERENCE",
+        `${chunk.file} references ${ref}, absent on disk`,
+      );
   }
 }
 
@@ -210,7 +213,8 @@ export function diskGraphOf(graph, disk, onDisk) {
     publicFiles: graph.publicFiles.map((p) => ({
       ...p,
       present: [...onDisk].some(
-        (f) => f === p.file || f.startsWith(`${p.file.replace(/\/\*\*$/, "")}/`),
+        (f) =>
+          f === p.file || f.startsWith(`${p.file.replace(/\/\*\*$/, "")}/`),
       ),
     })),
   };
@@ -301,7 +305,9 @@ export function measureSizes(dist, files, graph, diskGraph, onDisk) {
     entries: diskGraph.entries.filter((e) => e.capability === null),
     workers: [],
   };
-  for (const [, { chunks }] of entryClosure(coreEntries, { staticOnly: true })) {
+  for (const [, { chunks }] of entryClosure(coreEntries, {
+    staticOnly: true,
+  })) {
     for (const file of chunks) {
       if (!onDisk.has(file)) continue;
       const bytes = readFileSync(join(dist, file));

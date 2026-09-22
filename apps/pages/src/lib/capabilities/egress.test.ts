@@ -1,12 +1,18 @@
 import type { EffectivePlan } from "@opensesame/capability-composition";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FAMILY_POLICY,
   MANAGED_POLICY,
   approvedPlan,
   descriptorOf,
 } from "./__tests__/plan-fixtures.js";
-import { EgressDenied, createEgressPort, redactUrl } from "./egress.js";
+import { egressSeams } from "./egress-default.js";
+import {
+  EgressDenied,
+  createEgressPort,
+  installPlanAwareEgress,
+  redactUrl,
+} from "./egress.js";
 
 const SELF = "https://vault.example.test";
 const CONNECTORS = "connectors.external";
@@ -57,7 +63,11 @@ describe("createEgressPort (S18)", () => {
       expect.objectContaining({ redirect: "manual" }),
     );
     expect(
-      await denial(p.fetch("https://cdn.example.test/x.js", undefined, { class: "application-assets" })),
+      await denial(
+        p.fetch("https://cdn.example.test/x.js", undefined, {
+          class: "application-assets",
+        }),
+      ),
     ).toBe("not-same-origin");
   });
 
@@ -66,23 +76,37 @@ describe("createEgressPort (S18)", () => {
     expect(plan.network).toEqual(FAMILY_POLICY.network);
     const { port: p, fetchImpl } = port(CONNECTORS, plan);
     const meta = { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE };
-    await p.fetch("https://id.example.test/v1/connectors?page=2", { headers: { Authorization: "Bearer t" } }, meta);
+    await p.fetch(
+      "https://id.example.test/v1/connectors?page=2",
+      { headers: { Authorization: "Bearer t" } },
+      meta,
+    );
     const [href, init] = fetchImpl.mock.calls[0] ?? ["", undefined];
     expect(href).toBe("https://id.example.test/v1/connectors?page=2");
     expect(init?.credentials).toBe("omit");
     expect(init?.redirect).toBe("manual");
     expect(new Headers(init?.headers).get("authorization")).toBe("Bearer t");
-    expect(await denial(p.fetch("https://other.example.test/v1", undefined, meta))).toBe(
-      "origin-not-allowed",
-    );
-    expect(await denial(p.fetch("http://id.example.test/v1", undefined, meta))).toBe(
-      "unsupported-scheme",
-    );
     expect(
-      await denial(p.fetch("https://id.example.test/v1", undefined, { ...meta, purpose: "something else" })),
+      await denial(p.fetch("https://other.example.test/v1", undefined, meta)),
+    ).toBe("origin-not-allowed");
+    expect(
+      await denial(p.fetch("http://id.example.test/v1", undefined, meta)),
+    ).toBe("unsupported-scheme");
+    expect(
+      await denial(
+        p.fetch("https://id.example.test/v1", undefined, {
+          ...meta,
+          purpose: "something else",
+        }),
+      ),
     ).toBe("purpose-not-declared");
     expect(
-      await denial(p.fetch("https://id.example.test/v1", undefined, { capability: "vault.passwords", purpose: CONNECTOR_PURPOSE })),
+      await denial(
+        p.fetch("https://id.example.test/v1", undefined, {
+          capability: "vault.passwords",
+          purpose: CONNECTOR_PURPOSE,
+        }),
+      ),
     ).toBe("capability-mismatch");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
@@ -92,10 +116,14 @@ describe("createEgressPort (S18)", () => {
     expect(plan.capabilities[CONNECTORS]?.approved).toBe(true);
     const { port: p, fetchImpl } = port(CONNECTORS, plan);
     const outcome = await denial(
-      p.fetch("https://id.example.test/v1", { headers: { Authorization: "Bearer t" } }, {
-        capability: CONNECTORS,
-        purpose: CONNECTOR_PURPOSE,
-      }),
+      p.fetch(
+        "https://id.example.test/v1",
+        { headers: { Authorization: "Bearer t" } },
+        {
+          capability: CONNECTORS,
+          purpose: CONNECTOR_PURPOSE,
+        },
+      ),
     );
     expect(outcome).toBe("external-services-denied");
     // NET-05: nothing left, so the bearer never did.
@@ -109,22 +137,31 @@ describe("createEgressPort (S18)", () => {
     const allowed = port(LOCAL, plan, fetchOk(), () => true);
     await allowed.port.fetch("http://192.168.1.20:18790/pair", undefined, meta);
     expect(allowed.fetchImpl).toHaveBeenCalledTimes(1);
-    expect(await denial(allowed.port.fetch("https://public.example.test/pair", undefined, meta))).toBe(
-      "not-local-network",
-    );
+    expect(
+      await denial(
+        allowed.port.fetch("https://public.example.test/pair", undefined, meta),
+      ),
+    ).toBe("not-local-network");
     const refused = port(LOCAL, plan, fetchOk(), () => false);
-    expect(await denial(refused.port.fetch("http://192.168.1.20:18790/pair", undefined, meta))).toBe(
-      "local-authority-not-permitted",
-    );
+    expect(
+      await denial(
+        refused.port.fetch("http://192.168.1.20:18790/pair", undefined, meta),
+      ),
+    ).toBe("local-authority-not-permitted");
     expect(refused.fetchImpl).not.toHaveBeenCalled();
   });
 
   it("refuses a capability the plan did not approve, whatever the destination", async () => {
     const plan = approvedPlan([], FAMILY_POLICY);
     const { port: p, fetchImpl } = port(CONNECTORS, plan);
-    expect(await denial(p.fetch("/same-origin.json", undefined, { capability: CONNECTORS, purpose: "" }))).toBe(
-      "capability-not-approved",
-    );
+    expect(
+      await denial(
+        p.fetch("/same-origin.json", undefined, {
+          capability: CONNECTORS,
+          purpose: "",
+        }),
+      ),
+    ).toBe("capability-not-approved");
     expect(fetchImpl).not.toHaveBeenCalled();
     // A live plan read: revocation takes effect on the next request.
     let current = approvedPlan([CONNECTORS], FAMILY_POLICY);
@@ -136,7 +173,10 @@ describe("createEgressPort (S18)", () => {
     });
     expect(live.decide("/x").ok).toBe(true);
     current = plan;
-    expect(live.decide("/x")).toMatchObject({ ok: false, code: "capability-not-approved" });
+    expect(live.decide("/x")).toMatchObject({
+      ok: false,
+      code: "capability-not-approved",
+    });
   });
 
   it("NET-04: a redirect is never followed, wherever it points", async () => {
@@ -146,7 +186,13 @@ describe("createEgressPort (S18)", () => {
     );
     const { port: p } = port(CONNECTORS, plan, redirecting);
     expect(
-      await denial(p.fetch("https://id.example.test/v1", { redirect: "follow" }, { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE })),
+      await denial(
+        p.fetch(
+          "https://id.example.test/v1",
+          { redirect: "follow" },
+          { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE },
+        ),
+      ),
     ).toBe("redirect-refused");
     const [, init] = redirecting.mock.calls[0] ?? ["", undefined];
     expect(init?.redirect).toBe("manual");
@@ -155,25 +201,43 @@ describe("createEgressPort (S18)", () => {
   it("navigation targets, bad URLs and odd schemes are not fetchable", async () => {
     const plan = approvedPlan([CONNECTORS], FAMILY_POLICY);
     const { port: p } = port(CONNECTORS, plan);
-    expect(await denial(p.fetch("https://github.com/login", undefined, { class: "user-mediated-navigation" }))).toBe(
-      "navigation-not-fetchable",
-    );
-    expect(await denial(p.fetch("http://[", undefined, { capability: CONNECTORS, purpose: "" }))).toBe("invalid-url");
-    expect(await denial(p.fetch("ftp://id.example.test/x", undefined, { capability: CONNECTORS, purpose: "" }))).toBe(
-      "unsupported-scheme",
-    );
+    expect(
+      await denial(
+        p.fetch("https://github.com/login", undefined, {
+          class: "user-mediated-navigation",
+        }),
+      ),
+    ).toBe("navigation-not-fetchable");
+    expect(
+      await denial(
+        p.fetch("http://[", undefined, { capability: CONNECTORS, purpose: "" }),
+      ),
+    ).toBe("invalid-url");
+    expect(
+      await denial(
+        p.fetch("ftp://id.example.test/x", undefined, {
+          capability: CONNECTORS,
+          purpose: "",
+        }),
+      ),
+    ).toBe("unsupported-scheme");
   });
 
   it("never writes a query string into an error or a decision", async () => {
     expect(redactUrl("https://id.example.test/v1/token?code=SECRET#frag")).toBe(
       "https://id.example.test/v1/token",
     );
-    expect(redactUrl("https://user:pw@id.example.test/p?x=1")).toBe("https://id.example.test/p");
+    expect(redactUrl("https://user:pw@id.example.test/p?x=1")).toBe(
+      "https://id.example.test/p",
+    );
     expect(redactUrl("not a url")).toBe("<invalid-url>");
     const plan = approvedPlan([CONNECTORS], MANAGED_POLICY);
     const { port: p } = port(CONNECTORS, plan);
     const error = await p
-      .fetch("https://id.example.test/v1/token?code=SECRET", undefined, { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE })
+      .fetch("https://id.example.test/v1/token?code=SECRET", undefined, {
+        capability: CONNECTORS,
+        purpose: CONNECTOR_PURPOSE,
+      })
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(EgressDenied);
     if (error instanceof EgressDenied) {
@@ -182,5 +246,35 @@ describe("createEgressPort (S18)", () => {
     }
     const decision = p.decide("https://id.example.test/v1/token?code=SECRET");
     expect(JSON.stringify(decision)).not.toContain("SECRET");
+  });
+});
+
+describe("installPlanAwareEgress (S18)", () => {
+  const original = egressSeams.createEgressPort;
+  afterEach(() => {
+    egressSeams.createEgressPort = original;
+  });
+
+  it("hands modules a port bound to the live plan, and refuses before there is one", async () => {
+    installPlanAwareEgress(SELF, fetchOk());
+    const p = egressSeams.createEgressPort(CONNECTORS);
+    expect(p.capability).toBe(CONNECTORS);
+    // The store has not booted, so there is no plan and nothing may leave.
+    expect(p.decide("/x")).toMatchObject({
+      ok: false,
+      code: "capability-not-approved",
+    });
+    expect(
+      await denial(
+        p.fetch("/x", undefined, { capability: CONNECTORS, purpose: "" }),
+      ),
+    ).toBe("capability-not-approved");
+  });
+
+  it("refuses a capability the catalog does not know rather than inventing a port", () => {
+    installPlanAwareEgress(SELF, fetchOk());
+    expect(() => egressSeams.createEgressPort("not.a-capability")).toThrow(
+      EgressDenied,
+    );
   });
 });

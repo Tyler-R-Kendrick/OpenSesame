@@ -17,64 +17,28 @@
  *
  * `--expect-absent <module-id>` asserts an excluded capability's module is in
  * no chunk and that no `cap-<capability>-*.js` chunk exists (BUILD-04).
+ *
+ * The disk reading, comparison and measurement live in
+ * `lib/verify-dist-checks.mjs`; this file is the orchestration and the CLI.
  */
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, extname, join, posix, relative, resolve } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { gzipSync } from "node:zlib";
+import { canonicalJson } from "./lib/capability-graph.mjs";
+import { formatViolations, violations } from "./lib/capability-invariants.mjs";
 import {
-  canonicalJson,
-  entryClosure,
-  parseHtmlEntry,
-} from "./lib/capability-graph.mjs";
-import {
-  formatViolations,
-  violations,
-} from "./lib/capability-invariants.mjs";
+  compareGraphToDisk,
+  diskGraphOf,
+  expectAbsentChecks,
+  loadLexer,
+  measureSizes,
+  readDiskView,
+  walk,
+} from "./lib/verify-dist-checks.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(here, "..");
 const REPO_ROOT = resolve(APP_ROOT, "../..");
-
-/** es-module-lexer ships inside Vite's pnpm store; resolve it from there. */
-async function loadLexer() {
-  try {
-    return await import("es-module-lexer");
-  } catch {
-    const store = join(REPO_ROOT, "node_modules/.pnpm");
-    const candidates = existsSync(store)
-      ? readdirSync(store)
-          .filter((name) => name.startsWith("es-module-lexer@"))
-          .sort()
-      : [];
-    const pick = candidates.at(-1);
-    if (!pick)
-      throw new Error(
-        "es-module-lexer is not installed anywhere under node_modules/.pnpm",
-      );
-    const require = createRequire(
-      join(store, pick, "node_modules/es-module-lexer/package.json"),
-    );
-    return import(pathToFileURL(require.resolve("es-module-lexer")).href);
-  }
-}
-
-function walk(directory) {
-  const files = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...walk(path));
-    else if (entry.isFile()) files.push(path);
-  }
-  return files.sort();
-}
 
 function parseArgs(argv) {
   const args = {
@@ -101,41 +65,10 @@ function parseArgs(argv) {
   return args;
 }
 
-function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
-}
+const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 
-/** Static and dynamic (literal) imports of one chunk, dist-relative. */
-function chunkImports(parse, code, file) {
-  const [imports] = parse(code);
-  const out = { static: new Set(), dynamic: new Set(), external: new Set() };
-  const dir = posix.dirname(file);
-  for (const entry of imports) {
-    if (entry.d === -2) continue; // import.meta
-    let specifier = entry.n;
-    if (specifier === undefined && entry.d >= 0) {
-      const raw = code.slice(entry.s, entry.e).trim();
-      const literal = raw.match(/^["'`]([^"'`]+)["'`]$/);
-      specifier = literal ? literal[1] : undefined;
-    }
-    if (!specifier) continue;
-    if (
-      /^[a-z]+:/i.test(specifier) ||
-      !(specifier.startsWith(".") || specifier.startsWith("/"))
-    ) {
-      out.external.add(specifier);
-      continue;
-    }
-    const resolved = specifier.startsWith("/")
-      ? specifier.slice(1)
-      : posix.normalize(posix.join(dir, specifier));
-    (entry.d === -1 ? out.static : out.dynamic).add(resolved);
-  }
-  return out;
-}
-
-export async function verifyDist(options) {
-  const dist = resolve(APP_ROOT, options.dist);
+/** Read the two records a build emits, or say which one is missing. */
+function readRecords(dist) {
   if (!existsSync(dist)) throw new Error(`dist directory not found: ${dist}`);
   const graphPath = join(dist, "capability-graph.json");
   const distributionPath = join(dist, "capability-distribution.json");
@@ -143,200 +76,61 @@ export async function verifyDist(options) {
     if (!existsSync(path))
       throw new Error(`missing ${relative(dist, path)} in ${dist}`);
   }
-  const graph = readJson(graphPath);
-  const distribution = readJson(distributionPath);
+  return {
+    graph: readJson(graphPath),
+    distribution: readJson(distributionPath),
+  };
+}
+
+/** The graph, the contract and the caller's expectations must agree. */
+function checkRecordAgreement(graph, distribution, options, mode, note) {
+  if (graph.mode !== mode)
+    note("MODE_MISMATCH", `graph says ${graph.mode}, expected ${mode}`);
+  if (graph.distributionId !== distribution.distributionId)
+    note("DISTRIBUTION_ID_MISMATCH", "graph and contract disagree");
+  if (!options.profile) return;
+  const expected =
+    JSON.parse(readFileSync(resolve(APP_ROOT, options.profile), "utf8")).name ??
+    posix.basename(options.profile, ".json");
+  if (graph.profile !== expected)
+    note(
+      "PROFILE_MISMATCH",
+      `graph built from ${graph.profile}, expected ${expected}`,
+    );
+}
+
+export async function verifyDist(options) {
+  const dist = resolve(APP_ROOT, options.dist);
+  const { graph, distribution } = readRecords(dist);
   const base = options.base ?? distribution.basePath ?? "/";
   const mode = options.mode ?? graph.mode;
   const mismatches = [];
   const note = (code, message) =>
     mismatches.push({ severity: "error", code, message });
-  if (graph.mode !== mode)
-    note("MODE_MISMATCH", `graph says ${graph.mode}, expected ${mode}`);
-  if (graph.distributionId !== distribution.distributionId)
-    note("DISTRIBUTION_ID_MISMATCH", "graph and contract disagree");
-  if (options.profile) {
-    const expected =
-      JSON.parse(readFileSync(resolve(APP_ROOT, options.profile), "utf8"))
-        .name ?? posix.basename(options.profile, ".json");
-    if (graph.profile !== expected)
-      note(
-        "PROFILE_MISMATCH",
-        `graph built from ${graph.profile}, expected ${expected}`,
-      );
-  }
+  checkRecordAgreement(graph, distribution, options, mode, note);
 
-  const { init, parse } = await loadLexer();
+  const { init, parse } = await loadLexer(REPO_ROOT);
   await init;
   const files = walk(dist).map((f) => relative(dist, f).split("\\").join("/"));
   const onDisk = new Set(files);
-  const graphChunks = new Map(graph.chunks.map((c) => [c.file, c]));
-
-  // Disk view: HTML entries and JS edges, built without consulting the graph.
-  const diskEntries = [];
-  const diskChunks = new Map();
-  const externals = new Map();
-  for (const file of files) {
-    const ext = extname(file);
-    if (ext === ".html") {
-      const owner =
-        graph.entries.find((e) => e.html === file)?.capability ?? null;
-      diskEntries.push({
-        html: file,
-        capability: owner,
-        ...parseHtmlEntry(readFileSync(join(dist, file), "utf8"), {
-          base,
-          htmlFile: file,
-        }),
-      });
-    } else if (ext === ".js" || ext === ".mjs") {
-      const edges = chunkImports(
-        parse,
-        readFileSync(join(dist, file), "utf8"),
-        file,
-      );
-      diskChunks.set(file, edges);
-      if (edges.external.size > 0)
-        externals.set(file, [...edges.external].sort());
-    }
-  }
-
-  // Graph ↔ disk agreement.
-  for (const entry of graph.entries) {
-    if (!onDisk.has(entry.html))
-      note("MISSING_HTML", `${entry.html} listed in graph but absent on disk`);
-    for (const ref of [...entry.scripts, ...entry.preloads]) {
-      if (!onDisk.has(ref))
-        note(
-          "MISSING_ENTRY_SCRIPT",
-          `${entry.html} references ${ref}, absent on disk`,
-        );
-    }
-    const disk = diskEntries.find((e) => e.html === entry.html);
-    if (
-      disk &&
-      (JSON.stringify(disk.scripts) !== JSON.stringify(entry.scripts) ||
-        JSON.stringify(disk.preloads) !== JSON.stringify(entry.preloads))
-    ) {
-      note(
-        "ENTRY_MISMATCH",
-        `${entry.html}: graph ${JSON.stringify([entry.scripts, entry.preloads])} vs disk ${JSON.stringify([disk.scripts, disk.preloads])}`,
-      );
-    }
-  }
-  for (const disk of diskEntries) {
-    if (!graph.entries.some((e) => e.html === disk.html))
-      note("UNACCOUNTED_HTML", `${disk.html} on disk but not in graph`);
-  }
-  for (const chunk of graph.chunks) {
-    if (!onDisk.has(chunk.file)) {
-      note("MISSING_CHUNK", `${chunk.file} listed in graph but absent on disk`);
-      continue;
-    }
-    const disk = diskChunks.get(chunk.file);
-    const same = (a, b) =>
-      JSON.stringify([...new Set(a)].sort()) ===
-      JSON.stringify([...new Set(b)].sort());
-    if (!same(chunk.imports, disk.static))
-      note(
-        "STATIC_EDGE_MISMATCH",
-        `${chunk.file}: graph ${JSON.stringify(chunk.imports)} vs disk ${JSON.stringify([...disk.static].sort())}`,
-      );
-    if (!same(chunk.dynamicImports, disk.dynamic))
-      note(
-        "DYNAMIC_EDGE_MISMATCH",
-        `${chunk.file}: graph ${JSON.stringify(chunk.dynamicImports)} vs disk ${JSON.stringify([...disk.dynamic].sort())}`,
-      );
-    for (const ref of [
-      ...chunk.imports,
-      ...chunk.dynamicImports,
-      ...chunk.importedCss,
-      ...chunk.importedAssets,
-    ]) {
-      if (!onDisk.has(ref))
-        note(
-          "MISSING_REFERENCE",
-          `${chunk.file} references ${ref}, absent on disk`,
-        );
-    }
-  }
-  // A JS file is accounted for as a chunk, a worker variant, a public file,
-  // or a bundled asset (a dedicated web worker Vite emits as an asset).
-  const knownJs = new Set([
-    ...graphChunks.keys(),
-    ...graph.workers.map((w) => w.file),
-    ...graph.publicFiles.map((p) => p.file.replace(/\/\*\*$/, "")),
-    ...(graph.assets ?? []).map((a) => a.file),
-  ]);
-  for (const file of diskChunks.keys()) {
-    const covered = [...knownJs].some(
-      (k) => file === k || file.startsWith(`${k}/`),
-    );
-    if (!covered)
-      note(
-        "UNACCOUNTED_CHUNK",
-        `${file} on disk but in no graph chunk, worker or public file`,
-      );
-  }
-  for (const [file, list] of externals)
-    note("EXTERNAL_IMPORT", `${file} imports outside dist: ${list.join(", ")}`);
+  const disk = readDiskView(dist, files, graph, base, parse);
+  compareGraphToDisk(graph, disk, onDisk, note);
 
   // Re-run the invariants over the disk edges with the graph's classifications.
-  const diskGraph = {
-    ...graph,
-    entries: diskEntries,
-    chunks: graph.chunks.map((c) => {
-      const disk = diskChunks.get(c.file);
-      return disk
-        ? {
-            ...c,
-            imports: [...disk.static].sort(),
-            dynamicImports: [...disk.dynamic].sort(),
-          }
-        : c;
-    }),
-    workers: graph.workers.map((w) => ({ ...w, present: onDisk.has(w.file) })),
-    publicFiles: graph.publicFiles.map((p) => ({
-      ...p,
-      present: [...onDisk].some(
-        (f) =>
-          f === p.file || f.startsWith(`${p.file.replace(/\/\*\*$/, "")}/`),
-      ),
-    })),
-  };
-  const distributed = new Set(distribution.capabilityIds);
-  const found = violations(diskGraph, distributed, mode, {
-    coreCapabilities: new Set(graph.coreCapabilities ?? []),
-  });
+  const diskGraph = diskGraphOf(graph, disk, onDisk);
+  const found = violations(
+    diskGraph,
+    new Set(distribution.capabilityIds),
+    mode,
+    { coreCapabilities: new Set(graph.coreCapabilities ?? []) },
+  );
 
-  // BUILD-04: physically absent.
-  const expectAbsent = (options.expectAbsent ?? []).map((moduleId) => {
-    const capability = moduleId.includes("/")
-      ? moduleId.slice(0, moduleId.indexOf("/"))
-      : moduleId;
-    const inChunk = graph.chunks
-      .filter((c) =>
-        c.modules.some(
-          (m) =>
-            m.id.startsWith(`apps/pages/src/modules/${capability}/`) ||
-            m.capability === capability,
-        ),
-      )
-      .map((c) => c.file);
-    const chunkFiles = files.filter(
-      (f) =>
-        f.startsWith(`assets/cap-${capability}-`) ||
-        f === `assets/cap-${capability}.js`,
-    );
-    const inTable = distribution.moduleIds.includes(moduleId);
-    return {
-      module: moduleId,
-      capability,
-      absent: inChunk.length === 0 && chunkFiles.length === 0 && !inTable,
-      chunks: inChunk,
-      files: chunkFiles,
-      inTable,
-    };
-  });
+  const expectAbsent = expectAbsentChecks(
+    options.expectAbsent ?? [],
+    graph,
+    distribution,
+    files,
+  );
   for (const check of expectAbsent) {
     if (!check.absent)
       note(
@@ -345,81 +139,28 @@ export async function verifyDist(options) {
       );
   }
 
-  // Sizes.
-  const sizes = {
-    total: 0,
-    javascript: 0,
-    javascriptGzip: 0,
-    css: 0,
-    largestAsset: 0,
-    largestAssetName: "",
-    fileCount: files.length,
-    entryStatic: 0,
-    entryStaticGzip: 0,
-    capabilityChunks: {},
-  };
-  for (const file of files) {
-    const bytes = readFileSync(join(dist, file));
-    sizes.total += bytes.byteLength;
-    if (bytes.byteLength > sizes.largestAsset)
-      Object.assign(sizes, {
-        largestAsset: bytes.byteLength,
-        largestAssetName: file,
-      });
-    const ext = extname(file);
-    if (ext === ".js" || ext === ".mjs") {
-      sizes.javascript += bytes.byteLength;
-      sizes.javascriptGzip += gzipSync(bytes, { level: 9 }).byteLength;
-      // The plugin names an optional capability's chunk `cap-<capability>`;
-      // prefer that recorded name over guessing where the hash starts, since
-      // a capability id may itself contain dashes.
-      const named = graphChunks.get(file)?.name;
-      const cap = named?.startsWith("cap-")
-        ? named.slice(4)
-        : (file.match(/^assets\/cap-(.+)-[A-Za-z0-9_-]{8}\.js$/)?.[1] ?? null);
-      if (cap)
-        sizes.capabilityChunks[cap] =
-          (sizes.capabilityChunks[cap] ?? 0) + bytes.byteLength;
-    } else if (ext === ".css") sizes.css += bytes.byteLength;
-  }
-  const coreEntries = {
-    ...diskGraph,
-    entries: diskEntries.filter((e) => e.capability === null),
-    workers: [],
-  };
-  for (const [, { chunks }] of entryClosure(coreEntries, {
-    staticOnly: true,
-  })) {
-    for (const file of chunks) {
-      if (!onDisk.has(file)) continue;
-      const bytes = readFileSync(join(dist, file));
-      sizes.entryStatic += bytes.byteLength;
-      sizes.entryStaticGzip += gzipSync(bytes, { level: 9 }).byteLength;
-    }
-  }
-
+  const sizes = measureSizes(dist, files, graph, diskGraph, onDisk);
   const errors = [
     ...mismatches,
     ...found.filter((v) => v.severity === "error"),
   ];
-  const report = {
-    ok: errors.length === 0,
-    dist: relative(APP_ROOT, dist),
-    mode,
-    profile: graph.profile,
-    distributionId: distribution.distributionId,
-    inventorySource: graph.inventorySource ?? null,
-    capabilityIds: distribution.capabilityIds,
-    moduleIds: distribution.moduleIds,
-    workers: diskGraph.workers,
-    violations: found,
-    mismatches,
-    expectAbsent,
-    unclassified: graph.unclassified ?? [],
-    sizes,
-  };
   return {
-    report,
+    report: {
+      ok: errors.length === 0,
+      dist: relative(APP_ROOT, dist),
+      mode,
+      profile: graph.profile,
+      distributionId: distribution.distributionId,
+      inventorySource: graph.inventorySource ?? null,
+      capabilityIds: distribution.capabilityIds,
+      moduleIds: distribution.moduleIds,
+      workers: diskGraph.workers,
+      violations: found,
+      mismatches,
+      expectAbsent,
+      unclassified: graph.unclassified ?? [],
+      sizes,
+    },
     table: formatViolations([
       ...mismatches.map((m) => ({ ...m, module: "-", chunk: "-", entry: "-" })),
       ...found,

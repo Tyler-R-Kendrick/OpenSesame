@@ -1,4 +1,7 @@
-import { FIXTURE_CATALOG, FIXTURE_DISTRIBUTION } from "@opensesame/capability-composition";
+import {
+  FIXTURE_CATALOG,
+  FIXTURE_DISTRIBUTION,
+} from "@opensesame/capability-composition";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { FAMILY_POLICY } from "../__tests__/plan-fixtures.js";
@@ -19,10 +22,17 @@ describe("previewJoinDocument (S03, TRUST-02/07)", () => {
       capabilities: {
         ...FAMILY_POLICY.capabilities,
         required: ["identity.federation", "enterprise.ca-administration"],
-        optional: [...FAMILY_POLICY.capabilities.optional, "not.in-this-catalog"],
+        optional: [
+          ...FAMILY_POLICY.capabilities.optional,
+          "not.in-this-catalog",
+        ],
       },
     };
-    const preview = await previewJoinDocument(doc(policy), FIXTURE_DISTRIBUTION, FIXTURE_CATALOG);
+    const preview = await previewJoinDocument(
+      doc(policy),
+      FIXTURE_DISTRIBUTION,
+      FIXTURE_CATALOG,
+    );
     expect(preview.ok).toBe(true);
     if (!preview.ok) return;
     expect(preview.instanceId).toBe(FAMILY_POLICY.instanceId);
@@ -31,7 +41,10 @@ describe("previewJoinDocument (S03, TRUST-02/07)", () => {
     expect(preview.keyFingerprint).toBeNull();
     expect(preview.required.map((e) => e.id)).toEqual(["identity.federation"]);
     expect(preview.required[0]?.distributed).toBe(true);
-    expect(preview.absent).toEqual(["enterprise.ca-administration", "not.in-this-catalog"]);
+    expect(preview.absent).toEqual([
+      "enterprise.ca-administration",
+      "not.in-this-catalog",
+    ]);
     expect(preview.optional.map((e) => e.id)).toContain("connectors.external");
     expect(preview.prohibited.map((e) => e.id)).toEqual(["telemetry.external"]);
     expect(preview.network).toEqual({
@@ -60,7 +73,10 @@ describe("previewJoinDocument (S03, TRUST-02/07)", () => {
     expect(preview.keyFingerprint).toBe(keyFingerprint(signer.kid));
     expect(preview.kidMismatch).toBe(false);
     expect(preview.payloadDigest).toBe(envelope.payloadDigest);
-    expect(preview.window).toEqual({ notBefore: null, expires: "2027-01-01T00:00:00.000Z" });
+    expect(preview.window).toEqual({
+      notBefore: null,
+      expires: "2027-01-01T00:00:00.000Z",
+    });
     expect(preview.allowedOrigins).toEqual(["https://vault.example.test"]);
     const other = await generatePolicySigningKey();
     const swapped = await previewJoinDocument(
@@ -86,22 +102,36 @@ describe("previewJoinDocument (S03, TRUST-02/07)", () => {
         FIXTURE_CATALOG,
       );
       expect(fetchSpy).not.toHaveBeenCalled();
-      expect(preview.ok && preview.ignoredMembers).toEqual(["activate", "href", "policyUrl"]);
+      expect(preview.ok && preview.ignoredMembers).toEqual([
+        "activate",
+        "href",
+        "policyUrl",
+      ]);
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
   it("refuses what it cannot bound", async () => {
-    expect(await previewJoinDocument("nope", FIXTURE_DISTRIBUTION, FIXTURE_CATALOG)).toEqual({
+    expect(
+      await previewJoinDocument("nope", FIXTURE_DISTRIBUTION, FIXTURE_CATALOG),
+    ).toEqual({
       ok: false,
       reason: "malformed",
     });
     expect(
-      await previewJoinDocument(doc({ kind: "Other", instanceId: "x", revision: "1" }), FIXTURE_DISTRIBUTION, FIXTURE_CATALOG),
+      await previewJoinDocument(
+        doc({ kind: "Other", instanceId: "x", revision: "1" }),
+        FIXTURE_DISTRIBUTION,
+        FIXTURE_CATALOG,
+      ),
     ).toEqual({ ok: false, reason: "wrong-kind" });
     expect(
-      await previewJoinDocument(doc({ kind: "InstanceCapabilityPolicy" }), FIXTURE_DISTRIBUTION, FIXTURE_CATALOG),
+      await previewJoinDocument(
+        doc({ kind: "InstanceCapabilityPolicy" }),
+        FIXTURE_DISTRIBUTION,
+        FIXTURE_CATALOG,
+      ),
     ).toEqual({ ok: false, reason: "malformed" });
     expect(
       await previewJoinDocument(

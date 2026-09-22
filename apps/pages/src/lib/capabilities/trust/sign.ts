@@ -5,6 +5,7 @@
  * generates, exports or stores private material.
  */
 import type { InstanceCapabilityPolicy } from "@opensesame/capability-composition";
+import { encodeBase64Url } from "./digest.js";
 import {
   ENVELOPE_ALG,
   ENVELOPE_KIND,
@@ -13,7 +14,6 @@ import {
   envelopeSignedBytes,
   policyPayloadDigest,
 } from "./envelope.js";
-import { encodeBase64Url } from "./digest.js";
 import {
   ECDSA_P256,
   ECDSA_SHA256,
@@ -32,7 +32,10 @@ export type PolicySigningKey = Readonly<{
 
 /** A fresh non-extractable P-256 pair; `kid` is the public key's thumbprint. */
 export async function generatePolicySigningKey(): Promise<PolicySigningKey> {
-  const pair = await crypto.subtle.generateKey(ECDSA_P256, true, ["sign", "verify"]);
+  const pair = await crypto.subtle.generateKey(ECDSA_P256, true, [
+    "sign",
+    "verify",
+  ]);
   const exported = await crypto.subtle.exportKey("jwk", pair.publicKey);
   const publicJwk = policyPublicJwk({
     kty: exported.kty,
@@ -40,8 +43,13 @@ export async function generatePolicySigningKey(): Promise<PolicySigningKey> {
     x: exported.x,
     y: exported.y,
   });
-  if (publicJwk === null) throw new Error("generated key is not a P-256 public key");
-  return { kid: await jwkThumbprintHex(publicJwk), publicJwk, privateKey: pair.privateKey };
+  if (publicJwk === null)
+    throw new Error("generated key is not a P-256 public key");
+  return {
+    kid: await jwkThumbprintHex(publicJwk),
+    publicJwk,
+    privateKey: pair.privateKey,
+  };
 }
 
 async function signBytes(key: CryptoKey, bytes: Uint8Array): Promise<string> {
@@ -70,7 +78,9 @@ export async function signPolicyEnvelope(
     payloadDigest: await policyPayloadDigest(input.payload),
     ...(input.notBefore === undefined ? {} : { notBefore: input.notBefore }),
     ...(input.expires === undefined ? {} : { expires: input.expires }),
-    ...(input.allowedOrigins === undefined ? {} : { allowedOrigins: input.allowedOrigins }),
+    ...(input.allowedOrigins === undefined
+      ? {}
+      : { allowedOrigins: input.allowedOrigins }),
   };
   return {
     ...header,
@@ -81,7 +91,12 @@ export async function signPolicyEnvelope(
 
 export async function signPolicyKeyRotation(
   signer: PolicySigningKey,
-  input: Readonly<{ instanceId: string; next: PolicySigningKey; retire: boolean; notBefore?: string }>,
+  input: Readonly<{
+    instanceId: string;
+    next: PolicySigningKey;
+    retire: boolean;
+    notBefore?: string;
+  }>,
 ): Promise<PolicyKeyRotation> {
   const unsigned: Omit<PolicyKeyRotation, "signature"> = {
     schemaVersion: 1,
@@ -95,6 +110,9 @@ export async function signPolicyKeyRotation(
   };
   return {
     ...unsigned,
-    signature: await signBytes(signer.privateKey, rotationSignedBytes(unsigned)),
+    signature: await signBytes(
+      signer.privateKey,
+      rotationSignedBytes(unsigned),
+    ),
   };
 }

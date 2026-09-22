@@ -108,9 +108,7 @@ export function clearSpendingLedgerStorage(): void {
   } catch {
     // Ignore missing Storage (SSR / Node without stub).
   }
-  cached = null;
-  cachedTomb = "";
-  labelCache = null;
+  dropCaches();
 }
 
 export function formatUnits(amount: AmountUnits, decimals = 0): string {

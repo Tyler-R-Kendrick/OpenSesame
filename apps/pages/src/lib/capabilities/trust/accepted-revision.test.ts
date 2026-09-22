@@ -43,9 +43,15 @@ describe("accepted revision record (S03)", () => {
     expect(readAcceptedPolicy()).toEqual(accepted);
     durable.set(ACCEPTED_POLICY_KEY, "{not json");
     expect(readAcceptedPolicy()).toBeNull();
-    durable.set(ACCEPTED_POLICY_KEY, JSON.stringify({ ...accepted, digest: "md5:x" }));
+    durable.set(
+      ACCEPTED_POLICY_KEY,
+      JSON.stringify({ ...accepted, digest: "md5:x" }),
+    );
     expect(readAcceptedPolicy()).toBeNull();
-    durable.set(ACCEPTED_POLICY_KEY, JSON.stringify({ ...accepted, provenance: "trusted" }));
+    durable.set(
+      ACCEPTED_POLICY_KEY,
+      JSON.stringify({ ...accepted, provenance: "trusted" }),
+    );
     expect(readAcceptedPolicy()).toBeNull();
     await expect(
       recordAcceptedPolicy({ ...accepted, acceptedAt: "not a time" }),
@@ -62,25 +68,42 @@ describe("accepted revision record (S03)", () => {
   });
 
   it("TRUST-05: an older revision is a rollback, including a restored copy", () => {
-    expect(checkRevision({ ...accepted, revision: "2026-09-22.2" }, accepted)).toBe("rollback");
-    expect(checkRevision({ ...accepted, revision: "2026-09-21.9" }, accepted)).toBe("rollback");
+    expect(
+      checkRevision({ ...accepted, revision: "2026-09-22.2" }, accepted),
+    ).toBe("rollback");
+    expect(
+      checkRevision({ ...accepted, revision: "2026-09-21.9" }, accepted),
+    ).toBe("rollback");
     // Storage restored from a backup carries a record newer than the document
     // the deployment now serves: the candidate is stale, not the record.
-    expect(checkRevision({ ...accepted, revision: "2026-09-22.1", digest: D2 }, accepted)).toBe(
-      "rollback",
-    );
+    expect(
+      checkRevision(
+        { ...accepted, revision: "2026-09-22.1", digest: D2 },
+        accepted,
+      ),
+    ).toBe("rollback");
   });
 
   it("TRUST-06: the same revision with a different digest is a conflict", () => {
-    expect(checkRevision({ ...accepted, digest: D2 }, accepted)).toBe("conflict-same-revision");
+    expect(checkRevision({ ...accepted, digest: D2 }, accepted)).toBe(
+      "conflict-same-revision",
+    );
     expect(checkRevision(accepted, accepted)).toBe("ok");
   });
 
   it("accepts a newer revision, a first acceptance, and refuses another instance", () => {
-    expect(checkRevision({ ...accepted, revision: "2026-09-22.4", digest: D2 }, accepted)).toBe("ok");
+    expect(
+      checkRevision(
+        { ...accepted, revision: "2026-09-22.4", digest: D2 },
+        accepted,
+      ),
+    ).toBe("ok");
     expect(checkRevision(accepted, null)).toBe("ok");
-    expect(checkRevision({ ...accepted, instanceId: "inst-other", revision: "99" }, accepted)).toBe(
-      "wrong-instance",
-    );
+    expect(
+      checkRevision(
+        { ...accepted, instanceId: "inst-other", revision: "99" },
+        accepted,
+      ),
+    ).toBe("wrong-instance");
   });
 });

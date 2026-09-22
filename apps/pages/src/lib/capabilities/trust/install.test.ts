@@ -101,7 +101,9 @@ describe("installTrustSeams — managed policy review (S03)", () => {
 
     // A document the boot never primed is unknown, and unknown fails closed.
     await installTrustSeams(managedRuntimeConfig(policyAt("family-r9")), null);
-    const unprimed = storeSeams.reviewManagedPolicy(twinOf(policyAt("family-r9")));
+    const unprimed = storeSeams.reviewManagedPolicy(
+      twinOf(policyAt("family-r9")),
+    );
     expect(unprimed.ok).toBe(false);
     expect(unprimed.diagnostics[0]).toContain("not verified before boot");
   });

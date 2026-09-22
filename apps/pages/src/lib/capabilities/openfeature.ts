@@ -79,12 +79,13 @@ export type ProjectedContext = Readonly<{ vaultId?: string }>;
 type ReadyPlan = Readonly<{ plan: EffectivePlan; snapshot: ProjectedSnapshot }>;
 type FlagKind = "boolean" | "string" | "number" | "object";
 type Reason = "STATIC" | "TARGETING_MATCH";
-type ResolvedFlag = Readonly<{ kind: FlagKind; value: JsonValue; reason: Reason }>;
+type ResolvedFlag = Readonly<{
+  kind: FlagKind;
+  value: JsonValue;
+  reason: Reason;
+}>;
 
-function stateOf(
-  plan: EffectivePlan,
-  id: string,
-): CapabilityState | undefined {
+function stateOf(plan: EffectivePlan, id: string): CapabilityState | undefined {
   return Object.hasOwn(plan.capabilities, id)
     ? plan.capabilities[id]
     : undefined;
@@ -110,7 +111,11 @@ function lookupFlag(key: string, ready: ReadyPlan): ResolvedFlag | null {
   const rest = key.slice(CAPABILITY_PREFIX.length);
   const state = stateOf(plan, rest);
   if (state !== undefined) {
-    return { kind: "boolean", value: state.approved, reason: "TARGETING_MATCH" };
+    return {
+      kind: "boolean",
+      value: state.approved,
+      reason: "TARGETING_MATCH",
+    };
   }
   if (!rest.endsWith(LIFECYCLE_SUFFIX)) return null;
   const id = rest.slice(0, -LIFECYCLE_SUFFIX.length);
@@ -130,7 +135,10 @@ function flagTable(snapshot: ProjectedSnapshot): Map<string, string> {
   table.set(FLAG_GENERATION, String(snapshot.generation));
   table.set(FLAG_PLAN, snapshot.plan.identity.planDigest);
   for (const id of Object.keys(snapshot.plan.capabilities)) {
-    table.set(capabilityFlagKey(id), String(snapshot.plan.capabilities[id]?.approved));
+    table.set(
+      capabilityFlagKey(id),
+      String(snapshot.plan.capabilities[id]?.approved),
+    );
     const lifecycle = Object.hasOwn(snapshot.lifecycle, id)
       ? snapshot.lifecycle[id]
       : undefined;
@@ -227,7 +235,10 @@ export class LocalCompositionProvider implements Provider {
     const before = this.#last;
     const after = this.#source.getSnapshot();
     this.#last = after;
-    if (before.generation === after.generation && before.status === after.status)
+    if (
+      before.generation === after.generation &&
+      before.status === after.status
+    )
       return;
     const wasReady = before.status === "ready" && before.plan !== null;
     const isReady = after.status === "ready" && after.plan !== null;
@@ -246,7 +257,11 @@ export class LocalCompositionProvider implements Provider {
     const snapshot = this.#source.getSnapshot();
     const generation = snapshot.generation;
     if (snapshot.status !== "ready" || snapshot.plan === null) {
-      return errorDetails(defaultValue, ErrorCode.PROVIDER_NOT_READY, generation);
+      return errorDetails(
+        defaultValue,
+        ErrorCode.PROVIDER_NOT_READY,
+        generation,
+      );
     }
     const flag = lookupFlag(key, { plan: snapshot.plan, snapshot });
     if (flag === null) {
@@ -294,7 +309,8 @@ export class LocalCompositionProvider implements Provider {
     defaultValue: T,
   ): ResolutionDetails<T> {
     const details = this.#resolve(key, defaultValue, "object");
-    if (!isJsonObject(details.value)) return { ...details, value: defaultValue };
+    if (!isJsonObject(details.value))
+      return { ...details, value: defaultValue };
     // SAFETY: the SDK's object flags are untyped JSON; the only object flag
     // here is `composition.plan`, whose members are documented above.
     const value: T = overlapCast(details.value);
@@ -326,7 +342,9 @@ export function installedCompositionProvider(): LocalCompositionProvider | null 
 /** True when something other than our provider answers for our domain. */
 export function foreignProviderInstalled(): boolean {
   const bound = OpenFeature.getProvider(OPENFEATURE_DOMAIN);
-  return bound !== NOOP_PROVIDER && !(bound instanceof LocalCompositionProvider);
+  return (
+    bound !== NOOP_PROVIDER && !(bound instanceof LocalCompositionProvider)
+  );
 }
 
 /**

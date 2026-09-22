@@ -20,8 +20,7 @@ import {
 import { registerGuidePredicates } from "../registry/predicates.js";
 import { mergedGuideRoutes } from "../registry/routes.js";
 import { guidePredicateIds } from "../registry/state.js";
-import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
-import { registerOptionalTutorials } from "../registry/optional-tutorials.test-support.js";
+import { registerTutorialRealm } from "../registry/optional-tutorials.test-support.js";
 import { guideTargetIds } from "../registry/targets.js";
 
 /**
@@ -29,19 +28,12 @@ import { guideTargetIds } from "../registry/targets.js";
  * partition is registered the way its module registers it on activation, so
  * this sweep still proves a compiling guide exists for each PWA capability.
  */
-let revokeTutorials: readonly (() => void)[] = [];
+let revokeTutorials = () => {};
 beforeAll(() => {
   registerGuidePredicates();
-  revokeTutorials = [
-    registerOptionalTutorials(),
-    // `/settings/connections` is a route because the connectors capability
-    // contributes that Settings category, not because it is authored twice.
-    registerLegacySettingsCategories(),
-  ];
+  revokeTutorials = registerTutorialRealm();
 });
-afterAll(() => {
-  for (const revoke of revokeTutorials) revoke();
-});
+afterAll(() => revokeTutorials());
 
 function vocabulary() {
   return {

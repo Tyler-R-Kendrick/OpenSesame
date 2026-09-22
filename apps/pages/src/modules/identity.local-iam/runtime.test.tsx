@@ -74,7 +74,11 @@ describe("identity.local-iam runtime", () => {
       "nav.identity",
       "identity.service-accounts",
     ]);
+    // The whole identity partition of the route registry: the two Identity
+    // screens plus `/federation`, whose return screen is core sign-in but
+    // whose authored descriptor lives in `identity-catalog.ts`.
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual([
+      "/federation",
       "/identity/authorize",
       "/identity",
     ]);

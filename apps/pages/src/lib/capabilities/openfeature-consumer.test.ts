@@ -2,11 +2,12 @@
 import { InMemoryProvider, OpenFeature } from "@openfeature/web-sdk";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { bootPersonalLocal, freshRealm } from "./__tests__/harness.js";
 import {
-  bootPersonalLocal,
-  freshRealm,
-} from "./__tests__/harness.js";
-import { approvedPlan, readySnapshot, storeDouble } from "./__tests__/plan-fixtures.js";
+  approvedPlan,
+  readySnapshot,
+  storeDouble,
+} from "./__tests__/plan-fixtures.js";
 import { loadApprovedModule } from "./loader.js";
 import {
   RELEASE_FLAGS,
@@ -38,7 +39,12 @@ describe("openfeature-consumer (S17)", () => {
 
   it("OF-02/OF-04: with no provider, or a provider that is not ready, a capability reads false", async () => {
     expect(capabilityEnabled(CONNECTORS)).toBe(false);
-    const store = storeDouble({ status: "resolving", plan: null, generation: 0, lifecycle: {} });
+    const store = storeDouble({
+      status: "resolving",
+      plan: null,
+      generation: 0,
+      lifecycle: {},
+    });
     await installCompositionProvider({ snapshotSource: store });
     expect(capabilityEnabled(CONNECTORS)).toBe(false);
   });
@@ -79,7 +85,10 @@ describe("openfeature-consumer (S17)", () => {
     expect(capabilityEnabled(CONNECTORS)).toBe(true);
     // ...and the loader, reading the store, still refuses before any import.
     const lease = compositionStore.currentLease();
-    const outcome = await loadApprovedModule(`${CONNECTORS}/runtime`, lease).then(
+    const outcome = await loadApprovedModule(
+      `${CONNECTORS}/runtime`,
+      lease,
+    ).then(
       () => "loaded",
       (error: unknown) => (isCapabilityDenied(error) ? error.code : "other"),
     );
@@ -114,7 +123,11 @@ describe("openfeature-consumer (S17)", () => {
     await OpenFeature.setProviderAndWait(
       OPENFEATURE_DOMAIN,
       new InMemoryProvider({
-        "release.hidden-thing": { disabled: false, variants: { on: true }, defaultVariant: "on" },
+        "release.hidden-thing": {
+          disabled: false,
+          variants: { on: true },
+          defaultVariant: "on",
+        },
       }),
     );
     releaseFlagSeams.table = { "release.hidden-thing": "restricted" };

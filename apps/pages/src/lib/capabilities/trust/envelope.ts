@@ -47,7 +47,10 @@ export type SignedPolicyEnvelope = Readonly<{
   signature: string;
 }>;
 
-export type EnvelopeHeader = Omit<SignedPolicyEnvelope, "payload" | "signature">;
+export type EnvelopeHeader = Omit<
+  SignedPolicyEnvelope,
+  "payload" | "signature"
+>;
 
 export type VerifyFailure =
   | "malformed-envelope"
@@ -63,7 +66,13 @@ export type VerifyFailure =
   | "expired";
 
 export type VerifyResult = Readonly<
-  | { ok: true; kid: string; payloadDigest: string; revision: string; policy: InstanceCapabilityPolicy }
+  | {
+      ok: true;
+      kid: string;
+      payloadDigest: string;
+      revision: string;
+      policy: InstanceCapabilityPolicy;
+    }
   | { ok: false; reason: VerifyFailure }
 >;
 
@@ -81,7 +90,8 @@ export type VerifyOptions = Readonly<{
 export function envelopeSignedBytes(header: EnvelopeHeader): Uint8Array {
   return canonicalizeToBytes({
     alg: header.alg,
-    allowedOrigins: header.allowedOrigins === undefined ? null : [...header.allowedOrigins],
+    allowedOrigins:
+      header.allowedOrigins === undefined ? null : [...header.allowedOrigins],
     expires: header.expires ?? null,
     instanceId: header.instanceId,
     kid: header.kid,
@@ -105,7 +115,9 @@ function shortString(value: JsonValue | undefined): value is string {
   return isString(value) && value.length > 0 && value.length <= MAX_FIELD;
 }
 
-function readOrigins(value: JsonValue | undefined): readonly string[] | null | undefined {
+function readOrigins(
+  value: JsonValue | undefined,
+): readonly string[] | null | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || value.length > MAX_ORIGINS) return null;
   const origins: string[] = [];
@@ -135,8 +147,18 @@ export function readPolicyEnvelope(
   if (!isJsonObject(value)) return null;
   if (JSON.stringify(value).length > MAX_ENVELOPE_CHARS) return null;
   const known = new Set([
-    "schemaVersion", "kind", "instanceId", "revision", "alg", "kid",
-    "payloadDigest", "payload", "notBefore", "expires", "allowedOrigins", "signature",
+    "schemaVersion",
+    "kind",
+    "instanceId",
+    "revision",
+    "alg",
+    "kid",
+    "payloadDigest",
+    "payload",
+    "notBefore",
+    "expires",
+    "allowedOrigins",
+    "signature",
   ]);
   if (!Object.keys(value).every((key) => known.has(key))) return null;
   if (
@@ -165,11 +187,16 @@ export function readPolicyEnvelope(
   return envelope;
 }
 
-function validity(envelope: SignedPolicyEnvelope, now: number): VerifyFailure | null {
+function validity(
+  envelope: SignedPolicyEnvelope,
+  now: number,
+): VerifyFailure | null {
   const notBefore = parseIsoTime(envelope.notBefore);
   const expires = parseIsoTime(envelope.expires);
-  if (envelope.notBefore !== undefined && notBefore === null) return "malformed-envelope";
-  if (envelope.expires !== undefined && expires === null) return "malformed-envelope";
+  if (envelope.notBefore !== undefined && notBefore === null)
+    return "malformed-envelope";
+  if (envelope.expires !== undefined && expires === null)
+    return "malformed-envelope";
   if (notBefore !== null && now < notBefore) return "not-yet-valid";
   if (expires !== null && now >= expires) return "expired";
   return null;
@@ -182,25 +209,33 @@ export async function verifyPolicyEnvelope(
   const envelope = readPolicyEnvelope(candidate);
   if (envelope === null) return { ok: false, reason: "malformed-envelope" };
   // Algorithm is fixed before any key material is consulted (TRUST-03).
-  if (envelope.alg !== ENVELOPE_ALG) return { ok: false, reason: "unsupported-alg" };
+  if (envelope.alg !== ENVELOPE_ALG)
+    return { ok: false, reason: "unsupported-alg" };
   const key = Object.hasOwn(options.trustedKeys, envelope.kid)
     ? options.trustedKeys[envelope.kid]
     : undefined;
   if (key === undefined) return { ok: false, reason: "unknown-kid" };
   const { payload, signature, ...header } = envelope;
-  const verdict = await verifyEs256(key, envelopeSignedBytes(header), signature);
+  const verdict = await verifyEs256(
+    key,
+    envelopeSignedBytes(header),
+    signature,
+  );
   if (verdict !== "ok") return { ok: false, reason: verdict };
   if ((await policyPayloadDigest(payload)) !== envelope.payloadDigest)
     return { ok: false, reason: "payload-digest-mismatch" };
   // SAFETY: readPolicyEnvelope proved `payload` is a JSON object; only its
   // identity members are read here, and S01's parser owns the rest.
-  const body: Readonly<Record<string, JsonValue | undefined>> = overlapCast(payload);
+  const body: Readonly<Record<string, JsonValue | undefined>> =
+    overlapCast(payload);
   if (
     body.instanceId !== envelope.instanceId ||
-    (options.instanceId !== undefined && options.instanceId !== envelope.instanceId)
+    (options.instanceId !== undefined &&
+      options.instanceId !== envelope.instanceId)
   )
     return { ok: false, reason: "wrong-instance" };
-  if (body.revision !== envelope.revision) return { ok: false, reason: "revision-mismatch" };
+  if (body.revision !== envelope.revision)
+    return { ok: false, reason: "revision-mismatch" };
   if (
     envelope.allowedOrigins !== undefined &&
     !envelope.allowedOrigins.includes(options.origin)
