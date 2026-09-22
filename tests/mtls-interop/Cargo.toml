@@ -33,6 +33,7 @@ path = "src/lib.rs"
 
 [dependencies]
 opensesame-domain = { path = "../../crates/domain" }
+opensesame-ingress-evidence = { path = "../../crates/ingress-evidence" }
 opensesame-transport-security = { path = "../../crates/transport-security" }
 anyhow = { workspace = true }
 chrono = { workspace = true }
@@ -40,6 +41,7 @@ serde_json = { workspace = true }
 tempfile = { workspace = true }
 
 [dev-dependencies]
+async-nats = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }

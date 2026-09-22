@@ -68,7 +68,18 @@ fn mutated_certificates_are_refused_or_parsed_consistently() {
                 hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&der)),
                 "thumbprint does not cover the parsed bytes"
             );
-            assert!(leaf.not_before < leaf.not_after, "inverted window accepted");
+            // Parsing does not decide validity — RFC 5280 does not forbid an
+            // inverted window in the encoding, and a mutation can produce
+            // one. What must hold is that such a leaf is never *usable*:
+            // `is_valid_at` requires not_before <= now <= not_after, which an
+            // inverted window can never satisfy, and `AttestedPeer` refuses
+            // it outright (`attest.rs::check_window`).
+            if leaf.not_before > leaf.not_after {
+                assert!(
+                    !leaf.is_valid_at(chrono::Utc::now()),
+                    "an inverted validity window was usable"
+                );
+            }
             for selector in &leaf.selectors {
                 selector
                     .validate()

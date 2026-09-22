@@ -4124,10 +4124,12 @@ name = "opensesame-mtls-interop"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-nats",
  "axum",
  "chrono",
  "http",
  "opensesame-domain",
+ "opensesame-ingress-evidence",
  "opensesame-transport-security",
  "reqwest",
  "rustls",

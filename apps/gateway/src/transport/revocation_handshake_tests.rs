@@ -64,10 +64,13 @@ async fn fresh_handshake_is_refused(
 ) {
     match support::connect(config, addr).await {
         Err(message) => assert!(message.starts_with("tls:"), "{what}: {message}"),
-        Ok(mut stream) => match support::request_on(&mut stream, "/protected").await {
-            Ok((status, body)) => assert_eq!(status, 403, "{what}: served {body}"),
-            Err(_) => { /* the server dropped it: refused. */ }
-        },
+        // The server may instead drop the connection; either way nothing is
+        // served, which is what "refused" means here.
+        Ok(mut stream) => {
+            if let Ok((status, body)) = support::request_on(&mut stream, "/protected").await {
+                assert_eq!(status, 403, "{what}: served {body}");
+            }
+        }
     }
 }
 
