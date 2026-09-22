@@ -78,7 +78,9 @@ impl NatsJetStreamConfig {
     }
 
     fn subject_filter(&self) -> String {
-        self.filter_subject.clone().unwrap_or_else(|| self.stream_subjects())
+        self.filter_subject
+            .clone()
+            .unwrap_or_else(|| self.stream_subjects())
     }
 }
 
@@ -134,7 +136,10 @@ async fn open_session(
         // `$JS.API.CONSUMER.INFO.<stream>.<consumer>` only: no stream info,
         // no create. Absent → not_provisioned, never a create.
         match js
-            .get_consumer_from_stream::<pull::Config, _, _>(&config.consumer_name, &config.stream_name)
+            .get_consumer_from_stream::<pull::Config, _, _>(
+                &config.consumer_name,
+                &config.stream_name,
+            )
             .await
         {
             Ok(consumer) => Some(consumer),
@@ -153,7 +158,11 @@ async fn open_session(
             Err(error) => return Err(error.into()),
         }
     };
-    Ok(Session { client, js, consumer })
+    Ok(Session {
+        client,
+        js,
+        consumer,
+    })
 }
 
 impl NatsJetStreamTaskBus {
@@ -180,7 +189,12 @@ impl NatsJetStreamTaskBus {
     ) -> anyhow::Result<Self> {
         let health = Arc::new(BusHealth::default());
         let session = open_session(&config, &injected, Arc::clone(&health)).await?;
-        Ok(Self { config, session: RwLock::new(session), health, injected })
+        Ok(Self {
+            config,
+            session: RwLock::new(session),
+            health,
+            injected,
+        })
     }
 
     /// Rotate to new transport material: open a second connection with
@@ -222,7 +236,11 @@ impl NatsJetStreamTaskBus {
             .consumer
             .as_mut()
             .ok_or(NatsBusError::RoleCannotConsume(self.config.role))?;
-        Ok(consumer.info().await.map_err(|e| anyhow::anyhow!("{e}"))?.clone())
+        Ok(consumer
+            .info()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?
+            .clone())
     }
 
     #[must_use]
@@ -302,11 +320,19 @@ pub(crate) mod live_harness;
 
 #[cfg(all(test, feature = "live-tests"))]
 #[path = "nats_live_tests.rs"]
-mod live_tests;
+pub(crate) mod live_tests;
+
+#[cfg(all(test, feature = "live-tests"))]
+#[path = "nats_live_roles.rs"]
+mod live_roles;
 
 #[cfg(all(test, feature = "live-tests"))]
 #[path = "nats_live_topology.rs"]
-mod live_topology;
+pub(crate) mod live_topology;
+
+#[cfg(all(test, feature = "live-tests"))]
+#[path = "nats_live_routes.rs"]
+mod live_routes;
 
 #[cfg(all(test, feature = "live-tests"))]
 #[path = "nats_live_callout.rs"]

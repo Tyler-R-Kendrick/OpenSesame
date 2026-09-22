@@ -102,7 +102,9 @@ mod tests {
     fn server_to_service_round_trip() {
         let server = CalloutXKey::generate();
         let service = CalloutXKey::generate();
-        let sealed = server.seal(b"eyJ.request.sig", &service.public_key()).unwrap();
+        let sealed = server
+            .seal(b"eyJ.request.sig", &service.public_key())
+            .unwrap();
         assert!(is_sealed(&sealed));
         assert!(!is_sealed(b"eyJ.request.sig"));
         let opened = service.open(&sealed, &server.public_key()).unwrap();

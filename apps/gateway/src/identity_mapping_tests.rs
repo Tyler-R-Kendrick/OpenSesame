@@ -15,8 +15,30 @@ async fn serve(router: Router) -> (String, tokio::task::JoinHandle<()>) {
 }
 
 fn client(base: &str) -> IdentityMappingClient {
-    IdentityMappingClient::configured(base, uuid::Uuid::new_v4().simple().to_string(), true, None)
-        .unwrap()
+    IdentityMappingClient::configured(
+        base,
+        MappingAuth::bearer(uuid::Uuid::new_v4().simple().to_string()).unwrap(),
+        true,
+        None,
+    )
+    .unwrap()
+}
+
+/// SVC-MAPPING: the mapping client reads its own dedicated credential and
+/// nothing else. Neither the NATS callout secret nor the operator token is
+/// reachable from this module, so a failed certificate can never become one
+/// of them.
+#[test]
+fn mapping_never_reads_other_secrets() {
+    for src in [
+        include_str!("identity_mapping.rs"),
+        include_str!("identity_mapping_tls.rs"),
+    ] {
+        let production = src.split("#[cfg(test)]").next().expect("production");
+        assert!(!production.contains("OPENSESAME_NATS_CALLOUT_SECRET"));
+        assert!(!production.contains("OPENSESAME_OPERATOR_TOKEN"));
+        assert!(!production.contains("operator_token"));
+    }
 }
 
 fn response() -> serde_json::Value {

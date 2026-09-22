@@ -5,7 +5,8 @@ use crate::nats_policy::{
     NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy, NatsTransportPublic,
     NatsTransportSource, TrustRef,
 };
-use crate::nats_transport::{url_hosts, NatsTransportSpec};
+use crate::nats_transport::NatsTransportSpec;
+use crate::nats_transport_env::url_hosts;
 use opensesame_domain::transport::{TransportError, TrustProfileKind};
 use serde_json::json;
 use std::collections::HashMap;
@@ -23,8 +24,14 @@ fn spec_from(vars: &[(&str, &str)]) -> Result<Option<NatsTransportSpec>, Transpo
 
 const SECURE: &[(&str, &str)] = &[
     ("OPENSESAME_NATS_TLS_IDENTITY_SOURCE", "pem"),
-    ("OPENSESAME_NATS_TLS_CERT_FILE", "/run/secrets/nats-client.crt"),
-    ("OPENSESAME_NATS_TLS_KEY_FILE", "/run/secrets/nats-client.key"),
+    (
+        "OPENSESAME_NATS_TLS_CERT_FILE",
+        "/run/secrets/nats-client.crt",
+    ),
+    (
+        "OPENSESAME_NATS_TLS_KEY_FILE",
+        "/run/secrets/nats-client.key",
+    ),
     ("OPENSESAME_NATS_TLS_TRUST_FILE", "/run/secrets/nats-ca.pem"),
     ("OPENSESAME_NATS_TLS_TRUST_KIND", "private_root"),
     ("OPENSESAME_NATS_TLS_SERVER_NAME", "nats.internal.example"),
@@ -55,7 +62,10 @@ fn production_adapter_uses_jetstream_not_core_pub_and_never_bare_connect() {
     assert!(connect.contains(".require_tls(true)"));
     assert!(connect.contains(".ignore_discovered_servers()"));
     assert!(connect.contains(".tls_client_config(config)"));
-    assert!(!connect.contains("add_root_certificates"), "one verifier only");
+    assert!(
+        !connect.contains("add_root_certificates"),
+        "one verifier only"
+    );
     assert!(!connect.contains("danger"), "no permissive verifier");
 }
 
@@ -73,13 +83,21 @@ fn env_secure_profile_resolves_references_not_paths() {
     assert_eq!(spec.policy(), NatsTransportPolicy::MtlsRequired);
     assert_eq!(
         spec.transport.server_trust,
-        Some(TrustRef { name: "nats-server-trust".into(), kind: TrustProfileKind::PrivateRoot })
+        Some(TrustRef {
+            name: "nats-server-trust".into(),
+            kind: TrustProfileKind::PrivateRoot
+        })
     );
     assert_eq!(
         spec.transport.server_name,
         Some(NatsServerName::Dns("nats.internal.example".into()))
     );
-    assert_eq!(spec.auth, NatsAuth::Nkey { seed_ref: "OPENSESAME_NATS_NKEY_SEED_FILE".into() });
+    assert_eq!(
+        spec.auth,
+        NatsAuth::Nkey {
+            seed_ref: "OPENSESAME_NATS_NKEY_SEED_FILE".into()
+        }
+    );
 
     // The persisted / returned shapes carry no locator.
     for value in [
@@ -107,14 +125,21 @@ fn env_unknown_auth_word_is_refused() {
 #[test]
 fn tls_url_implies_require_tls_and_needs_trust() {
     let spec = NatsTransportSpec::plaintext();
-    let err = spec.normalized("tls://nats.internal.example:4222").unwrap_err();
+    let err = spec
+        .normalized("tls://nats.internal.example:4222")
+        .unwrap_err();
     assert_eq!(err.code(), "trust_unknown");
 }
 
 #[test]
 fn plaintext_profile_refuses_credentials_and_identity() {
-    let mut public = NatsTransportPublic { transport: NatsTransport::default(), auth: NatsAuth::None };
-    public.auth = NatsAuth::Nkey { seed_ref: "OPENSESAME_NATS_NKEY_SEED_FILE".into() };
+    let mut public = NatsTransportPublic {
+        transport: NatsTransport::default(),
+        auth: NatsAuth::None,
+    };
+    public.auth = NatsAuth::Nkey {
+        seed_ref: "OPENSESAME_NATS_NKEY_SEED_FILE".into(),
+    };
     let spec = NatsTransportSpec::from_public(public, NatsTransportSource::Stored);
     let err = spec.normalized("nats://127.0.0.1:4222").unwrap_err();
     assert_eq!(err.code(), "policy_downgrade_refused");
@@ -132,7 +157,10 @@ fn mixed_plain_and_tls_hosts_are_refused() {
 #[test]
 fn server_name_must_be_the_dialed_host() {
     let spec = spec_from(SECURE).unwrap().unwrap();
-    let err = spec.clone().normalized("tls://other.example:4222").unwrap_err();
+    let err = spec
+        .clone()
+        .normalized("tls://other.example:4222")
+        .unwrap_err();
     assert_eq!(err.code(), "malformed_configuration");
     let ok = spec.normalized("tls://NATS.internal.example:4222").unwrap();
     assert!(ok.transport.require_tls);
@@ -146,8 +174,14 @@ fn server_name_defaults_to_the_dialed_dns_host_never_an_ip() {
         .filter(|(k, _)| *k != "OPENSESAME_NATS_TLS_SERVER_NAME")
         .collect();
     let spec = spec_from(&vars).unwrap().unwrap();
-    let ok = spec.clone().normalized("tls://nats.internal.example:4222").unwrap();
-    assert_eq!(ok.transport.server_name, Some(NatsServerName::Dns("nats.internal.example".into())));
+    let ok = spec
+        .clone()
+        .normalized("tls://nats.internal.example:4222")
+        .unwrap();
+    assert_eq!(
+        ok.transport.server_name,
+        Some(NatsServerName::Dns("nats.internal.example".into()))
+    );
     let err = spec.normalized("tls://10.0.0.5:4222").unwrap_err();
     assert_eq!(err.code(), "malformed_configuration");
 }
@@ -180,7 +214,10 @@ fn public_policy_rejects_locator_shaped_fields() {
         json!({"transport": {}, "auth": {"kind": "nkey", "seed": "SUAA"}}),
         json!({"transport": {}, "auth": {"kind": "creds", "path": "/x"}}),
     ] {
-        assert!(serde_json::from_value::<NatsTransportPublic>(body.clone()).is_err(), "{body}");
+        assert!(
+            serde_json::from_value::<NatsTransportPublic>(body.clone()).is_err(),
+            "{body}"
+        );
     }
 }
 
@@ -188,7 +225,10 @@ fn public_policy_rejects_locator_shaped_fields() {
 fn provisioning_spec_swaps_only_the_credential() {
     let mut vars = SECURE.to_vec();
     vars.push(("OPENSESAME_NATS_PROVISION_AUTH", "creds"));
-    vars.push(("OPENSESAME_NATS_PROVISION_CREDS_FILE", "/run/secrets/provisioner.creds"));
+    vars.push((
+        "OPENSESAME_NATS_PROVISION_CREDS_FILE",
+        "/run/secrets/provisioner.creds",
+    ));
     let spec = spec_from(&vars).unwrap().unwrap();
     let prov = spec.for_provisioning();
     assert_eq!(prov.auth.kind(), "creds");
@@ -210,9 +250,9 @@ fn health_records_reason_codes_only() {
     let health = BusHealth::default();
     health.record(&async_nats::Event::Connected);
     health.record(&async_nats::Event::Disconnected);
-    health.record(&async_nats::Event::ServerError(async_nats::ServerError::Other(
-        "user \"alice\" seed SUAAAAA".into(),
-    )));
+    health.record(&async_nats::Event::ServerError(
+        async_nats::ServerError::Other("user \"alice\" seed SUAAAAA".into()),
+    ));
     assert_eq!(health.last_event().as_deref(), Some("server_error:other"));
     assert_eq!(health.disconnects(), 1);
     assert!(!health.connected());
@@ -232,14 +272,28 @@ fn url_hosts_parse_lists_and_ipv6() {
 #[tokio::test]
 async fn foreign_principal_in_payload_never_changes_drain_scope() {
     let bus = crate::InMemoryTaskBus::default();
-    let honest = BusEvent::cloud_event("1", "opensesame/gateway", "principal.created", "2026-09-22T00:00:00Z", json!({"organization_id": "org_a"}));
-    let forged = BusEvent::cloud_event("2", "opensesame/gateway", "principal.created", "2026-09-22T00:00:00Z", json!({"organization_id": "org_b", "role": "owner", "system": true}));
+    let honest = BusEvent::cloud_event(
+        "1",
+        "opensesame/gateway",
+        "principal.created",
+        "2026-09-22T00:00:00Z",
+        json!({"organization_id": "org_a"}),
+    );
+    let forged = BusEvent::cloud_event(
+        "2",
+        "opensesame/gateway",
+        "principal.created",
+        "2026-09-22T00:00:00Z",
+        json!({"organization_id": "org_b", "role": "owner", "system": true}),
+    );
     bus.publish(honest.clone()).await.unwrap();
     bus.publish(forged.clone()).await.unwrap();
     let drained = bus.drain(10).await.unwrap();
     assert_eq!(drained, vec![honest, forged.clone()]);
     // The subject a forged event lands on is decided by its *type*, never
     // by a claim inside `data`: a user event cannot reach the system prefix.
-    assert!(!forged.subject(DEFAULT_SUBJECT_PREFIX).starts_with(crate::SYSTEM_SUBJECT_PREFIX));
+    assert!(!forged
+        .subject(DEFAULT_SUBJECT_PREFIX)
+        .starts_with(crate::SYSTEM_SUBJECT_PREFIX));
     assert!(!crate::is_system_event_type(&forged.r#type));
 }

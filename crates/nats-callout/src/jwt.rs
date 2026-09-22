@@ -97,7 +97,8 @@ fn split(token: &str) -> Result<(&str, Vec<u8>, Vec<u8>), CalloutError> {
         return Err(malformed("token exceeds the request bound"));
     }
     let mut parts = token.split('.');
-    let (Some(h), Some(p), Some(s), None) = (parts.next(), parts.next(), parts.next(), parts.next())
+    let (Some(h), Some(p), Some(s), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
     else {
         return Err(malformed("token is not three dot-separated segments"));
     };
@@ -166,7 +167,8 @@ pub fn decode_request(token: &str, expect: &Expectations) -> Result<VerifiedRequ
     {
         return Err(CalloutError::ServerUnknown);
     }
-    let server = nkeys::KeyPair::from_public_key(issuer).map_err(|_| CalloutError::IssuerNotServer)?;
+    let server =
+        nkeys::KeyPair::from_public_key(issuer).map_err(|_| CalloutError::IssuerNotServer)?;
     if server.key_pair_type() != nkeys::KeyPairType::Server {
         return Err(CalloutError::IssuerNotServer);
     }
@@ -215,13 +217,16 @@ pub fn encode<T: Serialize>(claims: &T, signer: &nkeys::KeyPair) -> Result<Strin
         })
         .map_err(|_| CalloutError::SigningFailed)?,
     );
-    let payload =
-        URL_SAFE_NO_PAD.encode(serde_json::to_vec(claims).map_err(|_| CalloutError::SigningFailed)?);
+    let payload = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(claims).map_err(|_| CalloutError::SigningFailed)?);
     let signing_input = format!("{header}.{payload}");
     let signature = signer
         .sign(signing_input.as_bytes())
         .map_err(|_| CalloutError::SigningFailed)?;
-    Ok(format!("{signing_input}.{}", URL_SAFE_NO_PAD.encode(signature)))
+    Ok(format!(
+        "{signing_input}.{}",
+        URL_SAFE_NO_PAD.encode(signature)
+    ))
 }
 
 /// Decode the claims of any compact JWT *without* verifying it. Used only to

@@ -20,7 +20,9 @@ use std::time::Duration;
 use chrono::{Duration as ChronoDuration, Utc};
 use opensesame_domain::transport::{EnforcementStatus, TransportError};
 use opensesame_transport_security::env::{self as tls_env, Lookup, ServerExpectation};
-use opensesame_transport_security::{reqwest_builder, ClientProfile, ServerNamePolicy, TrustBundle};
+use opensesame_transport_security::{
+    reqwest_builder, ClientProfile, ServerNamePolicy, TrustBundle,
+};
 
 use super::runtime::TransportRuntime;
 
@@ -143,9 +145,7 @@ pub fn plan_from(
     };
     let (server_name, authority) = match expectation {
         ServerExpectation::Dns(name) => (ServerNamePolicy::Dns(name.clone()), name),
-        ServerExpectation::SpiffeId(id) => {
-            (ServerNamePolicy::SpiffeId(id), addr.ip().to_string())
-        }
+        ServerExpectation::SpiffeId(id) => (ServerNamePolicy::SpiffeId(id), addr.ip().to_string()),
     };
     Ok(ProbePlan {
         target,

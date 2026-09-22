@@ -103,7 +103,12 @@ pub fn backoff_seconds(attempt: u32, jitter: f64) -> i64 {
 
 impl Scheduler {
     /// Take the lease for one certificate, or say why not.
-    pub fn claim(&mut self, organization_id: &str, certificate_id: &str, now: DateTime<Utc>) -> Claim {
+    pub fn claim(
+        &mut self,
+        organization_id: &str,
+        certificate_id: &str,
+        now: DateTime<Utc>,
+    ) -> Claim {
         let key = key(organization_id, certificate_id);
         if self.in_flight.contains(&key) {
             return Claim::InFlight;
@@ -182,12 +187,18 @@ impl Scheduler {
 
     #[must_use]
     pub fn parked(&self) -> Vec<Retry> {
-        self.retries.values().filter(|r| r.parked).cloned().collect()
+        self.retries
+            .values()
+            .filter(|r| r.parked)
+            .cloned()
+            .collect()
     }
 
     #[must_use]
     pub fn entry(&self, organization_id: &str, certificate_id: &str) -> Option<Retry> {
-        self.retries.get(&key(organization_id, certificate_id)).cloned()
+        self.retries
+            .get(&key(organization_id, certificate_id))
+            .cloned()
     }
 
     /// Forget a certificate (revoked, deleted).
@@ -212,7 +223,11 @@ pub async fn respond(state: &AppState, event: &LifecycleEvent) -> Outcome {
 }
 
 /// Renew `certificate_id` for `organization` under the scheduler's lease.
-pub async fn renew_one(state: &AppState, organization: &OrganizationId, certificate_id: &str) -> Outcome {
+pub async fn renew_one(
+    state: &AppState,
+    organization: &OrganizationId,
+    certificate_id: &str,
+) -> Outcome {
     let tenant = organization.to_string();
     let now = Utc::now();
     let row = match state.db.get_certificate(&tenant, certificate_id).await {
@@ -290,9 +305,9 @@ async fn on_failure(
     error: &CustodyError,
 ) -> Outcome {
     let now = Utc::now();
-    let scheduled = state.transport_lifecycle.with_scheduler(|s| {
-        s.release_failure(tenant, certificate_id, error.code(), now, jitter())
-    });
+    let scheduled = state
+        .transport_lifecycle
+        .with_scheduler(|s| s.release_failure(tenant, certificate_id, error.code(), now, jitter()));
     match scheduled {
         Some(retry) if retry.parked => {
             publish_parked(state, tenant, certificate_id, &retry, now).await;

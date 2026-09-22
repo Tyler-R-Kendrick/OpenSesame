@@ -67,7 +67,10 @@ async fn secure_profile_that_cannot_connect_is_unavailable_not_memory() {
         "2026-09-22T00:00:00Z",
         serde_json::json!({}),
     );
-    let error = bus.publish(event).await.expect_err("must not accept events");
+    let error = bus
+        .publish(event)
+        .await
+        .expect_err("must not accept events");
     assert!(
         error.to_string().starts_with("taskbus_unavailable:"),
         "{error}"
@@ -105,8 +108,14 @@ async fn stored_and_returned_transport_carry_no_locator() {
     let _guard = crate::app_state::test_env::lock();
     let vars = [
         ("OPENSESAME_NATS_TLS_IDENTITY_SOURCE", "pem"),
-        ("OPENSESAME_NATS_TLS_CERT_FILE", "/run/secrets/nats-client.crt"),
-        ("OPENSESAME_NATS_TLS_KEY_FILE", "/run/secrets/nats-client.key"),
+        (
+            "OPENSESAME_NATS_TLS_CERT_FILE",
+            "/run/secrets/nats-client.crt",
+        ),
+        (
+            "OPENSESAME_NATS_TLS_KEY_FILE",
+            "/run/secrets/nats-client.key",
+        ),
         ("OPENSESAME_NATS_TLS_TRUST_FILE", "/run/secrets/nats-ca.pem"),
         ("OPENSESAME_NATS_TLS_TRUST_KIND", "private_root"),
         ("OPENSESAME_NATS_TLS_SERVER_NAME", "nats.internal.example"),
@@ -125,10 +134,8 @@ async fn stored_and_returned_transport_carry_no_locator() {
     let public = resolved.transport.public();
     persist_transport(&db, &public).await.unwrap();
     let stored = db.get_host_kv(KV_TRANSPORT).await.unwrap().unwrap();
-    let view: NatsTransportView = serde_json::from_str(
-        &serde_json::to_string(&resolved.transport.view()).unwrap(),
-    )
-    .unwrap();
+    let view: NatsTransportView =
+        serde_json::from_str(&serde_json::to_string(&resolved.transport.view()).unwrap()).unwrap();
     let rendered = format!(
         "{stored}{}{:?}",
         serde_json::to_string(&view).unwrap(),

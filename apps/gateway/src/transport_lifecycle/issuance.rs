@@ -29,7 +29,7 @@ use opensesame_storage::StoredManagedCertificate;
 use serde::{Deserialize, Serialize};
 
 use crate::app_state::AppState;
-use crate::dev_pki::{DevCa, IssueRequest};
+use crate::dev_pki::{DevCa, IssueRequest, IssuedCert};
 use crate::managed_certs::{self, CustodyError, ManagedRequest};
 use crate::managed_certs_tls::TransportPurpose;
 use crate::transport_lifecycle::facts::{self, Fact};
@@ -179,10 +179,10 @@ pub async fn issue_for_transport(
     }
     let shape =
         LeafShape::derive(request.purpose, request.selector).map_err(IssuanceError::Selector)?;
-    let validity = request
-        .validity_seconds
-        .unwrap_or(DEFAULT_VALIDITY_SECONDS);
-    shape.check_policy(validity).map_err(IssuanceError::Policy)?;
+    let validity = request.validity_seconds.unwrap_or(DEFAULT_VALIDITY_SECONDS);
+    shape
+        .check_policy(validity)
+        .map_err(IssuanceError::Policy)?;
     let key = state
         .connection_broker
         .config()

@@ -14,12 +14,17 @@ const TOKEN: &str = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln";
 /// A source that answers from a closure and counts calls.
 struct Canned {
     calls: AtomicUsize,
-    answer: Mutex<Box<dyn Fn(&HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError> + Send>>,
+    answer: Mutex<
+        Box<dyn Fn(&HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError> + Send>,
+    >,
 }
 
 #[async_trait::async_trait]
 impl DecisionSource for Canned {
-    async fn decide(&self, req: &HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError> {
+    async fn decide(
+        &self,
+        req: &HostDecisionRequest,
+    ) -> Result<HostDecisionResponse, CalloutError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         (self.answer.lock().unwrap())(req)
     }
@@ -37,7 +42,11 @@ fn allow_for(req: &HostDecisionRequest) -> HostDecisionResponse {
         user_nkey: Some(req.user_nkey.clone()),
         server_id: Some(req.server.id.clone()),
         request_digest: Some(req.request_digest.clone()),
-        exp: Some(chrono::DateTime::from_timestamp(NOW + 120, 0).unwrap().to_rfc3339()),
+        exp: Some(
+            chrono::DateTime::from_timestamp(NOW + 120, 0)
+                .unwrap()
+                .to_rfc3339(),
+        ),
         enforcement: Some("verified".into()),
         ..HostDecisionResponse::default()
     }
@@ -82,8 +91,15 @@ async fn allow_is_signed_with_the_hosts_permissions_and_bound_to_the_request() {
     let user: UserClaims = peek_claims(resp.user_jwt().unwrap()).unwrap();
     assert_eq!(user.aud, "APP");
     assert_eq!(user.sub, p.user.public_key());
-    assert_eq!(user.exp, NOW + 120, "user JWT expiry is the Host's, not the maximum");
-    assert_eq!(user.publish_allow(), ["opensesame.callout.principal.prn_1.>"]);
+    assert_eq!(
+        user.exp,
+        NOW + 120,
+        "user JWT expiry is the Host's, not the maximum"
+    );
+    assert_eq!(
+        user.publish_allow(),
+        ["opensesame.callout.principal.prn_1.>"]
+    );
     assert_eq!(user.name.as_deref(), Some("prn_1"));
 }
 
@@ -122,11 +138,23 @@ async fn host_deny_is_relayed_with_its_code() {
 async fn tampered_echo_on_any_field_is_denied() {
     let p = Parties::generate();
     let tamper: Vec<(&str, Box<dyn Fn(&mut HostDecisionResponse) + Send + Sync>)> = vec![
-        ("digest", Box::new(|r| r.request_digest = Some("f".repeat(64)))),
-        ("user", Box::new(|r| r.user_nkey = Some(nkeys::KeyPair::new_user().public_key()))),
-        ("server", Box::new(|r| r.server_id = Some(nkeys::KeyPair::new_server().public_key()))),
+        (
+            "digest",
+            Box::new(|r| r.request_digest = Some("f".repeat(64))),
+        ),
+        (
+            "user",
+            Box::new(|r| r.user_nkey = Some(nkeys::KeyPair::new_user().public_key())),
+        ),
+        (
+            "server",
+            Box::new(|r| r.server_id = Some(nkeys::KeyPair::new_server().public_key())),
+        ),
         ("permissions", Box::new(|r| r.permissions = None)),
-        ("enforcement", Box::new(|r| r.enforcement = Some("unverified_dev".into()))),
+        (
+            "enforcement",
+            Box::new(|r| r.enforcement = Some("unverified_dev".into())),
+        ),
         ("exp", Box::new(|r| r.exp = None)),
     ];
     for (name, mutate) in tamper {
@@ -179,12 +207,21 @@ async fn sealed_requests_round_trip_and_the_header_must_match_the_claims() {
     let p = Parties::generate();
     let server_x = CalloutXKey::generate();
     let service_x = CalloutXKey::generate();
-    let (core, _) = core_with(&p, Some(CalloutXKey::from_seed(&service_x.seed().unwrap()).unwrap()), |req| Ok(allow_for(req)));
+    let (core, _) = core_with(
+        &p,
+        Some(CalloutXKey::from_seed(&service_x.seed().unwrap()).unwrap()),
+        |req| Ok(allow_for(req)),
+    );
     let mut claims = p.request_claims(NOW, TOKEN);
     claims.nats.server_id.xkey = Some(server_x.public_key());
     let jwt = p.sign_request(claims.clone());
-    let sealed = server_x.seal(jwt.as_bytes(), &service_x.public_key()).unwrap();
-    let Outcome::Reply(bytes) = core.handle(&sealed, Some(&server_x.public_key()), NOW).await else {
+    let sealed = server_x
+        .seal(jwt.as_bytes(), &service_x.public_key())
+        .unwrap();
+    let Outcome::Reply(bytes) = core
+        .handle(&sealed, Some(&server_x.public_key()), NOW)
+        .await
+    else {
         panic!("expected a sealed reply");
     };
     assert!(is_sealed(&bytes));
@@ -193,9 +230,12 @@ async fn sealed_requests_round_trip_and_the_header_must_match_the_claims() {
     assert!(resp.user_jwt().is_some());
     // A header naming a different sender than the claims is refused.
     let other_x = CalloutXKey::generate();
-    let sealed_other = other_x.seal(jwt.as_bytes(), &service_x.public_key()).unwrap();
+    let sealed_other = other_x
+        .seal(jwt.as_bytes(), &service_x.public_key())
+        .unwrap();
     assert!(matches!(
-        core.handle(&sealed_other, Some(&other_x.public_key()), NOW).await,
+        core.handle(&sealed_other, Some(&other_x.public_key()), NOW)
+            .await,
         Outcome::Dropped(CalloutError::EnvelopeMismatch)
     ));
     // No header at all: cannot open.
@@ -219,7 +259,10 @@ async fn the_same_request_yields_the_same_decision_request_digest() {
     reply(core.handle(payload.as_bytes(), None, NOW + 1).await);
     assert_eq!(source.calls.load(Ordering::SeqCst), 2);
     let digests = seen.lock().unwrap();
-    assert_eq!(digests[0], digests[1], "a replayed request has one immutable digest");
+    assert_eq!(
+        digests[0], digests[1],
+        "a replayed request has one immutable digest"
+    );
     // Same nonce and user key, a different token: a different digest.
     let mut claims = p.request_claims(NOW, "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIyIn0.c2ln");
     claims.nats.request_nonce = "request-nonce-1".into();

@@ -22,6 +22,8 @@ mod nats_connect;
 mod nats_policy;
 #[cfg(feature = "jetstream")]
 mod nats_transport;
+#[cfg(feature = "jetstream")]
+mod nats_transport_env;
 
 pub use memory::{InMemoryTaskBus, UnavailableTaskBus};
 #[cfg(feature = "jetstream")]
@@ -34,7 +36,9 @@ pub use nats_policy::{
     NatsTransportSource, NatsTransportView, TrustRef,
 };
 #[cfg(feature = "jetstream")]
-pub use nats_transport::{url_hosts, NatsTransportSpec};
+pub use nats_transport::NatsTransportSpec;
+#[cfg(feature = "jetstream")]
+pub use nats_transport_env::url_hosts;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

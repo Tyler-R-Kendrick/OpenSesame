@@ -37,16 +37,27 @@ pub trait ManagedIdentityResolver: Send + Sync {
 pub const UNWIRED_REASON: &str =
     "managed certificate custody is not bridged to the transport runtime on this host";
 
-/// The custody bridge. Lifecycle owner: replace the body; keep the signature.
+/// The custody bridge (ADR 0130 LIFE-CUSTODY), implemented by the lifecycle
+/// owner in `crate::transport_lifecycle::custody`: the id is resolved under
+/// the deployment's own organization, for the listener purpose, and what
+/// comes back is a `TlsIdentity` — never PEM, never a path.
 ///
 /// # Errors
 ///
-/// `SourceUnsupported` until the bridge exists.
+/// `IdentityMissing` when the id names nothing the host holds,
+/// `PeerDisallowed` when the row was issued for another purpose,
+/// `EvidenceRevoked` when it is no longer active, `KeyPairMismatch` /
+/// `EvidenceExpired` when the sealed material is unusable.
 pub async fn resolve_managed_identity(
-    _state: &AppState,
-    _certificate_id: &str,
+    state: &AppState,
+    certificate_id: &str,
 ) -> Result<Arc<TlsIdentity>, TransportError> {
-    Err(TransportError::SourceUnsupported)
+    crate::transport_lifecycle::custody::resolve_managed_identity(
+        state,
+        certificate_id,
+        crate::managed_certs_tls::TransportPurpose::Listener,
+    )
+    .await
 }
 
 #[async_trait::async_trait]
@@ -56,7 +67,7 @@ impl ManagedIdentityResolver for AppState {
     }
 
     fn capability(&self) -> CapabilityOutcome {
-        CapabilityOutcome::unsupported(UNWIRED_REASON)
+        crate::transport_lifecycle::custody::capability(self)
     }
 }
 

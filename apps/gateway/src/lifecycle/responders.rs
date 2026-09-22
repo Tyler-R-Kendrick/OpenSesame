@@ -78,7 +78,10 @@ pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
         // reached; this is the second fence.
         //
         // None are silently skipped: the dispatcher reports the gap as an outcome.
-        SubjectKind::CertificateAuthority | SubjectKind::Signer | SubjectKind::SessionGrant | SubjectKind::AuthorityGrant => None,
+        SubjectKind::CertificateAuthority
+        | SubjectKind::Signer
+        | SubjectKind::SessionGrant
+        | SubjectKind::AuthorityGrant => None,
     }
 }
 

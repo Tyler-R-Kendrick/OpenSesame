@@ -181,14 +181,16 @@ impl TargetFacts {
         let failed = self.latest("reload_failed");
         match (loaded, failed) {
             (None, _) => RuntimeStatus::NotLoaded,
-            (Some(Fact::Loaded { generation, at }), Some(Fact::ReloadFailed { code, at: failed_at }))
-                if failed_at > at =>
-            {
-                RuntimeStatus::ReloadFailed {
-                    generation: *generation,
-                    code: code.clone(),
-                }
-            }
+            (
+                Some(Fact::Loaded { generation, at }),
+                Some(Fact::ReloadFailed {
+                    code,
+                    at: failed_at,
+                }),
+            ) if failed_at > at => RuntimeStatus::ReloadFailed {
+                generation: *generation,
+                code: code.clone(),
+            },
             (Some(Fact::Loaded { generation, at }), _) => RuntimeStatus::Loaded {
                 generation: *generation,
                 loaded_at: *at,
@@ -283,7 +285,10 @@ mod tests {
             facts.runtime_status(),
             RuntimeStatus::Loaded { generation: 4, .. }
         ));
-        assert_eq!(TargetFacts::new("x").runtime_status(), RuntimeStatus::NotLoaded);
+        assert_eq!(
+            TargetFacts::new("x").runtime_status(),
+            RuntimeStatus::NotLoaded
+        );
     }
 
     #[test]
@@ -295,7 +300,10 @@ mod tests {
         });
         let json = serde_json::to_string(&facts).unwrap();
         assert_eq!(serde_json::from_str::<TargetFacts>(&json).unwrap(), facts);
-        assert!(serde_json::from_str::<Fact>(r#"{"kind":"loaded","generation":1,"at":"2026-01-01T00:00:00Z","key":"x"}"#).is_err());
+        assert!(serde_json::from_str::<Fact>(
+            r#"{"kind":"loaded","generation":1,"at":"2026-01-01T00:00:00Z","key":"x"}"#
+        )
+        .is_err());
         let debug = format!("{facts:?}");
         for forbidden in ["PRIVATE KEY", "key_pem", "private_key"] {
             assert!(!debug.contains(forbidden));

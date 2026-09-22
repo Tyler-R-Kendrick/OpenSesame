@@ -123,7 +123,10 @@ pub struct HostDecisionResponse {
 ///
 /// `ResponseMismatch` when the digest, user nkey or server id differ, or an
 /// allow lacks permissions / expiry / verified enforcement.
-pub fn check_echo(req: &HostDecisionRequest, resp: &HostDecisionResponse) -> Result<(), CalloutError> {
+pub fn check_echo(
+    req: &HostDecisionRequest,
+    resp: &HostDecisionResponse,
+) -> Result<(), CalloutError> {
     let same = |echoed: &Option<String>, expected: &str| echoed.as_deref() == Some(expected);
     if !same(&resp.request_digest, &req.request_digest)
         || !same(&resp.user_nkey, &req.user_nkey)
@@ -146,7 +149,8 @@ pub fn check_echo(req: &HostDecisionRequest, resp: &HostDecisionResponse) -> Res
 #[async_trait::async_trait]
 pub trait DecisionSource: Send + Sync {
     /// Ask for a decision. Any error is a deny.
-    async fn decide(&self, req: &HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError>;
+    async fn decide(&self, req: &HostDecisionRequest)
+        -> Result<HostDecisionResponse, CalloutError>;
 }
 
 /// The Host over mTLS.
@@ -157,7 +161,9 @@ pub struct HttpHost {
 
 impl std::fmt::Debug for HttpHost {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HttpHost").field("url", &self.url.as_str()).finish()
+        f.debug_struct("HttpHost")
+            .field("url", &self.url.as_str())
+            .finish()
     }
 }
 
@@ -174,7 +180,9 @@ impl HttpHost {
         base: &url::Url,
     ) -> Result<Self, CalloutError> {
         if base.scheme() != "https" || base.host_str().is_none() || base.query().is_some() {
-            return Err(crate::error::misconfigured("Host URL must be https with no query"));
+            return Err(crate::error::misconfigured(
+                "Host URL must be https with no query",
+            ));
         }
         if profile.identity.is_none() {
             return Err(crate::error::misconfigured(
@@ -199,7 +207,10 @@ impl HttpHost {
 
 #[async_trait::async_trait]
 impl DecisionSource for HttpHost {
-    async fn decide(&self, req: &HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError> {
+    async fn decide(
+        &self,
+        req: &HostDecisionRequest,
+    ) -> Result<HostDecisionResponse, CalloutError> {
         let response = self
             .client
             .post(self.url.clone())
@@ -207,12 +218,19 @@ impl DecisionSource for HttpHost {
             .send()
             .await
             .map_err(|e| {
-                tracing::warn!(timeout = e.is_timeout(), connect = e.is_connect(), "Host callout unreachable");
+                tracing::warn!(
+                    timeout = e.is_timeout(),
+                    connect = e.is_connect(),
+                    "Host callout unreachable"
+                );
                 CalloutError::HostUnreachable
             })?;
         let status = response.status();
         if status != reqwest::StatusCode::OK {
-            tracing::warn!(status = status.as_u16(), "Host callout refused the decision request");
+            tracing::warn!(
+                status = status.as_u16(),
+                "Host callout refused the decision request"
+            );
             return Err(CalloutError::HostError);
         }
         if response
@@ -221,7 +239,10 @@ impl DecisionSource for HttpHost {
         {
             return Err(CalloutError::HostError);
         }
-        let bytes = response.bytes().await.map_err(|_| CalloutError::HostError)?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|_| CalloutError::HostError)?;
         if bytes.len() > MAX_RESPONSE_BYTES {
             return Err(CalloutError::HostError);
         }
@@ -283,22 +304,40 @@ mod tests {
         assert!(check_echo(&req, &good).is_ok());
         let mut r = good.clone();
         r.request_digest = Some("0".repeat(64));
-        assert_eq!(check_echo(&req, &r).unwrap_err(), CalloutError::ResponseMismatch);
+        assert_eq!(
+            check_echo(&req, &r).unwrap_err(),
+            CalloutError::ResponseMismatch
+        );
         let mut r = good.clone();
         r.user_nkey = Some(nkeys::KeyPair::new_user().public_key());
-        assert_eq!(check_echo(&req, &r).unwrap_err(), CalloutError::ResponseMismatch);
+        assert_eq!(
+            check_echo(&req, &r).unwrap_err(),
+            CalloutError::ResponseMismatch
+        );
         let mut r = good.clone();
         r.server_id = Some("NOTHER".into());
-        assert_eq!(check_echo(&req, &r).unwrap_err(), CalloutError::ResponseMismatch);
+        assert_eq!(
+            check_echo(&req, &r).unwrap_err(),
+            CalloutError::ResponseMismatch
+        );
         let mut r = good.clone();
         r.server_id = None;
-        assert_eq!(check_echo(&req, &r).unwrap_err(), CalloutError::ResponseMismatch);
+        assert_eq!(
+            check_echo(&req, &r).unwrap_err(),
+            CalloutError::ResponseMismatch
+        );
         let mut r = good.clone();
         r.permissions = None;
-        assert_eq!(check_echo(&req, &r).unwrap_err(), CalloutError::ResponseMismatch);
+        assert_eq!(
+            check_echo(&req, &r).unwrap_err(),
+            CalloutError::ResponseMismatch
+        );
         let mut r = good.clone();
         r.enforcement = Some("unverified_dev".into());
-        assert_eq!(check_echo(&req, &r).unwrap_err(), CalloutError::ResponseMismatch);
+        assert_eq!(
+            check_echo(&req, &r).unwrap_err(),
+            CalloutError::ResponseMismatch
+        );
         let mut r = good;
         r.decision = "deny".into();
         r.permissions = None;

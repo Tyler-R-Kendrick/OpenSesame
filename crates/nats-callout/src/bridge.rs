@@ -70,7 +70,12 @@ impl BridgeCore {
     }
 
     /// Unseal (when needed) and verify the raw payload.
-    fn verify(&self, payload: &[u8], server_xkey_header: Option<&str>, now: i64) -> Result<VerifiedRequest, CalloutError> {
+    fn verify(
+        &self,
+        payload: &[u8],
+        server_xkey_header: Option<&str>,
+        now: i64,
+    ) -> Result<VerifiedRequest, CalloutError> {
         if payload.len() > MAX_REQUEST_BYTES {
             return Err(crate::error::malformed("payload exceeds the request bound"));
         }
@@ -123,7 +128,12 @@ impl BridgeCore {
     }
 
     /// Handle one message payload at `now` (unix seconds).
-    pub async fn handle(&self, payload: &[u8], server_xkey_header: Option<&str>, now: i64) -> Outcome {
+    pub async fn handle(
+        &self,
+        payload: &[u8],
+        server_xkey_header: Option<&str>,
+        now: i64,
+    ) -> Outcome {
         let verified = match self.verify(payload, server_xkey_header, now) {
             Ok(v) => v,
             Err(err) => {
@@ -146,7 +156,11 @@ impl BridgeCore {
 }
 
 /// An allow decision becomes a grant only when it is complete.
-fn grant_from(resp: &HostDecisionResponse, user_nkey: &str, target_account: &str) -> Option<UserGrant> {
+fn grant_from(
+    resp: &HostDecisionResponse,
+    user_nkey: &str,
+    target_account: &str,
+) -> Option<UserGrant> {
     if resp.decision != "allow" {
         return None;
     }
@@ -174,7 +188,11 @@ pub async fn run(client: async_nats::Client, core: Arc<BridgeCore>) -> Result<()
         .queue_subscribe(AUTH_SUBJECT, QUEUE_GROUP.to_owned())
         .await
         .map_err(|e| crate::error::misconfigured(format!("subscribe {AUTH_SUBJECT}: {e}")))?;
-    tracing::info!(subject = AUTH_SUBJECT, queue = QUEUE_GROUP, "auth bridge serving");
+    tracing::info!(
+        subject = AUTH_SUBJECT,
+        queue = QUEUE_GROUP,
+        "auth bridge serving"
+    );
     while let Some(message) = sub.next().await {
         let Some(reply) = message.reply.clone() else {
             tracing::warn!("callout without a reply subject ignored");

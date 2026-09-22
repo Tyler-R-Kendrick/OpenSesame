@@ -139,7 +139,9 @@ impl ResponseSigner {
         let account = nkeys::KeyPair::from_seed(seed.trim())
             .map_err(|_| misconfigured("callout signing seed is not an nkey seed"))?;
         if account.key_pair_type() != nkeys::KeyPairType::Account {
-            return Err(misconfigured("callout signing seed must be an account seed"));
+            return Err(misconfigured(
+                "callout signing seed must be an account seed",
+            ));
         }
         if !(1..=MAX_EXP_SECS).contains(&max_exp_secs) {
             return Err(misconfigured(format!(
@@ -165,14 +167,24 @@ impl ResponseSigner {
         self.max_exp_secs
     }
 
-    fn sign<T: Serialize>(&self, mut claims: T, set_jti: impl Fn(&mut T, String)) -> Result<String, CalloutError> {
+    fn sign<T: Serialize>(
+        &self,
+        mut claims: T,
+        set_jti: impl Fn(&mut T, String),
+    ) -> Result<String, CalloutError> {
         set_jti(&mut claims, String::new());
         let bytes = serde_json::to_vec(&claims).map_err(|_| CalloutError::SigningFailed)?;
         set_jti(&mut claims, jti_for(&bytes));
         encode(&claims, &self.account)
     }
 
-    fn response(&self, server_id: &str, user_nkey: &str, now: i64, nats: ResponseNats) -> Result<String, CalloutError> {
+    fn response(
+        &self,
+        server_id: &str,
+        user_nkey: &str,
+        now: i64,
+        nats: ResponseNats,
+    ) -> Result<String, CalloutError> {
         let claims = ResponseClaims {
             jti: String::new(),
             iat: now,
@@ -191,7 +203,12 @@ impl ResponseSigner {
     /// # Errors
     ///
     /// `SigningFailed`.
-    pub fn allow(&self, server_id: &str, grant: &UserGrant, now: i64) -> Result<String, CalloutError> {
+    pub fn allow(
+        &self,
+        server_id: &str,
+        grant: &UserGrant,
+        now: i64,
+    ) -> Result<String, CalloutError> {
         let exp = grant.expires_at.min(now + self.max_exp_secs);
         if exp <= now {
             return Err(CalloutError::SigningFailed);
@@ -237,7 +254,13 @@ impl ResponseSigner {
     /// # Errors
     ///
     /// `SigningFailed`.
-    pub fn deny(&self, server_id: &str, user_nkey: &str, code: &str, now: i64) -> Result<String, CalloutError> {
+    pub fn deny(
+        &self,
+        server_id: &str,
+        user_nkey: &str,
+        code: &str,
+        now: i64,
+    ) -> Result<String, CalloutError> {
         self.response(
             server_id,
             user_nkey,
@@ -291,7 +314,11 @@ mod tests {
         assert_eq!(u.subscribe_allow(), ["_INBOX.>"]);
         // The user JWT verifies under the account key.
         let sig_input = resp.user_jwt().unwrap().rsplit_once('.').unwrap();
-        let sig = base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, sig_input.1).unwrap();
+        let sig = base64::Engine::decode(
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+            sig_input.1,
+        )
+        .unwrap();
         nkeys::KeyPair::from_public_key(&s.account_public_key())
             .unwrap()
             .verify(sig_input.0.as_bytes(), &sig)
@@ -321,10 +348,16 @@ mod tests {
         let grant = UserGrant {
             user_nkey: "U".into(),
             target_account: "APP".into(),
-            permissions: CalloutPermissions { publish: vec![], subscribe: vec![] },
+            permissions: CalloutPermissions {
+                publish: vec![],
+                subscribe: vec![],
+            },
             expires_at: 50,
             name: None,
         };
-        assert_eq!(s.allow("N", &grant, 100).unwrap_err(), CalloutError::SigningFailed);
+        assert_eq!(
+            s.allow("N", &grant, 100).unwrap_err(),
+            CalloutError::SigningFailed
+        );
     }
 }

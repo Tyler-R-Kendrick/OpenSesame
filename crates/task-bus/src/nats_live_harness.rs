@@ -21,7 +21,10 @@ pub(crate) fn enabled() -> bool {
 }
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().expect("repo root")
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("repo root")
 }
 
 pub(crate) fn ops_conf(name: &str) -> PathBuf {
@@ -41,12 +44,20 @@ pub(crate) fn server_bin() -> PathBuf {
         .args(["path", "nats-server"])
         .output()
         .expect("scripts/mtls-fixtures.sh path nats-server");
-    assert!(out.status.success(), "fixture fetch failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "fixture fetch failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     PathBuf::from(String::from_utf8_lossy(&out.stdout).trim())
 }
 
 pub(crate) fn free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0").expect("bind").local_addr().expect("addr").port()
+    TcpListener::bind("127.0.0.1:0")
+        .expect("bind")
+        .local_addr()
+        .expect("addr")
+        .port()
 }
 
 pub(crate) fn write(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
@@ -59,6 +70,18 @@ pub(crate) fn write(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
 pub(crate) fn user_nkey() -> (String, String) {
     let kp = nkeys::KeyPair::new_user();
     (kp.seed().expect("seed"), kp.public_key())
+}
+
+/// Bounded wait for a condition (never an unbounded spin in a test).
+pub(crate) async fn wait_until(mut ready: impl FnMut() -> bool, within: Duration) -> bool {
+    let deadline = Instant::now() + within;
+    while Instant::now() < deadline {
+        if ready() {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    ready()
 }
 
 /// Disposable PKI for one test: a client CA, a server leaf for `localhost`,
@@ -82,21 +105,32 @@ impl Pki {
         let server_dir = dir.path().join("server");
         std::fs::create_dir_all(&server_dir).expect("server dir");
         let (server_cert, server_key) = server.write_to(&server_dir);
-        Self { ca, other_ca, dir, ca_pem, server_cert, server_key }
+        Self {
+            ca,
+            other_ca,
+            dir,
+            ca_pem,
+            server_cert,
+            server_key,
+        }
     }
 
     /// A client leaf from the trusted CA with one DNS SAN.
     pub(crate) fn client(&self, san: &str) -> IssuedLeaf {
-        self.ca.issue_client(PeerIdentitySelector::DnsName(san.to_owned()))
+        self.ca
+            .issue_client(PeerIdentitySelector::DnsName(san.to_owned()))
     }
 
     /// A leaf usable as both client and server (a route certificate).
-    pub(crate) fn route_leaf(&self, ca: &DisposableCa) -> IssuedLeaf {
-        ca.issue_with(LeafSpec {
+    pub(crate) fn route_leaf(ca: &DisposableCa) -> IssuedLeaf {
+        ca.issue_with(&LeafSpec {
             common_name: "route".to_owned(),
             server_auth: true,
             client_auth: true,
-            sans: vec![SanEntry::Dns(SERVER_NAME.to_owned()), SanEntry::Ip("127.0.0.1".parse().expect("ip"))],
+            sans: vec![
+                SanEntry::Dns(SERVER_NAME.to_owned()),
+                SanEntry::Ip("127.0.0.1".parse().expect("ip")),
+            ],
             ..LeafSpec::default()
         })
     }
@@ -119,8 +153,14 @@ impl Pki {
     ) -> NatsTransportSpec {
         let mut vars: HashMap<String, String> = HashMap::new();
         vars.insert("OPENSESAME_NATS_REQUIRE_TLS".into(), "1".into());
-        vars.insert("OPENSESAME_NATS_TLS_TRUST_FILE".into(), self.ca_pem.display().to_string());
-        vars.insert("OPENSESAME_NATS_TLS_TRUST_KIND".into(), "private_root".into());
+        vars.insert(
+            "OPENSESAME_NATS_TLS_TRUST_FILE".into(),
+            self.ca_pem.display().to_string(),
+        );
+        vars.insert(
+            "OPENSESAME_NATS_TLS_TRUST_KIND".into(),
+            "private_root".into(),
+        );
         vars.insert("OPENSESAME_NATS_TLS_SERVER_NAME".into(), SERVER_NAME.into());
         vars.insert("OPENSESAME_NATS_MAX_RECONNECTS".into(), "2".into());
         if tls_first {
@@ -129,13 +169,26 @@ impl Pki {
         if let Some(leaf) = identity {
             let (cert, key) = self.write_leaf(&leaf.thumbprint[..12], leaf);
             vars.insert("OPENSESAME_NATS_TLS_IDENTITY_SOURCE".into(), "pem".into());
-            vars.insert("OPENSESAME_NATS_TLS_CERT_FILE".into(), cert.display().to_string());
-            vars.insert("OPENSESAME_NATS_TLS_KEY_FILE".into(), key.display().to_string());
+            vars.insert(
+                "OPENSESAME_NATS_TLS_CERT_FILE".into(),
+                cert.display().to_string(),
+            );
+            vars.insert(
+                "OPENSESAME_NATS_TLS_KEY_FILE".into(),
+                key.display().to_string(),
+            );
         }
         if let Some(seed) = seed {
-            let path = write(self.dir.path(), &format!("{}.seed", &seed[1..9]), seed.as_bytes());
+            let path = write(
+                self.dir.path(),
+                &format!("{}.seed", &seed[1..9]),
+                seed.as_bytes(),
+            );
             vars.insert("OPENSESAME_NATS_AUTH".into(), "nkey".into());
-            vars.insert("OPENSESAME_NATS_NKEY_SEED_FILE".into(), path.display().to_string());
+            vars.insert(
+                "OPENSESAME_NATS_NKEY_SEED_FILE".into(),
+                path.display().to_string(),
+            );
         }
         NatsTransportSpec::from_lookup("OPENSESAME_NATS", &|name| vars.get(name).cloned())
             .expect("spec")
@@ -171,13 +224,22 @@ impl Server {
         let log_file = std::fs::File::create(&log).expect("log file");
         let mut cmd = Command::new(server_bin());
         cmd.arg("-c").arg(ops_conf(conf)).arg("-DV").args(args);
-        cmd.env("OPENSESAME_NATS_STORE_DIR", store.path().join("js").display().to_string());
+        cmd.env(
+            "OPENSESAME_NATS_STORE_DIR",
+            store.path().join("js").display().to_string(),
+        );
         for (k, v) in env {
             cmd.env(k, v);
         }
-        cmd.stdout(Stdio::from(log_file.try_clone().expect("clone"))).stderr(Stdio::from(log_file));
+        cmd.stdout(Stdio::from(log_file.try_clone().expect("clone")))
+            .stderr(Stdio::from(log_file));
         let child = cmd.spawn().expect("spawn nats-server");
-        let server = Self { child, port, log, _store: store };
+        let server = Self {
+            child,
+            port,
+            log,
+            _store: store,
+        };
         server.wait_ready();
         server
     }
@@ -190,7 +252,11 @@ impl Server {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        panic!("nats-server on {} did not become ready:\n{}", self.port, self.log_text());
+        panic!(
+            "nats-server on {} did not become ready:\n{}",
+            self.port,
+            self.log_text()
+        );
     }
 
     pub(crate) fn url(&self) -> String {
@@ -257,11 +323,23 @@ impl Roles {
         vec![
             ("OPENSESAME_NATS_LISTEN", format!("127.0.0.1:{port}")),
             ("OPENSESAME_NATS_SERVER_NAME", format!("test-{port}")),
-            ("OPENSESAME_NATS_TLS_SERVER_CERT", pki.server_cert.display().to_string()),
-            ("OPENSESAME_NATS_TLS_SERVER_KEY", pki.server_key.display().to_string()),
-            ("OPENSESAME_NATS_TLS_CLIENT_CA", pki.ca_pem.display().to_string()),
+            (
+                "OPENSESAME_NATS_TLS_SERVER_CERT",
+                pki.server_cert.display().to_string(),
+            ),
+            (
+                "OPENSESAME_NATS_TLS_SERVER_KEY",
+                pki.server_key.display().to_string(),
+            ),
+            (
+                "OPENSESAME_NATS_TLS_CLIENT_CA",
+                pki.ca_pem.display().to_string(),
+            ),
             ("OPENSESAME_NATS_NKEY_SYSTEM", self.system.1.clone()),
-            ("OPENSESAME_NATS_NKEY_PROVISIONER", self.provisioner.1.clone()),
+            (
+                "OPENSESAME_NATS_NKEY_PROVISIONER",
+                self.provisioner.1.clone(),
+            ),
             ("OPENSESAME_NATS_NKEY_HOST", self.host.1.clone()),
             ("OPENSESAME_NATS_NKEY_PUBLISHER", self.publisher.1.clone()),
             ("OPENSESAME_NATS_NKEY_CONSUMER", self.consumer.1.clone()),

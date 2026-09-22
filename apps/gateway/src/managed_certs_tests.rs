@@ -144,7 +144,9 @@ fn a_lifetime_with_no_room_for_a_window_is_refused() {
             "{lifetime}"
         );
     }
-    assert!(converging_renew_before(MIN_RENEW_BEFORE_SECONDS, MIN_MANAGED_LIFETIME_SECONDS).is_ok());
+    assert!(
+        converging_renew_before(MIN_RENEW_BEFORE_SECONDS, MIN_MANAGED_LIFETIME_SECONDS).is_ok()
+    );
 }
 
 #[test]

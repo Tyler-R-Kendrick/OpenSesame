@@ -85,7 +85,9 @@ impl std::fmt::Debug for BridgeConfig {
 }
 
 fn get(lookup: &Lookup<'_>, name: &str) -> Option<String> {
-    lookup(name).map(|v| v.trim().to_owned()).filter(|v| !v.is_empty())
+    lookup(name)
+        .map(|v| v.trim().to_owned())
+        .filter(|v| !v.is_empty())
 }
 
 fn expect(lookup: &Lookup<'_>, name: &str) -> Result<String, CalloutError> {
@@ -147,8 +149,12 @@ pub fn client_profile_from(
             )))
         }
     };
-    if kind == TrustProfileKind::SpiffeTrustDomain && matches!(server_name, ServerNamePolicy::Dns(_)) {
-        return Err(misconfigured(format!("{prefix}: a SPIFFE bundle needs {prefix}_SERVER_SPIFFE_ID")));
+    if kind == TrustProfileKind::SpiffeTrustDomain
+        && matches!(server_name, ServerNamePolicy::Dns(_))
+    {
+        return Err(misconfigured(format!(
+            "{prefix}: a SPIFFE bundle needs {prefix}_SERVER_SPIFFE_ID"
+        )));
     }
     let identity = match load_identity_from(prefix, lookup).map_err(transport)? {
         Some(NativeIdentitySpec::PemFiles { cert, key }) => {
@@ -160,7 +166,9 @@ pub fn client_profile_from(
             )))
         }
         None if identity_required => {
-            return Err(misconfigured(format!("{prefix}_IDENTITY_SOURCE=pem is required")))
+            return Err(misconfigured(format!(
+                "{prefix}_IDENTITY_SOURCE=pem is required"
+            )))
         }
         None => None,
     };
@@ -209,14 +217,18 @@ impl BridgeConfig {
                 ))
             }
         };
-        let allow_plaintext = get(lookup, "OPENSESAME_NATS_CALLOUT_ALLOW_PLAINTEXT_NATS").as_deref() == Some("1");
+        let allow_plaintext =
+            get(lookup, "OPENSESAME_NATS_CALLOUT_ALLOW_PLAINTEXT_NATS").as_deref() == Some("1");
         let nats_tls = client_profile_from("OPENSESAME_NATS_TLS", lookup, false)?;
         if nats_tls.is_none() && !allow_plaintext {
             return Err(misconfigured(
                 "OPENSESAME_NATS_TLS_TRUST_FILE is required (set OPENSESAME_NATS_CALLOUT_ALLOW_PLAINTEXT_NATS=1 only for local development)",
             ));
         }
-        let signing_seed = read_secret_file(&expect(lookup, "OPENSESAME_NATS_CALLOUT_SIGNING_SEED_FILE")?)?;
+        let signing_seed = read_secret_file(&expect(
+            lookup,
+            "OPENSESAME_NATS_CALLOUT_SIGNING_SEED_FILE",
+        )?)?;
         let xkey_seed = get(lookup, "OPENSESAME_NATS_CALLOUT_XKEY_SEED_FILE")
             .map(|p| read_secret_file(&p))
             .transpose()?;
@@ -233,13 +245,15 @@ impl BridgeConfig {
             .unwrap_or_default();
         for key in &server_public_keys {
             if !key.starts_with('N') || nkeys::KeyPair::from_public_key(key).is_err() {
-                return Err(misconfigured("OPENSESAME_NATS_SERVER_NKEYS must list server public keys (N…)"));
+                return Err(misconfigured(
+                    "OPENSESAME_NATS_SERVER_NKEYS must list server public keys (N…)",
+                ));
             }
         }
         let max_exp_secs = match get(lookup, "OPENSESAME_NATS_CALLOUT_MAX_EXP_SECS") {
-            Some(v) => v
-                .parse::<i64>()
-                .map_err(|_| misconfigured("OPENSESAME_NATS_CALLOUT_MAX_EXP_SECS must be an integer"))?,
+            Some(v) => v.parse::<i64>().map_err(|_| {
+                misconfigured("OPENSESAME_NATS_CALLOUT_MAX_EXP_SECS must be an integer")
+            })?,
             None => DEFAULT_EXP_SECS,
         };
         let host_url = url::Url::parse(&expect(lookup, "OPENSESAME_NATS_CALLOUT_HOST_URL")?)
@@ -279,7 +293,8 @@ impl BridgeConfig {
             NatsAuth::NkeySeed(seed) => options.nkey(seed.expose_secret().trim().to_owned()),
         };
         if let Some(profile) = &self.nats_tls {
-            let config = opensesame_transport_security::client_config(profile).map_err(transport)?;
+            let config =
+                opensesame_transport_security::client_config(profile).map_err(transport)?;
             options = options.tls_client_config(config).require_tls(true);
         }
         Ok(options)

@@ -26,8 +26,8 @@ struct World {
 async fn world() -> World {
     let server_ca = DisposableCa::new("servers");
     let client_ca = DisposableCa::new("clients");
-    let server = server_ca.issue_server("localhost").identity();
-    let gens = generations(server, &client_ca);
+    let identity = server_ca.issue_server("localhost").identity();
+    let gens = generations(identity, &client_ca);
     let hits = Hits::default();
     let served = serve(
         gens.clone(),
@@ -248,8 +248,10 @@ async fn usable_until_bounds_an_open_connection() {
     let client_ca = DisposableCa::new("clients");
     let gens = generations(server_ca.issue_server("localhost").identity(), &client_ca);
     let hits = Hits::default();
-    let mut limits = opensesame_transport_security::ListenerLimits::default();
-    limits.usable_for = Duration::from_secs(1);
+    let limits = opensesame_transport_security::ListenerLimits {
+        usable_for: Duration::from_secs(1),
+        ..opensesame_transport_security::ListenerLimits::default()
+    };
     let served = serve(
         gens.clone(),
         profile_fn_with(TransportPolicy::MtlsRequired, limits),

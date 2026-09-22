@@ -10,7 +10,7 @@
 //! thumbprint and the bound enforced per layer; the trust view is anchors,
 //! which are public by construction. The human-only reveal
 //! (`managed_certs::reveal_managed_key`) lives on its own route and is
-//! untouched. `routes_tests.rs` asserts the source of this file names no
+//! untouched. `boundary_tests.rs` asserts the source of this file names no
 //! reveal path, and the status structs' `Debug` is walked for key material.
 //!
 //! Bodies are bounded: axum's `Json` plus the per-document ceilings in
@@ -48,10 +48,7 @@ pub fn routes() -> Router<AppState> {
             "/api/v1/operator/transport/trust",
             get(get_trust).put(put_trust),
         )
-        .route(
-            "/api/v1/operator/transport/facts/{target}",
-            get(get_facts),
-        )
+        .route("/api/v1/operator/transport/facts/{target}", get(get_facts))
         .route("/api/v1/operator/transport/renewals", get(get_renewals))
 }
 
@@ -75,11 +72,7 @@ fn status(code: u16) -> StatusCode {
 }
 
 fn refuse(code: u16, error: &str, hint: String) -> Response {
-    (
-        status(code),
-        Json(json!({ "error": error, "hint": hint })),
-    )
-        .into_response()
+    (status(code), Json(json!({ "error": error, "hint": hint }))).into_response()
 }
 
 /// `POST /api/v1/operator/transport/certificates`
@@ -96,7 +89,11 @@ pub async fn issue_certificate(
         Err(response) => return response,
     };
     let Ok(Json(request)) = body else {
-        return refuse(400, "invalid_request", "body is not a transport issuance request".into());
+        return refuse(
+            400,
+            "invalid_request",
+            "body is not a transport issuance request".into(),
+        );
     };
     let organization = who.organization(state.connection_organization);
     let actor = who.actor_subject().to_owned();
@@ -104,9 +101,13 @@ pub async fn issue_certificate(
         Ok(issued) => (StatusCode::CREATED, Json(json!({ "certificate": issued }))).into_response(),
         Err(error) => {
             let detail = match &error {
-                issuance::IssuanceError::Policy(violations) => {
-                    json!(violations.iter().map(ToString::to_string).collect::<Vec<_>>())
-                }
+                issuance::IssuanceError::Policy(violations) => json!(violations
+                    .iter()
+                    .map(|violation| json!({
+                        "field": violation.field,
+                        "reason": violation.reason,
+                    }))
+                    .collect::<Vec<_>>()),
                 other => json!(other.to_string()),
             };
             (
@@ -133,7 +134,11 @@ pub async fn revoke_certificate(
         Err(response) => return response,
     };
     let Ok(Json(request)) = body else {
-        return refuse(400, "invalid_request", "body is not a revocation request".into());
+        return refuse(
+            400,
+            "invalid_request",
+            "body is not a revocation request".into(),
+        );
     };
     let organization = who.organization(state.connection_organization);
     match revocation::revoke_transport(&state, &organization, request).await {
@@ -206,7 +211,11 @@ pub async fn put_trust(
         Err(response) => return response,
     };
     let Ok(Json(body)) = body else {
-        return refuse(400, "invalid_request", "body is not a trust profile set".into());
+        return refuse(
+            400,
+            "invalid_request",
+            "body is not a trust profile set".into(),
+        );
     };
     let actor = who.actor_subject().to_owned();
     match trust::put_cas(&state, body.set, &actor, body.force).await {
@@ -229,7 +238,11 @@ pub async fn get_facts(
         return response;
     }
     if target.len() > 128 || !target.chars().all(|c| c.is_ascii_graphic()) {
-        return refuse(400, "invalid_request", "target is not a bounded ascii name".into());
+        return refuse(
+            400,
+            "invalid_request",
+            "target is not a bounded ascii name".into(),
+        );
     }
     match facts::load(&state, &target).await {
         Ok(loaded) => (

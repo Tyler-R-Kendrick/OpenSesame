@@ -138,4 +138,3 @@ pub struct NatsTransportView {
     /// true on a TLS profile: discovery must not widen egress.
     pub discovery_ignored: bool,
 }
-

@@ -10,12 +10,24 @@
 //! certificates and which must refuse a reference the calling organization
 //! does not own. The broker itself never reads a file or a socket.
 //!
-//! Module map: [`crate::transport_store`] persists the record,
-//! [`crate::transport_pool`] scopes the HTTP clients,
-//! [`crate::transport_execute`] runs the invoke path in the only permitted
-//! order (authorize → egress preflight → resolve identity → open credential →
-//! execute), and [`crate::transport_memory`] is the in-memory resolver tests
-//! and the gateway's own tests use.
+//! Module map: [`store`] persists the record, [`pool`] scopes the HTTP
+//! clients, [`execute`] runs the invoke path in the only permitted order
+//! (authorize → egress preflight → resolve identity → open credential →
+//! execute), and [`memory`] is the in-memory resolver tests and the gateway's
+//! own tests use.
+
+#[path = "transport_broker.rs"]
+mod broker;
+#[path = "transport_client.rs"]
+pub mod client;
+#[path = "transport_execute.rs"]
+pub mod execute;
+#[path = "transport_memory.rs"]
+pub mod memory;
+#[path = "transport_pool.rs"]
+pub mod pool;
+#[path = "transport_store.rs"]
+pub mod store;
 
 use std::sync::Arc;
 
@@ -333,3 +345,7 @@ impl std::fmt::Debug for ConnectorResolvers {
         f.write_str("ConnectorResolvers")
     }
 }
+
+#[cfg(test)]
+#[path = "transport_tests.rs"]
+mod tests;

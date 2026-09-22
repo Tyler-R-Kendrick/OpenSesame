@@ -4,24 +4,16 @@
 
 use std::path::Path;
 
+const KEYS: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
+
 fn manifest_depends_on(path: &Path, name: &str) -> bool {
     let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     let value: toml::Value =
         toml::from_str(&text).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    let mut tables: Vec<&toml::Value> = Vec::new();
-    for key in ["dependencies", "dev-dependencies", "build-dependencies"] {
-        if let Some(t) = value.get(key) {
-            tables.push(t);
-        }
-    }
-    if let Some(targets) = value.get("target").and_then(|t| t.as_table()) {
-        for target in targets.values() {
-            for key in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                if let Some(t) = target.get(key) {
-                    tables.push(t);
-                }
-            }
-        }
+    let mut tables: Vec<&toml::Value> = KEYS.iter().filter_map(|key| value.get(key)).collect();
+    let targets = value.get("target").and_then(toml::Value::as_table);
+    for target in targets.into_iter().flat_map(toml::value::Table::values) {
+        tables.extend(KEYS.iter().filter_map(|key| target.get(key)));
     }
     tables.iter().any(|t| {
         t.as_table().is_some_and(|table| {

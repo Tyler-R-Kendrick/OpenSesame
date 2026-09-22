@@ -16,6 +16,7 @@ mod dev_pki;
 mod github_webhook;
 mod host_authorization;
 mod identity_mapping;
+mod identity_mapping_tls;
 mod lifecycle;
 mod managed_certs;
 mod managed_certs_tls;
@@ -64,6 +65,8 @@ async fn main() -> anyhow::Result<()> {
     // to that feed rather than a second due-check of its own, so our own
     // rotations exercise the same hook a third-party tool receives.
     tokio::spawn(lifecycle::scanner::run(state.clone()));
+    // Transport renewal retries and bounded trust-overlap reconcile (ADR 0130).
+    tokio::spawn(transport_lifecycle::renewal::run(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
     // saga — claim under lease, exponential backoff, visible dead letters.
     tokio::spawn(security::delivery::run(state.clone()));

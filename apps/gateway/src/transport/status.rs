@@ -67,10 +67,9 @@ pub fn record_enforcement(facts: &SharedFacts, status: EnforcementStatus) {
 #[must_use]
 pub const fn custody_of(spec: &NativeIdentitySpec) -> (Custody, IdentitySourceKind) {
     match spec {
-        NativeIdentitySpec::PemFiles { .. } => (
-            Custody::NativeFileExportable,
-            IdentitySourceKind::PemFiles,
-        ),
+        NativeIdentitySpec::PemFiles { .. } => {
+            (Custody::NativeFileExportable, IdentitySourceKind::PemFiles)
+        }
         NativeIdentitySpec::ManagedCertificate { .. } => (
             Custody::HostSealedExportableToHost,
             IdentitySourceKind::ManagedCertificate,
@@ -86,7 +85,10 @@ pub const fn custody_of(spec: &NativeIdentitySpec) -> (Custody, IdentitySourceKi
 /// fact (the listener policy requires a client certificate at the
 /// handshake); whether it was ever demonstrated is `enforcement`.
 #[must_use]
-pub fn capabilities(config: &TransportConfig, managed: &CapabilityOutcome) -> TransportCapabilities {
+pub fn capabilities(
+    config: &TransportConfig,
+    managed: &CapabilityOutcome,
+) -> TransportCapabilities {
     let policy = config.listener.as_ref().map(|l| l.policy);
     TransportCapabilities::native(
         CapabilityOutcome::Supported,

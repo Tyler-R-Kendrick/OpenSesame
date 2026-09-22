@@ -48,8 +48,8 @@ pub use digest::RequestDigest;
 pub use error::CalloutError;
 pub use evidence::ExtractedEvidence;
 pub use host_client::{
-    check_echo, ClientRef, DecisionSource, HostDecisionRequest, HostDecisionResponse,
-    HostEvidence, ServerRef,
+    check_echo, ClientRef, DecisionSource, HostDecisionRequest, HostDecisionResponse, HostEvidence,
+    ServerRef,
 };
 pub use jwt::{decode_request, Expectations, VerifiedRequest};
 pub use model::{AuthorizationRequestClaims, ClientInfo, ClientTls, ConnectOpts, ServerId};

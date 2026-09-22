@@ -12,26 +12,79 @@ fn full_env(dir: &Path) -> HashMap<String, String> {
     let nats_ca = DisposableCa::new("nats");
     let bridge = bridge_ca.issue_client(PeerIdentitySelector::DnsName("bridge.internal".into()));
     let (cert, key) = bridge.write_to(dir);
-    let host_trust = write_secret_file(dir, "host-ca.pem", std::str::from_utf8(&host_ca.root_pem()).unwrap()).unwrap();
-    let nats_trust = write_secret_file(dir, "nats-ca.pem", std::str::from_utf8(&nats_ca.root_pem()).unwrap()).unwrap();
-    let seed = write_secret_file(dir, "account.seed", &nkeys::KeyPair::new_account().seed().unwrap()).unwrap();
-    let creds = write_secret_file(dir, "bridge.nk", &nkeys::KeyPair::new_user().seed().unwrap()).unwrap();
+    let host_trust = write_secret_file(
+        dir,
+        "host-ca.pem",
+        std::str::from_utf8(&host_ca.root_pem()).unwrap(),
+    )
+    .unwrap();
+    let nats_trust = write_secret_file(
+        dir,
+        "nats-ca.pem",
+        std::str::from_utf8(&nats_ca.root_pem()).unwrap(),
+    )
+    .unwrap();
+    let seed = write_secret_file(
+        dir,
+        "account.seed",
+        &nkeys::KeyPair::new_account().seed().unwrap(),
+    )
+    .unwrap();
+    let creds = write_secret_file(
+        dir,
+        "bridge.nk",
+        &nkeys::KeyPair::new_user().seed().unwrap(),
+    )
+    .unwrap();
     let s = |p: &Path| p.to_string_lossy().into_owned();
     HashMap::from([
-        ("OPENSESAME_NATS_URL".to_owned(), "tls://127.0.0.1:4222".to_owned()),
-        ("OPENSESAME_NATS_CALLOUT_NKEY_SEED_FILE".to_owned(), s(&creds)),
+        (
+            "OPENSESAME_NATS_URL".to_owned(),
+            "tls://127.0.0.1:4222".to_owned(),
+        ),
+        (
+            "OPENSESAME_NATS_CALLOUT_NKEY_SEED_FILE".to_owned(),
+            s(&creds),
+        ),
         ("OPENSESAME_NATS_TLS_TRUST_FILE".to_owned(), s(&nats_trust)),
-        ("OPENSESAME_NATS_TLS_TRUST_KIND".to_owned(), "private_root".to_owned()),
-        ("OPENSESAME_NATS_TLS_SERVER_NAME".to_owned(), "nats.internal".to_owned()),
-        ("OPENSESAME_NATS_CALLOUT_SIGNING_SEED_FILE".to_owned(), s(&seed)),
-        ("OPENSESAME_NATS_CALLOUT_TARGET_ACCOUNT".to_owned(), "APP".to_owned()),
-        ("OPENSESAME_NATS_CALLOUT_HOST_URL".to_owned(), "https://host.internal:8787".to_owned()),
-        ("OPENSESAME_CALLOUT_TLS_IDENTITY_SOURCE".to_owned(), "pem".to_owned()),
+        (
+            "OPENSESAME_NATS_TLS_TRUST_KIND".to_owned(),
+            "private_root".to_owned(),
+        ),
+        (
+            "OPENSESAME_NATS_TLS_SERVER_NAME".to_owned(),
+            "nats.internal".to_owned(),
+        ),
+        (
+            "OPENSESAME_NATS_CALLOUT_SIGNING_SEED_FILE".to_owned(),
+            s(&seed),
+        ),
+        (
+            "OPENSESAME_NATS_CALLOUT_TARGET_ACCOUNT".to_owned(),
+            "APP".to_owned(),
+        ),
+        (
+            "OPENSESAME_NATS_CALLOUT_HOST_URL".to_owned(),
+            "https://host.internal:8787".to_owned(),
+        ),
+        (
+            "OPENSESAME_CALLOUT_TLS_IDENTITY_SOURCE".to_owned(),
+            "pem".to_owned(),
+        ),
         ("OPENSESAME_CALLOUT_TLS_CERT_FILE".to_owned(), s(&cert)),
         ("OPENSESAME_CALLOUT_TLS_KEY_FILE".to_owned(), s(&key)),
-        ("OPENSESAME_CALLOUT_TLS_TRUST_FILE".to_owned(), s(&host_trust)),
-        ("OPENSESAME_CALLOUT_TLS_TRUST_KIND".to_owned(), "private_root".to_owned()),
-        ("OPENSESAME_CALLOUT_TLS_SERVER_NAME".to_owned(), "host.internal".to_owned()),
+        (
+            "OPENSESAME_CALLOUT_TLS_TRUST_FILE".to_owned(),
+            s(&host_trust),
+        ),
+        (
+            "OPENSESAME_CALLOUT_TLS_TRUST_KIND".to_owned(),
+            "private_root".to_owned(),
+        ),
+        (
+            "OPENSESAME_CALLOUT_TLS_SERVER_NAME".to_owned(),
+            "host.internal".to_owned(),
+        ),
     ])
 }
 
@@ -72,7 +125,10 @@ fn each_required_variable_is_named_when_missing() {
         let mut e = env.clone();
         e.remove(required);
         let err = load(&e).unwrap_err();
-        assert!(matches!(err, CalloutError::MalformedConfiguration(_)), "{required}");
+        assert!(
+            matches!(err, CalloutError::MalformedConfiguration(_)),
+            "{required}"
+        );
     }
 }
 
@@ -84,7 +140,10 @@ fn plaintext_nats_needs_the_explicit_development_switch() {
     env.remove("OPENSESAME_NATS_TLS_TRUST_KIND");
     env.remove("OPENSESAME_NATS_TLS_SERVER_NAME");
     assert!(load(&env).is_err());
-    env.insert("OPENSESAME_NATS_CALLOUT_ALLOW_PLAINTEXT_NATS".into(), "1".into());
+    env.insert(
+        "OPENSESAME_NATS_CALLOUT_ALLOW_PLAINTEXT_NATS".into(),
+        "1".into(),
+    );
     let cfg = load(&env).unwrap();
     assert!(cfg.nats_tls.is_none());
 }
@@ -93,7 +152,10 @@ fn plaintext_nats_needs_the_explicit_development_switch() {
 fn host_url_must_be_https_and_bridge_identity_is_mandatory() {
     let dir = tempdir();
     let mut env = full_env(dir.path());
-    env.insert("OPENSESAME_NATS_CALLOUT_HOST_URL".into(), "http://host.internal".into());
+    env.insert(
+        "OPENSESAME_NATS_CALLOUT_HOST_URL".into(),
+        "http://host.internal".into(),
+    );
     let cfg = load(&env).unwrap();
     assert!(crate::host_client::HttpHost::new(&cfg.host_tls, &cfg.host_url).is_err());
     let mut env = full_env(dir.path());
@@ -108,7 +170,10 @@ fn server_pins_and_expiry_are_validated() {
     env.insert("OPENSESAME_NATS_SERVER_NKEYS".into(), "not-a-key".into());
     assert!(load(&env).is_err());
     let server = nkeys::KeyPair::new_server().public_key();
-    env.insert("OPENSESAME_NATS_SERVER_NKEYS".into(), format!(" {server}, "));
+    env.insert(
+        "OPENSESAME_NATS_SERVER_NKEYS".into(),
+        format!(" {server}, "),
+    );
     assert_eq!(load(&env).unwrap().server_public_keys, vec![server]);
     env.insert("OPENSESAME_NATS_CALLOUT_MAX_EXP_SECS".into(), "abc".into());
     assert!(load(&env).is_err());

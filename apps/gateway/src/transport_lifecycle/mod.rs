@@ -36,9 +36,8 @@ pub mod renewal;
 pub mod revocation;
 pub mod routes;
 pub mod trust;
+pub mod trust_store;
 
-#[cfg(test)]
-pub(crate) mod test_support;
 #[cfg(test)]
 mod activation_tests;
 #[cfg(test)]
@@ -52,13 +51,17 @@ mod renewal_tests;
 #[cfg(test)]
 mod revocation_tests;
 #[cfg(test)]
+pub(crate) mod test_support;
+#[cfg(test)]
 mod trust_tests;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, RwLock};
 
 use opensesame_domain::transport::{ServiceBindingSet, TrustProfileRef};
-use opensesame_transport_security::{DenyThumbprint, TlsIdentity, TransportGenerations, TrustBundle};
+use opensesame_transport_security::{
+    DenyThumbprint, TlsIdentity, TransportGenerations, TrustBundle,
+};
 
 pub use crate::managed_certs_tls::TransportPurpose;
 
@@ -221,10 +224,10 @@ impl LifecycleState {
         purpose: TransportPurpose,
         identity: Arc<TlsIdentity>,
     ) {
-        self.identities
-            .lock()
-            .unwrap_or_else(poisoned)
-            .insert(Self::cache_key(organization, certificate_id, purpose), identity);
+        self.identities.lock().unwrap_or_else(poisoned).insert(
+            Self::cache_key(organization, certificate_id, purpose),
+            identity,
+        );
     }
 
     /// Drop every cached identity for `certificate_id` (renewal, revocation).

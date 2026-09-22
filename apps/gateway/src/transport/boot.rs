@@ -59,7 +59,10 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
             )
             .await
             .map_err(|error| {
-                anyhow::anyhow!("secure listener refused to start: {error} [{}]", error.code())
+                anyhow::anyhow!(
+                    "secure listener refused to start: {error} [{}]",
+                    error.code()
+                )
             })?;
             let secure_app = app.clone().layer(axum::middleware::from_fn_with_state(
                 Arc::clone(&runtime.generations),
@@ -75,8 +78,7 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
     }
     let plain = app.layer(plain_provenance_layer(HOST_PLAIN_LISTENER));
     let listen = args.listen.to_string();
-    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen)
-        .map_err(anyhow::Error::msg)?;
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
     tracing::info!(%listen, "opensesame gateway listening");
     let listener = tokio::net::TcpListener::bind(args.listen)
         .await

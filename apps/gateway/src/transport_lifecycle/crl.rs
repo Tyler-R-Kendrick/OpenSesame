@@ -67,7 +67,9 @@ pub fn crl_freshness(pem: &[u8], now: DateTime<Utc>) -> Result<CrlFreshness, Tra
         }
     }
     if count == 0 {
-        return Err(TransportError::malformed("crl file holds no X509 CRL block"));
+        return Err(TransportError::malformed(
+            "crl file holds no X509 CRL block",
+        ));
     }
     Ok(CrlFreshness {
         crls: count,
@@ -89,7 +91,8 @@ pub fn load_crl_file(
     path: &std::path::Path,
     now: DateTime<Utc>,
 ) -> Result<Vec<u8>, TransportError> {
-    let pem = std::fs::read(path).map_err(|e| TransportError::malformed(format!("crl file: {e}")))?;
+    let pem =
+        std::fs::read(path).map_err(|e| TransportError::malformed(format!("crl file: {e}")))?;
     let freshness = crl_freshness(&pem, now)?;
     if freshness.is_stale(now) {
         tracing::warn!(

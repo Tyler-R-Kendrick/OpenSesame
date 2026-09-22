@@ -31,7 +31,9 @@
 //! CRL freshness lives beside this, in [`super::crl`].
 
 use chrono::{DateTime, Utc};
-use opensesame_domain::transport::{validate_thumbprint, ServiceBindingSet, TransportError, MAX_LIST_ENTRIES};
+use opensesame_domain::transport::{
+    validate_thumbprint, ServiceBindingSet, TransportError, MAX_LIST_ENTRIES,
+};
 use opensesame_domain::OrganizationId;
 use opensesame_security_events::{NoticeState, SecurityNotice, Severity};
 use opensesame_storage::StoredCertificateRevocation;
@@ -228,7 +230,15 @@ pub async fn revoke_transport(
         )
         .await;
     }
-    publish_revoked(state, &tenant, certificate_id.as_deref(), &thumbprint, request.reason, now).await;
+    publish_revoked(
+        state,
+        &tenant,
+        certificate_id.as_deref(),
+        &thumbprint,
+        request.reason,
+        now,
+    )
+    .await;
     Ok(RevocationOutcome {
         certificate_id,
         leaf_thumbprint_sha256: thumbprint,

@@ -57,7 +57,6 @@ mod routes_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 
-pub use admission::{require_delegated_caller, require_service_caller};
 pub use managed::ManagedIdentityResolver;
 pub use runtime::TransportRuntime;
 

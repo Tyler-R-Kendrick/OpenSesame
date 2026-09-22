@@ -547,7 +547,6 @@ fn internal(error: &anyhow::Error) -> Response {
     clippy::items_after_statements,
     reason = "the backup route tests define scenario-local fault fixtures beside their use"
 )]
-
 #[cfg(test)]
 #[path = "backup_tests.rs"]
 mod tests;

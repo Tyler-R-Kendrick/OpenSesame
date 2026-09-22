@@ -234,13 +234,10 @@ async fn build_with_security(
     };
     // Built after the state exists: a `managed` identity source resolves
     // through the Host's own custody bridge, which needs the state.
-    state.transport = crate::transport::TransportRuntime::build(
-        transport_config,
-        &state.db.clone(),
-        &state,
-    )
-    .await
-    .map_err(anyhow::Error::new)?;
+    state.transport =
+        crate::transport::TransportRuntime::build(transport_config, &state.db.clone(), &state)
+            .await
+            .map_err(anyhow::Error::new)?;
     Ok(state)
 }
 

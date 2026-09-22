@@ -1,0 +1,13 @@
+-- ADR 0130 (SW-CONNECTOR, CONN-MODEL): a connection's optional transport
+-- requirement, as *references* the deployment plane resolves — a registered
+-- identity name, a registered trust-profile name, the exact server identity
+-- expected, and where the connection may be executed.
+--
+-- Additive and nullable on purpose. Every existing row reads as NULL, which
+-- means "no transport requirement configured" and behaves exactly as it did
+-- before: server-authenticated TLS with the credential the broker already
+-- holds. Nothing secret is stored here and nothing here is a locator: the
+-- JSON refuses a path, a URL, a Unix socket or a PEM block at parse
+-- (crates/connection-broker/src/transport.rs), so a tenant can never name an
+-- arbitrary key file or Workload API socket through a connection id.
+ALTER TABLE connections ADD COLUMN transport_json TEXT;

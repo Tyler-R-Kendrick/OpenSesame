@@ -27,10 +27,10 @@ pub mod model;
 pub mod rotation;
 pub mod rotation_egress;
 pub mod rotation_verify;
-mod scope_ceiling;
+mod scope_ceiling; use scope_ceiling::require_scope_subset;
 pub mod secret_config;
 pub mod store;
-use scope_ceiling::require_scope_subset;
+pub mod transport;
 pub mod sync_target;
 pub mod token;
 

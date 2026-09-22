@@ -44,7 +44,9 @@ pub enum PutError {
     /// The env file is in force; the store is not consulted.
     EnvOverride,
     /// The caller's `revision` is not the current one.
-    StaleRevision { current: u32 },
+    StaleRevision {
+        current: u32,
+    },
     Invalid(TransportError),
     Storage(String),
 }
@@ -133,20 +135,28 @@ pub async fn put_cas(
     }
     let _serial = PUT_SERIAL.lock().await;
     let current = match live {
-        Some(lock) => lock
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .revision,
-        None => load(db, None).await.map_err(PutError::Invalid)?.set.revision,
+        Some(lock) => {
+            lock.read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .revision
+        }
+        None => {
+            load(db, None)
+                .await
+                .map_err(PutError::Invalid)?
+                .set
+                .revision
+        }
     };
     if proposed.revision != current {
         return Err(PutError::StaleRevision { current });
     }
-    proposed.revision = current
-        .checked_add(1)
-        .ok_or(PutError::Invalid(TransportError::malformed(
-            "service bindings: revision overflow",
-        )))?;
+    proposed.revision =
+        current
+            .checked_add(1)
+            .ok_or(PutError::Invalid(TransportError::malformed(
+                "service bindings: revision overflow",
+            )))?;
     proposed.validate().map_err(PutError::Invalid)?;
     let json = serde_json::to_string(&proposed)
         .map_err(|e| PutError::Storage(format!("serialize: {e}")))?;
@@ -159,7 +169,9 @@ pub async fn put_cas(
         .await
         .map_err(|e| PutError::Storage(e.to_string()))?;
     if let Some(lock) = live {
-        *lock.write().unwrap_or_else(std::sync::PoisonError::into_inner) = proposed.clone();
+        *lock
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = proposed.clone();
     }
     Ok(proposed)
 }

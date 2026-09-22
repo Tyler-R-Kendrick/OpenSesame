@@ -89,7 +89,11 @@ fn algorithm_and_type_are_pinned() {
     let p = Parties::generate();
     let token = p.signed_request(NOW, "tok");
     let payload_and_sig = token.splitn(2, '.').nth(1).unwrap().to_owned();
-    for header in [r#"{"typ":"JWT","alg":"none"}"#, r#"{"typ":"JWT","alg":"HS256"}"#, r#"{"typ":"x","alg":"ed25519-nkey"}"#] {
+    for header in [
+        r#"{"typ":"JWT","alg":"none"}"#,
+        r#"{"typ":"JWT","alg":"HS256"}"#,
+        r#"{"typ":"x","alg":"ed25519-nkey"}"#,
+    ] {
         let h = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header);
         let t = format!("{h}.{payload_and_sig}");
         assert_eq!(
@@ -178,12 +182,18 @@ fn time_window_is_two_minutes_with_skew() {
     let expect = expect_for(&p);
     // 150 s old with a 2 s exp: expired.
     let old = p.signed_request(NOW - 150, "tok");
-    assert_eq!(decode_request(&old, &expect).unwrap_err(), CalloutError::OutsideWindow);
+    assert_eq!(
+        decode_request(&old, &expect).unwrap_err(),
+        CalloutError::OutsideWindow
+    );
     // No exp but 151 s old: outside the window.
     let mut claims = p.request_claims(NOW - 151, "tok");
     claims.exp = None;
     let stale = p.sign_request(claims);
-    assert_eq!(decode_request(&stale, &expect).unwrap_err(), CalloutError::OutsideWindow);
+    assert_eq!(
+        decode_request(&stale, &expect).unwrap_err(),
+        CalloutError::OutsideWindow
+    );
     // No exp, 100 s old: inside.
     let mut claims = p.request_claims(NOW - 100, "tok");
     claims.exp = None;
@@ -191,18 +201,27 @@ fn time_window_is_two_minutes_with_skew() {
     // Issued 31 s in the future: refused; 29 s: tolerated.
     let mut claims = p.request_claims(NOW + 31, "tok");
     claims.exp = None;
-    assert_eq!(decode_request(&p.sign_request(claims), &expect).unwrap_err(), CalloutError::OutsideWindow);
+    assert_eq!(
+        decode_request(&p.sign_request(claims), &expect).unwrap_err(),
+        CalloutError::OutsideWindow
+    );
     let mut claims = p.request_claims(NOW + 29, "tok");
     claims.exp = None;
     assert!(decode_request(&p.sign_request(claims), &expect).is_ok());
     // nbf in the future.
     let mut claims = p.request_claims(NOW, "tok");
     claims.nbf = Some(NOW + 60);
-    assert_eq!(decode_request(&p.sign_request(claims), &expect).unwrap_err(), CalloutError::OutsideWindow);
+    assert_eq!(
+        decode_request(&p.sign_request(claims), &expect).unwrap_err(),
+        CalloutError::OutsideWindow
+    );
     // Missing iat.
     let mut claims = p.request_claims(NOW, "tok");
     claims.iat = 0;
-    assert_eq!(decode_request(&p.sign_request(claims), &expect).unwrap_err(), CalloutError::OutsideWindow);
+    assert_eq!(
+        decode_request(&p.sign_request(claims), &expect).unwrap_err(),
+        CalloutError::OutsideWindow
+    );
 }
 
 #[test]

@@ -40,6 +40,7 @@ opensesame-relay = { path = "../../crates/relay" }
 opensesame-provider-openfga = { path = "../../crates/provider-openfga" }
 opensesame-provider-openbao = { path = "../../crates/provider-openbao" }
 opensesame-task-bus = { path = "../../crates/task-bus", features = ["jetstream"] }
+opensesame-nats-callout = { path = "../../crates/nats-callout" }
 opensesame-transport-security = { path = "../../crates/transport-security" }
 opensesame-spiffe-source = { path = "../../crates/spiffe-source" }
 opensesame-ingress-evidence = { path = "../../crates/ingress-evidence" }

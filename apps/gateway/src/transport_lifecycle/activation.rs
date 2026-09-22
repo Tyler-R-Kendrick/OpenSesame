@@ -161,7 +161,9 @@ pub async fn activate_managed(
     };
     let candidate = candidate_with_identity(&generations, identity);
     let number = activate_candidate(state, target, &generations, candidate).await?;
-    state.transport_lifecycle.bind_target(target, certificate_id);
+    state
+        .transport_lifecycle
+        .bind_target(target, certificate_id);
     Ok(number)
 }
 

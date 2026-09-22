@@ -1,7 +1,7 @@
 //! Building `async_nats::ConnectOptions` from a [`NatsTransportSpec`].
 //!
 //! One path for every NATS client the Host opens: the verifier is
-//! `opensesame_transport_security::client_config` (WebPKI reference identity
+//! `opensesame_transport_security::client_config` (`WebPKI` reference identity
 //! or exact SPIFFE ID against the configured bundle), so a NATS connection
 //! is checked by the same code as every other outbound TLS connection.
 //!
@@ -64,7 +64,10 @@ impl NatsRole {
     /// Whether this role drains a durable consumer.
     #[must_use]
     pub fn consumes(self) -> bool {
-        matches!(self, Self::Host | Self::Consumer | Self::Backup | Self::Provisioner)
+        matches!(
+            self,
+            Self::Host | Self::Consumer | Self::Backup | Self::Provisioner
+        )
     }
 
     /// Whether this role publishes events.
@@ -104,7 +107,10 @@ impl BusHealth {
     /// `server_error:authorization_violation`, ...).
     #[must_use]
     pub fn last_event(&self) -> Option<String> {
-        self.last_event.lock().map(|g| g.clone()).unwrap_or_default()
+        self.last_event
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or_default()
     }
 
     pub(crate) fn record(&self, event: &Event) {
@@ -140,10 +146,16 @@ pub fn event_code(event: &Event) -> String {
         Event::ServerError(async_nats::ServerError::AuthorizationViolation) => {
             "server_error:authorization_violation".into()
         }
-        Event::ServerError(async_nats::ServerError::SlowConsumer(_)) => "server_error:slow_consumer".into(),
+        Event::ServerError(async_nats::ServerError::SlowConsumer(_)) => {
+            "server_error:slow_consumer".into()
+        }
         Event::ServerError(async_nats::ServerError::Other(_)) => "server_error:other".into(),
-        Event::ClientError(async_nats::ClientError::MaxReconnects) => "client_error:max_reconnects".into(),
-        Event::ClientError(async_nats::ClientError::ServerNotInPool) => "client_error:server_not_in_pool".into(),
+        Event::ClientError(async_nats::ClientError::MaxReconnects) => {
+            "client_error:max_reconnects".into()
+        }
+        Event::ClientError(async_nats::ClientError::ServerNotInPool) => {
+            "client_error:server_not_in_pool".into()
+        }
         Event::ClientError(async_nats::ClientError::Other(_)) => "client_error:other".into(),
     }
 }
@@ -178,13 +190,15 @@ fn load_trust(
 ) -> Result<TrustBundle, TransportError> {
     match spec {
         NativeTrustSpec::PemFile { path, kind } => {
-            let pem = std::fs::read(path)
-                .map_err(|e| TransportError::MalformedConfiguration(format!("trust bundle file: {e}")))?;
+            let pem = std::fs::read(path).map_err(|e| {
+                TransportError::MalformedConfiguration(format!("trust bundle file: {e}"))
+            })?;
             let bundle = TrustBundle::from_pem(TrustProfileRef::new(name)?, *kind, &pem)?;
             match crl {
                 Some(crl_path) => {
-                    let crl_pem = std::fs::read(crl_path)
-                        .map_err(|e| TransportError::MalformedConfiguration(format!("crl file: {e}")))?;
+                    let crl_pem = std::fs::read(crl_path).map_err(|e| {
+                        TransportError::MalformedConfiguration(format!("crl file: {e}"))
+                    })?;
                     bundle.with_crls(&crl_pem)
                 }
                 None => Ok(bundle),
@@ -200,22 +214,36 @@ pub(crate) fn load_material(
     injected: &InjectedMaterial,
 ) -> Result<Material, TransportError> {
     if !spec.is_secure() {
-        return Ok(Material { identity: None, trust: None });
+        return Ok(Material {
+            identity: None,
+            trust: None,
+        });
     }
-    let trust = match (&injected.trust, &spec.locators.trust, &spec.transport.server_trust) {
+    let trust = match (
+        &injected.trust,
+        &spec.locators.trust,
+        &spec.transport.server_trust,
+    ) {
         (Some(bundle), _, _) => bundle.clone(),
         (None, Some(locator), Some(reference)) => {
             load_trust(&reference.name, locator, spec.locators.crl_file.as_deref())?
         }
         _ => return Err(TransportError::TrustUnknown),
     };
-    let identity = match (&injected.identity, &spec.locators.identity, &spec.transport.client_identity) {
+    let identity = match (
+        &injected.identity,
+        &spec.locators.identity,
+        &spec.transport.client_identity,
+    ) {
         (Some(identity), _, _) => Some(Arc::clone(identity)),
         (None, Some(locator), Some(_)) => Some(load_identity(locator)?),
         (None, None, Some(_)) => return Err(TransportError::IdentityMissing),
         (None, _, None) => None,
     };
-    Ok(Material { identity, trust: Some(trust) })
+    Ok(Material {
+        identity,
+        trust: Some(trust),
+    })
 }
 
 /// Build the rustls configuration through transport-security.
@@ -227,7 +255,11 @@ pub(crate) fn tls_config(
     let server_name = match &spec.transport.server_name {
         Some(NatsServerName::Dns(name)) => ServerNamePolicy::Dns(name.clone()),
         Some(NatsServerName::SpiffeId(id)) => ServerNamePolicy::SpiffeId(id.clone()),
-        None => return Err(TransportError::MalformedConfiguration("server name unresolved".into())),
+        None => {
+            return Err(TransportError::MalformedConfiguration(
+                "server name unresolved".into(),
+            ))
+        }
     };
     client_config(&ClientProfile {
         server_trust: trust,
@@ -242,7 +274,9 @@ fn read_seed(path: &Path) -> Result<String, TransportError> {
         .map_err(|e| TransportError::MalformedConfiguration(format!("nkey seed file: {e}")))?;
     let seed = raw.trim().to_owned();
     if !seed.starts_with('S') || seed.len() < 20 {
-        return Err(TransportError::MalformedConfiguration("nkey seed file does not hold a seed".into()));
+        return Err(TransportError::MalformedConfiguration(
+            "nkey seed file does not hold a seed".into(),
+        ));
     }
     Ok(seed)
 }
@@ -284,15 +318,22 @@ pub async fn connect_options(
     options = match &spec.auth {
         NatsAuth::None => options,
         NatsAuth::Nkey { .. } => {
-            let path = spec.locators.nkey_seed_file.as_deref().ok_or(TransportError::IdentityMissing)?;
+            let path = spec
+                .locators
+                .nkey_seed_file
+                .as_deref()
+                .ok_or(TransportError::IdentityMissing)?;
             options.nkey(read_seed(path)?)
         }
         NatsAuth::Creds { .. } => {
-            let path = spec.locators.creds_file.as_deref().ok_or(TransportError::IdentityMissing)?;
-            options
-                .credentials_file(path)
-                .await
-                .map_err(|e| TransportError::MalformedConfiguration(format!("credentials file: {e}")))?
+            let path = spec
+                .locators
+                .creds_file
+                .as_deref()
+                .ok_or(TransportError::IdentityMissing)?;
+            options.credentials_file(path).await.map_err(|e| {
+                TransportError::MalformedConfiguration(format!("credentials file: {e}"))
+            })?
         }
     };
     Ok(options)

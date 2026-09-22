@@ -69,13 +69,30 @@ pub struct EgressFence {
 }
 
 impl EgressFence {
+    /// A fence over an explicit rule set. Https only — see
+    /// [`EgressFence::allow_http_for_tests`].
     #[must_use]
-    pub(crate) fn new(rules: Vec<EgressRule>, request_body_cap: usize) -> Self {
+    pub fn new(rules: Vec<EgressRule>, request_body_cap: usize) -> Self {
         Self {
             rules: std::sync::Arc::new(rules),
             allow_http_for_tests: false,
             request_body_cap,
         }
+    }
+
+    /// Test mode: permit plain HTTP to loopback hosts only, and a non-default
+    /// port on either scheme (a test TLS listener binds port 0). The egress
+    /// allowlist still applies.
+    #[must_use]
+    pub fn allow_http_for_tests(mut self) -> Self {
+        self.allow_http_for_tests = true;
+        self
+    }
+
+    /// The rules this fence enforces.
+    #[must_use]
+    pub fn rules(&self) -> &[EgressRule] {
+        &self.rules
     }
 
     /// Validate every fence that must hold before a credential is touched or

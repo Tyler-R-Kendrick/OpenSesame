@@ -11,8 +11,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use opensesame_domain::transport::{
-    BindingPurpose, TlsVersion, TransportError, TransportPolicy, TrustProfileKind,
-    TrustProfileRef,
+    BindingPurpose, TlsVersion, TransportError, TransportPolicy, TrustProfileKind, TrustProfileRef,
 };
 use opensesame_transport_security::env::{
     self, Lookup, NativeIdentitySpec, NativeTrustSpec, ServerExpectation, TransportEnv,
@@ -91,8 +90,8 @@ impl MappingTlsConfig {
                 "{MAPPING_TLS_PREFIX}_TRUST_FILE/_TRUST_KIND is required with a mapping identity"
             ))
         })?;
-        let server = env::load_server_expectation_from(MAPPING_TLS_PREFIX, lookup)?
-            .ok_or_else(|| {
+        let server =
+            env::load_server_expectation_from(MAPPING_TLS_PREFIX, lookup)?.ok_or_else(|| {
                 TransportError::malformed(format!(
                     "{MAPPING_TLS_PREFIX}_SERVER_NAME or _SERVER_SPIFFE_ID is required"
                 ))
@@ -174,8 +173,12 @@ impl TransportConfig {
         let listener_policy = self.listener.as_ref().map(|l| l.policy);
         match purpose {
             BindingPurpose::NatsAuthBridge => self.callout_auth == AuthMode::Mtls,
-            BindingPurpose::TrustedIngress => listener_policy == Some(TransportPolicy::TrustedIngress),
-            BindingPurpose::ServiceProbe => listener_policy.is_some_and(TransportPolicy::authenticates_client),
+            BindingPurpose::TrustedIngress => {
+                listener_policy == Some(TransportPolicy::TrustedIngress)
+            }
+            BindingPurpose::ServiceProbe => {
+                listener_policy.is_some_and(TransportPolicy::authenticates_client)
+            }
             // The Host is the *client* toward Identity and has no worker or
             // upstream-connector receiver of its own.
             BindingPurpose::WorkerClient
@@ -210,25 +213,32 @@ fn listener_from(
         }
         (Some(listen), Some(policy)) => (listen, policy),
     };
-    let identity = env::load_identity_from(HOST_TLS_PREFIX, lookup)?
-        .ok_or(TransportError::IdentityMissing)?;
+    let identity =
+        env::load_identity_from(HOST_TLS_PREFIX, lookup)?.ok_or(TransportError::IdentityMissing)?;
     let client_trust = env::load_trust_from(HOST_TLS_PREFIX, lookup)?;
     match (policy.authenticates_client(), &client_trust) {
         (true, None) => return Err(TransportError::TrustUnknown),
-        (true, Some(NativeTrustSpec::PemFile { kind: TrustProfileKind::WebPkiDns, .. })) => {
+        (
+            true,
+            Some(NativeTrustSpec::PemFile {
+                kind: TrustProfileKind::WebPkiDns,
+                ..
+            }),
+        ) => {
             return Err(TransportError::malformed(
                 "OPENSESAME_TLS_TRUST_KIND=webpki_dns cannot authenticate clients",
             ))
         }
-        (false, Some(_)) => {
-            return Err(TransportError::malformed(
-                "server_tls verifies no client; remove OPENSESAME_TLS_TRUST_* or choose mtls_required",
-            ))
-        }
+        (false, Some(_)) => return Err(TransportError::malformed(
+            "server_tls verifies no client; remove OPENSESAME_TLS_TRUST_* or choose mtls_required",
+        )),
         _ => {}
     }
     if matches!(identity, NativeIdentitySpec::Spiffe { .. })
-        && !matches!(client_trust, Some(NativeTrustSpec::SpiffeTrustDomain { .. }))
+        && !matches!(
+            client_trust,
+            Some(NativeTrustSpec::SpiffeTrustDomain { .. })
+        )
     {
         return Err(TransportError::malformed(
             "a spiffe listener identity requires OPENSESAME_TLS_TRUST_KIND=spiffe_trust_domain",

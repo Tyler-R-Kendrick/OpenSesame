@@ -76,7 +76,11 @@ pub fn extract(claims: &AuthorizationRequestClaims) -> ExtractedEvidence {
         .as_ref()
         .and_then(|tls| tls.verified_chains.first())
         .filter(|chain| !chain.is_empty() && chain.len() <= MAX_CHAIN_ENTRIES)
-        .filter(|chain| chain.iter().all(|entry| crate::digest::pem_to_der(entry).is_some()))
+        .filter(|chain| {
+            chain
+                .iter()
+                .all(|entry| crate::digest::pem_to_der(entry).is_some())
+        })
         .cloned();
     ExtractedEvidence {
         upstream_token,

@@ -140,7 +140,9 @@ mod tests {
         other_kind.nats.client_info.kind = "Leafnode".into();
         let mut with_chain = base.clone();
         with_chain.nats.client_tls = Some(ClientTls {
-            verified_chains: vec![vec!["-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----".into()]],
+            verified_chains: vec![vec![
+                "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----".into(),
+            ]],
             ..ClientTls::default()
         });
         let mut only_presented = base.clone();

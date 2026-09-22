@@ -34,11 +34,12 @@ async fn start() -> Result<(), &'static str> {
         tracing::error!(error = %e, "configuration");
         "malformed_configuration"
     })?;
-    let signer = ResponseSigner::from_seed(config.signing_seed.expose_secret(), config.max_exp_secs)
-        .map_err(|e| {
-            tracing::error!(error = %e, "signing seed");
-            "malformed_configuration"
-        })?;
+    let signer =
+        ResponseSigner::from_seed(config.signing_seed.expose_secret(), config.max_exp_secs)
+            .map_err(|e| {
+                tracing::error!(error = %e, "signing seed");
+                "malformed_configuration"
+            })?;
     let xkey = config
         .xkey_seed
         .as_ref()
@@ -72,10 +73,13 @@ async fn start() -> Result<(), &'static str> {
         host = config.host_url.as_str(),
         "auth bridge configured"
     );
-    let client = options.connect(config.nats_url.as_str()).await.map_err(|e| {
-        tracing::error!(error = %e, "NATS connect");
-        "nats_unreachable"
-    })?;
+    let client = options
+        .connect(config.nats_url.as_str())
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "NATS connect");
+            "nats_unreachable"
+        })?;
     run(client, core).await.map_err(|e| {
         tracing::error!(error = %e, "serve");
         "serve_failed"

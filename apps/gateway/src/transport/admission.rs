@@ -41,7 +41,13 @@ pub fn require_service_caller(
     purpose: BindingPurpose,
     operation: &str,
 ) -> Result<ServiceCaller, Response> {
-    admit(st, extensions, purpose, operation, &BindingScope::Deployment)
+    admit(
+        st,
+        extensions,
+        purpose,
+        operation,
+        &BindingScope::Deployment,
+    )
 }
 
 /// Admit a service caller acting for a tenant. The binding must be scoped to

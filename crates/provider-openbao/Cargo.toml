@@ -7,6 +7,10 @@ description = "OpenBao adapter"
 
 [dependencies]
 opensesame-domain = { path = "../domain" }
+# ADR 0130 (SW-CONNECTOR, CONN-OPENBAO): the mTLS client profile a certificate
+# login is made over. This crate builds no TLS configuration of its own.
+opensesame-transport-security = { path = "../transport-security" }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -18,3 +22,7 @@ url = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+# Disposable PKI for the certificate-auth tests, and the pinned `bao` binary
+# fixture for the real (ignored by default) OpenBao run.
+opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+tempfile = { workspace = true }

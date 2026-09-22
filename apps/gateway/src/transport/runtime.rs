@@ -228,9 +228,8 @@ fn load_trust(
 ) -> Result<TrustBundle, TransportError> {
     match spec {
         NativeTrustSpec::PemFile { path, kind } => {
-            let pem = std::fs::read(path).map_err(|e| {
-                TransportError::malformed(format!("client trust bundle: {e}"))
-            })?;
+            let pem = std::fs::read(path)
+                .map_err(|e| TransportError::malformed(format!("client trust bundle: {e}")))?;
             let bundle = TrustBundle::from_pem(profile.clone(), *kind, &pem)?;
             match &listener.crl_file {
                 Some(crl) => {
