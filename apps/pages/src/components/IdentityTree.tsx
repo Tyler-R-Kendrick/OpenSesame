@@ -3,17 +3,14 @@ import { IDENTITY_VIEWS } from "../lib/section-views.js";
 import { identityPageTree } from "../sections/identity/page-tree.js";
 import { useIdentityRailSnapshot } from "../sections/identity/use-local-directory.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
-import { SECTIONS, SectionRow } from "./RailRows.js";
+import { SectionRow, type SectionTreeProps } from "./RailRows.js";
 
 export function IdentityTree({
+  section,
   open,
   active,
   onToggle,
-}: {
-  open: boolean;
-  active: boolean;
-  onToggle: () => void;
-}) {
+}: SectionTreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();
   const view =
@@ -23,7 +20,7 @@ export function IdentityTree({
   return (
     <>
       <SectionRow
-        section={SECTIONS[3]}
+        section={section}
         open={open}
         active={active}
         branch={open}

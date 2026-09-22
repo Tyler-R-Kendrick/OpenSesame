@@ -1,18 +1,18 @@
+import { type ItemKindRow, itemKindsSnapshot } from "../lib/item-kinds.js";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
-import type { Folder, ItemKind, VaultItem } from "../lib/vault/model.js";
+import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
-import { KIND_SEGMENTS } from "./RailRows.js";
 
 export type VaultCounts = {
   all: number;
   favorites: number;
   trash: number;
-  byKind: Map<ItemKind, number>;
+  byKind: Map<string, number>;
   byFolder: Map<string, number>;
 };
 
 export function foldersForKind(
-  kind: ItemKind,
+  kind: string,
   items: VaultItem[],
   folders: Folder[],
 ) {
@@ -30,7 +30,8 @@ export function foldersForKind(
 export function uniqueFolderKind(
   items: VaultItem[],
   folderId: string,
-): ItemKind | null {
+  kinds: readonly ItemKindRow[] = itemKindsSnapshot(),
+): string | null {
   const kinds = new Set(
     items
       .filter((item) => item.deletedAt === null && item.folderId === folderId)
@@ -38,7 +39,7 @@ export function uniqueFolderKind(
   );
   if (kinds.size !== 1) return null;
   const kind = [...kinds][0];
-  return kind && KIND_SEGMENTS.some((entry) => entry.id === kind) ? kind : null;
+  return kind && kinds.some((entry) => entry.id === kind) ? kind : null;
 }
 
 export function VaultRail({
@@ -46,14 +47,17 @@ export function VaultRail({
   folders,
   counts,
   selectedTo,
+  kinds,
 }: {
   items: VaultItem[];
   folders: Folder[];
   counts: VaultCounts;
   selectedTo: string;
+  /** Core kinds plus approved `item-kind` contributions (SURFACE-08). */
+  kinds: readonly ItemKindRow[];
 }) {
   const nested = new Set(
-    KIND_SEGMENTS.flatMap(({ id }) =>
+    kinds.flatMap(({ id }) =>
       foldersForKind(id, items, folders).map((folder) => folder.id),
     ),
   );
@@ -69,7 +73,7 @@ export function VaultRail({
         level={2}
         current={selectedTo}
       />
-      {KIND_SEGMENTS.map(({ id, segment }) => (
+      {kinds.map(({ id, segment }) => (
         <KindFilter
           key={id}
           id={id}
@@ -123,7 +127,7 @@ function KindFilter({
   items,
   selectedTo,
 }: {
-  id: ItemKind;
+  id: string;
   segment: string;
   count: number;
   folders: Folder[];
