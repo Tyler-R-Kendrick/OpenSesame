@@ -42,7 +42,10 @@ export const CAPABILITY_PATH_ALIASES: ReadonlyArray<
   [INSTANCE_POLICY_DISPLAY_PATH, INSTANCE_POLICY_RESOURCE_KEY],
   ["capabilities/instance-policy.yml", INSTANCE_POLICY_RESOURCE_KEY],
   [INSTALLATION_SELECTION_DISPLAY_PATH, INSTALLATION_SELECTION_RESOURCE_KEY],
-  ["capabilities/installation-selection.yml", INSTALLATION_SELECTION_RESOURCE_KEY],
+  [
+    "capabilities/installation-selection.yml",
+    INSTALLATION_SELECTION_RESOURCE_KEY,
+  ],
   [VAULT_RESTRICTION_DISPLAY_PATH, VAULT_RESTRICTION_RESOURCE_KEY],
   ["capabilities/vault-restriction.yml", VAULT_RESTRICTION_RESOURCE_KEY],
   [EFFECTIVE_PLAN_DISPLAY_PATH, EFFECTIVE_PLAN_RESOURCE_KEY],
@@ -50,7 +53,8 @@ export const CAPABILITY_PATH_ALIASES: ReadonlyArray<
 ];
 
 /** Schema identities carried by every projected document. */
-export const INSTANCE_POLICY_SCHEMA_ID = "opensesame.instance-capability-policy";
+export const INSTANCE_POLICY_SCHEMA_ID =
+  "opensesame.instance-capability-policy";
 export const INSTALLATION_SELECTION_SCHEMA_ID =
   "opensesame.installation-capability-selection";
 export const VAULT_RESTRICTION_SCHEMA_ID =
@@ -80,4 +84,5 @@ export const MAX_CAPABILITY_DOCUMENT_BYTES = 64 * 1024;
 export const MAX_CAPABILITY_DOCUMENT_DEPTH = 8;
 
 /** File name of the downloaded instance configuration. */
-export const INSTANCE_EXPORT_FILE_NAME = "opensesame-instance-configuration.yaml";
+export const INSTANCE_EXPORT_FILE_NAME =
+  "opensesame-instance-configuration.yaml";

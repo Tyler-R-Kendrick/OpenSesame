@@ -57,8 +57,8 @@ import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { FrontDoor } from "./FrontDoor.js";
 import { SetupScreen, type SetupStep } from "./SetupScreen.js";
-import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { VaultsScreen } from "./VaultsScreen.js";
+import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
@@ -532,7 +532,9 @@ function UnlockForm({
           ) : null}
         </div>
 
-        <RequirementsGate onOpenSetup={(join) => onOpenSetup("capabilities", join)} />
+        <RequirementsGate
+          onOpenSetup={(join) => onOpenSetup("capabilities", join)}
+        />
         {/* Setup left no way in: one sentence and the road that fixes it. */}
         {nothingSignsIn && (signInStage || showSignIn) ? (
           <div className="note unlock__unset">

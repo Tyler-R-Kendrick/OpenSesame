@@ -31,8 +31,8 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
-import { landFocus } from "../lib/focus.js";
 import { useContributions } from "../lib/configuration/capabilities-ports.js";
+import { landFocus } from "../lib/focus.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";

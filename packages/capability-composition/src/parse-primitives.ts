@@ -4,7 +4,11 @@
  * Each check receives a `Report` callback instead of the reader so this
  * module never imports `ObjectReader` and the dependency runs one way.
  */
-import { type BoundaryValue, type JsonValue, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonValue,
+  isString,
+} from "@opensesame/os-domain";
 import type { DiagnosticCode } from "./diagnostics.js";
 import { MAX_REVISION_LENGTH, isCapabilityId } from "./ids.js";
 
@@ -14,7 +18,11 @@ export const MAX_LIST_IDS = 256;
 export const MAX_STRING_LIST = 256;
 export const MAX_ORIGIN_LENGTH = 256;
 
-export type Report = (code: DiagnosticCode, path: string, message: string) => void;
+export type Report = (
+  code: DiagnosticCode,
+  path: string,
+  message: string,
+) => void;
 
 export type StringBounds = Readonly<{
   min: number;
@@ -56,11 +64,7 @@ export function checkString(
     return undefined;
   }
   if (bounds.pattern !== undefined && !bounds.pattern.test(value)) {
-    report(
-      bounds.code ?? "INVALID_VALUE",
-      path,
-      `\`${key}\` is malformed`,
-    );
+    report(bounds.code ?? "INVALID_VALUE", path, `\`${key}\` is malformed`);
     return undefined;
   }
   return value;
@@ -98,11 +102,7 @@ export function checkIdList(
       return;
     }
     if (out.includes(entry)) {
-      report(
-        "DUPLICATE_ID",
-        entryPath,
-        `\`${entry}\` repeats in \`${key}\``,
-      );
+      report("DUPLICATE_ID", entryPath, `\`${entry}\` repeats in \`${key}\``);
       valid = false;
       return;
     }

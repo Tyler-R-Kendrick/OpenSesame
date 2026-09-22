@@ -52,7 +52,10 @@ export function capabilityStatus(
   if (lifecycle === "active") return { tone: "ok", label: "active" };
   if (lifecycle === "loading") return { tone: "ok", label: "starting" };
   if (state.approved) return { tone: "ok", label: "approved" };
-  if (state.reasons.includes("CONSENT_REQUIRED") || lifecycle === "consent-required") {
+  if (
+    state.reasons.includes("CONSENT_REQUIRED") ||
+    lifecycle === "consent-required"
+  ) {
     return { tone: "warn", label: "consent required" };
   }
   if (lifecycle === "disabled") return { tone: "idle", label: "disabled" };

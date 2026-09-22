@@ -43,7 +43,9 @@ export function InstallationRequirements({
       <p className="capset__title">{`${instanceId} requires`}</p>
       <ul className="reqs__list">
         {required.map((id) => {
-          const descriptor = catalog.capabilities.find((entry) => entry.id === id);
+          const descriptor = catalog.capabilities.find(
+            (entry) => entry.id === id,
+          );
           return (
             <li key={id} className="reqs__item">
               <StatusMark tone="warn" label="acceptance required" />

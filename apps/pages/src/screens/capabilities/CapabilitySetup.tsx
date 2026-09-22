@@ -13,10 +13,21 @@
 
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useEffect, useRef } from "react";
-import { IconAuthority, IconCheck, IconDownload, IconLogin, IconSettings, IconUpload, IconX } from "../../components/Icons.js";
+import {
+  IconAuthority,
+  IconCheck,
+  IconDownload,
+  IconLogin,
+  IconSettings,
+  IconUpload,
+  IconX,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { exportInstanceConfiguration } from "../../lib/configuration/capabilities-export.js";
-import { PRESETS, PUBLICATION_CAPABILITIES } from "../../lib/configuration/capabilities-ports.js";
+import {
+  PRESETS,
+  PUBLICATION_CAPABILITIES,
+} from "../../lib/configuration/capabilities-ports.js";
 import { landFocus } from "../../lib/focus.js";
 import { CapabilityCard } from "./CapabilityCard.js";
 import { CapabilityReview } from "./CapabilityReview.js";
@@ -24,7 +35,10 @@ import { InstallationRequirements } from "./InstallationRequirements.js";
 import { PurposeCards } from "./PurposeCards.js";
 import { deploymentConfigurationYaml } from "./deployment-config.js";
 import { saveTextFile } from "./download.js";
-import { type CapabilitySetupModel, useCapabilitySetup } from "./useCapabilitySetup.js";
+import {
+  type CapabilitySetupModel,
+  useCapabilitySetup,
+} from "./useCapabilitySetup.js";
 import "./capabilities.css";
 
 const ROADS: ReadonlyArray<{
@@ -33,13 +47,36 @@ const ROADS: ReadonlyArray<{
   kind: string;
   Icon: typeof IconCheck;
 }> = [
-  { id: "minimal", name: "Use the minimal configuration", kind: "core only, nothing optional", Icon: IconCheck },
-  { id: "customize", name: "Customize this installation", kind: "choose a purpose, then each capability", Icon: IconSettings },
-  { id: "join", name: "Join an existing instance", kind: "accept what its operator requires", Icon: IconLogin },
+  {
+    id: "minimal",
+    name: "Use the minimal configuration",
+    kind: "core only, nothing optional",
+    Icon: IconCheck,
+  },
+  {
+    id: "customize",
+    name: "Customize this installation",
+    kind: "choose a purpose, then each capability",
+    Icon: IconSettings,
+  },
+  {
+    id: "join",
+    name: "Join an existing instance",
+    kind: "accept what its operator requires",
+    Icon: IconLogin,
+  },
 ];
 
-function Roads({ model, firstRoad }: { model: CapabilitySetupModel; firstRoad: React.RefObject<HTMLButtonElement | null> }) {
-  const offered = ROADS.filter((road) => road.id !== "join" || model.requiredNotAccepted.length > 0);
+function Roads({
+  model,
+  firstRoad,
+}: {
+  model: CapabilitySetupModel;
+  firstRoad: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const offered = ROADS.filter(
+    (road) => road.id !== "join" || model.requiredNotAccepted.length > 0,
+  );
   return (
     <fieldset className="capset__roads" aria-label="Roads in">
       {offered.map((road, at) => (
@@ -66,11 +103,19 @@ function Roads({ model, firstRoad }: { model: CapabilitySetupModel; firstRoad: R
 
 function Tools({ model }: { model: CapabilitySetupModel }) {
   const approved = model.snapshot.plan?.approvedCapabilities ?? [];
-  const publishable = PUBLICATION_CAPABILITIES.some((id) => approved.includes(id));
+  const publishable = PUBLICATION_CAPABILITIES.some((id) =>
+    approved.includes(id),
+  );
   return (
     <div className="capset__tools">
       {model.stage === "cards" ? (
-        <button type="button" className="icon-btn" aria-label="Cancel" title="Cancel" onClick={model.cancel}>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Cancel"
+          title="Cancel"
+          onClick={model.cancel}
+        >
           <IconX size={18} />
         </button>
       ) : null}
@@ -92,7 +137,12 @@ function Tools({ model }: { model: CapabilitySetupModel }) {
           className="icon-btn"
           aria-label="Publish deployment configuration"
           title="Publish deployment configuration"
-          onClick={() => saveTextFile("os-runtime-config.capabilities.yaml", deploymentConfigurationYaml(model.snapshot))}
+          onClick={() =>
+            saveTextFile(
+              "os-runtime-config.capabilities.yaml",
+              deploymentConfigurationYaml(model.snapshot),
+            )
+          }
         >
           <IconUpload size={18} />
         </button>
@@ -115,8 +165,11 @@ function Tools({ model }: { model: CapabilitySetupModel }) {
 
 function Cards({ model }: { model: CapabilitySetupModel }) {
   const { catalog, draft, snapshot } = model;
-  const titleOf = (id: CapabilityId) => catalog.capabilities.find((entry) => entry.id === id)?.title ?? id;
-  const ordered = [...catalog.capabilities].sort((a, b) => Number(b.tier === "core") - Number(a.tier === "core"));
+  const titleOf = (id: CapabilityId) =>
+    catalog.capabilities.find((entry) => entry.id === id)?.title ?? id;
+  const ordered = [...catalog.capabilities].sort(
+    (a, b) => Number(b.tier === "core") - Number(a.tier === "core"),
+  );
   return (
     <ul className="capcards" aria-label="Capabilities">
       {ordered.map((descriptor) => (
@@ -125,7 +178,12 @@ function Cards({ model }: { model: CapabilitySetupModel }) {
           descriptor={descriptor}
           state={snapshot.plan?.capabilities[descriptor.id]}
           lifecycle={snapshot.lifecycle[descriptor.id]}
-          selected={draft ? draft.roots.includes(descriptor.id) || draft.acceptedRequired.includes(descriptor.id) : null}
+          selected={
+            draft
+              ? draft.roots.includes(descriptor.id) ||
+                draft.acceptedRequired.includes(descriptor.id)
+              : null
+          }
           chosenAlternatives={draft?.alternatives ?? {}}
           titleOf={titleOf}
           onToggle={draft ? model.edit.toggle : undefined}
@@ -139,7 +197,12 @@ function Cards({ model }: { model: CapabilitySetupModel }) {
 function Outcome({ model }: { model: CapabilitySetupModel }) {
   const outcome = model.outcome;
   if (!outcome) return null;
-  const tone = outcome.status === "durable" ? "ok" : outcome.status === "session-only" ? "warn" : "err";
+  const tone =
+    outcome.status === "durable"
+      ? "ok"
+      : outcome.status === "session-only"
+        ? "warn"
+        : "err";
   const label =
     outcome.status === "durable"
       ? "applied · saved on this device"
@@ -169,21 +232,34 @@ export function CapabilitySetup({ join = false }: { join?: boolean }) {
   }, [model.stage]);
   return (
     <div className="capset" data-testid="capability-setup">
-      {model.stage === "roads" ? <Roads model={model} firstRoad={firstRoad} /> : null}
+      {model.stage === "roads" ? (
+        <Roads model={model} firstRoad={firstRoad} />
+      ) : null}
       {model.stage === "join" ? (
         <InstallationRequirements
           required={model.requiredNotAccepted}
           catalog={model.catalog}
-          instanceId={model.snapshot.plan?.identity.instanceId ?? "this instance"}
+          instanceId={
+            model.snapshot.plan?.identity.instanceId ?? "this instance"
+          }
           onAccept={model.accept}
           onDecline={model.cancel}
         />
       ) : null}
-      {(model.stage === "purpose" || model.stage === "cards") && !model.managed ? (
-        <PurposeCards presets={PRESETS} chosen={model.draft?.preset ?? null} onChoose={model.edit.preset} />
+      {(model.stage === "purpose" || model.stage === "cards") &&
+      !model.managed ? (
+        <PurposeCards
+          presets={PRESETS}
+          chosen={model.draft?.preset ?? null}
+          onChoose={model.edit.preset}
+        />
       ) : null}
-      {model.stage === "cards" || model.stage === "outcome" ? <Tools model={model} /> : null}
-      {model.stage === "cards" || model.stage === "outcome" ? <Cards model={model} /> : null}
+      {model.stage === "cards" || model.stage === "outcome" ? (
+        <Tools model={model} />
+      ) : null}
+      {model.stage === "cards" || model.stage === "outcome" ? (
+        <Cards model={model} />
+      ) : null}
       {model.stage === "review" && model.review ? (
         <CapabilityReview
           review={model.review}

@@ -114,7 +114,9 @@ export function CapabilityCard({
   const status = capabilityStatus(state, lifecycle, selected);
   const core = descriptor.tier === "core";
   const pickable =
-    !core && Boolean(onToggle) && (state ? state.permitted && state.distributed : true);
+    !core &&
+    Boolean(onToggle) &&
+    (state ? state.permitted && state.distributed : true);
   const on = core || selected === true;
   return (
     <li
@@ -152,7 +154,10 @@ export function CapabilityCard({
         </div>
       ) : null}
       {on && descriptor.alternatives.length > 0 && onChooseAlternative ? (
-        <div className="capcard__alts" aria-label={`Choices for ${descriptor.title}`}>
+        <div
+          className="capcard__alts"
+          aria-label={`Choices for ${descriptor.title}`}
+        >
           {descriptor.alternatives.flatMap((slot) =>
             slot.oneOf.map((id) => {
               const picked = chosenAlternatives[slot.slot] === id;

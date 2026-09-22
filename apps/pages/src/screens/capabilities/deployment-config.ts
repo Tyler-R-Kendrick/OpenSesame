@@ -8,7 +8,9 @@ import { overlapCast } from "@opensesame/os-domain";
 import { documentToYaml } from "../../lib/configuration/capabilities-document.js";
 import type { CompositionSnapshot } from "../../lib/configuration/capabilities-ports.js";
 
-export function deploymentConfigurationYaml(snapshot: CompositionSnapshot): string {
+export function deploymentConfigurationYaml(
+  snapshot: CompositionSnapshot,
+): string {
   return documentToYaml(
     overlapCast({
       capabilityComposition: {

@@ -3,134 +3,165 @@
  *
  * Navigation, search, commands, shortcuts, settings categories, tutorials
  * and item creation all derive from the effective plan's contributions
- * (ownership.md §4.2). This module is the one seam they read through: a
- * generation-fenced, revocable set per `ContributionKind`, sorted by `order`
- * then id, exposed as a React hook and as a synchronous snapshot for the
- * places that cannot call a hook (the keymap handler, the crumb builders,
- * the WebMCP tool table).
+ * (ownership.md §4.2). This module is the one seam they read through, and it
+ * is a *face* on S06's registry (`lib/capabilities/registry.ts`), not a
+ * second registry: every production entry arrives through
+ * `registerContribution(kind, entry, lease)` there, generation-fenced and
+ * sorted by `order` then id.
  *
- * The registrar contract is S06's (`lib/capabilities/registry.ts`):
- * `registerContribution(kind, entry, lease)` and `useContributions(kind)`.
- * Until that file lands, the store here is the implementation; once it does,
- * `registerContribution`/`useContributions`/`contributionsSnapshot` become
- * re-exports of it and nothing that imports this module changes. Only one
- * registry may exist — this is not a second one, it is the consumer face.
+ * What this adds is a synchronous snapshot for the places that cannot call a
+ * hook (the keymap handler, the crumb builders, the WebMCP tool table, the
+ * tutorial registries), and a test-only side channel that lets a jsdom test
+ * inject a contribution without booting a store, resolving a plan and
+ * minting a lease. Nothing in production code calls the test channel.
  */
 
 import type { ContributionKind } from "@opensesame/capability-composition";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import {
+  contributions,
+  useContributions as useRegistryContributions,
+} from "./capabilities/registry.js";
 import type { ContributionEntry } from "./capabilities/runtime-contract.js";
 
-type Registered<K extends ContributionKind> = Readonly<{
+type Injected<K extends ContributionKind> = Readonly<{
   kind: K;
   entry: ContributionEntry<K>;
-  /** Registration order, the tie-breaker after `order` and id. */
   seq: number;
 }>;
 
-const registered = new Map<ContributionKind, Registered<ContributionKind>[]>();
-const snapshots = new Map<ContributionKind, readonly unknown[]>();
-const listeners = new Set<() => void>();
+const injected = new Map<ContributionKind, Injected<ContributionKind>[]>();
+const injectedListeners = new Set<() => void>();
+let injectedVersion = 0;
 let seq = 0;
 
 const EMPTY: readonly never[] = Object.freeze([]);
 
+type Merged = { registry: readonly unknown[]; version: number; out: readonly unknown[] };
+const merged = new Map<ContributionKind, Merged>();
+
 function orderOf(entry: unknown): number {
-  if (entry !== null && typeof entry === "object" && "order" in entry) {
-    const value = (entry as { order?: unknown }).order;
-    return typeof value === "number" ? value : 0;
-  }
-  return 0;
+  if (entry === null || typeof entry !== "object") return 0;
+  const value = (entry as { order?: unknown }).order;
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function idOf(entry: unknown): string {
   if (entry === null || typeof entry !== "object") return "";
   const record = entry as Record<string, unknown>;
-  for (const field of ["id", "path", "key", "kind", "name"]) {
+  for (const field of ["id", "path", "key", "name", "kind"]) {
     const value = record[field];
     if (typeof value === "string") return value;
   }
   return "";
 }
 
-function compare(
-  left: Registered<ContributionKind>,
-  right: Registered<ContributionKind>,
-): number {
-  const byOrder = orderOf(left.entry) - orderOf(right.entry);
+function compare(left: unknown, right: unknown): number {
+  const byOrder = orderOf(left) - orderOf(right);
   if (byOrder !== 0) return byOrder;
-  const byId = idOf(left.entry).localeCompare(idOf(right.entry));
-  if (byId !== 0) return byId;
-  return left.seq - right.seq;
+  return idOf(left).localeCompare(idOf(right));
 }
 
-function announce(): void {
-  for (const listener of [...listeners]) listener();
+function injectedOf<K extends ContributionKind>(
+  kind: K,
+): readonly ContributionEntry<K>[] {
+  const list = injected.get(kind);
+  if (!list || list.length === 0) return EMPTY;
+  return list.map((record) => record.entry) as ContributionEntry<K>[];
 }
 
 /**
- * Adds one contribution. Returns its revoke, idempotent. Module runtimes call
- * this through `ApprovedCapabilityContext.register`; tests call it directly.
+ * Every live contribution of `kind`, sorted; a stable array while neither
+ * the registry's generation-fenced set nor the injected set has changed.
  */
-export function registerContribution<K extends ContributionKind>(
+export function contributionsSnapshot<K extends ContributionKind>(
+  kind: K,
+): readonly ContributionEntry<K>[] {
+  const fromRegistry = contributions(kind);
+  const cached = merged.get(kind);
+  if (
+    cached &&
+    cached.registry === fromRegistry &&
+    cached.version === injectedVersion
+  ) {
+    return cached.out as readonly ContributionEntry<K>[];
+  }
+  const extra = injectedOf(kind);
+  const out =
+    extra.length === 0
+      ? fromRegistry
+      : Object.freeze([...fromRegistry, ...extra].sort(compare));
+  merged.set(kind, { registry: fromRegistry, version: injectedVersion, out });
+  return out as readonly ContributionEntry<K>[];
+}
+
+function subscribeInjected(listener: () => void): () => void {
+  injectedListeners.add(listener);
+  return () => {
+    injectedListeners.delete(listener);
+  };
+}
+
+/**
+ * Notified when the test channel changes. The registry announces its own
+ * changes through `useContributions`; a synchronous reader that needs to
+ * know about those compares snapshot references instead (they are stable
+ * per registry version), which is what the tutorial registries do.
+ */
+export function subscribeContributions(listener: () => void): () => void {
+  return subscribeInjected(listener);
+}
+
+/** Generation-fenced hook over the same set the sync accessor returns. */
+export function useContributions<K extends ContributionKind>(
+  kind: K,
+): readonly ContributionEntry<K>[] {
+  const fromRegistry = useRegistryContributions(kind);
+  const version = useSyncExternalStore(
+    subscribeInjected,
+    () => injectedVersion,
+    () => injectedVersion,
+  );
+  return useMemo(
+    () => contributionsSnapshot(kind),
+    // The snapshot is keyed by exactly these two; the deps say when it moves.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: fromRegistry/version are the snapshot's cache keys
+    [kind, fromRegistry, version],
+  );
+}
+
+function announceInjected(): void {
+  injectedVersion += 1;
+  for (const listener of [...injectedListeners]) listener();
+}
+
+/**
+ * Test-only: add a contribution beside the registry's. Returns its revoke,
+ * idempotent. A jsdom test uses this where a module's `activate` would have
+ * registered under a lease; production code never calls it.
+ */
+export function registerContributionForTest<K extends ContributionKind>(
   kind: K,
   entry: ContributionEntry<K>,
 ): () => void {
-  const record: Registered<K> = { kind, entry, seq: seq++ };
-  const list = registered.get(kind) ?? [];
-  registered.set(kind, [...list, record]);
-  snapshots.delete(kind);
-  announce();
+  const record: Injected<K> = { kind, entry, seq: seq++ };
+  injected.set(kind, [...(injected.get(kind) ?? []), record]);
+  announceInjected();
   let revoked = false;
   return () => {
     if (revoked) return;
     revoked = true;
-    const live = registered.get(kind);
+    const live = injected.get(kind);
     if (!live) return;
     const remaining = live.filter((candidate) => candidate !== record);
-    if (remaining.length === 0) registered.delete(kind);
-    else registered.set(kind, remaining);
-    snapshots.delete(kind);
-    announce();
+    if (remaining.length === 0) injected.delete(kind);
+    else injected.set(kind, remaining);
+    announceInjected();
   };
 }
 
-/** Every live contribution of `kind`, sorted; a stable array between changes. */
-export function contributionsSnapshot<K extends ContributionKind>(
-  kind: K,
-): readonly ContributionEntry<K>[] {
-  const cached = snapshots.get(kind);
-  if (cached) return cached as readonly ContributionEntry<K>[];
-  const live = registered.get(kind);
-  if (!live || live.length === 0) return EMPTY;
-  const sorted = Object.freeze(
-    [...live].sort(compare).map((record) => record.entry),
-  ) as readonly ContributionEntry<K>[];
-  snapshots.set(kind, sorted);
-  return sorted;
-}
-
-export function subscribeContributions(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-/** Generation-fenced hook over the same snapshot the sync accessor returns. */
-export function useContributions<K extends ContributionKind>(
-  kind: K,
-): readonly ContributionEntry<K>[] {
-  return useSyncExternalStore(
-    subscribeContributions,
-    () => contributionsSnapshot(kind),
-    () => contributionsSnapshot(kind),
-  );
-}
-
-/** Drops every contribution. Tests only. */
+/** Test-only: drop every injected contribution. */
 export function resetContributionsForTest(): void {
-  registered.clear();
-  snapshots.clear();
-  announce();
+  injected.clear();
+  announceInjected();
 }

@@ -17,9 +17,13 @@ import type {
   InstallationCapabilitySelection,
   NetworkPolicy,
 } from "@opensesame/capability-composition";
-import { type BoundaryValue, isString, overlapCast } from "@opensesame/os-domain";
-import { compositionStore } from "../capabilities/store.js";
+import {
+  type BoundaryValue,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { CommitOutcome } from "../capabilities/store-types.js";
+import { compositionStore } from "../capabilities/store.js";
 
 export {
   compositionStore,
@@ -64,8 +68,9 @@ export type CapabilityPreset = Readonly<{
 export function previewPlan(
   draft: InstallationCapabilitySelection,
 ): EffectivePlan {
-  const store: { preview?: (d: InstallationCapabilitySelection) => EffectivePlan } =
-    overlapCast(compositionStore);
+  const store: {
+    preview?: (d: InstallationCapabilitySelection) => EffectivePlan;
+  } = overlapCast(compositionStore);
   if (typeof store.preview !== "function") {
     throw new Error("The composition store cannot preview a draft yet.");
   }
@@ -105,6 +110,7 @@ export function viewOutcome(
       message: "",
     };
   }
-  if (record.status === "conflict") return { status: "conflict", message: reason };
+  if (record.status === "conflict")
+    return { status: "conflict", message: reason };
   return { status: "refused", message: reason };
 }

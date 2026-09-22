@@ -59,7 +59,8 @@ export function defaultCapabilityPorts(
     snapshot: () => compositionStore.getSnapshot(),
     catalog: () => CAPABILITY_CATALOG,
     previewPlan,
-    commitSelection: (draft, receipt) => compositionStore.commit(draft, receipt),
+    commitSelection: (draft, receipt) =>
+      compositionStore.commit(draft, receipt),
     invalidate: (reason) => compositionStore.invalidate(reason),
     now: () => new Date().toISOString(),
     readKey: kvGet,
@@ -106,7 +107,8 @@ export function capabilityResourceEditable(
   snapshot: CompositionSnapshot,
 ): boolean {
   if (kind === "effective-plan") return false;
-  if (kind === "instance-policy") return snapshot.provenance === "personal-local";
+  if (kind === "instance-policy")
+    return snapshot.provenance === "personal-local";
   return true;
 }
 
@@ -155,9 +157,16 @@ export function emptyLocalPolicy(instanceId: string): InstanceCapabilityPolicy {
     instanceId,
     revision: "0",
     presetProvenance: null,
-    capabilities: { default: "deny", required: [], optional: [], prohibited: [] },
+    capabilities: {
+      default: "deny",
+      required: [],
+      optional: [],
+      prohibited: [],
+    },
     network: { externalServices: "allow", allowedServiceOrigins: [] },
-    updates: { unknownCapabilities: "deny", expandedExposure: "require-approval" },
+    updates: {
+      unknownCapabilities: "deny",
+      expandedExposure: "require-approval",
+    },
   };
 }
-

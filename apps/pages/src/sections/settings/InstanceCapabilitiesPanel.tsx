@@ -14,10 +14,11 @@
 import { useState } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
 import { saveLocalInstancePolicy } from "../../lib/configuration/capabilities-adapter.js";
+import { effectivePlanToYaml } from "../../lib/configuration/capabilities-document.js";
 import {
   CAPABILITY_CATALOG,
-  PRESETS,
   type CapabilityPreset,
+  PRESETS,
   explainCapability,
   presetToInstancePolicy,
   useComposition,
@@ -43,7 +44,9 @@ export function InstanceCapabilitiesPanel() {
   const [view, setView] = useState<CapabilityView>("visual");
   const [notice, setNotice] = useState<string | null>(null);
   const operator =
-    snapshot.provenance === "personal-local" && tomb === PERSONAL_TOMB && !guest;
+    snapshot.provenance === "personal-local" &&
+    tomb === PERSONAL_TOMB &&
+    !guest;
   if (!operator) return null;
   const plan = snapshot.plan;
   async function choosePreset(preset: CapabilityPreset) {
@@ -52,7 +55,11 @@ export function InstanceCapabilitiesPanel() {
     try {
       await saveLocalInstancePolicy(
         ports,
-        presetToInstancePolicy(preset, instanceId, `preset-${preset.id}-${instancePanelSeams.now()}`),
+        presetToInstancePolicy(
+          preset,
+          instanceId,
+          `preset-${preset.id}-${instancePanelSeams.now()}`,
+        ),
       );
       setNotice(null);
     } catch (caught) {
@@ -60,7 +67,10 @@ export function InstanceCapabilitiesPanel() {
     }
   }
   return (
-    <div className="panel__body capspanel" data-testid="instance-capabilities-panel">
+    <div
+      className="panel__body capspanel"
+      data-testid="instance-capabilities-panel"
+    >
       <div className="capspanel__head">
         <h3 className="capset__title">Instance policy</h3>
         <CapabilitiesViewToggle view={view} onChange={setView} />
@@ -78,25 +88,42 @@ export function InstanceCapabilitiesPanel() {
             chosen={snapshot.policy?.presetProvenance?.id ?? null}
             onChoose={(preset) => void choosePreset(preset)}
           />
-          <div role="list" aria-label="Permitted catalog">
+          <ul className="capspanel" aria-label="Permitted catalog">
             {CAPABILITY_CATALOG.capabilities.map((descriptor) => {
-              const explanation = plan ? explainCapability(plan, descriptor.id) : null;
-              const status = capabilityStatus(explanation?.state, snapshot.lifecycle[descriptor.id]);
+              const explanation = plan
+                ? explainCapability(plan, descriptor.id)
+                : null;
+              const status = capabilityStatus(
+                explanation?.state,
+                snapshot.lifecycle[descriptor.id],
+              );
               return (
-                <div key={descriptor.id} className="capspanel__row" role="listitem">
+                <div
+                  key={descriptor.id}
+                  className="capspanel__row"
+                  role="listitem"
+                >
                   <span className="capspanel__name">
                     <strong>{descriptor.title}</strong>
-                    <span>{explanation?.state.reasons.join(" · ") ?? "unresolved"}</span>
+                    <span>
+                      {explanation?.state.reasons.join(" · ") ?? "unresolved"}
+                    </span>
                   </span>
                   <StatusMark tone={status.tone} label={status.label} />
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </>
       ) : null}
-      {view === "source" ? <CapabilitySourceView kind="instance-policy" tomb={tomb} /> : null}
-      {view === "effective" ? <CapabilitySourceView kind="installation-selection" tomb={tomb} /> : null}
+      {view === "source" ? (
+        <CapabilitySourceView kind="instance-policy" tomb={tomb} />
+      ) : null}
+      {view === "effective" ? (
+        <pre className="capspanel__source" aria-label="Effective plan">
+          {plan ? effectivePlanToYaml(plan) : ""}
+        </pre>
+      ) : null}
     </div>
   );
 }

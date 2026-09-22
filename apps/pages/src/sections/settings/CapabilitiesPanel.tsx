@@ -26,7 +26,6 @@ import {
   viewOutcome,
 } from "../../lib/configuration/capabilities-ports.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import { CapabilityReview } from "../../screens/capabilities/CapabilityReview.js";
 import {
   alternativesFor,
   baseFromSnapshot,
@@ -34,8 +33,13 @@ import {
   draftToSelection,
   toggleRoot,
 } from "../../screens/capabilities/CapabilityDraft.js";
+import { CapabilityReview } from "../../screens/capabilities/CapabilityReview.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
-import { CapabilitySourceView, CapabilitiesViewToggle, type CapabilityView } from "./CapabilitiesPanelViews.js";
+import {
+  CapabilitiesViewToggle,
+  CapabilitySourceView,
+  type CapabilityView,
+} from "./CapabilitiesPanelViews.js";
 import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
 import "./capabilities.css";
 
@@ -47,13 +51,17 @@ export const capabilitiesPanelSeams = {
 function Rows({ onRetire }: { onRetire: (id: CapabilityId) => void }) {
   const snapshot = useComposition();
   return (
-    <div className="capspanel" role="list" aria-label="What this device uses">
+    <ul className="capspanel" aria-label="What this device uses">
       {CAPABILITY_CATALOG.capabilities.map((descriptor) => {
         const state = snapshot.plan?.capabilities[descriptor.id];
-        const status = capabilityStatus(state, snapshot.lifecycle[descriptor.id]);
-        const running = Boolean(state?.approved) && descriptor.tier === "optional";
+        const status = capabilityStatus(
+          state,
+          snapshot.lifecycle[descriptor.id],
+        );
+        const running =
+          Boolean(state?.approved) && descriptor.tier === "optional";
         return (
-          <div key={descriptor.id} className="capspanel__row" role="listitem">
+          <li key={descriptor.id} className="capspanel__row">
             <span className="capspanel__name">
               <strong>{descriptor.title}</strong>
               <span>{status.label}</span>
@@ -67,7 +75,9 @@ function Rows({ onRetire }: { onRetire: (id: CapabilityId) => void }) {
                     className="icon-btn icon-btn--sm icon-btn--danger"
                     aria-label={`Disable ${descriptor.title} now`}
                     title={`Disable ${descriptor.title} now`}
-                    onClick={() => void compositionStore.emergencyDisable(descriptor.id)}
+                    onClick={() =>
+                      void compositionStore.emergencyDisable(descriptor.id)
+                    }
                   >
                     <IconX size={14} />
                   </button>
@@ -83,10 +93,10 @@ function Rows({ onRetire }: { onRetire: (id: CapabilityId) => void }) {
                 </>
               ) : null}
             </span>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
@@ -122,19 +132,38 @@ export function CapabilitiesPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const selectionFor = (id: CapabilityId) =>
     draftToSelection(
-      toggleRoot({ ...draftFromSelection(snapshot.selection, "customize"), roots: snapshot.selection?.selectedOptional ?? [] }, id),
+      toggleRoot(
+        {
+          ...draftFromSelection(snapshot.selection, "customize"),
+          roots: snapshot.selection?.selectedOptional ?? [],
+        },
+        id,
+      ),
       baseFromSnapshot(snapshot, capabilitiesPanelSeams.now()),
     );
-  const review = retiring ? compositionStore.review(selectionFor(retiring)) : null;
+  const review = retiring
+    ? compositionStore.review(selectionFor(retiring))
+    : null;
   async function retire() {
     if (!retiring) return;
     setBusy(true);
     try {
       const selection = selectionFor(retiring);
       const plan = previewPlan(selection);
-      const receipt = buildConsentReceipt(plan, CAPABILITY_CATALOG, capabilitiesPanelSeams.now());
-      const outcome = viewOutcome(await compositionStore.commit(selection, receipt), snapshot.durability);
-      setNotice(outcome.status === "durable" || outcome.status === "session-only" ? null : `${outcome.status} · ${outcome.message}`);
+      const receipt = buildConsentReceipt(
+        plan,
+        CAPABILITY_CATALOG,
+        capabilitiesPanelSeams.now(),
+      );
+      const outcome = viewOutcome(
+        await compositionStore.commit(selection, receipt),
+        snapshot.durability,
+      );
+      setNotice(
+        outcome.status === "durable" || outcome.status === "session-only"
+          ? null
+          : `${outcome.status} · ${outcome.message}`,
+      );
     } finally {
       setBusy(false);
       setRetiring(null);
@@ -159,14 +188,18 @@ export function CapabilitiesPanel() {
           <CapabilityReview
             review={review}
             catalog={CAPABILITY_CATALOG}
-            alternativesFor={(root) => alternativesFor(root, CAPABILITY_CATALOG, snapshot.plan)}
+            alternativesFor={(root) =>
+              alternativesFor(root, CAPABILITY_CATALOG, snapshot.plan)
+            }
             busy={busy}
             onApply={() => void retire()}
             onCancel={() => setRetiring(null)}
             onReplace={() => setRetiring(null)}
           />
         ) : null}
-        {view === "source" ? <CapabilitySourceView kind="installation-selection" tomb={tomb} /> : null}
+        {view === "source" ? (
+          <CapabilitySourceView kind="installation-selection" tomb={tomb} />
+        ) : null}
         {view === "effective" ? (
           <pre className="capspanel__source" aria-label="Effective plan">
             {snapshot.plan ? effectivePlanToYaml(snapshot.plan) : ""}

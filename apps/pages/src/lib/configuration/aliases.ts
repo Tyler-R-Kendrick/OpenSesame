@@ -11,7 +11,10 @@ export const PREFS_PATH_ALIASES: readonly string[] = [
 ];
 
 const ALIAS_TO_KEY = new Map<string, string>([
-  ...PREFS_PATH_ALIASES.map((alias): [string, string] => [alias, PREFS_RESOURCE_KEY]),
+  ...PREFS_PATH_ALIASES.map((alias): [string, string] => [
+    alias,
+    PREFS_RESOURCE_KEY,
+  ]),
   ...CAPABILITY_PATH_ALIASES,
 ]);
 

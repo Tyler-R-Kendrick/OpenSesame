@@ -8,18 +8,18 @@
  */
 import { exposureDigest } from "./canonical.js";
 import {
+  MAX_DEPENDENCY_DEPTH,
+  checkGraph,
+  checkReferences,
+  hasDuplicates,
+} from "./catalog-graph.js";
+import {
   type Diagnostic,
   type ValidationResult,
   diagnostic,
   pushDiagnostic,
   validationOf,
 } from "./diagnostics.js";
-import {
-  MAX_DEPENDENCY_DEPTH,
-  checkGraph,
-  checkReferences,
-  hasDuplicates,
-} from "./catalog-graph.js";
 import { isCapabilityId, isModuleId, isUnitName } from "./ids.js";
 import type {
   CapabilityCatalog,

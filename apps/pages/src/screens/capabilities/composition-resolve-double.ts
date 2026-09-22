@@ -50,11 +50,18 @@ type Axes = {
 function axesOf(entry: CapabilityDescriptor, input: DoubleInput): Axes {
   const { policy, selection } = input;
   if (entry.tier === "core") {
-    return { permitted: true, required: false, selected: true, runtimeSupported: true, reasons: ["CORE"] };
+    return {
+      permitted: true,
+      required: false,
+      selected: true,
+      runtimeSupported: true,
+      reasons: ["CORE"],
+    };
   }
   const reasons: ReasonCode[] = [];
   const distributed = input.distributed.has(entry.id);
-  const prohibited = policy?.capabilities.prohibited.includes(entry.id) ?? false;
+  const prohibited =
+    policy?.capabilities.prohibited.includes(entry.id) ?? false;
   const listed =
     policy === null ||
     policy.capabilities.required.includes(entry.id) ||
@@ -64,7 +71,8 @@ function axesOf(entry: CapabilityDescriptor, input: DoubleInput): Axes {
   else if (!listed) reasons.push("NOT_PERMITTED_BY_INSTANCE");
   const required = policy?.capabilities.required.includes(entry.id) ?? false;
   const accepted = selection?.acceptedRequired.includes(entry.id) ?? false;
-  const selected = accepted || (selection?.selectedOptional.includes(entry.id) ?? false);
+  const selected =
+    accepted || (selection?.selectedOptional.includes(entry.id) ?? false);
   if (required && !accepted) reasons.push("REQUIRED_NOT_ACCEPTED");
   else if (!selected) reasons.push("NOT_SELECTED");
   const runtimeSupported = !input.unsupported.has(entry.id);
@@ -85,15 +93,36 @@ function conflictFor(
   input: DoubleInput,
 ): PlanConflict | null {
   const state = axes.get(dep);
-  if (!state) return { code: "DEPENDENCY_NOT_DISTRIBUTED", capability: root.id, subject: dep, message: `${dep} is unknown.` };
+  if (!state)
+    return {
+      code: "DEPENDENCY_NOT_DISTRIBUTED",
+      capability: root.id,
+      subject: dep,
+      message: `${dep} is unknown.`,
+    };
   if (!input.distributed.has(dep)) {
-    return { code: "DEPENDENCY_NOT_DISTRIBUTED", capability: root.id, subject: dep, message: `${root.title} needs ${dep}, which this distribution does not contain.` };
+    return {
+      code: "DEPENDENCY_NOT_DISTRIBUTED",
+      capability: root.id,
+      subject: dep,
+      message: `${root.title} needs ${dep}, which this distribution does not contain.`,
+    };
   }
   if (input.policy?.capabilities.prohibited.includes(dep)) {
-    return { code: "DEPENDENCY_PROHIBITED", capability: root.id, subject: dep, message: `${root.title} needs ${dep}, which this instance prohibits.` };
+    return {
+      code: "DEPENDENCY_PROHIBITED",
+      capability: root.id,
+      subject: dep,
+      message: `${root.title} needs ${dep}, which this instance prohibits.`,
+    };
   }
   if (!state.permitted) {
-    return { code: "DEPENDENCY_NOT_PERMITTED", capability: root.id, subject: dep, message: `${root.title} needs ${dep}, which this instance does not permit.` };
+    return {
+      code: "DEPENDENCY_NOT_PERMITTED",
+      capability: root.id,
+      subject: dep,
+      message: `${root.title} needs ${dep}, which this instance does not permit.`,
+    };
   }
   return null;
 }
@@ -114,28 +143,42 @@ function closureOf(
   for (const slot of root.alternatives) {
     const chosen = input.selection?.chosenAlternatives[slot.slot];
     if (!chosen || !slot.oneOf.includes(chosen)) {
-      conflicts.push({ code: "ALTERNATIVE_NOT_CHOSEN", capability: root.id, subject: slot.slot, message: `${root.title} needs one of ${slot.oneOf.join(", ")} for ${slot.slot}.` });
+      conflicts.push({
+        code: "ALTERNATIVE_NOT_CHOSEN",
+        capability: root.id,
+        subject: slot.slot,
+        message: `${root.title} needs one of ${slot.oneOf.join(", ")} for ${slot.slot}.`,
+      });
       continue;
     }
     const conflict = conflictFor(root, chosen, axes, input);
-    if (conflict) conflicts.push({ ...conflict, code: "ALTERNATIVE_NOT_ALLOWED" });
+    if (conflict)
+      conflicts.push({ ...conflict, code: "ALTERNATIVE_NOT_ALLOWED" });
     else members.push(chosen);
   }
   return { members: members.filter((id) => byId.has(id)), conflicts };
 }
 
-function covered(id: CapabilityId, digest: string, input: DoubleInput): boolean {
+function covered(
+  id: CapabilityId,
+  digest: string,
+  input: DoubleInput,
+): boolean {
   if (input.assumeConsent) return true;
   return input.receipt?.exposure[id] === digest;
 }
 
 /** Resolve the fixture's inputs to an `EffectivePlan`. */
 export function resolveDouble(input: DoubleInput): EffectivePlan {
-  const byId = new Map(input.catalog.capabilities.map((entry) => [entry.id, entry]));
-  const axes = new Map(input.catalog.capabilities.map((entry) => [entry.id, axesOf(entry, input)]));
-  const requiredNotAccepted = (input.policy?.capabilities.required ?? []).filter(
-    (id) => !(input.selection?.acceptedRequired.includes(id) ?? false),
+  const byId = new Map(
+    input.catalog.capabilities.map((entry) => [entry.id, entry]),
   );
+  const axes = new Map(
+    input.catalog.capabilities.map((entry) => [entry.id, axesOf(entry, input)]),
+  );
+  const requiredNotAccepted = (
+    input.policy?.capabilities.required ?? []
+  ).filter((id) => !(input.selection?.acceptedRequired.includes(id) ?? false));
   const joinRefused = requiredNotAccepted.length > 0;
   const conflicts: PlanConflict[] = [];
   const approved = new Set<CapabilityId>();
@@ -148,7 +191,13 @@ export function resolveDouble(input: DoubleInput): EffectivePlan {
       approved.add(entry.id);
       continue;
     }
-    if (joinRefused || !state.selected || !state.permitted || !state.runtimeSupported) continue;
+    if (
+      joinRefused ||
+      !state.selected ||
+      !state.permitted ||
+      !state.runtimeSupported
+    )
+      continue;
     const closure = closureOf(entry, byId, axes, input);
     conflicts.push(...closure.conflicts);
     if (closure.conflicts.length > 0) continue;
@@ -156,7 +205,8 @@ export function resolveDouble(input: DoubleInput): EffectivePlan {
       const digest = byId.get(id)?.exposureDigest ?? "";
       if (covered(id, digest, input)) approved.add(id);
       else consentMissing.add(id);
-      if (id !== entry.id) dependencyOf.set(id, [...(dependencyOf.get(id) ?? []), entry.id]);
+      if (id !== entry.id)
+        dependencyOf.set(id, [...(dependencyOf.get(id) ?? []), entry.id]);
     }
   }
   const capabilities: Record<CapabilityId, CapabilityState> = {};
@@ -166,9 +216,11 @@ export function resolveDouble(input: DoubleInput): EffectivePlan {
     const isApproved = approved.has(entry.id);
     const reasons = [...state.reasons];
     if (consentMissing.has(entry.id)) reasons.push("CONSENT_REQUIRED");
-    if (conflicts.some((conflict) => conflict.capability === entry.id)) reasons.push("DEPENDENCY_CONFLICT");
+    if (conflicts.some((conflict) => conflict.capability === entry.id))
+      reasons.push("DEPENDENCY_CONFLICT");
     const restartRequired =
-      !isApproved && entry.moduleIds.some((id) => input.evaluatedModuleIds.includes(id));
+      !isApproved &&
+      entry.moduleIds.some((id) => input.evaluatedModuleIds.includes(id));
     if (restartRequired) reasons.push("RESTART_REQUIRED");
     capabilities[entry.id] = {
       id: entry.id,
@@ -189,14 +241,18 @@ export function resolveDouble(input: DoubleInput): EffectivePlan {
     : [];
   const consent: ConsentDelta = {
     addedRoots: roots.filter((id) => consentMissing.has(id)),
-    removedRoots: (input.receipt?.roots ?? []).filter((id) => !roots.includes(id)),
+    removedRoots: (input.receipt?.roots ?? []).filter(
+      (id) => !roots.includes(id),
+    ),
     changedExposure: [],
     addedDependencies: [...consentMissing].filter((id) => !roots.includes(id)),
     requiredNotAccepted,
   };
   const approvedList = [...approved].sort();
   const modules = approvedList.flatMap((id) => byId.get(id)?.moduleIds ?? []);
-  const workerId = approvedList.find((id) => byId.get(id)?.workerGraphConstraint);
+  const workerId = approvedList.find(
+    (id) => byId.get(id)?.workerGraphConstraint,
+  );
   return {
     identity: {
       instanceId: input.policy?.instanceId ?? "personal-local",
@@ -212,11 +268,20 @@ export function resolveDouble(input: DoubleInput): EffectivePlan {
     capabilities,
     approvedCapabilities: approvedList,
     approvedModules: modules.sort(),
-    approvedOperations: approvedList.flatMap((id) => byId.get(id)?.operationIds ?? []).sort(),
-    approvedItemKinds: approvedList.flatMap((id) => byId.get(id)?.itemKinds ?? []).sort(),
-    requiredWorkerVariant: workerId ? (byId.get(workerId)?.workerGraphConstraint ?? null) : null,
+    approvedOperations: approvedList
+      .flatMap((id) => byId.get(id)?.operationIds ?? [])
+      .sort(),
+    approvedItemKinds: approvedList
+      .flatMap((id) => byId.get(id)?.itemKinds ?? [])
+      .sort(),
+    requiredWorkerVariant: workerId
+      ? (byId.get(workerId)?.workerGraphConstraint ?? null)
+      : null,
     conflicts,
     consent,
-    network: input.policy?.network ?? { externalServices: "allow", allowedServiceOrigins: [] },
+    network: input.policy?.network ?? {
+      externalServices: "allow",
+      allowedServiceOrigins: [],
+    },
   };
 }

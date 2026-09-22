@@ -16,7 +16,8 @@ import type {
 } from "@opensesame/capability-composition";
 import type { CapabilityPreset } from "../../lib/configuration/capabilities-ports.js";
 
-type Draft = Partial<CapabilityDescriptor> & Pick<CapabilityDescriptor, "id" | "title">;
+type Draft = Partial<CapabilityDescriptor> &
+  Pick<CapabilityDescriptor, "id" | "title">;
 
 function descriptor(draft: Draft): CapabilityDescriptor {
   return {
@@ -45,14 +46,22 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
   catalogVersion: 1,
   capabilities: [
     descriptor({ id: "vault.passwords", title: "Passwords", tier: "core" }),
-    descriptor({ id: "vault.local-unlock", title: "Local unlock", tier: "core" }),
+    descriptor({
+      id: "vault.local-unlock",
+      title: "Local unlock",
+      tier: "core",
+    }),
     descriptor({
       id: "backup.local-encrypted",
       title: "Encrypted file backup",
       tier: "core",
       summary: "Export and import an encrypted copy of the vault as a file.",
     }),
-    descriptor({ id: "identity.brokered-signin", title: "Brokered sign-in", tier: "core" }),
+    descriptor({
+      id: "identity.brokered-signin",
+      title: "Brokered sign-in",
+      tier: "core",
+    }),
     descriptor({ id: "settings.core", title: "Settings", tier: "core" }),
     descriptor({
       id: "vault.passkey-records",
@@ -65,7 +74,11 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
       title: "External connectors",
       summary: "List connectors from a directory you name.",
       egress: [
-        { class: "external-service", purpose: "the connector directory", automatic: false },
+        {
+          class: "external-service",
+          purpose: "the connector directory",
+          automatic: false,
+        },
       ],
       offlineLimits: "The directory is not listed offline.",
     }),
@@ -74,7 +87,13 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
       title: "Git remote backup",
       summary: "Push encrypted snapshots to a git remote.",
       dependencies: ["connectors.external"],
-      egress: [{ class: "external-service", purpose: "the git remote", automatic: true }],
+      egress: [
+        {
+          class: "external-service",
+          purpose: "the git remote",
+          automatic: true,
+        },
+      ],
       requiresService: true,
     }),
     descriptor({
@@ -82,7 +101,13 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
       title: "Shared drops",
       summary: "Hand an item to another person through the Identity API.",
       requiresService: true,
-      egress: [{ class: "external-service", purpose: "the Identity API", automatic: false }],
+      egress: [
+        {
+          class: "external-service",
+          purpose: "the Identity API",
+          automatic: false,
+        },
+      ],
     }),
     descriptor({
       id: "sharing.household",
@@ -96,10 +121,19 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
       summary: "Be told about approvals while the app is closed.",
       browserPermissions: ["notifications"],
       environments: ["document", "service-worker"],
-      moduleIds: ["notifications.web-push/runtime", "notifications.web-push/worker"],
+      moduleIds: [
+        "notifications.web-push/runtime",
+        "notifications.web-push/worker",
+      ],
       workerGraphConstraint: "push",
       requiresDocumentReload: true,
-      egress: [{ class: "external-service", purpose: "the push service", automatic: true }],
+      egress: [
+        {
+          class: "external-service",
+          purpose: "the push service",
+          automatic: true,
+        },
+      ],
     }),
     descriptor({
       id: "agents.webmcp",
@@ -115,7 +149,13 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
       id: "telemetry.external",
       title: "External telemetry",
       summary: "Send anonymous usage counts to an operator's collector.",
-      egress: [{ class: "external-service", purpose: "the collector", automatic: true }],
+      egress: [
+        {
+          class: "external-service",
+          purpose: "the collector",
+          automatic: true,
+        },
+      ],
     }),
     descriptor({
       id: "identity.federation",
@@ -126,9 +166,8 @@ export const FIXTURE_CATALOG: CapabilityCatalog = {
   ],
 };
 
-export const FIXTURE_IDS: readonly CapabilityId[] = FIXTURE_CATALOG.capabilities.map(
-  (entry) => entry.id,
-);
+export const FIXTURE_IDS: readonly CapabilityId[] =
+  FIXTURE_CATALOG.capabilities.map((entry) => entry.id);
 
 const OPTIONAL_IDS = FIXTURE_CATALOG.capabilities
   .filter((entry) => entry.tier === "optional")
@@ -143,7 +182,11 @@ export const FIXTURE_PRESETS: readonly CapabilityPreset[] = [
     title: "Personal",
     summary: "One person, this device, nothing leaves it unless you say so.",
     required: [],
-    optional: ["vault.passkey-records", "support.guided-help", "notifications.web-push"],
+    optional: [
+      "vault.passkey-records",
+      "support.guided-help",
+      "notifications.web-push",
+    ],
     defaultSelected: ["vault.passkey-records"],
     network: { externalServices: "deny", allowedServiceOrigins: [] },
   },
@@ -163,7 +206,12 @@ export const FIXTURE_PRESETS: readonly CapabilityPreset[] = [
     title: "Homelab",
     summary: "Your own services, your own remote.",
     required: [],
-    optional: ["connectors.external", "backup.git-remote", "agents.webmcp", "vault.passkey-records"],
+    optional: [
+      "connectors.external",
+      "backup.git-remote",
+      "agents.webmcp",
+      "vault.passkey-records",
+    ],
     defaultSelected: ["connectors.external", "backup.git-remote"],
     network: ALLOW,
   },
@@ -207,7 +255,10 @@ export function fixturePresetToInstancePolicy(
       prohibited: [],
     },
     network: preset.network,
-    updates: { unknownCapabilities: "deny", expandedExposure: "require-approval" },
+    updates: {
+      unknownCapabilities: "deny",
+      expandedExposure: "require-approval",
+    },
   };
 }
 
@@ -225,5 +276,8 @@ export const FIXTURE_MANAGED_POLICY: InstanceCapabilityPolicy = {
     prohibited: ["connectors.external", "telemetry.external"],
   },
   network: ALLOW,
-  updates: { unknownCapabilities: "deny", expandedExposure: "require-approval" },
+  updates: {
+    unknownCapabilities: "deny",
+    expandedExposure: "require-approval",
+  },
 };

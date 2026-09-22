@@ -18,7 +18,11 @@ import type {
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import { IconCheck, IconX } from "../../components/Icons.js";
 
-function Row({ name, ids, titleOf }: { name: string; ids: readonly string[]; titleOf: (id: string) => string }) {
+function Row({
+  name,
+  ids,
+  titleOf,
+}: { name: string; ids: readonly string[]; titleOf: (id: string) => string }) {
   return (
     <>
       <dt>{name}</dt>
@@ -45,7 +49,10 @@ function ConflictRow({
         {` — ${conflict.message}`}
       </p>
       {alternatives.length > 0 ? (
-        <div className="capcard__alts" aria-label={`Instead of ${titleOf(conflict.capability)}`}>
+        <div
+          className="capcard__alts"
+          aria-label={`Instead of ${titleOf(conflict.capability)}`}
+        >
           {alternatives.map((id) => (
             <button
               key={id}
@@ -93,7 +100,9 @@ export function CapabilityReview({
     event.preventDefault();
     onCancel();
   };
-  const blocked = review.conflicts.length > 0 || review.consent.requiredNotAccepted.length > 0;
+  const blocked =
+    review.conflicts.length > 0 ||
+    review.consent.requiredNotAccepted.length > 0;
   const verb = busy ? "Applying…" : "Apply configuration";
   return (
     <section
@@ -107,28 +116,63 @@ export function CapabilityReview({
       <dl className="caprev__delta">
         <Row name="enable" ids={review.enabled} titleOf={titleOf} />
         <Row name="disable" ids={review.disabled} titleOf={titleOf} />
-        <Row name="new modules" ids={review.addedModules} titleOf={(id) => id} />
+        <Row
+          name="new modules"
+          ids={review.addedModules}
+          titleOf={(id) => id}
+        />
         <dt>new egress</dt>
         <dd>
           {review.addedEgress.length > 0
             ? review.addedEgress
-                .map((entry) => `${entry.class} → ${entry.purpose}${entry.automatic ? " (on its own)" : ""}`)
+                .map(
+                  (entry) =>
+                    `${entry.class} → ${entry.purpose}${entry.automatic ? " (on its own)" : ""}`,
+                )
                 .join("; ")
             : "—"}
         </dd>
-        <Row name="new permissions" ids={review.addedPermissions} titleOf={(id) => id} />
+        <Row
+          name="new permissions"
+          ids={review.addedPermissions}
+          titleOf={(id) => id}
+        />
         <dt>worker</dt>
         <dd>
           {review.workerTransition
             ? `${review.workerTransition.from ?? "core"} → ${review.workerTransition.to ?? "core"}`
             : "unchanged"}
         </dd>
-        <Row name="reload after enabling" ids={review.requiresDocumentReload} titleOf={titleOf} />
-        <Row name="restart to unload" ids={review.restartRequiredFor} titleOf={(id) => id} />
-        <Row name="new roots to accept" ids={review.consent.addedRoots} titleOf={titleOf} />
-        <Row name="new dependencies" ids={review.consent.addedDependencies} titleOf={titleOf} />
-        <Row name="removed roots" ids={review.consent.removedRoots} titleOf={titleOf} />
-        <Row name="required, not accepted" ids={review.consent.requiredNotAccepted} titleOf={titleOf} />
+        <Row
+          name="reload after enabling"
+          ids={review.requiresDocumentReload}
+          titleOf={titleOf}
+        />
+        <Row
+          name="restart to unload"
+          ids={review.restartRequiredFor}
+          titleOf={(id) => id}
+        />
+        <Row
+          name="new roots to accept"
+          ids={review.consent.addedRoots}
+          titleOf={titleOf}
+        />
+        <Row
+          name="new dependencies"
+          ids={review.consent.addedDependencies}
+          titleOf={titleOf}
+        />
+        <Row
+          name="removed roots"
+          ids={review.consent.removedRoots}
+          titleOf={titleOf}
+        />
+        <Row
+          name="required, not accepted"
+          ids={review.consent.requiredNotAccepted}
+          titleOf={titleOf}
+        />
       </dl>
       {review.conflicts.length > 0 ? (
         <ul className="reqs__list" aria-label="Conflicts">

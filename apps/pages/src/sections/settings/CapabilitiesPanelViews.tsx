@@ -64,7 +64,10 @@ export const capabilitySourceSeams = {
 
 const COMMITS: Record<
   Exclude<CapabilityResourceKind, "effective-plan">,
-  (ports: CapabilityConfigPorts, input: { source: string; baseRevision: string }) => Promise<CommitResult>
+  (
+    ports: CapabilityConfigPorts,
+    input: { source: string; baseRevision: string },
+  ) => Promise<CommitResult>
 > = {
   "instance-policy": commitInstancePolicySource,
   "installation-selection": commitInstallationSelectionSource,
@@ -73,7 +76,8 @@ const COMMITS: Record<
 
 function toneOf(result: CommitResult): "ok" | "warn" | "err" {
   if (result.status === "applied_durable") return "ok";
-  if (result.status === "applied_ephemeral" || result.status === "draft_saved") return "warn";
+  if (result.status === "applied_ephemeral" || result.status === "draft_saved")
+    return "warn";
   return "err";
 }
 
@@ -126,7 +130,10 @@ export function CapabilitySourceView({
         onChange={(event) => setSource(event.target.value)}
       />
       {result ? (
-        <p className="capspanel__notice" role={toneOf(result) === "err" ? "alert" : undefined}>
+        <p
+          className="capspanel__notice"
+          role={toneOf(result) === "err" ? "alert" : undefined}
+        >
           <StatusMark tone={toneOf(result)} label={result.message} />
           <span>{result.message}</span>
         </p>

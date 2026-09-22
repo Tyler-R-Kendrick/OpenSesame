@@ -68,7 +68,8 @@ export function reimportMatches(
     if (!parseInstancePolicySource(documentToYaml(policy)).ok) return false;
   }
   if (selection !== null && selection !== undefined) {
-    if (!parseInstallationSelectionSource(documentToYaml(selection)).ok) return false;
+    if (!parseInstallationSelectionSource(documentToYaml(selection)).ok)
+      return false;
   }
   return documentsEqual(
     parsed.value,

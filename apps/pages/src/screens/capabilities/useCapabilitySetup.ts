@@ -37,7 +37,13 @@ import {
   toggleRoot,
 } from "./CapabilityDraft.js";
 
-export type SetupStage = "roads" | "join" | "purpose" | "cards" | "review" | "outcome";
+export type SetupStage =
+  | "roads"
+  | "join"
+  | "purpose"
+  | "cards"
+  | "review"
+  | "outcome";
 
 export const capabilitySetupSeams = {
   now: () => new Date().toISOString(),
@@ -60,7 +66,10 @@ export function useCapabilitySetup(initialJoin: boolean) {
 
   const selectionOf = useCallback(
     (next: CapabilityDraft): InstallationCapabilitySelection =>
-      draftToSelection(next, baseFromSnapshot(snapshot, capabilitySetupSeams.now())),
+      draftToSelection(
+        next,
+        baseFromSnapshot(snapshot, capabilitySetupSeams.now()),
+      ),
     [snapshot],
   );
 
@@ -93,19 +102,33 @@ export function useCapabilitySetup(initialJoin: boolean) {
   );
 
   const accept = useCallback(() => {
-    setDraft(acceptRequired(draftFromSelection(snapshot.selection, "join"), requiredNotAccepted));
+    setDraft(
+      acceptRequired(
+        draftFromSelection(snapshot.selection, "join"),
+        requiredNotAccepted,
+      ),
+    );
     setStage("cards");
   }, [requiredNotAccepted, snapshot.selection]);
 
   const edit = useMemo(
     () => ({
       preset: (preset: CapabilityPreset) => {
-        setDraft((current) => applyPreset(current ?? draftFromSelection(null, "customize"), preset, snapshot.plan));
+        setDraft((current) =>
+          applyPreset(
+            current ?? draftFromSelection(null, "customize"),
+            preset,
+            snapshot.plan,
+          ),
+        );
         setStage("cards");
       },
-      toggle: (id: CapabilityId) => setDraft((current) => (current ? toggleRoot(current, id) : current)),
+      toggle: (id: CapabilityId) =>
+        setDraft((current) => (current ? toggleRoot(current, id) : current)),
       alternative: (slot: string, id: CapabilityId) =>
-        setDraft((current) => (current ? chooseAlternative(current, slot, id) : current)),
+        setDraft((current) =>
+          current ? chooseAlternative(current, slot, id) : current,
+        ),
       replace: (from: CapabilityId, to: CapabilityId) => {
         if (!draft) return;
         openReview(replaceRoot(draft, from, to, catalog));
@@ -123,7 +146,11 @@ export function useCapabilitySetup(initialJoin: boolean) {
     try {
       const selection = selectionOf(draft);
       const plan = previewPlan(selection);
-      const receipt = buildConsentReceipt(plan, catalog, capabilitySetupSeams.now());
+      const receipt = buildConsentReceipt(
+        plan,
+        catalog,
+        capabilitySetupSeams.now(),
+      );
       const result = await compositionStore.commit(selection, receipt);
       setOutcome(viewOutcome(result, snapshot.durability));
     } catch (caught) {
@@ -152,7 +179,8 @@ export function useCapabilitySetup(initialJoin: boolean) {
     edit,
     apply,
     cancel,
-    alternatives: (root: CapabilityId) => alternativesFor(root, catalog, snapshot.plan),
+    alternatives: (root: CapabilityId) =>
+      alternativesFor(root, catalog, snapshot.plan),
   };
 }
 

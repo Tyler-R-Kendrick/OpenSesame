@@ -24,9 +24,16 @@ import type {
   ContributionEntry,
   ContributionKind,
 } from "../../lib/capabilities/runtime-contract.js";
-import type { CommitOutcome, CompositionSnapshot, EmergencyDisableOutcome } from "../../lib/capabilities/store-types.js";
-import { type DoubleInput, resolveDouble } from "./composition-resolve-double.js";
+import type {
+  CommitOutcome,
+  CompositionSnapshot,
+  EmergencyDisableOutcome,
+} from "../../lib/capabilities/store-types.js";
 import { FIXTURE_CATALOG, FIXTURE_IDS } from "./composition-fixture.js";
+import {
+  type DoubleInput,
+  resolveDouble,
+} from "./composition-resolve-double.js";
 
 export type DoubleOptions = Partial<{
   policy: InstanceCapabilityPolicy | null;
@@ -52,12 +59,18 @@ export type CompositionDouble = {
   subscribe(listener: () => void): () => void;
   review(draft: InstallationCapabilitySelection): CompositionChangeReview;
   preview(draft: InstallationCapabilitySelection): EffectivePlan;
-  commit(draft: InstallationCapabilitySelection, receipt: ConsentReceipt): Promise<CommitOutcome>;
+  commit(
+    draft: InstallationCapabilitySelection,
+    receipt: ConsentReceipt,
+  ): Promise<CommitOutcome>;
   emergencyDisable(id: CapabilityId): Promise<EmergencyDisableOutcome>;
   invalidate(reason: string): void;
   onVaultChange(vaultId: string | null): void;
   /** Test handles. */
-  commits: Array<{ draft: InstallationCapabilitySelection; receipt: ConsentReceipt }>;
+  commits: Array<{
+    draft: InstallationCapabilitySelection;
+    receipt: ConsentReceipt;
+  }>;
   disabled: CapabilityId[];
   invalidations: string[];
   contributions: Contribution[];
@@ -65,16 +78,22 @@ export type CompositionDouble = {
   setActive(id: CapabilityId): void;
 };
 
-function lifecycleOf(state: CapabilityState, active: ReadonlySet<CapabilityId>): CapabilityLifecycle {
+function lifecycleOf(
+  state: CapabilityState,
+  active: ReadonlySet<CapabilityId>,
+): CapabilityLifecycle {
   if (!state.distributed) return "not-distributed";
-  if (state.approved) return active.has(state.id) ? "active" : "approved-not-loaded";
+  if (state.approved)
+    return active.has(state.id) ? "active" : "approved-not-loaded";
   if (state.restartRequired) return "disabled-restart-required";
   if (state.reasons.includes("CONSENT_REQUIRED")) return "consent-required";
   if (state.reasons.includes("NOT_SELECTED")) return "not-selected";
   return "disabled";
 }
 
-export function createCompositionDouble(initial: DoubleOptions = {}): CompositionDouble {
+export function createCompositionDouble(
+  initial: DoubleOptions = {},
+): CompositionDouble {
   let options: Required<DoubleOptions> = fill(initial);
   const listeners = new Set<() => void>();
   const active = new Set<CapabilityId>();
@@ -100,9 +119,12 @@ export function createCompositionDouble(initial: DoubleOptions = {}): Compositio
   });
 
   const publish = () => {
-    const plan = resolveDouble(inputFor(options.selection, options.receipt, false));
+    const plan = resolveDouble(
+      inputFor(options.selection, options.receipt, false),
+    );
     const lifecycle: Record<CapabilityId, CapabilityLifecycle> = {};
-    for (const state of Object.values(plan.capabilities)) lifecycle[state.id] = lifecycleOf(state, active);
+    for (const state of Object.values(plan.capabilities))
+      lifecycle[state.id] = lifecycleOf(state, active);
     snapshot = {
       status: "ready",
       plan,
@@ -139,7 +161,11 @@ export function createCompositionDouble(initial: DoubleOptions = {}): Compositio
       generation += 1;
       options = { ...options, selection: draft, receipt };
       publish();
-      return { status: "committed", generation, committedGeneration: generation };
+      return {
+        status: "committed",
+        generation,
+        committedGeneration: generation,
+      };
     },
     async emergencyDisable(id) {
       double.disabled.push(id);
@@ -150,7 +176,9 @@ export function createCompositionDouble(initial: DoubleOptions = {}): Compositio
           ...options,
           selection: {
             ...selection,
-            selectedOptional: selection.selectedOptional.filter((item) => item !== id),
+            selectedOptional: selection.selectedOptional.filter(
+              (item) => item !== id,
+            ),
           },
         };
       }
@@ -177,7 +205,11 @@ export function createCompositionDouble(initial: DoubleOptions = {}): Compositio
       double.commits.length = 0;
       double.disabled.length = 0;
       double.invalidations.length = 0;
-      double.contributions.splice(0, double.contributions.length, ...options.contributions);
+      double.contributions.splice(
+        0,
+        double.contributions.length,
+        ...options.contributions,
+      );
       active.clear();
       generation = 1;
       publish();
@@ -224,15 +256,28 @@ function reviewOf(
     disabled,
     addedModules: after.approvedModules.filter((id) => !wasModules.has(id)),
     removedModules: before.approvedModules.filter((id) => !nowModules.has(id)),
-    addedOperations: after.approvedOperations.filter((id) => !before.approvedOperations.includes(id)),
-    removedOperations: before.approvedOperations.filter((id) => !after.approvedOperations.includes(id)),
+    addedOperations: after.approvedOperations.filter(
+      (id) => !before.approvedOperations.includes(id),
+    ),
+    removedOperations: before.approvedOperations.filter(
+      (id) => !after.approvedOperations.includes(id),
+    ),
     addedEgress: enabled.flatMap((id) => byId.get(id)?.egress ?? []),
-    addedPermissions: [...new Set(enabled.flatMap((id) => byId.get(id)?.browserPermissions ?? []))],
+    addedPermissions: [
+      ...new Set(
+        enabled.flatMap((id) => byId.get(id)?.browserPermissions ?? []),
+      ),
+    ],
     workerTransition:
       before.requiredWorkerVariant === after.requiredWorkerVariant
         ? null
-        : { from: before.requiredWorkerVariant, to: after.requiredWorkerVariant },
-    requiresDocumentReload: enabled.filter((id) => byId.get(id)?.requiresDocumentReload),
+        : {
+            from: before.requiredWorkerVariant,
+            to: after.requiredWorkerVariant,
+          },
+    requiresDocumentReload: enabled.filter(
+      (id) => byId.get(id)?.requiresDocumentReload,
+    ),
     requiresNewArtifact: false,
     restartRequiredFor: disabled.flatMap((id) => byId.get(id)?.moduleIds ?? []),
     conflicts: after.conflicts,
@@ -240,4 +285,3 @@ function reviewOf(
     widened: enabled.length > 0 && disabled.length > 0,
   };
 }
-

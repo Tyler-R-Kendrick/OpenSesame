@@ -81,11 +81,16 @@ export function applyPreset(
   };
 }
 
-export function toggleRoot(draft: CapabilityDraft, id: CapabilityId): CapabilityDraft {
+export function toggleRoot(
+  draft: CapabilityDraft,
+  id: CapabilityId,
+): CapabilityDraft {
   const on = draft.roots.includes(id);
   return {
     ...draft,
-    roots: on ? draft.roots.filter((item) => item !== id) : [...draft.roots, id],
+    roots: on
+      ? draft.roots.filter((item) => item !== id)
+      : [...draft.roots, id],
   };
 }
 
@@ -139,10 +144,15 @@ export function baseFromSnapshot(
   now: string,
 ): SelectionBase {
   return {
-    instanceId: snapshot.plan?.identity.instanceId ?? snapshot.policy?.instanceId ?? "personal-local",
+    instanceId:
+      snapshot.plan?.identity.instanceId ??
+      snapshot.policy?.instanceId ??
+      "personal-local",
     installationId: snapshot.plan?.identity.installationId ?? "",
     basePolicyRevision:
-      snapshot.plan?.identity.policyRevision ?? snapshot.policy?.revision ?? "0",
+      snapshot.plan?.identity.policyRevision ??
+      snapshot.policy?.revision ??
+      "0",
     revision: `draft-${now}`,
   };
 }
@@ -176,6 +186,9 @@ export function alternativesFor(
   return catalog.capabilities
     .filter((entry) => entry.id !== root && entry.id.split(".")[0] === family)
     .filter((entry) => entry.tier === "core" || permitted(plan, entry.id))
-    .filter((entry) => !plan?.conflicts.some((conflict) => conflict.capability === entry.id))
+    .filter(
+      (entry) =>
+        !plan?.conflicts.some((conflict) => conflict.capability === entry.id),
+    )
     .map((entry) => entry.id);
 }

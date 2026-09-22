@@ -17,6 +17,7 @@ export function lookupConfigResource(rawPath: string): RegistryLookup {
   }
   const key = resolveResourceAlias(rawPath);
   if (key === PREFS_RESOURCE_KEY) return { ok: true, resourceKey: key };
-  if (key && isCapabilityResourceKey(key)) return { ok: true, resourceKey: key };
+  if (key && isCapabilityResourceKey(key))
+    return { ok: true, resourceKey: key };
   return { ok: false, reason: "unknown" };
 }

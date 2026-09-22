@@ -8,14 +8,6 @@
  * those parsers. Nothing here reads storage or the store.
  */
 
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
 import type {
   Diagnostic,
   EffectivePlan,
@@ -24,6 +16,14 @@ import type {
   ParseResult,
   VaultCapabilitySelection,
 } from "@opensesame/capability-composition";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   type Node,
   isAlias,
@@ -36,14 +36,14 @@ import {
   visit,
 } from "yaml";
 import {
+  MAX_CAPABILITY_DOCUMENT_BYTES,
+  MAX_CAPABILITY_DOCUMENT_DEPTH,
+} from "./capabilities-keys.js";
+import {
   parseInstallationSelection,
   parseInstancePolicy,
   parseVaultSelection,
 } from "./capabilities-ports.js";
-import {
-  MAX_CAPABILITY_DOCUMENT_BYTES,
-  MAX_CAPABILITY_DOCUMENT_DEPTH,
-} from "./capabilities-keys.js";
 import type { ConfigDiagnostic } from "./types.js";
 
 export type CapabilityDocumentResult<T> =
@@ -56,10 +56,7 @@ function error(code: string, message: string): ConfigDiagnostic {
   return { severity: "error", code, message };
 }
 
-function fail<T>(
-  code: string,
-  message: string,
-): CapabilityDocumentResult<T> {
+function fail<T>(code: string, message: string): CapabilityDocumentResult<T> {
   return { ok: false, diagnostics: [error(code, message)] };
 }
 
@@ -125,7 +122,9 @@ export function parseCapabilityYaml(
   if (source.trim() === "") {
     return fail("empty", "Document is empty; the stored document is kept.");
   }
-  if (new TextEncoder().encode(source).byteLength > MAX_CAPABILITY_DOCUMENT_BYTES) {
+  if (
+    new TextEncoder().encode(source).byteLength > MAX_CAPABILITY_DOCUMENT_BYTES
+  ) {
     return fail("too_large", "Document exceeds 64 KiB.");
   }
   const document = parseDocument(source, {
@@ -139,12 +138,16 @@ export function parseCapabilityYaml(
     const duplicate = problem.code === "DUPLICATE_KEY";
     return fail(
       duplicate ? "duplicate_key" : "syntax",
-      duplicate ? "Duplicate mapping key." : problem.message.split("\n")[0] ?? "",
+      duplicate
+        ? "Duplicate mapping key."
+        : (problem.message.split("\n")[0] ?? ""),
     );
   }
   const clever = cleverness(document.contents);
   if (clever) return { ok: false, diagnostics: [clever] };
-  if (depthOf(overlapCast(document.contents), 0) > MAX_CAPABILITY_DOCUMENT_DEPTH) {
+  if (
+    depthOf(overlapCast(document.contents), 0) > MAX_CAPABILITY_DOCUMENT_DEPTH
+  ) {
     return fail("too_deep", "Document nests deeper than 8 levels.");
   }
   const value = plainValue(overlapCast(document.contents));
@@ -159,7 +162,10 @@ function adopt<T>(result: ParseResult<T>): CapabilityDocumentResult<T> {
   return {
     ok: false,
     diagnostics: result.diagnostics.map((item: Diagnostic) =>
-      error(item.code, item.path ? `${item.path}: ${item.message}` : item.message),
+      error(
+        item.code,
+        item.path ? `${item.path}: ${item.message}` : item.message,
+      ),
     ),
   };
 }
@@ -234,7 +240,10 @@ export function effectivePlanToYaml(plan: EffectivePlan): string {
 }
 
 /** Semantic equality: the same document under two spellings. */
-export function documentsEqual(left: BoundaryValue, right: BoundaryValue): boolean {
+export function documentsEqual(
+  left: BoundaryValue,
+  right: BoundaryValue,
+): boolean {
   return (
     JSON.stringify(sortedDocument(overlapCast(left))) ===
     JSON.stringify(sortedDocument(overlapCast(right)))

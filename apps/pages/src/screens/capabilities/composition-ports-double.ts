@@ -11,7 +11,11 @@ import type {
   InstallationCapabilitySelection,
   InstanceCapabilityPolicy,
 } from "@opensesame/capability-composition";
-import { type BoundaryValue, isJsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { useSyncExternalStore } from "react";
 import type {
   ContributionEntry,
@@ -33,10 +37,13 @@ export function fixtureConsentReceipt(
 ): ConsentReceipt {
   const exposure: Record<CapabilityId, string> = {};
   for (const entry of catalog.capabilities) {
-    if (plan.approvedCapabilities.includes(entry.id)) exposure[entry.id] = entry.exposureDigest;
+    if (plan.approvedCapabilities.includes(entry.id))
+      exposure[entry.id] = entry.exposureDigest;
   }
   const roots = Object.values(plan.capabilities)
-    .filter((state) => state.selected && state.tier === "optional" && state.approved)
+    .filter(
+      (state) => state.selected && state.tier === "optional" && state.approved,
+    )
     .map((state) => state.id)
     .sort();
   return {
@@ -52,21 +59,66 @@ export function fixtureConsentReceipt(
   };
 }
 
-const POLICY_FIELDS = new Set(["schemaVersion", "kind", "instanceId", "revision", "presetProvenance", "capabilities", "network", "updates"]);
-const SELECTION_FIELDS = new Set(["schemaVersion", "kind", "instanceId", "installationId", "basePolicyRevision", "revision", "acceptedRequired", "selectedOptional", "chosenAlternatives", "delivery"]);
-const VAULT_FIELDS = new Set(["schemaVersion", "kind", "instanceId", "installationId", "vaultId", "revision", "disabled"]);
+const POLICY_FIELDS = new Set([
+  "schemaVersion",
+  "kind",
+  "instanceId",
+  "revision",
+  "presetProvenance",
+  "capabilities",
+  "network",
+  "updates",
+]);
+const SELECTION_FIELDS = new Set([
+  "schemaVersion",
+  "kind",
+  "instanceId",
+  "installationId",
+  "basePolicyRevision",
+  "revision",
+  "acceptedRequired",
+  "selectedOptional",
+  "chosenAlternatives",
+  "delivery",
+]);
+const VAULT_FIELDS = new Set([
+  "schemaVersion",
+  "kind",
+  "instanceId",
+  "installationId",
+  "vaultId",
+  "revision",
+  "disabled",
+]);
 
 function strictParse<T>(fields: ReadonlySet<string>, kind: string) {
   return (value: BoundaryValue) => {
     if (!isJsonObject(value)) {
-      return { ok: false as const, diagnostics: [{ code: "type", message: "not a mapping", path: "" }] };
+      return {
+        ok: false as const,
+        diagnostics: [{ code: "type", message: "not a mapping", path: "" }],
+      };
     }
     const unknown = Object.keys(value).find((key) => !fields.has(key));
     if (unknown) {
-      return { ok: false as const, diagnostics: [{ code: "unknown_field", message: `unknown field ${unknown}`, path: unknown }] };
+      return {
+        ok: false as const,
+        diagnostics: [
+          {
+            code: "unknown_field",
+            message: `unknown field ${unknown}`,
+            path: unknown,
+          },
+        ],
+      };
     }
     if (value.kind !== kind) {
-      return { ok: false as const, diagnostics: [{ code: "kind", message: `kind must be ${kind}`, path: "kind" }] };
+      return {
+        ok: false as const,
+        diagnostics: [
+          { code: "kind", message: `kind must be ${kind}`, path: "kind" },
+        ],
+      };
     }
     const parsed: T = overlapCast(value);
     return { ok: true as const, value: parsed };
@@ -74,7 +126,9 @@ function strictParse<T>(fields: ReadonlySet<string>, kind: string) {
 }
 
 export function useContributionsDouble(double: CompositionDouble) {
-  return <K extends ContributionKind>(kind: K): readonly ContributionEntry<K>[] => {
+  return <K extends ContributionKind>(
+    kind: K,
+  ): readonly ContributionEntry<K>[] => {
     useSyncExternalStore(double.subscribe, double.getSnapshot);
     const entries: ContributionEntry<K>[] = overlapCast(
       double.contributions
@@ -87,11 +141,13 @@ export function useContributionsDouble(double: CompositionDouble) {
 
 /** The module `vi.mock` hands to every importer of the seam. */
 export function fakePortsModule(double: CompositionDouble) {
-  const useComposition = () => useSyncExternalStore(double.subscribe, double.getSnapshot);
+  const useComposition = () =>
+    useSyncExternalStore(double.subscribe, double.getSnapshot);
   return {
     compositionStore: double,
     useComposition,
-    useCapability: (id: CapabilityId) => useComposition().plan?.capabilities[id] ?? null,
+    useCapability: (id: CapabilityId) =>
+      useComposition().plan?.capabilities[id] ?? null,
     useContributions: useContributionsDouble(double),
     CAPABILITY_CATALOG: FIXTURE_CATALOG,
     PRESETS: FIXTURE_PRESETS,
@@ -102,23 +158,40 @@ export function fakePortsModule(double: CompositionDouble) {
       id,
       state: plan.capabilities[id],
       via: plan.capabilities[id]?.dependencyOf ?? [],
-      conflicts: plan.conflicts.filter((conflict) => conflict.capability === id),
+      conflicts: plan.conflicts.filter(
+        (conflict) => conflict.capability === id,
+      ),
     }),
-    parseInstancePolicy: strictParse<InstanceCapabilityPolicy>(POLICY_FIELDS, "InstanceCapabilityPolicy"),
-    parseInstallationSelection: strictParse<InstallationCapabilitySelection>(SELECTION_FIELDS, "InstallationCapabilitySelection"),
+    parseInstancePolicy: strictParse<InstanceCapabilityPolicy>(
+      POLICY_FIELDS,
+      "InstanceCapabilityPolicy",
+    ),
+    parseInstallationSelection: strictParse<InstallationCapabilitySelection>(
+      SELECTION_FIELDS,
+      "InstallationCapabilitySelection",
+    ),
     parseVaultSelection: strictParse(VAULT_FIELDS, "VaultCapabilitySelection"),
-    previewPlan: (draft: InstallationCapabilitySelection) => double.preview(draft),
+    previewPlan: (draft: InstallationCapabilitySelection) =>
+      double.preview(draft),
     PUBLICATION_CAPABILITIES: ["backup.git-remote"] as readonly CapabilityId[],
-    viewOutcome: (outcome: BoundaryValue, durability = "unknown"): OutcomeView => {
-      const record: { status?: string; reason?: string } = overlapCast(outcome ?? {});
+    viewOutcome: (
+      outcome: BoundaryValue,
+      durability = "unknown",
+    ): OutcomeView => {
+      const record: { status?: string; reason?: string } = overlapCast(
+        outcome ?? {},
+      );
       if (record.status === "committed") {
-        return { status: durability === "session-only" ? "session-only" : "durable", message: "" };
+        return {
+          status: durability === "session-only" ? "session-only" : "durable",
+          message: "",
+        };
       }
-      if (record.status === "conflict") return { status: "conflict", message: record.reason ?? "" };
+      if (record.status === "conflict")
+        return { status: "conflict", message: record.reason ?? "" };
       return { status: "refused", message: record.reason ?? "" };
     },
   };
 }
 
 export type FakePorts = ReturnType<typeof fakePortsModule>;
-

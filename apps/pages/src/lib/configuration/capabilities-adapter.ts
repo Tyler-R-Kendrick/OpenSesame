@@ -61,12 +61,16 @@ function semanticSource(
     return documentToYaml(overlapCast(policy));
   }
   if (kind === "installation-selection") {
-    return snapshot.selection ? documentToYaml(overlapCast(snapshot.selection)) : "";
+    return snapshot.selection
+      ? documentToYaml(overlapCast(snapshot.selection))
+      : "";
   }
   const tomb = ports.tomb();
   const stored = tomb ? ports.readKey(vaultRestrictionKey(tomb)) : null;
   if (!stored) return "";
-  const parsed = parseCapabilityYaml(stored.trim().startsWith("{") ? jsonToYaml(stored) : stored);
+  const parsed = parseCapabilityYaml(
+    stored.trim().startsWith("{") ? jsonToYaml(stored) : stored,
+  );
   return parsed.ok ? documentToYaml(overlapCast(parsed.value)) : "";
 }
 
@@ -79,10 +83,14 @@ function jsonToYaml(json: string): string {
   }
 }
 
-function sourceKey(kind: CapabilityResourceKind, tomb: string | null): string | null {
+function sourceKey(
+  kind: CapabilityResourceKind,
+  tomb: string | null,
+): string | null {
   if (kind === "instance-policy") return LOCAL_POLICY_SOURCE_KV_KEY;
   if (kind === "installation-selection") return SELECTION_SOURCE_KV_KEY;
-  if (kind === "vault-restriction" && tomb) return vaultRestrictionSourceKey(tomb);
+  if (kind === "vault-restriction" && tomb)
+    return vaultRestrictionSourceKey(tomb);
   return null;
 }
 
@@ -113,9 +121,14 @@ function applied(
 ): CommitResult {
   const snapshot = ports.snapshot();
   return {
-    status: snapshot.durability === "session-only" ? "applied_ephemeral" : "applied_durable",
+    status:
+      snapshot.durability === "session-only"
+        ? "applied_ephemeral"
+        : "applied_durable",
     revisionToken: revisionToken(snapshot),
-    message: presentation ? "Saved source comments. Nothing else changed." : message,
+    message: presentation
+      ? "Saved source comments. Nothing else changed."
+      : message,
   };
 }
 
@@ -147,7 +160,8 @@ export async function commitInstancePolicySource(
   const blocked = await guard("instance-policy", ports, input);
   if (blocked) return blocked;
   const parsed = parseInstancePolicySource(input.source);
-  if (!parsed.ok) return refused(parsed.diagnostics[0]?.message ?? "Invalid policy.");
+  if (!parsed.ok)
+    return refused(parsed.diagnostics[0]?.message ?? "Invalid policy.");
   const presentation = isPresentationOnlyChange(
     semanticSource("instance-policy", ports),
     input.source,
@@ -156,7 +170,9 @@ export async function commitInstancePolicySource(
     if (!presentation) await saveLocalInstancePolicy(ports, parsed.value);
     await ports.writeKey(LOCAL_POLICY_SOURCE_KV_KEY, input.source);
   } catch (caught) {
-    return refused(caught instanceof Error ? caught.message : "Policy was not stored.");
+    return refused(
+      caught instanceof Error ? caught.message : "Policy was not stored.",
+    );
   }
   return applied(ports, presentation, "Instance policy saved on this device.");
 }
@@ -180,7 +196,8 @@ export async function commitInstallationSelectionSource(
   const blocked = await guard("installation-selection", ports, input);
   if (blocked) return blocked;
   const parsed = parseInstallationSelectionSource(input.source);
-  if (!parsed.ok) return refused(parsed.diagnostics[0]?.message ?? "Invalid selection.");
+  if (!parsed.ok)
+    return refused(parsed.diagnostics[0]?.message ?? "Invalid selection.");
   const presentation = isPresentationOnlyChange(
     semanticSource("installation-selection", ports),
     input.source,
@@ -205,11 +222,14 @@ export async function commitInstallationSelectionSource(
     };
   }
   if (outcome.status === "refused") {
-    return refused(`The selection was not accepted (${outcome.message || "refused"}).`);
+    return refused(
+      `The selection was not accepted (${outcome.message || "refused"}).`,
+    );
   }
   await ports.writeKey(SELECTION_SOURCE_KV_KEY, input.source);
   return {
-    status: outcome.status === "durable" ? "applied_durable" : "applied_ephemeral",
+    status:
+      outcome.status === "durable" ? "applied_durable" : "applied_ephemeral",
     revisionToken: revisionToken(ports.snapshot()),
     message: "Installation selection saved.",
   };
@@ -224,7 +244,8 @@ export async function commitVaultRestrictionSource(
   const tomb = ports.tomb();
   if (!tomb) return refused("No vault is open.");
   const parsed = parseVaultRestrictionSource(input.source);
-  if (!parsed.ok) return refused(parsed.diagnostics[0]?.message ?? "Invalid restriction.");
+  if (!parsed.ok)
+    return refused(parsed.diagnostics[0]?.message ?? "Invalid restriction.");
   if (parsed.value.vaultId !== tomb) {
     return refused("This restriction names another vault.");
   }
@@ -249,4 +270,3 @@ export async function saveVaultRestriction(
   await ports.writeKey(vaultRestrictionKey(tomb), JSON.stringify(restriction));
   ports.invalidate("vault-restriction-updated");
 }
-
