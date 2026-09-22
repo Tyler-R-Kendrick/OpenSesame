@@ -40,10 +40,9 @@ describe("digest", () => {
     expect(canonicalJson({ n: 3 })).toBe('{"n":3}');
   });
 
-  it("produces stable digests and a known FNV-1a behavior", () => {
-    // \"a\" hashes deterministically and differs from \"b\"; the exact
-    // constant is covered by digestCanonical ordering tests below.
-    expect(fnv1a64Hex("a")).toBe(fnv1a64Hex("a"));
+  it("produces stable digests and matches the FNV-1a 64 vector", () => {
+    // FNV-1a 64 of "a" is af63dc4c8601ec8c (well-known vector).
+    expect(fnv1a64Hex("a")).toBe("af63dc4c8601ec8c");
     expect(fnv1a64Hex("a")).not.toBe(fnv1a64Hex("b"));
     expect(digestCanonical({ a: 1, b: 2 })).toBe(
       digestCanonical({ b: 2, a: 1 }),
