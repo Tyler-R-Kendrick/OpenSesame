@@ -78,7 +78,7 @@ it.skip("revokes a real enrolled passkey and its authentication from Devices wit
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm revocation" }),
   );
-  await screen.findByText("No passkeys enrolled.");
+  await screen.findByRole("img", { name: "No passkeys enrolled." });
   expect(await readLocalPasskeys(fixture.tomb)).toHaveLength(0);
   expect(
     await currentLocalIdentitySession(fixture.tomb, fixture.personId),
@@ -104,7 +104,7 @@ it.skip("refreshes an open passkey disclosure after another surface revokes its 
   await act(() =>
     revokeLocalPasskey(fixture.tomb, fixture.personId, key.credentialId),
   );
-  await screen.findByText("No passkeys enrolled.");
+  await screen.findByRole("img", { name: "No passkeys enrolled." });
   expect(screen.queryByRole("button", { name: "Revoke passkey" })).toBeNull();
   expect(document.activeElement).toBe(
     within(personRow).getByText("Passkeys", { exact: true }),
@@ -134,7 +134,9 @@ it.skip("distinguishes unreadable credentials from an empty directory and refuse
     "disabled",
     true,
   );
-  expect(screen.queryByText("No passkeys enrolled.")).toBeNull();
+  expect(
+    screen.queryByRole("img", { name: "No passkeys enrolled." }),
+  ).toBeNull();
   expect(screen.queryByRole("link", { name: "Create a person" })).toBeNull();
 });
 

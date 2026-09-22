@@ -1,6 +1,7 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { useEffect, useId, useRef, useState } from "react";
 import { IconCheck, IconX } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 
 export function LocalAgentEnrollment({
   disabled,
@@ -54,9 +55,12 @@ export function LocalAgentEnrollment({
         />
       </div>
       {error ? (
-        <p role="alert" className="note note--err">
-          {error}
-        </p>
+        <>
+          <StatusMark tone="err" label={error} />
+          <span role="alert" className="visually-hidden">
+            {error}
+          </span>
+        </>
       ) : null}
       <div className="actions">
         <button

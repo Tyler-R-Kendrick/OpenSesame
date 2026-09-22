@@ -34,7 +34,8 @@ export async function submitUnlockForm(input: {
   setBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
   firstRun: boolean;
-  guestUnlock: boolean;
+  /** The guest tomb with no enrolled key: guest entry itself opens it. */
+  guestKeyless: boolean;
   awaitingSecondStep: boolean;
   awaitingPasskeyDuressCode: boolean;
   setAwaitingPasskeyDuressCode: (value: boolean) => void;
@@ -65,15 +66,17 @@ export async function submitUnlockForm(input: {
   try {
     if (input.firstRun) {
       await submitFirstRunUnlock(input);
-    } else if (input.guestUnlock) {
-      await submitGuestUnlock();
     } else if (input.awaitingPasskeyDuressCode) {
       const outcome = await submitPasskeyDuressCode(input);
       if (outcome === "duress_stop") return;
       input.setAwaitingPasskeyDuressCode(false);
     } else if (input.awaitingSecondStep) {
+      // A guest tomb that enrolled a gate takes the same two steps any other
+      // vault does — the key first, then the code.
       const outcome = await submitSecondStepUnlock(input);
       if (outcome === "duress_stop") return;
+    } else if (input.guestKeyless) {
+      await submitGuestUnlock();
     } else {
       const outcome = await submitPrimaryMethodUnlock(input);
       if (outcome === "duress_stop") return;

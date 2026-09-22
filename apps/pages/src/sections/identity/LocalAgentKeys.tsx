@@ -6,6 +6,15 @@ import {
   useState,
 } from "react";
 import {
+  IconLock,
+  IconPasskey,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import {
   type LocalAgentKey,
   readLocalAgentKeys,
   registerLocalAgentKey,
@@ -118,11 +127,6 @@ function AgentKeyCommands(props: Props) {
   const disabled = props.disabled || model.busy;
   return (
     <div ref={root} aria-busy={model.busy}>
-      <p className="hint">
-        Enroll the agent's public ES256 key. Its private key stays with the
-        agent. Machine authentication does not grant human approval or
-        application access.
-      </p>
       <AgentKeyStatus model={model} session={session} />
       <AgentCommands
         disabled={disabled}
@@ -199,22 +203,45 @@ function AgentKeyStatus({
   model: ReturnType<typeof useAgentKeys>;
   session: ReturnType<typeof useLocalSessionPresentation>;
 }) {
+  const keyTone = model.error
+    ? "err"
+    : model.keys && model.keys.length > 0
+      ? "ok"
+      : "idle";
+  const keyLabel =
+    model.error ||
+    model.message ||
+    (model.keys?.length === 0
+      ? "No agent keys enrolled."
+      : !model.keys
+        ? "Loading agent keys…"
+        : "Agent keys");
+  const sessionTone = session.error ? "err" : session.session ? "ok" : "idle";
+  const sessionLabel =
+    session.error || session.message || "No active local session.";
   return (
-    <>
-      {model.error || session.error ? (
-        <p className="note note--err" role="alert">
-          {model.error || session.error}
-        </p>
-      ) : null}
-      <output aria-label="Agent key status">{model.message}</output>
-      <output aria-label="Agent session status">{session.message}</output>
-      {!model.keys && !model.error ? (
-        <output>Loading agent keys…</output>
-      ) : null}
-      {model.keys?.length === 0 ? (
-        <p className="hint">No agent keys enrolled.</p>
-      ) : null}
-    </>
+    <div className="actions">
+      <StatusMark tone={keyTone} label={keyLabel} />
+      <StatusMark tone={sessionTone} label={sessionLabel} />
+      {model.error ? (
+        <span role="alert" className="visually-hidden">
+          {model.error}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Agent key status">
+          {model.message}
+        </output>
+      )}
+      {session.error ? (
+        <span role="alert" className="visually-hidden">
+          {session.error}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Agent session status">
+          {session.message}
+        </output>
+      )}
+    </div>
   );
 }
 
@@ -235,28 +262,36 @@ function AgentCommands({
     <div className="actions">
       <button
         type="button"
-        className="btn btn--sm"
+        className="icon-btn icon-btn--sm"
         disabled={disabled || enrollDisabled}
         onClick={(event) => enroll(event.currentTarget)}
+        aria-label="Enroll public key"
+        title="Enroll public key"
       >
-        Enroll public key
+        <IconPlus size={16} />
       </button>
       <button
         type="button"
-        className="btn btn--sm"
+        className="icon-btn icon-btn--sm"
         disabled={disabled}
         onClick={reload}
+        aria-label="Reload keys"
+        title="Reload keys"
       >
-        Reload keys
+        <IconRefresh size={16} />
       </button>
-      <button
-        type="button"
-        className="btn btn--sm"
-        disabled={disabled || !signOut}
-        onClick={() => signOut?.()}
-      >
-        Sign out agent
-      </button>
+      {signOut ? (
+        <button
+          type="button"
+          className="icon-btn icon-btn--sm"
+          disabled={disabled}
+          onClick={() => signOut()}
+          aria-label="Sign out agent"
+          title="Sign out agent"
+        >
+          <IconLock size={16} />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -287,15 +322,21 @@ function AgentKeyRows({
             <div className="actions">
               <button
                 type="button"
-                className="btn btn--sm"
+                className="icon-btn icon-btn--sm"
                 disabled={disabled || !enabled}
                 onClick={(event) => authenticate(key, event.currentTarget)}
+                aria-label="Authenticate agent"
+                title="Authenticate agent"
               >
-                Authenticate agent
+                <IconPasskey size={16} />
               </button>
               <button
                 type="button"
-                className="btn btn--sm btn--danger"
+                className={
+                  removing === key.credentialId
+                    ? "icon-btn icon-btn--sm icon-btn--danger is-armed"
+                    : "icon-btn icon-btn--sm icon-btn--danger"
+                }
                 disabled={disabled}
                 onClick={(event) => {
                   if (removing === key.credentialId)
@@ -304,23 +345,33 @@ function AgentKeyRows({
                     });
                   else setRemoving(key.credentialId);
                 }}
+                aria-label={
+                  removing === key.credentialId
+                    ? "Confirm key revocation"
+                    : "Revoke agent key"
+                }
+                title={
+                  removing === key.credentialId
+                    ? "Confirm key revocation"
+                    : "Revoke agent key"
+                }
               >
-                {removing === key.credentialId
-                  ? "Confirm key revocation"
-                  : "Revoke agent key"}
+                <IconTrash size={16} />
               </button>
               {removing === key.credentialId ? (
                 <button
                   type="button"
-                  className="btn btn--sm"
+                  className="icon-btn icon-btn--sm"
                   disabled={disabled}
                   onClick={(event) => {
-                    const button = event.currentTarget.previousElementSibling;
-                    if (button instanceof HTMLButtonElement) button.focus();
+                    const primary = event.currentTarget.previousElementSibling;
                     setRemoving(null);
+                    if (primary instanceof HTMLButtonElement) primary.focus();
                   }}
+                  aria-label="Keep agent key"
+                  title="Keep agent key"
                 >
-                  Keep agent key
+                  <IconX size={16} />
                 </button>
               ) : null}
             </div>

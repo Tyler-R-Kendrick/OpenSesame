@@ -17,7 +17,8 @@ import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
 export type TestVaultState = {
   status: "empty" | "locked";
-  /** Active tomb id — `guest` selects the keyless Unlock button. */
+  /** Active tomb id — `guest` is the isolated guest tomb (a keyless one
+   *  unlocks by guest entry; one with enrolled keys offers them). */
   tomb?: string | null;
   header: { hint?: string; unlocks?: Record<string, JsonObject> } | null;
   lockedOutUntil: number | null;

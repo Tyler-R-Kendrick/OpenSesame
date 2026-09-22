@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvHydrate, kvSet } from "../kv.js";
-import { LAST_VAULT_KEY } from "../last-vault.js";
+import { LAST_VAULT_KEY, lastVaultIsGuest } from "../last-vault.js";
 import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "../local-guest.js";
 import { MODEL_PROVIDER_KEY } from "../model-provider.js";
 import {
@@ -102,8 +102,16 @@ async function boot(): Promise<void> {
     GUEST_PERSON_KEY,
   ]);
   rehydrateProjects();
+  // The active project migrates; the guest tomb is hydrated alongside it when
+  // it is the one the unlock screen will ask about (main.tsx does the same,
+  // and this is its mirror).
   const tomb = activeProject().id;
-  await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
+  const guestTomb = lastVaultIsGuest() ? GUEST_TOMB : null;
+  await kvHydrate([
+    ...projectScopedKeys(),
+    ...tombStorageKeys(tomb),
+    ...(guestTomb ? tombStorageKeys(guestTomb) : []),
+  ]);
   await migrateLegacyVaultStorage(tomb);
   vaultStore.rehydrate();
 }
@@ -156,5 +164,28 @@ describe("pre-unlock boot path", () => {
 
     expect(vaultStore.getSnapshot().tomb).toBe(GUEST_TOMB);
     expect(vaultStore.getSnapshot().status).toBe("empty");
+  });
+
+  it("asks for the gate a guest enrolled, from a cold boot (ADR 0091)", async () => {
+    // A guest may enroll a PIN and an authenticator code. Both wraps live in
+    // the guest tomb's header on disk, so a cold boot has to hydrate that tomb
+    // and ask for them — the reload leg of `verify:auth` depends on it.
+    kvSet(LAST_VAULT_KEY, GUEST_TOMB);
+    kvSet(
+      tombFileKey(GUEST_TOMB, HEADER_PATH),
+      JSON.stringify({
+        v: 1,
+        createdAt: "2026-08-29T00:00:00Z",
+        unlocks: { pin: { saltB64: "AA", wrapB64: "BB" }, totp: {} },
+      }),
+    );
+
+    await boot();
+
+    const snap = vaultStore.getSnapshot();
+    expect(snap.tomb).toBe(GUEST_TOMB);
+    expect(snap.status).toBe("locked");
+    expect(snap.header?.unlocks?.pin).toBeTruthy();
+    expect(snap.header?.unlocks?.totp).toBeTruthy();
   });
 });

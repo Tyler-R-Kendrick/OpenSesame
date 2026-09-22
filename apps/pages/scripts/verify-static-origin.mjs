@@ -72,7 +72,9 @@ const browser = await launch();
     .click();
   await page.waitForTimeout(2500);
   const inApp = await snap(page, "B-guest-in-app");
-  check(/guest\s*@\s*guest/.test(inApp), "guest landed inside the app");
+  // The guest principal is minted as `guest-N` (`lib/guest-auth.ts`): the
+  // chrome naming it is what "you are inside the app as the guest" looks like.
+  check(/guest-\d+/.test(inApp), "guest landed inside the app");
   check(!/Claim this guest session/.test(inApp), "no claim notice");
   await checkStatusline(page, check);
   await checkVaultPane(page, check);

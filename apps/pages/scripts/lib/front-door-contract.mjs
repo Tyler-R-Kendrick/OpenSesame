@@ -39,19 +39,21 @@ export async function checkFrontDoor(page, check, text, base) {
 }
 
 /**
- * A2. "Set up your own": six tabs opening on connectors (so backups can reuse
- * directory endpoints), then backups, and Skip all retiring the door — sign-in,
- * then plain sign-in (setup behind unlock).
+ * A2. "Set up your own": four tabs opening on connectors (so the later tabs
+ * can reuse directory endpoints), then the model tab, and Skip all retiring
+ * the door — sign-in, then plain sign-in (setup behind unlock). Backups and
+ * sync were tabs once; both configured a Host, and ADR 0128 took those
+ * surfaces away rather than leave controls with nothing behind them.
  */
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onSetup = await snap(page, "A2-setup");
   check(
-    (await page.getByRole("tab").count()) === 6 &&
+    (await page.getByRole("tab").count()) === 4 &&
       (await page
         .getByRole("tab", { name: "connectors", selected: true })
         .count()) === 1,
-    "setup opens on the connectors tab of six (ADR 0114, ADR 0115)",
+    "setup opens on the connectors tab of four (ADR 0114, ADR 0128)",
   );
   check(
     !/Where do backups live\?|Should a code follow the key\?|Who runs the model\?|How do people sign in\?|Which connectors are already authorized\?|What should this vault sync with\?/.test(
@@ -63,19 +65,11 @@ export async function walkSetupCeremony(page, check, snap) {
     (await page.getByLabel("Directory endpoint").count()) === 1,
     "connectors tab asks for a directory endpoint",
   );
-  await page.getByRole("button", { name: "Next" }).click();
-  const backups = await snap(page, "A2-setup-backups");
-  check(
-    (await page
-      .getByRole("tab", { name: "backups", selected: true })
-      .count()) === 1,
-    "next browses to backups",
-  );
-  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Next step" }).click();
   const ai = await snap(page, "A2-setup-ai");
   check(
     (await page.getByRole("tab", { name: "ai", selected: true }).count()) === 1,
-    "next browses to ai",
+    "next steps to the model tab",
   );
   await page.getByRole("tab", { name: "identity" }).click();
   await snap(page, "A2-setup-identity");
