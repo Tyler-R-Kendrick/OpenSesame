@@ -38,8 +38,10 @@ describe("access.authority runtime", () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "access.authority",
       kinds: KINDS,
-      // 1 section + 3 routes + 1 command + 1 jump + tutorial descriptors
-      count: 1 + 3 + 1 + 1 + targets.length + goals.length + routes.length,
+      // 1 section + 3 routes + 1 section command + 6 tab commands + 1 jump
+      // + tutorial descriptors
+      count:
+        1 + 3 + 1 + 6 + 1 + targets.length + goals.length + routes.length,
     });
   });
 
@@ -57,8 +59,17 @@ describe("access.authority runtime", () => {
       ["agents-alias", "/agents", false, undefined],
       ["sites-alias", "/sites", false, undefined],
     ]);
+    // The section, then one destination per tab: a tab is somewhere the
+    // command bar and the browser tool may go exactly while this capability
+    // draws it.
     expect(t.entries("command-path")).toEqual([
       { path: "/access", label: "Access" },
+      { path: "/access?view=grants", label: "Access · Grants" },
+      { path: "/access?view=requests", label: "Access · Requests" },
+      { path: "/access?view=sessions", label: "Access · Sessions" },
+      { path: "/access?view=connectors", label: "Access · Connectors" },
+      { path: "/access?view=resources", label: "Access · Resources" },
+      { path: "/access?view=policies", label: "Access · Policies" },
     ]);
     expect(t.entries("keymap-jump")).toEqual([{ key: "a", path: "/access" }]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual(

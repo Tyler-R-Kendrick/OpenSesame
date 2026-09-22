@@ -34,8 +34,9 @@ describe("enterprise.directory-provisioning runtime", () => {
     const { targets, goals } = runtime.TUTORIAL;
     await expectLifecycle(runtimeOf(runtime), {
       capability: "enterprise.directory-provisioning",
-      kinds: ["tutorial-goal", "tutorial-target"],
-      count: targets.length + goals.length,
+      kinds: ["command-path", "tutorial-goal", "tutorial-target"],
+      // 4 tab commands + tutorial descriptors
+      count: 4 + targets.length + goals.length,
     });
   });
 
@@ -49,6 +50,14 @@ describe("enterprise.directory-provisioning runtime", () => {
       "agents",
       "devices",
       "organization",
+    ]);
+    // Each tab is a destination for as long as this capability draws it; with
+    // the Identity API excluded, `/identity?view=devices` is nowhere to go.
+    expect(t.entries("command-path")).toEqual([
+      { path: "/identity?view=people", label: "Identity · People" },
+      { path: "/identity?view=agents", label: "Identity · Agents" },
+      { path: "/identity?view=devices", label: "Identity · Devices" },
+      { path: "/identity?view=organization", label: "Identity · Organization" },
     ]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       "identity.people",

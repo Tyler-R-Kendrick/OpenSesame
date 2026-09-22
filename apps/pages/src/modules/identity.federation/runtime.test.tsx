@@ -16,6 +16,7 @@ import type * as Runtime from "./runtime.js";
 let runtime: typeof Runtime;
 
 const KINDS = [
+  "command-path",
   "setup-panel",
   "tutorial-goal",
   "tutorial-target",
@@ -40,8 +41,8 @@ describe("identity.federation runtime", () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "identity.federation",
       kinds: KINDS,
-      // 2 setup panels + 1 webmcp tool + tutorial descriptors
-      count: 2 + 1 + targets.length + goals.length,
+      // 1 tab command + 2 setup panels + 1 webmcp tool + tutorial descriptors
+      count: 1 + 2 + 1 + targets.length + goals.length,
     });
   });
 
@@ -53,6 +54,10 @@ describe("identity.federation runtime", () => {
     ).toEqual([
       ["identity", "identity", "Identity", 30],
       ["mfa", "mfa", "MFA", 40],
+    ]);
+    // The Providers tab is a destination only while this capability draws it.
+    expect(t.entries("command-path")).toEqual([
+      { path: "/identity?view=providers", label: "Identity · Providers" },
     ]);
     const tools = t.entries("webmcp-tool");
     expect(tools.map((tool) => tool.name)).toEqual([

@@ -52,7 +52,10 @@ describe("identity.local-iam runtime", () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "identity.local-iam",
       kinds: KINDS,
-      count: 1 + 2 + 1 + 1 + targets.length + goals.length + routes.length,
+      // 1 section + 2 routes + 1 section command + 1 tab command + 1 jump
+      // + tutorial descriptors
+      count:
+        1 + 2 + 1 + 1 + 1 + targets.length + goals.length + routes.length,
     });
   });
 
@@ -66,8 +69,14 @@ describe("identity.local-iam runtime", () => {
       ["identity", "/identity", true],
       ["identity-authorize", "/identity/authorize", true],
     ]);
+    // The section, plus the one Identity tab this capability owns. The other
+    // tabs' destinations belong to the capabilities that draw them.
     expect(t.entries("command-path")).toEqual([
       { path: "/identity", label: "Identity" },
+      {
+        path: "/identity?view=service-accounts",
+        label: "Identity · Applications",
+      },
     ]);
     expect(t.entries("keymap-jump")).toEqual([{ key: "i", path: "/identity" }]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
