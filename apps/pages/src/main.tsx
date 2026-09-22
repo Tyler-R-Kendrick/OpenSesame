@@ -3,25 +3,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
-import { DIRECTORY_KEY } from "./lib/connector-directory.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
-import { LAST_VAULT_KEY } from "./lib/last-vault.js";
-import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "./lib/local-guest.js";
-import { MODEL_PROVIDER_KEY } from "./lib/model-provider.js";
-import {
-  PROJECTS_KEY,
-  activeProject,
-  projectScopedKeys,
-  rehydrateProjects,
-} from "./lib/projects.js";
+import { PROJECTS_KEY, rehydrateProjects } from "./lib/projects.js";
 import { loadRuntimeConfig } from "./lib/runtime-config.js";
 import { THEME_KEY, bootstrapTheme } from "./lib/theme.js";
 import { vaultStore } from "./lib/vault/store.js";
-import {
-  migrateLegacyVaultStorage,
-  tombStorageKeys,
-} from "./lib/vault/tomb-migration.js";
 import { TOMBS_REGISTRY_KEY } from "./lib/vfs.js";
 // The shell and the vault load behind the unlock gate (App.tsx), but their
 // stylesheets stay in the first bundle, ahead of styles.css: a stylesheet
@@ -80,31 +67,9 @@ void (async () => {
     TOMBS_REGISTRY_KEY,
     "settings.v1",
     "setup.v1",
-    // The connector directory's endpoint (ADR 0115) — its key and list are
-    // sealed in the tomb and hydrate with it.
-    DIRECTORY_KEY,
-    "outbox.v1",
-    "connections.firstRun.v1",
-    // The model-provider record reads synchronously (`loadModelProvider`),
-    // so a choice made in setup or Settings › AI models is lost on reload
-    // unless it hydrates here with the rest of the plaintext boundary.
-    MODEL_PROVIDER_KEY,
-    // Day/night must survive a locked reload — not a vault secret.
     THEME_KEY,
-    // Last authorized vault (guest included). Missing this on a cold load —
-    // e.g. GitHub App install return — makes unlock default to personal.
-    LAST_VAULT_KEY,
-    // Guest slug ordinal + durable principal — same install-return cold load.
-    GUEST_ORDINAL_KEY,
-    GUEST_PERSON_KEY,
   ]);
   rehydrateProjects();
-  const tomb = activeProject().id;
-  await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
-  // Move any legacy flat vault keys into the tomb before the store reads it.
-  // Pre-unlock this is plaintext moves only (header params, sealed body
-  // bytes); sealed config migrates on unlock.
-  await migrateLegacyVaultStorage(tomb);
   vaultStore.rehydrate();
   bootstrapTheme();
 
