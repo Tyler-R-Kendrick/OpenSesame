@@ -58,7 +58,11 @@ const BUNDLE_TOKENS = [
   ["into_verified", /into_verified/, true],
   ["tls.createServer", /tls\.createServer/, true],
   ["unix socket URL", /unix:\/\/\//, true],
-  ["PEM key marker (informational; legitimate PEM parsing in Pages)", /PRIVATE KEY/, false],
+  [
+    "PEM key marker (informational; legitimate PEM parsing in Pages)",
+    /PRIVATE KEY/,
+    false,
+  ],
   ["spiffe:// literal (informational)", /spiffe:\/\//, false],
 ];
 const SOURCE_IMPORTS =

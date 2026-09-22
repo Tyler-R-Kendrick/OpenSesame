@@ -77,12 +77,7 @@
     {
       "name": "leaf_token_item",
       "description": "A Token item is not a Byte Sequence.",
-      "headers": [
-        [
-          "client-cert",
-          "abc"
-        ]
-      ],
+      "headers": [["client-cert", "abc"]],
       "expect": {
         "error": "not_byte_sequence"
       }
@@ -90,12 +85,7 @@
     {
       "name": "leaf_integer_item",
       "description": "An Integer item is not a Byte Sequence.",
-      "headers": [
-        [
-          "client-cert",
-          "42"
-        ]
-      ],
+      "headers": [["client-cert", "42"]],
       "expect": {
         "error": "not_byte_sequence"
       }
@@ -103,12 +93,7 @@
     {
       "name": "leaf_boolean_item",
       "description": "A Boolean item is not a Byte Sequence.",
-      "headers": [
-        [
-          "client-cert",
-          "?1"
-        ]
-      ],
+      "headers": [["client-cert", "?1"]],
       "expect": {
         "error": "not_byte_sequence"
       }
@@ -180,12 +165,7 @@
     {
       "name": "leaf_empty_byte_sequence",
       "description": "Zero decoded bytes.",
-      "headers": [
-        [
-          "client-cert",
-          "::"
-        ]
-      ],
+      "headers": [["client-cert", "::"]],
       "expect": {
         "error": "empty_item"
       }
@@ -210,12 +190,7 @@
     {
       "name": "leaf_empty_value",
       "description": "An empty field value.",
-      "headers": [
-        [
-          "client-cert",
-          ""
-        ]
-      ],
+      "headers": [["client-cert", ""]],
       "expect": {
         "error": "empty_item"
       }
@@ -228,10 +203,7 @@
           "client-cert",
           ":MIICGzCCAcCgAwIBAgIUBYhTPAXLEZVqdkI8P+9FXhACcg0wCgYIKoZIzj0EAwIwMjEwMC4GA1UEAwwnT3BlblNlc2FtZSBJbmdyZXNzIEZpeHR1cmUgSW50ZXJtZWRpYXRlMCAXDTI2MDkyMjAwMTUwMloYDzIxMjYwODI5MDAxNTAyWjAXMRUwEwYDVQQDDAxmaXh0dXJlLWxlYWYwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASOQeEKNh9Nln9mK4/TSP7Z/XrJHIjd300+fb082WdagRUdvdrQJJ8lbckMGa1gScvaYDahXlHWl8s2hczSC90Vo4HMMIHJMAwGA1UdEwEB/wQCMAAwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMCMFQGA1UdEQRNMEuCH2xlYWYuZml4dHVyZS5vcGVuc2VzYW1lLmludmFsaWSGKHNwaWZmZTovL2ZpeHR1cmUub3BlbnNlc2FtZS5pbnZhbGlkL2xlYWYwHQYDVR0OBBYEFBu9/EnvzyniNWdvPnCvvdiylQKRMB8GA1UdIwQYMBaAFPirgkTnklsSvuAZE8XI+ZlyHRuAMAoGCCqGSM49BAMCA0kAMEYCIQCvGRR0ATh178WEWa/pJ98fmTktyVjV5doRhn/2yNYB9wIhAM+hV4v4ves5G7Az8le/OJvjkIza5sdfer2vCrAunpcH:"
         ],
-        [
-          "client-cert-chain",
-          "  "
-        ]
+        ["client-cert-chain", "  "]
       ],
       "expect": {
         "error": "empty_item"
@@ -240,12 +212,7 @@
     {
       "name": "leaf_invalid_base64_characters",
       "description": "Characters outside the base64 alphabet.",
-      "headers": [
-        [
-          "client-cert",
-          ":ab$cd:"
-        ]
-      ],
+      "headers": [["client-cert", ":ab$cd:"]],
       "expect": {
         "error": "malformed_structured_field"
       }
@@ -253,12 +220,7 @@
     {
       "name": "leaf_unpadded_base64",
       "description": "RFC 8941 lets parsers tolerate missing padding; this profile requires the canonical encoding, so both implementations refuse it identically.",
-      "headers": [
-        [
-          "client-cert",
-          ":AQ:"
-        ]
-      ],
+      "headers": [["client-cert", ":AQ:"]],
       "expect": {
         "error": "malformed_structured_field"
       }
@@ -266,12 +228,7 @@
     {
       "name": "leaf_noncanonical_pad_bits",
       "description": "Non-zero pad bits are not canonical.",
-      "headers": [
-        [
-          "client-cert",
-          ":AR==:"
-        ]
-      ],
+      "headers": [["client-cert", ":AR==:"]],
       "expect": {
         "error": "malformed_structured_field"
       }
@@ -352,12 +309,7 @@
     {
       "name": "leaf_not_der",
       "description": "Three zero bytes are not a certificate.",
-      "headers": [
-        [
-          "client-cert",
-          ":AAAA:"
-        ]
-      ],
+      "headers": [["client-cert", ":AAAA:"]],
       "expect": {
         "error": "not_der_certificate"
       }
@@ -485,16 +437,7 @@
     {
       "name": "leaf_repeated_wins_over_malformed",
       "description": "Multiplicity is checked before any value is decoded.",
-      "headers": [
-        [
-          "client-cert",
-          "garbage"
-        ],
-        [
-          "client-cert",
-          "::"
-        ]
-      ],
+      "headers": [["client-cert", "garbage"], ["client-cert", "::"]],
       "expect": {
         "error": "leaf_repeated"
       }
