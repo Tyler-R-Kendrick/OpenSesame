@@ -138,6 +138,31 @@ round. Each is a named error. Refusing is the point: a format where the
 reader and the writer disagree about what a document means is worse than
 one that will not open it.
 
+## Divergences, named
+
+Three, and the first is the only one a reader is likely to hit:
+
+- **Fail-closed YAML features.** Anchors, aliases, explicit tags and merge
+  keys are refused at parse. Upstream `sops` handles them. The engine refuses
+  because a lossless export outranks them, and silently flattening an alias or
+  rewriting a tag is not lossless.
+- **Recipient coverage.** Local age recovers a document here. A document whose
+  only master keys are PGP, HashiCorp Vault or PKCS#11 recovers nothing, and
+  the engine refuses it by name rather than pretending. AWS KMS, Azure Key
+  Vault and GCP KMS adapters exist and implement upstream's encodings, but no
+  live provider call has been proven from a browser.
+- **Vault export is an OpenSesame convention, not a SOPS feature.** Exporting
+  the vault writes an ordinary SOPS document; upstream edits it as one, and
+  its own policy applies to its copy. Nothing about that round trip is part of
+  the SOPS specification.
+
+An earlier version of this document (2026-09-21, against the engine this one
+replaced) also listed metadata byte layout as a divergence — `shamir_threshold`
+presence and an extra `opensesame` field. Neither applies now: the engine emits
+no `opensesame` field, and `shamir_threshold` only above one group, which is
+upstream's own rule. The conformance gate compares against upstream output
+directly, so a metadata drift would fail it.
+
 ## Bounds
 
 `limits.ts`: 8 MiB input, 64 levels of nesting, 100,000 tree nodes, 32

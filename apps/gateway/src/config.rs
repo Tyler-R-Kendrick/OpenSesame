@@ -255,20 +255,20 @@ impl StartupSecurity {
             );
         }
         let receipt_signer = resolve_receipt_signer()?;
-        let identity_mapping = if [
-            "OPENSESAME_NATS_CALLOUT_SECRET",
-            "OPENSESAME_MAPPING_RESOLVE_TOKEN",
-        ]
-        .iter()
-        .any(|name| env::var(name).is_ok_and(|value| !value.is_empty()))
-        {
-            Some(
-                crate::identity_mapping::IdentityMappingClient::from_env(deployment)
-                    .map_err(|error| error.to_string())?,
-            )
-        } else {
-            None
-        };
+        // SVC-STARTUP: one authentication mode decides this, and a
+        // certificate-only mapping client needs no bearer secret to boot. A
+        // configured callout still requires *some* mapping client, and a
+        // configured mode whose material is missing is a startup error, never
+        // a downgrade to the other mode.
+        let transport = crate::transport::config::TransportConfig::from_env()
+            .map_err(|error| error.to_string())?;
+        let identity_mapping = crate::identity_mapping::IdentityMappingClient::from_startup(
+            deployment,
+            transport.mapping_auth,
+        )?;
+        if identity_mapping.is_none() && transport.mapping_client_required() {
+            return Err("identity mapping is required when the NATS callout is configured".into());
+        }
         Ok(Self {
             host_authorization: crate::host_authorization::HostAuthorizationVerifier::from_env()?,
             deployment,

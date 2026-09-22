@@ -17,8 +17,12 @@ opensesame-uds-authn = { path = "../../crates/uds-authn" }
 opensesame-tailscale-authn = { path = "../../crates/tailscale-authn", optional = true }
 anyhow = { workspace = true }
 axum = { workspace = true }
+base64 = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
+ecdsa = { version = "0.16", default-features = false, features = ["verifying"] }
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pkcs8"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
 reqwest = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }

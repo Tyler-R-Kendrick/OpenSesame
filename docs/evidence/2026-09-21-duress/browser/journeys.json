@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "outcome": "passed_with_blockers",
+  "testedCommit": "424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716",
+  "chromium": {
+    "path": "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux/chrome",
+    "source": "ms-playwright-cache",
+    "probed": [
+      "env:PLAYWRIGHT_CHROMIUM=(unset)",
+      "env:CHROMIUM_PATH=(unset)",
+      "env:CHROME_PATH=(unset)",
+      "/opt/pw-browsers/chromium",
+      "/usr/bin/chromium",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/google-chrome",
+      "/usr/bin/google-chrome-stable",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux-arm64/chrome",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux/chrome",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux64/chrome",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-win/chrome.exe",
+      "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux-arm64/chrome",
+      "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux/chrome"
+    ],
+    "version": "Chromium 149.0.7827.0"
+  },
+  "blockers": [
+    "DuressSettingsPanel exists but is not imported in SettingsSection — production entry missing"
+  ],
+  "journeys": [
+    {
+      "name": "J-CAPABILITIES",
+      "outcome": "passed",
+      "ms": 10,
+      "detail": {
+        "webcrypto": {
+          "crypto": true,
+          "subtle": true,
+          "pbkdf2": true,
+          "aesGcm": true,
+          "hkdf": true,
+          "ecdsa": true,
+          "digest": true,
+          "getRandomValues": true
+        },
+        "virtualAuthenticator": {
+          "supported": true,
+          "authenticatorId": "87a13edf-a735-4764-a393-b067d6c29f92",
+          "note": "virtual authenticator only — not physical biometrics/PRF hardware"
+        }
+      }
+    },
+    {
+      "name": "J-CRYPTO-SLOT",
+      "outcome": "passed",
+      "ms": 428,
+      "detail": {
+        "iterations": 1200000,
+        "openedPresentation": "restricted",
+        "openedKeyLen": 32,
+        "wrongIsNull": true,
+        "staleIsNull": true,
+        "floor": 1200000
+      }
+    },
+    {
+      "name": "J-PRF-AND-CODE",
+      "outcome": "passed",
+      "ms": 280,
+      "detail": {
+        "bothLen": 32,
+        "prfOnlyNull": true,
+        "codeOnlyNull": true,
+        "wrongPrfNull": true,
+        "note": "PRF bytes are simulated — not hardware authenticator PRF"
+      }
+    },
+    {
+      "name": "J-TRIGGER",
+      "outcome": "passed",
+      "ms": 716,
+      "detail": {
+        "matchedStatus": "matched",
+        "matchedProfile": "SC-DECOY",
+        "noneStatus": "none",
+        "shortStatus": "none",
+        "ambiguousErr": "ambiguous_trigger: collides with enrolled slot",
+        "armed": true
+      }
+    },
+    {
+      "name": "J-PEER-ENVELOPE",
+      "outcome": "passed",
+      "ms": 4,
+      "detail": {
+        "ok": {
+          "ok": true
+        },
+        "replay": {
+          "ok": false,
+          "code": "ambiguous_trigger"
+        },
+        "wrongAud": {
+          "ok": false,
+          "code": "scope_mismatch"
+        }
+      }
+    },
+    {
+      "name": "J-NETWORK-LOSS",
+      "outcome": "passed",
+      "ms": 4,
+      "detail": {
+        "status": "failed",
+        "retainedCount": 0,
+        "listed": 1
+      }
+    },
+    {
+      "name": "J-RESTART",
+      "outcome": "passed",
+      "ms": 840,
+      "detail": {
+        "missing": false,
+        "presentation": "locked"
+      }
+    },
+    {
+      "name": "J-SCENARIO-MATRIX",
+      "outcome": "passed",
+      "ms": 2,
+      "detail": {
+        "SC-ALERT-ONLY": {
+          "status": "exercised_fixture",
+          "entryPoint": "J-CRYPTO-SLOT|J-TRIGGER",
+          "note": "presentation sealed/opened via fixture modules"
+        },
+        "SC-RESTRICTED": {
+          "status": "production_entry_wired",
+          "entryPoint": "unlock-pin-duress|unlock-password-duress|unlock-duress-continue",
+          "note": "application_code match → activate → guest continue; fixture crypto still covers seal/open"
+        },
+        "SC-DECOY": {
+          "status": "production_entry_wired",
+          "entryPoint": "unlock-pin-duress|unlock-password-duress|unlock-duress-continue",
+          "note": "same complete-code gate + guest continue as restricted"
+        },
+        "SC-LOCAL-HOLD": {
+          "status": "exercised_fixture",
+          "entryPoint": "J-RESTART"
+        },
+        "SC-CUSTODIAN-HOLD": {
+          "status": "blocked",
+          "entryPoint": null,
+          "blocker": "production unlock/settings entry points not wired for this scenario"
+        },
+        "SC-QUARANTINE": {
+          "status": "exercised_fixture",
+          "entryPoint": "J-PEER-ENVELOPE"
+        },
+        "SC-LOCAL-REMOVE": {
+          "status": "blocked",
+          "entryPoint": null,
+          "blocker": "production unlock/settings entry points not wired for this scenario"
+        },
+        "SC-LIMITED-CARRY": {
+          "status": "blocked",
+          "entryPoint": null,
+          "blocker": "production unlock/settings entry points not wired for this scenario"
+        },
+        "SC-APPROVAL-DURESS": {
+          "status": "blocked",
+          "entryPoint": null,
+          "blocker": "production unlock/settings entry points not wired for this scenario"
+        },
+        "SC-LOST-DEVICE": {
+          "status": "blocked",
+          "entryPoint": null,
+          "blocker": "production unlock/settings entry points not wired for this scenario"
+        },
+        "SC-SPLIT-SCOPE": {
+          "status": "blocked",
+          "entryPoint": null,
+          "blocker": "production unlock/settings entry points not wired for this scenario"
+        },
+        "SC-CANARY": {
+          "status": "module_present_ui_blocked",
+          "entryPoint": "lib/duress/canary/detect.ts",
+          "blocker": "no production canary UI journey wired"
+        },
+        "SC-REHEARSAL": {
+          "status": "exercised_fixture",
+          "entryPoint": "arming-checklist",
+          "detail": {
+            "canArmWithoutRehearsal": false
+          }
+        }
+      }
+    },
+    {
+      "name": "J-MULTI-CONTEXT",
+      "outcome": "passed",
+      "ms": 1669,
+      "detail": {
+        "activated": 1,
+        "hints": [],
+        "bEpoch": 0
+      }
+    },
+    {
+      "name": "J-UI-SETTINGS",
+      "outcome": "passed",
+      "ms": 4528,
+      "detail": {
+        "status": "blocked",
+        "blockers": [
+          "DuressSettingsPanel exists but is not imported in SettingsSection — production entry missing"
+        ],
+        "panelWired": false
+      }
+    }
+  ],
+  "failures": [],
+  "pageErrors": 0,
+  "contractIds": [
+    "INV-01",
+    "INV-03",
+    "INV-05",
+    "INV-08",
+    "INV-16",
+    "INV-17",
+    "BROWSER-QA-A",
+    "BROWSER-QA-B",
+    "BROWSER-QA-C",
+    "BROWSER-QA-D",
+    "BROWSER-QA-F"
+  ]
+}

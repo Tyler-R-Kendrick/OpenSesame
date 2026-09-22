@@ -14,6 +14,9 @@ http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
 hyper-rustls = { workspace = true }
+# Named for the types `tls` exposes only; already in the tree via hyper-rustls / hyper-util.
+rustls = { version = "0.23.43", default-features = false, features = ["std"] }
+tower-service = "0.3.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -21,3 +24,9 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+# Disposable PKI + a real mTLS listener for the TLS-injection tests. Never a
+# normal dependency: the daemon's dependency budget is measured on normal edges.
+opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+opensesame-domain = { path = "../domain" }
+axum = { workspace = true }
+chrono = { workspace = true }

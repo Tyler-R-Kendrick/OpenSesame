@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "evidencePack": "2026-09-21-duress",
+  "branch": "feat/duress-profiles",
+  "adr": [
+    "0131-duress-profiles.md",
+    "0130-duress-profiles-trust-boundaries.md"
+  ],
+  "operators": [
+    "duress-profiles.md",
+    "duress-inventory-recovery.md",
+    "duress-troubleshooting.md"
+  ],
+  "scenarios": {
+    "SC-ALERT-ONLY": {
+      "inv": ["INV-01", "INV-16", "INV-17", "INV-18"],
+      "tasks": ["ALERT-A"],
+      "result": null
+    },
+    "SC-RESTRICTED": {
+      "inv": ["INV-04", "INV-05", "INV-09", "INV-11"],
+      "tasks": ["COMPARTMENT-UX-A", "AUTH-A"],
+      "result": null
+    },
+    "SC-DECOY": {
+      "inv": ["INV-05", "INV-28"],
+      "tasks": ["COMPARTMENT-UX-A", "COMPARTMENT-UX-C", "COMPARTMENT-UX-E"],
+      "result": null
+    },
+    "SC-LOCAL-HOLD": {
+      "inv": ["INV-19"],
+      "tasks": ["STORE-A", "SETTINGS-B"],
+      "result": null
+    },
+    "SC-CUSTODIAN-HOLD": {
+      "inv": ["INV-19", "INV-20"],
+      "tasks": ["RECOVERY-A", "HOST-C"],
+      "result": null
+    },
+    "SC-QUARANTINE": {
+      "inv": ["INV-13"],
+      "tasks": ["PEER-A", "HOST-A"],
+      "result": null
+    },
+    "SC-LOCAL-REMOVE": {
+      "inv": ["INV-22", "INV-23"],
+      "tasks": ["BACKUP-A"],
+      "result": null
+    },
+    "SC-LIMITED-CARRY": {
+      "inv": ["INV-02"],
+      "tasks": ["COMPARTMENT-UX-D"],
+      "result": null
+    },
+    "SC-APPROVAL-DURESS": {
+      "inv": ["INV-11", "INV-32"],
+      "tasks": ["AUTH-B", "HOST-B"],
+      "result": null
+    },
+    "SC-LOST-DEVICE": {
+      "inv": ["INV-21"],
+      "tasks": ["PEER-B"],
+      "result": null
+    },
+    "SC-SPLIT-SCOPE": {
+      "inv": ["INV-02"],
+      "tasks": ["SETTINGS-A", "CONTRACT-A"],
+      "result": null
+    },
+    "SC-CANARY": {
+      "inv": ["INV-25"],
+      "tasks": ["CANARY-A", "CANARY-B"],
+      "result": null
+    },
+    "SC-REHEARSAL": {
+      "inv": ["INV-02"],
+      "tasks": ["SETTINGS-B", "SETTINGS-F"],
+      "result": null
+    }
+  },
+  "invariants": {
+    "INV-01": {
+      "codePaths": ["apps/pages/src/lib/duress/feature/mode.ts"],
+      "tests": ["feature registration"],
+      "result": null
+    },
+    "INV-02": {
+      "codePaths": ["apps/pages/src/lib/duress/settings/"],
+      "tests": ["settings consent + rehearsal"],
+      "result": null
+    },
+    "INV-04": {
+      "codePaths": ["apps/pages/src/lib/duress/crypto/slots.ts"],
+      "tests": ["duress slots + prf-and-code"],
+      "result": null
+    },
+    "INV-05": {
+      "codePaths": ["apps/pages/src/lib/duress/compartment/project.ts"],
+      "tests": ["compartment projection"],
+      "result": null
+    },
+    "INV-09": {
+      "codePaths": ["apps/pages/src/lib/duress/access/context.ts"],
+      "tests": ["duress access context"],
+      "result": null
+    },
+    "INV-16": {
+      "codePaths": ["apps/pages/src/lib/duress/alert/"],
+      "tests": ["alert outbox"],
+      "result": null
+    },
+    "INV-19": {
+      "codePaths": ["crates/host-core/src/duress/hold.rs"],
+      "tests": ["timed_hold_delay_never_auto_unlocks"],
+      "result": null
+    },
+    "INV-22": {
+      "codePaths": ["apps/pages/src/lib/duress/removal/"],
+      "tests": ["local removal"],
+      "result": null
+    },
+    "INV-25": {
+      "codePaths": ["apps/pages/src/lib/duress/canary/detect.ts"],
+      "tests": ["canary executor ceiling"],
+      "result": null
+    },
+    "INV-28": {
+      "codePaths": ["apps/pages/src/lib/duress/compartment/project.ts"],
+      "tests": ["compartment projection"],
+      "result": null
+    },
+    "INV-29": {
+      "codePaths": ["packages/contracts/src/duress/compiler.ts"],
+      "tests": ["contracts src/duress"],
+      "result": null
+    }
+  },
+  "adversarialThemes": {
+    "AT-002": { "mapsTo": ["INV-02"], "result": null },
+    "AT-032": { "mapsTo": ["INV-09"], "result": null },
+    "AT-050": { "mapsTo": ["INV-16"], "result": null },
+    "AT-093": { "mapsTo": ["INV-28"], "result": null }
+  },
+  "nonClaims": [
+    "personal-safety guarantee",
+    "undetectability under skilled device observation",
+    "forensic erasure / secure disk wipe",
+    "distributed atomicity across peers and providers"
+  ],
+  "coordNotes": "Fill result fields after swarm verification aggregates."
+}

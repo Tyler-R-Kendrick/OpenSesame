@@ -1,0 +1,10 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "dns_name": "fe80::1"
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

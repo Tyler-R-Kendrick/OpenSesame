@@ -192,8 +192,7 @@ pub async fn list_app_installations(
                 .map_err(|e| MintError::Transient(e.into()))?;
             let mut summaries = Vec::with_capacity(rows.len());
             for row in rows {
-                let repositories =
-                    installation_repo_names(http, base, &jwt, row.id).await;
+                let repositories = installation_repo_names(http, base, &jwt, row.id).await;
                 let permissions = row
                     .permissions
                     .unwrap_or_default()

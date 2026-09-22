@@ -103,8 +103,8 @@ mod pact {
             .find("validate_nats_url")
             .expect("validate_nats_url");
         let connect = production
-            .find("async_nats::connect")
-            .expect("async_nats::connect");
+            .find("options.connect(")
+            .expect("options.connect(");
         assert!(validate < connect);
     }
 }

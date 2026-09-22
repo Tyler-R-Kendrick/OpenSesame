@@ -1,3 +1,7 @@
+export {
+  onCompleteUnlockCodeSubmission,
+  persistEnrollmentStateForUnlock,
+} from "./security/duress-unlock-bridge.js";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   IconEdit,

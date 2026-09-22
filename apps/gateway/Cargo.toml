@@ -40,6 +40,13 @@ opensesame-relay = { path = "../../crates/relay" }
 opensesame-provider-openfga = { path = "../../crates/provider-openfga" }
 opensesame-provider-openbao = { path = "../../crates/provider-openbao" }
 opensesame-task-bus = { path = "../../crates/task-bus", features = ["jetstream"] }
+opensesame-nats-callout = { path = "../../crates/nats-callout" }
+opensesame-transport-security = { path = "../../crates/transport-security" }
+opensesame-spiffe-source = { path = "../../crates/spiffe-source" }
+opensesame-ingress-evidence = { path = "../../crates/ingress-evidence" }
+secrecy = { workspace = true }
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
+tower = { workspace = true }
 sqlx = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
@@ -76,7 +83,10 @@ wasm-connectors = ["opensesame-connector-host/wasm-connectors"]
 
 [dev-dependencies]
 async-trait = { workspace = true }
+opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
+tempfile = { workspace = true }
 insta = { workspace = true, features = ["redactions", "json"] }
 proptest = { workspace = true }
 sqlx = { workspace = true }
-tower = { workspace = true }

@@ -66,6 +66,15 @@ pub enum CustodyError {
     LifetimeTooShort,
     #[error("{0}")]
     Mint(String),
+    /// A transport consumer asked for a certificate issued for another
+    /// purpose (a client identity used as a listener, or the reverse).
+    #[error("certificate was not issued for this transport purpose")]
+    PurposeMismatch,
+    /// The row predates transport issuance and never retained its leaf, so
+    /// no `TlsIdentity` can be built from it; reissue through the transport
+    /// route.
+    #[error("certificate row does not retain its leaf certificate")]
+    LeafNotRetained,
     #[error(transparent)]
     Storage(#[from] anyhow::Error),
 }
@@ -83,6 +92,8 @@ impl CustodyError {
             Self::Superseded => "issuance_superseded",
             Self::LifetimeTooShort => "lifetime_too_short",
             Self::Mint(_) => "invalid_request",
+            Self::PurposeMismatch => "certificate_purpose_mismatch",
+            Self::LeafNotRetained => "leaf_not_retained",
             Self::Storage(_) => "internal",
         }
     }
@@ -92,7 +103,12 @@ impl CustodyError {
     pub const fn http_status(&self) -> u16 {
         match self {
             Self::SealingUnavailable => 503,
-            Self::NoAuthority | Self::NotInCustody | Self::NotActive | Self::Superseded => 409,
+            Self::NoAuthority
+            | Self::NotInCustody
+            | Self::NotActive
+            | Self::Superseded
+            | Self::PurposeMismatch
+            | Self::LeafNotRetained => 409,
             Self::NotFound => 404,
             Self::LifetimeTooShort | Self::Mint(_) => 400,
             Self::Storage(_) => 500,
@@ -235,6 +251,39 @@ pub async fn issue_managed(
     state: &AppState,
     spec: &ManagedRequest<'_>,
 ) -> Result<ManagedIssuance, CustodyError> {
+    let material = dev_pki::issue_leaf(spec.ca, spec.request).map_err(CustodyError::Mint)?;
+    issue_managed_material(state, spec, material, "{}").await
+}
+
+/// The `transport` object inside a certificate row's metadata document, when
+/// the certificate was issued (or reissued) for a transport identity by
+/// `crate::transport_lifecycle::issuance`.
+#[must_use]
+pub fn transport_metadata(row: &StoredManagedCertificate) -> Option<serde_json::Value> {
+    serde_json::from_str::<serde_json::Value>(&row.metadata_json)
+        .ok()?
+        .get("transport")
+        .cloned()
+}
+
+/// Seal and record material that was minted by the caller.
+///
+/// The transport issuance path mints its own leaf shape (client-auth EKUs,
+/// SPIFFE URI SANs) and keeps the public leaf in `metadata_json` so the host
+/// can rebuild a TLS identity from custody later. Everything about custody
+/// itself — the sealing scope, the request row, the atomic pair write — is
+/// shared with [`issue_managed`], so a transport certificate and a plain
+/// managed one are indistinguishable to renewal and reveal.
+///
+/// # Errors
+///
+/// As [`issue_managed`], minus the mint failure.
+pub async fn issue_managed_material(
+    state: &AppState,
+    spec: &ManagedRequest<'_>,
+    material: IssuedCert,
+    metadata_json: &str,
+) -> Result<ManagedIssuance, CustodyError> {
     let key = sealing_key(state)?;
     let lifetime = i64::try_from(spec.request.ttl.as_secs()).unwrap_or(i64::MAX);
     let renew_before_seconds = converging_renew_before(spec.renew_before_seconds, lifetime)?;
@@ -243,7 +292,6 @@ pub async fn issue_managed(
     let san_json = san_document(spec.request);
 
     let request_id = open_issuance_request(state, spec, &organization, &san_json, now).await?;
-    let material = dev_pki::issue_leaf(spec.ca, spec.request).map_err(CustodyError::Mint)?;
 
     let certificate_id = format!("certificate:{}", uuid::Uuid::new_v4());
     let sealed = seal_scoped(
@@ -275,7 +323,7 @@ pub async fn issue_managed(
         profile_id: None,
         source: "issued".into(),
         enrollment_method: Some("api".into()),
-        metadata_json: "{}".into(),
+        metadata_json: metadata_json.into(),
         key_algorithm: None,
         signature_algorithm: None,
         fingerprint_sha256: None,
@@ -469,21 +517,27 @@ pub async fn renew_managed(
         ip_addrs: san_ips(&previous.san_json),
         ttl: inherited_ttl(&previous),
     };
-    let renewed = issue_managed(
-        state,
-        &ManagedRequest {
-            organization,
-            authority_id: &authority_id,
-            ca: &ca,
-            request: &request,
-            renew_before_seconds: previous
-                .renew_before_seconds
-                .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS),
-            actor: "lifecycle-responder",
-            renewed_from: Some(certificate_id),
-        },
-    )
-    .await?;
+    let spec = ManagedRequest {
+        organization,
+        authority_id: &authority_id,
+        ca: &ca,
+        request: &request,
+        renew_before_seconds: previous
+            .renew_before_seconds
+            .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS),
+        actor: "lifecycle-responder",
+        renewed_from: Some(certificate_id),
+    };
+    // A transport identity keeps its exact selector and EKU shape across a
+    // renewal; the plain path would re-mint a serverAuth/DNS leaf and quietly
+    // change what the successor can authenticate as.
+    let renewed = if transport_metadata(&previous).is_some() {
+        let (material, metadata) =
+            crate::transport_lifecycle::issuance::remint_for_renewal(&previous, &ca, request.ttl)?;
+        issue_managed_material(state, &spec, material, &metadata).await?
+    } else {
+        issue_managed(state, &spec).await?
+    };
 
     state
         .db
@@ -513,7 +567,7 @@ const CA_SCOPE: &str = "certificate_authority";
 /// authority only if that one is gone or retired. An authority whose sealed
 /// material will not open is a refusal, never a silent fall-through to a
 /// different signer — that would quietly re-root somebody's trust.
-async fn load_authority(
+pub(crate) async fn load_authority(
     state: &AppState,
     organization: &str,
     preferred_id: &str,
@@ -579,153 +633,5 @@ fn san_ips(san_json: &str) -> Vec<std::net::IpAddr> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn certificate(not_before: &str, expires_at: &str) -> StoredManagedCertificate {
-        StoredManagedCertificate {
-            id: "certificate:1".into(),
-            organization_id: "org:1".into(),
-            authority_id: "ca:1".into(),
-            request_id: "request:1".into(),
-            certificate_digest: "sha256:x".into(),
-            serial_number: "01".into(),
-            common_name: "api.example".into(),
-            san_json: r#"{"dns_names":["api.example","alt.example"],"ip_addrs":["10.0.0.1"]}"#
-                .into(),
-            not_before: not_before.into(),
-            expires_at: expires_at.into(),
-            status: "active".into(),
-            application_id: None,
-            profile_id: None,
-            source: "issued".into(),
-            enrollment_method: Some("api".into()),
-            metadata_json: "{}".into(),
-            key_algorithm: None,
-            signature_algorithm: None,
-            fingerprint_sha256: None,
-            chain_pem: None,
-            renewed_from_id: None,
-            renewed_by_id: None,
-            auto_renew_enabled: true,
-            renew_before_seconds: Some(86_400),
-            revocation_reason: None,
-            revoked_at: None,
-            version: 1,
-            created_at: "2026-08-01T00:00:00+00:00".into(),
-            updated_at: "2026-08-01T00:00:00+00:00".into(),
-        }
-    }
-
-    #[test]
-    fn a_renewal_inherits_the_span_it_replaces() {
-        let previous = certificate("2026-08-01T00:00:00+00:00", "2026-08-31T00:00:00+00:00");
-        assert_eq!(inherited_ttl(&previous).as_secs(), 30 * 86_400);
-    }
-
-    #[test]
-    fn an_unreadable_span_falls_back_rather_than_minting_a_zero_life_certificate() {
-        for (from, to) in [
-            ("not a time", "2026-08-31T00:00:00+00:00"),
-            ("2026-08-01T00:00:00+00:00", "not a time"),
-            // A backwards or zero-length span would otherwise produce a
-            // certificate that is expired the moment it is signed.
-            ("2026-08-31T00:00:00+00:00", "2026-08-01T00:00:00+00:00"),
-            ("2026-08-01T00:00:00+00:00", "2026-08-01T00:00:00+00:00"),
-        ] {
-            assert_eq!(
-                inherited_ttl(&certificate(from, to)),
-                dev_pki::DEFAULT_TTL,
-                "{from} -> {to}",
-            );
-        }
-    }
-
-    #[test]
-    fn sans_round_trip_through_the_stored_document() {
-        let previous = certificate("2026-08-01T00:00:00+00:00", "2026-08-31T00:00:00+00:00");
-        assert_eq!(
-            san_names(&previous.san_json),
-            ["api.example", "alt.example"]
-        );
-        assert_eq!(
-            san_ips(&previous.san_json),
-            vec!["10.0.0.1".parse::<std::net::IpAddr>().unwrap()],
-        );
-    }
-
-    #[test]
-    fn a_malformed_san_document_yields_no_names_rather_than_a_panic() {
-        assert!(san_names("not json").is_empty());
-        assert!(san_ips("not json").is_empty());
-        assert!(san_names(r#"{"dns_names":"not-an-array"}"#).is_empty());
-        assert!(san_ips(r#"{"ip_addrs":["not-an-ip"]}"#).is_empty());
-    }
-
-    #[test]
-    fn custody_errors_carry_a_stable_code_and_status() {
-        for (error, code, status) in [
-            (CustodyError::NotInCustody, "not_in_custody", 409),
-            (CustodyError::NotFound, "not_found", 404),
-            (CustodyError::NotActive, "certificate_not_active", 409),
-            (
-                CustodyError::SealingUnavailable,
-                "certificate_key_protection_unavailable",
-                503,
-            ),
-            (CustodyError::Mint("bad cn".into()), "invalid_request", 400),
-        ] {
-            assert_eq!(error.code(), code);
-            assert_eq!(error.http_status(), status);
-        }
-    }
-
-    #[test]
-    fn the_renewal_lead_is_clamped_away_from_the_scanner_tick() {
-        // A lead shorter than a tick makes the renewal rung a coin flip.
-        let day = 86_400;
-        assert_eq!(
-            converging_renew_before(60, day).unwrap(),
-            MIN_RENEW_BEFORE_SECONDS
-        );
-    }
-
-    #[test]
-    fn a_lead_can_never_reach_the_lifetime_it_sits_inside() {
-        // The loop this prevents: a lead >= the lifetime makes every successor
-        // due the moment it is signed, so the responder reissues every tick.
-        for lifetime in [MIN_MANAGED_LIFETIME_SECONDS, 86_400, 90 * 86_400] {
-            let lead = converging_renew_before(lifetime * 10, lifetime).unwrap();
-            assert!(
-                lead <= lifetime / 2,
-                "lead {lead} must leave room inside {lifetime}",
-            );
-            assert!(
-                lifetime - lead >= lead,
-                "a successor must spend at least as long outside the window as inside it",
-            );
-        }
-    }
-
-    #[test]
-    fn a_lifetime_with_no_room_for_a_window_is_refused() {
-        for lifetime in [0, 60, MIN_MANAGED_LIFETIME_SECONDS - 1] {
-            let refused = converging_renew_before(MIN_RENEW_BEFORE_SECONDS, lifetime);
-            assert!(
-                matches!(refused, Err(CustodyError::LifetimeTooShort)),
-                "{lifetime}"
-            );
-        }
-        assert!(
-            converging_renew_before(MIN_RENEW_BEFORE_SECONDS, MIN_MANAGED_LIFETIME_SECONDS).is_ok()
-        );
-    }
-
-    #[test]
-    fn a_requested_lead_inside_the_ceiling_is_honoured() {
-        assert_eq!(
-            converging_renew_before(6 * 3_600, 86_400).unwrap(),
-            6 * 3_600
-        );
-    }
-}
+#[path = "managed_certs_tests.rs"]
+mod tests;

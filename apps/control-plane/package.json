@@ -29,6 +29,7 @@
     "@opensesame/contracts": "workspace:*",
     "@opensesame/database": "workspace:*",
     "@opensesame/device-auth": "workspace:*",
+    "@opensesame/ingress-evidence": "workspace:*",
     "@opensesame/notification-adapters": "workspace:*",
     "@opensesame/oauth-provider": "workspace:*",
     "@opensesame/observability": "workspace:*",

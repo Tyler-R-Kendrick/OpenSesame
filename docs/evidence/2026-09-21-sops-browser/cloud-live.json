@@ -1,0 +1,10 @@
+{
+  "caseId": "SB-058",
+  "status": "blocked-external",
+  "evidenceKind": "real-browser",
+  "test": "verify:sops-cloud-live",
+  "command": "pnpm verify:sops-cloud-live",
+  "runtime": "static-origin",
+  "artifact": "docs/evidence/2026-09-21-sops-browser/cloud-live.json",
+  "reason": "No disposable AWS, Azure, or GCP credentials were supplied. Local age SOPS is unaffected."
+}

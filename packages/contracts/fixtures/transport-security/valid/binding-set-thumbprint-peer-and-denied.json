@@ -1,0 +1,58 @@
+{
+  "kind": "service_binding_set",
+  "input": {
+    "revision": 1,
+    "bindings": [
+      {
+        "id": "by-thumb",
+        "revision": 1,
+        "enabled": true,
+        "revoked": false,
+        "scope": "deployment",
+        "trust_profile": {
+          "name": "private-root"
+        },
+        "peer": {
+          "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "service_principal": "svc:nats-bridge",
+        "purpose": "nats_auth_bridge",
+        "allowed_operations": ["nats.callout.decide"],
+        "allowed_audiences": [],
+        "not_after": null,
+        "denied_thumbprints": [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "revision": 1,
+      "bindings": [
+        {
+          "id": "by-thumb",
+          "revision": 1,
+          "enabled": true,
+          "revoked": false,
+          "scope": "deployment",
+          "trust_profile": {
+            "name": "private-root"
+          },
+          "peer": {
+            "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "service_principal": "svc:nats-bridge",
+          "purpose": "nats_auth_bridge",
+          "allowed_operations": ["nats.callout.decide"],
+          "allowed_audiences": [],
+          "not_after": null,
+          "denied_thumbprints": [
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        }
+      ]
+    }
+  }
+}

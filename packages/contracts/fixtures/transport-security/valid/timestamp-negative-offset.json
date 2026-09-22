@@ -1,0 +1,8 @@
+{
+  "kind": "timestamp",
+  "input": "2026-09-22T05:00:00-05:00",
+  "expect": {
+    "ok": true,
+    "canonical": "2026-09-22T10:00:00.000Z"
+  }
+}

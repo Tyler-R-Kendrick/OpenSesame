@@ -19,7 +19,7 @@ Human, device, workload, service, agent, agent instance, malicious connector, co
 3. Authority plane (OpenBao/KMS)
 4. WASM capability boundary
 5. Public callback edge (narrow)
-6. Mesh transport (not authorization)
+6. Transport admission — a native TLS peer or a bound ingress (authentication, never authorization; ADR 0132)
 
 ## Browser-to-Host authority lifecycle
 
@@ -129,6 +129,59 @@ create; each is the file that will hold the test, per the implementation plan.
 | Unauthenticated CRL/OCSP endpoints leak tenant structure | Read-only, CA-id path parameter only; identical shape for "no such CA" and "CA with no CRL"; no organization identifiers emitted; body/encoded-request limits; contract-allowlisted with a category comment | `apps/gateway/src/routes/revocation.rs` tests (ADR 0067 §8) |
 | Discovery scanner used as an SSRF probe | Sanctioned raw-egress path constrained to the job's declared targets; job caps (≤20 domains, ≤256 IPs, CIDR ≥ /24, ≤5 ports); allow-internal flag honored; concurrency and timeout capped | `apps/gateway/src/cert_discovery.rs` limit-enforcement tests |
 | Discovered certificate silently enters the authoritative inventory | Discovery writes installation records only; promotion to inventory requires an explicit import action | `certmgr_discovery.rs` + `certmgr_inventory.rs` tests (ADR 0066 §4) |
+
+## Transport security and workload identity (ADR 0132)
+
+The full trust-boundary matrix, attack corpus and property tests for this
+area are in [mtls-threat-model.md](mtls-threat-model.md). This section states
+the shape of the claim and the residual realities the design does not remove.
+As in the Certificate Manager section, an anchor under a path that is not yet
+in the tree is the file its owning swarm names; ADR 0132 § Evidence records,
+with a timestamp, which anchors were present and which suites had run.
+
+The claim is narrow: on a hop configured `mtls_required` or `trusted_ingress`,
+a caller must hold a private key that chains to the operator-installed trust
+profile **and** match exactly one operator-written service binding **and** pass
+the same authorization every other caller passes. A certificate is
+authentication of a key holder. It is not a session, a tenant, an operator, a
+device, a person, or evidence that the process holding it has not been
+compromised.
+
+| Threat | Mitigation | Test anchor |
+|--------|------------|-------------|
+| Credential substitution — tenant B's valid leaf presented with tenant A's bearer, ConnectionRef, NATS claim, pooled client or forwarded header | Factors combine only under an explicit binding: `cnf.x5t#S256` compared to the originating leaf; callout decision bound to request digest + server context + one-time user key + bridge identity; client pools keyed by tenant, connection, executor, credential and trust generation; ingress evidence request-local | AT-OAUTH-SWAP, AT-CALLOUT-RESPONSE, AT-CONNECTOR-POOLS, AT-INGRESS-POOL (`tests/mtls-interop/`, `crates/domain/src/transport/*_tests.rs`) |
+| Forged `verified: true`, thumbprint or principal in JSON, header, query or plugin manifest | `VerifiedPeer` has no `Deserialize`; the only constructor is `attest::AttestedPeer::into_verified`, called by the rustls verifier, the Node TLS socket adapter and the UDS adapter | AT-TLS-FAKECONTEXT (`crates/domain/src/transport/evidence_tests.rs`, `source_contract_tests.rs`) |
+| Valid certificate from the trusted root with no binding, wrong purpose, or a name that "looks like" a service | Default deny; exact `spiffe_id` / `dns_name` / `uri_san` / `leaf_thumbprint_sha256` selectors only; no CN, email, IP or wildcard; one match or denial | AT-TLS-WRONGSERVICE, AT-CALLOUT-BRIDGE (`binding_tests.rs`, `apps/gateway/src/transport/`) |
+| Bridge or ingress launders claims it did not verify | Bridge authentication and end-user authentication are separate: Host verifies the upstream token's issuer, audience, signature and expiry itself; RFC 9440 fields accepted only from a bound `trusted_ingress` peer on that listener and labelled `trusted_ingress_assertion` | AT-CALLOUT-CLAIMS, AT-INGRESS-SPOOF, AT-INGRESS-WRONGPEER |
+| Plaintext or alternate listener offers the same protected operation | Purpose-to-listener policy: `403 listener_policy_mismatch` on the plain listener; health exceptions narrow and explicit; direct-origin, alternate host/port and IPv6 paths tested | AT-TLS-PLAINTEXT, AT-INGRESS-ORIGIN |
+| Revoked or rotated identity keeps working on an open connection | Per-request recheck of binding revision, `denied_thumbprints`, trust/credential generation and `usable_until`; NATS authorization expiry enforced server-side; resumption and 0-RTT disabled on privileged profiles | AT-TLS-REVOKEDLIVE, AT-TLS-RESUME, AT-NATS-LIVEEXPIRY |
+| Half-installed rotation: new chain with old key, or a malformed update that extends expiry | Whole-generation validation before atomic activation; a bad candidate leaves the previous generation inside its own validity only; a Workload API snapshot that omits an SVID or bundle withdraws it | AT-ROTATE-ATOMIC, AT-SPIFFE-WITHDRAW |
+| Wrong-domain SPIFFE bundle accepted through a union trust store | Per-trust-domain bundles; a foreign-domain SVID is `trust_unknown` | AT-SPIFFE-FEDERATION |
+| Tenant names an arbitrary file path, socket, URL or trust domain through a connection object | Native source and trust selection is deployment-plane environment only; connections carry references to already-authorized identities; API bodies reject unknown fields | AT-CUSTODY-SOURCE, AT-CUSTODY-BOOTSTRAP |
+| Private key revealed through status, diagnostics, errors, logs or an agent tool | `PeerEvidenceView` carries thumbprints and selectors only; `TlsIdentity`'s `Debug` never prints the key; managed-key reveal stays the ADR 0075 human-plane route and is excluded from every agent surface; verify probes take no host, URL or path from the caller | AT-CUSTODY-HUMAN, AT-EVIDENCE-PROBE, AT-EVIDENCE-LOGS |
+| Green status read as enforcement | Five independent status dimensions; `enforcement: verified` only from a positive **and** negative probe bound to a generation, and `stale` once that generation moves | AT-EVIDENCE-POSITIVE, AT-EVIDENCE-STALE |
+| Browser asked to "use the vault key for TLS" | `browser_vault_key_injection` is always `unsupported`; no export, no proxy, no helper fallback; browser-managed certificates are external custody | AT-BROWSER-KEY |
+
+Residual realities, stated rather than implied:
+
+- A compromised runtime uses whatever credentials it can read. Custody here
+  is software custody — a PEM file, a Host-sealed key the Host can open, an
+  SVID the Workload API handed over — and none of it is called hardware-bound.
+- Processes that share a Workload API socket under one attestation share an
+  identity. There is no per-subagent cryptographic boundary.
+- The auth-callout bridge and a trusted ingress can assert facts within the
+  authority their bindings grant. Their authority is narrowed and recorded,
+  not eliminated.
+- A CA that is trusted can issue identities that chain. Bindings limit what
+  those identities may do; they do not detect a compromised issuer.
+- Revocation is bounded per layer (next handshake; next protected request;
+  the NATS expiry; the OpenBao or OAuth token's own TTL). It is never instant
+  across a fleet, it does not revoke tokens already issued, and it erases
+  nothing from a browser: cached application code still runs and the local
+  vault still opens with its local protectors.
+- The PWA cannot observe whether the browser sent a certificate; it reports
+  desired policy and what a configured native verifier last observed, never a
+  self-certified enforcement state.
 
 ## Daemon discovery scanner access profile (ADR 0047–0049)
 

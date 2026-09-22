@@ -42,10 +42,16 @@ with the root bytes also acting as the content key on some paths.
    "not available in-browser" and the person was pointed at a native binary
    via `OPENSESAME_SOPS_BIN`, which the static deployment cannot reach. The
    partial engine that replaced that wording still had no way to open a SOPS
-   document and was never checked against upstream. ADR 0130 replaces this
-   clause with an implemented, verified browser engine. SOPS remains a
-   document format, not a vault root protector, and threshold key-groups are
-   still preserved or refused — never silently flattened to any-of.
+   document. A 2026-09-21 amendment here (evidence in
+   `docs/evidence/2026-09-21-sops-browser/`) called that engine "complete and
+   machine-checked"; it was ahead of the code, and ADR 0130 replaces both this
+   clause and that amendment with an implemented, oracle-verified engine and a
+   reachable document workflow. Two divergences that amendment recorded no
+   longer apply: the engine emits no `opensesame` origin field, and
+   `shamir_threshold` only above one group, which is upstream's own rule.
+   SOPS remains a document format, not a vault root protector, and threshold
+   key-groups are still preserved or refused — never silently flattened to
+   any-of.
 8. **`capabilityConnectors.encryption`.** Legacy setup preference / migration
    hint only. Never overrides cryptographic enrollment facts.
 

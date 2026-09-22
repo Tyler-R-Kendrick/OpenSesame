@@ -42,17 +42,27 @@ import {
 } from "./grants/client-credentials.js";
 import { type JwtReplayCache, ReplayCache } from "./grants/replay-cache.js";
 import { SafeMetadataFetcher } from "./metadata/safe-fetcher.js";
+import {
+  type MtlsTransport,
+  buildMtlsFeature,
+  combineExtraClientMetadata,
+  mtlsClientAuthMethods,
+  mtlsClientFence,
+  mtlsDiscoveryConfiguration,
+} from "./mtls/feature.js";
 import { parseOriginClientId } from "./origin/canonical.js";
 import {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback,
 } from "./pairwise/store.js";
+import { canonicalResource, isResourceAllowed } from "./resource-indicators.js";
 import type {
   OAuthClientRecord,
   OAuthProviderEnv,
   PairwiseSubjectStore,
 } from "./types.js";
 export { createLoadExistingGrant } from "./consent/load-existing-grant.js";
+export { canonicalResource, isResourceAllowed } from "./resource-indicators.js";
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
   env?: Partial<OAuthProviderEnv>;
@@ -87,6 +97,8 @@ export interface CreateOpenSesameProviderOptions {
   /** Extra claim mapping; reserved protocol claims are fenced (ADV-16). */
   mapClaims?: MapClaims;
   replayCache?: JwtReplayCache;
+  /** RFC 8705 (ID-OAUTH): set only with a TLS listener; absent keeps mTLS off. */
+  transport?: MtlsTransport;
 }
 export interface OpenSesameProviderBundle {
   provider: Provider;
@@ -111,41 +123,6 @@ export interface OpenSesameProviderBundle {
   lookupOriginClient: (
     rawOriginOrClientId: string,
   ) => Promise<ReturnType<typeof toOidcClientMetadata> | undefined>;
-}
-
-/**
- * Canonical form of a resource indicator (RFC 8707 §2): absolute URI, no
- * fragment, no query, case-normalized scheme/host, no trailing slash.
- * Returns null when the value is not usable as a resource indicator.
- */
-export function canonicalResource(raw: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
-  }
-  if (url.hash || url.search) return null;
-  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-  const path = url.pathname.replace(/\/+$/, "");
-  return `${url.protocol.toLowerCase()}//${url.host.toLowerCase()}${path}`;
-}
-
-/**
- * Whether this issuer will mint an access token audienced to `resource`.
- * With no configured allowlist the only accepted audience is the issuer itself.
- */
-export function isResourceAllowed(
-  resource: string,
-  allowed: readonly string[],
-  issuer: string,
-): boolean {
-  const target = canonicalResource(resource);
-  if (!target) return false;
-  const permitted = (allowed.length > 0 ? allowed : [issuer])
-    .map((entry) => canonicalResource(entry))
-    .filter((entry): entry is string => entry !== null);
-  return permitted.includes(target);
 }
 
 /**
@@ -247,6 +224,23 @@ function resolveJwks(
   return buildJwks();
 }
 
+/** RFC 8705 registration fields of a static client, when present. */
+function tlsClientRecordFields(
+  meta: ClientMetadata,
+): Partial<OAuthClientRecord> {
+  const fields: Partial<OAuthClientRecord> = {};
+  if (isString(meta.tls_client_auth_san_dns)) {
+    fields.tlsClientAuthSanDns = meta.tls_client_auth_san_dns;
+  }
+  if (isString(meta.tls_client_auth_san_uri)) {
+    fields.tlsClientAuthSanUri = meta.tls_client_auth_san_uri;
+  }
+  if (meta.tls_client_certificate_bound_access_tokens === true) {
+    fields.tlsClientCertificateBoundAccessTokens = true;
+  }
+  return fields;
+}
+
 /**
  * Map a static oidc-provider `ClientMetadata` entry into a client record for
  * the store default, so existing static-only callers behave unchanged.
@@ -283,7 +277,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
     state: "active",
   };
   if (meta.jwks) record.jwks = meta.jwks;
-  return record;
+  return Object.assign(record, tlsClientRecordFields(meta));
 }
 
 /**
@@ -418,13 +412,19 @@ export function createOpenSesameProvider(
       registration: { enabled: env.dcrEnabled },
       registrationManagement: { enabled: env.dcrEnabled },
       clientCredentials: CLIENT_CREDENTIALS_FEATURE,
+      ...buildMtlsFeature(options.transport),
     },
     claims: {
       openid: ["sub"],
       profile: ["name"],
       email: ["email", "email_verified"],
     },
-    extraClientMetadata: clientCredentialsExtraMetadata(),
+    extraClientMetadata: combineExtraClientMetadata(
+      clientCredentialsExtraMetadata(),
+      mtlsClientFence(),
+    ),
+    ...mtlsDiscoveryConfiguration(options.transport),
+    ...mtlsClientAuthMethods(options.transport),
     assertJwtClientAuthClaimsAndHeader: createJwtClientAuthReplayGuard(
       options.replayCache ?? new ReplayCache(),
     ),

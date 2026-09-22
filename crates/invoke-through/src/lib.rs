@@ -18,17 +18,29 @@
 //!
 //! Dependency budget (ADR 0048 D5/D8): secrecy, zeroize, hyper, hyper-util,
 //! hyper-rustls (webpki roots, no native cert store), http/bytes, serde,
-//! thiserror. No reqwest, no cookie store.
+//! thiserror. No reqwest, no cookie store. `rustls` and `tower-service` are
+//! named directly only for the types [`tls`] exposes; both were already in
+//! the tree through `hyper-rustls` / `hyper-util`.
+//!
+//! 5. **Injected TLS scope** ([`tls`], ADR 0132) — the authority plane may
+//!    hand the broker an already-validated `rustls::ClientConfig` (server
+//!    trust, exact server name, optional client identity) plus the addresses
+//!    its egress preflight resolved; such a client is https-only and dials
+//!    nothing but its pinned authority.
 
 pub mod egress;
 mod error;
+pub mod fence;
 mod invoke;
 mod source;
+pub mod tls;
 
 pub use egress::{rule_for, AuthStyle, EgressRule, EGRESS_RULES};
 pub use error::InvokeError;
+pub use fence::{EgressFence, PreparedRequest};
 pub use invoke::{
-    InvokeRequest, InvokeResponse, Invoker, PreparedRequest, ReceiptMeta, DEFAULT_REQUEST_BODY_CAP,
+    InvokeRequest, InvokeResponse, Invoker, ReceiptMeta, DEFAULT_REQUEST_BODY_CAP,
     DEFAULT_RESPONSE_BODY_CAP, DEFAULT_TIMEOUT,
 };
 pub use source::{source_tool, SourceToolSpec, TokenSource};
+pub use tls::{Resolver, TlsClientSpec};

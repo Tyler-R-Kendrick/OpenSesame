@@ -27,6 +27,47 @@ async function opened(
 }
 
 describe("browser SOPS engine (local age)", () => {
+  // Carried over from #455, which fixed these on the engine this branch
+  // replaced: `YAMLMap.set()` stored a plain string key and silently dropped
+  // `commentBefore` on every re-emit. This engine emits its own bytes, so the
+  // defect cannot recur the same way — these keep the behaviour pinned anyway.
+  it("preserves comments, refuses aliases and tags, and keeps a two-document stream (#455)", async () => {
+    const session = new TestSession();
+    const id = await newIdentity();
+    const plan = await session.plan("yaml", [[id.recipient]]);
+
+    const commented = await session.engine.encryptNew(
+      "# top note\nhello: world # trailing\ncount: 2\n",
+      { plan: plan.plan, permit: plan.permit, signal: NEVER, now: NOW },
+    );
+    const back = await opened(session, commented, "yaml", [id.identity]);
+    expect(back.plaintext).toContain("# top note");
+    expect(back.plaintext).toContain("# trailing");
+    expect(back.plaintext).toContain("hello: world");
+    expect(back.plaintext).not.toContain("ENC[");
+
+    for (const refused of ["a: &x 1\nb: *x\n", "a: !!binary aGk=\n"]) {
+      await expect(
+        session.engine.encryptNew(refused, {
+          plan: plan.plan,
+          permit: plan.permit,
+          signal: NEVER,
+          now: NOW,
+        }),
+      ).rejects.toBeInstanceOf(SopsError);
+    }
+
+    const stream = await session.engine.encryptNew(
+      "hello: world\n---\ncount: 2\n",
+      { plan: plan.plan, permit: plan.permit, signal: NEVER, now: NOW },
+    );
+    expect(stream).toContain("---\n");
+    const streamBack = await opened(session, stream, "yaml", [id.identity]);
+    expect(streamBack.plaintext).toContain("hello: world");
+    expect(streamBack.plaintext).toContain("count: 2");
+    expect(streamBack.plaintext).not.toContain("ENC[");
+  });
+
   it("round-trips YAML with comments, typed scalars, and the default suffix (SB-007, SB-013)", async () => {
     const session = new TestSession();
     const id = await newIdentity();

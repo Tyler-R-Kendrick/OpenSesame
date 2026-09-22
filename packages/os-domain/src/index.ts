@@ -40,3 +40,5 @@ export * from "./authority-invariants.js";
 export * from "./authority-grant.js";
 export * from "./authority-membership-reconcile.js";
 export * from "./authority-membership-lineage.js";
+export * from "./duress/index.js";
+export * from "./transport-security/index.js";

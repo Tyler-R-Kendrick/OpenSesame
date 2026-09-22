@@ -1,0 +1,7 @@
+expectedError: unsupported_profile_version
+document:
+  schemaVersion: 99
+  policyId: bad
+  revision: 1
+  enabled: false
+  profiles: []

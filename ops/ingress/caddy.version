@@ -1,0 +1,10 @@
+# Pinned reference-ingress binary (vendor-neutral, single static Go binary).
+# Verified locally on 2026-09-22 with `caddy adapt` / `caddy validate` and the
+# end-to-end run in crates/ingress-evidence/tests/reference_proxy.rs.
+CADDY_VERSION=2.11.4
+CADDY_ASSET=caddy_2.11.4_linux_amd64.tar.gz
+CADDY_URL=https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz
+CADDY_SHA256=527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9
+# The upstream checksums file (caddy_2.11.4_checksums.txt) publishes SHA-512:
+CADDY_SHA512=8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
+CADDY_CACHE_DIR=.cache/mtls-fixtures/caddy-2.11.4

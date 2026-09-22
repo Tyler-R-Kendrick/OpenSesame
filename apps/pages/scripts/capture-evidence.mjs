@@ -138,6 +138,25 @@ const STEPS = {
       await page.waitForTimeout(1100);
     }
   },
+  /**
+   * Opens a rail branch so its panels are visible. The rail is a tree: a
+   * branch row carries `aria-expanded`, and the caret is what opens it. A
+   * branch this build does not have is a failure, not a quieter picture.
+   */
+  async expand(page, label) {
+    const row = page
+      .locator(".railtree__row[aria-expanded]")
+      .filter({ hasText: label })
+      .first();
+    if ((await row.count()) === 0)
+      throw new Error(
+        `capture-evidence expand("${label}"): no rail branch matched — refusing a silent miss`,
+      );
+    if ((await row.getAttribute("aria-expanded")) !== "true") {
+      await row.locator(".railtree__caret").click({ force: true });
+      await page.waitForTimeout(800);
+    }
+  },
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);

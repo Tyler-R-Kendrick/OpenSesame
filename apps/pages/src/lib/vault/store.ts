@@ -5,6 +5,8 @@ import {
   noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
+import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
+import { sessionRootDigestFromHeader } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
 import {
@@ -87,6 +89,8 @@ import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
 import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
+import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
+import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
 import { openJsonForRebind, rebindTombSeals } from "./seal-rebind.js";
 import {
   UnguardedTotpEnrollment,
@@ -253,47 +257,62 @@ export class VaultStore {
 
   /** Carry this unlock into the active project (shared device key). */
   async forkUnlockedIntoActiveScope(): Promise<void> {
-    if (!this.#vaultKey || !this.#header) {
-      throw new Error(
-        "Unlock the vault before carrying it into a new project.",
-      );
-    }
-    // A guest holds a key that was never wrapped to disk: forking it would
-    // seal a tomb no passkey, PIN or password can ever open.
-    if (this.#ephemeral) {
-      throw new Error("A guest session has no key to share.");
-    }
-    this.#scope = scopedVaultScope();
-    unlockTomb(this.#scope.tomb, this.#vaultKey);
-    const header: VaultHeader = {
-      v: 1,
-      createdAt: new Date().toISOString(),
-    };
-    if (this.#header.kdf) header.kdf = this.#header.kdf;
-    if (this.#header.wrap) header.wrap = this.#header.wrap;
-    if (this.#header.unlocks) header.unlocks = { ...this.#header.unlocks };
-    if (this.#header.hint) header.hint = this.#header.hint;
-    this.#header = header;
-    this.#body = emptyBody();
-    this.#pendingVaultKey = null;
-    await writePlaintextFile(
-      this.#scope.tomb,
-      HEADER_PATH,
-      JSON.stringify(header),
-    );
-    this.#persistPrefs();
-    await this.#persist();
-    // The new tomb's own projects view, sealed now, so its name never has to
-    // ride in memory or fall back to its id after a lock.
-    await carryProjectsViewInto(this.#scope.tomb, projectsState());
-    this.touch();
-    this.#armIdleTimer();
-    this.#emit();
+    await carryForkUnlockedIntoActiveScope({
+      vaultKey: this.#vaultKey,
+      header: this.#header,
+      ephemeral: this.#ephemeral,
+      scope: this.#scope,
+      sessionRootDigest: () => this.#sessionRootDigest(),
+      assignScope: (next) => {
+        this.#scope = next;
+      },
+      assignHeader: (next) => {
+        this.#header = next;
+      },
+      assignBody: () => {
+        this.#body = emptyBody();
+      },
+      clearPendingVaultKey: () => {
+        this.#pendingVaultKey = null;
+      },
+      persistPrefs: () => this.#persistPrefs(),
+      persist: () => this.#persist(),
+      touch: () => this.touch(),
+      armIdleTimer: () => this.#armIdleTimer(),
+      emit: () => this.#emit(),
+      nextScope: scopedVaultScope,
+    });
   }
 
   /** The tomb this session is scoped to. */
   activeTomb(): string {
     return this.#scope.tomb;
+  }
+
+  /** Await in-flight body persists before duress activation or scope carries. */
+  async flushPendingWrites(): Promise<void> {
+    await this.#writeChain.catch(() => undefined);
+  }
+
+  #sessionRootDigest(): string | null {
+    return sessionRootDigestFromHeader(
+      this.#header,
+      this.#vaultKey !== null,
+      this.#ephemeral,
+    );
+  }
+
+  /** Host surface for duress activation coordination (STORE-E). */
+  duressActivationHost() {
+    return createDuressVaultActivationHost({
+      activeTomb: () => this.#scope.tomb,
+      ephemeral: () => this.#ephemeral,
+      header: () => this.#header,
+      vaultKey: () => this.#vaultKey,
+      flushPendingWrites: () => this.flushPendingWrites(),
+      cancelPendingOps: () => this.#protection.cancelPendingOps(),
+      sessionGeneration: () => this.#sessionGuard.generation,
+    });
   }
 
   /** Equal wrap material means this session's key also opens `other`. False while locked. */
@@ -305,61 +324,31 @@ export class VaultStore {
 
   /** Open the active project when wraps match; lock the previous tomb first. */
   async openActiveScopeWithCurrentKey(): Promise<void> {
-    this.#protection.cancelPendingOps();
-    const vaultKey = this.#vaultKey;
-    if (!vaultKey || !this.#header || this.#ephemeral) {
-      throw new Error("Unlock the vault before carrying it into another.");
-    }
-    const next = scopedVaultScope();
-    const header = readTombHeader(next.tomb);
-    if (!header) {
-      throw new Error("That vault has not been sealed yet.");
-    }
-    // The header comparison is the cheap, sync prediction the switcher shows;
-    // the proof is opening the target's sealed body with the key in hand. A
-    // tomb with no body yet has nothing to prove against, so the prediction
-    // is the gate there.
-    if (
-      readSealedFile(next.tomb, BODY_PATH) === null &&
-      !sharesWrapRecord(this.#header, header)
-    ) {
-      throw new Error("That vault was sealed with a different key.");
-    }
-    // A vault whose unlock methods drifted from its sibling's still opens
-    // when the key is the same, and a matching header never opens a body
-    // sealed under a different one.
-    const previous = {
-      scope: this.#scope,
+    await carryOpenActiveScopeWithCurrentKey({
+      cancelPendingOps: () => this.#protection.cancelPendingOps(),
+      vaultKey: this.#vaultKey,
       header: this.#header,
+      ephemeral: this.#ephemeral,
+      scope: this.#scope,
       body: this.#body,
-      projects: projectsState(),
-    };
-    for (const handler of this.#lockHandlers) handler();
-    emitVaultLock();
-    lockTomb(previous.scope.tomb);
-    discardTombCaches();
-    this.#scope = next;
-    this.#header = header;
-    this.#body = emptyBody();
-    try {
-      await this.#activateSession(vaultKey);
-    } catch (error) {
-      // Back where we were, key intact: the swap never happened.
-      lockTomb(next.tomb);
-      this.#scope = previous.scope;
-      this.#header = previous.header;
-      this.#body = previous.body;
-      this.#vaultKey = vaultKey;
-      unlockTomb(previous.scope.tomb, vaultKey);
-      await hydrateAndMigrateTombOnUnlock(previous.scope.tomb).catch(
-        () => undefined,
-      );
-      this.#emit();
-      throw error instanceof VaultCorruptError
-        ? new Error("That vault was sealed with a different key.")
-        : error;
-    }
-    await carryProjectsViewInto(next.tomb, previous.projects);
+      sessionRootDigest: () => this.#sessionRootDigest(),
+      lockHandlers: [...this.#lockHandlers],
+      activateSession: (key) => this.#activateSession(key),
+      assignScope: (next) => {
+        this.#scope = next;
+      },
+      assignHeader: (next) => {
+        this.#header = next;
+      },
+      assignBody: (next) => {
+        this.#body = next;
+      },
+      assignVaultKey: (key) => {
+        this.#vaultKey = key;
+      },
+      emit: () => this.#emit(),
+      nextScope: scopedVaultScope,
+    });
   }
 
   #readHeader(): VaultHeader | null {

@@ -1,0 +1,27 @@
+{
+  "kind": "binding_resolution",
+  "input": {
+    "set": {
+      "revision": 1,
+      "bindings": []
+    },
+    "scope": "deployment",
+    "profile": {
+      "name": "private-root"
+    },
+    "presented": [
+      {
+        "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+      },
+      {
+        "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "purpose": "nats_auth_bridge",
+    "now": "2026-09-22T10:00:00Z"
+  },
+  "expect": {
+    "ok": false,
+    "error": "peer_not_bound"
+  }
+}

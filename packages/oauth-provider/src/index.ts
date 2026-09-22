@@ -88,3 +88,13 @@ export {
   assertSafeMetadataUrl,
 } from "./metadata/safe-fetcher.js";
 export { EnvSigningKeyProvider } from "./keys/dev-signing-key-provider.js";
+export {
+  buildMtlsFeature,
+  certificateSubjectMatches,
+  combineExtraClientMetadata,
+  mtlsClientAuthMethods,
+  mtlsClientFence,
+  mtlsDiscovery,
+  type MtlsPeer,
+  type MtlsTransport,
+} from "./mtls/feature.js";

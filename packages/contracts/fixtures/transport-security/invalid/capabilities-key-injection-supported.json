@@ -1,0 +1,32 @@
+{
+  "kind": "transport_capabilities",
+  "input": {
+    "native_pem": {
+      "unsupported": {
+        "reason": "a PEM identity needs a native runtime; the static app has none"
+      }
+    },
+    "managed_certificate": {
+      "unsupported": {
+        "reason": "a managed certificate needs a native runtime; the static app has none"
+      }
+    },
+    "spiffe_workload_api": {
+      "unsupported": {
+        "reason": "the SPIFFE Workload API needs a native runtime; the static app has none"
+      }
+    },
+    "browser_managed_external": {
+      "external_provisioning_required": {
+        "reason": "the browser or OS must hold the certificate; the app only selects a remote profile that expects one"
+      }
+    },
+    "browser_vault_key_injection": "supported",
+    "client_presents_certificate": false,
+    "server_enforces_certificate": false
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

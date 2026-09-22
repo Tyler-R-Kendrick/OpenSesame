@@ -301,15 +301,15 @@ fn scope_bindings_never_move_sideways() {
 
     let parent = parent();
     moved(&parent, "project", |c| {
-        c.project_id = Some(ProjectId::new())
+        c.project_id = Some(ProjectId::new());
     });
     moved(&parent, "project", |c| c.project_id = None);
     moved(&parent, "environment", |c| {
-        c.environment_id = Some(EnvironmentId::new())
+        c.environment_id = Some(EnvironmentId::new());
     });
     moved(&parent, "environment", |c| c.environment_id = None);
     moved(&parent, "connection", |c| {
-        c.connection_id = Some(ConnectionId::new())
+        c.connection_id = Some(ConnectionId::new());
     });
     moved(&parent, "connection", |c| c.connection_id = None);
 }
