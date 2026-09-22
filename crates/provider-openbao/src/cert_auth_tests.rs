@@ -2,6 +2,8 @@
 //! parser, the lease arithmetic, and the fact that no public surface returns
 //! a token.
 
+use std::time::Duration;
+
 use super::*;
 
 fn login_body(lease: u64, policies: &[&str]) -> Value {
@@ -164,10 +166,12 @@ fn no_public_method_returns_openbao_credential_material() {
     // hands back a `SecretString` that zeroizes. Read the source to be sure a
     // future edit does not quietly widen it (AT-CUSTODY-SOURCE's spirit for
     // this adapter; the MCP schema parity test lives in the surfaces).
+    let token_src = include_str!("cert_token.rs");
+    assert!(token_src.contains("pub(crate) fn secret(&self)"));
+    assert!(!token_src.contains("pub fn secret(&self)"));
+
     let src = include_str!("cert_auth.rs");
     let production = src.split("#[cfg(test)]").next().unwrap();
-    assert!(production.contains("pub(crate) fn secret(&self)"));
-    assert!(!production.contains("pub fn secret(&self)"));
     // The URL guard runs before every send.
     for method in ["pub async fn login", "pub async fn revoke_token"] {
         let body = production.split(method).nth(1).expect(method);

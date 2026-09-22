@@ -157,4 +157,3 @@ pub struct CertTokenScope {
     pub identity_thumbprint: String,
     pub trust_generation: u64,
 }
-

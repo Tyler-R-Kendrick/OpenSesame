@@ -191,7 +191,7 @@ fn no_new_remote_mint_or_execution_route_exists() {
         assert!(!routes.contains(forbidden), "unexpected route {forbidden}");
     }
     // Exactly three routes, all under the operator prefix.
-    assert_eq!(routes.matches(".route(\"").count(), 3);
+    assert_eq!(routes.matches(".route(").count(), 3);
     assert_eq!(routes.matches("\"/api/v1/operator/transport/").count(), 3);
     // Nothing here reads a private key, a locator, or a caller-named host.
     for forbidden in ["key_pem", "private_key", "expose_secret", "reveal"] {

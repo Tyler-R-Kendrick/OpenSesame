@@ -218,12 +218,14 @@ pub fn plain_extensions() -> axum::http::Extensions {
 }
 
 /// A lookup over an explicit map; no test ever touches the process
-/// environment.
+/// environment. The *last* entry for a name wins, so a case can append an
+/// override to a base set.
 #[must_use]
 pub fn lookup(pairs: Vec<(&'static str, String)>) -> impl Fn(&str) -> Option<String> + Clone {
     move |name: &str| {
         pairs
             .iter()
+            .rev()
             .find(|(key, _)| *key == name)
             .map(|(_, value)| value.clone())
     }

@@ -1,4 +1,4 @@
-//! Unit and pact tests for the OpenBao adapter.
+//! Unit and pact tests for the `OpenBao` adapter.
 
 mod unit {
     use crate::*;

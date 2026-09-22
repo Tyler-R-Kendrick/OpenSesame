@@ -111,6 +111,9 @@ impl FakeWorkloadApi {
         }
     }
 
+    /// How long [`Self::shutdown`] lets tonic drain before it aborts.
+    const DRAIN: std::time::Duration = std::time::Duration::from_millis(250);
+
     /// The unix socket path.
     #[must_use]
     pub fn socket_path(&self) -> &Path {
@@ -172,13 +175,33 @@ impl FakeWorkloadApi {
         self.service.open_streams.load(Ordering::SeqCst)
     }
 
-    /// Stop the server and unlink the socket.
+    /// Stop the server and unlink the socket — what an agent going away looks
+    /// like to a workload.
+    ///
+    /// Open streams are ended first. tonic's graceful shutdown drains
+    /// *in-flight* requests, and a `FetchX509SVID` stream is in flight for as
+    /// long as the workload wants it, so a still-streaming client would
+    /// otherwise keep the server task alive for ever (this deadlocked
+    /// `at_spiffe_outage_socket_gone_…`). Once the streams are gone the
+    /// graceful signal completes; a task still alive after [`Self::DRAIN`] is
+    /// aborted, and the socket is unlinked, so the workload's reconnect finds
+    /// nothing there.
     pub async fn shutdown(mut self) {
+        self.close_streams();
+        let _ = tokio::time::timeout(Self::DRAIN, async {
+            while self.open_streams() > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        })
+        .await;
         if let Some(tx) = self.shutdown.take() {
             let _ = tx.send(());
         }
-        if let Some(task) = self.task.take() {
-            let _ = task.await;
+        if let Some(mut task) = self.task.take() {
+            if tokio::time::timeout(Self::DRAIN, &mut task).await.is_err() {
+                task.abort();
+                let _ = task.await;
+            }
         }
         let _ = std::fs::remove_file(&self.socket_path);
     }

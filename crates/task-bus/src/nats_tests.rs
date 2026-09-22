@@ -69,6 +69,37 @@ fn production_adapter_uses_jetstream_not_core_pub_and_never_bare_connect() {
     assert!(!connect.contains("danger"), "no permissive verifier");
 }
 
+/// AT-NATS-FACTORIES (crate half): every public constructor resolves a
+/// transport before it dials, and no constructor calls `async_nats::connect`.
+/// A new factory that forgets the transport fails here.
+#[test]
+fn every_public_factory_resolves_a_transport() {
+    let lib = include_str!("lib.rs");
+    let production = lib.split("#[cfg(test)]").next().unwrap_or(lib);
+    assert!(!production.contains("async_nats::connect"));
+    // `create_nats` is the only place a URL becomes a connection without an
+    // explicit spec, and it resolves `OPENSESAME_NATS_*` first.
+    let create_nats = production
+        .split("pub async fn create_nats")
+        .nth(1)
+        .expect("create_nats exists");
+    let body = create_nats
+        .split("pub async fn")
+        .next()
+        .unwrap_or(create_nats);
+    assert!(body.contains("NatsTransportSpec::from_env()"));
+    assert!(body.contains("create_with("));
+    // Provisioning never rides a runtime factory.
+    assert!(production.contains("provision_backup_consumer"));
+    assert!(production.contains("NatsRole::Provisioner"));
+    // …and the runtime factory does not hard-code provisioning.
+    let create_with = production
+        .split("pub async fn create_with")
+        .nth(1)
+        .expect("create_with exists");
+    assert!(create_with.contains("provision,"));
+}
+
 #[test]
 fn env_absent_means_no_transport_spec() {
     assert!(spec_from(&[]).unwrap().is_none());

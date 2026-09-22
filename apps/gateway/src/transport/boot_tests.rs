@@ -56,7 +56,10 @@ fn the_wiring_is_the_documented_one() {
     assert!(src.contains("SecureListener::bind"));
     assert!(src.contains("enforce_current_generation"));
     assert!(src.contains("policy.authenticates_client()"));
-    // No fallback: nothing here downgrades a failed secure listener.
+    // No fallback: nothing here downgrades a failed secure listener, and no
+    // error from binding it is swallowed.
     assert!(!src.contains("unwrap_or"));
-    assert!(!src.contains("ok()"));
+    assert!(!src.contains(".ok();"));
+    assert!(!src.contains("if let Ok("));
+    assert!(src.contains("SecureListener::bind") && src.contains("})?;"));
 }

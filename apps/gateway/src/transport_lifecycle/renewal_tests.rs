@@ -128,15 +128,20 @@ async fn a_workload_api_identity_is_skipped_rather_than_reissued_by_this_host() 
     let mut metadata: serde_json::Value =
         serde_json::from_str(&row.metadata_json).expect("metadata");
     metadata["transport"]["source"] = serde_json::json!("spiffe_workload_api");
-    state
-        .db
-        .set_certificate_metadata(
-            &organization.to_string(),
-            &issued.certificate_id,
-            &metadata.to_string(),
-        )
-        .await
-        .expect("update metadata");
+    // Written through the pool rather than `set_certificate_metadata`, whose
+    // public contract is scalar top-level fields only; the transport document
+    // this row actually carries is written at insert by
+    // `managed_certs::issue_managed_material`, which is what is being
+    // simulated here.
+    sqlx::query(
+        "UPDATE issued_certificates SET metadata_json = ? WHERE organization_id = ? AND id = ?",
+    )
+    .bind(metadata.to_string())
+    .bind(organization.to_string())
+    .bind(&issued.certificate_id)
+    .execute(state.db.pool())
+    .await
+    .expect("update metadata");
 
     let outcome = crate::transport_lifecycle::renewal::renew_one(
         &state,

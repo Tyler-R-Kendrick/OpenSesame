@@ -39,13 +39,13 @@ pub async fn get(
             .bind(organization_id)
             .fetch_optional(pool)
             .await?;
-    let Some(row) = row else {
+    let Some(row) = found else {
         return Ok(None);
     };
-    let Some(raw) = row.get::<Option<String>, _>("transport_json") else {
+    let Some(stored) = row.get::<Option<String>, _>("transport_json") else {
         return Ok(None);
     };
-    ConnectionTransport::parse_json(raw.as_bytes())
+    ConnectionTransport::parse_json(stored.as_bytes())
         .map(Some)
         .map_err(|error| BrokerError::Invalid(format!("stored connection transport: {error}")))
 }

@@ -11,9 +11,7 @@ fn internal<E: std::fmt::Display>(error: E) -> BrokerError {
 }
 
 fn parse_time(value: &str) -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339(value)
-        .map(|dt| dt.with_timezone(&Utc))
-        .unwrap_or_else(|_| Utc::now())
+    DateTime::parse_from_rfc3339(value).map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc))
 }
 
 pub(crate) async fn load_grant(pool: &SqlitePool, id: &str) -> Result<Option<Grant>> {
@@ -44,7 +42,7 @@ pub(crate) async fn grant_lineage_active(
         if current.assert_active(now).is_err() {
             return Ok(false);
         }
-        let Some(parent_id) = current.parent_grant_id.clone() else {
+        let Some(parent_id) = current.parent_grant_id else {
             return Ok(true);
         };
         let Some(parent) = load_grant(pool, &parent_id.to_string()).await? else {

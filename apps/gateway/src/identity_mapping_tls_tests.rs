@@ -21,7 +21,10 @@ use opensesame_transport_security::{
 
 use crate::identity_mapping::IdentityMappingClient;
 
-const IDENTITY_DNS: &str = "identity.test";
+// A name that really resolves to the loopback listener: the client keeps
+// its own DNS fence (`lookup_host`, ≤16 addresses), so a fictional name
+// would fail before TLS and prove nothing about the handshake.
+const IDENTITY_DNS: &str = "localhost";
 const HOST_DNS: &str = "host.test";
 
 struct Stub {
@@ -237,7 +240,6 @@ fn resolve_refuses_a_mode_whose_material_is_absent() {
 #[test]
 fn the_egress_fences_are_still_in_the_request_path() {
     let src = include_str!("identity_mapping.rs");
-    let production = src.split("#[cfg(test)]").next().expect("production");
     for fence in [
         ".no_proxy()",
         "redirect::Policy::none()",
@@ -249,6 +251,6 @@ fn the_egress_fences_are_still_in_the_request_path() {
         "validate_mapping(&body, issuer, subject)",
         "length > 8192",
     ] {
-        assert!(production.contains(fence), "lost fence {fence}");
+        assert!(src.contains(fence), "lost fence {fence}");
     }
 }

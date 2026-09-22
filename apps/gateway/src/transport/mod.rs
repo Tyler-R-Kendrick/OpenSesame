@@ -12,11 +12,13 @@
 //!   `Caller::Operator`, never selects an organization, and never reaches an
 //!   operator route (`routes/*` keep gating on `resolve_caller`, which does
 //!   not read transport evidence at all).
-//! - A **delegated operation** acts for a person or agent. It is authorized
-//!   by [`admission::require_delegated_caller`]: the service peer must be
-//!   admitted *and* a real Host session must be presented, and the binding
-//!   must be scoped to that session's organization. Certificate A plus a
-//!   session for tenant B is refused, whatever either is entitled to alone.
+//! - A **delegated operation** acts for a person or agent. Its route resolves
+//!   the caller the way it always did (`resolve_caller` / `require_session`)
+//!   and hands the organization that produced to
+//!   [`admission::require_delegated_caller`], which then requires a binding
+//!   scoped to *that* organization. Certificate A plus a session for tenant B
+//!   is refused, whatever either is entitled to alone: the two factors are
+//!   intersected, never unioned.
 //!
 //! There is deliberately no `service_or_operator` helper: mTLS is not an
 //! alternate operator login (AUTHENTICATION-IS-NOT-AUTHORIZATION), and the

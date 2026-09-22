@@ -52,11 +52,9 @@ mod tasks;
 use crate::app_state::AppState;
 use crate::config;
 use crate::github_webhook;
-use axum::{
-    extract::DefaultBodyLimit,
-    routing::{delete, get, post, put},
-    Router,
-};
+use axum::extract::DefaultBodyLimit;
+use axum::routing::{delete, get, post, put};
+use axum::Router;
 use tower_http::trace::TraceLayer;
 #[expect(
     clippy::too_many_lines,

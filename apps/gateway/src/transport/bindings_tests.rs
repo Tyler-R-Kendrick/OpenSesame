@@ -59,7 +59,10 @@ async fn an_invalid_stored_document_is_an_error_not_an_empty_default() {
 #[test]
 fn unknown_fields_and_oversized_documents_are_refused() {
     assert!(bindings::parse_bounded("{\"revision\":1,\"bindings\":[],\"extra\":1}").is_err());
-    let oversized = format!("{:width$}", "{}", width = MAX_BINDINGS_BYTES + 1);
+    let oversized = format!(
+        "{{\"revision\":1,\"bindings\":[],\"pad\":\"{}\"}}",
+        "p".repeat(MAX_BINDINGS_BYTES)
+    );
     assert!(bindings::parse_bounded(&oversized).is_err());
 }
 

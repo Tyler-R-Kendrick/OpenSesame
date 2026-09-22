@@ -94,7 +94,7 @@ fn admit(
     let Some(runtime) = st.transport.as_ref() else {
         return Err(deny_response(&TransportError::ListenerPolicyMismatch));
     };
-    let peer = peer_evidence(runtime, extensions)?;
+    let peer = peer_evidence(extensions)?;
     let current = runtime.generations.current().number;
     let bindings = runtime.binding_set();
     let caller = ServiceCaller::admit(
@@ -119,17 +119,13 @@ fn admit(
 /// peer and keeps the client as `originating`; everywhere else the direct
 /// TLS peer is bound.
 #[allow(clippy::result_large_err)]
-fn peer_evidence(
-    runtime: &super::TransportRuntime,
-    extensions: &Extensions,
-) -> Result<VerifiedPeer, Response> {
+fn peer_evidence(extensions: &Extensions) -> Result<VerifiedPeer, Response> {
     let provenance = extensions.get::<ListenerProvenance>();
     let authenticated = provenance.is_some_and(|p| p.policy().authenticates_client());
     if !authenticated {
         // A plain listener never carries a certificate, so a purpose that is
         // configured `mtls_required` cannot be served from it — and there is
         // no weaker credential to fall back to.
-        let _ = runtime;
         return Err(deny_response(&TransportError::ListenerPolicyMismatch));
     }
     if let Some(OriginatingPeerExtension(originating)) =

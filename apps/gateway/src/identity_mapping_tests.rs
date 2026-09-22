@@ -34,10 +34,9 @@ fn mapping_never_reads_other_secrets() {
         include_str!("identity_mapping.rs"),
         include_str!("identity_mapping_tls.rs"),
     ] {
-        let production = src.split("#[cfg(test)]").next().expect("production");
-        assert!(!production.contains("OPENSESAME_NATS_CALLOUT_SECRET"));
-        assert!(!production.contains("OPENSESAME_OPERATOR_TOKEN"));
-        assert!(!production.contains("operator_token"));
+        assert!(!src.contains("OPENSESAME_NATS_CALLOUT_SECRET"));
+        assert!(!src.contains("OPENSESAME_OPERATOR_TOKEN"));
+        assert!(!src.contains("operator_token"));
     }
 }
 

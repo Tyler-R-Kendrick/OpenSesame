@@ -151,7 +151,7 @@ impl Loop {
                 break;
             }
         }
-        self.withdraw(TransportError::SourceUnsupported);
+        self.withdraw(TransportError::SourceUnsupported, None);
         self.update(|s| s.phase = SourcePhase::Stopped);
     }
 
@@ -177,7 +177,7 @@ impl Loop {
                 biased;
                 _ = self.stop.changed() => return StreamEnd::Stop,
                 () = sleep_until(expiry) => {
-                    self.withdraw(TransportError::EvidenceExpired);
+                    self.withdraw(TransportError::EvidenceExpired, None);
                 }
                 item = stream.next() => match item {
                     Some(Ok(ctx)) => self.apply(&ctx),
@@ -221,8 +221,7 @@ impl Loop {
             },
             Err(err) if err.is_withdrawal() => {
                 let code = err.code().to_owned();
-                self.withdraw(err.to_transport_error());
-                self.update(|s| s.last_error = Some(code));
+                self.withdraw(err.to_transport_error(), Some(&code));
             }
             Err(err) => {
                 let code = err.code().to_owned();
@@ -266,7 +265,7 @@ impl Loop {
             () = tokio::time::sleep_until(deadline) => false,
         };
         if expired {
-            self.withdraw(TransportError::EvidenceExpired);
+            self.withdraw(TransportError::EvidenceExpired, None);
             tokio::select! {
                 _ = self.stop.changed() => return false,
                 () = tokio::time::sleep_until(deadline) => {}
@@ -275,8 +274,14 @@ impl Loop {
         !*self.stop.borrow()
     }
 
-    fn withdraw(&mut self, reason: TransportError) {
-        let code = reason.code().to_owned();
+    /// Withdraw the active generation and publish the new status in **one**
+    /// `send_modify`. `reported` is the fine-grained source reason when there
+    /// is one (`svid_not_issued`, `bundle_missing`, …); otherwise the
+    /// `TransportError` code stands in. Publishing the phase and the reason
+    /// separately let an observer wake on `Withdrawn` while `last_error` still
+    /// held the coarse code, which is what made the withdraw tests flaky.
+    fn withdraw(&mut self, reason: TransportError, reported: Option<&str>) {
+        let code = reported.map_or_else(|| reason.code().to_owned(), ToOwned::to_owned);
         if self.active.take().is_some() {
             self.sink.withdraw(reason);
         }

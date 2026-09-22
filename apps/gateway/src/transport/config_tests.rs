@@ -227,3 +227,27 @@ async fn nothing_configured_builds_no_runtime() {
         .expect("no error")
         .is_none());
 }
+
+#[tokio::test]
+async fn an_unparseable_bindings_file_fails_the_runtime_build() {
+    let db = opensesame_storage::Db::connect_memory().await.expect("db");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("bindings.json");
+    std::fs::write(&path, "{ not json").expect("write");
+    let owned = vec![(
+        "OPENSESAME_SERVICE_BINDINGS_FILE",
+        path.display().to_string(),
+    )];
+    let config = TransportConfig::from_lookup(&lookup(owned)).expect("path parses");
+    assert!(config.service_bindings_file.is_some());
+    // The file is read when the runtime is built, which `app_state::build`
+    // does and propagates: a bindings document that no longer parses stops
+    // the Host rather than becoming an empty, permissive set.
+    assert_eq!(
+        TransportRuntime::build(config, &db, &NoManagedIdentity)
+            .await
+            .expect_err("unparseable bindings")
+            .code(),
+        "malformed_configuration"
+    );
+}

@@ -40,9 +40,6 @@ pub const DEFAULT_RESPONSE_BODY_CAP: usize = 1024 * 1024;
 /// Whole-call timeout, connect through last body byte.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// Request headers a caller may set. `authorization` is absent on purpose:
-/// the token is the daemon's to place, never the caller's.
-
 /// Response headers passed back to the caller. Everything else upstream sent
 /// is dropped here — `set-cookie` above all.
 const RESPONSE_HEADER_ALLOWLIST: &[&str] = &[

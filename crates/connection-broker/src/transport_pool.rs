@@ -131,7 +131,7 @@ impl ConnectorClientPool {
                 return Ok(Arc::clone(existing));
             }
         }
-        let built = Arc::new(build()?);
+        let fresh = Arc::new(build()?);
         let mut entries = self.lock()?;
         // Another task may have built the same scope while this one was
         // building; either client is correct for the scope, so keep the one
@@ -139,8 +139,8 @@ impl ConnectorClientPool {
         if let Some(existing) = entries.get(key) {
             return Ok(Arc::clone(existing));
         }
-        entries.put(key.clone(), Arc::clone(&built));
-        Ok(built)
+        entries.put(key.clone(), Arc::clone(&fresh));
+        Ok(fresh)
     }
 
     /// Drop every live client for one connection.
