@@ -1101,3 +1101,23 @@
   gap: 0.65rem;
   flex: none;
 }
+
+/**
+ * The touch floor on the sign-in roads, stated where the classes live.
+ *
+ * `styles.css` already floors every `.btn` at 2.75rem under a coarse
+ * pointer, and `.signin__provider` / `.signin__social` sit at 2.6rem for the
+ * compact desktop arrangement. The two rules have equal specificity, so
+ * whichever stylesheet the build emits last wins — and the bootstrap split
+ * (main.tsx resolves the plan, then imports the app root) reordered them:
+ * "Continue as guest" measured 42px at 320, 390, 430 and landscape, below
+ * the 44px floor DESIGN.md § Touch requires, on the one road AGENTS.md §5
+ * calls load-bearing. Flooring them here keeps the desktop size and makes
+ * the touch size independent of emission order.
+ */
+@media (pointer: coarse) {
+  .signin__provider,
+  .signin__social {
+    min-height: 2.75rem;
+  }
+}

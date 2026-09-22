@@ -1,5 +1,6 @@
 import { createLocalAgentKey } from "@opensesame/static-auth";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
 import { beginLocalAgentAuthentication } from "./local-agent-auth.js";
 import {
   readLocalAgentKeys,
@@ -61,7 +62,15 @@ async function signIn() {
   const { challenge, proof } = await signedChallenge();
   return signInLocalAgent(tomb, challenge.nonce, proof);
 }
+/**
+ * The lock resets local IAM's evidence depends on are bound by
+ * `identity.local-iam`'s `activate`, not at module load (ownership.md §4.3).
+ * This suite binds the same ones the capability does, so a lock drops
+ * unspent evidence here exactly as it does with the capability approved.
+ */
+let unbindLockResets: () => void;
 beforeEach(async () => {
+  unbindLockResets = bindLocalIamLockResets();
   tomb = `agents-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
   let queue = Promise.resolve();
@@ -100,6 +109,7 @@ beforeEach(async () => {
   credentialId = enrolled.credentialId;
 });
 afterEach(() => {
+  unbindLockResets();
   vaultStore.lock();
   lockAllTombs();
   vi.unstubAllGlobals();

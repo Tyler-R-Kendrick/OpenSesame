@@ -5,10 +5,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { localGitToConnection } from "../../lib/connections-local-git.js";
 import type { Provider } from "../../lib/connections.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
+import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 afterEach(() => {
   cleanup();
 });
+
+// The connector settings page mounts guide targets `connectors.external`
+// contributes (`connections.back`, `connections.authorize`,
+// `connections.revoke`); these cases describe a deployment that approved it.
+declareConnectionsTutorial();
 
 function gitProvider(): Provider {
   return {

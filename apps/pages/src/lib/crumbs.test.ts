@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import {
   accessImportPath,
   accessIsImportCeremony,
@@ -9,6 +10,14 @@ import {
   settingsCategoryFromLocation,
   settingsPath,
 } from "./crumbs.js";
+
+// Connections, Access, Identity and Wallet are contributed sections; a crumb
+// path under one of them exists only while its capability is in the plan.
+let revoke = () => {};
+beforeAll(() => {
+  revoke = registerLegacyShellData();
+});
+afterAll(() => revoke());
 
 describe("settings rest paths", () => {
   it("reads a category from the path, then the hash", () => {

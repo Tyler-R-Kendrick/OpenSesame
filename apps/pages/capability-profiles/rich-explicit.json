@@ -1,0 +1,48 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "rich-explicit",
+  "notes": "Every optional capability selected explicitly, every alternative chosen. Personal-local (no instance policy), so the ceiling is everything distributed. The legacy Playwright suites run under this profile (ownership.md \u00a76).",
+  "instancePolicy": null,
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "personal-local",
+    "installationId": "device-rich-1",
+    "basePolicyRevision": "personal-local",
+    "revision": "1",
+    "acceptedRequired": [],
+    "selectedOptional": [
+      "access.authority",
+      "activity.log",
+      "agents.webmcp",
+      "backup.cloud-secrets",
+      "backup.git-remote",
+      "connectors.external",
+      "enterprise.ca-administration",
+      "enterprise.directory-provisioning",
+      "identity.ambient-sso",
+      "identity.federation",
+      "identity.local-iam",
+      "identity.siop",
+      "identity.site-broker",
+      "notifications.web-push",
+      "sharing.drops",
+      "sharing.household",
+      "support.guided-help",
+      "support.local-ai",
+      "support.remote-ai",
+      "telemetry.external",
+      "vault.certificate-records",
+      "vault.interop-formats",
+      "vault.passkey-records",
+      "wallet.spending"
+    ],
+    "chosenAlternatives": {
+      "transport": "sharing.drops"
+    },
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  }
+}

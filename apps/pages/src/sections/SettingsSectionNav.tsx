@@ -1,5 +1,10 @@
-import type { ComponentType } from "react";
+import { type ComponentType, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router";
+import type { SettingsCategoryContribution } from "../lib/capabilities/runtime-contract.js";
+import {
+  contributionsSnapshot,
+  useContributions,
+} from "../lib/contributions.js";
 import {
   type SettingsCategory,
   settingsCategoryFromHash,
@@ -10,21 +15,66 @@ import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/Mode
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
 
-export const settingsTabs = [
-  { id: "general", label: "General", guideId: "settings.general" },
-  { id: "security", label: "Security", guideId: "settings.security" },
-  { id: "vaults", label: "Vaults", guideId: "settings.vaults" },
-  {
-    id: "connections",
-    label: "Connections",
-    guideId: "settings.connections",
-  },
-  { id: "danger", label: "Danger", guideId: "settings.danger" },
-] as const satisfies readonly {
-  id: SettingsCategory;
+export type SettingsTab = Readonly<{
+  id: string;
   label: string;
   guideId: string;
-}[];
+  /** Present on a contributed category: the panel its module supplied. */
+  Panel?: ComponentType;
+  order: number;
+}>;
+
+/**
+ * The categories the core Settings page always has. `connections` is not
+ * one: the connectors capability registers it as a `settings-category`
+ * contribution, and the tab exists only while that capability is in the plan.
+ */
+export const settingsTabs: readonly SettingsTab[] = [
+  { id: "general", label: "General", guideId: "settings.general", order: 0 },
+  {
+    id: "security",
+    label: "Security",
+    guideId: "settings.security",
+    order: 100,
+  },
+  { id: "vaults", label: "Vaults", guideId: "settings.vaults", order: 200 },
+  {
+    id: "capabilities",
+    label: "Capabilities",
+    guideId: "settings.capabilities",
+    order: 400,
+  },
+  { id: "danger", label: "Danger", guideId: "settings.danger", order: 1000 },
+];
+
+/** Core tabs plus the registered `settings-category` contributions, in order. */
+export function settingsTabsFrom(
+  contributions: readonly SettingsCategoryContribution[],
+): readonly SettingsTab[] {
+  const contributed = contributions
+    .filter((entry) => !settingsTabs.some((tab) => tab.id === entry.id))
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      guideId: entry.guideId,
+      Panel: entry.Panel,
+      order: entry.order,
+    }));
+  return [...settingsTabs, ...contributed].sort((left, right) =>
+    left.order !== right.order
+      ? left.order - right.order
+      : left.id.localeCompare(right.id),
+  );
+}
+
+export function settingsTabsSnapshot(): readonly SettingsTab[] {
+  return settingsTabsFrom(contributionsSnapshot("settings-category"));
+}
+
+export function useSettingsTabs(): readonly SettingsTab[] {
+  const contributions = useContributions("settings-category");
+  return useMemo(() => settingsTabsFrom(contributions), [contributions]);
+}
 
 /** One category link, named so a guide can point at it. */
 export function CategoryLink({
@@ -40,10 +90,23 @@ export function CategoryLink({
   danger: boolean;
   current: boolean;
 }) {
-  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
+  const node = useRef<HTMLAnchorElement | null>(null);
+  // A strip must never hide its own selected item (DESIGN.md § Touch). The
+  // strip scrolls sideways once it outgrows the screen, and Capabilities
+  // sits far enough along that at 320px it opened partly off the right
+  // edge. Bringing the current one into view costs nothing when it is
+  // already there, and never scrolls the page: `block: "nearest"`.
+  useEffect(() => {
+    if (current)
+      node.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [current]);
   return (
     <Link
-      ref={ref}
+      ref={(element) => {
+        node.current = element;
+        guideRef(element);
+      }}
       to={to}
       className={`set__nav-link${danger ? " set__nav-link--danger" : ""}`}
       aria-current={current ? "page" : undefined}

@@ -23,6 +23,9 @@ fuzz/corpus/*/[0-9a-f]*
 .headroom-cache/
 .superpowers/
 *.log
+# `*.log` above matches a directory name too, and the activity log is a
+# capability whose module lives at src/modules/activity.log/.
+!apps/pages/src/modules/activity.log/
 sbom/
 artifacts/
 test-results/

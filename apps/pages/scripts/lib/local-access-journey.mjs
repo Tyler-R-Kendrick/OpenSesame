@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { chooseCapabilities, unlockVault } from "./choose-capabilities.mjs";
 
 /** Revoke real cross-origin consent from a second, independently unlocked tab. */
 export async function localAccessJourney({
@@ -73,6 +74,13 @@ export async function localAccessJourney({
   );
 }
 
+export { chooseCapabilities };
+
+/** The capabilities every journey in this suite needs before it starts. */
+export const LOCAL_IAM_CAPABILITIES = ["Access authority", "Browser-local IAM"];
+
+const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
+
 export async function openLocalAccessPage(
   context,
   width,
@@ -84,13 +92,9 @@ export async function openLocalAccessPage(
     throw error;
   });
   await page.setViewportSize({ width, height: 900 });
-  await page.goto(
-    `https://tyler-r-kendrick.github.io/OpenSesame/${section}?view=${view}`,
-  );
-  const password = page.getByLabel("Password", { exact: true });
-  await expect(password).toBeVisible();
-  await password.fill("Cedar-lantern-47-river!");
-  await password.press("Enter");
+  const base = BASE;
+  await page.goto(`${base}/${section}?view=${view}`);
+  await unlockVault(page);
   return page;
 }
 

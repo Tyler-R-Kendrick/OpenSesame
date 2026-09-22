@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const vault = {
   items: [
@@ -20,6 +20,15 @@ Object.assign(vaultHooksSeams, {
 });
 
 import { Crumbs } from "./Crumbs.js";
+
+import { registerLegacyShellData } from "../lib/contributions.test-support.js";
+
+// A crumb path under Connections exists only while that capability does.
+let revokeShell = () => {};
+beforeAll(() => {
+  revokeShell = registerLegacyShellData();
+});
+afterAll(() => revokeShell());
 
 function renderAt(path: string) {
   return render(

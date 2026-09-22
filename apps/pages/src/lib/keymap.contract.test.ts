@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { KEYMAP_HELP } from "./keymap.js";
+import { registerLegacyShellData } from "./contributions.test-support.js";
+import { keymapHelp } from "./keymap.js";
 
 /**
  * Contract: DESIGN.md, the in-app `?` sheet, and the handler speak the same
@@ -32,8 +33,12 @@ const REQUIRED_IN_DESIGN = [
 ];
 
 describe("listing keymap contract", () => {
-  it("the in-app sheet is the exported KEYMAP_HELP table", () => {
-    expect(KEYMAP_HELP.map(([keys]) => keys)).toEqual([
+  it("the in-app sheet spells out only the jumps that are registered", () => {
+    expect(keymapHelp().at(-1)).toEqual(["g v/s", "Go to a section"]);
+    const release = registerLegacyShellData();
+    const keys = keymapHelp().map(([keys]) => keys);
+    release();
+    expect(keys).toEqual([
       "Ctrl-l / :",
       "m",
       "j / k or arrows",
@@ -50,7 +55,7 @@ describe("listing keymap contract", () => {
       "e / x",
       "n / .",
       "s",
-      "g v/c/a/i/w/s",
+      "g v/c/a/i/w/y/s",
     ]);
   });
 

@@ -26,10 +26,26 @@ type Pending = {
 };
 let pending = new Map<string, Pending>();
 let evidenceSet = new WeakSet<LocalAuthentication>();
-onVaultLock(() => {
+
+/** Forget every open challenge and its evidence; run on lock and on dispose. */
+export function resetLocalAgentAuthentications(): void {
   pending = new Map();
   evidenceSet = new WeakSet();
-});
+}
+
+/**
+ * Bind the lock reset. Called from `identity.local-iam`'s `activate` rather
+ * than at module load (ownership.md §4.3: a module and everything it imports
+ * has no top-level side effect); the returned unbind also resets once, so
+ * disposing the capability never leaves a challenge open.
+ */
+export function bindLocalAgentAuthLockReset(): () => void {
+  const off = onVaultLock(resetLocalAgentAuthentications);
+  return () => {
+    off();
+    resetLocalAgentAuthentications();
+  };
+}
 function refused(): never {
   throw new LocalDirectoryError(
     "This agent proof is unavailable. Start a new challenge.",

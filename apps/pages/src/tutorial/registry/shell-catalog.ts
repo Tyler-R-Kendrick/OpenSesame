@@ -30,46 +30,6 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "app.navigate",
   },
   {
-    id: "nav.connections",
-    description:
-      "Rail entry that opens Connections, where provider connections are added, tested and revoked.",
-    role: "navigation",
-    routes: [],
-    capabilityId: "app.navigate",
-  },
-  {
-    id: "nav.access",
-    description:
-      "Rail entry that opens Access, where delegations, share offers and running agent tasks are reviewed.",
-    role: "navigation",
-    routes: [],
-    capabilityId: "app.navigate",
-  },
-  {
-    id: "nav.identity",
-    description:
-      "Rail entry that opens Identity, where accounts, upstream providers and linked identities are managed.",
-    role: "navigation",
-    routes: [],
-    capabilityId: "app.navigate",
-  },
-  {
-    id: "nav.wallet",
-    description:
-      "Rail entry that opens Wallet, where spending overview, budgets, passes and payment methods are reviewed.",
-    role: "navigation",
-    routes: [],
-    capabilityId: "app.navigate",
-  },
-  {
-    id: "nav.activity",
-    description:
-      "Rail entry that opens Activity, the durable log of vault, settings, access and request events.",
-    role: "navigation",
-    routes: [],
-    capabilityId: "app.navigate",
-  },
-  {
     id: "nav.settings",
     description:
       "Rail entry that opens Settings, covering general preferences, security, connectivity, vault data and destructive actions.",

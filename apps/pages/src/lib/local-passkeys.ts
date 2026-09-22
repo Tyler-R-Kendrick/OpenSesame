@@ -57,9 +57,24 @@ export type LocalAuthentication = Readonly<{
   requestDigest?: string;
 }>;
 let unspentAuthentications = new WeakMap<LocalAuthentication, number>();
-onVaultLock(() => {
+
+/** Forget every unspent authentication; run on lock and on module dispose. */
+export function resetLocalAuthentications(): void {
   unspentAuthentications = new WeakMap();
-});
+}
+
+/**
+ * Bind the lock reset. Called from `identity.local-iam`'s `activate` rather
+ * than at module load (ownership.md §4.3: no top-level side effects); the
+ * returned unbind also resets once, so disposal never leaves evidence live.
+ */
+export function bindLocalAuthenticationLockReset(): () => void {
+  const off = onVaultLock(resetLocalAuthentications);
+  return () => {
+    off();
+    resetLocalAuthentications();
+  };
+}
 
 /** Only genuine, single-use evidence from this verifier can start a session. */
 export function consumeLocalAuthentication(

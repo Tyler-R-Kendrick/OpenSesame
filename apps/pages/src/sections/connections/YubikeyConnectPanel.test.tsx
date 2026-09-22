@@ -13,10 +13,15 @@ import {
   YubikeyConnectPanel,
   yubikeyConnectDependencies,
 } from "./YubikeyConnectPanel.js";
+import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 afterEach(() => {
   cleanup();
 });
+
+// The connector settings page mounts guide targets `connectors.external`
+// contributes; these cases describe a deployment that approved it.
+declareConnectionsTutorial();
 
 const originalVault = vaultHooksSeams.useVault;
 const originalDeps = { ...yubikeyConnectDependencies };

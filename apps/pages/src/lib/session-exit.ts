@@ -18,8 +18,7 @@
  * the stored outcome and says what just happened (`PendingLinkBanner`).
  */
 
-import { fenceLocalSignOut } from "./ambient-auth/generation.js";
-import { cancelAllTransactions } from "./ambient-auth/transactions.js";
+import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import { storeAuthOutcome } from "./auth-outcome.js";
 import { clearSession as clearFederationSession } from "./federation.js";
 import { forgetPendingLink } from "./guest-auth.js";
@@ -40,8 +39,8 @@ import { vaultStore } from "./vault/store.js";
 type SignOutIntent = "leave" | "switch";
 
 function signOutDefault(intent: SignOutIntent = "leave"): void {
-  fenceLocalSignOut();
-  cancelAllTransactions();
+  ambientAuthSeams.fenceLocalSignOut();
+  ambientAuthSeams.cancelAllTransactions();
   clearFederationSession();
   forgetPendingLink();
   storeAuthOutcome(

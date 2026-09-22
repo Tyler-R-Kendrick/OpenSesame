@@ -42,10 +42,20 @@ let presentations = new WeakMap<
     request: LocalAuthorizationRequest;
   }
 >();
-onVaultLock(() => {
+/** Drop pending requests and grant presentations; run on lock and dispose. */
+export function resetLocalAuthorizations(): void {
   pending = new Map();
   presentations = new WeakMap();
-});
+}
+
+/** Bind the lock reset from `identity.local-iam`'s `activate` (ownership.md §4.3). */
+export function bindLocalAuthorizationLockReset(): () => void {
+  const off = onVaultLock(resetLocalAuthorizations);
+  return () => {
+    off();
+    resetLocalAuthorizations();
+  };
+}
 function refused(): never {
   throw new LocalDirectoryError(
     "This application authorization is unavailable. Start a new sign-in.",

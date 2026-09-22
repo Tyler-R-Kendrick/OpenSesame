@@ -1,3 +1,4 @@
+import { CAPABILITY_PATH_ALIASES } from "./capabilities-keys.js";
 import { PREFS_RESOURCE_KEY } from "./prefs-keys.js";
 
 /** Canonical display path plus documented aliases for one prefs resource. */
@@ -9,9 +10,13 @@ export const PREFS_PATH_ALIASES: readonly string[] = [
   ".config/opensesame/prefs.yaml",
 ];
 
-const ALIAS_TO_KEY = new Map<string, string>(
-  PREFS_PATH_ALIASES.map((alias) => [alias, PREFS_RESOURCE_KEY]),
-);
+const ALIAS_TO_KEY = new Map<string, string>([
+  ...PREFS_PATH_ALIASES.map((alias): [string, string] => [
+    alias,
+    PREFS_RESOURCE_KEY,
+  ]),
+  ...CAPABILITY_PATH_ALIASES,
+]);
 
 /**
  * Normalize a navigation/display path. Rejects traversal, absolute paths,

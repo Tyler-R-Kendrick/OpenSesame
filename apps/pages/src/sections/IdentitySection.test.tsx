@@ -2,85 +2,43 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { IdentitySession } from "../lib/identity.js";
 import type { IdpRecord } from "../lib/idp-registry.js";
+import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
+import {
+  IDENTITY_ROUTES,
+  IDENTITY_TARGETS,
+} from "../tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "../tutorial/registry/identity-goals.js";
+import { contributeIdentityViews } from "./identity/identity-views.js";
 import { expectProseBudget, makeClient } from "./identity/test-fixtures.js";
-
-const online = vi.hoisted(() => ({ value: true }));
-const session: { current: IdentitySession | null } = vi.hoisted(() => ({
-  current: null,
-}));
-const connect = vi.hoisted(() => vi.fn());
-const beginSignIn = vi.hoisted(() => vi.fn());
-const listFederatedProviders = vi.hoisted(() => vi.fn());
-const registerByoProvider = vi.hoisted(() => vi.fn());
-const registry: { raw: string | null } = vi.hoisted(() => ({ raw: null }));
-
-import { deviceIdentitySeams } from "../lib/device-identity.js";
-import { identitySeams } from "../lib/identity.js";
-const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
-Object.assign(identitySeams, {
-  identityBase: () => "http://127.0.0.1:8788",
-  useConnect: () => ({ connect, connecting: false, error: null }),
-  useIdentitySession: () => session.current,
-});
-deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
-
-import { useOnlineSeams } from "../lib/use-online.js";
-Object.assign(useOnlineSeams, { useOnline: () => online.value });
-
-import { idpRegistrySeams } from "../lib/idp-registry.js";
-Object.assign(idpRegistrySeams, {
-  read: () => registry.raw,
-  write: (raw: string) => {
-    registry.raw = raw;
-  },
-  clear: () => {
-    registry.raw = null;
-  },
-});
-
-import { providersSeams } from "../lib/providers.js";
-Object.assign(providersSeams, { listFederatedProviders });
-
-import { federationSeams } from "../lib/federation.js";
-Object.assign(federationSeams, {
+import {
+  ByoError,
+  DirectoryError,
+  activeOrgProfileId,
   beginSignIn,
-  defaultUpstream: () => ({
-    id: "shoo",
-    displayName: "Shoo",
-    issuer: "https://shoo.dev",
-    accountKind: "Google (via shoo.dev)",
-  }),
-});
-
-import { ByoError, byoSeams } from "../lib/byo.js";
-Object.assign(byoSeams, { registerByoProvider });
-
-const directory = vi.hoisted(() => ({
-  getMe: vi.fn(),
-  listLinkedIdentities: vi.fn(),
-  unlinkIdentity: vi.fn(),
-  listOAuthClients: vi.fn(),
-  createOAuthClient: vi.fn(),
-  rotateOAuthClient: vi.fn(),
-  revokeOAuthClient: vi.fn(),
-  listOrgMembers: vi.fn(),
-  addOrgMember: vi.fn(),
-  removeOrgMember: vi.fn(),
-  createOrganization: vi.fn(),
-  approveDevice: vi.fn(),
-}));
-
-import { DirectoryError, directorySeams } from "../lib/directory.js";
-Object.assign(directorySeams, directory);
-
-const listOrgMemberships = vi.hoisted(() => vi.fn());
-const activeOrgProfileId = vi.hoisted(() => vi.fn());
-
-import { orgSeams } from "../lib/orgs.js";
-Object.assign(orgSeams, { listOrgMemberships, activeOrgProfileId });
+  connect,
+  deviceIdentitySeams,
+  directory,
+  listFederatedProviders,
+  listOrgMemberships,
+  online,
+  originalRemoteIdentityApi,
+  registerByoProvider,
+  registry,
+  session,
+} from "./identity/test-seams.js";
 
 import { listIdpRegistrations, registerIdp } from "../lib/idp-registry.js";
 import { IdentitySection } from "./IdentitySection.js";
@@ -121,7 +79,19 @@ function firstButton(name: string): HTMLElement {
 }
 
 describe("IdentitySection", () => {
-  beforeEach(() => {
+  // The Identity tabs belong to three capabilities (local IAM, federation,
+  // directory provisioning), and each contributes its own view. These cases
+  // describe a deployment that approved them, so they register the same
+  // contributions the modules make at activation.
+  let revokeIdentityViews: (() => void) | null = null;
+  let undeclareTutorial: (() => void) | null = null;
+  beforeEach(async () => {
+    revokeIdentityViews = contributeIdentityViews(IDENTITY_VIEWS);
+    undeclareTutorial = await declareTutorialForTest("identity.federation", {
+      targets: IDENTITY_TARGETS,
+      goals: IDENTITY_GOALS,
+      routes: IDENTITY_ROUTES,
+    });
     online.value = true;
     registry.raw = null;
     session.current = {
@@ -192,6 +162,10 @@ describe("IdentitySection", () => {
     cleanup();
     vi.clearAllMocks();
     deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
+    undeclareTutorial?.();
+    undeclareTutorial = null;
+    revokeIdentityViews?.();
+    revokeIdentityViews = null;
   });
 
   it("opens administration without an upstream binding and offers an explicit provider ceremony", async () => {
