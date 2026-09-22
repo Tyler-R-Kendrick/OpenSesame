@@ -2,7 +2,12 @@
  * Shared test builders. Not exported from the package index — tests only.
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { isJsonObject, isString } from "@opensesame/os-domain";
+import {
+  isBoolean,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import type { DistributionInventory } from "./resolver.js";
 
 const ZERO_DIGEST = "0".repeat(16);
@@ -72,8 +77,8 @@ export function descriptor(id: string, overrides: FixtureOverrides = {}): Bounda
   if (title !== undefined) raw.title = title;
   if (summary !== undefined) {
     // SAFETY: the hostile summary shapes under test (function, number) are
-    // the validator's own rejection cases; the fixture type names them.
-    raw.summary = summary as BoundaryValue;
+    // the validator's own rejection cases; the guards below preserve them.
+    raw.summary = summaryField(summary);
   }
   if (requiresDocumentReload !== undefined) {
     raw.requiresDocumentReload = requiresDocumentReload;
@@ -96,6 +101,20 @@ export function descriptor(id: string, overrides: FixtureOverrides = {}): Bounda
     raw[key] = value;
   }
   return raw;
+}
+
+/**
+ * Encode a hostile-aware summary field through the shared string guard:
+ * real summaries pass through, hostile shapes (function, number) are
+ * preserved for the validator to refuse.
+ */
+function summaryField(summary: string | string[] | (() => string) | number): BoundaryValue {
+  if (isString(summary as BoundaryValue)) return summary;
+  if (isNumber(summary as BoundaryValue)) return summary;
+  if (isBoolean(summary as BoundaryValue)) return summary;
+  // SAFETY: the remaining arms are hostile summary shapes (string array,
+  // function) the validator refuses at runtime; the type names them.
+  return summary as BoundaryValue;
 }
 
 /** Policy overrides parsed from attacker-shaped JSON at the test boundary. */
@@ -207,14 +226,7 @@ export function vaultRestriction(overrides: FixtureVault = {}): BoundaryValue {
     vaultId,
     basePolicyRevision,
     revision,
-    allow:
-      typeof allow === "string" || typeof allow === "number" || allow === undefined
-        ? allow
-        : Array.isArray(allow.ids)
-          ? { ids: [...allow.ids] }
-          : // SAFETY: hostile allow.ids shapes ({}, "x") are the validator's
-            // own rejection cases; the fixture type names every variant.
-            { ids: allow.ids as BoundaryValue },
+    allow: allowField(allow),
     optional: [...optional],
     prohibited: [...prohibited],
   };
@@ -222,6 +234,37 @@ export function vaultRestriction(overrides: FixtureVault = {}): BoundaryValue {
     raw[key] = value;
   }
   return raw;
+}
+
+/**
+ * Encode a hostile-aware allow field through the shared string/number
+ * guards: well-typed values pass through, hostile shapes (`{}`, `7`,
+ * `{ ids: "x" }`) are preserved for the validator to refuse.
+ */
+function allowField(
+  allow:
+    | string
+    | { readonly ids: readonly string[] }
+    | { readonly ids?: BoundaryValue }
+    | Record<string, BoundaryValue>
+    | number
+    | undefined,
+): BoundaryValue {
+  if (allow === undefined) return undefined;
+  // SAFETY: the guards establish the string/number boundary contract at
+  // runtime; the narrowed view preserves that same validated contract.
+  if (isString(allow as BoundaryValue)) return allow as BoundaryValue;
+  if (isNumber(allow as BoundaryValue)) return allow as BoundaryValue;
+  if (!isJsonObject(allow as BoundaryValue)) {
+    // SAFETY: non-object allow shapes (plain {}) are the validator's own
+    // rejection cases; the fixture type names them.
+    return allow as BoundaryValue;
+  }
+  // SAFETY: hostile allow.ids shapes ({}, "x") are the validator's own
+  // rejection cases; the fixture type names every variant.
+  const ids = (allow as { readonly ids?: BoundaryValue }).ids;
+  if (Array.isArray(ids)) return { ids: [...ids] };
+  return { ids: ids as BoundaryValue };
 }
 
 /** Overrides for a fixture selection: partial raw fields. */
@@ -268,23 +311,26 @@ export function selection(overrides: FixtureSelection = {}): BoundaryValue {
     installationId,
     revision,
     // SAFETY: hostile required/optional shapes (plain "x") are the
-    // validator's own rejection cases; the fixture type names them.
-    required: (Array.isArray(required) ? [...required] : required) as BoundaryValue,
-    optional: (Array.isArray(optional) ? [...optional] : optional) as BoundaryValue,
+    // validator's own rejection cases; the guards below preserve them.
+    required: stringListField(required),
+    optional: stringListField(optional),
     prohibited: [...prohibited],
-    allow:
-      typeof allow === "string" || typeof allow === "number" || allow === undefined
-        ? allow
-        : Array.isArray(allow.ids)
-          ? { ids: [...allow.ids] }
-          : // SAFETY: hostile allow.ids shapes ({}, "x") are the validator's
-            // own rejection cases; the fixture type names every variant.
-            { ids: allow.ids as BoundaryValue },
+    allow: allowField(allow),
   };
   for (const [key, value] of Object.entries(hostile)) {
     raw[key] = value;
   }
   return raw;
+}
+
+/**
+ * Encode a hostile-aware string-list field through the shared string guard:
+ * real lists pass through, hostile scalars (`"x"`) are preserved for the
+ * validator to refuse.
+ */
+function stringListField(value: readonly string[] | string): BoundaryValue {
+  if (isString(value as BoundaryValue)) return value as BoundaryValue;
+  return [...value];
 }
 
 /** A distribution inventory from descriptors. */
