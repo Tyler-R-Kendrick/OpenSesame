@@ -84,7 +84,9 @@ describe("authored route-scoped capability context", () => {
     expect(() =>
       capabilitiesForContext([{ ...base, id: "new.unscoped" }], "/vault", []),
     ).toThrow("support_capability_scope_missing:new.unscoped");
-    expect(GUIDE_ROUTES.every((route) => isKnownGuideRoute(route.id))).toBe(
+    expect(
+      mergedGuideRoutes().every((route) => isKnownGuideRoute(route.id)),
+    ).toBe(
       true,
     );
   });

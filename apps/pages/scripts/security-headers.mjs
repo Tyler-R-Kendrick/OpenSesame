@@ -108,23 +108,31 @@ function ids(list) {
  * selected optional roots the policy permits. Dependencies are not expanded
  * here — headers are a ceiling over declared navigation, not a resolver.
  */
+/** The three id lists a policy names, each read as a bounded list of strings. */
+function policyLists(policy) {
+  const capabilities = policy?.capabilities ?? null;
+  return {
+    required: ids(capabilities?.required),
+    optional: ids(capabilities?.optional),
+    prohibited: ids(capabilities?.prohibited),
+  };
+}
+
 export function approvedCapabilities(profile) {
   const policy = profile?.instancePolicy ?? null;
-  const selection = profile?.installationSelection ?? null;
+  const selected = ids(profile?.installationSelection?.selectedOptional);
   const approved = new Set(CORE_CAPABILITIES);
   if (policy === null) {
-    for (const id of ids(selection?.selectedOptional)) approved.add(id);
+    for (const id of selected) approved.add(id);
     return [...approved].sort();
   }
-  const prohibited = new Set(ids(policy.capabilities?.prohibited));
-  const permitted = new Set([
-    ...ids(policy.capabilities?.required),
-    ...ids(policy.capabilities?.optional),
-  ]);
-  for (const id of ids(policy.capabilities?.required)) {
+  const lists = policyLists(policy);
+  const prohibited = new Set(lists.prohibited);
+  const permitted = new Set([...lists.required, ...lists.optional]);
+  for (const id of lists.required) {
     if (!prohibited.has(id)) approved.add(id);
   }
-  for (const id of ids(selection?.selectedOptional)) {
+  for (const id of selected) {
     if (permitted.has(id) && !prohibited.has(id)) approved.add(id);
   }
   return [...approved].sort();
@@ -228,8 +236,9 @@ export function generateSecurityHeaders(input) {
     "form-action": formActionSources(approved),
     "frame-src": ["'none'"],
     "frame-ancestors": ["'none'"],
-    ...(https ? { "upgrade-insecure-requests": [] } : {}),
   };
+  // Only meaningful on an https origin; a browser ignores it elsewhere.
+  if (https) directives["upgrade-insecure-requests"] = [];
   const csp = directiveString(directives);
   const metaDirectives = Object.fromEntries(
     Object.entries(directives).filter(
