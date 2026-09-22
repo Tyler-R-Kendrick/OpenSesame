@@ -18,6 +18,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import {
+  enterEnrollmentCode,
+  finishUnlockSelfSupplied,
+  finishUnlockWithCode,
+  readSeed,
+  withdrawSelfAuthenticator,
+} from "./lib/auth-flow-enroll.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
 import { totp } from "./lib/totp.mjs";
 
@@ -120,33 +127,6 @@ const text = (page) => page.evaluate(() => document.body.innerText);
  * The seed, read the way a person without a camera reads it: the "Can't
  * scan?" alternative expands the setup key in place, inside the same sheet.
  */
-async function readSeed(page) {
-  const dialog = page.getByRole("dialog");
-  await dialog
-    .getByRole("button", { name: "Can't scan? Type the key instead" })
-    .click();
-  await page.waitForTimeout(300);
-  const spaced = await dialog
-    .getByLabel("Setup key", { exact: true })
-    .inputValue();
-  const secret = spaced.replace(/\s/g, "");
-  check(/^[A-Z2-7]{16,}$/.test(secret), "the setup key is a base32 seed");
-  check(
-    (await dialog
-      .getByRole("img", { name: "Scan to add vault MFA" })
-      .count()) === 1,
-    "the QR code is on screen beside it",
-  );
-  return secret;
-}
-
-/** Enter a code in the sheet's Confirm step and press Turn on. */
-async function enterEnrollmentCode(page, code) {
-  const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Six digits", { exact: true }).fill(code);
-  await dialog.getByRole("button", { name: "Turn on" }).click();
-}
-
 async function openSecurity(page) {
   try {
     await page.getByRole("treeitem", { name: "Settings", exact: true }).click();
@@ -175,64 +155,6 @@ async function lock(page) {
   await page.waitForTimeout(800);
 }
 
-/** After a right key: step 2 on screen, a wrong code refused, the right one opens. */
-async function finishUnlockWithCode(page, secret, name) {
-  const asked = await snap(page, `${name}-code-asked`);
-  check(/Confirm it is you/.test(asked), "the code is asked for after the key");
-  check(/Authenticator code/.test(asked), "code field on screen");
-  check(
-    (await page.locator(".steps__seg.is-now .steps__label").textContent()) ===
-      "2 · Authenticator code",
-    "the rail marks step 2 as the current step",
-  );
-  // A full code submits itself; the wrong one is refused without a click.
-  await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
-  await page.waitForTimeout(800);
-  const refused = await snap(page, `${name}-wrong-code`);
-  check(/not valid/i.test(refused), "a wrong code is refused in plain words");
-  check(
-    /Confirm it is you/.test(refused),
-    "still on step 2 after a wrong code",
-  );
-  await page
-    .getByLabel("Authenticator code", { exact: true })
-    .fill(totp(secret));
-  await page.waitForTimeout(1500);
-  const open = await snap(page, `${name}-open`);
-  check(
-    /vault\/|:\/\s*$/m.test(open) && !/Confirm it is you/.test(open),
-    "the vault is open",
-  );
-  check(
-    (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
-    "the shell (with its lock) is on screen",
-  );
-}
-
-/** With the vault as its own authenticator, a right key opens it — no code asked. */
-async function finishUnlockSelfSupplied(page, name) {
-  const open = await snap(page, `${name}-self-supplied`);
-  check(!/Confirm it is you/.test(open), "no code is asked — it is supplied");
-  check(
-    (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
-    "the vault is open",
-  );
-}
-
-/** Trash the vault's own authenticator entry, withdrawing the registration. */
-async function withdrawSelfAuthenticator(page) {
-  await page.getByRole("treeitem", { name: "Vault", exact: true }).click();
-  await page.waitForTimeout(1000);
-  const entry = page.getByRole("treeitem", {
-    name: /OpenSesame \(this vault\)/,
-  });
-  check((await entry.count()) === 1, "the vault registered its own entry");
-  await entry.first().click();
-  await page.waitForTimeout(1000);
-  await page.getByRole("button", { name: "Move to trash" }).click();
-  await page.waitForTimeout(1000);
-}
-
 process.on("unhandledRejection", () => undefined);
 const launch = { headless: true };
 if (process.env.PLAYWRIGHT_CHROMIUM) {
@@ -249,7 +171,7 @@ const browser = await chromium.launch(launch);
     .getByRole("button", { name: "Continue as guest", exact: true })
     .click();
   await page.waitForTimeout(2000);
-  check(/guest\s*@/.test(await text(page)), "guest landed inside the app");
+  check(/guest-\d+/.test(await text(page)), "guest landed inside the app");
   await openSecurity(page);
   const security = await snap(page, "1-guest-security");
   check(
@@ -261,6 +183,9 @@ const browser = await chromium.launch(launch);
     "no row holds an input — the list is read-only state",
   );
   const totpRow = page.locator(".sw--method", { hasText: "Authenticator app" });
+  const recoveryRow = page.locator(".sw--method", {
+    hasText: "Recovery codes",
+  });
   check(
     (await totpRow.getByRole("button", { name: "Add" }).count()) === 1,
     "Add is offered to a guest (not withheld)",
@@ -295,13 +220,13 @@ const browser = await chromium.launch(launch);
       "2 · Scan",
     "the rail marks Scan as the current step",
   );
-  const secret = await readSeed(page);
+  const secret = await readSeed(page, check);
   await dialog.getByRole("button", { name: "I scanned it" }).click();
   await page.waitForTimeout(300);
   await enterEnrollmentCode(page, "000000");
   await page.waitForTimeout(800);
   const refused = await snap(page, "1-guest-wrong-enroll-code");
-  check(/Did not match/.test(refused), "a wrong enrollment code is refused");
+  check(/did not match/i.test(refused), "a wrong enrollment code is refused");
   check(
     /3 · Confirm/.test(refused) && (await dialog.count()) === 1,
     "still in the sheet, on Confirm, after a wrong code",
@@ -317,15 +242,15 @@ const browser = await chromium.launch(launch);
   );
   await dialog.getByRole("button", { name: "I saved them" }).click();
   await page.waitForTimeout(500);
-  const listed = await snap(page, "1-guest-security-after");
+  await snap(page, "1-guest-security-after");
   check((await page.getByRole("dialog").count()) === 0, "the sheet closed");
   check(
     (await totpRow.getByRole("button", { name: "Remove" }).count()) === 1 &&
-      (await totpRow.locator(".chip", { hasText: /^On$/ }).count()) === 1,
+      (await totpRow.getByRole("img", { name: "On" }).count()) === 1,
     "the row reports the authenticator on, with Remove as its one action",
   );
   check(
-    /7 of 10 left|10 of 10 left|Made/.test(listed),
+    (await recoveryRow.getByRole("img", { name: "Made" }).count()) === 1,
     "the Recovery row reports codes",
   );
 
@@ -353,7 +278,7 @@ const browser = await chromium.launch(launch);
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await page.waitForTimeout(2500);
-  await finishUnlockSelfSupplied(page, "1-guest");
+  await finishUnlockSelfSupplied(page, "1-guest", { check, snap });
 
   // Reload: the header on disk still carries the gate — the whole ceremony
   // again, from a fresh page load, without anything held in memory.
@@ -369,7 +294,7 @@ const browser = await chromium.launch(launch);
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await page.waitForTimeout(2500);
-  await finishUnlockSelfSupplied(page, "1-guest-reload");
+  await finishUnlockSelfSupplied(page, "1-guest-reload", { check, snap });
   await context.close();
 }
 
@@ -408,7 +333,7 @@ const browser = await chromium.launch(launch);
     /2 · Confirm/.test(scan) && !/Key/.test(scan),
     "two steps, no key step",
   );
-  const secret = await readSeed(page);
+  const secret = await readSeed(page, check);
   await dialog.getByRole("button", { name: "I scanned it" }).click();
   await page.waitForTimeout(300);
   await enterEnrollmentCode(page, totp(secret));
@@ -418,7 +343,7 @@ const browser = await chromium.launch(launch);
   await page.waitForTimeout(500);
   // Withdraw the vault's own authenticator (ADR 0113): this road walks the
   // code by hand — the road a person gets once they trash the entry.
-  await withdrawSelfAuthenticator(page);
+  await withdrawSelfAuthenticator(page, check);
   await lock(page);
   const locked = await snap(page, "2-password-locked");
   check(
@@ -430,7 +355,11 @@ const browser = await chromium.launch(launch);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await page.waitForTimeout(5000);
-  await finishUnlockWithCode(page, secret, "2-password");
+  await finishUnlockWithCode(page, secret, "2-password", {
+    check,
+    snap,
+    totp,
+  });
   await context.close();
 }
 

@@ -57,7 +57,7 @@ on the first screen, and the Tab order above with real key presses.
 
 ### 2. Connectors by reference — the `connectors` tab
 
-Setup opens on **connectors** (first of six), before backups, so later tabs can reuse what the directory authorized. It asks
+Setup opens on **connectors** (first of four), so later tabs can reuse what the directory authorized. It asks
 one thing: *which connectors are already authorized?* The answer is a
 **Nango-compatible directory** — `https://api.nango.dev`, or an instance the
 operator runs on `:3003` — and an environment key. `Sync connectors` reads
@@ -129,7 +129,9 @@ the words; the gate targets moved to `setup-catalog.ts` and their goals to
 
 ## Consequences
 
-- `SetupScreen` has six tabs: connectors, backups, ai, identity, mfa, sync.
+- `SetupScreen` has four tabs: connectors, ai, identity, mfa — the `backups`
+  and `sync` tabs configured a Host and left with
+  [ADR 0128](0128-pages-without-host.md) (amended here 2026-09-21).
   `SetupRecord.skipped` may now contain `"connectors"`.
 - `ACCESS_VIEWS` gains `connectors`; the rail subtree, WebMCP navigation
   destinations and the page tree follow from the one list.

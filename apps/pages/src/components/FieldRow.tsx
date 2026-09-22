@@ -1,4 +1,10 @@
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useCopySecret } from "../lib/vault/hooks.js";
 import { IconCheck, IconCopy, IconEye, IconEyeOff } from "./Icons.js";
 
@@ -7,6 +13,16 @@ export function useCopyFeedback() {
   const [copied, setCopied] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
+
+  // The flash timers are the only thing still running after this row goes
+  // away: clear them on unmount so a copy can never call back into a torn-down
+  // tree (which surfaces as an unhandled error after the tests finish).
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const copy = useCallback(
     async (key: string, value: string) => {

@@ -27,7 +27,7 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "setup.first-run"',
-      'say "Nothing has to be set up first: sign in, continue as guest, or seal a local vault. Setting up your own is for whoever runs this deployment — connectors, sign-in and backups, every tab skippable."',
+      'say "Nothing has to be set up first: sign in, continue as guest, or seal a local vault. Setting up your own is for whoever runs this deployment — connectors, the model, sign-in and a second step, every tab skippable."',
       'focus "unlock.setup" "The operator road. Name a connector directory, choose who signs people in, and it records that and returns to sign-in." side=top',
       "end",
     ].join("\n"),
