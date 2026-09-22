@@ -5,7 +5,10 @@ import type {
   SectionContribution,
   TreeProps,
 } from "../lib/capabilities/runtime-contract.js";
-import { contributionsSnapshot, useContributions } from "../lib/contributions.js";
+import {
+  contributionsSnapshot,
+  useContributions,
+} from "../lib/contributions.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
   ICONS_BY_NAME,

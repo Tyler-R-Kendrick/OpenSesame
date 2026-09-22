@@ -64,7 +64,10 @@ type HeaderDraft = {
 
 /** The rotation while it is still being written, signature not yet computed. */
 type RotationDraft = {
-  -readonly [K in keyof Omit<PolicyKeyRotation, "signature">]: PolicyKeyRotation[K];
+  -readonly [K in keyof Omit<
+    PolicyKeyRotation,
+    "signature"
+  >]: PolicyKeyRotation[K];
 };
 
 export type EnvelopeInput = Readonly<{

@@ -99,9 +99,9 @@ import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
 import { DevicesPanel } from "./identity/DevicesPanel.js";
 import { EditApplication } from "./identity/EditApplication.js";
 import { type IdentityTab, IdentityTabs } from "./identity/IdentityTabs.js";
-import { useEnabledIdentityViews } from "./identity/identity-views.js";
 import { LocalDirectoryPanel } from "./identity/LocalDirectoryPanel.js";
 import { UsersPanel } from "./identity/UsersPanel.js";
+import { useEnabledIdentityViews } from "./identity/identity-views.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";

@@ -31,7 +31,9 @@ describe("guide route registry", () => {
 
   it("maps a deep path to its longest declared prefix", () => {
     expect(guideRouteForPath("/vault/abc/edit")).toBe("/vault");
-    expect(guideRouteForPath("/identity/authorize")).toBe("/identity/authorize");
+    expect(guideRouteForPath("/identity/authorize")).toBe(
+      "/identity/authorize",
+    );
     expect(isKnownGuideRoute("/nowhere")).toBe(false);
   });
 });

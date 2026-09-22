@@ -14,7 +14,11 @@ import { isOnline } from "../lib/connectivity.js";
 import { currentSession, identityBase } from "../lib/identity.js";
 import { activeItems } from "../lib/vault/model.js";
 import { vaultStore } from "../lib/vault/store.js";
-import { SECTION_PATHS, navigationPaths, navigationTool } from "./navigation.js";
+import {
+  SECTION_PATHS,
+  navigationPaths,
+  navigationTool,
+} from "./navigation.js";
 import type { PagesWebMcpTool } from "./tool-shared.js";
 
 function targetSummary(state: TargetState) {

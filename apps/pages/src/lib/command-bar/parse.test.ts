@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { registerLegacyShellData } from "../contributions.test-support.js";
 import type { VaultItem } from "../vault/model.js";
 import { createItem } from "../vault/model.js";
-import { registerLegacyShellData } from "../contributions.test-support.js";
 import {
   type CommandPorts,
   NOT_AVAILABLE_MESSAGE,

@@ -1,7 +1,10 @@
 import { type ComponentType, useMemo } from "react";
 import { Link } from "react-router";
 import type { SettingsCategoryContribution } from "../lib/capabilities/runtime-contract.js";
-import { contributionsSnapshot, useContributions } from "../lib/contributions.js";
+import {
+  contributionsSnapshot,
+  useContributions,
+} from "../lib/contributions.js";
 import {
   type SettingsCategory,
   settingsCategoryFromHash,

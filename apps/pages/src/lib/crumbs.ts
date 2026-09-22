@@ -31,15 +31,16 @@ export type CoreSettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
 /** Every category id this code knows how to name; contributed ones included. */
 export type SettingsCategory = CoreSettingsCategory | "connections";
 
-export const SETTINGS_CATEGORY_LABEL: Readonly<Record<SettingsCategory, string>> =
-  {
-    general: "General",
-    connections: "Connections",
-    security: "Security",
-    vaults: "Vaults",
-    capabilities: "Capabilities",
-    danger: "Danger",
-  };
+export const SETTINGS_CATEGORY_LABEL: Readonly<
+  Record<SettingsCategory, string>
+> = {
+  general: "General",
+  connections: "Connections",
+  security: "Security",
+  vaults: "Vaults",
+  capabilities: "Capabilities",
+  danger: "Danger",
+};
 
 /** Core categories plus every registered `settings-category`, in order. */
 export function settingsCategories(): readonly string[] {

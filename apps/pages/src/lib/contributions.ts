@@ -37,7 +37,11 @@ let seq = 0;
 
 const EMPTY: readonly never[] = Object.freeze([]);
 
-type Merged = { registry: readonly unknown[]; version: number; out: readonly unknown[] };
+type Merged = {
+  registry: readonly unknown[];
+  version: number;
+  out: readonly unknown[];
+};
 const merged = new Map<ContributionKind, Merged>();
 
 function orderOf(entry: unknown): number {
@@ -122,10 +126,10 @@ export function useContributions<K extends ContributionKind>(
     () => injectedVersion,
     () => injectedVersion,
   );
+  // The snapshot is keyed by exactly these two; the deps say when it moves.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fromRegistry/version are the snapshot's cache keys
   return useMemo(
     () => contributionsSnapshot(kind),
-    // The snapshot is keyed by exactly these two; the deps say when it moves.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: fromRegistry/version are the snapshot's cache keys
     [kind, fromRegistry, version],
   );
 }

@@ -484,7 +484,6 @@ let contributedGoals: readonly GuideGoalDescriptor[] | null = null;
 export let GUIDE_GOALS: readonly GuideGoalDescriptor[] = CORE_GUIDE_GOALS;
 /** The live help: core topics plus the optional ones whose goal is live. */
 export let HELP_TOPICS: readonly HelpTopic[] = CORE_HELP_TOPICS;
-let index: readonly IndexedTopic[] = [];
 
 export function mergedGuideGoals(): readonly GuideGoalDescriptor[] {
   const contributed = contributionsSnapshot("tutorial-goal");
@@ -508,7 +507,6 @@ export function mergedGuideGoals(): readonly GuideGoalDescriptor[] {
           ...CORE_HELP_TOPICS,
           ...OPTIONAL_HELP_TOPICS.filter((topic) => seen.has(topic.goal)),
         ]);
-  index = HELP_TOPICS.map(indexTopic);
   return GUIDE_GOALS;
 }
 
@@ -520,11 +518,13 @@ export function mergedHelpTopics(): readonly HelpTopic[] {
 export function describeGuideGoals(
   route: GuideRouteId,
 ): readonly SupportGoalDescription[] {
-  return mergedGuideGoals().filter(
-    (goal) =>
-      goal.routes.length === 0 ||
-      goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
-  ).map((goal) => ({ id: goal.id, title: goal.title }));
+  return mergedGuideGoals()
+    .filter(
+      (goal) =>
+        goal.routes.length === 0 ||
+        goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
+    )
+    .map((goal) => ({ id: goal.id, title: goal.title }));
 }
 
 export function guideGoalIds(): readonly GuideGoalId[] {
@@ -544,170 +544,8 @@ export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {
   );
 }
 
-/**
- * Words that carry no topic on their own. A question is mostly these, and a
- * ranking that counted them would find every topic equally relevant.
- */
-const STOPWORDS: ReadonlySet<string> = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "by",
-  "can",
-  "do",
-  "does",
-  "for",
-  "from",
-  "get",
-  "have",
-  "here",
-  "how",
-  "i",
-  "if",
-  "in",
-  "is",
-  "it",
-  "its",
-  "me",
-  "my",
-  "of",
-  "on",
-  "one",
-  "or",
-  "our",
-  "should",
-  "so",
-  "the",
-  "there",
-  "this",
-  "to",
-  "up",
-  "want",
-  "we",
-  "what",
-  "when",
-  "where",
-  "which",
-  "why",
-  "with",
-  "would",
-  "you",
-  "your",
-]);
-
-/** Lowercase word stems: plural and progressive endings dropped. */
-function stem(word: string): string {
-  if (word.length > 4 && word.endsWith("ing")) return word.slice(0, -3);
-  if (word.length > 3 && word.endsWith("es")) return word.slice(0, -2);
-  if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
-  return word;
-}
-
-function tokenize(text: string): readonly string[] {
-  const out: string[] = [];
-  for (const raw of text.toLowerCase().split(/[^a-z0-9]+/u)) {
-    if (raw.length < 2 || STOPWORDS.has(raw)) continue;
-    const word = stem(raw);
-    if (!out.includes(word)) out.push(word);
-  }
-  return out;
-}
-
-const KEYWORD_WEIGHT = 3;
-const TITLE_WEIGHT = 2;
-const ANSWER_WEIGHT = 1;
-/** A keyword hit, or a title word plus anything else, is a confident match. */
-const STRONG_SCORE = 3;
-
-type IndexedTopic = {
-  readonly topic: HelpTopic;
-  readonly keywords: ReadonlySet<string>;
-  readonly title: ReadonlySet<string>;
-  readonly answer: ReadonlySet<string>;
-};
-
-function indexTopic(topic: HelpTopic): IndexedTopic {
-  return {
-    topic,
-    keywords: new Set(topic.keywords.flatMap((keyword) => tokenize(keyword))),
-    title: new Set(tokenize(topic.title)),
-    answer: new Set(tokenize(topic.answer)),
-  };
-}
-
-/** The lexical index over the live help, rebuilt when the live help moves. */
-function helpIndex(): readonly IndexedTopic[] {
-  const topics = mergedHelpTopics();
-  if (index.length !== topics.length || index[0]?.topic !== topics[0]) {
-    index = topics.map(indexTopic);
-  }
-  return index;
-}
-
-export type RankedHelpTopic = {
-  readonly topic: HelpTopic;
-  readonly score: number;
-  /** Confident enough to stand in for an answer that cited nothing. */
-  readonly strong: boolean;
-};
-
-function scoreTopic(indexed: IndexedTopic, words: readonly string[]): number {
-  let score = 0;
-  for (const word of words) {
-    if (indexed.keywords.has(word)) score += KEYWORD_WEIGHT;
-    else if (indexed.title.has(word)) score += TITLE_WEIGHT;
-    else if (indexed.answer.has(word)) score += ANSWER_WEIGHT;
-  }
-  return score;
-}
-
-/**
- * The written help that answers a question, best first. Lexical, offline and
- * deterministic: a word of the question against each topic's authored
- * keywords, title and answer. This is the retrieval step that puts the
- * checked-in answer in front of a model before it is asked — and, when a model
- * cites nothing, decides whether a written answer can stand in for it.
- */
-export function rankHelpTopics(
-  question: string,
-  route: GuideRouteId | null = null,
-): readonly RankedHelpTopic[] {
-  const words = tokenize(question);
-  if (words.length === 0) return [];
-  const ranked: RankedHelpTopic[] = [];
-  for (const indexed of helpIndex()) {
-    const { topic } = indexed;
-    const scoped =
-      route === null ||
-      topic.routes.length === 0 ||
-      topic.routes.some((candidate) => guideRouteWithin(route, candidate));
-    if (!scoped) continue;
-    const score = scoreTopic(indexed, words);
-    if (score === 0) continue;
-    ranked.push({ topic, score, strong: score >= STRONG_SCORE });
-  }
-  // A stable sort keeps authored order among equals.
-  return ranked.sort((left, right) => right.score - left.score);
-}
-
-/**
- * Search over authored help: ranked by the words that match, with the old
- * substring match kept as the fallback so a fragment of a title still finds
- * it. No index, no model, works offline.
- */
-export function searchHelpTopics(query: string): readonly HelpTopic[] {
-  const needle = query.trim().toLowerCase();
-  const topics = mergedHelpTopics();
-  if (needle.length === 0) return topics;
-  const ranked = rankHelpTopics(needle).map((entry) => entry.topic);
-  if (ranked.length > 0) return ranked;
-  return topics.filter(
-    (topic) =>
-      topic.title.toLowerCase().includes(needle) ||
-      topic.answer.toLowerCase().includes(needle),
-  );
-}
+export {
+  rankHelpTopics,
+  searchHelpTopics,
+  type RankedHelpTopic,
+} from "./goals-search.js";

@@ -200,7 +200,8 @@ function admit(
   const id = options.capability.id;
   if (meta?.capability !== undefined && meta.capability !== id)
     return { code: "capability-mismatch" };
-  if (!approvedIn(options.plan(), id)) return { code: "capability-not-approved" };
+  if (!approvedIn(options.plan(), id))
+    return { code: "capability-not-approved" };
   if (url === null) return { code: "invalid-url" };
   if (url.protocol !== "https:" && url.protocol !== "http:")
     return { code: "unsupported-scheme" };

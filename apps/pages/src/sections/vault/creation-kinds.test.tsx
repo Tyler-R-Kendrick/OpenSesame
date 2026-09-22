@@ -18,10 +18,18 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { PRESETS } from "../../lib/capabilities/presets.js";
-import { LEGACY_ITEM_KINDS } from "../../lib/contributions.test-support.js";
 import { registerContributionForTest } from "../../lib/contributions.js";
+import { LEGACY_ITEM_KINDS } from "../../lib/contributions.test-support.js";
 import { CORE_ITEM_KINDS, itemKindsSnapshot } from "../../lib/item-kinds.js";
 import { createItem } from "../../lib/vault/model.js";
 import type {

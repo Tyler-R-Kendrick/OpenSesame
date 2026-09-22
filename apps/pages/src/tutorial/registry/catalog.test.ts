@@ -11,10 +11,7 @@ import {
 import { isFunction, isTypeofObject } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import {
-  AUTHORED_GUIDE_TARGETS,
-  AUTHORED_HELP_TOPICS,
-} from "./authored.js";
+import { AUTHORED_GUIDE_TARGETS, AUTHORED_HELP_TOPICS } from "./authored.js";
 import { mergedGuideTargets } from "./catalog.js";
 import {
   CAPABILITY_TUTORIALS,

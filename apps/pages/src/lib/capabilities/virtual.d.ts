@@ -17,5 +17,6 @@ declare module "virtual:opensesame-capability-modules" {
 }
 
 declare module "virtual:opensesame-distribution" {
+  // biome-ignore format: wrapping an import() type across lines is not valid TypeScript
   export const DISTRIBUTION: import("@opensesame/capability-composition").DistributionContract;
 }

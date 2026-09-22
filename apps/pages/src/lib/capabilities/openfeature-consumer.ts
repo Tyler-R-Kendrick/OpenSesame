@@ -72,7 +72,9 @@ export const RELEASE_FLAGS: Readonly<Record<string, ReleaseFlagState>> =
   });
 
 /** The one thing a test may replace: which release table is consulted. */
-export type ReleaseFlagSeams = { table: Readonly<Record<string, ReleaseFlagState>> };
+export type ReleaseFlagSeams = {
+  table: Readonly<Record<string, ReleaseFlagState>>;
+};
 
 export const releaseFlagSeams: ReleaseFlagSeams = { table: RELEASE_FLAGS };
 

@@ -70,7 +70,8 @@ export async function restoreAuthenticatedSession(
   fetchImpl: typeof fetch,
 ): Promise<RestorationResult> {
   if (!raw) return { kind: "rejected", reason: "invalid" };
-  if (ambientAuthSeams.autoAuthSuppressed()) return { kind: "rejected", reason: "suppressed" };
+  if (ambientAuthSeams.autoAuthSuppressed())
+    return { kind: "rejected", reason: "suppressed" };
   const stored = parseStoredAssertion(raw);
   if (!stored) return { kind: "rejected", reason: "invalid" };
   if (!trustMatches(stored, trust) || !trust) {

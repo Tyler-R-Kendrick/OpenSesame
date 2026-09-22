@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 501,
-    "violations": 794,
-    "oversizedLines": 252336
+    "files": 499,
+    "violations": 792,
+    "oversizedLines": 250998
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -585,9 +585,6 @@
     "apps/pages/scripts/verify-auth-flow.mjs": {
       "max-lines": 465
     },
-    "apps/pages/src/App.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
@@ -823,7 +820,7 @@
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1168,
+      "max-lines": 1167,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
@@ -858,11 +855,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 890
+      "max-lines": 864
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2344,
+      "max-lines": 2343,
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
@@ -1017,7 +1014,7 @@
       "max-lines": 451
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
-      "max-lines": 936
+      "max-lines": 551
     },
     "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
       "max-lines-per-function": 1
@@ -1032,9 +1029,6 @@
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
       "max-lines": 642
-    },
-    "apps/pages/src/webmcp/tools.ts": {
-      "max-lines": 696
     },
     "apps/pm-bridges/src/keepassxc/actions.rs": {
       "max-lines": 649

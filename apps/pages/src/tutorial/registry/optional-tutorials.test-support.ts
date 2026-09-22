@@ -5,8 +5,8 @@
  * core-only. Returns the revoke for all of it.
  */
 
-import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
 import { registerContributionForTest } from "../../lib/contributions.js";
+import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
 import { OPTIONAL_TUTORIALS, type TutorialPartition } from "./authored.js";
 
 export function registerTutorialPartition(

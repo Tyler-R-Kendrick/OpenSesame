@@ -1,12 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,
   registerRailKeymap,
   registerVaultKeymap,
 } from "./keymap.js";
-import { registerLegacyShellData } from "./contributions.test-support.js";
 
 function target(): VaultKeymapTarget {
   return {

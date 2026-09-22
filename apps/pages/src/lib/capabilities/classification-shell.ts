@@ -34,6 +34,10 @@ export const SHELL_RULES = [
     "picks authored tutorial ids from a shared partition",
   ),
   shared(
+    "src/modules/identity-view-paths",
+    "one command-path per Identity tab, for the runtime that owns the tab",
+  ),
+  shared(
     "src/modules/tutorial-test-realm",
     "boots a fixture realm so contributed guides render in tests",
   ),

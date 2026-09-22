@@ -12,22 +12,20 @@ import {
 const original = webmcpNavigationSeam.navigate;
 /**
  * Sections and their tabs are `command-path` contributions now, so the tool's
- * destination table is whatever the approved capabilities registered. This
- * suite registers what a full plan's modules do; `navigation.surface.test.ts`
- * covers the other end — an excluded capability contributes nothing and its
- * section is not a destination at all.
+ * destination table is whatever the approved capabilities registered: the
+ * five section paths from each section's owner, and one tab path per tab
+ * from the capability that draws it. This suite registers what a full plan's
+ * modules do. Nothing registered is the other end of the same contract — the
+ * refusal cases below rely on it, and an excluded capability's section is
+ * then not a destination at all.
  */
-let revokeShell: () => void;
+let revokes: readonly (() => void)[] = [];
 beforeEach(() => {
-  revokeShell = (() => {
-    const revokes = [registerLegacyJumps(), registerLegacyTabPaths()];
-    return () => {
-      for (const revoke of revokes) revoke();
-    };
-  })();
+  revokes = [registerLegacyJumps(), registerLegacyTabPaths()];
 });
 afterEach(() => {
-  revokeShell();
+  for (const revoke of revokes) revoke();
+  revokes = [];
   webmcpNavigationSeam.navigate = original;
 });
 

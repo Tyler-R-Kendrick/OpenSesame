@@ -86,8 +86,6 @@ describe("authored route-scoped capability context", () => {
     ).toThrow("support_capability_scope_missing:new.unscoped");
     expect(
       mergedGuideRoutes().every((route) => isKnownGuideRoute(route.id)),
-    ).toBe(
-      true,
-    );
+    ).toBe(true);
   });
 });

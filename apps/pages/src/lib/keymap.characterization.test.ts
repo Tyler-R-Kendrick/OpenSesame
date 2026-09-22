@@ -1,12 +1,20 @@
 /** @vitest-environment jsdom */
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,
   keymapHelp,
   registerVaultKeymap,
 } from "./keymap.js";
-import { registerLegacyShellData } from "./contributions.test-support.js";
 
 /**
  * Characterization snapshots for the listing keymap.

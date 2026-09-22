@@ -17,10 +17,10 @@ import {
   guideGoal,
   guideGoalIds,
 } from "../registry/goals.js";
+import { registerTutorialRealm } from "../registry/optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "../registry/predicates.js";
 import { mergedGuideRoutes } from "../registry/routes.js";
 import { guidePredicateIds } from "../registry/state.js";
-import { registerTutorialRealm } from "../registry/optional-tutorials.test-support.js";
 import { guideTargetIds } from "../registry/targets.js";
 
 /**

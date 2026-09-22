@@ -92,15 +92,6 @@ describe("IdentitySection", () => {
       goals: IDENTITY_GOALS,
       routes: IDENTITY_ROUTES,
     });
-  });
-  afterEach(() => {
-    undeclareTutorial?.();
-    undeclareTutorial = null;
-    revokeIdentityViews?.();
-    revokeIdentityViews = null;
-  });
-
-  beforeEach(() => {
     online.value = true;
     registry.raw = null;
     session.current = {
@@ -171,6 +162,10 @@ describe("IdentitySection", () => {
     cleanup();
     vi.clearAllMocks();
     deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
+    undeclareTutorial?.();
+    undeclareTutorial = null;
+    revokeIdentityViews?.();
+    revokeIdentityViews = null;
   });
 
   it("opens administration without an upstream binding and offers an explicit provider ceremony", async () => {

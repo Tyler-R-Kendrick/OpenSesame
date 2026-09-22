@@ -44,9 +44,7 @@ export function EditorType({
         // Only kinds this installation may create are offered (SURFACE-08);
         // a community type is creatable like the core ones, an excluded
         // capability's kind is not.
-        .filter(({ definition }) =>
-          isCreatableItemKind(definition.metadata.id),
-        )
+        .filter(({ definition }) => isCreatableItemKind(definition.metadata.id))
         .map(({ definition }) => (
           <option key={definition.metadata.id} value={definition.metadata.id}>
             {definition.spec.extension}

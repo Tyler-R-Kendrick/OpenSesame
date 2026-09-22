@@ -1,4 +1,7 @@
-import { IDENTITY_LABELS, IDENTITY_VIEWS } from "../../lib/section-views.js";
+import {
+  IDENTITY_LABELS,
+  type IDENTITY_VIEWS,
+} from "../../lib/section-views.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { useEnabledIdentityViews } from "./identity-views.js";
 
