@@ -49,6 +49,54 @@ export const capabilitySetupSeams = {
   now: () => new Date().toISOString(),
 };
 
+type DraftEditors = Readonly<{
+  preset: (preset: CapabilityPreset) => void;
+  toggle: (id: CapabilityId) => void;
+  alternative: (slot: string, id: CapabilityId) => void;
+  replace: (from: CapabilityId, to: CapabilityId) => void;
+  review: () => void;
+}>;
+
+/**
+ * Every edit is a pure transform of the draft. `replace` and `review` are
+ * the only two that open the review, and neither commits anything.
+ */
+function useDraftEditors(args: {
+  draft: CapabilityDraft | null;
+  setDraft: (next: (current: CapabilityDraft | null) => CapabilityDraft) => void;
+  setStage: (stage: SetupStage) => void;
+  openReview: (next: CapabilityDraft) => void;
+  catalog: typeof CAPABILITY_CATALOG;
+  plan: ReturnType<typeof useComposition>["plan"];
+}): DraftEditors {
+  const { draft, setDraft, setStage, openReview, catalog, plan } = args;
+  return useMemo(
+    () => ({
+      preset: (preset: CapabilityPreset) => {
+        setDraft((current) =>
+          applyPreset(current ?? draftFromSelection(null, "customize"), preset, plan),
+        );
+        setStage("cards");
+      },
+      toggle: (id: CapabilityId) =>
+        setDraft((current) => (current ? toggleRoot(current, id) : EMPTY)),
+      alternative: (slot: string, id: CapabilityId) =>
+        setDraft((current) =>
+          current ? chooseAlternative(current, slot, id) : EMPTY,
+        ),
+      replace: (from: CapabilityId, to: CapabilityId) => {
+        if (draft) openReview(replaceRoot(draft, from, to, catalog));
+      },
+      review: () => {
+        if (draft) openReview(draft);
+      },
+    }),
+    [catalog, draft, openReview, plan, setDraft, setStage],
+  );
+}
+
+const EMPTY: CapabilityDraft = draftFromSelection(null, "customize");
+
 export function useCapabilitySetup(initialJoin: boolean) {
   const snapshot = useComposition();
   const catalog = CAPABILITY_CATALOG;
@@ -111,34 +159,14 @@ export function useCapabilitySetup(initialJoin: boolean) {
     setStage("cards");
   }, [requiredNotAccepted, snapshot.selection]);
 
-  const edit = useMemo(
-    () => ({
-      preset: (preset: CapabilityPreset) => {
-        setDraft((current) =>
-          applyPreset(
-            current ?? draftFromSelection(null, "customize"),
-            preset,
-            snapshot.plan,
-          ),
-        );
-        setStage("cards");
-      },
-      toggle: (id: CapabilityId) =>
-        setDraft((current) => (current ? toggleRoot(current, id) : current)),
-      alternative: (slot: string, id: CapabilityId) =>
-        setDraft((current) =>
-          current ? chooseAlternative(current, slot, id) : current,
-        ),
-      replace: (from: CapabilityId, to: CapabilityId) => {
-        if (!draft) return;
-        openReview(replaceRoot(draft, from, to, catalog));
-      },
-      review: () => {
-        if (draft) openReview(draft);
-      },
-    }),
-    [catalog, draft, openReview, snapshot.plan],
-  );
+  const edit = useDraftEditors({
+    draft,
+    setDraft,
+    setStage,
+    openReview,
+    catalog,
+    plan: snapshot.plan,
+  });
 
   const apply = useCallback(async () => {
     if (!draft || busy) return;
