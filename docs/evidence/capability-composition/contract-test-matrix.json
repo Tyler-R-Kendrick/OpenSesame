@@ -1,6 +1,6 @@
 {
   "$comment": "Contract -> landed test mapping for operator-controlled capability composition (ADR 0130). Seeded 2026-09-22 from the checkout on branch claude/new-session-9wpwbh by reading the test files and, where 'observed' says so, by running them. A row is 'covered' only when a named test exists for it; 'pending' means no landed test names the contract and 'owner' says which area owes it. No result here is asserted that was not either read from source or produced by a run recorded in 'runs'.",
-  "generatedAt": "2026-09-22",
+  "generatedAt": "2026-09-22T19:25:00.000Z",
   "branch": "claude/new-session-9wpwbh",
   "legend": {
     "status": {
@@ -51,6 +51,15 @@
       "passed": 14,
       "failed": 0,
       "note": "Re-run at 03:42 after the worker owner split the plan-assets and offline-status block out of worker-controller.test.ts into worker-controller-plan.test.ts. The 14 tests are the same 14 counted inside run-pages-capabilities, now in two files; PWA-07 and PWA-09 cite the new file."
+    },
+    {
+      "id": "run-vault-family",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities/__tests__",
+      "vitest": "4.1.10",
+      "testFiles": 2,
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
     }
   ],
   "contracts": [
@@ -230,7 +239,7 @@
       "statement": "First-contact trust for a policy source.",
       "status": "pending",
       "owner": "S03 trust (apps/pages/src/lib/capabilities/trust/)",
-      "note": "No landed test names TRUST-01. The adjacent behaviour — an invitation that carries its own key stays invitation-unverified until a fingerprint is compared — is covered by TRUST-02/07."
+      "note": "No landed test names TRUST-01. The adjacent behaviour \u2014 an invitation that carries its own key stays invitation-unverified until a fingerprint is compared \u2014 is covered by TRUST-02/07."
     },
     {
       "id": "TRUST-02",
@@ -258,7 +267,7 @@
       "tests": [
         {
           "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts",
-          "name": "verifyPolicyEnvelope (S03) TRUST-03: algorithm confusion — an envelope claiming HS256 is refused before any key is used",
+          "name": "verifyPolicyEnvelope (S03) TRUST-03: algorithm confusion \u2014 an envelope claiming HS256 is refused before any key is used",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         }
@@ -271,7 +280,7 @@
       "tests": [
         {
           "file": "apps/pages/src/lib/capabilities/trust/envelope.test.ts",
-          "name": "verifyPolicyEnvelope (S03) TRUST-04: key substitution — an unknown kid or an attacker's key fails",
+          "name": "verifyPolicyEnvelope (S03) TRUST-04: key substitution \u2014 an unknown kid or an attacker's key fails",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         }
@@ -782,11 +791,124 @@
       ]
     },
     {
-      "id": "VAULT-*",
-      "statement": "Vault-session scope may only disable, never widen; a per-vault restriction binds only its own vault and instance.",
-      "status": "pending",
+      "id": "VAULT-01",
+      "statement": "Local vault/password creation, lock/unlock, edit/use, and encrypted backup/restore work with every optional service blocked.",
+      "status": "covered",
       "owner": "S19 lifecycle / S01 resolver",
-      "note": "No VAULT-nn contract id appears anywhere in the checkout (searched apps/pages, packages, docs). The behaviour is demonstrated without that label by packages/capability-composition/src/resolve-runtime.test.ts 'a vault disable narrows the installation and never widens it' (run-passed, run-composition) and by the workspace-foreign check in resolve-axes.ts. Either the family is unnumbered in this delivery or its ids were never assigned; recorded as pending so nobody reads the absence as coverage."
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-02",
+      "statement": "The supported PRF protection flow runs under an accepted local profile: salt, root wrapping, credential binding and required verification are preserved.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-03",
+      "statement": "Removing the last usable protector is rejected until an approved replacement exists; no weak automatic fallback appears in its place.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-04",
+      "statement": "Pre-unlock metadata that names a denied capability cannot broaden policy or auto-load the implementation.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-05",
+      "statement": "Records of an excluded feature survive open/save without executing that feature's surfaces or offering its creation affordances.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-06",
+      "statement": "An import that asks for a capability absent from the distribution preserves recoverable opaque data, gives a bounded compatibility explanation, and enables no missing code.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-07",
+      "statement": "Switching between tombs leaks no credentials, items or view state across scopes.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-08",
+      "statement": "Agent and root-recovery paths are refused under flags claiming permission: the existing human-root and raw-secret restrictions still deny them.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-09",
+      "statement": "A malformed document handed to a selected optional parser is bounded and refused without activating another parser.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
+    },
+    {
+      "id": "VAULT-10",
+      "statement": "Household sharing runs only its chosen transport; a missing prerequisite is reported as an unsatisfied alternative, never as working synchronization.",
+      "status": "covered",
+      "owner": "S19 lifecycle / S01 resolver",
+      "tests": [
+        "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
+      ],
+      "observed": "run-passed",
+      "runs": ["run-vault-family"],
+      "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
       "id": "SURFACE-05",
@@ -797,7 +919,7 @@
     },
     {
       "id": "SURFACE-06",
-      "statement": "A member of a managed instance never sees a policy control — the operator panel renders nothing, not a disabled form.",
+      "statement": "A member of a managed instance never sees a policy control \u2014 the operator panel renders nothing, not a disabled form.",
       "status": "covered",
       "tests": [
         {
@@ -1221,7 +1343,7 @@
         },
         {
           "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
-          "name": "plan assets and offline status asks the worker who it is, then posts module ids only — never a URL or a worker unit",
+          "name": "plan assets and offline status asks the worker who it is, then posts module ids only \u2014 never a URL or a worker unit",
           "observed": "run-passed",
           "run": "run-worker-split"
         },
@@ -1393,7 +1515,7 @@
           "name": "SOURCE_CLASSIFICATION (S02-A) matches every source module the build sees",
           "observed": "run-failed",
           "run": "run-pages-capabilities",
-          "note": "Failed at 03:37 on src/modules/ports-b.ts, src/modules/tutorial-pick-b.ts and src/modules/tutorial-test-realm.ts — three helper files written by concurrent module-owner work with no rule yet. The other seven tests in the file passed."
+          "note": "Failed at 03:37 on src/modules/ports-b.ts, src/modules/tutorial-pick-b.ts and src/modules/tutorial-test-realm.ts \u2014 three helper files written by concurrent module-owner work with no rule yet. The other seven tests in the file passed."
         },
         {
           "file": "apps/pages/src/lib/capabilities/classification.test.ts",
@@ -1410,7 +1532,7 @@
       "tests": [
         {
           "file": "apps/pages/src/lib/capabilities/catalog.test.ts",
-          "name": "CAPABILITY_CATALOG (S02-F) — 14 tests, all passed",
+          "name": "CAPABILITY_CATALOG (S02-F) \u2014 14 tests, all passed",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         }
@@ -1423,7 +1545,7 @@
       "tests": [
         {
           "file": "apps/pages/src/lib/capabilities/profiles.test.ts",
-          "name": "capability profiles — 18 tests, all passed (minimal-local 0 optional, family-local 0, family-sharing-selected 2, single-provider-selected 2, enterprise-selected 6, rich-explicit 24, managed-prohibited 1)",
+          "name": "capability profiles \u2014 18 tests, all passed (minimal-local 0 optional, family-local 0, family-sharing-selected 2, single-provider-selected 2, enterprise-selected 6, rich-explicit 24, managed-prohibited 1)",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         }

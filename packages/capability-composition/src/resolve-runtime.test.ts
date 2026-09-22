@@ -59,6 +59,30 @@ describe("runtime facts and scopes", () => {
     expect(plan.approvedCapabilities).toEqual(["identity.federation", ...CORE]);
   });
 
+  it("a vault selection written for another tomb binds nothing of this one's", () => {
+    // The document carries instanceId, installationId and vaultId precisely so
+    // it can be bound, and until this they were never read: a record lifted
+    // from one tomb narrowed whichever session happened to be open. A foreign
+    // one denies rather than lapsing, because a restriction that stops
+    // applying is a restriction that widens.
+    const forOtherTomb = {
+      schemaVersion: 1 as const,
+      kind: "VaultCapabilitySelection" as const,
+      instanceId: "fixture-family",
+      installationId: "fixture-installation",
+      vaultId: "tomb-2",
+      revision: "v1",
+      disabled: ["access.authority"],
+    };
+    const { plan } = resolveWithConsent(
+      familyInput({ vault: forOtherTomb, vaultId: "tomb-1" }),
+    );
+    expect(plan.capabilities["identity.federation"]?.reasons).toContain(
+      "DISABLED_IN_VAULT",
+    );
+    expect(plan.approvedCapabilities).toEqual([...CORE]);
+  });
+
   it("RESTART_REQUIRED marks a no-longer-approved capability whose module was evaluated", () => {
     const plan = resolveComposition(
       fixtureResolveInput({

@@ -21,6 +21,7 @@ import type {
   ModuleId,
   NetworkPolicy,
   ReasonCode,
+  VaultCapabilitySelection,
   WorkspaceCapabilityRestriction,
 } from "./types.js";
 
@@ -53,6 +54,8 @@ export type ResolveContext = Readonly<{
   distributed: ReadonlySet<CapabilityId>;
   distributedModules: ReadonlySet<ModuleId>;
   vaultDisabled: ReadonlySet<CapabilityId>;
+  /** The vault selection belongs to another vault, installation or instance. */
+  vaultForeign: boolean;
   required: ReadonlySet<CapabilityId>;
   accepted: ReadonlySet<CapabilityId>;
   selectedRoots: readonly CapabilityId[];
@@ -134,6 +137,30 @@ function isWorkspaceForeign(
   return workspace.instanceId !== instanceId || workspace.vaultId !== vaultId;
 }
 
+/**
+ * A vault selection written for another vault, installation or instance.
+ *
+ * The document carries all three ids for exactly this reason, and until they
+ * were read they were dead weight: a record lifted from one tomb into another
+ * narrowed a session it was never written for. A foreign one is treated the
+ * way a foreign workspace restriction is — it denies rather than being
+ * ignored, because a restriction that stops applying is a restriction that
+ * widens, and this scope may only narrow (P-SCOPING).
+ */
+function isVaultForeign(
+  vault: VaultCapabilitySelection | null,
+  instanceId: string,
+  installationId: string,
+  vaultId: string | null,
+): boolean {
+  if (vault === null) return false;
+  return (
+    vault.instanceId !== instanceId ||
+    vault.installationId !== installationId ||
+    vault.vaultId !== vaultId
+  );
+}
+
 /** Only catalog capabilities can be re-accepted; an unknown id is diagnosed, not offered. */
 function staleRootsFor(
   stale: boolean,
@@ -177,6 +204,12 @@ export function buildContext(input: ResolveInput): ResolveContext {
     distributed: new Set(input.distribution.capabilityIds),
     distributedModules: new Set(input.distribution.moduleIds),
     vaultDisabled: new Set(input.vault?.disabled ?? []),
+    vaultForeign: isVaultForeign(
+      input.vault,
+      instanceId,
+      input.installationId,
+      input.vaultId,
+    ),
     required,
     accepted,
     selectedRoots,
@@ -262,7 +295,8 @@ function optionalAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
   const runtimeSupported = runtimeSupports(ctx, d);
   const blocked: ReasonCode[] = policyReasons(ctx, d.id);
   if (!distributed) blocked.push("NOT_DISTRIBUTED");
-  if (ctx.vaultDisabled.has(d.id)) blocked.push("DISABLED_IN_VAULT");
+  if (ctx.vaultForeign || ctx.vaultDisabled.has(d.id))
+    blocked.push("DISABLED_IN_VAULT");
   if (!runtimeSupported) blocked.push("UNSUPPORTED_RUNTIME");
   if (
     hasAutomaticExternalEgress(d) &&
