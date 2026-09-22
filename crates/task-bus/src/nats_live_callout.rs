@@ -212,7 +212,15 @@ async fn callout_issued_jwt_expiry_is_enforced_by_disconnect() {
     // Responder: a static AUTH-account user answering $SYS.REQ.USER.AUTH.
     let admissions = Arc::new(AtomicUsize::new(0));
     let (alice_seed, alice_pub) = super::live_harness::user_nkey();
-    start_responder(&pki, &roles, &url, issuer, alice_pub, Arc::clone(&admissions)).await;
+    start_responder(
+        &pki,
+        &roles,
+        &url,
+        issuer,
+        alice_pub,
+        Arc::clone(&admissions),
+    )
+    .await;
 
     // Alice: TLS-first, client certificate, nkey; admitted through callout.
     let health = Arc::new(BusHealth::default());

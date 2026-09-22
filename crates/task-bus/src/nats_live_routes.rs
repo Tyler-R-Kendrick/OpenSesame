@@ -81,7 +81,7 @@ fn node(
 /// A route certificate from the wrong CA: the TLS route handshake fails and
 /// no route is created. Route TLS is its own listener with its own trust —
 /// client mTLS says nothing about it.
-async fn wrong_route_certificate_forms_no_cluster(
+fn wrong_route_certificate_forms_no_cluster(
     pki: &Pki,
     roles: &Roles,
     good_a: &(std::path::PathBuf, std::path::PathBuf),
@@ -184,14 +184,7 @@ async fn route_tls_refuses_wrong_certificates_and_forwards_with_right_ones() {
     let good_b = pki.write_leaf("route-b", &Pki::route_leaf(&route_ca));
     let bad_b = pki.write_leaf("route-b-bad", &Pki::route_leaf(&pki.other_ca));
 
-    Box::pin(wrong_route_certificate_forms_no_cluster(
-        &pki,
-        &roles,
-        &good_a,
-        &bad_b,
-        &route_ca_pem,
-    ))
-    .await;
+    wrong_route_certificate_forms_no_cluster(&pki, &roles, &good_a, &bad_b, &route_ca_pem);
 
     let (ac, ar, bc, br) = (free_port(), free_port(), free_port(), free_port());
     let mut node_a = node(&pki, &roles, (ac, ar, br), &good_a, &route_ca_pem);

@@ -190,7 +190,10 @@ async fn role_matrix_on_a_real_server() {
     Box::pin(provision(&pki, &roles, &url, &leaf)).await;
     let host = host_publishes_and_drains(&pki, &roles, &url, &leaf).await;
     assert!(host.health().connected());
-    Box::pin(publisher_cannot_reach_system_or_provision(&pki, &roles, &url, &leaf)).await;
+    Box::pin(publisher_cannot_reach_system_or_provision(
+        &pki, &roles, &url, &leaf,
+    ))
+    .await;
     Box::pin(consumer_and_backup_are_separate(&pki, &roles, &url, &leaf)).await;
     callout_identity_publishes_nothing(&pki, &roles, &url, &leaf, &host).await;
     let _ = PeerIdentitySelector::DnsName("unused".into());
