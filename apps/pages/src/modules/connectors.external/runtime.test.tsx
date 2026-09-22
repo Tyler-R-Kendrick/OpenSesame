@@ -89,7 +89,7 @@ describe("connectors.external runtime", () => {
   it("hydrates its own keys and applies the Connect callback base from runtime config", async () => {
     const t = createTestContext({
       runtimeConfig: {
-        endpoints: { connectCallbackBase: "https://relay.example.test/" },
+        endpoints: { connectCallbackBase: "https://relay.example.test" },
       },
     });
     const handle = await runtime.capabilityRuntime.activate(t.ctx);

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isDistPath, parseCapabilityGraph, resolvePlanAssets } from "./graph.js";
+import {
+  isDistPath,
+  parseCapabilityGraph,
+  resolvePlanAssets,
+} from "./graph.js";
 import {
   CONNECTORS_MODULE,
   CONNECTORS_PLAN_FILES,
@@ -36,7 +40,11 @@ describe("parseCapabilityGraph", () => {
     const parsed = parseCapabilityGraph({
       chunks: [
         { file: "https://evil.test/x.js", modules: [] },
-        { file: "assets/ok.js", imports: ["/abs.js", "assets/dep.js"], modules: [{ capability: null }] },
+        {
+          file: "assets/ok.js",
+          imports: ["/abs.js", "assets/dep.js"],
+          modules: [{ capability: null }],
+        },
         "junk",
       ],
     });
@@ -61,7 +69,12 @@ describe("parseCapabilityGraph", () => {
         { file: "d.js" },
       ],
     });
-    expect(parsed?.chunks.map((c) => c.core)).toEqual([true, true, false, false]);
+    expect(parsed?.chunks.map((c) => c.core)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
   });
 });
 
@@ -81,7 +94,9 @@ describe("resolvePlanAssets", () => {
 
   it("matches by capability when the build recorded no module id", () => {
     const parsed = parseCapabilityGraph({
-      chunks: [{ file: "assets/w.js", modules: [{ capability: "wallet.spending" }] }],
+      chunks: [
+        { file: "assets/w.js", modules: [{ capability: "wallet.spending" }] },
+      ],
     });
     if (!parsed) throw new Error("unparsed");
     expect(resolvePlanAssets(parsed, [EXCLUDED_MODULE])).toEqual({
@@ -91,7 +106,9 @@ describe("resolvePlanAssets", () => {
   });
 
   it("fails the whole request on any unknown id", () => {
-    expect(resolvePlanAssets(graph(), [CONNECTORS_MODULE, "identity.siop/runtime"])).toEqual({
+    expect(
+      resolvePlanAssets(graph(), [CONNECTORS_MODULE, "identity.siop/runtime"]),
+    ).toEqual({
       ok: false,
       unknown: ["identity.siop/runtime"],
     });
@@ -99,7 +116,14 @@ describe("resolvePlanAssets", () => {
 
   it("keeps an import the graph has no chunk record for", () => {
     const parsed = parseCapabilityGraph({
-      chunks: [{ file: "a.js", isEntry: true, core: true, imports: ["assets/vendor-x.js"] }],
+      chunks: [
+        {
+          file: "a.js",
+          isEntry: true,
+          core: true,
+          imports: ["assets/vendor-x.js"],
+        },
+      ],
     });
     if (!parsed) throw new Error("unparsed");
     expect(resolvePlanAssets(parsed, [])).toEqual({

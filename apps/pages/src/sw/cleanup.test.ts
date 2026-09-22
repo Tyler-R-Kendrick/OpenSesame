@@ -47,7 +47,9 @@ describe("cache names", () => {
   it("do not parse another scope, a legacy name, or a foreign cache", () => {
     for (const name of FOREIGN) expect(parseCacheName(name, SCOPE)).toBe(null);
     expect(parseCacheName("opensesame-pages:/OpenSesame/:x", SCOPE)).toBe(null);
-    expect(parseCacheName("opensesame-pages:/OpenSesame/:x:", SCOPE)).toBe(null);
+    expect(parseCacheName("opensesame-pages:/OpenSesame/:x:", SCOPE)).toBe(
+      null,
+    );
   });
 });
 

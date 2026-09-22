@@ -113,12 +113,14 @@ function profileFile(name, body) {
 
 /** Drive the normal plugin's config → configResolved → load hooks by hand. */
 async function compose(options) {
-  const [main] = capabilityCompose({ appRoot, repoRoot: join(appRoot, "..", ".."), inventory, logger: { warn() {} }, ...options });
+  // `env: {}` keeps vitest's own VITEST variable out of the plugin's view;
+  // under the real vitest config resolution the plugin is deliberately inert.
+  const [main] = capabilityCompose({ appRoot, repoRoot: join(appRoot, "..", ".."), inventory, logger: { warn() {} }, env: {}, ...options });
   const userConfig = {
     base: "/OpenSesame/",
     build: { rollupOptions: { input: { main: join(appRoot, "index.html"), msalRedirect: join(appRoot, "auth/redirect.html") } } },
   };
-  await main.config(userConfig);
+  await main.config(userConfig, { command: "build", mode: "production" });
   main.configResolved({ base: "/OpenSesame/", command: "build", logger: { warn() {} } });
   const table = main.load(main.resolveId("virtual:opensesame-capability-modules"));
   const distribution = main.load(main.resolveId("virtual:opensesame-distribution"));

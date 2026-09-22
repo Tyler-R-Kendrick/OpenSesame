@@ -128,12 +128,17 @@ function readVersion(appRoot) {
 }
 
 /** Everything the two plugins share, computed once in the `config` hook. */
-async function composeState(options, userConfig) {
+async function composeState(options, userConfig, command = "build") {
   const appRoot = options.appRoot ?? DEFAULT_APP_ROOT;
   const repoRoot = options.repoRoot ?? resolve(appRoot, "../..");
-  const env = resolveBuildEnvironment(options.env ?? process.env);
+  const variables = options.env ?? process.env;
+  const env = resolveBuildEnvironment(variables);
   const mode = options.mode ?? env.mode;
-  const gate = options.gate ?? env.gate;
+  // The dev server is a debugging surface, not a merge gate: unless the gate
+  // is named explicitly it reports, so a tree whose module owners have not
+  // landed still serves.
+  const gate =
+    options.gate ?? (variables.OPENSESAME_GRAPH_GATE || command === "build" ? env.gate : "report");
   const profilePath = options.profilePath ?? env.profilePath;
   const profile = profilePath ? loadProfile(profilePath, appRoot) : IMPLICIT_PROFILE;
   const inventory =
@@ -325,8 +330,12 @@ export function capabilityCompose(options = {}) {
     name: "opensesame-capability-compose",
     /** Test seam: the state the `config` hook computed. */
     __state: () => state,
-    async config(userConfig) {
-      state = await composeState(options, userConfig);
+    async config(userConfig, env) {
+      // Vitest resolves this config for every test run; the virtual modules
+      // are substituted through the loader/store seams there and never
+      // evaluated (virtual.d.ts), so the plugin stays inert under test.
+      if (env?.mode === "test" || (options.env ?? process.env).VITEST) return;
+      state = await composeState(options, userConfig, env?.command);
       const build = userConfig.build ?? (userConfig.build = {});
       pruneInputs(build, state);
       installManualChunks(build, state);
@@ -339,15 +348,17 @@ export function capabilityCompose(options = {}) {
     },
     configResolved(config) {
       resolved = config;
+      if (!state) return;
       state.contract = { ...state.contract, basePath: config.base };
       if (state.inventory.source !== "authored") {
         config.logger.warn(`[capability-compose] inventory is ${state.inventory.source}; missing: ${state.inventory.missing.join(", ")}`);
       }
     },
     resolveId(id) {
-      return virtualIds.has(id) ? `\0${id}` : null;
+      return state && virtualIds.has(id) ? `\0${id}` : null;
     },
     load(id) {
+      if (!state) return null;
       if (id === `\0${VIRTUAL_MODULES.table}`) return moduleTableSource(state, resolved.command);
       if (id === `\0${VIRTUAL_MODULES.distribution}`) return `export const DISTRIBUTION = Object.freeze(${JSON.stringify(state.contract)});\n`;
       return null;
@@ -355,7 +366,7 @@ export function capabilityCompose(options = {}) {
     closeBundle: {
       sequential: true,
       handler() {
-        if (state.mode !== "hardened" || resolved.command !== "build") return;
+        if (!state || state.mode !== "hardened" || resolved.command !== "build") return;
         for (const file of state.publicFiles) {
           if (state.isExcluded(file.capability))
             rmSync(join(outDir(), publicPathTarget(file.path)), { force: true, recursive: true });
@@ -369,6 +380,7 @@ export function capabilityCompose(options = {}) {
     enforce: "post",
     apply: "build",
     generateBundle(outputOptions, bundle) {
+      if (!state) return;
       graph = buildGraph(this, bundle, state, resolved.base);
       try {
         gateOrReport(state, graph, logger(), "generateBundle");
