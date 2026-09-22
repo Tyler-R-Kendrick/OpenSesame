@@ -71,8 +71,8 @@ import {
   unlockGoVerb,
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
-import { cancelPasskeyDuressCode } from "./unlock/unlock-passkey-duress.js";
 import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
+import { cancelPasskeyDuressCode } from "./unlock/unlock-passkey-duress.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 

@@ -18,19 +18,14 @@
     "target/**"
   ],
   "testRunner": "vitest",
-  "plugins": [
-    "@stryker-mutator/vitest-runner"
-  ],
+  "plugins": ["@stryker-mutator/vitest-runner"],
   "vitest": {
     "configFile": "vitest.duress-mutation.config.ts",
     "related": false
   },
   "concurrency": 2,
   "timeoutMS": 10000,
-  "reporters": [
-    "clear-text",
-    "json"
-  ],
+  "reporters": ["clear-text", "json"],
   "jsonReporter": {
     "fileName": "artifacts/mutation/duress-unlock.json"
   },

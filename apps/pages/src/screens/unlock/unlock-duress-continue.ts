@@ -12,6 +12,7 @@ import {
 import type { PublishedCompartment } from "../../lib/duress/compartment/registry.js";
 import { projectScopedView } from "../../lib/duress/compartment/scope.js";
 import {
+  type PresentationSession,
   mintPresentationSession,
   openPresentation,
 } from "../../lib/duress/compartment/session.js";
@@ -32,7 +33,22 @@ export type DuressContinueMatch = Readonly<{
   keyEpoch?: number;
 }>;
 
-function presentationOf(value: string): PresentationClass {
+type OpenOutcome = Awaited<ReturnType<typeof openPresentation>>;
+
+export type DuressContinueHooks = Readonly<{
+  mintPresentationSession?: (
+    input: Parameters<typeof mintPresentationSession>[0],
+  ) => Promise<PresentationSession>;
+  openPresentation?: (
+    session: PresentationSession,
+    published: PublishedCompartment | null | undefined,
+  ) => Promise<OpenOutcome>;
+}>;
+
+const defaultContinueHooks = {} satisfies DuressContinueHooks;
+
+/** Map slot presentation strings onto the closed PresentationClass set. */
+export function resolveDuressPresentation(value: string): PresentationClass {
   switch (value) {
     case "normal":
     case "restricted":
@@ -54,9 +70,10 @@ export async function continueAfterDuressMatch(
   store: DuressContinueStore,
   match: DuressContinueMatch,
   wrongSecretMessage: string,
+  hooks: DuressContinueHooks = defaultContinueHooks,
 ): Promise<"duress_session"> {
   store.cancelTotpChallenge?.();
-  const presentation = presentationOf(match.plaintext.presentation);
+  const presentation = resolveDuressPresentation(match.plaintext.presentation);
   if (presentation === "locked" || presentation === "unchanged") {
     clearActivePresentation();
     match.plaintext.compartmentKey.fill(0);
@@ -64,10 +81,13 @@ export async function continueAfterDuressMatch(
     throw new WrongPasswordError(wrongSecretMessage);
   }
 
+  const mint = hooks.mintPresentationSession ?? mintPresentationSession;
+  const open = hooks.openPresentation ?? openPresentation;
+
   const compartmentRef =
     match.compartmentRef ?? `compartment:${match.profileId}`;
   const keyEpoch = match.keyEpoch ?? 1;
-  const session = await mintPresentationSession({
+  const session = await mint({
     presentation,
     profileId: match.profileId,
     contextId: `duress:${match.profileId}:${crypto.randomUUID()}`,
@@ -80,7 +100,7 @@ export async function continueAfterDuressMatch(
     ],
   });
 
-  const outcome = await openPresentation(session, match.published ?? null);
+  const outcome = await open(session, match.published ?? null);
   const view = projectScopedView(outcome);
   setActivePresentation({
     profileId: match.profileId,
