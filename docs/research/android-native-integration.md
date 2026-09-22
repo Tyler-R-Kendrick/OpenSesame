@@ -243,11 +243,11 @@ The design problems, in the order they bite:
        the `delegate_permission/common.use_as_origin` asset link, Chrome
        115+ and androidx.browser 1.6+. Only ciphertext crosses, the same
        invariant as ADR 0063's backups.
-     - **Reader.** A Rust implementation of the tomb format, exported over
-       UniFFI the way `crates/authenticator-core` already is. The format is
-       TypeScript-only today, so it needs a written spec and shared test
-       vectors that both implementations must decrypt. A second, divergent
-       reader would be the classic way to lose a vault.
+     - **Reader.** The *same* tomb-format implementation Pages uses, not a
+       second one. §11 lays out the two ways to get that: the extracted
+       TypeScript core running in `JavaScriptSandbox`, or a Rust kernel
+       over UniFFI. A second, divergent reader would be the classic way to
+       lose a vault.
      - **Key.** The device-local protector from §3. A locked vault answers
        `FillResponse.setAuthentication` / Credential Manager
        `AuthenticationAction` with a `BiometricPrompt` activity. The service
@@ -399,6 +399,8 @@ The inverse of §3: other sites on the phone signing in *with* OpenSesame.
 
 Each phase ships on its own and is useful without the next.
 
+0. **Extract the core (§11.6).** Useful on its own, because the TS CLI and
+   the extension gain the vault. Every later native phase depends on it.
 1. **PWA polish (§6).**
    - Manifest identity, icons, shortcuts, share target, and a conditional
      passkey unlock.
@@ -413,9 +415,10 @@ Each phase ships on its own and is useful without the next.
 4. **Native shell.**
    - Amend ADR 0058.
    - Add the TWA launcher to `authenticator-native`.
-   - Add the device-local Keystore protector (ADR 0129), the `postMessage`
-     replica, and a tomb-format spec with a UniFFI Rust reader and shared
-     vectors.
+   - Add the device-local Keystore protector (ADR 0129) and the
+     `postMessage` replica.
+   - Load the extracted TypeScript core (§11) into the headless services,
+     after the latency and availability spike in §11.4.
 5. **Autofill (passwords, TOTP).**
    - `AutofillService` with inline suggestions, Chrome 3P-mode detection and
      deep link.
@@ -438,3 +441,206 @@ Each phase ships on its own and is useful without the next.
   concealed field, versus a native-only store the PWA never sees.
 - **Idle lock default** once process death stops being the effective
   timeout.
+- **Kernel route (§11.5).** Keep the TypeScript core and run it in
+  `JavaScriptSandbox` on Android, or port the tomb kernel to Rust. The
+  second route also settles whether the Pages tomb and `crates/human-vault`
+  converge on one format.
+
+## 11. One core, many shells
+
+Two questions: can most of the PWA become one core shared by the PWA, the
+CLIs and the Android app, and can Vercel Labs' TypeScript-to-native tooling
+spare us a rewrite?
+
+### 11.1 What the code looks like today (measured 2026-09-22)
+
+**Size.**
+- `apps/pages/src` holds about 139.6k non-test lines:
+  - 43.7k lines of `.tsx` (UI);
+  - 96.7k lines of `.ts`, of which 81.8k are under `lib/`.
+
+**How much is browser-free.** A crude scan flagged any file that names
+`window`, `document`, `navigator`, `localStorage`, `location`, `history`,
+`PublicKeyCredential` or React.
+- 354 of the 504 `lib/` files (48.7k lines) name none of them.
+- 150 files (33.0k lines) do.
+- By area (browser-free / browser-bound lines):
+
+  | Area | Browser-free | Browser-bound |
+  |---|---|---|
+  | `vault/` | 14.7k | 4.8k |
+  | `duress/` | 11.5k | 2.3k |
+  | `sops/` | 2.2k | 5.2k |
+  | `lib/` root | 16.4k | 18.4k |
+
+**Many browser touches are incidental.**
+- `window` timers.
+- `document`/`DOMParser` in the KDBX and CXF import/export formats.
+- `location.hostname` as the WebAuthn `rpId`.
+- The storage seam already exists: `lib/kv.ts` is the only OPFS path and
+  has an in-memory fallback.
+
+**Nothing outside `apps/pages` consumes this logic.** Neither the TS CLI
+(`packages/cli`, 759 lines) nor the browser extension can read a Pages
+vault.
+
+**Two vault crypto stacks already exist.**
+- Pages: PBKDF2-SHA256 → AES-GCM over WebCrypto (`lib/vault/crypto.ts`).
+- `crates/human-vault`: Argon2 → XChaCha20-Poly1305 with HKDF, used by
+  the sealed store and `opensesame pass`.
+- ADR 0017 planned the client plane as Rust → Wasm + TS.
+  `packages/client-core` is a TS façade whose comment says to "prefer
+  Rust wasm when loaded", but Pages never loads it.
+
+So: most of the *logic* can become a shared core, and the UI does not need
+to (§11.3).
+
+### 11.2 The Vercel Labs projects
+
+**`scriptc`** ([repo](https://github.com/vercel-labs/scriptc)).
+- What it does: compiles TypeScript through `tsc`'s checker to a typed IR,
+  then to C and a native executable, or to a WASI module. Apache-2.0.
+- Maturity: version 0.0.x, labelled a "Vercel Labs Experiment", first
+  published July 2026
+  ([heise](https://www.heise.de/en/news/Vercel-s-scriptc-runs-TypeScript-natively-11388382.html)).
+- Targets: macOS, Linux, Windows and WebAssembly. **No Android or iOS
+  target is listed.**
+- Runtime APIs: it implements Node's (`fs`, `path`, `crypto`, `http`,
+  `fetch`, …). With `--dynamic` it embeds QuickJS-NG for `any`-typed code
+  and npm dependencies.
+- It does not list the browser APIs the vault core uses: `crypto.subtle`,
+  OPFS, WebAuthn and `DOMParser`.
+- Community benchmarks put CPU-bound code about 7.5× slower than Node
+  ([HN discussion](https://news.ycombinator.com/item?id=49063175),
+  unverified).
+
+Verdict: **not a fit for the vault core now.**
+- It has no mobile target.
+- An experimental compiler would sit inside a password manager's trusted
+  computing base, where every emitted byte must be auditable.
+- It speaks Node's API, not the browser's.
+
+A plausible later fit is packaging the TS CLI (`opensesame-id`) as a
+single desktop binary. Revisit once it lists Android and has a stable
+release.
+
+**Native SDK** ([repo](https://github.com/vercel-labs/native)).
+- A desktop UI toolkit: `.native` markup plus TypeScript or Zig logic,
+  compiled to native code. Pre-1.0.
+- Mobile is experimental: iOS runs in the simulator and Android
+  "cross-compiles with the full embed ABI".
+- Adopting it means rewriting the UI in its markup, the opposite of reuse.
+  **Not a fit.**
+
+### 11.3 The shape that maximises reuse
+
+Three layers, with platform code only where the platform demands it.
+
+**1. Shells.**
+- **PWA:** the React UI stays the UI everywhere. On Android it is the WebAPK
+  or the TWA (§5), so Android reuses all of it.
+- **CLI:** `packages/cli` on Node.
+- **Android:** Kotlin only for what Android exposes only in Kotlin/Java:
+  `AutofillService`, `CredentialProviderService`, Keystore and
+  `BiometricPrompt`, and the TWA launcher. No business logic.
+- **iOS, later:** Swift for the equivalent extensions.
+
+**2. App core, in TypeScript, extracted rather than rewritten.**
+- What moves: the platform-neutral logic under `lib/`, including the vault
+  model and item paths, website matching, password generation, TOTP,
+  import/export, duress, SOPS, IAM policy and draft suggestions.
+- Where it goes: workspace packages behind explicit ports:
+  - `KvPort`: OPFS, `fs`, or Android app files;
+  - `CryptoPort`;
+  - `ClockPort`;
+  - `XmlPort`: `DOMParser`, or a pure parser;
+  - `WebAuthnPort`.
+- The `lib/` tests move with the code.
+- Consumers: Pages, the TS CLI, the extension, the MCP servers and the
+  Android services.
+
+**3. Kernel.** The tomb format and its crypto: the one thing that must be
+byte-identical everywhere. §11.5 covers where it lives.
+
+### 11.4 Running the TypeScript core on Android without a rewrite
+
+androidx.javascriptengine's `JavaScriptSandbox`
+([guide](https://developer.android.com/develop/ui/views/layout/webapps/jsengine),
+[releases](https://developer.android.com/jetpack/androidx/releases/javascriptengine)):
+- Stable 1.1.0 (2026-05-06).
+- Evaluates JavaScript on the device WebView's engine, in a separate
+  sandboxed process.
+- API 26+, where the WebView supports it; callers must check
+  `isSupported()`.
+- Runs Wasm.
+- Since 1.1.0, message ports carry strings and `ArrayBuffer`s.
+- It is a bare engine: no DOM, no `fetch`, no `crypto`. The port design
+  above already assumes that.
+
+How it would work:
+- The Android services load the same core bundle Pages is built from into
+  a sandbox isolate.
+- `CryptoPort` on Android is Kotlin: standard JCA `AES/GCM/NoPadding` and
+  `PBKDF2WithHmacSHA256`, reached over a message port. In browsers and Node
+  it stays WebCrypto, unchanged.
+- One implementation then covers the tomb format, the pending-capture queue
+  and URI matching. That includes the `regex` match mode's JavaScript
+  semantics, which a Rust port would silently change.
+- The stacks stay TypeScript plus thin Kotlin.
+
+Spike before committing:
+- **Latency.** Time a sandbox cold start plus core load inside
+  `onFillRequest` on a low-end device, and keep a warm isolate while the
+  service is bound.
+- **Availability.** When `isSupported()` is false, the service offers only
+  "open OpenSesame": no fill, fail closed.
+- **Key material.** An unlocked vault key lives in the sandbox process for
+  the session. That process belongs to the same app, but the threat model
+  should record it, and lock must wipe it.
+
+### 11.5 Where Rust fits
+
+Rust is already a required stack (host plane, pinned 1.88), and ADR 0017
+meant the client kernel to be Rust → Wasm. The two routes compare as
+follows:
+
+| | TS kernel, `JavaScriptSandbox` on Android | Rust kernel, Wasm in Pages, UniFFI on Android |
+|---|---|---|
+| Rewrite | None: extract | Tomb format, crypto and matching ported |
+| Stacks | TS + thin Kotlin | TS + Rust + thin Kotlin (Rust already required) |
+| Converges with `crates/human-vault` / `opensesame pass` | No | Can |
+| Assurance tooling | Vitest, property tests, Stryker, Jazzer.js | Adds Kani, Miri, cargo-fuzz, cargo-mutants (already wired) |
+| Android runtime dependency | WebView-provided sandbox | None beyond the APK |
+| Pages bundle | Unchanged | Adds Wasm, counted by `bundle-budgets.json` |
+| Parity risk | None: same code | Regex semantics, two implementations during migration |
+
+Recommendation: **start with the TypeScript route.**
+- It is the only one that avoids a rewrite.
+- Extracting the core is required by either route anyway.
+- Keep the Rust kernel as the fallback if the §11.4 spike fails.
+- Treat format convergence as its own later decision. The duplication
+  between `lib/vault/crypto.ts` and `crates/human-vault` predates Android,
+  and it is the real "two stacks" cost today.
+
+### 11.6 Extraction order
+
+1. **Ports in place, no moves.**
+   - `KvPort` already exists as `lib/kv.ts`.
+   - Introduce `CryptoPort`, `ClockPort`, `XmlPort` and `WebAuthnPort`.
+   - Replace the incidental `window` and `document` uses.
+2. **Move the vault kernel into a package** (for example
+   `packages/vault-core`), and make Pages import it.
+   - What moves: `crypto.ts`, `store-header.ts`, the protection types,
+     `website-pattern.ts`, `password.ts` and `totp.ts`.
+   - Give the package a tsconfig whose `lib` omits `"DOM"`, so the
+     browser-free boundary is compile-checked rather than a convention.
+3. **Prove it outside a browser.** The TS CLI reads a local vault, and the
+   Android build runs a `JavaScriptSandbox` smoke test over the same
+   package.
+4. **Move the rest as consumers need it:** duress, SOPS, import/export and
+   IAM policy.
+
+Moved files keep their recorded numbers under `pnpm quality:gate`, and each
+new package is scored by `pnpm quality:packages` for ADP and SDP (ADR 0093).
+Nothing here changes a design rule in AGENTS.md §5. In particular, guest
+entry and unlock behavior stay in Pages' shell.
