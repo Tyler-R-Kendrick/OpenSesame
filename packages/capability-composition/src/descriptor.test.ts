@@ -70,4 +70,91 @@ describe("descriptor validator", () => {
     const result = validateDescriptor("vault.write");
     expect(result.ok).toBe(false);
   });
+
+  it("collects every failure instead of stopping at the first", () => {
+    const result = validateDescriptor(
+      descriptor("vault.write", {
+        dependencies: "nope",
+        operationIds: ["ok.op", 7],
+        exposureDigest: "ZZZ",
+        environments: [],
+        declaredPrivileges: { egressOrigins: ["http://plain"] },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failures.length).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it("rejects bad origins, bad permissions, and non-boolean flags", () => {
+    // One bad entry poisons the block: strict, never partially accepted.
+    const origins = validateDescriptor(
+      descriptor("vault.write", {
+        declaredPrivileges: {
+          egressOrigins: ["http://plain.example/x", "https://ok.example:443"],
+          keyAccess: { vaultRead: false, vaultWrite: false, deviceKeys: false },
+          browserPermissions: [],
+        },
+      }),
+    );
+    expect(origins.ok).toBe(false);
+    const permissions = validateDescriptor(
+      descriptor("vault.write", {
+        declaredPrivileges: {
+          egressOrigins: [],
+          keyAccess: { vaultRead: false, vaultWrite: false, deviceKeys: false },
+          browserPermissions: ["0bad", "notifications"],
+        },
+      }),
+    );
+    expect(permissions.ok).toBe(false);
+    const flags = validateDescriptor(
+      descriptor("vault.write", {
+        declaredPrivileges: {
+          egressOrigins: [],
+          keyAccess: { vaultRead: "yes", vaultWrite: false, deviceKeys: false },
+          browserPermissions: [],
+        },
+      }),
+    );
+    expect(flags.ok).toBe(false);
+  });
+
+  it("de-duplicates repeated ids", () => {
+    const result = validateDescriptor(
+      descriptor("vault.write", {
+        operationIds: ["op.run", "op.run"],
+        moduleIds: ["mod.a", "mod.a"],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.descriptor.operationIds).toEqual(["op.run"]);
+      expect(result.descriptor.moduleIds).toEqual(["mod.a"]);
+    }
+  });
+
+  it("accepts the worker-graph constraint and class fields", () => {
+    const result = validateDescriptor(
+      descriptor("vault.write", {
+        workerGraphConstraint: {
+          requiresWorker: true,
+          allowedEnvironments: ["dedicated-worker"],
+        },
+        class: "core",
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects oversize text and id lists", () => {
+    const result = validateDescriptor(
+      descriptor("vault.write", {
+        title: "t".repeat(201),
+        operationIds: Array.from({ length: 65 }, (_, i) => `op.${i}`),
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
 });
