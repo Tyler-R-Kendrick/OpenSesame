@@ -58,6 +58,13 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "tasks.inspect": "access.authority",
     "tasks.terminate": "access.authority",
     "receipts.read": "access.authority",
+    // Transport security is deployment-plane operator work (ADR 0132): the
+    // Pages surface only reads status and capability, references a
+    // registered identity by name and runs the enforcement probe.
+    "transport.status.view": "access.authority",
+    "transport.verify.run": "access.authority",
+    "transport.identity.reference": "access.authority",
+    "transport.capabilities.discover": "access.authority",
     "shared_sessions.join_request": "access.authority",
     "delegations.list": "access.authority",
     "delegations.offers.list": "access.authority",

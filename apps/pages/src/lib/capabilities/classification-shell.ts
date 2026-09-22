@@ -41,6 +41,7 @@ export const SHELL_RULES = [
     "src/modules/tutorial-test-realm",
     "boots a fixture realm so contributed guides render in tests",
   ),
+  core("src/routes/settings/", "settings.core", "settings route modules"),
   core("src/vite-env.d.ts", null, "type shim"),
   core("src/styles.css", SHELL, "shared stylesheet"),
   core("src/native-controls.css", SHELL, "shared stylesheet"),

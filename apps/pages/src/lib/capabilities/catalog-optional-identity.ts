@@ -55,6 +55,10 @@ export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "tasks.list",
         "tasks.start",
         "tasks.terminate",
+        "transport.capabilities.discover",
+        "transport.identity.reference",
+        "transport.status.view",
+        "transport.verify.run",
       ],
       egress: [
         {

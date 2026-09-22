@@ -256,6 +256,19 @@ export const LIB_RULES = [
       "Identity API agent/user management",
     ),
   ),
+  // Duress (ADR 0131): a duress code is an unlock method, and the fence,
+  // compartments and alerting it drives all hang off unlocking, so the whole
+  // tree belongs to the core unlock capability.
+  core(
+    `${L}duress/`,
+    "vault.local-unlock",
+    "duress slots, fence, compartments and alerting",
+  ),
+  // Transport security (ADR 0132) is deployment-plane operator work; the
+  // Pages surface reads status and runs the enforcement probe.
+  ...each(L, ["transport-"], (p) =>
+    optional(p, "access.authority", "operator transport status and probe"),
+  ),
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),
   ),
