@@ -1,0 +1,16 @@
+{
+  "id": "2026-09-22-duress-passkey-code",
+  "title": "Duress passkey-then-code unlock",
+  "widths": [390, 1280],
+  "steps": [
+    {
+      "id": "unlock-front",
+      "path": "/",
+      "actions": [
+        { "role": "button", "name": "Continue as guest", "exact": true }
+      ],
+      "claim": "Guest unlock still available beside the passkey road",
+      "measure": "guest continue control visible"
+    }
+  ]
+}

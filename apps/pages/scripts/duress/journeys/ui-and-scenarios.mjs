@@ -175,8 +175,9 @@ export async function walkScenarioMatrix({ page, check, record }) {
     if (id === "SC-APPROVAL-DURESS") {
       matrix[id] = {
         status: "production_entry_wired",
-        entryPoint: "ceremony/approval.ts|DuressEnrollmentPanel",
-        note: "approval_ceremony_code evaluate path + preset",
+        entryPoint:
+          "ceremony/approval.ts|duress-approval-bridge|RequestApproval|DuressEnrollmentPanel",
+        note: "access approval gate + evaluateApprovalCeremony + preset",
       };
       continue;
     }
