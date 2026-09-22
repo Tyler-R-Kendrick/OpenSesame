@@ -24,7 +24,11 @@ import { MoreMenu } from "./MoreMenu.js";
 import { NavDrawer } from "./NavDrawer.js";
 import { NavTree } from "./NavTree.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
-import { type SectionRowModel, sectionForPath, useSections } from "./RailRows.js";
+import {
+  type SectionRowModel,
+  sectionForPath,
+  useSections,
+} from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { Wordmark } from "./Wordmark.js";

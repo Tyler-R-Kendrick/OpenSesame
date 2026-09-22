@@ -10,9 +10,9 @@
  */
 
 import { cleanup, render } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
-import { screen } from "@testing-library/react";
 import { vi } from "vitest";
 import { setRailCursor } from "./rail-cursor.js";
 
@@ -85,7 +85,10 @@ export const ITEMS = [
   },
 ];
 
-export function renderShell(route: string, children: ReactNode = <p>content</p>) {
+export function renderShell(
+  route: string,
+  children: ReactNode = <p>content</p>,
+) {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <AppShell>{children}</AppShell>

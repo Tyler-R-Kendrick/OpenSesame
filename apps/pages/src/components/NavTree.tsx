@@ -13,8 +13,8 @@ import { useVault } from "../lib/vault/hooks.js";
 import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
-  type SectionRowModel,
   SectionRow,
+  type SectionRowModel,
   railRowId,
   sectionForPath,
   useSections,

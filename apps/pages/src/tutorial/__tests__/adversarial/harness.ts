@@ -29,8 +29,8 @@ import { guideGoalIds } from "../../registry/goals.js";
 import { registerGuidePredicates } from "../../registry/predicates.js";
 import { GUIDE_ROUTES } from "../../registry/routes.js";
 import {
-  isKnownGuidePredicate,
   guidePredicateIds,
+  isKnownGuidePredicate,
   observeGuidePredicate,
   readGuidePredicate,
 } from "../../registry/state.js";

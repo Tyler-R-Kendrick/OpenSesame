@@ -336,4 +336,3 @@ export function IconMonitor(props: IconProps) {
     </Svg>
   );
 }
-

@@ -1,5 +1,14 @@
 /** @vitest-environment jsdom */
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import {
   createKeymapHandler,
   focusRailListing,
@@ -10,14 +19,7 @@ import {
   registerVaultKeymap,
   showKeymapHelp,
 } from "./keymap.js";
-import { registerLegacyShellData } from "./contributions.test-support.js";
-import {
-  press,
-  rail,
-  rowIn,
-  targeted,
-  vault,
-} from "./keymap.test-harness.js";
+import { press, rail, rowIn, targeted, vault } from "./keymap.test-harness.js";
 
 // The `g` jumps past `v` and `s` are contributions. Register the full set
 // once for the file so these motions characterize the shell a whole plan

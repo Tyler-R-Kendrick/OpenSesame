@@ -1,7 +1,11 @@
 import { isString } from "@opensesame/os-domain";
 import { definitionFor, readItemField } from "../vault/item-types.js";
 import type { VaultItem } from "../vault/model.js";
-import { type AppCommand, type CommandOutcome, isCommandSection } from "./types.js";
+import {
+  type AppCommand,
+  type CommandOutcome,
+  isCommandSection,
+} from "./types.js";
 
 /** What a person hears when a command names a section the plan excludes. */
 export const NOT_AVAILABLE_MESSAGE = "Not available on this installation";

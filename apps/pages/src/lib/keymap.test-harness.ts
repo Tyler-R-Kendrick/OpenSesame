@@ -11,7 +11,9 @@
 import { vi } from "vitest";
 import type { ListingMotion, VaultKeymapTarget } from "./keymap.js";
 
-export function vault(overrides: Partial<VaultKeymapTarget> = {}): VaultKeymapTarget {
+export function vault(
+  overrides: Partial<VaultKeymapTarget> = {},
+): VaultKeymapTarget {
   return {
     next: vi.fn(),
     previous: vi.fn(),

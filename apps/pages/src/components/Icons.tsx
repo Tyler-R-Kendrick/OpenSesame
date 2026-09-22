@@ -1,17 +1,17 @@
 import type { ComponentType } from "react";
 import type { IconName } from "../lib/capabilities/runtime-contract.js";
-import { type IconProps, Svg } from "./icon-frame.js";
 import {
-  IconShield,
-  IconLock,
+  IconAlert,
   IconClock,
   IconFolder,
-  IconStar,
-  IconSupport,
   IconHelp,
   IconInfo,
-  IconAlert,
+  IconLock,
+  IconShield,
+  IconStar,
+  IconSupport,
 } from "./Icons.actions.js";
+import { type IconProps, Svg } from "./icon-frame.js";
 
 export type { IconProps };
 export {
