@@ -11,6 +11,12 @@ import type {
   SectionContribution,
   TreeProps,
 } from "./capabilities/runtime-contract.js";
+import {
+  ACCESS_LABELS,
+  ACCESS_VIEWS,
+  IDENTITY_LABELS,
+  IDENTITY_VIEWS,
+} from "./section-views.js";
 import { registerContributionForTest } from "./contributions.js";
 
 /** `keymap-jump` + `command-path` for every legacy section, in rail order. */
@@ -20,6 +26,28 @@ export const LEGACY_JUMPS = [
   { key: "i", path: "/identity", label: "Identity", order: 40 },
   { key: "w", path: "/wallet", label: "Wallet", order: 50 },
   { key: "y", path: "/activity", label: "Activity", order: 60 },
+] as const;
+
+/**
+ * The tab-level `command-path` contributions, as the capabilities that own
+ * the tabs register them: every Access tab from `access.authority`
+ * (`modules/access.authority/runtime.ts`), and each Identity tab from
+ * whichever capability puts it on the page — Applications from
+ * `identity.local-iam`, Providers from `identity.federation`, People /
+ * Agents / Devices / Organization from `enterprise.directory-provisioning`
+ * (`modules/identity-view-paths.ts`). Their union is every tab, which is what
+ * a suite proving the full shell wants; a suite proving that an excluded
+ * capability has no tab registers nothing and asserts the absence.
+ */
+export const LEGACY_TAB_PATHS = [
+  ...ACCESS_VIEWS.map((view) => ({
+    path: `/access?view=${view}`,
+    label: `Access · ${ACCESS_LABELS[view]}`,
+  })),
+  ...IDENTITY_VIEWS.map((view) => ({
+    path: `/identity?view=${view}`,
+    label: `Identity · ${IDENTITY_LABELS[view]}`,
+  })),
 ] as const;
 
 /** The `item-kind` contributions of the three record capabilities. */
@@ -134,6 +162,19 @@ export function registerLegacyJumps(): () => void {
         label: jump.label,
       }),
     ]),
+  );
+}
+
+/**
+ * Every section tab as a destination. Deliberately not folded into
+ * `registerLegacySections`: the shell suites assert on the section rows and
+ * their jumps, and a tab is a destination, not a row.
+ */
+export function registerLegacyTabPaths(): () => void {
+  return revokeAll(
+    LEGACY_TAB_PATHS.map((entry) =>
+      registerContributionForTest("command-path", entry),
+    ),
   );
 }
 

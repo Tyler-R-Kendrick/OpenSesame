@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  registerLegacyJumps,
+  registerLegacyTabPaths,
+} from "../lib/contributions.test-support.js";
 import {
   navigationPaths,
   navigationTool,
@@ -6,7 +10,24 @@ import {
 } from "./navigation.js";
 
 const original = webmcpNavigationSeam.navigate;
+/**
+ * Sections and their tabs are `command-path` contributions now, so the tool's
+ * destination table is whatever the approved capabilities registered. This
+ * suite registers what a full plan's modules do; `navigation.surface.test.ts`
+ * covers the other end — an excluded capability contributes nothing and its
+ * section is not a destination at all.
+ */
+let revokeShell: () => void;
+beforeEach(() => {
+  revokeShell = (() => {
+    const revokes = [registerLegacyJumps(), registerLegacyTabPaths()];
+    return () => {
+      for (const revoke of revokes) revoke();
+    };
+  })();
+});
 afterEach(() => {
+  revokeShell();
   webmcpNavigationSeam.navigate = original;
 });
 
