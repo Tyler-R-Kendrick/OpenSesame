@@ -1,0 +1,63 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "managed-prohibited",
+  "notes": "Managed instance that prohibits connectors, enterprise, WebMCP agents, remote AI and telemetry as deliberate refusals. The installation tries to select connectors.external anyway; it must resolve PROHIBITED_BY_INSTANCE while vault.passkey-records is approved.",
+  "instancePolicy": {
+    "schemaVersion": 1,
+    "kind": "InstanceCapabilityPolicy",
+    "instanceId": "inst-managed",
+    "revision": "12",
+    "presetProvenance": {
+      "id": "custom",
+      "version": 1
+    },
+    "capabilities": {
+      "default": "deny",
+      "required": [],
+      "optional": [
+        "access.authority",
+        "activity.log",
+        "identity.local-iam",
+        "identity.siop",
+        "identity.site-broker",
+        "sharing.drops",
+        "support.guided-help",
+        "support.local-ai",
+        "vault.certificate-records",
+        "vault.interop-formats",
+        "vault.passkey-records"
+      ],
+      "prohibited": [
+        "agents.webmcp",
+        "connectors.external",
+        "enterprise.ca-administration",
+        "enterprise.directory-provisioning",
+        "support.remote-ai",
+        "telemetry.external"
+      ]
+    },
+    "network": {
+      "externalServices": "allow",
+      "allowedServiceOrigins": []
+    },
+    "updates": {
+      "unknownCapabilities": "deny",
+      "expandedExposure": "require-approval"
+    }
+  },
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "inst-managed",
+    "installationId": "device-managed-1",
+    "basePolicyRevision": "12",
+    "revision": "1",
+    "acceptedRequired": [],
+    "selectedOptional": ["connectors.external", "vault.passkey-records"],
+    "chosenAlternatives": {},
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  }
+}

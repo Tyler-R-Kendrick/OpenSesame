@@ -87,7 +87,7 @@ import {
   listFederatedProviders,
   providerUpstream,
 } from "../lib/providers.js";
-import { IDENTITY_VIEWS, useSectionView } from "../lib/section-views.js";
+import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
@@ -98,11 +98,11 @@ import { AgentsPanel } from "./identity/AgentsPanel.js";
 import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
 import { DevicesPanel } from "./identity/DevicesPanel.js";
 import { EditApplication } from "./identity/EditApplication.js";
-import { IdentityTabs } from "./identity/IdentityTabs.js";
+import { type IdentityTab, IdentityTabs } from "./identity/IdentityTabs.js";
 import { LocalDirectoryPanel } from "./identity/LocalDirectoryPanel.js";
 import { UsersPanel } from "./identity/UsersPanel.js";
-// The brand button treatments (.signin__social, .signin__provider--*) live in
-// the sign-in hub's stylesheet; the ceremony reuses them verbatim.
+import { useEnabledIdentityViews } from "./identity/identity-views.js";
+// Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";
 
@@ -110,8 +110,6 @@ import "./identity.css";
  * Browser-local identity management, with optional hosted Identity
  * surfaces. Provider registration is an explicit ceremony, not an entry gate.
  */
-type IdentityTab = (typeof IDENTITY_VIEWS)[number];
-
 function IdentityTabPanels({
   tab,
   online,
@@ -198,7 +196,8 @@ export function IdentitySection() {
   const online = useOnline();
   const configured = useIdentityConfigured();
   const session = useIdentitySession();
-  const [tab, setTab] = useSectionView(IDENTITY_VIEWS, "people");
+  const views = useEnabledIdentityViews();
+  const [tab, setTab] = useSectionView(views, views[0] ?? "service-accounts");
   const [providers, setProviders] = useState<IdpRecord[]>(() =>
     listIdpRegistrations(),
   );

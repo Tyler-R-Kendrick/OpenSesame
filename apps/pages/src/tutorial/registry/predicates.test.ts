@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
 
 import { isBoolean } from "@opensesame/os-domain";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { vaultStore } from "../../lib/vault/store.js";
+import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import {
   GUIDE_PREDICATES,
   noteGuideConnectionsPresent,
@@ -15,6 +16,14 @@ import {
   readGuidePredicate,
   resetGuidePredicatesForTest,
 } from "./state.js";
+
+// Connections, Identity and their routes are contributions; these facts
+// only exist on a deployment whose plan approved those capabilities.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 function goTo(path: string): void {
   window.history.pushState({}, "", path);

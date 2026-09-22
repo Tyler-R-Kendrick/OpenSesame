@@ -13,8 +13,13 @@ import type { Provider } from "../../lib/connections.js";
 import { isHistorySelected } from "../../lib/history-backups.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
+import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 const originalBackup = { ...backupSeams };
+
+// The connector settings page mounts guide targets `connectors.external`
+// contributes; these cases describe a deployment that approved it.
+declareConnectionsTutorial();
 
 afterEach(() => {
   cleanup();

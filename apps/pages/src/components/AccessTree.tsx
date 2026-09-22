@@ -8,17 +8,14 @@ import { useVault } from "../lib/vault/hooks.js";
 import { useLocalShares } from "../sections/access/LocalSharePanel.js";
 import { accessPageTree } from "../sections/access/page-tree.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
-import { SECTIONS, SectionRow } from "./RailRows.js";
+import { SectionRow, type SectionTreeProps } from "./RailRows.js";
 
 export function AccessTree({
+  section,
   open,
   active,
   onToggle,
-}: {
-  open: boolean;
-  active: boolean;
-  onToggle: () => void;
-}) {
+}: SectionTreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();
   const host = useHostConfigured();
@@ -33,7 +30,7 @@ export function AccessTree({
   return (
     <>
       <SectionRow
-        section={SECTIONS[2]}
+        section={section}
         open={open}
         active={active}
         branch={open}

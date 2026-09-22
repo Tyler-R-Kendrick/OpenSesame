@@ -4,12 +4,20 @@
  * enters through here, and nothing enters by reading the DOM.
  */
 
-export { GUIDE_TARGETS } from "./catalog.js";
+export {
+  CORE_GUIDE_TARGETS,
+  GUIDE_TARGETS,
+  mergedGuideTargets,
+} from "./catalog.js";
 export { buildSupportPageContext, type PageContextInput } from "./context.js";
 export {
   CAPABILITY_TUTORIALS,
+  CORE_GUIDE_GOALS,
+  CORE_HELP_TOPICS,
   GUIDE_GOALS,
   HELP_TOPICS,
+  mergedGuideGoals,
+  mergedHelpTopics,
   type GuideGoalDescriptor,
   type HelpTopic,
   type RankedHelpTopic,
@@ -22,7 +30,9 @@ export {
 } from "./goals.js";
 export { GuideTarget, useGuideTarget } from "./react.jsx";
 export {
+  CORE_GUIDE_ROUTES,
   GUIDE_ROUTES,
+  mergedGuideRoutes,
   type GuideRouteDescriptor,
   type GuideRouteId,
   describeGuideRoutes,

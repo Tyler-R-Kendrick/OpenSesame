@@ -26,7 +26,6 @@ import {
   listSecondSteps,
 } from "../../lib/vault/unlock-methods.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { AmbientAuthPanel } from "./AmbientAuthPanel.js";
 import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
 import {
   type MethodKind,
@@ -50,7 +49,6 @@ export function UnlockMethodsPanel() {
   return (
     <>
       <UnlockMethodsBody />
-      <AmbientAuthPanel />
     </>
   );
 }

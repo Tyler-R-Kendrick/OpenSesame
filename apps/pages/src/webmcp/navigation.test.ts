@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  registerLegacyJumps,
+  registerLegacyTabPaths,
+} from "../lib/contributions.test-support.js";
 import {
   navigationPaths,
   navigationTool,
@@ -6,7 +10,22 @@ import {
 } from "./navigation.js";
 
 const original = webmcpNavigationSeam.navigate;
+/**
+ * Sections and their tabs are `command-path` contributions now, so the tool's
+ * destination table is whatever the approved capabilities registered: the
+ * five section paths from each section's owner, and one tab path per tab
+ * from the capability that draws it. This suite registers what a full plan's
+ * modules do. Nothing registered is the other end of the same contract — the
+ * refusal cases below rely on it, and an excluded capability's section is
+ * then not a destination at all.
+ */
+let revokes: readonly (() => void)[] = [];
+beforeEach(() => {
+  revokes = [registerLegacyJumps(), registerLegacyTabPaths()];
+});
 afterEach(() => {
+  for (const revoke of revokes) revoke();
+  revokes = [];
   webmcpNavigationSeam.navigate = original;
 });
 

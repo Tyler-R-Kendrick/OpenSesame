@@ -8,8 +8,8 @@
  * survive both the grammar's syntax check and this membership check.
  */
 
-import { isGuideRouteId } from "@opensesame/guide-lang";
 import type { SupportRouteDescription } from "@opensesame/support-agent";
+import { contributionsSnapshot } from "../../lib/contributions.js";
 import { SETTINGS_CATEGORIES, settingsPath } from "../../lib/crumbs.js";
 
 export type GuideRouteId = string;
@@ -29,39 +29,74 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
     id: "/broker/authorize",
     title: "Broker — approve a static site sign-in",
   },
-  { id: "/federation", title: "Federation return — finish a sign-in" },
-  {
-    id: "/identity/authorize",
-    title: "Local application — review a sign-in request",
-  },
   { id: "/vault", title: "Vault — every item this deployment holds" },
   { id: "/vault/health", title: "Vault health — weak, reused and aging items" },
-  {
-    id: "/connections",
-    title: "Connections — provider connections and their state",
-  },
-  { id: "/access", title: "Access — delegations, offers and running tasks" },
-  {
-    id: "/identity",
-    title: "Identity — accounts, providers and linked identities",
-  },
-  {
-    id: "/wallet",
-    title: "Wallet — spending overview, budgets and payment methods",
-  },
   { id: "/settings", title: "Settings — this deployment's preferences" },
 ];
 
-const SETTINGS_ROUTES: readonly GuideRouteDescriptor[] =
-  SETTINGS_CATEGORIES.map((category) => ({
-    id: settingsPath(category),
-    title: `Settings — ${category}`,
-  }));
+function settingsRoute(category: string): GuideRouteDescriptor {
+  return { id: settingsPath(category), title: `Settings — ${category}` };
+}
 
-export const GUIDE_ROUTES: readonly GuideRouteDescriptor[] = [
+// `general` is Settings' own path, already a section route: a category only
+// adds a route when it has one of its own.
+const SETTINGS_ROUTES: readonly GuideRouteDescriptor[] =
+  SETTINGS_CATEGORIES.map(settingsRoute).filter(
+    (route) => !SECTION_ROUTES.some((section) => section.id === route.id),
+  );
+
+/**
+ * The routes the core shell always has. An optional section's routes arrive
+ * as `tutorial-route` contributions, and a contributed settings category
+ * brings its `/settings/<id>` route with it.
+ */
+export const CORE_GUIDE_ROUTES: readonly GuideRouteDescriptor[] = [
   ...SECTION_ROUTES,
   ...SETTINGS_ROUTES,
 ];
+
+let contributedRoutes: readonly GuideRouteDescriptor[] | null = null;
+let contributedCategories: readonly { id: string }[] | null = null;
+const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
+
+/** The live routes: core plus contributed. A live binding; see `mergedGuideRoutes`. */
+export let GUIDE_ROUTES: readonly GuideRouteDescriptor[] = CORE_GUIDE_ROUTES;
+
+// Route-id syntax (`isGuideRouteId` from @opensesame/guide-lang) is asserted
+// in `routes.test.ts`, not here: this registry sits on the shell's path via
+// `useGuideTarget`, and the guide grammar belongs to `support.guided-help`.
+function reindex(routes: readonly GuideRouteDescriptor[]): void {
+  byId.clear();
+  for (const route of routes) {
+    if (!byId.has(route.id)) byId.set(route.id, route);
+  }
+}
+
+export function mergedGuideRoutes(): readonly GuideRouteDescriptor[] {
+  const routes = contributionsSnapshot("tutorial-route");
+  const categories = contributionsSnapshot("settings-category");
+  if (routes === contributedRoutes && categories === contributedCategories) {
+    return GUIDE_ROUTES;
+  }
+  contributedRoutes = routes;
+  contributedCategories = categories;
+  const extra: GuideRouteDescriptor[] = [
+    ...routes,
+    ...categories.map((category) => settingsRoute(category.id)),
+  ];
+  const seen = new Set(CORE_GUIDE_ROUTES.map((route) => route.id));
+  const added = extra.filter((route) => {
+    if (seen.has(route.id)) return false;
+    seen.add(route.id);
+    return true;
+  });
+  GUIDE_ROUTES =
+    added.length === 0
+      ? CORE_GUIDE_ROUTES
+      : Object.freeze([...CORE_GUIDE_ROUTES, ...added]);
+  reindex(GUIDE_ROUTES);
+  return GUIDE_ROUTES;
+}
 
 /** Named by `useSupportRoute`; a guide may wait on them, never navigate to them. */
 export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
@@ -72,20 +107,18 @@ export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
   "/identity/authorize",
 ]);
 
-const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
-for (const route of GUIDE_ROUTES) {
-  if (!isGuideRouteId(route.id)) {
-    throw new Error(`guide_route_syntax:${route.id}`);
-  }
-  byId.set(route.id, route);
-}
+reindex(CORE_GUIDE_ROUTES);
 
 export function isKnownGuideRoute(id: GuideRouteId): boolean {
+  mergedGuideRoutes();
   return byId.has(id);
 }
 
 export function describeGuideRoutes(): readonly SupportRouteDescription[] {
-  return GUIDE_ROUTES.map((route) => ({ id: route.id, title: route.title }));
+  return mergedGuideRoutes().map((route) => ({
+    id: route.id,
+    title: route.title,
+  }));
 }
 
 /**
@@ -114,7 +147,7 @@ export function guideRouteWithin(
 export function guideRouteForPath(pathname: string): GuideRouteId {
   let best = "/vault";
   let bestLength = 0;
-  for (const route of GUIDE_ROUTES) {
+  for (const route of mergedGuideRoutes()) {
     if (
       (pathname === route.id || pathname.startsWith(`${route.id}/`)) &&
       route.id.length > bestLength

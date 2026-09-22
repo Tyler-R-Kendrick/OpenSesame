@@ -1,15 +1,27 @@
-import { IDENTITY_LABELS, IDENTITY_VIEWS } from "../../lib/section-views.js";
+import {
+  IDENTITY_LABELS,
+  type IDENTITY_VIEWS,
+} from "../../lib/section-views.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { useEnabledIdentityViews } from "./identity-views.js";
 
 export type IdentityTab = (typeof IDENTITY_VIEWS)[number];
 
 export function IdentityTabs({
   selected,
   onSelect,
-}: { selected: IdentityTab; onSelect: (tab: IdentityTab) => void }) {
+  views,
+}: {
+  selected: IdentityTab;
+  onSelect: (tab: IdentityTab) => void;
+  /** The tabs on the page; defaults to the capabilities' contributions. */
+  views?: readonly IdentityTab[];
+}) {
+  const contributed = useEnabledIdentityViews();
+  const shown = views ?? contributed;
   return (
     <div className="identity-tabs" role="tablist" aria-label="Identity views">
-      {IDENTITY_VIEWS.map((id) => (
+      {shown.map((id) => (
         <IdentityTabButton
           key={id}
           id={id}

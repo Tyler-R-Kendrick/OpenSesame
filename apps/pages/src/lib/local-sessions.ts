@@ -47,13 +47,26 @@ let presentations = new WeakMap<
   { tomb: string; token: string }
 >();
 const activeSessions = new Map<string, LocalSession>();
-// Use the lock bus, not vaultStore.onLock: this file sits on the store's
-// import cycle via identity, so the singleton is unfinished at module load.
-onVaultLock(() => {
+/** Drop every local identity session; run on lock and on module dispose. */
+export function resetLocalSessions(): void {
   presentations = new WeakMap();
   activeSessions.clear();
   notifyLocalIamChange();
-});
+}
+
+/**
+ * Bind the lock reset on the lock bus (not `vaultStore.onLock`: this file
+ * sits on the store's import cycle via identity). Called from
+ * `identity.local-iam`'s `activate`, never at module load; the returned
+ * unbind resets once so disposal drops the sessions it was guarding.
+ */
+export function bindLocalSessionLockReset(): () => void {
+  const off = onVaultLock(resetLocalSessions);
+  return () => {
+    off();
+    resetLocalSessions();
+  };
+}
 
 function invalid(): never {
   throw new LocalDirectoryError(

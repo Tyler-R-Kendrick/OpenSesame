@@ -1,7 +1,14 @@
 import { isString } from "@opensesame/os-domain";
 import { definitionFor, readItemField } from "../vault/item-types.js";
 import type { VaultItem } from "../vault/model.js";
-import type { AppCommand, CommandOutcome } from "./types.js";
+import {
+  type AppCommand,
+  type CommandOutcome,
+  isCommandSection,
+} from "./types.js";
+
+/** What a person hears when a command names a section the plan excludes. */
+export const NOT_AVAILABLE_MESSAGE = "Not available on this installation";
 
 export type CommandPorts = {
   navigate: (path: string) => void;
@@ -83,6 +90,66 @@ function fieldValue(
   return null;
 }
 
+/** One item command's subject, or the refusal that stands in for it. */
+function subjectOf(
+  ports: CommandPorts,
+  query: string,
+): { item: VaultItem } | { refusal: CommandOutcome } {
+  if (ports.vaultLocked()) {
+    return { refusal: { ok: false, message: "Unlock the vault first." } };
+  }
+  const item = matchItem(ports.items(), query);
+  if (item === null) {
+    return { refusal: { ok: false, message: `No item matches “${query}”.` } };
+  }
+  return { item };
+}
+
+async function openItem(
+  command: Extract<AppCommand, { action: "open_item" }>,
+  ports: CommandPorts,
+): Promise<CommandOutcome> {
+  const subject = subjectOf(ports, command.query);
+  if ("refusal" in subject) return subject.refusal;
+  ports.navigate(`/vault/${subject.item.id}`);
+  return { ok: true, message: `Opened ${subject.item.name}` };
+}
+
+async function copyField(
+  command: Extract<AppCommand, { action: "copy_field" }>,
+  ports: CommandPorts,
+): Promise<CommandOutcome> {
+  const subject = subjectOf(ports, command.query);
+  if ("refusal" in subject) return subject.refusal;
+  const { item } = subject;
+  const value = fieldValue(item, command.field);
+  if (value === null || value === "") {
+    return {
+      ok: false,
+      message: `${item.name} has no ${command.field} to copy.`,
+    };
+  }
+  const result = await ports.copy(value);
+  if (result !== "copied") {
+    return { ok: false, message: "Clipboard unavailable." };
+  }
+  return { ok: true, message: `Copied ${command.field} for ${item.name}` };
+}
+
+/** A section command opens a route only when the plan registered one. */
+function openSection(
+  command: Extract<AppCommand, { action: "navigate" }>,
+  ports: CommandPorts,
+): CommandOutcome {
+  // Refused, not imported: a section that is not registered has no route
+  // to open, and nothing here reaches for the module that would have one.
+  if (!isCommandSection(command.path)) {
+    return { ok: false, message: NOT_AVAILABLE_MESSAGE };
+  }
+  ports.navigate(command.path);
+  return { ok: true, message: `Opened ${command.path}` };
+}
+
 export async function executeCommand(
   command: AppCommand,
   ports: CommandPorts,
@@ -97,48 +164,16 @@ export async function executeCommand(
           "Try: go to vault · copy password for … · open … · search … · hold the mic to speak",
       };
     case "navigate":
-      ports.navigate(command.path);
-      return { ok: true, message: `Opened ${command.path}` };
+      return openSection(command, ports);
     case "open_path":
       ports.navigate(command.path);
       return { ok: true, message: `Opened ${command.label}` };
     case "search":
       ports.navigate(`/vault?q=${encodeURIComponent(command.query)}`);
       return { ok: true, message: `Searching for “${command.query}”` };
-    case "open_item": {
-      if (ports.vaultLocked()) {
-        return { ok: false, message: "Unlock the vault first." };
-      }
-      const item = matchItem(ports.items(), command.query);
-      if (item === null) {
-        return { ok: false, message: `No item matches “${command.query}”.` };
-      }
-      ports.navigate(`/vault/${item.id}`);
-      return { ok: true, message: `Opened ${item.name}` };
-    }
-    case "copy_field": {
-      if (ports.vaultLocked()) {
-        return { ok: false, message: "Unlock the vault first." };
-      }
-      const item = matchItem(ports.items(), command.query);
-      if (item === null) {
-        return { ok: false, message: `No item matches “${command.query}”.` };
-      }
-      const value = fieldValue(item, command.field);
-      if (value === null || value === "") {
-        return {
-          ok: false,
-          message: `${item.name} has no ${command.field} to copy.`,
-        };
-      }
-      const result = await ports.copy(value);
-      if (result !== "copied") {
-        return { ok: false, message: "Clipboard unavailable." };
-      }
-      return {
-        ok: true,
-        message: `Copied ${command.field} for ${item.name}`,
-      };
-    }
+    case "open_item":
+      return openItem(command, ports);
+    case "copy_field":
+      return copyField(command, ports);
   }
 }

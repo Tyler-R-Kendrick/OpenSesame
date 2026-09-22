@@ -107,6 +107,12 @@ import {
 } from "../lib/connections.js";
 import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
+import {
+  CONNECTIONS_CATALOG as catalog,
+  makeConnection,
+  renderAt,
+} from "./connections/section-fixtures.test-support.js";
+import { declareConnectionsTutorial } from "./connections/tutorial.test-support.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, {
   listProviders,
@@ -130,157 +136,7 @@ Object.assign(connectionSeams, {
   submitGithubAppManifest,
 });
 
-const catalog = vi.hoisted(() => {
-  const githubProvider: Provider = {
-    id: "github",
-    displayName: "GitHub",
-    category: "developer",
-    docsUrl: "https://docs.github.com",
-    authKind: "oauth2_authorization_code",
-    supportsRefresh: true,
-    configured: false,
-    autoConfigurable: false,
-    missingConfig: ["GITHUB_CLIENT_ID"],
-    callbackUrl: null,
-    scopes: [
-      {
-        name: "repo",
-        description: "Full repository access",
-        sensitive: true,
-        default: true,
-      },
-    ],
-    egress: {
-      scheme: "https",
-      authorities: ["api.github.com"],
-      pathPrefixes: [],
-    },
-    operations: [],
-  };
-
-  const linearProvider: Provider = {
-    id: "linear",
-    displayName: "Linear",
-    category: "developer",
-    docsUrl: "https://linear.app/docs",
-    authKind: "oauth2_authorization_code",
-    supportsRefresh: true,
-    configured: true,
-    autoConfigurable: false,
-    missingConfig: [],
-    callbackUrl: null,
-    scopes: [],
-    egress: {
-      scheme: "https",
-      authorities: ["api.linear.app"],
-      pathPrefixes: [],
-    },
-    operations: [],
-  };
-
-  const vercelProvider: Provider = {
-    id: "vercel",
-    displayName: "Vercel",
-    category: "developer",
-    docsUrl: "https://vercel.com/docs",
-    authKind: "api_key",
-    supportsRefresh: false,
-    configured: true,
-    autoConfigurable: false,
-    missingConfig: [],
-    callbackUrl: null,
-    scopes: [],
-    egress: {
-      scheme: "https",
-      authorities: ["api.vercel.com"],
-      pathPrefixes: [],
-    },
-    operations: [],
-  };
-
-  const plainProvider: Provider = {
-    id: "plain",
-    displayName: "Plain storage",
-    category: "local_storage",
-    docsUrl: "https://example.com/docs",
-    authKind: "configuration",
-    supportsRefresh: false,
-    configured: true,
-    autoConfigurable: true,
-    missingConfig: [],
-    callbackUrl: null,
-    scopes: [],
-    egress: { scheme: "https", authorities: [], pathPrefixes: [] },
-    operations: [],
-  };
-
-  const vaultwardenProvider: Provider = {
-    id: "vaultwarden",
-    displayName: "Vaultwarden",
-    category: "password_managers",
-    docsUrl: "https://example.com/vw",
-    authKind: "configuration",
-    supportsRefresh: false,
-    configured: true,
-    autoConfigurable: false,
-    missingConfig: [],
-    callbackUrl: null,
-    scopes: [],
-    egress: { scheme: "https", authorities: [], pathPrefixes: [] },
-    operations: [],
-    configurationFields: [
-      {
-        name: "server_url",
-        label: "Server URL",
-        secret: false,
-        required: true,
-      },
-      { name: "api_key", label: "API key", secret: true, required: false },
-    ],
-  };
-
-  const betterAuthProvider: Provider = {
-    id: "better-auth",
-    displayName: "Better Auth",
-    category: "identity",
-    docsUrl: "https://better-auth.com/docs/plugins/api-key",
-    authKind: "configuration",
-    supportsRefresh: false,
-    configured: true,
-    autoConfigurable: false,
-    missingConfig: [],
-    callbackUrl: null,
-    scopes: [],
-    egress: { scheme: "none", authorities: [], pathPrefixes: [] },
-    operations: ["identity.configure"],
-    configurationFields: [
-      { name: "base_url", label: "Base URL", secret: false, required: true },
-      { name: "api_key", label: "API key", secret: true, required: true },
-      {
-        name: "api_key_header",
-        label: "API key header",
-        secret: false,
-        required: true,
-      },
-      {
-        name: "config_id",
-        label: "Configuration ID",
-        secret: false,
-        required: false,
-      },
-    ],
-  };
-
-  return [
-    githubProvider,
-    linearProvider,
-    vercelProvider,
-    plainProvider,
-    vaultwardenProvider,
-    betterAuthProvider,
-  ];
-});
-const bundledRef: { current: Provider[] } = vi.hoisted(() => ({ current: [] }));
+const bundledRef: { current: Provider[] } = { current: [] };
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
@@ -301,56 +157,12 @@ Object.assign(passkeyCeremonyNoteSeams, {
   PasskeyCeremonyNote: () => null,
 });
 
-function makeConnection(overrides: Partial<Connection> = {}): Connection {
-  return {
-    connectionId: "con_1",
-    connectionRef: "conn/github/pat",
-    logicalName: "github",
-    displayName: "GitHub",
-    providerId: "github",
-    integrationId: null,
-    status: "active",
-    statusDetail: null,
-    organizationId: "org_1",
-    projectId: null,
-    ownerKind: "user",
-    shareability: "private",
-    requestedScopes: ["repo"],
-    grantedScopes: ["repo"],
-    accountLabel: "octocat",
-    expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-    refreshable: true,
-    lastRefreshedAt: null,
-    maxInvokeLevel: 2,
-    egress: {
-      scheme: "https",
-      authorities: ["api.github.com"],
-      pathPrefixes: [],
-    },
-    bindings: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    ...overrides,
-  };
-}
-
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/connections" element={<ConnectionsSection />} />
-        <Route
-          path="/connections/:providerId"
-          element={<ConnectionsSection />}
-        />
-        <Route
-          path="/connections/:providerId/:connectionId"
-          element={<ConnectionsSection />}
-        />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
+// Every screen here mounts guide targets `connectors.external` contributes
+// (`connections.reload`, `.connected`, `.catalog`, `.provider-picker`,
+// `.custom`, `.back`). These cases describe a deployment that approved that
+// capability, so they declare the same descriptors the module registers at
+// activation.
+declareConnectionsTutorial();
 
 describe("ConnectionsSection gallery", () => {
   beforeEach(() => {

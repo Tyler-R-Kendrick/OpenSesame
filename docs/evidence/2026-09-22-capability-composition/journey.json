@@ -1,0 +1,118 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "shot": "1280-setup-first-tab"
+        },
+        {
+          "pressOptional": "Customize this installation"
+        },
+        {
+          "pressOptional": "Family"
+        },
+        {
+          "shot": "1280-setup-choice"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "shot": "390-setup-first-tab"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "shot": "1280-settings-capabilities"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "shot": "390-settings-capabilities"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-setup-first-tab",
+      "width": 1280,
+      "title": "What setup asks a household first \u2014 1280 \u00d7 900",
+      "caption": "This is the change in one picture. On main, \"Set up your own\" opens on <strong>connectors</strong>, step 1 of 4, and the first thing a family password installation is asked for is a connector <em>directory endpoint</em> and an environment key \u2014 a capability it will never use, in a ceremony it cannot skip past without skipping the rest. On this branch the first and only tab is <strong>capabilities</strong>, and it asks which kind of installation this is. The other four tabs are not hidden: they are contributions their capabilities register, so a device that has approved none has one tab, not five with four greyed out. `verify:static` now holds exactly this \u2014 \"setup opens on the capabilities tab, and a device that approved nothing has no other\" and \"no directory endpoint is asked for before external connectors are chosen\".",
+      "before": "4 tabs \u00b7 connectors, ai, identity, mfa",
+      "after": "1 tab \u00b7 capabilities"
+    },
+    {
+      "shot": "390-setup-first-tab",
+      "width": 390,
+      "title": "The same first screen on a phone \u2014 390 \u00d7 844",
+      "caption": "Two roads in, each a choice object and so allowed to carry words (DESIGN.md): core only, or choose. Nothing is applied by reading this screen \u2014 the ceremony ends on a review, and the review ends on Apply. On main the same width opens on the directory-endpoint form.",
+      "before": "4 tabs \u00b7 a directory endpoint form",
+      "after": "1 tab \u00b7 2 roads, 0 fields"
+    },
+    {
+      "shot": "1280-setup-choice",
+      "width": 1280,
+      "title": "Choosing a purpose, then each capability \u2014 1280 \u00d7 900",
+      "caption": "\"Customize this installation\" \u2192 five purposes, then one card per catalog capability with the 7 core ones first and always on. <strong>Family</strong> offers 12 optional capabilities of the 24 and pre-selects 4; Homelab and Custom offer all 24; Organization requires 2. Each card names what the capability does, what it adds, what it depends on, what leaves the device, and whether this distribution even contains it \u2014 read from the descriptor, so opening a card imports nothing and connects to nothing. The before is the same connectors form as the sheet above: this road does not exist on main at all, and the capture is honest about that rather than staging a comparison.",
+      "before": "no such road \u00b7 0 purposes, 0 cards",
+      "after": "5 purposes \u00b7 31 cards, 11 on for Family"
+    },
+    {
+      "shot": "1280-settings-capabilities",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities, and the rail beside it \u2014 1280 \u00d7 900",
+      "caption": "Left: what an installation that has approved nothing carries. Seven core listings and Settings \u2014 no connections, access, identity, wallet or activity, and no drops or passkeys listing either. On main the same guest has 17 rail rows. Right: the new Settings tab, one row per catalog capability with its lifecycle, and on each optional row this device may have and is not running, an <strong>Add</strong> key. That key is new in this commit: until it landed a capability could be chosen once, in the setup ceremony, which lives before sign-in \u2014 so a person who signed in and then wanted drops had no road back. Adding goes through the same review and the same consent receipt as retiring. Note also that <strong>Connections</strong> has left the settings nav: it is the connectors capability's own category, not a core one.",
+      "before": "17 rail rows \u00b7 nav: General Security Vaults Connections Danger",
+      "after": "9 rail rows \u00b7 nav: General Security Vaults Capabilities Danger"
+    },
+    {
+      "shot": "390-settings-capabilities",
+      "width": 390,
+      "title": "The same list on a phone \u2014 390 \u00d7 844",
+      "caption": "31 rows, 62px each, the same on both widths: the panel is a read-only list with one action per row, not a form. Status is a glyph and a short label, never a pill. On main this tab does not exist, so the before is the settings screen the same journey lands on \u2014 General \u2014 which is the screen a person actually sees there.",
+      "before": "no Capabilities tab",
+      "after": "31 rows \u00b7 62px each"
+    }
+  ]
+}

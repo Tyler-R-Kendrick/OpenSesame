@@ -2,7 +2,15 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { federationSeams } from "../../lib/federation.js";
 import { identitySeams } from "../../lib/identity.js";
 import {
@@ -11,7 +19,36 @@ import {
   registerIdp,
 } from "../../lib/idp-registry.js";
 import { providersSeams } from "../../lib/providers.js";
+import { IDENTITY_VIEWS } from "../../lib/section-views.js";
+import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
+import {
+  IDENTITY_ROUTES,
+  IDENTITY_TARGETS,
+} from "../../tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { IdentitySection } from "../IdentitySection.js";
+import { contributeIdentityViews } from "./identity-views.js";
+
+// The Identity tabs belong to three capabilities (local IAM, federation,
+// directory provisioning), and each contributes its own view. These cases
+// describe a deployment that approved them, so they register the same
+// contributions the modules make at activation.
+let revokeIdentityViews: (() => void) | null = null;
+let undeclareTutorial: (() => void) | null = null;
+beforeEach(async () => {
+  revokeIdentityViews = contributeIdentityViews(IDENTITY_VIEWS);
+  undeclareTutorial = await declareTutorialForTest("identity.federation", {
+    targets: IDENTITY_TARGETS,
+    goals: IDENTITY_GOALS,
+    routes: IDENTITY_ROUTES,
+  });
+});
+afterEach(() => {
+  undeclareTutorial?.();
+  undeclareTutorial = null;
+  revokeIdentityViews?.();
+  revokeIdentityViews = null;
+});
 
 beforeEach(() => {
   let stored: string | null = null;

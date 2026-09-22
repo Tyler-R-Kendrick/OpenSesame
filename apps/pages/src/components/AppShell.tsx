@@ -6,204 +6,61 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import {
-  NavLink,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
-import {
-  WALLET_CATEGORIES,
-  WALLET_CATEGORY_LABEL,
-  settingsCategoryFromLocation,
-  walletPath,
-} from "../lib/crumbs.js";
-import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
-import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import type { ItemKind } from "../lib/vault/model.js";
+  createKeymapHandler,
+  focusVaultListing,
+  registerKeymapHelp,
+} from "../lib/keymap.js";
+import { installRouterNavigate } from "../lib/router-seam.js";
+import { useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { AccessTree } from "./AccessTree.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
-import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
-import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
 import { IconLock } from "./Icons.js";
-import { IdentityTree } from "./IdentityTree.js";
 import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
 import { MoreMenu } from "./MoreMenu.js";
 import { NavDrawer } from "./NavDrawer.js";
-import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
+import { NavTree } from "./NavTree.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
-import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
-import { SettingsTree } from "./SettingsTree.js";
+import {
+  type SectionRowModel,
+  sectionForPath,
+  useSections,
+} from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
 import { ThemeToggle } from "./ThemeToggle.js";
-import { VaultRail, uniqueFolderKind } from "./VaultRail.js";
 import { Wordmark } from "./Wordmark.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
-import { useRailCursor } from "./rail-cursor.js";
-import { selectedRailPath } from "./rail-path.js";
-import { useRailKeyboard } from "./useRailKeyboard.js";
 
 /**
- * The rail is the filesystem: sections are directories off the tomb root, the
- * active section is the open one, and its views hang under it as entries. The
- * `g`-jump key for each section is advertised on its row.
+ * A capability removed while its route is current leaves the person on a
+ * screen that no longer exists (SURFACE-09). The shell returns to the vault
+ * and lands the keyboard there, rather than on a blank pane or on `body`.
+ * A cold load of an unregistered path is not this case: no section was ever
+ * matched, and the router's own fallback answers it.
  */
-function NavTree() {
+function useDeniedRouteFallback(sections: readonly SectionRowModel[]) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const { items, folders } = useVault();
-  const treeRef = useRef<HTMLElement>(null);
-  const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
-  const currentToRef = useRef("");
-  const vault = useSectionExpand("/vault");
-  const connections = useSectionExpand("/connections");
-  const access = useSectionExpand("/access");
-  const identity = useSectionExpand("/identity");
-  const wallet = useSectionExpand("/wallet");
-  const settings = useSectionExpand("/settings");
-  const vaultOpen = vault.expanded;
-  const settingsOpen = settings.expanded;
-  const connectionsOpen = connections.expanded;
-  const accessOpen = access.expanded;
-  const identityOpen = identity.expanded;
-  const walletOpen = wallet.expanded;
-  const activeFilter = params.get("f") ?? "all";
-  const activeFolder = params.get("folder");
-  const settingsCategory = settingsCategoryFromLocation(
-    location.pathname,
-    location.hash,
-  );
-  const selectedTo = selectedRailPath(
-    location.pathname,
-    location.hash,
-    params.get("view"),
-    activeFilter,
-    activeFolder,
-    settingsCategory,
-    activeFolder ? uniqueFolderKind(items, activeFolder) : null,
-  );
-  const section = SECTIONS.find(({ to }) => location.pathname.startsWith(to));
-  const sectionOpen = Boolean(
-    section &&
-      {
-        "/vault": vaultOpen,
-        "/connections": connectionsOpen,
-        "/access": accessOpen,
-        "/identity": identityOpen,
-        "/wallet": walletOpen,
-        "/activity": false,
-        "/settings": settingsOpen,
-      }[section.to],
-  );
-  currentToRef.current = section && !sectionOpen ? section.to : selectedTo;
-
-  const counts = useMemo(() => {
-    const live = items.filter((item) => item.deletedAt === null);
-    const byKind = new Map<ItemKind, number>();
-    const byFolder = new Map<string, number>();
-    for (const item of live) {
-      byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + 1);
-      if (item.folderId) {
-        byFolder.set(item.folderId, (byFolder.get(item.folderId) ?? 0) + 1);
-      }
+  const matchedBefore = useRef(false);
+  const landing = useRef(false);
+  useEffect(() => {
+    const matched = sectionForPath(location.pathname, sections) !== undefined;
+    if (matchedBefore.current && !matched) {
+      landing.current = true;
+      navigate("/vault", { replace: true });
     }
-    return {
-      all: live.length,
-      favorites: live.filter((item) => item.favorite).length,
-      trash: items.length - live.length,
-      byKind,
-      byFolder,
-    };
-  }, [items]);
-
-  useRailKeyboard(treeRef, navigateRef, currentToRef);
-  const cursorId = useRailCursor();
-
-  return (
-    <nav
-      ref={treeRef}
-      className="railtree"
-      aria-label="Sections"
-      role="tree"
-      // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
-      tabIndex={0}
-      aria-activedescendant={
-        cursorId ?? railRowId(currentToRef.current, sectionOpen)
-      }
-    >
-      <SectionRow
-        section={SECTIONS[0]}
-        open={vaultOpen}
-        active={vault.here}
-        onToggle={vault.onToggle}
-        count={counts.all}
-        branch={vaultOpen}
-      />
-      {vaultOpen ? (
-        <VaultRail
-          items={items}
-          folders={folders}
-          counts={counts}
-          selectedTo={selectedTo}
-        />
-      ) : null}
-
-      <ConnectionsTree open={connectionsOpen} onToggle={connections.onToggle} />
-      <AccessTree
-        open={accessOpen}
-        active={access.here}
-        onToggle={access.onToggle}
-      />
-      <IdentityTree
-        open={identityOpen}
-        active={identity.here}
-        onToggle={identity.onToggle}
-      />
-      <SectionRow
-        section={SECTIONS[4]}
-        open={walletOpen}
-        active={wallet.here}
-        branch={walletOpen}
-        onToggle={wallet.onToggle}
-      />
-      {walletOpen ? (
-        <div className="railtree__kids">
-          {WALLET_CATEGORIES.map((category) => (
-            <PageTreeLeafRow
-              key={category}
-              node={{
-                id: category,
-                label: WALLET_CATEGORY_LABEL[category],
-                href: walletPath(category),
-                children: [],
-                branch: false,
-              }}
-              level={2}
-              current={selectedTo}
-            />
-          ))}
-        </div>
-      ) : null}
-      <SectionRow
-        section={SECTIONS[5]}
-        open={false}
-        active={location.pathname.startsWith("/activity")}
-      />
-      <SectionRow
-        section={SECTIONS[6]}
-        open={settingsOpen}
-        active={settings.here}
-        branch={settingsOpen}
-        onToggle={settings.onToggle}
-      />
-      {settingsOpen ? <SettingsTree current={selectedTo} /> : null}
-    </nav>
-  );
+    matchedBefore.current = matched;
+  }, [sections, location.pathname, navigate]);
+  useEffect(() => {
+    if (!landing.current || location.pathname !== "/vault") return;
+    landing.current = false;
+    focusVaultListing();
+    if (keyboardIsIdle()) landFocus(document.getElementById("main"));
+  }, [location.pathname]);
 }
 
 /**
@@ -238,6 +95,7 @@ function SessionPrompt() {
 
 function Shell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
+  useDeniedRouteFallback(useSections());
   const [keymapOpen, setKeymapOpen] = useState(false);
   const showKeymap = useCallback(() => setKeymapOpen(true), []);
   const closeKeymap = useCallback(() => setKeymapOpen(false), []);
@@ -250,6 +108,12 @@ function Shell({ children }: { children?: ReactNode }) {
     window.addEventListener("keydown", keymap, true);
     return () => window.removeEventListener("keydown", keymap, true);
   }, [keymap]);
+
+  // The loader builds a module's context before any component renders, so a
+  // capability whose tools navigate reads the router through this seam
+  // (router-seam.ts). It is installed while the shell is mounted and taken
+  // back when it is not.
+  useEffect(() => installRouterNavigate(navigate), [navigate]);
 
   useEffect(() => registerKeymapHelp(showKeymap), [showKeymap]);
 
@@ -299,11 +163,12 @@ function Shell({ children }: { children?: ReactNode }) {
   );
 }
 
-/** Unlocked chrome. Support is mounted at the app root, not here. */
+/**
+ * Unlocked chrome. Support is mounted at the app root, not here, and so is
+ * every optional section's own state: the connectors module wraps its route
+ * and tree in `ConnectionsNavigation` itself, so the shell imports nothing a
+ * plan may have excluded.
+ */
 export function AppShell({ children }: { children?: ReactNode }) {
-  return (
-    <ConnectionsNavigation>
-      <Shell>{children}</Shell>
-    </ConnectionsNavigation>
-  );
+  return <Shell>{children}</Shell>;
 }

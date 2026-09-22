@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   noteWebMcpAccepted,
   noteWebMcpFailure,
@@ -8,9 +8,18 @@ import {
   resetWebMcpRegistrationForTests,
 } from "../../webmcp/registration.js";
 import { buildSupportPageContext } from "./context.js";
+import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import { GUIDE_PREDICATES } from "./predicates.js";
 import { GUIDE_ROUTES, guideRouteWithin } from "./routes.js";
 import { declareGuidePredicate, resetGuidePredicatesForTest } from "./state.js";
+
+// Connections, Identity and their routes are contributions; these facts
+// only exist on a deployment whose plan approved those capabilities.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 const BASE = {
   pageId: "pages",

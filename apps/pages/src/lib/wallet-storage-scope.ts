@@ -7,14 +7,29 @@ import { vaultStore } from "./vault/store.js";
 
 let override: string | null = null;
 let lastTomb = "personal";
+let epoch = 0;
 const listeners = new Set<() => void>();
 
 function notifyIfChanged(id: string): string {
   if (id !== lastTomb) {
     lastTomb = id;
+    epoch += 1;
     for (const listener of listeners) listener();
   }
   return id;
+}
+
+/**
+ * A number that moves whenever the active tomb changes. A cache that
+ * records it beside its rows misses after any switch — including a switch
+ * away and straight back, which a tomb name alone cannot tell from no
+ * switch at all — whether or not anything was subscribed at the time. So
+ * `wallet.spending` being disabled can never leave one tomb's rows
+ * answering for another.
+ */
+export function walletStorageScope(): number {
+  walletStorageTomb();
+  return epoch;
 }
 
 export function walletStorageTomb(): string {
