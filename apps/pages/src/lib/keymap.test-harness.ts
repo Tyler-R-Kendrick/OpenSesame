@@ -9,7 +9,23 @@
  */
 
 import { vi } from "vitest";
+import { registerLegacyShellData } from "./contributions.test-support.js";
 import type { ListingMotion, VaultKeymapTarget } from "./keymap.js";
+
+/**
+ * The `g` jumps past `v` and `s` are contributions, so a suite that
+ * characterizes the shell a whole plan draws registers the full set once.
+ * SURFACE-09's core-only behaviour is asserted in `keymap.test.ts`.
+ */
+export function registerShellJumps(): () => void {
+  return registerLegacyShellData();
+}
+
+/** Between cases: no rows left in the document, no fake clock left running. */
+export function resetKeymapDom(): void {
+  document.body.replaceChildren();
+  vi.useRealTimers();
+}
 
 export function vault(
   overrides: Partial<VaultKeymapTarget> = {},

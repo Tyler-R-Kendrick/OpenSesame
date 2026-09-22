@@ -5,6 +5,7 @@ import {
 } from "@opensesame/siop-v2";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureLocalApplication } from "./local-applications.js";
+import { bindLocalIamLockResets } from "../modules/identity.local-iam/lock-resets.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import {
   type LocalDirectoryChange,
@@ -65,7 +66,15 @@ describe("siop-authority", () => {
     })}`;
   }
 
+  /**
+   * The lock resets local IAM's evidence depends on are bound by
+   * `identity.local-iam`'s `activate`, not at module load (ownership.md §4.3).
+   * This suite binds the same ones the capability does, so a lock drops
+   * unspent evidence here exactly as it does with the capability approved.
+   */
+  let unbindLockResets: () => void;
   beforeEach(async () => {
+    unbindLockResets = bindLocalIamLockResets();
     vi.spyOn(Date, "now").mockReturnValue(fixedNow * 1000);
     tomb = `siop-authority-${crypto.randomUUID()}`;
     unlockTomb(tomb, (await mintVaultKey()).vaultKey);
@@ -119,6 +128,7 @@ describe("siop-authority", () => {
   });
 
   afterEach(() => {
+    unbindLockResets();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     lockAllTombs();

@@ -18,7 +18,7 @@
   "totals": {
     "files": 501,
     "violations": 794,
-    "oversizedLines": 252602
+    "oversizedLines": 252336
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -683,7 +683,7 @@
       "max-lines": 495
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
-      "max-lines": 889
+      "max-lines": 623
     },
     "apps/pages/src/lib/keymap.ts": {
       "complexity": 1,
