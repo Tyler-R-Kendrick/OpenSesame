@@ -153,8 +153,8 @@ export async function walkScenarioMatrix({ page, check, record }) {
       matrix[id] = {
         status: "production_entry_wired",
         entryPoint:
-          "unlock-*-duress|unlock-duress-continue|DuressEnrollmentPanel|PresentationShell",
-        note: "application_code match → activate → presentation runtime + guest continue",
+          "unlock-*-duress|unlock-duress-continue|unlock-passkey-duress|DuressEnrollmentPanel|PresentationShell",
+        note: "application_code / passkey-then-code match → activate → presentation runtime + guest continue",
       };
       continue;
     }
