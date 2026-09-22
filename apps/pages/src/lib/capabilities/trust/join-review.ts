@@ -11,13 +11,16 @@
 import type {
   CapabilityCatalog,
   DistributionContract,
+  InstanceCapabilityPolicy,
 } from "@opensesame/capability-composition";
 import {
   type BoundaryValue,
   type JsonValue,
   isJsonObject,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
+import type { SignedPolicyEnvelope } from "./envelope.js";
 import { isDigest } from "./digest.js";
 import {
   type PolicyPublicJwk,
@@ -112,11 +115,15 @@ function place(
   return entries;
 }
 
-function readNetwork(value: JsonValue | undefined) {
-  const externalServices =
-    isJsonObject(value) && (value.externalServices === "allow" || value.externalServices === "deny")
-      ? value.externalServices
-      : "unknown";
+type NetworkPreview = Readonly<{
+  externalServices: "allow" | "deny" | "unknown";
+  allowedServiceOrigins: readonly string[];
+}>;
+
+function readNetwork(value: JsonValue | undefined): NetworkPreview {
+  const declared = isJsonObject(value) ? value.externalServices : undefined;
+  const externalServices: NetworkPreview["externalServices"] =
+    declared === "allow" || declared === "deny" ? declared : "unknown";
   const allowedServiceOrigins = isJsonObject(value)
     ? idList(value.allowedServiceOrigins).filter((origin) => {
         try {
@@ -155,10 +162,12 @@ function policyBody(document: Body): Body | null {
 }
 
 export async function previewJoinDocument(
-  candidate: BoundaryValue,
+  document: BoundaryValue | InstanceCapabilityPolicy | SignedPolicyEnvelope,
   ceiling: DistributionContract,
   catalog: CapabilityCatalog,
 ): Promise<JoinPreview> {
+  // SAFETY: a typed document is JSON data; the preview re-reads every member.
+  const candidate: BoundaryValue = overlapCast(document);
   if (!isJsonObject(candidate)) return { ok: false, reason: "malformed" };
   if (JSON.stringify(candidate).length > MAX_JOIN_DOCUMENT_CHARS)
     return { ok: false, reason: "too-large" };

@@ -5,9 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import * as Icons from "./Icons.js";
 
-const iconEntries = Object.entries(Icons).filter(
-  (entry): entry is [string, ComponentType<Icons.IconProps>] =>
-    typeof entry[1] === "function",
+const iconEntries = Object.entries(Icons).flatMap(([name, value]) =>
+  typeof value === "function"
+    ? [[name, value as ComponentType<Icons.IconProps>] as const]
+    : [],
 );
 
 describe("Icons", () => {

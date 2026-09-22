@@ -55,15 +55,36 @@ export type ResolveContext = Readonly<{
   required: ReadonlySet<CapabilityId>;
   accepted: ReadonlySet<CapabilityId>;
   selectedRoots: readonly CapabilityId[];
+  /**
+   * Roots a selection asked for that was accepted against a superseded
+   * policy revision. They stay `selected` (the person did choose them) but
+   * are never approved, and consent must be taken again.
+   */
+  staleRoots: readonly CapabilityId[];
   requiredNotAccepted: readonly CapabilityId[];
   evaluatedModules: ReadonlySet<ModuleId>;
 }>;
 
 type Identity = Readonly<{
   instanceId: string;
+  /** The selection when it addresses this instance and this device, else null. */
   installation: InstallationCapabilitySelection | null;
+  /** It addresses us, but names a policy revision this instance has left behind. */
+  stale: boolean;
   profileMismatch: boolean;
 }>;
+
+/**
+ * A selection is accepted against one policy revision. A newer revision may
+ * permit, require or prohibit different capabilities, so a selection whose
+ * `basePolicyRevision` is not the current one states a choice nobody has
+ * made under the policy in force — it is stale until the person re-accepts.
+ */
+function isCurrentSelection(input: ResolveInput): boolean {
+  const policy = input.instancePolicy;
+  if (policy === null || input.installation === null) return true;
+  return input.installation.basePolicyRevision === policy.revision;
+}
 
 /** The installation counts only when it names this instance and this device. */
 function resolveIdentity(input: ResolveInput): Identity {
@@ -71,14 +92,16 @@ function resolveIdentity(input: ResolveInput): Identity {
     input.instancePolicy?.instanceId ??
     input.installation?.instanceId ??
     PERSONAL_LOCAL_INSTANCE;
-  const matches =
+  const addresses =
     input.installation !== null &&
     input.installation.instanceId === instanceId &&
     input.installation.installationId === input.installationId;
+  const stale = addresses && !isCurrentSelection(input);
   return {
     instanceId,
-    installation: matches ? input.installation : null,
-    profileMismatch: input.installation !== null && !matches,
+    installation: addresses ? input.installation : null,
+    stale,
+    profileMismatch: input.installation !== null && (!addresses || stale),
   };
 }
 
@@ -102,7 +125,8 @@ function selectedRootsOf(
 
 export function buildContext(input: ResolveInput): ResolveContext {
   const policy = input.instancePolicy;
-  const { instanceId, installation, profileMismatch } = resolveIdentity(input);
+  const { instanceId, installation, stale, profileMismatch } =
+    resolveIdentity(input);
   const workspace = input.workspace;
   const workspaceMismatch =
     workspace !== null &&
@@ -111,10 +135,13 @@ export function buildContext(input: ResolveInput): ResolveContext {
   const required = new Set(
     policy === null || !input.policyValid ? [] : policy.capabilities.required,
   );
-  const accepted = new Set(installation?.acceptedRequired ?? []);
+  // A stale selection accepts nothing: every required root is owed again.
+  const accepted = new Set(stale ? [] : (installation?.acceptedRequired ?? []));
+  const index = indexCatalog(input.catalog);
+  const selectedRoots = selectedRootsOf(installation);
   return {
     input,
-    index: indexCatalog(input.catalog),
+    index,
     ids: sortIds(input.catalog.capabilities.map((d) => d.id)),
     instanceId,
     policyRevision: policy?.revision ?? PERSONAL_LOCAL_REVISION,
@@ -122,14 +149,19 @@ export function buildContext(input: ResolveInput): ResolveContext {
     installation,
     profileMismatch,
     workspaceMismatch,
-    receipt: applicableReceipt(input.receipt, instanceId, input.installationId),
+    receipt: stale
+      ? null
+      : applicableReceipt(input.receipt, instanceId, input.installationId),
     network: networkFor(input),
     distributed: new Set(input.distribution.capabilityIds),
     distributedModules: new Set(input.distribution.moduleIds),
     vaultDisabled: new Set(input.vault?.disabled ?? []),
     required,
     accepted,
-    selectedRoots: selectedRootsOf(installation),
+    selectedRoots,
+    staleRoots: stale
+      ? selectedRoots.filter((id) => index.get(id)?.tier === "optional")
+      : [],
     requiredNotAccepted: sortIds(
       [...required].filter((id) => !accepted.has(id)),
     ),
@@ -179,8 +211,7 @@ function policyReasons(ctx: ResolveContext, id: CapabilityId): ReasonCode[] {
   const policy = ctx.input.instancePolicy;
   const out: ReasonCode[] = [];
   if (!ctx.input.policyValid) out.push("POLICY_UNVERIFIED");
-  if (ctx.profileMismatch || ctx.workspaceMismatch)
-    out.push("PROFILE_MISMATCH");
+  if (ctx.profileMismatch) out.push("PROFILE_MISMATCH");
   if (policy !== null && ctx.input.policyValid) {
     const caps = policy.capabilities;
     if (caps.prohibited.includes(id)) out.push("PROHIBITED_BY_INSTANCE");

@@ -16,7 +16,7 @@ let current: PolicySigningKey;
 let next: PolicySigningKey;
 let attacker: PolicySigningKey;
 
-function mutate(base: PolicyKeyRotation, patch: Record<string, BoundaryValue>): BoundaryValue {
+function mutate<T>(base: PolicyKeyRotation, patch: T): BoundaryValue {
   // SAFETY: tests deliberately produce a hostile rotation document.
   const doc: BoundaryValue = overlapCast({ ...base, ...patch });
   return doc;

@@ -9,6 +9,7 @@
  */
 import { planDigest, sortConflicts } from "./canonical.js";
 import {
+  type ConsentCandidates,
   EMPTY_CANDIDATES,
   catalogDigests,
   consentDeltaFor,
@@ -232,6 +233,22 @@ function resolvePasses(
   };
 }
 
+/**
+ * What consent is being asked about. A stale selection asks about the roots
+ * it named — they need accepting again under the current policy revision —
+ * and about nothing else, since none of them can be approved.
+ */
+function consentCandidates(
+  ctx: ResolveContext,
+  joinRefused: boolean,
+  roots: readonly CapabilityId[],
+  pass: Pass,
+): ConsentCandidates {
+  if (ctx.staleRoots.length > 0) return { roots: ctx.staleRoots, closure: [] };
+  if (joinRefused) return EMPTY_CANDIDATES;
+  return { roots, closure: sortIds(pass.candidates) };
+}
+
 export function resolveComposition(input: ResolveInput): EffectivePlan {
   const ctx = buildContext(input);
   const joinRefused = ctx.requiredNotAccepted.length > 0;
@@ -246,9 +263,7 @@ export function resolveComposition(input: ResolveInput): EffectivePlan {
   const roots = sortIds(
     [...pass.candidates].filter((id) => ctx.selectedRoots.includes(id)),
   );
-  const candidates = joinRefused
-    ? EMPTY_CANDIDATES
-    : { roots, closure: sortIds(pass.candidates) };
+  const candidates = consentCandidates(ctx, joinRefused, roots, pass);
   const consent = consentDeltaFor(
     candidates,
     catalogDigests(input.catalog),

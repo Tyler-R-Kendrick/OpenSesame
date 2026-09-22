@@ -79,6 +79,24 @@ export function consentDeltaFor(
 }
 
 /**
+ * Roots a plan still records as chosen although the selection that chose
+ * them no longer applies (`PROFILE_MISMATCH`) — a selection accepted
+ * against a policy revision this instance has left behind. They are never
+ * approved; consent for them must be taken again under the current policy.
+ */
+export function staleRootsOf(plan: EffectivePlan): CapabilityId[] {
+  const out: CapabilityId[] = [];
+  for (const id of sortIds(Object.keys(plan.capabilities))) {
+    const state = plan.capabilities[id];
+    if (state === undefined || state.tier !== "optional") continue;
+    if (state.selected && state.reasons.includes("PROFILE_MISMATCH")) {
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+/**
  * Optional capabilities a plan would approve but for consent: approved
  * already, or held back only by `CONSENT_REQUIRED` / `RESTART_REQUIRED`.
  */
@@ -137,6 +155,17 @@ export function computeConsentDelta(
   catalog: CapabilityCatalog,
   receipt: ConsentReceipt | null,
 ): ConsentDelta {
+  const stale = staleRootsOf(plan);
+  if (stale.length > 0) {
+    // The receipt was signed over a selection that no longer applies, so it
+    // covers nothing: every root it named is owed again.
+    return consentDeltaFor(
+      { roots: stale, closure: [] },
+      catalogDigests(catalog),
+      null,
+      plan.consent.requiredNotAccepted,
+    );
+  }
   const applicable = applicableReceipt(
     receipt,
     plan.identity.instanceId,

@@ -22,16 +22,16 @@ let attacker: PolicySigningKey;
 let trustedKeys: TrustedKeySet;
 let envelope: SignedPolicyEnvelope;
 
-function mutate(
-  base: SignedPolicyEnvelope,
-  patch: Record<string, BoundaryValue>,
-): BoundaryValue {
+function mutate<T>(base: SignedPolicyEnvelope, patch: T): BoundaryValue {
   // SAFETY: tests deliberately produce a malformed or hostile document.
   const doc: BoundaryValue = overlapCast({ ...base, ...patch });
   return doc;
 }
 
-async function verify(candidate: BoundaryValue, options: Partial<Parameters<typeof verifyPolicyEnvelope>[1]> = {}) {
+async function verify(
+  candidate: BoundaryValue | SignedPolicyEnvelope,
+  options: Partial<Parameters<typeof verifyPolicyEnvelope>[1]> = {},
+) {
   return verifyPolicyEnvelope(candidate, { trustedKeys, origin: ORIGIN, now: NOW, ...options });
 }
 

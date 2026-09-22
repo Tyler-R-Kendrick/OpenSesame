@@ -12,6 +12,7 @@ import {
   isBoolean,
   isJsonObject,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import { canonicalizeToBytes } from "../../vault/protection/canonicalize.js";
 import {
@@ -165,8 +166,10 @@ export function rotationSignedBytes(
 }
 
 export function readPolicyKeyRotation(
-  value: BoundaryValue,
+  candidate: BoundaryValue | PolicyKeyRotation,
 ): PolicyKeyRotation | null {
+  // SAFETY: a typed rotation is JSON data; it is re-checked member by member.
+  const value: BoundaryValue = overlapCast(candidate);
   if (
     !isJsonObject(value) ||
     value.schemaVersion !== 1 ||
@@ -203,7 +206,7 @@ export function readPolicyKeyRotation(
  */
 export async function rotatePolicyKey(
   current: TrustedKeySet,
-  candidate: BoundaryValue,
+  candidate: BoundaryValue | PolicyKeyRotation,
   options: Readonly<{ instanceId: string; now: string }>,
 ): Promise<RotationResult> {
   const rotation = readPolicyKeyRotation(candidate);

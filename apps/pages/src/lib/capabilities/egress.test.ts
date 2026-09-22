@@ -15,7 +15,7 @@ const LOCAL = "sharing.local-transport";
 const LOCAL_PURPOSE = "nearby devices";
 
 function fetchOk() {
-  return vi.fn(async () => new Response("ok", { status: 200 }));
+  return vi.fn<typeof fetch>(async () => new Response("ok", { status: 200 }));
 }
 
 function port(
@@ -67,7 +67,7 @@ describe("createEgressPort (S18)", () => {
     const { port: p, fetchImpl } = port(CONNECTORS, plan);
     const meta = { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE };
     await p.fetch("https://id.example.test/v1/connectors?page=2", { headers: { Authorization: "Bearer t" } }, meta);
-    const [href, init] = fetchImpl.mock.calls[0] ?? [];
+    const [href, init] = fetchImpl.mock.calls[0] ?? ["", undefined];
     expect(href).toBe("https://id.example.test/v1/connectors?page=2");
     expect(init?.credentials).toBe("omit");
     expect(init?.redirect).toBe("manual");
@@ -141,12 +141,14 @@ describe("createEgressPort (S18)", () => {
 
   it("NET-04: a redirect is never followed, wherever it points", async () => {
     const plan = approvedPlan([CONNECTORS], FAMILY_POLICY);
-    const redirecting = vi.fn(async () => Response.redirect("https://evil.example.test/", 302));
+    const redirecting = vi.fn<typeof fetch>(async () =>
+      Response.redirect("https://evil.example.test/", 302),
+    );
     const { port: p } = port(CONNECTORS, plan, redirecting);
     expect(
       await denial(p.fetch("https://id.example.test/v1", { redirect: "follow" }, { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE })),
     ).toBe("redirect-refused");
-    const [, init] = redirecting.mock.calls[0] ?? [];
+    const [, init] = redirecting.mock.calls[0] ?? ["", undefined];
     expect(init?.redirect).toBe("manual");
   });
 

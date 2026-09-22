@@ -127,7 +127,11 @@ function readOrigins(value: JsonValue | undefined): readonly string[] | null | u
  * Anything oversized, mistyped or carrying an unknown top-level member is
  * `null` (TRUST-02: a join document is never trusted for its own structure).
  */
-export function readPolicyEnvelope(value: BoundaryValue): SignedPolicyEnvelope | null {
+export function readPolicyEnvelope(
+  candidate: BoundaryValue | SignedPolicyEnvelope,
+): SignedPolicyEnvelope | null {
+  // SAFETY: a typed envelope is JSON data; it is re-checked member by member.
+  const value: BoundaryValue = overlapCast(candidate);
   if (!isJsonObject(value)) return null;
   if (JSON.stringify(value).length > MAX_ENVELOPE_CHARS) return null;
   const known = new Set([
@@ -172,7 +176,7 @@ function validity(envelope: SignedPolicyEnvelope, now: number): VerifyFailure | 
 }
 
 export async function verifyPolicyEnvelope(
-  candidate: BoundaryValue,
+  candidate: BoundaryValue | SignedPolicyEnvelope,
   options: VerifyOptions,
 ): Promise<VerifyResult> {
   const envelope = readPolicyEnvelope(candidate);

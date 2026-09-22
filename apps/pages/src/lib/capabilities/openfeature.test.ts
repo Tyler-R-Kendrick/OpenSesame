@@ -1,5 +1,6 @@
 import {
   ErrorCode,
+  type EventDetails,
   InMemoryProvider,
   OpenFeature,
   ProviderEvents,
@@ -125,10 +126,13 @@ describe("LocalCompositionProvider (S17)", () => {
     const store = storeDouble(readySnapshot(enabled, 1));
     const { client } = await installCompositionProvider({ snapshotSource: store });
     const seen: number[] = [];
-    client.addHandler(ProviderEvents.ConfigurationChanged, (details) => {
-      expect(details?.flagsChanged).toContain(capabilityFlagKey(CONNECTORS));
-      seen.push(client.getNumberValue(FLAG_GENERATION, -1));
-    });
+    client.addHandler(
+      ProviderEvents.ConfigurationChanged,
+      (details?: EventDetails<ProviderEvents.ConfigurationChanged>) => {
+        expect(details?.flagsChanged).toContain(capabilityFlagKey(CONNECTORS));
+        seen.push(client.getNumberValue(FLAG_GENERATION, -1));
+      },
+    );
     expect(client.getBooleanValue(capabilityFlagKey(CONNECTORS), false)).toBe(true);
     // Generation 2 lands without a notification, generation 3 with one, then
     // a stale notification for 2 is replayed.
@@ -147,9 +151,12 @@ describe("LocalCompositionProvider (S17)", () => {
     const store = storeDouble(readySnapshot(approvedPlan([]), 1));
     const provider = new LocalCompositionProvider(store);
     const changes: string[][] = [];
-    provider.events.addHandler(ProviderEvents.ConfigurationChanged, (d) => {
-      changes.push([...(d?.flagsChanged ?? [])]);
-    });
+    provider.events.addHandler(
+      ProviderEvents.ConfigurationChanged,
+      (d?: EventDetails<ProviderEvents.ConfigurationChanged>) => {
+        changes.push([...(d?.flagsChanged ?? [])]);
+      },
+    );
     void provider.initialize({});
     store.set(readySnapshot(approvedPlan([CONNECTORS]), 2));
     expect(changes).toHaveLength(1);
@@ -205,7 +212,8 @@ describe("LocalCompositionProvider (S17)", () => {
     expect(client.providerStatus).toBe(ProviderStatus.ERROR);
     expect(provider.context()).toEqual({ vaultId: "personal" });
     expect(client.getNumberValue(FLAG_GENERATION, -1)).toBe(1);
-    expect(provider.track).toBeUndefined();
-    expect(provider.hooks).toBeUndefined();
+    // No telemetry hook and no provider hooks exist to smuggle context out.
+    expect("track" in provider).toBe(false);
+    expect("hooks" in provider).toBe(false);
   });
 });

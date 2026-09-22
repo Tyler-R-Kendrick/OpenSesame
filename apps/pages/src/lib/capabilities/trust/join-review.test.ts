@@ -6,7 +6,7 @@ import { previewJoinDocument } from "./join-review.js";
 import { generatePolicySigningKey, signPolicyEnvelope } from "./sign.js";
 import { keyFingerprint } from "./trust-keys.js";
 
-function doc(value: Record<string, BoundaryValue>): BoundaryValue {
+function doc<T>(value: T): BoundaryValue {
   // SAFETY: tests hand the preview an arbitrary document on purpose.
   const out: BoundaryValue = overlapCast(value);
   return out;
