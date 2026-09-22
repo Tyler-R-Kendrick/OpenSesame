@@ -18,7 +18,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRESETS } from "../../lib/capabilities/presets.js";
 import { LEGACY_ITEM_KINDS } from "../../lib/contributions.test-support.js";
 import { registerContributionForTest } from "../../lib/contributions.js";
@@ -119,7 +119,7 @@ describe("what a Family plan offers when an item is created", () => {
   });
 
   it("leaves the certificate type out of the new-item type picker", () => {
-    renderEditor("/vault/new/login");
+    renderEditor("/vault/new");
     const offered = typeOptions();
     for (const core of CORE_ITEM_KINDS) {
       expect(offered, core.id).toContain(core.id);
@@ -180,12 +180,12 @@ describe("what a Family plan offers when an item is created", () => {
       "item-kind",
       FAMILY_ITEM_KINDS["vault.certificate-records"],
     );
-    renderEditor("/vault/new/login");
+    renderEditor("/vault/new");
     expect(typeOptions()).toContain("certificate");
     revoke();
   });
 });
 
-afterEach(() => {
+afterAll(() => {
   Object.assign(vaultHooksSeams, originalVaultHooksSeams);
 });
