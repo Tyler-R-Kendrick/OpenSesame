@@ -30,7 +30,9 @@ describe("backup.cloud-secrets runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(
-      t.entries("settings-category").map((c) => [c.id, c.label, c.guideId, c.order]),
+      t
+        .entries("settings-category")
+        .map((c) => [c.id, c.label, c.guideId, c.order]),
     ).toEqual([["cloud-secrets", "Cloud secrets", "settings.backup", 46]]);
     expect(t.egressCalls).toEqual([]);
     await handle.dispose();

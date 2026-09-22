@@ -25,11 +25,7 @@ import "./connections-tree.css";
  * sections became contributions. The `connectors.external` runtime
  * contributes `ConnectionsTreeEntries` alone; the shell draws the row.
  */
-export function ConnectionsTree({
-  section,
-  open,
-  onToggle,
-}: SectionTreeProps) {
+export function ConnectionsTree({ section, open, onToggle }: SectionTreeProps) {
   const { pathname } = useLocation();
   return (
     <>

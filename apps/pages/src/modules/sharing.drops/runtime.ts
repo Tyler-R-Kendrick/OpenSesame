@@ -13,8 +13,8 @@
  * No tutorial descriptors exist for drops yet.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { IconDrop } from "../../components/Icons.js";
+import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { DropClaimScreen } from "../../screens/DropClaimScreen.js";
 import { createActivation } from "../activation.js";
 

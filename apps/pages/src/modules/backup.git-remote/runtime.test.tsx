@@ -30,10 +30,16 @@ describe("backup.git-remote runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(
-      t.entries("settings-category").map((c) => [c.id, c.label, c.guideId, c.order]),
+      t
+        .entries("settings-category")
+        .map((c) => [c.id, c.label, c.guideId, c.order]),
     ).toEqual([["backups", "Backups", "settings.backup", 45]]);
-    expect(t.entries("tutorial-target").map((d) => d.id)).toEqual(["settings.backup"]);
-    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual(["settings.backup"]);
+    expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
+      "settings.backup",
+    ]);
+    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
+      "settings.backup",
+    ]);
     expect(t.hydrated).toEqual([]);
     expect(t.egressCalls).toEqual([]);
     await handle.dispose();

@@ -55,30 +55,39 @@ describe("connectors.external runtime", () => {
   it("names the section, routes, settings, setup and jump entries exactly", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(t.entries("section").map((s) => [s.id, s.to, s.jump, s.icon, s.order]))
-      .toEqual([["connections", "/connections", "c", "connection", 20]]);
+    expect(
+      t.entries("section").map((s) => [s.id, s.to, s.jump, s.icon, s.order]),
+    ).toEqual([["connections", "/connections", "c", "connection", 20]]);
     expect(t.entries("section")[0]?.Tree).toBeTypeOf("function");
     expect(t.entries("route").map((r) => [r.id, r.path, r.framed])).toEqual([
       ["connections", "/connections/:providerId?/:connectionId?", true],
-      ["settings-connections", "/settings/connections/:providerId/:connectionId?", true],
+      [
+        "settings-connections",
+        "/settings/connections/:providerId/:connectionId?",
+        true,
+      ],
     ]);
-    expect(t.entries("settings-category").map((c) => [c.id, c.guideId])).toEqual([
-      ["connections", "settings.connections"],
-    ]);
-    expect(t.entries("setup-panel").map((p) => [p.id, p.tab, p.rail, p.order])).toEqual([
-      ["connectors", "connectors", "Connectors", 10],
-    ]);
+    expect(
+      t.entries("settings-category").map((c) => [c.id, c.guideId]),
+    ).toEqual([["connections", "settings.connections"]]);
+    expect(
+      t.entries("setup-panel").map((p) => [p.id, p.tab, p.rail, p.order]),
+    ).toEqual([["connectors", "connectors", "Connectors", 10]]);
     expect(t.entries("command-path")).toEqual([
       { path: "/connections", label: "Connections" },
     ]);
-    expect(t.entries("keymap-jump")).toEqual([{ key: "c", path: "/connections" }]);
+    expect(t.entries("keymap-jump")).toEqual([
+      { key: "c", path: "/connections" },
+    ]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       ...runtime.TUTORIAL.targets,
     ]);
     expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
       ...runtime.TUTORIAL.goals,
     ]);
-    expect(t.entries("tutorial-route").map((d) => d.id)).toEqual(["/connections"]);
+    expect(t.entries("tutorial-route").map((d) => d.id)).toEqual([
+      "/connections",
+    ]);
     expect(t.entries("unlock-effect").map((e) => e.id)).toEqual([
       "seal-connector-directory",
       "hydrate-vercel-connect",
@@ -132,8 +141,16 @@ describe("connectors.external runtime", () => {
       // The core invokes the effect with the tomb; it runs once, as before.
       const [sealEffect, hydrateEffect] = t.entries("unlock-effect");
       const effectSignal = new AbortController().signal;
-      await sealEffect?.run({ tomb: "personal", guest: true, signal: effectSignal });
-      await hydrateEffect?.run({ tomb: "personal", guest: false, signal: effectSignal });
+      await sealEffect?.run({
+        tomb: "personal",
+        guest: true,
+        signal: effectSignal,
+      });
+      await hydrateEffect?.run({
+        tomb: "personal",
+        guest: false,
+        signal: effectSignal,
+      });
       expect(seal).toHaveBeenCalledWith("personal", { ephemeral: true });
       expect(hydrate).toHaveBeenCalledWith("personal", { ephemeral: false });
 
@@ -159,7 +176,11 @@ describe("connectors.external runtime", () => {
       // After the abort nothing starts: the seam is not even called.
       seal.mockClear();
       await expect(
-        sealEffect?.run({ tomb: "personal", guest: false, signal: effectSignal }),
+        sealEffect?.run({
+          tomb: "personal",
+          guest: false,
+          signal: effectSignal,
+        }),
       ).rejects.toBeInstanceOf(LeaseAbortedError);
       expect(seal).not.toHaveBeenCalled();
       await handle.dispose();

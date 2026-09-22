@@ -22,17 +22,17 @@
  *    user-initiated.
  */
 
+import { resetConnectionsNavigation } from "../../components/ConnectionsNavigation.js";
+import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { applyConnectCallbackBase } from "../../lib/connect-callback.js";
 import { DIRECTORY_KEY } from "../../lib/connector-directory.js";
 import { FIRST_RUN_KEY } from "../../lib/identity-graph.js";
 import { disarmVercelConnectAuth } from "../../lib/vercel-connect-session.js";
-import { createActivation } from "../activation.js";
-import { registerTutorial } from "../tutorial-contributions.js";
-import { resetConnectionsNavigation } from "../../components/ConnectionsNavigation.js";
-import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
+import { createActivation } from "../activation.js";
+import { registerTutorial } from "../tutorial-contributions.js";
 import { ConnectionsSettingsPanel } from "./ConnectionsSettingsPanel.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 

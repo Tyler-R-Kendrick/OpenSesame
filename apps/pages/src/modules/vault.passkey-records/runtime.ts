@@ -8,8 +8,8 @@
  * Egress: none.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { IconPasskey } from "../../components/Icons.js";
+import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "vault.passkey-records";

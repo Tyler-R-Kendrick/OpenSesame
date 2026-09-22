@@ -6,10 +6,10 @@
  * the module, so it throws at activation rather than registering nothing.
  */
 
-import type { Activation } from "./activation.js";
 import { GUIDE_TARGETS } from "../tutorial/registry/catalog.js";
 import { GUIDE_GOALS } from "../tutorial/registry/goals.js";
 import { GUIDE_ROUTES } from "../tutorial/registry/routes.js";
+import type { Activation } from "./activation.js";
 
 export type TutorialSelection = Readonly<{
   targets?: readonly string[];

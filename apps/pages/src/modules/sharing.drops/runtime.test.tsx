@@ -29,12 +29,12 @@ describe("sharing.drops runtime", () => {
   it("serves /claim outside the unlock gate, unframed", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate])).toEqual([
-      ["claim", "/claim", false, "any"],
-    ]);
-    expect(t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order])).toEqual(
-      [["drop", "Drops", "drops", 50]],
-    );
+    expect(
+      t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate]),
+    ).toEqual([["claim", "/claim", false, "any"]]);
+    expect(
+      t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
+    ).toEqual([["drop", "Drops", "drops", 50]]);
     await handle.dispose();
   });
 });
