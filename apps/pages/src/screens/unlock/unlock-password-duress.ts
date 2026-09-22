@@ -16,11 +16,19 @@ type PasswordUnlockStore = DuressContinueStore &
     unlock: (password: string) => Promise<void>;
   }>;
 
+type PasswordDuressGateOptions = Readonly<{
+  requireDurable?: boolean;
+}>;
+const defaultPasswordDuressGateOptions = {} satisfies PasswordDuressGateOptions;
+
 export async function unlockWithPasswordAfterDuressGate(
   store: PasswordUnlockStore,
   password: string,
+  options: PasswordDuressGateOptions = defaultPasswordDuressGateOptions,
 ): Promise<PasswordUnlockResult> {
-  const duressOutcome = await onCompleteUnlockCodeSubmission(password);
+  const duressOutcome = await onCompleteUnlockCodeSubmission(password, {
+    requireDurable: options.requireDurable ?? true,
+  });
   if (
     duressOutcome.kind === "throttled" ||
     duressOutcome.kind === "ambiguous" ||

@@ -16,11 +16,19 @@ type PinUnlockStore = DuressContinueStore &
     unlockWithPin: (pin: string) => Promise<void>;
   }>;
 
+type PinDuressGateOptions = Readonly<{
+  requireDurable?: boolean;
+}>;
+const defaultPinDuressGateOptions = {} satisfies PinDuressGateOptions;
+
 export async function unlockWithPinAfterDuressGate(
   store: PinUnlockStore,
   pin: string,
+  options: PinDuressGateOptions = defaultPinDuressGateOptions,
 ): Promise<PinUnlockResult> {
-  const duressOutcome = await onCompleteUnlockCodeSubmission(pin);
+  const duressOutcome = await onCompleteUnlockCodeSubmission(pin, {
+    requireDurable: options.requireDurable ?? true,
+  });
   if (
     duressOutcome.kind === "throttled" ||
     duressOutcome.kind === "ambiguous" ||
