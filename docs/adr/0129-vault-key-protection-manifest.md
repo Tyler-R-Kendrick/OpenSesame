@@ -42,6 +42,18 @@ with the root bytes also acting as the content key on some paths.
    Threshold key-groups are preserved or refused — never silently flattened
    to any-of. A native `sops` binary is an optional operator tool and is not
    required for the PWA.
+   - **Amendment (2026-09-21):** the browser engine is complete and
+     machine-checked against a pinned upstream oracle: `pnpm
+     verify:sops-conformance` proves browser→sops and sops→browser
+     interoperability for YAML and JSON with no shared code. Multi-document
+     streams, comment preservation, Shamir key groups, and the RE2-subset
+     selectors are verified; YAML aliases/anchors/explicit tags/merge keys
+     fail closed by design (the lossless claim outranks them); metadata is
+     structurally complete but not byte-identical (`shamir_threshold` only
+     when >1, plus the `opensesame` origin field). The wire profile and its
+     divergences are specified in `docs/security/sops-wire-compatibility.md`;
+     the evidence artifacts live in
+     `docs/evidence/2026-09-21-sops-browser/`.
 8. **`capabilityConnectors.encryption`.** Legacy setup preference / migration
    hint only. Never overrides cryptographic enrollment facts.
 

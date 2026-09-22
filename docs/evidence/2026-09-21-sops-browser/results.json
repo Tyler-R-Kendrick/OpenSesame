@@ -1,0 +1,97 @@
+{
+  "schema": "opensesame/sops-browser-evidence@1",
+  "baseCommit": "424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716",
+  "generatedAt": "2026-09-21T22:00:00Z",
+  "engine": {
+    "profile": "sops-browser/v3.13.3-age",
+    "sourceRoot": "apps/pages/src/lib/sops",
+    "runtime": "browser-local (Wasm/WebCrypto); no Host, no daemon, no sops binary, no OPENSESAME_SOPS_BIN"
+  },
+  "cases": [
+    {
+      "id": "SB-010-engine-roundtrip",
+      "command": "pnpm verify:sops-browser",
+      "tests": ["src/lib/sops/engine.test.ts"],
+      "result": "passed",
+      "detail": "YAML and JSON encrypt/decrypt with a local age identity; MAC mismatch and wrong-identity refuse; two-of-three key groups; comments, alias/tag fail-closed; multi-document YAML stream."
+    },
+    {
+      "id": "SB-011-engine-conformance",
+      "command": "pnpm verify:sops-conformance",
+      "tests": ["src/lib/sops/engine.conformance.test.ts"],
+      "result": "passed",
+      "detail": "Pinned sops v3.13.3 oracle (arm64, sha256 53b0abac…): browser ciphertext decrypts with upstream sops, upstream ciphertext opens in the browser engine, YAML and JSON."
+    },
+    {
+      "id": "SB-020-shamir",
+      "command": "pnpm verify:sops-browser",
+      "tests": ["src/lib/sops/engine.test.ts#shamir shares are 33 bytes"],
+      "result": "passed",
+      "detail": "33-byte shares, two-of-three reconstruction, duplicate-share refusal; line-faithful port of pinned shamir.go."
+    },
+    {
+      "id": "SB-021-key-groups",
+      "command": "pnpm verify:sops-browser",
+      "tests": ["src/lib/sops/engine.test.ts#opens a two-of-three document"],
+      "result": "passed",
+      "detail": "Two-of-three shamir_threshold document refuses one group and opens with two."
+    },
+    {
+      "id": "SB-030-vault-secrets",
+      "command": "pnpm verify:sops-browser",
+      "tests": ["src/lib/sops/engine.test.ts#exports every vault secret"],
+      "result": "passed",
+      "detail": "Whole-vault export/import round-trip; import refuses a field outside the item schema; threshold import requires explicit consent."
+    },
+    {
+      "id": "SB-031-vault-ui",
+      "command": "pnpm --filter @opensesame/pages test (Formats panel suites)",
+      "tests": [
+        "src/sections/settings/SopsDocumentSheet.tsx wired in FormatsInteroperabilityPanel.tsx"
+      ],
+      "result": "passed",
+      "detail": "Settings › Formats panel opens the SOPS sheet; encrypt downloads vault-secrets.sops.json; decrypt asks before a threshold document becomes a vault copy."
+    },
+    {
+      "id": "SB-032-capability-claims",
+      "command": "pnpm --filter @opensesame/pages test",
+      "tests": [
+        "src/lib/vault/protection/sops-browser.test.ts#reports honest capabilities"
+      ],
+      "result": "passed",
+      "detail": "sopsCapability() reports { available: true, runtime: 'browser' }; native-binary instruction forbidden in UI by verify:sops-browser scan."
+    },
+    {
+      "id": "SB-040-selectors",
+      "command": "pnpm verify:sops-browser",
+      "tests": ["src/lib/sops/engine.test.ts", "src/lib/sops/selectors.ts"],
+      "result": "passed",
+      "detail": "Suffix/regex/comment selectors drive MAC-only-encrypted; RE2 subset accepted, lookaround and backreferences refused."
+    },
+    {
+      "id": "SB-045-lossless-boundary",
+      "command": "pnpm verify:sops-browser",
+      "tests": ["src/lib/sops/engine.test.ts#fails closed on YAML aliases"],
+      "result": "passed",
+      "detail": "YAML aliases/anchors and explicit tags fail closed (C13); comments survive a round-trip after the yaml@2.8.1 Pair emit fix."
+    },
+    {
+      "id": "SB-050-cloud",
+      "command": "pnpm verify:sops-conformance",
+      "tests": ["src/lib/sops/cloud-endpoint.test.ts"],
+      "result": "passed",
+      "detail": "AWS full-key match (prefix/suffix similarity never matches); endpoint checks refuse non-HTTPS, userinfo, loopback/link-local/private hosts."
+    },
+    {
+      "id": "SB-058-cloud-live",
+      "command": "pnpm verify:sops-cloud-live",
+      "result": "blocked-external",
+      "detail": "No disposable AWS/Azure/GCP credentials were supplied; local age SOPS is unaffected. Artifact: cloud-live.json."
+    }
+  ],
+  "counts": {
+    "passed": 10,
+    "failed": 0,
+    "blocked": 1
+  }
+}
