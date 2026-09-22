@@ -199,13 +199,12 @@ describe("LocalCompositionProvider (S17)", () => {
     expect(provider.context()).toEqual({ vaultId: "personal" });
     expect(() => projectedContext({ email: "a@b" })).toThrow(ErrorCode.INVALID_CONTEXT);
     expect(() => projectedContext({ vaultId: 3 })).toThrow(ErrorCode.INVALID_CONTEXT);
-    const errors: string[] = [];
-    client.addHandler(ProviderEvents.Error, (d) => {
-      errors.push(d?.message ?? "");
-    });
     await OpenFeature.setContext(OPENFEATURE_DOMAIN, { targetingKey: "u1", email: "a@b" });
-    expect(errors).toHaveLength(1);
+    // The SDK records the refusal as an error state; nothing was retained and
+    // evaluation still reads the store.
+    expect(client.providerStatus).toBe(ProviderStatus.ERROR);
     expect(provider.context()).toEqual({ vaultId: "personal" });
+    expect(client.getNumberValue(FLAG_GENERATION, -1)).toBe(1);
     expect(provider.track).toBeUndefined();
     expect(provider.hooks).toBeUndefined();
   });

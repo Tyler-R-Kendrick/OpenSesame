@@ -283,10 +283,12 @@ function pruneInputs(build, state) {
 }
 
 function installManualChunks(build, state) {
-  const rollupOptions = build.rollupOptions ?? (build.rollupOptions = {});
+  if (!build.rollupOptions) build.rollupOptions = {};
+  const rollupOptions = build.rollupOptions;
+  if (!rollupOptions.output) rollupOptions.output = {};
   const outputs = Array.isArray(rollupOptions.output)
     ? rollupOptions.output
-    : [rollupOptions.output ?? (rollupOptions.output = {})];
+    : [rollupOptions.output];
   for (const output of outputs) {
     const previous =
       typeof output.manualChunks === "function" ? output.manualChunks : null;
@@ -458,7 +460,8 @@ export function capabilityCompose(options = {}) {
       // evaluated (virtual.d.ts), so the plugin stays inert under test.
       if (env?.mode === "test" || (options.env ?? process.env).VITEST) return;
       state = await composeState(options, userConfig, env?.command);
-      const build = userConfig.build ?? (userConfig.build = {});
+      if (!userConfig.build) userConfig.build = {};
+      const build = userConfig.build;
       pruneInputs(build, state);
       installManualChunks(build, state);
       return {

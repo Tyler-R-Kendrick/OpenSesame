@@ -148,13 +148,22 @@ export function sectionJumpPath(key: string): string | null {
   );
 }
 
-/** Every jump key that exists right now, core first, in registration order. */
+/** Every jump key that exists right now, in the rail's order. */
 export function sectionJumpKeys(): readonly string[] {
-  const keys = [...CORE_JUMPS.keys()];
+  const sections = contributionsSnapshot("section");
+  const orderOf = (path: string): number =>
+    path === "/vault"
+      ? 0
+      : path === "/settings"
+        ? 1000
+        : (sections.find((section) => section.to === path)?.order ?? 500);
+  const jumps = new Map<string, string>(CORE_JUMPS);
   for (const jump of contributionsSnapshot("keymap-jump")) {
-    if (!keys.includes(jump.key)) keys.push(jump.key);
+    if (!jumps.has(jump.key)) jumps.set(jump.key, jump.path);
   }
-  return keys;
+  return [...jumps]
+    .sort(([, left], [, right]) => orderOf(left) - orderOf(right))
+    .map(([key]) => key);
 }
 
 /** Listing motions that keep their meaning after a `g`: `gj` is still down. */

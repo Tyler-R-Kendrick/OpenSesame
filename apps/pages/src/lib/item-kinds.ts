@@ -24,12 +24,16 @@ export type ItemKindRow = Readonly<{
   order: number;
 }>;
 
-/** The kinds the core vault ships. Order is the rail's order. */
+/**
+ * The kinds the core vault ships. Orders leave the gaps the contributed
+ * kinds fill (passkeys 20, drops 50, certificates 70), so the rail reads
+ * logins, passkeys, cards, secrets, drops, notes, certs whatever is present.
+ */
 export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
   { id: "login", segment: "logins", label: "Login", order: 0 },
-  { id: "card", segment: "cards", label: "Card", order: 20 },
-  { id: "secret", segment: "secrets", label: "Secret", order: 30 },
-  { id: "note", segment: "notes", label: "Secure note", order: 50 },
+  { id: "card", segment: "cards", label: "Card", order: 30 },
+  { id: "secret", segment: "secrets", label: "Secret", order: 40 },
+  { id: "note", segment: "notes", label: "Secure note", order: 60 },
 ];
 
 export function itemKindsFrom(

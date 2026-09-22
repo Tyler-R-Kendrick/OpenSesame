@@ -36,11 +36,11 @@ function scaffold({
   const files = filesPatch({
     "index.html": `<!doctype html><html><head><script type="module" crossorigin src="/OpenSesame/assets/main-1.js"></script><link rel="modulepreload" crossorigin href="/OpenSesame/assets/vendor-1.js"></head></html>`,
     "assets/main-1.js": `import{a}from"./vendor-1.js";const l=()=>import("./cap-sharing.drops-1.js");export{l};`,
-    "assets/vendor-1.js": `export const a=1;`,
-    "assets/cap-sharing.drops-1.js": `export const capabilityRuntime={};`,
-    "assets/main-1.css": `body{}`,
+    "assets/vendor-1.js": "export const a=1;",
+    "assets/cap-sharing.drops-1.js": "export const capabilityRuntime={};",
+    "assets/main-1.css": "body{}",
     "sw.js": `self.addEventListener("install",()=>{});`,
-    "icon.svg": `<svg/>`,
+    "icon.svg": "<svg/>",
   });
   const distribution = distributionPatch({
     distributionId: "dist:abc",
