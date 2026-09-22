@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 // Real keyboard input only: no click(), focus(), or synthetic keydown setup.
 import { expect } from "@playwright/test";
+import { approveByKeyboard } from "./lib/capability-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -154,6 +155,24 @@ try {
       width === 1280
         ? page.getByRole("button", { name: /^Notifications/ })
         : page.getByRole("button", { name: /^More —/ });
+
+    // The sections below belong to capabilities, so this device has to
+    // choose them first — by keyboard, like everything else here.
+    await approveByKeyboard(page, tabTo, [
+      "External connectors",
+      "Access authority",
+      "Browser-local IAM",
+      // People, agents and the organization are this capability's views; the
+      // identity tree and the local-directory walk below are its surface.
+      "Directory provisioning",
+    ]);
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("g");
+    await page.keyboard.press("v");
+    await expect(page).toHaveURL(/\/vault\/?(\?|$)/);
+    console.log(
+      `PASS ${width}px: capabilities are chosen with the keyboard alone`,
+    );
     if (width !== 1280) {
       // Sections are behind one key on a phone, so that key is navigation and
       // has to answer the keyboard: Tab reaches it, Enter opens the drawer,
