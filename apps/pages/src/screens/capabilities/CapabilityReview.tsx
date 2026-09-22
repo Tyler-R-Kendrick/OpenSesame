@@ -70,6 +70,125 @@ function ConflictRow({
   );
 }
 
+const identity = (id: string) => id;
+
+function egressLine(review: CompositionChangeReview): string {
+  if (review.addedEgress.length === 0) return "—";
+  return review.addedEgress
+    .map(
+      (entry) =>
+        `${entry.class} → ${entry.purpose}${entry.automatic ? " (on its own)" : ""}`,
+    )
+    .join("; ");
+}
+
+function workerLine(review: CompositionChangeReview): string {
+  const transition = review.workerTransition;
+  if (!transition) return "unchanged";
+  return `${transition.from ?? "core"} → ${transition.to ?? "core"}`;
+}
+
+/** Before / after as one list of claims, each read from the review alone. */
+function ReviewDelta({
+  review,
+  titleOf,
+}: {
+  review: CompositionChangeReview;
+  titleOf: (id: string) => string;
+}) {
+  return (
+    <dl className="caprev__delta">
+      <Row name="enable" ids={review.enabled} titleOf={titleOf} />
+      <Row name="disable" ids={review.disabled} titleOf={titleOf} />
+      <Row name="new modules" ids={review.addedModules} titleOf={identity} />
+      <dt>new egress</dt>
+      <dd>{egressLine(review)}</dd>
+      <Row
+        name="new permissions"
+        ids={review.addedPermissions}
+        titleOf={identity}
+      />
+      <dt>worker</dt>
+      <dd>{workerLine(review)}</dd>
+      <Row
+        name="reload after enabling"
+        ids={review.requiresDocumentReload}
+        titleOf={titleOf}
+      />
+      <Row
+        name="restart to unload"
+        ids={review.restartRequiredFor}
+        titleOf={identity}
+      />
+      <Row
+        name="new roots to accept"
+        ids={review.consent.addedRoots}
+        titleOf={titleOf}
+      />
+      <Row
+        name="new dependencies"
+        ids={review.consent.addedDependencies}
+        titleOf={titleOf}
+      />
+      <Row
+        name="removed roots"
+        ids={review.consent.removedRoots}
+        titleOf={titleOf}
+      />
+      <Row
+        name="required, not accepted"
+        ids={review.consent.requiredNotAccepted}
+        titleOf={titleOf}
+      />
+    </dl>
+  );
+}
+
+function ReviewFoot({
+  busy,
+  blocked,
+  onApply,
+  onCancel,
+}: {
+  busy: boolean;
+  blocked: boolean;
+  onApply: () => void;
+  onCancel: () => void;
+}) {
+  const verb = busy ? "Applying…" : "Apply configuration";
+  return (
+    <div className="caprev__foot">
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Cancel"
+        title="Cancel"
+        disabled={busy}
+        onClick={onCancel}
+      >
+        <IconX size={18} />
+      </button>
+      <div className="go-row">
+        <button
+          type="button"
+          className="go"
+          aria-label={verb}
+          title={verb}
+          aria-busy={busy}
+          disabled={busy || blocked}
+          data-testid="capability-apply"
+          onClick={onApply}
+        >
+          <IconCheck size={18} />
+        </button>
+        <span className="go-verb" aria-hidden="true">
+          {verb}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function CapabilityReview({
   review,
   catalog,
@@ -103,7 +222,6 @@ export function CapabilityReview({
   const blocked =
     review.conflicts.length > 0 ||
     review.consent.requiredNotAccepted.length > 0;
-  const verb = busy ? "Applying…" : "Apply configuration";
   return (
     <section
       ref={frame}
@@ -113,67 +231,7 @@ export function CapabilityReview({
       data-testid="capability-review"
       onKeyDown={onKeyDown}
     >
-      <dl className="caprev__delta">
-        <Row name="enable" ids={review.enabled} titleOf={titleOf} />
-        <Row name="disable" ids={review.disabled} titleOf={titleOf} />
-        <Row
-          name="new modules"
-          ids={review.addedModules}
-          titleOf={(id) => id}
-        />
-        <dt>new egress</dt>
-        <dd>
-          {review.addedEgress.length > 0
-            ? review.addedEgress
-                .map(
-                  (entry) =>
-                    `${entry.class} → ${entry.purpose}${entry.automatic ? " (on its own)" : ""}`,
-                )
-                .join("; ")
-            : "—"}
-        </dd>
-        <Row
-          name="new permissions"
-          ids={review.addedPermissions}
-          titleOf={(id) => id}
-        />
-        <dt>worker</dt>
-        <dd>
-          {review.workerTransition
-            ? `${review.workerTransition.from ?? "core"} → ${review.workerTransition.to ?? "core"}`
-            : "unchanged"}
-        </dd>
-        <Row
-          name="reload after enabling"
-          ids={review.requiresDocumentReload}
-          titleOf={titleOf}
-        />
-        <Row
-          name="restart to unload"
-          ids={review.restartRequiredFor}
-          titleOf={(id) => id}
-        />
-        <Row
-          name="new roots to accept"
-          ids={review.consent.addedRoots}
-          titleOf={titleOf}
-        />
-        <Row
-          name="new dependencies"
-          ids={review.consent.addedDependencies}
-          titleOf={titleOf}
-        />
-        <Row
-          name="removed roots"
-          ids={review.consent.removedRoots}
-          titleOf={titleOf}
-        />
-        <Row
-          name="required, not accepted"
-          ids={review.consent.requiredNotAccepted}
-          titleOf={titleOf}
-        />
-      </dl>
+      <ReviewDelta review={review} titleOf={titleOf} />
       {review.conflicts.length > 0 ? (
         <ul className="reqs__list" aria-label="Conflicts">
           {review.conflicts.map((conflict) => (
@@ -187,35 +245,12 @@ export function CapabilityReview({
           ))}
         </ul>
       ) : null}
-      <div className="caprev__foot">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Cancel"
-          title="Cancel"
-          disabled={busy}
-          onClick={onCancel}
-        >
-          <IconX size={18} />
-        </button>
-        <div className="go-row">
-          <button
-            type="button"
-            className="go"
-            aria-label={verb}
-            title={verb}
-            aria-busy={busy}
-            disabled={busy || blocked}
-            data-testid="capability-apply"
-            onClick={onApply}
-          >
-            <IconCheck size={18} />
-          </button>
-          <span className="go-verb" aria-hidden="true">
-            {verb}
-          </span>
-        </div>
-      </div>
+      <ReviewFoot
+        busy={busy}
+        blocked={blocked}
+        onApply={onApply}
+        onCancel={onCancel}
+      />
     </section>
   );
 }

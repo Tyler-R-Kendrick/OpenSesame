@@ -14,202 +14,45 @@
  * Once a worker controls the page the controller asks it who it is
  * (`WORKER_HELLO` → `WORKER_INFO`) and, when the selection asks for
  * `selected-only` offline delivery, posts the approved module ids as
- * `PLAN_ASSETS`. It never posts a URL. The worker's answers become the
- * `offlineStatus` a settings surface reads through `useWorkerStatus`.
+ * `PLAN_ASSETS` (`worker/plan-sync.ts`). It never posts a URL. The worker's
+ * answers become the `offlineStatus` a settings surface reads through
+ * `useWorkerStatus`.
  *
+ * The parts live under `worker/`: the platform seams, the page-level state
+ * and its external store, the plan conversation, and the shared types.
  * Nothing here imports `virtual:pwa-register` or workbox-window: the
  * registration call is the platform's own.
  */
 
-import type {
-  ConsentReceipt,
-  DistributionContract,
-  EffectivePlan,
-  InstallationCapabilitySelection,
-} from "@opensesame/capability-composition";
+import { overlapCast } from "@opensesame/os-domain";
+import { onWorkerMessage, syncPlan } from "./worker/plan-sync.js";
+import { scriptUrlFor, workerControllerSeams } from "./worker/seams.js";
+import { diagnose, publish, state } from "./worker/state.js";
 import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
-import { useSyncExternalStore } from "react";
+  CORE_ONLY_VARIANT,
+  type CompositionSnapshotForWorker,
+  type CompositionStoreForWorker,
+  type RegisterWorkerOptions,
+  VARIANT_CAPABILITY,
+  WORKER_GRAPH_UNAVAILABLE,
+} from "./worker/types.js";
 
-export type OfflineStatus =
-  | "online-only"
-  | "saving"
-  | "saved"
-  | "partial"
-  | "storage-unavailable";
-
-export type WorkerTransition = Readonly<{
-  from: string | null;
-  to: string;
-  status: "transition-required" | "transitioning";
-}>;
-
-export type WorkerStatus = Readonly<{
-  /** False when the page has no usable `navigator.serviceWorker`. */
-  supported: boolean;
-  /** Variant of the script registered for this scope, when known. */
-  variant: string | null;
-  /** Variant the current plan requires (`core-only` when the plan says null). */
-  requiredVariant: string | null;
-  /** The controlling worker's release id, from `WORKER_INFO`. */
-  releaseId: string | null;
-  offlineStatus: OfflineStatus;
-  transition: WorkerTransition | null;
-  /** Human-readable, never secrets. */
-  diagnostics: readonly string[];
-}>;
-
-/** The slice of §4.1's snapshot this controller reads. */
-export type CompositionSnapshotForWorker = Readonly<{
-  plan: EffectivePlan | null;
-  selection: InstallationCapabilitySelection | null;
-  receipt: ConsentReceipt | null;
-}>;
-
-export type CompositionStoreForWorker = Readonly<{
-  getSnapshot(): CompositionSnapshotForWorker;
-  subscribe(listener: () => void): () => void;
-}>;
-
-export type RegisterWorkerOptions = Readonly<{
-  /** `virtual:opensesame-distribution`'s `DISTRIBUTION` (S07). */
-  distribution: DistributionContract;
-}>;
-
-/** What the page may say to its worker (`src/sw/messages.ts` is the other side). */
-export type PageToWorkerMessage =
-  | Readonly<{ type: "WORKER_HELLO" }>
-  | Readonly<{
-      type: "PLAN_ASSETS";
-      releaseId: string;
-      planDigest: string;
-      moduleIds: readonly string[];
-    }>;
-
-export const CORE_ONLY_VARIANT = "core-only";
-export const WORKER_GRAPH_UNAVAILABLE = "WORKER_GRAPH_UNAVAILABLE";
-
-/** The capability a non-core variant exists for; registration waits on it. */
-const VARIANT_CAPABILITY = new Map<string, string>([
-  ["push", "notifications.web-push"],
-]);
-
-function serviceWorkerContainerDefault(): ServiceWorkerContainer | null {
-  const scope: { navigator?: { serviceWorker?: ServiceWorkerContainer } } =
-    overlapCast(globalThis);
-  return scope.navigator?.serviceWorker ?? null;
-}
-
-function crossOriginIsolatedDefault(): boolean {
-  const scope: { crossOriginIsolated?: boolean } = overlapCast(globalThis);
-  return scope.crossOriginIsolated === true;
-}
-
-function baseUrlDefault(): string {
-  const scope: { location?: { href: string } } = overlapCast(globalThis);
-  return new URL(
-    import.meta.env.BASE_URL,
-    scope.location?.href ?? "https://localhost/",
-  ).href;
-}
-
-function reloadDefault(): void {
-  const scope: { location?: { reload: () => void } } = overlapCast(globalThis);
-  scope.location?.reload();
-}
-
-export const workerControllerSeams = {
-  serviceWorkerContainer: serviceWorkerContainerDefault,
-  crossOriginIsolated: crossOriginIsolatedDefault,
-  baseUrl: baseUrlDefault,
-  reload: reloadDefault,
-};
-
-type PendingTransition = Readonly<{
-  registration: ServiceWorkerRegistration;
-  scriptUrl: string;
-  to: string;
-}>;
-
-type ControllerState = {
-  status: WorkerStatus;
-  container: ServiceWorkerContainer | null;
-  distribution: DistributionContract | null;
-  latest: CompositionSnapshotForWorker | null;
-  registeredThisPage: boolean;
-  listenersAttached: boolean;
-  workerReleaseId: string | null;
-  lastPlanKey: string | null;
-  pendingTransition: PendingTransition | null;
-  reconciling: Promise<void>;
-};
-
-const INITIAL_STATUS: WorkerStatus = {
-  supported: true,
-  variant: null,
-  requiredVariant: null,
-  releaseId: null,
-  offlineStatus: "online-only",
-  transition: null,
-  diagnostics: [],
-};
-
-function initialState(): ControllerState {
-  return {
-    status: INITIAL_STATUS,
-    container: null,
-    distribution: null,
-    latest: null,
-    registeredThisPage: false,
-    listenersAttached: false,
-    workerReleaseId: null,
-    lastPlanKey: null,
-    pendingTransition: null,
-    reconciling: Promise.resolve(),
-  };
-}
-
-let state = initialState();
-const listeners = new Set<() => void>();
-
-function publish(patch: Partial<WorkerStatus>): void {
-  state.status = { ...state.status, ...patch };
-  for (const listener of listeners) listener();
-}
-
-function diagnose(code: string): void {
-  if (state.status.diagnostics.includes(code)) return;
-  publish({ diagnostics: [...state.status.diagnostics, code] });
-}
-
-/** Test seam: forget every page-level decision. */
-export function resetWorkerController(): void {
-  state = initialState();
-  for (const listener of listeners) listener();
-}
-
-function subscribeStatus(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function workerStatus(): WorkerStatus {
-  return state.status;
-}
-
-export function useWorkerStatus(): WorkerStatus {
-  return useSyncExternalStore(subscribeStatus, workerStatus, workerStatus);
-}
-
-function scriptUrlFor(scriptPath: string): string {
-  return new URL(scriptPath, workerControllerSeams.baseUrl()).href;
-}
+export { CORE_ONLY_VARIANT, WORKER_GRAPH_UNAVAILABLE };
+export { workerControllerSeams } from "./worker/seams.js";
+export {
+  resetWorkerController,
+  useWorkerStatus,
+  workerStatus,
+} from "./worker/state.js";
+export type {
+  CompositionSnapshotForWorker,
+  CompositionStoreForWorker,
+  OfflineStatus,
+  PageToWorkerMessage,
+  RegisterWorkerOptions,
+  WorkerStatus,
+  WorkerTransition,
+} from "./worker/types.js";
 
 /** Which variant a registered script is, by the distribution's table. */
 function variantOfScript(scriptUrl: string): string | null {
@@ -268,84 +111,6 @@ async function register(
   }
 }
 
-function postToController(message: PageToWorkerMessage): boolean {
-  const controller = state.container?.controller;
-  if (!controller) return false;
-  try {
-    controller.postMessage(message);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Page-loadable module ids: a `<capability>/worker` unit is the variant's. */
-function pageModuleIds(plan: EffectivePlan): string[] {
-  return plan.approvedModules.filter((id) => !id.endsWith("/worker"));
-}
-
-function syncPlan(snapshot: CompositionSnapshotForWorker): void {
-  const { plan, selection } = snapshot;
-  if (!plan || state.status.transition) return;
-  if (selection?.delivery.offlineCache !== "selected-only") {
-    if (state.status.offlineStatus !== "online-only")
-      publish({ offlineStatus: "online-only" });
-    return;
-  }
-  if (!state.container?.controller) return;
-  if (!state.workerReleaseId) {
-    postToController({ type: "WORKER_HELLO" });
-    return;
-  }
-  const moduleIds = pageModuleIds(plan);
-  const key = `${state.workerReleaseId}|${plan.identity.planDigest}|${moduleIds.join(",")}`;
-  if (key === state.lastPlanKey) return;
-  const posted = postToController({
-    type: "PLAN_ASSETS",
-    releaseId: state.workerReleaseId,
-    planDigest: plan.identity.planDigest,
-    moduleIds,
-  });
-  if (!posted) return;
-  state.lastPlanKey = key;
-  publish({ offlineStatus: "saving" });
-}
-
-function onWorkerMessage(data: BoundaryValue): void {
-  if (!isJsonObject(data) || !isString(data.type)) return;
-  switch (data.type) {
-    case "WORKER_INFO":
-      if (!isString(data.releaseId)) return;
-      state.workerReleaseId = data.releaseId;
-      publish({ releaseId: data.releaseId });
-      if (state.latest) syncPlan(state.latest);
-      return;
-    case "OFFLINE_READY":
-      publish({ offlineStatus: "saved" });
-      return;
-    case "OFFLINE_PARTIAL":
-      publish({ offlineStatus: "partial" });
-      return;
-    case "OFFLINE_STORAGE_UNAVAILABLE":
-      publish({ offlineStatus: "storage-unavailable" });
-      return;
-    case "PLAN_REJECTED":
-      diagnose(
-        `PLAN_REJECTED:${isString(data.reason) ? data.reason : "unknown"}`,
-      );
-      publish({ offlineStatus: "online-only" });
-      if (data.reason === "release-mismatch") {
-        // The controller changed under us; ask again and repost.
-        state.workerReleaseId = null;
-        state.lastPlanKey = null;
-        if (state.latest) syncPlan(state.latest);
-      }
-      return;
-    default:
-      return;
-  }
-}
-
 function attachContainerListeners(container: ServiceWorkerContainer): void {
   if (state.listenersAttached) return;
   state.listenersAttached = true;
@@ -365,6 +130,51 @@ function attachContainerListeners(container: ServiceWorkerContainer): void {
   );
 }
 
+async function currentRegistration(
+  container: ServiceWorkerContainer,
+): Promise<ServiceWorkerRegistration | undefined> {
+  try {
+    return await container.getRegistration(workerControllerSeams.baseUrl());
+  } catch {
+    return undefined;
+  }
+}
+
+/** Another variant holds this scope: say so and wait to be told to move. */
+function enterTransition(
+  registration: ServiceWorkerRegistration,
+  current: string,
+  requiredId: string,
+  requiredUrl: string,
+): void {
+  const from = variantOfScript(current);
+  state.pendingTransition = {
+    registration,
+    scriptUrl: requiredUrl,
+    to: requiredId,
+  };
+  publish({
+    variant: from,
+    transition: { from, to: requiredId, status: "transition-required" },
+  });
+}
+
+async function ensureRegistered(
+  container: ServiceWorkerContainer,
+  current: string | null,
+  requiredUrl: string,
+): Promise<void> {
+  if (current) return;
+  if (state.registeredThisPage) return;
+  if (workerControllerSeams.crossOriginIsolated()) return;
+  await register(container, requiredUrl);
+}
+
+function publishVariant(current: string | null, requiredId: string): void {
+  if (current) return publish({ variant: variantOfScript(current) });
+  publish({ variant: state.registeredThisPage ? requiredId : null });
+}
+
 async function reconcile(
   snapshot: CompositionSnapshotForWorker,
 ): Promise<void> {
@@ -374,54 +184,18 @@ async function reconcile(
   const requiredId = plan.requiredWorkerVariant ?? CORE_ONLY_VARIANT;
   publish({ requiredVariant: requiredId });
   const variant = distribution.workerVariants.find((v) => v.id === requiredId);
-  if (!variant) {
-    diagnose(WORKER_GRAPH_UNAVAILABLE);
-    return;
-  }
+  if (!variant) return diagnose(WORKER_GRAPH_UNAVAILABLE);
   if (!variantEligible(requiredId, snapshot)) return;
   const requiredUrl = scriptUrlFor(variant.scriptPath);
-  let registration: ServiceWorkerRegistration | undefined;
-  try {
-    registration = await container.getRegistration(
-      workerControllerSeams.baseUrl(),
-    );
-  } catch {
-    registration = undefined;
-  }
+  const registration = await currentRegistration(container);
   const current = registeredScript(registration);
-  if (current && current !== requiredUrl && registration) {
-    state.pendingTransition = {
-      registration,
-      scriptUrl: requiredUrl,
-      to: requiredId,
-    };
-    publish({
-      variant: variantOfScript(current),
-      transition: {
-        from: variantOfScript(current),
-        to: requiredId,
-        status: "transition-required",
-      },
-    });
-    return;
-  }
+  if (registration && current && current !== requiredUrl)
+    return enterTransition(registration, current, requiredId, requiredUrl);
   state.pendingTransition = null;
   if (state.status.transition?.status === "transition-required")
     publish({ transition: null });
-  if (
-    !current &&
-    !state.registeredThisPage &&
-    !workerControllerSeams.crossOriginIsolated()
-  ) {
-    await register(container, requiredUrl);
-  }
-  publish({
-    variant: current
-      ? variantOfScript(current)
-      : state.registeredThisPage
-        ? requiredId
-        : null,
-  });
+  await ensureRegistered(container, current, requiredUrl);
+  publishVariant(current, requiredId);
   syncPlan(snapshot);
 }
 
