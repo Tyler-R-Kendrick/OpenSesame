@@ -25,6 +25,6 @@ sha2 = { workspace = true }
 [dev-dependencies]
 opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
 reqwest = { workspace = true }
-rustls = { version = "0.23.43", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
-tokio-rustls = { version = "0.26.4", default-features = false, features = ["aws_lc_rs", "tls12"] }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
 tempfile = { workspace = true }

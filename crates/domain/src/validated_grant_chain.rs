@@ -62,15 +62,25 @@ impl ValidatedGrantChain {
         })
     }
 
+    /// The leaf grant: the end of the chain, the one an invocation acts under.
+    ///
+    /// # Panics
+    ///
+    /// Never for a value that exists: `try_validate` is the only constructor
+    /// and it refuses an empty chain, so the invariant this reads is
+    /// established before any `ValidatedGrantChain` is handed out.
     #[must_use]
     pub fn leaf(&self) -> &Grant {
-        // SAFETY: try_validate rejects empty chains.
         self.grants.last().expect("non-empty chain")
     }
 
+    /// The root grant: the head of the chain, depth zero.
+    ///
+    /// # Panics
+    ///
+    /// Never for a value that exists, for the same reason as [`Self::leaf`].
     #[must_use]
     pub fn root(&self) -> &Grant {
-        // SAFETY: try_validate rejects empty chains.
         self.grants.first().expect("non-empty chain")
     }
 

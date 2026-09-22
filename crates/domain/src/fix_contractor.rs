@@ -1,4 +1,4 @@
-//! FIX-CONTRACTOR — correlated PermissionEntry and snapshot admission (domain).
+//! FIX-CONTRACTOR — correlated `PermissionEntry` and snapshot admission (domain).
 
 use crate::cohort_fixture::{fixture, t0};
 use crate::{

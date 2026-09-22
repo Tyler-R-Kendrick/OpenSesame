@@ -24,6 +24,8 @@ use opensesame_domain::transport::{
 };
 use opensesame_transport_security::env::NativeIdentitySpec;
 
+use crate::transport_lifecycle::{activation, LifecycleState};
+
 use super::config::{AuthMode, TransportConfig};
 use super::runtime::TransportRuntime;
 
@@ -111,6 +113,7 @@ pub fn view(
     runtime: &TransportRuntime,
     facts: &TransportFacts,
     managed: &CapabilityOutcome,
+    lifecycle: &LifecycleState,
 ) -> TransportStatusView {
     let config: &TransportConfig = &runtime.config;
     let installed = runtime.installed();
@@ -126,18 +129,13 @@ pub fn view(
                 .unwrap_or_else(|| credential_unloaded(&listener.identity)),
             RuntimeStatus::NotLoaded,
         ),
-        (Some(listener), Some((generation, loaded_at, not_after))) => {
-            let (custody, kind) = custody_of(&listener.identity);
-            let credential = match not_after {
-                Some(not_after) if not_after > Utc::now() => CredentialStatus::Configured {
-                    custody,
-                    generation,
-                    not_after,
-                    kind,
-                },
-                Some(_) => CredentialStatus::Expired { generation },
-                None => CredentialStatus::Unconfigured,
-            };
+        (Some(listener), Some((generation, loaded_at, _))) => {
+            let (_, kind) = custody_of(&listener.identity);
+            // The lifecycle owns this dimension: it reports `Revoked` ahead of
+            // `Expired` ahead of `Configured`, and consults the revoked-leaf
+            // denylist — a locally built view has no revoked arm at all and
+            // would report a revoked leaf as configured and healthy.
+            let credential = activation::credential_status(&runtime.generations, kind, lifecycle);
             let installed_runtime = match &facts.reload_failure {
                 Some(code) => RuntimeStatus::ReloadFailed {
                     generation,

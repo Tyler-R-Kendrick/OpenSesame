@@ -55,6 +55,8 @@ mod probe_tests;
 #[cfg(test)]
 mod proof_tests;
 #[cfg(test)]
+mod revocation_handshake_tests;
+#[cfg(test)]
 mod routes_tests;
 #[cfg(test)]
 pub(crate) mod test_support;

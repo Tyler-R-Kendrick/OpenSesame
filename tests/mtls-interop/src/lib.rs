@@ -32,6 +32,7 @@
 //! client certificate says nothing about how a real person's certificate gets
 //! onto their device or gets chosen there.
 
+pub mod node;
 pub mod oracle;
 pub mod pki;
 pub mod proc;

@@ -174,9 +174,20 @@ pub fn runtime(bindings: ServiceBindingSet, generation: u64) -> Arc<TransportRun
     }
     .into_generation(generation, Utc::now())
     .expect("generation");
-    let config = mtls_config();
+    runtime_serving(TransportGenerations::new(initial), bindings, mtls_config())
+}
+
+/// A runtime over generations a test already built and is serving from, so
+/// the hooks the runtime exposes are read against the same object a
+/// [`opensesame_transport_security::SecureListener`] is bound to.
+#[must_use]
+pub fn runtime_serving(
+    generations: Arc<TransportGenerations>,
+    bindings: ServiceBindingSet,
+    config: TransportConfig,
+) -> Arc<TransportRuntime> {
     Arc::new(TransportRuntime {
-        generations: TransportGenerations::new(initial),
+        generations,
         bindings: Arc::new(RwLock::new(bindings)),
         bindings_source: BindingsSource::Default,
         policy: TransportPolicy::MtlsRequired,
@@ -229,4 +240,15 @@ pub fn lookup(pairs: Vec<(&'static str, String)>) -> impl Fn(&str) -> Option<Str
             .find(|(key, _)| *key == name)
             .map(|(_, value)| value.clone())
     }
+}
+
+/// The `mtls_required` configuration with a `pem` identity at real paths, so
+/// the file-reload pass has something to watch.
+#[must_use]
+pub fn pem_config(cert: std::path::PathBuf, key: std::path::PathBuf) -> TransportConfig {
+    let mut config = mtls_config();
+    if let Some(listener) = config.listener.as_mut() {
+        listener.identity = NativeIdentitySpec::PemFiles { cert, key };
+    }
+    config
 }

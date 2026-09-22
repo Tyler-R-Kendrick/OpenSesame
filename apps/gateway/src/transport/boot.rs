@@ -20,13 +20,14 @@ use anyhow::Context as _;
 use axum::Router;
 use opensesame_domain::transport::{TransportError, TransportPolicy};
 use opensesame_transport_security::{
-    enforce_current_generation, plain_provenance_layer, SecureListener, ServerProfile,
+    enforce_current_generation, plain_provenance_layer, DenyThumbprint, SecureListener,
+    ServerProfile,
 };
 
 use crate::app_state::AppState;
 use crate::config::Args;
 
-use super::HOST_PLAIN_LISTENER;
+use super::{TransportRuntime, HOST_PLAIN_LISTENER};
 
 /// Serve `app` on the plain listener, and on the secure listener when one is
 /// configured. Returns only when the plain listener stops.
@@ -41,7 +42,7 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
         if let Some(listen) = runtime.listen {
             let policy = runtime.policy;
             let client_profile = runtime.client_trust_profile.clone();
-            let deny_thumbprint = runtime.deny_thumbprint_hook();
+            let deny_thumbprint = deny_hook(&state, &runtime);
             let listener = SecureListener::bind(
                 listen,
                 Arc::clone(&runtime.generations),
@@ -87,6 +88,27 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
         .with_context(|| format!("bind {listen}"))?;
     axum::serve(listener, plain).await?;
     Ok(())
+}
+
+/// The listener's revoked-leaf hook, composed from **both** authorities that
+/// can revoke a leaf.
+///
+/// The service-binding set carries `denied_thumbprints` that every process
+/// reads, and the certificate lifecycle keeps a process-wide denylist that a
+/// revoke verb writes immediately. Either one is sufficient to refuse a new
+/// handshake: asking only the binding set would let a revocation *by
+/// thumbprint* — and every revocation at all while
+/// `OPENSESAME_SERVICE_BINDINGS_FILE` pins the set — complete a fresh
+/// handshake, which is the first layer of AT-TLS-REVOKEDLIVE.
+///
+/// The same hook is handed to `enforce_current_generation` through
+/// `PeerDenyHook`, so an already-open connection is refused its next guarded
+/// operation on exactly the same evidence.
+#[must_use]
+pub fn deny_hook(state: &AppState, runtime: &TransportRuntime) -> DenyThumbprint {
+    let bindings_deny = runtime.deny_thumbprint_hook();
+    let lifecycle_deny = state.transport_lifecycle.deny_hook();
+    Arc::new(move |thumbprint: &str| bindings_deny(thumbprint) || lifecycle_deny(thumbprint))
 }
 
 /// The trusted-ingress layer goes on the shared router, inside the

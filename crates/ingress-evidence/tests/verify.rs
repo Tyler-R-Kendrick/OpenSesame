@@ -141,7 +141,7 @@ fn refuses_expired_revoked_and_wrong_usage_leaves() {
     let ingress = ingress_peer(&pki, TRUSTED_LISTENER);
     let now = Utc::now();
     let expired = pki.originating_int.issue_with(
-        LeafSpec::client(vec![SanEntry::Dns("old.example.test".into())])
+        &LeafSpec::client(vec![SanEntry::Dns("old.example.test".into())])
             .valid_between(now - Duration::days(2), now - Duration::days(1)),
     );
     assert_eq!(
@@ -157,7 +157,7 @@ fn refuses_expired_revoked_and_wrong_usage_leaves() {
 
     let server_only = pki
         .originating_int
-        .issue_with(LeafSpec::server("not-a-client.example.test"));
+        .issue_with(&LeafSpec::server("not-a-client.example.test"));
     assert_eq!(
         code(verify_originating(
             &chain_for(&server_only, &pki),

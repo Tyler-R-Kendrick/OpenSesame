@@ -115,17 +115,52 @@ fn attested_peer_is_referenced_only_by_real_verifiers() {
         if !src.contains("AttestedPeer") {
             continue;
         }
-        let allowed = ALLOWED_PREFIXES.iter().any(|p| rel.starts_with(p))
-            || rel.ends_with("_tests.rs")
+        // Test-only code is exempt, because it is never compiled into a
+        // binary. `test_support.rs` earns that exemption the same way
+        // `_tests.rs` does, and `assert_test_only` below proves the file is
+        // actually declared under `#[cfg(test)]` rather than merely named
+        // as though it were.
+        let test_only = rel.ends_with("_tests.rs")
             || rel.ends_with(".test.ts")
-            || rel.contains("/tests/");
-        if !allowed {
+            || rel.contains("/tests/")
+            || rel.ends_with("test_support.rs");
+        if rel.ends_with("test_support.rs") {
+            assert_test_only(&rel);
+        }
+        if !ALLOWED_PREFIXES.iter().any(|p| rel.starts_with(p)) && !test_only {
             offenders.push(rel);
         }
     }
     assert!(
         offenders.is_empty(),
         "AttestedPeer referenced outside verifier paths: {offenders:?}"
+    );
+}
+
+/// A `test_support.rs` is exempt only while its sibling `mod.rs` declares it
+/// under `#[cfg(test)]`. Drop the attribute and the module compiles into the
+/// binary — and this assertion fails before the exemption can hide it.
+fn assert_test_only(rel: &str) {
+    let module = repo_root().join(rel);
+    let mod_rs = module.with_file_name("mod.rs");
+    let Ok(declaration) = fs::read_to_string(&mod_rs) else {
+        panic!("{rel}: no sibling mod.rs to prove it is test-only");
+    };
+    let stem = module
+        .file_stem()
+        .expect("file stem")
+        .to_string_lossy()
+        .into_owned();
+    let declared = declaration.split("#[cfg(test)]").skip(1).any(|after| {
+        after
+            .split(';')
+            .next()
+            .is_some_and(|item| item.contains(&format!("mod {stem}")))
+    });
+    assert!(
+        declared,
+        "{rel} references AttestedPeer but is not declared under #[cfg(test)] in {}",
+        mod_rs.display()
     );
 }
 

@@ -56,9 +56,8 @@ pub mod transport;
 pub mod validated_grant_chain;
 pub mod verification_evidence;
 
-#[cfg(all(test, feature = "concurrency-test"))]
-mod shuttle_authority;
-
+#[cfg(test)]
+mod authority_adversarial_fixtures;
 #[cfg(test)]
 mod authority_adversarial_matrix;
 #[cfg(test)]

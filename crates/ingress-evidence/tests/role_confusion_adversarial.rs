@@ -17,9 +17,7 @@ mod support;
 use std::sync::atomic::Ordering;
 
 use opensesame_domain::transport::TransportPolicy;
-use support::{
-    byte_sequence, client, client_cert, spawn_origin, url, Pki, Seen, TRUSTED_LISTENER,
-};
+use support::{byte_sequence, client, client_cert, spawn_origin, url, Pki, Seen, TRUSTED_LISTENER};
 
 /// The originating intermediate and root, as the ingress forwards them.
 fn chain(pki: &Pki) -> String {
@@ -51,7 +49,11 @@ async fn the_ingress_cannot_forward_its_own_leaf_as_the_client() {
         .send()
         .await
         .expect("response");
-    assert_eq!(response.status(), 403, "ingress leaf accepted as the client");
+    assert_eq!(
+        response.status(),
+        403,
+        "ingress leaf accepted as the client"
+    );
     assert_eq!(
         response
             .headers()
@@ -142,7 +144,10 @@ async fn an_accepted_assertion_keeps_both_identities_distinct() {
         Some(pki.ingress.thumbprint.as_str())
     );
     assert_ne!(body.peer, body.originating, "one identity, two roles");
-    assert!(!body.client_cert_header_present, "fields reached the handler");
+    assert!(
+        !body.client_cert_header_present,
+        "fields reached the handler"
+    );
 }
 
 /// The same client forwarded twice in one request — once as the singleton
@@ -153,11 +158,7 @@ async fn a_client_forwarded_twice_is_still_one_identity() {
     let pki = Pki::new();
     let origin = spawn_origin(&pki, TransportPolicy::TrustedIngress, TRUSTED_LISTENER).await;
     let http = client(&pki, Some(&pki.ingress), origin.addr);
-    let chain = format!(
-        "{}, {}",
-        client_cert(&pki.alice),
-        chain(&pki)
-    );
+    let chain = format!("{}, {}", client_cert(&pki.alice), chain(&pki));
     let response = http
         .get(url(origin.addr, "/whoami"))
         .header("client-cert", client_cert(&pki.alice))

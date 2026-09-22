@@ -22,6 +22,7 @@
 //! | [`revocation`] | denylist, binding denials, the revoke verb |
 //! | [`crl`] | CRL freshness: stale is `degraded`, never silently ignored |
 //! | [`minting`] | the leaf shape a purpose implies, and the signing itself |
+//! | [`pem_reload`] | re-reading an externally renewed `pem` listener pair |
 //! | [`trust`] | operator trust profiles: validation, CAS, overlap rollover, re-activation |
 //! | [`facts`] | the independent per-target facts, persisted in `host_kv` |
 //! | [`routes`] | the operator routes, merged by the coordinator |
@@ -33,6 +34,7 @@ pub mod custody;
 pub mod facts;
 pub mod issuance;
 pub mod minting;
+pub mod pem_reload;
 pub mod renewal;
 pub mod revocation;
 pub mod routes;
@@ -47,6 +49,8 @@ mod boundary_tests;
 mod custody_tests;
 #[cfg(test)]
 mod issuance_tests;
+#[cfg(test)]
+mod pem_reload_tests;
 #[cfg(test)]
 mod renewal_tests;
 #[cfg(test)]
@@ -263,11 +267,6 @@ impl LifecycleState {
         self.denied.read().unwrap_or_else(poisoned).len()
     }
 
-    // Awaiting its production call site: `transport::boot` builds the
-    // listener's hook from the binding set alone, which misses a revocation
-    // by thumbprint (integration-requests/SW-LIFECYCLE.md §6). Exercised by
-    // `test_support::profile_fn`, which wires it as the runtime should.
-    #[allow(dead_code)]
     /// The per-listener denylist hook (`ServerProfile::deny_thumbprint`):
     /// consulted at the handshake and by `enforce_current_generation`.
     #[must_use]

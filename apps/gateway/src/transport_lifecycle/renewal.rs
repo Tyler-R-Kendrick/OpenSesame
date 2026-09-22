@@ -37,7 +37,7 @@ use crate::app_state::AppState;
 use crate::lifecycle::responders::Outcome;
 use crate::managed_certs::{self, CustodyError};
 use crate::managed_certs_tls::{is_spiffe_sourced, recorded_purpose, TransportPurpose};
-use crate::transport_lifecycle::{activation, trust};
+use crate::transport_lifecycle::{activation, pem_reload, trust};
 
 /// First retry delay after a failure; doubles per attempt.
 pub const RETRY_BASE_SECONDS: i64 = 30;
@@ -372,11 +372,13 @@ pub async fn tick(state: &AppState, now: DateTime<Utc>) -> usize {
     ran
 }
 
-/// Process-lifetime loop: retries due renewals and reconciles trust overlap
-/// windows every [`TICK_SECONDS`]. Spawned from `main` beside the scanner.
+/// Process-lifetime loop: retries due renewals, picks up an externally
+/// renewed `pem` listener pair, and reconciles trust overlap windows every
+/// [`TICK_SECONDS`]. Spawned from `main` beside the scanner.
 pub async fn run(state: AppState) {
     let mut interval = tokio::time::interval(Duration::from_secs(TICK_SECONDS));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let mut pem_watch = pem_reload::Watch::new();
     loop {
         interval.tick().await;
         let now = Utc::now();
@@ -384,6 +386,7 @@ pub async fn run(state: AppState) {
         if ran > 0 {
             tracing::info!(ran, "transport renewal retries ran");
         }
+        pem_reload::pass_and_log(&state, &mut pem_watch).await;
         if let Err(error) = trust::reconcile(&state, now).await {
             tracing::warn!(code = error.code(), "trust overlap reconcile failed");
         }

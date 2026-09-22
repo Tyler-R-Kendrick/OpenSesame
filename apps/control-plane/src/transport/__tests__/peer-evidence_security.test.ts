@@ -21,11 +21,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decodeSelector, selectorEntry } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  VerifiedPeer,
-  attestPeer,
-  selectorsOf,
-} from "../peer-evidence.js";
+import { VerifiedPeer, attestPeer, selectorsOf } from "../peer-evidence.js";
 
 /**
  * A self-signed leaf carrying exactly the SAN text a test names. Self-signed

@@ -67,8 +67,8 @@ impl Pki {
             stranger: ingress_ca.issue_client(PeerIdentitySelector::DnsName(
                 "stranger.example.test".into(),
             )),
-            alice: originating_int.issue_with(client("alice")),
-            bob: originating_int.issue_with(client("bob")),
+            alice: originating_int.issue_with(&client("alice")),
+            bob: originating_int.issue_with(&client("bob")),
             ingress_ca,
             origin_ca,
             originating_root,

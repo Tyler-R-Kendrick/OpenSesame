@@ -189,15 +189,15 @@ async fn percent_encoded_and_confusable_spiffe_ids_are_not_identities() {
     }
 }
 
-/// Non-ASCII and NUL cannot even be encoded as an IA5String SAN, so they are
+/// Non-ASCII and NUL cannot even be encoded as an `IA5String` SAN, so they are
 /// asserted at the selector boundary the attested identities pass through.
 /// A confusable Cyrillic host and an embedded NUL are both refused.
 #[test]
 fn unicode_and_nul_are_refused_by_the_selector_validator() {
     for hostile in [
-        "prоd.example",           // Cyrillic \u{43e}
-        "bridge\u{0}.internal",   // embedded NUL
-        "bridge\u{200b}.internal" // zero-width space
+        "prоd.example",            // Cyrillic \u{43e}
+        "bridge\u{0}.internal",    // embedded NUL
+        "bridge\u{200b}.internal", // zero-width space
     ] {
         assert!(
             PeerIdentitySelector::DnsName(hostile.to_owned())
