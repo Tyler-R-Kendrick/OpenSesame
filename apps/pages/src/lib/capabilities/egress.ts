@@ -185,21 +185,39 @@ function decideLocal(
   };
 }
 
+/**
+ * The checks that come before a class is even chosen: the caller named this
+ * capability, the plan still approves it, and the destination is a URL this
+ * port could fetch at all.
+ */
+type Admission = Readonly<{ code: EgressDenialCode } | { url: URL }>;
+
+function admit(
+  options: EgressPortOptions,
+  url: URL | null,
+  meta: EgressRequestMeta | undefined,
+): Admission {
+  const id = options.capability.id;
+  if (meta?.capability !== undefined && meta.capability !== id)
+    return { code: "capability-mismatch" };
+  if (!approvedIn(options.plan(), id)) return { code: "capability-not-approved" };
+  if (url === null) return { code: "invalid-url" };
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    return { code: "unsupported-scheme" };
+  return { url };
+}
+
 function decide(
   options: EgressPortOptions,
   input: string | URL,
   meta: EgressRequestMeta | undefined,
 ): EgressDecision {
-  const url = parseDestination(input, options.allowedOrigins[0]);
-  const destination = url === null ? redactUrl(input) : redactUrl(url);
-  const id = options.capability.id;
-  if (meta?.capability !== undefined && meta.capability !== id)
-    return { ok: false, code: "capability-mismatch", destination };
-  if (!approvedIn(options.plan(), id))
-    return { ok: false, code: "capability-not-approved", destination };
-  if (url === null) return { ok: false, code: "invalid-url", destination };
-  if (url.protocol !== "https:" && url.protocol !== "http:")
-    return { ok: false, code: "unsupported-scheme", destination };
+  const parsed = parseDestination(input, options.allowedOrigins[0]);
+  const destination = parsed === null ? redactUrl(input) : redactUrl(parsed);
+  const admission = admit(options, parsed, meta);
+  if ("code" in admission)
+    return { ok: false, code: admission.code, destination };
+  const url = admission.url;
   const crossOrigin = !options.allowedOrigins.includes(url.origin);
   const egressClass = classify(options.capability, meta, crossOrigin);
   if (egressClass === "purpose-not-declared")
@@ -297,11 +315,13 @@ export function installPlanAwareEgress(
     if (descriptor === undefined) {
       throw new EgressDenied("capability-not-approved", capability, origin);
     }
-    return createEgressPort({
+    const options: EgressPortOptions = {
       capability: descriptor,
       plan: () => compositionStore.getSnapshot().plan,
       allowedOrigins: [origin],
-      ...(fetchImpl === undefined ? {} : { fetchImpl }),
-    });
+    };
+    return createEgressPort(
+      fetchImpl === undefined ? options : { ...options, fetchImpl },
+    );
   };
 }
