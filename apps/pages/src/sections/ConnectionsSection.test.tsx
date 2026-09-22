@@ -107,12 +107,12 @@ import {
 } from "../lib/connections.js";
 import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
-import { declareConnectionsTutorial } from "./connections/tutorial.test-support.js";
 import {
   CONNECTIONS_CATALOG as catalog,
   makeConnection,
   renderAt,
 } from "./connections/section-fixtures.test-support.js";
+import { declareConnectionsTutorial } from "./connections/tutorial.test-support.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, {
   listProviders,

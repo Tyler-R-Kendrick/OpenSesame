@@ -163,7 +163,9 @@ export const CONNECTIONS_CATALOG: Provider[] = (() => {
   ];
 })();
 
-export function makeConnection(overrides: Partial<Connection> = {}): Connection {
+export function makeConnection(
+  overrides: Partial<Connection> = {},
+): Connection {
   return {
     connectionId: "con_1",
     connectionRef: "conn/github/pat",

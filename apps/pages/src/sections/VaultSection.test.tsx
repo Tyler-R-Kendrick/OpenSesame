@@ -19,6 +19,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerLegacyItemKinds } from "../lib/contributions.test-support.js";
 import { expectVaultCommands } from "./vault/commands.test-support.js";
+import {
+  makeDrop,
+  makeLogin,
+  makeNote,
+} from "./vault/section-items.test-support.js";
 
 import { createKeymapHandler } from "../lib/keymap.js";
 import type {
@@ -66,63 +71,6 @@ Object.assign(vaultTreeSeams, {
 });
 
 import { VaultSection, VaultWelcome } from "./VaultSection.js";
-
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
-  return {
-    id: "itm_1",
-    kind: "login",
-    name: "Webmail",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-02T00:00:00Z",
-    deletedAt: null,
-    username: "me@example.com",
-    password: "hunter2hunter2hunter2",
-    totp: "",
-    uris: [],
-    passwordChangedAt: "2026-08-01T00:00:00Z",
-    ...overrides,
-  };
-}
-
-function makeNote(overrides: Partial<NoteItem> = {}): NoteItem {
-  return {
-    id: "itm_2",
-    kind: "note",
-    name: "Scratch pad",
-    folderId: null,
-    favorite: false,
-    notes: "remember the milk",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
-    ...overrides,
-  };
-}
-
-function makeDrop(overrides: Partial<DropItem> = {}): DropItem {
-  return {
-    id: "itm_drop",
-    kind: "drop",
-    name: "amber-falcon-breeze",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
-    state: "pending",
-    claimId: "clm_1",
-    bearerToken: "osc_clm_clm_1.secret",
-    expiresAt: "2027-01-15T10:30:00.000Z",
-    ...overrides,
-  };
-}
 
 function renderWelcome() {
   return render(
