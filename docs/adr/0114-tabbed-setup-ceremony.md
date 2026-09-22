@@ -9,8 +9,12 @@
 - Supersedes: the "one screen, one question, no stepper" note in
   `docs/design/first-run-setup/`
 - Supplemented by: [ADR 0115](0115-front-door-and-connector-directory.md)
-  (the `connectors` tab, first of six, and the front door that opens the
+  (the `connectors` tab, first of four, and the front door that opens the
   ceremony)
+- Amended (2026-09-21): four tabs, not six. The `backups` and `sync` tabs
+  configured a Host, and [ADR 0128](0128-pages-without-host.md) took those
+  surfaces away rather than leave controls with nothing behind them. The
+  ceremony keeps a tab per concern: connectors, ai, identity, mfa.
 
 ## Context
 
@@ -89,8 +93,8 @@ sixth tab, because installing has no wrong answer and never gates the commit.
 
 ## Consequences
 
-- `verify:static`'s setup leg walks the tabs: six tabs opening on connectors,
-  then backups, "Skip all" returning to sign-in.
+- `verify:static`'s setup leg walks the tabs: four tabs opening on connectors,
+  then the model tab, "Skip all" returning to sign-in.
 - The design-lint contract (`screens/setup/control-contract.test.ts`) still
   holds: the terminal commit is `.go` with its verb.
 - Tutorial targets `setup.ways` (now on the identity tab), `setup.keep` and

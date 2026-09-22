@@ -124,12 +124,13 @@ async function addProvider(
 }
 
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
-  it.skip("opens the operator ceremony on its first tab when asked for", () => {
+  it("opens the operator ceremony on its first tab when asked for", () => {
     openSetup();
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
     ).toBe("connectors");
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    // Four concerns, not six: ADR 0128 took the Host-shaped backups and sync.
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
     expect(screen.queryByText("This device is empty")).toBeNull();
   });
 
@@ -149,17 +150,16 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
 });
 
 describe("the setup ceremony", () => {
-  it.skip("is a tab per concern, each skippable, with a skip-all (ADR 0114)", () => {
+  it("is a tab per concern, each skippable, with a skip-all (ADR 0114)", () => {
     openSetup();
+    // Four concerns: connectors, ai, identity, mfa (ADR 0128 took the others).
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "connectors",
-      "backups",
       "ai",
       "identity",
       "mfa",
-      "sync",
     ]);
-    expect(document.querySelectorAll(".steps__seg")).toHaveLength(6);
+    expect(document.querySelectorAll(".steps__seg")).toHaveLength(4);
     expect(screen.getByRole("button", { name: "Skip this step" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip all" })).toBeTruthy();
   });
@@ -405,12 +405,12 @@ describe("keeping it on this device", () => {
     ).toBeNull();
   });
 
-  it.skip("rides beneath the active step, never a tab of its own", () => {
+  it("rides beneath the active step, never a tab of its own", () => {
     // A tab per concern (ADR 0114); installing is not one of them.
     offering("prompt");
     openSetup();
 
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
     expect(screen.getByText("Keep it on this device")).toBeDefined();
     expect(
       document

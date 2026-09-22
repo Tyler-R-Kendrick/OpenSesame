@@ -54,7 +54,9 @@ export async function openSection(page, label) {
 }
 
 export async function openGeneral(page) {
-  const heading = page.getByRole("heading", { name: "Preferences" });
+  // Settings is the heading the section opens on (it has no "Preferences"
+  // heading — that name went with an earlier shape of the panel).
+  const heading = page.getByRole("heading", { name: "Settings" });
   if (await heading.isVisible().catch(() => false)) return;
   await openSection(page, "settings/");
   await heading.waitFor({ timeout: 15000 });

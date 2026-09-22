@@ -6,7 +6,7 @@ import { App } from "./App.js";
 import { DIRECTORY_KEY } from "./lib/connector-directory.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
-import { LAST_VAULT_KEY } from "./lib/last-vault.js";
+import { LAST_VAULT_KEY, lastVaultIsGuest } from "./lib/last-vault.js";
 import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "./lib/local-guest.js";
 import { MODEL_PROVIDER_KEY } from "./lib/model-provider.js";
 import {
@@ -22,7 +22,7 @@ import {
   migrateLegacyVaultStorage,
   tombStorageKeys,
 } from "./lib/vault/tomb-migration.js";
-import { TOMBS_REGISTRY_KEY } from "./lib/vfs.js";
+import { GUEST_TOMB, TOMBS_REGISTRY_KEY } from "./lib/vfs.js";
 // The shell and the vault load behind the unlock gate (App.tsx), but their
 // stylesheets stay in the first bundle, ahead of styles.css: a stylesheet
 // that arrives with a lazy chunk lands after the shared rules and wins every
@@ -99,8 +99,19 @@ void (async () => {
     GUEST_PERSON_KEY,
   ]);
   rehydrateProjects();
+  // The active project's plaintext boundary is what legacy storage migrates
+  // into. But the tomb the unlock screen will ask about is the guest tomb when
+  // that was the last authorized account (AGENTS.md §5), so its header has to
+  // be hydrated too: reading only the active project left a guest's enrolled
+  // gate unreadable on reload, and the unlock form then offered a road with no
+  // challenge behind it.
   const tomb = activeProject().id;
-  await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
+  const guestTomb = lastVaultIsGuest() ? GUEST_TOMB : null;
+  await kvHydrate([
+    ...projectScopedKeys(),
+    ...tombStorageKeys(tomb),
+    ...(guestTomb ? tombStorageKeys(guestTomb) : []),
+  ]);
   // Move any legacy flat vault keys into the tomb before the store reads it.
   // Pre-unlock this is plaintext moves only (header params, sealed body
   // bytes); sealed config migrates on unlock.

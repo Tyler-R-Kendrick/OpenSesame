@@ -13,7 +13,6 @@ import { walkJConfig } from "./lib/j-config-journey.mjs";
 import { walkJConflict } from "./lib/j-conflict-journey.mjs";
 import { walkJExplain } from "./lib/j-explain-journey.mjs";
 import { walkJFile } from "./lib/j-file-journey.mjs";
-import { walkJHostConfig } from "./lib/j-host-config-journey.mjs";
 import { walkJNav } from "./lib/j-nav-journey.mjs";
 import { walkJRecovery } from "./lib/j-recovery-journey.mjs";
 import { walkJSupport } from "./lib/j-support-journey.mjs";
@@ -73,7 +72,9 @@ try {
   await runWalk("J-NAV", walkJNav);
   await runWalk("J-APP-RECIPE", walkJAppRecipe);
   await runWalk("J-TYPES", walkJTypes);
-  await runWalk("J-HOST-CONFIG", walkJHostConfig);
+  // J-HOST-CONFIG retired with its surface: Project configs was Host setup,
+  // and ADR 0128 took Host out of Pages entirely rather than leave a panel
+  // that dead-ends with nothing behind it.
   await runWalk("J-EXPLAIN", walkJExplain);
   await runWalk("J-APPROVAL", walkJApproval);
   await runWalk("J-RECOVERY", walkJRecovery);

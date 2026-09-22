@@ -8,8 +8,10 @@
  * from the sign-in screen's foot.
  *
  * The operator road is a tab per concern (ADR 0114): connectors
- * (ADR 0115), backups, ai, identity, mfa. Every tab writes its
- * record as it is answered — `settings.v1`, or the connector directory's
+ * (ADR 0115), ai, identity, mfa. Backups and sync were tabs once, but both
+ * configured a Host and a daemon address, and ADR 0128 took those surfaces
+ * away rather than leave controls with nothing behind them. Every tab writes
+ * its record as it is answered — `settings.v1`, or the connector directory's
  * own — every tab is skippable, and "Skip all" takes the whole tour off the
  * table — skipping is recorded, so "looked and passed" stays distinct from
  * "never looked". The foot is icon keys for previous / skip / next, and the
