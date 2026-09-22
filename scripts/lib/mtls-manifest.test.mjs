@@ -298,61 +298,68 @@ describe("mtls manifest CLI", () => {
   const dir = mkdtempSync(join(tmpdir(), "mtls-manifest-"));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it("records a passed, a skipped-required (failed) and a captured-secret step, then fails finish", () => {
-    const run = (...a) =>
-      execFileSync("node", [cli, ...a], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-    run("begin", "--run", dir, "--suite", "unit");
-    run(
-      "run-step",
-      "--run",
-      dir,
-      "--id",
-      "ok",
-      "--claim",
-      "C1",
-      "--scenarios",
-      "AT-X",
-      "--runner",
-      "marker",
-      "--quiet",
-      "--",
-      "bash",
-      "-c",
-      "echo 'secret -----BEGIN PRIVATE KEY----- zzz -----END PRIVATE KEY-----'; echo MTLS_TESTS passed=1 failed=0",
-    );
-    run(
-      "run-step",
-      "--run",
-      dir,
-      "--id",
-      "skipped",
-      "--claim",
-      "C2",
-      "--required",
-      "true",
-      "--skip",
-      "fixture absent",
-    );
-    let code = 0;
-    try {
-      run("finish", "--run", dir);
-    } catch (e) {
-      code = e.status;
-    }
-    expect(code).toBe(1);
-    const m = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
-    expect(m.verdict).toBe("failed");
-    expect(m.steps.map((s) => [s.id, s.result])).toEqual([
-      ["ok", "passed"],
-      ["skipped", "failed"],
-    ]);
-    expect(m.steps[0].artifacts[0].sha256).toMatch(/^[0-9a-f]{64}$/);
-    const log = readFileSync(join(dir, "logs", "ok.log"), "utf8");
-    expect(log).not.toContain("zzz");
-    expect(m.steps[0].artifacts[0].redactions.private_key_block).toBe(1);
-    expect(m.versions.cargo_lock.rustls).toBeTruthy();
-  });
+  // Four `node` spawns plus a `finish` that parses both lockfiles. That is
+  // well under a second locally and about nine on a cold shared runner, so
+  // the 5s default is the wrong budget for this one test, not a symptom.
+  it(
+    "records a passed, a skipped-required (failed) and a captured-secret step, then fails finish",
+    { timeout: 60_000 },
+    () => {
+      const run = (...a) =>
+        execFileSync("node", [cli, ...a], {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+      run("begin", "--run", dir, "--suite", "unit");
+      run(
+        "run-step",
+        "--run",
+        dir,
+        "--id",
+        "ok",
+        "--claim",
+        "C1",
+        "--scenarios",
+        "AT-X",
+        "--runner",
+        "marker",
+        "--quiet",
+        "--",
+        "bash",
+        "-c",
+        "echo 'secret -----BEGIN PRIVATE KEY----- zzz -----END PRIVATE KEY-----'; echo MTLS_TESTS passed=1 failed=0",
+      );
+      run(
+        "run-step",
+        "--run",
+        dir,
+        "--id",
+        "skipped",
+        "--claim",
+        "C2",
+        "--required",
+        "true",
+        "--skip",
+        "fixture absent",
+      );
+      let code = 0;
+      try {
+        run("finish", "--run", dir);
+      } catch (e) {
+        code = e.status;
+      }
+      expect(code).toBe(1);
+      const m = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+      expect(m.verdict).toBe("failed");
+      expect(m.steps.map((s) => [s.id, s.result])).toEqual([
+        ["ok", "passed"],
+        ["skipped", "failed"],
+      ]);
+      expect(m.steps[0].artifacts[0].sha256).toMatch(/^[0-9a-f]{64}$/);
+      const log = readFileSync(join(dir, "logs", "ok.log"), "utf8");
+      expect(log).not.toContain("zzz");
+      expect(m.steps[0].artifacts[0].redactions.private_key_block).toBe(1);
+      expect(m.versions.cargo_lock.rustls).toBeTruthy();
+    },
+  );
 });
