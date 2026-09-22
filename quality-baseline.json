@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 507,
-    "violations": 802,
-    "oversizedLines": 252752
+    "files": 504,
+    "violations": 799,
+    "oversizedLines": 252740
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -712,12 +712,6 @@
       "complexity": 1,
       "max-lines": 618
     },
-    "apps/pages/src/lib/sops/aes-record.ts": {
-      "complexity": 1
-    },
-    "apps/pages/src/lib/sops/engine.ts": {
-      "complexity": 1
-    },
     "apps/pages/src/lib/vault/drop.test.ts": {
       "max-lines": 526
     },
@@ -800,7 +794,7 @@
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1738
+      "max-lines": 1726
     },
     "apps/pages/src/lib/vault/unlock-methods.ts": {
       "max-lines": 769
@@ -941,9 +935,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/SettingsRawEditor.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/SopsDocumentSheet.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
