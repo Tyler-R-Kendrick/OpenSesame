@@ -108,4 +108,47 @@ describe("wallet.spending runtime", () => {
     scope.setWalletStorageTomb("personal");
     assignments.clearInstrumentBudgets();
   });
+
+  it("misses after a switch away and straight back, which a tomb name alone cannot see", async () => {
+    const scope = await import("../../lib/wallet-storage-scope.js");
+    const leases = await import("../../lib/spending-leases.js");
+
+    scope.setWalletStorageTomb("personal");
+    leases.clearSpendingLeases();
+    expect(leases.listSpendingLeases()).toEqual([]);
+
+    // Another context writes the personal tomb's leases while this one is
+    // looking at the guest tomb. Coming back must re-read, not answer from
+    // the cache the same tomb name filled before the excursion.
+    scope.setWalletStorageTomb("guest");
+    localStorage.setItem(
+      "opensesame.wallet.leases.v1.personal",
+      JSON.stringify([
+        {
+          id: "lease-elsewhere",
+          grantRef: "g",
+          allocationRef: "a",
+          policyVersion: "1",
+          beneficiaryRef: "b",
+          proofKeyThumbprint: "t",
+          validFrom: "2026-01-01T00:00:00.000Z",
+          validUntil: "2026-01-02T00:00:00.000Z",
+          requiredEnforcementDigest: "d",
+          effectiveEnforcementDigest: "d",
+          rootAccountingRef: "r",
+          status: "active",
+          amount: "1",
+          currency: "TEST",
+          recipient: "b",
+          approvalDigest: "d",
+          reserveAttemptId: "",
+        },
+      ]),
+    );
+    scope.setWalletStorageTomb("personal");
+    expect(leases.listSpendingLeases().map((row) => row.id)).toEqual([
+      "lease-elsewhere",
+    ]);
+    leases.clearSpendingLeases();
+  });
 });
