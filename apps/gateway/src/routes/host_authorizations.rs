@@ -138,6 +138,7 @@ pub async fn challenge(
 pub async fn authorize(
     State(st): State<AppState>,
     headers: HeaderMap,
+    extensions: axum::http::Extensions,
     Json(req): Json<EvidenceRequest>,
 ) -> Response {
     let Some(verifier) = &st.host_authorization else {
@@ -148,7 +149,7 @@ pub async fn authorize(
         Err(error) => return error,
     };
     let now = Utc::now().timestamp();
-    let evidence = match verifier.verify(&req.assertion, &st.resource, now) {
+    let evidence = match verifier.verify_bound(&req.assertion, &st.resource, now, &extensions) {
         Ok(evidence) => evidence,
         Err(error) => return refusal(error),
     };

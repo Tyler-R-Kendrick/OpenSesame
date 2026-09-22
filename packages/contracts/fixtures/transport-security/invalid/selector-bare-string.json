@@ -1,0 +1,8 @@
+{
+  "kind": "peer_identity_selector",
+  "input": "gateway.example",
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

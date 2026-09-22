@@ -124,3 +124,52 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: Test (workspace, all targets)
         run: cargo test --workspace --all-targets
+
+  mtls:
+    # Optional mTLS / workload identity (ADR 0132): the fast suite, then the
+    # real-protocol suite against pinned, checksum-verified fixtures
+    # (scripts/mtls-fixtures.sh). Both write artifacts/mtls/ through
+    # scripts/lib/mtls-manifest.mjs; a required step that ran nothing, a
+    # fixture that cannot start, or an all-ignored suite fails the job
+    # (AT-EVIDENCE-NORUN). Not yet in the required-checks ruleset: that is a
+    # remote governance change (ops/github/governance.mjs).
+    name: mTLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Cache pinned native fixtures
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .cache/mtls-fixtures
+          key: mtls-fixtures-${{ hashFiles('scripts/mtls-fixtures.sh') }}
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Fast mTLS suite (unit, contracts, static bundle boundary)
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm test:mtls
+      - name: Real-protocol mTLS suite (pinned nats-server, OpenBao, SPIRE, Caddy; Chromium)
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm test:mtls:integration
+      - name: Upload sanitized evidence manifest
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mtls-evidence
+          path: artifacts/mtls/
+          if-no-files-found: error
+          retention-days: 30

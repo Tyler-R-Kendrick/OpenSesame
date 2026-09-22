@@ -107,3 +107,7 @@ apps/pages/scripts/duress/.ui-artifacts/
 
 # Duress swarm workspace (local coordination; never ship)
 .duress-swarm/
+
+# mTLS fixture downloads (scripts/mtls-fixtures.sh) and suite artifacts
+.cache/mtls-fixtures/
+artifacts/mtls/

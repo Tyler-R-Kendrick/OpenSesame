@@ -23,3 +23,4 @@ export {
   digestManifest,
   sha256Hex,
 } from "./crypto/digest-browser.js";
+export * from "./transport-security/index.js";

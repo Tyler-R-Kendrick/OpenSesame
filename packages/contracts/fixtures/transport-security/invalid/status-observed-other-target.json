@@ -1,0 +1,87 @@
+{
+  "kind": "transport_status_view",
+  "input": {
+    "target": "host-tls",
+    "desired": "mtls_required",
+    "credential": {
+      "configured": {
+        "custody": "native_file_exportable",
+        "generation": 3,
+        "not_after": "2026-12-01T00:00:00.000Z",
+        "kind": "pem_files"
+      }
+    },
+    "runtime": {
+      "loaded": {
+        "generation": 3,
+        "loaded_at": "2026-09-22T08:00:00.000Z"
+      }
+    },
+    "observed": {
+      "at": "2026-09-22T09:59:00.000Z",
+      "observer": "host-tls-listener",
+      "target": "worker-tls",
+      "generation": 3,
+      "peer": {
+        "source": "direct_tls",
+        "identities": [
+          {
+            "spiffe_id": "spiffe://example.org/ns/prod/sa/nats-bridge"
+          },
+          {
+            "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "leaf_thumbprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "not_before": "2026-09-22T00:00:00.000Z",
+        "not_after": "2026-09-23T00:00:00.000Z",
+        "trust_profile": {
+          "name": "private-root"
+        },
+        "trust_generation": 3,
+        "credential_generation": 7,
+        "listener": "host-tls",
+        "policy": "mtls_required",
+        "tls_version": "tls13",
+        "authenticated_at": "2026-09-22T09:59:00.000Z",
+        "usable_until": "2026-09-22T10:29:00.000Z",
+        "ingress": null
+      }
+    },
+    "enforcement": {
+      "verified": {
+        "at": "2026-09-22T09:00:00.000Z",
+        "target": "host-tls",
+        "generation": 3,
+        "accepted_with_certificate": true,
+        "rejected_without_certificate": true,
+        "fresh_until": "2026-09-22T11:00:00.000Z"
+      }
+    },
+    "capabilities": {
+      "native_pem": "supported",
+      "managed_certificate": "supported",
+      "spiffe_workload_api": {
+        "unsupported": {
+          "reason": "no workload api socket configured"
+        }
+      },
+      "browser_managed_external": {
+        "unsupported": {
+          "reason": "a native runtime has no browser certificate store to consume"
+        }
+      },
+      "browser_vault_key_injection": {
+        "unsupported": {
+          "reason": "a browser cannot attach a vault-held key to its TLS handshake; certificates a browser presents are provisioned outside the app"
+        }
+      },
+      "client_presents_certificate": true,
+      "server_enforces_certificate": true
+    }
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

@@ -273,11 +273,10 @@ proptest! {
     #[test]
     fn addition_is_exact_or_refused(a in any::<u128>(), b in any::<u128>()) {
         let sum = Quantity::from_minor_units(a).checked_add(Quantity::from_minor_units(b));
-        match a.checked_add(b) {
-            Some(expected) => {
-                prop_assert_eq!(sum.expect("in range").minor_units(), expected);
-            }
-            None => prop_assert_eq!(sum, Err(BudgetError::Overflow)),
+        if let Some(expected) = a.checked_add(b) {
+            prop_assert_eq!(sum.expect("in range").minor_units(), expected);
+        } else {
+            prop_assert_eq!(sum, Err(BudgetError::Overflow));
         }
     }
 

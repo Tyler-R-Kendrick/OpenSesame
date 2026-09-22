@@ -28,6 +28,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "settings.sync": ["/settings/connections"],
     "settings.model-provider": ["/settings/connections"],
     "settings.changelog": ["/settings"],
+    "settings.transport": ["/settings"],
     "settings.backup": ["/connections"],
     "identity.sign-in": ["/unlock", "/identity"],
     "identity.sign-out": [],

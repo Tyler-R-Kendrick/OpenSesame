@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
 import { resolveDuressMode } from "../lib/duress/feature/mode.js";
@@ -24,6 +24,13 @@ import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import type { RawFormat } from "./settings/settings-files.js";
 import "./settings.css";
+
+/** Its own chunk: Transport is read on a Security visit, never on boot. */
+const TransportPanel = lazy(() =>
+  import("./settings/transport/TransportPanel.js").then((module) => ({
+    default: module.TransportPanel,
+  })),
+);
 
 export { settingsTabs, type SettingsPanels } from "./SettingsSectionNav.js";
 
@@ -115,6 +122,11 @@ export function SettingsSection({
         <FormatsInteroperabilityPanel />
       ) : null}
       {form && category === "security" ? <AgeKeysPanel /> : null}
+      {form && category === "security" ? (
+        <Suspense fallback={null}>
+          <TransportPanel />
+        </Suspense>
+      ) : null}
       {form && category === "security" ? <SettingsMasterPasswordPanel /> : null}
 
       {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}

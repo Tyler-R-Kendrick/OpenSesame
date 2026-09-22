@@ -1,0 +1,10 @@
+{
+  "kind": "peer_identity_selector",
+  "input": {
+    "spiffe_id": "spiffe://example.org/x/../y"
+  },
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

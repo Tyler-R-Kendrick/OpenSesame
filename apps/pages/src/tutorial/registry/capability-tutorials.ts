@@ -7,6 +7,10 @@ import { AUTHORITY_TUTORIALS } from "./authority-help.js";
  */
 export const CAPABILITY_TUTORIALS = {
   ...AUTHORITY_TUTORIALS,
+  "transport.status.view": "settings.transport",
+  "transport.verify.run": "settings.transport",
+  "transport.identity.reference": "settings.transport",
+  "transport.capabilities.discover": "settings.transport",
   "vaults.switch": "vaults.switch",
   "host.health": "host.health.check",
   "host.health.pages": "host.health.check",

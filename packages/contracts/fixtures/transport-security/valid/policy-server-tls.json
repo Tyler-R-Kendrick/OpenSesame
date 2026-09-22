@@ -1,0 +1,8 @@
+{
+  "kind": "transport_policy",
+  "input": "server_tls",
+  "expect": {
+    "ok": true,
+    "canonical": "server_tls"
+  }
+}

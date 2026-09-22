@@ -1,0 +1,38 @@
+/* Settings › Security › Transport — the form is a record, the status is rows. */
+.transport__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.transport__form {
+  display: grid;
+  gap: 0;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.transport__ref {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.transport__ref input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+}
+
+.transport__rows {
+  display: grid;
+}
+
+.transport__row .sw__sub,
+.transport__browser .sw__sub {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}

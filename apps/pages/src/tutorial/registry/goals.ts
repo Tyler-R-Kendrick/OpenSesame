@@ -13,9 +13,8 @@ import type { SupportGoalDescription } from "@opensesame/support-agent";
 import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
 import { IDENTITY_GOALS } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
-import { SETUP_GOALS, SHELL_GOALS } from "./setup-goals.js";
+import { SETUP_GOALS, SHELL_GOALS, TRANSPORT_GOALS } from "./setup-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
-
 export type GuideGoalDescriptor = {
   readonly id: GuideGoalId;
   readonly title: string;
@@ -444,6 +443,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   ...SHELL_GOALS,
+  ...TRANSPORT_GOALS,
   ...AUTHORITY_GOALS,
 ];
 

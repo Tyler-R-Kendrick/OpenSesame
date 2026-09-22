@@ -125,8 +125,17 @@ export function toOidcClientMetadata(client: OAuthClientRecord) {
     subject_type: "pairwise" as const,
     application_type: "web" as const,
   };
-  if (client.jwks) {
-    return { ...metadata, jwks: client.jwks };
-  }
-  return metadata;
+  return {
+    ...metadata,
+    ...(client.jwks ? { jwks: client.jwks } : undefined),
+    ...(client.tlsClientAuthSanDns
+      ? { tls_client_auth_san_dns: client.tlsClientAuthSanDns }
+      : undefined),
+    ...(client.tlsClientAuthSanUri
+      ? { tls_client_auth_san_uri: client.tlsClientAuthSanUri }
+      : undefined),
+    ...(client.tlsClientCertificateBoundAccessTokens
+      ? { tls_client_certificate_bound_access_tokens: true }
+      : undefined),
+  };
 }

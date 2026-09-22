@@ -13,7 +13,6 @@ import {
 import {
   assertServiceEndpoints,
   deploymentExposure,
-  loopbackHost,
   resolveDeploymentMode,
 } from "./deployment-mode.js";
 import {
@@ -26,6 +25,12 @@ import {
 } from "./interactions/registry.js";
 import { assertClientAppUrl } from "./interactions/rendezvous.js";
 import { readSupportProxyConfig } from "./services/support-proxy.js";
+import {
+  type TransportConfig,
+  assertListenHostAllowed,
+  assertTransportSecure,
+  loadTransportConfig,
+} from "./transport/config.js";
 export type { AgentAuthTrustedProvider };
 
 export interface ControlPlaneConfig {
@@ -94,11 +99,10 @@ export interface ControlPlaneConfig {
   hostApiUrl: string;
   /** Server-only operator token for Host API mutations. Empty in production if unset. */
   operatorToken: string;
-  /**
-   * Shared secret for Host → Identity principal mapping resolve.
-   * Empty rejects mapping resolve in production; allowDevDefaults may omit in tests.
-   */
+  /** Host → Identity mapping resolve secret (`shared_secret` mode only). */
   mappingResolveToken: string;
+  /** Optional TLS listener and the mapping receiver's auth mode (CONTRACT §5). */
+  transport: TransportConfig;
   /**
    * Issuers allowed to promote a provisional principal via a verified
    * `id_token` on POST /v1/principals/link-identities (ADR 0033).
@@ -205,24 +209,10 @@ function corsOriginsFromEnv(env: NodeJS.ProcessEnv): string[] {
   return parseOriginList(env.OPENSESAME_CORS_ORIGINS ?? "");
 }
 
-/** True when a bind host is loopback (matches Rust host-core daemon policy). */
-export function listenHostIsLoopback(host: string): boolean {
-  return loopbackHost(host);
-}
-
-/** Refuse non-loopback listen unless OPENSESAME_ALLOW_NONLOCAL=1. */
-export function assertListenHostAllowed(
-  host: string,
-  env: NodeJS.ProcessEnv = process.env,
-): void {
-  const allow =
-    env.OPENSESAME_ALLOW_NONLOCAL === "1" ||
-    env.OPENSESAME_DAEMON_ALLOW_NONLOCAL === "1";
-  if (allow || listenHostIsLoopback(host)) return;
-  throw new Error(
-    `listen host \`${host}\` is not loopback; set OPENSESAME_ALLOW_NONLOCAL=1 to override`,
-  );
-}
+export {
+  assertListenHostAllowed,
+  listenHostIsLoopback,
+} from "./transport/config.js";
 
 /**
  * Read a channel list from configuration.
@@ -306,6 +296,7 @@ export function loadConfig(
     ).replace(/\/$/, ""),
     operatorToken: env.OPENSESAME_OPERATOR_TOKEN ?? "",
     mappingResolveToken: env.OPENSESAME_MAPPING_RESOLVE_TOKEN ?? "",
+    transport: loadTransportConfig(env),
     trustedUpstreamIssuers: mergeProviderIssuers(
       (env.OPENSESAME_TRUSTED_UPSTREAMS ?? "")
         .split(",")
@@ -399,11 +390,7 @@ export function assertSecureConfig(
       "OPENSESAME_OPERATOR_TOKEN must be set in production for Host API device-approve proxy",
     );
   }
-  if (config.isProduction && !config.mappingResolveToken) {
-    throw new Error(
-      "OPENSESAME_MAPPING_RESOLVE_TOKEN must be set in production",
-    );
-  }
+  assertTransportSecure(config.transport, config, env);
   if (config.isProduction && !config.databaseUrl)
     throw new Error(
       "DATABASE_URL is required for durable production security state",

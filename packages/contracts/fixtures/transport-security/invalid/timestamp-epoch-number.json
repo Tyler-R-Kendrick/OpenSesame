@@ -1,0 +1,8 @@
+{
+  "kind": "timestamp",
+  "input": 1758535200,
+  "expect": {
+    "ok": false,
+    "error": "malformed_configuration"
+  }
+}

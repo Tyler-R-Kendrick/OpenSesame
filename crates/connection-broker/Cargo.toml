@@ -15,14 +15,21 @@ opensesame-domain = { path = "../domain" }
 opensesame-relay = { path = "../relay" }
 opensesame-rotation = { path = "../rotation" }
 opensesame-invoke-through = { path = "../invoke-through" }
+# ADR 0132 (SW-CONNECTOR): the connector's optional client identity. Verification,
+# client configs and the disposable test PKI all live there; the broker never
+# builds a TLS stack of its own.
+opensesame-transport-security = { path = "../transport-security" }
 secrecy = { workspace = true }
 opensesame-task-bus = { path = "../task-bus" }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
+bytes = { workspace = true }
 chacha20poly1305 = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }
+# Bounded, scope-keyed connector client pools (CONN-POOLS). Already in the lock.
+lru = "0.18.2"
 oauth2 = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
@@ -41,3 +48,7 @@ uuid = { workspace = true }
 [dev-dependencies]
 axum = { workspace = true }
 opensesame-storage = { path = "../storage" }
+# Disposable PKI and a real mTLS listener for the connector transport tests.
+opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+rustls = { version = "0.23.43", default-features = false, features = ["std"] }
+tempfile = { workspace = true }

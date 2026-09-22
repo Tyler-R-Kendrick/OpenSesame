@@ -4,16 +4,41 @@
 //! - [`NatsJetStreamTaskBus`] — optional (`jetstream` feature); selected at
 //!   runtime via `OPENSESAME_TASKBUS=nats` and/or `NATS_URL`.
 //!
-//! Subject namespace: `opensesame.events.>` (auth callout reserved under
-//! `opensesame.callout.>` — not implemented here).
+//! - [`UnavailableTaskBus`] — what a *secure* NATS profile becomes when its
+//!   connection cannot be established: every call fails with the reason.
+//!   Never a memory or plaintext fallback (ADR 0132, EXPLICIT-ENFORCEMENT).
+//!
+//! Subject namespace: `opensesame.events.>`. The NATS auth callout is the
+//! server's native `$SYS.REQ.USER.AUTH` request in the AUTH account (see
+//! `ops/nats/secure-client.conf`); `opensesame.callout.>` is only a reserved
+//! application prefix and is not that protocol.
 
 mod memory;
 #[cfg(feature = "jetstream")]
 mod nats;
-
-pub use memory::InMemoryTaskBus;
 #[cfg(feature = "jetstream")]
-pub use nats::{NatsJetStreamConfig, NatsJetStreamTaskBus};
+mod nats_connect;
+#[cfg(feature = "jetstream")]
+mod nats_policy;
+#[cfg(feature = "jetstream")]
+mod nats_transport;
+#[cfg(feature = "jetstream")]
+mod nats_transport_env;
+
+pub use memory::{InMemoryTaskBus, UnavailableTaskBus};
+#[cfg(feature = "jetstream")]
+pub use nats::{NatsBusError, NatsJetStreamConfig, NatsJetStreamTaskBus};
+#[cfg(feature = "jetstream")]
+pub use nats_connect::{event_code, BusHealth, InjectedMaterial, NatsRole};
+#[cfg(feature = "jetstream")]
+pub use nats_policy::{
+    IdentityRef, NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy, NatsTransportPublic,
+    NatsTransportSource, NatsTransportView, TrustRef,
+};
+#[cfg(feature = "jetstream")]
+pub use nats_transport::NatsTransportSpec;
+#[cfg(feature = "jetstream")]
+pub use nats_transport_env::url_hosts;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -30,7 +55,8 @@ pub const DEFAULT_CONSUMER_NAME: &str = "opensesame-worker";
 pub const BACKUP_CONSUMER_NAME: &str = "opensesame-backup";
 /// Durable consumer for GitHub webhook wakes.
 pub const GITHUB_WEBHOOK_CONSUMER_NAME: &str = "opensesame-github-wh";
-/// Reserved subject prefix for Host NATS auth callout.
+/// Reserved *application* subject prefix. Not the NATS auth-callout wire:
+/// that is the server's `$SYS.REQ.USER.AUTH` (`ops/nats/secure-client.conf`).
 pub const CALLOUT_SUBJECT_PREFIX: &str = "opensesame.callout";
 /// System subjects Host alone publishes (not callout-user publishable).
 pub const SYSTEM_SUBJECT_PREFIX: &str = "opensesame.events.system";
@@ -142,7 +168,8 @@ impl TaskBusBackend {
 /// Construct a `TaskBus` from environment (memory by default).
 ///
 /// Precedence for callers that also load durable Host config should resolve
-/// env first, then stored URL — see gateway `taskbus_config`.
+/// env first, then stored URL — see gateway `taskbus_config`. The NATS
+/// transport comes from `OPENSESAME_NATS_*` (plaintext loopback when unset).
 ///
 /// # Errors
 ///
@@ -157,7 +184,10 @@ pub async fn create_from_env() -> anyhow::Result<Arc<dyn TaskBus>> {
     }
 }
 
-/// Connect a `JetStream` `TaskBus` to an explicit URL (Host operator ping / apply).
+/// Connect a `JetStream` `TaskBus` to an explicit URL with the transport
+/// resolved from `OPENSESAME_NATS_*` (Host operator ping / apply). A secure
+/// profile is never provisioned here; the plaintext loopback profile keeps
+/// creating its stream and consumer on connect (legacy local behaviour).
 ///
 /// # Errors
 ///
@@ -165,18 +195,85 @@ pub async fn create_from_env() -> anyhow::Result<Arc<dyn TaskBus>> {
 pub async fn create_nats(nats_url: &str) -> anyhow::Result<Arc<dyn TaskBus>> {
     #[cfg(feature = "jetstream")]
     {
-        let bus = NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
-            nats_url: nats_url.to_string(),
-            ..NatsJetStreamConfig::default()
-        })
-        .await?;
-        Ok(Arc::new(bus))
+        let transport = NatsTransportSpec::from_env()?.unwrap_or_else(NatsTransportSpec::plaintext);
+        let provision = !transport.is_secure();
+        create_with(nats_url, transport, NatsRole::Host, provision).await
     }
     #[cfg(not(feature = "jetstream"))]
     {
         let _ = nats_url;
         anyhow::bail!("opensesame-task-bus was built without the `jetstream` feature");
     }
+}
+
+/// Connect a `JetStream` `TaskBus` with an explicit transport, role and
+/// provisioning decision. Every Host constructor goes through here.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
+#[cfg(feature = "jetstream")]
+pub async fn create_with(
+    nats_url: &str,
+    transport: NatsTransportSpec,
+    role: NatsRole,
+    provision: bool,
+) -> anyhow::Result<Arc<dyn TaskBus>> {
+    let bus = NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
+        nats_url: nats_url.to_string(),
+        transport,
+        role,
+        provision,
+        ..NatsJetStreamConfig::default()
+    })
+    .await?;
+    Ok(Arc::new(bus))
+}
+
+/// The `JetStream` configuration for the Host *backup wake* consumer: the
+/// durable `opensesame-backup` filtered to `opensesame.events.system.>`. One
+/// definition so the provisioning action and the runtime consumer cannot
+/// drift apart (and so a backup identity never opens the worker consumer).
+#[cfg(feature = "jetstream")]
+#[must_use]
+pub fn backup_consumer_config(
+    nats_url: &str,
+    transport: NatsTransportSpec,
+    role: NatsRole,
+    provision: bool,
+) -> NatsJetStreamConfig {
+    NatsJetStreamConfig {
+        nats_url: nats_url.to_string(),
+        consumer_name: BACKUP_CONSUMER_NAME.to_string(),
+        filter_subject: Some(format!("{SYSTEM_SUBJECT_PREFIX}.>")),
+        fetch_expires: std::time::Duration::from_secs(2),
+        transport,
+        role,
+        provision,
+        ..NatsJetStreamConfig::default()
+    }
+}
+
+/// Create the backup wake consumer as part of the one-time provisioning
+/// action. Separate from [`create_with`] because the worker consumer and the
+/// backup consumer are two durables and a runtime role creates neither.
+///
+/// # Errors
+///
+/// Returns an error when the connection or the consumer creation fails.
+#[cfg(feature = "jetstream")]
+pub async fn provision_backup_consumer(
+    nats_url: &str,
+    transport: NatsTransportSpec,
+) -> anyhow::Result<()> {
+    NatsJetStreamTaskBus::connect(backup_consumer_config(
+        nats_url,
+        transport,
+        NatsRole::Provisioner,
+        true,
+    ))
+    .await?;
+    Ok(())
 }
 
 /// Build memory or nats from explicit backend + optional URL.

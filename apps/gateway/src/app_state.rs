@@ -123,6 +123,13 @@ pub struct AppState {
     pub sync_notify: Arc<tokio::sync::Notify>,
     /// Host event bus (`OPENSESAME_TASKBUS` / `NATS_URL` / stored operator config).
     pub task_bus: Arc<RwLock<Arc<dyn TaskBus>>>,
+    /// Certificate lifecycle for the optional mTLS profiles (ADR 0132):
+    /// custody cache, revoked-leaf denylist, renewal lease and trust epoch.
+    pub transport_lifecycle: Arc<crate::transport_lifecycle::LifecycleState>,
+    /// Optional mTLS / workload-identity transport (ADR 0132): generations,
+    /// the live service-binding set, and the operator status facts. `None`
+    /// when the deployment configured none of it.
+    pub transport: Option<Arc<crate::transport::TransportRuntime>>,
 }
 
 impl AppState {
@@ -176,18 +183,11 @@ async fn build_with_security(
     )
     .await?;
     let resolved = crate::taskbus_config::resolve(&db).await?;
-    let task_bus = match crate::taskbus_config::build_bus(&resolved).await {
-        Ok(bus) => bus,
-        Err(error) => {
-            tracing::warn!(
-                %error,
-                "TaskBus connect failed at boot — falling back to in-memory"
-            );
-            Arc::new(opensesame_task_bus::InMemoryTaskBus::default())
-        }
-    };
+    let task_bus = crate::taskbus_config::build_bus_or_unavailable(&resolved).await;
 
-    Ok(AppState {
+    let transport_config =
+        crate::transport::config::TransportConfig::from_env().map_err(anyhow::Error::new)?;
+    let mut state = AppState {
         deployment: security.deployment,
         identity_mapping: security.identity_mapping,
         host_authorization: security.host_authorization,
@@ -220,7 +220,16 @@ async fn build_with_security(
         backup_notify: Arc::new(tokio::sync::Notify::new()),
         sync_notify: Arc::new(tokio::sync::Notify::new()),
         task_bus: Arc::new(RwLock::new(task_bus)),
-    })
+        transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
+        transport: None,
+    };
+    // Built after the state exists: a `managed` identity source resolves
+    // through the Host's own custody bridge, which needs the state.
+    state.transport =
+        crate::transport::TransportRuntime::build(transport_config, &state.db.clone(), &state)
+            .await
+            .map_err(anyhow::Error::new)?;
+    Ok(state)
 }
 
 async fn resolve_distributed_task_authority(task_database_url: &str) -> bool {

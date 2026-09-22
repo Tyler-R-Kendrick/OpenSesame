@@ -14,7 +14,8 @@ pub mod config_access;
 pub mod configuration;
 pub mod crypto;
 pub mod custom_provider;
-pub mod delegation; mod delegation_lineage;
+pub mod delegation;
+mod delegation_lineage;
 pub mod egress;
 pub mod error;
 pub mod flow;
@@ -28,11 +29,12 @@ pub mod rotation;
 pub mod rotation_egress;
 pub mod rotation_verify;
 mod scope_ceiling;
+use scope_ceiling::require_scope_subset;
 pub mod secret_config;
 pub mod store;
-use scope_ceiling::require_scope_subset;
 pub mod sync_target;
 pub mod token;
+pub mod transport;
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -1735,13 +1737,8 @@ impl ConnectionBroker {
         provider_id: &str,
         token: &str,
     ) -> Result<Option<String>> {
-        forge_token_probe::probe_access_token_account(
-            &self.http,
-            &self.config,
-            provider_id,
-            token,
-        )
-        .await
+        forge_token_probe::probe_access_token_account(&self.http, &self.config, provider_id, token)
+            .await
     }
 
     /// # Errors
@@ -2342,7 +2339,10 @@ fn parse_owner_kind(raw: &str) -> ConnectionOwnerKind {
 /// history setup without registering an OAuth App.
 #[must_use]
 pub fn accepts_pasted_access_token(provider_id: &str) -> bool {
-    matches!(provider_id, "github" | "gitlab" | "bitbucket" | "codeberg" | "origin")
+    matches!(
+        provider_id,
+        "github" | "gitlab" | "bitbucket" | "codeberg" | "origin"
+    )
 }
 
 #[must_use]

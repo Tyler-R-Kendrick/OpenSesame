@@ -1,0 +1,14 @@
+{
+  "kind": "service_binding_set",
+  "input": {
+    "revision": 1,
+    "bindings": []
+  },
+  "expect": {
+    "ok": true,
+    "canonical": {
+      "revision": 1,
+      "bindings": []
+    }
+  }
+}

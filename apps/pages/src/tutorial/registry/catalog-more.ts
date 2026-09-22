@@ -37,6 +37,14 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
     capabilityId: "backup.target.set",
   },
   {
+    id: "settings.transport",
+    description:
+      "The Transport panel under Security: the target this device asks about, its policy and identity by reference, and one mark each for the desired policy, the credential, the runtime, what a peer observed and whether anything is enforced. Optional \u2014 with no endpoint set it asks nothing.",
+    role: "surface",
+    routes: ["/settings"],
+    capabilityId: "transport.status.view",
+  },
+  {
     id: "settings.changelog",
     description:
       "The in-app changelog of what this build shipped. It is a record, not a backup.",

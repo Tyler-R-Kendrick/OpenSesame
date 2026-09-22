@@ -45,6 +45,11 @@ opensesame-vault-item-types = { path = "../crates/vault-item-types" }
 opensesame-storage = { path = "../crates/storage" }
 opensesame-gateway = { path = "../apps/gateway" }
 opensesame-pki-core = { path = "../crates/pki-core" }
+opensesame-transport-security = { path = "../crates/transport-security" }
+opensesame-ingress-evidence = { path = "../crates/ingress-evidence" }
+opensesame-nats-callout = { path = "../crates/nats-callout" }
+http = "1.3.1"
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
 
 [workspace]
 members = ["."]
@@ -353,6 +358,34 @@ bench = false
 [[bin]]
 name = "pki_ocsp_request_parse"
 path = "fuzz_targets/pki_ocsp_request_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transport_ingress_fields"
+path = "fuzz_targets/transport_ingress_fields.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transport_leaf_parse"
+path = "fuzz_targets/transport_leaf_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transport_bindings_config"
+path = "fuzz_targets/transport_bindings_config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transport_callout_envelope"
+path = "fuzz_targets/transport_callout_envelope.rs"
 test = false
 doc = false
 bench = false
