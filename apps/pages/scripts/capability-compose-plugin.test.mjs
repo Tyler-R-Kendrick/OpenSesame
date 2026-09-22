@@ -181,13 +181,25 @@ describe("invalid profiles throw (BUILD-05)", () => {
   test("parse error", () => rejects({ profilePath: profileFile("broken", "{ not json") }, /not JSON/));
   test("unknown capability", () =>
     rejects({ profilePath: profileFile("unknown", { installationSelection: selection([], ["vault.time-travel"]) }) }, /unknown capability "vault.time-travel"/));
-  test("contradictory policy: selected root is prohibited", () =>
+  test("contradictory policy: a capability both required and prohibited", () =>
     rejects(
-      { profilePath: profileFile("contra", { instancePolicy: policy([], [], ["connectors.external"]), installationSelection: selection([], ["connectors.external"]) }) },
-      /not permitted by the policy/,
+      { profilePath: profileFile("contra", { instancePolicy: policy(["connectors.external"], [], ["connectors.external"]), installationSelection: selection(["connectors.external"], []) }) },
+      /both required and prohibited/,
     ));
-  test("required root not accepted", () =>
-    rejects({ profilePath: profileFile("unaccepted", { instancePolicy: policy(["connectors.external"], []), installationSelection: selection([], []) }) }, /not in acceptedRequired/));
+  test("contradictory policy: a core capability in a policy set", () =>
+    rejects({ profilePath: profileFile("coreset", { instancePolicy: policy([], ["vault.passwords"]), installationSelection: selection([], []) }) }, /core capability "vault.passwords"/));
+  test("a selected root the policy prohibits is dropped (runtime PROHIBITED_BY_INSTANCE), not a build error", async () => {
+    const profilePath = profileFile("prohibited", { instancePolicy: policy([], ["sharing.drops"], ["connectors.external"]), installationSelection: selection([], ["connectors.external", "sharing.drops"]) });
+    const { main } = await compose({ mode: "hardened", profilePath });
+    const sets = main.__state().sets;
+    assert.deepEqual([...sets.distributed].sort(), ["sharing.drops", "vault.passwords"]);
+    assert.match(sets.notes.join("\n"), /selected "connectors.external" is not permitted/);
+  });
+  test("a required root not yet accepted is still distributed (runtime REQUIRED_NOT_ACCEPTED)", async () => {
+    const profilePath = profileFile("unaccepted", { instancePolicy: policy(["connectors.external"], []), installationSelection: selection([], []) });
+    const { main } = await compose({ mode: "hardened", profilePath });
+    assert.deepEqual([...main.__state().sets.distributed].sort(), ["connectors.external", "vault.passwords"]);
+  });
   test("alternative not chosen", () =>
     rejects({ profilePath: profileFile("noalt", { instancePolicy: policy([], ["sharing.household", "sharing.drops"]), installationSelection: selection([], ["sharing.household"]) }) }, /alternatives slot "transport"/));
   test("absent module entry file", async () => {

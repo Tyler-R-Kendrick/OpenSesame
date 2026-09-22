@@ -21,7 +21,9 @@
     "verify:access-pathbar": "node scripts/verify-access-pathbar.mjs",
     "verify:ambient-sso": "node scripts/verify-ambient-sso.mjs",
     "verify:experience": "node scripts/verify-experience.mjs",
-    "verify:key-protection": "vitest run src/lib/vault/protection src/lib/capability-bind.test.ts src/lib/age-keys"
+    "verify:key-protection": "vitest run src/lib/vault/protection src/lib/capability-bind.test.ts src/lib/age-keys",
+    "build:profile": "node scripts/build-profile.mjs",
+    "verify:capability-graph": "node scripts/verify-capability-graph.mjs"
   },
   "dependencies": {
     "@ag-ui/client": "0.0.59",

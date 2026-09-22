@@ -171,17 +171,26 @@ export function distributedCapabilities(catalog, profile, mode) {
     !prohibited.has(id) &&
     (policy === null || policy === undefined || required.has(id) || allowed.has(id));
 
+  // Acceptance and selection are runtime facts the resolver answers with a
+  // reason code (REQUIRED_NOT_ACCEPTED, PROHIBITED_BY_INSTANCE, ...). A build
+  // ships what the policy lets this installation reach: every required root
+  // (an artifact must carry them for the acceptance to be possible) plus the
+  // permitted selected optionals. A selected root the policy refuses is
+  // dropped and noted, never a build error; the policy's own contradictions
+  // (above) are.
+  const notes = [];
   for (const id of required) {
-    if (!acceptedRequired.has(id))
-      diagnostics.push(`required capability "${id}" is not in acceptedRequired`);
+    if (!acceptedRequired.has(id)) notes.push(`required "${id}" is not yet accepted; distributed regardless`);
   }
   for (const id of acceptedRequired) {
     if (byId.has(id) && !required.has(id))
       diagnostics.push(`acceptedRequired names "${id}", which the policy does not require`);
   }
-  const roots = [...acceptedRequired, ...selectedOptional].filter((id) => byId.has(id));
-  for (const id of roots) {
-    if (!permitted(id)) diagnostics.push(`selected root "${id}" is not permitted by the policy`);
+  const roots = [];
+  for (const id of [...required, ...selectedOptional]) {
+    if (!byId.has(id)) continue;
+    if (permitted(id)) roots.push(id);
+    else notes.push(`selected "${id}" is not permitted by the policy; not distributed`);
   }
 
   // Closure: roots + hard dependencies + chosen alternatives, each permitted.
@@ -230,6 +239,7 @@ export function distributedCapabilities(catalog, profile, mode) {
     closure,
     distributed,
     all: new Set(byId.keys()),
+    notes,
   };
 }
 
