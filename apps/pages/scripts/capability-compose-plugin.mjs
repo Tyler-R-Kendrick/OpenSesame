@@ -226,7 +226,8 @@ function moduleTableSource(state, command) {
   return `export const MODULE_TABLE = Object.freeze({\n${lines.join("\n")}\n});\n`;
 }
 
-function buildGraph(ctx, bundle, state, base) {
+/** Exported for the plugin's own tests; the shape is documented in capability-graph.mjs. */
+export function buildGraph(ctx, bundle, state, base) {
   const chunks = [];
   const assets = [];
   const entries = [];
@@ -322,6 +323,8 @@ export function capabilityCompose(options = {}) {
 
   const main = {
     name: "opensesame-capability-compose",
+    /** Test seam: the state the `config` hook computed. */
+    __state: () => state,
     async config(userConfig) {
       state = await composeState(options, userConfig);
       const build = userConfig.build ?? (userConfig.build = {});

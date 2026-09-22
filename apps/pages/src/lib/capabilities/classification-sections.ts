@@ -70,6 +70,7 @@ export const SECTION_RULES = [
 
   // --- settings --------------------------------------------------------------
   core("src/sections/SettingsSection", SETTINGS, "settings root; MIXED — static panels"),
+  core("src/sections/SettingsSectionNav", SETTINGS, "tabs and panel slots; MIXED"),
   core("src/sections/SettingsDangerPanel", SETTINGS, "Danger"),
   core("src/sections/SettingsMasterPasswordPanel", "vault.local-unlock", "master password"),
   core("src/sections/settings.css", SETTINGS, "stylesheet"),

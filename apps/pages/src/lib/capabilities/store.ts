@@ -269,6 +269,26 @@ export class CompositionStore {
     return this.#committedGeneration;
   }
 
+  /** Test-only: back to an unbooted store (the lease, if any, is aborted). */
+  resetForTest(): void {
+    this.#bump("reset");
+    this.#catalog = null;
+    this.#distribution = null;
+    this.#policy = null;
+    this.#policyValid = true;
+    this.#provenance = "personal-local";
+    this.#selection = null;
+    this.#receipt = null;
+    this.#vaultSelection = null;
+    this.#emergencyDisabled.clear();
+    this.#activity.clear();
+    this.#diagnostics = [];
+    this.#legacy = null;
+    this.#committedGeneration = 0;
+    this.#snapshot = { ...INITIAL_SNAPSHOT, generation: this.#generation };
+    this.#emit();
+  }
+
   // —— internals ————————————————————————————————————————————————
 
   #readPolicy(config: ParsedRuntimeConfig, docs: PersistedDocs): void {

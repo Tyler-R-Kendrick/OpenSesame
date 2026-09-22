@@ -23,17 +23,18 @@ const CORE_INFRA = [
   "use-online", "use-status-notice", "use-configured", "use-settings",
   "use-install", "identifier", "host-ids", "probe-failure", "opener-policy",
   "bounded-response", "urls", "agent-page-dump", "local-network-fetch",
-  "queue", "__tests__/", "__snapshots__/",
+  "queue", "pact", "__tests__/", "__snapshots__/",
 ];
 const SHELL_FILES = [
   "keymap", "keymap-help", "crumbs", "section-views", "access-routes",
   "connectivity", "connectivity-monitor", "planes", "connectors", "command-bar/",
+  "keyboard-delivery",
 ];
 const SIGNIN_FILES = [
   "guest-auth", "guest-isolation", "local-guest", "auth-outcome", "last-sign-in",
   "session-exit", "account", "identity", "federation", "federation-copy",
   "federation-encoding", "federation-pending", "federation-session-store",
-  "providers", "device-identity",
+  "providers", "device-identity", "federated-signin", "guest-login",
 ];
 const CONNECTOR_FILES = [
   "capabilities", "capability-bind", "connector-guidance", "connector-settings",
@@ -60,7 +61,8 @@ const ACCESS_FILES = [
   "browser-pairing", "secret-config-access", "changelog",
 ];
 const LOCAL_IAM_FILES = [
-  "local-agent-auth", "local-agent-channel", "local-agent-keys",
+  "local-agent-auth", "local-agent-authorization", "local-agent-channel",
+  "local-agent-keys",
   "local-application-approval", "local-application-policy", "local-applications",
   "local-authenticator", "local-authorization", "local-credentials",
   "local-devices", "local-directory", "local-directory-bootstrap",

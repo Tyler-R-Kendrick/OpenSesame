@@ -31,7 +31,6 @@ export const PACKAGE_RULES = [
   optional(`${NM}@opensesame/audit`, "activity.log", "redaction for the sealed activity log"),
   optional(`${NM}@opensesame/auth-upstream`, "identity.local-iam", "browser helpers for local passkeys"),
   optional(`${NM}age-encryption`, "backup.cloud-secrets", "age recipients, SOPS engine, age-webauthn adapter"),
-  optional(`${NM}yaml`, "backup.cloud-secrets", "SOPS YAML codec; also configuration/yaml-* (settings.core) — MIXED"),
   optional(`${NM}@opensesame/static-auth`, "identity.local-iam", "local protocol types; the built SDK files are identity.site-broker"),
 
   // --- shared infrastructure -------------------------------------------------
@@ -43,6 +42,7 @@ export const PACKAGE_RULES = [
   shared(`${NM}@opensesame/capability-composition`, "the composition contracts and resolver"),
   shared(`${NM}@noble/ciphers`, "AES for vault sealing"),
   shared(`${NM}zod`, "schema parsing"),
+  shared(`${NM}yaml`, "settings YAML profile (core) and the SOPS codec share it; not exclusive"),
 
   // --- core --------------------------------------------------------------------
   core(`${NM}react`, "shell.navigation", "UI runtime"),
