@@ -136,14 +136,14 @@
           "note": "presentation sealed/opened via fixture modules"
         },
         "SC-RESTRICTED": {
-          "status": "exercised_fixture",
-          "entryPoint": "J-CRYPTO-SLOT|J-TRIGGER",
-          "note": "presentation sealed/opened via fixture modules"
+          "status": "production_entry_wired",
+          "entryPoint": "unlock-pin-duress|unlock-password-duress|unlock-duress-continue",
+          "note": "application_code match → activate → guest continue; fixture crypto still covers seal/open"
         },
         "SC-DECOY": {
-          "status": "exercised_fixture",
-          "entryPoint": "J-CRYPTO-SLOT|J-TRIGGER",
-          "note": "presentation sealed/opened via fixture modules"
+          "status": "production_entry_wired",
+          "entryPoint": "unlock-pin-duress|unlock-password-duress|unlock-duress-continue",
+          "note": "same complete-code gate + guest continue as restricted"
         },
         "SC-LOCAL-HOLD": {
           "status": "exercised_fixture",

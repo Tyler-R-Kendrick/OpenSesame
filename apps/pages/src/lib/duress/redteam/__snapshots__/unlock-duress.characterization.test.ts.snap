@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`duress unlock characterization > post-match continue policy stays presentation-shaped 1`] = `
+{
+  "missAction": "WrongPasswordError",
+  "missPresentations": [
+    "locked",
+    "unchanged",
+  ],
+  "openAction": "createGuest",
+  "openPresentations": [
+    "normal",
+    "restricted",
+    "decoy",
+  ],
+}
+`;
+
+exports[`duress unlock characterization > wrong-secret copy is identical across gated roads 1`] = `
+{
+  "passkey": "That passkey did not unlock the vault.",
+  "password": "That password did not unlock the vault.",
+  "pin": "That PIN did not unlock the vault.",
+  "recovery": "That recovery code is not valid.",
+  "totp": "That authenticator code is not valid.",
+}
+`;
