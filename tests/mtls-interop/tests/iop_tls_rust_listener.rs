@@ -71,7 +71,7 @@ impl World {
         })
     }
 
-    fn bindings(&self) -> ServiceBindingSet {
+    fn bindings() -> ServiceBindingSet {
         ServiceBindingSet {
             revision: 1,
             bindings: vec![support::binding("bridge", support::uri(BOUND_ID))],
@@ -85,7 +85,7 @@ async fn listener(world: &World) -> Result<support::Listener> {
         &world.server.chain,
         &world.server.key,
         &world.service_root.cert,
-        support::router(world.bindings()),
+        support::router(World::bindings()),
     )
     .await
 }
@@ -303,7 +303,7 @@ async fn a_certificate_paired_with_another_leafs_key_is_refused_by_both_stacks()
         &std::fs::read(&swapped.chain)?,
         &secrecy::SecretBox::new(Box::new(std::fs::read(&swapped.key)?)),
     );
-    let error = loaded.err().expect("a mismatched pair is not an identity");
+    let error = loaded.expect_err("a mismatched pair is not an identity");
     assert_eq!(
         error.code(),
         TransportError::KeyPairMismatch.code(),

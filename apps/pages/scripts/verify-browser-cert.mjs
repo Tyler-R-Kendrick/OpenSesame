@@ -26,8 +26,8 @@
 //   * a scenario that cannot run prints `not_executed` with its blocker and
 //     fails the run; nothing here is allowed to be silently skipped.
 import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,7 +36,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..");
 const DIST = resolve(here, "..", "dist");
 const OPERATION = "nats.callout.decide";
-const chromiumPath = process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium";
+const chromiumPath =
+  process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium";
 
 // `NODE_EXTRA_CA_CERTS` must be in place before Node starts, so the first
 // invocation mints the PKI and re-executes itself with the variable set. The
@@ -141,7 +142,10 @@ const staticServer = createServer((req, res) => {
   };
   try {
     if (rel && existsSync(file) && extname(file))
-      return send(readFileSync(file), MIME[extname(file)] ?? "application/octet-stream");
+      return send(
+        readFileSync(file),
+        MIME[extname(file)] ?? "application/octet-stream",
+      );
     return send(readFileSync(join(DIST, "index.html")), "text/html");
   } catch {
     res.writeHead(404);
@@ -212,17 +216,18 @@ try {
   });
   const corsPage = await corsContext.newPage();
   await corsPage.goto(`${staticOrigin}/OpenSesame/`);
-  const cors = await corsPage.evaluate(
-    async (url) => {
-      try {
-        const r = await fetch(url, { credentials: "include", mode: "cors" });
-        return { ok: true, status: r.status, text: (await r.text()).slice(0, 80) };
-      } catch (error) {
-        return { ok: false, error: String(error).slice(0, 120) };
-      }
-    },
-    probe,
-  );
+  const cors = await corsPage.evaluate(async (url) => {
+    try {
+      const r = await fetch(url, { credentials: "include", mode: "cors" });
+      return {
+        ok: true,
+        status: r.status,
+        text: (await r.text()).slice(0, 80),
+      };
+    } catch (error) {
+      return { ok: false, error: String(error).slice(0, 120) };
+    }
+  }, probe);
   check(
     "cross-origin-read-is-refused-despite-the-certificate",
     cors.ok === false,

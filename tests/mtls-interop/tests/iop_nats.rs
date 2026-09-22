@@ -55,13 +55,25 @@ fn rust_client_config(broker: &nats::Broker, leaf: &Leaf) -> Result<rustls::Clie
 
 async fn rust_publisher(broker: &nats::Broker) -> Result<async_nats::Client> {
     let config = rust_client_config(broker, &broker.publisher)?;
-    Ok(async_nats::ConnectOptions::new()
+    // `tls_first` is not optional here: the broker is configured
+    // `handshake_first: true`, so it never writes a plaintext `INFO`. A
+    // client that waits for `INFO` before upgrading and a server that waits
+    // for a `ClientHello` deadlock until both time out — which is exactly
+    // what the broker log says when this line is missing
+    // ("TLS handshake error: i/o timeout", once every reconnect).
+    //
+    // There is deliberately no `retry_on_initial_connect` either: an
+    // unbounded retry turns a misconfiguration into a hang instead of a
+    // failure, and this suite fails rather than hangs.
+    let connect = async_nats::ConnectOptions::new()
         .require_tls(true)
+        .tls_first()
         .tls_client_config(config)
-        .retry_on_initial_connect()
-        .connection_timeout(Duration::from_secs(15))
-        .connect(format!("tls://{}:{}", nats::SERVER_DNS, broker.port))
-        .await?)
+        .connection_timeout(Duration::from_secs(10))
+        .connect(format!("tls://{}:{}", nats::SERVER_DNS, broker.port));
+    Ok(tokio::time::timeout(Duration::from_secs(25), connect)
+        .await
+        .map_err(|_| anyhow::anyhow!("the NATS connection did not complete within 25s"))??)
 }
 
 /// A Rust publisher and an OpenSSL consumer on the same broker.
@@ -85,23 +97,45 @@ async fn a_rust_publisher_and_a_raw_openssl_consumer_agree_on_one_certificate_ma
         "PING".to_string(),
     ];
     let lines: Vec<&str> = consumer_lines.iter().map(String::as_str).collect();
+    // The consumer has to be *listening* while the publisher runs. It cannot
+    // be a `block_in_place` inside a `join!`: both branches of a `join!`
+    // share one task, so the blocking child would still run to completion
+    // before the publisher was ever polled. It goes on a blocking thread of
+    // its own instead.
     let transcript = {
-        let broker_ref = &broker;
-        let lines = lines.clone();
         let subject = subject.clone();
-        let publish = async {
-            // Give the raw subscriber time to register before publishing.
-            tokio::time::sleep(Duration::from_millis(900)).await;
-            let client = rust_publisher(broker_ref).await?;
-            client.publish(subject, payload.into()).await?;
-            client.flush().await?;
-            anyhow::Ok(())
-        };
-        let consume = tokio::task::block_in_place(|| {
-            broker_ref.raw_session(&broker_ref.consumer, &lines, Duration::from_secs(3))
+        let ca = broker.ca.cert.clone();
+        let consumer = broker.consumer.clone();
+        let port = broker.port;
+        let owned: Vec<String> = lines.iter().map(|l| (*l).to_string()).collect();
+        let consume = tokio::task::spawn_blocking(move || {
+            nats::raw_session_at(port, &ca, &consumer, &owned, Duration::from_secs(5))
         });
-        publish.await?;
-        consume?
+        let broker_ref = &broker;
+        let publish = async {
+            let bounded = tokio::time::timeout(Duration::from_secs(40), async {
+                // Give the raw subscriber time to register before publishing.
+                tokio::time::sleep(Duration::from_millis(1200)).await;
+                let client = rust_publisher(broker_ref).await?;
+                client.publish(subject, payload.into()).await?;
+                client.flush().await?;
+                anyhow::Ok(())
+            })
+            .await;
+            // Both layers are unwrapped here on purpose. An earlier version
+            // let this block return `Result<Result<..>>`, and `?` at the join
+            // site discarded the *inner* error — so a publisher that never
+            // connected read as "the consumer missed the message".
+            match bounded {
+                Ok(inner) => inner,
+                Err(_) => Err(anyhow::anyhow!(
+                    "the Rust publisher did not finish within 40s"
+                )),
+            }
+        };
+        let (published, consumed) = tokio::join!(publish, consume);
+        published?;
+        consumed??
     };
 
     if !transcript.contains("PONG") {

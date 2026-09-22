@@ -337,7 +337,9 @@ describe("advertised authority", () => {
   });
 
   it("names only operations a route actually checks", () => {
-    expect(Object.values(TRANSPORT_OPERATIONS)).not.toContain("transport.probe");
+    expect(Object.values(TRANSPORT_OPERATIONS)).not.toContain(
+      "transport.probe",
+    );
     expect(Object.values(TRANSPORT_OPERATIONS)).toEqual([
       "nats.callout.decide",
       "worker.providers.list",

@@ -137,6 +137,36 @@ async fn node_tls_connect_against_the_rust_listener_separates_the_four_checks() 
     );
     assert_eq!(anonymous.status(), None, "{anonymous:?}");
 
+    record(
+        "IOP-TLS-NODECLIENT-MATRIX",
+        "rustls SecureListener <- node 22 tls.connect",
+        "200 allowed / 403 disallowed / 403 unbound / anonymous refused in the handshake",
+    );
+    listener.stop().await;
+    Ok(())
+}
+
+/// The adversarial leaves and the server anchor, from Node's stack. Split
+/// from the matrix above so each test stays inside the complexity budget and
+/// so a failure names which half broke.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "real TLS across runtimes; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
+async fn node_refuses_an_unverifiable_chain_and_a_server_it_cannot_anchor() -> Result<()> {
+    if !fixtures_enabled() {
+        eprintln!("skipped: set OPENSESAME_MTLS_FIXTURES=1");
+        return Ok(());
+    }
+    let world = world()?;
+    let listener = support::Listener::start(
+        TransportPolicy::MtlsRequired,
+        &world.server.chain,
+        &world.server.key,
+        &world.root.cert,
+        support::router(bindings()),
+    )
+    .await?;
+    let port = listener.port;
+
     let foreign = dial(
         port,
         &world.root.cert,
@@ -184,9 +214,9 @@ async fn node_tls_connect_against_the_rust_listener_separates_the_four_checks() 
     );
 
     record(
-        "IOP-TLS-NODECLIENT-MATRIX",
+        "IOP-TLS-NODECLIENT-ADVERSARIAL",
         "rustls SecureListener <- node 22 tls.connect",
-        "200 allowed / 403 disallowed / 403 unbound / handshake refusal x4",
+        "foreign root, not-yet-valid leaf and wrong anchor each refused in the handshake",
     );
     listener.stop().await;
     Ok(())

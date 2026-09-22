@@ -36,7 +36,16 @@ function leaf(dir, name, eku, san) {
     "-out",
     key,
   ]);
-  openssl(dir, ["req", "-new", "-key", key, "-subj", `/CN=${name}`, "-out", csr]);
+  openssl(dir, [
+    "req",
+    "-new",
+    "-key",
+    key,
+    "-subj",
+    `/CN=${name}`,
+    "-out",
+    csr,
+  ]);
   writeFileSync(
     ext,
     `basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=${eku}\nsubjectAltName=${san}\nsubjectKeyIdentifier=hash\n`,
@@ -74,7 +83,10 @@ export function pkiPaths(dir) {
   return {
     root: join(dir, "root.pem"),
     server: { cert: join(dir, "server.pem"), key: join(dir, "server.key") },
-    enrolled: { cert: join(dir, "enrolled.pem"), key: join(dir, "enrolled.key") },
+    enrolled: {
+      cert: join(dir, "enrolled.pem"),
+      key: join(dir, "enrolled.key"),
+    },
     unenrolled: {
       cert: join(dir, "unenrolled.pem"),
       key: join(dir, "unenrolled.key"),
