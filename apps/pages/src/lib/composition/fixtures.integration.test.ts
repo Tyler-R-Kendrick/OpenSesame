@@ -21,15 +21,17 @@ import { CompositionFlagProvider } from "./composition-openfeature.js";
 import { assertKnown, entries as tableEntries } from "./loader-table.js";
 
 function loaderTableFor(plan: EffectivePlan) {
-  return {
-    generatedAt: "2026-01-01T00:00:00.000Z",
-    entries: plan.selected
+  const entries: { id: string; moduleIds: string[]; assetIds: string[] }[] =
+    plan.selected
       .filter((c) => c.stateAxes.loaded)
       .map((c) => ({
         id: c.id,
         moduleIds: [...c.moduleIds],
-        assetIds: [] as string[],
-      })),
+        assetIds: [],
+      }));
+  return {
+    generatedAt: "2026-01-01T00:00:00.000Z",
+    entries,
   };
 }
 

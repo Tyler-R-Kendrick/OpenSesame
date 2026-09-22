@@ -38,7 +38,7 @@ describe("loader table", () => {
 
   it("rejects malformed tables", () => {
     expect(isLoaderTable(TABLE)).toBe(true);
-    expect(isLoaderTable(null)).toBe(false);
+    expect(isLoaderTable(undefined)).toBe(false);
     expect(isLoaderTable({ entries: [] })).toBe(true);
     expect(
       isLoaderTable({ entries: [{ id: "a", moduleIds: [], assetIds: [] }] }),

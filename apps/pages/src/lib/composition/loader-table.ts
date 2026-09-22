@@ -5,16 +5,23 @@
  * generates. assertKnown fails closed on unknown ids — a loader that
  * cannot name a module must refuse, never guess.
  */
+import {
+  isJsonObject,
+  isString,
+  overlapCast,
+  type BoundaryValue,
+  type JsonObject,
+} from "@opensesame/os-domain";
 
 export type LoaderEntry = {
   readonly id: string;
-  readonly moduleIds: readonly string[];
-  readonly assetIds: readonly string[];
+  readonly moduleIds: string[];
+  readonly assetIds: string[];
 };
 
 export type LoaderTable = {
   readonly generatedAt: string;
-  readonly entries: readonly LoaderEntry[];
+  readonly entries: LoaderEntry[];
 };
 
 /** All entries keyed by capability id. */
@@ -34,20 +41,23 @@ export function assertKnown(table: LoaderTable, id: string): LoaderEntry {
   return entry;
 }
 
-/** Loader tables cross the build boundary as JSON; accept the parsed shape. */
-export function isLoaderTable(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  const entries = (value as { entries?: unknown }).entries;
+/** Loader tables arrive as parsed JSON; isJsonObject is the I/O boundary. */
+export function isLoaderTable(value: BoundaryValue): boolean {
+  if (!isJsonObject(value)) return false;
+  // SAFETY: isJsonObject established a string-keyed JSON record above, so
+  // reading its entries member through the boundary record is structural.
+  const entries = overlapCast(value).entries;
   if (!Array.isArray(entries)) return false;
   const seen = new Set<string>();
   for (const entry of entries) {
-    if (typeof entry !== "object" || entry === null) return false;
-    const { id, moduleIds, assetIds } = entry as Record<string, unknown>;
-    if (typeof id !== "string" || id === "") return false;
-    if (!Array.isArray(moduleIds) || moduleIds.length === 0) return false;
-    if (!Array.isArray(assetIds)) return false;
-    if (seen.has(id)) return false;
-    seen.add(id);
+    if (!isJsonObject(entry)) return false;
+    if (!isString(entry.id) || entry.id === "") return false;
+    if (!Array.isArray(entry.moduleIds) || entry.moduleIds.length === 0) {
+      return false;
+    }
+    if (!Array.isArray(entry.assetIds)) return false;
+    if (seen.has(entry.id)) return false;
+    seen.add(entry.id);
   }
   return true;
 }

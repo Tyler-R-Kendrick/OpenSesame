@@ -35,18 +35,26 @@ export type SuggestionKey = (typeof SUGGESTION_KEYS)[number];
  * ceremony, household shares delegate, organization shares delegate plus
  * audit, LAN egress syncs, audit forwarding reads findings.
  */
-const SUGGESTIONS: Readonly<Record<SuggestionKey, readonly string[]>> = {
-  "core.credentials.view": ["vault.items.search", "vault.items.read_meta"],
-  "core.fill.manual": ["vault.items.reveal", "vault.totp.code"],
-  "core.share.household": ["delegations.offers.mint", "delegations.claim"],
-  "core.share.organization": [
-    "delegations.offers.mint",
-    "delegations.claim",
-    "security.findings.read",
+const SUGGESTION_ENTRIES = [
+  ["core.credentials.view", ["vault.items.search", "vault.items.read_meta"]],
+  ["core.fill.manual", ["vault.items.reveal", "vault.totp.code"]],
+  ["core.share.household", ["delegations.offers.mint", "delegations.claim"]],
+  [
+    "core.share.organization",
+    [
+      "delegations.offers.mint",
+      "delegations.claim",
+      "security.findings.read",
+    ],
   ],
-  "core.egress.lan": ["sync.push", "sync.pull"],
-  "core.audit.forward": ["security.findings.read", "configs.audit"],
-};
+  ["core.egress.lan", ["sync.push", "sync.pull"]],
+  ["core.audit.forward", ["security.findings.read", "configs.audit"]],
+] as const satisfies ReadonlyArray<
+  readonly [SuggestionKey, readonly string[]]
+>;
+
+const SUGGESTIONS: Readonly<Record<SuggestionKey, readonly string[]>> =
+  Object.fromEntries(SUGGESTION_ENTRIES);
 
 const KNOWN_IDS = new Set(CAPABILITIES.map((c) => c.id));
 

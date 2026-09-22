@@ -15,20 +15,26 @@ export type CompositionPluginOptions = {
   readonly outFile?: string;
 };
 
+/** One row of the emitted loader table. */
+export type LoaderTableRow = {
+  readonly id: string;
+  readonly moduleIds: readonly string[];
+  readonly assetIds: readonly string[];
+};
+
 /** Build the loader-table payload; throws on forbidden ids. */
 export function buildLoaderTable(
   graph: Readonly<Record<string, string>>,
   generatedAt: string,
-): {
-  generatedAt: string;
-  entries: { id: string; moduleIds: string[]; assetIds: string[] }[];
-} {
-  const entries = Object.entries(graph).map(([id, module]) => {
-    if (!module || typeof module !== "string") {
-      throw new Error(`composition graph has no module for ${id}`);
-    }
-    return { id, moduleIds: [module], assetIds: [] as string[] };
-  });
+) {
+  const entries: LoaderTableRow[] = Object.entries(graph).map(
+    ([id, module]) => {
+      if (!module) {
+        throw new Error(`composition graph has no module for ${id}`);
+      }
+      return { id, moduleIds: [module], assetIds: [] };
+    },
+  );
   entries.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { generatedAt, entries };
 }
