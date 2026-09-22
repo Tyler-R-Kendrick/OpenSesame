@@ -25,6 +25,101 @@ const mod = (id, classification, capability = null) => ({
   size: 1,
 });
 
+/** The files a clean hardened build would have left on disk. */
+const defaultFiles = () => ({
+  "index.html": `<!doctype html><html><head><script type="module" crossorigin src="/OpenSesame/assets/main-1.js"></script><link rel="modulepreload" crossorigin href="/OpenSesame/assets/vendor-1.js"></head></html>`,
+  "assets/main-1.js": `import{a}from"./vendor-1.js";const l=()=>import("./cap-sharing.drops-1.js");export{l};`,
+  "assets/vendor-1.js": "export const a=1;",
+  "assets/cap-sharing.drops-1.js": "export const capabilityRuntime={};",
+  "assets/main-1.css": "body{}",
+  "sw.js": `self.addEventListener("install",()=>{});`,
+  "icon.svg": "<svg/>",
+});
+
+/** The contract that build would have emitted. */
+const defaultDistribution = () => ({
+  distributionId: "dist:abc",
+  mode: "hardened",
+  capabilityIds: ["sharing.drops", "vault.passwords"],
+  moduleIds: ["sharing.drops/runtime"],
+  workerVariants: [{ id: "core-only", scriptPath: "sw.js", satisfies: [] }],
+  basePath: "/OpenSesame/",
+});
+
+/** The graph that build would have emitted, agreeing with `defaultFiles`. */
+const defaultGraph = () => ({
+  distributionId: "dist:abc",
+  mode: "hardened",
+  profile: "household",
+  coreCapabilities: ["vault.passwords"],
+  generatedAt: null,
+  entries: [
+    {
+      html: "index.html",
+      capability: null,
+      scripts: ["assets/main-1.js"],
+      preloads: ["assets/vendor-1.js"],
+    },
+  ],
+  chunks: [
+    {
+      file: "assets/main-1.js",
+      name: "main",
+      isEntry: true,
+      isDynamicEntry: false,
+      imports: ["assets/vendor-1.js"],
+      dynamicImports: ["assets/cap-sharing.drops-1.js"],
+      importedCss: ["assets/main-1.css"],
+      importedAssets: [],
+      modules: [
+        mod("apps/pages/src/main.tsx", "core"),
+        mod("virtual:opensesame-capability-modules", "core"),
+      ],
+    },
+    {
+      file: "assets/vendor-1.js",
+      name: "vendor",
+      isEntry: false,
+      isDynamicEntry: false,
+      imports: [],
+      dynamicImports: [],
+      importedCss: [],
+      importedAssets: [],
+      modules: [mod("node_modules/react/index.js", "shared")],
+    },
+    {
+      file: "assets/cap-sharing.drops-1.js",
+      name: "cap-sharing.drops",
+      isEntry: false,
+      isDynamicEntry: true,
+      imports: [],
+      dynamicImports: [],
+      importedCss: [],
+      importedAssets: [],
+      modules: [
+        mod(
+          "apps/pages/src/modules/sharing.drops/runtime.ts",
+          "optional",
+          "sharing.drops",
+        ),
+      ],
+    },
+  ],
+  assets: [{ file: "assets/main-1.css", size: 6 }],
+  workers: [{ variant: "core-only", file: "sw.js", capability: null }],
+  publicFiles: [{ file: "icon.svg", capability: null }],
+  moduleEdges: [
+    {
+      from: "virtual:opensesame-capability-modules",
+      to: "apps/pages/src/modules/sharing.drops/runtime.ts",
+      toCapability: "sharing.drops",
+      kind: "dynamic",
+      viaTable: true,
+    },
+  ],
+  unclassified: [],
+});
+
 function scaffold({
   graphPatch = (g) => g,
   filesPatch = (f) => f,
@@ -33,95 +128,9 @@ function scaffold({
   const dist = mkdtempSync(join(tmpdir(), "verify-capability-"));
   dirs.push(dist);
   mkdirSync(join(dist, "assets"));
-  const files = filesPatch({
-    "index.html": `<!doctype html><html><head><script type="module" crossorigin src="/OpenSesame/assets/main-1.js"></script><link rel="modulepreload" crossorigin href="/OpenSesame/assets/vendor-1.js"></head></html>`,
-    "assets/main-1.js": `import{a}from"./vendor-1.js";const l=()=>import("./cap-sharing.drops-1.js");export{l};`,
-    "assets/vendor-1.js": "export const a=1;",
-    "assets/cap-sharing.drops-1.js": "export const capabilityRuntime={};",
-    "assets/main-1.css": "body{}",
-    "sw.js": `self.addEventListener("install",()=>{});`,
-    "icon.svg": "<svg/>",
-  });
-  const distribution = distributionPatch({
-    distributionId: "dist:abc",
-    mode: "hardened",
-    capabilityIds: ["sharing.drops", "vault.passwords"],
-    moduleIds: ["sharing.drops/runtime"],
-    workerVariants: [{ id: "core-only", scriptPath: "sw.js", satisfies: [] }],
-    basePath: "/OpenSesame/",
-  });
-  const graph = graphPatch({
-    distributionId: "dist:abc",
-    mode: "hardened",
-    profile: "household",
-    coreCapabilities: ["vault.passwords"],
-    generatedAt: null,
-    entries: [
-      {
-        html: "index.html",
-        capability: null,
-        scripts: ["assets/main-1.js"],
-        preloads: ["assets/vendor-1.js"],
-      },
-    ],
-    chunks: [
-      {
-        file: "assets/main-1.js",
-        name: "main",
-        isEntry: true,
-        isDynamicEntry: false,
-        imports: ["assets/vendor-1.js"],
-        dynamicImports: ["assets/cap-sharing.drops-1.js"],
-        importedCss: ["assets/main-1.css"],
-        importedAssets: [],
-        modules: [
-          mod("apps/pages/src/main.tsx", "core"),
-          mod("virtual:opensesame-capability-modules", "core"),
-        ],
-      },
-      {
-        file: "assets/vendor-1.js",
-        name: "vendor",
-        isEntry: false,
-        isDynamicEntry: false,
-        imports: [],
-        dynamicImports: [],
-        importedCss: [],
-        importedAssets: [],
-        modules: [mod("node_modules/react/index.js", "shared")],
-      },
-      {
-        file: "assets/cap-sharing.drops-1.js",
-        name: "cap-sharing.drops",
-        isEntry: false,
-        isDynamicEntry: true,
-        imports: [],
-        dynamicImports: [],
-        importedCss: [],
-        importedAssets: [],
-        modules: [
-          mod(
-            "apps/pages/src/modules/sharing.drops/runtime.ts",
-            "optional",
-            "sharing.drops",
-          ),
-        ],
-      },
-    ],
-    assets: [{ file: "assets/main-1.css", size: 6 }],
-    workers: [{ variant: "core-only", file: "sw.js", capability: null }],
-    publicFiles: [{ file: "icon.svg", capability: null }],
-    moduleEdges: [
-      {
-        from: "virtual:opensesame-capability-modules",
-        to: "apps/pages/src/modules/sharing.drops/runtime.ts",
-        toCapability: "sharing.drops",
-        kind: "dynamic",
-        viaTable: true,
-      },
-    ],
-    unclassified: [],
-  });
+  const files = filesPatch(defaultFiles());
+  const distribution = distributionPatch(defaultDistribution());
+  const graph = graphPatch(defaultGraph());
   for (const [file, content] of Object.entries(files))
     writeFileSync(join(dist, file), content);
   writeFileSync(join(dist, "capability-graph.json"), canonicalJson(graph));
