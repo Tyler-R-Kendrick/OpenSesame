@@ -1,14 +1,13 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { kvDelete, kvGet, kvHydrate, kvSet } from "../kv.js";
+/** @vitest-environment jsdom */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { bootCore } from "../../bootstrap/boot.js";
+import { CAPABILITY_CATALOG } from "../capabilities/catalog.js";
+import { distributionFromOwnership } from "../capabilities/ownership.js";
+import { compositionStore, storeSeams } from "../capabilities/store.js";
+import { kvDelete, kvGet, kvSet } from "../kv.js";
 import { LAST_VAULT_KEY } from "../last-vault.js";
-import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "../local-guest.js";
-import { MODEL_PROVIDER_KEY } from "../model-provider.js";
-import {
-  PROJECTS_KEY,
-  activeProject,
-  projectScopedKeys,
-  rehydrateProjects,
-} from "../projects.js";
+
+import { PROJECTS_KEY } from "../projects.js";
 import {
   BODY_PATH,
   GUEST_TOMB,
@@ -23,12 +22,7 @@ import {
   vfsSeams,
 } from "../vfs.js";
 import { vaultStore } from "./store.js";
-import {
-  LEGACY_BODY_KEY,
-  LEGACY_HEADER_KEY,
-  migrateLegacyVaultStorage,
-  tombStorageKeys,
-} from "./tomb-migration.js";
+import { LEGACY_BODY_KEY, LEGACY_HEADER_KEY } from "./tomb-migration.js";
 
 /**
  * Boot-path boundary (ADR 0063): before unlock the app may read only the
@@ -39,6 +33,26 @@ import {
  */
 
 const touched = vi.hoisted(() => ({ keys: new Set<string>(), crypto: 0 }));
+
+/**
+ * What the boot asked to pull out of durable storage.
+ *
+ * jsdom has no OPFS, so `kvHydrate` is a no-op here and memory already holds
+ * everything a test wrote — which means no assertion about the *store* can
+ * tell a boot that hydrates the guest tomb from one that does not. The
+ * request is the observable, so it is recorded.
+ */
+const hydrated = vi.hoisted(() => ({ keys: [] as string[] }));
+vi.mock("../kv.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../kv.js")>();
+  return {
+    ...actual,
+    kvHydrate: async (keys: readonly string[]) => {
+      hydrated.keys.push(...keys);
+      return actual.kvHydrate([...keys]);
+    },
+  };
+});
 
 const originalVfsSeams = { ...vfsSeams };
 Object.assign(vfsSeams, {
@@ -79,6 +93,18 @@ function clearBootKeys(): void {
   }
 }
 
+beforeEach(() => {
+  // `virtual:opensesame-distribution` is emitted by the build plugin, which
+  // does not run under vitest; the seam is the supported way in. The catalog
+  // is the real one — the point of calling the shipped boot is that nothing
+  // about it is a stand-in except what the build alone can provide.
+  storeSeams.catalog = async () => CAPABILITY_CATALOG;
+  storeSeams.distribution = async () => distributionFromOwnership("selective");
+  storeSeams.locks = () => undefined;
+  hydrated.keys = [];
+  compositionStore.resetForTest();
+});
+
 afterEach(async () => {
   await vfsFlush();
   lockAllTombs();
@@ -87,25 +113,17 @@ afterEach(async () => {
   touched.crypto = 0;
 });
 
-/** The boot sequence from main.tsx, up to (not including) first paint. */
+/**
+ * The shipped boot sequence, up to (not including) first paint.
+ *
+ * Called, not mirrored: this used to re-implement `main.tsx`'s body here, so
+ * it proved what the test did rather than what the app does — and the app's
+ * body has since moved into `bootCore` (ownership.md §3). A copy would have
+ * gone on passing while the shipped path dropped a step.
+ */
 async function boot(): Promise<void> {
-  await kvHydrate([
-    PROJECTS_KEY,
-    TOMBS_REGISTRY_KEY,
-    "settings.v1",
-    "outbox.v1",
-    "connections.firstRun.v1",
-    MODEL_PROVIDER_KEY,
-    // Guest/personal last-authorized pointer — same key main.tsx hydrates.
-    LAST_VAULT_KEY,
-    GUEST_ORDINAL_KEY,
-    GUEST_PERSON_KEY,
-  ]);
-  rehydrateProjects();
-  const tomb = activeProject().id;
-  await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
-  await migrateLegacyVaultStorage(tomb);
-  vaultStore.rehydrate();
+  const { stopWatching } = await bootCore();
+  stopWatching();
 }
 
 describe("pre-unlock boot path", () => {
@@ -156,5 +174,46 @@ describe("pre-unlock boot path", () => {
 
     expect(vaultStore.getSnapshot().tomb).toBe(GUEST_TOMB);
     expect(vaultStore.getSnapshot().status).toBe("empty");
+  });
+
+  it("pulls the guest tomb out of storage when it is the account to ask about", async () => {
+    // The tomb the unlock screen will ask about is the guest tomb when that
+    // was the last authorized account (AGENTS.md §5). Hydrating only the
+    // active project left a guest's enrolled gate unreadable on reload, and
+    // the unlock form then offered a road with no challenge behind it (#467).
+    kvSet(LAST_VAULT_KEY, GUEST_TOMB);
+    await boot();
+    expect(hydrated.keys).toEqual(
+      expect.arrayContaining([tombFileKey(GUEST_TOMB, HEADER_PATH)]),
+    );
+
+    // And it does not pull a tomb it has no reason to ask about.
+    hydrated.keys = [];
+    kvDelete(LAST_VAULT_KEY);
+    await boot();
+    expect(hydrated.keys).not.toContain(tombFileKey(GUEST_TOMB, HEADER_PATH));
+  });
+
+  it("asks for the gate a guest enrolled, from a cold boot (ADR 0091)", async () => {
+    // A guest may enroll a PIN and an authenticator code. Both wraps live in
+    // the guest tomb's header on disk, so a cold boot has to hydrate that tomb
+    // and ask for them — the reload leg of `verify:auth` depends on it.
+    kvSet(LAST_VAULT_KEY, GUEST_TOMB);
+    kvSet(
+      tombFileKey(GUEST_TOMB, HEADER_PATH),
+      JSON.stringify({
+        v: 1,
+        createdAt: "2026-08-29T00:00:00Z",
+        unlocks: { pin: { saltB64: "AA", wrapB64: "BB" }, totp: {} },
+      }),
+    );
+
+    await boot();
+
+    const snap = vaultStore.getSnapshot();
+    expect(snap.tomb).toBe(GUEST_TOMB);
+    expect(snap.status).toBe("locked");
+    expect(snap.header?.unlocks?.pin).toBeTruthy();
+    expect(snap.header?.unlocks?.totp).toBeTruthy();
   });
 });

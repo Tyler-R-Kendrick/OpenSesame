@@ -56,6 +56,7 @@ import {
   vaultSealBinding,
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
+import { headerCarriesGate } from "./header-gate.js";
 import { writeItem } from "./item-path.js";
 import {
   type InstallResult,
@@ -236,14 +237,13 @@ export class VaultStore {
   /** Re-read plaintext state after OPFS hydration fills the KV cache. */
   rehydrate(): void {
     if (this.#vaultKey || this.#pendingVaultKey) return;
-    // Reload opens the last authorized account's unlock — guest included.
-    if (lastVaultIsGuest()) {
-      this.#scope = guestVaultScope();
-      this.#header = null;
-    } else {
-      this.#scope = scopedVaultScope();
-      this.#header = this.#readHeader();
-    }
+    // Reload opens the last authorized account's unlock — guest included. Its
+    // header is read like any tomb's; `headerCarriesGate` keeps a wrap-less
+    // guest record from posing as a locked vault.
+    this.#scope = lastVaultIsGuest() ? guestVaultScope() : scopedVaultScope();
+    const header = this.#readHeader();
+    this.#header =
+      lastVaultIsGuest() && !headerCarriesGate(header) ? null : header;
     this.#emit();
   }
 

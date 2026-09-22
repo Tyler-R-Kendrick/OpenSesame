@@ -16,6 +16,7 @@ import {
 import { vaultSelectionKey } from "../lib/capabilities/keys.js";
 import { compositionStore } from "../lib/capabilities/store.js";
 import { kvHydrate } from "../lib/kv.js";
+import { lastVaultIsGuest } from "../lib/last-vault.js";
 import {
   activeProject,
   projectScopedKeys,
@@ -31,6 +32,7 @@ import {
   migrateLegacyVaultStorage,
   tombStorageKeys,
 } from "../lib/vault/tomb-migration.js";
+import { GUEST_TOMB } from "../lib/vfs.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
 
 export type CoreBoot = Readonly<{
@@ -51,10 +53,18 @@ export async function bootCore(): Promise<CoreBoot> {
   const runtimeConfig = await loadRuntimeConfig();
   await kvHydrate([...CORE_BOOT_KEYS]);
   rehydrateProjects();
+  // The active project's plaintext boundary is what legacy storage migrates
+  // into. But the tomb the unlock screen will ask about is the guest tomb
+  // when that was the last authorized account (AGENTS.md §5), so its header
+  // has to be hydrated too: reading only the active project left a guest's
+  // enrolled gate unreadable on reload, and the unlock form then offered a
+  // road with no challenge behind it (#467).
   const tomb = activeProject().id;
+  const guestTomb = lastVaultIsGuest() ? GUEST_TOMB : null;
   await kvHydrate([
     ...projectScopedKeys(),
     ...tombStorageKeys(tomb),
+    ...(guestTomb ? tombStorageKeys(guestTomb) : []),
     vaultSelectionKey(tomb),
   ]);
   // Move any legacy flat vault keys into the tomb before the store reads it.

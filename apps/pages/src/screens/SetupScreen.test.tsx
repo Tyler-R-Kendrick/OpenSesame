@@ -75,6 +75,7 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
 describe("the setup ceremony", () => {
   it("is capabilities, then a tab per registered panel, each skippable, with a skip-all (ADR 0114)", () => {
     openSetup();
+    // Four concerns: connectors, ai, identity, mfa (ADR 0128 took the others).
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "capabilities",
       "connectors",

@@ -56,9 +56,9 @@ export function UnlockMethodsPanel() {
 function UnlockMethodsBody() {
   const { header, guest } = useVault();
   const store = useVaultStore();
-  const enrolled = guest ? [] : listAvailableUnlockMethods(header);
-  const secondSteps = guest ? [] : listSecondSteps(header);
-  const hasRecovery = !guest && Boolean(header?.unlocks?.recovery);
+  const enrolled = listAvailableUnlockMethods(header);
+  const secondSteps = listSecondSteps(header);
+  const hasRecovery = Boolean(header?.unlocks?.recovery);
   const hasIdentity = isRemoteIdentityConfigured();
   const accountEmail = loadSession()?.email ?? null;
 
@@ -212,7 +212,10 @@ function UnlockMethodsBody() {
         </div>
         <div className="panel__body">
           <StatusNote message={message} />
-          {guest ? (
+          {/* True only while there is no key behind this vault: enrolling one
+              puts the header on disk like any other vault, and the note would
+              then be claiming something that is no longer so. */}
+          {guest && enrolled.length === 0 ? (
             <output className="note">
               <span>
                 You are a guest. Until this vault has a key it is not kept on

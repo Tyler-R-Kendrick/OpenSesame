@@ -60,6 +60,7 @@ import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { CodeField } from "./unlock/CodeField.js";
+import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -207,8 +208,9 @@ function UnlockForm({
   } = useVault();
   const store = useVaultStore();
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
-  // Guest has no wrap on disk — picking guest lands here with an empty header.
-  // That is not a first-run seal; Unlock alone opens the guest session.
+  // The guest tomb is isolated, not keyless: a guest may enroll a gate (ADR
+  // 0091) and those wraps are the key to this tomb. What makes the road guest
+  // is the tomb, so nothing below is gated on it (AGENTS.md §5).
   const guestUnlock = activeTomb === GUEST_TOMB && status !== "unlocked";
   const firstRun = status === "empty" && !guestUnlock;
   // Which vault this key opens — shown whenever there is a choice to go back to, or this is not the personal vault.
@@ -233,7 +235,6 @@ function UnlockForm({
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
 
   const methods = useMemo<UnlockMethodId[]>(() => {
-    if (guestUnlock) return [];
     // A returning vault offers exactly the challenges it enrolled. The screen
     // used to show all three whatever the vault had, on the theory that which
     // ones exist is the person's own knowledge — but the header on disk is
@@ -245,10 +246,14 @@ function UnlockForm({
     if (passkeyHost.ok) available.push("passkey");
     available.push("pin", "password");
     return available;
-  }, [guestUnlock, firstRun, header, passkeyHost.ok]);
+  }, [firstRun, header, passkeyHost.ok]);
+  // A guest tomb that enrolled no key at all: guest entry itself is the road
+  // in, and the commit says so rather than pretending to unlock something.
+  const guestKeyless = guestUnlock && methods.length === 0;
   // A vault with an authenticator code but no passkey, PIN or password: a
   // code can only ever follow a key, so nothing here can open it. Said out
-  // loud rather than drawn as three tabs that all fail.
+  // loud rather than drawn as three tabs that all fail. A guest tomb with no
+  // key is not that case — it has the guest road, and `guestKeyless` is it.
   const noPrimary = !firstRun && !guestUnlock && methods.length === 0;
   // The second step, announced before the first is taken.
   // Exactly the second steps this vault enrolled — authenticator, email,
@@ -266,11 +271,19 @@ function UnlockForm({
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
   const showMethodTabs =
-    !guestUnlock &&
     !awaitingSecondStep &&
     !awaitingPasskeyDuressCode &&
     !noPrimary &&
     methods.length > 0;
+  // A field is drawn only for a method this vault actually enrolled — the
+  // fallback resolves to "password" with no wraps, and that could only fail.
+  // The duress code reuses the PIN field after a passkey unlock.
+  const showsPrimaryField =
+    !awaitingSecondStep && methods.includes(activeMethod);
+  const showsPinField =
+    !awaitingSecondStep &&
+    (awaitingPasskeyDuressCode ||
+      (showsPrimaryField && activeMethod === "pin"));
 
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -324,7 +337,7 @@ function UnlockForm({
     formGated,
     awaitingSecondStep,
     awaitingPasskeyDuressCode,
-    guestUnlock,
+    guestKeyless,
     activeMethod,
     status,
     totpRef,
@@ -381,7 +394,7 @@ function UnlockForm({
       setBusy,
       setError,
       firstRun,
-      guestUnlock,
+      guestKeyless,
       awaitingSecondStep,
       awaitingPasskeyDuressCode,
       setAwaitingPasskeyDuressCode,
@@ -421,7 +434,7 @@ function UnlockForm({
         : password.length < 12 || password !== confirm || strength.score < 2);
 
   let unlockBlocked = true;
-  if (guestUnlock) unlockBlocked = false;
+  if (guestKeyless) unlockBlocked = false;
   else if (noPrimary) unlockBlocked = true;
   else if (awaitingSecondStep)
     unlockBlocked = recoveryMode
@@ -565,15 +578,7 @@ function UnlockForm({
               </div>
             ) : null}
 
-            {noPrimary ? (
-              <output className="note note--err">
-                <span>
-                  This vault has an authenticator code but no passkey, PIN or
-                  password to open it with, so nothing here can unlock it.
-                  Delete it and seal it again, or continue as a guest.
-                </span>
-              </output>
-            ) : null}
+            {noPrimary ? <NoPrimaryNote /> : null}
 
             {showMethodTabs ? (
               <div
@@ -801,9 +806,7 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {!guestUnlock &&
-            !awaitingSecondStep &&
-            (activeMethod === "pin" || awaitingPasskeyDuressCode) ? (
+            {showsPinField ? (
               <div className="field">
                 <label htmlFor="unlock-pin">
                   {awaitingPasskeyDuressCode
@@ -839,44 +842,38 @@ function UnlockForm({
               </div>
             ) : null}
 
-            {!guestUnlock &&
-              !awaitingSecondStep &&
-              activeMethod === "password" && (
-                <div className="field">
-                  <label htmlFor="master">
-                    {firstRun ? "Master password" : "Password"}
-                  </label>
-                  <div className="unlock__reveal">
-                    <input
-                      id="master"
-                      ref={(element) => {
-                        passwordRef.current = element;
-                        secretRef(element);
-                      }}
-                      type={reveal ? "text" : "password"}
-                      autoComplete={
-                        firstRun ? "new-password" : "current-password"
-                      }
-                      value={password}
-                      disabled={busy || lockedFor > 0}
-                      onChange={(e) => setPassword(e.target.value)}
-                      aria-describedby={firstRun ? "master-help" : undefined}
-                    />
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => setReveal((value) => !value)}
-                      aria-label={reveal ? "Hide password" : "Show password"}
-                    >
-                      {reveal ? (
-                        <IconEyeOff size={18} />
-                      ) : (
-                        <IconEye size={18} />
-                      )}
-                    </button>
-                  </div>
+            {showsPrimaryField && activeMethod === "password" && (
+              <div className="field">
+                <label htmlFor="master">
+                  {firstRun ? "Master password" : "Password"}
+                </label>
+                <div className="unlock__reveal">
+                  <input
+                    id="master"
+                    ref={(element) => {
+                      passwordRef.current = element;
+                      secretRef(element);
+                    }}
+                    type={reveal ? "text" : "password"}
+                    autoComplete={
+                      firstRun ? "new-password" : "current-password"
+                    }
+                    value={password}
+                    disabled={busy || lockedFor > 0}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-describedby={firstRun ? "master-help" : undefined}
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setReveal((value) => !value)}
+                    aria-label={reveal ? "Hide password" : "Show password"}
+                  >
+                    {reveal ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+                  </button>
                 </div>
-              )}
+              </div>
+            )}
 
             {firstRun && activeMethod === "password" ? (
               <>
@@ -1042,8 +1039,9 @@ function UnlockForm({
           {/* The guest road on the unlock form itself: whoever holds this
               device without its key still gets in, as a guest in an isolated
               tomb, and the sealed vault stays exactly as it is. Never removed,
-              never gated (AGENTS.md §5). */}
-          {!firstRun && !guestUnlock && !showSignIn && !showReset ? (
+              never gated (AGENTS.md §5) — including beside the guest tomb,
+              where it resumes rather than gates. */}
+          {!firstRun && !showSignIn && !showReset ? (
             <button
               type="button"
               className="unlock__switch"
@@ -1065,7 +1063,7 @@ function UnlockForm({
               Continue as guest
             </button>
           ) : null}
-          {!firstRun && !guestUnlock && !showSignIn ? (
+          {!firstRun && !showSignIn ? (
             showReset ? (
               <div className="unlock__danger">
                 <p>
