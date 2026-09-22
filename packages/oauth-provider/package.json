@@ -17,9 +17,7 @@
       "default": "./src/origin/canonical.ts"
     }
   },
-  "files": [
-    "src"
-  ],
+  "files": ["src"],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
