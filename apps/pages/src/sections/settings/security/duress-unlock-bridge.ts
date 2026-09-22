@@ -19,6 +19,7 @@ import {
 import { TriggerAttemptPolicy } from "../../../lib/duress/trigger/attempt-policy.js";
 import type {
   EnrollmentState,
+  SelectTriggerOptions,
   TriggerMatch,
 } from "../../../lib/duress/trigger/enrollment.js";
 
@@ -62,6 +63,8 @@ type UnlockBridgeOptions = Readonly<{
   loadState?: () => EnrollmentState | null;
   deps?: UnlockCeremonyDeps;
   requireDurable?: boolean;
+  /** UV / PRF / origin binding for two-input triggers. */
+  select?: SelectTriggerOptions;
 }>;
 const defaultUnlockBridgeOptions = {} satisfies UnlockBridgeOptions;
 
@@ -89,6 +92,7 @@ export async function onCompleteUnlockCodeSubmission(
     code,
     state,
     attempts: attemptPolicy,
+    options: options.select,
   });
 
   if (match.status === "throttled") return { kind: "throttled" };
