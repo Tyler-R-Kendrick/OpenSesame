@@ -43,10 +43,12 @@ function port(
 }
 
 async function denial(promise: Promise<Response>): Promise<string> {
-  return promise.then(
-    () => "allowed",
-    (error: unknown) => (error instanceof EgressDenied ? error.code : "other"),
-  );
+  try {
+    await promise;
+    return "allowed";
+  } catch (thrown) {
+    return thrown instanceof EgressDenied ? thrown.code : "other";
+  }
 }
 
 describe("createEgressPort (S18)", () => {
@@ -233,17 +235,18 @@ describe("createEgressPort (S18)", () => {
     expect(redactUrl("not a url")).toBe("<invalid-url>");
     const plan = approvedPlan([CONNECTORS], MANAGED_POLICY);
     const { port: p } = port(CONNECTORS, plan);
-    const error = await p
-      .fetch("https://id.example.test/v1/token?code=SECRET", undefined, {
+    let refusal: EgressDenied | null = null;
+    try {
+      await p.fetch("https://id.example.test/v1/token?code=SECRET", undefined, {
         capability: CONNECTORS,
         purpose: CONNECTOR_PURPOSE,
-      })
-      .catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(EgressDenied);
-    if (error instanceof EgressDenied) {
-      expect(error.message).not.toContain("SECRET");
-      expect(error.destination).toBe("https://id.example.test/v1/token");
+      });
+    } catch (thrown) {
+      if (thrown instanceof EgressDenied) refusal = thrown;
     }
+    expect(refusal).toBeInstanceOf(EgressDenied);
+    expect(refusal?.message).not.toContain("SECRET");
+    expect(refusal?.destination).toBe("https://id.example.test/v1/token");
     const decision = p.decide("https://id.example.test/v1/token?code=SECRET");
     expect(JSON.stringify(decision)).not.toContain("SECRET");
   });

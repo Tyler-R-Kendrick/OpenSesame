@@ -120,18 +120,30 @@ function pruneRemovedChunks(graph, dist) {
     walk(dist).map((f) => relative(dist, f).split("\\").join("/")),
   );
   const removed = graph.chunks.filter((c) => !onDisk.has(c.file));
-  if (removed.length === 0) return;
-  const gone = new Set(removed.map((c) => c.file));
+  const dropped = [];
+  const keep = (from, list) =>
+    list.filter((file) => {
+      if (onDisk.has(file)) return true;
+      dropped.push({ from, to: file });
+      return false;
+    });
   graph.chunks = graph.chunks
-    .filter((c) => !gone.has(c.file))
+    .filter((c) => onDisk.has(c.file))
     .map((c) => ({
       ...c,
-      imports: c.imports.filter((f) => !gone.has(f)),
-      dynamicImports: c.dynamicImports.filter((f) => !gone.has(f)),
+      imports: keep(c.file, c.imports),
+      dynamicImports: keep(c.file, c.dynamicImports),
+      importedCss: keep(c.file, c.importedCss),
+      importedAssets: keep(c.file, c.importedAssets),
     }));
-  graph.removedChunks = removed
-    .map((c) => ({ file: c.file, modules: c.modules.map((m) => m.id) }))
-    .sort((a, b) => (a.file < b.file ? -1 : 1));
+  if (removed.length > 0)
+    graph.removedChunks = removed
+      .map((c) => ({ file: c.file, modules: c.modules.map((m) => m.id) }))
+      .sort((a, b) => (a.file < b.file ? -1 : 1));
+  if (dropped.length > 0)
+    graph.droppedReferences = dropped.sort((a, b) =>
+      `${a.from}|${a.to}`.localeCompare(`${b.from}|${b.to}`),
+    );
 }
 
 /**

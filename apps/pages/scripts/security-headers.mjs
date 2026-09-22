@@ -61,10 +61,11 @@ const LOOPBACK_DEV_SOURCES = Object.freeze([
   "ws://127.0.0.1:*",
 ]);
 
+/** A bare origin and nothing else: no path, no credentials, no trailing slash. */
 function isOrigin(value) {
-  if (typeof value !== "string") return false;
   try {
     const url = new URL(value);
+    // `url.origin` is a string, so a non-string input can never equal it.
     return url.origin === value && !url.username && !url.password;
   } catch {
     return false;
@@ -99,8 +100,17 @@ export async function readBrokerOrigins() {
   return brokerOrigins(source);
 }
 
+/** Capability id shape, ownership.md §2: `family.name[-name]`. */
+const CAPABILITY_ID = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/;
+
+/** The capability ids in a list, dropping anything that is not one. */
 function ids(list) {
-  return Array.isArray(list) ? list.filter((id) => typeof id === "string") : [];
+  return Array.isArray(list) ? list.filter((id) => CAPABILITY_ID.test(id)) : [];
+}
+
+/** The origins in a list, dropping anything that is not a bare origin. */
+function origins(list) {
+  return Array.isArray(list) ? list.filter(isOrigin) : [];
 }
 
 /**
@@ -143,7 +153,7 @@ function networkOf(profile) {
   if (!network) return { externalServices: "deny", allowedServiceOrigins: [] };
   return {
     externalServices: network.externalServices === "allow" ? "allow" : "deny",
-    allowedServiceOrigins: ids(network.allowedServiceOrigins).filter(isOrigin),
+    allowedServiceOrigins: origins(network.allowedServiceOrigins),
   };
 }
 
@@ -216,7 +226,7 @@ export function generateSecurityHeaders(input) {
   if (!DEPLOYMENT_PROFILES.includes(deploymentProfile))
     throw new Error("Invalid deploymentProfile");
   if (!isOrigin(canonicalOrigin)) throw new Error("Invalid canonicalOrigin");
-  if (typeof headerSecurity !== "boolean")
+  if (headerSecurity !== true && headerSecurity !== false)
     throw new Error("headerSecurity must be boolean");
   if (!brokers.every(isOrigin)) throw new Error("Invalid broker origin");
   const notes = [];

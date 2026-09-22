@@ -15,8 +15,8 @@
 
 import { IconDrop } from "../../components/Icons.js";
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { KIND_LABEL } from "../../lib/vault/model.js";
 import { LOCAL_DROP_CLAIM_KEYS } from "../../lib/vault/local-drop-claims.js";
+import { KIND_LABEL } from "../../lib/vault/model.js";
 import { DropClaimScreen } from "../../screens/DropClaimScreen.js";
 import { createActivation } from "../activation.js";
 

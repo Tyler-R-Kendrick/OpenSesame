@@ -24,14 +24,36 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const appSource = readFileSync(join(here, "..", "App.tsx"), "utf8");
+/**
+ * The routes this installation can hold: the core table `app-root.tsx`
+ * draws (`path="…"`), plus every `route` and `section` a capability module
+ * contributes (`path: "…"`, `to: "…"`). The list used to be scraped from
+ * `App.tsx`, which is now only a re-export — a capability's section lives
+ * in its own runtime, so that is where the paths are read from.
+ */
+const routeSources = [
+  readFileSync(join(here, "..", "app-root.tsx"), "utf8"),
+  ...Object.values(
+    import.meta.glob("../modules/*/runtime.ts", {
+      eager: true,
+      query: "?raw",
+      import: "default",
+    }),
+  ).map((source) => String(source)),
+];
 const KNOWN_ROUTES = new Set<string>([
   "/",
   ...SECTION_PATHS,
-  ...Array.from(
-    appSource.matchAll(/\bpath="(\/[^"?:*]+)"/g),
-    (match) => match[1],
-  ),
+  ...routeSources.flatMap((source) => [
+    ...Array.from(
+      source.matchAll(/\bpath="(\/[^"?:*]+)"/g),
+      (match) => match[1] ?? "",
+    ),
+    ...Array.from(
+      source.matchAll(/\b(?:path|to):\s*"(\/[^"?:*]+)"/g),
+      (match) => match[1] ?? "",
+    ),
+  ]),
 ]);
 
 const LIB_SURFACE = /^lib\/(.+\.ts):(\w+)$/;

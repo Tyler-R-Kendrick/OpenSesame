@@ -1,6 +1,6 @@
 import {
   ErrorCode,
-  type EventDetails,
+  type EventHandler,
   InMemoryProvider,
   type JsonValue,
   OpenFeature,
@@ -29,6 +29,9 @@ import {
   lifecycleFlagKey,
   projectedContext,
 } from "./openfeature.js";
+
+/** The SDK's own handler contract; the payload type stays inferred from it. */
+type ConfigChangedHandler = EventHandler<ProviderEvents.ConfigurationChanged>;
 
 const CONNECTORS = "connectors.external";
 const TELEMETRY = "telemetry.external";
@@ -167,13 +170,11 @@ describe("LocalCompositionProvider (S17)", () => {
       snapshotSource: store,
     });
     const seen: number[] = [];
-    client.addHandler(
-      ProviderEvents.ConfigurationChanged,
-      (details?: EventDetails<ProviderEvents.ConfigurationChanged>) => {
-        expect(details?.flagsChanged).toContain(capabilityFlagKey(CONNECTORS));
-        seen.push(client.getNumberValue(FLAG_GENERATION, -1));
-      },
-    );
+    const onChanged: ConfigChangedHandler = (details) => {
+      expect(details?.flagsChanged).toContain(capabilityFlagKey(CONNECTORS));
+      seen.push(client.getNumberValue(FLAG_GENERATION, -1));
+    };
+    client.addHandler(ProviderEvents.ConfigurationChanged, onChanged);
     expect(client.getBooleanValue(capabilityFlagKey(CONNECTORS), false)).toBe(
       true,
     );
@@ -196,12 +197,10 @@ describe("LocalCompositionProvider (S17)", () => {
     const store = storeDouble(readySnapshot(approvedPlan([]), 1));
     const provider = new LocalCompositionProvider(store);
     const changes: string[][] = [];
-    provider.events.addHandler(
-      ProviderEvents.ConfigurationChanged,
-      (d?: EventDetails<ProviderEvents.ConfigurationChanged>) => {
-        changes.push([...(d?.flagsChanged ?? [])]);
-      },
-    );
+    const onChanged: ConfigChangedHandler = (d) => {
+      changes.push([...(d?.flagsChanged ?? [])]);
+    };
+    provider.events.addHandler(ProviderEvents.ConfigurationChanged, onChanged);
     void provider.initialize({});
     store.set(readySnapshot(approvedPlan([CONNECTORS]), 2));
     expect(changes).toHaveLength(1);

@@ -81,6 +81,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
+    // A lease that was already stale when the loader got here has nothing
+    // to apply and nothing to register.
+    if (activation.disposed()) return activation.handle();
 
     // The relay address is deployment data the core parsed; only this
     // capability applies it, and disabling it forgets the address again.

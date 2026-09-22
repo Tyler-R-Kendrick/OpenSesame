@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconTrash } from "../../components/Icons.js";
 import {
   type LocalPasskey,
   readLocalPasskeys,
@@ -363,17 +364,29 @@ function CredentialRows({
             <div className="actions">
               <button
                 type="button"
-                className="btn btn--sm btn--danger"
+                className={
+                  removing === key.credentialId
+                    ? "icon-btn icon-btn--sm icon-btn--danger is-armed"
+                    : "icon-btn icon-btn--sm icon-btn--danger"
+                }
                 disabled={disabled || busy}
+                aria-label={
+                  removing === key.credentialId
+                    ? "Confirm revocation"
+                    : "Revoke passkey"
+                }
+                title={
+                  removing === key.credentialId
+                    ? "Confirm revocation"
+                    : "Revoke passkey"
+                }
                 onClick={() =>
                   removing === key.credentialId
                     ? void run("revoke", key.credentialId)
                     : setRemoving(key.credentialId)
                 }
               >
-                {removing === key.credentialId
-                  ? "Confirm revocation"
-                  : "Revoke passkey"}
+                <IconTrash size={16} />
               </button>
               {removing === key.credentialId ? (
                 <button

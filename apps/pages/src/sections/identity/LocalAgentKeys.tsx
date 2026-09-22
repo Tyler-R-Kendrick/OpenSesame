@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconTrash } from "../../components/Icons.js";
 import {
   type LocalAgentKey,
   readLocalAgentKeys,
@@ -295,8 +296,22 @@ function AgentKeyRows({
               </button>
               <button
                 type="button"
-                className="btn btn--sm btn--danger"
+                className={
+                  removing === key.credentialId
+                    ? "icon-btn icon-btn--sm icon-btn--danger is-armed"
+                    : "icon-btn icon-btn--sm icon-btn--danger"
+                }
                 disabled={disabled}
+                aria-label={
+                  removing === key.credentialId
+                    ? "Confirm key revocation"
+                    : "Revoke agent key"
+                }
+                title={
+                  removing === key.credentialId
+                    ? "Confirm key revocation"
+                    : "Revoke agent key"
+                }
                 onClick={(event) => {
                   if (removing === key.credentialId)
                     void revoke(key, event.currentTarget).then((saved) => {
@@ -305,9 +320,7 @@ function AgentKeyRows({
                   else setRemoving(key.credentialId);
                 }}
               >
-                {removing === key.credentialId
-                  ? "Confirm key revocation"
-                  : "Revoke agent key"}
+                <IconTrash size={16} />
               </button>
               {removing === key.credentialId ? (
                 <button

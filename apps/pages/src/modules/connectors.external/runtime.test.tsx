@@ -1,12 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { describeCapability } from "../../lib/capabilities/catalog.js";
 import { connectCallbackBase } from "../../lib/connect-callback.js";
 import {
   CONNECTIONS_ROUTES,
   CONNECTIONS_TARGETS,
 } from "../../tutorial/registry/connections-catalog.js";
 import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
-import { describeCapability } from "../../lib/capabilities/catalog.js";
 import type { PagesWebMcpTool } from "../../webmcp/tool-shared.js";
 import {
   NO_SIDE_EFFECTS,

@@ -8,17 +8,24 @@ import * as devices from "../lib/local-devices.js";
 import * as directory from "../lib/local-directory.js";
 import { notifyLocalIamChange } from "../lib/local-iam-events.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
-import { registerLegacyShell } from "./legacy-sections.test-support.js";
+import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { contributeIdentityViews } from "../sections/identity/identity-views.js";
 import { IdentityTree } from "./IdentityTree.js";
+import { registerLegacyShell } from "./legacy-sections.test-support.js";
 import { IconUser } from "./Icons.js";
 import type { SectionRowModel } from "./RailRows.js";
 
 // the Identity section's rail targets are the identity capability's, so the row only exists on a plan that approved it.
-let revokeShell = () => {};
+// The Identity tabs belong to three capabilities (local IAM, federation,
+// directory provisioning) and each contributes its own; this subtree is the
+// one a deployment that approved all of them draws.
+let revokeShell: readonly (() => void)[] = [];
 beforeAll(() => {
-  revokeShell = registerLegacyShell();
+  revokeShell = [registerLegacyShell(), contributeIdentityViews(IDENTITY_VIEWS)];
 });
-afterAll(() => revokeShell());
+afterAll(() => {
+  for (const revoke of revokeShell) revoke();
+});
 
 const IDENTITY_SECTION: SectionRowModel = {
   id: "identity",

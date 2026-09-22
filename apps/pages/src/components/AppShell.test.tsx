@@ -58,7 +58,10 @@ Object.assign(crumbsSeams, {
   Crumbs: () => <nav data-testid="crumbs" aria-label="Breadcrumb" />,
 });
 
+import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { contributeIdentityViews } from "../sections/identity/identity-views.js";
 import { AppShell } from "./AppShell.js";
+import { registerLegacyShell } from "./legacy-sections.test-support.js";
 
 function renderShell(route: string, children: ReactNode = <p>content</p>) {
   return render(
@@ -96,7 +99,13 @@ function filterLink(
 function selected(name: string) {
   return screen.getByRole("treeitem", { name }).getAttribute("aria-selected");
 }
-describe("AppShell", () => {
+/**
+ * SURFACE-01/02/03. Every ordinary surface of the shell derives from
+ * contributions: with nothing registered the rail is the two core
+ * directories, the drawer names the same two, the keymap sheet advertises
+ * only their jumps, and Settings has only its five core categories.
+ */
+describe("AppShell on a core-only plan", () => {
   beforeEach(() => {
     vault.items = [...ITEMS.map((item) => ({ ...item }))];
     vault.folders = [{ id: "f1", name: "Work" }];
@@ -105,6 +114,83 @@ describe("AppShell", () => {
   afterEach(() => {
     setRailCursor(null);
     cleanup();
+  });
+
+  it("draws the two core rail directories and nothing a capability owns", () => {
+    const { container } = renderShell("/vault");
+    const rows = [
+      ...container.querySelectorAll<HTMLElement>(
+        '.railtree > [role="treeitem"]',
+      ),
+    ].map((row) => row.getAttribute("aria-label"));
+    expect(rows).toEqual(["Vault", "Settings"]);
+    for (const gone of ["Connections", "Access", "Identity", "Wallet"]) {
+      expect(screen.queryByText(gone.toLowerCase())).toBeNull();
+    }
+    const jumps = [...container.querySelectorAll("kbd.railtree__jump")].map(
+      (kbd) => kbd.textContent,
+    );
+    expect(jumps).toEqual(["gv", "gs"]);
+  });
+
+  it("names the same two sections in the phone drawer", () => {
+    renderShell("/vault");
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+    const drawer = screen.getByRole("dialog", { name: "Sections" });
+    expect(
+      [...drawer.querySelectorAll(".drawer__name")].map((n) => n.textContent),
+    ).toEqual(["Vault", "Settings"]);
+  });
+
+  it("lists the five core Settings categories and no contributed one", () => {
+    const { container } = renderShell("/settings/security");
+    const rail = container.querySelector(".railtree");
+    const tabs = [
+      ...(rail?.querySelectorAll<HTMLAnchorElement>(
+        'a[href^="/settings"][aria-level="2"]',
+      ) ?? []),
+    ].map((a) => a.getAttribute("href"));
+    expect(tabs).toEqual([
+      "/settings",
+      "/settings/security",
+      "/settings/vaults",
+      "/settings/capabilities",
+      "/settings/danger",
+    ]);
+    expect(rail?.querySelector('a[href="/settings/connections"]')).toBeNull();
+  });
+
+  it("offers only the core item kinds in the vault filters", () => {
+    const { container } = renderShell("/vault");
+    const filters = [
+      ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
+    ].map((a) => a.getAttribute("href"));
+    expect(filters).toContain("/vault?f=login");
+    expect(filters).toContain("/vault?f=card");
+    expect(filters).toContain("/vault?f=secret");
+    expect(filters).toContain("/vault?f=note");
+    expect(filters).not.toContain("/vault?f=passkey");
+    expect(filters).not.toContain("/vault?f=certificate");
+    expect(filters).not.toContain("/vault?f=drop");
+  });
+});
+
+describe("AppShell", () => {
+  let revokeShell: readonly (() => void)[] = [];
+  beforeEach(() => {
+    revokeShell = [
+      registerLegacyShell(),
+      contributeIdentityViews(IDENTITY_VIEWS),
+    ];
+    vault.items = [...ITEMS.map((item) => ({ ...item }))];
+    vault.folders = [{ id: "f1", name: "Work" }];
+    vault.lock.mockReset();
+  });
+  afterEach(() => {
+    setRailCursor(null);
+    cleanup();
+    for (const revoke of revokeShell) revoke();
+    revokeShell = [];
   });
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");

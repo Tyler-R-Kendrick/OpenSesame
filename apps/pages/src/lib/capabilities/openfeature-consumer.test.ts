@@ -85,13 +85,12 @@ describe("openfeature-consumer (S17)", () => {
     expect(capabilityEnabled(CONNECTORS)).toBe(true);
     // ...and the loader, reading the store, still refuses before any import.
     const lease = compositionStore.currentLease();
-    const outcome = await loadApprovedModule(
-      `${CONNECTORS}/runtime`,
-      lease,
-    ).then(
-      () => "loaded",
-      (error: unknown) => (isCapabilityDenied(error) ? error.code : "other"),
-    );
+    let outcome = "loaded";
+    try {
+      await loadApprovedModule(`${CONNECTORS}/runtime`, lease);
+    } catch (thrown) {
+      outcome = isCapabilityDenied(thrown) ? thrown.code : "other";
+    }
     expect(outcome).toBe("NOT_APPROVED");
     compositionStore.resetForTest();
   });
