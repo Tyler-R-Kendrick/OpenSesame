@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { validateDescriptor } from "./descriptor.js";
 import { type DigestInput, canonicalJson } from "./digest.js";
 import { validateInstancePolicy } from "./documents.js";
@@ -75,9 +76,14 @@ describe("property — hostile inputs never throw or load silently", () => {
   });
 
   it("canonicalJson never throws on hostile boundary values", async () => {
+    // SAFETY: fc.jsonValue validated the JSON boundary contract at runtime;
+    // the DigestInput arbitrary preserves that same validated contract.
+    const hostileJson: fc.Arbitrary<DigestInput> = overlapCast(
+      fc.jsonValue(),
+    );
     await fc.assert(
       fc.asyncProperty(
-        fc.jsonValue() as fc.Arbitrary<DigestInput>,
+        hostileJson,
         async (value: DigestInput) => {
           let threw = false;
           try {

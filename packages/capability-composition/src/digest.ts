@@ -25,6 +25,7 @@ import {
   isNumber,
   isString,
   isTypeofObject,
+  overlapCast,
 } from "@opensesame/os-domain";
 
 /**
@@ -68,9 +69,7 @@ function canonicalize(value: BoundaryValue): string | undefined {
   if (isBigint(value)) return undefined;
   if (Array.isArray(value)) return canonicalArray(value);
   if (isDigestRecord(value)) {
-    // SAFETY: isDigestRecord validated the plain-object boundary contract at
-    // runtime; the entries view preserves that same validated contract.
-    const entries = Object.entries(value as Record<string, DigestInput>);
+    const entries = Object.entries(overlapCast(value));
     const parts: string[] = [];
     for (const [key, member] of entries) {
       if (member === undefined) continue; // dropped: absent ≡ undefined
@@ -138,9 +137,8 @@ function isDigestJson(value: DigestInput): value is BoundaryValue {
   if (isDigestNumber(value)) return true;
   if (isDigestBoolean(value)) return true;
   if (Array.isArray(value)) {
-    // SAFETY: Array.isArray validated the array boundary contract at runtime;
-    // the readonly view preserves that same validated contract.
-    return (value as readonly DigestInput[]).every(isDigestJson);
+    const members: readonly DigestInput[] = overlapCast(value);
+    return members.every(isDigestJson);
   }
   if (isDigestFunction(value)) return false;
   if (!isDigestRecord(value)) return false;
@@ -155,11 +153,12 @@ function isDigestJson(value: DigestInput): value is BoundaryValue {
 function isDigestString(value: DigestInput): value is string {
   // SAFETY: the os-domain guards validate the string boundary contract at
   // runtime; the BoundaryValue view preserves that same validated contract.
+  const candidate: BoundaryValue = overlapCast(value);
   return (
-    !isTypeofObject(value as BoundaryValue) &&
-    !Array.isArray(value) &&
-    value !== null &&
-    isString(value as BoundaryValue)
+    !isTypeofObject(candidate) &&
+    !Array.isArray(candidate) &&
+    candidate !== null &&
+    isString(candidate)
   );
 }
 
@@ -167,11 +166,12 @@ function isDigestString(value: DigestInput): value is string {
 function isDigestNumber(value: DigestInput): value is number {
   // SAFETY: the os-domain guards validate the number boundary contract at
   // runtime; the BoundaryValue view preserves that same validated contract.
+  const candidate: BoundaryValue = overlapCast(value);
   return (
-    !isTypeofObject(value as BoundaryValue) &&
-    !Array.isArray(value) &&
-    value !== null &&
-    isNumber(value as BoundaryValue)
+    !isTypeofObject(candidate) &&
+    !Array.isArray(candidate) &&
+    candidate !== null &&
+    isNumber(candidate)
   );
 }
 
@@ -179,11 +179,12 @@ function isDigestNumber(value: DigestInput): value is number {
 function isDigestBoolean(value: DigestInput): value is boolean {
   // SAFETY: the os-domain guards validate the boolean boundary contract at
   // runtime; the BoundaryValue view preserves that same validated contract.
+  const candidate: BoundaryValue = overlapCast(value);
   return (
-    !isTypeofObject(value as BoundaryValue) &&
-    !Array.isArray(value) &&
-    value !== null &&
-    isBoolean(value as BoundaryValue)
+    !isTypeofObject(candidate) &&
+    !Array.isArray(candidate) &&
+    candidate !== null &&
+    isBoolean(candidate)
   );
 }
 
@@ -191,7 +192,7 @@ function isDigestBoolean(value: DigestInput): value is boolean {
 function isDigestFunction(value: DigestInput): value is DigestFunction {
   // SAFETY: isFunction validated the function boundary contract at runtime;
   // the DigestFunction view preserves that same validated contract.
-  return isFunction(value as BoundaryValue);
+  return isFunction(overlapCast(value));
 }
 
 /** JSON-shaped inputs only; undefined members are dropped, not refused. */
@@ -208,12 +209,12 @@ function isJsonValueLike(value: BoundaryValue): value is BoundaryValue {
 
 /** Plain records only — arrays, null, and primitives handled above. */
 function isDigestRecord(value: DigestInput): value is BoundaryValue {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  );
+  return isDigestObject(value) && !Array.isArray(overlapCast(value));
+}
+
+/** Plain objects (including null); arrays and primitives excluded below. */
+function isDigestObject(value: DigestInput): value is BoundaryValue {
+  return isTypeofObject(overlapCast(value));
 }
 
 /** True when two values share the same canonical form (structure equal). */

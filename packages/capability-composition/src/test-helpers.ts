@@ -7,6 +7,7 @@ import {
   isJsonObject,
   isNumber,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { DistributionInventory } from "./resolver.js";
 
@@ -110,13 +111,13 @@ export function descriptor(id: string, overrides: FixtureOverrides = {}): Bounda
  */
 function summaryField(summary: string | string[] | (() => string) | number): BoundaryValue {
   // SAFETY: the os-domain guards validate the summary boundary contract at
-  // runtime; the BoundaryValue views preserve that same validated contract.
-  if (isString(summary as BoundaryValue)) return summary as BoundaryValue;
-  if (isNumber(summary as BoundaryValue)) return summary as BoundaryValue;
-  if (isBoolean(summary as BoundaryValue)) return summary as BoundaryValue;
+  // runtime; the overlapCast views preserve that same validated contract.
+  if (isString(overlapCast(summary))) return overlapCast(summary);
+  if (isNumber(overlapCast(summary))) return overlapCast(summary);
+  if (isBoolean(overlapCast(summary))) return overlapCast(summary);
   // SAFETY: the remaining arms are hostile summary shapes (string array,
   // function) the validator refuses at runtime; the type names them.
-  return summary as BoundaryValue;
+  return overlapCast(summary);
 }
 
 /** Policy overrides parsed from attacker-shaped JSON at the test boundary. */
@@ -263,19 +264,19 @@ function allowField(
 ): BoundaryValue {
   if (allow === undefined) return undefined;
   // SAFETY: the os-domain guards validate the allow boundary contract at
-  // runtime; the BoundaryValue views preserve that same validated contract.
-  if (isString(allow as BoundaryValue)) return allow as BoundaryValue;
-  if (isNumber(allow as BoundaryValue)) return allow as BoundaryValue;
-  if (!isJsonObject(allow as BoundaryValue)) {
+  // runtime; the overlapCast views preserve that same validated contract.
+  if (isString(overlapCast(allow))) return overlapCast(allow);
+  if (isNumber(overlapCast(allow))) return overlapCast(allow);
+  if (!isJsonObject(overlapCast(allow))) {
     // SAFETY: non-object allow shapes (plain {}) are the validator's own
     // rejection cases; the fixture type names them.
-    return allow as BoundaryValue;
+    return overlapCast(allow);
   }
   // SAFETY: hostile allow.ids shapes ({}, "x") are the validator's own
   // rejection cases; the fixture type names every variant.
-  const ids = (allow as { readonly ids?: BoundaryValue }).ids;
+  const ids = overlapCast(allow).ids;
   if (Array.isArray(ids)) return { ids: [...ids] };
-  return { ids: ids as BoundaryValue };
+  return { ids: overlapCast(ids) };
 }
 
 /** Overrides for a fixture selection: partial raw fields. */
@@ -340,7 +341,9 @@ export function selection(overrides: FixtureSelection = {}): BoundaryValue {
  * validator to refuse.
  */
 function stringListField(value: readonly string[] | string): BoundaryValue {
-  if (isString(value as BoundaryValue)) return value as BoundaryValue;
+  // SAFETY: isString validated the string boundary contract at runtime; the
+  // BoundaryValue view preserves that same validated contract.
+  if (isString(overlapCast(value))) return overlapCast(value);
   return [...value];
 }
 
