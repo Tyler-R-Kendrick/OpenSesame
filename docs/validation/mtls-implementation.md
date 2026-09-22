@@ -13,9 +13,10 @@ the command that produced it. Anything that could not run says why.
 
 | Field | Value |
 |---|---|
-| Baseline before this work | `424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716` (the directive inspected `f1c1e7ae`, one Pages-only commit earlier; that delta touches no transport seam) |
+| Baseline the work was built on | `424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716` (the directive inspected `f1c1e7ae`, one Pages-only commit earlier; that delta touches no transport seam) |
+| Base at the time of this report | `8a47abd49b9bbd29eca5c8d0b06f1163fe18a233`, merged in after the duress profiles landed on `main`; that work claimed ADR numbers 0130 and 0131, so this decision record was renumbered to 0132 |
 | Branch | `claude/new-session-j3usv4`, pull request #453 |
-| Size of the change | 631 files, about 76 000 insertions |
+| Size of the change | 635 files, about 76 900 insertions, measured against the merged base |
 | Toolchain | rustc/cargo 1.88.0, Node 22.22.2, pnpm 9.15.0 |
 | Relevant resolved libraries | rustls 0.23.43 (ring provider), tokio-rustls 0.26.4, rustls-webpki 0.103.13, async-nats 0.50.0, nkeys 0.4.5, spiffe 0.16.1, sfv 0.15.0, oidc-provider 9.11.2, structured-headers 2.1.0 |
 | Pinned disposable servers | nats-server 2.11.17, OpenBao 2.3.2, SPIRE 1.12.6, Caddy 2.11.4 — all fetched and sha256-verified by `scripts/mtls-fixtures.sh` |
@@ -39,7 +40,10 @@ application keeps working with none of this present. It does.
 | A browser operation needing a vault-controlled TLS identity | returns a typed unsupported outcome; no key export, no silent proxy |
 
 Two Pages gates, `verify:static` and `verify:auth`, fail — **identically on the
-base build**, proven by running each against a build of `origin/main`. They are
+base build**, proven by building `apps/pages` from the merge base
+`8a47abd` and running each gate against it. `verify:static` reports the same
+ten failed checks on both builds, all of them about the setup tabs, the
+footer strip and the statusline, and none of them transport. They are
 pre-existing and not caused by this work.
 
 ## 3. Capability status, stated exactly
