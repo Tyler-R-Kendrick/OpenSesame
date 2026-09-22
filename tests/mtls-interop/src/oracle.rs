@@ -102,8 +102,11 @@ pub fn s_client(spec: &SClient<'_>) -> Result<Outcome> {
         "-verify_return_error".to_string(),
         "-verify".to_string(),
         "5".to_string(),
+        // `-quiet` implies `-ign_eof`: closing our stdin must NOT tear the
+        // session down before the response arrives. `-no_ign_eof` here cost
+        // an afternoon — it produced an empty stdout that looked exactly
+        // like a refusal.
         "-quiet".to_string(),
-        "-no_ign_eof".to_string(),
     ];
     if let (Some(chain), Some(key)) = (spec.client_chain, spec.client_key) {
         args.push("-cert".to_string());
