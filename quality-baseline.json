@@ -851,7 +851,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 793
+      "max-lines": 605
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
@@ -869,7 +869,7 @@
       "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 738
+      "max-lines": 697
     },
     "apps/pages/src/sections/VaultSection.tsx": {
       "max-lines-per-function": 1
