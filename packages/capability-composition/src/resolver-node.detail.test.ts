@@ -1,10 +1,21 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
+import { validateDescriptor } from "./descriptor.js";
 import { evaluateNode } from "./resolver-node.js";
 import { descriptor } from "./test-helpers.js";
 
+function mustDescriptor(
+  id: string,
+  overrides: Record<string, BoundaryValue> = {},
+): Parameters<typeof evaluateNode>[1] {
+  const checked = validateDescriptor(descriptor(id, overrides));
+  if (!checked.ok) throw new Error(`fixture descriptor ${id} must validate`);
+  return checked.descriptor;
+}
+
 describe("node evaluation detail", () => {
   it("sorts blocked deps before rendering the conflict detail", () => {
-    const evaluation = evaluateNode("a", descriptor("a"), 1, {
+    const evaluation = evaluateNode("a", mustDescriptor("a"), 1, {
       wanted: new Set(["a"]),
       optionalWanted: new Set(),
       blockedByDeps: ["z-dep", "a-dep"],
@@ -26,7 +37,7 @@ describe("node evaluation detail", () => {
   });
 
   it("renders every prohibited source in the detail and provenance", () => {
-    const evaluation = evaluateNode("a", descriptor("a"), 1, {
+    const evaluation = evaluateNode("a", mustDescriptor("a"), 1, {
       wanted: new Set(["a"]),
       optionalWanted: new Set(),
       blockedByDeps: [],
@@ -51,7 +62,7 @@ describe("node evaluation detail", () => {
   });
 
   it("treats a dependency-only member as selected but not wanted", () => {
-    const evaluation = evaluateNode("dep", descriptor("dep"), 2, {
+    const evaluation = evaluateNode("dep", mustDescriptor("dep"), 2, {
       wanted: new Set(["a"]),
       optionalWanted: new Set(),
       blockedByDeps: [],
@@ -74,7 +85,7 @@ describe("node evaluation detail", () => {
   });
 
   it("reports a cached load as cached, and a reload load as restart-required", () => {
-    const cached = evaluateNode("a", descriptor("a"), 1, {
+    const cached = evaluateNode("a", mustDescriptor("a"), 1, {
       wanted: new Set(["a"]),
       optionalWanted: new Set(),
       blockedByDeps: [],
@@ -93,7 +104,7 @@ describe("node evaluation detail", () => {
     expect(cached.entry.activationStatus).toBe("cached");
     const reload = evaluateNode(
       "a",
-      descriptor("a", { requiresDocumentReload: true }),
+      mustDescriptor("a", { requiresDocumentReload: true }),
       0,
       {
         wanted: new Set(["a"]),
@@ -118,7 +129,7 @@ describe("node evaluation detail", () => {
   it("names the missing runtime environments in the conflict", () => {
     const evaluation = evaluateNode(
       "w",
-      descriptor("w", { environments: ["service-worker"] }),
+      mustDescriptor("w", { environments: ["service-worker"] }),
       1,
       {
         wanted: new Set(["w"]),
