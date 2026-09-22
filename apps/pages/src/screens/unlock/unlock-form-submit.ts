@@ -15,6 +15,8 @@ type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
   create: (password: string, hint?: string) => Promise<void>;
+  createGuest: (options?: { resume?: boolean }) => Promise<void>;
+  cancelTotpChallenge: () => void;
   redeemRecoveryCode: (code: string) => Promise<void>;
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
@@ -61,7 +63,8 @@ export async function submitUnlockForm(input: {
     } else if (input.guestUnlock) {
       await submitGuestUnlock();
     } else if (input.awaitingSecondStep) {
-      await submitSecondStepUnlock(input);
+      const outcome = await submitSecondStepUnlock(input);
+      if (outcome === "duress_stop") return;
     } else {
       const outcome = await submitPrimaryMethodUnlock(input);
       if (outcome === "duress_stop") return;
