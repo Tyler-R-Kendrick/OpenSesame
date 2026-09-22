@@ -1,0 +1,22 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "int": "1"
+          }
+        },
+        {
+          "comment": " foot one",
+          "inline": false
+        },
+        {
+          "comment": " foot two",
+          "inline": false
+        }
+      ]
+    }
+  ]
+}

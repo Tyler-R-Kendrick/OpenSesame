@@ -1,0 +1,58 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "a",
+          "value": {
+            "map": [
+              {
+                "comment": " after flow map",
+                "inline": false
+              },
+              {
+                "key": "x",
+                "value": {
+                  "int": "1"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "b",
+          "value": {
+            "seq": [
+              {
+                "comment": " after flow seq",
+                "inline": false
+              },
+              {
+                "int": "1"
+              },
+              {
+                "int": "2"
+              }
+            ]
+          }
+        },
+        {
+          "key": "c",
+          "value": {
+            "str": "block\n"
+          }
+        },
+        {
+          "comment": " after block scalar",
+          "inline": false
+        },
+        {
+          "key": "d",
+          "value": {
+            "int": "4"
+          }
+        }
+      ]
+    }
+  ]
+}

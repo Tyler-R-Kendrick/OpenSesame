@@ -1,0 +1,4 @@
+a:
+  b: 1
+  # trailing indented
+c: 2

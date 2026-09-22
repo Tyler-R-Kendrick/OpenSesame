@@ -1,0 +1,94 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Formats"
+        },
+        {
+          "shot": "1280-formats-panel"
+        },
+        {
+          "pressOptional": "SOPS document"
+        },
+        {
+          "shot": "1280-sops-sheet"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Formats"
+        },
+        {
+          "shot": "390-formats-panel"
+        },
+        {
+          "pressOptional": "SOPS document"
+        },
+        {
+          "shot": "390-sops-sheet"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-formats-panel",
+      "width": 1280,
+      "title": "Settings \u203a Security \u203a Formats \u2014 1280 \u00d7 900",
+      "caption": "The panel's header keys, read from the browser. Before, three: export the native manifest, the vault SOPS sheet, age armor. There was no way to open a SOPS *document* at all \u2014 the SOPS row claimed read, write and 'this browser' while offering no road to a file. After, four: the same three plus `SOPS document`, which is the road. The row's claim and what the panel can do now agree.",
+      "before": "header keys: Export native protection manifest, Vault SOPS, age armor (3)",
+      "after": "header keys: Export native protection manifest, SOPS document, Vault SOPS, age armor (4)"
+    },
+    {
+      "shot": "1280-sops-sheet",
+      "width": 1280,
+      "title": "The SOPS document sheet \u2014 1280 \u00d7 900",
+      "caption": "Before is the same panel again, because pressing `SOPS document` did nothing: the key did not exist, so the capture has nothing to open. After is the sheet \u2014 choose a file, an age identity, recipients, a threshold, then Open or Encrypt. The file chooser is an icon key with the native input at `opacity: 0, position: absolute` behind it; left visible, Chromium's own 'Choose File' button drew on top of the `age identity` label, which an earlier capture in this branch caught and this one no longer shows.",
+      "before": "no SOPS document key \u2014 sheet does not exist",
+      "after": "dialog 'SOPS document': Open 75\u00d736, Encrypt 101\u00d736, three fields 355\u00d734, file input opacity=0 position=absolute"
+    },
+    {
+      "shot": "390-formats-panel",
+      "width": 390,
+      "title": "Formats on a phone \u2014 390 \u00d7 844",
+      "caption": "The same header, the same added key, in a real touch context. The panel itself is unchanged by this work; what changed is that one more key is there and it leads somewhere.",
+      "before": "3 header keys",
+      "after": "4 header keys"
+    },
+    {
+      "shot": "390-sops-sheet",
+      "width": 390,
+      "title": "The sheet on a phone \u2014 390 \u00d7 844",
+      "caption": "Before, nothing opens. After, the sheet fills the width. Its editor carries the 16px font floor that keeps iOS from zooming a focused control and never zooming back; `verify:mobile` measures that rather than trusting this picture.",
+      "before": "no sheet",
+      "after": "sheet at full width, editor font-size 16px"
+    }
+  ]
+}

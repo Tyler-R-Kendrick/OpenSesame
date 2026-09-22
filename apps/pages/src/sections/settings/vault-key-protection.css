@@ -57,3 +57,89 @@
     gap: 0.35rem;
   }
 }
+
+/* ── SOPS document sheet ────────────────────────────────────────────────
+   The key groups a file names, and the editor for a verified document.
+   Both live inside the ceremony card, so they inherit its width and only
+   set what the card does not: the group rows, and an editor that keeps the
+   16px floor a phone needs so iOS does not zoom a focused field. */
+
+.sops__groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.sops__groups > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.sops__group-name {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.sops__recipient {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.sops__recipient code {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.sops__editor {
+  width: 100%;
+  min-height: 12rem;
+  resize: vertical;
+  font-family: var(--mono);
+  /* iOS zooms a focused control under 16px and never zooms back. */
+  font-size: 16px;
+  line-height: 1.45;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--surface-2, var(--surface));
+  color: var(--ink-1);
+}
+
+@media (pointer: coarse) {
+  .sops__editor {
+    min-height: 9rem;
+  }
+}
+
+/*
+ * The file chooser is an icon key, not a native "Choose File" button: the
+ * input fills the key and carries the click, while the `+` shows through.
+ * Left visible, the browser's own button renders on top of the next label.
+ */
+.sops__file {
+  position: relative;
+  overflow: hidden;
+}
+
+.sops__file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}

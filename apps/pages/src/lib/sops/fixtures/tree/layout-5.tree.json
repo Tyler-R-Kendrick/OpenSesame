@@ -1,0 +1,39 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "comment": " line on key with map value",
+          "inline": false
+        },
+        {
+          "key": "a",
+          "value": {
+            "map": [
+              {
+                "key": "b",
+                "value": {
+                  "int": "1"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "comment": " line on key with seq value",
+          "inline": false
+        },
+        {
+          "key": "s",
+          "value": {
+            "seq": [
+              {
+                "str": "x"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

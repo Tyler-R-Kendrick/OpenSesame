@@ -1,0 +1,35 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "list",
+          "value": {
+            "seq": [
+              {
+                "str": "one"
+              },
+              {
+                "comment": " after one",
+                "inline": false
+              },
+              {
+                "str": "two"
+              },
+              {
+                "comment": " after two (foot of list)",
+                "inline": false
+              }
+            ]
+          }
+        },
+        {
+          "key": "next",
+          "value": {
+            "int": "1"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+when: 2001-12-14T21:59:43.1-05:00
+day: 2002-12-14T00:00:00Z
+space: 2001-12-14T21:59:43.1Z
+hex: 31
+octal: 15
+bin: 5
+under: 1000
+big: 9223372036854775807
+small: -9223372036854775808
+negzero: -0
+inf: .inf
+exp: 1e+21
+tiny: 1e-07
+floatint: 1
+yes_str: "yes"
+quoted_num: "42"
+quoted_date: "2002-12-14"
+multi: |
+    first
+    second
+folded: one two
+unicode: "héllo \U0001F30D é́"
+key with colon: v
+a:b: colon-key

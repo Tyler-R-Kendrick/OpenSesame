@@ -1,0 +1,44 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "10",
+          "value": {
+            "str": "a"
+          }
+        },
+        {
+          "key": "2",
+          "value": {
+            "str": "b"
+          }
+        },
+        {
+          "key": "01",
+          "value": {
+            "str": "c"
+          }
+        },
+        {
+          "key": "__proto__",
+          "value": {
+            "str": "d"
+          }
+        },
+        {
+          "key": "constructor",
+          "value": {
+            "str": "e"
+          }
+        },
+        {
+          "key": "prototype",
+          "value": {
+            "str": "f"
+          }
+        }
+      ]
+    }
+  ]
+}

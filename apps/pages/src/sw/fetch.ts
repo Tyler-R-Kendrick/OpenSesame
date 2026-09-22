@@ -16,7 +16,7 @@
  */
 
 import type { WorkerContext } from "./context.js";
-import { isolated } from "./isolation.js";
+import { isolated, isolatedWorkerScript } from "./isolation.js";
 
 async function releaseCache(ctx: WorkerContext): Promise<Cache> {
   return ctx.caches.open(ctx.releaseCacheName);
@@ -92,7 +92,16 @@ async function runtimeConfig(
 async function asset(ctx: WorkerContext, request: Request): Promise<Response> {
   const cache = await releaseCache(ctx);
   const cached = await cache.match(request);
-  return cached ?? ctx.fetch(request);
+  const response = cached ?? (await ctx.fetch(request));
+  // A worker script has to carry the isolation its owner document was given,
+  // or Chromium refuses it with an `error` event that names nothing.
+  if (
+    request.destination === "worker" ||
+    request.destination === "sharedworker"
+  ) {
+    return isolatedWorkerScript(response);
+  }
+  return response;
 }
 
 /** Route one request; `null` when the worker should not respond at all. */

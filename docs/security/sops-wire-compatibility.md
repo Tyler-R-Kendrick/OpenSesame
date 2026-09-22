@@ -1,53 +1,183 @@
 # SOPS wire compatibility
 
-**Status**: Completed 2026-09-21 · Source of truth for what the OpenSesame browser SOPS engine is, and is not, wire-compatible with.
+What `apps/pages/src/lib/sops` reproduces from upstream SOPS, why each
+choice is upstream's rather than ours, and what it deliberately refuses.
 
----
+**Target:** SOPS **v3.13.3**, source commit
+`26e2f4784ca61353082c32dbd987c25eda086dc9`. That exact release is the
+oracle for `pnpm verify:sops-conformance`; it is downloaded once, verified
+against the checksums published with the release, and executed with an
+empty environment, a private `HOME` and config directory, explicit identity
+files, and no plugin or key-service discovery. The shipped browser never
+invokes it. See [ADR 0130](../adr/0130-browser-local-sops.md).
 
-The OpenSesame browser SOPS engine (`apps/pages/src/lib/sops/`) re-implements the sops v3 data plane for the browser. It is the formats-interoperability core for C13 in the vault-key-protection program (ADR 0129), where a sealed vault is exported as `vault-secrets.sops.json`, edited by an external sops binary in its native UI, and re-imported.
+## Scope
 
-**Verdict**: the browser engine and pinned upstream `sops` v3.13.3 read each other's YAML and JSON age ciphertexts with no shared code — only the wire format and the crypto primitives are shared. That verdict is machine-checked by `pnpm verify:sops-conformance` in both directions (browser→sops and sops→browser, YAML and JSON); the suite skips visibly when the oracle is absent, and every claim in this doc names its re-runnable gate.
+| Covered | Not covered |
+| --- | --- |
+| YAML and JSON documents | `dotenv`, `ini`, `binary` formats |
+| Local `age` identities (X25519) | age plugins, age passphrase recipients |
+| Key groups, Shamir thresholds | GPG/PGP, HashiCorp Vault, PKCS#11 |
+| AWS KMS / Azure Key Vault / GCP KMS **wire contract** | Any claim those work against a given tenancy |
+| `encrypted_suffix`, `unencrypted_suffix`, `encrypted_regex`, `unencrypted_regex`, `encrypted_comment_regex`, `unencrypted_comment_regex`, `mac_only_encrypted` | `--set` path syntax, key services, exec-env/exec-file, publish |
 
-## 1. What the engine offers
+Anything outside the left column is an error that names the unsupported
+feature. Nothing in this table is a security boundary on its own; it is a
+statement of what has been tested against the oracle.
 
-1. **File encryption** (`encryptSopsDocument`/`decryptSopsDocument`) — the sops-compatible plane. A plaintext file (YAML, JSON, or multi-document streams: `---`-joined for YAML, newline-delimited for JSON) is encrypted leaf-wise; `sops` metadata is attached; the age recipient public key wraps the data key (single recipient or Shamir key groups with threshold).
-2. **Vault-secrets export** (`exportVaultSecrets`/`importVaultSecrets`) — the vault-freight plane. A flat or hierarchical projection of the vault is encrypted **wholesale**: every leaf is ENC[...] at export so the only plaintext in the file is structure (key names, types, the `OpenSesame` origin field). An external editor works on the SOPS UI and its per-field policy decides what stays plaintext on their copy; the round-trip back into OpenSesame only needs the values to decrypt.
+## The record format
 
-## 2. Wire compatibility profile
+```
+ENC[AES256_GCM,data:<b64>,iv:<b64>,tag:<b64>,type:<str|int|float|bool|time>]
+```
 
-Profile: `sops-browser/v3.13.3-age` — the intersection of the engine's feature set with the pinned upstream binary.
+- **AES-256-GCM**, a fresh 32-byte nonce per record, a 16-byte tag. The
+  nonce is 32 bytes because Go uses `cipher.NewGCMWithNonceSize`, so the
+  browser uses `@noble/ciphers`, which accepts the same. Nothing truncates
+  or rehashes a nonce to fit the 96-bit shape WebCrypto prefers — that
+  would be a different ciphertext from a different document.
+- **Standard base64** with padding — not URL-safe, and the engine rejects a
+  non-canonical encoding rather than accepting a value it would re-emit
+  differently.
+- **Additional data is the path**: each component followed by `:`, joined,
+  so `nested:deep:0:x:`. A record moved to another path fails to
+  authenticate. This is what stops an attacker rearranging a document.
+- **`type:`** is the *original* scalar kind, and it is how a decrypted
+  document gets `1` back as an integer rather than the string `"1"`.
+  `time` is an RFC 3339 timestamp.
 
-| wire element | upstream sops v3.13.3 | OpenSesame browser engine | verdict |
-|---|---|---|---|
-| AES-256-GCM per-leaf value encryption | yes | yes | identical |
-| sops MAC (SHA-256("sops") init, AES-MAC OCB2 offset 11, LE lengths) | yes | yes | identical |
-| `sops` metadata key with `version: 3` | yes | yes | identical |
-| age recipients, single and Shamir key groups | yes | yes | identical |
-| `encrypted_suffix`, `unencrypted_suffix`, `encrypted_regex`, `unencrypted_regex`, `mac_only_encrypted` | yes | yes (RE2 subset; lookaround/backreferences fail closed) | identical with a narrower regex dialect |
-| YAML multi-document streams, one `sops` block on the first document | yes | yes | identical |
-| YAML comments | preserved | preserved (round-trip verified after the `Pair` emit fix) | identical |
-| YAML aliases, anchors, explicit tags, merge keys | supported upstream | **fail closed** with a refusal, never data loss | divergent (deliberate) |
-| ndjson multi-document JSON | yes | yes | identical |
-| metadata completeness | full (`mac`, `lastmodified`, `unencrypted_suffix`, `sha256` sum…) | structurally complete; not byte-identical (`shamir_threshold` emitted only when >1) | divergent (documented) |
-| KMS/azkv/PGP recipients | yes | age only | divergent |
-| `OpenSesame` metadata field | — | yes (origin marker) | OpenSesame extension |
-| vault export all-fields (every leaf ENC[...] at export) | no (upstream honors per-field policy) | yes, by design | OpenSesame extension |
+## Scalars, or: Go is the specification
 
-## 3. Divergences
+The MAC is computed over plaintext *bytes*, so a scalar that we render
+differently from Go produces a different MAC and upstream rejects the
+document. These are not stylistic choices.
 
-- **Fail-closed YAML features.** Anchors, aliases, explicit tags and merge keys are refused at parse (`fromNode` throws). Upstream sops handles them; the browser engine refuses because a C13 export must be lossless, and silently flattening an alias or rewriting a tag is not.
-- **Metadata byte layout.** The engine emits a valid v3 metadata object that upstream accepts, but the key order and a few presence rules differ (`shamir_threshold` only when >1, an extra `opensesame` field). Upstream does not require byte-identical metadata.
-- **Recipient coverage.** Only age. KMS, GCP KMS, Azure KV and PGP recipients from upstream documents decrypt nothing here; the engine refuses a document it cannot recover a key for rather than pretending.
-- **Vault freight is not a sops feature.** The `OpenSesame` metadata field and the all-fields export policy are OpenSesame conventions. Upstream sops edits the file as a normal encrypted document (its own policy applies to its copy).
+| Kind | Upstream | Engine |
+| --- | --- | --- |
+| int | `strconv.Itoa` | `canonicalInt` — no `+`, no leading zeros, no separators |
+| float | `strconv.FormatFloat(v, 'f', -1, 64)` | `goFloatText` — shortest round-tripping decimal, never exponent notation |
+| bool | `True` / `False` | the same two words, capitalised |
+| time | `time.Time.MarshalText` | RFC 3339, whole seconds |
 
-## 4. Verified claims
+Plain YAML scalars resolve the way `go.yaml.in/yaml/v3` resolves them,
+which is not how JavaScript would: `017` is **15** (base 0), `0b101` is
+**5**, `1_000` is **1000**, and a `uint64` beyond range is refused rather
+than silently turned into a float. `yaml-resolve.ts` implements this and
+`fixtures/tree/` holds 74 documents dumped by upstream's own loader to keep
+it honest.
 
-- `pnpm verify:sops-conformance` (12 assertions): browser→sops and sops→browser for YAML and JSON; nested maps/seqs, multi-doc YAML, multi-line strings, unicode, `mac_only_encrypted`, empty values, deep nesting.
-- `pnpm verify:sops-browser` (12 tests): round-trips, two-of-three key groups, shamir shares, selectors, comment/alias boundary, vault export/import, honest capability report.
-- Cloud-KMS live check (`pnpm verify:sops-cloud-live`) is a separate, credentialed gate — not exercised here (no disposable cloud credentials); the browser engine does not call cloud KMS today.
+**Negative zero** is the one place the round trip is not a fixed point, and
+it is upstream's: SOPS emits float `-0`, and its own loader reads that back
+as **int** `0`. The engine emits `-0.0`, which upstream loads as float
+`-0`. The fixture comparator normalises the sign of zero and says why in
+place. Neither behaviour loses data; they simply disagree about the type of
+a value nobody writes on purpose.
 
-## 5. Out of scope
+## Comments are tree items
 
-- Editing the `sops` metadata block by hand outside the engine.
-- `sops exec`, `sops exec-env`, and other upstream CLI subcommands — the engine is a library surface behind the Pages UI.
-- Cloud KMS providers.
+Upstream does not attach a comment to a node — it puts comments *in* the
+tree as their own items, in order. That is why
+`encrypted_comment_regex` and `unencrypted_comment_regex` work the way they
+do: a matching comment changes the treatment of the items that **follow**
+it, tracked by a comments stack during the walk. `walk.ts` reproduces
+`walkBranch`/`walkSlice` including that stack, and `yaml-comments.ts`
+attaches comments by source offset so they survive a round trip in place.
+
+## The MAC
+
+- SHA-512 over every encrypted value's plaintext, in walk order, rendered
+  as **uppercase hex**.
+- Sealed as a record whose additional data is the document's
+  `lastmodified`, so the timestamp cannot be edited without invalidating
+  the MAC.
+- `mac_only_encrypted` starts the digest from
+  `SHA-256("sops")` (`MACOnlyEncryptedInitialization`) and feeds only the
+  encrypted values.
+- A MAC mismatch is a refusal to open. The engine never returns a document
+  it could not authenticate, and `pnpm verify:sops-conformance` checks the
+  reverse direction too: upstream rejects a browser-written file whose MAC
+  we deliberately broke.
+
+## Key groups and thresholds
+
+- One group: an **OR** of its master keys — any one of them recovers the
+  32-byte data key.
+- Several groups: **Shamir over GF(2⁸)**, 33-byte `{y1..y32, x}` shares,
+  one share per group, `shamir_threshold` groups required. Upstream's
+  default threshold is *all* groups, and the engine defaults the same way.
+- age entries are armored envelopes, one recipient per entry, wrapping
+  either the raw data key (one group) or that group's share.
+- A document whose threshold cannot be met does not open. It is never
+  partially opened and never rewritten with a weaker policy — that is
+  ADR 0129 §7's "preserved or refused, never silently flattened" as code.
+
+## Selectors
+
+At most one of `encrypted_suffix` / `unencrypted_suffix` /
+`encrypted_regex` / `unencrypted_regex` may be set, which is upstream's own
+rule; two is a configuration error, not a precedence puzzle.
+
+The regexes are **Go/RE2**, not JavaScript. `re2.ts` is a Thompson NFA
+simulation — linear time, no backtracking — with a 4,000-instruction
+program cap and a 2,000,000-step execution cap, so a selector from an
+imported `.sops.yaml` cannot be a denial-of-service. Lookaround and
+backreferences are not in RE2 at all, so no SOPS config can depend on them.
+Inline flags, named groups, Unicode and POSIX classes, `\Q…\E`, `\A`, `\z`,
+`\C` and `\x{…}` *are* valid RE2 that this engine does not implement; a
+config using one is reported as unsupported rather than reinterpreted.
+Go's "invalid nested repetition" refusals (`a**`, `a*+`, `a{2}+`) are
+reproduced, including the trailing `?` Go does allow.
+
+## What the engine refuses
+
+YAML aliases and anchors, merge keys (`<<`), non-string mapping keys,
+duplicate keys, unknown tags, a document that is a sequence or a bare
+scalar at the root, a `sops` key in a document being encrypted, a lone
+surrogate in JSON, a JSON duplicate key, and any integer a `float64` would
+round. Each is a named error. Refusing is the point: a format where the
+reader and the writer disagree about what a document means is worse than
+one that will not open it.
+
+## Divergences, named
+
+Three, and the first is the only one a reader is likely to hit:
+
+- **Fail-closed YAML features.** Anchors, aliases, explicit tags and merge
+  keys are refused at parse. Upstream `sops` handles them. The engine refuses
+  because a lossless export outranks them, and silently flattening an alias or
+  rewriting a tag is not lossless.
+- **Recipient coverage.** Local age recovers a document here. A document whose
+  only master keys are PGP, HashiCorp Vault or PKCS#11 recovers nothing, and
+  the engine refuses it by name rather than pretending. AWS KMS, Azure Key
+  Vault and GCP KMS adapters exist and implement upstream's encodings, but no
+  live provider call has been proven from a browser.
+- **Vault export is an OpenSesame convention, not a SOPS feature.** Exporting
+  the vault writes an ordinary SOPS document; upstream edits it as one, and
+  its own policy applies to its copy. Nothing about that round trip is part of
+  the SOPS specification.
+
+An earlier version of this document (2026-09-21, against the engine this one
+replaced) also listed metadata byte layout as a divergence — `shamir_threshold`
+presence and an extra `opensesame` field. Neither applies now: the engine emits
+no `opensesame` field, and `shamir_threshold` only above one group, which is
+upstream's own rule. The conformance gate compares against upstream output
+directly, so a metadata drift would fail it.
+
+## Bounds
+
+`limits.ts`: 8 MiB input, 64 levels of nesting, 100,000 tree nodes, 32
+documents in a stream, 32 key groups, 128 recipient entries. Past any of
+them the engine reports the limit by name.
+
+## How this is verified
+
+| Gate | What it proves | Failure mode |
+| --- | --- | --- |
+| `pnpm verify:sops-conformance` | Both wire directions and both edit directions against the pinned, checksum-verified binary; 17 committed fixtures still match the digests it produced | **incomplete** (exit 2) when the oracle is absent — never a pass |
+| `pnpm verify:sops-browser` | The whole workflow in a real browser on a static origin, online and offline, at a subpath and at a domain root; no request leaves the origin; the bundle names no native runtime | fail |
+| `pnpm verify:sops-cloud-live` | Optional, opt-in, against disposable cloud resources | **blocked-external** when none is supplied |
+
+Upstream can change its format. The pin makes that a visible failure rather
+than a silent incompatibility — but a SOPS release newer than the pin is
+untested here until the pin moves, and this document is only a claim about
+v3.13.3.

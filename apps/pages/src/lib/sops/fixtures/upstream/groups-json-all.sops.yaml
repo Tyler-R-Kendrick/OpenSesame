@@ -1,0 +1,7 @@
+creation_rules:
+  - path_regex: \.json$
+    key_groups:
+      - age:
+          - age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79
+      - age:
+          - age1q4n92kra6cz0yv9tmcya65pnju4s87gxjxl4y738rnydxu8f6c3qz9x5rd

@@ -1,0 +1,293 @@
+{
+  "sopsVersion": "3.13.3",
+  "sourceCommit": "26e2f4784ca61353082c32dbd987c25eda086dc9",
+  "oracle": {
+    "name": "sops-v3.13.3.linux.amd64",
+    "sha256": "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b"
+  },
+  "generatedAt": "2026-09-22T14:04:38.801Z",
+  "cases": [
+    {
+      "name": "basic-yaml",
+      "format": "yaml",
+      "plain": "plain.basic.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "8fe1a55ed13af4afe8079eb50070ae978d053a1d47dc9fe71117c5dd96b9ba1f",
+      "decryptedSha256": "a40527aa1741006291a6f678c88fe6b8cc832db77d0b471d9b5974402ee50f70",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "basic-json",
+      "format": "json",
+      "plain": "plain.basic.json",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "ef144b4ae6e63ab1727ec01fad680fb00f08ca61d3a9dcdb92d53fa9fdb29ec3",
+      "decryptedSha256": "1feb1a51acccc0e6acb454fe22ef3e88f91da33c3d18ab16e2972b63eca8dc0b",
+      "decryptedJsonAvailable": false
+    },
+    {
+      "name": "comments",
+      "format": "yaml",
+      "plain": "plain.comments.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "d30739aee1765e8a7652b80e2e529d9f58e830cf5f440cb58796ec38a8652e37",
+      "decryptedSha256": "db4348e717b33f69a741dc95ab3a0cf68836075eddc7119e985a3549395feb08",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "scalars",
+      "format": "yaml",
+      "plain": "plain.scalars.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "e47b9a75e982c1ac867fae5385c5b3d8f9e98ae5ba484decab89fd16de3fec97",
+      "decryptedSha256": "fd1ec4511814e4118462a91ffce983c7d70fdaa07f87e8e849aeec0206a44e7d",
+      "decryptedJsonAvailable": false
+    },
+    {
+      "name": "numeric-keys",
+      "format": "yaml",
+      "plain": "plain.numeric-keys.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "02523660e8e3514b6f6d03315a0d42f63b9762a66601ddbebafb44e8a9a4cbc1",
+      "decryptedSha256": "0c16072598a31e976c3ba45aff7419f04470746f9cf4442d76d0c81460246243",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "multi",
+      "format": "yaml",
+      "plain": "plain.multi.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "92604849a3e020b3b6f4d05eba2c2072046105f81fc6710237ba0230e5346d51",
+      "decryptedSha256": "7ea090639e1ed00ead10f3030d22fbf89202a3ed8fe815260a6696ad6e0b347a",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "empty-containers",
+      "format": "yaml",
+      "plain": "plain.empty-containers.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "ecf07e790c0df0233f0e136b89d333be6c9457a85122684df31dffacf2ca4939",
+      "decryptedSha256": "60cb82de9aefefd949cd9eb4deb912e0674ce7046844491bf53fc18cc0e811c5",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "unencrypted-suffix",
+      "format": "yaml",
+      "plain": "plain.unencrypted-suffix.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "061a54f870be6957ac59ee50912aa32a81694f40fcd41d008a4952a2248d75ad",
+      "decryptedSha256": "e8cf36c5ce04a42bda4f3b9612fb4a5f0e0df454a73343842460a1de4429827d",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "two-recipients",
+      "format": "yaml",
+      "plain": "plain.basic.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79,age1q4n92kra6cz0yv9tmcya65pnju4s87gxjxl4y738rnydxu8f6c3qz9x5rd"
+      ],
+      "config": null,
+      "identities": [
+        0,
+        1
+      ],
+      "encryptedSha256": "65c97e45e17f008bf71423a120071dc2c5f8cd3d498f6c9154c9308321880436",
+      "decryptedSha256": "a40527aa1741006291a6f678c88fe6b8cc832db77d0b471d9b5974402ee50f70",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "encrypted-suffix",
+      "format": "yaml",
+      "plain": "plain.unencrypted-suffix.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79",
+        "--encrypted-suffix",
+        "_unencrypted"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "81ff43d1c366d0405f1ce2741a571c8625260ba35c67ed951ea1b03fe6a0357d",
+      "decryptedSha256": "e8cf36c5ce04a42bda4f3b9612fb4a5f0e0df454a73343842460a1de4429827d",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "encrypted-regex",
+      "format": "yaml",
+      "plain": "plain.selectors.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79",
+        "--encrypted-regex",
+        "^(pw|token|inner)$"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "e78a7f8f0c3abe73a29030f53d76abdbb7501a183b44f4954e8574986cb46475",
+      "decryptedSha256": "be3d5182062c9b82f58f4c5bef7115c65f23f9c8a0c483c9aec71b74411fb5c0",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "unencrypted-regex",
+      "format": "yaml",
+      "plain": "plain.selectors.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79",
+        "--unencrypted-regex",
+        "^public"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "30701a6d14c2d9abd96ec5fbea58b80b347c3ddd7c29b3bf75d56d8a938d0948",
+      "decryptedSha256": "be3d5182062c9b82f58f4c5bef7115c65f23f9c8a0c483c9aec71b74411fb5c0",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "encrypted-comment-regex",
+      "format": "yaml",
+      "plain": "plain.selectors.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79",
+        "--encrypted-comment-regex",
+        "sops:enc"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "b8ccb6db6a08f8df99e94bcec3261cbcc8d32e88afea2affcbf45445f6452d63",
+      "decryptedSha256": "be3d5182062c9b82f58f4c5bef7115c65f23f9c8a0c483c9aec71b74411fb5c0",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "unencrypted-comment-regex",
+      "format": "yaml",
+      "plain": "plain.selectors.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79",
+        "--unencrypted-comment-regex",
+        "plain"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "245a403f9cad47e7005bc94b63cc898ce27ea5a07abd5105f7a9b667bf8a08f8",
+      "decryptedSha256": "be3d5182062c9b82f58f4c5bef7115c65f23f9c8a0c483c9aec71b74411fb5c0",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "mac-only-encrypted",
+      "format": "yaml",
+      "plain": "plain.selectors.yaml",
+      "args": [
+        "--age",
+        "age1l23sslqhz3k8hyvhfm2emw0qdm30vdg84ywe54cj25l8fte699jqdype79",
+        "--mac-only-encrypted",
+        "--encrypted-regex",
+        "^(pw|token)$"
+      ],
+      "config": null,
+      "identities": [
+        0
+      ],
+      "encryptedSha256": "1b637a842ce6730bd99e366ab0d6792b7d041dbeba2aeef3cfd7cda8ce2f3042",
+      "decryptedSha256": "be3d5182062c9b82f58f4c5bef7115c65f23f9c8a0c483c9aec71b74411fb5c0",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "groups-2of3",
+      "format": "yaml",
+      "plain": "plain.basic.yaml",
+      "args": [],
+      "config": "groups-2of3.sops.yaml",
+      "identities": [
+        0,
+        2
+      ],
+      "encryptedSha256": "bd0621070690697c3783d06e87b7239c1bf5a29125241f37edb87295e2c8b814",
+      "decryptedSha256": "a40527aa1741006291a6f678c88fe6b8cc832db77d0b471d9b5974402ee50f70",
+      "decryptedJsonAvailable": true
+    },
+    {
+      "name": "groups-json-all",
+      "format": "json",
+      "plain": "plain.basic.json",
+      "args": [],
+      "config": "groups-json-all.sops.yaml",
+      "identities": [
+        0,
+        1
+      ],
+      "encryptedSha256": "42f52272bb2304f7cf136b1307e48f36819b0d02ca6006ec3f4aed29095c8c24",
+      "decryptedSha256": "1feb1a51acccc0e6acb454fe22ef3e88f91da33c3d18ab16e2972b63eca8dc0b",
+      "decryptedJsonAvailable": false
+    }
+  ]
+}

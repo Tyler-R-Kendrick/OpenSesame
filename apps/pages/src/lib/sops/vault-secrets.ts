@@ -1,6 +1,8 @@
 /**
- * Vault secret export and import as a SOPS document.
- * The vault unlock policy stays where it is. This file is a separate copy.
+ * Selected vault items as a SOPS JSON document, and back (B12, PERSIST-03).
+ * The vault's unlock policy is untouched either way: an export is a new
+ * document under a fresh data key and an explicit recipient plan; an import
+ * is a separately consented copy under the vault's own any-of protection.
  */
 
 import {
@@ -12,13 +14,11 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import type { ItemKind, VaultItem } from "../vault/model.js";
-import {
-  decryptSopsDocument,
-  encryptSopsDocument,
-  inspectSopsDocument,
-} from "./engine.js";
+import { SopsError } from "./errors.js";
 import { emitJsonTree, parseJsonTree } from "./json-codec.js";
-import type { SopsNode } from "./tree.js";
+import { type SopsNode, entry } from "./model.js";
+import type { EncryptionPlan, ExecutionPermit } from "./plan.js";
+import type { SopsRunner } from "./runner.js";
 
 const KINDS: readonly ItemKind[] = [
   "login",
@@ -32,49 +32,35 @@ const KINDS: readonly ItemKind[] = [
 ];
 
 function isKind(value: string): value is ItemKind {
-  for (const kind of KINDS) {
-    if (kind === value) return true;
-  }
-  return false;
+  return KINDS.some((kind) => kind === value);
 }
 
+/** Encrypt the selected items; every recipient in the plan must succeed. */
 export async function exportVaultSecrets(input: {
+  runner: SopsRunner;
   items: readonly VaultItem[];
-  recipients: readonly string[];
-  groups?: readonly (readonly string[])[];
-  threshold?: number;
+  plan: EncryptionPlan;
+  permit: ExecutionPermit;
 }): Promise<string> {
+  if (input.items.length === 0) {
+    throw new SopsError(
+      "invalid_document",
+      "Select at least one item to export.",
+    );
+  }
+  if (input.plan.format !== "json") {
+    throw new SopsError(
+      "unauthorized_policy",
+      "Vault exports are JSON documents.",
+    );
+  }
   const plaintext = JSON.stringify({ items: input.items });
-  if (
-    input.groups &&
-    input.groups.length > 0 &&
-    input.threshold !== undefined
-  ) {
-    return encryptSopsDocument({
-      format: "json",
-      plaintext,
-      recipients: input.recipients,
-      groups: input.groups,
-      threshold: input.threshold,
-    });
-  }
-  if (input.groups && input.groups.length > 0) {
-    return encryptSopsDocument({
-      format: "json",
-      plaintext,
-      recipients: input.recipients,
-      groups: input.groups,
-    });
-  }
-  return encryptSopsDocument({
-    format: "json",
-    plaintext,
-    recipients: input.recipients,
-  });
+  return input.runner.encryptNew(plaintext, input.plan, input.permit);
 }
 
 function readItem(node: SopsNode): VaultItem {
-  if (node.kind !== "map") throw new Error("vault item is not a mapping");
+  if (node.kind !== "map")
+    throw new SopsError("invalid_document", "A vault item is not a mapping.");
   const parsed: BoundaryValue = JSON.parse(emitJsonTree(node));
   assertVaultItem(parsed);
   // SAFETY: assertVaultItem checked the vault item contract before this cast.
@@ -96,66 +82,64 @@ const BASE_FIELDS = [
 ] as const;
 
 function extraFields(kind: ItemKind): readonly string[] {
-  if (kind === "login") {
-    return [
-      "username",
-      "password",
-      "totp",
-      "uris",
-      "passwordChangedAt",
-      "supersededById",
-      "retiredAt",
-      "reenrollState",
-    ];
+  switch (kind) {
+    case "login":
+      return [
+        "username",
+        "password",
+        "totp",
+        "uris",
+        "passwordChangedAt",
+        "supersededById",
+        "retiredAt",
+        "reenrollState",
+      ];
+    case "passkey":
+      return [
+        "rpId",
+        "username",
+        "credentialIdB64",
+        "publicKeyB64",
+        "authenticator",
+        "unlocksVault",
+        "privateKeyPkcs8B64",
+        "cosePublicKeyB64",
+        "signCount",
+        "userHandleB64",
+        "discoverable",
+        "alg",
+        "transports",
+        "custody",
+        "provenance",
+        "importedFrom",
+        "duplicateOfExternal",
+        "supersededById",
+        "retiredAt",
+        "reenrollState",
+      ];
+    case "card":
+      return ["cardholder", "brand", "number", "expMonth", "expYear", "code"];
+    case "secret":
+      return ["value", "ceiling", "grantees", "connectionRef"];
+    case "certificate":
+      return [
+        "commonName",
+        "dnsNames",
+        "ipAddrs",
+        "ttlHours",
+        "certificatePem",
+        "privateKeyPem",
+        "caPem",
+        "serial",
+        "notAfter",
+      ];
+    case "drop":
+      return ["state", "claimId", "bearerToken", "expiresAt", "keptCopy"];
+    case "typed":
+      return ["typeId", "values"];
+    default:
+      return [];
   }
-  if (kind === "passkey") {
-    return [
-      "rpId",
-      "username",
-      "credentialIdB64",
-      "publicKeyB64",
-      "authenticator",
-      "unlocksVault",
-      "privateKeyPkcs8B64",
-      "cosePublicKeyB64",
-      "signCount",
-      "userHandleB64",
-      "discoverable",
-      "alg",
-      "transports",
-      "custody",
-      "provenance",
-      "importedFrom",
-      "duplicateOfExternal",
-      "supersededById",
-      "retiredAt",
-      "reenrollState",
-    ];
-  }
-  if (kind === "card") {
-    return ["cardholder", "brand", "number", "expMonth", "expYear", "code"];
-  }
-  if (kind === "secret") {
-    return ["value", "ceiling", "grantees", "connectionRef"];
-  }
-  if (kind === "certificate") {
-    return [
-      "commonName",
-      "dnsNames",
-      "ipAddrs",
-      "ttlHours",
-      "certificatePem",
-      "privateKeyPem",
-      "caPem",
-      "serial",
-      "notAfter",
-    ];
-  }
-  if (kind === "drop") {
-    return ["state", "claimId", "bearerToken", "expiresAt", "keptCopy"];
-  }
-  if (kind === "typed") return ["typeId", "values"];
-  return [];
 }
 
 function unsafeItemId(id: string): boolean {
@@ -167,20 +151,22 @@ function unsafeItemId(id: string): boolean {
   return false;
 }
 
+function fail(message: string): SopsError {
+  return new SopsError("invalid_document", message);
+}
+
 function assertString(item: JsonObject, key: string): void {
-  if (!isString(item[key])) throw new Error(`vault item ${key} is not text`);
+  if (!isString(item[key])) throw fail(`A vault item's ${key} is not text.`);
 }
 
 function assertKnownItem(value: JsonObject, kind: ItemKind): void {
   const id = value.id;
-  if (!isString(id) || unsafeItemId(id)) {
-    throw new Error("vault item id is not a vault record");
-  }
+  if (!isString(id) || unsafeItemId(id))
+    throw fail("A vault item id is not a vault record.");
   const allowed = new Set<string>([...BASE_FIELDS, ...extraFields(kind)]);
   for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) {
-      throw new Error(`vault item field ${key} is not part of ${kind}`);
-    }
+    if (!allowed.has(key))
+      throw fail(`A vault item field is not part of ${kind}.`);
   }
 }
 
@@ -189,28 +175,15 @@ function assertBase(value: JsonObject): void {
   assertString(value, "notes");
   assertString(value, "createdAt");
   assertString(value, "updatedAt");
-  const folderId = value.folderId;
-  if (!(folderId === null || isString(folderId))) {
-    throw new Error("vault item folder is not a vault record");
-  }
-  if (!isBoolean(value.favorite)) {
-    throw new Error("vault item favorite is not a vault record");
-  }
-  const deletedAt = value.deletedAt;
-  if (!(deletedAt === null || isString(deletedAt))) {
-    throw new Error("vault item deletedAt is not a vault record");
-  }
-  if (value.sample !== undefined && !isBoolean(value.sample)) {
-    throw new Error("vault item sample is not a vault record");
-  }
+  if (!(value.folderId === null || isString(value.folderId)))
+    throw fail("A vault item folder is not a vault record.");
+  if (!isBoolean(value.favorite))
+    throw fail("A vault item favorite is not a vault record.");
+  if (!(value.deletedAt === null || isString(value.deletedAt)))
+    throw fail("A vault item deletedAt is not a vault record.");
+  if (value.sample !== undefined && !isBoolean(value.sample))
+    throw fail("A vault item sample is not a vault record.");
   assertFields(value.fields);
-}
-
-function assertTyped(value: JsonObject): void {
-  assertString(value, "typeId");
-  if (!isJsonObject(value.values)) {
-    throw new Error("vault item values are not a mapping");
-  }
 }
 
 function assertKindPayload(value: JsonObject, kind: ItemKind): void {
@@ -218,18 +191,20 @@ function assertKindPayload(value: JsonObject, kind: ItemKind): void {
   if (kind === "login") assertString(value, "password");
   if (kind === "drop") assertString(value, "bearerToken");
   if (kind === "certificate") assertString(value, "privateKeyPem");
-  if (kind === "passkey" && value.privateKeyPkcs8B64 !== undefined) {
+  if (kind === "passkey" && value.privateKeyPkcs8B64 !== undefined)
     assertString(value, "privateKeyPkcs8B64");
+  if (kind === "typed") {
+    assertString(value, "typeId");
+    if (!isJsonObject(value.values))
+      throw fail("A vault item's values are not a mapping.");
   }
-  if (kind === "typed") assertTyped(value);
 }
 
 function assertVaultItem(value: BoundaryValue): void {
-  if (!isJsonObject(value)) throw new Error("vault item is not a mapping");
+  if (!isJsonObject(value)) throw fail("A vault item is not a mapping.");
   const kind = value.kind;
-  if (!isString(kind) || !isKind(kind)) {
-    throw new Error("vault item is not a vault record");
-  }
+  if (!isString(kind) || !isKind(kind))
+    throw fail("A vault item is not a vault record.");
   assertKnownItem(value, kind);
   assertBase(value);
   assertKindPayload(value, kind);
@@ -237,10 +212,10 @@ function assertVaultItem(value: BoundaryValue): void {
 
 function assertFields(value: BoundaryValue | undefined): void {
   if (!Array.isArray(value))
-    throw new Error("vault item fields are not a list");
+    throw fail("A vault item's fields are not a list.");
   for (const field of value) {
     if (!isJsonObject(field))
-      throw new Error("vault item field is not a mapping");
+      throw fail("A vault item field is not a mapping.");
     for (const key of Object.keys(field)) {
       if (
         key !== "id" &&
@@ -248,41 +223,64 @@ function assertFields(value: BoundaryValue | undefined): void {
         key !== "value" &&
         key !== "hidden"
       ) {
-        throw new Error("vault item field has an unknown property");
+        throw fail("A vault item field has an unknown property.");
       }
     }
     if (
       !isString(field.id) ||
       !isString(field.name) ||
-      !isString(field.value)
+      !isString(field.value) ||
+      !isBoolean(field.hidden)
     ) {
-      throw new Error("vault item field is malformed");
+      throw fail("A vault item field is malformed.");
     }
-    if (!isBoolean(field.hidden))
-      throw new Error("vault item field is malformed");
   }
 }
 
+export type ImportedSecrets = {
+  items: VaultItem[];
+  /** True when the source needed several key groups and this copy will not. */
+  thresholdRelaxed: boolean;
+};
+
+/**
+ * Open a vault-secrets document and validate every item. A source that
+ * required several key groups becomes an ordinary any-of vault copy, which
+ * the caller must have disclosed and the person consented to.
+ */
 export async function importVaultSecrets(input: {
+  runner: SopsRunner;
   ciphertext: string;
-  identity: string;
+  identities: readonly string[];
   consentToVaultCopy: boolean;
-}): Promise<VaultItem[]> {
-  const inspection = inspectSopsDocument(input.ciphertext, "json");
-  if (inspection.groups > 1 && !input.consentToVaultCopy) {
-    throw new Error("threshold import needs consent");
+  permit: ExecutionPermit;
+}): Promise<ImportedSecrets> {
+  const inspection = await input.runner.inspect(input.ciphertext, "json");
+  const thresholdRelaxed = inspection.keyGroups.length > 1;
+  if (thresholdRelaxed && !input.consentToVaultCopy) {
+    throw new SopsError(
+      "unauthorized_policy",
+      "Importing a key-group document into this vault needs consent.",
+    );
   }
-  const plain = await decryptSopsDocument({
-    format: "json",
-    ciphertext: input.ciphertext,
-    identity: input.identity,
-  });
-  const root = parseJsonTree(plain);
-  if (root.kind !== "map")
-    throw new Error("vault SOPS document is not a mapping");
-  const items = root.entries.find((entry) => entry.key === "items")?.value;
-  if (!items || items.kind !== "seq") {
-    throw new Error("vault SOPS document has no items");
+  const opened = await input.runner.open(
+    input.ciphertext,
+    "json",
+    input.identities,
+    input.permit,
+  );
+  try {
+    const root = parseJsonTree(opened.plaintext);
+    const items = entry(root, "items");
+    if (!items || items.kind !== "seq")
+      throw fail("The document has no items list.");
+    const parsed = items.items.map((item) => {
+      if (item.kind === "comment")
+        throw fail("The items list holds a comment.");
+      return readItem(item);
+    });
+    return { items: parsed, thresholdRelaxed };
+  } finally {
+    input.runner.dispose(opened.handle);
   }
-  return items.items.map(readItem);
 }

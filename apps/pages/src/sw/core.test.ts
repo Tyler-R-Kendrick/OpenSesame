@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cacheName } from "./cache-names.js";
 import { installCoreWorker } from "./core.js";
 import { installPushHandlers } from "./push-handlers.js";
-import { FakeWorkerEnv, navigateTo } from "./test-env.js";
+import { FakeWorkerEnv, navigateTo, workerScript } from "./test-env.js";
 import { RELEASE_ID, RELEASE_MANIFEST } from "./test-fixtures.js";
 
 const SCOPE_PATH = "/OpenSesame/";
@@ -192,6 +192,32 @@ describe("fetch routing (PWA-08)", () => {
     expect(response?.headers.get("Cross-Origin-Embedder-Policy")).toBe(
       "require-corp",
     );
+  });
+
+  it("gives a worker script the isolation its owner document was given", async () => {
+    // A dedicated worker inherits the document's cross-origin isolation, and
+    // Chromium refuses a worker script that does not carry the same header —
+    // as an `error` event with no message, no filename and nothing logged.
+    // Every dedicated worker on the installed app broke on that, including
+    // the website-pattern worker that predates this branch.
+    const env = new FakeWorkerEnv();
+    env.serve("assets/pattern-worker.js", "self.onmessage = () => {};");
+    coreWorker(env);
+    await env.dispatch("install", {});
+    await env.dispatch("activate", {});
+
+    const url = new URL("assets/pattern-worker.js", env.scope).href;
+    const response = await env.fetchEvent(workerScript(url));
+
+    expect(response?.headers.get("Cross-Origin-Embedder-Policy")).toBe(
+      "require-corp",
+    );
+    expect(response?.headers.get("Cross-Origin-Resource-Policy")).toBe(
+      "same-origin",
+    );
+    // An ordinary asset is untouched: only a worker script needs this.
+    const plain = await env.fetchEvent(new Request(url));
+    expect(plain?.headers.get("Cross-Origin-Embedder-Policy")).toBeNull();
   });
 
   it("network-first navigation refreshes the release shell on a 404 deep link", async () => {

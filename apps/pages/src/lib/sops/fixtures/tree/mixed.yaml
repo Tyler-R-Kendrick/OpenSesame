@@ -1,0 +1,17 @@
+a: 1
+b:
+  - x
+  - [1, 2]
+  - {c: d}
+  - null
+  - ""
+  - {}
+  - []
+u: "héllo 🌍"
+u2: héllo
+key with spaces: v
+"quoted key": v
+? complex
+: v
+yes: no
+num_key_str: "10"

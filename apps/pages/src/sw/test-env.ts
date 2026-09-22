@@ -337,3 +337,14 @@ export function navigateTo(url: string): Request {
   Object.defineProperty(request, "mode", { value: "navigate" });
   return overlapCast(request);
 }
+
+/**
+ * A request for a worker script. Node's `Request` will not take
+ * `destination` in its constructor and the handler only reads it, so it is
+ * set on the instance afterwards, exactly as `navigateTo` does for `mode`.
+ */
+export function workerScript(url: string): Request {
+  const request = new Request(url);
+  Object.defineProperty(request, "destination", { value: "worker" });
+  return request;
+}

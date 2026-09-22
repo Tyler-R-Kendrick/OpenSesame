@@ -1,0 +1,17 @@
+{
+	"a": 1,
+	"b": {
+		"c": "two",
+		"d": [
+			"x",
+			"y"
+		]
+	},
+	"e": [
+		"one",
+		"two",
+		"three"
+	],
+	"f": "multi\nline\n",
+	"g": "quoted # not a comment"
+}

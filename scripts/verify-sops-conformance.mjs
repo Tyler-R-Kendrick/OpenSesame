@@ -1,48 +1,90 @@
 #!/usr/bin/env node
 /**
- * Hermetic sops v3.13.3 conformance. Incomplete when the pinned oracle
- * cannot be provisioned. Never a browser runtime dependency.
+ * `pnpm verify:sops-conformance` — the mandatory compatibility gate.
+ *
+ * It provisions the pinned upstream SOPS v3.13.3 release, verifies it
+ * against the checksums published with that release before executing it,
+ * re-checks that every committed fixture still matches the digests that
+ * binary produced, and then runs both wire directions and both edit
+ * directions against it.
+ *
+ * A missing or unverifiable oracle is an INCOMPLETE result (exit 2), never
+ * a silent skip and never a pass. The shipped browser never invokes this.
  */
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync } from "node:fs";
-import { arch, tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  SOPS_SOURCE_COMMIT,
+  SOPS_VERSION,
+  provisionOracle,
+} from "../apps/pages/scripts/sops-oracle/oracle.mjs";
 
-const checksums = {
-  arm64: "53b0abacd38ef1b12a66d6c100956691b9cefce018d91f81e73ddf7438b94d77",
-  x64: "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b",
-};
-const names = {
-  arm64: "sops-v3.13.3.linux.arm64",
-  x64: "sops-v3.13.3.linux.amd64",
-};
-const key = arch() === "arm64" ? "arm64" : arch() === "x64" ? "x64" : "";
-if (!key) {
-  console.error(`incomplete: no pinned sops binary for ${arch()}`);
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const evidence = join(root, "docs/evidence/2026-09-22-browser-local-sops");
+mkdirSync(evidence, { recursive: true });
+
+const CASES = [
+  "SB-003",
+  "SB-004",
+  "SB-005",
+  "SB-012",
+  "SB-019",
+  "SB-026",
+  "SB-027",
+  "SB-028",
+  "SB-037",
+  "SB-039",
+  "SB-045",
+  "SB-079",
+  "SB-080",
+];
+
+function write(status, reason, detail = {}) {
+  const records = CASES.map((caseId) => ({
+    caseId,
+    status,
+    evidenceKind: "upstream-oracle",
+    test: "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    command: "pnpm verify:sops-conformance",
+    runtime: `sops ${SOPS_VERSION} (${SOPS_SOURCE_COMMIT.slice(0, 12)})`,
+    artifact:
+      "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    reason,
+    ...detail,
+  }));
+  writeFileSync(
+    join(evidence, "conformance-results.json"),
+    `${JSON.stringify(records, null, 2)}\n`,
+  );
+}
+
+const oracle = provisionOracle({ allowDownload: true });
+if (oracle.error) {
+  write("not-run", `Incomplete: ${oracle.error}`);
+  console.error(`incomplete: ${oracle.error}`);
   process.exit(2);
 }
-const dir = join(tmpdir(), "opensesame-sops-oracle");
-mkdirSync(dir, { recursive: true });
-const bin = join(dir, names[key]);
-const cached = spawnSync(bin, ["--version"], { encoding: "utf8" });
-if (cached.status !== 0) {
-  const url = `https://github.com/getsops/sops/releases/download/v3.13.3/${names[key]}`;
-  const download = spawnSync("curl", ["-fsSL", "-o", bin, url], {
+console.log(`oracle: ${oracle.name} sha256=${oracle.sha256}`);
+
+const fixtures = spawnSync(
+  "node",
+  ["apps/pages/scripts/sops-fixtures.mjs", "--check"],
+  {
+    cwd: root,
     stdio: "inherit",
-  });
-  if (download.status !== 0) {
-    console.error("incomplete: could not download pinned sops v3.13.3");
-    process.exit(2);
-  }
-  chmodSync(bin, 0o755);
+    env: { ...process.env, SOPS_BIN: oracle.bin },
+  },
+);
+if (fixtures.status !== 0) {
+  write(
+    "failed",
+    "The committed fixtures no longer match the pinned oracle's digests.",
+  );
+  process.exit(1);
 }
-const actual = createHash("sha256").update(readFileSync(bin)).digest("hex");
-if (actual !== checksums[key]) {
-  console.error("incomplete: sops oracle checksum mismatch");
-  process.exit(2);
-}
-const root = new URL("..", import.meta.url).pathname;
+
 const test = spawnSync(
   "pnpm",
   [
@@ -52,7 +94,20 @@ const test = spawnSync(
     "vitest",
     "run",
     "src/lib/sops/engine.conformance.test.ts",
+    "src/lib/sops/engine.oracle.test.ts",
   ],
-  { cwd: root, stdio: "inherit", env: { ...process.env, SOPS_BIN: bin } },
+  {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env, SOPS_BIN: oracle.bin },
+  },
 );
-process.exit(test.status ?? 1);
+const ok = test.status === 0;
+write(
+  ok ? "passed" : "failed",
+  ok
+    ? `Both wire directions and both edit directions ran against the verified pinned oracle (sha256 ${oracle.sha256}).`
+    : "The conformance suite failed against the pinned oracle.",
+  { oracleSha256: oracle.sha256 },
+);
+process.exit(ok ? 0 : 1);

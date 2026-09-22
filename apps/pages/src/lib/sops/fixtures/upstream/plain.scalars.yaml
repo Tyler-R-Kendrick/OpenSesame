@@ -1,0 +1,26 @@
+when: 2001-12-14T21:59:43.10-05:00
+day: 2002-12-14
+space: 2001-12-14 21:59:43.10
+hex: 0x1F
+octal: 017
+bin: 0b101
+under: 1_000
+big: 9223372036854775807
+small: -9223372036854775808
+negzero: -0.0
+inf: .inf
+exp: 1e21
+tiny: 1e-7
+floatint: 1.0
+yes_str: yes
+quoted_num: "42"
+quoted_date: "2002-12-14"
+multi: |
+  first
+  second
+folded: >-
+  one
+  two
+unicode: "héllo 🌍 é́"
+key with colon: v
+"a:b": colon-key

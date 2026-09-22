@@ -1,0 +1,60 @@
+{
+  "documents": [
+    {
+      "map": [
+        {
+          "key": "base",
+          "value": {
+            "map": [
+              {
+                "key": "x",
+                "value": {
+                  "int": "1"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "other",
+          "value": {
+            "map": [
+              {
+                "key": "x",
+                "value": {
+                  "int": "1"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "merged",
+          "value": {
+            "map": [
+              {
+                "key": "\u003c\u003c",
+                "value": {
+                  "map": [
+                    {
+                      "key": "x",
+                      "value": {
+                        "int": "1"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": "y",
+                "value": {
+                  "int": "2"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -136,6 +136,12 @@ export default defineConfig({
   },
   // Dependency pre-bundling in dev has its own target and hits the same limitation.
   esbuild: { target: "es2022" },
+  // Workers are constructed with `{ type: "module" }`; Vite's default IIFE
+  // worker output does not load that way, and Chromium reports the failure
+  // as a bare `error` event with no message. Emitting real ES modules is
+  // what makes a module worker start at all. Every target engine here
+  // (Chrome 100, Firefox 100, Safari 15) supports module workers.
+  worker: { format: "es" },
   plugins: [
     githubAppRelayPlugin(),
     {
