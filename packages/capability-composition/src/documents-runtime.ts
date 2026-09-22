@@ -36,9 +36,16 @@ const MAX_WORKER_VARIANTS = 16;
 const MAX_SATISFIES = 16;
 const MAX_MODULE_IDS = 1024;
 const MAX_PATH_LENGTH = 256;
-const DIGEST_BOUNDS = { min: 71, max: 71, pattern: DIGEST_RE, code: "INVALID_DIGEST" } as const;
+const DIGEST_BOUNDS = {
+  min: 71,
+  max: 71,
+  pattern: DIGEST_RE,
+  code: "INVALID_DIGEST",
+} as const;
 
-export function parseConsentReceipt(v: BoundaryValue): ParseResult<ConsentReceipt> {
+export function parseConsentReceipt(
+  v: BoundaryValue,
+): ParseResult<ConsentReceipt> {
   const diags: Diagnostic[] = [];
   const reader = rootReader(v, diags);
   if (reader === undefined) return parseFailure(diags);
@@ -47,7 +54,11 @@ export function parseConsentReceipt(v: BoundaryValue): ParseResult<ConsentReceip
   const installationId = reader.opaqueId("installationId");
   const policyRevision = reader.string("policyRevision", REVISION_BOUNDS);
   const selectionRevision = reader.string("selectionRevision", REVISION_BOUNDS);
-  const acceptedAt = reader.string("acceptedAt", { min: 20, max: 35, pattern: ISO_INSTANT_RE });
+  const acceptedAt = reader.string("acceptedAt", {
+    min: 20,
+    max: 35,
+    pattern: ISO_INSTANT_RE,
+  });
   const roots = reader.idList("roots");
   const exposure = reader.record(
     "exposure",
@@ -72,11 +83,19 @@ export function parseConsentReceipt(v: BoundaryValue): ParseResult<ConsentReceip
     return parseFailure(diags);
   }
   if (Number.isNaN(Date.parse(acceptedAt))) {
-    reader.report("INVALID_VALUE", "acceptedAt", "`acceptedAt` is not an ISO 8601 instant");
+    reader.report(
+      "INVALID_VALUE",
+      "acceptedAt",
+      "`acceptedAt` is not an ISO 8601 instant",
+    );
   }
   roots.forEach((root, index) => {
     if (exposure[root] === undefined) {
-      reader.report("INVALID_VALUE", indexPath("roots", index), `root \`${root}\` has no exposure digest`);
+      reader.report(
+        "INVALID_VALUE",
+        indexPath("roots", index),
+        `root \`${root}\` has no exposure digest`,
+      );
     }
   });
   const body = {
@@ -90,7 +109,11 @@ export function parseConsentReceipt(v: BoundaryValue): ParseResult<ConsentReceip
     exposure,
   };
   if (receiptDigest(body) !== storedDigest) {
-    reader.report("INVALID_DIGEST", "receiptDigest", "`receiptDigest` does not match the receipt body");
+    reader.report(
+      "INVALID_DIGEST",
+      "receiptDigest",
+      "`receiptDigest` does not match the receipt body",
+    );
   }
   return parseResultOf(diags, { ...body, receiptDigest: storedDigest });
 }
@@ -117,7 +140,11 @@ function readWorkerVariant(reader: ObjectReader): WorkerVariant | undefined {
     return undefined;
   }
   if (satisfies.length > MAX_SATISFIES) {
-    reader.report("TOO_MANY_ITEMS", `${reader.path}.satisfies`, `\`satisfies\` exceeds ${MAX_SATISFIES} entries`);
+    reader.report(
+      "TOO_MANY_ITEMS",
+      `${reader.path}.satisfies`,
+      `\`satisfies\` exceeds ${MAX_SATISFIES} entries`,
+    );
     return undefined;
   }
   return { id, scriptPath, satisfies };
@@ -135,7 +162,11 @@ function readWorkerVariants(reader: ObjectReader): WorkerVariant[] | undefined {
       continue;
     }
     if (out.some((v) => v.id === variant.id)) {
-      reader.report("DUPLICATE_ID", `${entry.path}.id`, `worker variant \`${variant.id}\` repeats`);
+      reader.report(
+        "DUPLICATE_ID",
+        `${entry.path}.id`,
+        `worker variant \`${variant.id}\` repeats`,
+      );
       valid = false;
       continue;
     }
@@ -177,7 +208,11 @@ export function parseDistributionContract(
   }
   moduleIds.forEach((moduleId, index) => {
     if (!isModuleId(moduleId)) {
-      reader.report("INVALID_ID", indexPath("moduleIds", index), "entry is not a module id");
+      reader.report(
+        "INVALID_ID",
+        indexPath("moduleIds", index),
+        "entry is not a module id",
+      );
     }
   });
   return parseResultOf(diags, {

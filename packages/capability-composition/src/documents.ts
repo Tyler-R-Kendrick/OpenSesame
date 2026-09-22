@@ -56,8 +56,14 @@ function readPresetProvenance(
 function readNetwork(reader: ObjectReader): NetworkPolicy | undefined {
   const network = reader.object("network");
   if (network === undefined) return undefined;
-  const externalServices = network.enumOf("externalServices", ["allow", "deny"]);
-  const allowedServiceOrigins = network.stringList("allowedServiceOrigins", ORIGIN_BOUNDS);
+  const externalServices = network.enumOf("externalServices", [
+    "allow",
+    "deny",
+  ]);
+  const allowedServiceOrigins = network.stringList(
+    "allowedServiceOrigins",
+    ORIGIN_BOUNDS,
+  );
   network.finish();
   if (externalServices === undefined || allowedServiceOrigins === undefined) {
     return undefined;
@@ -69,7 +75,10 @@ function readUpdates(reader: ObjectReader): UpdatesPolicy | undefined {
   const updates = reader.object("updates");
   if (updates === undefined) return undefined;
   const unknownCapabilities = updates.literal("unknownCapabilities", "deny");
-  const expandedExposure = updates.literal("expandedExposure", "require-approval");
+  const expandedExposure = updates.literal(
+    "expandedExposure",
+    "require-approval",
+  );
   updates.finish();
   if (unknownCapabilities === undefined || expandedExposure === undefined) {
     return undefined;
@@ -188,7 +197,10 @@ function readDelivery(reader: ObjectReader): DeliveryPreference | undefined {
   const delivery = reader.object("delivery");
   if (delivery === undefined) return undefined;
   const prefetch = delivery.enumOf("prefetch", ["none", "selected"]);
-  const offlineCache = delivery.enumOf("offlineCache", ["shell-only", "selected-only"]);
+  const offlineCache = delivery.enumOf("offlineCache", [
+    "shell-only",
+    "selected-only",
+  ]);
   delivery.finish();
   if (prefetch === undefined || offlineCache === undefined) return undefined;
   return { prefetch, offlineCache };
@@ -204,7 +216,10 @@ export function parseInstallationSelection(
   const kind = reader.literal("kind", "InstallationCapabilitySelection");
   const instanceId = reader.opaqueId("instanceId");
   const installationId = reader.opaqueId("installationId");
-  const basePolicyRevision = reader.string("basePolicyRevision", REVISION_BOUNDS);
+  const basePolicyRevision = reader.string(
+    "basePolicyRevision",
+    REVISION_BOUNDS,
+  );
   const revision = reader.string("revision", REVISION_BOUNDS);
   const acceptedRequired = reader.idList("acceptedRequired");
   const selectedOptional = reader.idList("selectedOptional");
@@ -232,8 +247,16 @@ export function parseInstallationSelection(
     return parseFailure(diags);
   }
   checkDisjoint(reader, [
-    { name: "acceptedRequired", path: "acceptedRequired", ids: acceptedRequired },
-    { name: "selectedOptional", path: "selectedOptional", ids: selectedOptional },
+    {
+      name: "acceptedRequired",
+      path: "acceptedRequired",
+      ids: acceptedRequired,
+    },
+    {
+      name: "selectedOptional",
+      path: "selectedOptional",
+      ids: selectedOptional,
+    },
   ]);
   return parseResultOf(diags, {
     schemaVersion,

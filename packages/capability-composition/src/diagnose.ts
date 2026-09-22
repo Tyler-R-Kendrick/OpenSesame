@@ -18,14 +18,24 @@ function policySources(input: ResolveInput): IdSource[] {
   const policy = input.instancePolicy;
   if (policy !== null) {
     out.push(
-      { path: "instancePolicy.capabilities.required", ids: policy.capabilities.required },
-      { path: "instancePolicy.capabilities.optional", ids: policy.capabilities.optional },
-      { path: "instancePolicy.capabilities.prohibited", ids: policy.capabilities.prohibited },
+      {
+        path: "instancePolicy.capabilities.required",
+        ids: policy.capabilities.required,
+      },
+      {
+        path: "instancePolicy.capabilities.optional",
+        ids: policy.capabilities.optional,
+      },
+      {
+        path: "instancePolicy.capabilities.prohibited",
+        ids: policy.capabilities.prohibited,
+      },
     );
   }
   if (input.workspace !== null) {
     out.push({ path: "workspace.prohibited", ids: input.workspace.prohibited });
-    if (input.workspace.allow !== null) out.push({ path: "workspace.allow", ids: input.workspace.allow });
+    if (input.workspace.allow !== null)
+      out.push({ path: "workspace.allow", ids: input.workspace.allow });
   }
   return out;
 }
@@ -35,12 +45,22 @@ function selectionSources(input: ResolveInput): IdSource[] {
   const installation = input.installation;
   if (installation !== null) {
     out.push(
-      { path: "installation.acceptedRequired", ids: installation.acceptedRequired },
-      { path: "installation.selectedOptional", ids: installation.selectedOptional },
-      { path: "installation.chosenAlternatives", ids: Object.values(installation.chosenAlternatives) },
+      {
+        path: "installation.acceptedRequired",
+        ids: installation.acceptedRequired,
+      },
+      {
+        path: "installation.selectedOptional",
+        ids: installation.selectedOptional,
+      },
+      {
+        path: "installation.chosenAlternatives",
+        ids: Object.values(installation.chosenAlternatives),
+      },
     );
   }
-  if (input.vault !== null) out.push({ path: "vault.disabled", ids: input.vault.disabled });
+  if (input.vault !== null)
+    out.push({ path: "vault.disabled", ids: input.vault.disabled });
   if (input.receipt !== null) {
     out.push(
       { path: "receipt.roots", ids: input.receipt.roots },
@@ -60,35 +80,80 @@ function checkIds(
       const path = `${source.path}[${i}]`;
       const d = index.get(id);
       if (d === undefined) {
-        pushDiagnostic(diags, diagnostic("UNKNOWN_CAPABILITY", path, `\`${id}\` is not in the catalog and cannot activate`));
+        pushDiagnostic(
+          diags,
+          diagnostic(
+            "UNKNOWN_CAPABILITY",
+            path,
+            `\`${id}\` is not in the catalog and cannot activate`,
+          ),
+        );
       } else if (d.tier === "core") {
-        pushDiagnostic(diags, diagnostic("CORE_IN_POLICY", path, `core \`${id}\` never appears in a policy or selection`));
+        pushDiagnostic(
+          diags,
+          diagnostic(
+            "CORE_IN_POLICY",
+            path,
+            `core \`${id}\` never appears in a policy or selection`,
+          ),
+        );
       }
     });
   }
 }
 
 /** Unknown or misplaced ids across every runtime document of a resolve input. */
-export function diagnoseRuntimeDocuments(input: ResolveInput): readonly Diagnostic[] {
+export function diagnoseRuntimeDocuments(
+  input: ResolveInput,
+): readonly Diagnostic[] {
   const diags: Diagnostic[] = [];
   const index = indexCatalog(input.catalog);
   checkIds([...policySources(input), ...selectionSources(input)], index, diags);
   input.distribution.capabilityIds.forEach((id, i) => {
     if (!index.has(id)) {
-      pushDiagnostic(diags, diagnostic("UNKNOWN_CAPABILITY", `distribution.capabilityIds[${i}]`, `\`${id}\` is distributed but not in the catalog`));
+      pushDiagnostic(
+        diags,
+        diagnostic(
+          "UNKNOWN_CAPABILITY",
+          `distribution.capabilityIds[${i}]`,
+          `\`${id}\` is distributed but not in the catalog`,
+        ),
+      );
     }
   });
-  const knownModules = new Set(input.catalog.capabilities.flatMap((d) => d.moduleIds));
+  const knownModules = new Set(
+    input.catalog.capabilities.flatMap((d) => d.moduleIds),
+  );
   input.distribution.moduleIds.forEach((id, i) => {
     if (!knownModules.has(id)) {
-      pushDiagnostic(diags, diagnostic("UNKNOWN_MODULE", `distribution.moduleIds[${i}]`, `\`${id}\` is distributed but no capability owns it`));
+      pushDiagnostic(
+        diags,
+        diagnostic(
+          "UNKNOWN_MODULE",
+          `distribution.moduleIds[${i}]`,
+          `\`${id}\` is distributed but no capability owns it`,
+        ),
+      );
     }
   });
   if (input.installation !== null) {
-    const slots = new Set(input.catalog.capabilities.flatMap((d) => d.alternatives.map((a) => a.slot)));
-    for (const slot of Object.keys(input.installation.chosenAlternatives).sort()) {
+    const slots = new Set(
+      input.catalog.capabilities.flatMap((d) =>
+        d.alternatives.map((a) => a.slot),
+      ),
+    );
+    for (const slot of Object.keys(
+      input.installation.chosenAlternatives,
+    ).sort()) {
       if (!slots.has(slot)) {
-        pushDiagnostic(diags, diagnostic("UNKNOWN_SLOT", `installation.chosenAlternatives.${slot}`, `no capability declares slot \`${slot}\``));
+        pushDiagnostic(
+          diags,
+          diagnostic(
+            "UNKNOWN_SLOT",
+            `installation.chosenAlternatives.${slot}`,
+            `no capability declares slot \`${slot}\``,
+          ),
+        );
       }
     }
   }

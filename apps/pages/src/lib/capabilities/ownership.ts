@@ -57,9 +57,23 @@ export const MODULE_OWNERSHIP: Readonly<Record<ModuleId, ModuleOwnership>> =
  * `telemetry.external` has no Pages code today at all — the module is the
  * only thing that will ever carry it.
  */
-export const PLANNED_MODULE_ENTRIES: readonly string[] = Object.values(
-  MODULE_OWNERSHIP,
-).map((ownership) => ownership.entry);
+export const PLANNED_MODULE_ENTRIES: readonly string[] = [
+  "vault.interop-formats",
+  "access.authority",
+  "identity.federation",
+  "identity.ambient-sso",
+  "identity.local-iam",
+  "identity.siop",
+  "identity.site-broker",
+  "enterprise.directory-provisioning",
+  "enterprise.ca-administration",
+  "agents.webmcp",
+  "support.guided-help",
+  "support.local-ai",
+  "support.remote-ai",
+  "notifications.web-push",
+  "telemetry.external",
+].map((id) => runtimeEntry(id).entry);
 
 /** Secondary HTML entries (vite `rollupOptions.input`) and who owns them. */
 export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =

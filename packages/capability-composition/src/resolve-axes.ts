@@ -62,7 +62,9 @@ export type ResolveContext = Readonly<{
 export function buildContext(input: ResolveInput): ResolveContext {
   const policy = input.instancePolicy;
   const instanceId =
-    policy?.instanceId ?? input.installation?.instanceId ?? PERSONAL_LOCAL_INSTANCE;
+    policy?.instanceId ??
+    input.installation?.instanceId ??
+    PERSONAL_LOCAL_INSTANCE;
   const installationMatches =
     input.installation !== null &&
     input.installation.instanceId === instanceId &&
@@ -71,9 +73,14 @@ export function buildContext(input: ResolveInput): ResolveContext {
   const workspace = input.workspace;
   const workspaceMismatch =
     workspace !== null &&
-    (workspace.instanceId !== instanceId || workspace.vaultId !== input.vaultId);
-  const required = new Set(policy === null || !input.policyValid ? [] : policy.capabilities.required);
-  const accepted = new Set(installation === null ? [] : installation.acceptedRequired);
+    (workspace.instanceId !== instanceId ||
+      workspace.vaultId !== input.vaultId);
+  const required = new Set(
+    policy === null || !input.policyValid ? [] : policy.capabilities.required,
+  );
+  const accepted = new Set(
+    installation === null ? [] : installation.acceptedRequired,
+  );
   const network = !input.policyValid
     ? DENY_ALL_NETWORK
     : policy === null
@@ -96,8 +103,16 @@ export function buildContext(input: ResolveInput): ResolveContext {
     vaultDisabled: new Set(input.vault === null ? [] : input.vault.disabled),
     required,
     accepted,
-    selectedRoots: installation === null ? [] : sortIds([...installation.acceptedRequired, ...installation.selectedOptional]),
-    requiredNotAccepted: sortIds([...required].filter((id) => !accepted.has(id))),
+    selectedRoots:
+      installation === null
+        ? []
+        : sortIds([
+            ...installation.acceptedRequired,
+            ...installation.selectedOptional,
+          ]),
+    requiredNotAccepted: sortIds(
+      [...required].filter((id) => !accepted.has(id)),
+    ),
     evaluatedModules: new Set(input.facts.evaluatedModuleIds),
   };
 }
@@ -114,10 +129,16 @@ export type Axis = Readonly<{
   blocked: readonly ReasonCode[];
 }>;
 
-function runtimeSupports(ctx: ResolveContext, d: CapabilityDescriptor): boolean {
+function runtimeSupports(
+  ctx: ResolveContext,
+  d: CapabilityDescriptor,
+): boolean {
   const hosts = new Set(ctx.input.facts.environments);
   if (!d.environments.every((e) => hosts.has(e))) return false;
-  if (d.environments.includes("service-worker") && !ctx.input.facts.serviceWorkerAvailable) {
+  if (
+    d.environments.includes("service-worker") &&
+    !ctx.input.facts.serviceWorkerAvailable
+  ) {
     return false;
   }
   return true;
@@ -125,7 +146,9 @@ function runtimeSupports(ctx: ResolveContext, d: CapabilityDescriptor): boolean 
 
 function workerVariantExists(ctx: ResolveContext, constraint: string): boolean {
   if (!ctx.input.facts.serviceWorkerAvailable) return false;
-  return ctx.input.distribution.workerVariants.some((v) => v.satisfies.includes(constraint));
+  return ctx.input.distribution.workerVariants.some((v) =>
+    v.satisfies.includes(constraint),
+  );
 }
 
 export function hasAutomaticExternalEgress(d: CapabilityDescriptor): boolean {
@@ -136,7 +159,8 @@ function policyReasons(ctx: ResolveContext, id: CapabilityId): ReasonCode[] {
   const policy = ctx.input.instancePolicy;
   const out: ReasonCode[] = [];
   if (!ctx.input.policyValid) out.push("POLICY_UNVERIFIED");
-  if (ctx.profileMismatch || ctx.workspaceMismatch) out.push("PROFILE_MISMATCH");
+  if (ctx.profileMismatch || ctx.workspaceMismatch)
+    out.push("PROFILE_MISMATCH");
   if (policy !== null && ctx.input.policyValid) {
     const caps = policy.capabilities;
     if (caps.prohibited.includes(id)) out.push("PROHIBITED_BY_INSTANCE");
@@ -170,10 +194,16 @@ function optionalAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
   if (!distributed) blocked.push("NOT_DISTRIBUTED");
   if (ctx.vaultDisabled.has(d.id)) blocked.push("DISABLED_IN_VAULT");
   if (!runtimeSupported) blocked.push("UNSUPPORTED_RUNTIME");
-  if (hasAutomaticExternalEgress(d) && ctx.network.externalServices === "deny") {
+  if (
+    hasAutomaticExternalEgress(d) &&
+    ctx.network.externalServices === "deny"
+  ) {
     blocked.push("NETWORK_POLICY_DENIES");
   }
-  if (d.workerGraphConstraint !== null && !workerVariantExists(ctx, d.workerGraphConstraint)) {
+  if (
+    d.workerGraphConstraint !== null &&
+    !workerVariantExists(ctx, d.workerGraphConstraint)
+  ) {
     blocked.push("WORKER_GRAPH_UNAVAILABLE");
   }
   return {
@@ -201,7 +231,9 @@ function coreAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
   };
 }
 
-export function computeAxes(ctx: ResolveContext): ReadonlyMap<CapabilityId, Axis> {
+export function computeAxes(
+  ctx: ResolveContext,
+): ReadonlyMap<CapabilityId, Axis> {
   const axes = new Map<CapabilityId, Axis>();
   for (const id of ctx.ids) {
     const d = ctx.index.get(id);

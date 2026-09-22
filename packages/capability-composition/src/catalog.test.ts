@@ -45,7 +45,10 @@ describe("validateCatalog", () => {
 
   it("MODEL-06: rejects a dependency cycle, including through an alternative", () => {
     const direct = buildCatalog(
-      [cap("a.b", { dependencies: ["a.c"] }), cap("a.c", { dependencies: ["a.b"] })],
+      [
+        cap("a.b", { dependencies: ["a.c"] }),
+        cap("a.c", { dependencies: ["a.b"] }),
+      ],
       1,
     );
     expect(codesOf(validateCatalog(direct))).toContain("DEPENDENCY_CYCLE");
@@ -57,9 +60,13 @@ describe("validateCatalog", () => {
       1,
     );
     expect(codesOf(validateCatalog(viaSlot))).toContain("DEPENDENCY_CYCLE");
-    expect(codesOf(validateCatalog(buildCatalog([cap("a.b", { dependencies: ["a.b"] })], 1)))).toContain(
-      "DEPENDENCY_CYCLE",
-    );
+    expect(
+      codesOf(
+        validateCatalog(
+          buildCatalog([cap("a.b", { dependencies: ["a.b"] })], 1),
+        ),
+      ),
+    ).toContain("DEPENDENCY_CYCLE");
   });
 
   it("MODEL-06: rejects a dependency chain deeper than 16 and accepts one of 16", () => {
@@ -68,17 +75,28 @@ describe("validateCatalog", () => {
         cap(`a.c${i}`, { dependencies: i === 0 ? [] : [`a.c${i - 1}`] }),
       );
     expect(validateCatalog(buildCatalog(chain(16), 1))).toEqual({ ok: true });
-    expect(codesOf(validateCatalog(buildCatalog(chain(17), 1)))).toContain("DEPENDENCY_DEPTH");
+    expect(codesOf(validateCatalog(buildCatalog(chain(17), 1)))).toContain(
+      "DEPENDENCY_DEPTH",
+    );
   });
 
   it("MODEL-06: rejects a duplicate id, an oversized catalog, and a bad module prefix boundedly", () => {
-    expect(codesOf(validateCatalog(buildCatalog([cap("a.b"), cap("a.b")], 1)))).toContain("DUPLICATE_ID");
-    const many = buildCatalog(Array.from({ length: 257 }, (_, i) => cap(`a.c${i}`)), 1);
+    expect(
+      codesOf(validateCatalog(buildCatalog([cap("a.b"), cap("a.b")], 1))),
+    ).toContain("DUPLICATE_ID");
+    const many = buildCatalog(
+      Array.from({ length: 257 }, (_, i) => cap(`a.c${i}`)),
+      1,
+    );
     const result = validateCatalog(many);
     expect(codesOf(result)).toEqual(["CATALOG_TOO_LARGE"]);
-    expect(codesOf(validateCatalog(buildCatalog([cap("a.b", { moduleIds: ["a.c/runtime"] })], 1)))).toContain(
-      "INVALID_ID",
-    );
+    expect(
+      codesOf(
+        validateCatalog(
+          buildCatalog([cap("a.b", { moduleIds: ["a.c/runtime"] })], 1),
+        ),
+      ),
+    ).toContain("INVALID_ID");
   });
 
   it("rejects core depending on optional, bad text bounds, and slot problems", () => {
@@ -86,13 +104,23 @@ describe("validateCatalog", () => {
       [cap("a.core", { tier: "core", dependencies: ["a.opt"] }), cap("a.opt")],
       1,
     );
-    expect(codesOf(validateCatalog(coreOnOptional))).toContain("CORE_DEPENDS_ON_OPTIONAL");
-    expect(codesOf(validateCatalog(buildCatalog([cap("a.b", { title: "x".repeat(81) })], 1)))).toContain(
-      "INVALID_LENGTH",
+    expect(codesOf(validateCatalog(coreOnOptional))).toContain(
+      "CORE_DEPENDS_ON_OPTIONAL",
     );
-    expect(codesOf(validateCatalog(buildCatalog([cap("a.b", { summary: "x".repeat(401) })], 1)))).toContain(
-      "INVALID_LENGTH",
-    );
+    expect(
+      codesOf(
+        validateCatalog(
+          buildCatalog([cap("a.b", { title: "x".repeat(81) })], 1),
+        ),
+      ),
+    ).toContain("INVALID_LENGTH");
+    expect(
+      codesOf(
+        validateCatalog(
+          buildCatalog([cap("a.b", { summary: "x".repeat(401) })], 1),
+        ),
+      ),
+    ).toContain("INVALID_LENGTH");
     const slots = buildCatalog(
       [
         cap("a.b", {

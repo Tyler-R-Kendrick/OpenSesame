@@ -17,7 +17,10 @@ import type {
   EgressDeclaration,
 } from "./types.js";
 
-function difference(after: readonly string[], before: readonly string[]): string[] {
+function difference(
+  after: readonly string[],
+  before: readonly string[],
+): string[] {
   const had = new Set(before);
   return sortIds(after.filter((id) => !had.has(id)));
 }
@@ -31,9 +34,14 @@ function egressOf(
 
 function permissionsOf(
   plan: EffectivePlan,
-  index: ReadonlyMap<CapabilityId, { browserPermissions: readonly BrowserPermission[] }>,
+  index: ReadonlyMap<
+    CapabilityId,
+    { browserPermissions: readonly BrowserPermission[] }
+  >,
 ): BrowserPermission[] {
-  return plan.approvedCapabilities.flatMap((id) => index.get(id)?.browserPermissions ?? []);
+  return plan.approvedCapabilities.flatMap(
+    (id) => index.get(id)?.browserPermissions ?? [],
+  );
 }
 
 export function reviewCompositionChange(
@@ -42,10 +50,21 @@ export function reviewCompositionChange(
   catalog: CapabilityCatalog,
 ): CompositionChangeReview {
   const index = indexCatalog(catalog);
-  const enabled = difference(after.approvedCapabilities, before.approvedCapabilities);
-  const addedModules = difference(after.approvedModules, before.approvedModules);
-  const addedOperations = difference(after.approvedOperations, before.approvedOperations);
-  const beforeEgress = new Set(normalizeEgress(egressOf(before, index)).map((e) => JSON.stringify(e)));
+  const enabled = difference(
+    after.approvedCapabilities,
+    before.approvedCapabilities,
+  );
+  const addedModules = difference(
+    after.approvedModules,
+    before.approvedModules,
+  );
+  const addedOperations = difference(
+    after.approvedOperations,
+    before.approvedOperations,
+  );
+  const beforeEgress = new Set(
+    normalizeEgress(egressOf(before, index)).map((e) => JSON.stringify(e)),
+  );
   const addedEgress = normalizeEgress(egressOf(after, index)).filter(
     (e) => !beforeEgress.has(JSON.stringify(e)),
   );
@@ -62,11 +81,17 @@ export function reviewCompositionChange(
     before: before.identity,
     after: after.identity,
     enabled,
-    disabled: difference(before.approvedCapabilities, after.approvedCapabilities),
+    disabled: difference(
+      before.approvedCapabilities,
+      after.approvedCapabilities,
+    ),
     addedModules,
     removedModules: difference(before.approvedModules, after.approvedModules),
     addedOperations,
-    removedOperations: difference(before.approvedOperations, after.approvedOperations),
+    removedOperations: difference(
+      before.approvedOperations,
+      after.approvedOperations,
+    ),
     addedEgress: addedEgress.map((e) => ({
       class: e.class,
       purpose: e.purpose,
@@ -76,12 +101,22 @@ export function reviewCompositionChange(
     workerTransition:
       before.requiredWorkerVariant === after.requiredWorkerVariant
         ? null
-        : { from: before.requiredWorkerVariant, to: after.requiredWorkerVariant },
-    requiresDocumentReload: enabled.filter((id) => index.get(id)?.requiresDocumentReload === true),
-    requiresNewArtifact: after.conflicts.some((c) => c.code === "WORKER_GRAPH_UNAVAILABLE"),
+        : {
+            from: before.requiredWorkerVariant,
+            to: after.requiredWorkerVariant,
+          },
+    requiresDocumentReload: enabled.filter(
+      (id) => index.get(id)?.requiresDocumentReload === true,
+    ),
+    requiresNewArtifact: after.conflicts.some(
+      (c) => c.code === "WORKER_GRAPH_UNAVAILABLE",
+    ),
     restartRequiredFor,
     conflicts: after.conflicts,
     consent: after.consent,
-    widened: enabled.length > 0 || addedModules.length > 0 || addedOperations.length > 0,
+    widened:
+      enabled.length > 0 ||
+      addedModules.length > 0 ||
+      addedOperations.length > 0,
   };
 }

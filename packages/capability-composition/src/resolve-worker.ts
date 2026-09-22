@@ -28,16 +28,21 @@ export function selectWorkerVariant(
   const constrained = new Map<CapabilityId, string>();
   for (const id of approved) {
     const constraint = index.get(id)?.workerGraphConstraint;
-    if (constraint !== undefined && constraint !== null) constrained.set(id, constraint);
+    if (constraint !== undefined && constraint !== null)
+      constrained.set(id, constraint);
   }
-  if (constrained.size === 0) return { variant: null, unavailable: new Set(), conflicts: [] };
+  if (constrained.size === 0)
+    return { variant: null, unavailable: new Set(), conflicts: [] };
   const constraints = sortIds(constrained.values());
   const matching = facts.serviceWorkerAvailable
-    ? distribution.workerVariants.filter((v) => constraints.every((c) => v.satisfies.includes(c)))
+    ? distribution.workerVariants.filter((v) =>
+        constraints.every((c) => v.satisfies.includes(c)),
+      )
     : [];
   if (matching.length > 0) {
     const tightest = [...matching].sort(
-      (a, b) => a.satisfies.length - b.satisfies.length || compareIds(a.id, b.id),
+      (a, b) =>
+        a.satisfies.length - b.satisfies.length || compareIds(a.id, b.id),
     )[0];
     return {
       variant: tightest === undefined ? null : tightest.id,

@@ -30,7 +30,9 @@ import type {
 export const DIGEST_PREFIX = "sha256:";
 export const DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
 
-function isPlainObject(value: BoundaryValue): value is Readonly<Record<string, BoundaryValue>> {
+function isPlainObject(
+  value: BoundaryValue,
+): value is Readonly<Record<string, BoundaryValue>> {
   return (
     value !== null &&
     Object(value) === value &&

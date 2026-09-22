@@ -41,7 +41,10 @@ export type StringBounds = Readonly<{
   code?: DiagnosticCode;
 }>;
 
-export const REVISION_BOUNDS: StringBounds = { min: 1, max: MAX_REVISION_LENGTH };
+export const REVISION_BOUNDS: StringBounds = {
+  min: 1,
+  max: MAX_REVISION_LENGTH,
+};
 
 function joinPath(base: string, key: string): string {
   return base === "" ? key : `${base}.${key}`;
@@ -182,7 +185,11 @@ export class ObjectReader {
       return undefined;
     }
     if (field.value.length > max) {
-      this.report("TOO_MANY_ITEMS", field.path, `\`${key}\` exceeds ${max} entries`);
+      this.report(
+        "TOO_MANY_ITEMS",
+        field.path,
+        `\`${key}\` exceeds ${max} entries`,
+      );
       return undefined;
     }
     const out: string[] = [];
@@ -220,7 +227,11 @@ export class ObjectReader {
     if (field === undefined) return undefined;
     if (field.value === null) return null;
     if (!isJsonObject(field.value)) {
-      this.report("INVALID_TYPE", field.path, `\`${key}\` must be an object or null`);
+      this.report(
+        "INVALID_TYPE",
+        field.path,
+        `\`${key}\` must be an object or null`,
+      );
       return undefined;
     }
     return new ObjectReader(field.value, field.path, this.diags);
@@ -242,7 +253,11 @@ export class ObjectReader {
     }
     const keys = Object.keys(field.value).sort();
     if (keys.length > MAX_LIST_IDS) {
-      this.report("TOO_MANY_ITEMS", field.path, `\`${key}\` exceeds ${MAX_LIST_IDS} entries`);
+      this.report(
+        "TOO_MANY_ITEMS",
+        field.path,
+        `\`${key}\` exceeds ${MAX_LIST_IDS} entries`,
+      );
       return undefined;
     }
     const out: Record<string, string> = {};
@@ -254,7 +269,11 @@ export class ObjectReader {
         this.report("INVALID_ID", path, keyMessage);
         valid = false;
       } else if (!isString(value)) {
-        this.report("INVALID_TYPE", path, `entry in \`${key}\` must be a string`);
+        this.report(
+          "INVALID_TYPE",
+          path,
+          `entry in \`${key}\` must be a string`,
+        );
         valid = false;
       } else if (!valueCheck(value)) {
         this.report("INVALID_VALUE", path, valueMessage);
@@ -275,7 +294,11 @@ export class ObjectReader {
       return undefined;
     }
     if (field.value.length > max) {
-      this.report("TOO_MANY_ITEMS", field.path, `\`${key}\` exceeds ${max} entries`);
+      this.report(
+        "TOO_MANY_ITEMS",
+        field.path,
+        `\`${key}\` exceeds ${max} entries`,
+      );
       return undefined;
     }
     const out: ObjectReader[] = [];
@@ -283,7 +306,11 @@ export class ObjectReader {
     field.value.forEach((entry, index) => {
       const path = indexPath(field.path, index);
       if (!isJsonObject(entry)) {
-        this.report("INVALID_TYPE", path, `entry in \`${key}\` must be an object`);
+        this.report(
+          "INVALID_TYPE",
+          path,
+          `entry in \`${key}\` must be an object`,
+        );
         valid = false;
         return;
       }
@@ -296,7 +323,11 @@ export class ObjectReader {
   finish(): void {
     for (const key of Object.keys(this.obj).sort()) {
       if (this.seen.has(key)) continue;
-      this.report("UNKNOWN_FIELD", joinPath(this.path, key), `unknown field \`${key}\``);
+      this.report(
+        "UNKNOWN_FIELD",
+        joinPath(this.path, key),
+        `unknown field \`${key}\``,
+      );
     }
   }
 }
@@ -321,7 +352,11 @@ function checkString(
     return undefined;
   }
   if (bounds.pattern !== undefined && !bounds.pattern.test(value)) {
-    reader.report(bounds.code ?? "INVALID_VALUE", path, `\`${key}\` is malformed`);
+    reader.report(
+      bounds.code ?? "INVALID_VALUE",
+      path,
+      `\`${key}\` is malformed`,
+    );
     return undefined;
   }
   return value;
@@ -338,7 +373,11 @@ function checkIdList(
     return undefined;
   }
   if (value.length > MAX_LIST_IDS) {
-    reader.report("TOO_MANY_ITEMS", path, `\`${key}\` exceeds ${MAX_LIST_IDS} entries`);
+    reader.report(
+      "TOO_MANY_ITEMS",
+      path,
+      `\`${key}\` exceeds ${MAX_LIST_IDS} entries`,
+    );
     return undefined;
   }
   const out: string[] = [];
@@ -346,12 +385,20 @@ function checkIdList(
   value.forEach((entry, index) => {
     const entryPath = indexPath(path, index);
     if (!isString(entry) || !isCapabilityId(entry)) {
-      reader.report("INVALID_ID", entryPath, `entry in \`${key}\` is not a capability id`);
+      reader.report(
+        "INVALID_ID",
+        entryPath,
+        `entry in \`${key}\` is not a capability id`,
+      );
       valid = false;
       return;
     }
     if (out.includes(entry)) {
-      reader.report("DUPLICATE_ID", entryPath, `\`${entry}\` repeats in \`${key}\``);
+      reader.report(
+        "DUPLICATE_ID",
+        entryPath,
+        `\`${entry}\` repeats in \`${key}\``,
+      );
       valid = false;
       return;
     }
@@ -360,10 +407,17 @@ function checkIdList(
   return valid ? out : undefined;
 }
 
-export type NamedIdList = Readonly<{ name: string; path: string; ids: readonly string[] }>;
+export type NamedIdList = Readonly<{
+  name: string;
+  path: string;
+  ids: readonly string[];
+}>;
 
 /** An id in two of the lists is an error, reported at its later occurrence. */
-export function checkDisjoint(reader: ObjectReader, lists: readonly NamedIdList[]): void {
+export function checkDisjoint(
+  reader: ObjectReader,
+  lists: readonly NamedIdList[],
+): void {
   const firstSeen = new Map<string, string>();
   for (const list of lists) {
     list.ids.forEach((id, index) => {
@@ -382,9 +436,15 @@ export function checkDisjoint(reader: ObjectReader, lists: readonly NamedIdList[
 }
 
 /** Entry point: the document must be a JSON object. */
-export function rootReader(v: BoundaryValue, diags: Diagnostic[]): ObjectReader | undefined {
+export function rootReader(
+  v: BoundaryValue,
+  diags: Diagnostic[],
+): ObjectReader | undefined {
   if (!isJsonObject(v)) {
-    pushDiagnostic(diags, diagnostic("NOT_OBJECT", "", "document must be a JSON object"));
+    pushDiagnostic(
+      diags,
+      diagnostic("NOT_OBJECT", "", "document must be a JSON object"),
+    );
     return undefined;
   }
   return new ObjectReader(v, "", diags);

@@ -6,7 +6,11 @@
  * quote identifiers only — never a value that could be a secret.
  */
 
-export type Diagnostic = Readonly<{ code: string; message: string; path: string }>;
+export type Diagnostic = Readonly<{
+  code: string;
+  message: string;
+  path: string;
+}>;
 
 export type ValidationResult = Readonly<
   { ok: true } | { ok: false; diagnostics: readonly Diagnostic[] }
@@ -53,10 +57,7 @@ export function diagnostic(
 }
 
 /** Appends unless the bound is reached; the last slot records the truncation. */
-export function pushDiagnostic(
-  into: Diagnostic[],
-  entry: Diagnostic,
-): void {
+export function pushDiagnostic(into: Diagnostic[], entry: Diagnostic): void {
   if (into.length < MAX_DIAGNOSTICS - 1) {
     into.push(entry);
     return;
@@ -72,12 +73,16 @@ export function pushDiagnostic(
   }
 }
 
-export function validationOf(diagnostics: readonly Diagnostic[]): ValidationResult {
+export function validationOf(
+  diagnostics: readonly Diagnostic[],
+): ValidationResult {
   return diagnostics.length === 0 ? { ok: true } : { ok: false, diagnostics };
 }
 
 /** A failed parse; the diagnostics say why (never empty in practice). */
-export function parseFailure<T>(diagnostics: readonly Diagnostic[]): ParseResult<T> {
+export function parseFailure<T>(
+  diagnostics: readonly Diagnostic[],
+): ParseResult<T> {
   return {
     ok: false,
     diagnostics:

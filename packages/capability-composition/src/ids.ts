@@ -35,9 +35,7 @@ export function isModuleId(v: string): boolean {
   if (v.length > MAX_MODULE_ID_LENGTH) return false;
   const slash = v.indexOf("/");
   if (slash <= 0) return false;
-  return (
-    isCapabilityId(v.slice(0, slash)) && isUnitName(v.slice(slash + 1))
-  );
+  return isCapabilityId(v.slice(0, slash)) && isUnitName(v.slice(slash + 1));
 }
 
 /** The capability a module id belongs to, or `null` when it is not one. */

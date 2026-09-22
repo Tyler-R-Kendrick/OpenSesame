@@ -59,7 +59,9 @@ export function consentDeltaFor(
   const accepted = (id: CapabilityId): string | undefined =>
     receipt === null ? undefined : receipt.exposure[id];
   return {
-    addedRoots: sortIds(candidates.roots.filter((id) => !receiptRoots.includes(id))),
+    addedRoots: sortIds(
+      candidates.roots.filter((id) => !receiptRoots.includes(id)),
+    ),
     removedRoots: sortIds(receiptRoots.filter((id) => !roots.has(id))),
     changedExposure: sortIds(
       candidates.closure.filter((id) => {
@@ -68,7 +70,9 @@ export function consentDeltaFor(
       }),
     ),
     addedDependencies: sortIds(
-      candidates.closure.filter((id) => !roots.has(id) && accepted(id) === undefined),
+      candidates.closure.filter(
+        (id) => !roots.has(id) && accepted(id) === undefined,
+      ),
     ),
     requiredNotAccepted: sortIds(requiredNotAccepted),
   };
@@ -85,7 +89,9 @@ export function consentCandidatesOf(plan: EffectivePlan): ConsentCandidates {
     const state = plan.capabilities[id];
     if (state === undefined || state.tier !== "optional") continue;
     const consentable =
-      state.approved || (state.reasons.length > 0 && state.reasons.every((r) => CONSENT_ONLY_REASONS.has(r)));
+      state.approved ||
+      (state.reasons.length > 0 &&
+        state.reasons.every((r) => CONSENT_ONLY_REASONS.has(r)));
     if (!consentable) continue;
     closure.push(id);
     if (state.selected) roots.push(id);
@@ -93,7 +99,9 @@ export function consentCandidatesOf(plan: EffectivePlan): ConsentCandidates {
   return { roots, closure };
 }
 
-export function catalogDigests(catalog: CapabilityCatalog): ReadonlyMap<CapabilityId, string> {
+export function catalogDigests(
+  catalog: CapabilityCatalog,
+): ReadonlyMap<CapabilityId, string> {
   return new Map(catalog.capabilities.map((d) => [d.id, d.exposureDigest]));
 }
 

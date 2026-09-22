@@ -38,7 +38,11 @@ function reversed<T>(items: readonly T[]): T[] {
 describe("MODEL-07: determinism", () => {
   it("reordering every input list yields an identical plan digest and explanations", () => {
     const selection = fixtureSelection({
-      selectedOptional: ["connectors.external", "sharing.household", "vault.passkey-records"],
+      selectedOptional: [
+        "connectors.external",
+        "sharing.household",
+        "vault.passkey-records",
+      ],
       chosenAlternatives: { transport: "sharing.drops" },
     });
     const forward = fixtureResolveInput({
@@ -50,7 +54,13 @@ describe("MODEL-07: determinism", () => {
         instanceId: "fixture-family",
         vaultId: "tomb-1",
         revision: "w1",
-        allow: ["connectors.external", "access.authority", "identity.federation", "sharing.household", "sharing.drops"],
+        allow: [
+          "connectors.external",
+          "access.authority",
+          "identity.federation",
+          "sharing.household",
+          "sharing.drops",
+        ],
         prohibited: ["telemetry.external", "vault.passkey-records"],
       },
       vaultId: "tomb-1",
@@ -61,7 +71,10 @@ describe("MODEL-07: determinism", () => {
     const backward: ResolveInput = {
       ...forward,
       receipt: { ...receipt, roots: reversed(receipt.roots) },
-      catalog: { ...FIXTURE_CATALOG, capabilities: reversed(FIXTURE_CATALOG.capabilities) },
+      catalog: {
+        ...FIXTURE_CATALOG,
+        capabilities: reversed(FIXTURE_CATALOG.capabilities),
+      },
       distribution: {
         ...FIXTURE_DISTRIBUTION,
         capabilityIds: reversed(FIXTURE_DISTRIBUTION.capabilityIds),
@@ -85,7 +98,11 @@ describe("MODEL-07: determinism", () => {
       workspace:
         forward.workspace === null
           ? null
-          : { ...forward.workspace, allow: reversed(forward.workspace.allow ?? []), prohibited: reversed(forward.workspace.prohibited) },
+          : {
+              ...forward.workspace,
+              allow: reversed(forward.workspace.allow ?? []),
+              prohibited: reversed(forward.workspace.prohibited),
+            },
     };
     const a = resolveComposition({ ...forward, receipt });
     const b = resolveComposition(backward);
@@ -106,11 +123,19 @@ type Scenario = Readonly<{
   transport: CapabilityId | null;
 }>;
 
-const idSubset = fc.uniqueArray(fc.constantFrom(...OPTIONAL), { maxLength: OPTIONAL.length });
+const idSubset = fc.uniqueArray(fc.constantFrom(...OPTIONAL), {
+  maxLength: OPTIONAL.length,
+});
 
 /** Partition the optional ids into required / optional / prohibited / unlisted. */
 const policyArb: fc.Arbitrary<InstanceCapabilityPolicy> = fc
-  .tuple(fc.array(fc.integer({ min: 0, max: 3 }), { minLength: OPTIONAL.length, maxLength: OPTIONAL.length }), fc.boolean())
+  .tuple(
+    fc.array(fc.integer({ min: 0, max: 3 }), {
+      minLength: OPTIONAL.length,
+      maxLength: OPTIONAL.length,
+    }),
+    fc.boolean(),
+  )
   .map(([buckets, allow]) => ({
     ...FIXTURE_POLICIES.family,
     capabilities: {
@@ -119,21 +144,30 @@ const policyArb: fc.Arbitrary<InstanceCapabilityPolicy> = fc
       optional: OPTIONAL.filter((_, i) => buckets[i] === 1),
       prohibited: OPTIONAL.filter((_, i) => buckets[i] === 2),
     },
-    network: { externalServices: allow ? "allow" : "deny", allowedServiceOrigins: [] },
+    network: {
+      externalServices: allow ? "allow" : "deny",
+      allowedServiceOrigins: [],
+    },
   }));
 
-const workspaceArb: fc.Arbitrary<WorkspaceCapabilityRestriction | null> = fc.option(
-  fc.tuple(fc.option(idSubset, { nil: null }), idSubset).map(([allow, prohibited]) => ({
-    schemaVersion: 1 as const,
-    kind: "WorkspaceCapabilityRestriction" as const,
-    instanceId: "fixture-family",
-    vaultId: "tomb-1",
-    revision: "w1",
-    allow: allow === null ? null : allow.filter((id) => !prohibited.includes(id)),
-    prohibited,
-  })),
-  { nil: null },
-);
+const workspaceArb: fc.Arbitrary<WorkspaceCapabilityRestriction | null> =
+  fc.option(
+    fc
+      .tuple(fc.option(idSubset, { nil: null }), idSubset)
+      .map(([allow, prohibited]) => ({
+        schemaVersion: 1 as const,
+        kind: "WorkspaceCapabilityRestriction" as const,
+        instanceId: "fixture-family",
+        vaultId: "tomb-1",
+        revision: "w1",
+        allow:
+          allow === null
+            ? null
+            : allow.filter((id) => !prohibited.includes(id)),
+        prohibited,
+      })),
+    { nil: null },
+  );
 
 const vaultArb: fc.Arbitrary<VaultCapabilitySelection | null> = fc.option(
   idSubset.map((disabled) => ({
@@ -153,7 +187,11 @@ const scenarioArb: fc.Arbitrary<Scenario> = fc.record({
   workspace: workspaceArb,
   vault: vaultArb,
   selected: idSubset,
-  transport: fc.constantFrom<CapabilityId | null>("sharing.local-transport", "sharing.drops", null),
+  transport: fc.constantFrom<CapabilityId | null>(
+    "sharing.local-transport",
+    "sharing.drops",
+    null,
+  ),
 });
 
 function inputOf(s: Scenario): ResolveInput {
@@ -165,38 +203,71 @@ function inputOf(s: Scenario): ResolveInput {
     vaultId: "tomb-1",
     installation: fixtureSelection({
       acceptedRequired: s.policy.capabilities.required,
-      selectedOptional: s.selected.filter((id) => !s.policy.capabilities.required.includes(id)),
-      chosenAlternatives: s.transport === null ? {} : { transport: s.transport },
+      selectedOptional: s.selected.filter(
+        (id) => !s.policy.capabilities.required.includes(id),
+      ),
+      chosenAlternatives:
+        s.transport === null ? {} : { transport: s.transport },
     }),
   });
 }
 
 /** Drop from optional/allow, add to prohibited/disabled — never the reverse. */
-function tighten(s: Scenario, drop: readonly CapabilityId[], deny: readonly CapabilityId[]): Scenario {
+function tighten(
+  s: Scenario,
+  drop: readonly CapabilityId[],
+  deny: readonly CapabilityId[],
+): Scenario {
   const caps = s.policy.capabilities;
-  const optional = caps.optional.filter((id) => !drop.includes(id) && !deny.includes(id));
-  const prohibited = [...new Set([...caps.prohibited, ...deny.filter((id) => !caps.required.includes(id))])];
+  const optional = caps.optional.filter(
+    (id) => !drop.includes(id) && !deny.includes(id),
+  );
+  const prohibited = [
+    ...new Set([
+      ...caps.prohibited,
+      ...deny.filter((id) => !caps.required.includes(id)),
+    ]),
+  ];
   return {
     ...s,
     policy: {
       ...s.policy,
-      capabilities: { default: "deny", required: caps.required, optional, prohibited },
-      network: drop.length % 2 === 0 ? s.policy.network : { externalServices: "deny", allowedServiceOrigins: [] },
+      capabilities: {
+        default: "deny",
+        required: caps.required,
+        optional,
+        prohibited,
+      },
+      network:
+        drop.length % 2 === 0
+          ? s.policy.network
+          : { externalServices: "deny", allowedServiceOrigins: [] },
     },
     workspace:
       s.workspace === null
         ? null
         : {
             ...s.workspace,
-            allow: s.workspace.allow === null ? null : s.workspace.allow.filter((id) => !drop.includes(id)),
+            allow:
+              s.workspace.allow === null
+                ? null
+                : s.workspace.allow.filter((id) => !drop.includes(id)),
             prohibited: [...new Set([...s.workspace.prohibited, ...deny])],
           },
     vault:
-      s.vault === null ? null : { ...s.vault, disabled: [...new Set([...s.vault.disabled, ...drop])] },
+      s.vault === null
+        ? null
+        : {
+            ...s.vault,
+            disabled: [...new Set([...s.vault.disabled, ...drop])],
+          },
   };
 }
 
-function subset(smaller: readonly string[], larger: readonly string[]): boolean {
+function subset(
+  smaller: readonly string[],
+  larger: readonly string[],
+): boolean {
   const big = new Set(larger);
   return smaller.every((x) => big.has(x));
 }
@@ -208,12 +279,25 @@ describe("MODEL-08: restrictions are monotone", () => {
         const before = resolveComposition(inputOf(scenario));
         const receipt = buildConsentReceipt(before, FIXTURE_CATALOG, NOW);
         const consented = resolveComposition({ ...inputOf(scenario), receipt });
-        const after = resolveComposition({ ...inputOf(tighten(scenario, drop, deny)), receipt });
-        expect(subset(after.approvedCapabilities, consented.approvedCapabilities)).toBe(true);
-        expect(subset(after.approvedModules, consented.approvedModules)).toBe(true);
-        expect(subset(after.approvedOperations, consented.approvedOperations)).toBe(true);
-        expect(subset(after.approvedItemKinds, consented.approvedItemKinds)).toBe(true);
-        expect(consented.approvedCapabilities).toEqual(expect.arrayContaining(["settings.core", "vault.passwords"]));
+        const after = resolveComposition({
+          ...inputOf(tighten(scenario, drop, deny)),
+          receipt,
+        });
+        expect(
+          subset(after.approvedCapabilities, consented.approvedCapabilities),
+        ).toBe(true);
+        expect(subset(after.approvedModules, consented.approvedModules)).toBe(
+          true,
+        );
+        expect(
+          subset(after.approvedOperations, consented.approvedOperations),
+        ).toBe(true);
+        expect(
+          subset(after.approvedItemKinds, consented.approvedItemKinds),
+        ).toBe(true);
+        expect(consented.approvedCapabilities).toEqual(
+          expect.arrayContaining(["settings.core", "vault.passwords"]),
+        );
       }),
       { numRuns: 400, seed: SEED },
     );

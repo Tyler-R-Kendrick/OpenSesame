@@ -34,11 +34,15 @@ type Walk = {
   readonly visited: Set<CapabilityId>;
 };
 
-function dependencyConflictCode(blocked: readonly ReasonCode[]): PlanConflict["code"] {
+function dependencyConflictCode(
+  blocked: readonly ReasonCode[],
+): PlanConflict["code"] {
   if (blocked.includes("NOT_DISTRIBUTED")) return "DEPENDENCY_NOT_DISTRIBUTED";
-  if (blocked.includes("PROHIBITED_BY_INSTANCE")) return "DEPENDENCY_PROHIBITED";
+  if (blocked.includes("PROHIBITED_BY_INSTANCE"))
+    return "DEPENDENCY_PROHIBITED";
   if (blocked.includes("NETWORK_POLICY_DENIES")) return "NETWORK_POLICY_DENIES";
-  if (blocked.includes("WORKER_GRAPH_UNAVAILABLE")) return "WORKER_GRAPH_UNAVAILABLE";
+  if (blocked.includes("WORKER_GRAPH_UNAVAILABLE"))
+    return "WORKER_GRAPH_UNAVAILABLE";
   return "DEPENDENCY_NOT_PERMITTED";
 }
 
@@ -63,7 +67,10 @@ function visitEdge(
   const axis = axes.get(id);
   if (axis === undefined) {
     walk.conflicts.push({
-      code: kind === "dependency" ? "DEPENDENCY_NOT_DISTRIBUTED" : "ALTERNATIVE_NOT_ALLOWED",
+      code:
+        kind === "dependency"
+          ? "DEPENDENCY_NOT_DISTRIBUTED"
+          : "ALTERNATIVE_NOT_ALLOWED",
       capability: walk.root,
       subject: id,
       message: `\`${id}\` is not in the catalog`,
@@ -73,7 +80,10 @@ function visitEdge(
   if (axis.tier === "core") return null;
   if (axis.blocked.length > 0) {
     walk.conflicts.push({
-      code: kind === "dependency" ? dependencyConflictCode(axis.blocked) : "ALTERNATIVE_NOT_ALLOWED",
+      code:
+        kind === "dependency"
+          ? dependencyConflictCode(axis.blocked)
+          : "ALTERNATIVE_NOT_ALLOWED",
       capability: walk.root,
       subject: id,
       message: `\`${id}\` is unavailable: ${axis.blocked.join(", ")}`,
@@ -126,7 +136,12 @@ function walkRoot(
   chosen: Readonly<Record<string, CapabilityId>>,
   dependents: Map<CapabilityId, Set<CapabilityId>>,
 ): Walk {
-  const walk: Walk = { root, local: [root], conflicts: [], visited: new Set([root]) };
+  const walk: Walk = {
+    root,
+    local: [root],
+    conflicts: [],
+    visited: new Set([root]),
+  };
   const stack: CapabilityId[] = [root];
   while (stack.length > 0) {
     const current = stack.pop();
@@ -155,7 +170,8 @@ export function computeClosure(
   const rootConflicts = new Map<CapabilityId, readonly PlanConflict[]>();
   for (const root of sortIds(roots)) {
     const axis = axes.get(root);
-    if (axis === undefined || axis.tier === "core" || axis.blocked.length > 0) continue;
+    if (axis === undefined || axis.tier === "core" || axis.blocked.length > 0)
+      continue;
     const walk = walkRoot(root, index, axes, chosen, dependents);
     for (const id of walk.local) reached.add(id);
     if (walk.conflicts.length === 0) {

@@ -41,6 +41,10 @@ describe("identifier syntax", () => {
   });
 
   it("sorts ids uniquely and locale-free", () => {
-    expect(sortIds(["b.x", "a.y", "b.x", "a.b"])).toEqual(["a.b", "a.y", "b.x"]);
+    expect(sortIds(["b.x", "a.y", "b.x", "a.b"])).toEqual([
+      "a.b",
+      "a.y",
+      "b.x",
+    ]);
   });
 });

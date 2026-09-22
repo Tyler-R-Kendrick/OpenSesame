@@ -49,9 +49,8 @@ export const BLOCKING_REASONS: ReadonlySet<ReasonCode> = new Set<ReasonCode>([
 ]);
 
 /** Codes that leave a capability in the consentable closure. */
-export const CONSENT_ONLY_REASONS: ReadonlySet<ReasonCode> = new Set<ReasonCode>(
-  ["CONSENT_REQUIRED", "RESTART_REQUIRED"],
-);
+export const CONSENT_ONLY_REASONS: ReadonlySet<ReasonCode> =
+  new Set<ReasonCode>(["CONSENT_REQUIRED", "RESTART_REQUIRED"]);
 
 /** Unique reasons in vocabulary order. */
 export function sortReasons(codes: Iterable<ReasonCode>): ReasonCode[] {

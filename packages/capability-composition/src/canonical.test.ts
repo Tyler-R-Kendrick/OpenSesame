@@ -32,7 +32,9 @@ describe("digests", () => {
   });
 
   it("digest determinism: exposureDigest ignores declaration order and non-exposure fields", () => {
-    const base = FIXTURE_CATALOG.capabilities.find((d) => d.id === "notifications.web-push");
+    const base = FIXTURE_CATALOG.capabilities.find(
+      (d) => d.id === "notifications.web-push",
+    );
     if (base === undefined) throw new Error("fixture missing");
     const { exposureDigest: stored, ...declared } = base;
     const reordered = {
@@ -46,7 +48,9 @@ describe("digests", () => {
     };
     expect(exposureDigest(declared)).toBe(stored);
     expect(exposureDigest(reordered)).toBe(stored);
-    expect(exposureDigest({ ...declared, workerGraphConstraint: null })).not.toBe(stored);
+    expect(
+      exposureDigest({ ...declared, workerGraphConstraint: null }),
+    ).not.toBe(stored);
     expect(
       exposureDigest({
         ...declared,
@@ -72,8 +76,8 @@ describe("digests", () => {
       exposure: { "a.y": "sha256:11", "b.x": "sha256:00" },
     };
     expect(receiptDigest(body)).toBe(receiptDigest(swapped));
-    expect(receiptDigest({ ...body, acceptedAt: "2026-09-23T00:00:00.000Z" })).not.toBe(
-      receiptDigest(body),
-    );
+    expect(
+      receiptDigest({ ...body, acceptedAt: "2026-09-23T00:00:00.000Z" }),
+    ).not.toBe(receiptDigest(body));
   });
 });
