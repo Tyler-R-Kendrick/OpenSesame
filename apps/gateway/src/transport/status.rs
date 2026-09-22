@@ -24,8 +24,8 @@ use opensesame_domain::transport::{
 };
 use opensesame_transport_security::env::NativeIdentitySpec;
 
-use super::config::TransportConfig;
-use super::managed::UNWIRED_REASON;
+use super::config::{AuthMode, TransportConfig};
+use super::runtime::TransportRuntime;
 
 /// The mutable half of the status: what has been observed at runtime.
 #[derive(Clone, Debug, Default)]
@@ -86,36 +86,44 @@ pub const fn custody_of(spec: &NativeIdentitySpec) -> (Custody, IdentitySourceKi
 /// handshake); whether it was ever demonstrated is `enforcement`.
 #[must_use]
 pub fn capabilities(
-    config: &TransportConfig,
+    mapping_auth: AuthMode,
+    callout_auth: AuthMode,
+    policy: TransportPolicy,
     managed: &CapabilityOutcome,
 ) -> TransportCapabilities {
-    let policy = config.listener.as_ref().map(|l| l.policy);
     TransportCapabilities::native(
         CapabilityOutcome::Supported,
         managed.clone(),
         CapabilityOutcome::Supported,
-        config.mapping_auth == super::config::AuthMode::Mtls,
-        policy.is_some_and(TransportPolicy::authenticates_client),
+        // This side presents a client certificate on an outbound connection
+        // when either of its own service clients is in `mtls` mode.
+        mapping_auth == AuthMode::Mtls || callout_auth == AuthMode::Mtls,
+        policy.authenticates_client(),
     )
 }
 
-/// Assemble the view. `generation` is the runtime's current generation and
-/// `holds_identity` says whether that generation actually carries one.
+/// Assemble the view from the live runtime. Every dimension is read from the
+/// thing that actually knows it: the configuration for `desired`, the
+/// generation (or the Workload API source) for `credential` and `runtime`,
+/// and the recorded facts for `observed` and `enforcement`.
 #[must_use]
 pub fn view(
-    config: &TransportConfig,
+    runtime: &TransportRuntime,
     facts: &TransportFacts,
-    installed: Option<(u64, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>)>,
     managed: &CapabilityOutcome,
 ) -> TransportStatusView {
+    let config: &TransportConfig = &runtime.config;
+    let installed = runtime.installed();
     let desired = config
         .listener
         .as_ref()
         .map_or(TransportPolicy::ExistingLocal, |l| l.policy);
-    let (credential, runtime) = match (config.listener.as_ref(), installed) {
+    let (credential, installed_runtime) = match (config.listener.as_ref(), installed) {
         (None, _) => (CredentialStatus::Unconfigured, RuntimeStatus::NotLoaded),
         (Some(listener), None) => (
-            credential_unloaded(&listener.identity),
+            runtime.spiffe_credential(Utc::now()).unwrap_or_else(|| {
+                credential_unloaded(&listener.identity)
+            }),
             RuntimeStatus::NotLoaded,
         ),
         (Some(listener), Some((generation, loaded_at, not_after))) => {
@@ -130,7 +138,7 @@ pub fn view(
                 Some(_) => CredentialStatus::Expired { generation },
                 None => CredentialStatus::Unconfigured,
             };
-            let runtime = match &facts.reload_failure {
+            let installed_runtime = match &facts.reload_failure {
                 Some(code) => RuntimeStatus::ReloadFailed {
                     generation,
                     code: code.clone(),
@@ -140,20 +148,25 @@ pub fn view(
                     loaded_at,
                 },
             };
-            (credential, runtime)
+            (credential, installed_runtime)
         }
     };
     TransportStatusView {
         target: super::HOST_TLS_LISTENER.to_owned(),
         desired,
         credential,
-        runtime,
+        runtime: installed_runtime,
         observed: facts.observed.clone(),
         enforcement: facts
             .enforcement
             .clone()
             .unwrap_or(EnforcementStatus::Unverified),
-        capabilities: capabilities(config, managed),
+        capabilities: capabilities(
+            runtime.mapping_auth,
+            runtime.callout_auth,
+            desired,
+            managed,
+        ),
     }
     .reconciled(Utc::now())
 }
@@ -173,9 +186,3 @@ fn credential_unloaded(spec: &NativeIdentitySpec) -> CredentialStatus {
     }
 }
 
-/// The capability outcome reported for managed custody when no bridge is
-/// wired. Kept beside the status so the two never drift.
-#[must_use]
-pub fn unwired_managed() -> CapabilityOutcome {
-    CapabilityOutcome::unsupported(UNWIRED_REASON)
-}

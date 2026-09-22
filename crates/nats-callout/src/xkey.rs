@@ -1,5 +1,5 @@
-//! The `xkv1` envelope nats-server uses when `auth_callout.xkey` is set: the
-//! request payload is a NaCl box from the server's curve key to the callout
+//! The `xkv1` envelope `nats-server` uses when `auth_callout.xkey` is set: the
+//! request payload is a `NaCl` box from the server's curve key to the callout
 //! service's curve key, and the response must be a box back to the server's
 //! key. Both ends are `nkeys::XKey`, the reference implementation.
 //!

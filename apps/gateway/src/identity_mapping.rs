@@ -40,6 +40,16 @@ pub struct IdentityMappingClient {
     allow_private: bool,
 }
 
+/// Never prints a credential: the endpoint and the *mode*, nothing else.
+impl std::fmt::Debug for IdentityMappingClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IdentityMappingClient")
+            .field("endpoint", &self.endpoint.as_str())
+            .field("auth", &self.auth)
+            .finish_non_exhaustive()
+    }
+}
+
 impl IdentityMappingClient {
     /// The startup predicate (SVC-STARTUP). Exactly one authentication mode
     /// is honoured; a certificate-only deployment never needs the bearer

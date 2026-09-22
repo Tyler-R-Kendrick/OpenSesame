@@ -11,7 +11,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_task_bus::TaskBusBackend;
+use opensesame_task_bus::{NatsTransportPublic, TaskBusBackend};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -93,6 +93,11 @@ pub struct PutBody {
     /// Default false: a runtime apply never provisions on a secure profile.
     #[serde(default)]
     pub provision: bool,
+    /// Optional public transport policy to store. `deny_unknown_fields` on
+    /// `NatsTransportPublic` means a caller cannot smuggle a path, a seed or
+    /// a token through here — only references the deployment plane resolves.
+    #[serde(default)]
+    pub transport: Option<NatsTransportPublic>,
 }
 
 pub async fn put_config(
@@ -128,6 +133,16 @@ pub async fn put_config(
                 .into_response();
         }
     };
+
+    if let Some(public) = body.transport.as_ref() {
+        if let Err(error) = taskbus_config::persist_transport(&st.db, public).await {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":"invalid_request","hint": error.to_string()})),
+            )
+                .into_response();
+        }
+    }
 
     if let Err(error) = taskbus_config::persist(&st.db, backend, body.nats_url.as_deref()).await {
         return (

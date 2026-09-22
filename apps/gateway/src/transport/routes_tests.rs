@@ -32,10 +32,13 @@ async fn call(
     if operator {
         builder = builder.header("x-opensesame-operator", st.operator_token.clone());
     }
-    let body = body.map_or_else(Body::empty, |body| {
-        builder = builder.header("content-type", "application/json");
-        Body::from(body)
-    });
+    let body = match body {
+        Some(body) => {
+            builder = builder.header("content-type", "application/json");
+            Body::from(body)
+        }
+        None => Body::empty(),
+    };
     let response = super::routes::routes()
         .with_state(st.clone())
         .oneshot(builder.body(body).unwrap())

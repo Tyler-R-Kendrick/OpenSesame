@@ -88,7 +88,7 @@ fn tampered_payload_is_refused() {
 fn algorithm_and_type_are_pinned() {
     let p = Parties::generate();
     let token = p.signed_request(NOW, "tok");
-    let payload_and_sig = token.splitn(2, '.').nth(1).unwrap().to_owned();
+    let payload_and_sig = token.split_once('.').unwrap().1.to_owned();
     for header in [
         r#"{"typ":"JWT","alg":"none"}"#,
         r#"{"typ":"JWT","alg":"HS256"}"#,

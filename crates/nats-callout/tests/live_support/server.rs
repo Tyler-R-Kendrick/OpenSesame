@@ -124,18 +124,23 @@ fn wait_for_key(monitor_port: u16) -> String {
     let deadline = Instant::now() + Duration::from_secs(10);
     let url = format!("http://127.0.0.1:{monitor_port}/varz");
     while Instant::now() < deadline {
-        if let Ok(body) = ureq_get(&url) {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&body) {
-                if let Some(id) = value.get("server_id").and_then(serde_json::Value::as_str) {
-                    if id.starts_with('N') {
-                        return id.to_owned();
-                    }
-                }
-            }
+        if let Some(id) = server_key(&url) {
+            return id;
         }
         std::thread::sleep(Duration::from_millis(100));
     }
     panic!("nats-server did not report a server key on {url}");
+}
+
+/// One `/varz` read, or `None` while the server is still coming up.
+fn server_key(url: &str) -> Option<String> {
+    let body = ureq_get(url).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&body).ok()?;
+    value
+        .get("server_id")
+        .and_then(serde_json::Value::as_str)
+        .filter(|id| id.starts_with('N'))
+        .map(str::to_owned)
 }
 
 /// A one-line blocking HTTP GET — the monitoring endpoint is plain loopback

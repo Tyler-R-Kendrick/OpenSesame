@@ -15,7 +15,7 @@ use super::TransportRuntime;
 const TOKEN: &str = "mapping-token-0123456789abcdef0123456789";
 const SECRET: &str = "callout-secret-0123456789abcdef0123456789";
 
-fn parse(pairs: Vec<(&'static str, &str)>) -> Result<TransportConfig, TransportError> {
+fn parse(pairs: Vec<(&'static str, &'static str)>) -> Result<TransportConfig, TransportError> {
     let owned = pairs
         .into_iter()
         .map(|(k, v)| (k, v.to_owned()))
@@ -23,7 +23,7 @@ fn parse(pairs: Vec<(&'static str, &str)>) -> Result<TransportConfig, TransportE
     TransportConfig::from_lookup(&lookup(owned))
 }
 
-fn mtls_listener(extra: Vec<(&'static str, &str)>) -> Vec<(&'static str, &str)> {
+fn mtls_listener(extra: Vec<(&'static str, &'static str)>) -> Vec<(&'static str, &'static str)> {
     let mut pairs = vec![
         ("OPENSESAME_TLS_LISTEN", "127.0.0.1:8443"),
         ("OPENSESAME_TLS_POLICY", "mtls_required"),

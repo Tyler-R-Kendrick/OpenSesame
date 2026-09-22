@@ -203,7 +203,6 @@ async fn callout(
 }
 
 /// The mock Host's router.
-#[must_use]
 pub fn router(host: Arc<MockHost>) -> Router {
     Router::new()
         .route("/api/v1/nats/auth/callout", axum::routing::post(callout))

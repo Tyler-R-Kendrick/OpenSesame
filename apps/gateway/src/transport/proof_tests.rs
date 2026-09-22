@@ -96,7 +96,7 @@ fn tokens_without_a_certificate_confirmation_are_unchanged() {
         x5t_s256: None,
         jkt: Some("0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I".into()),
     };
-    assert!(!dpop.binds_certificate());
+    assert!(dpop.x5t_s256.is_none());
     assert!(require_certificate_binding(Some(&dpop), &extensions).is_ok());
 }
 
@@ -120,7 +120,7 @@ fn a_malformed_claim_never_passes() {
 fn the_claim_shape_matches_what_identity_mints() {
     let json = serde_json::json!({"x5t#S256": "0123456789abcdefghijklmnopqrstuvwxyzABCDEFG"});
     let parsed: Confirmation = serde_json::from_value(json).expect("parses");
-    assert!(parsed.binds_certificate());
+    assert!(parsed.x5t_s256.is_some());
     // Unknown members are refused: a confirmation is a security claim.
     assert!(serde_json::from_value::<Confirmation>(
         serde_json::json!({"x5t#S256": "a", "x5t": "b"})

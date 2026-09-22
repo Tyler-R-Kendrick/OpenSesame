@@ -41,6 +41,7 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
         if let Some(listen) = runtime.listen {
             let policy = runtime.policy;
             let client_profile = runtime.client_trust_profile.clone();
+            let deny_thumbprint = runtime.deny_thumbprint_hook();
             let listener = SecureListener::bind(
                 listen,
                 Arc::clone(&runtime.generations),
@@ -51,6 +52,7 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
                         .ok_or(TransportError::IdentityMissing)?;
                     let mut profile =
                         ServerProfile::new(policy, identity, super::HOST_TLS_LISTENER);
+                    profile.deny_thumbprint = Arc::clone(&deny_thumbprint);
                     if policy.authenticates_client() {
                         profile.client_trust = Some(generation.trust(&client_profile)?.clone());
                     }

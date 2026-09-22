@@ -38,14 +38,6 @@ pub struct Confirmation {
     pub jkt: Option<String>,
 }
 
-impl Confirmation {
-    /// True when this confirmation asks for certificate binding.
-    #[must_use]
-    pub fn binds_certificate(&self) -> bool {
-        self.x5t_s256.is_some()
-    }
-}
-
 /// Enforce a token's certificate binding against the request's transport
 /// evidence.
 ///

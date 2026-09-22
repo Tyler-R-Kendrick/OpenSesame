@@ -50,7 +50,12 @@ pub fn require_service_caller(
     )
 }
 
-/// Admit a service caller acting for a tenant. The binding must be scoped to
+/// Admit a service caller acting for a tenant.
+///
+/// No Host route delegates through transport evidence yet — SW-CONNECTOR's
+/// `connector.invoke` is the first that will — so outside tests this is not
+/// called. It lives here, tested, so the cross-tenant refusal is written
+/// once rather than reinvented at the first call site. The binding must be scoped to
 /// `organization_id`: a certificate bound in one organization never carries
 /// authority in another, whatever an accompanying session says
 /// (credential substitution, AT-AUTHORITY-CROSSTENANT).
@@ -59,6 +64,7 @@ pub fn require_service_caller(
 ///
 /// As [`require_service_caller`].
 #[allow(clippy::result_large_err)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn require_delegated_caller(
     st: &AppState,
     extensions: &Extensions,

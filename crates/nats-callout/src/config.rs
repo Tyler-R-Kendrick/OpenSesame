@@ -100,7 +100,7 @@ fn read_secret_file(path: &str) -> Result<SecretBox<String>, CalloutError> {
     Ok(SecretBox::new(Box::new(text)))
 }
 
-fn transport(e: TransportError) -> CalloutError {
+fn transport(e: &TransportError) -> CalloutError {
     misconfigured(format!("transport: {}: {e}", e.code()))
 }
 
@@ -117,7 +117,7 @@ pub fn client_profile_from(
     lookup: &Lookup<'_>,
     identity_required: bool,
 ) -> Result<Option<ClientProfile>, CalloutError> {
-    let Some(trust) = load_trust_from(prefix, lookup).map_err(transport)? else {
+    let Some(trust) = load_trust_from(prefix, lookup).map_err(|e| transport(&e))? else {
         if identity_required {
             return Err(misconfigured(format!("{prefix}_TRUST_FILE is required")));
         }
@@ -135,20 +135,21 @@ pub fn client_profile_from(
         .map_err(|e| misconfigured(format!("cannot read {}: {e}", path.display())))?;
     let profile_name = prefix.to_ascii_lowercase().replace('_', "-");
     let server_trust = TrustBundle::from_pem(
-        TrustProfileRef::new(&profile_name).map_err(transport)?,
+        TrustProfileRef::new(&profile_name).map_err(|e| transport(&e))?,
         kind,
         &pem,
     )
-    .map_err(transport)?;
-    let server_name = match load_server_expectation_from(prefix, lookup).map_err(transport)? {
-        Some(ServerExpectation::Dns(name)) => ServerNamePolicy::Dns(name),
-        Some(ServerExpectation::SpiffeId(id)) => ServerNamePolicy::SpiffeId(id),
-        None => {
-            return Err(misconfigured(format!(
-                "{prefix}_SERVER_NAME or {prefix}_SERVER_SPIFFE_ID is required"
-            )))
-        }
-    };
+    .map_err(|e| transport(&e))?;
+    let server_name =
+        match load_server_expectation_from(prefix, lookup).map_err(|e| transport(&e))? {
+            Some(ServerExpectation::Dns(name)) => ServerNamePolicy::Dns(name),
+            Some(ServerExpectation::SpiffeId(id)) => ServerNamePolicy::SpiffeId(id),
+            None => {
+                return Err(misconfigured(format!(
+                    "{prefix}_SERVER_NAME or {prefix}_SERVER_SPIFFE_ID is required"
+                )))
+            }
+        };
     if kind == TrustProfileKind::SpiffeTrustDomain
         && matches!(server_name, ServerNamePolicy::Dns(_))
     {
@@ -156,10 +157,10 @@ pub fn client_profile_from(
             "{prefix}: a SPIFFE bundle needs {prefix}_SERVER_SPIFFE_ID"
         )));
     }
-    let identity = match load_identity_from(prefix, lookup).map_err(transport)? {
-        Some(NativeIdentitySpec::PemFiles { cert, key }) => {
-            Some(Arc::new(read_pem_identity(&cert, &key).map_err(transport)?))
-        }
+    let identity = match load_identity_from(prefix, lookup).map_err(|e| transport(&e))? {
+        Some(NativeIdentitySpec::PemFiles { cert, key }) => Some(Arc::new(
+            read_pem_identity(&cert, &key).map_err(|e| transport(&e))?,
+        )),
         Some(_) => {
             return Err(misconfigured(format!(
                 "{prefix}: only pem identities are loadable by the bridge binary"
@@ -176,7 +177,7 @@ pub fn client_profile_from(
         server_trust,
         server_name,
         identity,
-        min_version: load_min_version_from(prefix, lookup).map_err(transport)?,
+        min_version: load_min_version_from(prefix, lookup).map_err(|e| transport(&e))?,
     }))
 }
 
@@ -294,7 +295,7 @@ impl BridgeConfig {
         };
         if let Some(profile) = &self.nats_tls {
             let config =
-                opensesame_transport_security::client_config(profile).map_err(transport)?;
+                opensesame_transport_security::client_config(profile).map_err(|e| transport(&e))?;
             options = options.tls_client_config(config).require_tls(true);
         }
         Ok(options)

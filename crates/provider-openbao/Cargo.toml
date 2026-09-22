@@ -26,3 +26,4 @@ tokio = { workspace = true }
 # fixture for the real (ignored by default) OpenBao run.
 opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
 tempfile = { workspace = true }
+chrono = { workspace = true }

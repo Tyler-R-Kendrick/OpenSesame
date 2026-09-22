@@ -88,12 +88,8 @@ pub async fn get_status(State(st): State<AppState>, headers: axum::http::HeaderM
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
-    let view = status::view(
-        &runtime.config,
-        &facts,
-        runtime.installed(),
-        &status::unwired_managed(),
-    );
+    let managed = crate::transport::ManagedIdentityResolver::capability(&st);
+    let view = status::view(runtime, &facts, &managed);
     (StatusCode::OK, Json(view)).into_response()
 }
 

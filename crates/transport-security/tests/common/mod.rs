@@ -295,9 +295,9 @@ pub fn localhost() -> ServerName<'static> {
 /// `GET /health` request, and return combined stdout+stderr. The child is
 /// driven on a blocking thread: the test runtime is single-threaded, and a
 /// test body that blocks on the child would starve the listener task it is
-/// talking to (the TCP connect then succeeds through the kernel backlog and
-/// the handshake never gets serviced). The output starts with
-/// `exit=<code> timeout=<bool>`.
+/// talking to (the TCP connect then succeeds through the kernel backlog, the
+/// handshake is never serviced, and `s_client` prints `CONNECTED` and nothing
+/// else). The output starts with `exit=<code> timeout=<bool>`.
 pub async fn openssl_s_client(addr: SocketAddr, extra: &[&str]) -> String {
     let extra: Vec<String> = extra.iter().map(|s| (*s).to_string()).collect();
     tokio::task::spawn_blocking(move || {
@@ -315,9 +315,8 @@ fn pump(pipe: &mut dyn std::io::Read, sink: &std::sync::Mutex<String>) {
         if n == 0 {
             break;
         }
-        sink.lock()
-            .unwrap()
-            .push_str(&String::from_utf8_lossy(&buf[..n]));
+        let text = String::from_utf8_lossy(&buf[..n]).into_owned();
+        sink.lock().unwrap().push_str(&text);
     }
 }
 

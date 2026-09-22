@@ -76,6 +76,7 @@ impl ProbeTarget {
 }
 
 /// Everything one probe run needs. Built from configuration only.
+#[derive(Debug)]
 pub struct ProbePlan {
     pub target: ProbeTarget,
     pub addr: SocketAddr,

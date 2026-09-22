@@ -163,6 +163,33 @@ impl TransportRuntime {
         })
     }
 
+    /// The Workload API source's own truthful credential status, when the
+    /// identity comes from one. Custody there is `workload_api_delivered`:
+    /// the key was handed to this process, and the source — not this
+    /// struct — is what knows whether it is still live.
+    #[must_use]
+    pub fn spiffe_credential(
+        &self,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Option<opensesame_domain::transport::CredentialStatus> {
+        self.spiffe
+            .as_ref()
+            .map(|handle| handle.current().credential_status(now))
+    }
+
+    /// The per-listener revoked-leaf hook: a thumbprint any binding denies is
+    /// refused at the handshake and again on every request of an already-open
+    /// connection (AT-TLS-REVOKEDLIVE).
+    #[must_use]
+    pub fn deny_thumbprint_hook(&self) -> opensesame_transport_security::DenyThumbprint {
+        let bindings = Arc::clone(&self.bindings);
+        Arc::new(move |thumbprint: &str| {
+            bindings
+                .read()
+                .is_ok_and(|set| super::bindings::denies_thumbprint(&set, thumbprint))
+        })
+    }
+
     /// A snapshot of the live binding set.
     #[must_use]
     pub fn binding_set(&self) -> ServiceBindingSet {

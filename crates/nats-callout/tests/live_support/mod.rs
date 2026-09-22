@@ -164,6 +164,9 @@ impl Stack {
     pub async fn stop(mut self) {
         self.bridge.abort();
         let _ = self.shutdown.send(());
+        // Let the aborted bridge task and the listener's shutdown actually
+        // run before the process is torn down.
+        tokio::task::yield_now().await;
         self.nats.stop();
     }
 }

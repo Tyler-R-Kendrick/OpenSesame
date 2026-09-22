@@ -11,12 +11,18 @@ use crate::response::{ResponseClaims, UserClaims};
 const NOW: i64 = 1_800_000_000;
 const TOKEN: &str = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln";
 
+/// What a canned source answers with.
+type Answer = dyn Fn(&HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError> + Send;
+/// One tamper case: a name and the mutation it applies to an allow.
+type Tamper = (
+    &'static str,
+    Box<dyn Fn(&mut HostDecisionResponse) + Send + Sync>,
+);
+
 /// A source that answers from a closure and counts calls.
 struct Canned {
     calls: AtomicUsize,
-    answer: Mutex<
-        Box<dyn Fn(&HostDecisionRequest) -> Result<HostDecisionResponse, CalloutError> + Send>,
-    >,
+    answer: Mutex<Box<Answer>>,
 }
 
 #[async_trait::async_trait]
@@ -106,12 +112,12 @@ async fn allow_is_signed_with_the_hosts_permissions_and_bound_to_the_request() {
 #[tokio::test]
 async fn host_failure_is_a_signed_deny_never_an_allow() {
     let p = Parties::generate();
-    for err in [CalloutError::HostUnreachable, CalloutError::HostError] {
-        let code = err.code();
-        let (core, _) = core_with(&p, None, move |_| Err(err.clone()));
+    for failure in [CalloutError::HostUnreachable, CalloutError::HostError] {
+        let expected = failure.code();
+        let (bridge, _) = core_with(&p, None, move |_| Err(failure.clone()));
         let payload = p.signed_request(NOW, TOKEN);
-        let resp = reply(core.handle(payload.as_bytes(), None, NOW).await);
-        assert_eq!(resp.error(), Some(code));
+        let resp = reply(bridge.handle(payload.as_bytes(), None, NOW).await);
+        assert_eq!(resp.error(), Some(expected));
         assert!(resp.user_jwt().is_none());
     }
 }
@@ -137,7 +143,7 @@ async fn host_deny_is_relayed_with_its_code() {
 #[tokio::test]
 async fn tampered_echo_on_any_field_is_denied() {
     let p = Parties::generate();
-    let tamper: Vec<(&str, Box<dyn Fn(&mut HostDecisionResponse) + Send + Sync>)> = vec![
+    let tamper: Vec<Tamper> = vec![
         (
             "digest",
             Box::new(|r| r.request_digest = Some("f".repeat(64))),
@@ -258,7 +264,7 @@ async fn the_same_request_yields_the_same_decision_request_digest() {
     reply(core.handle(payload.as_bytes(), None, NOW).await);
     reply(core.handle(payload.as_bytes(), None, NOW + 1).await);
     assert_eq!(source.calls.load(Ordering::SeqCst), 2);
-    let digests = seen.lock().unwrap();
+    let digests = seen.lock().unwrap().clone();
     assert_eq!(
         digests[0], digests[1],
         "a replayed request has one immutable digest"
@@ -267,8 +273,7 @@ async fn the_same_request_yields_the_same_decision_request_digest() {
     let mut claims = p.request_claims(NOW, "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIyIn0.c2ln");
     claims.nats.request_nonce = "request-nonce-1".into();
     let changed = p.sign_request(claims);
-    drop(digests);
     reply(core.handle(changed.as_bytes(), None, NOW).await);
-    let digests = seen.lock().unwrap();
+    let digests = seen.lock().unwrap().clone();
     assert_ne!(digests[0], digests[2]);
 }

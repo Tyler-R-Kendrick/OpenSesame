@@ -118,12 +118,11 @@ impl BridgeCore {
             tracing::warn!(code = err.code(), digest = %req.request_digest, "Host response did not echo the request; denying");
             return self.signer.deny(server_id, user, err.code(), now);
         }
-        match grant_from(&resp, user, &self.target_account) {
-            Some(grant) => self.signer.allow(server_id, &grant, now),
-            None => {
-                let code = resp.error.as_deref().unwrap_or("denied");
-                self.signer.deny(server_id, user, code, now)
-            }
+        if let Some(grant) = grant_from(&resp, user, &self.target_account) {
+            self.signer.allow(server_id, &grant, now)
+        } else {
+            let code = resp.error.as_deref().unwrap_or("denied");
+            self.signer.deny(server_id, user, code, now)
         }
     }
 
@@ -194,28 +193,36 @@ pub async fn run(client: async_nats::Client, core: Arc<BridgeCore>) -> Result<()
         "auth bridge serving"
     );
     while let Some(message) = sub.next().await {
-        let Some(reply) = message.reply.clone() else {
-            tracing::warn!("callout without a reply subject ignored");
-            continue;
-        };
-        let header = message
-            .headers
-            .as_ref()
-            .and_then(|h| h.get(SERVER_XKEY_HEADER))
-            .map(|v| v.as_str().to_owned());
-        let now = chrono::Utc::now().timestamp();
-        match core.handle(&message.payload, header.as_deref(), now).await {
-            Outcome::Reply(bytes) => {
-                if let Err(e) = client.publish(reply, bytes.into()).await {
-                    tracing::warn!(error = %e, "callout reply publish failed");
-                }
-            }
-            Outcome::Dropped(err) => {
-                tracing::warn!(code = err.code(), "callout dropped");
-            }
-        }
+        serve_one(&client, &core, message).await;
     }
     Ok(())
+}
+
+/// One callout message: verify, decide, answer. Split out of [`run`] so the
+/// loop stays a loop and this stays the protocol.
+async fn serve_one(client: &async_nats::Client, core: &BridgeCore, message: async_nats::Message) {
+    let Some(reply) = message.reply.clone() else {
+        tracing::warn!("callout without a reply subject ignored");
+        return;
+    };
+    let header = message
+        .headers
+        .as_ref()
+        .and_then(|h| h.get(SERVER_XKEY_HEADER))
+        .map(|v| v.as_str().to_owned());
+    let now = chrono::Utc::now().timestamp();
+    match core.handle(&message.payload, header.as_deref(), now).await {
+        Outcome::Reply(bytes) => publish(client, reply, bytes).await,
+        Outcome::Dropped(err) => tracing::warn!(code = err.code(), "callout dropped"),
+    }
+}
+
+/// Publish a reply. A failure is logged, never retried: the server times the
+/// client out, which is itself a deny.
+async fn publish(client: &async_nats::Client, reply: async_nats::Subject, bytes: Vec<u8>) {
+    if let Err(e) = client.publish(reply, bytes.into()).await {
+        tracing::warn!(error = %e, "callout reply publish failed");
+    }
 }
 
 #[cfg(test)]
