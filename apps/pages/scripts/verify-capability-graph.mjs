@@ -368,10 +368,16 @@ export async function verifyDist(options) {
     if (ext === ".js" || ext === ".mjs") {
       sizes.javascript += bytes.byteLength;
       sizes.javascriptGzip += gzipSync(bytes, { level: 9 }).byteLength;
-      const cap = file.match(/^assets\/cap-(.+)-[A-Za-z0-9_-]{8}\.js$/);
+      // The plugin names an optional capability's chunk `cap-<capability>`;
+      // prefer that recorded name over guessing where the hash starts, since
+      // a capability id may itself contain dashes.
+      const named = graphChunks.get(file)?.name;
+      const cap = named?.startsWith("cap-")
+        ? named.slice(4)
+        : (file.match(/^assets\/cap-(.+)-[A-Za-z0-9_-]{8}\.js$/)?.[1] ?? null);
       if (cap)
-        sizes.capabilityChunks[cap[1]] =
-          (sizes.capabilityChunks[cap[1]] ?? 0) + bytes.byteLength;
+        sizes.capabilityChunks[cap] =
+          (sizes.capabilityChunks[cap] ?? 0) + bytes.byteLength;
     } else if (ext === ".css") sizes.css += bytes.byteLength;
   }
   const coreEntries = {

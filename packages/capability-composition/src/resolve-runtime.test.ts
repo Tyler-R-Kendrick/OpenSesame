@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCatalog } from "./catalog.js";
-import { buildConsentReceipt } from "./consent.js";
+import { buildConsentReceipt, computeConsentDelta } from "./consent.js";
 import {
   FIXTURE_CATALOG,
   FIXTURE_DISTRIBUTION,
@@ -84,6 +84,64 @@ describe("runtime facts and scopes", () => {
     expect(plan.capabilities["connectors.external"]?.selected).toBe(false);
     expect(plan.capabilities["connectors.external"]?.reasons).toContain(
       "PROFILE_MISMATCH",
+    );
+  });
+
+  it("managed-invalid-revision: a selection accepted against a superseded policy revision approves nothing optional", () => {
+    // The `managed-invalid-revision` profile: the operator moved the policy
+    // on (family-r1 -> family-r2); the device still holds the selection it
+    // accepted against family-r1.
+    const superseded = {
+      ...FIXTURE_POLICIES.family,
+      revision: "family-r2",
+    };
+    const current = resolveWithConsent(familyInput());
+    expect(current.plan.approvedCapabilities).toEqual([
+      "access.authority",
+      "connectors.external",
+      "identity.federation",
+      ...CORE,
+    ]);
+
+    const plan = resolveComposition(
+      familyInput({ instancePolicy: superseded, receipt: current.receipt }),
+    );
+    // Nothing optional is approved, and the approved set only shrank.
+    expect(plan.approvedCapabilities).toEqual(CORE);
+    expect(plan.approvedModules).toEqual([
+      "settings.core/runtime",
+      "vault.passwords/runtime",
+    ]);
+    expect(current.plan.approvedCapabilities).toEqual(
+      expect.arrayContaining([...plan.approvedCapabilities]),
+    );
+    // The choice is still recorded, and PROFILE_MISMATCH says why it is void.
+    for (const id of optionalIds(plan)) {
+      expect(plan.capabilities[id]?.approved).toBe(false);
+      expect(plan.capabilities[id]?.reasons).toContain("PROFILE_MISMATCH");
+      expect(plan.capabilities[id]?.permitted).toBe(false);
+    }
+    expect(plan.capabilities["connectors.external"]?.selected).toBe(true);
+    expect(plan.capabilities["identity.federation"]?.selected).toBe(true);
+    // Consent is owed again for every root the stale selection named.
+    expect(plan.consent.addedRoots).toEqual([
+      "connectors.external",
+      "identity.federation",
+    ]);
+    expect(plan.consent.requiredNotAccepted).toEqual(["identity.federation"]);
+    expect(computeConsentDelta(plan, FIXTURE_CATALOG, current.receipt)).toEqual(
+      plan.consent,
+    );
+    // Re-accepting the current revision restores it; the revision alone is
+    // what went stale, not the exposure.
+    const refreshed = resolveWithConsent(
+      familyInput({
+        instancePolicy: superseded,
+        installation: fixtureSelection({ basePolicyRevision: "family-r2" }),
+      }),
+    ).plan;
+    expect(refreshed.approvedCapabilities).toEqual(
+      current.plan.approvedCapabilities,
     );
   });
 

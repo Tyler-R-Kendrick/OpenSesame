@@ -21,6 +21,7 @@ import type {
   ModuleId,
   NetworkPolicy,
   ReasonCode,
+  WorkspaceCapabilityRestriction,
 } from "./types.js";
 
 export const PERSONAL_LOCAL_INSTANCE = "personal-local";
@@ -123,15 +124,35 @@ function selectedRootsOf(
   ]);
 }
 
+/** A restriction written for another instance or another vault binds nothing here. */
+function isWorkspaceForeign(
+  workspace: WorkspaceCapabilityRestriction | null,
+  instanceId: string,
+  vaultId: string | null,
+): boolean {
+  if (workspace === null) return false;
+  return workspace.instanceId !== instanceId || workspace.vaultId !== vaultId;
+}
+
+/** Only catalog capabilities can be re-accepted; an unknown id is diagnosed, not offered. */
+function staleRootsFor(
+  stale: boolean,
+  selectedRoots: readonly CapabilityId[],
+  index: ReadonlyMap<CapabilityId, CapabilityDescriptor>,
+): CapabilityId[] {
+  if (!stale) return [];
+  return selectedRoots.filter((id) => index.get(id)?.tier === "optional");
+}
+
 export function buildContext(input: ResolveInput): ResolveContext {
   const policy = input.instancePolicy;
   const { instanceId, installation, stale, profileMismatch } =
     resolveIdentity(input);
-  const workspace = input.workspace;
-  const workspaceMismatch =
-    workspace !== null &&
-    (workspace.instanceId !== instanceId ||
-      workspace.vaultId !== input.vaultId);
+  const workspaceMismatch = isWorkspaceForeign(
+    input.workspace,
+    instanceId,
+    input.vaultId,
+  );
   const required = new Set(
     policy === null || !input.policyValid ? [] : policy.capabilities.required,
   );
@@ -159,9 +180,7 @@ export function buildContext(input: ResolveInput): ResolveContext {
     required,
     accepted,
     selectedRoots,
-    staleRoots: stale
-      ? selectedRoots.filter((id) => index.get(id)?.tier === "optional")
-      : [],
+    staleRoots: staleRootsFor(stale, selectedRoots, index),
     requiredNotAccepted: sortIds(
       [...required].filter((id) => !accepted.has(id)),
     ),
