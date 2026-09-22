@@ -6,11 +6,12 @@ import {
 } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { SETTINGS_CATEGORIES, settingsPath } from "../lib/crumbs.js";
-import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-views.js";
+
 import { itemTypeRegistry } from "../lib/vault/item-types.js";
 import { readDraftPrefill } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
 
+import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-view-names.js";
 export const SECTION_PATHS = [
   "/vault",
   "/connections",

@@ -14,7 +14,6 @@ import {
  * requests carry credentials as well as the bearer header.
  */
 
-import { useCallback, useEffect, useState } from "react";
 import {
   type BrowserGrant,
   BrowserPairingError,
@@ -115,6 +114,19 @@ const listeners = new Set<() => void>();
 
 function emit(): void {
   for (const listener of listeners) listener();
+}
+
+/** Called whenever the session or the orphan-cookie state changes. */
+export function subscribeIdentitySession(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Whether a previous tab's cookie still authenticates with no bearer here. */
+export function orphanSessionActive(): boolean {
+  return orphanCookie;
 }
 
 function currentSessionDefault(): IdentitySession | null {
@@ -646,60 +658,11 @@ async function probeHostDefault(): Promise<HealthState> {
   return (await probeHostDetailed()).health;
 }
 
-/** Live orphan-cookie state, so a failed revoke puts the warning back. */
-function useOrphanSessionDefault(): boolean {
-  const [value, setValue] = useState(orphanCookie);
-  useEffect(() => {
-    const listener = () => setValue(orphanCookie);
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, []);
-  return value;
-}
-
-function useIdentitySessionDefault(): IdentitySession | null {
-  const [value, setValue] = useState(currentSession);
-  useEffect(() => {
-    const listener = () => setValue(currentSession());
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, []);
-  return value;
-}
-
-/** Connect-on-demand helper shared by every section that needs a principal. */
-function useConnectDefault() {
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const connect = useCallback(async () => {
-    setConnecting(true);
-    setError(null);
-    try {
-      await ensureIdentitySession();
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not reach OpenSesame Identity.",
-      );
-    } finally {
-      setConnecting(false);
-    }
-  }, []);
-  return { connecting, error, connect };
-}
-
 export const identitySeams = {
   hostFetch: hostFetchDefault,
   endSession: endSessionDefault,
   ensureHostSession: ensureHostSessionDefault,
   hostLocalSessionEligible: hostLocalSessionEligibleDefault,
-  useIdentitySession: useIdentitySessionDefault,
-  useConnect: useConnectDefault,
   currentSession: currentSessionDefault,
   probeOrphanSession: probeOrphanSessionDefault,
   identityBase: identityBaseDefault,
@@ -711,7 +674,6 @@ export const identitySeams = {
   adoptToken: adoptTokenDefault,
   probeIdentity: probeIdentityDefault,
   probeHost: probeHostDefault,
-  useOrphanSession: useOrphanSessionDefault,
   fetchPrincipal: fetchPrincipalDefault,
   restoreSession: restoreSessionDefault,
 };
@@ -738,14 +700,6 @@ export function hostLocalSessionEligible(hostApi?: string): boolean {
   return hostApi === undefined
     ? identitySeams.hostLocalSessionEligible()
     : identitySeams.hostLocalSessionEligible(hostApi);
-}
-
-export function useIdentitySession(): IdentitySession | null {
-  return identitySeams.useIdentitySession();
-}
-
-export function useConnect() {
-  return identitySeams.useConnect();
 }
 
 export function currentSession(): IdentitySession | null {
@@ -784,9 +738,6 @@ export async function probeIdentity(): Promise<HealthState> {
 }
 export async function probeHost(): Promise<HealthState> {
   return identitySeams.probeHost();
-}
-export function useOrphanSession(): boolean {
-  return identitySeams.useOrphanSession();
 }
 export async function fetchPrincipal(): Promise<Principal> {
   return identitySeams.fetchPrincipal();

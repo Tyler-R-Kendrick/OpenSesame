@@ -1,10 +1,4 @@
-import { useConnectivityMonitor } from "./connectivity-monitor.js";
-import {
-  type HealthState,
-  identityBase,
-  useIdentitySession,
-} from "./identity.js";
-import { useSettingsEpoch } from "./use-settings.js";
+import type { HealthState } from "./identity.js";
 
 export type IdentityPlane = "connected" | "none" | "down";
 
@@ -32,29 +26,9 @@ function identityStatusLabelDefault(identity: IdentityPlane): string {
   }
 }
 
-function usePlaneStatusDefault(): PlaneStatus {
-  const session = useIdentitySession();
-  // Reachability comes from the one supervisor, not from a probe of our own.
-  const monitor = useConnectivityMonitor();
-  // The base is a separate concern: it can change without the verdict
-  // about it changing, and this hook still has to re-render for that.
-  useSettingsEpoch();
-  const identity = identityBase();
-
-  return {
-    identity: classifyIdentity(session !== null, monitor.identity.health),
-    identityBase: identity,
-  };
-}
-
 export const planeSeams = {
-  usePlaneStatus: usePlaneStatusDefault,
   identityStatusLabel: identityStatusLabelDefault,
 };
-
-export function usePlaneStatus(): PlaneStatus {
-  return planeSeams.usePlaneStatus();
-}
 
 export function identityStatusLabel(identity: IdentityPlane): string {
   return planeSeams.identityStatusLabel(identity);

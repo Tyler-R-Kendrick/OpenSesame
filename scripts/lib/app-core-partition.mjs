@@ -62,8 +62,8 @@ export function parseImports(source) {
 const REACT = /^(react|react-dom|react-router|react-router-dom|preact)(\/|$)/;
 
 function candidates(base) {
-  if (/\.(js|mjs)$/.test(base)) {
-    const stem = base.replace(/\.(js|mjs)$/, "");
+  if (/\.(js|mjs|jsx)$/.test(base)) {
+    const stem = base.replace(/\.(js|mjs|jsx)$/, "");
     return [`${stem}.ts`, `${stem}.tsx`, base];
   }
   if (/\.[a-z]+$/i.test(base)) return [base];

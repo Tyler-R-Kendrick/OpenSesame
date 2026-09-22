@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IdentitySession } from "../lib/identity.js";
+import { identityHookSeams } from "../bindings/identity.js";
+import { type IdentitySession, identitySeams } from "../lib/identity.js";
 import type { IdpRecord } from "../lib/idp-registry.js";
 import { expectProseBudget, makeClient } from "./identity/test-fixtures.js";
 
@@ -18,10 +19,9 @@ const registerByoProvider = vi.hoisted(() => vi.fn());
 const registry: { raw: string | null } = vi.hoisted(() => ({ raw: null }));
 
 import { deviceIdentitySeams } from "../lib/device-identity.js";
-import { identitySeams } from "../lib/identity.js";
 const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
-Object.assign(identitySeams, {
-  identityBase: () => "http://127.0.0.1:8788",
+identitySeams.identityBase = () => "http://127.0.0.1:8788";
+Object.assign(identityHookSeams, {
   useConnect: () => ({ connect, connecting: false, error: null }),
   useIdentitySession: () => session.current,
 });

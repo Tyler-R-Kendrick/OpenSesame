@@ -22,7 +22,7 @@ import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
 import { continueAsGuest, resumeGuestSession } from "../lib/guest-auth.js";
-import { currentSession, useIdentitySession } from "../lib/identity.js";
+import { currentSession } from "../lib/identity.js";
 import { PERSONAL_PROJECT_ID } from "../lib/projects.js";
 import {
   type FederatedProviderSummary,

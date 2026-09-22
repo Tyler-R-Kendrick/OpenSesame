@@ -18,7 +18,6 @@
  *    The row says which it will be before the person commits.
  */
 
-import { useMemo, useSyncExternalStore } from "react";
 import { continueAsGuest } from "./guest-auth.js";
 import { kvHydrate } from "./kv.js";
 import { guestVaultLabel } from "./local-guest.js";
@@ -149,10 +148,10 @@ function deviceHasSeveralVaultsDefault(): boolean {
  * The list, for a component: re-derived only when the projects view or the
  * vault store actually emits, not on every render or every keystroke.
  */
-let deviceVaultsVersion = 0;
-function subscribeDeviceVaults(listener: () => void): () => void {
+let deviceVaultsRevision = 0;
+export function subscribeDeviceVaults(listener: () => void): () => void {
   const bump = () => {
-    deviceVaultsVersion += 1;
+    deviceVaultsRevision += 1;
     listener();
   };
   const unsubscribeProjects = subscribeProjects(bump);
@@ -163,13 +162,9 @@ function subscribeDeviceVaults(listener: () => void): () => void {
   };
 }
 
-export function useDeviceVaults(): DeviceVault[] {
-  const version = useSyncExternalStore(
-    subscribeDeviceVaults,
-    () => deviceVaultsVersion,
-    () => -1,
-  );
-  return useMemo(() => (version < 0 ? [] : listDeviceVaults()), [version]);
+/** The version `subscribeDeviceVaults` bumps; React binds it in bindings/vaults.ts. */
+export function deviceVaultsVersion(): number {
+  return deviceVaultsRevision;
 }
 
 /**

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconAlert, IconLogin } from "../../components/Icons.js";
-import { useConnect } from "../../lib/identity.js";
+
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 
+import { useConnect } from "../../bindings/identity.js";
 export function ConnectIdentityNote({
   online,
   what,

@@ -2,6 +2,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import {
   IconEye,
@@ -31,7 +32,6 @@ import {
   prefillNewDraft,
 } from "../../lib/vault/new-draft.js";
 import { validateWebsitePatterns } from "../../lib/vault/website-pattern.js";
-import { useWebMcpLoginDraft } from "../../webmcp/login-draft.js";
 import { DraftSuggestions } from "./DraftSuggestions.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";

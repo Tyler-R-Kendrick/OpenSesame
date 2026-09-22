@@ -3,9 +3,10 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, expect, it } from "vitest";
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../lib/section-views.js";
+
 import { AccessTree } from "./AccessTree.js";
 
+import { ACCESS_LABELS, ACCESS_VIEWS } from "../lib/section-view-names.js";
 function Page() {
   const location = useLocation();
   const [open, setOpen] = useState(true);

@@ -8,6 +8,7 @@ import {
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { identityHookSeams } from "../bindings/identity.js";
 
 const orgs = vi.hoisted(() => ({
   lookupOrgTenant: vi.fn(),
@@ -24,10 +25,12 @@ Object.assign(orgSeams, {
 
 import { identitySeams } from "../lib/identity.js";
 Object.assign(identitySeams, {
-  useIdentitySession: () => null,
   currentSession: () => null,
   connectProvisional: vi.fn(),
   identityBase: () => "http://127.0.0.1:18788",
+});
+Object.assign(identityHookSeams, {
+  useIdentitySession: () => null,
 });
 
 import { federationSeams } from "../lib/federation.js";
@@ -59,7 +62,7 @@ describe("AccountSwitcher", () => {
     orgs.listOrgMemberships.mockReset();
     orgs.joinOrgTenant.mockReset();
     beginSignIn.mockReset();
-    identitySeams.useIdentitySession = () => null;
+    identityHookSeams.useIdentitySession = () => null;
     identitySeams.currentSession = () => null;
     orgs.listOrgMemberships.mockResolvedValue([]);
   });
@@ -171,7 +174,7 @@ describe("AccountSwitcher", () => {
   });
 
   it("lists org memberships for a connected guest", async () => {
-    identitySeams.useIdentitySession = () => ({
+    identityHookSeams.useIdentitySession = () => ({
       principalId: "prn_guest",
       accessToken: "tok",
       issuerOrigin: "http://127.0.0.1:18788",
@@ -307,7 +310,7 @@ describe("AccountSwitcher — signed in through the broker, no Identity API (ADR
       expiresAt: Date.now() + 60_000,
       name: "Test Person",
     });
-    identitySeams.useIdentitySession = () => null;
+    identityHookSeams.useIdentitySession = () => null;
     identitySeams.currentSession = () => null;
   });
   afterEach(() => {

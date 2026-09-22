@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
 import { DIRECTORY_KEY } from "./lib/connector-directory.js";
+import { registerDuressUiModule } from "./lib/duress/feature/mode.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
 import { LAST_VAULT_KEY, lastVaultIsGuest } from "./lib/last-vault.js";
@@ -66,6 +67,12 @@ if (framed()) {
 // OPFS. Miss that event and there is no second chance until the next load, so
 // the listener goes on before anything asynchronous.
 armInstall();
+
+// The shared core never imports UI (ADR 0133); the shell says how to load the
+// duress settings panel when the duress runtime warms its capabilities.
+registerDuressUiModule(
+  () => import("./components/duress/DuressSettingsPanel.js"),
+);
 
 void (async () => {
   // OPFS is async and the store reads its header synchronously, so pull the

@@ -30,7 +30,6 @@ import {
   parseTransportStatusView,
 } from "./transport-model.js";
 import { normalizeApiBase } from "./urls.js";
-import { useSettingsEpoch } from "./use-settings.js";
 
 export const TRANSPORT_STATUS_PATH = "/api/v1/operator/transport/status";
 export const TRANSPORT_VERIFY_PATH = "/api/v1/operator/transport/verify";
@@ -44,12 +43,6 @@ export function transportVerifierOrigin(
 ): string | null {
   const raw = settings.hostApi.trim();
   return raw ? normalizeApiBase(raw) : null;
-}
-
-/** Re-renders when the endpoint changes; false on every fresh origin. */
-export function useTransportVerifierConfigured(): boolean {
-  useSettingsEpoch();
-  return transportVerifierOrigin() !== null;
 }
 
 export type TransportStatusResult =

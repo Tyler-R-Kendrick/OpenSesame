@@ -1,4 +1,4 @@
-import { ACCESS_VIEWS } from "./section-views.js";
+import { ACCESS_VIEWS } from "./section-view-names.js";
 
 export type AccessView = (typeof ACCESS_VIEWS)[number];
 

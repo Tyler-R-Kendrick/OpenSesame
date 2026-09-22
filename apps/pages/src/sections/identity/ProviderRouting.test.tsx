@@ -1,8 +1,9 @@
-/** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+/** @vitest-environment jsdom */
+import { identityHookSeams } from "../../bindings/identity.js";
 import { federationSeams } from "../../lib/federation.js";
 import { identitySeams } from "../../lib/identity.js";
 import {
@@ -20,7 +21,7 @@ beforeEach(() => {
     stored = value;
   });
   vi.spyOn(identitySeams, "identityBase").mockReturnValue("");
-  vi.spyOn(identitySeams, "useIdentitySession").mockReturnValue(null);
+  vi.spyOn(identityHookSeams, "useIdentitySession").mockReturnValue(null);
   vi.spyOn(providersSeams, "listFederatedProviders").mockResolvedValue([]);
   vi.spyOn(federationSeams, "beginSignIn").mockResolvedValue();
   vi.stubGlobal(

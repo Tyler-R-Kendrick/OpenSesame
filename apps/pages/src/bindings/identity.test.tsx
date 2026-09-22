@@ -2,18 +2,20 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultCapabilityConnectors } from "./capabilities.js";
+import { defaultCapabilityConnectors } from "../lib/capabilities.js";
 import {
   clearHostSession,
   clearSession,
   connectProvisional,
   probeOrphanSession,
+} from "../lib/identity.js";
+import { saveSettings } from "../lib/settings.js";
+
+import {
   useConnect,
   useIdentitySession,
   useOrphanSession,
 } from "./identity.js";
-import { saveSettings } from "./settings.js";
-
 const IDENTITY = "https://identity.example.test";
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {

@@ -33,7 +33,6 @@ import {
   type ConnectorStatus,
   isOfflineSet,
   needsAttention,
-  useConnectors,
 } from "../lib/connectors.js";
 import { showKeymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
@@ -43,6 +42,7 @@ import { ConnectionCeremony, connectorGlyph } from "./ConnectivityBar.js";
 import { IconBell, IconDots, IconHelp, IconTerminal, IconX } from "./Icons.js";
 import { NotificationsBar, useNoticeCount } from "./NotificationsBar.js";
 
+import { useConnectors } from "../bindings/connectors.js";
 /**
  * The worst tone in the set, which is the one a single dot has to report.
  * Offline outranks attention because with no network nothing else is knowable;

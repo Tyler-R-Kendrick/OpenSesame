@@ -1,6 +1,9 @@
-import { IDENTITY_LABELS, IDENTITY_VIEWS } from "../../lib/section-views.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
+import {
+  IDENTITY_LABELS,
+  IDENTITY_VIEWS,
+} from "../../lib/section-view-names.js";
 export type IdentityTab = (typeof IDENTITY_VIEWS)[number];
 
 export function IdentityTabs({

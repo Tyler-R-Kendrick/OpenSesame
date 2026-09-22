@@ -58,6 +58,7 @@ pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disabl
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
+pnpm quality:app-core    # Pages→app-core partition (ADR 0133): no moving code may import staying code or React
 pnpm quality:bundle      # build apps/pages|pwa|console, check bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity

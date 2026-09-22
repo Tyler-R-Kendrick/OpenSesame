@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { identityHookSeams } from "../bindings/identity.js";
 import { clearNotices, listNotices } from "../lib/notices.js";
 import type { SecretItem } from "../lib/vault/model.js";
 const online = vi.hoisted(() => ({ value: true }));
@@ -30,11 +31,12 @@ const ensureHostSession = vi.hoisted(() =>
 
 import { HostSessionError, identitySeams } from "../lib/identity.js";
 import { setVercelConnectAuth } from "../lib/vercel-connect.js";
-const originalIdentitySeams = { ...identitySeams };
 Object.assign(identitySeams, {
   ensureHostSession,
   hostBase: () => "http://127.0.0.1:8787",
   hostLocalSessionEligible: () => hostEligible.value,
+});
+Object.assign(identityHookSeams, {
   useConnect: () => ({
     connect,
     connecting: connectState.connecting,
@@ -43,11 +45,9 @@ Object.assign(identitySeams, {
   useIdentitySession: () => session.current,
 });
 import { useOnlineSeams } from "../lib/use-online.js";
-const originalUseOnlineSeams = { ...useOnlineSeams };
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 import { settingsSeams } from "../lib/settings.js";
-const originalSettingsSeams = { ...settingsSeams };
 Object.assign(settingsSeams, { shouldAutoConnect });
 const vault: { items: SecretItem[]; tomb: string; status: string } = vi.hoisted(
   () => ({ items: [], tomb: "personal", status: "unlocked" }),

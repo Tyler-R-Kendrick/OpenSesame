@@ -11,10 +11,10 @@ import {
   listConnections,
 } from "../lib/connections.js";
 import { getBundledProviders } from "../lib/embedded-catalog.js";
-import { useIdentitySession } from "../lib/identity.js";
+
 import { useOnline } from "../lib/use-online.js";
 import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
-import { useVercelConnectConfigured } from "../lib/vercel-connect.js";
+
 import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
@@ -29,6 +29,8 @@ import {
 } from "./connections/shared.js";
 import "./connections.css";
 
+import { useIdentitySession } from "../bindings/identity.js";
+import { useVercelConnectConfigured } from "../bindings/vercel-connect.js";
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash, search } = useLocation();

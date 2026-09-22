@@ -20,7 +20,6 @@ export {
   rankHelpTopics,
   searchHelpTopics,
 } from "./goals.js";
-export { GuideTarget, useGuideTarget } from "./react.jsx";
 export {
   GUIDE_ROUTES,
   type GuideRouteDescriptor,

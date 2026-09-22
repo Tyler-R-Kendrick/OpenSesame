@@ -21,10 +21,10 @@ import {
   removeVault,
   sealNewVault,
   switchVault,
-  useDeviceVaults,
 } from "../../lib/vaults.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
 
+import { useDeviceVaults } from "../../bindings/vaults.js";
 export function VaultsPanel() {
   const { status, guest } = useVault();
   const vaults = useDeviceVaults();

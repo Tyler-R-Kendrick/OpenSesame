@@ -1,10 +1,11 @@
 import { useLocation, useSearchParams } from "react-router";
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
+
 import { identityPageTree } from "../sections/identity/page-tree.js";
 import { useIdentityRailSnapshot } from "../sections/identity/use-local-directory.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 import { SECTIONS, SectionRow } from "./RailRows.js";
 
+import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
 export function IdentityTree({
   open,
   active,

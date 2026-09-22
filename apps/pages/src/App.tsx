@@ -9,7 +9,7 @@ import {
   useRef,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
-import { useAmbientAuthBoot } from "./lib/ambient-auth/boot.js";
+
 import { sealPendingConnectorDirectory } from "./lib/connector-directory.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
@@ -32,6 +32,7 @@ import {
 } from "./tutorial/ui/SupportLauncher.js";
 import { useWebMcp } from "./webmcp/lifecycle.js";
 
+import { useAmbientAuthBoot } from "./bindings/ambient-auth.js";
 // Route-level code splitting. Unlock, the front door and the broker/federation
 // returns stay eager: they are the first paint of every session, and on a
 // phone over a slow link that paint is what a person waits for. The shell and

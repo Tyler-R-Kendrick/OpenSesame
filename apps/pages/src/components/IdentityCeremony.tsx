@@ -5,18 +5,13 @@ import type { ConnectorStatus } from "../lib/connectors.js";
 import { defaultUpstream } from "../lib/federation.js";
 import { beginSignIn } from "../lib/federation.js";
 import { claimGuestAuth } from "../lib/guest-auth.js";
-import {
-  adoptToken,
-  clearSession,
-  identityBase,
-  useConnect,
-  useIdentitySession,
-} from "../lib/identity.js";
+import { adoptToken, clearSession, identityBase } from "../lib/identity.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { FieldShell } from "./FieldShell.js";
 import { IconTerminal, IconUser } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";
 
+import { useConnect, useIdentitySession } from "../bindings/identity.js";
 export const identityCeremonyDependencies = {
   useConnect,
   useIdentitySession,

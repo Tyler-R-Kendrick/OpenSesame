@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router";
+import { useIdentitySession } from "../bindings/identity.js";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import {
   IconAlert,
@@ -56,7 +56,6 @@ import {
   type IdentitySession,
   identityBase,
   remoteIdentityApi,
-  useIdentitySession,
 } from "../lib/identity.js";
 import {
   IDP_PRESETS,
@@ -87,7 +86,8 @@ import {
   listFederatedProviders,
   providerUpstream,
 } from "../lib/providers.js";
-import { IDENTITY_VIEWS, useSectionView } from "../lib/section-views.js";
+import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
+import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";

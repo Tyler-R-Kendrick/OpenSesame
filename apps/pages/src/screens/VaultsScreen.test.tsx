@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { identityHookSeams } from "../bindings/identity.js";
 
 import { PERSONAL_PROJECT_ID, projectSeams } from "../lib/projects.js";
 import { vaultsSeams } from "../lib/vaults.js";
@@ -38,6 +39,8 @@ const sealNewVault = vi.fn();
 import { identitySeams } from "../lib/identity.js";
 Object.assign(identitySeams, {
   identityBase: () => "",
+});
+Object.assign(identityHookSeams, {
   useIdentitySession: () => null,
 });
 

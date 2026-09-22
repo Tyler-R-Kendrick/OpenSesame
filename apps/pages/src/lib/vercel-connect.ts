@@ -9,7 +9,6 @@ import {
   revokeToken,
   startAuthorization,
 } from "@vercel/connect";
-import { useSyncExternalStore } from "react";
 import { isVercelConnectable } from "./vercel-connect-catalog.js";
 import { connectRelayConfigured } from "./vercel-connect-relay.js";
 
@@ -84,14 +83,6 @@ export function subscribeVercelConnectAuth(listener: () => void): () => void {
   return () => {
     listeners.delete(listener);
   };
-}
-
-export function useVercelConnectConfigured(): boolean {
-  return useSyncExternalStore(
-    subscribeVercelConnectAuth,
-    vercelConnectConfigured,
-    vercelConnectConfigured,
-  );
 }
 
 export const vercelConnectSeams = {

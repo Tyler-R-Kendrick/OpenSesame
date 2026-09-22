@@ -3,8 +3,11 @@ import {
   type PageTreeSource,
   pageTabTree,
 } from "../../lib/page-to-tree.js";
-import { ACCESS_LABELS, type ACCESS_VIEWS } from "../../lib/section-views.js";
 
+import {
+  ACCESS_LABELS,
+  type ACCESS_VIEWS,
+} from "../../lib/section-view-names.js";
 export type AccessPlanes = {
   host?: boolean;
   identity?: boolean;

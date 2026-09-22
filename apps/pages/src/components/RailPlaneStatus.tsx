@@ -1,5 +1,6 @@
-import { identityStatusLabel, usePlaneStatus } from "../lib/planes.js";
+import { identityStatusLabel } from "../lib/planes.js";
 
+import { usePlaneStatus } from "../bindings/planes.js";
 export function RailPlaneStatusDefault() {
   const status = usePlaneStatus();
   return (

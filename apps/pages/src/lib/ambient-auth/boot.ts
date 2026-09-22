@@ -1,9 +1,9 @@
 /**
  * Pages startup: callback classification happens in App.tsx before this
- * hook runs. Default personal mode performs no network I/O.
+ * runs. Default personal mode performs no network I/O. React runs it once
+ * through `useAmbientAuthBoot` (bindings/ambient-auth.ts).
  */
 
-import { useEffect, useRef } from "react";
 import { readFederationSessionJson } from "../federation-session-store.js";
 import {
   clearSession,
@@ -50,48 +50,44 @@ function revalidateStoredSession(): ReturnType<typeof loadSession> {
   return session;
 }
 
-export function useAmbientAuthBoot(
+/** Revalidate a stored session and, when eligible, start ambient sign-in. */
+export function bootAmbientAuth(
   hasAuthCallback: boolean,
   pathname: string,
 ): void {
-  const started = useRef(false);
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    const snapshot = vaultStore.getSnapshot();
-    const session = revalidateStoredSession();
-    const eligibility = evaluateEligibility({
-      hasAuthCallback,
-      pathname,
-      vaultStatus:
-        snapshot.status === "unlocked" || snapshot.status === "locked"
-          ? snapshot.status
-          : "empty",
-      guestOpen: snapshot.guest === true && snapshot.status === "unlocked",
-      privilegedOperation: snapshot.awaitingSecondStep === true,
-      unsavedWork: false,
-      localConsentRoute:
-        pathname.startsWith("/identity/authorize") ||
-        pathname.startsWith("/identity/siop"),
-      existingVerifiedSession: session !== null,
-      operatorProviders: [
-        ...signInMethods().providers,
-        ...deployedAmbientProviders(),
-      ],
-      runtimePolicy: deployedAmbientPolicy(),
-      userPreference: readUserAmbientPreference(),
-      lastSignInMethod: readLastSignIn(),
-      openPairwiseSub: session?.pairwiseSub,
-    });
-    if (eligibility.state !== "eligible") return;
-    ambientControllerSeams.discover = async (issuer) => {
-      const doc = await discover(issuer);
-      return {
-        authorization_endpoint: doc.authorization_endpoint,
-        token_endpoint: doc.token_endpoint,
-        jwks_uri: doc.jwks_uri,
-      };
+  const snapshot = vaultStore.getSnapshot();
+  const session = revalidateStoredSession();
+  const eligibility = evaluateEligibility({
+    hasAuthCallback,
+    pathname,
+    vaultStatus:
+      snapshot.status === "unlocked" || snapshot.status === "locked"
+        ? snapshot.status
+        : "empty",
+    guestOpen: snapshot.guest === true && snapshot.status === "unlocked",
+    privilegedOperation: snapshot.awaitingSecondStep === true,
+    unsavedWork: false,
+    localConsentRoute:
+      pathname.startsWith("/identity/authorize") ||
+      pathname.startsWith("/identity/siop"),
+    existingVerifiedSession: session !== null,
+    operatorProviders: [
+      ...signInMethods().providers,
+      ...deployedAmbientProviders(),
+    ],
+    runtimePolicy: deployedAmbientPolicy(),
+    userPreference: readUserAmbientPreference(),
+    lastSignInMethod: readLastSignIn(),
+    openPairwiseSub: session?.pairwiseSub,
+  });
+  if (eligibility.state !== "eligible") return;
+  ambientControllerSeams.discover = async (issuer) => {
+    const doc = await discover(issuer);
+    return {
+      authorization_endpoint: doc.authorization_endpoint,
+      token_endpoint: doc.token_endpoint,
+      jwks_uri: doc.jwks_uri,
     };
-    void startAutomaticAttempt(eligibility, redirectUri());
-  }, [hasAuthCallback, pathname]);
+  };
+  void startAutomaticAttempt(eligibility, redirectUri());
 }
