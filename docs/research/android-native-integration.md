@@ -624,23 +624,31 @@ Recommendation: **start with the TypeScript route.**
 
 ### 11.6 Extraction order
 
-1. **Ports in place, no moves.**
-   - `KvPort` already exists as `lib/kv.ts`.
-   - Introduce `CryptoPort`, `ClockPort`, `XmlPort` and `WebAuthnPort`.
-   - Replace the incidental `window` and `document` uses.
-2. **Move the vault kernel into a package** (for example
-   `packages/vault-core`), and make Pages import it.
-   - What moves: `crypto.ts`, `store-header.ts`, the protection types,
-     `website-pattern.ts`, `password.ts` and `totp.ts`.
-   - Give the package a tsconfig whose `lib` omits `"DOM"`, so the
-     browser-free boundary is compile-checked rather than a convention.
-3. **Prove it outside a browser.** The TS CLI reads a local vault, and the
-   Android build runs a `JavaScriptSandbox` smoke test over the same
-   package.
-4. **Move the rest as consumers need it:** duress, SOPS, import/export and
-   IAM policy.
+The earlier draft here, a small kernel package, was superseded by a plan to
+move most of Pages' logic, not the minimum. ADR 0133 records it. In
+outline:
 
-Moved files keep their recorded numbers under `pnpm quality:gate`, and each
-new package is scored by `pnpm quality:packages` for ADP and SDP (ADR 0093).
-Nothing here changes a design rule in AGENTS.md §5. In particular, guest
-entry and unlock behavior stay in Pages' shell.
+1. **Take React and UI imports out of `lib/` in place.** `identity.ts`
+   imports React, and `vault/store.ts` reaches it through `remote-code`, so
+   a Node or Android process would load React too.
+2. **Create `packages/app-core` with a host-port skeleton.** Standard web
+   APIs that browsers and Node share are the runtime contract. Ports cover
+   only what differs by platform: storage, navigation, window messaging,
+   WebAuthn, workers, environment, clipboard, notifications, inference and
+   tool hosting.
+3. **Relocate wholesale with `git mv`.** About 82k of the ~96k lines of
+   `.ts` move, keeping their relative layout. Most of `lib/` imports itself
+   in one cycle, and that cycle stays inside the package, where the
+   package-cycle gate doesn't apply. Pages keeps the React tree and the
+   DOM/PWA shell.
+4. **Push browser-only code behind ports,** tracked by a portability
+   ledger that only falls.
+5. **Add Node and sandbox hosts,** the CLI verbs, and a bare-isolate test.
+6. **Break the cycle and split into domain packages,** with `vault-core`
+   first.
+
+Moved files do **not** keep their recorded numbers automatically:
+`quality-baseline.json` is keyed by path. The relocation step adds a
+`quality:gate --relocate` mode that re-keys entries and refuses any
+increase. Nothing here changes a design rule in AGENTS.md §5. In
+particular, guest entry and unlock behavior stay in Pages' shell.
