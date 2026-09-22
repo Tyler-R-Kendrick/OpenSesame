@@ -215,19 +215,39 @@ try {
     ],
   });
   const corsPage = await corsContext.newPage();
-  await corsPage.goto(`${staticOrigin}/OpenSesame/`);
-  const cors = await corsPage.evaluate(async (url) => {
+  // The app is a PWA and settles with its own navigation after the document
+  // loads, which on a slower runner lands in the middle of the evaluate below
+  // and destroys its execution context. Wait for it to come to rest, and if a
+  // late navigation still beats us, run the probe again on the new context —
+  // the assertion is about the browser's CORS behaviour from this origin, not
+  // about which of the app's navigations we happen to catch.
+  const readCrossOrigin = async (url) => {
+    const probeFetch = async (target) =>
+      await corsPage.evaluate(async (u) => {
+        try {
+          const r = await fetch(u, { credentials: "include", mode: "cors" });
+          return {
+            ok: true,
+            status: r.status,
+            text: (await r.text()).slice(0, 80),
+          };
+        } catch (error) {
+          return { ok: false, error: String(error).slice(0, 120) };
+        }
+      }, target);
+    await corsPage.waitForLoadState("load");
     try {
-      const r = await fetch(url, { credentials: "include", mode: "cors" });
-      return {
-        ok: true,
-        status: r.status,
-        text: (await r.text()).slice(0, 80),
-      };
+      return await probeFetch(url);
     } catch (error) {
-      return { ok: false, error: String(error).slice(0, 120) };
+      if (!/Execution context was destroyed/.test(String(error))) throw error;
+      await corsPage.waitForLoadState("load");
+      return await probeFetch(url);
     }
-  }, probe);
+  };
+  await corsPage.goto(`${staticOrigin}/OpenSesame/`, {
+    waitUntil: "domcontentloaded",
+  });
+  const cors = await readCrossOrigin(probe);
   check(
     "cross-origin-read-is-refused-despite-the-certificate",
     cors.ok === false,
