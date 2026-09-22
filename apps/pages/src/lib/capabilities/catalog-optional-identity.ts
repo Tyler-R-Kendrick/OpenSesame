@@ -88,7 +88,8 @@ export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         },
       ],
       requiresService: true,
-      offlineLimits: "Provider sign-in needs the Identity API and the provider.",
+      offlineLimits:
+        "Provider sign-in needs the Identity API and the provider.",
     },
   ),
   optional(
@@ -107,7 +108,8 @@ export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       ],
       requiresService: true,
       requiresDocumentReload: true,
-      offlineLimits: "Silent sign-in is skipped offline; the saved session is used.",
+      offlineLimits:
+        "Silent sign-in is skipped offline; the saved session is used.",
     },
   ),
   optional(

@@ -142,7 +142,8 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       browserPermissions: ["notifications"],
       requiresService: true,
       workerGraphConstraint: "push",
-      offlineLimits: "Enrolment needs the Identity API; delivery is the browser's.",
+      offlineLimits:
+        "Enrolment needs the Identity API; delivery is the browser's.",
     },
   ),
   optional(

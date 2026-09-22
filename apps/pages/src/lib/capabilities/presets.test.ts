@@ -67,7 +67,10 @@ describe("MODULE_OWNERSHIP", () => {
       }
       if (!exists) missing.push(ownership.entry);
     }
-    expect(missing, `unplanned entries missing on disk:\n${missing.join("\n")}`).toEqual([]);
+    expect(
+      missing,
+      `unplanned entries missing on disk:\n${missing.join("\n")}`,
+    ).toEqual([]);
     // Planned entries that have landed are reported so the list can shrink.
     if (landed.length > 0) {
       console.info(`planned module entries now on disk:\n${landed.join("\n")}`);
@@ -75,7 +78,9 @@ describe("MODULE_OWNERSHIP", () => {
   });
 
   it("HTML and public files name known owners; core public files are null", () => {
-    expect(HTML_ENTRY_OWNERSHIP["auth/redirect.html"]).toBe("identity.ambient-sso");
+    expect(HTML_ENTRY_OWNERSHIP["auth/redirect.html"]).toBe(
+      "identity.ambient-sso",
+    );
     for (const owner of Object.values(HTML_ENTRY_OWNERSHIP)) {
       expect(isKnownCapability(owner)).toBe(true);
     }
@@ -83,7 +88,9 @@ describe("MODULE_OWNERSHIP", () => {
     expect(PUBLIC_FILE_OWNERSHIP["os-runtime-config.json"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["security-profile.json"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["auth.js"]).toBe("identity.site-broker");
-    expect(PUBLIC_FILE_OWNERSHIP["static-auth/**"]).toBe("identity.site-broker");
+    expect(PUBLIC_FILE_OWNERSHIP["static-auth/**"]).toBe(
+      "identity.site-broker",
+    );
     for (const [file, owner] of Object.entries(PUBLIC_FILE_OWNERSHIP)) {
       if (owner !== null) expect(isKnownCapability(owner), file).toBe(true);
       const onDisk = file.endsWith("/**") ? file.slice(0, -3) : file;
@@ -94,9 +101,13 @@ describe("MODULE_OWNERSHIP", () => {
   it("distributionFromOwnership is a valid contract in both modes", () => {
     for (const mode of ["selective", "hardened"] as const) {
       const distribution = distributionFromOwnership(mode);
-      const parsed = parseDistributionContract(JSON.parse(JSON.stringify(distribution)));
+      const parsed = parseDistributionContract(
+        JSON.parse(JSON.stringify(distribution)),
+      );
       expect(parsed.ok, JSON.stringify(parsed)).toBe(true);
-      expect(distribution.moduleIds).toEqual(Object.keys(MODULE_OWNERSHIP).sort());
+      expect(distribution.moduleIds).toEqual(
+        Object.keys(MODULE_OWNERSHIP).sort(),
+      );
       expect(distribution.workerVariants.map((variant) => variant.id)).toEqual([
         "core-only",
         "push",
@@ -116,24 +127,38 @@ describe("PRESETS", () => {
     ]);
     for (const preset of PRESETS) {
       expect(preset.version).toBe(1);
-      for (const id of [...preset.required, ...preset.optional, ...preset.defaultSelected]) {
+      for (const id of [
+        ...preset.required,
+        ...preset.optional,
+        ...preset.defaultSelected,
+      ]) {
         expect(isKnownCapability(id), `${preset.id}: ${id}`).toBe(true);
       }
       // Pre-ticked ids are offered ids.
       const offered = new Set([...preset.required, ...preset.optional]);
       for (const id of preset.defaultSelected) {
-        expect(offered.has(id), `${preset.id} pre-selects unoffered ${id}`).toBe(true);
+        expect(
+          offered.has(id),
+          `${preset.id} pre-selects unoffered ${id}`,
+        ).toBe(true);
       }
       expect(new Set(preset.optional).size).toBe(preset.optional.length);
-      for (const id of preset.required) expect(preset.optional).not.toContain(id);
+      for (const id of preset.required)
+        expect(preset.optional).not.toContain(id);
     }
   });
 
   it("personal and family neither offer nor pre-select connectors, enterprise, agents, remote AI or telemetry", () => {
     for (const id of ["personal", "family"] as const) {
       const preset = presetById(id);
-      for (const offered of [...preset.optional, ...preset.defaultSelected, ...preset.required]) {
-        expect(isRestrictedForHome(offered), `${id} offers ${offered}`).toBe(false);
+      for (const offered of [
+        ...preset.optional,
+        ...preset.defaultSelected,
+        ...preset.required,
+      ]) {
+        expect(isRestrictedForHome(offered), `${id} offers ${offered}`).toBe(
+          false,
+        );
       }
       expect(preset.optional).not.toContain("notifications.web-push");
     }
@@ -144,18 +169,30 @@ describe("PRESETS", () => {
   it("homelab and organization offer but never pre-select the external families", () => {
     for (const id of ["homelab", "organization"] as const) {
       const preset = presetById(id);
-      for (const family of ["connectors.external", "enterprise.ca-administration", "agents.webmcp"]) {
-        expect([...preset.optional, ...preset.required], `${id} offers ${family}`).toContain(family);
+      for (const family of [
+        "connectors.external",
+        "enterprise.ca-administration",
+        "agents.webmcp",
+      ]) {
+        expect(
+          [...preset.optional, ...preset.required],
+          `${id} offers ${family}`,
+        ).toContain(family);
       }
       for (const selected of preset.defaultSelected) {
-        expect(isRestrictedForHome(selected), `${id} pre-selects ${selected}`).toBe(false);
+        expect(
+          isRestrictedForHome(selected),
+          `${id} pre-selects ${selected}`,
+        ).toBe(false);
       }
     }
   });
 
   it("custom offers every optional capability and pre-selects nothing", () => {
     const custom = presetById("custom");
-    expect([...custom.optional].sort()).toEqual([...optionalCapabilityIds()].sort());
+    expect([...custom.optional].sort()).toEqual(
+      [...optionalCapabilityIds()].sort(),
+    );
     expect(custom.defaultSelected).toEqual([]);
     expect(custom.required).toEqual([]);
   });
@@ -176,7 +213,8 @@ describe("PRESETS", () => {
       expect(policy.capabilities.default).toBe("deny");
     }
     expect(
-      presetToInstancePolicy(presetById("family"), "i", "r").capabilities.prohibited,
+      presetToInstancePolicy(presetById("family"), "i", "r").capabilities
+        .prohibited,
     ).toContain("telemetry.external");
   });
 });

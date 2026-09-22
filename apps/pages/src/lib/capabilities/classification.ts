@@ -39,14 +39,13 @@ export type SourceClassification = Readonly<{
 }>;
 
 /** `src/modules/<id>/` is owned by `<id>` verbatim (ownership.md §4.3). */
-const MODULE_RULES: readonly SourceClassification[] = optionalCapabilityIds().map(
-  (id) => ({
+const MODULE_RULES: readonly SourceClassification[] =
+  optionalCapabilityIds().map((id) => ({
     pattern: `src/modules/${id}/`,
     classification: "optional",
     capability: id,
     rationale: "capability runtime module directory",
-  }),
-);
+  }));
 
 export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...MODULE_RULES,

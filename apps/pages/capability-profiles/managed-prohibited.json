@@ -53,10 +53,7 @@
     "basePolicyRevision": "12",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": [
-      "connectors.external",
-      "vault.passkey-records"
-    ],
+    "selectedOptional": ["connectors.external", "vault.passkey-records"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

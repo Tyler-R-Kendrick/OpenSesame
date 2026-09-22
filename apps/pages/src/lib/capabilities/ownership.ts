@@ -41,7 +41,10 @@ const PUSH = "notifications.web-push";
 export const MODULE_OWNERSHIP: Readonly<Record<ModuleId, ModuleOwnership>> =
   Object.freeze({
     ...Object.fromEntries(
-      optionalCapabilityIds().map((id) => [runtimeModule(id), runtimeEntry(id)]),
+      optionalCapabilityIds().map((id) => [
+        runtimeModule(id),
+        runtimeEntry(id),
+      ]),
     ),
     [workerModule(PUSH)]: {
       entry: "src/sw-push.ts",
@@ -93,15 +96,16 @@ export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
  * bundle), so they belong to the site broker, not to `identity.local-iam`.
  * A `null` owner is core: present in every build.
  */
-export const PUBLIC_FILE_OWNERSHIP: Readonly<Record<string, CapabilityId | null>> =
-  Object.freeze({
-    "icon.svg": null,
-    "os-runtime-config.json": null,
-    "security-profile.json": null,
-    "auth.js": "identity.site-broker",
-    "auth.js.sha384": "identity.site-broker",
-    "static-auth/**": "identity.site-broker",
-  });
+export const PUBLIC_FILE_OWNERSHIP: Readonly<
+  Record<string, CapabilityId | null>
+> = Object.freeze({
+  "icon.svg": null,
+  "os-runtime-config.json": null,
+  "security-profile.json": null,
+  "auth.js": "identity.site-broker",
+  "auth.js.sha384": "identity.site-broker",
+  "static-auth/**": "identity.site-broker",
+});
 
 export const WORKER_VARIANTS: readonly WorkerVariant[] = [
   { id: "core-only", scriptPath: "sw.js", satisfies: [] },

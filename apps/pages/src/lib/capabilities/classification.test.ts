@@ -60,24 +60,47 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
   it("classifies the executable roots the way ownership.md records them", () => {
     expect(classify("src/main.tsx")?.classification).toBe("core");
     expect(classify("src/sw.ts")?.capability).toBe("install.pwa");
-    expect(classify("src/sw-push.ts")?.capability).toBe("notifications.web-push");
-    expect(classify("auth/redirect.html")?.capability).toBe("identity.ambient-sso");
-    expect(classify("auth/redirect-bridge.ts")?.capability).toBe("identity.ambient-sso");
-    expect(classify("src/lib/vault/website-pattern.worker.ts")?.capability).toBe("vault.passwords");
+    expect(classify("src/sw-push.ts")?.capability).toBe(
+      "notifications.web-push",
+    );
+    expect(classify("auth/redirect.html")?.capability).toBe(
+      "identity.ambient-sso",
+    );
+    expect(classify("auth/redirect-bridge.ts")?.capability).toBe(
+      "identity.ambient-sso",
+    );
+    expect(
+      classify("src/lib/vault/website-pattern.worker.ts")?.capability,
+    ).toBe("vault.passwords");
     expect(classify("src/webmcp/tools.ts")?.capability).toBe("agents.webmcp");
-    expect(classify("src/webmcp/wallet-tools.ts")?.capability).toBe("wallet.spending");
-    expect(classify("src/screens/BrokerAuthorize.tsx")?.capability).toBe("identity.site-broker");
+    expect(classify("src/webmcp/wallet-tools.ts")?.capability).toBe(
+      "wallet.spending",
+    );
+    expect(classify("src/screens/BrokerAuthorize.tsx")?.capability).toBe(
+      "identity.site-broker",
+    );
     expect(classify("src/lib/local-guest.ts")?.classification).toBe("core");
-    expect(classify("src/lib/local-directory.ts")?.capability).toBe("identity.local-iam");
-    expect(classify("src/lib/local-access-requests.ts")?.capability).toBe("access.authority");
-    expect(classify("src/lib/capabilities.ts")?.capability).toBe("connectors.external");
-    expect(classify("src/lib/capabilities/catalog.ts")?.classification).toBe("core");
-    expect(classify("src/modules/sharing.drops/runtime.ts")?.capability).toBe("sharing.drops");
+    expect(classify("src/lib/local-directory.ts")?.capability).toBe(
+      "identity.local-iam",
+    );
+    expect(classify("src/lib/local-access-requests.ts")?.capability).toBe(
+      "access.authority",
+    );
+    expect(classify("src/lib/capabilities.ts")?.capability).toBe(
+      "connectors.external",
+    );
+    expect(classify("src/lib/capabilities/catalog.ts")?.classification).toBe(
+      "core",
+    );
+    expect(classify("src/modules/sharing.drops/runtime.ts")?.capability).toBe(
+      "sharing.drops",
+    );
   });
 
   it("classifies every exclusive package", () => {
     const expectations: Record<string, string> = {
-      "node_modules/@azure/msal-browser/redirect-bridge": "identity.ambient-sso",
+      "node_modules/@azure/msal-browser/redirect-bridge":
+        "identity.ambient-sso",
       "node_modules/@vercel/connect": "connectors.external",
       "node_modules/@ag-ui/client": "support.remote-ai",
       "node_modules/ai": "support.local-ai",
@@ -94,10 +117,14 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     for (const [pkg, capability] of Object.entries(expectations)) {
       expect(classify(pkg)?.capability, pkg).toBe(capability);
     }
-    expect(classify("node_modules/@opensesame/qr")?.classification).toBe("shared");
+    expect(classify("node_modules/@opensesame/qr")?.classification).toBe(
+      "shared",
+    );
     expect(classify("node_modules/react")?.classification).toBe("core");
     // `ai` must not swallow `@ai-sdk/*` or `age-encryption`.
-    expect(classify("node_modules/age-encryption")?.capability).toBe("backup.cloud-secrets");
+    expect(classify("node_modules/age-encryption")?.capability).toBe(
+      "backup.cloud-secrets",
+    );
   });
 
   it("prefix matching continues only on '.', '-' or '/'", () => {
@@ -106,7 +133,9 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(ruleMatches("src/lib/push", "src/lib/pushy.ts")).toBe(false);
     expect(ruleMatches("src/lib/local-", "src/lib/local-rbac.ts")).toBe(true);
     expect(ruleMatches("src/lib/vault/", "src/lib/vault/store.ts")).toBe(true);
-    expect(ruleMatches("node_modules/ai", "node_modules/ai/index.js")).toBe(true);
+    expect(ruleMatches("node_modules/ai", "node_modules/ai/index.js")).toBe(
+      true,
+    );
     expect(ruleMatches("node_modules/ai", "node_modules/aix")).toBe(false);
   });
 
@@ -123,7 +152,12 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
   });
 
   it("an optional rule never classifies an executable root as harmless shared", () => {
-    for (const root of ["src/main.tsx", "src/app-root.tsx", "src/sw.ts", "index.html"]) {
+    for (const root of [
+      "src/main.tsx",
+      "src/app-root.tsx",
+      "src/sw.ts",
+      "index.html",
+    ]) {
       expect(classify(root)?.classification, root).toBe("core");
     }
   });

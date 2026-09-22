@@ -60,10 +60,7 @@
     "basePolicyRevision": "2026-09-22.1",
     "revision": "2",
     "acceptedRequired": [],
-    "selectedOptional": [
-      "sharing.drops",
-      "sharing.household"
-    ],
+    "selectedOptional": ["sharing.drops", "sharing.household"],
     "chosenAlternatives": {
       "transport": "sharing.drops"
     },

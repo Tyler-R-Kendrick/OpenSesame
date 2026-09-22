@@ -14,10 +14,7 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": [
-        "backup.git-remote",
-        "connectors.external"
-      ],
+      "optional": ["backup.git-remote", "connectors.external"],
       "prohibited": [
         "access.authority",
         "activity.log",
@@ -60,10 +57,7 @@
     "basePolicyRevision": "3",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": [
-      "backup.git-remote",
-      "connectors.external"
-    ],
+    "selectedOptional": ["backup.git-remote", "connectors.external"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

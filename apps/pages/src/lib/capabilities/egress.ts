@@ -1,14 +1,15 @@
 /**
  * Destination-validated fetch for optional modules (S18).
  *
- * A module receives an `EgressPort`, never an unbounded `fetch`. Every request
- * is classified (ownership §4.3, `EgressClass`) and checked against three
- * things it cannot change: the capability's declared egress, the plan's
- * network envelope, and the deployment profile. Anything that fails is
- * refused before a socket opens — so an `Authorization` header can only ever
- * travel to a destination that passed (NET-05), a redirect is never
- * followed off-origin (NET-04), and no URL with a query string is ever
- * written to an error or a log (`redactUrl`).
+ * A module receives an `EgressPort` (runtime-contract.ts), never an unbounded
+ * `fetch`. Every request is classified (`EgressClass`) — from the purpose the
+ * module names, which must be one its descriptor declared — and checked
+ * against three things the module cannot change: the capability's declared
+ * egress, the CURRENT plan's network envelope, and the deployment profile.
+ * Anything that fails is refused before a socket opens, so an `Authorization`
+ * header can only ever travel to a destination that passed (NET-05); a
+ * redirect is never followed anywhere (NET-04); and no URL with a query
+ * string is ever written to an error or a log (`redactUrl`).
  */
 import type {
   CapabilityDescriptor,
@@ -20,11 +21,17 @@ import {
   localNetworkFetchSeams,
   targetAddressSpaceFor,
 } from "../local-network-fetch.js";
+import { CAPABILITY_CATALOG } from "./catalog.js";
+import { egressSeams } from "./egress-default.js";
+import type { EgressPort as ContractEgressPort } from "./runtime-contract.js";
+import { compositionStore } from "./store.js";
 
 export type EgressDenialCode =
   | "capability-not-approved"
+  | "capability-mismatch"
   | "invalid-url"
   | "unsupported-scheme"
+  | "purpose-not-declared"
   | "class-not-declared"
   | "not-same-origin"
   | "external-services-denied"
@@ -32,7 +39,7 @@ export type EgressDenialCode =
   | "local-authority-not-permitted"
   | "not-local-network"
   | "navigation-not-fetchable"
-  | "cross-origin-redirect";
+  | "redirect-refused";
 
 export class EgressDenied extends Error {
   readonly code: EgressDenialCode;
@@ -49,22 +56,28 @@ export class EgressDenied extends Error {
   }
 }
 
-export type EgressRequestMeta = Readonly<{ class: EgressClass }>;
+/** What a module says about a request; `purpose` must match a declaration. */
+export type EgressRequestMeta = Readonly<{
+  capability?: CapabilityId;
+  purpose?: string;
+  class?: EgressClass;
+}>;
 
 export type EgressDecision = Readonly<
   | { ok: true; class: EgressClass; crossOrigin: boolean; destination: string }
   | { ok: false; code: EgressDenialCode; destination: string }
 >;
 
-export type EgressPort = Readonly<{
-  capability: CapabilityId;
-  decide(input: string | URL, meta?: EgressRequestMeta): EgressDecision;
-  fetch(input: string | URL, init?: RequestInit, meta?: EgressRequestMeta): Promise<Response>;
-}>;
+export type EgressPort = ContractEgressPort &
+  Readonly<{
+    capability: CapabilityId;
+    decide(input: URL | string, meta?: EgressRequestMeta): EgressDecision;
+  }>;
 
 export type EgressPortOptions = Readonly<{
   capability: CapabilityDescriptor;
-  plan: EffectivePlan;
+  /** Read on every request so a revoked plan refuses at once. */
+  plan: () => EffectivePlan | null;
   /** Origins that count as the application itself (the document origin). */
   allowedOrigins: readonly string[];
   /** Deployment-profile fact; defaults to `mayPairLocalAuthority`. */
@@ -90,34 +103,38 @@ function parseDestination(input: string | URL, base: string | undefined): URL | 
   }
 }
 
-function isLoopbackHost(url: URL): boolean {
-  return targetAddressSpaceFor(url.href) === "loopback";
+function approvedIn(plan: EffectivePlan | null, id: CapabilityId): boolean {
+  return plan !== null && Object.hasOwn(plan.capabilities, id)
+    ? plan.capabilities[id].approved
+    : false;
 }
 
-function inferClass(crossOrigin: boolean): EgressClass {
+/** The class a request belongs to: explicit, or the declared purpose's, or inferred. */
+function classify(
+  descriptor: CapabilityDescriptor,
+  meta: EgressRequestMeta | undefined,
+  crossOrigin: boolean,
+): EgressClass | "purpose-not-declared" {
+  if (meta?.class !== undefined) return meta.class;
+  if (meta?.purpose !== undefined && meta.purpose !== "") {
+    const declared = descriptor.egress.find((e) => e.purpose === meta.purpose);
+    return declared === undefined ? "purpose-not-declared" : declared.class;
+  }
   return crossOrigin ? "external-service" : "application-assets";
 }
 
-function decideExternal(
-  url: URL,
-  options: EgressPortOptions,
-  destination: string,
-): EgressDecision {
-  if (url.protocol !== "https:" && !isLoopbackHost(url))
+function decideExternal(url: URL, plan: EffectivePlan, destination: string): EgressDecision {
+  if (url.protocol !== "https:" && targetAddressSpaceFor(url.href) !== "loopback")
     return { ok: false, code: "unsupported-scheme", destination };
-  if (options.plan.network.externalServices !== "allow")
+  if (plan.network.externalServices !== "allow")
     return { ok: false, code: "external-services-denied", destination };
-  const list = options.plan.network.allowedServiceOrigins;
+  const list = plan.network.allowedServiceOrigins;
   if (list.length > 0 && !list.includes(url.origin))
     return { ok: false, code: "origin-not-allowed", destination };
   return { ok: true, class: "external-service", crossOrigin: true, destination };
 }
 
-function decideLocal(
-  url: URL,
-  options: EgressPortOptions,
-  destination: string,
-): EgressDecision {
+function decideLocal(url: URL, options: EgressPortOptions, destination: string): EgressDecision {
   const permitted = options.mayPairLocalAuthority ?? localNetworkFetchSeams.eligible;
   if (!permitted()) return { ok: false, code: "local-authority-not-permitted", destination };
   if (targetAddressSpaceFor(url.href) === undefined)
@@ -130,18 +147,20 @@ function decide(
   input: string | URL,
   meta: EgressRequestMeta | undefined,
 ): EgressDecision {
-  const self = options.allowedOrigins[0];
-  const url = parseDestination(input, self);
+  const url = parseDestination(input, options.allowedOrigins[0]);
   const destination = url === null ? redactUrl(input) : redactUrl(url);
-  const approved = Object.hasOwn(options.plan.capabilities, options.capability.id)
-    ? options.plan.capabilities[options.capability.id].approved
-    : false;
-  if (!approved) return { ok: false, code: "capability-not-approved", destination };
+  const id = options.capability.id;
+  if (meta?.capability !== undefined && meta.capability !== id)
+    return { ok: false, code: "capability-mismatch", destination };
+  if (!approvedIn(options.plan(), id))
+    return { ok: false, code: "capability-not-approved", destination };
   if (url === null) return { ok: false, code: "invalid-url", destination };
   if (url.protocol !== "https:" && url.protocol !== "http:")
     return { ok: false, code: "unsupported-scheme", destination };
   const crossOrigin = !options.allowedOrigins.includes(url.origin);
-  const egressClass = meta?.class ?? inferClass(crossOrigin);
+  const egressClass = classify(options.capability, meta, crossOrigin);
+  if (egressClass === "purpose-not-declared")
+    return { ok: false, code: "purpose-not-declared", destination };
   if (egressClass === "user-mediated-navigation")
     return { ok: false, code: "navigation-not-fetchable", destination };
   if (egressClass === "application-assets") {
@@ -151,29 +170,26 @@ function decide(
   }
   if (!options.capability.egress.some((e) => e.class === egressClass))
     return { ok: false, code: "class-not-declared", destination };
+  const plan = options.plan();
+  if (plan === null) return { ok: false, code: "capability-not-approved", destination };
   return egressClass === "external-service"
-    ? decideExternal(url, options, destination)
+    ? decideExternal(url, plan, destination)
     : decideLocal(url, options, destination);
 }
 
 /**
- * The request as it may leave: manual redirects always (an opaque redirect is
- * an error, never followed), credentials omitted off-origin, and `Authorization`
- * kept only because the destination has already passed.
+ * The request as it may leave: redirects are never followed (a redirect
+ * response is an error, wherever it points), credentials are omitted
+ * off-origin, and `Authorization` stays only because the destination passed.
  */
 function prepareInit(init: RequestInit | undefined, crossOrigin: boolean): RequestInit {
-  const headers = new Headers(init?.headers);
-  const prepared: RequestInit = { ...init, headers, redirect: "manual" };
+  const prepared: RequestInit = { ...init, headers: new Headers(init?.headers), redirect: "manual" };
   if (crossOrigin) prepared.credentials = "omit";
   return prepared;
 }
 
-/** Strip bearer material from an init that is about to be refused. */
-export function stripAuthorization(init: RequestInit | undefined): RequestInit {
-  const headers = new Headers(init?.headers);
-  headers.delete("authorization");
-  headers.delete("cookie");
-  return { ...init, headers, credentials: "omit" };
+function isRedirect(response: Response): boolean {
+  return response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400);
 }
 
 export function createEgressPort(options: EgressPortOptions): EgressPort {
@@ -189,19 +205,37 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
         // included, never leaves this function (NET-05).
         throw new EgressDenied(decision.code, capability, decision.destination);
       }
-      const response = await fetchImpl(
-        decision.destination + queryOf(input, options.allowedOrigins[0]),
-        prepareInit(init, decision.crossOrigin),
-      );
-      if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
-        throw new EgressDenied("cross-origin-redirect", capability, decision.destination);
+      const url = parseDestination(input, options.allowedOrigins[0]);
+      const href = url === null ? decision.destination : `${url.origin}${url.pathname}${url.search}`;
+      const response = await fetchImpl(href, prepareInit(init, decision.crossOrigin));
+      if (isRedirect(response)) {
+        throw new EgressDenied("redirect-refused", capability, decision.destination);
       }
       return response;
     },
   };
 }
 
-function queryOf(input: string | URL, base: string | undefined): string {
-  const url = parseDestination(input, base);
-  return url === null ? "" : `${url.search}${url.hash}`;
+/**
+ * Replace the same-origin default (`egress-default.ts`) with the plan-aware
+ * port. Called once by the core boot after `compositionStore.boot`; the port
+ * re-reads the current plan on every request, so no boot ordering can leave
+ * a module holding a wider port than its plan.
+ */
+export function installPlanAwareEgress(
+  origin: string = location.origin,
+  fetchImpl?: typeof fetch,
+): void {
+  egressSeams.createEgressPort = (capability: CapabilityId) => {
+    const descriptor = CAPABILITY_CATALOG.capabilities.find((d) => d.id === capability);
+    if (descriptor === undefined) {
+      throw new EgressDenied("capability-not-approved", capability, origin);
+    }
+    return createEgressPort({
+      capability: descriptor,
+      plan: () => compositionStore.getSnapshot().plan,
+      allowedOrigins: [origin],
+      ...(fetchImpl === undefined ? {} : { fetchImpl }),
+    });
+  };
 }

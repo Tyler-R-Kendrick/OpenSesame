@@ -113,7 +113,8 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       egress: [
         {
           class: "application-assets",
-          purpose: "os-runtime-config.json beside the bundle, read once at boot",
+          purpose:
+            "os-runtime-config.json beside the bundle, read once at boot",
           automatic: true,
         },
       ],

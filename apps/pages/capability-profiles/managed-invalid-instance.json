@@ -60,9 +60,7 @@
     "basePolicyRevision": "14",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": [
-      "vault.passkey-records"
-    ],
+    "selectedOptional": ["vault.passkey-records"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

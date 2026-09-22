@@ -15,13 +15,15 @@ import type {
   CapabilityState,
   CompositionChangeReview,
   ConsentReceipt,
-  ContributionEntry,
-  ContributionKind,
   EffectivePlan,
   InstallationCapabilitySelection,
   InstanceCapabilityPolicy,
   PolicyProvenance,
 } from "@opensesame/capability-composition";
+import type {
+  ContributionEntry,
+  ContributionKind,
+} from "../../lib/capabilities/runtime-contract.js";
 import type { CommitOutcome, CompositionSnapshot, EmergencyDisableOutcome } from "../../lib/capabilities/store-types.js";
 import { type DoubleInput, resolveDouble } from "./composition-resolve-double.js";
 import { FIXTURE_CATALOG, FIXTURE_IDS } from "./composition-fixture.js";
@@ -36,7 +38,13 @@ export type DoubleOptions = Partial<{
   evaluatedModuleIds: readonly string[];
   durability: CompositionSnapshot["durability"];
   vaultId: string | null;
-  contributions: readonly ContributionEntry<ContributionKind>[];
+  contributions: readonly Contribution[];
+}>;
+
+/** A registered contribution as the double holds it: its kind beside it. */
+export type Contribution = Readonly<{
+  kind: ContributionKind;
+  entry: ContributionEntry<ContributionKind>;
 }>;
 
 export type CompositionDouble = {
@@ -52,7 +60,7 @@ export type CompositionDouble = {
   commits: Array<{ draft: InstallationCapabilitySelection; receipt: ConsentReceipt }>;
   disabled: CapabilityId[];
   invalidations: string[];
-  contributions: ContributionEntry<ContributionKind>[];
+  contributions: Contribution[];
   reset(options?: DoubleOptions): void;
   setActive(id: CapabilityId): void;
 };
