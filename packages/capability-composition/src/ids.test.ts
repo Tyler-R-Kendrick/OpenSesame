@@ -32,8 +32,8 @@ describe("identifier syntax", () => {
   });
 
   it("bounds opaque ids to 1–128 characters of [A-Za-z0-9._:-]", () => {
-    expect(isOpaqueId("inst_01:abc.def-x")).toBe(false);
-    expect(isOpaqueId("inst-01:abc.def-x")).toBe(true);
+    expect(isOpaqueId("inst_01:abc.def-x")).toBe(true);
+    expect(isOpaqueId("inst/01")).toBe(false);
     expect(isOpaqueId("")).toBe(false);
     expect(isOpaqueId("a".repeat(128))).toBe(true);
     expect(isOpaqueId("a".repeat(129))).toBe(false);

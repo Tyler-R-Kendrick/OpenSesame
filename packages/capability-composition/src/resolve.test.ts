@@ -190,7 +190,7 @@ describe("resolveComposition", () => {
   it("personal-local ceiling is every distributed optional capability with an allow network", () => {
     const selection = fixtureSelection({ instanceId: "personal-local", acceptedRequired: [], selectedOptional: ["telemetry.external", "vault.passkey-records"] });
     const { plan } = resolveWithConsent(fixtureResolveInput({ installation: selection }));
-    expect(plan.approvedCapabilities).toEqual([...CORE, "telemetry.external", "vault.passkey-records"]);
+    expect(plan.approvedCapabilities).toEqual(["settings.core", "telemetry.external", "vault.passkey-records", "vault.passwords"]);
     expect(plan.approvedItemKinds).toEqual(["login", "note", "passkey"]);
     for (const id of optionalIds(plan)) expect(plan.capabilities[id]?.permitted).toBe(plan.capabilities[id]?.distributed);
   });

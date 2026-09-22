@@ -6,10 +6,16 @@ export type IdentityTab = (typeof IDENTITY_VIEWS)[number];
 export function IdentityTabs({
   selected,
   onSelect,
-}: { selected: IdentityTab; onSelect: (tab: IdentityTab) => void }) {
+  views = IDENTITY_VIEWS,
+}: {
+  selected: IdentityTab;
+  onSelect: (tab: IdentityTab) => void;
+  /** The tabs on the page — the capabilities' contributions, in order. */
+  views?: readonly IdentityTab[];
+}) {
   return (
     <div className="identity-tabs" role="tablist" aria-label="Identity views">
-      {IDENTITY_VIEWS.map((id) => (
+      {views.map((id) => (
         <IdentityTabButton
           key={id}
           id={id}

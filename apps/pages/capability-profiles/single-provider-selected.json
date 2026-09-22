@@ -1,0 +1,73 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "single-provider-selected",
+  "notes": "The one implemented provider path: GitHub through the GitHub App over the Vercel Connect relay (lib/vercel-connect*.ts, lib/github-app-*.ts, lib/backup.ts, sections/connections/GithubBackupRepo*). connectors.external plus backup.git-remote, nothing else.",
+  "instancePolicy": {
+    "schemaVersion": 1,
+    "kind": "InstanceCapabilityPolicy",
+    "instanceId": "inst-homelab",
+    "revision": "3",
+    "presetProvenance": {
+      "id": "homelab",
+      "version": 1
+    },
+    "capabilities": {
+      "default": "deny",
+      "required": [],
+      "optional": [
+        "backup.git-remote",
+        "connectors.external"
+      ],
+      "prohibited": [
+        "access.authority",
+        "activity.log",
+        "agents.webmcp",
+        "backup.cloud-secrets",
+        "enterprise.ca-administration",
+        "enterprise.directory-provisioning",
+        "identity.ambient-sso",
+        "identity.federation",
+        "identity.local-iam",
+        "identity.siop",
+        "identity.site-broker",
+        "notifications.web-push",
+        "sharing.drops",
+        "sharing.household",
+        "support.guided-help",
+        "support.local-ai",
+        "support.remote-ai",
+        "telemetry.external",
+        "vault.certificate-records",
+        "vault.interop-formats",
+        "vault.passkey-records",
+        "wallet.spending"
+      ]
+    },
+    "network": {
+      "externalServices": "allow",
+      "allowedServiceOrigins": []
+    },
+    "updates": {
+      "unknownCapabilities": "deny",
+      "expandedExposure": "require-approval"
+    }
+  },
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "inst-homelab",
+    "installationId": "device-lab-1",
+    "basePolicyRevision": "3",
+    "revision": "1",
+    "acceptedRequired": [],
+    "selectedOptional": [
+      "backup.git-remote",
+      "connectors.external"
+    ],
+    "chosenAlternatives": {},
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  }
+}

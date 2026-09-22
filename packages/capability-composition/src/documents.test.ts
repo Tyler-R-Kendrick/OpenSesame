@@ -1,4 +1,4 @@
-import type { BoundaryValue, JsonValue } from "@opensesame/os-domain";
+import { type JsonObject, type JsonValue, isJsonObject } from "@opensesame/os-domain";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { buildConsentReceipt } from "./consent.js";
@@ -21,9 +21,11 @@ import {
 } from "./fixtures.js";
 import { resolveComposition } from "./resolve.js";
 
-/** A document as a plain JSON value, the way it arrives at the boundary. */
-function json(value: BoundaryValue): JsonValue {
-  return JSON.parse(JSON.stringify(value));
+/** A document as a plain JSON object, the way it arrives at the boundary. */
+function json<T>(value: T): JsonObject {
+  const parsed: JsonValue = JSON.parse(JSON.stringify(value));
+  if (!isJsonObject(parsed)) throw new Error("fixture is not an object");
+  return parsed;
 }
 
 function diagnostics(result: { ok: boolean; diagnostics?: readonly { code: string; path: string }[] }) {
@@ -62,7 +64,7 @@ describe("parseInstancePolicy", () => {
 
   it("rejects a non-deny default, a foreign updates block, and unknown fields", () => {
     const base = json(FIXTURE_POLICIES.family);
-    expect(diagnostics(parseInstancePolicy({ ...base, capabilities: { ...FIXTURE_POLICIES.family.capabilities, default: "allow" } })).map((d) => d.path)).toContain("capabilities.default");
+    expect(diagnostics(parseInstancePolicy({ ...base, capabilities: json({ ...FIXTURE_POLICIES.family.capabilities, default: "allow" }) })).map((d) => d.path)).toContain("capabilities.default");
     expect(diagnostics(parseInstancePolicy({ ...base, updates: { unknownCapabilities: "allow", expandedExposure: "require-approval" } })).map((d) => d.path)).toContain("updates.unknownCapabilities");
     expect(diagnostics(parseInstancePolicy({ ...base, updates: { unknownCapabilities: "deny", expandedExposure: "require-approval", extra: 1 } })).map((d) => d.code)).toContain("UNKNOWN_FIELD");
     expect(diagnostics(parseInstancePolicy({ ...base, telemetry: true })).map((d) => d.path)).toContain("telemetry");
@@ -82,12 +84,12 @@ describe("parseInstancePolicy", () => {
 
 describe("parseWorkspaceRestriction", () => {
   const base = {
-    schemaVersion: 1,
-    kind: "WorkspaceCapabilityRestriction",
+    schemaVersion: 1 as const,
+    kind: "WorkspaceCapabilityRestriction" as const,
     instanceId: "fixture-family",
     vaultId: "tomb-1",
     revision: "w1",
-    prohibited: [],
+    prohibited: [] as string[],
   };
 
   it("MODEL-03: preserves allow: null and allow: [] as distinct values", () => {
@@ -105,8 +107,8 @@ describe("parseWorkspaceRestriction", () => {
       installation: FIXTURE_INSTALLATION,
       vaultId: "tomb-1",
     });
-    const inherit = resolveComposition({ ...input, workspace: { ...base, kind: "WorkspaceCapabilityRestriction", allow: null } });
-    const none = resolveComposition({ ...input, workspace: { ...base, kind: "WorkspaceCapabilityRestriction", allow: [] } });
+    const inherit = resolveComposition({ ...input, workspace: { ...base, allow: null } });
+    const none = resolveComposition({ ...input, workspace: { ...base, allow: [] } });
     expect(inherit.capabilities["connectors.external"]?.permitted).toBe(true);
     expect(inherit.capabilities["connectors.external"]?.reasons).toEqual(["CONSENT_REQUIRED"]);
     expect(none.capabilities["connectors.external"]?.permitted).toBe(false);
@@ -168,7 +170,7 @@ describe("selection, vault, receipt and distribution parsers", () => {
     const base = json(FIXTURE_DISTRIBUTION);
     expect(diagnostics(parseDistributionContract({ ...base, moduleIds: ["nope"] })).map((d) => d.path)).toContain("moduleIds[0]");
     expect(diagnostics(parseDistributionContract({ ...base, workerVariants: [{ id: "push", scriptPath: "https://x/sw.js", satisfies: [] }] })).map((d) => d.path)).toContain("workerVariants[0].scriptPath");
-    expect(diagnostics(parseDistributionContract({ ...base, workerVariants: [...FIXTURE_DISTRIBUTION.workerVariants, { id: "push", scriptPath: "b.js", satisfies: [] }] })).map((d) => d.code)).toContain("DUPLICATE_ID");
+    expect(diagnostics(parseDistributionContract({ ...base, workerVariants: [...json(FIXTURE_DISTRIBUTION).workerVariants ?? [], { id: "push", scriptPath: "b.js", satisfies: [] }] })).map((d) => d.code)).toContain("DUPLICATE_ID");
     expect(diagnostics(parseDistributionContract({ ...base, basePath: "OpenSesame" })).map((d) => d.path)).toContain("basePath");
   });
 });
@@ -197,7 +199,7 @@ describe("parser fuzz", () => {
   });
 
   it("never throws when fixture-shaped documents are mutated field by field", () => {
-    const fixtures: BoundaryValue[] = [
+    const fixtures: JsonObject[] = [
       json(FIXTURE_POLICIES.family),
       json(FIXTURE_INSTALLATION),
       json(FIXTURE_DISTRIBUTION),
@@ -208,7 +210,7 @@ describe("parser fuzz", () => {
         fc.string({ minLength: 1, maxLength: 24 }),
         fc.jsonValue(),
         (doc, key, replacement) => {
-          const mutated = { ...(doc as Record<string, JsonValue>) /* SAFETY: every fixture above is a JSON object built by json(). */, [key]: replacement };
+          const mutated: JsonObject = { ...doc, [key]: replacement };
           for (const parse of parsers) {
             const result = parse(mutated);
             expect(result.ok === true || result.ok === false).toBe(true);

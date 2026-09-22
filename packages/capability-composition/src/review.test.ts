@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildConsentReceipt } from "./consent.js";
 import {
   FIXTURE_CATALOG,
+  FIXTURE_DISTRIBUTION,
   FIXTURE_FACTS,
   FIXTURE_INSTALLATION,
   FIXTURE_POLICIES,
@@ -75,7 +76,7 @@ describe("reviewCompositionChange", () => {
     const facts = { ...FIXTURE_FACTS, cleanRealm: false, evaluatedModuleIds: ["connectors.external/runtime", "access.authority/runtime"] };
     const afterInput = familyInput(["notifications.web-push"], {
       facts,
-      distribution: { ...before.identity, ...fixtureResolveInput().distribution, workerVariants: [{ id: "core-only", scriptPath: "sw.js", satisfies: [] }] },
+      distribution: { ...FIXTURE_DISTRIBUTION, workerVariants: [{ id: "core-only", scriptPath: "sw.js", satisfies: [] }] },
     });
     const after = resolveComposition({ ...afterInput, receipt: buildConsentReceipt(before, FIXTURE_CATALOG, NOW) });
     const review = reviewCompositionChange(before, after, FIXTURE_CATALOG);
@@ -83,7 +84,8 @@ describe("reviewCompositionChange", () => {
     expect(review.requiresNewArtifact).toBe(true);
     expect(review.conflicts).toEqual(after.conflicts);
     expect(review.consent).toEqual(after.consent);
-    expect(review.consent.addedRoots).toEqual(["notifications.web-push"]);
+    expect(review.conflicts.map((c) => c.code)).toEqual(["WORKER_GRAPH_UNAVAILABLE"]);
+    expect(review.consent.addedRoots).toEqual([]);
     expect(review.widened).toBe(false);
   });
 });

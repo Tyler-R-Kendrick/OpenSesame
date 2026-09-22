@@ -29,26 +29,8 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
     id: "/broker/authorize",
     title: "Broker — approve a static site sign-in",
   },
-  { id: "/federation", title: "Federation return — finish a sign-in" },
-  {
-    id: "/identity/authorize",
-    title: "Local application — review a sign-in request",
-  },
   { id: "/vault", title: "Vault — every item this deployment holds" },
   { id: "/vault/health", title: "Vault health — weak, reused and aging items" },
-  {
-    id: "/connections",
-    title: "Connections — provider connections and their state",
-  },
-  { id: "/access", title: "Access — delegations, offers and running tasks" },
-  {
-    id: "/identity",
-    title: "Identity — accounts, providers and linked identities",
-  },
-  {
-    id: "/wallet",
-    title: "Wallet — spending overview, budgets and payment methods",
-  },
   { id: "/settings", title: "Settings — this deployment's preferences" },
 ];
 

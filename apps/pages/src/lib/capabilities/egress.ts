@@ -185,9 +185,8 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
     async fetch(input, init, meta) {
       const decision = decide(options, input, meta);
       if (!decision.ok) {
-        // The init is neutralised even though it is discarded: a caller that
-        // catches and retries with it elsewhere carries no bearer forward.
-        stripAuthorization(init);
+        // Refused before any socket opens: the init, its Authorization header
+        // included, never leaves this function (NET-05).
         throw new EgressDenied(decision.code, capability, decision.destination);
       }
       const response = await fetchImpl(

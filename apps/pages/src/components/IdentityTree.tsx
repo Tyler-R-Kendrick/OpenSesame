@@ -1,5 +1,5 @@
 import { useLocation, useSearchParams } from "react-router";
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { useEnabledIdentityViews } from "../sections/identity/identity-views.js";
 import { identityPageTree } from "../sections/identity/page-tree.js";
 import { useIdentityRailSnapshot } from "../sections/identity/use-local-directory.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
@@ -13,10 +13,11 @@ export function IdentityTree({
 }: SectionTreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();
+  const views = useEnabledIdentityViews();
   const view =
-    IDENTITY_VIEWS.find((id) => id === params.get("view")) ?? "people";
+    views.find((id) => id === params.get("view")) ?? views[0] ?? "people";
   const current = `/identity?view=${view}${hash}`;
-  const tabs = identityPageTree(useIdentityRailSnapshot());
+  const tabs = identityPageTree(useIdentityRailSnapshot(), views);
   return (
     <>
       <SectionRow

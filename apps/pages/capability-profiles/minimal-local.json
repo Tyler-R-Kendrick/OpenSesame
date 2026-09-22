@@ -1,0 +1,21 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "minimal-local",
+  "notes": "Personal-local installation: no instance policy, nothing optional selected. Only the core tier resolves.",
+  "instancePolicy": null,
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "personal-local",
+    "installationId": "device-min-1",
+    "basePolicyRevision": "personal-local",
+    "revision": "1",
+    "acceptedRequired": [],
+    "selectedOptional": [],
+    "chosenAlternatives": {},
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  }
+}

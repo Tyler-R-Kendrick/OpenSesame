@@ -148,7 +148,7 @@ describe("consent", () => {
     expect(computeConsentDelta(plan, changed, receipt)).toEqual(plan.consent);
     const renewed = buildConsentReceipt(plan, changed, NOW);
     const approved = resolveComposition(familyInput({ catalog: changed, receipt: renewed }));
-    expect(approved.approvedCapabilities).toEqual(["access.authority", "connectors.external", "identity.federation", ...CORE, "vault.passkey-records"]);
+    expect(approved.approvedCapabilities).toEqual(["access.authority", "connectors.external", "identity.federation", "settings.core", "vault.passkey-records", "vault.passwords"]);
   });
 
   it("a root dropped from the selection shows up as removedRoots", () => {

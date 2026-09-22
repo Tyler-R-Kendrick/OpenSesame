@@ -83,18 +83,12 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * Sign-in is the first screen, and nothing gates it (ADR 0090).
- *
- * This static app is complete without a backend: the compiled-in broker runs
- * the whole code flow in the browser, guest seals a local vault, and a
- * local-only seal needs nothing at all. So an empty device opens on the
- * sign-in form, never on an operator's question. Deployment setup lives
- * behind unlock (Settings); the front door's "Set up your own" road is the
- * only pre-unlock setup path. An invite link still opens join directly
- * because the link is the request.
- *
- * The split exists so the early return happens above the form's hooks rather
- * than among them.
+ * Sign-in is the first screen, and nothing gates it (ADR 0090): the broker
+ * runs in the browser, guest seals a local vault, a local-only seal needs
+ * nothing. Setup lives behind unlock; the front door's "Set up your own" is
+ * the only pre-unlock setup path, and an invite link opens join directly. A
+ * managed instance's required roots (`RequirementsGate`) sit beside sign-in,
+ * never in front of it. The split keeps the early return above the hooks.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();

@@ -57,20 +57,6 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
-  {
-    id: "access.connectors",
-    title: "Bind a connector to a person or agent",
-    routes: ["/access", "/setup"],
-    guide: [
-      "guide/1",
-      'goal "access.connectors"',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
-      'say "Connectors are read by reference from a Nango-compatible directory. Binding one to a person or agent is the PAM decision: which policy, until when. No token ever reaches this device."',
-      'focus "access.connectors" "The Connectors tab: sync the directory once, then Bind under a row. Revoke ends a binding early." side=bottom',
-      "end",
-    ].join("\n"),
-  },
 ];
 
 export { SHELL_GOALS } from "./shell-goals.js";

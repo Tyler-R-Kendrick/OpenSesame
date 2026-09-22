@@ -159,8 +159,8 @@ function collect(ctx: ResolveContext, approved: ReadonlySet<CapabilityId>, pick:
  * cannot be served together, with those capabilities blocked. The second
  * pass approves a subset of the first, so it always terminates clean.
  */
-function resolvePasses(ctx: ResolveContext, joinRefused: boolean): Pass {
-  const first = runPass(ctx, computeAxes(ctx), joinRefused);
+function resolvePasses(ctx: ResolveContext, initialAxes: ReadonlyMap<CapabilityId, Axis>, joinRefused: boolean): Pass {
+  const first = runPass(ctx, initialAxes, joinRefused);
   if (first.worker.unavailable.size === 0) return first;
   const blocked = blockAxes(first.axes, first.worker.unavailable, "WORKER_GRAPH_UNAVAILABLE");
   const second = runPass(ctx, blocked, joinRefused);
@@ -177,7 +177,8 @@ function resolvePasses(ctx: ResolveContext, joinRefused: boolean): Pass {
 export function resolveComposition(input: ResolveInput): EffectivePlan {
   const ctx = buildContext(input);
   const joinRefused = ctx.requiredNotAccepted.length > 0;
-  const pass = resolvePasses(ctx, joinRefused);
+  const initialAxes = computeAxes(ctx);
+  const pass = resolvePasses(ctx, initialAxes, joinRefused);
   const capabilities: Record<CapabilityId, CapabilityState> = {};
   for (const id of ctx.ids) {
     const axis = pass.axes.get(id);
@@ -189,7 +190,7 @@ export function resolveComposition(input: ResolveInput): EffectivePlan {
   const conflicts = sortConflicts([
     ...[...pass.closure.rootConflicts.values()].flat(),
     ...requiredConflicts(ctx, pass.axes),
-    ...blockedRootWorkerConflicts(ctx, pass.axes),
+    ...blockedRootWorkerConflicts(ctx, initialAxes),
     ...pass.worker.conflicts,
   ]);
   const body = {
