@@ -3,7 +3,9 @@
  * Given/When/Then without a second BDD framework (docs/testing/test-strategy.md).
  */
 
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { UNLOCK_PIN_MISS } from "../../../screens/unlock/unlock-duress-refuse.js";
 import { unlockWithPasskeyAfterDuressGate } from "../../../screens/unlock/unlock-passkey-duress.js";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
 import { WrongPasswordError } from "../../vault/crypto.js";
@@ -136,5 +138,41 @@ describe("duress unlock behaviour", () => {
 
     clearEnrollmentStateForUnlock();
     resetFence();
+  });
+
+  it("Given armed code, When wrong PIN repeats past throttle, Then miss surface holds", async () => {
+    const sealed = await sealUnlockTriggerFromCeremony({
+      code: "97531864",
+      profileId: "p-throttle",
+      vaultRef: "vault-behaviour",
+      deviceBindingRef: "device-behaviour",
+      presentation: "restricted",
+    });
+    await armPersistedUnlockEnrollment(sealed, { requireDurable: false });
+
+    const store = {
+      unlockWithPin: vi.fn(async () => {
+        throw new WrongPasswordError(UNLOCK_PIN_MISS);
+      }),
+      createGuest: vi.fn(async () => undefined),
+    };
+    for (let i = 0; i < 8; i++) {
+      await expect(
+        unlockWithPinAfterDuressGate(store, "00000000", {
+          requireDurable: false,
+        }),
+      ).rejects.toBeInstanceOf(WrongPasswordError);
+    }
+    await expect(
+      unlockWithPinAfterDuressGate(store, "00000000", {
+        requireDurable: false,
+      }),
+    ).rejects.toSatisfy(
+      (err: BoundaryValue) =>
+        err instanceof WrongPasswordError && err.message === UNLOCK_PIN_MISS,
+    );
+    expect(store.unlockWithPin).toHaveBeenCalledTimes(8);
+
+    await disarmPersistedUnlockEnrollment();
   });
 });
