@@ -13,7 +13,6 @@ import { sharedSessionCapabilities } from "./shared-sessions.js";
  * surface package compare their implemented catalog against the views derived
  * here, so a capability cannot ship on one surface without either shipping on
  * the agent surfaces or carrying an explicit, ADR-cited exclusion.
- *
  * Surface string conventions:
  * - cli:    the command line as typed ("opensesame task terminate",
  *           "opensesame-id claim poll"); apps/cli and packages/cli parity
@@ -37,11 +36,7 @@ export {
   INTERACTION_SETTLEMENT_PATTERN,
   assertsNoInteractionSettlementTool,
 } from "./interaction-boundary.js";
-export {
-  OPERATION_CAPABILITY,
-  capabilitiesWithOperations,
-  operationsForCapabilities,
-} from "./capability-map.js";
+export * from "./capability-map.js";
 
 export type Surface = "cli" | "pwa" | "mcp_host" | "mcp_client" | "webmcp";
 export type AgentSurface = "mcp_host" | "mcp_client" | "webmcp";

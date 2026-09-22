@@ -42,9 +42,7 @@ describe("operation → product capability map", () => {
     for (const [operation, capability] of Object.entries(
       OPERATION_CAPABILITY,
     )) {
-      expect(capability, `${operation} → ${capability}`).toMatch(
-        CAPABILITY_ID,
-      );
+      expect(capability, `${operation} → ${capability}`).toMatch(CAPABILITY_ID);
       expect(capability.length).toBeLessThanOrEqual(64);
     }
   });

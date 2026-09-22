@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
+import type { IconName } from "../lib/capabilities/runtime-contract.js";
 
 export type IconProps = { className?: string; title?: string; size?: number };
 
@@ -581,3 +582,34 @@ export function IconAddSquare(props: IconProps) {
     </Svg>
   );
 }
+
+export type { IconName };
+
+/**
+ * Icons by the string key a capability module names in its contributions
+ * (`section.icon`). A module ships no SVG the core has to trust; the shell
+ * resolves the key here, and a key this table lacks is a type error.
+ */
+export const ICONS_BY_NAME: Record<IconName, ComponentType<IconProps>> = {
+  vault: IconVault,
+  site: IconSite,
+  connection: IconConnection,
+  authority: IconAuthority,
+  settings: IconSettings,
+  bell: IconBell,
+  login: IconLogin,
+  user: IconUser,
+  passkey: IconPasskey,
+  card: IconCard,
+  secret: IconSecret,
+  note: IconNote,
+  shield: IconShield,
+  lock: IconLock,
+  clock: IconClock,
+  folder: IconFolder,
+  star: IconStar,
+  support: IconSupport,
+  help: IconHelp,
+  info: IconInfo,
+  alert: IconAlert,
+};

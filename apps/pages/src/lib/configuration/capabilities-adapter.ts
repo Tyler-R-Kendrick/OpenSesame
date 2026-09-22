@@ -191,24 +191,27 @@ export async function commitInstallationSelectionSource(
   }
   const plan = ports.previewPlan(parsed.value);
   const receipt = buildConsentReceipt(plan, ports.catalog(), ports.now());
-  const outcome = viewOutcome(await ports.commitSelection(parsed.value, receipt));
+  const outcome = viewOutcome(
+    await ports.commitSelection(parsed.value, receipt),
+    ports.snapshot().durability,
+  );
   if (outcome.status === "conflict") {
     return {
       status: "conflict",
-      message: outcome.message || "The selection changed in another session.",
+      message: `The selection changed in another session (${outcome.message || "revision"}).`,
       originalSource: input.source,
       localSource: input.source,
       currentSource: readCapabilitySource("installation-selection", ports),
     };
   }
   if (outcome.status === "refused") {
-    return refused(outcome.message || "The selection was not accepted.");
+    return refused(`The selection was not accepted (${outcome.message || "refused"}).`);
   }
   await ports.writeKey(SELECTION_SOURCE_KV_KEY, input.source);
   return {
     status: outcome.status === "durable" ? "applied_durable" : "applied_ephemeral",
     revisionToken: revisionToken(ports.snapshot()),
-    message: outcome.message || "Installation selection saved.",
+    message: "Installation selection saved.",
   };
 }
 

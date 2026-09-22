@@ -18,7 +18,8 @@ import type {
   NetworkPolicy,
 } from "@opensesame/capability-composition";
 import { type BoundaryValue, isString, overlapCast } from "@opensesame/os-domain";
-import { type CommitOutcome, compositionStore } from "../capabilities/store.js";
+import { compositionStore } from "../capabilities/store.js";
+import type { CommitOutcome } from "../capabilities/store-types.js";
 
 export {
   compositionStore,
@@ -29,7 +30,7 @@ export type {
   CommitOutcome,
   CompositionSnapshot,
   EmergencyDisableOutcome,
-} from "../capabilities/store.js";
+} from "../capabilities/store-types.js";
 export { useContributions } from "../capabilities/registry.js";
 export { CAPABILITY_CATALOG } from "../capabilities/catalog.js";
 export { PRESETS, presetToInstancePolicy } from "../capabilities/presets.js";
@@ -77,24 +78,26 @@ export type OutcomeStatus = "durable" | "session-only" | "conflict" | "refused";
 
 export type OutcomeView = Readonly<{ status: OutcomeStatus; message: string }>;
 
-const OUTCOMES: readonly OutcomeStatus[] = [
-  "durable",
-  "session-only",
-  "conflict",
-  "refused",
-];
-
 /**
- * Read a store outcome without depending on its exact shape: `status` is
- * one of the four words above, `message` is optional prose. Anything else
- * reads as refused — a commit whose result cannot be read was not confirmed.
+ * Read a store outcome (`store-types.ts` `CommitOutcome`) as the four words
+ * a person is shown. "committed" is durable or session-only according to
+ * where the store could write; a conflict or refusal carries its reason.
+ * Anything unreadable is a refusal — a commit whose result cannot be read
+ * was not confirmed.
  */
-export function viewOutcome(outcome: CommitOutcome | BoundaryValue): OutcomeView {
-  const record: { status?: BoundaryValue; message?: BoundaryValue } =
+export function viewOutcome(
+  outcome: CommitOutcome | BoundaryValue,
+  durability: "durable" | "session-only" | "unknown" = "unknown",
+): OutcomeView {
+  const record: { status?: BoundaryValue; reason?: BoundaryValue } =
     overlapCast(outcome ?? {});
-  const status = OUTCOMES.find((item) => item === record.status) ?? "refused";
-  return {
-    status,
-    message: isString(record.message) ? record.message : "",
-  };
+  const reason = isString(record.reason) ? record.reason : "";
+  if (record.status === "committed") {
+    return {
+      status: durability === "session-only" ? "session-only" : "durable",
+      message: "",
+    };
+  }
+  if (record.status === "conflict") return { status: "conflict", message: reason };
+  return { status: "refused", message: reason };
 }
