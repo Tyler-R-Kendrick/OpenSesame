@@ -13,6 +13,7 @@
 import { useMemo } from "react";
 import type { ItemKindContribution } from "./capabilities/runtime-contract.js";
 import { contributionsSnapshot, useContributions } from "./contributions.js";
+import { KIND_LABEL } from "./vault/model.js";
 
 export type ItemKindRow = Readonly<{
   /** The item type id, also the `?f=` filter value. */
@@ -59,7 +60,16 @@ export function useItemKinds(): readonly ItemKindRow[] {
   return useMemo(() => itemKindsFrom(contributions), [contributions]);
 }
 
+/**
+ * The built-in kinds a capability owns. A community type (ADR 0087) is not
+ * among them: it is the core vault's own plugin mechanism and stays creatable.
+ */
+const GATED_KINDS: ReadonlySet<string> = new Set(
+  Object.keys(KIND_LABEL).filter((kind) => kind !== "typed"),
+);
+
 /** Whether a creation surface may offer `kind` on this installation. */
 export function isCreatableItemKind(kind: string): boolean {
+  if (!GATED_KINDS.has(kind)) return true;
   return itemKindsSnapshot().some((row) => row.id === kind);
 }
