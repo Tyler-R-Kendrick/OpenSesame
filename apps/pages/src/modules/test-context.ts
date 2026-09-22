@@ -127,6 +127,13 @@ export function createTestContext(
     },
     vault: { tomb: options.tomb ?? null, guest: options.guest ?? false },
     egress: {
+      capability: "test",
+      decide: (input) => ({
+        ok: true,
+        class: "application-assets",
+        crossOrigin: false,
+        destination: String(input),
+      }),
       fetch: async (input, _init, meta) => {
         egressCalls.push({
           input: String(input),

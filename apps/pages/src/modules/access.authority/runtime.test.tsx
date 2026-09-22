@@ -59,12 +59,18 @@ describe("access.authority runtime", () => {
       { path: "/access", label: "Access" },
     ]);
     expect(t.entries("keymap-jump")).toEqual([{ key: "a", path: "/access" }]);
-    expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
-      ...runtime.TUTORIAL.targets,
-    ]);
-    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
-      ...runtime.TUTORIAL.goals,
-    ]);
+    expect(t.entries("tutorial-target").map((d) => d.id)).toEqual(
+      runtime.TUTORIAL.targets.map((d) => d.id),
+    );
+    expect(t.entries("tutorial-target").map((d) => d.id)).toContain(
+      "nav.access",
+    );
+    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual(
+      runtime.TUTORIAL.goals.map((d) => d.id),
+    );
+    expect(t.entries("tutorial-goal").map((d) => d.id)).toContain(
+      "identity.local.requests.manage",
+    );
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual(["/access"]);
     expect(t.hydrated).toEqual([]);
     await handle.dispose();

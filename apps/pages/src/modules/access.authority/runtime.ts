@@ -23,39 +23,46 @@
 
 import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
 import { AccessSection } from "../../sections/AccessSection.js";
+import {
+  ACCESS_ROUTES,
+  ACCESS_TARGETS,
+} from "../../tutorial/registry/access-catalog.js";
+import { ACCESS_GOALS } from "../../tutorial/registry/access-goals.js";
+import { AUTHORITY_GOALS } from "../../tutorial/registry/authority-help.js";
+import { IDENTITY_TARGETS } from "../../tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
+import { pickById } from "../tutorial-pick-b.js";
 import { AccessRailTree } from "./AccessRailTree.js";
 import { AccessRedirect } from "./AccessRedirect.js";
 
 export const CAPABILITY = "access.authority";
 
+/**
+ * Authored beside the registry: the Access partition whole, the Host
+ * authority walkthroughs, plus the identity-partition entries whose
+ * operations the catalog lists under this capability (the local request,
+ * policy and access walkthroughs all navigate to `/access`; the claim
+ * ceremony on the Identity page exercises `delegations.claim`).
+ */
 export const TUTORIAL = {
   targets: [
-    "nav.access",
-    "access.grants",
-    "access.requests",
-    "access.sessions",
-    "access.connectors",
-    "access.resources",
-    "access.policies",
-    "access.grant-access",
-    "access.grant-ceremony",
-    "access.relay",
+    ...ACCESS_TARGETS,
+    ...pickById(IDENTITY_TARGETS, ["identity.claim-access"]),
   ],
   goals: [
-    "access.grant",
-    "access.claim",
-    "access.relay",
-    "access.sessions.review",
-    "access.connectors",
-    "identity.local.requests.manage",
-    "identity.local.policy.manage",
-    "identity.local.access.manage",
-    "agent.observe",
-    "agent.control",
+    ...ACCESS_GOALS,
+    ...AUTHORITY_GOALS,
+    ...pickById(IDENTITY_GOALS, [
+      "identity.local.requests.manage",
+      "identity.local.policy.manage",
+      "identity.local.access.manage",
+      "authority.portal.templates.manage",
+      "authority.portal.templates.read",
+    ]),
   ],
-  routes: ["/access"],
+  routes: ACCESS_ROUTES,
 } as const;
 
 export const capabilityRuntime: CapabilityRuntime = {

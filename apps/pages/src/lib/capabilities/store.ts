@@ -24,15 +24,12 @@ import {
   type DistributionContract,
   type EffectivePlan,
   type InstallationCapabilitySelection,
-  type InstanceCapabilityPolicy,
-  type WorkspaceCapabilityRestriction,
   resolveComposition,
   reviewCompositionChange,
 } from "@opensesame/capability-composition";
 import { useSyncExternalStore } from "react";
 import { postCapabilitiesChanged } from "./channel.js";
 import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
-import { installationId as readInstallationId } from "./installation.js";
 import { compositionLockName } from "./keys.js";
 import { type MintedLease, mintLease } from "./lease.js";
 import { type LegacyReview, reviewLegacyConfiguration } from "./migration.js";
@@ -42,7 +39,6 @@ import {
   preflightCommit,
 } from "./store-commit.js";
 import {
-  type ManagedPolicyReview,
   type StoreState,
   adoptDocs,
   initialState,
@@ -56,6 +52,7 @@ import {
   refreshAuthorityRecords,
   writeVaultSelection,
 } from "./store-persist.js";
+import { storeSeams } from "./store-seams.js";
 import {
   type BootInput,
   type CapabilityActivity,
@@ -74,34 +71,9 @@ export type {
   EmergencyDisableOutcome,
 } from "./store-types.js";
 
-type LockManagerLike = {
-  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
-};
+export { storeSeams } from "./store-seams.js";
 
 const MAX_DIAGNOSTICS = 32;
-
-export const storeSeams = {
-  catalog: (): Promise<CapabilityCatalog> =>
-    import("./catalog.js").then((m) => m.CAPABILITY_CATALOG),
-  distribution: (): Promise<DistributionContract> =>
-    import("./distribution.js").then((m) => m.DISTRIBUTION),
-  locks: (): LockManagerLike | undefined =>
-    typeof navigator === "undefined" ? undefined : navigator.locks,
-  now: (): string => new Date().toISOString(),
-  installationId: (): string => readInstallationId(),
-  /** S03/S04: a per-vault narrowing, when one is stored. */
-  workspaceRestriction: (
-    _instanceId: string,
-    _vaultId: string | null,
-  ): WorkspaceCapabilityRestriction | null => null,
-  /** S03: envelope/revision/rollback verification of a managed policy. */
-  reviewManagedPolicy: (
-    _policy: InstanceCapabilityPolicy,
-  ): ManagedPolicyReview => ({
-    ok: true,
-    diagnostics: [],
-  }),
-};
 
 export class CompositionStore {
   #snapshot: CompositionSnapshot = INITIAL_SNAPSHOT;
