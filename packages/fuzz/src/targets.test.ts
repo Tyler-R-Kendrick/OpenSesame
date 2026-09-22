@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { fuzz as fuzzAgentAuthContracts } from "./agent_auth_contracts.js";
 import { fuzz as fuzzAgentAuthTokens } from "./agent_auth_tokens.js";
-import { fuzz as fuzzCapabilityComposition } from "./capability_composition.js";
 import { fuzz as fuzzAuditRedact } from "./audit_redact.js";
+import { fuzz as fuzzCapabilityComposition } from "./capability_composition.js";
 import { fuzz as fuzzClaimEngine } from "./claim_engine.js";
 import { fuzz as fuzzClientAdmission } from "./client_admission.js";
 import { fuzz as fuzzContractsParse } from "./contracts_parse.js";
