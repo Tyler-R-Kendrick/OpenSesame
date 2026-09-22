@@ -153,13 +153,22 @@ rust_step() { # id crate required-default profile features... -- filter-args...
 }
 rust_step it-spiffe-source opensesame-spiffe-source true "spiffe workload api (spire ${BIN[spire-agent]:+$(bash "${FIXTURES}" version spire-agent)})" --all-features -- --ignored
 rust_step it-ingress-evidence opensesame-ingress-evidence true "trusted_ingress (caddy)" --all-features -- --ignored
-rust_step it-task-bus-jetstream opensesame-task-bus true "nats client transport (jetstream)" --features jetstream -- --ignored
+# The live NATS suites are gated on `live-tests`, not on `jetstream`: with only
+# `jetstream` the modules are not compiled at all, so `--ignored` selected
+# nothing and the step reported an empty selection.
+rust_step it-task-bus-live opensesame-task-bus true "nats client transport, roles, topology and callout (live-tests)" --features live-tests -- --ignored
 rust_step it-nats-callout opensesame-nats-callout true "nats auth callout bridge" --all-features -- --ignored
 rust_step it-provider-openbao opensesame-provider-openbao true "upstream connector (openbao cert auth)" -- --ignored
+# The gateway binary's only `#[ignore]`d test is the live task-bus operator
+# route, and it is not named "transport" — filtering on that word selected
+# nothing. The Host secure listener's real-handshake behaviour is not covered
+# by a gateway-bin test at all; it is covered by opensesame-transport-security's
+# own listener tests and by the interop crate below, and the evidence document
+# says so rather than implying a gateway test that does not exist.
 if [[ -d apps/gateway/src/transport ]]; then
-  rust_step it-gateway-transport opensesame-gateway true "host secure listener (mtls_required)" --bin opensesame-gateway transport -- --ignored
+  rust_step it-gateway-live opensesame-gateway true "live task-bus operator route against the pinned nats-server" --bin opensesame-gateway -- --ignored
 else
-  step --id it-gateway-transport --claim opensesame-gateway --runner cargo --required false --skip "apps/gateway/src/transport not present"
+  step --id it-gateway-live --claim opensesame-gateway --runner cargo --required false --skip "apps/gateway/src/transport not present"
 fi
 rust_step it-mtls-interop opensesame-mtls-interop false "interop (openssl/curl oracles)" -- --ignored
 

@@ -116,6 +116,44 @@ rejected every genuine callout.
 | The callout xkey envelope | unit-tested, not live-tested; the live server was not configured with it |
 | Real certificate provisioning in a browser | the browser fixture proves harness-provisioned TLS only, and says nothing about how a person obtains or selects a certificate |
 | `pnpm verify` and the whole-repository clippy gate | both stop on pre-existing debt, measured rather than assumed — see below |
+| A Host secure-listener test in the gateway binary | none exists. The listener's real-handshake behaviour is covered by `opensesame-transport-security`'s own listener tests and by the interop crate's 21 scenarios, including the gateway process refusing to start rather than downgrade. The integration suite no longer implies a gateway test that was never written |
+
+### Three steps that reported a result they had not earned
+
+Running the suites on a clean runner rather than a developer machine exposed
+three of this work's own reporting defects, all of which were overstating or
+understating what ran. They are recorded here because the directive's whole
+point is that `passed` and `not_executed` are different words.
+
+**Every TypeScript step read as "nothing ran".** The manifest parses runner
+output with patterns anchored against plain text, and CI looks like a terminal
+to vitest, so its summary arrived wrapped in colour escapes and matched
+nothing. Six suites that were passing were recorded as failed or not executed.
+The escapes now come off before any pattern is applied. The regression test
+uses the bytes from the failing run: the summary CI recorded as "nothing ran"
+parses to 472 passed.
+
+**Two live steps selected no tests at all and said so honestly, which is why
+they failed.** The NATS live suites are gated on the `live-tests` feature, not
+on `jetstream`, so with only `jetstream` the modules were never compiled; and
+the gateway step filtered ignored tests on the word "transport", which the
+gateway's one ignored test is not called. Both selectors are corrected, and
+what had been two empty selections is now **eleven live tests that actually
+run** — ten against the pinned nats-server, one for the gateway's operator
+route. That the manifest called an empty selection a failure rather than a
+pass is the design working.
+
+**The browser step carried someone else's red gate.** It ran the repository's
+`verify-static-origin.mjs`, which fails identically at the merge base and which
+no CI job gates on today; making it blocking here would have imported unrelated
+debt into the merge gate. It still runs and its real result is still published,
+now as `failed_non_blocking` with the reason attached. `AT-STATIC-EMPTY` is
+proven by the no-certificate scenario that loads the static app with no
+certificate at all, which passes and does block.
+
+With those three corrected, both suites pass on this tree: the fast suite 15
+of 15, and the real-protocol suite 17 of 17 against the pinned nats-server,
+OpenBao, SPIRE, Caddy and Chromium.
 
 ### The two Rust gates, measured
 
