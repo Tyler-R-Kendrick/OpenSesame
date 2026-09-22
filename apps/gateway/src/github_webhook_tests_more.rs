@@ -2,7 +2,7 @@ use super::*;
 use crate::app_state::{self, AppState};
 use crate::config::Args;
 use async_trait::async_trait;
-use axum::body::{to_bytes, Body};
+use axum::body::Body;
 use axum::http::Request;
 use opensesame_connection_broker::github_app::GithubAppCredentials;
 use opensesame_connection_broker::github_webhook_hmac::sign_hub_signature_256;

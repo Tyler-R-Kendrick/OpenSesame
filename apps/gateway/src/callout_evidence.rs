@@ -208,7 +208,7 @@ impl CalloutEvidenceVerifier {
     /// The JWKS document when a key is unusable.
     pub fn preload(&self, issuer: &str, jwks_json: &str) -> Result<(), EvidenceError> {
         let keys = parse_keys(jwks_json.as_bytes())?;
-        self.cache.lock().map_or((), |mut cache| {
+        if let Ok(mut cache) = self.cache.lock() {
             cache.insert(
                 issuer.to_owned(),
                 Cached {
@@ -216,7 +216,7 @@ impl CalloutEvidenceVerifier {
                     fetched_at: Instant::now(),
                 },
             );
-        });
+        }
         Ok(())
     }
 
