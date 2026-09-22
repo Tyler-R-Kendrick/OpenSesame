@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "policyId": "example-SC-APPROVAL-DURESS",
+  "revision": 1,
+  "enabled": false,
+  "profiles": [
+    {
+      "profileId": "approval-duress",
+      "label": "Approval ceremony duress",
+      "scope": {
+        "ownerPrincipalRef": "owner-1",
+        "organizationRef": null,
+        "vaultRef": "vault-1",
+        "deviceBindingRef": "device-1",
+        "compartmentRefs": ["comp-normal"]
+      },
+      "triggerKind": "approval_ceremony_code",
+      "effects": {
+        "presentation": "locked",
+        "presentationCompartmentRef": null,
+        "hold": {
+          "kind": "none"
+        },
+        "alert": {
+          "routeRef": "route-alert-1",
+          "templateRef": "tpl-approval",
+          "retainOutboxAcrossRemoval": false,
+          "maxRetries": 3,
+          "expiryMs": 1800000
+        },
+        "quarantinePeerRefs": [],
+        "providerRevocationRefs": [],
+        "removal": {
+          "kind": "none"
+        },
+        "recoveryPolicyRef": null,
+        "operationCeilingRef": null
+      }
+    }
+  ]
+}

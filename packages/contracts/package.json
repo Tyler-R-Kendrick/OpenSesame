@@ -16,11 +16,13 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
+    "yaml": "2.8.1",
     "zod": "3.25.67"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
+    "fast-check": "4.9.0",
     "typescript": "5.8.3",
     "vitest": "4.1.10"
   }

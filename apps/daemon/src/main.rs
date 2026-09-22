@@ -28,6 +28,9 @@ use uuid::Uuid;
 mod agent_capability;
 mod cli_probe;
 mod discovery;
+mod duress_receiver;
+mod proxy_path;
+use proxy_path::{decoded_path_segment, is_local_session_path};
 mod invoke_through;
 mod keychain;
 mod mint;
@@ -111,6 +114,8 @@ struct App {
     /// adapter in v1. A factory (not a stored source) so each call acquires
     /// fresh, off a fresh environment snapshot.
     token_source_factory: TokenSourceFactory,
+    /// Optional duress peer receiver state (default off / None).
+    duress_peer: Option<duress_receiver::DuressReceiverState>,
 }
 
 /// How the daemon turns a provider id into its credential source.
@@ -507,33 +512,6 @@ async fn proxy_identity(State(st): State<App>, req: Request) -> Response {
 
 const MAX_PROXY_BODY: usize = 2 * 1024 * 1024;
 
-fn decoded_path_segment(segment: &str) -> Option<String> {
-    let bytes = segment.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] != b'%' {
-            out.push(bytes[index]);
-            index += 1;
-            continue;
-        }
-        let hex = bytes.get(index + 1..index + 3)?;
-        let encoded = std::str::from_utf8(hex).ok()?;
-        out.push(u8::from_str_radix(encoded, 16).ok()?);
-        index += 3;
-    }
-    String::from_utf8(out).ok()
-}
-
-fn is_local_session_path(path: &str) -> bool {
-    path.split('/')
-        .filter(|segment| !segment.is_empty())
-        .map(decoded_path_segment)
-        .collect::<Option<Vec<_>>>()
-        .as_deref()
-        == Some(&["api".into(), "v1".into(), "session".into(), "local".into()])
-}
-
 async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Response {
     if !opensesame_host_core::daemon::base_url_is_local(base) {
         return StatusCode::FORBIDDEN.into_response();
@@ -645,7 +623,25 @@ fn router(state: App) -> Router {
         .route("/host/{*path}", any(proxy_host))
         .route("/identity", any(proxy_identity))
         .route("/identity/{*path}", any(proxy_identity))
+        .route("/v1/duress/peer/health", get(duress_peer_health))
+        .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
         .with_state(state)
+}
+
+async fn duress_peer_health(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
+    require_operator(&st, &headers, &uds).err().unwrap_or_else(|| {
+        duress_receiver::peer_health_response(st.duress_peer.as_ref())
+    })
+}
+
+async fn duress_peer_envelope(
+    State(st): State<App>, uds: UdsPeer, headers: HeaderMap, body: Bytes,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) { return resp; }
+    match st.duress_peer.clone() {
+        Some(peer) => duress_receiver::receive_envelope_response(peer, headers, body).await,
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 fn skip_hop_header(name: &HeaderName) -> bool {
@@ -1117,6 +1113,7 @@ mod tests {
             mint_limiter: Arc::new(ratelimit::TokenBucket::default()),
             invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
             token_source_factory: Arc::new(|_| None),
+            duress_peer: None,
         }
     }
 

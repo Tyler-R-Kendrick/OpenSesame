@@ -1,0 +1,33 @@
+schemaVersion: 1
+policyId: example-SC-QUARANTINE
+revision: 1
+enabled: false
+profiles:
+  - profileId: quarantine
+    label: Peer quarantine
+    scope:
+      ownerPrincipalRef: owner-1
+      organizationRef: null
+      vaultRef: vault-1
+      deviceBindingRef: device-1
+      compartmentRefs:
+        - comp-normal
+    triggerKind: delegated_peer_request
+    effects:
+      presentation: unchanged
+      presentationCompartmentRef: null
+      hold:
+        kind: none
+      alert:
+        routeRef: route-alert-1
+        templateRef: tpl-quarantine
+        retainOutboxAcrossRemoval: false
+        maxRetries: 1
+        expiryMs: 600000
+      quarantinePeerRefs:
+        - peer-1
+      providerRevocationRefs: []
+      removal:
+        kind: none
+      recoveryPolicyRef: null
+      operationCeilingRef: null

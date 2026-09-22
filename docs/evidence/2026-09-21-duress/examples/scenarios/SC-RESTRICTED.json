@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "policyId": "example-SC-RESTRICTED",
+  "revision": 1,
+  "enabled": false,
+  "profiles": [
+    {
+      "profileId": "restricted",
+      "label": "Restricted session",
+      "scope": {
+        "ownerPrincipalRef": "owner-1",
+        "organizationRef": null,
+        "vaultRef": "vault-1",
+        "deviceBindingRef": "device-1",
+        "compartmentRefs": ["comp-normal", "comp-restricted"]
+      },
+      "triggerKind": "application_code",
+      "effects": {
+        "presentation": "restricted",
+        "presentationCompartmentRef": "comp-restricted",
+        "hold": {
+          "kind": "none"
+        },
+        "alert": {
+          "routeRef": "route-alert-1",
+          "templateRef": "tpl-restricted",
+          "retainOutboxAcrossRemoval": false,
+          "maxRetries": 2,
+          "expiryMs": 3600000
+        },
+        "quarantinePeerRefs": [],
+        "providerRevocationRefs": [],
+        "removal": {
+          "kind": "none"
+        },
+        "recoveryPolicyRef": null,
+        "operationCeilingRef": "ceiling-restricted"
+      }
+    }
+  ]
+}

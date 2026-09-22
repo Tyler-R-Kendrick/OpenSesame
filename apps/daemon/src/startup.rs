@@ -63,6 +63,8 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
         .connect_timeout(std::time::Duration::from_secs(2))
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
+    let duress_peer = build_duress_peer_state()?;
+
     Ok((
         App {
             sessions: Arc::new(Mutex::new(HashMap::new())),
@@ -78,9 +80,46 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
             mint_limiter: Arc::new(ratelimit::TokenBucket::new(4.0, 1.0)),
             invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
             token_source_factory: cli_token_source_factory(),
+            duress_peer,
         },
         hsts,
     ))
+}
+
+/// Optional duress peer receiver (default off). Requires enrolled ECDSA verifying key.
+fn build_duress_peer_state() -> anyhow::Result<Option<crate::duress_receiver::DuressReceiverState>> {
+    match env::var("OPENSESAME_DURESS_PEER_RECEIVER").as_deref() {
+        Ok("1") => {
+            let audience = env::var("OPENSESAME_DURESS_PEER_AUDIENCE")
+                .unwrap_or_else(|_| "local-daemon".to_string());
+            let permitted = vec![
+                "quarantine_device".to_string(),
+                "device_lock".to_string(),
+                "incident_notify".to_string(),
+            ];
+            let key_b64 = env::var("OPENSESAME_DURESS_PEER_PUBLIC_KEY_SPKI_B64")
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "OPENSESAME_DURESS_PEER_RECEIVER=1 requires OPENSESAME_DURESS_PEER_PUBLIC_KEY_SPKI_B64"
+                    )
+                })?;
+            let vk = crate::duress_receiver::parse_verifying_key_b64(&key_b64)
+                .map_err(|_| anyhow::anyhow!("invalid OPENSESAME_DURESS_PEER_PUBLIC_KEY_SPKI_B64"))?;
+            let mut peer_state =
+                crate::duress_receiver::DuressReceiverState::new(audience, permitted)
+                    .with_verifying_key(vk);
+            if let Ok(evidence) = env::var("OPENSESAME_DURESS_PEER_TAILSCALE_EVIDENCE") {
+                if !evidence.is_empty() {
+                    peer_state.tailscale_evidence = Some(evidence);
+                }
+            }
+            tracing::info!(
+                "duress peer receiver enabled (operator-gated, ECDSA verify required)"
+            );
+            Ok(Some(peer_state))
+        }
+        _ => Ok(None),
+    }
 }
 
 pub(super) fn secured_router(state: App, hsts: bool) -> anyhow::Result<Router> {

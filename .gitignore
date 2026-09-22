@@ -99,3 +99,11 @@ packages/wallet-x402/forge/out/
 packages/wallet-x402/forge/cache/
 **/forge/out/
 **/forge/cache/
+
+# Duress BROWSER-QA disposable fixtures
+apps/pages/scripts/duress/.fixture-dist/
+apps/pages/scripts/duress/.artifacts/
+apps/pages/scripts/duress/.ui-artifacts/
+
+# Duress swarm workspace (local coordination; never ship)
+.duress-swarm/

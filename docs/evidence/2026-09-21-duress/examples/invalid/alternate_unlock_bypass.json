@@ -1,0 +1,38 @@
+{
+  "expectedError": "alternate_unlock_bypass",
+  "document": {
+    "schemaVersion": 1,
+    "policyId": "bad-policy",
+    "revision": 1,
+    "enabled": false,
+    "profiles": [
+      {
+        "profileId": "prf",
+        "label": "bad",
+        "scope": {
+          "ownerPrincipalRef": "owner-1",
+          "organizationRef": null,
+          "vaultRef": "vault-1",
+          "deviceBindingRef": "device-1",
+          "compartmentRefs": ["comp-normal"]
+        },
+        "triggerKind": "prf_and_code",
+        "effects": {
+          "presentation": "normal",
+          "presentationCompartmentRef": null,
+          "hold": {
+            "kind": "none"
+          },
+          "alert": null,
+          "quarantinePeerRefs": [],
+          "providerRevocationRefs": [],
+          "removal": {
+            "kind": "none"
+          },
+          "recoveryPolicyRef": null,
+          "operationCeilingRef": null
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+schemaVersion: 1
+policyId: example-SC-DECOY
+revision: 1
+enabled: false
+profiles:
+  - profileId: decoy
+    label: Decoy vault
+    scope:
+      ownerPrincipalRef: owner-1
+      organizationRef: null
+      vaultRef: vault-1
+      deviceBindingRef: device-1
+      compartmentRefs:
+        - comp-normal
+        - comp-decoy
+    triggerKind: application_code
+    effects:
+      presentation: decoy
+      presentationCompartmentRef: comp-decoy
+      hold:
+        kind: none
+      alert: null
+      quarantinePeerRefs: []
+      providerRevocationRefs: []
+      removal:
+        kind: none
+      recoveryPolicyRef: null
+      operationCeilingRef: ceiling-restricted
