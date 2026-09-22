@@ -60,6 +60,15 @@
       "tests": 10,
       "passed": 10,
       "failed": 0
+    },
+    {
+      "id": "run-red-team-mutations",
+      "command": "pnpm --filter @opensesame/pages verify:mutations",
+      "note": "6 of 6 mutations caught; method and residual scope in red-team.md",
+      "testFiles": 6,
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
     }
   ],
   "contracts": [
