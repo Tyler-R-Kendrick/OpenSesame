@@ -1,13 +1,20 @@
-/** Test-only access to the checked-in upstream fixtures. */
+/**
+ * Test-only access to the checked-in upstream fixtures.
+ *
+ * Under `test/` deliberately: it reads fixture files with `node:fs`, and
+ * `scripts/mtls-static-imports.mjs` (AT-STATIC-IMPORTS) treats everything
+ * else under `src/` as a shipped source that may not import a native
+ * module. Nothing the browser loads imports this file.
+ */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseJsonTree } from "./json-codec.js";
-import type { SopsNode } from "./model.js";
-import { goFloatText } from "./scalars.js";
-import { parseYamlDocuments } from "./yaml-parse.js";
+import { parseJsonTree } from "../json-codec.js";
+import type { SopsNode } from "../model.js";
+import { goFloatText } from "../scalars.js";
+import { parseYamlDocuments } from "../yaml-parse.js";
 
-export const UPSTREAM_DIR = join(__dirname, "fixtures", "upstream");
+export const UPSTREAM_DIR = join(__dirname, "..", "fixtures", "upstream");
 
 export type FixtureCase = {
   name: string;

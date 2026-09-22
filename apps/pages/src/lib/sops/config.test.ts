@@ -1,7 +1,7 @@
 /** @vitest-environment node */
 import { describe, expect, it } from "vitest";
 import { parseSopsConfig, planFromRule, selectCreationRule } from "./config.js";
-import { readIdentities } from "./fixtures.js";
+import { readIdentities } from "./test/fixtures.js";
 
 const ids = readIdentities();
 const r = (index: number) => ids[index]?.recipient ?? "";
