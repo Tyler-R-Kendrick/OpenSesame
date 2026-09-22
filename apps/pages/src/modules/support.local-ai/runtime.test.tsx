@@ -55,9 +55,7 @@ describe("support.local-ai runtime", () => {
     expect(supportAgentLoaders.promptApi).not.toBe(absent);
     // Installing a loader is assigning a function: the adapter is fetched
     // when the panel asks, never on activation.
-    expect(await absent()).toEqual({
-      createPromptApiAgent: expect.any(Function),
-    });
+    expect((await absent()).createPromptApiAgent()).toBeNull();
 
     await handle.dispose();
     expect(supportAgentLoaders.promptApi).toBe(absent);

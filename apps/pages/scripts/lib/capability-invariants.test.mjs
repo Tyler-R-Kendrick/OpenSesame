@@ -96,6 +96,9 @@ describe("violations", () => {
     );
   });
 
+});
+
+describe("violations: hardened exclusions", () => {
   test("EVID-02: an excluded module inside a harmless-named chunk fails hardened even when unreachable", () => {
     const graph = baseGraph([
       chunk("assets/main.js", [mod("apps/pages/src/main.tsx", "core")], {
