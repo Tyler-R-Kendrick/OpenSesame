@@ -20,10 +20,8 @@ import type {
   InstanceCapabilityPolicy,
   PolicyProvenance,
 } from "@opensesame/capability-composition";
-import type {
-  ContributionEntry,
-  ContributionKind,
-} from "../../lib/capabilities/runtime-contract.js";
+import type { ContributionKind } from "@opensesame/capability-composition";
+import type { ContributionEntry } from "../../lib/capabilities/runtime-contract.js";
 import type {
   CommitOutcome,
   CompositionSnapshot,

@@ -11,16 +11,14 @@ import type {
   InstallationCapabilitySelection,
   InstanceCapabilityPolicy,
 } from "@opensesame/capability-composition";
+import type { ContributionKind } from "@opensesame/capability-composition";
 import {
   type BoundaryValue,
   isJsonObject,
   overlapCast,
 } from "@opensesame/os-domain";
 import { useSyncExternalStore } from "react";
-import type {
-  ContributionEntry,
-  ContributionKind,
-} from "../../lib/capabilities/runtime-contract.js";
+import type { ContributionEntry } from "../../lib/capabilities/runtime-contract.js";
 import type { OutcomeView } from "../../lib/configuration/capabilities-ports.js";
 import type { CompositionDouble } from "./composition-double.js";
 import {

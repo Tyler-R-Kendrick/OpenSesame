@@ -58,43 +58,29 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
   });
 
   it("classifies the executable roots the way ownership.md records them", () => {
-    expect(classify("src/main.tsx")?.classification).toBe("core");
-    expect(classify("src/sw.ts")?.capability).toBe("install.pwa");
-    expect(classify("src/sw-push.ts")?.capability).toBe(
-      "notifications.web-push",
-    );
-    expect(classify("auth/redirect.html")?.capability).toBe(
-      "identity.ambient-sso",
-    );
-    expect(classify("auth/redirect-bridge.ts")?.capability).toBe(
-      "identity.ambient-sso",
-    );
-    expect(
-      classify("src/lib/vault/website-pattern.worker.ts")?.capability,
-    ).toBe("vault.passwords");
-    expect(classify("src/webmcp/tools.ts")?.capability).toBe("agents.webmcp");
-    expect(classify("src/webmcp/wallet-tools.ts")?.capability).toBe(
-      "wallet.spending",
-    );
-    expect(classify("src/screens/BrokerAuthorize.tsx")?.capability).toBe(
-      "identity.site-broker",
-    );
-    expect(classify("src/lib/local-guest.ts")?.classification).toBe("core");
-    expect(classify("src/lib/local-directory.ts")?.capability).toBe(
-      "identity.local-iam",
-    );
-    expect(classify("src/lib/local-access-requests.ts")?.capability).toBe(
-      "access.authority",
-    );
-    expect(classify("src/lib/capabilities.ts")?.capability).toBe(
-      "connectors.external",
-    );
-    expect(classify("src/lib/capabilities/catalog.ts")?.classification).toBe(
-      "core",
-    );
-    expect(classify("src/modules/sharing.drops/runtime.ts")?.capability).toBe(
-      "sharing.drops",
-    );
+    const expectations: Record<string, string> = {
+      "src/main.tsx": "core",
+      "src/sw.ts": "install.pwa",
+      "src/sw-push.ts": "notifications.web-push",
+      "auth/redirect.html": "identity.ambient-sso",
+      "auth/redirect-bridge.ts": "identity.ambient-sso",
+      "src/lib/vault/website-pattern.worker.ts": "vault.passwords",
+      "src/webmcp/tools.ts": "agents.webmcp",
+      "src/webmcp/wallet-tools.ts": "wallet.spending",
+      "src/screens/BrokerAuthorize.tsx": "identity.site-broker",
+      "src/lib/local-guest.ts": "core",
+      "src/lib/local-directory.ts": "identity.local-iam",
+      "src/lib/local-access-requests.ts": "access.authority",
+      "src/lib/capabilities.ts": "connectors.external",
+      "src/lib/capabilities/catalog.ts": "core",
+      "src/modules/sharing.drops/runtime.ts": "sharing.drops",
+    };
+    for (const [path, expected] of Object.entries(expectations)) {
+      const rule = classify(path);
+      const actual =
+        expected === "core" ? rule?.classification : rule?.capability;
+      expect(actual, path).toBe(expected);
+    }
   });
 
   it("classifies every exclusive package", () => {
