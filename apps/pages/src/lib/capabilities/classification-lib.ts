@@ -89,6 +89,7 @@ const SIGNIN_FILES = [
   "device-identity",
   "federated-signin",
   "guest-login",
+  "orgs",
 ];
 const CONNECTOR_FILES = [
   "capabilities",
@@ -186,7 +187,10 @@ const FEDERATION_FILES = [
   "byo",
   "idp-presets",
   "idp-registry",
-  "orgs",
+  // `orgs-directory` only: `orgs.ts` is the core sign-in vocabulary (the slug
+  // shape, the method routing, the profile this tab is on) and declares the
+  // four Identity-API calls as seams this capability installs.
+  "orgs-directory",
   "directory",
 ];
 const LOCAL_AI_FILES = [
