@@ -171,3 +171,67 @@ describe("passkey duress code completion", () => {
     );
   });
 });
+
+describe("pin duress gate injected outcomes", () => {
+  it("pin gate refuses throttled outcomes", async () => {
+    const { unlockWithPinAfterDuressGate } = await import(
+      "../../../screens/unlock/unlock-pin-duress.js"
+    );
+    const unlockWithPin = vi.fn(async () => undefined);
+    const createGuest = vi.fn(async () => undefined);
+    await expect(
+      unlockWithPinAfterDuressGate({ unlockWithPin, createGuest }, "11223344", {
+        requireDurable: false,
+        submit: async () => ({ kind: "throttled" }),
+      }),
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof WrongPasswordError &&
+        err.message === "That PIN did not unlock the vault.",
+    );
+    expect(unlockWithPin).not.toHaveBeenCalled();
+  });
+
+  it("pin gate refuses ambiguous and stale_policy the same way", async () => {
+    const { unlockWithPinAfterDuressGate } = await import(
+      "../../../screens/unlock/unlock-pin-duress.js"
+    );
+    for (const kind of ["ambiguous", "stale_policy"] as const) {
+      const unlockWithPin = vi.fn(async () => undefined);
+      const createGuest = vi.fn(async () => undefined);
+      await expect(
+        unlockWithPinAfterDuressGate(
+          { unlockWithPin, createGuest },
+          "11223344",
+          {
+            requireDurable: false,
+            submit: async () => ({ kind }),
+          },
+        ),
+      ).rejects.toBeInstanceOf(WrongPasswordError);
+      expect(unlockWithPin, kind).not.toHaveBeenCalled();
+    }
+  });
+
+  it("pin gate passes requireDurable through to submit", async () => {
+    const { unlockWithPinAfterDuressGate } = await import(
+      "../../../screens/unlock/unlock-pin-duress.js"
+    );
+    const seen: Array<boolean | undefined> = [];
+    const unlockWithPin = vi.fn(async () => undefined);
+    const createGuest = vi.fn(async () => undefined);
+    await unlockWithPinAfterDuressGate(
+      { unlockWithPin, createGuest },
+      "11223344",
+      {
+        requireDurable: false,
+        submit: async (_code, options) => {
+          seen.push(options.requireDurable);
+          return { kind: "inactive" };
+        },
+      },
+    );
+    expect(seen).toEqual([false]);
+    expect(unlockWithPin).toHaveBeenCalledOnce();
+  });
+});
