@@ -1,5 +1,7 @@
 import type { LocalAgentChallenge } from "@opensesame/static-auth";
 import { useEffect, useRef, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
   beginLocalAgentAuthentication,
   cancelLocalAgentAuthentication,
@@ -92,18 +94,19 @@ export function LocalAgentAuthentication(props: Props) {
         void verify();
       }}
     >
-      <p className="hint">
-        Send this challenge to the agent holding the enrolled private key. Sign
-        it with the local-agent SDK and return only the signed response. The
-        challenge expires after two minutes.
-      </p>
       {error ? (
-        <p className="note note--err" role="alert">
-          {error}
-        </p>
+        <>
+          <StatusMark tone="err" label={error} />
+          <span role="alert" className="visually-hidden">
+            {error}
+          </span>
+        </>
       ) : null}
       {!challenge && !error ? (
-        <output>Preparing agent challenge…</output>
+        <>
+          <StatusMark tone="idle" label="Preparing agent challenge…" />
+          <span className="visually-hidden">Preparing agent challenge…</span>
+        </>
       ) : null}
       {challenge ? (
         <>
@@ -145,15 +148,30 @@ export function LocalAgentAuthentication(props: Props) {
         </>
       ) : null}
       <div className="actions">
+        <div className="go-row">
+          <button
+            type="submit"
+            className="go"
+            disabled={!challenge || !proof.trim() || disabled || busy}
+            aria-busy={busy}
+            aria-label="Verify agent"
+            title="Verify agent"
+          >
+            <IconCheck size={18} />
+          </button>
+          <span className="go-verb" aria-hidden="true">
+            Verify agent
+          </span>
+        </div>
         <button
-          type="submit"
-          className="btn btn--primary"
-          disabled={!challenge || !proof.trim() || disabled || busy}
+          type="button"
+          className="icon-btn"
+          disabled={busy}
+          onClick={onClose}
+          aria-label="Close challenge"
+          title="Close challenge"
         >
-          {busy ? "Verifying…" : "Verify agent"}
-        </button>
-        <button type="button" className="btn" disabled={busy} onClick={onClose}>
-          Close challenge
+          <IconX size={16} />
         </button>
       </div>
     </form>

@@ -16,9 +16,17 @@ import {
   continueAfterDuressMatch,
 } from "./unlock-duress-continue.js";
 import {
+  DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
+  UNLOCK_PASSKEY_MISS,
+  UNLOCK_PIN_MISS,
+  type UnlockDuressGateOptions,
+  resolveRequireDurable,
+} from "./unlock-duress-refuse.js";
+import {
   clearPasskeyDuressEvidence,
   stashPasskeyDuressEvidence,
   takePasskeyDuressEvidence,
+  toSelectOptions,
 } from "./unlock-passkey-evidence.js";
 
 export type PasskeyUnlockResult =
@@ -64,55 +72,18 @@ export async function unlockWithPasskeyAfterDuressGate(
 export async function completePasskeyDuressCode(
   store: PasskeyUnlockStore,
   code: string,
-  options: { requireDurable?: boolean } = {},
+  options: UnlockDuressGateOptions = DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
 ): Promise<"vault_opened" | "duress_session"> {
   const evidence = takePasskeyDuressEvidence();
   if (evidence === null) {
-    throw new WrongPasswordError("That passkey did not unlock the vault.");
+    throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
   }
 
-  const select: {
-    userVerified: boolean;
-    prfOutput: Uint8Array | null;
-    origin?: string;
-    credentialIdB64?: string;
-  } = {
-    userVerified: evidence.userVerified,
-    prfOutput: evidence.prfOutput,
-  };
-  if (evidence.origin !== undefined) select.origin = evidence.origin;
-  if (evidence.credentialIdB64 !== undefined) {
-    select.credentialIdB64 = evidence.credentialIdB64;
-  }
-
+  const select = toSelectOptions(evidence);
   const duressOutcome = await onCompleteUnlockCodeSubmission(code, {
     select,
-    requireDurable: options.requireDurable ?? true,
+    requireDurable: resolveRequireDurable(options),
   });
-
-  if (
-    duressOutcome.kind === "throttled" ||
-    duressOutcome.kind === "ambiguous" ||
-    duressOutcome.kind === "stale_policy"
-  ) {
-    if (select.prfOutput) {
-      const restash: {
-        userVerified: boolean;
-        prfOutput: Uint8Array;
-        origin?: string;
-        credentialIdB64?: string;
-      } = {
-        userVerified: select.userVerified,
-        prfOutput: select.prfOutput,
-      };
-      if (select.origin !== undefined) restash.origin = select.origin;
-      if (select.credentialIdB64 !== undefined) {
-        restash.credentialIdB64 = select.credentialIdB64;
-      }
-      stashPasskeyDuressEvidence(restash);
-    }
-    throw new WrongPasswordError("That PIN did not unlock the vault.");
-  }
 
   if (duressOutcome.kind === "duress") {
     clearPasskeyDuressEvidence();
@@ -123,20 +94,25 @@ export async function completePasskeyDuressCode(
         profileId: duressOutcome.match.profileId,
         plaintext: duressOutcome.match.plaintext,
       },
-      "That PIN did not unlock the vault.",
+      UNLOCK_PIN_MISS,
     );
   }
 
-  if (!select.prfOutput) {
-    throw new WrongPasswordError("That passkey did not unlock the vault.");
+  if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
+    if (!select.prfOutput) {
+      throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+    }
+    const held = select.prfOutput.buffer.slice(
+      select.prfOutput.byteOffset,
+      select.prfOutput.byteOffset + select.prfOutput.byteLength,
+    );
+    await store.unlockWithHeldPrf(held);
+    select.prfOutput.fill(0);
+    return "vault_opened";
   }
-  const held = select.prfOutput.buffer.slice(
-    select.prfOutput.byteOffset,
-    select.prfOutput.byteOffset + select.prfOutput.byteLength,
-  );
-  await store.unlockWithHeldPrf(held);
-  select.prfOutput.fill(0);
-  return "vault_opened";
+
+  if (select.prfOutput) stashPasskeyDuressEvidence(select);
+  throw new WrongPasswordError(UNLOCK_PIN_MISS);
 }
 
 export function cancelPasskeyDuressCode(): void {

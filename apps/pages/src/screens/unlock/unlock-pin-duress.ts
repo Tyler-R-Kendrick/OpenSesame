@@ -3,14 +3,17 @@
  */
 
 import { WrongPasswordError } from "../../lib/vault/crypto.js";
-import {
-  type UnlockDuressOutcome,
-  onCompleteUnlockCodeSubmission,
-} from "../../sections/settings/security/duress-unlock-bridge.js";
+import { onCompleteUnlockCodeSubmission } from "../../sections/settings/security/duress-unlock-bridge.js";
 import {
   type DuressContinueStore,
   continueAfterDuressMatch,
 } from "./unlock-duress-continue.js";
+import {
+  DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
+  UNLOCK_PIN_MISS,
+  type UnlockDuressGateOptions,
+  resolveRequireDurable,
+} from "./unlock-duress-refuse.js";
 
 export type PinUnlockResult = "vault_opened" | "duress_session";
 
@@ -19,30 +22,14 @@ type PinUnlockStore = DuressContinueStore &
     unlockWithPin: (pin: string) => Promise<void>;
   }>;
 
-type PinDuressGateOptions = Readonly<{
-  requireDurable?: boolean;
-  submit?: (
-    code: string,
-    options: { requireDurable?: boolean },
-  ) => Promise<UnlockDuressOutcome>;
-}>;
-const defaultPinDuressGateOptions = {} satisfies PinDuressGateOptions;
-
 export async function unlockWithPinAfterDuressGate(
   store: PinUnlockStore,
   pin: string,
-  options: PinDuressGateOptions = defaultPinDuressGateOptions,
+  options: UnlockDuressGateOptions = DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
 ): Promise<PinUnlockResult> {
-  const submit = options.submit ?? onCompleteUnlockCodeSubmission;
-  const requireDurable = options.requireDurable ?? true;
-  const duressOutcome = await submit(pin, { requireDurable });
-  if (
-    duressOutcome.kind === "throttled" ||
-    duressOutcome.kind === "ambiguous" ||
-    duressOutcome.kind === "stale_policy"
-  ) {
-    throw new WrongPasswordError("That PIN did not unlock the vault.");
-  }
+  const duressOutcome = await onCompleteUnlockCodeSubmission(pin, {
+    requireDurable: resolveRequireDurable(options),
+  });
   if (duressOutcome.kind === "duress") {
     return continueAfterDuressMatch(
       store,
@@ -50,9 +37,12 @@ export async function unlockWithPinAfterDuressGate(
         profileId: duressOutcome.match.profileId,
         plaintext: duressOutcome.match.plaintext,
       },
-      "That PIN did not unlock the vault.",
+      UNLOCK_PIN_MISS,
     );
   }
-  await store.unlockWithPin(pin);
-  return "vault_opened";
+  if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
+    await store.unlockWithPin(pin);
+    return "vault_opened";
+  }
+  throw new WrongPasswordError(UNLOCK_PIN_MISS);
 }

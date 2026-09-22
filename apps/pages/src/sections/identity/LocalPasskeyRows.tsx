@@ -4,14 +4,22 @@
  * runs the revocation, and the sibling control keeps the passkey.
  */
 
-import { IconTrash } from "../../components/Icons.js";
-import type { useCredentialCommands } from "./LocalPasskeys.js";
+import { IconTrash, IconX } from "../../components/Icons.js";
+import type { LocalPasskey } from "../../lib/local-credentials.js";
+
+export type PasskeyRowsModel = {
+  keys: LocalPasskey[] | null;
+  busy: boolean;
+  removing: string | null;
+  setRemoving: (id: string | null) => void;
+  run: (action: "enroll" | "revoke", credentialId?: string) => Promise<void>;
+};
 
 export function CredentialRows({
   model,
   disabled,
 }: {
-  model: ReturnType<typeof useCredentialCommands>;
+  model: PasskeyRowsModel;
   disabled: boolean;
 }) {
   const { keys, busy, removing, setRemoving, run } = model;
@@ -36,6 +44,11 @@ export function CredentialRows({
                     : "icon-btn icon-btn--sm icon-btn--danger"
                 }
                 disabled={disabled || busy}
+                onClick={() =>
+                  removing === key.credentialId
+                    ? void run("revoke", key.credentialId)
+                    : setRemoving(key.credentialId)
+                }
                 aria-label={
                   removing === key.credentialId
                     ? "Confirm revocation"
@@ -46,26 +59,23 @@ export function CredentialRows({
                     ? "Confirm revocation"
                     : "Revoke passkey"
                 }
-                onClick={() =>
-                  removing === key.credentialId
-                    ? void run("revoke", key.credentialId)
-                    : setRemoving(key.credentialId)
-                }
               >
                 <IconTrash size={16} />
               </button>
               {removing === key.credentialId ? (
                 <button
                   type="button"
-                  className="btn btn--sm"
+                  className="icon-btn icon-btn--sm"
                   disabled={busy}
                   onClick={(event) => {
                     const primary = event.currentTarget.previousElementSibling;
-                    if (primary instanceof HTMLButtonElement) primary.focus();
                     setRemoving(null);
+                    if (primary instanceof HTMLButtonElement) primary.focus();
                   }}
+                  aria-label="Keep passkey"
+                  title="Keep passkey"
                 >
-                  Keep passkey
+                  <IconX size={16} />
                 </button>
               ) : null}
             </div>

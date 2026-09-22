@@ -5,6 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconCheck, IconPlus, IconX } from "../../components/Icons.js";
+import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
 import {
   type LocalPasskey,
   readLocalPasskeys,
@@ -259,6 +261,24 @@ export function useCredentialCommands(
   };
 }
 
+type PasskeySurfaceStatus = { tone: StatusTone; label: string };
+
+function passkeySurfaceStatus(
+  error: string,
+  busy: boolean,
+  message: string,
+  keys: LocalPasskey[] | null,
+): PasskeySurfaceStatus {
+  if (error) return { tone: "err", label: error };
+  if (busy) return { tone: "idle", label: "Complete the passkey operation…" };
+  if (message)
+    return { tone: keys && keys.length > 0 ? "ok" : "idle", label: message };
+  if (!keys) return { tone: "idle", label: "Loading passkeys…" };
+  if (keys.length === 0)
+    return { tone: "idle", label: "No passkeys enrolled." };
+  return { tone: "ok", label: "Passkeys" };
+}
+
 function CredentialCommands(props: CredentialProps) {
   const container = useRef<HTMLDivElement>(null);
   const model = useCredentialCommands(props, container);
@@ -272,20 +292,31 @@ function CredentialCommands(props: CredentialProps) {
       container.current?.closest("details")?.querySelector("summary")?.focus();
   });
   const disabled = props.disabled || !props.enabled;
+  const status = passkeySurfaceStatus(error, busy, message, keys);
   return (
     <div ref={container} aria-busy={busy}>
-      <p className="hint">
-        Passkeys identify this person in this vault. Enrollment is a
-        vault-custodian action; application access requires a separate grant.
-      </p>
+      <div className="actions">
+        <StatusMark tone={status.tone} label={status.label} />
+        <button
+          type="button"
+          className="icon-btn icon-btn--sm"
+          disabled={disabled || busy || !keys}
+          onClick={() => void run("enroll")}
+          aria-label="Enroll passkey"
+          title="Enroll passkey"
+        >
+          <IconPlus size={16} />
+        </button>
+      </div>
       {error ? (
-        <p className="note note--err" role="alert">
+        <span role="alert" className="visually-hidden">
           {error}
-        </p>
-      ) : null}
-      <output aria-label="Passkey status">
-        {busy ? "Complete the passkey operation…" : message}
-      </output>
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Passkey status">
+          {busy ? "Complete the passkey operation…" : message}
+        </output>
+      )}
       {model.offer ? (
         <div className="identity-passkey-offer">
           <label>
@@ -300,42 +331,32 @@ function CredentialCommands(props: CredentialProps) {
           <div className="actions">
             <button
               type="button"
-              className="btn btn--sm"
+              className="icon-btn icon-btn--sm"
               disabled={busy}
               onClick={model.keepSignInOnly}
+              aria-label="Keep sign-in only"
+              title="Keep sign-in only"
             >
-              Keep sign-in only
+              <IconX size={16} />
             </button>
             <button
               type="button"
-              className="btn btn--sm btn--primary"
+              className="icon-btn go"
               disabled={busy || !model.unlockChecked}
               onClick={() => void model.alsoUnlock()}
+              aria-label="Also unlock this vault"
+              title="Also unlock this vault"
             >
-              Also unlock this vault
+              <IconCheck size={16} />
             </button>
           </div>
         </div>
       ) : null}
-      {!keys && !error ? <output>Loading passkeys…</output> : null}
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={disabled || busy || !keys}
-          onClick={() => void run("enroll")}
-        >
-          Enroll passkey
-        </button>
-      </div>
       <LocalIdentitySession
         tomb={props.tomb}
         principalId={props.principalId}
         disabled={disabled || busy || !keys?.length}
       />
-      {keys?.length === 0 ? (
-        <p className="hint">No passkeys enrolled.</p>
-      ) : null}
       <CredentialRows model={model} disabled={props.disabled} />
     </div>
   );

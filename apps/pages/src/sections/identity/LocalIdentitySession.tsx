@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { IconLock, IconPasskey } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { LocalDirectoryError } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import type { LocalSession } from "../../lib/local-sessions.js";
@@ -103,40 +105,44 @@ export function LocalIdentitySession({
     }
   }
 
+  const tone = error ? "err" : session ? "ok" : "idle";
+  const label =
+    error || (busy ? "Complete the local session operation…" : message);
+
   return (
     <div className="identity-session" aria-busy={busy}>
       <div className="actions">
         <button
           type="button"
-          className="btn btn--sm"
+          className="icon-btn icon-btn--sm"
           disabled={disabled || busy || session !== null}
           onClick={() => void run(false)}
+          aria-label="Sign in locally"
+          title="Sign in locally"
         >
-          Sign in locally
+          <IconPasskey size={16} />
         </button>
         <button
           type="button"
-          className="btn btn--sm"
+          className="icon-btn icon-btn--sm"
           disabled={busy || session === null}
           onClick={() => void run(true)}
+          aria-label="Sign out locally"
+          title="Sign out locally"
         >
-          Sign out locally
+          <IconLock size={16} />
         </button>
+        <StatusMark tone={tone} label={label || "No active local session."} />
       </div>
-      <output aria-label="Local session status">
-        {busy ? "Complete the local session operation…" : message}
-      </output>
       {error ? (
-        <p role="alert" className="note note--err">
+        <span role="alert" className="visually-hidden">
           {error}
-        </p>
-      ) : null}
-      {session ? (
-        <p className="hint">
-          Session expires {new Date(session.expiresAt).toLocaleTimeString()}.
-          Organization access follows assigned roles.
-        </p>
-      ) : null}
+        </span>
+      ) : (
+        <output className="visually-hidden" aria-label="Local session status">
+          {busy ? "Complete the local session operation…" : message}
+        </output>
+      )}
     </div>
   );
 }

@@ -162,10 +162,6 @@ function DirectoryAuthority({
   if (entry.kind === "agent")
     return (
       <>
-        <p className="hint">
-          Interactive agent grants need a separately authenticated human.
-          Unattended service credentials are a different Identity workload.
-        </p>
         <LocalAgentKeys
           tomb={tomb}
           principalId={entry.id}
