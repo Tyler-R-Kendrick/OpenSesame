@@ -5,20 +5,20 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./browser": {
-      "types": "./dist/browser.d.ts",
-      "default": "./dist/browser.js"
+      "types": "./src/browser.ts",
+      "default": "./src/browser.ts"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
