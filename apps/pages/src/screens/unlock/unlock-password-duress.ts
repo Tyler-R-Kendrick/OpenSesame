@@ -8,6 +8,12 @@ import {
   type DuressContinueStore,
   continueAfterDuressMatch,
 } from "./unlock-duress-continue.js";
+import {
+  DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
+  UNLOCK_PASSWORD_MISS,
+  type UnlockDuressGateOptions,
+  resolveRequireDurable,
+} from "./unlock-duress-refuse.js";
 
 export type PasswordUnlockResult = "vault_opened" | "duress_session";
 
@@ -16,26 +22,14 @@ type PasswordUnlockStore = DuressContinueStore &
     unlock: (password: string) => Promise<void>;
   }>;
 
-type PasswordDuressGateOptions = Readonly<{
-  requireDurable?: boolean;
-}>;
-const defaultPasswordDuressGateOptions = {} satisfies PasswordDuressGateOptions;
-
 export async function unlockWithPasswordAfterDuressGate(
   store: PasswordUnlockStore,
   password: string,
-  options: PasswordDuressGateOptions = defaultPasswordDuressGateOptions,
+  options: UnlockDuressGateOptions = DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
 ): Promise<PasswordUnlockResult> {
   const duressOutcome = await onCompleteUnlockCodeSubmission(password, {
-    requireDurable: options.requireDurable ?? true,
+    requireDurable: resolveRequireDurable(options),
   });
-  if (
-    duressOutcome.kind === "throttled" ||
-    duressOutcome.kind === "ambiguous" ||
-    duressOutcome.kind === "stale_policy"
-  ) {
-    throw new WrongPasswordError("That password did not unlock the vault.");
-  }
   if (duressOutcome.kind === "duress") {
     return continueAfterDuressMatch(
       store,
@@ -43,9 +37,12 @@ export async function unlockWithPasswordAfterDuressGate(
         profileId: duressOutcome.match.profileId,
         plaintext: duressOutcome.match.plaintext,
       },
-      "That password did not unlock the vault.",
+      UNLOCK_PASSWORD_MISS,
     );
   }
-  await store.unlock(password);
-  return "vault_opened";
+  if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
+    await store.unlock(password);
+    return "vault_opened";
+  }
+  throw new WrongPasswordError(UNLOCK_PASSWORD_MISS);
 }
