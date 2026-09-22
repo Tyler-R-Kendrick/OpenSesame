@@ -120,12 +120,10 @@ export const selection = (
  * removes `tmpRoot` afterwards.
  */
 export function makeFixtureTree() {
-  let tmpRoot;
-  let appRoot;
-  let inventory;
   // Laid out as <repo>/apps/pages so module ids normalize to `apps/pages/src/...`.
-  tmpRoot = mkdtempSync(join(tmpdir(), "capability-compose-"));
-  appRoot = join(tmpRoot, "apps/pages");
+  const tmpRoot = mkdtempSync(join(tmpdir(), "capability-compose-"));
+  const appRoot = join(tmpRoot, "apps/pages");
+  let inventory;
   mkdirSync(appRoot, { recursive: true });
   writeFileSync(
     join(appRoot, "package.json"),
