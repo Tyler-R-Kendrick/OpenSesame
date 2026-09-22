@@ -15,12 +15,12 @@ import type {
   CapabilityState,
   CompositionChangeReview,
   ConsentReceipt,
+  ContributionKind,
   EffectivePlan,
   InstallationCapabilitySelection,
   InstanceCapabilityPolicy,
   PolicyProvenance,
 } from "@opensesame/capability-composition";
-import type { ContributionKind } from "@opensesame/capability-composition";
 import type { ContributionEntry } from "../../lib/capabilities/runtime-contract.js";
 import type {
   CommitOutcome,
@@ -76,6 +76,16 @@ export type CompositionDouble = {
   setActive(id: CapabilityId): void;
 };
 
+/** Everything the double mutates, in one place so the factory stays small. */
+type DoubleCore = {
+  options: Required<DoubleOptions>;
+  listeners: Set<() => void>;
+  active: Set<CapabilityId>;
+  generation: number;
+  snapshot: CompositionSnapshot;
+};
+type CoreBase = Omit<DoubleCore, "snapshot">;
+
 function lifecycleOf(
   state: CapabilityState,
   active: ReadonlySet<CapabilityId>,
@@ -89,20 +99,14 @@ function lifecycleOf(
   return "disabled";
 }
 
-export function createCompositionDouble(
-  initial: DoubleOptions = {},
-): CompositionDouble {
-  let options: Required<DoubleOptions> = fill(initial);
-  const listeners = new Set<() => void>();
-  const active = new Set<CapabilityId>();
-  let generation = 1;
-  let snapshot: CompositionSnapshot;
-
-  const inputFor = (
-    selection: InstallationCapabilitySelection | null,
-    receipt: ConsentReceipt | null,
-    assumeConsent: boolean,
-  ): DoubleInput => ({
+function inputFor(
+  core: CoreBase,
+  selection: InstallationCapabilitySelection | null,
+  receipt: ConsentReceipt | null,
+  assumeConsent: boolean,
+): DoubleInput {
+  const { options } = core;
+  return {
     catalog: FIXTURE_CATALOG,
     policy: options.policy,
     provenance: options.provenance,
@@ -114,107 +118,145 @@ export function createCompositionDouble(
     evaluatedModuleIds: options.evaluatedModuleIds,
     installationId: "inst-1",
     vaultId: options.vaultId,
-  });
-
-  const publish = () => {
-    const plan = resolveDouble(
-      inputFor(options.selection, options.receipt, false),
-    );
-    const lifecycle: Record<CapabilityId, CapabilityLifecycle> = {};
-    for (const state of Object.values(plan.capabilities))
-      lifecycle[state.id] = lifecycleOf(state, active);
-    snapshot = {
-      status: "ready",
-      plan,
-      generation,
-      provenance: options.provenance,
-      policy: options.policy,
-      selection: options.selection,
-      receipt: options.receipt,
-      lifecycle,
-      durability: options.durability,
-      diagnostics: [],
-    };
-    for (const listener of listeners) listener();
   };
-  publish();
+}
 
+function snapshotOf(core: CoreBase): CompositionSnapshot {
+  const { options } = core;
+  const plan = resolveDouble(
+    inputFor(core, options.selection, options.receipt, false),
+  );
+  const lifecycle: Record<CapabilityId, CapabilityLifecycle> = {};
+  for (const state of Object.values(plan.capabilities))
+    lifecycle[state.id] = lifecycleOf(state, core.active);
+  return {
+    status: "ready",
+    plan,
+    generation: core.generation,
+    provenance: options.provenance,
+    policy: options.policy,
+    selection: options.selection,
+    receipt: options.receipt,
+    lifecycle,
+    durability: options.durability,
+    diagnostics: [],
+  };
+}
+
+function publish(core: DoubleCore): void {
+  core.snapshot = snapshotOf(core);
+  for (const listener of core.listeners) listener();
+}
+
+function createCore(initial: DoubleOptions): DoubleCore {
+  const base: CoreBase = {
+    options: fill(initial),
+    listeners: new Set(),
+    active: new Set(),
+    generation: 1,
+  };
+  return { ...base, snapshot: snapshotOf(base) };
+}
+
+async function commitOn(
+  core: DoubleCore,
+  draft: InstallationCapabilitySelection,
+  receipt: ConsentReceipt,
+): Promise<CommitOutcome> {
+  if (draft.basePolicyRevision !== (core.options.policy?.revision ?? "0")) {
+    return { status: "conflict", reason: "policy-revision" };
+  }
+  core.generation += 1;
+  core.options = { ...core.options, selection: draft, receipt };
+  publish(core);
+  return {
+    status: "committed",
+    generation: core.generation,
+    committedGeneration: core.generation,
+  };
+}
+
+function withoutRoot(
+  core: DoubleCore,
+  id: CapabilityId,
+): Required<DoubleOptions> {
+  const selection = core.options.selection;
+  if (!selection) return core.options;
+  return {
+    ...core.options,
+    selection: {
+      ...selection,
+      selectedOptional: selection.selectedOptional.filter(
+        (item) => item !== id,
+      ),
+    },
+  };
+}
+
+export function createCompositionDouble(
+  initial: DoubleOptions = {},
+): CompositionDouble {
+  const core = createCore(initial);
+  const preview = (draft: InstallationCapabilitySelection) =>
+    resolveDouble(inputFor(core, draft, core.options.receipt, true));
+  /** Every mutation bumps the generation, exactly as the real store does. */
+  const bump = () => {
+    core.generation += 1;
+    publish(core);
+  };
   const double: CompositionDouble = {
-    getSnapshot: () => snapshot,
+    getSnapshot: () => core.snapshot,
     subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+      core.listeners.add(listener);
+      return () => core.listeners.delete(listener);
     },
-    preview: (draft) => resolveDouble(inputFor(draft, options.receipt, true)),
+    preview,
     review(draft) {
-      const before = snapshot.plan ?? double.preview(draft);
-      const after = double.preview(draft);
-      return reviewOf(before, after, FIXTURE_CATALOG);
+      const after = preview(draft);
+      return reviewOf(core.snapshot.plan ?? after, after, FIXTURE_CATALOG);
     },
-    async commit(draft, receipt) {
+    commit(draft, receipt) {
       double.commits.push({ draft, receipt });
-      if (draft.basePolicyRevision !== (options.policy?.revision ?? "0")) {
-        return { status: "conflict", reason: "policy-revision" };
-      }
-      generation += 1;
-      options = { ...options, selection: draft, receipt };
-      publish();
-      return {
-        status: "committed",
-        generation,
-        committedGeneration: generation,
-      };
+      return commitOn(core, draft, receipt);
     },
     async emergencyDisable(id) {
       double.disabled.push(id);
-      active.delete(id);
-      const selection = options.selection;
-      if (selection) {
-        options = {
-          ...options,
-          selection: {
-            ...selection,
-            selectedOptional: selection.selectedOptional.filter(
-              (item) => item !== id,
-            ),
-          },
-        };
-      }
-      generation += 1;
-      publish();
-      return { blockedNow: true, durable: options.durability === "durable" };
+      core.active.delete(id);
+      core.options = withoutRoot(core, id);
+      bump();
+      return {
+        blockedNow: true,
+        durable: core.options.durability === "durable",
+      };
     },
     invalidate(reason) {
-      double.invalidations.push(reason);
-      generation += 1;
-      publish();
+      bump(double.invalidations, reason);
     },
     onVaultChange(vaultId) {
-      options = { ...options, vaultId };
-      generation += 1;
-      publish();
+      core.options = { ...core.options, vaultId };
+      bump([]);
     },
     commits: [],
     disabled: [],
     invalidations: [],
-    contributions: [...options.contributions],
+    contributions: [...core.options.contributions],
     reset(next = {}) {
-      options = fill(next);
+      core.options = fill(next);
       double.commits.length = 0;
       double.disabled.length = 0;
       double.invalidations.length = 0;
       double.contributions.splice(
         0,
         double.contributions.length,
-        ...options.contributions,
+        ...core.options.contributions,
       );
-      active.clear();
-      generation = 1;
-      publish();
+      core.active.clear();
+      core.generation = 1;
+      publish(core);
     },
     setActive(id) {
-      active.add(id);
-      publish();
+      core.active.add(id);
+      publish(core);
     },
   };
   return double;
