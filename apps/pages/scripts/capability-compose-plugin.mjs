@@ -61,7 +61,7 @@ const toPosix = (path) => path.replace(/\\/g, "/");
  * `.js`→`.ts` extension convention and workspace aliases resolve). Any file
  * still absent falls back to the bootstrap inventory, and `source` says so.
  */
-export async function loadInventory(appRoot = DEFAULT_APP_ROOT, { alias } = {}) {
+export async function loadInventory(appRoot = DEFAULT_APP_ROOT, { alias, lenient = false, logger = console } = {}) {
   const present = Object.fromEntries(
     Object.entries(INVENTORY_FILES).map(([key, file]) => [key, existsSync(join(appRoot, file))]),
   );
@@ -82,23 +82,36 @@ export async function loadInventory(appRoot = DEFAULT_APP_ROOT, { alias } = {}) 
     optimizeDeps: { noDiscovery: true, include: [] },
     server: { middlewareMode: true, hmr: false, ws: false, watch: null },
   });
+  // A file that exists but fails to evaluate is fatal unless `lenient` (the
+  // report gate): a broken authored inventory must not silently revert to
+  // the bootstrap guess in an enforced build.
+  const load = async (key, apply) => {
+    const file = INVENTORY_FILES[key];
+    if (!present[key]) {
+      inventory.missing.push(file);
+      return;
+    }
+    try {
+      apply(await server.ssrLoadModule(join(appRoot, file)));
+    } catch (error) {
+      if (!lenient) throw error;
+      inventory.missing.push(`${file} (failed to load: ${error.message.split("\n")[0]})`);
+      logger.warn(`[capability-compose] ${file} failed to load; using the bootstrap ${key}: ${error.message.split("\n")[0]}`);
+    }
+  };
   try {
-    const load = (file) => server.ssrLoadModule(join(appRoot, file));
-    if (present.catalog) {
-      const m = await load(INVENTORY_FILES.catalog);
+    await load("catalog", (m) => {
       inventory.catalog = m.CAPABILITY_CATALOG ?? m.default ?? inventory.catalog;
-    } else inventory.missing.push(INVENTORY_FILES.catalog);
-    if (present.ownership) {
-      const m = await load(INVENTORY_FILES.ownership);
+    });
+    await load("ownership", (m) => {
       inventory.moduleOwnership = m.MODULE_OWNERSHIP ?? {};
       inventory.htmlEntryOwnership = m.HTML_ENTRY_OWNERSHIP ?? {};
       inventory.publicFileOwnership = m.PUBLIC_FILE_OWNERSHIP ?? {};
       if (Array.isArray(m.WORKER_VARIANTS)) inventory.workerVariants = m.WORKER_VARIANTS;
-    } else inventory.missing.push(INVENTORY_FILES.ownership);
-    if (present.classification) {
-      const m = await load(INVENTORY_FILES.classification);
+    });
+    await load("classification", (m) => {
       inventory.classification = m.SOURCE_CLASSIFICATION ?? m.default ?? inventory.classification;
-    } else inventory.missing.push(INVENTORY_FILES.classification);
+    });
   } finally {
     await server.close();
   }
@@ -125,7 +138,11 @@ async function composeState(options, userConfig) {
   const profile = profilePath ? loadProfile(profilePath, appRoot) : IMPLICIT_PROFILE;
   const inventory =
     options.inventory ??
-    (await (options.loadInventory ?? loadInventory)(appRoot, { alias: userConfig?.resolve?.alias }));
+    (await (options.loadInventory ?? loadInventory)(appRoot, {
+      alias: userConfig?.resolve?.alias,
+      lenient: gate === "report",
+      logger: options.logger ?? console,
+    }));
   const sets = distributedCapabilities(inventory.catalog, profile, mode);
   const isExcluded = (capability) =>
     capability !== null && sets.all.has(capability) && !sets.distributed.has(capability);

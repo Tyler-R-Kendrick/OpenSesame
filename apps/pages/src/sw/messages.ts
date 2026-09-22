@@ -9,7 +9,11 @@
  * key, an id that is not a module id — is refused whole.
  */
 
-import { type BoundaryValue, isJsonObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 
 export type WorkerHelloMessage = Readonly<{ type: "WORKER_HELLO" }>;
 
@@ -116,7 +120,10 @@ export function parsePlanAssets(data: BoundaryValue): PlanAssetsParse {
   for (const id of moduleIds) {
     if (!isString(id)) return { ok: false, reason: "malformed" };
     if (!MODULE_ID.test(id) || id.length > 129)
-      return { ok: false, reason: looksLikeUrl(id) ? "carries-url" : "malformed" };
+      return {
+        ok: false,
+        reason: looksLikeUrl(id) ? "carries-url" : "malformed",
+      };
     ids.push(id);
   }
   return {

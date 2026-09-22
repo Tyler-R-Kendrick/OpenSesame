@@ -73,7 +73,9 @@ export class FakeClients {
     return this.all.filter(
       (c) =>
         (options.includeUncontrolled === true || c.controlled) &&
-        (options.type === undefined || options.type === "all" || c.type === options.type),
+        (options.type === undefined ||
+          options.type === "all" ||
+          c.type === options.type),
     );
   }
 
@@ -168,7 +170,10 @@ export class FakeCacheStorage {
   }
 
   /** Seed a cache with URL → body pairs, as an earlier release would have. */
-  async seed(name: string, entries: Readonly<Record<string, string>>): Promise<FakeCache> {
+  async seed(
+    name: string,
+    entries: Readonly<Record<string, string>>,
+  ): Promise<FakeCache> {
     const cache = await this.open(name);
     for (const [url, body] of Object.entries(entries))
       cache.entries.set(url, new Response(body, { status: 200 }));
@@ -185,7 +190,8 @@ export class FakeWorkerEnv {
   readonly cacheStorage: FakeCacheStorage;
   readonly routes = new Map<string, RouteAnswer>();
   readonly fetched: string[] = [];
-  readonly notifications: { title: string; options: NotificationOptions }[] = [];
+  readonly notifications: { title: string; options: NotificationOptions }[] =
+    [];
   skipWaitingCalls = 0;
   quotaBytes: number | null = null;
   bytesStored = 0;
@@ -223,7 +229,10 @@ export class FakeWorkerEnv {
     const scope = {
       registration: {
         scope: this.scope,
-        showNotification: async (title: string, options: NotificationOptions) => {
+        showNotification: async (
+          title: string,
+          options: NotificationOptions,
+        ) => {
           env.notifications.push({ title, options });
         },
       },
@@ -258,7 +267,8 @@ export class FakeWorkerEnv {
     };
     // SAFETY: listeners are typed against the DOM event they handle; the fake
     // supplies the fields those handlers read.
-    for (const listener of this.listeners.get(type) ?? []) listener(overlapCast(extendable));
+    for (const listener of this.listeners.get(type) ?? [])
+      listener(overlapCast(extendable));
     await Promise.all(pending);
   }
 

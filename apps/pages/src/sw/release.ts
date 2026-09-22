@@ -11,9 +11,15 @@
  * The id is a cache-name segment, so it may never contain a colon.
  */
 
-import { type BoundaryValue, isJsonObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 
-export type ManifestEntry = string | Readonly<{ url: string; revision?: string | null }>;
+export type ManifestEntry =
+  | string
+  | Readonly<{ url: string; revision?: string | null }>;
 
 export const SHELL_URL = "index.html";
 
@@ -46,7 +52,10 @@ export function releaseIdFromManifest(
 ): string {
   for (const entry of manifest) {
     if (isString(entry) || entry.url !== SHELL_URL) continue;
-    if (isString(entry.revision) && /^[A-Za-z0-9_-]{1,64}$/.test(entry.revision))
+    if (
+      isString(entry.revision) &&
+      /^[A-Za-z0-9_-]{1,64}$/.test(entry.revision)
+    )
       return entry.revision;
   }
   return `dev-${fnv1a(JSON.stringify(manifest))}`;

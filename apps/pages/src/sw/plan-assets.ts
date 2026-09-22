@@ -12,7 +12,11 @@
 
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type WorkerContext, controlledSender } from "./context.js";
-import { type CapabilityGraph, parseCapabilityGraph, resolvePlanAssets } from "./graph.js";
+import {
+  type CapabilityGraph,
+  parseCapabilityGraph,
+  resolvePlanAssets,
+} from "./graph.js";
 import {
   type PlanAssetsMessage,
   type PlanRejectReason,
@@ -91,7 +95,8 @@ async function stageFiles(
       await staging.put(url, response);
       staged.push(url);
     } catch (error) {
-      if (isQuotaError(overlapCast(error))) return { kind: "storage-unavailable" };
+      if (isQuotaError(overlapCast(error)))
+        return { kind: "storage-unavailable" };
       missing += 1;
     }
   }
@@ -102,7 +107,8 @@ async function stageFiles(
     try {
       await release.put(url, response);
     } catch (error) {
-      if (isQuotaError(overlapCast(error))) return { kind: "storage-unavailable" };
+      if (isQuotaError(overlapCast(error)))
+        return { kind: "storage-unavailable" };
       return { kind: "partial", missing: 1 };
     }
   }
@@ -115,9 +121,11 @@ async function runPlan(
   plan: PlanAssetsMessage,
 ): Promise<void> {
   const graph = await readGraph(ctx);
-  if (!graph) return post(client, { type: "PLAN_REJECTED", reason: "graph-unavailable" });
+  if (!graph)
+    return post(client, { type: "PLAN_REJECTED", reason: "graph-unavailable" });
   const resolved = resolvePlanAssets(graph, plan.moduleIds);
-  if (!resolved.ok) return post(client, { type: "PLAN_REJECTED", reason: "unknown-module" });
+  if (!resolved.ok)
+    return post(client, { type: "PLAN_REJECTED", reason: "unknown-module" });
   let outcome: StageOutcome;
   try {
     outcome = await stageFiles(ctx, resolved.files);
@@ -129,9 +137,14 @@ async function runPlan(
     await ctx.caches.delete(ctx.stagingCacheName).catch(() => false);
   }
   const identity = { releaseId: ctx.releaseId, planDigest: plan.planDigest };
-  if (outcome.kind === "complete") post(client, { type: "OFFLINE_READY", ...identity });
+  if (outcome.kind === "complete")
+    post(client, { type: "OFFLINE_READY", ...identity });
   else if (outcome.kind === "partial")
-    post(client, { type: "OFFLINE_PARTIAL", ...identity, missing: outcome.missing });
+    post(client, {
+      type: "OFFLINE_PARTIAL",
+      ...identity,
+      missing: outcome.missing,
+    });
   else post(client, { type: "OFFLINE_STORAGE_UNAVAILABLE", ...identity });
 }
 
@@ -153,7 +166,9 @@ export class PlanCoordinator {
     if (!parsed.ok) return this.reject(client, parsed.reason);
     if (parsed.message.releaseId !== this.ctx.releaseId)
       return this.reject(client, "release-mismatch");
-    const run = this.queue.then(() => runPlan(this.ctx, client, parsed.message));
+    const run = this.queue.then(() =>
+      runPlan(this.ctx, client, parsed.message),
+    );
     this.queue = run.catch(() => undefined);
     return run;
   }

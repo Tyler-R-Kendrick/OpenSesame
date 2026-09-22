@@ -62,12 +62,24 @@ class PersistingBudgetStore implements BudgetStore {
 let cached: BudgetLedger | null = null;
 let cachedTomb = "";
 let labelCache: Record<string, string> | null = null;
+let labelTomb = "";
 
-onWalletTombChange(() => {
+function dropCaches(): void {
   cached = null;
   cachedTomb = "";
   labelCache = null;
-});
+  labelTomb = "";
+}
+
+/**
+ * Follow the active tomb: a switch drops the process caches so a guest never
+ * reads the personal ledger's labels. Subscribed by the `wallet.spending`
+ * runtime while it is active (never at import), and the caches are keyed by
+ * tomb as well, so a read after an unobserved switch still misses.
+ */
+export function watchSpendingLedgerScope(): () => void {
+  return onWalletTombChange(dropCaches);
+}
 
 export function getSpendingLedger(): BudgetLedger {
   const tomb = walletStorageTomb();
@@ -114,7 +126,9 @@ export type BudgetRow = BudgetProjection & {
 };
 
 function readLabels(): Record<string, string> {
-  if (labelCache !== null) return labelCache;
+  const tomb = walletStorageTomb();
+  if (labelCache !== null && labelTomb === tomb) return labelCache;
+  labelTomb = tomb;
   try {
     let raw = localStorage.getItem(walletStorageKey(LABELS_KEY));
     if ((raw === null || raw === "") && walletStorageTomb() === "personal") {
@@ -143,6 +157,7 @@ function readLabels(): Record<string, string> {
 
 function writeLabels(labels: Record<string, string>): void {
   labelCache = labels;
+  labelTomb = walletStorageTomb();
   try {
     localStorage.setItem(walletStorageKey(LABELS_KEY), JSON.stringify(labels));
   } catch {

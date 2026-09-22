@@ -27,7 +27,11 @@ import {
 import { handleFetch } from "./fetch.js";
 import { isWorkerHello } from "./messages.js";
 import { PlanCoordinator } from "./plan-assets.js";
-import { type ManifestEntry, releaseIdFromManifest, shellEntry } from "./release.js";
+import {
+  type ManifestEntry,
+  releaseIdFromManifest,
+  shellEntry,
+} from "./release.js";
 
 export type CoreWorkerOptions = Readonly<{
   /** `core-only` or `push`; the last cache-name segment. */
@@ -53,7 +57,9 @@ async function windowsAtActivation(ctx: WorkerContext): Promise<Set<string>> {
       type: "window",
       includeUncontrolled: true,
     });
-    return new Set(windows.filter((w) => isScopedWindow(ctx, w)).map((w) => w.id));
+    return new Set(
+      windows.filter((w) => isScopedWindow(ctx, w)).map((w) => w.id),
+    );
   } catch {
     return new Set();
   }
@@ -70,7 +76,8 @@ async function otherReleases(ctx: WorkerContext): Promise<Set<string>> {
   try {
     for (const name of await ctx.caches.keys()) {
       const parsed = parseCacheName(name, ctx.scopePath);
-      if (parsed && parsed.releaseId !== ctx.releaseId) releases.add(parsed.releaseId);
+      if (parsed && parsed.releaseId !== ctx.releaseId)
+        releases.add(parsed.releaseId);
     }
   } catch {
     // No keys, nothing to retain.
@@ -81,7 +88,8 @@ async function otherReleases(ctx: WorkerContext): Promise<Set<string>> {
 async function activate(ctx: WorkerContext, takeover: Takeover): Promise<void> {
   const open = await windowsAtActivation(ctx);
   for (const id of open) takeover.clientIds.add(id);
-  if (open.size > 0) for (const r of await otherReleases(ctx)) takeover.retained.add(r);
+  if (open.size > 0)
+    for (const r of await otherReleases(ctx)) takeover.retained.add(r);
   await cleanupCaches({
     caches: ctx.caches,
     scopePath: ctx.scopePath,
@@ -92,7 +100,10 @@ async function activate(ctx: WorkerContext, takeover: Takeover): Promise<void> {
 }
 
 /** Once every pre-takeover window is gone, the retained releases go too. */
-async function releaseRetained(ctx: WorkerContext, takeover: Takeover): Promise<void> {
+async function releaseRetained(
+  ctx: WorkerContext,
+  takeover: Takeover,
+): Promise<void> {
   if (takeover.retained.size === 0) return;
   let ids: Set<string>;
   try {
@@ -115,7 +126,10 @@ async function releaseRetained(ctx: WorkerContext, takeover: Takeover): Promise<
   });
 }
 
-async function precacheShell(ctx: WorkerContext, manifest: readonly ManifestEntry[]): Promise<void> {
+async function precacheShell(
+  ctx: WorkerContext,
+  manifest: readonly ManifestEntry[],
+): Promise<void> {
   const shell = shellEntry(manifest);
   if (!shell) return;
   try {
@@ -126,7 +140,11 @@ async function precacheShell(ctx: WorkerContext, manifest: readonly ManifestEntr
   }
 }
 
-async function hello(ctx: WorkerContext, event: ExtendableMessageEvent, takeover: Takeover): Promise<void> {
+async function hello(
+  ctx: WorkerContext,
+  event: ExtendableMessageEvent,
+  takeover: Takeover,
+): Promise<void> {
   const client = await controlledSender(ctx, event.source);
   if (!client) return;
   client.postMessage({
@@ -153,7 +171,9 @@ export function installCoreWorker(
   const plans = new PlanCoordinator(ctx);
 
   sw.addEventListener("install", (event) => {
-    event.waitUntil(precacheShell(ctx, options.manifest).then(() => sw.skipWaiting()));
+    event.waitUntil(
+      precacheShell(ctx, options.manifest).then(() => sw.skipWaiting()),
+    );
   });
   sw.addEventListener("activate", (event) => {
     event.waitUntil(activate(ctx, takeover));

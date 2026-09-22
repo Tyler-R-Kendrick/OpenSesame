@@ -45,15 +45,14 @@ const DIST_PATH = /^[A-Za-z0-9][A-Za-z0-9._@-]*(\/[A-Za-z0-9._@-]+)*$/;
 
 /** A dist-relative path: no scheme, no authority, no leading slash, no `..`. */
 export function isDistPath(value: string): boolean {
-  return (
-    DIST_PATH.test(value) && !value.split("/").some((seg) => seg === "..")
-  );
+  return DIST_PATH.test(value) && !value.split("/").some((seg) => seg === "..");
 }
 
 function pathList(value: BoundaryValue): string[] {
   if (!Array.isArray(value)) return [];
   const out: string[] = [];
-  for (const entry of value) if (isString(entry) && isDistPath(entry)) out.push(entry);
+  for (const entry of value)
+    if (isString(entry) && isDistPath(entry)) out.push(entry);
   return out;
 }
 

@@ -26,7 +26,10 @@ function pushPayload(event: PushEvent): BoundaryValue {
   }
 }
 
-async function openReview(sw: ServiceWorkerGlobalScope, url: string): Promise<void> {
+async function openReview(
+  sw: ServiceWorkerGlobalScope,
+  url: string,
+): Promise<void> {
   const windows = await sw.clients.matchAll({
     type: "window",
     includeUncontrolled: true,

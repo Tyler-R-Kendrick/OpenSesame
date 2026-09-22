@@ -22,7 +22,10 @@ async function releaseCache(ctx: WorkerContext): Promise<Cache> {
   return ctx.caches.open(ctx.releaseCacheName);
 }
 
-async function saveShell(ctx: WorkerContext, response: Response): Promise<void> {
+async function saveShell(
+  ctx: WorkerContext,
+  response: Response,
+): Promise<void> {
   try {
     const cache = await releaseCache(ctx);
     await cache.put(ctx.shellUrl, response);
@@ -32,7 +35,10 @@ async function saveShell(ctx: WorkerContext, response: Response): Promise<void> 
 }
 
 /** Fetch the current shell and refresh this release's copy; null when offline. */
-async function freshShell(ctx: WorkerContext, url: URL): Promise<Response | null> {
+async function freshShell(
+  ctx: WorkerContext,
+  url: URL,
+): Promise<Response | null> {
   try {
     const response = await ctx.fetch(ctx.shellUrl);
     if (!response.ok) return null;
@@ -50,11 +56,15 @@ async function cachedShell(ctx: WorkerContext, url: URL): Promise<Response> {
   throw new Error("offline shell unavailable");
 }
 
-async function navigation(ctx: WorkerContext, request: Request): Promise<Response> {
+async function navigation(
+  ctx: WorkerContext,
+  request: Request,
+): Promise<Response> {
   const url = new URL(request.url);
   try {
     const response = await ctx.fetch(request);
-    if (!response.ok) return (await freshShell(ctx, url)) ?? cachedShell(ctx, url);
+    if (!response.ok)
+      return (await freshShell(ctx, url)) ?? cachedShell(ctx, url);
     await saveShell(ctx, response.clone());
     return isolated(response, url, ctx.scopePath);
   } catch {
@@ -62,7 +72,10 @@ async function navigation(ctx: WorkerContext, request: Request): Promise<Respons
   }
 }
 
-async function runtimeConfig(ctx: WorkerContext, request: Request): Promise<Response> {
+async function runtimeConfig(
+  ctx: WorkerContext,
+  request: Request,
+): Promise<Response> {
   const cache = await releaseCache(ctx);
   try {
     const response = await ctx.fetch(request);
