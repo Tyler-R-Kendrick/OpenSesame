@@ -9,8 +9,6 @@
  */
 import {
   type BoundaryValue,
-  type JsonObject,
-  isBoolean,
   isJsonObject,
   isNumber,
   isString,
@@ -26,7 +24,7 @@ import {
   validateNetwork,
   validateUpdates,
 } from "./documents-helpers.js";
-import { type DocumentKind, capabilityId } from "./ids.js";
+import type { DocumentKind } from "./ids.js";
 
 /** Upper bounds that keep a hostile document from stalling resolution. */
 export const DOCUMENT_LIMITS = {

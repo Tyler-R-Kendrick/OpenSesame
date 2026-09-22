@@ -89,7 +89,7 @@ function compareEntries(a: string, b: string): number {
  * digits. Deterministic across processes; not cryptographic.
  */
 export function fnv1a64Hex(text: string): string {
-  let hash = 0xcbf29ce4n; // FNV offset basis, 64-bit
+  let hash = 0xcbf29ce484222325n; // FNV offset basis, 64-bit
   const prime = 0x100000001b3n;
   for (const byte of new TextEncoder().encode(text)) {
     hash ^= BigInt(byte);
