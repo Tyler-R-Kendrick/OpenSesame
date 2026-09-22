@@ -38,8 +38,11 @@ function settingsRoute(category: string): GuideRouteDescriptor {
   return { id: settingsPath(category), title: `Settings — ${category}` };
 }
 
-const SETTINGS_ROUTES: readonly GuideRouteDescriptor[] =
-  SETTINGS_CATEGORIES.map(settingsRoute);
+// `general` is Settings' own path, already a section route: a category only
+// adds a route when it has one of its own.
+const SETTINGS_ROUTES: readonly GuideRouteDescriptor[] = SETTINGS_CATEGORIES.map(
+  settingsRoute,
+).filter((route) => !SECTION_ROUTES.some((section) => section.id === route.id));
 
 /**
  * The routes the core shell always has. An optional section's routes arrive
