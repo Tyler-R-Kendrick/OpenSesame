@@ -1,258 +1,26 @@
-import type {
-  ConsentReceipt,
-  DistributionContract,
-  EffectivePlan,
-  InstallationCapabilitySelection,
-} from "@opensesame/capability-composition";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  type CompositionSnapshotForWorker,
-  type CompositionStoreForWorker,
-  type PageToWorkerMessage,
+  CORE_ONLY_DISTRIBUTION,
+  CORE_URL,
+  FakeContainer,
+  FakeStore,
+  PUSH_URL,
+  arm,
+  env,
+  installSeams,
+  plan,
+  receipt,
+  restoreSeams,
+  selection,
+} from "./worker/test-harness.js";
+import {
   WORKER_GRAPH_UNAVAILABLE,
-  registerWorkerForPlan,
-  resetWorkerController,
   transitionWorker,
-  workerControllerSeams,
-  workerControllerSettled,
   workerStatus,
 } from "./worker-controller.js";
 
-const BASE = "https://example.test/OpenSesame/";
-const CORE_URL = `${BASE}sw.js`;
-const PUSH_URL = `${BASE}sw-push.js`;
-
-const DISTRIBUTION: DistributionContract = {
-  distributionId: "dist-1",
-  mode: "selective",
-  capabilityIds: [
-    "vault.passwords",
-    "connectors.external",
-    "notifications.web-push",
-  ],
-  moduleIds: [
-    "connectors.external/runtime",
-    "notifications.web-push/runtime",
-    "notifications.web-push/worker",
-  ],
-  workerVariants: [
-    { id: "core-only", scriptPath: "sw.js", satisfies: [] },
-    { id: "push", scriptPath: "sw-push.js", satisfies: ["push"] },
-  ],
-  basePath: "/OpenSesame/",
-};
-
-const CORE_ONLY_DISTRIBUTION: DistributionContract = {
-  ...DISTRIBUTION,
-  workerVariants: [{ id: "core-only", scriptPath: "sw.js", satisfies: [] }],
-};
-
-type PlanInput = Readonly<{
-  requiredWorkerVariant?: string | null;
-  approvedCapabilities?: readonly string[];
-  approvedModules?: readonly string[];
-  planDigest?: string;
-}>;
-
-function plan(input: PlanInput = {}): EffectivePlan {
-  return {
-    identity: {
-      instanceId: "inst",
-      installationId: "install",
-      vaultId: null,
-      distributionId: "dist-1",
-      policyRevision: "p1",
-      selectionRevision: "s1",
-      planDigest: input.planDigest ?? "sha256:plan1",
-    },
-    provenance: "personal-local",
-    policyValid: true,
-    capabilities: {},
-    approvedCapabilities: input.approvedCapabilities ?? ["vault.passwords"],
-    approvedModules: input.approvedModules ?? [],
-    approvedOperations: [],
-    approvedItemKinds: [],
-    requiredWorkerVariant: input.requiredWorkerVariant ?? null,
-    conflicts: [],
-    consent: {
-      addedRoots: [],
-      removedRoots: [],
-      changedExposure: [],
-      addedDependencies: [],
-      requiredNotAccepted: [],
-    },
-    network: { externalServices: "deny", allowedServiceOrigins: [] },
-  };
-}
-
-function selection(
-  offlineCache: "shell-only" | "selected-only",
-): InstallationCapabilitySelection {
-  return {
-    schemaVersion: 1,
-    kind: "InstallationCapabilitySelection",
-    instanceId: "inst",
-    installationId: "install",
-    basePolicyRevision: "p1",
-    revision: "s1",
-    acceptedRequired: [],
-    selectedOptional: ["connectors.external"],
-    chosenAlternatives: {},
-    delivery: { prefetch: "none", offlineCache },
-  };
-}
-
-function receipt(capability: string, digest = "sha256:x"): ConsentReceipt {
-  const exposure = { [capability]: digest };
-  return {
-    schemaVersion: 1,
-    instanceId: "inst",
-    installationId: "install",
-    policyRevision: "p1",
-    selectionRevision: "s1",
-    acceptedAt: "2026-09-22T00:00:00.000Z",
-    roots: Object.keys(exposure),
-    exposure,
-    receiptDigest: "sha256:receipt",
-  };
-}
-
-class FakeStore implements CompositionStoreForWorker {
-  private snapshot: CompositionSnapshotForWorker;
-  private readonly listeners = new Set<() => void>();
-
-  constructor(snapshot: CompositionSnapshotForWorker) {
-    this.snapshot = snapshot;
-  }
-
-  getSnapshot(): CompositionSnapshotForWorker {
-    return this.snapshot;
-  }
-
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  set(snapshot: CompositionSnapshotForWorker): void {
-    this.snapshot = snapshot;
-    for (const listener of this.listeners) listener();
-  }
-}
-
-type Handler = (event: { data: JsonObject }) => void;
-
-class FakeContainer {
-  readonly registered: {
-    url: string;
-    options: RegistrationOptions | undefined;
-  }[] = [];
-  readonly posted: PageToWorkerMessage[] = [];
-  readonly unregistered: string[] = [];
-  activeScript: string | null;
-  hasController: boolean;
-  private readonly handlers = new Map<string, Handler[]>();
-
-  constructor(
-    activeScript: string | null,
-    hasController = activeScript !== null,
-  ) {
-    this.activeScript = activeScript;
-    this.hasController = hasController;
-  }
-
-  get controller(): { postMessage: (m: PageToWorkerMessage) => void } | null {
-    if (!this.hasController) return null;
-    return { postMessage: (m) => this.posted.push(m) };
-  }
-
-  async register(url: string, options?: RegistrationOptions): Promise<void> {
-    this.registered.push({ url, options });
-    this.activeScript = url;
-  }
-
-  async getRegistration(): Promise<
-    | {
-        active: { scriptURL: string } | null;
-        unregister: () => Promise<boolean>;
-      }
-    | undefined
-  > {
-    if (!this.activeScript) return undefined;
-    const script = this.activeScript;
-    return {
-      active: { scriptURL: script },
-      unregister: async () => {
-        this.unregistered.push(script);
-        this.activeScript = null;
-        return true;
-      },
-    };
-  }
-
-  addEventListener(
-    type: string,
-    handler: Handler,
-    options?: { once?: boolean },
-  ): void {
-    const list = this.handlers.get(type) ?? [];
-    const wrapped: Handler = options?.once
-      ? (event) => {
-          this.handlers.set(
-            type,
-            (this.handlers.get(type) ?? []).filter((h) => h !== wrapped),
-          );
-          handler(event);
-        }
-      : handler;
-    list.push(wrapped);
-    this.handlers.set(type, list);
-  }
-
-  emit(type: string, data?: JsonObject): void {
-    for (const handler of [...(this.handlers.get(type) ?? [])])
-      handler({ data: data ?? {} });
-  }
-
-  asContainer(): ServiceWorkerContainer {
-    // SAFETY: the controller reads controller, register, getRegistration and
-    // addEventListener; the fake implements those and nothing else is reached.
-    return overlapCast(this);
-  }
-}
-
-const original = { ...workerControllerSeams };
-let reloads = 0;
-let isolated = false;
-
-beforeEach(() => {
-  resetWorkerController();
-  reloads = 0;
-  isolated = false;
-  workerControllerSeams.baseUrl = () => BASE;
-  workerControllerSeams.crossOriginIsolated = () => isolated;
-  workerControllerSeams.reload = () => {
-    reloads += 1;
-  };
-});
-
-afterEach(() => {
-  Object.assign(workerControllerSeams, original);
-});
-
-function arm(
-  container: FakeContainer | null,
-  store: FakeStore,
-  distribution = DISTRIBUTION,
-) {
-  workerControllerSeams.serviceWorkerContainer = () =>
-    container?.asContainer() ?? null;
-  const stop = registerWorkerForPlan(store, { distribution });
-  return { stop, settled: workerControllerSettled };
-}
+beforeEach(installSeams);
+afterEach(restoreSeams);
 
 describe("variant selection (PWA-02)", () => {
   it("registers the core-only script once, classic and never via cache, for a null variant", async () => {
@@ -267,7 +35,11 @@ describe("variant selection (PWA-02)", () => {
     expect(container.registered).toEqual([
       {
         url: CORE_URL,
-        options: { type: "classic", updateViaCache: "none", scope: BASE },
+        options: {
+          type: "classic",
+          updateViaCache: "none",
+          scope: "https://example.test/OpenSesame/",
+        },
       },
     ]);
     store.set({
@@ -293,7 +65,7 @@ describe("variant selection (PWA-02)", () => {
   });
 
   it("does not register on a cross-origin-isolated page", async () => {
-    isolated = true;
+    env.isolated = true;
     const container = new FakeContainer(null);
     const store = new FakeStore({
       plan: plan(),
@@ -414,7 +186,7 @@ describe("transitions (PWA-02, PWA-06)", () => {
     expect(workerStatus().transition).toBe(null);
     expect(workerStatus().variant).toBe("push");
     container.emit("controllerchange");
-    expect(reloads).toBe(1);
+    expect(env.reloads).toBe(1);
     await expect(transitionWorker()).resolves.toBe(false);
   });
 
@@ -429,139 +201,6 @@ describe("transitions (PWA-02, PWA-06)", () => {
     await settled();
     container.emit("controllerchange");
     container.emit("controllerchange");
-    expect(reloads).toBe(1);
-  });
-});
-
-describe("plan assets and offline status", () => {
-  const richPlan = plan({
-    approvedModules: [
-      "connectors.external/runtime",
-      "notifications.web-push/worker",
-    ],
-  });
-
-  it("posts nothing beyond the shell when the selection is shell-only", async () => {
-    const container = new FakeContainer(CORE_URL);
-    const store = new FakeStore({
-      plan: richPlan,
-      selection: selection("shell-only"),
-      receipt: null,
-    });
-    const { settled } = arm(container, store);
-    await settled();
-    expect(container.posted).toEqual([]);
-    expect(workerStatus().offlineStatus).toBe("online-only");
-  });
-
-  it("asks the worker who it is, then posts module ids only — never a URL or a worker unit", async () => {
-    const container = new FakeContainer(CORE_URL);
-    const store = new FakeStore({
-      plan: richPlan,
-      selection: selection("selected-only"),
-      receipt: null,
-    });
-    const { settled } = arm(container, store);
-    await settled();
-    expect(container.posted).toEqual([{ type: "WORKER_HELLO" }]);
-    container.emit("message", {
-      type: "WORKER_INFO",
-      releaseId: "r1abc",
-      variant: "core-only",
-      scopePath: "/OpenSesame/",
-    });
-    expect(container.posted[1]).toEqual({
-      type: "PLAN_ASSETS",
-      releaseId: "r1abc",
-      planDigest: "sha256:plan1",
-      moduleIds: ["connectors.external/runtime"],
-    });
-    expect(JSON.stringify(container.posted)).not.toMatch(/https?:|\.js/);
-    expect(workerStatus()).toMatchObject({
-      releaseId: "r1abc",
-      offlineStatus: "saving",
-    });
-
-    container.emit("message", {
-      type: "OFFLINE_READY",
-      releaseId: "r1abc",
-      planDigest: "sha256:plan1",
-    });
-    expect(workerStatus().offlineStatus).toBe("saved");
-
-    // The same plan again is not re-posted; a changed one is.
-    store.set({
-      plan: richPlan,
-      selection: selection("selected-only"),
-      receipt: null,
-    });
-    await settled();
-    expect(container.posted).toHaveLength(2);
-    store.set({
-      plan: plan({ approvedModules: [], planDigest: "sha256:plan2" }),
-      selection: selection("selected-only"),
-      receipt: null,
-    });
-    await settled();
-    expect(container.posted[2]).toMatchObject({
-      type: "PLAN_ASSETS",
-      planDigest: "sha256:plan2",
-      moduleIds: [],
-    });
-  });
-
-  it("reports partial and storage-unavailable outcomes, and re-asks after a release mismatch", async () => {
-    const container = new FakeContainer(CORE_URL);
-    const store = new FakeStore({
-      plan: richPlan,
-      selection: selection("selected-only"),
-      receipt: null,
-    });
-    const { settled } = arm(container, store);
-    await settled();
-    container.emit("message", {
-      type: "WORKER_INFO",
-      releaseId: "r1abc",
-      variant: "core-only",
-      scopePath: "/OpenSesame/",
-    });
-    container.emit("message", {
-      type: "OFFLINE_PARTIAL",
-      releaseId: "r1abc",
-      planDigest: "sha256:plan1",
-      missing: 2,
-    });
-    expect(workerStatus().offlineStatus).toBe("partial");
-    container.emit("message", {
-      type: "OFFLINE_STORAGE_UNAVAILABLE",
-      releaseId: "r1abc",
-      planDigest: "sha256:plan1",
-    });
-    expect(workerStatus().offlineStatus).toBe("storage-unavailable");
-
-    container.emit("message", {
-      type: "PLAN_REJECTED",
-      reason: "release-mismatch",
-    });
-    expect(workerStatus().offlineStatus).toBe("online-only");
-    expect(workerStatus().diagnostics).toContain(
-      "PLAN_REJECTED:release-mismatch",
-    );
-    expect(container.posted.at(-1)).toEqual({ type: "WORKER_HELLO" });
-  });
-
-  it("ignores messages that are not from the worker vocabulary", async () => {
-    const container = new FakeContainer(CORE_URL);
-    const store = new FakeStore({
-      plan: richPlan,
-      selection: selection("selected-only"),
-      receipt: null,
-    });
-    const { settled } = arm(container, store);
-    await settled();
-    container.emit("message", { type: "DELETE_EVERYTHING" });
-    container.emit("message", { type: "WORKER_INFO" });
-    expect(workerStatus().releaseId).toBe(null);
-    expect(container.posted).toEqual([{ type: "WORKER_HELLO" }]);
+    expect(env.reloads).toBe(1);
   });
 });

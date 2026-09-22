@@ -217,60 +217,80 @@ function Outcome({ model }: { model: CapabilitySetupModel }) {
   );
 }
 
-export function CapabilitySetup({ join = false }: { join?: boolean }) {
-  const model = useCapabilitySetup(join);
-  const firstRoad = useRef<HTMLButtonElement | null>(null);
+function Join({ model }: { model: CapabilitySetupModel }) {
+  if (model.stage !== "join") return null;
+  return (
+    <InstallationRequirements
+      required={model.requiredNotAccepted}
+      catalog={model.catalog}
+      instanceId={model.snapshot.plan?.identity.instanceId ?? "this instance"}
+      onAccept={model.accept}
+      onDecline={model.cancel}
+    />
+  );
+}
+
+function Purpose({ model }: { model: CapabilitySetupModel }) {
+  const onPurposeStage =
+    model.stage === "purpose" || model.stage === "cards";
+  if (!onPurposeStage || model.managed) return null;
+  return (
+    <PurposeCards
+      presets={PRESETS}
+      chosen={model.draft?.preset ?? null}
+      onChoose={model.edit.preset}
+    />
+  );
+}
+
+function Review({ model }: { model: CapabilitySetupModel }) {
+  if (model.stage !== "review" || !model.review) return null;
+  return (
+    <CapabilityReview
+      review={model.review}
+      catalog={model.catalog}
+      alternativesFor={model.alternatives}
+      busy={model.busy}
+      onApply={() => void model.apply()}
+      onCancel={model.cancel}
+      onReplace={model.edit.replace}
+    />
+  );
+}
+
+/**
+ * Closing the review — Cancel or Escape — lands the keyboard back on the
+ * first road, never nowhere (SURFACE-10).
+ */
+function useRoadFocus(
+  stage: CapabilitySetupModel["stage"],
+  firstRoad: React.RefObject<HTMLButtonElement | null>,
+): void {
   const wasReviewing = useRef(false);
-  // Closing the review — Cancel or Escape — lands the keyboard back on the
-  // first road, never nowhere (SURFACE-10).
   useEffect(() => {
-    if (model.stage === "review") wasReviewing.current = true;
-    else if (wasReviewing.current && model.stage === "roads") {
+    if (stage === "review") wasReviewing.current = true;
+    else if (wasReviewing.current && stage === "roads") {
       wasReviewing.current = false;
       landFocus(firstRoad.current);
     }
-  }, [model.stage]);
+  }, [stage, firstRoad]);
+}
+
+export function CapabilitySetup({ join = false }: { join?: boolean }) {
+  const model = useCapabilitySetup(join);
+  const firstRoad = useRef<HTMLButtonElement | null>(null);
+  useRoadFocus(model.stage, firstRoad);
+  const composing = model.stage === "cards" || model.stage === "outcome";
   return (
     <div className="capset" data-testid="capability-setup">
       {model.stage === "roads" ? (
         <Roads model={model} firstRoad={firstRoad} />
       ) : null}
-      {model.stage === "join" ? (
-        <InstallationRequirements
-          required={model.requiredNotAccepted}
-          catalog={model.catalog}
-          instanceId={
-            model.snapshot.plan?.identity.instanceId ?? "this instance"
-          }
-          onAccept={model.accept}
-          onDecline={model.cancel}
-        />
-      ) : null}
-      {(model.stage === "purpose" || model.stage === "cards") &&
-      !model.managed ? (
-        <PurposeCards
-          presets={PRESETS}
-          chosen={model.draft?.preset ?? null}
-          onChoose={model.edit.preset}
-        />
-      ) : null}
-      {model.stage === "cards" || model.stage === "outcome" ? (
-        <Tools model={model} />
-      ) : null}
-      {model.stage === "cards" || model.stage === "outcome" ? (
-        <Cards model={model} />
-      ) : null}
-      {model.stage === "review" && model.review ? (
-        <CapabilityReview
-          review={model.review}
-          catalog={model.catalog}
-          alternativesFor={model.alternatives}
-          busy={model.busy}
-          onApply={() => void model.apply()}
-          onCancel={model.cancel}
-          onReplace={model.edit.replace}
-        />
-      ) : null}
+      <Join model={model} />
+      <Purpose model={model} />
+      {composing ? <Tools model={model} /> : null}
+      {composing ? <Cards model={model} /> : null}
+      <Review model={model} />
       <Outcome model={model} />
     </div>
   );
