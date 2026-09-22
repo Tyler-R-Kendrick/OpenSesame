@@ -1091,6 +1091,9 @@ importers:
         specifier: workspace:*
         version: link:../os-domain
     devDependencies:
+      fast-check:
+        specifier: 4.9.0
+        version: 4.9.0
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1301,6 +1304,9 @@ importers:
       '@opensesame/auth-upstream':
         specifier: workspace:*
         version: link:../auth-upstream
+      '@opensesame/capability-composition':
+        specifier: workspace:*
+        version: link:../capability-composition
       '@opensesame/contracts':
         specifier: workspace:*
         version: link:../contracts
