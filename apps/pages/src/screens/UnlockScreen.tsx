@@ -57,6 +57,7 @@ import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { FrontDoor } from "./FrontDoor.js";
 import { SetupScreen, type SetupStep } from "./SetupScreen.js";
+import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
@@ -99,6 +100,7 @@ export function UnlockScreen() {
   const { status, tomb } = useVault();
   const [ceremony, setCeremony] = useState<{
     step?: SetupStep;
+    join?: boolean;
   } | null>(null);
   // Several vaults open on the choice (ADR 0089); one goes straight to it.
   const [vaultsOpen, setVaultsOpen] = useState(() =>
@@ -122,18 +124,15 @@ export function UnlockScreen() {
       cancelled = true;
     };
   }, []);
-  // A locked screen is idle time: ask the service worker for a newer shell
-  // and let it start downloading while the person unlocks (esp. installed PWA).
+  // A locked screen is idle time: ask the service worker for a newer shell.
   useEffect(() => {
     void checkForAppUpdate();
   }, []);
-  // The front door (ADR 0115): a device with no vault and no setup record
-  // opens on the two roads made large, with sign-in whole beneath them. A
-  // person who chose the local-only seal is past the door until they say
-  // "Sign in instead"; an answered — or skipped — ceremony retires it for good.
+  // The front door (ADR 0115): no vault and no setup record opens on the
+  // roads made large, sign-in whole beneath them; the local-only seal and an
+  // answered or skipped ceremony retire it. Guest prepare leaves status
+  // empty (no wrap on disk) — that is Unlock, not the front door.
   const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
-  // Guest prepare leaves status empty (no wrap on disk) — that is Unlock,
-  // not the front door's first-run roads.
   const frontDoor =
     status === "empty" &&
     tomb !== GUEST_TOMB &&
@@ -142,7 +141,11 @@ export function UnlockScreen() {
 
   if (ceremony) {
     return (
-      <SetupScreen step={ceremony.step} onDone={() => setCeremony(null)} />
+      <SetupScreen
+        step={ceremony.step}
+        join={ceremony.join}
+        onDone={() => setCeremony(null)}
+      />
     );
   }
   if (vaultsOpen) {
@@ -157,7 +160,7 @@ export function UnlockScreen() {
     return (
       <FrontDoor
         providers={providers}
-        onOpenSetup={() => setCeremony({ step: undefined })}
+        onOpenSetup={(join) => setCeremony({ step: undefined, join })}
         onUseLocalOnly={() => setLocalOnlyPicked(true)}
       />
     );
@@ -169,7 +172,7 @@ export function UnlockScreen() {
       onSignInInstead={
         localOnlyPicked ? () => setLocalOnlyPicked(false) : undefined
       }
-      onOpenSetup={(step) => setCeremony({ step })}
+      onOpenSetup={(step, join) => setCeremony({ step, join })}
       onOpenVaults={() => setVaultsOpen(true)}
     />
   );
@@ -187,7 +190,7 @@ function UnlockForm({
   initialLocalOnly?: boolean;
   /** Where "Sign in instead" goes when the front door is what sign-in is. */
   onSignInInstead?: () => void;
-  onOpenSetup: (step?: SetupStep) => void;
+  onOpenSetup: (step?: SetupStep, join?: boolean) => void;
   /** Back to the front door: every vault on this device (ADR 0089). */
   onOpenVaults: () => void;
 }) {
@@ -535,8 +538,8 @@ function UnlockForm({
           ) : null}
         </div>
 
-        {/* Setup left no way in at all. One sentence and the road that fixes
-            it — landing on the identity tab, where the fix lives. */}
+        <RequirementsGate onOpenSetup={(join) => onOpenSetup("capabilities", join)} />
+        {/* Setup left no way in: one sentence and the road that fixes it. */}
         {nothingSignsIn && (signInStage || showSignIn) ? (
           <div className="note unlock__unset">
             <span>

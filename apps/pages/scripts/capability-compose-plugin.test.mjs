@@ -52,6 +52,7 @@ const CLASSIFICATION = [
   { pattern: "node_modules/react", classification: "shared", capability: null, rationale: "framework" },
 ];
 
+let tmpRoot;
 let appRoot;
 let inventory;
 const policy = (required, optional, prohibited = []) => ({
@@ -78,7 +79,10 @@ const selection = (acceptedRequired, selectedOptional, chosenAlternatives = {}) 
 });
 
 beforeAll(() => {
-  appRoot = mkdtempSync(join(tmpdir(), "capability-compose-"));
+  // Laid out as <repo>/apps/pages so module ids normalize to `apps/pages/src/...`.
+  tmpRoot = mkdtempSync(join(tmpdir(), "capability-compose-"));
+  appRoot = join(tmpRoot, "apps/pages");
+  mkdirSync(appRoot, { recursive: true });
   writeFileSync(join(appRoot, "package.json"), JSON.stringify({ version: "9.9.9" }));
   for (const id of ["connectors.external", "notifications.web-push", "sharing.drops", "sharing.household"]) {
     mkdirSync(join(appRoot, "src/modules", id), { recursive: true });
@@ -103,7 +107,7 @@ beforeAll(() => {
     classification: CLASSIFICATION,
   };
 });
-afterAll(() => rmSync(appRoot, { recursive: true, force: true }));
+afterAll(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
 function profileFile(name, body) {
   const path = join(appRoot, `${name}.json`);
@@ -115,7 +119,7 @@ function profileFile(name, body) {
 async function compose(options) {
   // `env: {}` keeps vitest's own VITEST variable out of the plugin's view;
   // under the real vitest config resolution the plugin is deliberately inert.
-  const [main] = capabilityCompose({ appRoot, repoRoot: join(appRoot, "..", ".."), inventory, logger: { warn() {} }, env: {}, ...options });
+  const [main] = capabilityCompose({ appRoot, repoRoot: tmpRoot, inventory, logger: { warn() {} }, env: {}, ...options });
   const userConfig = {
     base: "/OpenSesame/",
     build: { rollupOptions: { input: { main: join(appRoot, "index.html"), msalRedirect: join(appRoot, "auth/redirect.html") } } },
