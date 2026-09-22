@@ -217,6 +217,13 @@ describe("SettingsSection", () => {
     ).toBeTruthy();
   });
 
+  // The nav has declared a Capabilities tab since the composition work
+  // landed, but the section drew nothing for it, so the tab opened empty.
+  it("draws the capabilities panel on its own category", () => {
+    renderSettings("#capabilities");
+    expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
+  });
+
   it("shows the security category with unlock methods and master password", async () => {
     renderSettings("#security");
     expect(screen.getByTestId("unlock-methods-panel")).toBeTruthy();

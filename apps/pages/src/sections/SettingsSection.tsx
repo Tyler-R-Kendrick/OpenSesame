@@ -13,6 +13,7 @@ import {
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
 import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
+import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
 import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperabilityPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
@@ -110,6 +111,7 @@ export function SettingsSection({
       {form && category === "security" ? <SettingsMasterPasswordPanel /> : null}
 
       {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}
+      {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
       {form && category === "danger" ? <SettingsDangerPanel /> : null}
     </div>
   );
