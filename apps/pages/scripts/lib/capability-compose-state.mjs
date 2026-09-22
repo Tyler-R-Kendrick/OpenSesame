@@ -140,6 +140,9 @@ function resolveSettings(options, command) {
     repoRoot: options.repoRoot ?? resolve(appRoot, "../.."),
     mode: options.mode ?? env.mode,
     gate,
+    // Whether a human named the gate, as opposed to inheriting the default.
+    gateNamed:
+      options.gate !== undefined || Boolean(variables.OPENSESAME_GRAPH_GATE),
     profile: profilePath ? loadProfile(profilePath, appRoot) : IMPLICIT_PROFILE,
   };
 }

@@ -4,7 +4,7 @@
  *
  *   OPENSESAME_CAPABILITY_PROFILE=<path>   profile JSON; absent → rich-explicit
  *   OPENSESAME_BUILD_MODE=selective|hardened   default selective
- *   OPENSESAME_GRAPH_GATE=enforce|report       default enforce
+ *   OPENSESAME_GRAPH_GATE=enforce|report       default: enforce when hardened
  *
  * Provides `virtual:opensesame-capability-modules` (the MODULE_TABLE of
  * compile-time-literal dynamic imports, distributed modules only) and
@@ -92,7 +92,15 @@ function gateOrReport(state, graph, logger, stage) {
     logger.warn(
       `[capability-compose] ${stage} (${state.mode}, profile ${state.profile.name}, gate ${state.gate})\n${table}`,
     );
-  if (errors.length > 0 && state.gate === "enforce") {
+  // Exclusion is a promise only a hardened build makes: ADR 0130 §6 says a
+  // selective build may carry every first-party module and the device loads
+  // only its accepted graph, so reachability there is a diagnostic. An
+  // explicit `OPENSESAME_GRAPH_GATE=enforce` still fails a selective build,
+  // which is how the remaining core-to-optional edges are measured.
+  const enforced =
+    state.gate === "enforce" &&
+    (state.mode === "hardened" || state.gateNamed === true);
+  if (errors.length > 0 && enforced) {
     throw new Error(
       `[capability-compose] forbidden reachability: ${errors.length} violation(s)\n${table}`,
     );

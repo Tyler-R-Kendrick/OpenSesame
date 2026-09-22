@@ -86,7 +86,15 @@
         "total": 17900,
         "javascript": 4330,
         "javascriptGzip": 1240,
-        "css": 147,
+        "_cssReason": [
+          "Raised 147 -> 153 for the capability selection surface: the setup",
+          "tab and the Settings panel a person chooses capabilities in add",
+          "318 authored lines across two stylesheets (measured 150 KiB).",
+          "The number is a ceiling, not a target; it falls again when the",
+          "optional capabilities stop reaching the core entry and their CSS",
+          "leaves the always-loaded graph."
+        ],
+        "css": 153,
         "largestAsset": 12800
       }
     },
