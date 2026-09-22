@@ -9,6 +9,19 @@ import * as directory from "../lib/local-directory.js";
 import { notifyLocalIamChange } from "../lib/local-iam-events.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { IdentityTree } from "./IdentityTree.js";
+import { IconUser } from "./Icons.js";
+import type { SectionRowModel } from "./RailRows.js";
+
+const IDENTITY_SECTION: SectionRowModel = {
+  id: "identity",
+  to: "/identity",
+  label: "Identity",
+  segment: "identity",
+  guide: "nav.identity",
+  jump: "i",
+  order: 40,
+  Icon: IconUser,
+};
 
 const originalVault = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
@@ -31,7 +44,13 @@ function countOf(name: string): string | null {
 function renderTree() {
   return render(
     <MemoryRouter>
-      <IdentityTree open active onToggle={() => undefined} />
+      <IdentityTree
+        section={IDENTITY_SECTION}
+        open
+        active
+        onToggle={() => undefined}
+        pathname="/identity"
+      />
     </MemoryRouter>,
   );
 }

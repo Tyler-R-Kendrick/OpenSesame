@@ -30,7 +30,7 @@ export function foldersForKind(
 export function uniqueFolderKind(
   items: VaultItem[],
   folderId: string,
-  kinds: readonly ItemKindRow[] = itemKindsSnapshot(),
+  rows: readonly ItemKindRow[] = itemKindsSnapshot(),
 ): string | null {
   const kinds = new Set(
     items
@@ -39,7 +39,7 @@ export function uniqueFolderKind(
   );
   if (kinds.size !== 1) return null;
   const kind = [...kinds][0];
-  return kind && kinds.some((entry) => entry.id === kind) ? kind : null;
+  return kind && rows.some((entry) => entry.id === kind) ? kind : null;
 }
 
 export function VaultRail({

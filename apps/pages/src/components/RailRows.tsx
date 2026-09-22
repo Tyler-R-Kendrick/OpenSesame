@@ -80,7 +80,10 @@ function rowFromContribution(entry: SectionContribution): SectionRowModel {
     jump: entry.jump,
     order: entry.order,
     Icon: ICONS_BY_NAME[entry.icon],
-    Tree: entry.Tree,
+    // `SectionTreeProps` is a superset of the module contract's `TreeProps`
+    // (`{ pathname }`), so a tree written to the contract ignores the rest;
+    // the widening is the assignability React's class-component typing hides.
+    Tree: entry.Tree as ComponentType<SectionTreeProps> | undefined,
   };
 }
 

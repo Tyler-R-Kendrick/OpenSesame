@@ -5,6 +5,19 @@ import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, expect, it } from "vitest";
 import { ACCESS_LABELS, ACCESS_VIEWS } from "../lib/section-views.js";
 import { AccessTree } from "./AccessTree.js";
+import { IconAuthority } from "./Icons.js";
+import type { SectionRowModel } from "./RailRows.js";
+
+const ACCESS_SECTION: SectionRowModel = {
+  id: "access",
+  to: "/access",
+  label: "Access",
+  segment: "access",
+  guide: "nav.access",
+  jump: "a",
+  order: 30,
+  Icon: IconAuthority,
+};
 
 function Page() {
   const location = useLocation();
@@ -12,9 +25,11 @@ function Page() {
   return (
     <>
       <AccessTree
+        section={ACCESS_SECTION}
         open={open}
         active={location.pathname.startsWith("/access")}
         onToggle={() => setOpen((previous) => !previous)}
+        pathname={location.pathname}
       />
       <output aria-label="Current route">
         {location.pathname + location.search + location.hash}

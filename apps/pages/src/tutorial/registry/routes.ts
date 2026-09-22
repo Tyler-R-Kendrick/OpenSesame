@@ -9,6 +9,7 @@
  */
 
 import type { SupportRouteDescription } from "@opensesame/support-agent";
+import { contributionsSnapshot } from "../../lib/contributions.js";
 import { SETTINGS_CATEGORIES, settingsPath } from "../../lib/crumbs.js";
 
 export type GuideRouteId = string;
@@ -57,12 +58,12 @@ const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
 /** The live routes: core plus contributed. A live binding; see `mergedGuideRoutes`. */
 export let GUIDE_ROUTES: readonly GuideRouteDescriptor[] = CORE_GUIDE_ROUTES;
 
+// Route-id syntax (`isGuideRouteId` from @opensesame/guide-lang) is asserted
+// in `routes.test.ts`, not here: this registry sits on the shell's path via
+// `useGuideTarget`, and the guide grammar belongs to `support.guided-help`.
 function reindex(routes: readonly GuideRouteDescriptor[]): void {
   byId.clear();
   for (const route of routes) {
-    if (!isGuideRouteId(route.id)) {
-      throw new Error(`guide_route_syntax:${route.id}`);
-    }
     if (!byId.has(route.id)) byId.set(route.id, route);
   }
 }
@@ -102,19 +103,18 @@ export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
   "/identity/authorize",
 ]);
 
-// Route-id syntax (`isGuideRouteId` from @opensesame/guide-lang) is asserted
-// in `routes.test.ts`, not here: this registry sits on the shell's path via
-// `useGuideTarget`, and the guide grammar belongs to `support.guided-help`.
-const byId = new Map<GuideRouteId, GuideRouteDescriptor>(
-  GUIDE_ROUTES.map((route) => [route.id, route]),
-);
+reindex(CORE_GUIDE_ROUTES);
 
 export function isKnownGuideRoute(id: GuideRouteId): boolean {
+  mergedGuideRoutes();
   return byId.has(id);
 }
 
 export function describeGuideRoutes(): readonly SupportRouteDescription[] {
-  return GUIDE_ROUTES.map((route) => ({ id: route.id, title: route.title }));
+  return mergedGuideRoutes().map((route) => ({
+    id: route.id,
+    title: route.title,
+  }));
 }
 
 /**

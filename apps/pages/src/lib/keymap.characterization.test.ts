@@ -1,11 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  KEYMAP_HELP,
   type VaultKeymapTarget,
   createKeymapHandler,
+  keymapHelp,
   registerVaultKeymap,
 } from "./keymap.js";
+import { registerLegacySections } from "./contributions.test-support.js";
 
 /**
  * Characterization snapshots for the listing keymap.
@@ -58,7 +59,9 @@ afterEach(() => {
 
 describe("listing keymap copy", () => {
   it("says exactly this on the ? sheet", () => {
-    expect([...KEYMAP_HELP]).toMatchSnapshot();
+    const release = registerLegacySections();
+    expect([...keymapHelp()]).toMatchSnapshot();
+    release();
   });
 });
 

@@ -5,8 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import * as Icons from "./Icons.js";
 
-const iconEntries = Object.entries(Icons).filter(([, value]) =>
-  isFunction(value),
+const iconEntries = Object.entries(Icons).filter(
+  (entry): entry is [string, (props: Icons.IconProps) => JSX.Element] =>
+    isFunction(entry[1]),
 );
 
 describe("Icons", () => {
