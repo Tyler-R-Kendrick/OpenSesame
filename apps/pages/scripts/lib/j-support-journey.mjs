@@ -6,11 +6,14 @@
  * held at the enforcement boundary with these exact strings in
  * `lib/configuration/experience-journeys.test.ts`.
  */
-import { sealWithPassword } from "./pages-journey.mjs";
+import { addCapabilities, sealWithPassword } from "./pages-journey.mjs";
 
 export async function walkJSupport({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
+  // The support panel is contributed by `support.guided-help`: choose it
+  // before its key exists (ADR 0130).
+  await addCapabilities(page, ["Guided help"]);
   await page.getByRole("button", { name: /^Support/ }).click();
   const sheet = page.getByRole("dialog", { name: "Support" });
   await sheet.waitFor({ timeout: 15000 });

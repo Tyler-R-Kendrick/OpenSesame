@@ -4,6 +4,7 @@
  * grants.
  */
 import {
+  addCapabilities,
   openSection,
   sealWithPassword,
   setTextarea,
@@ -70,6 +71,13 @@ export async function walkJConflict({
 }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
+  // Identity belongs to a capability: choose it before its rail row exists.
+  await addCapabilities(page, [
+    "External connectors",
+    "Access authority",
+    "Browser-local IAM",
+    "Directory provisioning",
+  ]);
   await openApplications(page);
   const rowA = await registerApp(page, "Conflict relying party");
   await snap(page, "J-CONFLICT-registered");

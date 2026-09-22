@@ -2,7 +2,11 @@
  * J-APP / J-RECIPE (local plane): register an application, inspect setup
  * copy, export a recipe without secrets, bind an organization, apply twice.
  */
-import { openSection, sealWithPassword } from "./pages-journey.mjs";
+import {
+  addCapabilities,
+  openSection,
+  sealWithPassword,
+} from "./pages-journey.mjs";
 
 async function openApplications(page) {
   const region = page.getByRole("region", {
@@ -19,6 +23,13 @@ async function openApplications(page) {
 export async function walkJAppRecipe({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
+  // Identity belongs to a capability: choose it before its rail row exists.
+  await addCapabilities(page, [
+    "External connectors",
+    "Access authority",
+    "Browser-local IAM",
+    "Directory provisioning",
+  ]);
   await openApplications(page);
   const panel = page.getByRole("region", {
     name: "Local applications",

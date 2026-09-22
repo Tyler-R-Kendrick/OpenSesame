@@ -2,7 +2,11 @@
  * J-EXPLAIN: Application Diagnostics uses the same evaluator as admission;
  * a saved failing policy test blocks candidate publication.
  */
-import { openSection, sealWithPassword } from "./pages-journey.mjs";
+import {
+  addCapabilities,
+  openSection,
+  sealWithPassword,
+} from "./pages-journey.mjs";
 
 async function openApplications(page) {
   const region = page.getByRole("region", {
@@ -20,6 +24,13 @@ async function openApplications(page) {
 export async function walkJExplain({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
+  // Identity belongs to a capability: choose it before its rail row exists.
+  await addCapabilities(page, [
+    "External connectors",
+    "Access authority",
+    "Browser-local IAM",
+    "Directory provisioning",
+  ]);
   const panel = await openApplications(page);
   await panel
     .getByRole("button", { name: "New application", exact: true })

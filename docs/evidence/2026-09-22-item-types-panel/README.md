@@ -11,7 +11,7 @@ Both sides are **real builds**, walked identically by
 
 | side | source | build |
 | --- | --- | --- |
-| before | `ee68f79c` (this branch's parent) | `VITE_BASE=/OpenSesame/`, production |
+| before | `65e6d0f9` (this branch's parent) | `VITE_BASE=/OpenSesame/`, production |
 | after | this branch | `VITE_BASE=/OpenSesame/`, production |
 
 Every caption's before/after line is a **measurement read from the browser**,
