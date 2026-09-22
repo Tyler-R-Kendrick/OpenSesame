@@ -201,7 +201,7 @@ export function readPolicyKeyRotation(
     return null;
   const key = policyPublicJwk(value.key);
   if (key === null) return null;
-  const rotation: PolicyKeyRotation = {
+  const read: PolicyKeyRotation = {
     schemaVersion: 1,
     kind: "PolicyKeyRotation",
     instanceId: value.instanceId,
@@ -210,9 +210,34 @@ export function readPolicyKeyRotation(
     key,
     retire: value.retire,
     signature: value.signature,
-    ...(isString(value.notBefore) ? { notBefore: value.notBefore } : {}),
   };
-  return rotation;
+  return isString(value.notBefore)
+    ? { ...read, notBefore: value.notBefore }
+    : read;
+}
+
+/** Who the rotation claims to be for, before any key material is consulted. */
+function rotationShape(
+  rotation: PolicyKeyRotation,
+  instanceId: string,
+): RotationFailure | null {
+  if (rotation.instanceId !== instanceId) return "wrong-instance";
+  // Trust flows from the key the device already holds, never from the
+  // document: a rotation signed by the incoming key proves nothing.
+  if (rotation.signedBy === rotation.kid) return "self-signed";
+  return null;
+}
+
+/** A rotation that names a start time may not be applied before it. */
+function rotationWindow(
+  rotation: PolicyKeyRotation,
+  at: string,
+): RotationFailure | null {
+  if (rotation.notBefore === undefined) return null;
+  const notBefore = parseIsoTime(rotation.notBefore);
+  const now = parseIsoTime(at);
+  if (notBefore === null || now === null) return "malformed-rotation";
+  return now < notBefore ? "not-yet-valid" : null;
 }
 
 /**
@@ -228,22 +253,16 @@ export async function rotatePolicyKey(
 ): Promise<RotationResult> {
   const rotation = readPolicyKeyRotation(candidate);
   if (rotation === null) return { ok: false, reason: "malformed-rotation" };
-  if (rotation.instanceId !== options.instanceId)
-    return { ok: false, reason: "wrong-instance" };
-  if (rotation.signedBy === rotation.kid)
-    return { ok: false, reason: "self-signed" };
+  const shape = rotationShape(rotation, options.instanceId);
+  if (shape !== null) return { ok: false, reason: shape };
   const signer = Object.hasOwn(current, rotation.signedBy)
     ? current[rotation.signedBy]
     : undefined;
   if (signer === undefined) return { ok: false, reason: "unknown-signer" };
   const thumbprint = await jwkThumbprintHex(rotation.key);
   if (thumbprint !== rotation.kid) return { ok: false, reason: "kid-mismatch" };
-  const notBefore = parseIsoTime(rotation.notBefore);
-  const now = parseIsoTime(options.now);
-  if (rotation.notBefore !== undefined && (notBefore === null || now === null))
-    return { ok: false, reason: "malformed-rotation" };
-  if (notBefore !== null && now !== null && now < notBefore)
-    return { ok: false, reason: "not-yet-valid" };
+  const window = rotationWindow(rotation, options.now);
+  if (window !== null) return { ok: false, reason: window };
   const { signature, ...unsigned } = rotation;
   const verdict = await verifyEs256(
     signer,

@@ -1,14 +1,23 @@
 import { CAPABILITIES } from "@opensesame/capability-registry";
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { capabilitiesForContext } from "./capability-context.js";
 import { buildSupportPageContext } from "./context.js";
-import { GUIDE_ROUTES, isKnownGuideRoute } from "./routes.js";
+import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
+import { isKnownGuideRoute, mergedGuideRoutes } from "./routes.js";
+
+// Route scoping only has something to scope once the optional capabilities
+// are in the plan; with nothing registered the shell is vault and settings.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 describe("authored route-scoped capability context", () => {
   it("retains every PWA capability somewhere without raising the per-page budget", () => {
     const seen = new Set<string>();
-    for (const route of GUIDE_ROUTES) {
+    for (const route of mergedGuideRoutes()) {
       const capabilities = capabilitiesForContext(CAPABILITIES, route.id, []);
       expect(capabilities.length).toBeLessThanOrEqual(
         SUPPORT_LIMITS.maxCapabilities,
