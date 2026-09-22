@@ -112,8 +112,9 @@ function isBranch(section: SectionRowModel): boolean {
 
 /**
  * One rail directory. The two core ones draw the vault's filters and the
- * settings tabs; a contributed section draws the `Tree` its module supplied,
- * or a plain leaf row when it has none.
+ * settings tabs; a contributed section's row is drawn here too, with the
+ * entries its module supplied as `Tree` beneath it when open, or as a plain
+ * leaf when it has none.
  */
 function SectionBranch({
   section,
@@ -175,13 +176,16 @@ function SectionBranch({
   const Tree = section.Tree;
   if (Tree) {
     return (
-      <Tree
-        section={section}
-        open={expanded}
-        active={here}
-        onToggle={onToggle}
-        pathname={pathname}
-      />
+      <>
+        <SectionRow
+          section={section}
+          open={expanded}
+          active={here}
+          branch={expanded}
+          onToggle={onToggle}
+        />
+        {expanded ? <Tree pathname={pathname} /> : null}
+      </>
     );
   }
   return (

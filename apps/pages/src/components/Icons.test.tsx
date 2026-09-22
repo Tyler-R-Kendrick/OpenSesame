@@ -1,13 +1,13 @@
-import { isFunction } from "@opensesame/os-domain";
 import { cleanup, render } from "@testing-library/react";
+import type { ComponentType } from "react";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it } from "vitest";
 
 import * as Icons from "./Icons.js";
 
 const iconEntries = Object.entries(Icons).filter(
-  (entry): entry is [string, (props: Icons.IconProps) => JSX.Element] =>
-    isFunction(entry[1]),
+  (entry): entry is [string, ComponentType<Icons.IconProps>] =>
+    typeof entry[1] === "function",
 );
 
 describe("Icons", () => {

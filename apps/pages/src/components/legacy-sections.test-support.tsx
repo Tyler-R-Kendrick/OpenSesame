@@ -8,10 +8,10 @@
 import { registerLegacySections } from "../lib/contributions.test-support.js";
 import { registerContributionForTest } from "../lib/contributions.js";
 import { registerOptionalTutorials } from "../tutorial/registry/optional-tutorials.test-support.js";
-import { AccessTree } from "./AccessTree.js";
-import { ConnectionsTree } from "./ConnectionsTree.js";
-import { IdentityTree } from "./IdentityTree.js";
-import { WalletTree } from "./WalletTree.js";
+import { AccessRailTree } from "../modules/access.authority/AccessRailTree.js";
+import { IdentityRailTree } from "../modules/identity.local-iam/IdentityRailTree.js";
+import { WalletTree } from "../modules/wallet.spending/WalletTree.js";
+import { ConnectionsTreeEntries } from "./ConnectionsTree.js";
 
 function ConnectionsSettingsStub() {
   return <section aria-label="Connections settings" />;
@@ -31,7 +31,7 @@ export function registerLegacyShell(): () => void {
       jump: "c",
       icon: "connection",
       order: 20,
-      Tree: ConnectionsTree,
+      Tree: ConnectionsTreeEntries,
     }),
     registerContributionForTest("section", {
       id: "access",
@@ -41,7 +41,7 @@ export function registerLegacyShell(): () => void {
       jump: "a",
       icon: "authority",
       order: 30,
-      Tree: AccessTree,
+      Tree: AccessRailTree,
     }),
     registerContributionForTest("section", {
       id: "identity",
@@ -51,7 +51,7 @@ export function registerLegacyShell(): () => void {
       jump: "i",
       icon: "user",
       order: 40,
-      Tree: IdentityTree,
+      Tree: IdentityRailTree,
     }),
     registerContributionForTest("section", {
       id: "wallet",

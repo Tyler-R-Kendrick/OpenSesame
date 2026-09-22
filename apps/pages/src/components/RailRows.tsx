@@ -1,7 +1,10 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { type ComponentType, type ReactNode, useMemo } from "react";
 import { NavLink } from "react-router";
-import type { SectionContribution } from "../lib/capabilities/runtime-contract.js";
+import type {
+  SectionContribution,
+  TreeProps,
+} from "../lib/capabilities/runtime-contract.js";
 import { contributionsSnapshot, useContributions } from "../lib/contributions.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
@@ -24,15 +27,18 @@ export type SectionRowModel = Readonly<{
   jump: string;
   order: number;
   Icon: ComponentType<IconProps>;
-  /** A section's own subtree; absent, the row is a leaf. */
-  Tree?: ComponentType<SectionTreeProps>;
+  /**
+   * The entries under the row (module contract `TreeProps`: `{ pathname }`).
+   * The shell draws the row, keeps its open state and toggles it; absent, the
+   * row is a leaf.
+   */
+  Tree?: ComponentType<TreeProps>;
 }>;
 
 /**
- * What the shell hands a contributed section's tree. A superset of the
- * module contract's `TreeProps` (`{ pathname }`), so a tree written to that
- * contract works unchanged and one that draws its own `SectionRow` has the
- * open state and toggle the shell keeps for `aria-activedescendant`.
+ * What a legacy section tree that draws its own `SectionRow` takes
+ * (`ConnectionsTree`, `AccessTree`, `IdentityTree`, kept for their tests).
+ * The shell itself hands a contributed `Tree` only `TreeProps`.
  */
 export type SectionTreeProps = Readonly<{
   section: SectionRowModel;
@@ -80,10 +86,7 @@ function rowFromContribution(entry: SectionContribution): SectionRowModel {
     jump: entry.jump,
     order: entry.order,
     Icon: ICONS_BY_NAME[entry.icon],
-    // `SectionTreeProps` is a superset of the module contract's `TreeProps`
-    // (`{ pathname }`), so a tree written to the contract ignores the rest;
-    // the widening is the assignability React's class-component typing hides.
-    Tree: entry.Tree as ComponentType<SectionTreeProps> | undefined,
+    Tree: entry.Tree,
   };
 }
 

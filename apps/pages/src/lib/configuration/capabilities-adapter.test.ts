@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FIXTURE_MANAGED_POLICY } from "../../screens/capabilities/composition-fixture.js";
+import {
+  FIXTURE_CATALOG,
+  FIXTURE_MANAGED_POLICY,
+} from "../../screens/capabilities/composition-fixture.js";
 import { double, resetDouble } from "../../screens/capabilities/test-support.js";
 
 vi.mock("./capabilities-ports.js", async () => {
@@ -47,7 +50,7 @@ beforeEach(() => {
   store = new Map();
   ports = {
     snapshot: () => double.getSnapshot(),
-    catalog: () => double.getSnapshot().plan ? (require_catalog()) : require_catalog(),
+    catalog: () => FIXTURE_CATALOG,
     previewPlan: (draft) => double.preview(draft),
     commitSelection: (draft, receipt) => double.commit(draft, receipt),
     invalidate: (reason) => double.invalidate(reason),
@@ -59,15 +62,6 @@ beforeEach(() => {
     tomb: () => "personal",
   };
 });
-
-function require_catalog() {
-  // The fixture catalog, through the mocked seam, exactly as the adapter sees it.
-  return double.preview(SELECTION) && FIXTURE_CATALOG_REF();
-}
-import { FIXTURE_CATALOG } from "../../screens/capabilities/composition-fixture.js";
-function FIXTURE_CATALOG_REF() {
-  return FIXTURE_CATALOG;
-}
 
 function base() {
   return revisionToken(double.getSnapshot());
