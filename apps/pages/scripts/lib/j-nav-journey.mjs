@@ -21,12 +21,14 @@ const REMAPPED = `{
   "e": "item.edit",
   "?": "help.keymap"
 }`;
+const KEYBINDINGS = "#keybindings-source";
+const RAW = 'textarea[aria-label="settings/general.yaml"]';
 
 export async function walkJNav({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
   await openGeneral(page);
-  await setTextarea(page, "#keybindings-source", REMAPPED);
+  await setTextarea(page, KEYBINDINGS, REMAPPED);
   await page.getByRole("button", { name: "Save keybindings" }).click();
   await page.getByText(/Keybindings saved/).waitFor({ timeout: 8000 });
   await page.getByRole("button", { name: "Pin view" }).click();
@@ -39,8 +41,8 @@ export async function walkJNav({ page, origin, base, check, snap }) {
     /Opened autoLockMinutes/i.test(opened),
     `palette reaches setting: ${opened}`,
   );
-  await page.getByRole("button", { name: "Source", exact: true }).click();
-  const prefs = page.locator("textarea#prefs-source");
+  await page.getByRole("button", { name: "YAML", exact: true }).click();
+  const prefs = page.locator(RAW);
   await prefs.waitFor({ timeout: 8000 });
   await prefs.click();
   await page.keyboard.type("j");
@@ -53,7 +55,7 @@ export async function walkJNav({ page, origin, base, check, snap }) {
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPassword(page);
   await openGeneral(page);
-  const stored = await page.locator("#keybindings-source").inputValue();
+  const stored = await page.locator(KEYBINDINGS).inputValue();
   check(stored.includes('"j": "item.edit"'), "remap survived unlock/reload");
   check(
     /pending-approvals|saved view/i.test(

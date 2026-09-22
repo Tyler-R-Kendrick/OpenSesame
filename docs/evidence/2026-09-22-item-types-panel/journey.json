@@ -1,0 +1,29 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Vaults" },
+        { "scrollTo": "Vaults on this device" },
+        { "shot": "1280-item-types" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Vaults" },
+        { "scrollTo": "Vaults on this device" },
+        { "shot": "390-item-types" }
+      ]
+    }
+  ]
+}

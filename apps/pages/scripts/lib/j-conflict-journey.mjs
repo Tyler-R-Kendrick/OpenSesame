@@ -34,9 +34,8 @@ async function registerApp(page, name) {
   await nameField.waitFor({ timeout: 8000 });
   await nameField.click();
   await page.keyboard.type(name, { delay: 15 });
-  await panel
-    .getByRole("button", { name: "Create application", exact: true })
-    .click();
+  // The name field commits on Enter: there is no separate Create button.
+  await page.keyboard.press("Enter");
   await nameField.waitFor({ state: "hidden", timeout: 10000 });
   const row = panel.getByRole("listitem").filter({ hasText: name });
   await row.waitFor({ timeout: 10000 });

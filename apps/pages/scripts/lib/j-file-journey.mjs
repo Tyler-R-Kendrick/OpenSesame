@@ -1,6 +1,6 @@
 /**
- * J-FILE: Settings and settings/prefs.yaml reach the same draft; ledger
- * path guesses are refused in the command bar.
+ * J-FILE: the Settings section and settings/general.yaml reach the same
+ * draft; ledger path guesses are refused in the command bar.
  */
 import {
   openGeneral,
@@ -14,26 +14,31 @@ export async function walkJFile({ page, origin, base, check, snap }) {
   await sealWithPassword(page);
   await openGeneral(page);
   await snap(page, "J-FILE-settings");
-  const fromSettings = await page
-    .getByRole("heading", { name: "Preferences" })
-    .count();
-  check(fromSettings === 1, "Settings General shows Preferences");
-  const alias = page.getByText("settings/prefs.yaml", { exact: true }).first();
-  check((await alias.count()) >= 1, "prefs.yaml alias is in the Settings tree");
-  await alias.click();
+  check(
+    (await page.getByRole("heading", { name: "Settings" }).count()) === 1,
+    "Settings section shows its heading",
+  );
+  await page.getByRole("button", { name: "YAML", exact: true }).click();
+  const path = page.locator(".set-raw__path");
+  await path.waitFor({ timeout: 8000 });
+  check(
+    (await path.innerText()).includes("settings/general.yaml"),
+    "general.yaml is the document this section edits",
+  );
+  await snap(page, "J-FILE-yaml");
+  await page.getByRole("button", { name: "Form", exact: true }).click();
   await page
-    .getByRole("heading", { name: "Preferences" })
+    .getByRole("heading", { name: "Keybindings and views" })
     .waitFor({ timeout: 8000 });
   check(
-    (await page.getByRole("button", { name: "Visual", exact: true }).count()) >
-      0,
-    "alias opens the same Visual/Source prefs draft",
+    (await page.getByLabel("Clear copied secrets after").count()) > 0,
+    "the same draft is reachable as Form fields",
   );
-  await snap(page, "J-FILE-alias");
+  await snap(page, "J-FILE-form");
   const opened = await runCommand(page, "settings/prefs.yaml");
-  check(/Opened/i.test(opened), `command bar opens prefs alias: ${opened}`);
+  check(/Opened/i.test(opened), `command bar opens the prefs alias: ${opened}`);
   await page
-    .getByRole("heading", { name: "Preferences" })
+    .getByRole("heading", { name: "Settings" })
     .waitFor({ timeout: 8000 });
   const refused = await runCommand(page, "config/identity-grants");
   check(
@@ -55,7 +60,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
     .first()
     .click();
   await page
-    .getByRole("heading", { name: "Preferences" })
+    .getByRole("heading", { name: "Keybindings and views" })
     .waitFor({ timeout: 8000 });
-  check(true, "General link still reaches the same prefs draft");
+  check(true, "General link still reaches the same draft");
 }
