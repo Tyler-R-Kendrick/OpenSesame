@@ -20,7 +20,7 @@ import {
   startAutomaticAttempt,
 } from "./controller.js";
 import { readUserAmbientPreference } from "./policy.js";
-import { restoreAuthenticatedSession } from "./restoration.js";
+import { restoreAuthenticatedSession } from "../federation-restoration.js";
 import { deployedAmbientPolicy, deployedAmbientProviders } from "./runtime.js";
 
 function revalidateStoredSession(): ReturnType<typeof loadSession> {

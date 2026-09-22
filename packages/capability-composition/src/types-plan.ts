@@ -182,6 +182,7 @@ export type ContributionKind =
   | "section"
   | "route"
   | "settings-category"
+  | "settings-panel"
   | "setup-panel"
   | "command-path"
   | "keymap-jump"

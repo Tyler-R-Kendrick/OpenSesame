@@ -76,7 +76,9 @@ const SIGNIN_FILES = [
   "federation",
   "federation-copy",
   "federation-encoding",
+  "federation-callback",
   "federation-pending",
+  "federation-restoration",
   "federation-session-store",
   "providers",
   "device-identity",
@@ -253,6 +255,9 @@ export const LIB_RULES = [
       "enterprise.directory-provisioning",
       "Identity API agent/user management",
     ),
+  ),
+  ...each(L, ["ambient-auth-seam"], (p) =>
+    core(p, SIGNIN, "the ambient seam core federation calls through"),
   ),
   ...each(L, ["ambient-auth/"], (p) =>
     optional(p, "identity.ambient-sso", "MSAL / OIDC ambient boot"),

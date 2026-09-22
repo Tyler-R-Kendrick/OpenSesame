@@ -18,8 +18,8 @@ import {
   decodeJwtEnvelope,
   verifyRestoredBrowserIdToken,
 } from "@opensesame/sdk-browser";
-import type { UpstreamIdentity } from "../federation.js";
-import { isAutoAuthSuppressed } from "./generation.js";
+import { ambientAuthSeams } from "./ambient-auth-seam.js";
+import type { UpstreamIdentity } from "./federation.js";
 
 export type RestorationTrust = {
   issuer: string;
@@ -70,7 +70,7 @@ export async function restoreAuthenticatedSession(
   fetchImpl: typeof fetch,
 ): Promise<RestorationResult> {
   if (!raw) return { kind: "rejected", reason: "invalid" };
-  if (isAutoAuthSuppressed()) return { kind: "rejected", reason: "suppressed" };
+  if (ambientAuthSeams.autoAuthSuppressed()) return { kind: "rejected", reason: "suppressed" };
   const stored = parseStoredAssertion(raw);
   if (!stored) return { kind: "rejected", reason: "invalid" };
   if (!trustMatches(stored, trust) || !trust) {
@@ -196,7 +196,7 @@ export function readStoredSessionSync(
   isTrustedIssuer: (issuer: string) => boolean,
 ): UpstreamIdentity | null {
   if (!raw) return null;
-  if (isAutoAuthSuppressed()) return null;
+  if (ambientAuthSeams.autoAuthSuppressed()) return null;
   const stored = parseStoredAssertion(raw);
   if (!stored || !isString(stored.idToken)) return null;
   const identity = looksLikeJwt(stored.idToken)

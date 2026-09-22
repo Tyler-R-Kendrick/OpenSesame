@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 import {
-  type FakeSupportAgent,
   createFakeSupportAgent,
   fakeAgentAlwaysUnavailable,
   fakeAgentAnswering,
@@ -9,16 +8,8 @@ import {
   fakeAgentFailing,
   fakeAgentHanging,
 } from "@opensesame/support-agent";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   type VaultKeymapTarget,
@@ -32,91 +23,20 @@ import {
 } from "../../webmcp/registration.js";
 import { webmcpSupportSeam } from "../../webmcp/tools.js";
 import { GUIDE_GOALS } from "../registry/goals.js";
-import { registerTutorialRealm } from "../registry/optional-tutorials.test-support.js";
+import { chooseSupportAgent, supportSessionSeams } from "../session.js";
 import {
-  SupportProvider,
-  type SupportTransport,
-  chooseSupportAgent,
-  supportSessionSeams,
-} from "../session.js";
-import { SupportLauncher } from "./SupportLauncher.js";
+  ask,
+  clearedCount,
+  composer,
+  lockTheVault,
+  mount,
+  openPanel,
+  renderLauncher,
+  resetSupport,
+  supportLifecycleSeams,
+} from "./support-test-harness.js";
 
-import { type TestEngine, buildEngine } from "./support-test-engine.js";
-
-const original = { ...supportSessionSeams };
-// The identity help these answers cite belongs to the identity capability;
-// a panel on a deployment without it has nothing written to draw from.
-let revokeRealm: (() => void) | null = null;
-let engine: TestEngine | null = null;
-let cleared = 0;
-const lockHandlers = new Set<() => void>();
-
-function mount(
-  agent: FakeSupportAgent,
-  transport: SupportTransport = "on-device",
-  warning: string | null = null,
-) {
-  revokeRealm?.();
-  revokeRealm = registerTutorialRealm();
-  const built = buildEngine(agent, transport, warning);
-  engine = built;
-  Object.assign(supportSessionSeams, {
-    loadEngine: () => Promise.resolve(built),
-    onLock: (handler: () => void) => {
-      lockHandlers.add(handler);
-      return () => lockHandlers.delete(handler);
-    },
-    clearTargets: () => {
-      cleared += 1;
-    },
-  });
-  const view = render(
-    <MemoryRouter initialEntries={["/vault"]}>
-      <SupportProvider>
-        <SupportLauncher />
-      </SupportProvider>
-    </MemoryRouter>,
-  );
-  return { ...view, engine: built };
-}
-
-function lockTheVault(): void {
-  for (const handler of [...lockHandlers]) handler();
-}
-
-async function openPanel(user: ReturnType<typeof userEvent.setup>) {
-  const affordance = screen.getByRole("button", { name: "Support" });
-  await user.click(affordance);
-  const panel = await screen.findByRole("dialog", { name: "Support" });
-  await waitFor(() =>
-    expect(panel.contains(document.activeElement)).toBe(true),
-  );
-  return { affordance, panel };
-}
-/** The composer, typed, so `disabled` can be read without a cast. */
-function composer(): Promise<HTMLInputElement> {
-  return screen.findByLabelText<HTMLInputElement>("Ask about this screen");
-}
-
-async function ask(
-  user: ReturnType<typeof userEvent.setup>,
-  question: string,
-): Promise<void> {
-  const field = await composer();
-  await waitFor(() => expect(field.disabled).toBe(false));
-  await user.type(field, question);
-  await user.click(screen.getByRole("button", { name: "Ask" }));
-}
-
-afterEach(() => {
-  cleanup();
-  revokeRealm?.();
-  revokeRealm = null;
-  Object.assign(supportSessionSeams, original);
-  lockHandlers.clear();
-  engine = null;
-  cleared = 0;
-});
+afterEach(resetSupport);
 
 describe("support panel", () => {
   it("opens from the overlay, and closing it puts focus back", async () => {
@@ -512,21 +432,9 @@ describe("support panel", () => {
     const user = userEvent.setup();
     Object.assign(supportSessionSeams, {
       loadEngine: () => Promise.reject(new Error("chunk unavailable")),
-      onLock: (handler: () => void) => {
-        lockHandlers.add(handler);
-        return () => lockHandlers.delete(handler);
-      },
-      clearTargets: () => {
-        cleared += 1;
-      },
+      ...supportLifecycleSeams(),
     });
-    render(
-      <MemoryRouter initialEntries={["/vault"]}>
-        <SupportProvider>
-          <SupportLauncher />
-        </SupportProvider>
-      </MemoryRouter>,
-    );
+    renderLauncher();
     await openPanel(user);
 
     expect(await screen.findByRole("alert")).toBeTruthy();
@@ -597,7 +505,7 @@ describe("support panel", () => {
     expect(built.renderer.calls.some((call) => call.kind === "clear")).toBe(
       true,
     );
-    expect(cleared).toBeGreaterThan(0);
+    expect(clearedCount()).toBeGreaterThan(0);
 
     // Re-opening starts from nothing: no transcript survived the lock.
     await user.click(screen.getByRole("button", { name: "Support" }));

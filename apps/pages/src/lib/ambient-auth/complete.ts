@@ -4,7 +4,7 @@
 
 import { type CompletedSignIn, FederationError } from "../federation.js";
 import { admitAmbientSession, vaultStateFromStore } from "./admission.js";
-import { parseAuthCallback } from "./callback.js";
+import { parseAuthCallback } from "../federation-callback.js";
 import { currentAuthGeneration, matchesAuthGeneration } from "./generation.js";
 import { exchangeAmbientCode } from "./oidc.js";
 import {

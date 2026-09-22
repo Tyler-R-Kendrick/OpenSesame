@@ -4,7 +4,7 @@
  */
 
 import { isString } from "@opensesame/os-domain";
-import type { AmbientReasonCode } from "./types.js";
+import type { AmbientReasonCode } from "./ambient-auth/types.js";
 
 const AUTH_PARAM_NAMES = [
   "code",

@@ -92,6 +92,19 @@ export type SetupPanelContribution = Readonly<{
   order: number;
 }>;
 
+/**
+ * A panel a capability draws inside a settings category the core already
+ * has. A category is a destination; a panel is a block within one, so an
+ * optional feature can add its rows to Security without the core file
+ * importing the component and carrying it into every build.
+ */
+export type SettingsPanelContribution = Readonly<{
+  id: string;
+  category: string;
+  Panel: ComponentType;
+  order: number;
+}>;
+
 export type CommandPathContribution = Readonly<{ path: string; label: string }>;
 export type KeymapJumpContribution = Readonly<{ key: string; path: string }>;
 
@@ -123,6 +136,7 @@ export type ContributionEntryMap = {
   section: SectionContribution;
   route: RouteContribution;
   "settings-category": SettingsCategoryContribution;
+  "settings-panel": SettingsPanelContribution;
   "setup-panel": SetupPanelContribution;
   "command-path": CommandPathContribution;
   "keymap-jump": KeymapJumpContribution;

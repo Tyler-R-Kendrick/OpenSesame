@@ -36,8 +36,8 @@ describe("identity.ambient-sso runtime", () => {
   it("registers the boot job and disposes it (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "identity.ambient-sso",
-      kinds: ["background-job"],
-      count: 1,
+      kinds: ["background-job", "settings-panel"],
+      count: 2,
     });
   });
 
@@ -81,27 +81,18 @@ describe("identity.ambient-sso runtime", () => {
     expect(deployedAmbientPolicy()).toBeUndefined();
   });
 
-  it("offers the Security panel through the optional port and revokes it", async () => {
-    const revoke = vi.fn();
-    const registerSettingsPanel = vi.fn(
-      (_entry: SettingsPanelContribution): RegistrationHandle => ({
-        kind: "settings-category",
-        capability: "identity.ambient-sso",
-        generation: 1,
-        revoke,
-      }),
-    );
+  it("contributes the Security panel and revokes it on dispose", async () => {
     const t = createTestContext();
-    const ctx: ContextWithPorts = { ...t.ctx, registerSettingsPanel };
-    const handle = await runtime.capabilityRuntime.activate(ctx);
-    expect(registerSettingsPanel).toHaveBeenCalledTimes(1);
-    expect(registerSettingsPanel.mock.calls[0]?.[0]).toMatchObject({
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const panel = t.registered.find((r) => r.kind === "settings-panel");
+    expect(panel?.entry).toMatchObject({
       id: "ambient-auth",
       category: "security",
     });
+    expect(panel?.revoked).toBe(false);
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(panel?.revoked).toBe(true);
     await handle.dispose();
-    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(panel?.revoked).toBe(true);
   });
 });

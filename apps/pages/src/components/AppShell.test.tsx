@@ -1,104 +1,14 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setRailCursor } from "./rail-cursor.js";
+import { fireEvent, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  registerContributedShell,
+  renderShell,
+  resetShellRender,
+  seedVault,
+  vault,
+} from "./app-shell.test-harness.js";
 
-const vault = vi.hoisted(() => {
-  const items: Array<{
-    kind: string;
-    deletedAt: string | null;
-    favorite: boolean;
-    folderId: string | null;
-  }> = [];
-  const folders: Array<{ id: string; name: string }> = [];
-  return { items, folders, lock: vi.fn() };
-});
-
-import { vaultHooksSeams } from "../lib/vault/hooks.js";
-const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {
-  useVault: () => ({
-    items: vault.items,
-    folders: vault.folders,
-    prefs: {
-      theme: "system",
-      autoLockMinutes: 0,
-      clipboardClearSeconds: 30,
-      lockOnHide: false,
-      signOutOnLock: false,
-    },
-  }),
-  useVaultStore: () => ({ lock: vault.lock }),
-});
-
-import { connectivityBarSeams } from "./ConnectivityBar.js";
-const originalConnectivityBarSeams = { ...connectivityBarSeams };
-Object.assign(connectivityBarSeams, {
-  ConnectivityBar: () => <span data-testid="connectivity-bar" />,
-});
-import { notificationsBarSeams } from "./NotificationsBar.js";
-Object.assign(notificationsBarSeams, {
-  NotificationsBar: () => <span data-testid="notifications-bar" />,
-});
-import { projectSwitcherSeams } from "./ProjectSwitcher.js";
-const originalProjectSwitcherSeams = { ...projectSwitcherSeams };
-Object.assign(projectSwitcherSeams, {
-  ProjectSwitcher: () => <span data-testid="project-switcher" />,
-});
-
-import { accountSwitcherSeams } from "./AccountSwitcher.js";
-Object.assign(accountSwitcherSeams, {
-  AccountSwitcher: () => <span data-testid="account-switcher" />,
-});
-
-import { crumbsSeams } from "./Crumbs.js";
-Object.assign(crumbsSeams, {
-  Crumbs: () => <nav data-testid="crumbs" aria-label="Breadcrumb" />,
-});
-
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
-import { contributeIdentityViews } from "../sections/identity/identity-views.js";
-import { AppShell } from "./AppShell.js";
-import { registerLegacyShell } from "./legacy-sections.test-support.js";
-
-function renderShell(route: string, children: ReactNode = <p>content</p>) {
-  return render(
-    <MemoryRouter initialEntries={[route]}>
-      <AppShell>{children}</AppShell>
-    </MemoryRouter>,
-  );
-}
-
-const ITEMS = [
-  { kind: "login", deletedAt: null, favorite: true, folderId: "f1" },
-  { kind: "login", deletedAt: null, favorite: false, folderId: null },
-  {
-    kind: "card",
-    deletedAt: "2025-06-01T00:00:00Z",
-    favorite: false,
-    folderId: "f1",
-  },
-];
-
-function filterLink(
-  container: HTMLElement,
-  href: string,
-  label: string,
-): HTMLAnchorElement {
-  const matches = [
-    ...container.querySelectorAll<HTMLAnchorElement>(`a[href="${href}"]`),
-  ].filter((a) => a.textContent?.includes(label));
-  if (matches.length !== 1) {
-    throw new Error(`expected one filter link ${href} containing "${label}"`);
-  }
-  return matches[0];
-}
-
-function selected(name: string) {
-  return screen.getByRole("treeitem", { name }).getAttribute("aria-selected");
-}
 /**
  * SURFACE-01/02/03. Every ordinary surface of the shell derives from
  * contributions: with nothing registered the rail is the two core
@@ -106,15 +16,8 @@ function selected(name: string) {
  * only their jumps, and Settings has only its five core categories.
  */
 describe("AppShell on a core-only plan", () => {
-  beforeEach(() => {
-    vault.items = [...ITEMS.map((item) => ({ ...item }))];
-    vault.folders = [{ id: "f1", name: "Work" }];
-    vault.lock.mockReset();
-  });
-  afterEach(() => {
-    setRailCursor(null);
-    cleanup();
-  });
+  beforeEach(seedVault);
+  afterEach(resetShellRender);
 
   it("draws the two core rail directories and nothing a capability owns", () => {
     const { container } = renderShell("/vault");
@@ -178,17 +81,11 @@ describe("AppShell on a core-only plan", () => {
 describe("AppShell", () => {
   let revokeShell: readonly (() => void)[] = [];
   beforeEach(() => {
-    revokeShell = [
-      registerLegacyShell(),
-      contributeIdentityViews(IDENTITY_VIEWS),
-    ];
-    vault.items = [...ITEMS.map((item) => ({ ...item }))];
-    vault.folders = [{ id: "f1", name: "Work" }];
-    vault.lock.mockReset();
+    revokeShell = registerContributedShell();
+    seedVault();
   });
   afterEach(() => {
-    setRailCursor(null);
-    cleanup();
+    resetShellRender();
     for (const revoke of revokeShell) revoke();
     revokeShell = [];
   });
@@ -238,7 +135,6 @@ describe("AppShell", () => {
     expect(vaults?.getAttribute("aria-level")).toBe("2");
     expect(connections?.getAttribute("aria-level")).toBe("2");
   });
-
   it.each([
     ["/vault?f=favorites", "Vault", "favorites"],
     ["/settings/security", "Settings", "Security"],
@@ -262,84 +158,6 @@ describe("AppShell", () => {
       );
     },
   );
-
-  it("collapses and reopens a section with the arrow keys", () => {
-    renderShell("/vault?f=favorites");
-    const tree = screen.getByRole("tree", { name: "Sections" });
-    const row = screen.getByRole("treeitem", { name: "Vault" });
-    tree.focus();
-    fireEvent.keyDown(tree, { key: "ArrowLeft" });
-    expect(row.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.keyDown(tree, { key: "ArrowRight" });
-    expect(row.getAttribute("aria-expanded")).toBe("true");
-    expect(row.getAttribute("aria-selected")).toBe("true");
-  });
-  it("collapses and reopens a page subtree with the arrow keys", () => {
-    renderShell("/access?view=grants");
-    const tree = screen.getByRole("tree", { name: "Sections" });
-    const grants = screen.getByRole("treeitem", { name: "Grants" });
-    const access = screen.getByRole("treeitem", { name: "Access" });
-    tree.focus();
-    expect(grants.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.keyDown(tree, { key: "ArrowUp" });
-    expect(access.getAttribute("aria-selected")).toBe("true");
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(grants.getAttribute("aria-selected")).toBe("true");
-    fireEvent.keyDown(tree, { key: "ArrowRight" });
-    expect(grants.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.keyDown(tree, { key: "ArrowLeft" });
-    expect(grants.getAttribute("aria-expanded")).toBe("false");
-    expect(document.getElementById("grants-tree")).toBeNull();
-    fireEvent.keyDown(tree, { key: "ArrowRight" });
-    expect(grants.getAttribute("aria-expanded")).toBe("true");
-    expect(document.getElementById("grants-tree")).toBeTruthy();
-  });
-  it("counts live items, favourites, trash, and kinds in the vault filters", () => {
-    const { container } = renderShell("/vault");
-    const all = filterLink(container, "/vault", "all");
-    expect(all.textContent).toContain("2");
-    const favorites = filterLink(container, "/vault?f=favorites", "favorites");
-    expect(favorites.textContent).toContain("1");
-    const logins = filterLink(container, "/vault?f=login", "logins");
-    expect(logins.textContent).toContain("2");
-    const cards = filterLink(container, "/vault?f=card", "cards");
-    expect(cards.textContent).toContain("-");
-    const trash = filterLink(container, "/vault?f=trash", "trash");
-    expect(trash.textContent).toContain("1");
-  });
-  it("lists folders with their live item counts", () => {
-    const { container } = renderShell("/vault");
-    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
-    const folder = filterLink(container, "/vault?f=login&folder=f1", "Work");
-    // Only the live login counts; the deleted card does not.
-    expect(folder.textContent).toContain("1");
-    expect(folder.closest("#login-tree")).toBeTruthy();
-  });
-  it("marks the active filter from the query string", () => {
-    const { container } = renderShell("/vault?f=favorites");
-    expect(
-      filterLink(container, "/vault?f=favorites", "favorites").className,
-    ).toContain("is-active");
-    expect(filterLink(container, "/vault", "all").className).not.toContain(
-      "is-active",
-    );
-  });
-  it("marks the active folder and deactivates 'all'", () => {
-    const { container } = renderShell("/vault?folder=f1");
-    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
-    expect(
-      container.querySelector('a[href="/vault?f=login&folder=f1"]'),
-    ).toBeTruthy();
-    expect(filterLink(container, "/vault", "all").className).not.toContain(
-      "is-active",
-    );
-  });
-  it("marks 'all' active only with no filter at all", () => {
-    const { container } = renderShell("/vault");
-    expect(filterLink(container, "/vault", "all").className).toContain(
-      "is-active",
-    );
-  });
   it("hides vault entries outside the vault section", () => {
     const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
@@ -354,7 +172,6 @@ describe("AppShell", () => {
     const { container } = renderShell("/vault");
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
   });
-
   it.each(["/vault", "/vault/health"])(
     "keeps health out of the tree on %s",
     (path) => {
@@ -368,7 +185,6 @@ describe("AppShell", () => {
       ).not.toBeNull();
     },
   );
-
   it("groups lock with account and vault switching on desktop and phone", () => {
     const { container } = renderShell("/vault");
     const locks = screen.getAllByRole("button", { name: "Lock vault" });
@@ -394,93 +210,5 @@ describe("AppShell", () => {
     expect(skip.getAttribute("href")).toBe("#main");
     expect(skip.className).toContain("visually-hidden");
     expect(container.querySelector("a, button")).toBe(skip);
-  });
-  it("handles vaults with no folders and no items", () => {
-    vault.items = [];
-    vault.folders = [];
-    const { container } = renderShell("/vault");
-    expect(filterLink(container, "/vault", "all").textContent).toContain("-");
-  });
-  it("captures section shortcuts before the tree can stop propagation", () => {
-    renderShell(
-      "/vault",
-      <button type="button" onKeyDown={(event) => event.stopPropagation()}>
-        tree row
-      </button>,
-    );
-    const row = screen.getByRole("button", { name: "tree row" });
-    row.focus();
-    fireEvent.keyDown(row, { key: "g" });
-    fireEvent.keyDown(row, { key: "s" });
-    expect(selected("Settings")).toBe("true");
-    fireEvent.keyDown(row, { key: "g" });
-    fireEvent.keyDown(row, { key: "v" });
-    expect(selected("Vault")).toBe("true");
-    fireEvent.keyDown(row, { key: "j" });
-    expect(selected("Settings")).toBe("false");
-  });
-  it("moves the rail cursor with arrows and j/k", () => {
-    const { container } = renderShell("/vault");
-    const tree = screen.getByRole("tree", { name: "Sections" });
-    tree.focus();
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(
-      filterLink(container, "/vault?f=favorites", "favorites").className,
-    ).toContain("is-active");
-    fireEvent.keyDown(tree, { key: "j" });
-    expect(
-      filterLink(container, "/vault?f=login", "logins").className,
-    ).toContain("is-active");
-    fireEvent.keyDown(tree, { key: "ArrowUp" });
-    expect(
-      filterLink(container, "/vault?f=favorites", "favorites").className,
-    ).toContain("is-active");
-  });
-  it("walks off the open vault directory onto the next section", () => {
-    const { container } = renderShell("/vault?f=trash");
-    const tree = screen.getByRole("tree", { name: "Sections" });
-    tree.focus();
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(tree.querySelector('a[href="/connections"]')?.className).toContain(
-      "is-active",
-    );
-    expect(
-      container.querySelector('a[href="/vault"] + .railtree__kids'),
-    ).toBeTruthy();
-    expect(document.getElementById("connections-tree")).toBeNull();
-    fireEvent.keyDown(tree, { key: "5" });
-    fireEvent.keyDown(tree, { key: "j" });
-    const settings = screen.getByRole("treeitem", { name: "Settings" });
-    expect(settings.getAttribute("aria-selected")).toBe("true");
-    expect(settings.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(settings.getAttribute("aria-selected")).toBe("true");
-  });
-  it("arrows move the rail when the vault tree is not focused", () => {
-    const { container } = renderShell("/vault");
-    fireEvent.keyDown(window, { key: "ArrowDown", bubbles: true });
-    expect(
-      filterLink(container, "/vault?f=favorites", "favorites").className,
-    ).toContain("is-active");
-  });
-  it("repeats a rail motion by a vim count", () => {
-    const { container } = renderShell("/vault");
-    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
-    const tree = screen.getByRole("tree", { name: "Sections" });
-    tree.focus();
-    fireEvent.keyDown(tree, { key: "1" });
-    fireEvent.keyDown(tree, { key: "j" });
-    expect(
-      filterLink(container, "/vault?f=login&folder=f1", "Work").className,
-    ).toContain("is-active");
-    fireEvent.keyDown(tree, { key: "1" });
-    fireEvent.keyDown(tree, { key: "j" });
-    expect(
-      filterLink(container, "/vault?f=passkey", "passkeys").className,
-    ).toContain("is-active");
-    fireEvent.keyDown(tree, { key: "0" });
-    expect(screen.getByRole("treeitem", { name: "Vault" }).className).toContain(
-      "is-active",
-    );
   });
 });

@@ -1,8 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  type ListingMotion,
-  type VaultKeymapTarget,
   createKeymapHandler,
   focusRailListing,
   focusVaultListing,
@@ -13,6 +11,13 @@ import {
   showKeymapHelp,
 } from "./keymap.js";
 import { registerLegacyShellData } from "./contributions.test-support.js";
+import {
+  press,
+  rail,
+  rowIn,
+  targeted,
+  vault,
+} from "./keymap.test-harness.js";
 
 // The `g` jumps past `v` and `s` are contributions. Register the full set
 // once for the file so these motions characterize the shell a whole plan
@@ -22,65 +27,6 @@ beforeAll(() => {
   revokeShell = registerLegacyShellData();
 });
 afterAll(() => revokeShell());
-function vault(overrides: Partial<VaultKeymapTarget> = {}): VaultKeymapTarget {
-  return {
-    next: vi.fn(),
-    previous: vi.fn(),
-    first: vi.fn(),
-    last: vi.fn(),
-    enter: vi.fn(),
-    parent: vi.fn(),
-    activate: vi.fn(),
-    page: vi.fn(),
-    edge: vi.fn(),
-    focus: vi.fn(),
-    toIndex: vi.fn(),
-    search: vi.fn(),
-    closeSearch: vi.fn(),
-    copySecret: vi.fn(),
-    copyUsername: vi.fn(),
-    edit: vi.fn(),
-    trash: vi.fn(),
-    create: vi.fn(),
-    favorite: vi.fn(),
-    share: vi.fn(),
-    ...overrides,
-  };
-}
-function rail(): ListingMotion {
-  return {
-    next: vi.fn(),
-    previous: vi.fn(),
-    first: vi.fn(),
-    last: vi.fn(),
-    enter: vi.fn(),
-    parent: vi.fn(),
-    activate: vi.fn(),
-    page: vi.fn(),
-    edge: vi.fn(),
-    focus: vi.fn(),
-    toIndex: vi.fn(),
-  };
-}
-function shifted(key: string): boolean {
-  return key.length === 1 && key !== key.toLowerCase()
-    ? true
-    : key === "$" || key === "?";
-}
-function press(
-  handler: (event: KeyboardEvent) => void,
-  key: string,
-  init: KeyboardEventInit = {},
-): KeyboardEvent {
-  const event = new KeyboardEvent("keydown", {
-    key,
-    cancelable: true,
-    shiftKey: init.shiftKey ?? shifted(key),
-    ...init,
-  });
-  handler(event);
-  return event;
-}
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -676,31 +622,6 @@ describe("listing focus", () => {
   });
 });
 
-function rowIn(className: string): HTMLElement {
-  const wrap = document.createElement("div");
-  wrap.className = className;
-  const row = document.createElement("div");
-  wrap.append(row);
-  document.body.append(wrap);
-  return row;
-}
-
-function targeted(
-  handler: (event: KeyboardEvent) => void,
-  key: string,
-  target: EventTarget,
-  init: KeyboardEventInit = {},
-): KeyboardEvent {
-  const event = new KeyboardEvent("keydown", {
-    key,
-    cancelable: true,
-    shiftKey: init.shiftKey ?? shifted(key),
-    ...init,
-  });
-  Object.defineProperty(event, "target", { value: target });
-  handler(event);
-  return event;
-}
 describe("unbound and partial listings", () => {
   it("does not throw on motions, verbs, counts or g when nothing is registered", () => {
     const showHelp = vi.fn();

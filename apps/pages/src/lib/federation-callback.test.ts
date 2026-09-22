@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeReturnTo } from "./callback.js";
+import { assertSafeReturnTo } from "./federation-callback.js";
 
 describe("assertSafeReturnTo", () => {
   it("OIDC-RETURN: refuses absolute and protocol-relative URLs", () => {

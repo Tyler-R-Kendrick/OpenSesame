@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useContributions } from "../lib/contributions.js";
 import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
@@ -36,6 +37,11 @@ export function SettingsSection({
   const tabs = useSettingsTabs();
   const category = settingsCategoryFromLocation(pathname, hash);
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
+  // Panels a capability draws inside a category the core already has, so
+  // Security can carry the ambient opt-in without this file importing it.
+  const contributedPanels = [...useContributions("settings-panel")]
+    .filter((panel) => panel.category === category)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
   const [representation, setRepresentation] = useState<"form" | RawFormat>(
     "form",
   );
@@ -111,6 +117,9 @@ export function SettingsSection({
       {form && category === "security" ? <SettingsMasterPasswordPanel /> : null}
 
       {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}
+      {form
+        ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
+        : null}
       {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
       {form && category === "danger" ? <SettingsDangerPanel /> : null}
     </div>
