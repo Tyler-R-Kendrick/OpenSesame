@@ -101,7 +101,10 @@ export function PageTreeBranch({
 }) {
   const navigate = useNavigate();
   const { expanded, toggle } = useBranchExpand();
-  const selected = rowSelected(current, node);
+  // A closed directory stands in for its own `config.yaml` while you are
+  // in it, so the rail still marks where you are.
+  const selected =
+    rowSelected(current, node) || (!expanded && current === node.config);
   const shown = pageTreeItemCount(node) || "-";
   return (
     <>

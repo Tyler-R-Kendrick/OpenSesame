@@ -114,6 +114,22 @@ describe("reconcileSource", () => {
     expect(reconcileSource("general", "theme: [", general)).toBe(fresh);
   });
 
+  it("leaves a value that did not move exactly as it was written", () => {
+    const current = {
+      values: { unlockMethods: ["passkey"], secondSteps: ["totp"] },
+      keybindings: {},
+    };
+    const saved = [
+      "unlockMethods:",
+      "  - passkey # the laptop's",
+      "secondSteps: [email]",
+      "",
+    ].join("\n");
+    const out = reconcileSource("security", saved, current);
+    expect(out).toContain("  - passkey # the laptop's");
+    expect(out).toContain("secondSteps: [ totp ]");
+  });
+
   it("drops a binding the keymap no longer has", () => {
     const saved = encodeSettings("general", {
       ...general,

@@ -63,6 +63,24 @@ describe("the rail's context menu", () => {
     ).toBe("true");
   });
 
+  it("marks where you are in a hidden config.yaml, and Open goes where Enter goes", () => {
+    renderShell("/settings/security?file=config.yaml", <ContextMenuLayer />);
+    // The directory is closed, so it stands in for the file inside it.
+    const security = screen.getByRole("treeitem", { name: "Security" });
+    expect(security.getAttribute("aria-selected")).toBe("true");
+
+    // Opened while hidden items were shown, it stays drawn once they are not.
+    act(() => saveShowHidden(true));
+    fireEvent.click(security);
+    fireEvent.click(screen.getByRole("treeitem", { name: "config.yaml" }));
+    act(() => saveShowHidden(false));
+    const config = screen.getByRole("treeitem", { name: "config.yaml" });
+    expect(config.getAttribute("aria-selected")).toBe("true");
+    expect(config.getAttribute("data-rail-open")).toBe(
+      "/settings/security?file=config.yaml",
+    );
+  });
+
   it("offers a settings directory its config.yaml even while it is hidden", () => {
     renderShell("/settings", <ContextMenuLayer />);
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Security" }));

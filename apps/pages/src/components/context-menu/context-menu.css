@@ -20,6 +20,9 @@
 
 .ctxmenu--floating {
   position: fixed;
+  /* Its own width wherever it opens: near the right edge a shrink-to-fit
+     box would be measured squeezed, flipped at that width, and clip. */
+  width: max-content;
 }
 
 /* The phone arrangement: an action sheet on the bottom edge, full width,

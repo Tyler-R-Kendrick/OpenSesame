@@ -11,6 +11,7 @@ import {
 import { reconcileSource } from "@opensesame/app-core/sections/settings/settings-config.js";
 import {
   decodeSettings,
+  legacySettingsFilePath,
   settingsFields,
   settingsFilePath,
   suggestSettings,
@@ -62,7 +63,12 @@ export function SettingsRawEditor({ category }: { category: string }) {
   useSettingsEpoch();
   const path = settingsFilePath(category);
   const current = readDoc(category, state);
-  const derived = reconcileSource(category, loadSettingsSource(path), current);
+  const derived = reconcileSource(
+    category,
+    loadSettingsSource(path) ??
+      loadSettingsSource(legacySettingsFilePath(category)),
+    current,
+  );
   const [draft, setDraft] = useState<{ path: string; text: string } | null>(
     null,
   );

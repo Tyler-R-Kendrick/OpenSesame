@@ -16,6 +16,8 @@ export type SettingsRailSnapshot = {
   vaults?: readonly { id: string; label: string }[];
   /** List each directory's `config.yaml` (the rail's "show hidden items"). */
   showHidden?: boolean;
+  /** The rail's current path: a hidden file is drawn while you stand in it. */
+  current?: string;
 };
 
 function panel(
@@ -84,17 +86,18 @@ export function settingsPageSources(
     keepEmpty: true,
     config: settingsConfigRoute(tab.id),
     sections: sectionsFor(tab.id, snapshot),
-    items: snapshot.showHidden
-      ? [
-          {
-            id: `${tab.id}-config`,
-            label: SETTINGS_CONFIG_FILE,
-            href: settingsConfigRoute(tab.id),
-            hidden: true,
-            kind: "file",
-          },
-        ]
-      : undefined,
+    items:
+      snapshot.showHidden || snapshot.current === settingsConfigRoute(tab.id)
+        ? [
+            {
+              id: `${tab.id}-config`,
+              label: SETTINGS_CONFIG_FILE,
+              href: settingsConfigRoute(tab.id),
+              hidden: true,
+              kind: "file",
+            },
+          ]
+        : undefined,
   }));
 }
 

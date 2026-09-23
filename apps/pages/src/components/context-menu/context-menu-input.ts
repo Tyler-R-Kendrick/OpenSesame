@@ -45,7 +45,7 @@ export function useContextMenuInput(navigate: (to: string) => void): void {
     };
 
     const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || !isMenuKey(event)) return;
+      if (event.defaultPrevented || event.repeat || !isMenuKey(event)) return;
       noteKeyboardContextMenu();
       if (typing(event.target)) return;
       const target = keyboardTarget();
@@ -74,10 +74,12 @@ export function useContextMenuInput(navigate: (to: string) => void): void {
       if (event.defaultPrevented) return;
       const target = event.target instanceof Element ? event.target : null;
       if (typing(target)) return;
-      if (target?.closest(".ctxmenu")) {
+      if (target?.closest(".ctxmenu, .ctxmenu-layer")) {
         event.preventDefault();
         return;
       }
+      // A finger held on plain text is selecting it; that is the platform's.
+      if (press.touching() && !openedByKeyboard() && !holdable(target)) return;
       const groups = pageMenu(
         target,
         window.getSelection()?.toString() ?? "",
@@ -122,8 +124,17 @@ function keyboardTarget(): Element | null {
 }
 
 /**
- * A finger held still, on anything that is not a text field (whose own
- * press-and-hold is the platform's caret and callout). The hold itself is
+ * What a finger may hold for a menu: a row of a listing, or a link. Anything
+ * else — body text, a value in the detail pane — a held finger is selecting,
+ * and that press-and-hold belongs to the platform (select, copy, look up).
+ */
+function holdable(target: Element | null): boolean {
+  if (!target || target.closest(".ctxmenu, .ctxmenu-layer")) return false;
+  return target.closest('[role="tree"], a[href]') !== null;
+}
+
+/**
+ * A finger held still on something `holdable`. The hold itself is
  * `longPress`'s; this adds what a page-wide menu needs on top of it.
  */
 function longPressRecognizer(
@@ -136,14 +147,17 @@ function longPressRecognizer(
 
   const hold = (event: PointerEvent) => {
     const at = event.target instanceof Element ? event.target : null;
-    if (!at?.isConnected || typing(at) || at.closest(".ctxmenu")) return;
+    if (!at?.isConnected || typing(at) || !holdable(at)) return;
     held = true;
     if (performance.now() - nativeAt < 700) return;
     navigator.vibrate?.(8);
     open(at, event.clientX, event.clientY);
   };
-  const down = () => {
+  /** The pointer now down is a finger or a stylus. */
+  let touch = false;
+  const down = (event: PointerEvent) => {
     held = false;
+    touch = event.pointerType === "touch" || event.pointerType === "pen";
   };
   const click = (event: MouseEvent) => {
     if (!held) return;
@@ -156,6 +170,9 @@ function longPressRecognizer(
     /** The browser answered a hold itself: ours stands down for this one. */
     nativeMenu() {
       nativeAt = performance.now();
+    },
+    touching(): boolean {
+      return touch;
     },
     attach(root: Document): () => void {
       const stop = longPress(root.documentElement, hold);

@@ -51,6 +51,8 @@ function patch(
     return `${saved.replace(/\n*$/, "\n")}${values}`;
   }
   if (!isMap(document.contents)) return null;
+  const written = decodeSettings(category, saved);
+  const was = written.ok ? written.doc : null;
   for (const field of settingsFields(category)) {
     if (field.kind === "keymap") {
       patchBindings(document, current.keybindings);
@@ -61,6 +63,14 @@ function patch(
       document.deleteIn([field.key]);
       continue;
     }
+    // A value that did not move keeps its spelling, its block or flow form
+    // and every comment on it.
+    const before = was?.values[field.key];
+    if (
+      before !== undefined &&
+      JSON.stringify(before) === JSON.stringify(value)
+    )
+      continue;
     const node = document.createNode(value, { flow: Array.isArray(value) });
     const existing = document.get(field.key, true);
     // Keep a trailing `# comment` on the line whose value moved.
@@ -88,5 +98,8 @@ function patchBindings(
     const name = String(isScalar(pair.key) ? pair.key.value : pair.key);
     if (!(name in bindings)) map.delete(name);
   }
-  for (const key of keys) map.set(key, bindings[key]);
+  for (const key of keys) {
+    const before = map.get(key);
+    if (before !== bindings[key]) map.set(key, bindings[key]);
+  }
 }

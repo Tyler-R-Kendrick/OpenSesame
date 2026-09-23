@@ -25,7 +25,7 @@ type Live = {
 /**
  * While the menu is open it owns the keyboard — every key but Tab stops here,
  * so a `j` meant for the menu never moves the tree beneath it — and any
- * pointer-down outside it, a scroll, a blur or a resize closes it (a
+ * pointer-down outside it, a scroll, a blur or a new width closes it (a
  * scrolled page would leave it pointing at a row that moved away).
  */
 function useMenuDismissal(
@@ -51,6 +51,8 @@ function useMenuDismissal(
       }
       event.preventDefault();
       event.stopImmediatePropagation();
+      // The key that opened the menu, held: it may not also choose for you.
+      if (event.repeat && (event.key === "Enter" || event.key === " ")) return;
       if (event.key === "Escape") onClose(true);
       else if (event.key === "ArrowDown") move(stepIndex(list, at, 1));
       else if (event.key === "ArrowUp") move(stepIndex(list, at, -1));
@@ -67,6 +69,12 @@ function useMenuDismissal(
       live.current.onClose(false);
     };
     const away = () => live.current.onClose(false);
+    // A phone's keyboard or URL bar changing the height is not the person
+    // leaving; a new width (rotation, a resized window) re-lays the page.
+    const width = window.innerWidth;
+    const resized = () => {
+      if (window.innerWidth !== width) away();
+    };
     // Opening can nudge its own row into view (the cursor follows the row
     // that was asked about); only a scroll after that is the person's.
     const openedAt = performance.now();
@@ -79,13 +87,13 @@ function useMenuDismissal(
     window.addEventListener("keydown", onKey, true);
     document.addEventListener("pointerdown", onPointer, true);
     window.addEventListener("blur", away);
-    window.addEventListener("resize", away);
+    window.addEventListener("resize", resized);
     window.addEventListener("scroll", scrolled, true);
     return () => {
       window.removeEventListener("keydown", onKey, true);
       document.removeEventListener("pointerdown", onPointer, true);
       window.removeEventListener("blur", away);
-      window.removeEventListener("resize", away);
+      window.removeEventListener("resize", resized);
       window.removeEventListener("scroll", scrolled, true);
     };
   }, [own, live, ignoreOutside]);

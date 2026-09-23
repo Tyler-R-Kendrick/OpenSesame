@@ -210,6 +210,7 @@ export function TreeRow({
       }}
       data-rail-move={move ? "" : undefined}
       data-rail-to={selectTo ?? to}
+      data-rail-open={to}
       data-rail-preview={selectTo ? "" : undefined}
       data-rail-kind={kind}
       data-rail-hidden={hidden ? "" : undefined}

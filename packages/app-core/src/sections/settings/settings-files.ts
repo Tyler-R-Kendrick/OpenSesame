@@ -100,6 +100,15 @@ export function settingsFields(category: string): readonly SettingsField[] {
   return FIELDS.get(category) ?? [];
 }
 
+/**
+ * Where a directory's text was kept before each directory had a
+ * `config.yaml` (`settings/general.yaml`). Read once as the starting point,
+ * so a person's comments survive the move; never written again.
+ */
+export function legacySettingsFilePath(category: string): string {
+  return `settings/${category}.yaml`;
+}
+
 /** `settings/general/config.yaml` — the file's name in the rail and editor. */
 export function settingsFilePath(category: string): string {
   return `settings/${category}/${SETTINGS_CONFIG_FILE}`;

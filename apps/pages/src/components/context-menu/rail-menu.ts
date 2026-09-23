@@ -9,7 +9,9 @@ type Navigate = (to: string) => void;
 /** What the row under the pointer is, read from the attributes it renders. */
 function describe(row: HTMLElement) {
   return {
-    to: row.dataset.railTo ?? "",
+    // Where activating the row goes — not `data-rail-to`, which is the
+    // keyboard preview's destination and can be a heading on another page.
+    to: row.dataset.railOpen ?? row.dataset.railTo ?? "",
     href: row instanceof HTMLAnchorElement ? row.href : "",
     kind: row.dataset.railKind,
     config: row.dataset.railConfig,

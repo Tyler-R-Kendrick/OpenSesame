@@ -13,6 +13,7 @@ export function SettingsTree({ current }: { current: string }) {
   const tabs = settingsPageTree({
     vaults: vaults.map((vault) => ({ id: vault.id, label: vault.label })),
     showHidden,
+    current,
   });
   return (
     <div className="railtree__kids">

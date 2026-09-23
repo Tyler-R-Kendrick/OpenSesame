@@ -45,9 +45,12 @@ const pressed = vi.fn();
 function page() {
   render(
     <MemoryRouter>
-      <button type="button" onClick={pressed}>
-        Row
-      </button>
+      <div role="tree" aria-label="Listing">
+        <button type="button" onClick={pressed}>
+          Row
+        </button>
+      </div>
+      <p>Body text a finger selects</p>
       <input aria-label="field" />
       <ContextMenuLayer />
     </MemoryRouter>,
@@ -102,6 +105,22 @@ describe("a finger held still", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("leaves body text to the platform's own select-and-copy", () => {
+    page();
+    const text = screen.getByText("Body text a finger selects");
+    hold(text);
+    expect(screen.queryByRole("menu")).toBeNull();
+    // Nor does the browser's own long-press event get taken from it.
+    const native = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      text.dispatchEvent(native);
+    });
+    expect(native.defaultPrevented).toBe(false);
+  });
+
   it("works for a stylus the same as a finger", () => {
     page();
     hold(screen.getByRole("button", { name: "Row" }), "pen");
@@ -112,6 +131,7 @@ describe("a finger held still", () => {
 describe("the keys that ask for a menu", () => {
   it("keeps Shift+Enter's native meaning off a listing", () => {
     page();
+    // The row's own button inside the listing, not the listing itself.
     const row = screen.getByRole("button", { name: "Row" });
     row.focus();
     const event = new KeyboardEvent("keydown", {
@@ -123,6 +143,18 @@ describe("the keys that ask for a menu", () => {
     row.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(false);
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("ignores the auto-repeat of the key that opened it", () => {
+    page();
+    const tree = screen.getByRole("tree", { name: "Listing" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "Enter", shiftKey: true });
+    const [first] = screen.getAllByRole("menuitem");
+    if (!first) throw new Error("the menu has no entries");
+    fireEvent.keyDown(first, { key: "Enter", shiftKey: true, repeat: true });
+    expect(screen.getByRole("menu")).toBeTruthy();
+    expect(document.activeElement).toBe(first);
   });
 
   it("answers the Menu key on whatever holds focus", () => {
@@ -164,6 +196,11 @@ describe("the phone arrangement", () => {
     );
     lift(row);
     const scrim = screen.getByRole("button", { name: "Close menu" });
+    // Asking the scrim for a menu is not asking the page beneath it.
+    fireEvent.contextMenu(scrim);
+    expect(
+      screen.getByRole("menu", { name: "Page actions" }).className,
+    ).toContain("ctxmenu--sheet");
     // The tap that dismisses lands on the scrim, never on what is beneath.
     act(() => {
       scrim.dispatchEvent(pointer("pointerdown"));
