@@ -18,7 +18,7 @@
   "totals": {
     "files": 491,
     "violations": 780,
-    "oversizedLines": 247847
+    "oversizedLines": 247826
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -498,7 +498,7 @@
       "max-lines": 955
     },
     "apps/gateway/src/routes/rotation.rs": {
-      "max-lines": 658
+      "max-lines": 645
     },
     "apps/gateway/src/routes/security.rs": {
       "max-lines": 838
@@ -1437,7 +1437,7 @@
       "max-lines-per-function": 1
     },
     "packages/notification-adapters/src/adapters/web-push.ts": {
-      "max-lines": 526
+      "max-lines": 519
     },
     "packages/notification-adapters/src/adapters/wechat.ts": {
       "max-lines-per-function": 1
@@ -1533,7 +1533,7 @@
     },
     "packages/sdk-browser/src/client.ts": {
       "complexity": 1,
-      "max-lines": 622,
+      "max-lines": 621,
       "max-lines-per-function": 1
     },
     "packages/sdk-browser/src/edge-cases.test.ts": {
