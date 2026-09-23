@@ -90,11 +90,23 @@ describe("sector proof and release requests", () => {
         reason: "squatted; ownership verified out of band",
       }).success,
     ).toBe(true);
+    expect(
+      ReleaseSectorClaimRequestSchema.safeParse({
+        sectorIdentifier: "https://victim.example",
+        reason: "hand to the verified owner",
+        nextOwnerPrincipalId: "prn_owner",
+      }).success,
+    ).toBe(true);
     for (const body of [
       { sectorIdentifier: "https://victim.example" },
       { sectorIdentifier: "", reason: "x" },
       { sectorIdentifier: "https://victim.example", reason: "  " },
       { sectorIdentifier: "https://victim.example", reason: "x", extra: 1 },
+      {
+        sectorIdentifier: "https://victim.example",
+        reason: "x",
+        nextOwnerPrincipalId: " ",
+      },
     ]) {
       expect(ReleaseSectorClaimRequestSchema.safeParse(body).success).toBe(
         false,

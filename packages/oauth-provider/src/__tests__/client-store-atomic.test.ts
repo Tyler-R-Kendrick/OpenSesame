@@ -114,6 +114,8 @@ describe("MemoryClientRecordStore findBySectorKey", () => {
           id: `rp-${i}`,
           origin: `https://rp-${i}.example`,
           sectorIdentifier,
+          // One owner may put several clients on a key; two may not.
+          ownerPrincipalId: "prn_rp",
         }),
       );
     }

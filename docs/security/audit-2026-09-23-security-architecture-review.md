@@ -215,6 +215,16 @@ fix; the sealed-store root-protection work also has its own record in
     operator can release a key: its clients are blocked and the claim
     generation moves on, so the next owner's users get fresh pairwise
     subjects.
+44. **Medium — rotating a released client took the sector back** (*fix
+    review*). `POST /v1/oauth/clients/:id/rotate` copied a client under a new
+    id without the release block or the ownership check, so a squatter undid
+    an operator release at once; the in-memory store also let two owners
+    share a key and generation. **Fix:** rotate refuses a blocked client and
+    runs registration's ownership check; the memory store applies the
+    Postgres claim rule; a release can name the next owner.
+45. **Low — protector edits took the shared store lock**, so an `add`
+    racing a `remove` could write the removed protector back. **Fix:** key-file
+    edits hold the exclusive lock.
 
 
 ## Operator-visible changes
@@ -243,7 +253,9 @@ fix; the sealed-store root-protection work also has its own record in
   unless `sectorIdentifierUri` names a document on that host listing every
   redirect URI. Loopback redirects are exempt only on dev defaults.
 - `POST /v1/oauth/admin/sectors/release` (operator token) releases a squatted
-  sector key; the holder's clients stop working.
+  sector key; the holder's clients stop working. Pass `nextOwnerPrincipalId`
+  to hand the key to its rightful owner: an open key goes to whoever claims
+  it next.
 - A sealed-store entry written under a name ending in `/` (stored as
   `…/.osseal` or `…/.osattach`) now stops rotation and GC. Rename it with
   git to a real name before rotating.

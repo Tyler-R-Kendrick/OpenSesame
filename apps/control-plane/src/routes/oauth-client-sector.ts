@@ -1,6 +1,9 @@
 import { redirectUrisOutsideSector } from "@opensesame/contracts";
 import { OAuthClientSectorClaimedError } from "@opensesame/database";
-import { pairwiseSectorKey } from "@opensesame/oauth-provider";
+import {
+  SectorKeyClaimedError,
+  pairwiseSectorKey,
+} from "@opensesame/oauth-provider";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { guardedFetch } from "../services/guarded-fetch.js";
@@ -139,9 +142,46 @@ export const SECTOR_TAKEN = {
     "another principal already registered a client under this sectorIdentifier",
 } as const;
 
+/**
+ * Why a rotation may not put a successor on this client's key, or `null`.
+ *
+ * A rotation writes a new client row, so it must pass what a registration
+ * passes: a client whose key is blocked (a 0029 collision, an unprovable
+ * legacy spelling, or an operator release) gets no successor — after a
+ * release the key is open, and a successor would re-take it unblocked — and
+ * a key another owner now holds is refused as it would be for `POST /`. The
+ * block is read from the store: the domain record the route edits never
+ * carries it, so no edit can clear it.
+ */
+export async function rotationRefusal(
+  ctx: AppContext,
+  principalId: string,
+  clientId: string,
+  sectorIdentifier: string,
+): Promise<Response | null> {
+  const stored = await ctx.stores.oauthClients.findById(clientId);
+  if (!stored || stored.sectorKeyBlocked) {
+    return Response.json(
+      {
+        error: "sector_key_blocked",
+        message:
+          "this client may not use its sector key; register a new client under a sector of your own",
+      },
+      { status: 409 },
+    );
+  }
+  if (await sectorClaimedByAnother(ctx, principalId, sectorIdentifier)) {
+    return Response.json(SECTOR_TAKEN, { status: 409 });
+  }
+  return null;
+}
+
 /** The store's sector claim is the last word: a lost race is 409, not 500. */
 export function sectorTakenOrThrow(err: BoundaryValue): Response {
-  if (err instanceof OAuthClientSectorClaimedError) {
+  if (
+    err instanceof OAuthClientSectorClaimedError ||
+    err instanceof SectorKeyClaimedError
+  ) {
     return Response.json(SECTOR_TAKEN, { status: 409 });
   }
   throw err;

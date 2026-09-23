@@ -70,6 +70,7 @@ export {
 export {
   type ClientRecordStore,
   MemoryClientRecordStore,
+  SectorKeyClaimedError,
 } from "./clients/store.js";
 export {
   findOriginClient,

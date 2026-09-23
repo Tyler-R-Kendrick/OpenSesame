@@ -122,12 +122,14 @@ export function redirectUrisOutsideSector(
 /**
  * Operator release of a sector key (a squatted sector). The key is derived
  * from `sectorIdentifier` exactly as the issuer derives it; `reason` is kept in
- * the audit record.
+ * the audit record. With `nextOwnerPrincipalId` the key is held for that
+ * principal (its real owner) instead of left open to the next registrant.
  */
 export const ReleaseSectorClaimRequestSchema = z
   .object({
     sectorIdentifier: z.string().trim().min(1).max(2048),
     reason: z.string().trim().min(1).max(512),
+    nextOwnerPrincipalId: z.string().trim().min(1).max(256).optional(),
   })
   .strict();
 export type ReleaseSectorClaimRequest = z.infer<

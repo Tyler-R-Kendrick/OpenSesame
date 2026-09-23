@@ -20,10 +20,11 @@ import { idempotencyMiddleware } from "../middleware/idempotency.js";
  *
  * The store blocks every client on the key (`sector_released`: the pairwise
  * callback refuses them), bumps the key's claim generation and leaves the key
- * unheld. The next registrant's clients record the new generation, which the
- * pairwise subject sector mixes in, so they start from fresh subjects: none of
- * them can meet a `sub` the previous holder's users were issued. Every release
- * is chained-audited with the operator's reason.
+ * unheld — or held for `nextOwnerPrincipalId`, so the real owner registers
+ * before anyone can re-take it. The next holder's clients record the new
+ * generation, which the pairwise subject sector mixes in, so they start from
+ * fresh subjects: none of them can meet a `sub` the previous holder's users
+ * were issued. Every release is chained-audited with the operator's reason.
  */
 export const oauthSectorAdminRoutes = new Hono<{ Variables: Variables }>();
 
@@ -47,7 +48,17 @@ oauthSectorAdminRoutes.post(
       );
     }
     const sectorKey = pairwiseSectorKey(parsed.data.sectorIdentifier);
-    const released = await ctx.stores.oauthClients.releaseSectorKey(sectorKey);
+    const next = parsed.data.nextOwnerPrincipalId;
+    if (next && !(await ctx.repos.principals.getById(next))) {
+      return c.json(
+        { error: "not_found", message: "No such next owner principal" },
+        404,
+      );
+    }
+    const released = await ctx.stores.oauthClients.releaseSectorKey(
+      sectorKey,
+      next,
+    );
     if (!released) {
       return c.json(
         { error: "not_found", message: "No owner holds this sector key" },
@@ -61,6 +72,8 @@ oauthSectorAdminRoutes.post(
       actorId: "operator",
       targetType: "oauth_sector",
       targetId: sectorKey,
+      // A named next owner is the principal this event hands the key to.
+      ...(next ? { principalId: next } : undefined),
       correlationId: c.get("correlationId"),
       // Keys from the audit allowlist: the released key, the holder it was
       // taken from, how many clients lost it, and the generation it moved to.
@@ -71,6 +84,7 @@ oauthSectorAdminRoutes.post(
         subjectId: released.previousOwnerKey,
         count: released.blockedClientIds.length,
         contentVersion: released.generation,
+        toState: next ? "held_for_next_owner" : "open",
       },
     });
     return c.json({
@@ -78,6 +92,7 @@ oauthSectorAdminRoutes.post(
       generation: released.generation,
       previousOwnerKey: released.previousOwnerKey,
       blockedClientIds: released.blockedClientIds,
+      nextOwnerPrincipalId: released.nextOwnerKey,
     });
   },
 );

@@ -80,6 +80,8 @@ export interface SectorKeyRelease {
   previousOwnerKey: string;
   /** The generation the next holder's subjects live under. */
   generation: number;
+  /** Who now holds the key: the named next owner, or null (open). */
+  nextOwnerKey: string | null;
   /** Clients that lost the key (blocked `sector_released`). */
   blockedClientIds: string[];
 }

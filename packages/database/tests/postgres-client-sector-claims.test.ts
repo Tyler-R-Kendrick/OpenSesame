@@ -214,4 +214,19 @@ describe("postgres client store sector claims", () => {
       clients.insertAtomic(registration(bob, `https://${key}`)),
     ).rejects.toBeInstanceOf(OAuthClientSectorClaimedError);
   });
+
+  it("holds a released key for a named owner and refuses everyone else", async () => {
+    const [squatter, owner] = [await principal(), await principal()];
+    const h = host();
+    await clients.insertAtomic(registration(squatter, `https://${h}`));
+    const released = await clients.releaseSectorKey(h, owner);
+    expect(released).toMatchObject({ generation: 1, nextOwnerKey: owner });
+    await expect(
+      clients.insertAtomic(registration(squatter, `https://${h}`)),
+    ).rejects.toBeInstanceOf(OAuthClientSectorClaimedError);
+    const admitted = await clients.insertAtomic(
+      registration(owner, `https://${h}`),
+    );
+    expect(admitted.sectorGeneration).toBe(1);
+  });
 });

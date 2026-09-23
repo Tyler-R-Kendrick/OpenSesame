@@ -23,13 +23,32 @@ export interface ClientRecordStore {
   /**
    * Operator release of a held sector key: block every client on it
    * `sector_released` and bump the key's generation, so the next holder's
-   * pairwise subjects are fresh. `undefined` when no live client holds it.
+   * pairwise subjects are fresh. The key is left open, or held for
+   * `nextOwnerKey` when given. `undefined` when nobody holds it.
    */
-  releaseSectorKey(sectorKey: string): Promise<SectorKeyRelease | undefined>;
+  releaseSectorKey(
+    sectorKey: string,
+    nextOwnerKey?: string,
+  ): Promise<SectorKeyRelease | undefined>;
+}
+
+/**
+ * Another owner holds this sector key: the memory twin of the database's
+ * `OAuthClientSectorClaimedError` (409 `sector_identifier_taken`).
+ */
+export class SectorKeyClaimedError extends Error {
+  override readonly name = "SectorKeyClaimedError";
+  readonly code = "sector_identifier_taken" as const;
+  constructor(readonly sectorKey: string) {
+    super("another owner already holds a client under this sector key");
+  }
 }
 
 const keyOf = (client: OAuthClientRecord): string =>
   client.sectorKey ?? pairwiseSectorKey(client.sectorIdentifier);
+
+const ownerKeyOf = (client: OAuthClientRecord): string =>
+  client.ownerPrincipalId ?? `client:${client.id}`;
 
 /** The sector fields a store owns, as a stored record carries them. */
 function sectorFields(
@@ -58,6 +77,8 @@ export class MemoryClientRecordStore implements ClientRecordStore {
   private readonly byOrigin = new Map<string, string>();
   /** Sector key -> claim generation (bumped by `releaseSectorKey`). */
   private readonly generations = new Map<string, number>();
+  /** Sector key -> holder (`null` once released and not yet re-taken). */
+  private readonly claims = new Map<string, string | null>();
 
   /**
    * Synchronously load initial records (e.g. static `clients` configuration).
@@ -99,11 +120,39 @@ export class MemoryClientRecordStore implements ClientRecordStore {
         const byOrigin = this.byId.get(byOriginId);
         if (byOrigin) return byOrigin;
       }
-      this.byOrigin.set(client.origin, client.id);
     }
+    this.claim(keyOf(client), ownerKeyOf(client), client.id);
+    if (client.origin) this.byOrigin.set(client.origin, client.id);
     const admitted = this.withGeneration(client);
     this.byId.set(client.id, admitted);
     return admitted;
+  }
+
+  /** Who holds `key`: the claim, else the first unblocked client on it. */
+  private holderOf(key: string): string | null | undefined {
+    if (this.claims.has(key)) return this.claims.get(key);
+    const first = [...this.byId.values()].find(
+      (client) => keyOf(client) === key && !client.sectorKeyBlocked,
+    );
+    return first ? ownerKeyOf(first) : undefined;
+  }
+
+  /**
+   * The Postgres claim rule, synchronously: an open or own key is taken; a
+   * key another owner holds passes only as a lone client moving owner (the
+   * client is already on it and its holder has no other client there).
+   */
+  private claim(key: string, owner: string, clientId: string): void {
+    const holder = this.holderOf(key);
+    if (holder && holder !== owner) {
+      const onKey = [...this.byId.values()].filter((c) => keyOf(c) === key);
+      const self = onKey.some((c) => c.id === clientId);
+      const other = onKey.some(
+        (c) => c.id !== clientId && ownerKeyOf(c) === holder,
+      );
+      if (!self || other) throw new SectorKeyClaimedError(key);
+    }
+    this.claims.set(key, owner);
   }
 
   /** A record admitted onto its key now: the key's current generation. */
@@ -152,6 +201,10 @@ export class MemoryClientRecordStore implements ClientRecordStore {
       if (client.origin) this.byOrigin.set(client.origin, client.id);
     }
     const { sectorKey, sectorKeyBlocked, sectorGeneration, ...rest } = client;
+    const same = existing.sectorIdentifier === client.sectorIdentifier;
+    if ((!same || !existing.sectorKeyBlocked) && client.state !== "revoked") {
+      this.claim(keyOf(rest), ownerKeyOf(rest), client.id);
+    }
     const stored: OAuthClientRecord =
       existing.sectorIdentifier === client.sectorIdentifier
         ? { ...rest, ...sectorFields(existing) }
@@ -162,14 +215,16 @@ export class MemoryClientRecordStore implements ClientRecordStore {
 
   async releaseSectorKey(
     sectorKey: string,
+    nextOwnerKey?: string,
   ): Promise<SectorKeyRelease | undefined> {
+    const holder = this.holderOf(sectorKey);
+    if (!holder) return undefined;
     const live = [...this.byId.values()].filter(
       (client) => keyOf(client) === sectorKey && !client.sectorKeyBlocked,
     );
-    const holder = live[0];
-    if (!holder) return undefined;
     const generation = (this.generations.get(sectorKey) ?? 0) + 1;
     this.generations.set(sectorKey, generation);
+    this.claims.set(sectorKey, nextOwnerKey ?? null);
     for (const client of live) {
       this.byId.set(client.id, {
         ...client,
@@ -178,8 +233,9 @@ export class MemoryClientRecordStore implements ClientRecordStore {
     }
     return {
       sectorKey,
-      previousOwnerKey: holder.ownerPrincipalId ?? `client:${holder.id}`,
+      previousOwnerKey: holder,
       generation,
+      nextOwnerKey: nextOwnerKey ?? null,
       blockedClientIds: live.map((client) => client.id),
     };
   }

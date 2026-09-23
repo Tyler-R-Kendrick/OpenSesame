@@ -129,6 +129,8 @@ export interface SectorKeyRelease {
   previousOwnerKey: string;
   /** The generation the next holder's subjects live under. */
   generation: number;
+  /** Who now holds the key: the named next owner, or null (open). */
+  nextOwnerKey: string | null;
   /** Clients that lost the key (blocked `sector_released`). */
   blockedClientIds: string[];
 }
@@ -139,7 +141,8 @@ export interface SectorKeyRelease {
  * In one transaction, under the claim row's lock: every client still on the
  * key is blocked `sector_released` (the pairwise callback refuses it, so its
  * owner mints nothing further), the claim's generation is bumped, and the
- * claim is left unheld for the next registrant. The next holder's clients
+ * claim is left unheld for the next registrant — or, with `nextOwnerKey`,
+ * held for that owner, so nobody else can take it first. The next holder's clients
  * record the new generation, and the pairwise subject sector mixes it in, so
  * none of them can meet a subject minted under an earlier generation — even
  * one a released client raced to mint while this ran. Answers `undefined`
@@ -148,6 +151,7 @@ export interface SectorKeyRelease {
 export async function releaseSectorClaim(
   db: Database,
   sectorKey: string,
+  nextOwnerKey?: string,
 ): Promise<SectorKeyRelease | undefined> {
   const claims = schema.oauthClientSectorClaims;
   return db.transaction(async (tx) => {
@@ -170,12 +174,17 @@ export async function releaseSectorClaim(
     const generation = claim.generation + 1;
     await tx
       .update(claims)
-      .set({ ownerKey: null, generation, updatedAt: new Date() })
+      .set({
+        ownerKey: nextOwnerKey ?? null,
+        generation,
+        updatedAt: new Date(),
+      })
       .where(eq(claims.sectorKey, sectorKey));
     return {
       sectorKey,
       previousOwnerKey: claim.ownerKey,
       generation,
+      nextOwnerKey: nextOwnerKey ?? null,
       blockedClientIds: blocked.map((row) => row.id),
     };
   });

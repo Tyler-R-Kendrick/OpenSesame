@@ -77,7 +77,10 @@ export interface ClientRecordStore {
   /** Full-record replace by `client.id`. */
   update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
   /** Operator release of a held sector key; `undefined` when nobody holds it. */
-  releaseSectorKey(sectorKey: string): Promise<SectorKeyRelease | undefined>;
+  releaseSectorKey(
+    sectorKey: string,
+    nextOwnerKey?: string,
+  ): Promise<SectorKeyRelease | undefined>;
 }
 
 type OAuthClientRow = typeof schema.oauthClients.$inferSelect;
@@ -333,6 +336,7 @@ export function createPostgresClientRecordStore(
 
     update: (client) => updateClaimed(db, client),
 
-    releaseSectorKey: (sectorKey) => releaseSectorClaim(db, sectorKey),
+    releaseSectorKey: (sectorKey, nextOwnerKey) =>
+      releaseSectorClaim(db, sectorKey, nextOwnerKey),
   };
 }

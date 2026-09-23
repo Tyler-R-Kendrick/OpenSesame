@@ -83,10 +83,11 @@ async function register(token: string, h: string): Promise<Response> {
   });
 }
 
-function release(token: string | undefined, h: string) {
+function release(token: string | undefined, h: string, extra: JsonObject = {}) {
   return post("/v1/oauth/admin/sectors/release", token, {
     sectorIdentifier: `https://${h}`,
     reason: "squatted; ownership verified out of band",
+    ...extra,
   });
 }
 
@@ -184,5 +185,75 @@ describe("operator release of a squatted sector", () => {
       { sectorIdentifier: `https://${host()}` },
     );
     expect(unexplained.status).toBe(400);
+  });
+
+  it("refuses to rotate a released client back onto the key", async () => {
+    const [squatter, owner] = [await verified(), await verified()];
+    const h = host();
+    const squat = await register(squatter.accessToken, h);
+    const squatId: string = overlapCast(await squat.json()).id;
+    expect((await release(operator(), h)).status).toBe(200);
+
+    const rotated = await post(
+      `/v1/oauth/clients/${squatId}/rotate`,
+      squatter.accessToken,
+      {},
+    );
+    expect(rotated.status).toBe(409);
+    expect(overlapCast(await rotated.json()).error).toBe("sector_key_blocked");
+    const stored = await plane.ctx.stores.oauthClients.findById(squatId);
+    expect(stored?.sectorKeyBlocked).toBe("sector_released");
+    expect(stored?.state).toBe("active");
+    // A PATCH does not clear the block either.
+    const patched = await plane.app.request(`/v1/oauth/clients/${squatId}`, {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${squatter.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ displayName: "Still here" }),
+    });
+    expect(patched.status).toBe(200);
+    expect(
+      (await plane.ctx.stores.oauthClients.findById(squatId))?.sectorKeyBlocked,
+    ).toBe("sector_released");
+
+    const admitted = await register(owner.accessToken, h);
+    expect(admitted.status).toBe(201);
+    const ownerId: string = overlapCast(await admitted.json()).id;
+    const held = await plane.ctx.stores.oauthClients.findById(ownerId);
+    expect(held?.sectorGeneration).toBe(1);
+    // The owner's own rotation still works.
+    const own = await post(
+      `/v1/oauth/clients/${ownerId}/rotate`,
+      owner.accessToken,
+      {},
+    );
+    expect(own.status).toBe(201);
+  });
+
+  it("hands a released key straight to a named owner", async () => {
+    const [squatter, owner] = [await verified(), await verified()];
+    const h = host();
+    expect((await register(squatter.accessToken, h)).status).toBe(201);
+    const unknown = await release(operator(), h, {
+      nextOwnerPrincipalId: "prn_nobody",
+    });
+    expect(unknown.status).toBe(404);
+    const released = await release(operator(), h, {
+      nextOwnerPrincipalId: owner.principalId,
+    });
+    expect(released.status).toBe(200);
+    expect(overlapCast(await released.json())).toMatchObject({
+      generation: 1,
+      nextOwnerPrincipalId: owner.principalId,
+    });
+    expect((await register(squatter.accessToken, h)).status).toBe(409);
+    const admitted = await register(owner.accessToken, h);
+    expect(admitted.status).toBe(201);
+    const ownerId: string = overlapCast(await admitted.json()).id;
+    expect(
+      (await plane.ctx.stores.oauthClients.findById(ownerId))?.sectorGeneration,
+    ).toBe(1);
   });
 });

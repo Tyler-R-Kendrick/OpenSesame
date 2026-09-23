@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { MemoryClientRecordStore } from "../clients/store.js";
+import {
+  MemoryClientRecordStore,
+  SectorKeyClaimedError,
+} from "../clients/store.js";
 import { pairwiseSubjectSector } from "../pairwise/sector.js";
 import {
   MemoryPairwiseSubjectStore,
@@ -55,6 +58,7 @@ describe("pairwise subject sectors across a sector release", () => {
       sectorKey: "victim.example",
       previousOwnerKey: "prn_squatter",
       generation: 1,
+      nextOwnerKey: null,
       blockedClientIds: ["squat"],
     });
     await expect(
@@ -90,5 +94,54 @@ describe("pairwise subject sectors across a sector release", () => {
     });
     expect(moved.sectorKeyBlocked).toBeUndefined();
     expect(moved.sectorGeneration).toBeUndefined();
+  });
+
+  it("never lets two owners share a key and generation through a rotation", async () => {
+    const clients = new MemoryClientRecordStore();
+    const squat = await clients.insertAtomic(
+      registration("squat", "prn_squatter", "https://victim.example"),
+    );
+    // Before any release, another owner cannot join the key.
+    await expect(
+      clients.insertAtomic(
+        registration("early", "prn_owner", "https://victim.example"),
+      ),
+    ).rejects.toBeInstanceOf(SectorKeyClaimedError);
+    await clients.releaseSectorKey("victim.example");
+    await clients.insertAtomic(
+      registration("owner", "prn_owner", "https://victim.example"),
+    );
+    // The squatter's rotation: its record under a new id, store fields gone.
+    const { sectorKeyBlocked: _b, sectorGeneration: _g, ...plain } = squat;
+    await expect(
+      clients.insertAtomic({ ...plain, id: "squat-rotated" }),
+    ).rejects.toMatchObject({ code: "sector_identifier_taken" });
+    const live = (await clients.findBySectorKey("victim.example")).filter(
+      (client) => !client.sectorKeyBlocked,
+    );
+    expect(live.map((client) => client.ownerPrincipalId)).toEqual([
+      "prn_owner",
+    ]);
+  });
+
+  it("holds a released key for a named owner", async () => {
+    const clients = new MemoryClientRecordStore();
+    await clients.insertAtomic(
+      registration("squat", "prn_squatter", "https://victim.example"),
+    );
+    const released = await clients.releaseSectorKey(
+      "victim.example",
+      "prn_owner",
+    );
+    expect(released?.generation).toBe(1);
+    await expect(
+      clients.insertAtomic(
+        registration("again", "prn_squatter", "https://victim.example"),
+      ),
+    ).rejects.toBeInstanceOf(SectorKeyClaimedError);
+    const owner = await clients.insertAtomic(
+      registration("owner", "prn_owner", "https://victim.example"),
+    );
+    expect(owner.sectorGeneration).toBe(1);
   });
 });

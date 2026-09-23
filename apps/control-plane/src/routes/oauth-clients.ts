@@ -21,6 +21,7 @@ import {
 } from "./oauth-client-map.js";
 import {
   SECTOR_TAKEN,
+  rotationRefusal,
   sectorClaimedByAnother,
   sectorControlRefusal,
   sectorTakenOrThrow,
@@ -298,6 +299,13 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
+  const refused = await rotationRefusal(
+    ctx,
+    principalId,
+    client.id,
+    client.sectorIdentifier,
+  );
+  if (refused) return refused;
   const now = ctx.clock();
   const rotated: OAuthClientRecord = {
     ...client,
@@ -306,7 +314,7 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     updatedAt: now,
   };
   // The successor claims the sector before the old id retires, so a rotation
-  // the claim refuses (a client migration 0029 blocked) changes nothing.
+  // the claim refuses changes nothing.
   try {
     await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated));
   } catch (err) {
