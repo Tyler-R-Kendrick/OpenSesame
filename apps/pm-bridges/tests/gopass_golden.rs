@@ -74,6 +74,19 @@ fn query_host_never_matches_on_a_bare_public_suffix() {
 }
 
 #[test]
+fn query_host_never_offers_a_bare_label_to_a_lookalike() {
+    let fixture = Fixture::new();
+    // `Dev/github` is a label, not a domain: no host may claim it by name.
+    let hosts = ["github.lol", "attacker.github.io", "github.com"];
+    let requests: Vec<_> = hosts
+        .iter()
+        .map(|host| json!({ "type": "queryHost", "host": host }))
+        .collect();
+    let run = run_host(BIN, &fixture, &requests);
+    assert_eq!(run.responses, vec![json!([]); hosts.len()]);
+}
+
+#[test]
 fn get_login_returns_the_username_and_password() {
     let fixture = Fixture::new();
     let run = run_host(

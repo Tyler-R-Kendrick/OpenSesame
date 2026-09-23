@@ -19,7 +19,7 @@ pub const FIXTURE_OTPAUTH: &str =
 /// Create a two-entry sealed store at `root`:
 ///
 /// - `Web/example.com` — secret + `login:`/`url:` trailer + TOTP.
-/// - `Dev/github` — secret only, reachable solely by the name heuristic.
+/// - `Dev/github` — secret only, no URL; a bare label no host may claim.
 ///
 /// # Panics
 ///

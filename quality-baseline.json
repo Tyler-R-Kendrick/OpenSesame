@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 491,
-    "violations": 780,
-    "oversizedLines": 247693
+    "files": 490,
+    "violations": 779,
+    "oversizedLines": 246927
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -53,9 +53,6 @@
     "apps/ceremonies/src/pages/NotificationSettings.tsx": {
       "max-lines": 448,
       "max-lines-per-function": 1
-    },
-    "apps/cli/src/attach.rs": {
-      "max-lines": 402
     },
     "apps/cli/src/bridge.rs": {
       "max-lines": 514
@@ -847,7 +844,7 @@
       "max-lines": 646
     },
     "apps/pm-bridges/src/store.rs": {
-      "max-lines": 654
+      "max-lines": 439
     },
     "apps/pm-bridges/tests/keepassxc_handshake.rs": {
       "max-lines": 656
@@ -1029,7 +1026,7 @@
       "max-lines": 564
     },
     "crates/provider-bitwarden/src/crypto.rs": {
-      "max-lines": 944
+      "max-lines": 795
     },
     "crates/provider-bitwarden/src/vault.rs": {
       "max-lines": 520

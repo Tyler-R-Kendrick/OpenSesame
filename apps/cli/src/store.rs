@@ -906,7 +906,7 @@ pub fn cmd_export_kdbx(
     }
     let bytes = export_kdbx(&root, &key, prefix, &password, ExportOptions::default())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    std::fs::write(dest, &bytes)?;
+    crate::attach::write_owner_only(dest, |file| Ok(file.write_all(&bytes)?))?;
     println!("wrote {} ({} bytes)", dest.display(), bytes.len());
     Ok(())
 }

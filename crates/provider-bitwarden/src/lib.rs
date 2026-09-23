@@ -55,6 +55,7 @@
 pub mod api;
 pub mod crypto;
 pub mod error;
+mod kdf;
 pub mod session;
 pub mod vault;
 

@@ -23,7 +23,9 @@
 use std::io::{self, Write};
 
 use opensesame_pm_bridges::framing::{self, ReadOutcome};
-use opensesame_pm_bridges::store::{host_of, name_matches, trailer_value, StoreAccess, StoreMatch};
+use opensesame_pm_bridges::store::{
+    host_of, name_fallback_admits, name_matches, trailer_value, StoreAccess, StoreMatch,
+};
 use opensesame_pm_bridges::{now_unix, BridgeError};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -98,7 +100,8 @@ fn query(needle: &str) -> Result<Value, BridgeError> {
 /// `queryHost` walks the host leftwards, dropping one label at a time until
 /// something matches or only the public suffix would be left. With no public
 /// suffix list on hand, the floor is two labels — `example.com` still gets
-/// queried, a bare `com` never does.
+/// queried, a bare `com` never does. An entry whose own `url:` trailer names
+/// another host is never offered on its path name alone.
 fn query_host(host: &str) -> Result<Value, BridgeError> {
     let store = store()?;
     let Some(host) = host_of(host) else {
@@ -111,6 +114,11 @@ fn query_host(host: &str) -> Result<Value, BridgeError> {
         let hits: Vec<Value> = names
             .iter()
             .filter(|name| name_matches(name, &candidate))
+            .filter(|name| {
+                store
+                    .show(name)
+                    .is_ok_and(|entry| name_fallback_admits(&entry, &host))
+            })
             .cloned()
             .map(Value::String)
             .collect();

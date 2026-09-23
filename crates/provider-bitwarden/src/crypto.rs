@@ -34,107 +34,19 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 use crate::error::{Error, Result};
+pub use crate::kdf::{
+    Kdf, DEFAULT_PBKDF2_ITERATIONS, MAX_ARGON2_ITERATIONS, MAX_ARGON2_MEMORY_MIB,
+    MAX_ARGON2_PARALLELISM, MAX_PBKDF2_ITERATIONS, MIN_ARGON2_ITERATIONS, MIN_ARGON2_MEMORY_MIB,
+    MIN_PBKDF2_ITERATIONS,
+};
 
 type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
 type HmacSha256 = Hmac<Sha256>;
 
-/// Bitwarden's current `PBKDF2` default (raised from `100_000` in 2023).
-pub const DEFAULT_PBKDF2_ITERATIONS: u32 = 600_000;
-/// Bitwarden's own server-enforced floor. Anything lower is a downgrade.
-pub const MIN_PBKDF2_ITERATIONS: u32 = 5_000;
-
 const AES_BLOCK: usize = 16;
 const KEY_LEN: usize = 32;
 const MAC_LEN: usize = 32;
-
-/// Key-derivation function named by `POST /identity/accounts/prelogin`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kdf {
-    /// `kdf: 0`
-    Pbkdf2 { iterations: u32 },
-    /// `kdf: 1`
-    Argon2id {
-        iterations: u32,
-        memory_kib: u32,
-        parallelism: u32,
-    },
-}
-
-impl Kdf {
-    /// Build from the raw prelogin fields. `kdf_memory` is in **MiB** on the
-    /// wire, as Bitwarden's UI presents it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::UnsupportedKdf`] for an unknown KDF or
-    /// [`Error::InvalidKdfParameters`] for missing, unsafe, or overflowing
-    /// parameters.
-    pub fn from_prelogin(
-        kdf: u32,
-        iterations: u32,
-        memory_mebibytes: Option<u32>,
-        parallelism: Option<u32>,
-    ) -> Result<Self> {
-        match kdf {
-            0 => {
-                if iterations < MIN_PBKDF2_ITERATIONS {
-                    return Err(Error::InvalidKdfParameters(format!(
-                        "PBKDF2 iterations {iterations} below the {MIN_PBKDF2_ITERATIONS} floor"
-                    )));
-                }
-                Ok(Kdf::Pbkdf2 { iterations })
-            }
-            1 => {
-                let memory_mebibytes = memory_mebibytes.ok_or_else(|| {
-                    Error::InvalidKdfParameters("Argon2id requires kdfMemory".into())
-                })?;
-                let parallelism = parallelism.ok_or_else(|| {
-                    Error::InvalidKdfParameters("Argon2id requires kdfParallelism".into())
-                })?;
-                let memory_kib = memory_mebibytes.checked_mul(1024).ok_or_else(|| {
-                    Error::InvalidKdfParameters(format!(
-                        "kdfMemory {memory_mebibytes} MiB overflows"
-                    ))
-                })?;
-                Self::argon2id(iterations, memory_kib, parallelism)
-            }
-            other => Err(Error::UnsupportedKdf(other)),
-        }
-    }
-
-    /// Argon2id with memory already in KiB (the unit `argon2` wants).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidKdfParameters`] when iterations or parallelism
-    /// are zero, or when the memory cost is below Argon2's minimum.
-    pub fn argon2id(iterations: u32, memory_kib: u32, parallelism: u32) -> Result<Self> {
-        if iterations == 0 || parallelism == 0 {
-            return Err(Error::InvalidKdfParameters(
-                "Argon2id iterations and parallelism must be non-zero".into(),
-            ));
-        }
-        if memory_kib < 8 * parallelism {
-            return Err(Error::InvalidKdfParameters(format!(
-                "Argon2id memory {memory_kib} KiB is below the 8×parallelism minimum"
-            )));
-        }
-        Ok(Kdf::Argon2id {
-            iterations,
-            memory_kib,
-            parallelism,
-        })
-    }
-}
-
-impl Default for Kdf {
-    fn default() -> Self {
-        Kdf::Pbkdf2 {
-            iterations: DEFAULT_PBKDF2_ITERATIONS,
-        }
-    }
-}
 
 /// Bitwarden lowercases and trims the email before using it as KDF salt.
 /// Getting this wrong derives a key that simply never opens the vault.
@@ -808,67 +720,6 @@ mod tests {
                 .code(),
             "cose_encrypt_unsupported"
         );
-    }
-
-    #[test]
-    fn prelogin_kdf_parameters_are_validated() {
-        assert_eq!(
-            Kdf::from_prelogin(0, 600_000, None, None).unwrap(),
-            Kdf::Pbkdf2 {
-                iterations: 600_000
-            }
-        );
-        assert_eq!(
-            Kdf::from_prelogin(0, 100, None, None).unwrap_err().code(),
-            "invalid_kdf_parameters"
-        );
-        assert_eq!(
-            Kdf::from_prelogin(1, 3, Some(64), Some(4)).unwrap(),
-            Kdf::Argon2id {
-                iterations: 3,
-                memory_kib: 64 * 1024,
-                parallelism: 4
-            }
-        );
-        assert_eq!(
-            Kdf::from_prelogin(1, 3, None, Some(4)).unwrap_err().code(),
-            "invalid_kdf_parameters"
-        );
-        assert_eq!(
-            Kdf::from_prelogin(1, 3, Some(64), None).unwrap_err().code(),
-            "invalid_kdf_parameters"
-        );
-        assert_eq!(
-            Kdf::from_prelogin(1, 0, Some(64), Some(4))
-                .unwrap_err()
-                .code(),
-            "invalid_kdf_parameters"
-        );
-        assert_eq!(
-            Kdf::from_prelogin(1, 3, Some(u32::MAX), Some(1))
-                .unwrap_err()
-                .code(),
-            "invalid_kdf_parameters"
-        );
-        assert_eq!(
-            Kdf::from_prelogin(9, 3, None, None).unwrap_err().code(),
-            "unsupported_kdf"
-        );
-        assert_eq!(
-            Kdf::default(),
-            Kdf::Pbkdf2 {
-                iterations: DEFAULT_PBKDF2_ITERATIONS
-            }
-        );
-    }
-
-    #[test]
-    fn argon2_memory_must_cover_its_lanes() {
-        assert_eq!(
-            Kdf::argon2id(3, 8, 4).unwrap_err().code(),
-            "invalid_kdf_parameters"
-        );
-        assert!(Kdf::argon2id(3, 32, 4).is_ok());
     }
 
     #[test]

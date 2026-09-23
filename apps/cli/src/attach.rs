@@ -92,24 +92,46 @@ pub fn cmd_attach_get(
         }
         Some(dest) => {
             let dest = resolve_output_path(&root, name, &key, dest)?;
-            // Reassemble into a sibling temp file and rename, so a failure part
-            // way through never leaves a truncated file that looks like the
-            // real document.
-            let tmp = dest.with_extension("partial");
-            {
-                let mut file = std::fs::File::create(&tmp)?;
-                if let Err(e) = root.attach_get(name, &mut file, &key) {
-                    drop(file);
-                    let _ = std::fs::remove_file(&tmp);
-                    anyhow::bail!("{e}");
-                }
-                file.sync_all()?;
-            }
-            std::fs::rename(&tmp, &dest)?;
+            write_owner_only(&dest, |file| {
+                root.attach_get(name, file, &key)
+                    .map(drop)
+                    .map_err(|e| anyhow::anyhow!("{e}"))
+            })?;
             println!("wrote {}", dest.display());
         }
     }
     Ok(())
+}
+
+/// Write `dest` so that no one but its owner can ever read it.
+///
+/// `fill` writes into a fresh sibling `.partial` file that is created
+/// exclusively (`O_EXCL`, so never through a planted symlink) at mode `0600` —
+/// never at the umask's mode and chmodded afterwards — then it is synced and
+/// renamed into place. A failure part way through removes the partial file,
+/// so nothing truncated is ever left looking like the real document.
+pub(crate) fn write_owner_only(
+    dest: &Path,
+    fill: impl FnOnce(&mut std::fs::File) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let tmp = dest.with_extension("partial");
+    // A partial left by an earlier crash is ours to replace, never to reuse.
+    match std::fs::remove_file(&tmp) {
+        Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e.into()),
+        _ => {}
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let mut partial = options.open(&tmp)?;
+    let written = fill(&mut partial).and_then(|()| Ok(partial.sync_all()?));
+    drop(partial);
+    let placed = written.and_then(|()| Ok(std::fs::rename(&tmp, dest)?));
+    if placed.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    placed
 }
 
 /// Expand a directory destination using the stored filename, which is display
@@ -370,33 +392,5 @@ fn urlencoding_path(value: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn units_are_classified_by_what_the_gateway_needs() {
-        let digest = "ab".repeat(32);
-        match classify(&format!(".attachments/objects/ab/{digest}.oschunk")) {
-            Some(Unit::Chunk { digest: got }) => assert_eq!(got, digest),
-            _ => panic!("chunk should classify by digest"),
-        }
-        match classify("Taxes/2025.osattach") {
-            Some(Unit::Manifest { logical }) => assert_eq!(logical, "Taxes/2025"),
-            _ => panic!("manifest should classify by logical path"),
-        }
-        // Anything else in the store is not ours to replicate.
-        assert!(classify("Dev/token.osseal").is_none());
-        assert!(classify(".opensesame-key").is_none());
-        // A chunk whose name is not a digest is not addressable by the endpoint.
-        assert!(classify(".attachments/objects/zz/nothex.oschunk").is_none());
-    }
-
-    #[test]
-    fn query_characters_that_would_reshape_a_url_are_encoded() {
-        assert_eq!(urlencoding_path("Taxes/2025"), "Taxes/2025");
-        assert_eq!(urlencoding_path("a&b"), "a%26b");
-        assert_eq!(urlencoding_path("a b"), "a%20b");
-        assert_eq!(urlencoding_path("a#b"), "a%23b");
-        assert_eq!(urlencoding_path("100%"), "100%25");
-    }
-}
+#[path = "attach_tests.rs"]
+mod tests;
