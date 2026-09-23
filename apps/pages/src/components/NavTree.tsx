@@ -1,3 +1,4 @@
+import { uniqueFolderKind } from "@opensesame/app-core/components/vault-rail-model.js";
 import { settingsCategoryFromLocation } from "@opensesame/app-core/lib/crumbs.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
 import type { Folder, VaultItem } from "@opensesame/vault-core";
@@ -20,7 +21,7 @@ import {
   useSections,
 } from "./RailRows.js";
 import { SettingsTree } from "./SettingsTree.js";
-import { type VaultCounts, VaultRail, uniqueFolderKind } from "./VaultRail.js";
+import { type VaultCounts, VaultRail } from "./VaultRail.js";
 import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";

@@ -88,24 +88,3 @@ export function ModelRoleSelects(props: ModelRoleSelectsProps): ReactElement {
     </div>
   );
 }
-
-export function emptyAiRecord(): ModelProviderRecord {
-  return {
-    kind: "none",
-    provider: "",
-    endpoint: "",
-    model: "",
-    voice: {
-      provider: "browser-speech",
-      kind: "browser",
-      endpoint: "",
-      model: "en-US",
-    },
-    inference: {
-      provider: "",
-      kind: "none",
-      endpoint: "",
-      model: "",
-    },
-  };
-}

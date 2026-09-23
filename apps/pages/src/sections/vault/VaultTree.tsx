@@ -1,6 +1,9 @@
 import { activeProject } from "@opensesame/app-core/lib/projects.js";
-import { readFile, writeFile } from "@opensesame/app-core/lib/vfs.js";
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import {
+  loadCollapsedDefault,
+  rowId,
+  saveCollapsedDefault,
+} from "@opensesame/app-core/sections/vault/vault-tree-model.js";
 import {
   type DirRow,
   type Folder,
@@ -23,10 +26,6 @@ import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { formatExpiry } from "./DropCeremony.js";
 import { VaultPathbar } from "./VaultPathbar.js";
-
-const COLLAPSED_PATH = "config/tree-collapsed";
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 type VaultTreeActions = {
   open: (item: VaultItem) => void;
@@ -51,27 +50,6 @@ type VaultTreeProps = {
   emptyMessage: string;
 };
 
-async function loadCollapsedDefault(tomb: string): Promise<string[]> {
-  try {
-    const parsed: BoundaryValue = JSON.parse(
-      decoder.decode(await readFile(tomb, COLLAPSED_PATH)),
-    );
-    if (!Array.isArray(parsed)) return [];
-    const collapsed: string[] = [];
-    for (const path of parsed) if (isString(path)) collapsed.push(path);
-    return collapsed;
-  } catch {
-    return [];
-  }
-}
-
-async function saveCollapsedDefault(
-  tomb: string,
-  paths: string[],
-): Promise<void> {
-  await writeFile(tomb, COLLAPSED_PATH, encoder.encode(JSON.stringify(paths)));
-}
-
 export const vaultTreeSeams = {
   activeTomb: () => activeProject().id,
   loadCollapsed: loadCollapsedDefault,
@@ -88,10 +66,6 @@ function Highlight({ text, query }: { text: string; query: string }) {
       {text.slice(at + query.length)}
     </>
   );
-}
-
-function rowId(key: string): string {
-  return `vtree-row-${key}`;
 }
 
 function Decorations({ item }: { item: VaultItem }) {

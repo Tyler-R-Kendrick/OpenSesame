@@ -11,15 +11,11 @@ import {
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
-import { isString } from "@opensesame/os-domain";
 import {
   type VaultItem,
-  definitionFor,
   itemTypeId,
   itemTypeRegistry,
-  readItemField,
   sortItems,
-  typePlural,
 } from "@opensesame/vault-core";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconPlus } from "../components/Icons.js";
@@ -30,25 +26,11 @@ import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
-
-/**
- * The filter chips, in registry order (built-ins first), for the types this
- * vault actually holds. Derived rather than listed: a plugin-defined type is a
- * type like any other, so it earns its own chip the moment an item exists
- * (ADR 0087 §1). A hardcoded list would quietly bucket every community type
- * into one undifferentiated pile.
- */
-function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
-  const present = new Set(live.map(itemTypeId));
-  const ordered = itemTypeRegistry()
-    .list()
-    .map(({ definition }) => definition.metadata.id)
-    .filter((id) => present.has(id));
-  // A type whose definition is not installed here still deserves its chip;
-  // the label falls back to the id rather than the item vanishing from view.
-  const orphans = [...present].filter((id) => !itemTypeRegistry().has(id));
-  return [...ordered, ...orphans.sort()];
-}
+import {
+  chipTypeIds,
+  concealedValue,
+  username,
+} from "@opensesame/app-core/sections/vault-section-model.js";
 
 const FILTER_TITLE = new Map([
   ["all", "All items"],
@@ -61,37 +43,6 @@ const FILTER_TITLE = new Map([
   ["drop", "Drops"],
   ["note", "Secure notes"],
 ]);
-
-/** Any registered type may be the one a filtered "+ new" creates. */
-function concealedValue(item: VaultItem): string | null {
-  if (item.kind === "login") return item.password;
-  if (item.kind === "secret") return item.value;
-  if (item.kind === "card") return item.number;
-  if (item.kind === "certificate") return item.privateKeyPem;
-  // A plugin-defined type already says which field is its secret — the same
-  // field that becomes line one of its native entry (ADR 0087 §3).
-  const definition = definitionFor(item);
-  const secretField = definition?.spec.native.secret;
-  if (
-    definition === undefined ||
-    secretField === undefined ||
-    secretField === null
-  ) {
-    return null;
-  }
-  const field = definition.spec.sections
-    .flatMap((section) => section.fields)
-    .find((candidate) => candidate.id === secretField);
-  if (field === undefined) return null;
-  const value = readItemField(item, field);
-  return isString(value) && value !== "" ? value : null;
-}
-
-function username(item: VaultItem): string | null {
-  return item.kind === "login" || item.kind === "passkey"
-    ? item.username
-    : null;
-}
 
 export function VaultSection() {
   const [params] = useSearchParams();

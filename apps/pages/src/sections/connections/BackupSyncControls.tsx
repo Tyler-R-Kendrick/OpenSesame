@@ -5,6 +5,11 @@ import {
   resyncBackup,
 } from "@opensesame/app-core/lib/backup.js";
 import { startVaultBackupObserver } from "@opensesame/app-core/lib/vault-backup-observer.js";
+import {
+  syncLabel,
+  syncTone,
+  targetMatchesProvider,
+} from "@opensesame/app-core/sections/connections/backup-sync-controls-model.js";
 /**
  * Manual backup sync + last-sync fact for the local GitHub App backup target.
  * Sync is an icon key; status is a StatusMark — never a word-verb button.
@@ -12,32 +17,6 @@ import { startVaultBackupObserver } from "@opensesame/app-core/lib/vault-backup-
 import { useEffect, useState } from "react";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-
-function syncTone(target: BackupTargetView): "ok" | "err" | "warn" | "idle" {
-  if (!target.enabled) return "idle";
-  if (target.status === "error" || target.status === "suspended") return "err";
-  if (target.status === "ok") return "ok";
-  return "warn";
-}
-
-function syncLabel(target: BackupTargetView, pending: number): string {
-  if (!target.enabled) return "Backup off";
-  if (target.lastError) return target.lastError;
-  const synced = target.lastSyncedAt
-    ? `Last sync ${target.lastSyncedAt}`
-    : "Waiting for first sync";
-  return pending > 0 ? `${synced} · ${pending} pending` : synced;
-}
-
-function targetMatchesProvider(
-  bound: BackupTargetView,
-  providerId: string,
-): boolean {
-  return (
-    bound.providerId === providerId ||
-    (bound.kind === "github_app" && providerId === "github")
-  );
-}
 
 export function BackupSyncControls({
   providerId = "github",

@@ -18,7 +18,7 @@
   "totals": {
     "files": 491,
     "violations": 780,
-    "oversizedLines": 247972
+    "oversizedLines": 247847
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -686,7 +686,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2343,
+      "max-lines": 2280,
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
@@ -782,7 +782,7 @@
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
       "complexity": 2,
-      "max-lines": 966,
+      "max-lines": 930,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/DropCeremony.tsx": {
@@ -808,7 +808,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines": 514,
+      "max-lines": 488,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {

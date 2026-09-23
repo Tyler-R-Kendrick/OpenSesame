@@ -40,10 +40,8 @@ guestAuthSeams.openVaultAfterSignIn = fed.openVaultAfterSignIn;
 import { readAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
 
 import { FederationError } from "@opensesame/app-core/lib/federation.js";
-import {
-  FederationReturn,
-  resetFederationReturnCeremony,
-} from "./FederationReturn.js";
+import { resetFederationReturnCeremony } from "@opensesame/app-core/screens/federation-return-model.js";
+import { FederationReturn } from "./FederationReturn.js";
 
 function renderReturn() {
   return render(

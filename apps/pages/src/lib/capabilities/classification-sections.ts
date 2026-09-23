@@ -13,6 +13,7 @@ const SETTINGS = "settings.core";
 export const SECTION_RULES = [
   // --- vault -----------------------------------------------------------------
   core("src/sections/VaultSection", "vault.passwords", "vault section root"),
+  core("src/sections/vault-section-model", "vault.passwords", "its view-model"),
   core("src/sections/vault.css", "vault.passwords", "stylesheet"),
   core(
     "src/sections/vault/",
@@ -79,6 +80,7 @@ export const SECTION_RULES = [
     "identity section root; MIXED",
   ),
   optional("src/sections/identity.css", LOCAL_IAM, "stylesheet"),
+  optional("src/sections/identity-section-model", LOCAL_IAM, "its view-model"),
   optional(
     "src/sections/identity/",
     LOCAL_IAM,
@@ -128,6 +130,7 @@ export const SECTION_RULES = [
     SETTINGS,
     "tabs and panel slots; MIXED",
   ),
+  core("src/sections/settings-section-nav-model", SETTINGS, "tab view-model"),
   core("src/sections/SettingsDangerPanel", SETTINGS, "Danger"),
   core(
     "src/sections/SettingsMasterPasswordPanel",

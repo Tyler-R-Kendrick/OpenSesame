@@ -8,42 +8,21 @@
  * to nothing and asks for nothing — every fact is data already in hand.
  */
 
+import {
+  dependencyLine,
+  egressLine,
+  uiUnits,
+} from "@opensesame/app-core/screens/capabilities/capability-card-model.js";
 import type {
   CapabilityDescriptor,
   CapabilityId,
   CapabilityLifecycle,
   CapabilityState,
-  EgressDeclaration,
 } from "@opensesame/capability-composition";
 import { useId, useState } from "react";
 import { IconInfo } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { capabilityStatus } from "./status.js";
-
-function uiUnits(descriptor: CapabilityDescriptor): string {
-  const units = descriptor.moduleIds
-    .map((id) => id.slice(id.indexOf("/") + 1))
-    .filter((unit) => unit !== "runtime" && unit !== "worker");
-  return units.length > 0 ? units.join(", ") : descriptor.summary;
-}
-
-function egressLine(egress: readonly EgressDeclaration[]): string {
-  if (egress.length === 0) return "nothing leaves this device";
-  return egress
-    .map(
-      (entry) =>
-        `${entry.class} → ${entry.purpose}${entry.automatic ? " (on its own)" : " (when you act)"}`,
-    )
-    .join("; ");
-}
-
-function dependencyLine(descriptor: CapabilityDescriptor): string {
-  const slots = descriptor.alternatives.map(
-    (slot) => `${slot.slot}: one of ${slot.oneOf.join(" / ")}`,
-  );
-  const all = [...descriptor.dependencies, ...slots];
-  return all.length > 0 ? all.join("; ") : "none";
-}
 
 export function CapabilityFacts({
   descriptor,

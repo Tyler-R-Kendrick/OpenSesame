@@ -4,9 +4,9 @@
 
 import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
 import { ProtectionError } from "@opensesame/app-core/lib/vault/protection/errors.js";
+import type { VaultKeyProtectionActions } from "@opensesame/app-core/sections/settings/vault-key-protection-panel-model.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import type { ProtectionSheetRequest } from "./VaultKeyProtectionCeremonies.js";
-import type { VaultKeyProtectionActions } from "./VaultKeyProtectionPanel.js";
 
 function status(
   tone: "info" | "warn" | "err",

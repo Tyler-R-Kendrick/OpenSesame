@@ -6,6 +6,7 @@ import {
   settingsPath,
 } from "@opensesame/app-core/lib/crumbs.js";
 import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
+import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import type { RawFormat } from "@opensesame/app-core/sections/settings/settings-files.js";
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
@@ -15,7 +16,6 @@ import {
   CategoryLink,
   SECURITY_FRAGMENT_REDIRECT,
   type SettingsPanels,
-  categoryFromHash,
   defaultPanels,
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
@@ -38,7 +38,7 @@ const TransportPanel = lazy(() =>
   })),
 );
 
-export { settingsTabs, type SettingsPanels } from "./SettingsSectionNav.js";
+export type { SettingsPanels } from "./SettingsSectionNav.js";
 
 export function SettingsSection({
   panels = defaultPanels,

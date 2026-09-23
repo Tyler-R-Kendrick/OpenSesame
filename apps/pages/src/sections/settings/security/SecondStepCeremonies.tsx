@@ -1,4 +1,3 @@
-import { remoteIdentityApi } from "@opensesame/app-core/lib/identity.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import {
   type CodeChannel,
@@ -6,6 +5,14 @@ import {
   type WebauthnHostCheck,
   listSecondSteps,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import {
+  type Codes,
+  digitsOf,
+  identityHost,
+  looksLikeAddress,
+  secretOf,
+  unusedText,
+} from "@opensesame/app-core/sections/settings/security/second-step-ceremonies-model.js";
 import {
   type FormEvent,
   type ReactNode,
@@ -37,18 +44,6 @@ import { KeyCeremony } from "./KeyCeremony.js";
 import type { Run } from "./run.js";
 
 type Setter = (foot: string | null) => void;
-
-function digitsOf(code: string): string {
-  return code.replace(/\s/g, "");
-}
-
-/* ------------------------------------------------------------------ *
- * Recovery codes — shown once when the first second step turns on, and
- * again from the Recovery row while the vault is open.
- * ------------------------------------------------------------------ */
-
-/** Which codes exist and which are spent. */
-type Codes = { codes: string[]; used: boolean[] };
 type Ledger = Codes & { since: string };
 
 function CodesList({ codes, used }: { codes: string[]; used: boolean[] }) {
@@ -61,13 +56,6 @@ function CodesList({ codes, used }: { codes: string[]; used: boolean[] }) {
       ))}
     </ol>
   );
-}
-
-function unusedText(ledger: Codes): string {
-  return ledger.codes
-    .filter((_, i) => !ledger.used[i])
-    .join("\n")
-    .concat("\n");
 }
 
 async function copyCodes(ledger: Codes): Promise<void> {
@@ -290,14 +278,6 @@ function Rail({
       ))}
     </div>
   );
-}
-
-function secretOf(uri: string): string {
-  try {
-    return new URL(uri).searchParams.get("secret") ?? "";
-  } catch {
-    return "";
-  }
 }
 
 export function AuthenticatorCeremony({
@@ -627,22 +607,6 @@ function channelWords(channel: CodeChannel) {
           "A code by text is a fallback, not a first second step: a number can be moved to another SIM without you. Keep an authenticator app or passkey enrolled too.",
         change: "Use a different number",
       };
-}
-
-function looksLikeAddress(channel: CodeChannel, to: string): boolean {
-  return channel === "email"
-    ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())
-    : /^\+[1-9]\d{6,14}$/.test(to.replace(/[\s()-]/g, ""));
-}
-
-function identityHost(): string {
-  try {
-    const remote = remoteIdentityApi().trim();
-    if (!remote) return "your sign-in service";
-    return new URL(remote).host;
-  } catch {
-    return "your sign-in service";
-  }
 }
 
 export function CodeCeremony({

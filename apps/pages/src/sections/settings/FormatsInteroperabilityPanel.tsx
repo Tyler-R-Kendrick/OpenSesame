@@ -1,11 +1,5 @@
 import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
-import { sopsCapability } from "@opensesame/app-core/lib/sops/capability.js";
-import {
-  ageCapability,
-  exportNativeManifestJson,
-  gpgCapability,
-  nativeManifestCapability,
-} from "@opensesame/app-core/lib/vault/protection/sops-browser.js";
+import { exportNativeManifestJson } from "@opensesame/app-core/lib/vault/protection/sops-browser.js";
 import { useState } from "react";
 import {
   IconDownload,
@@ -17,68 +11,10 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import "./vault-key-protection.css";
+import { buildFormats } from "@opensesame/app-core/sections/settings/formats-interoperability-panel-model.js";
 import { AgeInteropSheet } from "./AgeInteropSheet.js";
 import { SopsDocumentSheet } from "./sops/SopsDocumentSheet.js";
 import { SopsVaultSheet } from "./sops/SopsVaultSheet.js";
-
-type Capability = "ok" | "warn" | "idle";
-
-type FormatRow = {
-  id: string;
-  name: string;
-  read: { tone: Capability; label: string };
-  write: { tone: Capability; label: string };
-  runtime: { tone: Capability; label: string };
-};
-
-function buildFormats(): readonly FormatRow[] {
-  const age = ageCapability();
-  const sops = sopsCapability();
-  const gpg = gpgCapability();
-  const native = nativeManifestCapability();
-  return [
-    {
-      id: "native",
-      name: "Native",
-      read: { tone: "ok", label: "Read" },
-      write: { tone: "ok", label: "Write" },
-      runtime: {
-        tone: native.runtime === "browser" ? "ok" : "warn",
-        label: "This browser",
-      },
-    },
-    {
-      id: "age",
-      name: "age",
-      read: { tone: "ok", label: "Read" },
-      write: { tone: "ok", label: "Write" },
-      runtime: {
-        tone: age.runtime === "browser" ? "ok" : "warn",
-        label: "This browser",
-      },
-    },
-    {
-      id: "sops",
-      name: "SOPS",
-      read: { tone: sops.available ? "ok" : "idle", label: "Read" },
-      write: { tone: sops.available ? "ok" : "idle", label: "Write" },
-      runtime: {
-        tone: sops.runtime === "browser" ? "ok" : "idle",
-        label: "This browser",
-      },
-    },
-    {
-      id: "gpg",
-      name: "GPG",
-      read: { tone: "ok", label: "Read" },
-      write: { tone: "idle", label: "Write not in this browser" },
-      runtime: {
-        tone: "idle",
-        label: gpg.available ? "This browser" : "Native or external tooling",
-      },
-    },
-  ];
-}
 
 function exportNativeManifest(store: ReturnType<typeof useVaultStore>): void {
   try {

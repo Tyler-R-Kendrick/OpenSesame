@@ -11,6 +11,11 @@
  * concealed in the item list and the search index too.
  */
 
+import {
+  asList,
+  asParts,
+  asText,
+} from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
 import { isString } from "@opensesame/os-domain";
 import {
   FIELD_TYPES,
@@ -33,9 +38,6 @@ import {
   RecordInput,
   RepeatingInput,
   ScalarInput,
-  asList,
-  asParts,
-  asText,
 } from "./TypedFieldInputs.js";
 type ChangeField = (fieldId: string, value: FieldValue) => void;
 
