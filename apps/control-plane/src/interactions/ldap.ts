@@ -8,9 +8,14 @@ import {
   type OrganizationRole,
   isString,
 } from "@opensesame/os-domain";
-import { Client, type Entry, escapeFilter } from "ldapts";
+import { type Client, type Entry, escapeFilter } from "ldapts";
 import type { AppContext } from "../context.js";
 import { revokeOrganizationMembership } from "../routes/organizations.js";
+import {
+  type LdapTarget,
+  createClient,
+  fencedLdapTarget,
+} from "./ldap-host-guard.js";
 
 /**
  * Native LDAP: a real bind, and the pull twin of SCIM (ADR 0057, C21/D17).
@@ -38,9 +43,6 @@ import { revokeOrganizationMembership } from "../routes/organizations.js";
  *    never logged, never audited, and never placed in an error. The only thing
  *    that ever holds it is the bind request on the wire.
  */
-
-/** Directory round-trips are interactive; five seconds is already generous. */
-const LDAP_TIMEOUT_MS = 5_000;
 
 /** A username longer than this is not a username. */
 const MAX_USERNAME_LENGTH = 256;
@@ -165,12 +167,9 @@ function parseLdapUrl(rawUrl: string): URL {
  * - **TLS.** `ldap://` puts the user's password on the wire in the clear. It
  *   is allowed only under `allowDevDefaults`, which is where the reference
  *   directory runs.
- * - **The private-host guard.** The owner is trusted with their own tenant,
- *   not with this server's network position: without this, `ldap://169.254.169.254`
- *   turns "configure our directory" into an SSRF gadget against the cloud
- *   metadata endpoint. The guard is `assertSafeMetadataUrl` (T21 — reused, not
- *   reinvented); it speaks http/https, so the LDAP URL is mapped scheme-for-
- *   scheme onto it and only the host is being judged.
+ * - **The private-host guard.** The owner is trusted with their tenant, not
+ *   this server's network position (`ldaps://169.254.169.254`, T21): the host
+ *   as written is judged here, its DNS answer by `./ldap-host-guard.ts`.
  */
 export function assertUsableLdapConfig(
   ctx: AppContext,
@@ -313,14 +312,6 @@ export function roleForGroups(
   return best;
 }
 
-function createClient(config: OrgLdapConfig): Client {
-  return new Client({
-    url: config.url,
-    timeout: LDAP_TIMEOUT_MS,
-    connectTimeout: LDAP_TIMEOUT_MS,
-  });
-}
-
 async function closeQuietly(client: Client): Promise<void> {
   try {
     await client.unbind();
@@ -342,7 +333,7 @@ async function closeQuietly(client: Client): Promise<void> {
  * but the same operations in the same order.
  */
 async function equalizeFailedBind(
-  config: OrgLdapConfig,
+  config: LdapTarget,
   password: string,
 ): Promise<void> {
   const client = createClient(config);
@@ -373,7 +364,7 @@ function usableUsername(username: string): string | undefined {
 }
 
 async function bindByTemplate(
-  config: OrgLdapConfig,
+  config: LdapTarget,
   username: string,
   password: string,
 ): Promise<Entry | undefined> {
@@ -396,7 +387,7 @@ async function bindByTemplate(
 }
 
 async function bindBySearch(
-  config: OrgLdapConfig,
+  config: LdapTarget,
   username: string,
   password: string,
 ): Promise<Entry | undefined> {
@@ -450,7 +441,7 @@ export async function ldapBind(
   password: string,
 ): Promise<LdapBindResult> {
   assertUsableLdapConfig(ctx, config);
-
+  const target = fencedLdapTarget(ctx.config.allowDevDefaults, config);
   const candidate = usableUsername(username);
   // An empty password is not a bad password: LDAP reads a bind with an empty
   // credential as an *unauthenticated* bind and answers success. Letting one
@@ -461,8 +452,8 @@ export async function ldapBind(
   try {
     entry =
       config.bindMode === "bind_template"
-        ? await bindByTemplate(config, candidate, password)
-        : await bindBySearch(config, candidate, password);
+        ? await bindByTemplate(target, candidate, password)
+        : await bindBySearch(target, candidate, password);
   } catch (error) {
     // Invalid credentials, no such object, a refused connection and a TLS
     // failure are one outcome here. The log records which, without the
@@ -490,8 +481,11 @@ export async function ldapBind(
  * entry that can sign in", and the wildcard turns "the entry for this person"
  * into "every such entry" without a second configuration field to get wrong.
  */
-async function scanDirectory(config: OrgLdapConfig): Promise<Entry[]> {
-  const client = createClient(config);
+async function scanDirectory(
+  dev: boolean,
+  config: OrgLdapConfig,
+): Promise<Entry[]> {
+  const client = createClient(fencedLdapTarget(dev, config));
   try {
     await client.bind(config.serviceBindDn ?? "", config.serviceBindSecret);
     const result = await client.search(config.searchBaseDn ?? "", {
@@ -552,7 +546,7 @@ export async function syncLdapDirectory(
     );
   }
 
-  const entries = await scanDirectory(config);
+  const entries = await scanDirectory(ctx.config.allowDevDefaults, config);
   const present = new Set<string>();
   let scanned = 0;
   let joined = 0;

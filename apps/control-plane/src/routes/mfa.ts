@@ -23,6 +23,7 @@ import {
 } from "../repos/durable-map.js";
 import { MailerNotConfiguredError } from "../services/mailer.js";
 import { base32Encode } from "./mfa-base32.js";
+import { chargeCodeSend } from "./mfa-send-budget.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 export { base32Encode } from "./mfa-base32.js";
 
@@ -435,8 +436,6 @@ export { totpCode };
  */
 const CODE_TTL_MS = 10 * 60_000;
 const CODE_MAX_ATTEMPTS = 5;
-/** Live challenges one principal may hold at once — a send budget, not a fence. */
-const CODE_MAX_LIVE = 5;
 const CODE_DIGITS = 6;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const E164_RE = /^\+[1-9]\d{6,14}$/;
@@ -523,10 +522,10 @@ mfaRoutes.post("/code/send", requirePrincipal(), async (c) => {
   }
   const now = ctx.clock().getTime();
   await pruneCodes(ctx.stores.mfaCodes, now);
-  const live = [...(await ctx.stores.mfaCodes.values())].filter(
-    (entry) => entry.principalId === principalId,
-  );
-  if (live.length >= CODE_MAX_LIVE) {
+  // Sends per rolling hour, per principal AND per destination; a burned or
+  // expired challenge gives nothing back (./mfa-send-budget.ts).
+  const store = ctx.stores.mfaCodeSends;
+  if (!(await chargeCodeSend(store, principalId, channel, to, now))) {
     await auditMfaDenial(ctx, {
       eventType: "mfa.code.send",
       reason: "too_many_codes",

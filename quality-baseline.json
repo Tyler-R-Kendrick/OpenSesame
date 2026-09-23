@@ -18,7 +18,7 @@
   "totals": {
     "files": 491,
     "violations": 780,
-    "oversizedLines": 247816
+    "oversizedLines": 247693
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -218,10 +218,10 @@
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/interactions/byo.ts": {
-      "max-lines": 513
+      "max-lines": 436
     },
     "apps/control-plane/src/interactions/federated.ts": {
-      "max-lines": 860
+      "max-lines": 842
     },
     "apps/control-plane/src/interactions/handlers.ts": {
       "complexity": 2,
@@ -229,7 +229,7 @@
     },
     "apps/control-plane/src/interactions/ldap.ts": {
       "complexity": 1,
-      "max-lines": 659,
+      "max-lines": 653,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/interactions/oauth2.ts": {
@@ -242,7 +242,7 @@
     },
     "apps/control-plane/src/interactions/saml.ts": {
       "complexity": 2,
-      "max-lines": 1007,
+      "max-lines": 1005,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -310,7 +310,7 @@
       "max-statements": 1
     },
     "apps/control-plane/src/routes/mfa.ts": {
-      "max-lines": 659,
+      "max-lines": 658,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/routes/notification-callbacks.ts": {
@@ -340,7 +340,7 @@
     },
     "apps/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
-      "max-lines": 975
+      "max-lines": 956
     },
     "apps/control-plane/src/routes/principals.ts": {
       "complexity": 2,

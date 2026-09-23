@@ -70,6 +70,15 @@ export async function provisionedRoleForSubject(
   return roleOf(user);
 }
 
+/**
+ * The principals of THIS organization a directory subject names.
+ *
+ * The `(kind, issuer, subject)` tuple is only as tenant-scoped as the issuer,
+ * and an organization's issuer is a string its owner typed: it can be a
+ * public IdP other tenants' members also sign in with. Whatever the tuple
+ * resolves to, SCIM acts only on a principal that holds a membership here —
+ * a push from one tenant's directory must never sign out anybody else.
+ */
 async function principalsForSubject(
   ctx: AppContext,
   organization: Organization,
@@ -89,7 +98,15 @@ async function principalsForSubject(
       if (identity) principalIds.add(identity.principalId);
     }
   }
-  return [...principalIds];
+  const members: string[] = [];
+  for (const principalId of principalIds) {
+    const membership = await ctx.stores.organizationMemberships.find(
+      organization.id,
+      principalId,
+    );
+    if (membership) members.push(principalId);
+  }
+  return members;
 }
 
 async function principalsForUser(

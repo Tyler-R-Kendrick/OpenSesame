@@ -274,6 +274,61 @@ describe("one-time codes by email and text", () => {
     expect(sixth.status).toBe(429);
   });
 
+  it("never refunds a send when its challenge is burned", async () => {
+    let at = Date.parse("2026-09-02T10:00:00Z");
+    const { app } = createControlPlane({
+      config: testConfig(),
+      clock: () => new Date(at),
+    });
+    const owner = await provisional(app);
+    const send = (to: string) =>
+      app.request(
+        "/v1/mfa/code/send",
+        json(owner.accessToken, { channel: "email", to }),
+      );
+    for (let i = 0; i < 5; i += 1) {
+      const res = await send(`victim${i}@example.com`);
+      expect(res.status).toBe(200);
+      const { challengeId } = overlapCast(await res.json());
+      // Five wrong codes: the challenge is spent and deleted.
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await app.request(
+          "/v1/mfa/code/verify",
+          json(owner.accessToken, { challengeId, code: "000000" }),
+        );
+      }
+    }
+    // No live challenge remains, and the budget is still gone.
+    expect((await send("victim5@example.com")).status).toBe(429);
+    at += 61 * 60_000;
+    expect((await send("victim5@example.com")).status).toBe(200);
+  });
+
+  it("caps sends per destination across principals", async () => {
+    const to = "+14155550142";
+    const sms = recordingSms(true);
+    const plane = createControlPlane({
+      config: testConfig(),
+      sms: sms.adapter,
+    });
+    for (let i = 0; i < 5; i += 1) {
+      const caller = await provisional(plane.app);
+      const res = await plane.app.request(
+        "/v1/mfa/code/send",
+        json(caller.accessToken, { channel: "sms", to }),
+      );
+      expect(res.status).toBe(200);
+    }
+    const fresh = await provisional(plane.app);
+    const refused = await plane.app.request(
+      "/v1/mfa/code/send",
+      json(fresh.accessToken, { channel: "sms", to }),
+    );
+    expect(refused.status).toBe(429);
+    // The sixth caller's own budget is untouched; the number's is spent.
+    expect(sms.sent).toHaveLength(5);
+  });
+
   it("masks addresses and numbers to a recognisable remainder", () => {
     expect(maskDestination("email", "tyler@example.com")).toBe(
       "t•••@example.com",

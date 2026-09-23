@@ -11,10 +11,6 @@ import {
   OrganizationTenantResponseSchema,
   UpdateOrganizationRequestSchema,
 } from "@opensesame/contracts";
-import {
-  UnsafeMetadataUrlError,
-  assertSafeMetadataUrl,
-} from "@opensesame/oauth-provider";
 import type {
   Organization,
   OrganizationMembership,
@@ -37,6 +33,7 @@ import {
   verifyOrgIdToken,
 } from "./org-assertion.js";
 import { normalizeEmailDomain } from "./org-domains.js";
+import { issuerConfigurationError } from "./org-issuer-guard.js";
 // One direction of a deliberate cycle: SCIM is per-organization, so its router
 // reuses this module's membership helpers, and this module asks it what role a
 // provisioned subject joins at. Both are functions called per request, never at
@@ -341,8 +338,14 @@ export async function revokeOrganizationMembership(
       ),
   );
 
+  // A membership that was already gone authorized nothing here, and the
+  // holder's sessions are not this tenant's to end (a repeated sync pass, or a
+  // subject some other tenant's directory happens to name).
   let sessionsRevoked = 0;
-  for (const [id, session] of await ctx.stores.provisionalSessions.entries()) {
+  const sessions = membershipRemoved
+    ? await ctx.stores.provisionalSessions.entries()
+    : [];
+  for (const [id, session] of sessions) {
     if (session.principalId !== input.principalId) continue;
     await ctx.stores.provisionalSessions.delete(id);
     sessionsRevoked += 1;
@@ -362,28 +365,6 @@ export async function revokeOrganizationMembership(
     },
   });
   return { membershipRemoved, sessionsRevoked };
-}
-
-/**
- * Refuse an issuer this deployment must not dereference (T21).
- *
- * The submitted value ends up as a server-side discovery fetch, so an owner
- * who could point it at `169.254.169.254` would have turned the org surface
- * into an SSRF gadget. Loopback stays reachable under dev defaults because
- * that is where the reference IdP and the local Keycloak run.
- */
-function issuerConfigurationError(
-  ctx: AppContext,
-  value: string | null | undefined,
-): string | undefined {
-  if (!value || ctx.config.allowDevDefaults) return undefined;
-  try {
-    assertSafeMetadataUrl(value);
-    return undefined;
-  } catch (error) {
-    if (error instanceof UnsafeMetadataUrlError) return error.message;
-    throw error;
-  }
 }
 
 async function revokeHostSessions(
@@ -461,8 +442,8 @@ organizationRoutes.post(
       );
     }
     const unsafeIssuer =
-      issuerConfigurationError(ctx, parsed.data.ssoIssuer) ??
-      issuerConfigurationError(ctx, parsed.data.samlIssuer);
+      issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
+      issuerConfigurationError(ctx.config, parsed.data.samlIssuer);
     if (unsafeIssuer) {
       return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
     }
@@ -699,9 +680,9 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) => {
     );
   }
   const unsafeIssuer =
-    issuerConfigurationError(ctx, parsed.data.ssoIssuer) ??
-    issuerConfigurationError(ctx, parsed.data.samlIssuer) ??
-    issuerConfigurationError(ctx, parsed.data.samlMetadataUrl);
+    issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
+    issuerConfigurationError(ctx.config, parsed.data.samlIssuer) ??
+    issuerConfigurationError(ctx.config, parsed.data.samlMetadataUrl);
   if (unsafeIssuer) {
     return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
   }

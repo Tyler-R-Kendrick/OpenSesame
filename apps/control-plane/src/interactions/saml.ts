@@ -13,10 +13,6 @@ import type { Profile } from "@node-saml/node-saml";
 import { parseDomFromString, xpath } from "@node-saml/node-saml/lib/xml.js";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
-  UnsafeMetadataUrlError,
-  assertSafeMetadataUrl,
-} from "@opensesame/oauth-provider";
-import {
   type Organization,
   isString,
   overlapCast,
@@ -29,6 +25,11 @@ import {
 } from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
+import {
+  UnsafeUpstreamError,
+  assertPublicUpstreamUrl,
+  guardedFetch,
+} from "../services/guarded-fetch.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { organizationAssertedEmailIsVerified } from "../services/org-email-trust.js";
 import {
@@ -274,24 +275,22 @@ function pemFromBase64(certificate: string): string {
 /**
  * Fetch a tenant-supplied metadata URL under the network fence.
  *
- * Same posture as the org-assertion leg: `assertSafeMetadataUrl` refuses
- * private, loopback, link-local and cloud-metadata targets (T21), redirects
- * are refused rather than followed — a 302 to `169.254.169.254` would
- * otherwise walk straight past a guard that only ever saw the first URL — and
- * the private-host half is relaxed only under dev defaults, where the
- * reference IdP and the dev stack live on loopback.
+ * Same posture as the org-assertion leg: `guardedFetch` refuses private,
+ * loopback, link-local and cloud-metadata targets (T21) — as written AND as
+ * the name resolves, pinning the socket to the address it judged — refuses
+ * redirects rather than following them, and bounds the body. The private-host
+ * half is relaxed only under dev defaults, where the dev stack is loopback.
  */
 async function fetchMetadataDocument(
   ctx: AppContext,
   rawUrl: string,
 ): Promise<string> {
+  const blockPrivateHosts = !ctx.config.allowDevDefaults;
   let url: URL;
   try {
-    url = ctx.config.allowDevDefaults
-      ? new URL(rawUrl)
-      : assertSafeMetadataUrl(rawUrl);
+    url = blockPrivateHosts ? assertPublicUpstreamUrl(rawUrl) : new URL(rawUrl);
   } catch (error) {
-    if (error instanceof UnsafeMetadataUrlError) {
+    if (error instanceof UnsafeUpstreamError) {
       throw new SamlAuthError(
         "metadata_unavailable",
         "The organization's SAML metadata host is not reachable from this deployment.",
@@ -310,10 +309,9 @@ async function fetchMetadataDocument(
   }
   let response: Response;
   try {
-    response = await fetch(url, {
-      method: "GET",
-      redirect: "error",
+    response = await guardedFetch(url, blockPrivateHosts, {
       signal: AbortSignal.timeout(METADATA_FETCH_MS),
+      maxBytes: MAX_SAML_RESPONSE_BYTES,
     });
   } catch {
     throw new SamlAuthError(

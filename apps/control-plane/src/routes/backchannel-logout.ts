@@ -23,6 +23,10 @@ import {
   resolveTrustedIssuer,
 } from "../interactions/trust.js";
 import type { Variables } from "../middleware/context.js";
+import {
+  assertPublicUpstreamUrl,
+  guardedLibraryFetch,
+} from "../services/guarded-fetch.js";
 import { orgAssertionSeams } from "./org-assertion.js";
 import { revokeOrganizationMembership } from "./organizations.js";
 
@@ -151,20 +155,19 @@ async function keysFor(
   if (cached) return cached;
   let url: URL;
   try {
-    url = new URL(jwksUri);
+    // The document is the issuer's, not ours: the `jwks_uri` it names gets
+    // the same fence the issuer did, or a BYO record — registered by anyone —
+    // turns this unauthenticated POST into a fetch of `169.254.169.254`.
+    url = blockPrivateHosts
+      ? assertPublicUpstreamUrl(jwksUri)
+      : new URL(jwksUri);
   } catch {
     return undefined;
   }
   const keys = createRemoteJWKSet(url, {
-    // Redirects are refused rather than followed: a 302 off the JWKS URI would
-    // walk past the guard the discovery step just applied.
-    [customFetch]: (target, options) =>
-      fetch(target, {
-        headers: options.headers,
-        method: options.method,
-        redirect: "error",
-        signal: options.signal,
-      }),
+    // Resolved, address-pinned and redirect-refusing (`guardedFetch`): a 302
+    // or a private DNS answer off the JWKS URI is refused, not followed.
+    [customFetch]: guardedLibraryFetch(blockPrivateHosts),
   });
   jwksCache.set(jwksUri, keys);
   return keys;
