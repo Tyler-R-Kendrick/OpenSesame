@@ -159,6 +159,24 @@ export function settingsCategoryFromLocation(
   return settingsCategoryFromHash(hash) ?? "general";
 }
 
+/** The file name every settings directory carries. */
+export const SETTINGS_CONFIG_FILE = "config.yaml";
+
+/**
+ * A settings directory's `config.yaml`: the directory's own route with the
+ * file named in the query. Not a path segment — a static host answers a
+ * missing path that ends in `.yaml` as a missing file, so a reload or a
+ * shared link would never reach the app.
+ */
+export function settingsConfigRoute(category: string): string {
+  return `${settingsPath(category)}?file=${SETTINGS_CONFIG_FILE}`;
+}
+
+/** Whether a settings location is showing its directory's `config.yaml`. */
+export function isSettingsConfigSearch(search: string): boolean {
+  return new URLSearchParams(search).get("file") === SETTINGS_CONFIG_FILE;
+}
+
 export function settingsPath(category: string, hash = ""): string {
   const base = category === "general" ? "/settings" : `/settings/${category}`;
   const fragment = hash.replace(/^#/, "");
@@ -186,7 +204,7 @@ export function crumbsFor(
   const segment = parts[0];
   if (segment === undefined) return [];
   if (segment === "vault") return vaultCrumbs(parts, params, ctx);
-  if (segment === "settings") return settingsCrumbs(parts);
+  if (segment === "settings") return settingsCrumbs(parts, params);
   const section = contributionsSnapshot("section").find(
     (entry) => entry.segment === segment,
   );
@@ -314,8 +332,22 @@ function walletCrumbs(parts: string[]): Crumb[] {
   ];
 }
 
-function settingsCrumbs(parts: string[]): Crumb[] {
-  const category = parts[1];
+function settingsCrumbs(parts: string[], params: URLSearchParams): Crumb[] {
+  const category = parts[1] ?? "general";
+  if (
+    isSettingsCategory(category) &&
+    params.get("file") === SETTINGS_CONFIG_FILE
+  ) {
+    // A directory's file: the directory is a link, the file is where you are.
+    return [
+      { label: "Settings", to: "/settings" },
+      {
+        label: settingsCategoryLabel(category),
+        to: settingsPath(category),
+      },
+      { label: SETTINGS_CONFIG_FILE },
+    ];
+  }
   if (!category || !isSettingsCategory(category) || category === "general") {
     return [{ label: "Settings" }];
   }

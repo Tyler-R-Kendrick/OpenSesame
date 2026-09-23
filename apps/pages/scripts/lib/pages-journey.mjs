@@ -83,9 +83,14 @@ export async function openGeneral(page) {
   // Settings is the heading the section opens on (it has no "Preferences"
   // heading — that name went with an earlier shape of the panel).
   const heading = page.getByRole("heading", { name: "Settings" });
-  if (await heading.isVisible().catch(() => false)) return;
-  await openSection(page, "settings/");
-  await heading.waitFor({ timeout: 15000 });
+  if (!(await heading.isVisible().catch(() => false))) {
+    await openSection(page, "settings/");
+    await heading.waitFor({ timeout: 15000 });
+  }
+  // A reload keeps a `?file=config.yaml` location; the form is its sibling.
+  if (await page.locator(".set-raw").count()) {
+    await openConfigForm(page, "General");
+  }
 }
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
@@ -124,4 +129,47 @@ export async function runCommand(page, utterance) {
   await page.waitForTimeout(400);
   await page.locator(".command-bar__status").waitFor({ timeout: 8000 });
   return page.locator(".command-bar__status").innerText();
+}
+
+/**
+ * Open a settings directory's `config.yaml` by its path. The rail lists the
+ * file only while it shows hidden items; the command bar opens it at any
+ * width, which is the road a journey that is not about the rail should take.
+ */
+export async function openConfigFile(page, category) {
+  const opened = await runCommand(page, `settings/${category}/config.yaml`);
+  if (!/Opened/i.test(opened))
+    throw new Error(`config.yaml for ${category} did not open: ${opened}`);
+  await page
+    .getByLabel(`settings/${category}/config.yaml`, { exact: true })
+    .waitFor({ timeout: 8000 });
+}
+
+/** Back from a directory's `config.yaml` to the form it spells. */
+export async function openConfigForm(page, label) {
+  await page
+    .locator(".set__nav")
+    .getByRole("link", { name: label, exact: true })
+    .click();
+}
+
+/**
+ * Check or clear the rail's "Show hidden items" the way a person does: the
+ * context menu on a rail row. Returns whether it had to change.
+ */
+export async function setShowHidden(page, on) {
+  await page
+    .locator(".railtree__row", { hasText: "vault/" })
+    .first()
+    .click({ button: "right" });
+  const toggle = page.getByRole("menuitemcheckbox", {
+    name: "Show hidden items",
+  });
+  await toggle.waitFor({ timeout: 8000 });
+  if ((await toggle.getAttribute("aria-checked")) === String(on)) {
+    await page.keyboard.press("Escape");
+    return false;
+  }
+  await toggle.click();
+  return true;
 }

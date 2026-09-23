@@ -149,3 +149,18 @@ describe("crumbsFor", () => {
     ]);
   });
 });
+
+describe("a settings directory's config.yaml", () => {
+  it("is a file inside its directory, whose category it keeps", () => {
+    expect(crumbsFor("/settings", "?file=config.yaml")).toEqual([
+      { label: "Settings", to: "/settings" },
+      { label: "General", to: "/settings" },
+      { label: "config.yaml" },
+    ]);
+    expect(crumbsFor("/settings/connections", "?file=config.yaml")).toEqual([
+      { label: "Settings", to: "/settings" },
+      { label: "Connections", to: "/settings/connections" },
+      { label: "config.yaml" },
+    ]);
+  });
+});

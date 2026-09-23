@@ -12,12 +12,15 @@ export type VaultCounts = {
   byFolder: Map<string, number>;
 };
 
+const TRASH = "/vault?f=trash";
+
 export function VaultRail({
   items,
   folders,
   counts,
   selectedTo,
   kinds,
+  showHidden = false,
 }: {
   items: VaultItem[];
   folders: Folder[];
@@ -25,6 +28,8 @@ export function VaultRail({
   selectedTo: string;
   /** Core kinds plus approved `item-kind` contributions (SURFACE-08). */
   kinds: readonly ItemKindRow[];
+  /** List the hidden `trash/` (the rail's "show hidden items"). */
+  showHidden?: boolean;
 }) {
   const nested = new Set(
     kinds.flatMap(({ id }) =>
@@ -54,11 +59,19 @@ export function VaultRail({
           selectedTo={selectedTo}
         />
       ))}
-      <PageTreeLeafRow
-        node={vaultLeaf("trash", "/vault?f=trash", counts.trash)}
-        level={2}
-        current={selectedTo}
-      />
+      {/* A hidden entry: listed while the rail shows hidden items, or while
+          it is where you are, so the cursor always has a row to stand on. */}
+      {showHidden || selectedTo === TRASH ? (
+        <PageTreeLeafRow
+          node={{
+            ...vaultLeaf("trash", TRASH, counts.trash, true),
+            hidden: true,
+            kind: "trash",
+          }}
+          level={2}
+          current={selectedTo}
+        />
+      ) : null}
       {folders
         .filter((folder) => !nested.has(folder.id))
         .map((folder) => (

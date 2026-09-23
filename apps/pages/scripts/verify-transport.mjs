@@ -33,6 +33,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { openConfigFile, openConfigForm } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import {
   DIMENSIONS,
@@ -157,22 +158,19 @@ async function configureBadRemote(page) {
   // category (ADR 0130), so a device that has approved nothing does not have
   // it. Add it the way a person does, then carry on into the file.
   await addCapability(page, check, snap, "External connectors", "connections/");
-  await openSection(page, "settings/");
+  await openConfigFile(page, "connections");
   await page
-    .getByRole("link", { name: "Connections", exact: true })
-    .last()
-    .click();
-  await page.getByRole("button", { name: "YAML", exact: true }).click();
-  await page
-    .getByLabel("settings/connections.yaml")
+    .getByLabel("settings/connections/config.yaml", { exact: true })
     .fill(`hostApi: "${BAD_REMOTE}"\n`);
-  await page.getByRole("button", { name: "Save settings" }).click();
+  await page
+    .getByRole("button", { name: "Write settings/connections/config.yaml" })
+    .click();
   await page.waitForTimeout(400);
   check(
-    (await page.locator('[role="alert"]').count()) === 0,
+    (await page.locator(".set-raw__status .status-mark--err").count()) === 0,
     "the endpoint was accepted by the settings file",
   );
-  await page.getByRole("button", { name: "Form", exact: true }).click();
+  await openConfigForm(page, "Connections");
   check(
     externalDuring("badremote-configure").length === 0,
     "setting an endpoint asks it nothing",

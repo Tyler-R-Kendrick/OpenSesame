@@ -21,23 +21,20 @@ import {
   IconStar,
 } from "../../components/Icons.js";
 import { SlashSearchField } from "../../components/SlashSearch.js";
+import { ContextMenuList } from "../../components/context-menu/ContextMenuList.js";
+import { openContextMenu } from "../../components/context-menu/menu-model.js";
 import { longPress } from "../../lib/gestures.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { formatExpiry } from "./DropCeremony.js";
 import { VaultPathbar } from "./VaultPathbar.js";
+import {
+  type VaultTreeActions,
+  vaultItemMenu,
+  vaultRowMenu,
+} from "./vault-menu.js";
 
-type VaultTreeActions = {
-  open: (item: VaultItem) => void;
-  preview: (item: VaultItem) => void;
-  copySecret: (item: VaultItem) => void;
-  copyUsername: (item: VaultItem) => void;
-  edit: (item: VaultItem) => void;
-  trash: (item: VaultItem) => void;
-  favorite: (item: VaultItem) => void;
-  share: (item: VaultItem) => void;
-  create: () => void;
-};
+export type { VaultTreeActions } from "./vault-menu.js";
 
 type VaultTreeProps = {
   items: VaultItem[];
@@ -82,65 +79,6 @@ function Decorations({ item }: { item: VaultItem }) {
       ) : null}
       {item.sample ? <span className="vtree__syn">SYNTHETIC</span> : null}
     </span>
-  );
-}
-
-function RowMenu({
-  item,
-  actions,
-  close,
-}: {
-  item: VaultItem;
-  actions: VaultTreeActions;
-  close: () => void;
-}) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const away = (event: PointerEvent) => {
-      const target = event.target instanceof Node ? event.target : null;
-      if (target && menuRef.current?.contains(target)) return;
-      // The ⋯ toggles manage the menu themselves: closing on their
-      // pointerdown would race the click, which would reopen the menu it
-      // meant to close.
-      if (target instanceof Element && target.closest("[data-vtree-more]")) {
-        return;
-      }
-      close();
-    };
-    document.addEventListener("pointerdown", away);
-    return () => document.removeEventListener("pointerdown", away);
-  }, [close]);
-  const entry = (label: string, action: (item: VaultItem) => void) => (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={(event) => {
-        event.stopPropagation();
-        close();
-        action(item);
-      }}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <div
-      ref={menuRef}
-      className="vtree__menu"
-      role="menu"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.stopPropagation();
-          close();
-        }
-      }}
-    >
-      {entry("Open", actions.open)}
-      {entry(item.favorite ? "Unfavorite" : "Favorite", actions.favorite)}
-      {item.kind === "secret" ? entry("Share once", actions.share) : null}
-      {entry("Edit", actions.edit)}
-      {entry("Trash", actions.trash)}
-    </div>
   );
 }
 
@@ -389,6 +327,27 @@ export function VaultTree({
         // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
         tabIndex={0}
         aria-activedescendant={cursor ? rowId(cursor) : undefined}
+        onContextMenu={(event) => {
+          const at = event.target instanceof Element ? event.target : null;
+          const key =
+            at?.closest<HTMLElement>("[data-vtree-key]")?.dataset.vtreeKey;
+          const row = rows.find((candidate) => candidate.key === key) ?? null;
+          if (row) setCursor(row.key);
+          setMenuFor(null);
+          openContextMenu(
+            event,
+            at,
+            row ? `Actions for ${row.name}` : "Vault items",
+            vaultRowMenu(
+              row,
+              actions,
+              (dir) => {
+                if (dir.type === "dir") toggleDirRef.current(dir);
+              },
+              () => setQuery((current) => current ?? ""),
+            ),
+          );
+        }}
       >
         {rows.map((row) => {
           const isCursor = row.key === cursor;
@@ -437,10 +396,15 @@ export function VaultTree({
                   <IconDots size={14} />
                 </button>
                 {menuFor === row.key ? (
-                  <RowMenu
-                    item={row.item}
-                    actions={actions}
-                    close={() => setMenuFor(null)}
+                  <ContextMenuList
+                    className="ctxmenu vtree__menu"
+                    label={`Actions for ${row.name}`}
+                    groups={vaultItemMenu(row.item, actions)}
+                    ignoreOutside="[data-vtree-more]"
+                    onClose={(restore) => {
+                      setMenuFor(null);
+                      if (restore) treeRef.current?.focus();
+                    }}
                   />
                 ) : null}
               </>

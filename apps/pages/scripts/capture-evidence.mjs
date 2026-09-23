@@ -157,6 +157,74 @@ const STEPS = {
       await page.waitForTimeout(800);
     }
   },
+  /** Right-click a rail row, the way a person asks a row what it can do. */
+  async rightClick(page, text) {
+    const row = page.locator(".railtree__row", { hasText: text }).first();
+    if ((await row.count()) === 0)
+      throw new Error(
+        `capture-evidence rightClick("${text}"): no rail row matched — refusing a silent miss`,
+      );
+    await row.click({ button: "right" });
+    await page.waitForTimeout(500);
+  },
+  /** Pick a context-menu entry when this build has one (a base may not). */
+  async menuOptional(page, name) {
+    const entry = page
+      .locator('[role="menu"] [role^="menuitem"]')
+      .filter({ hasText: name })
+      .first();
+    if (await entry.count()) {
+      await entry.click();
+      await page.waitForTimeout(900);
+    }
+  },
+  /**
+   * Open the General settings file by whichever road this build has: the
+   * base's YAML key on the section head, or the branch's command-bar path.
+   */
+  async openSettingsFile(page, category) {
+    if (await page.locator(".set-raw").count()) return;
+    const yaml = page.getByRole("button", { name: "YAML", exact: true });
+    if (await yaml.count()) {
+      await press(yaml);
+    } else {
+      await page
+        .locator("#command-bar-input")
+        .fill(`settings/${category}/config.yaml`);
+      await page.keyboard.press("Enter");
+    }
+    await page.locator(".set-raw").waitFor({ timeout: 8000 });
+    await page.waitForTimeout(700);
+  },
+  /** Log what the browser measures, so each caption quotes a number. */
+  async measure(page, name) {
+    const facts = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".railtree__row")];
+      const items = [...document.querySelectorAll(".ctxmenu__item")];
+      return {
+        railRows: rows.length,
+        trashRow: rows.some((row) =>
+          row.getAttribute("href")?.endsWith("?f=trash"),
+        ),
+        configRows: rows.filter((row) =>
+          row.textContent?.includes("config.yaml"),
+        ).length,
+        viewToggleKeys: document.querySelectorAll(
+          ".section__head .set__view-btn",
+        ).length,
+        menuEntries: items.length,
+        menuEntryHeights: [
+          ...new Set(
+            items.map((item) =>
+              Math.round(item.getBoundingClientRect().height),
+            ),
+          ),
+        ],
+        file: document.querySelector(".set-raw__path")?.textContent ?? null,
+      };
+    });
+    console.log(`  measure ${name}: ${JSON.stringify(facts)}`);
+  },
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);

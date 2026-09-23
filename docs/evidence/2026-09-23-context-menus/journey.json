@@ -1,0 +1,157 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "measure": "1280-rail"
+        },
+        {
+          "shot": "1280-rail"
+        },
+        {
+          "rightClick": "vault/"
+        },
+        {
+          "measure": "1280-rail-menu"
+        },
+        {
+          "shot": "1280-rail-menu"
+        },
+        {
+          "menuOptional": "Show hidden items"
+        },
+        {
+          "escape": null
+        },
+        {
+          "tab": "settings/"
+        },
+        {
+          "expand": "General"
+        },
+        {
+          "measure": "1280-settings"
+        },
+        {
+          "shot": "1280-settings"
+        },
+        {
+          "rightClick": "General"
+        },
+        {
+          "measure": "1280-general-menu"
+        },
+        {
+          "shot": "1280-general-menu"
+        },
+        {
+          "menuOptional": "Open config.yaml"
+        },
+        {
+          "escape": null
+        },
+        {
+          "openSettingsFile": "general"
+        },
+        {
+          "measure": "1280-config"
+        },
+        {
+          "shot": "1280-config"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "measure": "390-settings"
+        },
+        {
+          "shot": "390-settings"
+        },
+        {
+          "openSettingsFile": "general"
+        },
+        {
+          "measure": "390-config"
+        },
+        {
+          "shot": "390-config"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-rail",
+      "width": 1280,
+      "title": "The rail at rest \u2014 1280 \u00d7 800",
+      "caption": "trash/ is a hidden entry now: the rail lists it only once Show hidden items is checked.",
+      "before": "9 rail rows, trash/ listed",
+      "after": "8 rail rows, trash/ hidden"
+    },
+    {
+      "shot": "1280-rail-menu",
+      "width": 1280,
+      "title": "Right-click on vault/ \u2014 1280 \u00d7 800",
+      "caption": "Base: the browser's own menu, which is not part of the page, so the capture shows none. Branch: the rail's menu \u2014 each entry is a verb the rail already has, with its key.",
+      "before": "0 page menu entries (browser menu)",
+      "after": "6 entries, 31px rows: Open, Collapse, Open in new tab, New item, Copy link, Show hidden items"
+    },
+    {
+      "shot": "1280-settings",
+      "width": 1280,
+      "title": "Settings \u203a General, hidden items shown \u2014 1280 \u00d7 800",
+      "caption": "The Form / YAML / TOML switch is gone from the section head; the rail lists General's config.yaml (dim, as a hidden file) and trash/.",
+      "before": "3 view-toggle keys, 0 config.yaml rows",
+      "after": "0 view-toggle keys, config.yaml row + trash/ listed (16 rows)"
+    },
+    {
+      "shot": "1280-general-menu",
+      "width": 1280,
+      "title": "Right-click on a settings directory \u2014 1280 \u00d7 800",
+      "caption": "A settings directory offers its own config.yaml, and the Show hidden items check reports its state.",
+      "before": "0 page menu entries (browser menu)",
+      "after": "6 entries incl. Open config.yaml, Show hidden items \u2713"
+    },
+    {
+      "shot": "1280-config",
+      "width": 1280,
+      "title": "The General file \u2014 1280 \u00d7 800",
+      "caption": "Base: settings/general.yaml behind the YAML key, holding 3 of the page's values. Branch: settings/general/config.yaml, the page as a file \u2014 every value General draws, with a vim-style status line.",
+      "before": "settings/general.yaml",
+      "after": "settings/general/config.yaml, 14 lines"
+    },
+    {
+      "shot": "390-settings",
+      "width": 390,
+      "title": "Settings on a phone \u2014 390 \u00d7 844",
+      "caption": "The toggle's three 44px keys leave the section head.",
+      "before": "3 view-toggle keys",
+      "after": "0 view-toggle keys"
+    },
+    {
+      "shot": "390-config",
+      "width": 390,
+      "title": "The General file on a phone \u2014 390 \u00d7 844",
+      "caption": "Branch reached by its path in the command bar (the rail is a drawer of sections on a phone); a long press on a Settings tab offers the same file.",
+      "before": "settings/general.yaml",
+      "after": "settings/general/config.yaml"
+    }
+  ]
+}

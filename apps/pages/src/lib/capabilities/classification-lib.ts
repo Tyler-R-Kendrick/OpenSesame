@@ -64,6 +64,8 @@ const SHELL_FILES = [
   "keyboard-delivery",
   "contributions",
   "item-kinds",
+  "show-hidden",
+  "use-show-hidden",
 ];
 const SIGNIN_FILES = [
   "guest-auth",

@@ -1,5 +1,6 @@
 import { searchPalette } from "../configuration/palette.js";
 import { lookupConfigResource } from "../configuration/registry.js";
+import { isSettingsCategory, settingsConfigRoute } from "../crumbs.js";
 import type { AppCommand } from "./types.js";
 
 const SECTION_ALIASES: ReadonlyArray<{
@@ -64,6 +65,15 @@ function refusePath(): AppCommand {
 }
 
 function parseResourcePath(text: string): AppCommand | null {
+  // A settings directory's own file, hidden in the rail but never closed.
+  const config = /^\/?settings\/([a-z-]+)\/config\.ya?ml$/.exec(text);
+  if (config?.[1] && isSettingsCategory(config[1])) {
+    return {
+      action: "open_path",
+      path: settingsConfigRoute(config[1]),
+      label: `settings/${config[1]}/config.yaml`,
+    };
+  }
   const lookup = lookupConfigResource(text);
   if (lookup.ok) {
     return { action: "open_path", path: "/settings", label: text };

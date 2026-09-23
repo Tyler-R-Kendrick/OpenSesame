@@ -4,12 +4,18 @@ import {
 } from "@opensesame/app-core/lib/crumbs.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { settingsTabsSnapshot } from "@opensesame/app-core/sections/settings-section-nav-model.js";
+import {
+  SETTINGS_CONFIG_FILE,
+  settingsConfigRoute,
+} from "@opensesame/app-core/sections/settings/settings-files.js";
 import { type PageTreeSource, pageTabTree } from "../../lib/page-to-tree.js";
 import { featureBindingSections } from "../connections/page-tree.js";
 
 /** Live lists a Settings tab may mirror (Vaults on this device). */
 export type SettingsRailSnapshot = {
   vaults?: readonly { id: string; label: string }[];
+  /** List each directory's `config.yaml` (the rail's "show hidden items"). */
+  showHidden?: boolean;
 };
 
 function panel(
@@ -76,7 +82,19 @@ export function settingsPageSources(
     label: tab.label,
     href: settingsPath(tab.id),
     keepEmpty: true,
+    config: settingsConfigRoute(tab.id),
     sections: sectionsFor(tab.id, snapshot),
+    items: snapshot.showHidden
+      ? [
+          {
+            id: `${tab.id}-config`,
+            label: SETTINGS_CONFIG_FILE,
+            href: settingsConfigRoute(tab.id),
+            hidden: true,
+            kind: "file",
+          },
+        ]
+      : undefined,
   }));
 }
 

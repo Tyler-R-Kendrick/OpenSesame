@@ -4,6 +4,7 @@
  */
 import {
   lockVault,
+  openConfigFile,
   openGeneral,
   runCommand,
   sealWithPassword,
@@ -22,7 +23,7 @@ const REMAPPED = `{
   "?": "help.keymap"
 }`;
 const KEYBINDINGS = "#keybindings-source";
-const RAW = 'textarea[aria-label="settings/general.yaml"]';
+const RAW = 'textarea[aria-label="settings/general/config.yaml"]';
 
 export async function walkJNav({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
@@ -41,7 +42,7 @@ export async function walkJNav({ page, origin, base, check, snap }) {
     /Opened autoLockMinutes/i.test(opened),
     `palette reaches setting: ${opened}`,
   );
-  await page.getByRole("button", { name: "YAML", exact: true }).click();
+  await openConfigFile(page, "general");
   const prefs = page.locator(RAW);
   await prefs.waitFor({ timeout: 8000 });
   await prefs.click();

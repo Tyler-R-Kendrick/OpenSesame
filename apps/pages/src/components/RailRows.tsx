@@ -146,6 +146,9 @@ export function TreeRow({
   onToggle,
   selectTo,
   busy,
+  kind,
+  hidden = false,
+  config,
 }: {
   to: string;
   isActive?: boolean;
@@ -165,6 +168,12 @@ export function TreeRow({
   /** Keyboard selection previews this destination; activation follows `to`. */
   selectTo?: string;
   busy?: boolean;
+  /** What the context menu treats the row as (`PageTreeLeaf.kind`). */
+  kind?: string;
+  /** A hidden entry, drawn dim while the rail shows hidden items. */
+  hidden?: boolean;
+  /** The directory's `config.yaml`, which its context menu can open. */
+  config?: string;
 }) {
   const fixed = isActive !== undefined;
   const id = railRowId(selectTo ?? to, child);
@@ -202,11 +211,11 @@ export function TreeRow({
       data-rail-move={move ? "" : undefined}
       data-rail-to={selectTo ?? to}
       data-rail-preview={selectTo ? "" : undefined}
-      className={
-        fixed
-          ? `railtree__row${child ? " railtree__row--child" : ""}${shownActive(Boolean(isActive)) ? " is-active" : ""}`
-          : ({ isActive: routeActive }) =>
-              `railtree__row${child ? " railtree__row--child" : ""}${shownActive(routeActive) ? " is-active" : ""}`
+      data-rail-kind={kind}
+      data-rail-hidden={hidden ? "" : undefined}
+      data-rail-config={config}
+      className={({ isActive: routeActive }) =>
+        `railtree__row${child ? " railtree__row--child" : ""}${hidden ? " railtree__row--hidden" : ""}${shownActive(fixed ? Boolean(isActive) : routeActive) ? " is-active" : ""}`
       }
     >
       {/* react-router NavLink children typing vs React 19 ReactNode */}

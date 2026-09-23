@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import {
@@ -7,7 +7,7 @@ import {
 } from "@opensesame/app-core/lib/crumbs.js";
 import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
-import type { RawFormat } from "@opensesame/app-core/sections/settings/settings-files.js";
+import { isSettingsConfigSearch } from "@opensesame/app-core/sections/settings/settings-files.js";
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
@@ -26,7 +26,6 @@ import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
 import { SettingsRawEditor } from "./settings/SettingsRawEditor.js";
-import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import "./settings.css";
 
@@ -46,7 +45,7 @@ export function SettingsSection({
   panels?: Partial<SettingsPanels>;
 } = {}) {
   const resolvedPanels = { ...defaultPanels, ...panels };
-  const { hash, pathname } = useLocation();
+  const { hash, pathname, search } = useLocation();
   const navigate = useNavigate();
   const tabs = useSettingsTabs();
   const category = settingsCategoryFromLocation(pathname, hash);
@@ -56,9 +55,9 @@ export function SettingsSection({
   const contributedPanels = [...useContributions("settings-panel")]
     .filter((panel) => panel.category === category)
     .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
-  const [representation, setRepresentation] = useState<"form" | RawFormat>(
-    "form",
-  );
+  // A directory's `config.yaml` is the same page spelled as a file: its own
+  // entry in the rail, drawn here in place of the form.
+  const form = !isSettingsConfigSearch(search);
 
   useEffect(() => {
     const fromHash = categoryFromHash(hash);
@@ -82,16 +81,10 @@ export function SettingsSection({
     document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, [category, hash]);
 
-  const form = representation === "form";
-
   return (
     <div className="section__inner">
       <div className="section__head">
         <h1>Settings</h1>
-        <SettingsViewToggle
-          representation={representation}
-          onChange={setRepresentation}
-        />
       </div>
 
       <nav className="set__nav" aria-label="Settings sections">
@@ -106,9 +99,7 @@ export function SettingsSection({
           />
         ))}
       </nav>
-      {representation === "yaml" || representation === "toml" ? (
-        <SettingsRawEditor category={category} format={representation} />
-      ) : null}
+      {form ? null : <SettingsRawEditor category={category} />}
       {form && ContributedPanel ? <ContributedPanel /> : null}
       {form && category === "general" ? (
         <>

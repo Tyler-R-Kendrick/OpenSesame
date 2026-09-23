@@ -71,6 +71,8 @@ export function PageTreeLeafRow({
       selectTo={node.selectTo}
       selected={selected}
       isActive={selected}
+      kind={node.kind}
+      hidden={node.hidden}
     >
       <span className="railtree__name">
         {node.label}
@@ -111,6 +113,7 @@ export function PageTreeBranch({
         expanded={expanded}
         selected={selected}
         isActive={selected}
+        config={node.config}
         onToggle={() => {
           toggle();
           navigate(node.href);

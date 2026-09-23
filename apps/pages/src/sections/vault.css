@@ -309,37 +309,12 @@
   opacity: 1;
 }
 
+/* A row's `⋯` menu is the shared `.ctxmenu` list, seated under its row. */
 .vtree__menu {
   position: absolute;
   top: 100%;
   right: 0.5rem;
   z-index: 30;
-  display: grid;
-  min-width: 9rem;
-  padding: 0.3rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  font-family: var(--font);
-  font-size: 0.875rem;
-}
-
-.vtree__menu button {
-  border: 0;
-  border-radius: var(--radius);
-  padding: 0.4rem 0.55rem;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.vtree__menu button:hover,
-.vtree__menu button:focus-visible {
-  background: var(--surface-3);
-  outline: none;
 }
 
 .vtree__cmd {
@@ -687,11 +662,6 @@
 
   .vtree__row.is-cursor:active {
     background: color-mix(in srgb, var(--ink) 88%, var(--canvas));
-  }
-
-  /* The menu is a touch sheet, not a hover popover: full-width targets. */
-  .vtree__menu button {
-    min-height: 2.75rem;
   }
 
   /* The `/` key is a real affordance on a phone — search still matters with

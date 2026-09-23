@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 489,
-    "violations": 775,
-    "oversizedLines": 246300
+    "files": 488,
+    "violations": 774,
+    "oversizedLines": 246264
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -800,7 +800,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines": 488,
+      "max-lines": 452,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
@@ -1264,9 +1264,6 @@
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470
-    },
-    "packages/app-core/src/sections/settings/settings-files.ts": {
-      "complexity": 1
     },
     "packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
       "max-lines": 678
