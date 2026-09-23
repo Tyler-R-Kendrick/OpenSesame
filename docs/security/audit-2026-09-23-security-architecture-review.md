@@ -193,6 +193,13 @@ fix; the sealed-store root-protection work also has its own record in
     host-side duress supersede and hold overwrite; duress receiver bounds.**
 40. `rustls` 0.23.45 (RUSTSEC-2026-0285) and `chacha20` 0.10.2 (yanked);
     `cargo audit` reports no vulnerabilities.
+41. **Medium — a sealed-store name ending in `/` escaped the rotation walk**
+    (*fix review*). `Dev/` was written as `Dev/.osseal`, a file with no stem
+    that the walk, `ls`, GC and sync all skipped: it stayed under the old
+    root, and an attachment named that way lost its chunks to the rotation's
+    prune. **Fix:** names with an empty, `.` or `..` segment are refused
+    before any write, and a stemless `.osseal` / `.osattach` found on disk
+    makes the walk fail closed.
 
 
 ## Operator-visible changes
@@ -212,9 +219,22 @@ fix; the sealed-store root-protection work also has its own record in
   whose legacy sector spelling cannot be canonicalized with certainty, or
   that collide with another owner's sector, must re-register (migration 0029).
 - Every gateway replica must run this version before any tenant revokes a
-  leaf: older replicas refuse the new denylist format (fail closed).
+  leaf. An older replica cannot parse the new denylist document: it refuses
+  to boot on it, and a running one stops refreshing it, so it keeps admitting
+  leaves revoked after the upgrade until it is replaced. Do not roll back
+  past this version once a revocation has been written.
+- A sealed-store entry written under a name ending in `/` (stored as
+  `…/.osseal` or `…/.osattach`) now stops rotation and GC. Rename it with
+  git to a real name before rotating.
 
 ## Not changed
+
+- The durable denylist is bounded. Once tenants together hold the tenant
+  share (the list less the operator reserve) in unexpired revocations, a
+  further tenant revocation is refused with `denylist_full`; bindings, the
+  in-process deny and the notice still apply, and the operator reserve still
+  admits operator revocations. Filling it takes many orgs' worth of issued
+  certificates, so this is a capacity limit, not a cross-tenant bypass.
 
 - An egress allowlist entry without a port still admits any port on that
   host. The credential only reaches the allowlisted host, and the broker's own

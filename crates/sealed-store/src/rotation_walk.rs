@@ -175,12 +175,9 @@ fn classify(segments: &[String], out: &mut SealedInventory) -> Result<(), StoreE
         }
     };
     let attach_suffix = format!(".{ATTACH_EXT}");
-    if let Some(stem) = file.strip_suffix(OSSEAL_SUFFIX).filter(|s| !s.is_empty()) {
+    if let Some(stem) = file.strip_suffix(OSSEAL_SUFFIX) {
         out.entries.insert(logical(stem)?);
-    } else if let Some(stem) = file
-        .strip_suffix(attach_suffix.as_str())
-        .filter(|s| !s.is_empty())
-    {
+    } else if let Some(stem) = file.strip_suffix(attach_suffix.as_str()) {
         out.attachments.insert(logical(stem)?);
     } else if Path::new(file)
         .extension()
@@ -260,6 +257,17 @@ mod tests {
         let outside = tempfile::tempdir().unwrap();
         std::os::unix::fs::symlink(outside.path(), dir.path().join("Dev")).unwrap();
         assert!(inventory(dir.path()).is_err());
+    }
+
+    #[test]
+    fn a_file_with_no_stem_fails_closed_rather_than_being_skipped() {
+        for rel in ["Dev/.osseal", "Scans/.osattach", ".osseal"] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"x").unwrap();
+            assert!(inventory(dir.path()).is_err(), "{rel}");
+        }
     }
 
     #[test]

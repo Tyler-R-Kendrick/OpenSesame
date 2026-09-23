@@ -161,6 +161,18 @@ pub fn logical_to_relative(name: &str) -> Result<PathBuf, StoreError> {
     if path.is_absolute() {
         return Err(StoreError::InvalidPath("absolute path".into()));
     }
+    // `components()` normalizes away a trailing `/`, a doubled `//` and an
+    // interior `.`, so check the raw segments too: `Dev/` would otherwise be
+    // written as `Dev/.osseal`, a file with no stem that nothing can list,
+    // rotate or reach by its name again.
+    if name
+        .split('/')
+        .any(|seg| seg.is_empty() || seg == "." || seg == "..")
+    {
+        return Err(StoreError::InvalidPath(
+            "empty, `.` or `..` segment (trailing or doubled `/`)".into(),
+        ));
+    }
     for component in path.components() {
         match component {
             Component::Normal(seg) => {
@@ -253,6 +265,10 @@ mod pact {
             "a\0b",
             "",
             "..",
+            "Dev/",
+            "Dev//token",
+            "Dev/./token",
+            "Scans/",
         ] {
             assert!(logical_to_relative(name).is_err(), "{name:?}");
         }

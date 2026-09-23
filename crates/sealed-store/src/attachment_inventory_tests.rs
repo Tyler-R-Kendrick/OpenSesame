@@ -126,3 +126,22 @@ fn gc_deletes_nothing_when_the_inventory_cannot_be_taken() {
     assert_eq!(root.object_files().unwrap().len(), before);
     assert!(root.path.join(&orphan).exists(), "not even the orphan goes");
 }
+
+#[test]
+fn a_trailing_slash_name_is_refused_before_it_writes_a_stemless_file() {
+    let (dir, root, key) = store();
+    let mut source = std::io::Cursor::new(b"scan".to_vec());
+    let refused = root.attach_add(
+        "Scans/",
+        &mut source,
+        4,
+        AttachMeta {
+            filename: "scan.pdf".into(),
+            mime: None,
+        },
+        &key,
+        false,
+    );
+    assert!(refused.is_err());
+    assert!(!dir.path().join("Scans/.osattach").exists());
+}
