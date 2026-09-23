@@ -57,7 +57,6 @@ run("@opensesame/app-core", [
 
 run("@opensesame/pages", [
   "src/sections/settings/page-tree.test.ts",
-  "src/sections/settings/ItemTypeVisual.test.tsx",
   "src/sections/settings/ItemTypesPanel.test.tsx",
   "src/sections/identity/ApplicationSurfaces.test.tsx",
   "src/sections/identity/LocalApplicationSettings.test.tsx",

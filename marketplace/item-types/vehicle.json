@@ -1,0 +1,65 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "vehicle",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Vehicle",
+    "plural": "Vehicles",
+    "extension": ".vehicle",
+    "summary": "A car, bike or boat: its identification number, plate, and the policy that covers it.",
+    "categories": ["identity"],
+    "sections": [
+      {
+        "id": "vehicle",
+        "title": "Vehicle",
+        "fields": [
+          { "id": "make", "type": "string", "label": "Make", "required": true },
+          { "id": "model", "type": "string", "label": "Model" },
+          { "id": "year", "type": "number", "label": "Year" },
+          { "id": "vin", "type": "concealed", "label": "VIN" },
+          { "id": "plate", "type": "string", "label": "Plate" },
+          { "id": "country", "type": "country", "label": "Registered in" },
+          {
+            "id": "registrationExpires",
+            "type": "date",
+            "label": "Registration expires"
+          }
+        ]
+      },
+      {
+        "id": "insurance",
+        "title": "Insurance",
+        "fields": [
+          { "id": "insurer", "type": "string", "label": "Insurer" },
+          {
+            "id": "policyNumber",
+            "type": "concealed",
+            "label": "Policy number"
+          },
+          { "id": "claimsPhone", "type": "phone", "label": "Claims line" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "vin",
+      "trailer": [
+        { "key": "make", "field": "make" },
+        { "key": "model", "field": "model" },
+        { "key": "year", "field": "year" },
+        { "key": "plate", "field": "plate" },
+        { "key": "country", "field": "country" },
+        { "key": "registration_expires", "field": "registrationExpires" },
+        { "key": "insurer", "field": "insurer" },
+        { "key": "policy_number", "field": "policyNumber" },
+        { "key": "phone", "field": "claimsPhone" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["make", "model", "plate"],
+    "search": ["make", "model", "plate"]
+  }
+}

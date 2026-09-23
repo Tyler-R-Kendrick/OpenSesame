@@ -217,6 +217,28 @@ describe("SettingsSection", () => {
     ).toBeTruthy();
   });
 
+  // Settings is files. A row in the Form opens the file it is drawn from in
+  // the source view, and the source view lists the category's files.
+  it("opens an item type's file from its row in the file viewer", async () => {
+    renderSettings("/settings/vaults");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open wifi.json" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "YAML" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    const files = screen.getByRole("navigation", { name: "Files" });
+    expect(files.textContent).toContain("vaults.yaml");
+    expect(files.textContent).toContain("marketplaces.json");
+    expect(
+      screen.getByRole("textbox", {
+        name: "settings/item-types/builtin/wifi.json",
+      }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Form" }));
+    expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
+  });
+
   // The nav has declared a Capabilities tab since the composition work
   // landed, but the section drew nothing for it, so the tab opened empty.
   it("draws the capabilities panel on its own category", () => {

@@ -1,0 +1,32 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "Marketplace",
+  "metadata": {
+    "name": "OpenSesame",
+    "description": "Item types published alongside OpenSesame, beyond the ones every vault has built in."
+  },
+  "spec": {
+    "itemTypes": [
+      {
+        "path": "marketplace/item-types/backup-codes.json",
+        "sha256": "12a9cd83d985deb2e75509fe524bf25efea0e0a00af01e2c78cd88c3d8e9e921"
+      },
+      {
+        "path": "marketplace/item-types/combination-lock.json",
+        "sha256": "c5818464a74277baa9ffeb00fd99a51370cc2e23d951e052ef9f970d761baa70"
+      },
+      {
+        "path": "marketplace/item-types/email-account.json",
+        "sha256": "c833ba65752922a91b6e90d308cee8e860da51db289f38907ba05cf98c128541"
+      },
+      {
+        "path": "marketplace/item-types/gift-card.json",
+        "sha256": "2e6a7bf6243037703680c657c20ef246c16d906f0096dab08c98f7cc6f10ed91"
+      },
+      {
+        "path": "marketplace/item-types/vehicle.json",
+        "sha256": "8d7931f7f9aeee6adf6e8bc36b4c26bd248064f0c3164c9234531551d2fb9443"
+      }
+    ]
+  }
+}

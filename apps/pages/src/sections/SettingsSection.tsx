@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import {
@@ -7,7 +7,6 @@ import {
 } from "@opensesame/app-core/lib/crumbs.js";
 import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
-import type { RawFormat } from "@opensesame/app-core/sections/settings/settings-files.js";
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
@@ -25,9 +24,11 @@ import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperability
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
-import { SettingsRawEditor } from "./settings/SettingsRawEditor.js";
 import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
+import { SettingsFiles } from "./settings/files/SettingsFiles.js";
+import { SettingsFileContext } from "./settings/files/context.js";
+import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
@@ -40,26 +41,12 @@ const TransportPanel = lazy(() =>
 
 export type { SettingsPanels } from "./SettingsSectionNav.js";
 
-export function SettingsSection({
-  panels = defaultPanels,
-}: {
-  panels?: Partial<SettingsPanels>;
-} = {}) {
-  const resolvedPanels = { ...defaultPanels, ...panels };
-  const { hash, pathname } = useLocation();
+/**
+ * An old `#fragment` link lands on its category's path, a retired Security
+ * fragment on its new home, and a live one scrolls into view.
+ */
+function useSettingsLocation(category: string, hash: string, pathname: string) {
   const navigate = useNavigate();
-  const tabs = useSettingsTabs();
-  const category = settingsCategoryFromLocation(pathname, hash);
-  const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
-  // Panels a capability draws inside a category the core already has, so
-  // Security can carry the ambient opt-in without this file importing it.
-  const contributedPanels = [...useContributions("settings-panel")]
-    .filter((panel) => panel.category === category)
-    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
-  const [representation, setRepresentation] = useState<"form" | RawFormat>(
-    "form",
-  );
-
   useEffect(() => {
     const fromHash = categoryFromHash(hash);
     if (fromHash && !pathname.match(/\/settings\/[^/]+/)) {
@@ -81,58 +68,88 @@ export function SettingsSection({
     if (!id || SECURITY_FRAGMENT_REDIRECT.has(id)) return;
     document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, [category, hash]);
+}
+
+export function SettingsSection({
+  panels = defaultPanels,
+}: {
+  panels?: Partial<SettingsPanels>;
+} = {}) {
+  const resolvedPanels = { ...defaultPanels, ...panels };
+  const { hash, pathname } = useLocation();
+  const tabs = useSettingsTabs();
+  const category = settingsCategoryFromLocation(pathname, hash);
+  const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
+  // Panels a capability draws inside a category the core already has, so
+  // Security can carry the ambient opt-in without this file importing it.
+  const contributedPanels = [...useContributions("settings-panel")]
+    .filter((panel) => panel.category === category)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  const { representation, setRepresentation, openPath, setOpenPath, fileNav } =
+    useSettingsFileNav(category);
+
+  useSettingsLocation(category, hash, pathname);
 
   const form = representation === "form";
 
   return (
-    <div className="section__inner">
-      <div className="section__head">
-        <h1>Settings</h1>
-        <SettingsViewToggle
-          representation={representation}
-          onChange={setRepresentation}
-        />
-      </div>
-
-      <nav className="set__nav" aria-label="Settings sections">
-        {tabs.map((entry) => (
-          <CategoryLink
-            key={entry.id}
-            guideId={entry.guideId}
-            to={settingsPath(entry.id)}
-            label={entry.label}
-            danger={entry.id === "danger"}
-            current={category === entry.id}
+    <SettingsFileContext.Provider value={fileNav}>
+      <div className="section__inner">
+        <div className="section__head">
+          <h1>Settings</h1>
+          <SettingsViewToggle
+            representation={representation}
+            onChange={setRepresentation}
           />
-        ))}
-      </nav>
-      {representation === "yaml" || representation === "toml" ? (
-        <SettingsRawEditor category={category} format={representation} />
-      ) : null}
-      {form && ContributedPanel ? <ContributedPanel /> : null}
-      {form && category === "general" ? (
-        <>
-          <GuideTarget id="settings.install">
-            <resolvedPanels.InstallPanel />
-          </GuideTarget>
-          <GeneralPrefsPanel />
-          <KeybindingsViewsPanel />
-        </>
-      ) : null}
+        </div>
 
-      {form && category === "security" ? (
-        <SecurityPanels
-          UnlockMethodsPanel={resolvedPanels.UnlockMethodsPanel}
-        />
-      ) : null}
+        <nav className="set__nav" aria-label="Settings sections">
+          {tabs.map((entry) => (
+            <CategoryLink
+              key={entry.id}
+              guideId={entry.guideId}
+              to={settingsPath(entry.id)}
+              label={entry.label}
+              danger={entry.id === "danger"}
+              current={category === entry.id}
+            />
+          ))}
+        </nav>
+        {representation === "yaml" || representation === "toml" ? (
+          <SettingsFiles
+            category={category}
+            format={representation}
+            selected={openPath}
+            onSelect={setOpenPath}
+          />
+        ) : null}
+        {form && ContributedPanel ? <ContributedPanel /> : null}
+        {form && category === "general" ? (
+          <>
+            <GuideTarget id="settings.install">
+              <resolvedPanels.InstallPanel />
+            </GuideTarget>
+            <GeneralPrefsPanel />
+            <KeybindingsViewsPanel />
+          </>
+        ) : null}
 
-      {form && category === "vaults" && <VaultsAndTypes {...resolvedPanels} />}
-      {form
-        ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
-        : null}
-      {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
-      {form && category === "danger" ? <SettingsDangerPanel /> : null}
-    </div>
+        {form && category === "security" ? (
+          <SecurityPanels
+            UnlockMethodsPanel={resolvedPanels.UnlockMethodsPanel}
+          />
+        ) : null}
+
+        {form && category === "vaults" && (
+          <VaultsAndTypes {...resolvedPanels} />
+        )}
+        {form
+          ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
+          : null}
+        {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
+        {form && category === "danger" ? <SettingsDangerPanel /> : null}
+      </div>
+    </SettingsFileContext.Provider>
   );
 }
 

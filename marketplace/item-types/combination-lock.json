@@ -1,0 +1,49 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "combination-lock",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Combination lock",
+    "plural": "Combination locks",
+    "extension": ".lock",
+    "summary": "A padlock, safe, gate or door keypad and the combination that opens it.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "lock",
+        "title": "Lock",
+        "fields": [
+          {
+            "id": "location",
+            "type": "string",
+            "label": "Location",
+            "required": true
+          },
+          { "id": "combination", "type": "pin", "label": "Combination" },
+          {
+            "id": "kind",
+            "type": "select",
+            "label": "Kind",
+            "options": ["padlock", "safe", "keypad", "lockbox", "bike"]
+          },
+          { "id": "notes", "type": "multiline", "label": "Notes" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "combination",
+      "trailer": [
+        { "key": "location", "field": "location" },
+        { "key": "kind", "field": "kind" },
+        { "key": "notes", "field": "notes" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["location", "kind"],
+    "search": ["location", "kind"]
+  }
+}

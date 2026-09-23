@@ -1,0 +1,124 @@
+{
+  "out": ".",
+  "remote": {
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/.opensesame/marketplace.json": ".opensesame/marketplace.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/backup-codes.json": "marketplace/item-types/backup-codes.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/combination-lock.json": "marketplace/item-types/combination-lock.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/email-account.json": "marketplace/item-types/email-account.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/gift-card.json": "marketplace/item-types/gift-card.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/vehicle.json": "marketplace/item-types/vehicle.json"
+  },
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-installed"
+        },
+        {
+          "pressOptional": "Marketplace"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-marketplace"
+        },
+        {
+          "pressOptional": "Inspect Vehicle"
+        },
+        {
+          "pressOptional": "Install Vehicle"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-installed-vehicle"
+        },
+        {
+          "pressOptional": "Open marketplaces.json"
+        },
+        {
+          "shot": "1280-file-marketplaces"
+        },
+        {
+          "pressOptional": "^vehicle.json"
+        },
+        {
+          "shot": "1280-file-vehicle"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-installed"
+        },
+        {
+          "pressOptional": "Marketplace"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-marketplace"
+        },
+        {
+          "pressOptional": "Inspect Vehicle"
+        },
+        {
+          "pressOptional": "Install Vehicle"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-installed-vehicle"
+        },
+        {
+          "pressOptional": "Open marketplaces.json"
+        },
+        {
+          "shot": "390-file-marketplaces"
+        },
+        {
+          "pressOptional": "^vehicle.json"
+        },
+        {
+          "shot": "390-file-vehicle"
+        }
+      ]
+    }
+  ],
+  "sheets": []
+}

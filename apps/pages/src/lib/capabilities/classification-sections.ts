@@ -151,8 +151,8 @@ export const SECTION_RULES = [
   core("src/sections/settings/InstallPanel", "install.pwa", "install panel"),
   ...each(
     "src/sections/settings/",
-    ["ItemTypeVisual", "item-type-fields"],
-    (p) => core(p, "vault.passwords", "item type visuals"),
+    ["ItemTypesPanel", "item-types/", "item-type-marketplace-model"],
+    (p) => core(p, "vault.passwords", "item types and their marketplaces"),
   ),
   ...each(
     "src/sections/settings/",

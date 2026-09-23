@@ -1,0 +1,325 @@
+/* Settings › Vaults › Item types (ADR 0087 §7, ADR 0134).
+   One registry read three ways, as flat underline tabs. Every type is one
+   hairline row: the extension it wears in the vault tree leads in mono, the
+   title and one line of facts follow, state and one action sit at the end.
+   No cards, no boxes — rows on the paper, like the vault list. */
+
+/* A grid item's floor is its min-content, and a nowrap facts line is long:
+   without this the settings column grows past a phone's edge. */
+.itype-panel {
+  min-width: 0;
+}
+
+.itype-panel .panel__head {
+  align-items: baseline;
+}
+
+.itype-panel .panel__head h2 {
+  flex: none;
+}
+
+.itype-head__end {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  text-align: right;
+}
+
+.itype-count {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— Tabs: text over a hairline, a 2px ink rule under the chosen one ——— */
+.itype-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.itype-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0 0.55rem;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.itype-tab:hover {
+  color: var(--ink);
+}
+
+.itype-tab.is-active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.itype-tabpanel {
+  display: grid;
+  gap: 1.25rem;
+}
+
+/* ——— Rows ——————————————————————————————————————————————————————————— */
+.itype-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.itype,
+.itype-source {
+  border-bottom: 1px solid var(--line);
+}
+
+.itype__row,
+.itype-source {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 0;
+}
+
+.itype__ext {
+  align-self: start;
+  padding-top: 0.1rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itype__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itype__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.itype__name--mono {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.itype__summary {
+  max-width: 58ch;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.itype__meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itype__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.itype__end .status-mark {
+  margin-right: 0.25rem;
+}
+
+/* A compact list — the built-ins — is reference, not a place to act. */
+.itype-list--compact .itype__row {
+  min-height: 2.5rem;
+  padding: 0.35rem 0;
+}
+
+.itype-list--compact .itype__summary {
+  display: none;
+}
+
+/* ——— Fields, when a row is inspected ————————————————————————————————— */
+.itype__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.2rem 1.25rem;
+  margin: 0 0 0.75rem 6.25rem;
+  padding: 0.5rem 0 0 0;
+  list-style: none;
+  border-top: 1px dashed var(--line);
+  font-size: 0.8125rem;
+}
+
+.itype__fields li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.itype__fields code {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.itype__concealed {
+  display: inline-flex;
+  color: var(--ink-3);
+}
+
+/* ——— Built-ins folded under what was installed ————————————————————— */
+.itype-builtin > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.itype-builtin > summary:hover {
+  color: var(--ink);
+}
+
+.itype-builtin[open] > summary {
+  margin-bottom: 0.35rem;
+}
+
+/* ——— Marketplaces ———————————————————————————————————————————————————— */
+.itype-sources {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.itype-source {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+}
+
+.itype-source__mark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+}
+
+.itype-source[aria-busy="true"] .itype__meta {
+  color: var(--ink-2);
+}
+
+/* The file this list is: its name, and the key that opens it. */
+.itype-sources__file {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.itype-sources__foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.itype-add {
+  flex: 1;
+  min-width: 0;
+}
+
+.itype-offers {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.itype-offers__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ——— Empty ———————————————————————————————————————————————————————— */
+.itype-empty {
+  max-width: 58ch;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.itype-empty__go {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+/* ——— Phone: actions drop under the text; nothing is clipped ——————— */
+@media (max-width: 560px) {
+  .itype__row,
+  .itype-source {
+    grid-template-columns: 4rem minmax(0, 1fr);
+  }
+
+  .itype-source {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .itype__end {
+    grid-column: 2;
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+
+  .itype__fields {
+    grid-template-columns: minmax(0, 1fr);
+    margin-left: 4.75rem;
+  }
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .itype-tab,
+  .itype-builtin > summary,
+  .itype-empty__go {
+    min-height: 2.75rem;
+  }
+}
