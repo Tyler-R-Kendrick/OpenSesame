@@ -72,6 +72,7 @@ export const SHELL_RULES = [
   core("src/host", null, "the app-core host and its ports (ADR 0133)"),
   core("src/test-host", null, "the app-core test host (ADR 0133)"),
   core("src/ports", null, "the app-core port accessors (ADR 0133)"),
+  core("src/no-host-import", null, "proof the core loads with no host"),
   core("src/memory-storage", null, "in-memory Web Storage for hosts"),
   core("src/browser/", null, "the browser host's ports (ADR 0133)"),
   core("src/node/", null, "the CLI host; never in a Pages build"),

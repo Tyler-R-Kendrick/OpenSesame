@@ -106,8 +106,22 @@ export class DuressSessionFence {
   #lockDepth = 0;
   #pageshowBound = false;
 
+  readonly #channelName: string;
+  #started = false;
+
   constructor(channelName = "opensesame-duress-fence") {
-    this.#channel = openBroadcast(channelName);
+    this.#channelName = channelName;
+  }
+
+  /**
+   * Join the cross-tab channel and read the durable fence, on first use.
+   * This module exports a singleton, and a port read at import would run
+   * before the shell installs its host (ADR 0133 §3).
+   */
+  #start(): void {
+    if (this.#started) return;
+    this.#started = true;
+    this.#channel = openBroadcast(this.#channelName);
     if (this.#channel) {
       this.#channel.onmessage = () => {
         // Hint only — never trust peer payload; re-read durable store.
@@ -133,6 +147,7 @@ export class DuressSessionFence {
    * this first.
    */
   #bindBfcache(): void {
+    this.#start();
     const current = maybePage();
     if (this.#pageshowBound || current === undefined) {
       return;
@@ -172,6 +187,7 @@ export class DuressSessionFence {
    * AccessContext — opaque handles must be re-issued (AUTH-A).
    */
   rehydrateFromDurable(opts?: { bumpIfChanged?: boolean }): FenceState {
+    this.#start();
     const durable = readDurableFence();
     if (!durable) return this.#fence;
     const changed =
@@ -295,6 +311,7 @@ export class DuressSessionFence {
   }
 
   markRetiredDevice(): void {
+    this.#start();
     this.#fence = { ...this.#fence, retiredDevice: true };
     persistFence(this.#fence);
     this.guard.bump();
@@ -302,6 +319,7 @@ export class DuressSessionFence {
 
   /** Replayed old resolution with lower epoch must not clear newer fence (AT-040). */
   rejectStaleResolution(resolutionEpoch: number): boolean {
+    this.#start();
     return resolutionEpoch < this.#fence.incidentEpoch;
   }
 }

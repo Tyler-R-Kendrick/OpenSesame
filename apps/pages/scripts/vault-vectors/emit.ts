@@ -1,3 +1,4 @@
+import "./install-test-host.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,

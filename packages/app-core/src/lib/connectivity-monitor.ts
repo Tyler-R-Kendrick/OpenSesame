@@ -111,7 +111,9 @@ const state = {
   identity: blank(),
 } satisfies Record<ProbeTarget, Internal>;
 
-let offline = !connectivityMonitorDependencies.isOnline();
+// Read from the host when the monitor starts, never at import: nothing may
+// reach a port before the shell has installed one (ADR 0133 §3).
+let offline = false;
 let nextCheckAt: number | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let consecutiveDegradedSweeps = 0;
@@ -327,6 +329,8 @@ function setOffline(next: boolean): void {
 function start(): void {
   if (running) return;
   running = true;
+  offline = !connectivityMonitorDependencies.isOnline();
+  touch();
   teardown = [
     // subscribeConnectivity reports *online*; this flag is its opposite.
     connectivityMonitorDependencies.subscribeConnectivity((online) =>

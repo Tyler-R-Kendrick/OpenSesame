@@ -33,17 +33,21 @@ export class SopsSession {
    * same-origin worker, so parsing, AES-GCM and threshold work stay off
    * the thread that paints and a lock can terminate them outright.
    */
-  readonly runner: SopsRunner;
+  #runner: SopsRunner | null;
 
   constructor(options?: { runner?: SopsRunner }) {
     this.engine = new SopsEngine(
       new HandleRegistry<VerifiedDocument>(() => this.#generation),
     );
-    this.runner =
-      options?.runner ??
-      (workerSupported()
-        ? new SopsWorkerClient()
-        : inlineRunner(this.engine, () => this.signal));
+    this.#runner = options?.runner ?? null;
+  }
+
+  /** Chosen on first use, not at import: the host decides whether workers exist. */
+  get runner(): SopsRunner {
+    this.#runner ??= workerSupported()
+      ? new SopsWorkerClient()
+      : inlineRunner(this.engine, () => this.signal);
+    return this.#runner;
   }
 
   get generation(): number {
@@ -61,7 +65,7 @@ export class SopsSession {
     this.#controller.abort();
     this.#controller = new AbortController();
     this.engine.disposeAll();
-    this.runner.invalidate(this.#generation);
+    this.#runner?.invalidate(this.#generation);
     return this.#generation;
   }
 

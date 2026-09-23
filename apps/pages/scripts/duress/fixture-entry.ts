@@ -1,3 +1,4 @@
+import "../fixtures/install-browser-host.js";
 import { AlertOutbox } from "@opensesame/app-core/lib/duress/alert/outbox.js";
 import {
   createAlertSealingKey,

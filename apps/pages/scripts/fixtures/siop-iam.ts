@@ -1,3 +1,4 @@
+import "./install-browser-host.js";
 import {
   configureLocalApplication,
   readLocalApplications,

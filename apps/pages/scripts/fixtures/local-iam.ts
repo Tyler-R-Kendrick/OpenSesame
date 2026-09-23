@@ -1,3 +1,4 @@
+import "./install-browser-host.js";
 import { registerLocalAgentKey } from "@opensesame/app-core/lib/local-agent-keys.js";
 import { configureLocalApplication } from "@opensesame/app-core/lib/local-applications.js";
 import {
