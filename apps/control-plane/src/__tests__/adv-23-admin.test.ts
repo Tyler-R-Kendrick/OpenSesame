@@ -44,7 +44,7 @@ async function createClient(app: App, token: string, name: string) {
     headers: { ...auth(token), "content-type": "application/json" },
     body: JSON.stringify({
       displayName: name,
-      redirectUris: ["https://rp.example/cb"],
+      redirectUris: [`https://${name.replace(/\s+/g, "")}.example/cb`],
       sectorIdentifier: `https://${name.replace(/\s+/g, "")}.example`,
     }),
   });
@@ -110,7 +110,7 @@ describe("ADV-23 scoped application administration", () => {
       },
       body: JSON.stringify({
         displayName: "Public CC",
-        redirectUris: ["https://rp.example/cb"],
+        redirectUris: ["https://publiccc.example/cb"],
         sectorIdentifier: "https://publiccc.example",
         grantTypes: ["client_credentials"],
         tokenEndpointAuthMethod: "none",
@@ -126,7 +126,7 @@ describe("ADV-23 scoped application administration", () => {
       },
       body: JSON.stringify({
         displayName: "Workload",
-        redirectUris: ["https://rp.example/cb"],
+        redirectUris: ["https://workload.example/cb"],
         sectorIdentifier: "https://workload.example",
         grantTypes: ["client_credentials"],
         tokenEndpointAuthMethod: "private_key_jwt",

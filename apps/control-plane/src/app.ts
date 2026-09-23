@@ -40,6 +40,7 @@ import {
 } from "./routes/notification-channels.js";
 import { oauthClaimRoutes } from "./routes/oauth-claims.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
+import { oauthSectorAdminRoutes } from "./routes/oauth-sector-admin.js";
 import { createOrgDomainRoutes } from "./routes/org-domains.js";
 import { createOrgLdapRoutes } from "./routes/org-ldap.js";
 import { organizationRoutes } from "./routes/organizations.js";
@@ -143,6 +144,7 @@ export function createHonoApp(
   app.route("/v1/oauth/clients", oauthClientRoutes);
   app.route("/v1/oauth/applications", appClaimRoutes);
   app.route("/v1/oauth/admin/clients", originClientAdminRoutes);
+  app.route("/v1/oauth/admin/sectors", oauthSectorAdminRoutes);
   app.route("/v1/audit", auditRoutes);
   // Public provider catalog (ADR 0055 / C8): id, label, kind, browserCapable —
   // never issuers, endpoints or secrets.

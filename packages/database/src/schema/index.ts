@@ -943,11 +943,10 @@ export const oauthClients = pgTable(
       .notNull()
       .default([]),
     sectorIdentifier: text("sector_identifier").notNull(),
-    /** `pairwiseSectorKey(sector_identifier)`: what the pairwise `sub` and the
-     *  cross-owner claim (`oauth_client_sector_claims`) are keyed on. */
+    /** Pairwise key, why it may not mint (0029), and its claim generation. */
     sectorKey: text("sector_key").notNull(),
-    /** Set when this row may not mint a pairwise `sub` (see migration 0029). */
     sectorKeyBlocked: text("sector_key_blocked"),
+    sectorGeneration: integer("sector_generation").notNull().default(0),
     grantTypes: jsonb("grant_types").$type<string[]>().notNull().default([]),
     responseTypes: jsonb("response_types")
       .$type<string[]>()
@@ -979,7 +978,7 @@ export const oauthClients = pgTable(
   (t) => [
     check(
       "oauth_clients_sector_key_blocked_check",
-      sql`${t.sectorKeyBlocked} in ('cross_owner_collision','unparsed_legacy_spelling')`,
+      sql`${t.sectorKeyBlocked} in ('cross_owner_collision','unparsed_legacy_spelling','sector_released')`,
     ),
     check(
       "oauth_clients_admission_mode_check",

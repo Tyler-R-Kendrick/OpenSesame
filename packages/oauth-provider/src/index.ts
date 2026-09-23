@@ -6,6 +6,7 @@ export type {
   OwnershipStatus,
   PairwiseSubject,
   PairwiseSubjectStore,
+  SectorKeyRelease,
 } from "./types.js";
 export { ORIGIN_PROFILE_FORBIDDEN_SCOPES } from "./types.js";
 export { readOAuthProviderEnv } from "./env.js";
@@ -57,6 +58,7 @@ export {
 export {
   canonicalSectorIdentifier,
   pairwiseSectorKey,
+  pairwiseSubjectSector,
   sectorIdentifierSpellings,
 } from "./pairwise/sector.js";
 export {

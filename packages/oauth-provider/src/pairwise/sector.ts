@@ -37,6 +37,23 @@ export function pairwiseSectorKey(sectorIdentifier: string): string {
 }
 
 /**
+ * The pairwise store's sector for a key at a claim generation.
+ *
+ * Generation 0 is the key itself, so every subject minted before generations
+ * existed stays where it is. A later generation (an operator released the key
+ * from a squatter) appends ` #<n>`: no key can contain a space — a URL-form
+ * key is a parsed host and path, which percent-encode it, and migration 0029
+ * blocked every legacy spelling holding one — so no key at any generation can
+ * equal another key's, and a new holder starts with no subjects at all.
+ */
+export function pairwiseSubjectSector(
+  sectorKey: string,
+  generation = 0,
+): string {
+  return generation > 0 ? `${sectorKey} #${generation}` : sectorKey;
+}
+
+/**
  * The canonical spelling a registry stores for a URL-form sector, so an exact
  * lookup finds every registration that shares a key: lowercase host, default
  * port dropped, no trailing `/` on an origin-form sector.

@@ -5167,7 +5167,14 @@
           "name": "owner_key",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "generation": {
+          "name": "generation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -5244,6 +5251,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "sector_generation": {
+          "name": "sector_generation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "grant_types": {
           "name": "grant_types",
@@ -5414,7 +5428,7 @@
       "checkConstraints": {
         "oauth_clients_sector_key_blocked_check": {
           "name": "oauth_clients_sector_key_blocked_check",
-          "value": "\"oauth_clients\".\"sector_key_blocked\" in ('cross_owner_collision','unparsed_legacy_spelling')"
+          "value": "\"oauth_clients\".\"sector_key_blocked\" in ('cross_owner_collision','unparsed_legacy_spelling','sector_released')"
         },
         "oauth_clients_admission_mode_check": {
           "name": "oauth_clients_admission_mode_check",

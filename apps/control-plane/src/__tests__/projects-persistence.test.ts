@@ -13,8 +13,14 @@ import * as schema from "@opensesame/database/schema";
 import { type AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
+
+// Each PGlite test here boots a database and applies every migration inside
+// the test itself; on a loaded CI runner that alone took most of the
+// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
+// budget the beforeAll-based PGlite suites give the identical setup.
+vi.setConfig({ testTimeout: 60_000 });
 
 const here = dirname(fileURLToPath(import.meta.url));
 

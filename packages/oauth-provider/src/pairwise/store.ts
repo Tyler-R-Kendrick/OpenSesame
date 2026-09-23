@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { errors } from "oidc-provider";
 import type { PairwiseSubject, PairwiseSubjectStore } from "../types.js";
-import { pairwiseSectorKey } from "./sector.js";
+import { pairwiseSectorKey, pairwiseSubjectSector } from "./sector.js";
 
 /**
  * In-memory pairwise subject mapping (tests / ephemeral).
@@ -49,19 +49,26 @@ export type PairwiseClientLookup = {
         sectorIdentifier?: string;
         sectorKey?: string;
         sectorKeyBlocked?: string;
+        sectorGeneration?: number;
       }
     | undefined
   >;
 };
 
-/** The key a stored record's subjects live under, or "" when it has none. */
+/** The sector a stored record's subjects live under, or "" when it has none. */
 function registeredSectorKey(record: {
   sectorIdentifier?: string;
   sectorKey?: string;
+  sectorGeneration?: number;
 }): string {
-  if (isString(record.sectorKey) && record.sectorKey) return record.sectorKey;
   const declared = record.sectorIdentifier;
-  return isString(declared) ? pairwiseSectorKey(declared) : "";
+  const key =
+    isString(record.sectorKey) && record.sectorKey
+      ? record.sectorKey
+      : isString(declared)
+        ? pairwiseSectorKey(declared)
+        : "";
+  return key ? pairwiseSubjectSector(key, record.sectorGeneration ?? 0) : "";
 }
 
 /**
@@ -77,8 +84,11 @@ function registeredSectorKey(record: {
  * cross-owner claim holds, so it is preferred over re-deriving it.
  *
  * A record marked `sectorKeyBlocked` (a legacy row on a key another owner
- * holds, or one whose spelling could not be keyed exactly) gets no subject at
- * all: issuing one would hand it another owner's `sub`.
+ * holds, one whose spelling could not be keyed exactly, or one an operator
+ * released the key from) gets no subject at all: issuing one would hand it
+ * another owner's `sub`. A record's `sectorGeneration` is mixed into the
+ * sector (`pairwiseSubjectSector`), so the holder after a release starts from
+ * fresh subjects.
  */
 export function createPairwiseIdentifierCallback(
   store: PairwiseSubjectStore,

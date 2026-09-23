@@ -4,16 +4,8 @@ import {
   CreateOAuthClientRequestSchema,
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
-import { OAuthClientSectorClaimedError } from "@opensesame/database";
-import {
-  canonicalSectorIdentifier,
-  pairwiseSectorKey,
-} from "@opensesame/oauth-provider";
-import {
-  type BoundaryValue,
-  type OAuthClientRecord,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { canonicalSectorIdentifier } from "@opensesame/oauth-provider";
+import { type OAuthClientRecord, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -27,6 +19,12 @@ import {
   toResponse,
   toStoreRecord,
 } from "./oauth-client-map.js";
+import {
+  SECTOR_TAKEN,
+  sectorClaimedByAnother,
+  sectorControlRefusal,
+  sectorTakenOrThrow,
+} from "./oauth-client-sector.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
@@ -105,51 +103,6 @@ async function assertRegistrationQuota(
   return null;
 }
 
-/**
- * A sector identifier may not be claimed across owners.
- *
- * Two clients sharing a sector see the same pairwise subject for the same
- * person, which is exactly the linkage pairwise subjects exist to prevent.
- * Sharing one between a single owner's clients is a legitimate choice; taking
- * another owner's sector is a way to learn the `sub` they see. The `sub` is
- * keyed on `pairwiseSectorKey`, not on the redirect host or the spelling, so
- * the check looks the key up (`findBySectorKey`), revoked clients included —
- * their owner already saw those subjects. A row blocked by migration 0029
- * holds nothing. This check answers early; on Postgres the sector claim row
- * is the arbiter (`OAuthClientSectorClaimedError`), which also decides two
- * concurrent registrations. The issuer's own host is reserved for the
- * first-party clients oidc-provider keys on it.
- */
-async function sectorClaimedByAnother(
-  ctx: AppContext,
-  principalId: string,
-  sectorIdentifier: string,
-): Promise<boolean> {
-  const key = pairwiseSectorKey(sectorIdentifier);
-  if (key === pairwiseSectorKey(new URL(ctx.config.issuer).origin)) {
-    return true;
-  }
-  const claimants = await ctx.stores.oauthClients.findBySectorKey(key);
-  return claimants.some(
-    (client) =>
-      !client.sectorKeyBlocked && client.ownerPrincipalId !== principalId,
-  );
-}
-
-const SECTOR_TAKEN = {
-  error: "sector_identifier_taken",
-  message:
-    "another principal already registered a client under this sectorIdentifier",
-} as const;
-
-/** The store's sector claim is the last word: a lost race is 409, not 500. */
-function sectorTakenOrThrow(err: BoundaryValue): Response {
-  if (err instanceof OAuthClientSectorClaimedError) {
-    return Response.json(SECTOR_TAKEN, { status: 409 });
-  }
-  throw err;
-}
-
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
@@ -174,14 +127,23 @@ oauthClientRoutes.post(
       );
     }
 
+    const denied = await assertVerified(ctx, principalId, "register");
+    if (denied) return denied;
+    // Sector control is proven before the lock: it may fetch a document.
+    const unproven = await sectorControlRefusal(
+      ctx,
+      parsed.data.sectorIdentifier,
+      parsed.data.redirectUris,
+      parsed.data.sectorIdentifierUri,
+    );
+    if (unproven) return unproven;
+
     // ponytail: registration is low-volume; one lock also makes sector ownership
     // atomic. Split into durable principal/sector locks if registration throughput matters.
     return serializeKeyed(
       ctx.stores.principalMutations,
       "oauth-clients",
       async () => {
-        const denied = await assertVerified(ctx, principalId, "register");
-        if (denied) return denied;
         const overQuota = await assertRegistrationQuota(ctx, principalId);
         if (overQuota) return overQuota;
 
@@ -303,6 +265,15 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const publicCc = confidentialClientCredentialsError(next);
   if (publicCc) {
     return c.json({ error: "invalid_client_auth", message: publicCc }, 400);
+  }
+  if (parsed.data.redirectUris !== undefined) {
+    const unproven = await sectorControlRefusal(
+      ctx,
+      next.sectorIdentifier,
+      next.redirectUris,
+      parsed.data.sectorIdentifierUri,
+    );
+    if (unproven) return unproven;
   }
   await ctx.stores.oauthClients.update(toStoreRecord(next));
 

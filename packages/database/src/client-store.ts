@@ -4,7 +4,10 @@ import { isUniqueViolation } from "./client-origin-store.js";
 import {
   OAuthClientSectorClaimedError,
   type SectorKeyBlock,
+  type SectorKeyRelease,
   claimSectorKey,
+  releaseSectorClaim,
+  sectorGenerationOf,
   sectorKeyOf,
   sectorOwnerKey,
 } from "./client-sector-claims.js";
@@ -36,6 +39,8 @@ export interface OAuthClientRecord {
   sectorKey?: string;
   /** Set when this client may not mint a pairwise `sub` (migration 0029). */
   sectorKeyBlocked?: SectorKeyBlock;
+  /** Stored claim generation its pairwise subjects live under; read-only. */
+  sectorGeneration?: number;
   grantTypes: string[];
   responseTypes: string[];
   tokenEndpointAuthMethod: string;
@@ -71,6 +76,8 @@ export interface ClientRecordStore {
   findBySectorKey(sectorKey: string): Promise<OAuthClientRecord[]>;
   /** Full-record replace by `client.id`. */
   update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
+  /** Operator release of a held sector key; `undefined` when nobody holds it. */
+  releaseSectorKey(sectorKey: string): Promise<SectorKeyRelease | undefined>;
 }
 
 type OAuthClientRow = typeof schema.oauthClients.$inferSelect;
@@ -83,6 +90,7 @@ function mapRow(row: OAuthClientRow): OAuthClientRecord {
     redirectUris: overlapCast(row.redirectUris ?? []),
     sectorIdentifier: row.sectorIdentifier,
     sectorKey: row.sectorKey,
+    sectorGeneration: row.sectorGeneration,
     grantTypes: overlapCast(row.grantTypes ?? []),
     responseTypes: overlapCast(row.responseTypes ?? []),
     tokenEndpointAuthMethod: row.tokenEndpointAuthMethod,
@@ -167,7 +175,7 @@ function insertClaimed(
 ): Promise<OAuthClientRecord> {
   const values = insertValues(client, new Date());
   return db.transaction(async (tx) => {
-    await claimSectorKey(
+    const sectorGeneration = await claimSectorKey(
       tx,
       values.sectorKey,
       sectorOwnerKey(client),
@@ -175,7 +183,7 @@ function insertClaimed(
     );
     const [row] = await tx
       .insert(schema.oauthClients)
-      .values(values)
+      .values({ ...values, sectorGeneration })
       .returning();
     if (!row) {
       throw new Error("insert oauth client returned no row");
@@ -208,12 +216,22 @@ function updateClaimed(
       ? current.sectorKey
       : sectorKeyOf(client.sectorIdentifier);
     const sectorKeyBlocked = same ? current.sectorKeyBlocked : null;
+    let sectorGeneration = same
+      ? current.sectorGeneration
+      : await sectorGenerationOf(tx, sectorKey);
     if (!sectorKeyBlocked && client.state !== "revoked") {
-      await claimSectorKey(tx, sectorKey, sectorOwnerKey(client), client.id);
+      const owner = sectorOwnerKey(client);
+      const held = await claimSectorKey(tx, sectorKey, owner, client.id);
+      if (!same) sectorGeneration = held;
     }
     const [row] = await tx
       .update(schema.oauthClients)
-      .set({ ...updateValues(client, new Date()), sectorKey, sectorKeyBlocked })
+      .set({
+        ...updateValues(client, new Date()),
+        sectorKey,
+        sectorKeyBlocked,
+        sectorGeneration,
+      })
       .where(eq(schema.oauthClients.id, client.id))
       .returning();
     if (!row) {
@@ -314,5 +332,7 @@ export function createPostgresClientRecordStore(
     },
 
     update: (client) => updateClaimed(db, client),
+
+    releaseSectorKey: (sectorKey) => releaseSectorClaim(db, sectorKey),
   };
 }

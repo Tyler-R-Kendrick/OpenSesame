@@ -307,13 +307,15 @@ describe("oauth clients routes edge cases", () => {
     );
     expect(mapping?.subject).toBe(subA);
 
-    // Changing the redirect host cannot move a client onto another sector.
+    // Nor can a redirect move onto another owner's host without proving the
+    // sector it names (and the sub never follows the redirect host anyway).
     const patched = await app.request(`/v1/oauth/clients/${b.id}`, {
       method: "PATCH",
       headers: { ...auth(bob.accessToken), "content-type": "application/json" },
       body: JSON.stringify({ redirectUris: ["https://alice.example/cb"] }),
     });
-    expect(patched.status).toBe(200);
+    expect(patched.status).toBe(400);
+    expect(overlapCast(await patched.json()).error).toBe("sector_not_proven");
     expect(await subFor(b.id)).not.toBe(subA);
   });
 

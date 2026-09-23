@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 /**
  * One row per pairwise sector key: which owner holds it.
@@ -13,11 +13,20 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
  * loser is refused rather than admitted beside the winner.
  *
  * `owner_key` is the owning principal id, or `client:<id>` for a client with
- * no owner, so an ownerless client can never share a key with anybody.
+ * no owner, so an ownerless client can never share a key with anybody. It is
+ * null once an operator released the key (a squatted sector): the next
+ * registrant takes it.
+ *
+ * `generation` is mixed into the pairwise subject sector
+ * (`pairwiseSubjectSector` in `@opensesame/oauth-provider`). A release bumps
+ * it, and each client row records the generation it was admitted under, so a
+ * holder admitted after a release can never be handed a subject an earlier
+ * holder already saw.
  */
 export const oauthClientSectorClaims = pgTable("oauth_client_sector_claims", {
   sectorKey: text("sector_key").primaryKey(),
-  ownerKey: text("owner_key").notNull(),
+  ownerKey: text("owner_key"),
+  generation: integer("generation").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .defaultNow(),

@@ -5,47 +5,17 @@
  * Applies every migration up to 0028, seeds rows exactly as the registration
  * API stored them before canonicalization, then applies 0029 alone.
  */
-import {
-  cpSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { overlapCast } from "@opensesame/os-domain";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sectorKeyOf } from "../src/client-sector-claims.js";
 import { type Database, PostgresRepositories } from "../src/repos/postgres.js";
 import { makePrincipal } from "./factories.js";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const migrationsFolder = join(here, "..", "drizzle");
-
-/** A copy of the migration folder whose journal stops before 0029. */
-function foldersBefore0029(): string {
-  const dir = mkdtempSync(join(tmpdir(), "os-migrate-0028-"));
-  cpSync(migrationsFolder, dir, { recursive: true });
-  const journalPath = join(dir, "meta", "_journal.json");
-  const journal = JSON.parse(readFileSync(journalPath, "utf8"));
-  journal.entries = journal.entries.filter(
-    (entry: { idx: number }) => entry.idx < 29,
-  );
-  writeFileSync(journalPath, JSON.stringify(journal));
-  return dir;
-}
-
-type Row = {
-  id: string;
-  sector_identifier: string;
-  sector_key: string;
-  sector_key_blocked: string | null;
-};
+import {
+  type SectorRow as Row,
+  databaseBefore0029,
+  migrateRest,
+} from "./migrate-0029-helpers.js";
 
 /** Spellings the backfill must key exactly as the issuer does. */
 const EXACT = [
@@ -64,6 +34,15 @@ const EXACT = [
   "https://alt.example:8443/p/",
   "sector_123",
   "localhost:3000",
+  // Postgres has no `\v` escape: a trim set spelled E'...\v' strips the
+  // letter `v`, which turned these into `app.de`, `rp.example/na`, ...
+  "https://app.dev",
+  "https://rp.example/nav",
+  "https://rp.example/v",
+  "https://v.example",
+  "https://vv.example/v/",
+  "v",
+  "\thttps://tab.example\n",
 ];
 
 /** Spellings it cannot prove it derives exactly; refused, never guessed. */
@@ -77,6 +56,10 @@ const UNPARSED = [
   "https://big-port.example:99999",
   "https://user@creds.example",
   "https://space.example/a b",
+  // Whitespace the SQL does not trim is refused, never guessed at.
+  "\vhttps://vt.example",
+  "https://ff.example\f",
+  "\u00a0https://nbsp.example",
 ];
 
 describe("drizzle 0029 sector_key backfill", () => {
@@ -88,6 +71,8 @@ describe("drizzle 0029 sector_key backfill", () => {
     b: makePrincipal(),
     e: makePrincipal(),
     f: makePrincipal(),
+    c: makePrincipal(),
+    d: makePrincipal(),
   };
   let at = Date.parse("2026-01-01T00:00:00Z");
 
@@ -108,15 +93,9 @@ describe("drizzle 0029 sector_key backfill", () => {
   }
 
   beforeAll(async () => {
-    client = new PGlite();
-    await client.waitReady;
-    const db = drizzle(client);
-    const before = foldersBefore0029();
-    try {
-      await migrate(db, { migrationsFolder: before });
-    } finally {
-      rmSync(before, { recursive: true, force: true });
-    }
+    const fresh = await databaseBefore0029();
+    client = fresh.client;
+    const db = fresh.db;
     const database: Database = overlapCast(db);
     const repos = new PostgresRepositories(database);
     for (const principal of Object.values(owner)) {
@@ -128,16 +107,20 @@ describe("drizzle 0029 sector_key backfill", () => {
     await seed("b1", "https://SHARED.example:443/", owner.b.id);
     await seed("b2", "https://shared.example/", owner.b.id, "revoked");
     await seed("a2", "https://Shared.example", owner.a.id);
-    // E's only client on this sector is revoked; F's later live one keeps it.
+    // E's only client on this sector is revoked; F's later live one is still
+    // a later owner, and gets nothing E's users already have.
     await seed("e1", "https://held.example", owner.e.id, "revoked");
     await seed("f1", "https://HELD.example/", owner.f.id);
+    // Owners that only a `v`-eating trim would have put on one key.
+    await seed("c1", "https://x.dev", owner.c.id);
+    await seed("d1", "https://x.de", owner.d.id);
     for (const [i, sector] of EXACT.entries())
       await seed(`x${i}`, sector, null);
     for (const [i, sector] of UNPARSED.entries()) {
       await seed(`u${i}`, sector, null);
     }
 
-    await migrate(db, { migrationsFolder });
+    await migrateRest(db);
     const result = await client.query<Row>(
       "select id, sector_identifier, sector_key, sector_key_blocked from oauth_clients",
     );
@@ -185,10 +168,20 @@ describe("drizzle 0029 sector_key backfill", () => {
     expect(row("b2").sector_key_blocked).toBe("cross_owner_collision");
   });
 
-  it("prefers a live holder over an earlier, revoked one", () => {
-    expect(claims.get("held.example")).toBe(owner.f.id);
-    expect(row("f1").sector_key_blocked).toBeNull();
-    expect(row("e1").sector_key_blocked).toBe("cross_owner_collision");
+  it("gives a key to its earliest owner even when every client of theirs is revoked", () => {
+    // A live later owner would otherwise inherit the subjects E's users have.
+    expect(claims.get("held.example")).toBe(owner.e.id);
+    expect(row("e1").sector_key_blocked).toBeNull();
+    expect(row("f1").sector_key_blocked).toBe("cross_owner_collision");
+  });
+
+  it("never trims a sector's own letters into another owner's key", () => {
+    expect(row("c1").sector_key).toBe("x.dev");
+    expect(row("d1").sector_key).toBe("x.de");
+    expect(claims.get("x.dev")).toBe(owner.c.id);
+    expect(claims.get("x.de")).toBe(owner.d.id);
+    expect(row("c1").sector_key_blocked).toBeNull();
+    expect(row("d1").sector_key_blocked).toBeNull();
   });
 
   it("holds every unblocked key for exactly one owner", () => {

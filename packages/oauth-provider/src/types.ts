@@ -21,11 +21,22 @@ export interface OAuthClientRecord {
    */
   sectorKey?: string;
   /**
-   * Set on a legacy row that may not mint a pairwise `sub` — another owner
-   * holds its key, or its spelling could not be keyed exactly. The pairwise
-   * callback refuses it; its owner re-registers.
+   * Set on a row that may not mint a pairwise `sub` — another owner holds its
+   * key, its legacy spelling could not be keyed exactly, or an operator
+   * released the key from its owner. The pairwise callback refuses it; its
+   * owner re-registers.
    */
-  sectorKeyBlocked?: "cross_owner_collision" | "unparsed_legacy_spelling";
+  sectorKeyBlocked?:
+    | "cross_owner_collision"
+    | "unparsed_legacy_spelling"
+    | "sector_released";
+  /**
+   * The sector claim generation this row was admitted under; durable stores
+   * set it. Above zero it is mixed into the pairwise subject sector
+   * (`pairwiseSubjectSector`), so a holder admitted after an operator release
+   * never meets an earlier holder's subjects.
+   */
+  sectorGeneration?: number;
   grantTypes: string[];
   responseTypes: string[];
   tokenEndpointAuthMethod: string;
@@ -60,6 +71,17 @@ export interface OAuthClientRecord {
   /** Registration-API bookkeeping (durable rows always carry these). */
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+/** What an operator release of a sector key did (`ClientRecordStore`). */
+export interface SectorKeyRelease {
+  sectorKey: string;
+  /** The owner that held the key until now (`client:<id>` when ownerless). */
+  previousOwnerKey: string;
+  /** The generation the next holder's subjects live under. */
+  generation: number;
+  /** Clients that lost the key (blocked `sector_released`). */
+  blockedClientIds: string[];
 }
 
 export interface PairwiseSubject {

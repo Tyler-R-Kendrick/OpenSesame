@@ -113,6 +113,7 @@ export {
   sectorKeyOf,
   sectorOwnerKey,
   type SectorKeyBlock,
+  type SectorKeyRelease,
 } from "./client-sector-claims.js";
 export {
   createMemoryConsentStore,

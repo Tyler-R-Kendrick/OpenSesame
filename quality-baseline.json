@@ -18,7 +18,7 @@
   "totals": {
     "files": 489,
     "violations": 775,
-    "oversizedLines": 246301
+    "oversizedLines": 246300
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1367,7 +1367,7 @@
       "max-lines": 2888
     },
     "packages/database/src/schema/index.ts": {
-      "max-lines": 2371
+      "max-lines": 2370
     },
     "packages/database/src/scim-store.ts": {
       "max-lines-per-function": 1

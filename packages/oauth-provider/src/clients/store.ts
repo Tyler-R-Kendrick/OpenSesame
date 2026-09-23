@@ -1,5 +1,5 @@
 import { pairwiseSectorKey } from "../pairwise/sector.js";
-import type { OAuthClientRecord } from "../types.js";
+import type { OAuthClientRecord, SectorKeyRelease } from "../types.js";
 
 export interface ClientRecordStore {
   findById(id: string): Promise<OAuthClientRecord | undefined>;
@@ -15,8 +15,38 @@ export interface ClientRecordStore {
   ): Promise<OAuthClientRecord[]>;
   /** All clients on a pairwise sector key, whatever spelling they registered. */
   findBySectorKey(sectorKey: string): Promise<OAuthClientRecord[]>;
-  /** Full-record replace by `client.id`. */
+  /**
+   * Full-record replace by `client.id`. A row's sector block and generation
+   * are the store's: they survive a replace that keeps the sector.
+   */
   update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
+  /**
+   * Operator release of a held sector key: block every client on it
+   * `sector_released` and bump the key's generation, so the next holder's
+   * pairwise subjects are fresh. `undefined` when no live client holds it.
+   */
+  releaseSectorKey(sectorKey: string): Promise<SectorKeyRelease | undefined>;
+}
+
+const keyOf = (client: OAuthClientRecord): string =>
+  client.sectorKey ?? pairwiseSectorKey(client.sectorIdentifier);
+
+/** The sector fields a store owns, as a stored record carries them. */
+function sectorFields(
+  record: OAuthClientRecord,
+): Pick<
+  OAuthClientRecord,
+  "sectorKey" | "sectorKeyBlocked" | "sectorGeneration"
+> {
+  const kept: Pick<
+    OAuthClientRecord,
+    "sectorKey" | "sectorKeyBlocked" | "sectorGeneration"
+  > = {};
+  if (record.sectorKey !== undefined) kept.sectorKey = record.sectorKey;
+  if (record.sectorKeyBlocked) kept.sectorKeyBlocked = record.sectorKeyBlocked;
+  if (record.sectorGeneration !== undefined)
+    kept.sectorGeneration = record.sectorGeneration;
+  return kept;
 }
 
 /**
@@ -26,6 +56,8 @@ export interface ClientRecordStore {
 export class MemoryClientRecordStore implements ClientRecordStore {
   private readonly byId = new Map<string, OAuthClientRecord>();
   private readonly byOrigin = new Map<string, string>();
+  /** Sector key -> claim generation (bumped by `releaseSectorKey`). */
+  private readonly generations = new Map<string, number>();
 
   /**
    * Synchronously load initial records (e.g. static `clients` configuration).
@@ -69,8 +101,17 @@ export class MemoryClientRecordStore implements ClientRecordStore {
       }
       this.byOrigin.set(client.origin, client.id);
     }
-    this.byId.set(client.id, client);
-    return client;
+    const admitted = this.withGeneration(client);
+    this.byId.set(client.id, admitted);
+    return admitted;
+  }
+
+  /** A record admitted onto its key now: the key's current generation. */
+  private withGeneration(client: OAuthClientRecord): OAuthClientRecord {
+    const generation = this.generations.get(keyOf(client)) ?? 0;
+    return generation > 0
+      ? { ...client, sectorGeneration: generation }
+      : client;
   }
 
   async touchLastUsed(id: string, at: Date): Promise<void> {
@@ -95,9 +136,7 @@ export class MemoryClientRecordStore implements ClientRecordStore {
 
   async findBySectorKey(sectorKey: string): Promise<OAuthClientRecord[]> {
     return [...this.byId.values()].filter(
-      (client) =>
-        (client.sectorKey ?? pairwiseSectorKey(client.sectorIdentifier)) ===
-        sectorKey,
+      (client) => keyOf(client) === sectorKey,
     );
   }
 
@@ -112,7 +151,36 @@ export class MemoryClientRecordStore implements ClientRecordStore {
       }
       if (client.origin) this.byOrigin.set(client.origin, client.id);
     }
-    this.byId.set(client.id, client);
-    return client;
+    const { sectorKey, sectorKeyBlocked, sectorGeneration, ...rest } = client;
+    const stored: OAuthClientRecord =
+      existing.sectorIdentifier === client.sectorIdentifier
+        ? { ...rest, ...sectorFields(existing) }
+        : this.withGeneration(rest);
+    this.byId.set(client.id, stored);
+    return stored;
+  }
+
+  async releaseSectorKey(
+    sectorKey: string,
+  ): Promise<SectorKeyRelease | undefined> {
+    const live = [...this.byId.values()].filter(
+      (client) => keyOf(client) === sectorKey && !client.sectorKeyBlocked,
+    );
+    const holder = live[0];
+    if (!holder) return undefined;
+    const generation = (this.generations.get(sectorKey) ?? 0) + 1;
+    this.generations.set(sectorKey, generation);
+    for (const client of live) {
+      this.byId.set(client.id, {
+        ...client,
+        sectorKeyBlocked: "sector_released",
+      });
+    }
+    return {
+      sectorKey,
+      previousOwnerKey: holder.ownerPrincipalId ?? `client:${holder.id}`,
+      generation,
+      blockedClientIds: live.map((client) => client.id),
+    };
   }
 }

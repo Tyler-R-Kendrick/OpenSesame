@@ -162,4 +162,56 @@ describe("postgres client store sector claims", () => {
     expect(row?.sectorKeyBlocked).toBe("cross_owner_collision");
     expect(row?.displayName).toBe("Renamed");
   });
+
+  it("hands a released key to a new owner under a new generation", async () => {
+    const [squatter, owner] = [await principal(), await principal()];
+    const h = host();
+    const squat = await clients.insertAtomic(
+      registration(squatter, `https://${h}`),
+    );
+    expect(squat.sectorGeneration).toBe(0);
+    await clients.update({ ...squat, state: "revoked" });
+    // Revoking changes nothing: the key stays with the squatter.
+    await expect(
+      clients.insertAtomic(registration(owner, `https://${h}`)),
+    ).rejects.toBeInstanceOf(OAuthClientSectorClaimedError);
+
+    const released = await clients.releaseSectorKey(h);
+    expect(released).toMatchObject({
+      sectorKey: h,
+      previousOwnerKey: squatter,
+      generation: 1,
+      blockedClientIds: [squat.id],
+    });
+    expect((await clients.findById(squat.id))?.sectorKeyBlocked).toBe(
+      "sector_released",
+    );
+    const admitted = await clients.insertAtomic(
+      registration(owner, `https://${h}`),
+    );
+    expect(admitted.sectorGeneration).toBe(1);
+    // The released client stays blocked through an edit, and a second
+    // release of a key nobody holds is a no-op.
+    const edited = await clients.update({
+      ...squat,
+      state: "active",
+      displayName: "Back",
+    });
+    expect(edited.sectorKeyBlocked).toBe("sector_released");
+    expect(edited.sectorGeneration).toBe(0);
+    expect(await clients.releaseSectorKey(host())).toBeUndefined();
+  });
+
+  it("never lets a new registration take a key its holder no longer uses", async () => {
+    const [alice, bob] = [await principal(), await principal()];
+    const lone = await clients.insertAtomic(
+      registration(alice, `https://${host()}`),
+    );
+    const key = lone.sectorKey ?? "";
+    // Alice's only client moves to another sector: she still saw the subjects.
+    await clients.update({ ...lone, sectorIdentifier: `https://${host()}` });
+    await expect(
+      clients.insertAtomic(registration(bob, `https://${key}`)),
+    ).rejects.toBeInstanceOf(OAuthClientSectorClaimedError);
+  });
 });
