@@ -1,9 +1,9 @@
+import { searchHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
 import {
   GUIDE_GOALS,
   type GuideGoalDescriptor,
   guideGoal,
   helpTopicsForRoute,
-  searchHelpTopics,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { guideRouteWithin } from "@opensesame/app-core/tutorial/registry/routes.js";
 import {

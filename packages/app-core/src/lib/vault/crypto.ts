@@ -50,7 +50,7 @@ export type VaultHeader = {
    * Alternate unlock wraps (passkey PRF, PIN) and optional TOTP second factor.
    * At least one of `wrap` or `unlocks.passkey` / `unlocks.pin` must exist.
    */
-  unlocks?: import("./unlock-methods.js").VaultUnlocks | undefined;
+  unlocks?: import("./unlock-records.js").VaultUnlocks | undefined;
   createdAt: string;
   /** Optional self-authored reminder. Never the password itself. */
   hint?: string;

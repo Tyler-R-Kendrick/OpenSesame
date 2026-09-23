@@ -1,11 +1,11 @@
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { PageContextInput } from "@opensesame/app-core/tutorial/registry/context.js";
+import { rankHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
 import {
   HELP_TOPICS,
   type HelpTopic,
   guideGoal,
   guideGoalIds,
-  rankHelpTopics,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import {
   GUIDE_OVERLAY_ROUTES,

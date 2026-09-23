@@ -1,11 +1,8 @@
 /** @vitest-environment jsdom */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  changeLocalDirectory,
-  ensureOwnerPerson,
-  readLocalDirectory,
-} from "./local-directory.js";
+import { ensureOwnerPerson } from "./local-directory-bootstrap.js";
+import { changeLocalDirectory, readLocalDirectory } from "./local-directory.js";
 import { isGuestPersonEntry, mintGuestSessionPerson } from "./local-guest.js";
 import {
   accessRoleLabel,

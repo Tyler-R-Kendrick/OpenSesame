@@ -12,15 +12,17 @@ import {
   requireCredentials,
 } from "../../../../ports.js";
 import { b64ToBytes, bytesToB64, randomBytes } from "../../crypto.js";
+import type {
+  PasskeyCeremony,
+  PasskeyUnlockCeremonyResult,
+  PasskeyUnlockRecord,
+} from "../../unlock-methods.js";
 import {
-  type PasskeyCeremony,
-  type PasskeyUnlockCeremonyResult,
-  type PasskeyUnlockRecord,
   WebauthnHostError,
   assertWebauthnHost,
   describeWebauthnError,
   webauthnRpId,
-} from "../../unlock-methods.js";
+} from "../../webauthn-host.js";
 import {
   PrfCeremonyError,
   requirePrfOutputFromExtension,

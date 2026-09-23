@@ -209,8 +209,6 @@ export type WebauthnPrfAdapterOptions = {
   getCeremonyFor?: typeof getPasskeyUnlockCeremonyFor;
 };
 
-export { createWebauthnPrfProtector } from "./webauthn-prf-ops.js";
-
 export function mapPrfToProtectionError<Thrown>(
   error: Thrown,
 ): ProtectionError {

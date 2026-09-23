@@ -1,7 +1,7 @@
 import { mintRootKeyHandle } from "./adapter.js";
 import { enrollAgeWebauthn } from "./adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./adapters/webauthn-prf-ops.js";
-import { createWebauthnPrfProtector } from "./adapters/webauthn-prf.js";
+import { createWebauthnPrfProtector } from "./adapters/webauthn-prf-ops.js";
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
 import { enrollRecoveryKey, openWithRecoveryKey } from "./recovery-key.js";

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 493,
-    "violations": 782,
-    "oversizedLines": 248750
+    "files": 492,
+    "violations": 781,
+    "oversizedLines": 248566
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1257,9 +1257,6 @@
       "complexity": 1,
       "max-lines": 549
     },
-    "packages/app-core/src/lib/vault/offline-backup.ts": {
-      "complexity": 1
-    },
     "packages/app-core/src/lib/vault/password.ts": {
       "complexity": 1,
       "max-lines": 496
@@ -1281,7 +1278,7 @@
       "max-lines": 1726
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 767
+      "max-lines": 589
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470
@@ -1300,7 +1297,7 @@
       "max-lines": 451
     },
     "packages/app-core/src/tutorial/registry/goals.ts": {
-      "max-lines": 551
+      "max-lines": 545
     },
     "packages/audit/src/__tests__/chain.test.ts": {
       "max-lines": 419

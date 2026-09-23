@@ -6,9 +6,9 @@ import type {
 } from "@opensesame/vault-item-types";
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
-import type { LoginUri, UriMatch } from "./website-pattern.js";
-export type { LoginUri, UriMatch } from "./website-pattern.js";
 
+import type { LoginUri, UriMatch } from "./login-uri.js";
+export type { LoginUri, UriMatch } from "./login-uri.js";
 /**
  * Legacy kinds retain named fields; plugins use `typed`, `typeId` and `values`.
  * `itemTypeId()` bridges both shapes without rewriting existing vaults (ADR 0087).

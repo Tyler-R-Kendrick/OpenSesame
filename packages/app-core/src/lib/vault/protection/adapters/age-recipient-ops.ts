@@ -50,6 +50,7 @@ import {
   bytesToB64,
   equalBytes,
   openAgeCapsule,
+  requireRecipients,
   softwareEvidence,
 } from "./age-recipient.js";
 
@@ -154,4 +155,29 @@ export async function ageRecipientOpen(
     identity,
   );
   return mintRootKeyHandle(request.context, rootKey);
+}
+
+export function createAgeRecipientAdapter(
+  options: AgeRecipientAdapterOptions,
+): KeyProtectorAdapter {
+  const recipients = requireRecipients(options.recipients);
+  const custody = options.custody;
+  const sessionGeneration = options.sessionGeneration;
+
+  return {
+    capabilities: ageRecipientCapabilities,
+    enroll: (request) =>
+      ageRecipientEnroll(
+        options,
+        recipients,
+        custody,
+        sessionGeneration,
+        request,
+      ),
+    prove: (request) => ageRecipientProve(options, sessionGeneration, request),
+    open: (request) => ageRecipientOpen(options, sessionGeneration, request),
+    async dispose(): Promise<void> {
+      // Identity resolution is caller-owned; nothing retained here.
+    },
+  };
 }

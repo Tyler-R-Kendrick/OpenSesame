@@ -1,5 +1,5 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
-import { maybePage, page } from "../../ports.js";
+import { page } from "../../ports.js";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -35,6 +35,19 @@ import {
 import { parseTotp, totpCode } from "./totp.js";
 
 export {
+  type WebauthnHostCheck,
+  WebauthnHostError,
+  assertWebauthnHost,
+  checkWebauthnHost,
+  describeWebauthnError,
+  formatWebauthnHostError,
+  isIpHostname,
+  localhostEquivalentHref,
+  webauthnHostSeams,
+  webauthnRpId,
+} from "./webauthn-host.js";
+
+export {
   MIN_PRF_OUTPUT_BYTES,
   PrfCeremonyError,
   type PrfCeremonyErrorCode,
@@ -53,65 +66,24 @@ export const MAX_PIN_LENGTH = 12;
 /** PIN wraps use at least the password floor; extra iterations raise offline cost. */
 export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
-export type PasskeyUnlockRecord = {
-  credentialIdB64: string;
-  userIdB64: string;
-  /** Public salt fed to the PRF eval + HKDF. */
-  prfSaltB64: string;
-  wrap: SealedBlob;
-};
+import type {
+  CodeChannel,
+  PasskeyUnlockRecord,
+  PinUnlockRecord,
+  RecoveryCodesRecord,
+  TotpGateRecord,
+  VaultUnlocks,
+} from "./unlock-records.js";
 
-export type PinUnlockRecord = {
-  kdf: KdfParams;
-  wrap: SealedBlob;
-};
-
-export type TotpGateRecord = {
-  /** AES-GCM(VK) over the TOTP secret (UTF-8 / base32 seed). */
-  secretWrap: SealedBlob;
-  digits: 6;
-  period: 30;
-  /** The vault's own authenticator entry, when registered (ADR 0113). An item ID is plaintext, not a secret. */
-  selfItemId?: string;
-};
-
-/** Where a one-time code goes. The address itself is sealed, not the fact. */
-export type CodeChannel = "email" | "sms";
-
-/**
- * A code sent by the Identity API — the fallback second step. The header
- * says only that the channel is enrolled; the address is AES-GCM(VK).
- */
-export type RemoteCodeRecord = {
-  /** AES-GCM(VK) over the address or E.164 number. */
-  toWrap: SealedBlob;
-  /** ISO date the channel was confirmed with its first code. */
-  since: string;
-};
-
-/**
- * Ten one-time codes that stand in for the second step once each. Sealed
- * under the vault key, the same envelope as the authenticator seed: a header
- * on disk discloses that codes exist, never what they are.
- */
-export type RecoveryCodesRecord = {
-  /** AES-GCM(VK) over JSON `{ codes: string[], used: boolean[] }`. */
-  codesWrap: SealedBlob;
-  total: number;
-  since: string;
-};
-
-export type VaultUnlocks = {
-  /** Legacy single passkey wrap — still written for older readers. */
-  passkey?: PasskeyUnlockRecord | undefined;
-  /** Multi-credential PRF wraps; on read, a lone `passkey` becomes one entry. */
-  passkeys?: PasskeyUnlockRecord[];
-  pin?: PinUnlockRecord;
-  totp?: TotpGateRecord;
-  email?: RemoteCodeRecord;
-  sms?: RemoteCodeRecord;
-  recovery?: RecoveryCodesRecord;
-};
+export type {
+  CodeChannel,
+  PasskeyUnlockRecord,
+  PinUnlockRecord,
+  RecoveryCodesRecord,
+  RemoteCodeRecord,
+  TotpGateRecord,
+  VaultUnlocks,
+} from "./unlock-records.js";
 
 /**
  * Passkey wraps present on a header. A legacy lone `passkey` migrates to a
@@ -424,143 +396,6 @@ export type PasskeyCeremonyGetOptions = {
   credentialIdB64?: string;
 };
 
-/** True when `hostname` is a bare IPv4/IPv6 literal (not a DNS name). */
-export function isIpHostname(hostname: string): boolean {
-  const host = hostname.trim().replace(/^\[|\]$/g, "");
-  if (!host) return false;
-  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
-  // IPv6 (including compressed forms) — any colon means not a DNS label for us.
-  return host.includes(":");
-}
-
-export type WebauthnHostCheck = {
-  ok: boolean;
-  hostname: string;
-  /** Suggested same-path URL on a WebAuthn-compatible host, when we can offer one. */
-  fixUrl: string | null;
-  /** Short operator-facing diagnosis. */
-  reason: string;
-};
-
-/** The hostname asked about, else this page's, else the one in `href`. */
-function webauthnHost(hostname: string | undefined, href: string): string {
-  const host = hostname?.trim() || (maybePage()?.location.hostname ?? "");
-  if (host) return host;
-  try {
-    return new URL(href).hostname;
-  } catch {
-    return "localhost";
-  }
-}
-
-/**
- * WebAuthn RP IDs must be DNS names. Chrome rejects `127.0.0.1` (and other IPs)
- * with `SecurityError: This is an invalid domain.` before any authenticator prompt.
- */
-function checkWebauthnHostDefault(
-  hostname?: string,
-  href?: string,
-): WebauthnHostCheck {
-  const resolvedHref =
-    href ?? maybePage()?.location.href ?? "http://localhost/";
-  const host = webauthnHost(hostname, resolvedHref);
-  if (!isIpHostname(host)) {
-    return {
-      ok: true,
-      hostname: host,
-      fixUrl: null,
-      reason: "Origin uses a DNS hostname suitable for WebAuthn.",
-    };
-  }
-  let fixUrl: string | null = null;
-  try {
-    const url = new URL(resolvedHref);
-    if (host === "127.0.0.1" || host === "::1" || host === "0:0:0:0:0:0:0:1") {
-      url.hostname = "localhost";
-      fixUrl = url.toString();
-    }
-  } catch {
-    /* ignore */
-  }
-  return {
-    ok: false,
-    hostname: host,
-    fixUrl,
-    reason:
-      host === "127.0.0.1" || host === "::1"
-        ? "This tab is on a loopback IP. Browsers reject passkeys on IP origins — use localhost instead."
-        : `This tab is on IP ${host}. Passkeys require a DNS hostname (not a raw IP).`,
-  };
-}
-
-/** Relying-party id for WebAuthn on this origin. */
-export function webauthnRpId(
-  hostname: string = maybePage()?.location.hostname ?? "localhost",
-): string {
-  const host = hostname.trim() || "localhost";
-  // Never hand the browser an IP RP ID — preflight should have redirected first.
-  if (isIpHostname(host)) return "localhost";
-  return host;
-}
-
-export class WebauthnHostError extends Error {
-  readonly check: WebauthnHostCheck;
-  constructor(check: WebauthnHostCheck) {
-    super(formatWebauthnHostError(check));
-    this.name = "WebauthnHostError";
-    this.check = check;
-  }
-}
-
-export function formatWebauthnHostError(check: WebauthnHostCheck): string {
-  if (check.fixUrl) {
-    return `${check.reason} Open ${check.fixUrl} (same vault), then enroll again.`;
-  }
-  return `${check.reason} Open this app via a hostname (for example a Tailscale MagicDNS name or localhost), then enroll again.`;
-}
-
-/** Map browser WebAuthn failures into actionable copy. */
-function describeWebauthnErrorDefault<Thrown>(error: Thrown): string {
-  if (error instanceof WebauthnHostError) return error.message;
-  if (error instanceof PrfCeremonyError) return error.message;
-  if (!(error instanceof Error)) return "Passkey ceremony failed.";
-  const name = error.name;
-  const message = error.message.trim();
-  if (
-    name === "SecurityError" ||
-    /invalid domain/i.test(message) ||
-    /is an invalid domain/i.test(message)
-  ) {
-    const check = checkWebauthnHost();
-    if (!check.ok) return formatWebauthnHostError(check);
-    return "The browser rejected this origin for passkeys. Use a DNS hostname (localhost for local dev), not a raw IP address.";
-  }
-  if (name === "NotAllowedError") {
-    return "Passkey was cancelled or timed out. Try again, or use a PIN / password unlock instead.";
-  }
-  if (name === "InvalidStateError") {
-    return "A passkey for this site may already exist on this authenticator. Remove it from the OS password manager, or enroll on another device.";
-  }
-  if (name === "NotSupportedError") {
-    return "This browser or authenticator does not support the passkey features OpenSesame needs (WebAuthn PRF). Use Chrome/Edge on a supported OS, or enroll a PIN / password instead.";
-  }
-  if (/receiving end does not exist/i.test(message)) {
-    return "Your browser's passkey extension disconnected. Reload this page after reconnecting or unlocking it, then try again.";
-  }
-  return message || "Passkey ceremony failed.";
-}
-
-export function assertWebauthnHost(): WebauthnHostCheck {
-  const check = checkWebauthnHost();
-  if (!check.ok) throw new WebauthnHostError(check);
-  return check;
-}
-
-/** Prefer localhost for loopback IPs so WebAuthn can run. */
-export function localhostEquivalentHref(href?: string): string | null {
-  return checkWebauthnHost(undefined, href).fixUrl;
-}
-
 export function primaryUnlockCount(
   header: VaultHeader | null | undefined,
 ): number {
@@ -584,8 +419,6 @@ export function assertKeepsPrimaryUnlock(
 export const unlockMethodsSeams = {
   listAvailableUnlockMethods: listAvailableUnlockMethodsDefault,
   preferredUnlockMethod: preferredUnlockMethodDefault,
-  checkWebauthnHost: checkWebauthnHostDefault,
-  describeWebauthnError: describeWebauthnErrorDefault,
   createPasskeyUnlockCeremony: createPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremony: getPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyFor: getPasskeyUnlockCeremonyForDefault,
@@ -601,17 +434,6 @@ export function preferredUnlockMethod(
   header: VaultHeader | null | undefined,
 ): UnlockMethodId | null {
   return unlockMethodsSeams.preferredUnlockMethod(header);
-}
-
-export function checkWebauthnHost(
-  hostname?: string,
-  href?: string,
-): WebauthnHostCheck {
-  return unlockMethodsSeams.checkWebauthnHost(hostname, href);
-}
-
-export function describeWebauthnError<Thrown>(error: Thrown): string {
-  return unlockMethodsSeams.describeWebauthnError(error);
 }
 
 export async function createPasskeyUnlockCeremony(

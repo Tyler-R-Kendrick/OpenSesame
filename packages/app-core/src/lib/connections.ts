@@ -41,7 +41,7 @@ import { claimGuestConnection } from "./guest-connections.js";
 export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
 import { HostSessionError, hostBase, hostFetch } from "./identity.js";
-import * as vercelConnect from "./vercel-connect.js";
+import * as vercelConnect from "./vercel-connect-ops.js";
 
 export type ProviderCategory =
   | "identity"

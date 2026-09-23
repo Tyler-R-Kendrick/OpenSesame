@@ -7,8 +7,8 @@ import { readLocalDevices, thisDeviceId } from "./local-devices.js";
 import {
   PAGES_APPLICATION_ID,
   SUPPORT_AGENT_ID,
-  readLocalDirectory,
-} from "./local-directory.js";
+} from "./local-directory-bootstrap.js";
+import { readLocalDirectory } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
 import { listLocalShares } from "./local-share-grants.js";
 import { mintVaultKey } from "./vault/crypto.js";

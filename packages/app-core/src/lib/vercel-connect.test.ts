@@ -11,14 +11,16 @@ import {
   listConnections,
 } from "./connections.js";
 import {
-  CONNECT_API,
   authorizeVercelConnection,
   connectReturnTo,
   createVercelConnection,
   getVercelConnection,
-  isConnectConnector,
   listVercelConnections,
   revokeVercelConnection,
+} from "./vercel-connect-ops.js";
+import {
+  CONNECT_API,
+  isConnectConnector,
   setVercelConnectAuth,
   toConnectConnection,
   usesConnect,

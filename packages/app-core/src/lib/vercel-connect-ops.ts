@@ -34,6 +34,8 @@ import {
   vercelConnectSeams,
 } from "./vercel-connect.js";
 
+export { isConnectConnector, usesConnect } from "./vercel-connect.js";
+
 const TIMEOUT_MS = 8000;
 
 type TeamQueryExtra = {

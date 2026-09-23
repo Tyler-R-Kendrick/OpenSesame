@@ -79,7 +79,7 @@ export function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return diff === 0;
 }
 
-function requireRecipients(recipients: readonly string[]): string[] {
+export function requireRecipients(recipients: readonly string[]): string[] {
   const cleaned = [
     ...new Set(recipients.map((line) => line.trim()).filter(isAgeRecipient)),
   ];
@@ -284,36 +284,4 @@ export async function openAgeCapsule(
     );
   }
   return parsePayload(plaintext, context);
-}
-
-import {
-  ageRecipientCapabilities,
-  ageRecipientEnroll,
-  ageRecipientOpen,
-  ageRecipientProve,
-} from "./age-recipient-ops.js";
-
-export function createAgeRecipientAdapter(
-  options: AgeRecipientAdapterOptions,
-): KeyProtectorAdapter {
-  const recipients = requireRecipients(options.recipients);
-  const custody = options.custody;
-  const sessionGeneration = options.sessionGeneration;
-
-  return {
-    capabilities: ageRecipientCapabilities,
-    enroll: (request) =>
-      ageRecipientEnroll(
-        options,
-        recipients,
-        custody,
-        sessionGeneration,
-        request,
-      ),
-    prove: (request) => ageRecipientProve(options, sessionGeneration, request),
-    open: (request) => ageRecipientOpen(options, sessionGeneration, request),
-    async dispose(): Promise<void> {
-      // Identity resolution is caller-owned; nothing retained here.
-    },
-  };
 }

@@ -96,10 +96,13 @@ Object.assign(vaultHooksSeams, {
 });
 
 import { unlockMethodsSeams } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { webauthnHostSeams } from "@opensesame/app-core/lib/vault/webauthn-host.js";
 export const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
 Object.assign(unlockMethodsSeams, {
   listAvailableUnlockMethods: () => v.methods,
   preferredUnlockMethod: () => v.preferred,
+});
+Object.assign(webauthnHostSeams, {
   checkWebauthnHost: () => v.host,
   describeWebauthnError: (error: BoundaryValue) =>
     `webauthn: ${error instanceof Error ? error.message : String(error)}`,

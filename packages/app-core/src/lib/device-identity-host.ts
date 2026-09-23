@@ -15,7 +15,6 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
-import { dispatchExtendedDeviceRoute } from "./device-identity-local.js";
 import {
   LocalDropClaimError,
   createLocalDropClaim,
@@ -307,6 +306,11 @@ export async function deviceIdentityFetch(
     return pollClaim(matched.claimId, init);
   }
   if (matched.kind === "other") {
+    // The local IAM routes sit above this host (they read the vault and the
+    // local directory), so they load on first use rather than at import.
+    const { dispatchExtendedDeviceRoute } = await import(
+      "./device-identity-local.js"
+    );
     const extended = await dispatchExtendedDeviceRoute(path, method);
     return extended ?? notImplemented(path.split("?")[0] ?? path);
   }

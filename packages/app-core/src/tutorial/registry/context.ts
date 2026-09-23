@@ -22,7 +22,8 @@ import {
 } from "../../webmcp/registration.js";
 import { capabilitiesForContext } from "./capability-context.js";
 import { inDevelopment } from "./dev.js";
-import { describeGuideGoals, rankHelpTopics } from "./goals.js";
+import { rankHelpTopics } from "./goals-search.js";
+import { describeGuideGoals } from "./goals.js";
 import {
   type GuideRouteId,
   describeGuideRoutes,

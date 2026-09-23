@@ -7,10 +7,12 @@
  */
 
 import type { CapabilityId } from "@opensesame/capability-composition";
-import { maybePage } from "../../ports.js";
+import { pageOrigin as hostOrigin, maybePage } from "../../ports.js";
+import { CAPABILITY_CATALOG } from "./catalog.js";
 import {
   EgressDenied,
   type EgressPort,
+  type EgressPortOptions,
   type EgressRequestMeta,
   createEgressPort,
   redactUrl,
@@ -94,3 +96,31 @@ export const egressSeams = {
     capability: CapabilityId,
   ) => EgressPort,
 };
+
+/**
+ * Replace the same-origin default with the plan-aware
+ * port. Called once by the core boot after `compositionStore.boot`; the port
+ * re-reads the current plan on every request, so no boot ordering can leave
+ * a module holding a wider port than its plan.
+ */
+export function installPlanAwareEgress(
+  origin: string = hostOrigin(),
+  fetchImpl?: typeof fetch,
+): void {
+  egressSeams.createEgressPort = (capability: CapabilityId) => {
+    const descriptor = CAPABILITY_CATALOG.capabilities.find(
+      (d) => d.id === capability,
+    );
+    if (descriptor === undefined) {
+      throw new EgressDenied("capability-not-approved", capability, origin);
+    }
+    const options: EgressPortOptions = {
+      capability: descriptor,
+      plan: () => compositionStore.getSnapshot().plan,
+      allowedOrigins: [origin],
+    };
+    return createEgressPort(
+      fetchImpl === undefined ? options : { ...options, fetchImpl },
+    );
+  };
+}

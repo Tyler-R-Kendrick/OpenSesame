@@ -231,15 +231,3 @@ export async function withLocalDirectoryLock<T>(
     );
   return locks.request(`opensesame-directory-${tomb}`, action);
 }
-
-export {
-  GUEST_PERSON_ID,
-  GUEST_PERSON_NAME,
-  PAGES_APPLICATION_ID,
-  PAGES_APPLICATION_NAME,
-  SUPPORT_AGENT_ID,
-  SUPPORT_AGENT_NAME,
-  currentOwnerPersonName,
-  ensureOwnerPerson,
-  ownerPersonName,
-} from "./local-directory-bootstrap.js";

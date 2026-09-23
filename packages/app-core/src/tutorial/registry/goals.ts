@@ -543,9 +543,3 @@ export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {
       topic.routes.some((candidate) => guideRouteWithin(route, candidate)),
   );
 }
-
-export {
-  rankHelpTopics,
-  searchHelpTopics,
-  type RankedHelpTopic,
-} from "./goals-search.js";

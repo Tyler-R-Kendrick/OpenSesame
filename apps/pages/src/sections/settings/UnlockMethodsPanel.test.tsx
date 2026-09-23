@@ -62,12 +62,11 @@ const describeWebauthnError = vi.hoisted(() =>
 );
 
 import { unlockMethodsSeams } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { webauthnHostSeams } from "@opensesame/app-core/lib/vault/webauthn-host.js";
 const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
-Object.assign(unlockMethodsSeams, {
-  listAvailableUnlockMethods,
-  checkWebauthnHost,
-  describeWebauthnError,
-});
+const originalWebauthnHostSeams = { ...webauthnHostSeams };
+Object.assign(unlockMethodsSeams, { listAvailableUnlockMethods });
+Object.assign(webauthnHostSeams, { checkWebauthnHost, describeWebauthnError });
 
 import { passwordSeams } from "@opensesame/app-core/lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
@@ -524,6 +523,7 @@ describe("UnlockMethodsPanel", () => {
 afterEach(() => {
   Object.assign(vaultHooksSeams, originalVaultHooksSeams);
   Object.assign(unlockMethodsSeams, originalUnlockMethodsSeams);
+  Object.assign(webauthnHostSeams, originalWebauthnHostSeams);
   Object.assign(passwordSeams, originalPasswordSeams);
   Object.assign(qrSeams, originalQrSeams);
   Object.assign(identitySeams, originalIdentitySeams);
@@ -533,8 +533,8 @@ afterEach(() => {
     useVault: () => vault.current,
     useVaultStore: () => store,
   });
-  Object.assign(unlockMethodsSeams, {
-    listAvailableUnlockMethods,
+  Object.assign(unlockMethodsSeams, { listAvailableUnlockMethods });
+  Object.assign(webauthnHostSeams, {
     checkWebauthnHost,
     describeWebauthnError,
   });

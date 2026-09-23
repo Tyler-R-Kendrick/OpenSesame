@@ -20,39 +20,13 @@ import {
 } from "../vfs.js";
 import {
   type SealedBlob,
-  VaultCorruptError,
   assertSealed,
-  openJson,
   sealJson,
   vaultSealBinding,
 } from "./crypto.js";
+import { openJsonForRebind } from "./seal-open.js";
 
-export type ReboundSeal<T> = {
-  readonly value: T;
-  readonly rebound: boolean;
-};
-
-/** Open unbound once so unlock can rewrite the seal with a path binding. */
-export async function openJsonForRebind<T>(
-  vaultKey: CryptoKey,
-  blob: SealedBlob,
-  binding: string,
-): Promise<ReboundSeal<T>> {
-  try {
-    const bound = {
-      value: await openJson(vaultKey, blob, binding),
-      rebound: false as const,
-    } satisfies ReboundSeal<T>;
-    return bound;
-  } catch (error) {
-    if (!(error instanceof VaultCorruptError)) throw error;
-    const unbound = {
-      value: await openJson(vaultKey, blob),
-      rebound: true as const,
-    } satisfies ReboundSeal<T>;
-    return unbound;
-  }
-}
+export { openJsonForRebind } from "./seal-open.js";
 
 type TombIndex = { v: 1; files: Record<string, number> };
 

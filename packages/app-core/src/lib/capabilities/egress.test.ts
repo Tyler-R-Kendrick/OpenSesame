@@ -6,13 +6,8 @@ import {
   approvedPlan,
   descriptorOf,
 } from "./__tests__/plan-fixtures.js";
-import { egressSeams } from "./egress-default.js";
-import {
-  EgressDenied,
-  createEgressPort,
-  installPlanAwareEgress,
-  redactUrl,
-} from "./egress.js";
+import { egressSeams, installPlanAwareEgress } from "./egress-default.js";
+import { EgressDenied, createEgressPort, redactUrl } from "./egress.js";
 
 const SELF = "https://vault.example.test";
 const CONNECTORS = "connectors.external";

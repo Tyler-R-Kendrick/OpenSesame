@@ -3,15 +3,17 @@ import { kvGet } from "./kv.js";
 import {
   GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
-  LOCAL_DIRECTORY_PATH,
-  type LocalDirectory,
   PAGES_APPLICATION_ID,
   PAGES_APPLICATION_NAME,
   SUPPORT_AGENT_ID,
   SUPPORT_AGENT_NAME,
-  changeLocalDirectory,
   ensureOwnerPerson,
   ownerPersonName,
+} from "./local-directory-bootstrap.js";
+import {
+  LOCAL_DIRECTORY_PATH,
+  type LocalDirectory,
+  changeLocalDirectory,
   readLocalDirectory,
 } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";

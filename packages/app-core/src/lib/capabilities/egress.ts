@@ -17,15 +17,11 @@ import type {
  * redirect is never followed anywhere (NET-04); and no URL with a query
  * string is ever written to an error or a log (`redactUrl`).
  */
-import { pageOrigin } from "../../ports.js";
 import {
   localNetworkFetchSeams,
   targetAddressSpaceFor,
 } from "../local-network-fetch.js";
-import { CAPABILITY_CATALOG } from "./catalog.js";
-import { egressSeams } from "./egress-default.js";
 import type { EgressPort as ContractEgressPort } from "./runtime-contract.js";
-import { compositionStore } from "./store.js";
 
 export type EgressDenialCode =
   | "capability-not-approved"
@@ -297,33 +293,5 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
       }
       return response;
     },
-  };
-}
-
-/**
- * Replace the same-origin default (`egress-default.ts`) with the plan-aware
- * port. Called once by the core boot after `compositionStore.boot`; the port
- * re-reads the current plan on every request, so no boot ordering can leave
- * a module holding a wider port than its plan.
- */
-export function installPlanAwareEgress(
-  origin: string = pageOrigin(),
-  fetchImpl?: typeof fetch,
-): void {
-  egressSeams.createEgressPort = (capability: CapabilityId) => {
-    const descriptor = CAPABILITY_CATALOG.capabilities.find(
-      (d) => d.id === capability,
-    );
-    if (descriptor === undefined) {
-      throw new EgressDenied("capability-not-approved", capability, origin);
-    }
-    const options: EgressPortOptions = {
-      capability: descriptor,
-      plan: () => compositionStore.getSnapshot().plan,
-      allowedOrigins: [origin],
-    };
-    return createEgressPort(
-      fetchImpl === undefined ? options : { ...options, fetchImpl },
-    );
   };
 }

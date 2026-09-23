@@ -18,7 +18,6 @@
  *    The row says which it will be before the person commits.
  */
 
-import { continueAsGuest } from "./guest-auth.js";
 import { kvHydrate } from "./kv.js";
 import { guestVaultLabel } from "./local-guest.js";
 

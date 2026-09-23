@@ -20,14 +20,16 @@ export {
   mergedHelpTopics,
   type GuideGoalDescriptor,
   type HelpTopic,
-  type RankedHelpTopic,
   describeGuideGoals,
   guideGoal,
   guideGoalIds,
   helpTopicsForRoute,
+} from "./goals.js";
+export {
+  type RankedHelpTopic,
   rankHelpTopics,
   searchHelpTopics,
-} from "./goals.js";
+} from "./goals-search.js";
 export {
   CORE_GUIDE_ROUTES,
   GUIDE_ROUTES,

@@ -13,8 +13,8 @@ import {
   PAGES_APPLICATION_ID,
   PAGES_APPLICATION_NAME,
   SUPPORT_AGENT_ID,
-  readLocalDirectory,
-} from "@opensesame/app-core/lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-directory-bootstrap.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   type LocalShare,

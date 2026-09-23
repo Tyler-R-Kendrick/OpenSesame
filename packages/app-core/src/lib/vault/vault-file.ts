@@ -18,8 +18,11 @@ import {
   vaultSealBinding,
 } from "./crypto.js";
 import type { VaultBody } from "./model.js";
-import { OFFLINE_BACKUP_FORMAT, parseOfflineBackup } from "./offline-backup.js";
-import { openJsonForRebind } from "./seal-rebind.js";
+import {
+  OFFLINE_BACKUP_FORMAT,
+  parseOfflineBackupEnvelope as parseOfflineBackup,
+} from "./offline-backup-format.js";
+import { openJsonForRebind } from "./seal-open.js";
 
 export const VAULT_EXPORT_FORMAT = "opensesame-vault-export";
 

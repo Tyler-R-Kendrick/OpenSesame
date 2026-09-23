@@ -13,16 +13,6 @@ import { isVercelConnectable } from "./vercel-connect-catalog.js";
 import { connectRelayConfigured } from "./vercel-connect-relay.js";
 
 export { toConnectConnection } from "./vercel-connect-map.js";
-export {
-  authorizeVercelConnection,
-  connectReturnTo,
-  createVercelConnection,
-  getVercelConnection,
-  listVercelConnections,
-  revokeVercelConnection,
-  type VercelAuthorizeResult,
-  type VercelRevokeResult,
-} from "./vercel-connect-ops.js";
 
 export const CONNECT_API = "https://api.vercel.com";
 

@@ -1,20 +1,8 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { workerConstructor } from "../../ports.js";
-import { browsableUrl } from "./model.js";
+import { type LoginUri, browsableUrl } from "./model.js";
 
-export type UriMatch =
-  | "domain"
-  | "host"
-  | "exact"
-  | "never"
-  | "wildcard"
-  | "regex";
-export type LoginUri = {
-  /** Stable across edits so rows retain identity. */
-  id: string;
-  uri: string;
-  match: UriMatch;
-};
+export type { LoginUri, UriMatch } from "./model.js";
 
 export function loginWebsiteLink(uri: LoginUri): string | null {
   return uri.match === "wildcard" || uri.match === "regex"

@@ -8,9 +8,9 @@ import {
 import { ProtectionError } from "../errors.js";
 import { ROOT_KEY_BYTES } from "../limits.js";
 import type { ProtectionContext } from "../types.js";
+import { createAgeRecipientAdapter } from "./age-recipient-ops.js";
 import {
   ageRecipientCanSatisfyLastVerifiedGuard,
-  createAgeRecipientAdapter,
   publishUntestedAgeRecipient,
 } from "./age-recipient.js";
 

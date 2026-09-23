@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
+} from "./local-directory-bootstrap.js";
+import {
   type LocalDirectory,
   changeLocalDirectory,
 } from "./local-directory.js";
