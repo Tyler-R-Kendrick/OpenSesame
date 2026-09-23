@@ -1,15 +1,15 @@
 import { useState } from "react";
 
-import { connectorLabel } from "../lib/capabilities.js";
+import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
 import {
   authorizeCapabilityConnector,
   bindCapabilityConnector,
   bindingNeedsAuth,
-} from "../lib/capability-bind.js";
-import { openConsentPopup } from "../lib/connections.js";
-import { loadSettings } from "../lib/settings.js";
-import { PBKDF2_ITERATIONS } from "../lib/vault/crypto.js";
-import { preferenceMechanismLabel } from "../lib/vault/protection/protection-view.js";
+} from "@opensesame/app-core/lib/capability-bind.js";
+import { openConsentPopup } from "@opensesame/app-core/lib/connections.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import { PBKDF2_ITERATIONS } from "@opensesame/app-core/lib/vault/crypto.js";
+import { preferenceMechanismLabel } from "@opensesame/app-core/lib/vault/protection/protection-view.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { IconLock, IconPasskey, IconShield } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";

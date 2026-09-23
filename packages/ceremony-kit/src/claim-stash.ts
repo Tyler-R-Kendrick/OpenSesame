@@ -15,7 +15,7 @@ import {
  * good reason: the standalone ceremonies app uses tab-scoped session storage,
  * while the Pages vault app keeps claim bearers in memory only, because
  * anything it persists lands beside vault material and must survive a lock
- * (see `apps/pages/src/lib/queue.ts`). The storage is therefore injected, and
+ * (see `packages/app-core/src/lib/queue.ts`). The storage is therefore injected, and
  * this module never reaches for a global.
  *
  * Only the bearer, the claim id, and who is accepting are kept. Claim state is

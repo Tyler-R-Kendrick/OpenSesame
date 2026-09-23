@@ -3,7 +3,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LoginItem, VaultItem } from "../../lib/vault/model.js";
+import type {
+  LoginItem,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 
 type VaultFixture = { current: { items: VaultItem[] } };
 

@@ -1,3 +1,4 @@
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
 /** @vitest-environment jsdom */
 import {
   type FakeSupportAgent,
@@ -11,7 +12,6 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
-import { buildSupportPageContext } from "../tutorial/registry/context.js";
 import {
   type SupportEngine,
   SupportProvider,

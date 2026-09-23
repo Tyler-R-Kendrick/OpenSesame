@@ -6,10 +6,13 @@
  * state once the vault is open.
  */
 
+import {
+  readAuthOutcome,
+  storeAuthOutcome,
+} from "@opensesame/app-core/lib/auth-outcome.js";
+import { clearNotices, pushNotice } from "@opensesame/app-core/lib/notices.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { readAuthOutcome, storeAuthOutcome } from "../../lib/auth-outcome.js";
-import { clearNotices, pushNotice } from "../../lib/notices.js";
 import { PendingLinkBanner } from "./PendingLinkBanner.js";
 
 afterEach(() => {

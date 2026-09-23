@@ -8,23 +8,26 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { isString } from "@opensesame/os-domain";
-import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
-import { IconPlus } from "../components/Icons.js";
-import { keyboardIsIdle, landFocus } from "../lib/focus.js";
-import { swipeBack } from "../lib/gestures.js";
-import { isCreatableItemKind } from "../lib/item-kinds.js";
-import { sweepDrops } from "../lib/vault/drop.js";
-import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { itemCreatePath } from "../lib/vault/item-path.js";
+import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
+import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
+import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
   readItemField,
   typePlural,
-} from "../lib/vault/item-types.js";
-import { type VaultItem, sortItems } from "../lib/vault/model.js";
+} from "@opensesame/app-core/lib/vault/item-types.js";
+import {
+  type VaultItem,
+  sortItems,
+} from "@opensesame/app-core/lib/vault/model.js";
+import { isString } from "@opensesame/os-domain";
+import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
+import { IconPlus } from "../components/Icons.js";
+import { keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { swipeBack } from "../lib/gestures.js";
+import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";

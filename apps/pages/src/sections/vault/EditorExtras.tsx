@@ -1,3 +1,8 @@
+import {
+  type CustomField,
+  type VaultItem,
+  newId,
+} from "@opensesame/app-core/lib/vault/model.js";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   IconEye,
@@ -5,11 +10,6 @@ import {
   IconPlus,
   IconX,
 } from "../../components/Icons.js";
-import {
-  type CustomField,
-  type VaultItem,
-  newId,
-} from "../../lib/vault/model.js";
 
 export function OptionalField({
   present,

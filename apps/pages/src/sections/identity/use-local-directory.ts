@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
-import { listIdpRegistrations } from "../../lib/idp-registry.js";
-import { ensureDefaultAccess } from "../../lib/local-access-bootstrap.js";
-import { type LocalDevice, readLocalDevices } from "../../lib/local-devices.js";
+import { listIdpRegistrations } from "@opensesame/app-core/lib/idp-registry.js";
+import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
+import {
+  type LocalDevice,
+  readLocalDevices,
+} from "@opensesame/app-core/lib/local-devices.js";
 import {
   type LocalIdentity,
   readLocalDirectory,
-} from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 import type { IdentityRailSnapshot } from "./page-tree.js";
 

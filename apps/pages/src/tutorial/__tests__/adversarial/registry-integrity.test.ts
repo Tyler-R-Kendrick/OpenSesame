@@ -10,21 +10,21 @@
  * future caller that builds a program itself, would take.
  */
 
-import { compileGuide } from "@opensesame/guide-lang";
-import fc from "fast-check";
-import { afterEach, describe, expect, it } from "vitest";
-import { registerTutorialRealm } from "../../registry/optional-tutorials.test-support.js";
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import {
   GUIDE_OVERLAY_ROUTES,
   GUIDE_ROUTES,
   guideRouteForPath,
   isKnownGuideRoute,
-} from "../../registry/routes.js";
+} from "@opensesame/app-core/tutorial/registry/routes.js";
 import {
   duplicateGuideTargetMounts,
   mountGuideTarget,
   resolveGuideTargetElement,
-} from "../../registry/targets.js";
+} from "@opensesame/app-core/tutorial/registry/targets.js";
+import { compileGuide } from "@opensesame/guide-lang";
+import fc from "fast-check";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   type SupportChain,
   createSupportChain,

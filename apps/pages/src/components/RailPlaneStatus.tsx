@@ -1,4 +1,4 @@
-import { identityStatusLabel } from "../lib/planes.js";
+import { identityStatusLabel } from "@opensesame/app-core/lib/planes.js";
 
 import { usePlaneStatus } from "../bindings/planes.js";
 export function RailPlaneStatusDefault() {

@@ -6,9 +6,12 @@
  * need no `vi.hoisted`.
  */
 
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import { render } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import type { Connection, Provider } from "../../lib/connections.js";
 import { ConnectionsSection } from "../ConnectionsSection.js";
 
 /** Six bundled providers, one per catalog branch the suites exercise. */

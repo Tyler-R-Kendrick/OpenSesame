@@ -29,7 +29,7 @@
       "skills-lock.json",
       "**/sbom/**",
       "fixtures/kdbx/roundtrip.expected.json",
-      "apps/pages/src/lib/sops/fixtures/upstream/**",
+      "packages/app-core/src/lib/sops/fixtures/upstream/**",
       "docs/design/**"
     ]
   },

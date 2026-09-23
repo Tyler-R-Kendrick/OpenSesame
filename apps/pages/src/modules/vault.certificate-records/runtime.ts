@@ -7,9 +7,9 @@
  * Egress: none.
  */
 
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { KIND_LABEL } from "@opensesame/app-core/lib/vault/model.js";
 import { IconShield } from "../../components/Icons.js";
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { KIND_LABEL } from "../../lib/vault/model.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "vault.certificate-records";

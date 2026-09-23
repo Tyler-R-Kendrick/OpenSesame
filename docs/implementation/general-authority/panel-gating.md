@@ -10,7 +10,7 @@ ADR 0090: a panel is gated on **what it needs**, never on "a backend".
 | Identity API | Identity-specific hooks / empty defaults | Block Access › Resources |
 | No Host | `NoHostNote` on Host-only panels | Invent `setupRequired` wall |
 
-`setupRequired` must not return on the boot path (`apps/pages/src/lib/settings.ts`
+`setupRequired` must not return on the boot path (`packages/app-core/src/lib/settings.ts`
 defaults stay empty; setup seams tests assert no `setupRequired` property).
 
 ## Evidence

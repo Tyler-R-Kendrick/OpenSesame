@@ -1,14 +1,14 @@
+import { generateAgeKeyPair } from "@opensesame/app-core/lib/age-keys.js";
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import {
+  exportAgeArmored,
+  importAgeArmored,
+} from "@opensesame/app-core/lib/vault/protection/sops-browser.js";
 import { type RefObject, useRef, useState } from "react";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
-import { generateAgeKeyPair } from "../../lib/age-keys.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
-import { setStatusNotice } from "../../lib/notices.js";
-import {
-  exportAgeArmored,
-  importAgeArmored,
-} from "../../lib/vault/protection/sops-browser.js";
 
 function formatsNotice(tone: "info" | "err", body: string): void {
   setStatusNotice({

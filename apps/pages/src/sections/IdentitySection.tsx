@@ -1,4 +1,68 @@
 import {
+  ByoError,
+  type ByoProviderInput,
+  registerByoProvider,
+} from "@opensesame/app-core/lib/byo.js";
+import {
+  DirectoryError,
+  type DirectoryPrincipal,
+  type LinkedIdentity,
+  type OAuthClient,
+  type OrgMember,
+  addOrgMember,
+  createOAuthClient,
+  createOrganization,
+  getMe,
+  listLinkedIdentities,
+  listOAuthClients,
+  listOrgMembers,
+  removeOrgMember,
+  revokeOAuthClient,
+  rotateOAuthClient,
+  unlinkIdentity,
+} from "@opensesame/app-core/lib/directory.js";
+import {
+  beginSignIn,
+  defaultUpstream,
+  upstreamByIssuer,
+} from "@opensesame/app-core/lib/federation.js";
+import { isGuestSession } from "@opensesame/app-core/lib/guest-isolation.js";
+import {
+  type IdentitySession,
+  identityBase,
+  remoteIdentityApi,
+} from "@opensesame/app-core/lib/identity.js";
+import {
+  IDP_PRESETS,
+  type IdpPreset,
+  presetFor,
+  presetIssuer,
+} from "@opensesame/app-core/lib/idp-presets.js";
+import {
+  DEVICE_IDP_ID,
+  type IdpProviderType,
+  type IdpRecord,
+  dismissIdpCeremony,
+  listAdditionalIdpRegistrations,
+  listIdpRegistrations,
+  registerIdp,
+  removeIdpRegistration,
+} from "@opensesame/app-core/lib/idp-registry.js";
+import {
+  GUEST_PROFILE_ID,
+  ORG_SLUG_RE,
+  type OrgMembership,
+  activeOrgProfileId,
+  listOrgMemberships,
+} from "@opensesame/app-core/lib/orgs.js";
+import {
+  type FederatedProviderSummary,
+  brokeredByoUpstream,
+  listFederatedProviders,
+  providerUpstream,
+} from "@opensesame/app-core/lib/providers.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import {
   type FormEvent,
   useCallback,
   useEffect,
@@ -23,76 +87,12 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { StatusMark, statusTone } from "../components/StatusMark.js";
-import {
-  ByoError,
-  type ByoProviderInput,
-  registerByoProvider,
-} from "../lib/byo.js";
-import {
-  DirectoryError,
-  type DirectoryPrincipal,
-  type LinkedIdentity,
-  type OAuthClient,
-  type OrgMember,
-  addOrgMember,
-  createOAuthClient,
-  createOrganization,
-  getMe,
-  listLinkedIdentities,
-  listOAuthClients,
-  listOrgMembers,
-  removeOrgMember,
-  revokeOAuthClient,
-  rotateOAuthClient,
-  unlinkIdentity,
-} from "../lib/directory.js";
-import {
-  beginSignIn,
-  defaultUpstream,
-  upstreamByIssuer,
-} from "../lib/federation.js";
-import { isGuestSession } from "../lib/guest-isolation.js";
-import {
-  type IdentitySession,
-  identityBase,
-  remoteIdentityApi,
-} from "../lib/identity.js";
-import {
-  IDP_PRESETS,
-  type IdpPreset,
-  presetFor,
-  presetIssuer,
-} from "../lib/idp-presets.js";
-import {
-  DEVICE_IDP_ID,
-  type IdpProviderType,
-  type IdpRecord,
-  dismissIdpCeremony,
-  listAdditionalIdpRegistrations,
-  listIdpRegistrations,
-  registerIdp,
-  removeIdpRegistration,
-} from "../lib/idp-registry.js";
-import {
-  GUEST_PROFILE_ID,
-  ORG_SLUG_RE,
-  type OrgMembership,
-  activeOrgProfileId,
-  listOrgMemberships,
-} from "../lib/orgs.js";
-import {
-  type FederatedProviderSummary,
-  brokeredByoUpstream,
-  listFederatedProviders,
-  providerUpstream,
-} from "../lib/providers.js";
 import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { monogram } from "./connections/connector-marks.js";
-import type { Flash } from "./connections/shared.js";
 import { AgentsPanel } from "./identity/AgentsPanel.js";
 import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
 import { DevicesPanel } from "./identity/DevicesPanel.js";

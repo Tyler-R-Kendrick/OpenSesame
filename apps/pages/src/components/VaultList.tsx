@@ -11,8 +11,11 @@
  * never shows a sealed name before unlock.
  */
 
+import {
+  type DeviceVault,
+  describeSealedAt,
+} from "@opensesame/app-core/lib/vaults.js";
 import type { ReactNode } from "react";
-import { type DeviceVault, describeSealedAt } from "../lib/vaults.js";
 import { IconChevronRight, IconFolder, IconUser, IconVault } from "./Icons.js";
 import { StatusMark } from "./StatusMark.js";
 

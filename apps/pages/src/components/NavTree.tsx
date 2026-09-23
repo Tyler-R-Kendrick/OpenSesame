@@ -1,3 +1,9 @@
+import { settingsCategoryFromLocation } from "@opensesame/app-core/lib/crumbs.js";
+import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
+import type {
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 /**
  * The rail's section tree, split out of `AppShell` so the shell file stays
  * within the module-size budget (ADR 0093). Nothing about the contract moved:
@@ -7,10 +13,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { settingsCategoryFromLocation } from "../lib/crumbs.js";
-import type { ItemKindRow } from "../lib/item-kinds.js";
 import { useVault } from "../lib/vault/hooks.js";
-import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
   SectionRow,

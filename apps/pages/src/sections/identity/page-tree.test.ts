@@ -1,5 +1,5 @@
+import type { LocalIdentity } from "@opensesame/app-core/lib/local-directory.js";
 import { describe, expect, it } from "vitest";
-import type { LocalIdentity } from "../../lib/local-directory.js";
 import { pageTreeItemCount } from "../../lib/page-to-tree.js";
 
 import { identityPageTree } from "./page-tree.js";
@@ -7,7 +7,7 @@ import { identityPageTree } from "./page-tree.js";
 import {
   IDENTITY_LABELS,
   IDENTITY_VIEWS,
-} from "../../lib/section-view-names.js";
+} from "@opensesame/app-core/lib/section-view-names.js";
 const alice: LocalIdentity = {
   id: "local_alice",
   kind: "person",

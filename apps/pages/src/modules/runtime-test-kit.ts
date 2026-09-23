@@ -5,11 +5,11 @@
  * way the loader relies on (LOAD-09: fresh handles under the new lease).
  */
 
-import { expect, vi } from "vitest";
 import type {
   CapabilityModule,
   CapabilityRuntime,
-} from "../lib/capabilities/runtime-contract.js";
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { expect, vi } from "vitest";
 import { type TestContextOptions, createTestContext } from "./test-context.js";
 
 export type ImportSideEffects = Readonly<{

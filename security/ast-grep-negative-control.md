@@ -75,9 +75,9 @@ the call site:
 
 | Site | Rule | Why |
 | --- | --- | --- |
-| `apps/pages/src/lib/connectivity-monitor.ts` | `ts-math-random-security` | Probe jitter. Nothing treats the delay as unpredictable-to-an-attacker; it only stops a fleet sweeping in lockstep. |
-| `apps/pages/src/lib/guest-auth.ts` (stash) | `ts-localstorage-set` | Real and deliberate — the guest access token has to survive the OIDC redirect, which is a full navigation. Follows `docs/security/audit-2026-08-07-sdk-browser-storage.md`: sessionStorage, no refresh token. |
-| `apps/pages/src/lib/guest-auth.ts` (pending link) | `ts-localstorage-set` | A literal `"1"`. The only thing it leaks is that a link is pending, which the on-screen notice already says. |
+| `packages/app-core/src/lib/connectivity-monitor.ts` | `ts-math-random-security` | Probe jitter. Nothing treats the delay as unpredictable-to-an-attacker; it only stops a fleet sweeping in lockstep. |
+| `packages/app-core/src/lib/guest-auth.ts` (stash) | `ts-localstorage-set` | Real and deliberate — the guest access token has to survive the OIDC redirect, which is a full navigation. Follows `docs/security/audit-2026-08-07-sdk-browser-storage.md`: sessionStorage, no refresh token. |
+| `packages/app-core/src/lib/guest-auth.ts` (pending link) | `ts-localstorage-set` | A literal `"1"`. The only thing it leaks is that a link is pending, which the on-screen notice already says. |
 
 `// ast-grep-ignore: <rule-id>` must be the line **immediately** above the
 match. Another comment between the two silently does nothing, and the gate

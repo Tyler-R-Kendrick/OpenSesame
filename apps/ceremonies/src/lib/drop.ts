@@ -16,7 +16,7 @@ import {
  * it, returns the sealed manifest. Decryption happens here, with the
  * fragment key, and the reveal exists only in memory.
  *
- * The decryption half mirrors `apps/pages/src/lib/vault/drop.ts` (the
+ * The decryption half mirrors `packages/app-core/src/lib/vault/drop.ts` (the
  * canonical implementation); the ceremonies app does not depend on Pages, so
  * the AES-GCM + SHA-256 layout is reimplemented here and any change to the
  * drop manifest format must land in both.

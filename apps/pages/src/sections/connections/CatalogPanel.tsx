@@ -1,3 +1,15 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
+import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
+import {
+  catalogTileNote,
+  isVercelCatalogId,
+  isVercelConnectable,
+} from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
@@ -8,18 +20,9 @@ import {
   useListingSearch,
 } from "../../components/SlashSearch.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
-import type { Connection, Provider } from "../../lib/connections.js";
-import { isConnectionCatalogProvider } from "../../lib/connector-guidance.js";
-import { isManagedConnector } from "../../lib/managed-connectors.js";
-import {
-  catalogTileNote,
-  isVercelCatalogId,
-  isVercelConnectable,
-} from "../../lib/vercel-connect-catalog.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { catalogPageSections } from "./page-tree.js";
-import { connectorPath } from "./shared.js";
 
 export function authKindLabel(provider: Provider): string {
   if (isManagedConnector(provider.id)) return "Managed";

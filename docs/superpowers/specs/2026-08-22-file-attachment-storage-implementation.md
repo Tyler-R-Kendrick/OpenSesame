@@ -593,7 +593,7 @@ nothing.
 Owns: `docs/adr/0054-file-attachment-storage.md` (new),
 `docs/adr/0038-sealed-store-backup-github-app.md`,
 `docs/validation/pact.md`, `AGENTS.md`,
-`apps/pages/src/lib/vault/import/zip.ts`.
+`packages/app-core/src/lib/vault/import/zip.ts`.
 
 Tasks:
 

@@ -1,8 +1,8 @@
-import { AlertOutbox } from "../../src/lib/duress/alert/outbox.ts";
+import { AlertOutbox } from "@opensesame/app-core/lib/duress/alert/outbox.js";
 import {
   createAlertSealingKey,
   sealAlertPackage,
-} from "../../src/lib/duress/alert/seal.ts";
+} from "@opensesame/app-core/lib/duress/alert/seal.js";
 /**
  * Window-facing fixture API for Playwright journeys.
  * Leaf imports only — avoids broken barrel / contracts↔os-domain gaps.
@@ -15,22 +15,22 @@ import {
   openProfileSlot,
   sealPrfAndCode,
   sealProfileSlot,
-} from "../../src/lib/duress/crypto/slots.ts";
+} from "@opensesame/app-core/lib/duress/crypto/slots.js";
 import {
   type DuressFormatHeader,
   refuseUnsupportedDuressFormat,
-} from "../../src/lib/duress/feature/format.ts";
+} from "@opensesame/app-core/lib/duress/feature/format.js";
 import {
   generatePeerKeyPair,
   signPeerEnvelope,
   verifyPeerEnvelope,
-} from "../../src/lib/duress/peer/envelope.ts";
-import { DuressSessionFence } from "../../src/lib/duress/session/fence.ts";
+} from "@opensesame/app-core/lib/duress/peer/envelope.js";
+import { DuressSessionFence } from "@opensesame/app-core/lib/duress/session/fence.js";
 import {
   createEmptyEnrollmentState,
   enrollTrigger,
   selectTrigger,
-} from "../../src/lib/duress/trigger/enrollment.ts";
+} from "@opensesame/app-core/lib/duress/trigger/enrollment.js";
 
 declare global {
   interface Window {

@@ -1,4 +1,4 @@
-import type { EditorMode } from "../../lib/configuration/draft.js";
+import type { EditorMode } from "@opensesame/app-core/lib/configuration/draft.js";
 import "./configuration.css";
 
 export function ModeToggle(props: {

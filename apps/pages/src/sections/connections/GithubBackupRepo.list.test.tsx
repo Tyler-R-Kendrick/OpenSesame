@@ -1,12 +1,12 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
+import { githubAppRepoSeams } from "@opensesame/app-core/lib/github-app-repos.js";
+import { githubHistorySeams } from "@opensesame/app-core/lib/github-history.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
-import type { Connection } from "../../lib/connections.js";
-import { githubAppRepoSeams } from "../../lib/github-app-repos.js";
-import { githubHistorySeams } from "../../lib/github-history.js";
 import { GithubBackupField } from "./GithubBackupRepo.js";
 
 const originalBackup = { ...backupSeams };

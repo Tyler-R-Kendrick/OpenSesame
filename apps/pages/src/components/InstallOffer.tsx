@@ -15,10 +15,10 @@
  * Drawn in `docs/design/pwa-install/`.
  */
 
+import { pagesPublicBase } from "@opensesame/app-core/lib/site-broker.js";
 import { briefOrigin } from "@opensesame/os-domain";
 import { useEffect, useState } from "react";
 import { ensurePersistence as ensurePersistenceDefault } from "../lib/install.js";
-import { pagesPublicBase } from "../lib/site-broker.js";
 import { useInstall } from "../lib/use-install.js";
 import { IconAddSquare, IconCheck, IconDownload, IconShare } from "./Icons.js";
 

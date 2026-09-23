@@ -1,5 +1,8 @@
+import {
+  type Account,
+  describeAccount,
+} from "@opensesame/app-core/lib/account.js";
 import { useEffect, useMemo, useState } from "react";
-import { type Account, describeAccount } from "../lib/account.js";
 import { useIdentitySession } from "./identity.js";
 
 /**

@@ -1,8 +1,8 @@
+import { SETTINGS_FIXTURE_CATALOG } from "@opensesame/app-core/lib/duress/settings/index.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { SETTINGS_FIXTURE_CATALOG } from "../../../lib/duress/settings/index.js";
 import { DuressEnrollmentPanel } from "./DuressEnrollmentPanel.js";
 
 afterEach(() => cleanup());

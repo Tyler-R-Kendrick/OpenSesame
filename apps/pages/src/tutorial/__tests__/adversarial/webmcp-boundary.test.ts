@@ -11,6 +11,15 @@
  * tool by name.
  */
 
+import { createAgUiSupportAgent } from "@opensesame/app-core/tutorial/agents/ag-ui/ag-ui-agent.js";
+import type { AgUiEndpoint } from "@opensesame/app-core/tutorial/agents/ag-ui/endpoint.js";
+import type { AgUiTransport } from "@opensesame/app-core/tutorial/agents/ag-ui/transport.js";
+import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
+import {
+  type PagesWebMcpTool,
+  WEBMCP_TOOLS,
+  webmcpSupportSeam,
+} from "@opensesame/app-core/webmcp/tools.js";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import {
   type SupportRequest,
@@ -25,15 +34,6 @@ import {
 } from "@opensesame/webmcp";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  type PagesWebMcpTool,
-  WEBMCP_TOOLS,
-  webmcpSupportSeam,
-} from "../../../webmcp/tools.js";
-import { createAgUiSupportAgent } from "../../agents/ag-ui/ag-ui-agent.js";
-import type { AgUiEndpoint } from "../../agents/ag-ui/endpoint.js";
-import type { AgUiTransport } from "../../agents/ag-ui/transport.js";
-import { guideGoalIds } from "../../registry/goals.js";
 import {
   type SupportChain,
   createSupportChain,

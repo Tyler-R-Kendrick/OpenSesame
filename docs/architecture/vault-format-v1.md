@@ -3,11 +3,11 @@
 Status: Descriptive. This records what the code does today; it is not a
 proposal.
 Date: 2026-09-22
-Source of truth: `apps/pages/src/lib/vault/crypto.ts`,
+Source of truth: `packages/app-core/src/lib/vault/crypto.ts`,
 `lib/vault/unlock-methods.ts`, `lib/vault/seal-rebind.ts`,
 `lib/vault/offline-backup.ts`, `lib/vault/store.ts` (`exportSealed`,
 `importSealed`), `lib/vault-backup-sync.ts`, `lib/vfs.ts`.
-Pinned by: `apps/pages/src/lib/vault/fixtures/vault-vectors.json`
+Pinned by: `packages/app-core/src/lib/vault/fixtures/vault-vectors.json`
 ([ADR 0133](../adr/0133-shared-app-core.md) §7).
 
 This is the contract every reader of a Pages vault must meet: the PWA, the

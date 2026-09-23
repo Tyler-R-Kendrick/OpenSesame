@@ -1,8 +1,8 @@
 import {
   readLocalGithubApp,
   refreshGithubAppInstallations,
-} from "./github-app-manifest.js";
-import { vaultStore } from "./vault/store.js";
+} from "@opensesame/app-core/lib/github-app-manifest.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 
 if (import.meta.env.DEV) {
   let refreshing = false;

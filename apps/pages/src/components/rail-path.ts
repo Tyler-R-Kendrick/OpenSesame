@@ -3,12 +3,15 @@ import {
   settingsPath,
   walletCategoryFromLocation,
   walletPath,
-} from "../lib/crumbs.js";
-import { itemKindsSnapshot } from "../lib/item-kinds.js";
+} from "@opensesame/app-core/lib/crumbs.js";
+import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 
 import { sectionForPath } from "./RailRows.js";
 
-import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-view-names.js";
+import {
+  ACCESS_VIEWS,
+  IDENTITY_VIEWS,
+} from "@opensesame/app-core/lib/section-view-names.js";
 export function selectedRailPath(
   pathname: string,
   hash: string,

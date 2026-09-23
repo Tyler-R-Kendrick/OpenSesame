@@ -6,7 +6,11 @@
  * module-size budget (ADR 0093).
  */
 
-import type { DropItem, LoginItem, NoteItem } from "../../lib/vault/model.js";
+import type {
+  DropItem,
+  LoginItem,
+  NoteItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 
 export function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   return {

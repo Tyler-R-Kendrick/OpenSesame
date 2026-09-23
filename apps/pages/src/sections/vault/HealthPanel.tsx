@@ -1,14 +1,14 @@
-import { useMemo } from "react";
-import { Link } from "react-router";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
-import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
-import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import {
   type HealthIssue,
   ISSUE_EXPLANATION,
   ISSUE_LABEL,
   buildHealthReport,
-} from "../../lib/vault/health.js";
+} from "@opensesame/app-core/lib/vault/health.js";
+import { useMemo } from "react";
+import { Link } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 

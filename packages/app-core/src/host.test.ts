@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost, env, host } from "./host.js";
 import { clearHostForTest, createTestHost } from "./test-host.js";
 
+// The suite's setup installs a host; each case starts from none and the
+// next suite gets the setup's host back.
+beforeEach(() => clearHostForTest());
 afterEach(() => {
-  clearHostForTest();
+  configureHost(createTestHost());
   vi.resetModules();
 });
 

@@ -7,16 +7,16 @@
  */
 
 import type {
+  ApprovedCapabilityContext,
+  ContributionEntry,
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { ParsedRuntimeConfig } from "@opensesame/app-core/lib/runtime-config.js";
+import type {
   ActivationLease,
   ContributionKind,
   PlanIdentity,
   RegistrationHandle,
 } from "@opensesame/capability-composition";
-import type {
-  ApprovedCapabilityContext,
-  ContributionEntry,
-} from "../lib/capabilities/runtime-contract.js";
-import type { ParsedRuntimeConfig } from "../lib/runtime-config.js";
 
 export type RegisteredContribution = {
   readonly kind: ContributionKind;

@@ -21,7 +21,7 @@ Published canvas:
 | `_tokens.css` | `apps/pages/src/styles.css` tokens, lifted verbatim, concatenated into each artboard at seed time. |
 
 Copy is grounded in the real code: `usePlaneStatus()` states from
-`apps/pages/src/lib/planes.ts`, endpoint defaults from `lib/settings.ts`, and the
+`packages/app-core/src/lib/planes.ts`, endpoint defaults from `lib/settings.ts`, and the
 connector set from `CAPABILITIES` in `lib/capabilities.ts` plus the three planes.
 
 ## Re-seeding after an edit

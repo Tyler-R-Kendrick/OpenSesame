@@ -1,14 +1,14 @@
-import { type Ref, useMemo, useState } from "react";
-import { IconAlert, IconPlus } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { loadSettings } from "../../lib/settings.js";
-import { useVault } from "../../lib/vault/hooks.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {
   LIFECYCLE_NOT_READY_REASON,
   preferenceMechanismLabel,
   protectionLifecycleStubs,
   selectProtectionView,
-} from "../../lib/vault/protection/protection-view.js";
+} from "@opensesame/app-core/lib/vault/protection/protection-view.js";
+import { type Ref, useMemo, useState } from "react";
+import { IconAlert, IconPlus } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import {
   type ProtectionSheetRequest,

@@ -1,15 +1,15 @@
-import { useState } from "react";
 import {
   applyBoundRecipe,
   exportRecipe,
   importRecipe,
   previewRecipe,
-} from "../../lib/configuration/recipes.js";
+} from "@opensesame/app-core/lib/configuration/recipes.js";
 import {
   type LocalApplicationRegistration,
   configureLocalApplication,
   readLocalApplications,
-} from "../../lib/local-applications.js";
+} from "@opensesame/app-core/lib/local-applications.js";
+import { useState } from "react";
 
 type ApplyImportedRecipeInput = {
   imported: string;

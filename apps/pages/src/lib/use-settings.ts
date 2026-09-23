@@ -1,5 +1,8 @@
+import {
+  settingsEpoch,
+  subscribeSettings,
+} from "@opensesame/app-core/lib/settings.js";
 import { useSyncExternalStore } from "react";
-import { settingsEpoch, subscribeSettings } from "./settings.js";
 
 /**
  * Re-render when persisted settings change.

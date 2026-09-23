@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CapabilityConnectorBinding } from "../lib/capabilities.js";
+import type { CapabilityConnectorBinding } from "@opensesame/app-core/lib/capabilities.js";
 import {
   KeyVaultCeremony,
   keyVaultCeremonyDependencies,

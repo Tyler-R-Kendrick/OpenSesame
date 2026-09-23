@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
 import {
   type CharOptions,
   type GeneratorOptions,
@@ -7,7 +6,8 @@ import {
   defaultPassphraseOptions,
   generate,
   generatorEntropyBits,
-} from "../lib/vault/password.js";
+} from "@opensesame/app-core/lib/vault/password.js";
+import { useCallback, useEffect, useState } from "react";
 import { useCopyFeedback } from "./FieldRow.js";
 import { IconCheck, IconCopy, IconRefresh } from "./Icons.js";
 

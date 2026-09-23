@@ -9,7 +9,8 @@ use std::sync::atomic::Ordering;
 use opensesame_domain::transport::TransportPolicy;
 use opensesame_transport_security::plain_provenance_layer;
 use support::{
-    byte_sequence, client, client_cert, spawn_origin, url, Handled, Pki, Seen, TRUSTED_LISTENER,
+    byte_sequence, client, client_cert, one_connection, seen_over, spawn_origin, url, Handled, Pki,
+    Seen, TRUSTED_LISTENER,
 };
 
 async fn seen(response: reqwest::Response) -> Seen {
@@ -284,42 +285,35 @@ async fn malformed_fields_from_a_bound_ingress_are_refused_before_the_handler() 
     );
 }
 
+/// AT-INGRESS-POOL over one TLS connection held explicitly (not a pool, whose
+/// hand-back of a kept-alive connection races the next request): three
+/// requests in sequence, and the listener counts exactly one handshake.
 #[tokio::test(flavor = "multi_thread")]
 async fn identities_stay_request_local_over_one_kept_alive_connection() {
     let pki = Pki::new();
     let origin = spawn_origin(&pki, TransportPolicy::TrustedIngress, TRUSTED_LISTENER).await;
-    let http = client(&pki, Some(&pki.ingress), origin.addr);
+    let mut connection = one_connection(&pki, Some(&pki.ingress), origin.addr).await;
     let chain = byte_sequence(&pki.originating_int.ca_der());
-    let alice = seen(
-        http.get(url(origin.addr, "/whoami"))
-            .header("client-cert", client_cert(&pki.alice))
-            .header("client-cert-chain", chain.clone())
-            .send()
-            .await
-            .expect("alice"),
+    let (alice_cert, bob_cert) = (client_cert(&pki.alice), client_cert(&pki.bob));
+    let alice = seen_over(
+        &mut connection,
+        "/whoami",
+        &[("client-cert", &alice_cert), ("client-cert-chain", &chain)],
     )
     .await;
-    let bob = seen(
-        http.get(url(origin.addr, "/whoami"))
-            .header("client-cert", client_cert(&pki.bob))
-            .header("client-cert-chain", chain)
-            .send()
-            .await
-            .expect("bob"),
+    let bob = seen_over(
+        &mut connection,
+        "/whoami",
+        &[("client-cert", &bob_cert), ("client-cert-chain", &chain)],
     )
     .await;
-    let nobody = seen(
-        http.get(url(origin.addr, "/whoami"))
-            .send()
-            .await
-            .expect("nobody"),
-    )
-    .await;
+    let nobody = seen_over(&mut connection, "/whoami", &[]).await;
     assert_eq!(
         origin.counters.handshakes_ok(),
         1,
         "all three requests shared one TLS connection"
     );
+    assert_eq!(origin.handled.0.load(Ordering::SeqCst), 3);
     assert_eq!(
         alice.originating.as_deref(),
         Some(pki.alice.thumbprint.as_str())
@@ -334,4 +328,8 @@ async fn identities_stay_request_local_over_one_kept_alive_connection() {
     );
     assert_eq!(alice.peer, bob.peer, "same ingress peer throughout");
     assert_eq!(nobody.peer, alice.peer);
+    assert!(
+        !nobody.client_cert_header_present,
+        "no raw field reaches the handler on a reused connection"
+    );
 }

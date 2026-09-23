@@ -6,6 +6,18 @@
  */
 
 import {
+  beginSignIn,
+  defaultUpstream,
+} from "@opensesame/app-core/lib/federation.js";
+import {
+  type Notice,
+  dismissNotice,
+  listNotices,
+  subscribeNotices,
+} from "@opensesame/app-core/lib/notices.js";
+import { loadQueue } from "@opensesame/app-core/lib/queue.js";
+import { buildHealthReport } from "@opensesame/app-core/lib/vault/health.js";
+import {
   useCallback,
   useMemo,
   useRef,
@@ -13,16 +25,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Link } from "react-router";
-import { beginSignIn, defaultUpstream } from "../lib/federation.js";
 import { useModalFocus } from "../lib/modal-focus.js";
-import {
-  type Notice,
-  dismissNotice,
-  listNotices,
-  subscribeNotices,
-} from "../lib/notices.js";
-import { loadQueue } from "../lib/queue.js";
-import { buildHealthReport } from "../lib/vault/health.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CeremonyLink } from "./CeremonyLauncher.js";

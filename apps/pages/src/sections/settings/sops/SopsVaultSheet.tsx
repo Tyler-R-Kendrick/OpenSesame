@@ -1,13 +1,13 @@
+import { releaseDownloads } from "@opensesame/app-core/lib/sops/download.js";
+import { sopsSession } from "@opensesame/app-core/lib/sops/session.js";
+import { loadVaultIdentities } from "@opensesame/app-core/sections/settings/sops/identities.js";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { IconDownload, IconPlus, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useModalFocus } from "../../../lib/modal-focus.js";
-import { releaseDownloads } from "../../../lib/sops/download.js";
-import { sopsSession } from "../../../lib/sops/session.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
-import { loadVaultIdentities } from "./identities.js";
 import { useVaultSecretActions } from "./useVaultSecrets.js";
 
 type ViewProps = {

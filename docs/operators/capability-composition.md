@@ -25,7 +25,7 @@ does not change what your deployment serves.**
 | Example | `connectors.external` | `connections.create` |
 | Shape | `family.name[-name]` | the existing `@opensesame/capability-registry` id |
 | Who picks it | a person or an operator, once | nobody — it is dispatched |
-| Where it lives | `apps/pages/src/lib/capabilities/catalog.ts` | `packages/capability-registry` |
+| Where it lives | `packages/app-core/src/lib/capabilities/catalog.ts` | `packages/capability-registry` |
 | What it gates | whether the implementation is loaded at all | whether this principal may do this now |
 
 A capability **owns** operations; it is not one. Nothing in the registry was
@@ -91,14 +91,14 @@ review delta until it is accepted again.
 
 None of these is consent: a skipped setup tab in `setup.v1`, an endpoint URL in
 `settings.v1`, a remembered model provider, an imported vault, a URL callback,
-a cached module. `apps/pages/src/lib/capabilities/migration.ts` reads those old
+a cached module. `packages/app-core/src/lib/capabilities/migration.ts` reads those old
 records and *suggests* capabilities for a draft. It enables nothing, and its
 `enabled` field is typed as the empty tuple so it cannot.
 
 ## 3. Purpose presets, and exactly what each selects
 
 A preset is a starting point, authored as data in
-`apps/pages/src/lib/capabilities/presets.ts`. It approves nothing by itself:
+`packages/app-core/src/lib/capabilities/presets.ts`. It approves nothing by itself:
 `required` must be accepted to join, `optional` is offered unselected, and
 `defaultSelected` is pre-ticked in a draft that still needs Apply and a receipt.
 
@@ -134,7 +134,7 @@ that way:
   `capabilities.policy.local.v1`. Only a personal-local instance is editable
   here; a same-origin or signed policy is read-only
   (`capabilityResourceEditable()` in
-  `apps/pages/src/lib/configuration/capabilities-resources.ts`).
+  `packages/app-core/src/lib/configuration/capabilities-resources.ts`).
 - **Export instance configuration** — hands you a file,
   `opensesame-instance-configuration.yaml`, containing the policy and the
   selection. No service is contacted; it is a Blob and a click
@@ -452,7 +452,7 @@ or when the receipt does not cover the draft.
 Every new user-facing feature is a capability. Five things, in addition to
 [ADR 0065](../adr/0065-agent-surface-parity.md)'s registry entry:
 
-1. a descriptor in `apps/pages/src/lib/capabilities/catalog-optional-*.ts`;
+1. a descriptor in `packages/app-core/src/lib/capabilities/catalog-optional-*.ts`;
 2. a module entry `apps/pages/src/modules/<capability-id>/runtime.ts` exporting
    `capabilityRuntime`, with no top-level side effects;
 3. an ownership rule (the map in `lib/capabilities/ownership.ts` derives the

@@ -7,7 +7,7 @@ import {
 import {
   ACCESS_LABELS,
   type ACCESS_VIEWS,
-} from "../../lib/section-view-names.js";
+} from "@opensesame/app-core/lib/section-view-names.js";
 export type AccessPlanes = {
   host?: boolean;
   identity?: boolean;

@@ -1,3 +1,21 @@
+import type {
+  Integration,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  createIntegration,
+  listIntegrations,
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  claimGithubAppCode,
+  readLocalGithubApp,
+  refreshGithubAppInstallations,
+  subscribeLocalGithubApp,
+} from "@opensesame/app-core/lib/github-app-manifest.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
 import {
   type FormEvent,
   useCallback,
@@ -7,15 +25,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import { IconCheck, IconCopy, IconExternal } from "../../components/Icons.js";
-import type { Integration, Provider } from "../../lib/connections.js";
-import { createIntegration, listIntegrations } from "../../lib/connections.js";
-import {
-  claimGithubAppCode,
-  readLocalGithubApp,
-  refreshGithubAppInstallations,
-  subscribeLocalGithubApp,
-} from "../../lib/github-app-manifest.js";
-import { type Flash, errorText } from "./shared.js";
 import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 
 function usableFor(provider: Provider) {

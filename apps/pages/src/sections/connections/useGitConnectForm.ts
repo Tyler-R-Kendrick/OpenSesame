@@ -1,28 +1,28 @@
-import { type FormEvent, useId, useState } from "react";
-import { putBackupTarget } from "../../lib/backup.js";
-import { localGitToConnection } from "../../lib/connections-local-git.js";
+import { putBackupTarget } from "@opensesame/app-core/lib/backup.js";
+import { localGitToConnection } from "@opensesame/app-core/lib/connections-local-git.js";
 import {
   type Connection,
   type Provider,
   createConnection,
   setConnectionConfiguration,
-} from "../../lib/connections.js";
+} from "@opensesame/app-core/lib/connections.js";
 import {
   type GitAuthFields,
   type GitAuthMode,
   gitAuthReady,
   gitConfigurationPayload,
   gitConfigurationSet,
-} from "../../lib/git-auth-modes.js";
-import { ownerRepoFromGitRemote } from "../../lib/git-backup-forges.js";
+} from "@opensesame/app-core/lib/git-auth-modes.js";
+import { ownerRepoFromGitRemote } from "@opensesame/app-core/lib/git-backup-forges.js";
 import {
   isLocalGitRemoteId,
   rememberLocalGitRemote,
-} from "../../lib/git-remote-local.js";
-import { bindHistoryConnection } from "../../lib/history-backups.js";
+} from "@opensesame/app-core/lib/git-remote-local.js";
+import { bindHistoryConnection } from "@opensesame/app-core/lib/history-backups.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
+import { type FormEvent, useId, useState } from "react";
 import type { GitConnectFieldsModel } from "./GitConnectFields.js";
-import type { Flash } from "./shared.js";
-import { errorText } from "./shared.js";
 
 type GitConnectPersistInput = GitAuthFields & {
   provider: Provider;

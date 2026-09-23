@@ -1,4 +1,12 @@
 import {
+  CAPABILITY_CATALOG,
+  PROMPT_EXAMPLE_IDS,
+  coreCapabilityIds,
+  describeCapability,
+  optionalCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
+import { runtimeModule } from "@opensesame/app-core/lib/capabilities/descriptor.js";
+import {
   type CapabilityDescriptor,
   isCapabilityId,
   isModuleId,
@@ -6,14 +14,6 @@ import {
 } from "@opensesame/capability-composition";
 import { OPERATION_CAPABILITY } from "@opensesame/capability-registry";
 import { describe, expect, it } from "vitest";
-import {
-  CAPABILITY_CATALOG,
-  PROMPT_EXAMPLE_IDS,
-  coreCapabilityIds,
-  describeCapability,
-  optionalCapabilityIds,
-} from "./catalog.js";
-import { runtimeModule } from "./descriptor.js";
 import { MODULE_OWNERSHIP } from "./ownership.js";
 
 const byId = new Map(

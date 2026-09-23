@@ -1,5 +1,8 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import { type ReactNode, useEffect, useSyncExternalStore } from "react";
-import type { Connection, Provider } from "../lib/connections.js";
 
 type Snapshot = {
   providers: Provider[] | null;

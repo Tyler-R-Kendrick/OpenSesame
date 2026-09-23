@@ -1,6 +1,6 @@
 # Contracts
 
-- **C-RESOURCE** — `apps/pages/src/lib/configuration/types.ts`, `registry.ts`, `aliases.ts`. Display paths are aliases. Forbidden ledgers fail closed.
+- **C-RESOURCE** — `packages/app-core/src/lib/configuration/types.ts`, `registry.ts`, `aliases.ts`. Display paths are aliases. Forbidden ledgers fail closed.
 - **C-DOCUMENT** — YAML 1.2 JSON-compatible profile via `yaml` (`yaml-profile.ts`, `yaml-patch.ts`, `draft.ts`). No-edit mode switch keeps bytes. Invalid source stays editable.
 - **C-COMMIT** — `prefs-adapter.ts`, `local-application-source.ts`. Outcomes: applied_durable, conflict, refused. Comment-only saves do not invalidate grants.
 - **C-COMMAND** — `actions.ts`, `keybindings.ts`. `/` remains pane search. Bindings cannot name URLs.

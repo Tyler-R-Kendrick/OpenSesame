@@ -1,16 +1,16 @@
-import type { MutableRefObject } from "react";
-import { resumeGuestSession } from "../../lib/guest-auth.js";
+import { resumeGuestSession } from "@opensesame/app-core/lib/guest-auth.js";
 import type {
   SecondStepId,
   UnlockMethodId,
-} from "../../lib/vault/unlock-methods.js";
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   completePasskeyDuressCode,
   unlockWithPasskeyAfterDuressGate,
-} from "./unlock-passkey-duress.js";
-import { unlockWithPasswordAfterDuressGate } from "./unlock-password-duress.js";
-import { unlockWithPinAfterDuressGate } from "./unlock-pin-duress.js";
-import { unlockSecondStepAfterDuressGate } from "./unlock-second-step-duress.js";
+} from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
+import { unlockWithPasswordAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-password-duress.js";
+import { unlockWithPinAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-pin-duress.js";
+import { unlockSecondStepAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-second-step-duress.js";
+import type { MutableRefObject } from "react";
 
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;

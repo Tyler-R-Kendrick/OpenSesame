@@ -8,22 +8,22 @@
  * control, with the three words a document has views of.
  */
 
-import { useEffect, useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
 import {
   commitInstallationSelectionSource,
   commitInstancePolicySource,
   commitVaultRestrictionSource,
   readCapabilitySource,
-} from "../../lib/configuration/capabilities-adapter.js";
+} from "@opensesame/app-core/lib/configuration/capabilities-adapter.js";
 import {
   type CapabilityConfigPorts,
   type CapabilityResourceKind,
   capabilityResource,
   defaultCapabilityPorts,
-} from "../../lib/configuration/capabilities-resources.js";
-import type { CommitResult } from "../../lib/configuration/types.js";
+} from "@opensesame/app-core/lib/configuration/capabilities-resources.js";
+import type { CommitResult } from "@opensesame/app-core/lib/configuration/types.js";
+import { useEffect, useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 
 export type CapabilityView = "visual" | "source" | "effective";
 

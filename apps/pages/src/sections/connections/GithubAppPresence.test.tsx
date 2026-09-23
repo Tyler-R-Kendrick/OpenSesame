@@ -1,14 +1,14 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
+import {
+  claimGithubAppCode,
+  forgetLocalGithubApp,
+} from "@opensesame/app-core/lib/github-app-manifest.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
-import { connectionSeams } from "../../lib/connections.js";
-import {
-  claimGithubAppCode,
-  forgetLocalGithubApp,
-} from "../../lib/github-app-manifest.js";
-import { vaultStore } from "../../lib/vault/store.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
 
 const PUBLIC_KEY = "opensesame.github-app.public";

@@ -1,12 +1,12 @@
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
+import type { AppInstallAccount } from "@opensesame/app-core/lib/github-app-repos.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 /**
  * Repository field: pick from install/App/Host lists, or create under an
  * install account. Native select — never a hidden datalist.
  */
 import { IconEdit } from "../../components/Icons.js";
-import type { Connection } from "../../lib/connections.js";
-import type { AppInstallAccount } from "../../lib/github-app-repos.js";
 import { RepoEditor } from "./GithubBackupRepoEditor.js";
-import type { Flash } from "./shared.js";
 import { useGithubBackupRepo } from "./useGithubBackupRepo.js";
 
 export {
@@ -14,7 +14,7 @@ export {
   repoNameFromSlug,
   resolveBackupSlug,
   sanitizeRepoSlug,
-} from "./GithubBackupRepoResolve.js";
+} from "@opensesame/app-core/sections/connections/GithubBackupRepoResolve.js";
 
 export function GithubBackupField({
   connection,

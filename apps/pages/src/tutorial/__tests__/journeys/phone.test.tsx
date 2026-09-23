@@ -14,13 +14,13 @@
  * honest shape of the journey now, and it exercises resolution twice.
  */
 
-import { fakeAgentAnswering } from "@opensesame/support-agent";
-import { screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
 import {
   duplicateGuideTargetMounts,
   resolveGuideTargetElement,
-} from "../../registry/targets.js";
+} from "@opensesame/app-core/tutorial/registry/targets.js";
+import { fakeAgentAnswering } from "@opensesame/support-agent";
+import { screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   askSupport,
   openSupport,

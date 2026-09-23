@@ -1,5 +1,3 @@
-import type { PolicyDocument } from "@opensesame/contracts";
-import type { Dispatch, FormEvent, SetStateAction } from "react";
 import {
   type ArmingChecklist,
   type CodeSlotStatus,
@@ -16,8 +14,10 @@ import {
   runIsolatedRehearsal,
   sealUnlockTriggerFromCeremony,
   validateRecipientSetup,
-} from "../../../lib/duress/settings/index.js";
-import type { EnrollmentState } from "../../../lib/duress/trigger/enrollment.js";
+} from "@opensesame/app-core/lib/duress/settings/index.js";
+import type { EnrollmentState } from "@opensesame/app-core/lib/duress/trigger/enrollment.js";
+import type { PolicyDocument } from "@opensesame/contracts";
+import type { Dispatch, FormEvent, SetStateAction } from "react";
 
 export function toggleArmingChecklist(
   setChecklist: Dispatch<SetStateAction<ArmingChecklist>>,

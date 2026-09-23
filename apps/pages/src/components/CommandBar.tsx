@@ -1,3 +1,10 @@
+import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
+import { interpretCommand } from "@opensesame/app-core/lib/command-bar/interpret.js";
+import {
+  createPushToTalk,
+  detectSpeechRecognition,
+} from "@opensesame/app-core/lib/command-bar/speech.js";
+import { voiceRecognitionLang } from "@opensesame/app-core/lib/model-provider.js";
 import {
   type FormEvent,
   useCallback,
@@ -7,14 +14,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router";
-import { executeCommand } from "../lib/command-bar/execute.js";
 import { registerCommandBarMic } from "../lib/command-bar/focus.js";
-import { interpretCommand } from "../lib/command-bar/interpret.js";
-import {
-  createPushToTalk,
-  detectSpeechRecognition,
-} from "../lib/command-bar/speech.js";
-import { voiceRecognitionLang } from "../lib/model-provider.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportIfMounted } from "../tutorial/support-access.js";

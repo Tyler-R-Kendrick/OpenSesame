@@ -1,3 +1,10 @@
+import {
+  readLocalPasskeys,
+  revokeLocalPasskey,
+} from "@opensesame/app-core/lib/local-credentials.js";
+import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
+import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   act,
@@ -10,14 +17,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import {
-  readLocalPasskeys,
-  revokeLocalPasskey,
-} from "../../lib/local-credentials.js";
-import { localRequestFixture } from "../../lib/local-request.fixture.js";
-import { currentLocalIdentitySession } from "../../lib/local-sessions.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { lockAllTombs } from "../../lib/vfs.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 import { LocalDirectoryPanel } from "./LocalDirectoryPanel.js";
 

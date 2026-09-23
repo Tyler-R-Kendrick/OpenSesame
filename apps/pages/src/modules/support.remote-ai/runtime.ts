@@ -27,12 +27,12 @@
  * the lease, so a capability disabled mid-flight fetches nothing further.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { installSupportAgentLoaders } from "../../tutorial/agent-seams.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
-} from "../../tutorial/agents/ag-ui/endpoint.js";
+} from "@opensesame/app-core/tutorial/agents/ag-ui/endpoint.js";
+import { installSupportAgentLoaders } from "../../tutorial/agent-seams.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "support.remote-ai";
@@ -63,8 +63,10 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     activation.onDispose(
       installSupportAgentLoaders({
-        provider: () => import("../../tutorial/agents/provider/index.js"),
-        agUi: () => import("../../tutorial/agents/ag-ui/index.js"),
+        provider: () =>
+          import("@opensesame/app-core/tutorial/agents/provider/index.js"),
+        agUi: () =>
+          import("@opensesame/app-core/tutorial/agents/ag-ui/index.js"),
       }),
     );
     activation.onDispose(() => applyAgUiEndpoint(null));

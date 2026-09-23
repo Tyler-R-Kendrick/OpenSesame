@@ -1,9 +1,9 @@
-import { useEffect, useSyncExternalStore } from "react";
 import {
   decideRemotePreview,
   remotePreviewSnapshot,
   subscribeRemotePreview,
-} from "../agents/ag-ui/consent.js";
+} from "@opensesame/app-core/tutorial/agents/ag-ui/consent.js";
+import { useEffect, useSyncExternalStore } from "react";
 
 export function RemoteSupportPreview({ warning }: { warning: string | null }) {
   const preview = useSyncExternalStore(

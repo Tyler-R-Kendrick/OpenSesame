@@ -115,7 +115,8 @@ ts_step contracts true packages/contracts/src pnpm --filter @opensesame/contract
 ts_step oauth-provider true packages/oauth-provider/src pnpm --filter @opensesame/oauth-provider exec vitest run
 ts_step ingress-evidence false packages/ingress-evidence/src pnpm --filter @opensesame/ingress-evidence exec vitest run
 ts_step control-plane-transport false apps/control-plane/src/transport pnpm --filter @opensesame/control-plane exec vitest run src/transport
-ts_step pages-transport false apps/pages/src/lib/transport-status.ts pnpm --filter @opensesame/pages exec vitest run src/lib/transport src/sections/settings/transport
+ts_step core-transport false packages/app-core/src/lib/transport-status.ts pnpm --filter @opensesame/app-core exec vitest run src/lib/transport
+ts_step pages-transport false apps/pages/src/sections/settings/transport pnpm --filter @opensesame/pages exec vitest run src/sections/settings/transport
 
 # ---- 4. static bundle boundary ---------------------------------------------
 static_args=(); [[ ${SKIP_BUILD} -eq 1 ]] && static_args+=(--no-build)

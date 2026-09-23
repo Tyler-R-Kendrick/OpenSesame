@@ -16,6 +16,17 @@
  * the user-authored labels that suite has no reason to carry.
  */
 
+import { createItem, newUri } from "@opensesame/app-core/lib/vault/model.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { buildAgUiOutboundBody } from "@opensesame/app-core/tutorial/agents/ag-ui/outbound.js";
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
+import { guideGoal } from "@opensesame/app-core/tutorial/registry/goals.js";
+import {
+  noteGuideConnectionsPresent,
+  registerGuidePredicates,
+} from "@opensesame/app-core/tutorial/registry/predicates.js";
+import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { describeGuideTargets } from "@opensesame/app-core/tutorial/registry/targets.js";
 import {
   type BoundaryValue,
   type MutableBoundaryObject,
@@ -28,17 +39,6 @@ import {
   sanitizeSupportRequest,
 } from "@opensesame/support-agent";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createItem, newUri } from "../../../lib/vault/model.js";
-import { vaultStore } from "../../../lib/vault/store.js";
-import { buildAgUiOutboundBody } from "../../agents/ag-ui/outbound.js";
-import { buildSupportPageContext } from "../../registry/context.js";
-import { guideGoal } from "../../registry/goals.js";
-import {
-  noteGuideConnectionsPresent,
-  registerGuidePredicates,
-} from "../../registry/predicates.js";
-import { GUIDE_ROUTES } from "../../registry/routes.js";
-import { describeGuideTargets } from "../../registry/targets.js";
 import {
   OVERLAY_SELECTOR,
   createDeferredSupportAgent,

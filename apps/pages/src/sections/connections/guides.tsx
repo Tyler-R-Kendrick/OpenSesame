@@ -1,7 +1,7 @@
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { connectorSteps } from "@opensesame/app-core/lib/connector-guidance.js";
+import { hostBase } from "@opensesame/app-core/lib/identity.js";
 import { IconExternal } from "../../components/Icons.js";
-import type { Provider } from "../../lib/connections.js";
-import { connectorSteps } from "../../lib/connector-guidance.js";
-import { hostBase } from "../../lib/identity.js";
 
 export function DeploymentSetupGuide({ provider }: { provider: Provider }) {
   const callback = `${hostBase()}/api/v1/oauth/callback/${provider.id}`;

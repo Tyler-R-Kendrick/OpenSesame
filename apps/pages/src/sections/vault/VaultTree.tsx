@@ -1,3 +1,15 @@
+import { activeProject } from "@opensesame/app-core/lib/projects.js";
+import type {
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
+import { tombPath } from "@opensesame/app-core/lib/vault/paths.js";
+import { readFile, writeFile } from "@opensesame/app-core/lib/vfs.js";
+import {
+  type DirRow,
+  type TreeRow,
+  buildRows,
+} from "@opensesame/app-core/sections/vault/vault-tree-rows.js";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
@@ -10,11 +22,7 @@ import {
 import { SlashSearchField } from "../../components/SlashSearch.js";
 import { longPress } from "../../lib/gestures.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
-import { activeProject } from "../../lib/projects.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
-import { itemExtension, pathSegment, tombPath } from "../../lib/vault/paths.js";
-import { readFile, writeFile } from "../../lib/vfs.js";
 import { formatExpiry } from "./DropCeremony.js";
 import { VaultPathbar } from "./VaultPathbar.js";
 
@@ -45,27 +53,6 @@ type VaultTreeProps = {
   emptyMessage: string;
 };
 
-type DirRow = {
-  type: "dir";
-  key: string;
-  path: string;
-  name: string;
-  count: number;
-  expanded: boolean;
-};
-
-type ItemRow = {
-  type: "item";
-  key: string;
-  path: string;
-  name: string;
-  ext: string;
-  child: boolean;
-  item: VaultItem;
-};
-
-type TreeRow = DirRow | ItemRow;
-
 async function loadCollapsedDefault(tomb: string): Promise<string[]> {
   try {
     const parsed: BoundaryValue = JSON.parse(
@@ -92,77 +79,6 @@ export const vaultTreeSeams = {
   loadCollapsed: loadCollapsedDefault,
   saveCollapsed: saveCollapsedDefault,
 };
-
-function itemMatches(item: VaultItem, query: string): boolean {
-  return `${pathSegment(item.name)}${itemExtension(item)}`
-    .toLowerCase()
-    .includes(query);
-}
-
-function buildRows(
-  items: VaultItem[],
-  folders: Folder[],
-  collapsed: ReadonlySet<string>,
-  query: string,
-): TreeRow[] {
-  const rows: TreeRow[] = [];
-  const grouped = new Map<string, VaultItem[]>();
-  const rootItems: VaultItem[] = [];
-  const folderIds = new Set(folders.map((folder) => folder.id));
-  for (const item of items) {
-    if (item.folderId && folderIds.has(item.folderId)) {
-      const bucket = grouped.get(item.folderId);
-      if (bucket) bucket.push(item);
-      else grouped.set(item.folderId, [item]);
-    } else {
-      rootItems.push(item);
-    }
-  }
-  const itemRow = (item: VaultItem, prefix: string): ItemRow => ({
-    type: "item",
-    key: item.id,
-    path: `${prefix}${pathSegment(item.name)}${itemExtension(item)}`,
-    name: pathSegment(item.name),
-    ext: itemExtension(item),
-    child: prefix !== "",
-    item,
-  });
-  // Two folders may share a display name; their paths must not, or their
-  // collapse state (persisted by path) and the status line would couple.
-  const seenNames = new Map<string, number>();
-  for (const folder of folders) {
-    const base = pathSegment(folder.name);
-    const nth = (seenNames.get(base) ?? 0) + 1;
-    seenNames.set(base, nth);
-    const name = nth > 1 ? `${base} (${nth})` : base;
-    // A query that names the folder keeps the whole directory; otherwise the
-    // folder survives only through its matching children.
-    const dirHit = query !== "" && name.toLowerCase().includes(query);
-    const bucket = grouped.get(folder.id) ?? [];
-    const children = dirHit
-      ? bucket
-      : bucket.filter((item) => !query || itemMatches(item, query));
-    if (query && children.length === 0 && !dirHit) continue;
-    const path = `${name}/`;
-    // A search opens every directory it matched into; outside a search the
-    // reader's own collapse choices hold.
-    const expanded = query !== "" || !collapsed.has(path);
-    rows.push({
-      type: "dir",
-      key: `dir_${folder.id}`,
-      path,
-      name,
-      count: children.length,
-      expanded,
-    });
-    if (expanded) for (const item of children) rows.push(itemRow(item, path));
-  }
-  for (const item of rootItems) {
-    if (query && !itemMatches(item, query)) continue;
-    rows.push(itemRow(item, ""));
-  }
-  return rows;
-}
 
 function Highlight({ text, query }: { text: string; query: string }) {
   const at = query ? text.toLowerCase().indexOf(query) : -1;

@@ -1,13 +1,13 @@
-import { Link } from "react-router";
-import { IconDownload, IconPlus, IconUpload } from "../../components/Icons.js";
-import { exportAccessBook } from "../../lib/access-book.js";
+import { exportAccessBook } from "@opensesame/app-core/lib/access-book.js";
 import {
   type AccessView,
   accessImportPath,
   accessIsImportCeremony,
   accessIsNewCeremony,
   accessNewPath,
-} from "../../lib/access-routes.js";
+} from "@opensesame/app-core/lib/access-routes.js";
+import { Link } from "react-router";
+import { IconDownload, IconPlus, IconUpload } from "../../components/Icons.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 function exportBook() {

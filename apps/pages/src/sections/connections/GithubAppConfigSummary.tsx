@@ -1,8 +1,10 @@
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
+import type { AppInstallAccount } from "@opensesame/app-core/lib/github-app-repos.js";
+import { buildGithubAppSummaryModel } from "@opensesame/app-core/sections/connections/githubAppSummaryModel.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { useMemo } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
-import type { Connection } from "../../lib/connections.js";
-import type { AppInstallAccount } from "../../lib/github-app-repos.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 import {
   GithubAppInstallRows,
@@ -10,8 +12,6 @@ import {
   GithubAppRepoList,
 } from "./GithubAppConfigRows.js";
 import { GithubBackupField } from "./GithubBackupRepo.js";
-import { buildGithubAppSummaryModel } from "./githubAppSummaryModel.js";
-import type { Flash } from "./shared.js";
 import { useGithubAppPresence } from "./useGithubAppPresence.js";
 
 /** App-only bind path when no OAuth connection card is mounted. */

@@ -1,6 +1,6 @@
+import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import { IconMonitor, IconMoon, IconSun } from "../../components/Icons.js";
 import { setTheme } from "../../lib/theme.js";
-import type { VaultPrefs } from "../../lib/vault/store.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 const THEMES = [

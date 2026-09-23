@@ -39,7 +39,7 @@ The ADR 0052 certificate stack is live and is the substrate for everything below
 | Sealed key custody (XChaCha20-Poly1305, purpose-scoped AAD) | `crates/connection-broker/src/crypto.rs` (`seal_scoped`, `open_with_ad`) |
 | CLI verbs `opensesame cert ca|issue|ls` | `apps/cli/src/certs.rs` |
 | MCP tools `cert_read`, `cert_issue` (Zod-projected, key material fenced) | `apps/mcp-host/src/tools-read.ts`, `tools-act.ts` |
-| Pages issuance UI + `certificate` vault item kind | `apps/pages/src/lib/certs.ts`, `src/sections/vault/ItemEditor.tsx` |
+| Pages issuance UI + `certificate` vault item kind | `packages/app-core/src/lib/certs.ts`, `src/sections/vault/ItemEditor.tsx` |
 | Capability entries `certs.list`, `certs.issue`, `certs.ca` | `packages/capability-registry/src/index.ts` |
 
 The existing `/api/v1/certs/*` routes stay as-is (backward compatible). All new management
@@ -94,7 +94,7 @@ surface lives under `/api/v1/certmgr/*`; enrollment-protocol endpoints live at `
    gets a `packages/capability-registry` entry mapping or ADR-excluding each agent surface
    (ADR 0065). Parity suites that must stay green:
    `packages/capability-registry/src/registry.test.ts`, `apps/mcp-host/src/registry-parity.test.ts`,
-   `apps/mcp-client/src/registry-parity.test.ts`, `apps/pages/src/webmcp/registry-parity.test.ts`,
+   `apps/mcp-client/src/registry-parity.test.ts`, `packages/app-core/src/webmcp/registry-parity.test.ts`,
    `apps/pwa/src/webmcp.test.ts`, `apps/cli/tests/capability_parity.rs`,
    `packages/cli/src/capability-parity.test.ts`.
 10. **House style.** Rust: `//!` module docs naming the ADR and the secrecy invariant;
@@ -914,7 +914,7 @@ finishes with its done-command green.
 ### 5.19b Certificates dashboard UI (Pages)
 - **Owns:** `apps/pages/src/sections/certmgr/**` (a new top-level `Certificates` section) and its
   panels; `apps/pages/src/lib/certmgr.ts` (data seams calling `hostFetch`); co-located `*.test.tsx`;
-  WebMCP read-only tool bodies in `apps/pages/src/webmcp/tools.ts` (SECTIONS/SECTION_PATHS staged for
+  WebMCP read-only tool bodies in `packages/app-core/src/webmcp/tools.ts` (SECTIONS/SECTION_PATHS staged for
   the Assembler).
 - **Detail:** mirror Infisical's nav — Dashboard (stat cards Total/Active/Expiring/Expired/Revoked +
   by-enrollment/by-algorithm/by-CA + expiration timeline + activity trend, from
@@ -923,9 +923,9 @@ finishes with its done-command green.
   Signers, Certificate Authorities, Certificate Policies, Certificate Profiles. Use the
   `SettingsSection.tsx` category/panel/slot pattern and the `AppShell.tsx` `SECTIONS` mechanism. No
   new heavy chart dep unless already in the tree.
-- **Reuse:** `apps/pages/src/sections/SettingsSection.tsx`, `apps/pages/src/lib/certs.ts`,
+- **Reuse:** `apps/pages/src/sections/SettingsSection.tsx`, `packages/app-core/src/lib/certs.ts`,
   `apps/pages/src/components/AppShell.tsx`.
-- **Done:** `pnpm --filter @opensesame/pages test`; `apps/pages/src/webmcp/registry-parity.test.ts`
+- **Done:** `pnpm --filter @opensesame/pages test`; `packages/app-core/src/webmcp/registry-parity.test.ts`
   green after Assembler wiring.
 
 ### 5.20 Assembler & verification swarm
@@ -936,7 +936,7 @@ finishes with its done-command green.
   consequential new routes), `api/openapi/openapi.yaml` + `apps/gateway/src/routes/contract.rs`
   allowlist, `packages/capability-registry/src/index.ts` (all §4.6 rows) + run the registry
   `generate` script, `apps/mcp-host/src/tools.ts` `hostTools`, `apps/pages/src/components/AppShell.tsx`
-  `SECTIONS` + `apps/pages/src/webmcp/tools.ts` `SECTION_PATHS`, `.env.schema` (all new knobs),
+  `SECTIONS` + `packages/app-core/src/webmcp/tools.ts` `SECTION_PATHS`, `.env.schema` (all new knobs),
   `AGENTS.md:220` ADR-range bump, root `Cargo.toml` workspace-member list for the new crates.
 - **Detail:** apply the pre-specified wiring and staged diffs from each swarm's PR body, then drive
   the §6 matrix to green, fixing only integration seams (never rewriting another swarm's logic; a
@@ -957,11 +957,11 @@ to its surface. Study the cited exemplar before writing; match its idiom rather 
 | Type | Rust infrastructure / exemplar | TypeScript infrastructure / exemplar |
 |---|---|---|
 | **Atomic unit** | inline `#[cfg(test)] mod tests` per module — e.g. `apps/gateway/src/rotation_scheduler.rs` | co-located `*.test.ts(x)` |
-| **Snapshot / characterization** (the repo's [Verify](https://github.com/VerifyTests/Verify) equivalent) | **`insta` 1.43.2** (workspace dev-dep, `features = ["redactions", "json"]`) — `crates/kdbx-bridge/tests/snapshots/*.snap`, `crates/provider-bitwarden/tests/snapshots/*.snap`, `crates/human-vault` `envelope_wire_shape_is_pinned` | Vitest snapshots + `__snapshots__/` — `packages/audit/src/__tests__/redact.characterization.test.ts`, `apps/pages/src/lib/vault/import/formats/kdbx.characterization.test.ts`, `*.approval.test.ts` |
+| **Snapshot / characterization** (the repo's [Verify](https://github.com/VerifyTests/Verify) equivalent) | **`insta` 1.43.2** (workspace dev-dep, `features = ["redactions", "json"]`) — `crates/kdbx-bridge/tests/snapshots/*.snap`, `crates/provider-bitwarden/tests/snapshots/*.snap`, `crates/human-vault` `envelope_wire_shape_is_pinned` | Vitest snapshots + `__snapshots__/` — `packages/audit/src/__tests__/redact.characterization.test.ts`, `packages/app-core/src/lib/vault/import/formats/kdbx.characterization.test.ts`, `*.approval.test.ts` |
 | **Contract / pact** | `pact` test modules; route↔spec test `apps/gateway/src/routes/contract.rs` | `*pact.test.ts` — `packages/database/tests/pact.test.ts`, `packages/redteam/src/structural.pact.test.ts` |
-| **Chaos** | `crates/invoke-through/tests/chaos.rs` | `*.chaos.test.ts` — `apps/control-plane/src/__tests__/pact-chaos.test.ts`, `apps/pages/src/lib/guest-auth.chaos.test.ts` |
+| **Chaos** | `crates/invoke-through/tests/chaos.rs` | `*.chaos.test.ts` — `apps/control-plane/src/__tests__/pact-chaos.test.ts`, `packages/app-core/src/lib/guest-auth.chaos.test.ts` |
 | **Fuzz** | `fuzz/fuzz_targets/*.rs` + `fuzz/Cargo.toml` — model `certificate_request.rs`; `pnpm audit:fuzz` | Jazzer.js — `packages/fuzz`, `pnpm test:fuzz` |
-| **Behavior / BDD** | `tests/*behavior*.rs` with given/when/then test names | `*.behavior.test.ts` — `apps/pages/src/lib/guest-login.behavior.test.ts` |
+| **Behavior / BDD** | `tests/*behavior*.rs` with given/when/then test names | `*.behavior.test.ts` — `packages/app-core/src/lib/guest-login.behavior.test.ts` |
 | **Property** | `proptest` (workspace dev-dep) | fast-check where already used |
 
 **What each type must cover for this feature.**
@@ -1020,7 +1020,7 @@ pnpm audit:clippy && pnpm audit:semgrep && pnpm audit:cargo-audit && pnpm audit:
 
 Parity suites that must stay green: `apps/cli/tests/capability_parity.rs`,
 `packages/cli/src/capability-parity.test.ts`, `apps/mcp-host/src/registry-parity.test.ts`,
-`apps/mcp-client/src/registry-parity.test.ts`, `apps/pages/src/webmcp/registry-parity.test.ts`,
+`apps/mcp-client/src/registry-parity.test.ts`, `packages/app-core/src/webmcp/registry-parity.test.ts`,
 `apps/pwa/src/webmcp.test.ts`, `packages/capability-registry/src/registry.test.ts`,
 `packages/redteam/src/structural.pact.test.ts`.
 
@@ -1077,7 +1077,7 @@ ACME JWS parser — exercised by `pnpm audit:fuzz` short pass.
 | §5.18 K8s issuer | `apps/k8s-issuer/**` |
 | §5.19a Client API | `apps/cli/src/certmgr.rs`, `packages/api-client/src/certmgr.ts`, tool bodies in `apps/mcp-host/src/tools-read.ts`/`tools-act.ts` |
 | §5.19b Pages UI | `apps/pages/src/sections/certmgr/**`, `apps/pages/src/lib/certmgr.ts`, WebMCP tool bodies |
-| §5.20 Assembler | `routes/mod.rs`, `app_state.rs`, `main.rs`, `api/openapi/openapi.yaml`, `routes/contract.rs`, `packages/capability-registry/src/index.ts`, `apps/mcp-host/src/tools.ts`, `apps/pages/src/components/AppShell.tsx`, `apps/pages/src/webmcp/tools.ts` (SECTION_PATHS), `.env.schema`, `AGENTS.md`, root `Cargo.toml` |
+| §5.20 Assembler | `routes/mod.rs`, `app_state.rs`, `main.rs`, `api/openapi/openapi.yaml`, `routes/contract.rs`, `packages/capability-registry/src/index.ts`, `apps/mcp-host/src/tools.ts`, `apps/pages/src/components/AppShell.tsx`, `packages/app-core/src/webmcp/tools.ts` (SECTION_PATHS), `.env.schema`, `AGENTS.md`, root `Cargo.toml` |
 
 ---
 

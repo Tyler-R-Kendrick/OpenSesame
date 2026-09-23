@@ -1,11 +1,11 @@
+import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
+import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { applyConnectCallbackBase } from "../../lib/connect-callback.js";
-import type { Provider } from "../../lib/connections.js";
-import { connectionSeams } from "../../lib/connections.js";
-import { vercelConnectCatalog } from "../../lib/vercel-connect-catalog.js";
-import { setVercelConnectAuth } from "../../lib/vercel-connect.js";
 import { ConnectForm } from "./ConnectForm.js";
 
 const originalIntegrations = connectionSeams.listIntegrations;

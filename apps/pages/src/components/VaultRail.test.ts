@@ -1,5 +1,8 @@
+import type {
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 import { describe, expect, it } from "vitest";
-import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { foldersForKind, uniqueFolderKind } from "./VaultRail.js";
 
 const folders: Folder[] = [

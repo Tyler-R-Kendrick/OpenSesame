@@ -97,36 +97,36 @@ before it was handed over. Verify each is present, then treat it as done:
 Two independent crypto stacks exist. Do not conflate them:
 
 **TS/browser vault** (`apps/pages` — the offline "authority vault" PWA):
-- `apps/pages/src/lib/vault/crypto.ts`: master password → PBKDF2-HMAC-SHA256
+- `packages/app-core/src/lib/vault/crypto.ts`: master password → PBKDF2-HMAC-SHA256
   (`PBKDF2_ITERATIONS = 600_000`, `MAX_PBKDF2_ITERATIONS = 10_000_000`,
   `SALT_BYTES = 16`) → MK; MK AES-256-GCM-wraps a random 256-bit vault key
   (VK); VK seals the whole `VaultBody` as one blob (`sealJson`/`openJson`,
   `SealedBlob { ivB64, ctB64 }`). Cleartext `VaultHeader { v, kdf, wrap,
   unlocks, createdAt, hint?, bodyRev }`. `assertKdfParams` (≈line 129)
   enforces the iteration band — LastPass-style legacy rot is already fenced.
-- `apps/pages/src/lib/vault/unlock-methods.ts`: multi-wrap seam.
+- `packages/app-core/src/lib/vault/unlock-methods.ts`: multi-wrap seam.
   `VaultUnlocks = { passkey?: PasskeyUnlockRecord; pin?: PinUnlockRecord;
   totp?: TotpGateRecord }` (line ≈60), `UnlockMethodId = "password" |
   "passkey" | "pin"` (line ≈66), `wrapVaultKeyWithPin` (PBKDF2 1_200_000),
   `wrapVaultKeyWithPrf`/`unwrapVaultKeyWithPrf`, `kekFromWebauthnPrf` (HKDF
   info `"opensesame/vault/webauthn-prf/v1"`), `exportRawVaultKey`,
   `assertKeepsPrimaryUnlock` (cannot delete the last primary unlock).
-- `apps/pages/src/lib/vault/model.ts`: `ItemKind = "login" | "passkey" |
+- `packages/app-core/src/lib/vault/model.ts`: `ItemKind = "login" | "passkey" |
   "card" | "secret" | "note" | "certificate"`; `LoginItem.totp: string`
   ("Base32 TOTP seed, or an otpauth:// URI; empty when no 2FA"); `VaultBody
   { v: 1, items, folders, rev }`; all names/URLs/folders live INSIDE the
   sealed body (already zero-knowledge-clean).
-- `apps/pages/src/lib/vault/store.ts` (~1143 lines): OPFS-backed sealed
+- `packages/app-core/src/lib/vault/store.ts` (~1143 lines): OPFS-backed sealed
   store; `exportSealed()` ≈line 1020, `importSealed()` ≈line 1038; persistence
   pushes ciphertext to host (`host-backup.ts`, blob ids `vault:header` /
   `vault:body` — safe).
-- TOTP engine: `apps/pages/src/lib/vault/totp.ts` — `parseTotp` (accepts bare
+- TOTP engine: `packages/app-core/src/lib/vault/totp.ts` — `parseTotp` (accepts bare
   base32 or `otpauth://` URI), `totpCode`, `secondsRemaining`,
   `totpSetupUri(raw, {label, issuer})`, `decodeBase32`, seam object
   `totpSeams`. UI `components/TotpCode.tsx`; QR shown in
   `sections/vault/ItemDetail.tsx` (≈507–550); edit field in
   `sections/vault/ItemEditor.tsx` (≈309).
-- Import pipeline: `apps/pages/src/lib/vault/import/` — `index.ts` holds the
+- Import pipeline: `packages/app-core/src/lib/vault/import/` — `index.ts` holds the
   `ADAPTERS` detection chain; `types.ts` holds `SourceId`, `DraftItem`/
   `DraftLogin` (with `totp: string`), `ImportAdapter`, and `normaliseTotp(raw)`
   (≈line 187, the canonical TOTP normalizer). Format adapters live in
@@ -134,12 +134,12 @@ Two independent crypto stacks exist. Do not conflate them:
   env). UI: `sections/settings/ImportPanel.tsx`.
 - QR: `packages/qr` exports `encodeQrSvg`, `encodeQrTerminal`, `encodeQrSize`.
   ENCODE ONLY — there is no QR decoder in the repo.
-- Health: `apps/pages/src/lib/vault/health.ts` — `HealthIssue = "weak" |
+- Health: `packages/app-core/src/lib/vault/health.ts` — `HealthIssue = "weak" |
   "reused" | "old" | "no-2fa"`, pure `buildHealthReport(items)`,
   `ISSUE_LABEL`/`ISSUE_EXPLANATION` maps. UI `sections/vault/HealthPanel.tsx`
   — lines ≈36–40 currently promise "No password, and no hash of one, leaves
   this device — this report never contacts a breach service."
-- Connectivity: `apps/pages/src/lib/connectivity-monitor.ts` — the single
+- Connectivity: `packages/app-core/src/lib/connectivity-monitor.ts` — the single
   supervisor for reachability probes (do not add independent timers).
 - CSP: `apps/pages/index.html` line ≈13 already has
   `connect-src 'self' data: http: https: ws: wss:` — outbound HTTPS is NOT
@@ -194,7 +194,7 @@ Two independent crypto stacks exist. Do not conflate them:
     file bodies echo ids plaintext. LEAK.
   - `src/routes/sync_blobs.rs` — host stores `{id, epoch, ciphertext}` only;
     `project_scoped()` (≈157) prefix-matches `project:{id}:` on blob ids.
-- `apps/pages/src/lib/vault/store-sync.ts` — Pages↔store bridge
+- `packages/app-core/src/lib/vault/store-sync.ts` — Pages↔store bridge
   (`entryToVaultItem`, `vaultItemToEntry`, `planManifestMerge`).
   `storePathToSyncBlobId` (≈line 323) returns
   `project:{id}:Email/github.com` — a plaintext path as an "opaque" sync id.
@@ -297,7 +297,7 @@ message OtpParameters {
 }
 ```
 
-Codec module: `apps/pages/src/lib/vault/import/otpauth-migration.ts`
+Codec module: `packages/app-core/src/lib/vault/import/otpauth-migration.ts`
 exporting exactly:
 `decodeMigrationUri(uri: string): { entries: MigrationEntry[]; batchIndex: number; batchSize: number }`,
 `encodeMigrationUris(entries: MigrationEntry[], perBatch?: number): string[]`
@@ -452,8 +452,8 @@ option has explicit pros, cons, verdict; `pnpm lint` clean.
 **R2 — TS recovery crypto core.**
 Owns: `apps/pages/src/lib/vault/recovery-key.ts` (new),
 `apps/pages/src/lib/vault/recovery-key.test.ts` (new),
-`apps/pages/src/lib/vault/unlock-methods.ts`,
-`apps/pages/src/lib/vault/store.ts`.
+`packages/app-core/src/lib/vault/unlock-methods.ts`,
+`packages/app-core/src/lib/vault/store.ts`.
 Implement §3.1 exactly: `generateRecoveryKey()` (returns `{ display: string;
 bytes: Uint8Array }`), `parseRecoveryKey(display)` (typed errors:
 format/version/checksum), `wrapVaultKeyWithRecoveryKey(bytes, rawVk)`,
@@ -520,7 +520,7 @@ Verify: `cargo +1.88.0 test -p opensesame-human-vault`,
 ### Swarm T — TOTP import/export
 
 **T1 — Google Authenticator migration codec.**
-Owns: `apps/pages/src/lib/vault/import/otpauth-migration.ts` (new) + its
+Owns: `packages/app-core/src/lib/vault/import/otpauth-migration.ts` (new) + its
 test file (new).
 Implement §3.2 exactly (hand-rolled varint/wire-format, zero deps; ~120
 lines). Tests: golden vectors (build a known payload from known secrets,
@@ -531,7 +531,7 @@ never throw uncontrolled; HOTP entries surface with `type: "hotp"`.
 Verify: `pnpm --filter @opensesame/pages test`.
 
 **T2 — TOTP export surface.**
-Owns: `apps/pages/src/lib/vault/export/totp.ts` (new) + test (new),
+Owns: `packages/app-core/src/lib/vault/export/totp.ts` (new) + test (new),
 `apps/pages/src/sections/settings/TotpExportPanel.tsx` (new),
 `apps/pages/src/sections/vault/ItemDetail.tsx`.
 `export/totp.ts` (pure): `buildOtpauthUri(item: LoginItem): string | null`
@@ -555,9 +555,9 @@ escaping, base32 normalization, migration round-trip through T1's decoder.
 Verify: `pnpm --filter @opensesame/pages test`.
 
 **T3 — Authenticator-app import adapters.**
-Owns: `apps/pages/src/lib/vault/import/formats/authenticators.ts` (new) +
-test (new), `apps/pages/src/lib/vault/import/types.ts`,
-`apps/pages/src/lib/vault/import/index.ts`.
+Owns: `packages/app-core/src/lib/vault/import/formats/authenticators.ts` (new) +
+test (new), `packages/app-core/src/lib/vault/import/types.ts`,
+`packages/app-core/src/lib/vault/import/index.ts`.
 Three adapters on the existing `ImportAdapter` interface (mirror
 `formats/protonpass.ts` structure): `otpauth-uris` (plain text, one
 `otpauth://` or `otpauth-migration://` URI per line; migration URIs decode
@@ -576,7 +576,7 @@ GA-migration fixture generated from known secrets (round-trip with T1).
 Verify: `pnpm --filter @opensesame/pages test`.
 
 **T4 — QR image decode for import.**
-Owns: `apps/pages/src/lib/vault/import/qr-image.ts` (new) + test (new),
+Owns: `packages/app-core/src/lib/vault/import/qr-image.ts` (new) + test (new),
 `apps/pages/src/sections/settings/ImportPanel.tsx`, root `pnpm-lock.yaml`
 delta for the dependency, `apps/pages/package.json` — coordinate: R3 also
 edits `apps/pages/package.json`; to avoid conflict, T4 adds `jsqr` while R3
@@ -690,8 +690,8 @@ Verify: `pnpm --filter @opensesame/audit test`,
 `pnpm --filter @opensesame/worker test`, `pnpm lint`.
 
 **M5 — Remove the plaintext sync-id footgun.**
-Owns: `apps/pages/src/lib/vault/store-sync.ts`,
-`apps/pages/src/lib/vault/store-sync.test.ts`.
+Owns: `packages/app-core/src/lib/vault/store-sync.ts`,
+`packages/app-core/src/lib/vault/store-sync.test.ts`.
 Delete `storePathToSyncBlobId` (≈line 323) — it renders logical store paths
 (`project:{id}:Email/github.com`) as "opaque" sync-blob ids and is referenced
 only by its test (≈line 96). Remove the function and its test; leave a
@@ -705,7 +705,7 @@ Verify: `pnpm --filter @opensesame/pages test`.
 
 **B1 — HIBP k-anonymity breach checks (client-side, opt-in).**
 Owns: `apps/pages/src/lib/vault/breach.ts` (new) + test (new),
-`apps/pages/src/lib/vault/health.ts` + its tests,
+`packages/app-core/src/lib/vault/health.ts` + its tests,
 `apps/pages/src/sections/vault/HealthPanel.tsx`.
 Implement §3.7 and §3.8. HealthPanel: keep the passive report fully local
 (its existing copy stays true); add the opt-in "Check for breached
@@ -802,7 +802,7 @@ drizzle file decision (§1), and the final git/PR workflow.
 | `docs/adr/*-blinded-sealed-store-layout.md`, `docs/security/audit-2026-08-22-sealed-store-metadata.md` | M2 |
 | `apps/gateway/src/backup.rs` | M3 |
 | `packages/audit/**`, `apps/worker/src/rotation.ts`, `store_path` producers | M4 |
-| `apps/pages/src/lib/vault/store-sync.ts[.test]` | M5 |
+| `packages/app-core/src/lib/vault/store-sync.ts[.test]` | M5 |
 | `breach.ts[.test]`, `health.ts` (+tests), `HealthPanel.tsx` | B1 |
 | `docs/adr/*-breach-monitoring.md` | B2 |
 | `SettingsSection.tsx`, `apps/pages/package.json` (merge), lockfile, git/PR | V1 |

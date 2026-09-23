@@ -1,7 +1,20 @@
 export {
   onCompleteUnlockCodeSubmission,
   persistEnrollmentStateForUnlock,
-} from "./security/duress-unlock-bridge.js";
+} from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";
+import { describeRecovery } from "@opensesame/app-core/lib/configuration/recovery-outcomes.js";
+import { loadSession } from "@opensesame/app-core/lib/federation.js";
+import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
+import { RemoteCodeError } from "@opensesame/app-core/lib/vault/remote-code.js";
+import {
+  type CodeChannel,
+  type UnlockMethodId,
+  type WebauthnHostCheck,
+  checkWebauthnHost,
+  describeWebauthnError,
+  listAvailableUnlockMethods,
+  listSecondSteps,
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   IconEdit,
@@ -11,20 +24,7 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
-import { describeRecovery } from "../../lib/configuration/recovery-outcomes.js";
-import { loadSession } from "../../lib/federation.js";
-import { isRemoteIdentityConfigured } from "../../lib/identity.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { RemoteCodeError } from "../../lib/vault/remote-code.js";
-import {
-  type CodeChannel,
-  type UnlockMethodId,
-  type WebauthnHostCheck,
-  checkWebauthnHost,
-  describeWebauthnError,
-  listAvailableUnlockMethods,
-  listSecondSteps,
-} from "../../lib/vault/unlock-methods.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
 import {

@@ -1,11 +1,11 @@
 // Must stay first: installs the host the shared core reads (ADR 0133).
 import "./host/boot.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { registerDuressUiModule } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
-import { compositionStore } from "./lib/capabilities/store.js";
-import { registerDuressUiModule } from "./lib/duress/feature/mode.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
 // their stylesheets stay in the first bundle, ahead of styles.css: a
@@ -64,7 +64,7 @@ registerDuressUiModule(
 async function registerWorker(): Promise<void> {
   try {
     const [controller, { DISTRIBUTION }] = await Promise.all([
-      import("./lib/capabilities/worker-controller.js"),
+      import("@opensesame/app-core/lib/capabilities/worker-controller.js"),
       import("./lib/capabilities/distribution.js"),
     ]);
     controller.registerWorkerForPlan(compositionStore, {

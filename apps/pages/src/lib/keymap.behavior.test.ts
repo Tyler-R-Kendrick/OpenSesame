@@ -1,10 +1,10 @@
-/** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   currentKeybindings,
   persistKeybindings,
   resetLiveKeybindings,
-} from "./configuration/nav-persist.js";
+} from "@opensesame/app-core/lib/configuration/nav-persist.js";
+/** @vitest-environment jsdom */
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type RailKeymapTarget,
   type VaultKeymapTarget,

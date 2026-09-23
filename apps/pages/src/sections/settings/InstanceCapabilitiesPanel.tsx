@@ -11,19 +11,19 @@
  * `capabilities/instance-policy.yaml`.
  */
 
-import { useState } from "react";
-import { StatusMark } from "../../components/StatusMark.js";
-import { saveLocalInstancePolicy } from "../../lib/configuration/capabilities-adapter.js";
-import { effectivePlanToYaml } from "../../lib/configuration/capabilities-document.js";
+import { saveLocalInstancePolicy } from "@opensesame/app-core/lib/configuration/capabilities-adapter.js";
+import { effectivePlanToYaml } from "@opensesame/app-core/lib/configuration/capabilities-document.js";
 import {
   CAPABILITY_CATALOG,
   type CapabilityPreset,
   PRESETS,
   explainCapability,
   presetToInstancePolicy,
-} from "../../lib/configuration/capabilities-ports.js";
+} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
+import { useState } from "react";
+import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import { PERSONAL_TOMB } from "../../lib/vfs.js";
 import { PurposeCards } from "../../screens/capabilities/PurposeCards.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
 import {

@@ -1,7 +1,7 @@
 /**
  * REDTEAM-A: Attack trees for OpenSesame duress profiles.
  * Informative catalog — executable reproductions live under
- * apps/pages/src/lib/duress/redteam/** and packages/redteam/src/duress/*.test.ts.
+ * packages/app-core/src/lib/duress/redteam/** and packages/redteam/src/duress/*.test.ts.
  */
 
 export type AttackSeverity = "critical" | "high" | "medium" | "low" | "info";

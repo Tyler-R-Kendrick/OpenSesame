@@ -1,17 +1,21 @@
+import {
+  configureLocalApplication,
+  readLocalApplications,
+} from "@opensesame/app-core/lib/local-applications.js";
+import {
+  type LocalDirectory,
+  changeLocalDirectory,
+} from "@opensesame/app-core/lib/local-directory.js";
+import { mintVaultKey } from "@opensesame/app-core/lib/vault/crypto.js";
+import {
+  lockAllTombs,
+  unlockTomb,
+  vfsSeams,
+} from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import {
-  configureLocalApplication,
-  readLocalApplications,
-} from "../../lib/local-applications.js";
-import {
-  type LocalDirectory,
-  changeLocalDirectory,
-} from "../../lib/local-directory.js";
-import { mintVaultKey } from "../../lib/vault/crypto.js";
-import { lockAllTombs, unlockTomb, vfsSeams } from "../../lib/vfs.js";
 import { LocalApplicationSettings } from "./LocalApplicationSettings.js";
 
 let tomb: string;

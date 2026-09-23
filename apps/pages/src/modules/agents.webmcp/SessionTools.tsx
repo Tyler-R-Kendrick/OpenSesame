@@ -12,15 +12,15 @@
  * which screen is unchanged.
  */
 
-import type { ReactElement, ReactNode } from "react";
-import { useEffect, useSyncExternalStore } from "react";
-import { useLocation } from "react-router";
 import {
   getWebMcpEditorKind,
   sessionToolsFor,
   subscribeWebMcpEditorKind,
   webmcpContext,
-} from "../../webmcp/context.js";
+} from "@opensesame/app-core/webmcp/context.js";
+import type { ReactElement, ReactNode } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { useLocation } from "react-router";
 import { contributedTools, holdScope } from "./surface.js";
 
 export function WebMcpSessionTools({

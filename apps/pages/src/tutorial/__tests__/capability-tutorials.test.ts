@@ -5,6 +5,16 @@
  * session uses must accept it.
  */
 
+import {
+  CAPABILITY_TUTORIALS,
+  guideGoal,
+  guideGoalIds,
+} from "@opensesame/app-core/tutorial/registry/goals.js";
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
+import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
+import { mergedGuideRoutes } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
+import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { CAPABILITIES } from "@opensesame/capability-registry";
 import { compileGuide } from "@opensesame/guide-lang";
 import {
@@ -12,16 +22,6 @@ import {
   fakeAgentAnswering,
 } from "@opensesame/support-agent";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  CAPABILITY_TUTORIALS,
-  guideGoal,
-  guideGoalIds,
-} from "../registry/goals.js";
-import { registerTutorialRealm } from "../registry/optional-tutorials.test-support.js";
-import { registerGuidePredicates } from "../registry/predicates.js";
-import { mergedGuideRoutes } from "../registry/routes.js";
-import { guidePredicateIds } from "../registry/state.js";
-import { guideTargetIds } from "../registry/targets.js";
 
 /**
  * The whole authored corpus, not the core-only default: every optional

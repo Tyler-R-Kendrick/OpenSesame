@@ -38,7 +38,8 @@ job.
    `packages/cli/src/parse.ts`. Any verb absent from every `surfaces.cli`
    string?
 3. **New PWA surfaces**: `SECTIONS` in `apps/pages/src/components/AppShell.tsx`,
-   new files under `apps/pages/src/sections/` or `apps/pages/src/lib/`,
+   new files under `apps/pages/src/sections/`, `apps/pages/src/lib/` or
+   `packages/app-core/src/lib/`,
    new actions in `apps/pwa/src/App.tsx`. Anything a user can now do that no
    capability's `pwa` surface names?
 4. **New Identity API mounts**: `apps/control-plane/src/app.ts` mount table.

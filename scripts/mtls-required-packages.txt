@@ -14,5 +14,6 @@ ts:oauth-provider
 # opensesame-mtls-interop
 # ts:ingress-evidence
 # ts:control-plane-transport
+# ts:core-transport
 # ts:pages-transport
 # ts:control-plane-transport-live

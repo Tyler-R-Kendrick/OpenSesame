@@ -1,4 +1,13 @@
 import {
+  type LocalAgentKey,
+  readLocalAgentKeys,
+  registerLocalAgentKey,
+  revokeLocalAgentKey,
+} from "@opensesame/app-core/lib/local-agent-keys.js";
+import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { revokeLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,15 +23,6 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import {
-  type LocalAgentKey,
-  readLocalAgentKeys,
-  registerLocalAgentKey,
-  revokeLocalAgentKey,
-} from "../../lib/local-agent-keys.js";
-import { LocalDirectoryError } from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import { revokeLocalIdentitySession } from "../../lib/local-sessions.js";
 import { LocalAgentAuthentication } from "./LocalAgentAuthentication.js";
 import { LocalAgentEnrollment } from "./LocalAgentEnrollment.js";
 import { useLocalSessionPresentation } from "./LocalIdentitySession.js";

@@ -1,20 +1,26 @@
+import {
+  sessionToolsFor,
+  setWebMcpEditorKind,
+} from "@opensesame/app-core/webmcp/context.js";
+import {
+  resetWebMcpRegistrationForTests,
+  webmcpRegistrationSnapshot,
+} from "@opensesame/app-core/webmcp/registration.js";
+import {
+  WEBMCP_TOOLS,
+  webmcpNavigationSeam,
+} from "@opensesame/app-core/webmcp/tools.js";
 /** @vitest-environment jsdom */
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sessionToolsFor, setWebMcpEditorKind } from "./context.js";
 import {
   bindWebMcpSupport,
   registerBootTools,
   registerSessionTools,
   useWebMcp,
 } from "./lifecycle.js";
-import {
-  resetWebMcpRegistrationForTests,
-  webmcpRegistrationSnapshot,
-} from "./registration.js";
-import { WEBMCP_TOOLS, webmcpNavigationSeam } from "./tools.js";
 
 type RegisteredTool = {
   name: string;

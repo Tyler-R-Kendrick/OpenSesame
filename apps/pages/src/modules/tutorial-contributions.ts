@@ -7,9 +7,9 @@
  * `navigate` and the support page context, and forgets them on revoke.
  */
 
-import type { GuideGoalDescriptor } from "../tutorial/registry/goals.js";
-import type { GuideRouteDescriptor } from "../tutorial/registry/routes.js";
-import type { GuideTargetDescriptor } from "../tutorial/registry/targets.js";
+import type { GuideGoalDescriptor } from "@opensesame/app-core/tutorial/registry/goals.js";
+import type { GuideRouteDescriptor } from "@opensesame/app-core/tutorial/registry/routes.js";
+import type { GuideTargetDescriptor } from "@opensesame/app-core/tutorial/registry/targets.js";
 import type { Activation } from "./activation.js";
 
 export type TutorialContributions = Readonly<{

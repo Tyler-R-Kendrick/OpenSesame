@@ -11,7 +11,11 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DropItem, SecretItem, VaultItem } from "../../lib/vault/model.js";
+import type {
+  DropItem,
+  SecretItem,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 
 const store = vi.hoisted(() => ({
   saveItem: vi.fn<(item: VaultItem) => Promise<void>>(),
@@ -53,7 +57,7 @@ const vault: VaultHarness = {
   },
 };
 
-import { dropSeams } from "../../lib/vault/drop.js";
+import { dropSeams } from "@opensesame/app-core/lib/vault/drop.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 Object.assign(vaultHooksSeams, {
   useVaultStore: () => store,

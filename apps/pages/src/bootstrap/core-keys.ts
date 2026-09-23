@@ -5,12 +5,15 @@
  * `activate` through `ctx.hydrate`, never here (ownership.md §4.3).
  */
 
-import { CAPABILITY_BOOT_KEYS } from "../lib/capabilities/keys.js";
-import { LAST_VAULT_KEY } from "../lib/last-vault.js";
-import { GUEST_ORDINAL_KEY, GUEST_PERSON_KEY } from "../lib/local-guest.js";
-import { PROJECTS_KEY } from "../lib/projects.js";
+import { CAPABILITY_BOOT_KEYS } from "@opensesame/app-core/lib/capabilities/keys.js";
+import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
+import {
+  GUEST_ORDINAL_KEY,
+  GUEST_PERSON_KEY,
+} from "@opensesame/app-core/lib/local-guest.js";
+import { PROJECTS_KEY } from "@opensesame/app-core/lib/projects.js";
+import { TOMBS_REGISTRY_KEY } from "@opensesame/app-core/lib/vfs.js";
 import { THEME_KEY } from "../lib/theme.js";
-import { TOMBS_REGISTRY_KEY } from "../lib/vfs.js";
 
 export const CORE_BOOT_KEYS: readonly string[] = [
   // The boot record and tomb registry first: which tomb is active decides

@@ -1,5 +1,5 @@
+import { crumbsFor } from "@opensesame/app-core/lib/crumbs.js";
 import { Link, useLocation } from "react-router";
-import { crumbsFor } from "../lib/crumbs.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { IconChevronRight } from "./Icons.js";
 

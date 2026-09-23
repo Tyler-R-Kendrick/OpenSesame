@@ -1,15 +1,15 @@
-import { useId, useState } from "react";
 import {
   type LocalAccessRequest,
   decideLocalAccessRequest,
   localRequestMemberMayDecide,
-} from "../../lib/local-access-requests.js";
+} from "@opensesame/app-core/lib/local-access-requests.js";
 import type {
   LocalDirectory,
   LocalIdentity,
-} from "../../lib/local-directory.js";
-import { loadEnrollmentStateForUnlock } from "../settings/security/duress-unlock-bridge.js";
-import { gateAccessApprovalDecision } from "./duress-approval-bridge.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { gateAccessApprovalDecision } from "@opensesame/app-core/sections/access/duress-approval-bridge.js";
+import { loadEnrollmentStateForUnlock } from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";
+import { useId, useState } from "react";
 
 function listRequestApprovers(
   directory: LocalDirectory,

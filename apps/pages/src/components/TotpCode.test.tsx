@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { totpSeams } from "../lib/vault/totp.js";
+import { totpSeams } from "@opensesame/app-core/lib/vault/totp.js";
 import { TotpCode, currentTotp } from "./TotpCode.js";
 
 /** RFC 6238 Appendix B seed ("12345678901234567890" in base32). */

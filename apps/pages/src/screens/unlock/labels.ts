@@ -1,4 +1,4 @@
-import type { SecondStepId } from "../../lib/vault/unlock-methods.js";
+import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 
 /** How the unlock screen names each primary method on its tabs. */
 export const METHOD_LABEL = {

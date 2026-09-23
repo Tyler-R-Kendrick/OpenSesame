@@ -1,6 +1,12 @@
-import { type ItemKindRow, itemKindsSnapshot } from "../lib/item-kinds.js";
+import {
+  type ItemKindRow,
+  itemKindsSnapshot,
+} from "@opensesame/app-core/lib/item-kinds.js";
+import type {
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
-import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 
 export type VaultCounts = {

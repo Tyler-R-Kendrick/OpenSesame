@@ -1,3 +1,10 @@
+import { subscribeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-local.js";
+import {
+  type BackupTargetView,
+  getBackupStatus,
+  resyncBackup,
+} from "@opensesame/app-core/lib/backup.js";
+import { startVaultBackupObserver } from "@opensesame/app-core/lib/vault-backup-observer.js";
 /**
  * Manual backup sync + last-sync fact for the local GitHub App backup target.
  * Sync is an icon key; status is a StatusMark — never a word-verb button.
@@ -5,13 +12,6 @@
 import { useEffect, useState } from "react";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { subscribeLocalBackupTarget } from "../../lib/backup-target-local.js";
-import {
-  type BackupTargetView,
-  getBackupStatus,
-  resyncBackup,
-} from "../../lib/backup.js";
-import { startVaultBackupObserver } from "../../lib/vault-backup-observer.js";
 
 function syncTone(target: BackupTargetView): "ok" | "err" | "warn" | "idle" {
   if (!target.enabled) return "idle";

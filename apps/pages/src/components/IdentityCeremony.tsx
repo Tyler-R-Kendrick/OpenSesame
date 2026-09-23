@@ -1,11 +1,15 @@
 import { briefOrigin } from "@opensesame/os-domain";
 import { useState } from "react";
 
-import type { ConnectorStatus } from "../lib/connectors.js";
-import { defaultUpstream } from "../lib/federation.js";
-import { beginSignIn } from "../lib/federation.js";
-import { claimGuestAuth } from "../lib/guest-auth.js";
-import { adoptToken, clearSession, identityBase } from "../lib/identity.js";
+import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
+import { defaultUpstream } from "@opensesame/app-core/lib/federation.js";
+import { beginSignIn } from "@opensesame/app-core/lib/federation.js";
+import { claimGuestAuth } from "@opensesame/app-core/lib/guest-auth.js";
+import {
+  adoptToken,
+  clearSession,
+  identityBase,
+} from "@opensesame/app-core/lib/identity.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { FieldShell } from "./FieldShell.js";
 import { IconTerminal, IconUser } from "./Icons.js";

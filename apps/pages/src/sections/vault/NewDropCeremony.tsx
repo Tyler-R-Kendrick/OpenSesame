@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { Link } from "react-router";
 import {
   type CreatedDrop,
   type DropPayload,
   createDrop,
-} from "../../lib/vault/drop.js";
+} from "@opensesame/app-core/lib/vault/drop.js";
+import type { Folder } from "@opensesame/app-core/lib/vault/model.js";
+import { generatePassphrase } from "@opensesame/app-core/lib/vault/password.js";
+import { useState } from "react";
+import { Link } from "react-router";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import type { Folder } from "../../lib/vault/model.js";
-import { generatePassphrase } from "../../lib/vault/password.js";
 import { DropCard } from "./DropCeremony.js";
 import { DROP_TTL_OPTIONS, TtlPicker } from "./DropTtl.js";
 import { EditorActions } from "./EditorActions.js";

@@ -1,11 +1,11 @@
+import { dispatchUserBinding } from "@opensesame/app-core/lib/configuration/nav-persist.js";
+import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
 import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
 import {
   focusCommandBar,
   handleCommandBarChord,
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
-import { dispatchUserBinding } from "./configuration/nav-persist.js";
-import { contributionsSnapshot } from "./contributions.js";
 import { keymapHelpRows } from "./keymap-help.js";
 import { handlePaneEscape } from "./pane-escape.js";
 

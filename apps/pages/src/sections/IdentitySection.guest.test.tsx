@@ -1,3 +1,7 @@
+import * as deviceIdentity from "@opensesame/app-core/lib/device-identity.js";
+import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
+import { mintGuestSessionPerson } from "@opensesame/app-core/lib/local-guest.js";
+import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -10,23 +14,19 @@ import {
   it,
   vi,
 } from "vitest";
-import * as deviceIdentity from "../lib/device-identity.js";
-import { ensureDefaultAccess } from "../lib/local-access-bootstrap.js";
-import { mintGuestSessionPerson } from "../lib/local-guest.js";
-import { listLocalShares } from "../lib/local-share-grants.js";
 
-import { vaultStore } from "../lib/vault/store.js";
-import { GUEST_TOMB, lockAllTombs } from "../lib/vfs.js";
-import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { GUEST_TOMB, lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import {
   IDENTITY_ROUTES,
   IDENTITY_TARGETS,
-} from "../tutorial/registry/identity-catalog.js";
-import { IDENTITY_GOALS } from "../tutorial/registry/identity-goals.js";
+} from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
 import { IdentitySection } from "./IdentitySection.js";
 import { contributeIdentityViews } from "./identity/identity-views.js";
 
-import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning), and each contributes its own view. These cases
 // describe a deployment that approved them, so they register the same

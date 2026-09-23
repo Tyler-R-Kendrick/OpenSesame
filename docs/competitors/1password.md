@@ -94,7 +94,7 @@ It is the highest-fidelity way out of 1Password (CSV loses cards, sections,
 and custom fields).
 
 **OpenSesame already reads it**: the `1password-1pux` adapter in
-`apps/pages/src/lib/vault/import/formats/onepassword.ts`, with a
+`packages/app-core/src/lib/vault/import/formats/onepassword.ts`, with a
 `1password-csv` adapter alongside it that explicitly warns the user to
 export `.1pux` instead.
 

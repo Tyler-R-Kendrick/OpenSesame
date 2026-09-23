@@ -1,14 +1,14 @@
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
+import {
+  ensureGithubAccessGrant,
+  loadGithubInstallationSnapshot,
+  shouldEnsureGithubAccessGrant,
+} from "@opensesame/app-core/lib/github-installation-access.js";
 /**
  * GitHub account, permissions, and repositories inside the connection card.
  * The Access grant is recorded for the access page; it is not listed here.
  */
 import { useEffect, useState } from "react";
-import type { Connection } from "../../lib/connections.js";
-import {
-  ensureGithubAccessGrant,
-  loadGithubInstallationSnapshot,
-  shouldEnsureGithubAccessGrant,
-} from "../../lib/github-installation-access.js";
 import { useVault } from "../../lib/vault/hooks.js";
 
 type AccountRow = { id: string; login: string; type: string };

@@ -1,7 +1,7 @@
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import { emitVaultLock } from "../../lib/vault/lock-events.js";
 import {
   enabledIdentityViews,
   resetIdentityViewsForTests,

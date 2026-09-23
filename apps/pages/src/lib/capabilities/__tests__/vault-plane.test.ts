@@ -10,21 +10,29 @@
  * is the installation every scenario below assumes.
  */
 
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { itemKindsFrom } from "../../item-kinds.js";
-import { kvDelete, kvGet } from "../../kv.js";
-import { randomBytes } from "../../vault/crypto.js";
-import { KIND_LABEL, createItem } from "../../vault/model.js";
-import { assertCiphertextOnlyBackupJson } from "../../vault/offline-backup.js";
-import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
-import { LEGACY_PREFS_KEY } from "../../vault/tomb-migration.js";
-import type { PasskeyCeremony } from "../../vault/unlock-methods.js";
+import {
+  coreCapabilityIds,
+  optionalCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
+import { itemKindsFrom } from "@opensesame/app-core/lib/item-kinds.js";
+import { kvDelete, kvGet } from "@opensesame/app-core/lib/kv.js";
+import { randomBytes } from "@opensesame/app-core/lib/vault/crypto.js";
+import {
+  KIND_LABEL,
+  createItem,
+} from "@opensesame/app-core/lib/vault/model.js";
+import { assertCiphertextOnlyBackupJson } from "@opensesame/app-core/lib/vault/offline-backup.js";
+import {
+  ATTEMPTS_KEY,
+  VaultStore,
+} from "@opensesame/app-core/lib/vault/store.js";
+import { LEGACY_PREFS_KEY } from "@opensesame/app-core/lib/vault/tomb-migration.js";
+import type { PasskeyCeremony } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   assertKeepsPrimaryUnlock,
   listAvailableUnlockMethods,
   unlockMethodsSeams,
-} from "../../vault/unlock-methods.js";
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   BODY_PATH,
   HEADER_PATH,
@@ -33,8 +41,9 @@ import {
   PERSONAL_TOMB,
   tombFileKey,
   vfsFlush,
-} from "../../vfs.js";
-import { coreCapabilityIds, optionalCapabilityIds } from "../catalog.js";
+} from "@opensesame/app-core/lib/vfs.js";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
 
 const PASSWORD = "correct horse battery staple";

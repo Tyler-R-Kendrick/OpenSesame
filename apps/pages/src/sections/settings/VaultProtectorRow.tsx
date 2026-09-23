@@ -1,7 +1,7 @@
+import type { ProtectorViewRow } from "@opensesame/app-core/lib/vault/protection/protection-view.js";
 import type { ReactNode } from "react";
 import { IconRefresh, IconStar, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import type { ProtectorViewRow } from "../../lib/vault/protection/protection-view.js";
 
 function proofMark(row: ProtectorViewRow): ReactNode {
   if (row.proofStatus === "verified") {

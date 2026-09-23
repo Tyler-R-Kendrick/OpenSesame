@@ -1,12 +1,12 @@
-import { type Dispatch, type SetStateAction, createElement } from "react";
 import {
   type ArmingChecklist,
   PRESET_CATALOG,
   type PresetId,
   activationRequiresNewPermissionPrompt,
-} from "../../lib/duress/settings/index.js";
-import type { PresetMeta } from "../../lib/duress/settings/preset-catalog.js";
-import { isPresetId } from "../../lib/duress/settings/presets.js";
+} from "@opensesame/app-core/lib/duress/settings/index.js";
+import type { PresetMeta } from "@opensesame/app-core/lib/duress/settings/preset-catalog.js";
+import { isPresetId } from "@opensesame/app-core/lib/duress/settings/presets.js";
+import { type Dispatch, type SetStateAction, createElement } from "react";
 
 const ARMING_CHECKLIST_ITEMS = [
   ["ownerConsent", "I am the affected owner and authorize this scope"],

@@ -6,13 +6,10 @@
  */
 
 declare module "virtual:opensesame-capability-modules" {
+  import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+
   export const MODULE_TABLE: Readonly<
-    Record<
-      string,
-      () => Promise<{
-        capabilityRuntime: import("./runtime-contract.js").CapabilityRuntime;
-      }>
-    >
+    Record<string, () => Promise<{ capabilityRuntime: CapabilityRuntime }>>
   >;
 }
 

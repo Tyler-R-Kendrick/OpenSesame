@@ -1,9 +1,9 @@
 import {
   PRESET_CATALOG,
   planRecipient,
-} from "../../../lib/duress/settings/index.js";
-import type { PresetId } from "../../../lib/duress/settings/index.js";
-import { isPresetId } from "../../../lib/duress/settings/presets.js";
+} from "@opensesame/app-core/lib/duress/settings/index.js";
+import type { PresetId } from "@opensesame/app-core/lib/duress/settings/index.js";
+import { isPresetId } from "@opensesame/app-core/lib/duress/settings/presets.js";
 import type { DuressEnrollmentViewModel } from "./useDuressEnrollmentPanel.js";
 
 export function DuressEnrollmentModeSection({

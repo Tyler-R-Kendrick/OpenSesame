@@ -1,3 +1,11 @@
+import { remoteIdentityApi } from "@opensesame/app-core/lib/identity.js";
+import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
+import {
+  type CodeChannel,
+  type UnlockMethodId,
+  type WebauthnHostCheck,
+  listSecondSteps,
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   type FormEvent,
   type ReactNode,
@@ -24,15 +32,7 @@ import {
 } from "../../../components/Icons.js";
 import { QrCode } from "../../../components/QrCode.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { remoteIdentityApi } from "../../../lib/identity.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
-import type { SentCode } from "../../../lib/vault/remote-code.js";
-import {
-  type CodeChannel,
-  type UnlockMethodId,
-  type WebauthnHostCheck,
-  listSecondSteps,
-} from "../../../lib/vault/unlock-methods.js";
 import { KeyCeremony } from "./KeyCeremony.js";
 import type { Run } from "./run.js";
 

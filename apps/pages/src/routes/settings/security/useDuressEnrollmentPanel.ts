@@ -1,5 +1,6 @@
+import type { ArmingChecklist } from "@opensesame/app-core/lib/duress/settings/index.js";
+import { deriveEnrollmentPanel } from "@opensesame/app-core/routes/settings/security/duress-enrollment-derived.js";
 import { type FormEvent, useMemo } from "react";
-import type { ArmingChecklist } from "../../../lib/duress/settings/index.js";
 import type { DuressEnrollmentPanelProps } from "./DuressEnrollmentPanel.js";
 import {
   armEnrollmentProfile,
@@ -8,7 +9,6 @@ import {
   submitEnrolledCodeReplacement,
   toggleArmingChecklist,
 } from "./duress-enrollment-actions.js";
-import { deriveEnrollmentPanel } from "./duress-enrollment-derived.js";
 import { useDuressEnrollmentState } from "./useDuressEnrollmentState.js";
 
 export type DuressEnrollmentViewModel = ReturnType<

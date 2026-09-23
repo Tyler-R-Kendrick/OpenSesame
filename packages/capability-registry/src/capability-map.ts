@@ -3,8 +3,8 @@
  *
  * Two identifier universes meet here and stay distinct: the keys are the
  * registry's *operation* ids (unchanged, ADR 0065), the values are the Pages
- * *product capability* ids a person selects (`apps/pages/src/lib/capabilities/
- * catalog.ts`). Every registry entry carrying a `pwa` or `webmcp` surface is
+ * *product capability* ids a person selects (`packages/app-core/src/lib/
+ * capabilities/catalog.ts`). Every registry entry carrying a `pwa` or `webmcp` surface is
  * owned by exactly one product capability; the registry test enforces
  * completeness and the Pages catalog test enforces that the catalog's
  * `operationIds` are exactly this map grouped by value.

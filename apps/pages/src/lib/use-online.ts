@@ -1,5 +1,8 @@
+import {
+  isOnline,
+  subscribeConnectivity,
+} from "@opensesame/app-core/lib/connectivity.js";
 import { useEffect, useState } from "react";
-import { isOnline, subscribeConnectivity } from "./connectivity.js";
 
 function useOnlineDefault(): boolean {
   const [online, setOnline] = useState(isOnline);

@@ -12,8 +12,8 @@ vi.mock("@opensesame/webmcp", () => ({
   createWebMcpRegistrar: sdk.createRegistrar,
 }));
 
-import { resetContributionsForTest } from "../../lib/contributions.js";
-import { webmcpNavigationSeam } from "../../webmcp/navigation.js";
+import { resetContributionsForTest } from "@opensesame/app-core/lib/contributions.js";
+import { webmcpNavigationSeam } from "@opensesame/app-core/webmcp/navigation.js";
 import type { ContextWithPorts } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,

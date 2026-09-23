@@ -2,6 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  CAPABILITY_CATALOG,
+  coreCapabilityIds,
+  optionalCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
+import {
   type EffectivePlan,
   type InstallationCapabilitySelection,
   type InstanceCapabilityPolicy,
@@ -14,11 +19,6 @@ import {
 } from "@opensesame/capability-composition";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import {
-  CAPABILITY_CATALOG,
-  coreCapabilityIds,
-  optionalCapabilityIds,
-} from "./catalog.js";
 import { distributionFromOwnership } from "./ownership.js";
 
 const here = dirname(fileURLToPath(import.meta.url));

@@ -1,18 +1,10 @@
-import { overlapCast } from "@opensesame/os-domain";
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import type { SecretItem } from "@opensesame/app-core/lib/vault/model.js";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
-import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../bindings/identity.js";
-import { clearNotices, listNotices } from "../lib/notices.js";
-import type { SecretItem } from "../lib/vault/model.js";
 const online = vi.hoisted(() => ({ value: true }));
 const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
@@ -29,8 +21,8 @@ const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 
-import { HostSessionError, identitySeams } from "../lib/identity.js";
-import { setVercelConnectAuth } from "../lib/vercel-connect.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 Object.assign(identitySeams, {
   ensureHostSession,
   hostBase: () => "http://127.0.0.1:8787",
@@ -47,7 +39,7 @@ Object.assign(identityHookSeams, {
 import { useOnlineSeams } from "../lib/use-online.js";
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
-import { settingsSeams } from "../lib/settings.js";
+import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
 Object.assign(settingsSeams, { shouldAutoConnect });
 const vault: { items: SecretItem[]; tomb: string; status: string } = vi.hoisted(
   () => ({ items: [], tomb: "personal", status: "unlocked" }),
@@ -62,7 +54,7 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ addItems, saveItem }),
 });
 
-import * as githubInstallation from "../lib/github-installation-access.js";
+import * as githubInstallation from "@opensesame/app-core/lib/github-installation-access.js";
 vi.spyOn(
   githubInstallation,
   "loadGithubInstallationSnapshot",
@@ -104,8 +96,8 @@ import {
   ConnectionsError,
   type Provider,
   connectionSeams,
-} from "../lib/connections.js";
-import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
+} from "@opensesame/app-core/lib/connections.js";
+import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
 import {
   CONNECTIONS_CATALOG as catalog,
@@ -140,7 +132,7 @@ const bundledRef: { current: Provider[] } = { current: [] };
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
-import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
+import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
 const originalEmbeddedCatalogSeams = {
   ...embeddedCatalogSeams,
   bundledProviders: embeddedCatalogSeams.bundledProviders,

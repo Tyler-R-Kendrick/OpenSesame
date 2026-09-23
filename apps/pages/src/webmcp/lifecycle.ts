@@ -1,3 +1,22 @@
+import { assertAgentMayNotUnwrapHumanRoot } from "@opensesame/app-core/lib/vault/protection/agent-boundary.js";
+import {
+  getWebMcpEditorKind,
+  sessionToolsFor,
+  subscribeWebMcpEditorKind,
+  webmcpContext,
+} from "@opensesame/app-core/webmcp/context.js";
+import {
+  noteWebMcpAccepted,
+  noteWebMcpFailure,
+  noteWebMcpRegistered,
+  noteWebMcpUnregistered,
+} from "@opensesame/app-core/webmcp/registration.js";
+import {
+  WEBMCP_TOOLS,
+  type WebMcpSupportSeam,
+  webmcpNavigationSeam,
+  webmcpSupportSeam,
+} from "@opensesame/app-core/webmcp/tools.js";
 import {
   type Unregister,
   type WebMcpToolSpec,
@@ -6,25 +25,6 @@ import {
 } from "@opensesame/webmcp";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { assertAgentMayNotUnwrapHumanRoot } from "../lib/vault/protection/agent-boundary.js";
-import {
-  getWebMcpEditorKind,
-  sessionToolsFor,
-  subscribeWebMcpEditorKind,
-  webmcpContext,
-} from "./context.js";
-import {
-  noteWebMcpAccepted,
-  noteWebMcpFailure,
-  noteWebMcpRegistered,
-  noteWebMcpUnregistered,
-} from "./registration.js";
-import {
-  WEBMCP_TOOLS,
-  type WebMcpSupportSeam,
-  webmcpNavigationSeam,
-  webmcpSupportSeam,
-} from "./tools.js";
 
 const APP_ID = "opensesame-pages";
 

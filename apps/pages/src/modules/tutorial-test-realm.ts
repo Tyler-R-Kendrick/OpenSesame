@@ -20,14 +20,14 @@ import {
   bootPersonalLocal,
   draftFor,
   freshRealm,
-} from "../lib/capabilities/__tests__/harness.js";
-import { deriveLease } from "../lib/capabilities/lease.js";
+} from "@opensesame/app-core/lib/capabilities/__tests__/harness.js";
+import { deriveLease } from "@opensesame/app-core/lib/capabilities/lease.js";
 import {
   bindLeaseToCapability,
   registerContribution,
-} from "../lib/capabilities/registry.js";
-import { compositionStore } from "../lib/capabilities/store.js";
-import { kvSeams } from "../lib/kv.js";
+} from "@opensesame/app-core/lib/capabilities/registry.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { kvSeams } from "@opensesame/app-core/lib/kv.js";
 import type { TutorialContributions } from "./tutorial-contributions.js";
 
 export async function declareTutorialForTest(

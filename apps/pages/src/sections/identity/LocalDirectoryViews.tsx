@@ -1,3 +1,9 @@
+import type {
+  LocalDirectory,
+  LocalDirectoryChange,
+  LocalIdentity,
+  LocalIdentityKind,
+} from "@opensesame/app-core/lib/local-directory.js";
 import { useEffect, useRef } from "react";
 import {
   IconCheck,
@@ -6,12 +12,6 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import type {
-  LocalDirectory,
-  LocalDirectoryChange,
-  LocalIdentity,
-  LocalIdentityKind,
-} from "../../lib/local-directory.js";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 import { LocalApplicationSettings } from "./LocalApplicationSettings.js";
 import { LocalMemberships } from "./LocalMemberships.js";

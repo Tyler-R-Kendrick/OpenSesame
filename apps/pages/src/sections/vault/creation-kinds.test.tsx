@@ -16,6 +16,19 @@
  * capability off would lose the records it already had.
  */
 
+import { PRESETS } from "@opensesame/app-core/lib/capabilities/presets.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
+import { LEGACY_ITEM_KINDS } from "@opensesame/app-core/lib/contributions.test-support.js";
+import {
+  CORE_ITEM_KINDS,
+  itemKindsSnapshot,
+} from "@opensesame/app-core/lib/item-kinds.js";
+import { createItem } from "@opensesame/app-core/lib/vault/model.js";
+import type {
+  CertificateItem,
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import {
@@ -27,16 +40,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { PRESETS } from "../../lib/capabilities/presets.js";
-import { registerContributionForTest } from "../../lib/contributions.js";
-import { LEGACY_ITEM_KINDS } from "../../lib/contributions.test-support.js";
-import { CORE_ITEM_KINDS, itemKindsSnapshot } from "../../lib/item-kinds.js";
-import { createItem } from "../../lib/vault/model.js";
-import type {
-  CertificateItem,
-  Folder,
-  VaultItem,
-} from "../../lib/vault/model.js";
 
 const vault = vi.hoisted(() => ({
   current: { items: [] as VaultItem[], folders: [] as Folder[] },

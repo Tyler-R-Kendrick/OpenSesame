@@ -10,4 +10,4 @@ export {
   persistEnrollmentStateForUnlock,
   loadEnrollmentStateForUnlock,
   routeCompleteUnlockSubmission,
-} from "./duress-unlock-bridge.js";
+} from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";

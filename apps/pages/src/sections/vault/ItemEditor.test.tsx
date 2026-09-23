@@ -1,3 +1,12 @@
+import type { IssuedCertificate } from "@opensesame/app-core/lib/certs.js";
+import { createItem } from "@opensesame/app-core/lib/vault/model.js";
+import type {
+  CertificateItem,
+  Folder,
+  LoginItem,
+  SecretItem,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 import {
   cleanup,
   fireEvent,
@@ -9,15 +18,6 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IssuedCertificate } from "../../lib/certs.ts";
-import { createItem } from "../../lib/vault/model.js";
-import type {
-  CertificateItem,
-  Folder,
-  LoginItem,
-  SecretItem,
-  VaultItem,
-} from "../../lib/vault/model.js";
 
 type VaultFixture = {
   current: { items: VaultItem[]; folders: Folder[] };
@@ -56,11 +56,11 @@ Object.assign(vaultHooksSeams, {
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 
-import { connectionSeams } from "../../lib/connections.js";
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { compileSecretToHost });
 
-import { certsSeams } from "../../lib/certs.js";
+import { certsSeams } from "@opensesame/app-core/lib/certs.js";
 Object.assign(certsSeams, {
   issueCertificate: issueCertificateFromHost,
   acknowledgeCertificateDelivery,

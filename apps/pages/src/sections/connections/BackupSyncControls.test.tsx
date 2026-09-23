@@ -1,3 +1,4 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -7,7 +8,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 
 const original = { ...backupSeams };

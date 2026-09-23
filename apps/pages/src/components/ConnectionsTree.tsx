@@ -1,6 +1,6 @@
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import type { Provider } from "../lib/connections.js";
 import {
   limitPageTree,
   pageToTree,

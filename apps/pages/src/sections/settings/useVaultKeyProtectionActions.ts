@@ -2,9 +2,9 @@
  * Default Settings › Vault key protection actions against the store + sheets.
  */
 
-import { setStatusNotice } from "../../lib/notices.js";
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import { ProtectionError } from "@opensesame/app-core/lib/vault/protection/errors.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { ProtectionError } from "../../lib/vault/protection/errors.js";
 import type { ProtectionSheetRequest } from "./VaultKeyProtectionCeremonies.js";
 import type { VaultKeyProtectionActions } from "./VaultKeyProtectionPanel.js";
 

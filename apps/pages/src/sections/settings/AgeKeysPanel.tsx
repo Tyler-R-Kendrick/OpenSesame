@@ -5,24 +5,24 @@
  * is bound to age. Browser crypto is FiloSottile typage (`age-encryption`).
  */
 
-import { type FormEvent, useEffect, useState } from "react";
-import { FieldShell } from "../../components/FieldShell.js";
-import { IconCheck, IconLock, IconRefresh } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { StatusNote } from "../../components/StatusNote.js";
 import {
   type AgeKeyConfig,
   generateAgeKeyPair,
   proveAgeKeyRoundTrip,
   readAgeKeyConfig,
   writeAgeKeyConfig,
-} from "../../lib/age-keys.js";
-import { connectorLabel } from "../../lib/capabilities.js";
+} from "@opensesame/app-core/lib/age-keys.js";
+import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
 import {
   bindCapabilityConnector,
   bindingNeedsAuth,
-} from "../../lib/capability-bind.js";
-import { loadSettings } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/capability-bind.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import { type FormEvent, useEffect, useState } from "react";
+import { FieldShell } from "../../components/FieldShell.js";
+import { IconCheck, IconLock, IconRefresh } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import { StatusNote } from "../../components/StatusNote.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 

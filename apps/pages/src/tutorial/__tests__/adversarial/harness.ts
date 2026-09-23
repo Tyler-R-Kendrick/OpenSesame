@@ -1,3 +1,20 @@
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
+import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
+import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
+import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import {
+  guidePredicateIds,
+  isKnownGuidePredicate,
+  observeGuidePredicate,
+  readGuidePredicate,
+} from "@opensesame/app-core/tutorial/registry/state.js";
+import {
+  guideTargetIds,
+  isKnownGuideTarget,
+  isMountedGuideTarget,
+  observeGuideTarget,
+  resolveGuideTargetElement,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 /**
  * The composed chain these suites attack.
  *
@@ -24,23 +41,6 @@ import {
   createSupportSession,
   supportVocabulary,
 } from "@opensesame/support-agent";
-import { buildSupportPageContext } from "../../registry/context.js";
-import { guideGoalIds } from "../../registry/goals.js";
-import { registerGuidePredicates } from "../../registry/predicates.js";
-import { GUIDE_ROUTES } from "../../registry/routes.js";
-import {
-  guidePredicateIds,
-  isKnownGuidePredicate,
-  observeGuidePredicate,
-  readGuidePredicate,
-} from "../../registry/state.js";
-import {
-  guideTargetIds,
-  isKnownGuideTarget,
-  isMountedGuideTarget,
-  observeGuideTarget,
-  resolveGuideTargetElement,
-} from "../../registry/targets.js";
 import { createDriverRenderer } from "../../rendering/driver-renderer.js";
 import type { SupportEngine } from "../../session.js";
 import {

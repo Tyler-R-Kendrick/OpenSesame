@@ -21,7 +21,7 @@ Object.assign(vaultHooksSeams, {
 
 import { Crumbs } from "./Crumbs.js";
 
-import { registerLegacyShellData } from "../lib/contributions.test-support.js";
+import { registerLegacyShellData } from "@opensesame/app-core/lib/contributions.test-support.js";
 
 // A crumb path under Connections exists only while that capability does.
 let revokeShell = () => {};

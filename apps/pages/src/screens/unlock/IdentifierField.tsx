@@ -8,15 +8,15 @@
  * run on explicit continue, never per keystroke.
  */
 
-import { type FormEvent, useEffect, useRef, useState } from "react";
-import { classifyIdentifier } from "../../lib/identifier.js";
+import { classifyIdentifier } from "@opensesame/app-core/lib/identifier.js";
 import {
   type OrgAuthMethod,
   type OrgTenant,
   lookupOrgByDomain,
   lookupOrgTenant,
-} from "../../lib/orgs.js";
-import { requestEmailMagicLink } from "../../lib/providers.js";
+} from "@opensesame/app-core/lib/orgs.js";
+import { requestEmailMagicLink } from "@opensesame/app-core/lib/providers.js";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 export const identifierFieldDependencies = {
   lookupOrgTenant,

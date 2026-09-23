@@ -1,7 +1,11 @@
+import { endSession } from "@opensesame/app-core/lib/identity.js";
+import { clearNotices } from "@opensesame/app-core/lib/notices.js";
+import { clearStagedClaimTokens } from "@opensesame/app-core/lib/queue.js";
+import {
+  type VaultState,
+  vaultStore,
+} from "@opensesame/app-core/lib/vault/store.js";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { endSession } from "../identity.js";
-import { clearNotices } from "../notices.js";
-import { clearStagedClaimTokens } from "../queue.js";
 import {
   applyTheme,
   hasStoredTheme,
@@ -9,7 +13,6 @@ import {
   setTheme,
   useThemePreference,
 } from "../theme.js";
-import { type VaultState, vaultStore } from "./store.js";
 
 function useVaultDefault(): VaultState {
   return useSyncExternalStore(vaultStore.subscribe, vaultStore.getSnapshot);

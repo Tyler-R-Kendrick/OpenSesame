@@ -1,26 +1,16 @@
+import type { IdpRecord } from "@opensesame/app-core/lib/idp-registry.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
+import {
+  IDENTITY_ROUTES,
+  IDENTITY_TARGETS,
+} from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
-import type { IdentitySession } from "../lib/identity.js";
-import type { IdpRecord } from "../lib/idp-registry.js";
-import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
-import {
-  IDENTITY_ROUTES,
-  IDENTITY_TARGETS,
-} from "../tutorial/registry/identity-catalog.js";
-import { IDENTITY_GOALS } from "../tutorial/registry/identity-goals.js";
 import { contributeIdentityViews } from "./identity/identity-views.js";
 import { expectProseBudget, makeClient } from "./identity/test-fixtures.js";
 import {
@@ -40,7 +30,10 @@ import {
   session,
 } from "./identity/test-seams.js";
 
-import { listIdpRegistrations, registerIdp } from "../lib/idp-registry.js";
+import {
+  listIdpRegistrations,
+  registerIdp,
+} from "@opensesame/app-core/lib/idp-registry.js";
 import { IdentitySection } from "./IdentitySection.js";
 
 function makeRecord(overrides: Partial<IdpRecord> = {}): IdpRecord {

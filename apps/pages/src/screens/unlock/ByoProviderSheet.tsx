@@ -8,13 +8,13 @@
  * deployment's redirect URI shown to copy.
  */
 
-import { type FormEvent, useState } from "react";
 import {
   ByoError,
   type ByoProviderInput,
   type ByoRegistration,
   registerByoProvider,
-} from "../../lib/byo.js";
+} from "@opensesame/app-core/lib/byo.js";
+import { type FormEvent, useState } from "react";
 
 export const byoSheetDependencies = {
   registerByoProvider,

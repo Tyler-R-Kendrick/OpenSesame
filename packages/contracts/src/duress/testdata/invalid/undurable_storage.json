@@ -14,7 +14,9 @@
           "organizationRef": null,
           "vaultRef": "vault-1",
           "deviceBindingRef": "device-1",
-          "compartmentRefs": ["comp-normal"]
+          "compartmentRefs": [
+            "comp-normal"
+          ]
         },
         "triggerKind": "application_code",
         "effects": {
@@ -34,7 +36,9 @@
           "providerRevocationRefs": [],
           "removal": {
             "kind": "local_enumerated",
-            "resourceRefs": ["comp-normal"],
+            "resourceRefs": [
+              "comp-normal"
+            ],
             "preserveSealedOutbox": true,
             "acceptUnrecoverability": true
           },

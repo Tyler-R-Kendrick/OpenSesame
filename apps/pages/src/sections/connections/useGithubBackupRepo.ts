@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { BackupTargetView } from "../../lib/backup.js";
-import type { Connection } from "../../lib/connections.js";
-import type { AppInstallAccount } from "../../lib/github-app-repos.js";
-import { DEFAULT_PASSWORD_REPO_NAME } from "../../lib/github-history.js";
-import { type RepoChoice, isBound } from "./GithubBackupRepoResolve.js";
-import { commitRepoSlug } from "./githubBackupRepoActions.js";
+import type { BackupTargetView } from "@opensesame/app-core/lib/backup.js";
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
+import type { AppInstallAccount } from "@opensesame/app-core/lib/github-app-repos.js";
+import { DEFAULT_PASSWORD_REPO_NAME } from "@opensesame/app-core/lib/github-history.js";
+import {
+  type RepoChoice,
+  isBound,
+} from "@opensesame/app-core/sections/connections/GithubBackupRepoResolve.js";
+import { commitRepoSlug } from "@opensesame/app-core/sections/connections/githubBackupRepoActions.js";
 import {
   loadRepoChoices,
   seedKey,
   seedReposKey,
-} from "./githubBackupRepoLoad.js";
-import type { Flash } from "./shared.js";
+} from "@opensesame/app-core/sections/connections/githubBackupRepoLoad.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useGithubBackupRepo(
   connection: Connection,

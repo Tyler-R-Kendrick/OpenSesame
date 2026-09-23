@@ -1,3 +1,24 @@
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import type { PageContextInput } from "@opensesame/app-core/tutorial/registry/context.js";
+import {
+  HELP_TOPICS,
+  type HelpTopic,
+  guideGoal,
+  guideGoalIds,
+  rankHelpTopics,
+} from "@opensesame/app-core/tutorial/registry/goals.js";
+import {
+  GUIDE_OVERLAY_ROUTES,
+  GUIDE_ROUTES,
+  type GuideRouteId,
+  guideRouteForPath,
+} from "@opensesame/app-core/tutorial/registry/routes.js";
+import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
+import {
+  clearMountedGuideTargets,
+  guideTargetIds,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
+import { webmcpSupportSeam } from "@opensesame/app-core/webmcp/tool-shared.js";
 /**
  * The composition root for in-product support.
  *
@@ -44,29 +65,8 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useVault } from "../lib/vault/hooks.js";
-import { vaultStore } from "../lib/vault/store.js";
-import { webmcpSupportSeam } from "../webmcp/tool-shared.js";
 import { supportAgentLoaders } from "./agent-seams.js";
 import { gateSupportAsk } from "./ask-guard.js";
-import type { PageContextInput } from "./registry/context.js";
-import {
-  HELP_TOPICS,
-  type HelpTopic,
-  guideGoal,
-  guideGoalIds,
-  rankHelpTopics,
-} from "./registry/goals.js";
-import {
-  GUIDE_OVERLAY_ROUTES,
-  GUIDE_ROUTES,
-  type GuideRouteId,
-  guideRouteForPath,
-} from "./registry/routes.js";
-import { guidePredicateIds } from "./registry/state.js";
-import {
-  clearMountedGuideTargets,
-  guideTargetIds,
-} from "./registry/targets.js";
 import { SupportContext } from "./support-context.js";
 import {
   GUIDE_ERROR_TEXT,
@@ -685,15 +685,15 @@ export async function loadBrowserEngine(
         systemGuideClock,
       }),
     ),
-    import("./registry/context.js"),
-    import("./registry/targets.js"),
-    import("./registry/routes.js"),
-    import("./registry/state.js"),
+    import("@opensesame/app-core/tutorial/registry/context.js"),
+    import("@opensesame/app-core/tutorial/registry/targets.js"),
+    import("@opensesame/app-core/tutorial/registry/routes.js"),
+    import("@opensesame/app-core/tutorial/registry/state.js"),
     import("./rendering/index.js"),
     supportAgentLoaders.promptApi(),
     supportAgentLoaders.agUi(),
-    import("./registry/predicates.js"),
-    import("../lib/connectivity-monitor.js"),
+    import("@opensesame/app-core/tutorial/registry/predicates.js"),
+    import("@opensesame/app-core/lib/connectivity-monitor.js"),
   ]);
 
   predicates.registerGuidePredicates();

@@ -1,5 +1,5 @@
+import { keysForAction } from "@opensesame/app-core/lib/configuration/nav-persist.js";
 import { useRef } from "react";
-import { keysForAction } from "../lib/configuration/nav-persist.js";
 
 import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";

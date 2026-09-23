@@ -3,6 +3,8 @@
  * Matches Unlock methods: forms live in the sheet, never under a row.
  */
 
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import { ProtectionError } from "@opensesame/app-core/lib/vault/protection/errors.js";
 import { type ReactNode, useRef, useState } from "react";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
@@ -14,9 +16,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
-import { setStatusNotice } from "../../lib/notices.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import { ProtectionError } from "../../lib/vault/protection/errors.js";
 
 export type ProtectionSheetKind =
   | "add"

@@ -1,18 +1,21 @@
+import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
+import {
+  compositionStore,
+  storeSeams,
+} from "@opensesame/app-core/lib/capabilities/store.js";
+import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
+import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CAPABILITY_CATALOG } from "../lib/capabilities/catalog.js";
 import { distributionFromOwnership } from "../lib/capabilities/ownership.js";
-import { compositionStore, storeSeams } from "../lib/capabilities/store.js";
-import { kvDelete, kvGet, kvSet } from "../lib/kv.js";
-import { LAST_VAULT_KEY } from "../lib/last-vault.js";
 import { bootCore } from "./boot.js";
 
-import { PROJECTS_KEY } from "../lib/projects.js";
-import { vaultStore } from "../lib/vault/store.js";
+import { PROJECTS_KEY } from "@opensesame/app-core/lib/projects.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   LEGACY_BODY_KEY,
   LEGACY_HEADER_KEY,
-} from "../lib/vault/tomb-migration.js";
+} from "@opensesame/app-core/lib/vault/tomb-migration.js";
 import {
   BODY_PATH,
   GUEST_TOMB,
@@ -25,7 +28,7 @@ import {
   tombFileKey,
   vfsFlush,
   vfsSeams,
-} from "../lib/vfs.js";
+} from "@opensesame/app-core/lib/vfs.js";
 
 /**
  * Boot-path boundary (ADR 0063): before unlock the app may read only the
@@ -46,8 +49,9 @@ const touched = vi.hoisted(() => ({ keys: new Set<string>(), crypto: 0 }));
  * request is the observable, so it is recorded.
  */
 const hydrated = vi.hoisted(() => ({ keys: [] as string[] }));
-vi.mock("../lib/kv.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/kv.js")>();
+vi.mock("@opensesame/app-core/lib/kv.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@opensesame/app-core/lib/kv.js")>();
   return {
     ...actual,
     kvHydrate: async (keys: readonly string[]) => {

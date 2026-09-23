@@ -1,7 +1,7 @@
+import type { GithubAppPermission } from "@opensesame/app-core/lib/backup.js";
+import { forgetLocalGithubApp } from "@opensesame/app-core/lib/github-app-manifest.js";
+import type { GithubAppInstallView } from "@opensesame/app-core/lib/github-app-presence.js";
 import { IconTrash } from "../../components/Icons.js";
-import type { GithubAppPermission } from "../../lib/backup.js";
-import { forgetLocalGithubApp } from "../../lib/github-app-manifest.js";
-import type { GithubAppInstallView } from "../../lib/github-app-presence.js";
 
 /** Unregister the local GitHub App — lives next to the connector title. */
 export function GithubAppForgetButton() {

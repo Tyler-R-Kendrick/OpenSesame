@@ -11,6 +11,10 @@
  * bindings are local share grants.
  */
 
+import {
+  type ConnectorDirectory,
+  directoryOriginLabel,
+} from "@opensesame/app-core/lib/connector-directory.js";
 import { useState } from "react";
 import { ConnectorDirectoryForm } from "../../components/ConnectorDirectoryForm.js";
 import {
@@ -20,10 +24,6 @@ import {
   IconRefresh,
 } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
-import {
-  type ConnectorDirectory,
-  directoryOriginLabel,
-} from "../../lib/connector-directory.js";
 import { keyboardIsIdle } from "../../lib/focus.js";
 import { ConnectorRows, bindButtonId } from "./ConnectorRows.js";
 import { formatTime } from "./format.js";

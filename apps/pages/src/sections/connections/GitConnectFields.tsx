@@ -1,6 +1,6 @@
+import type { GitAuthMode } from "@opensesame/app-core/lib/git-auth-modes.js";
 import type { FormEvent } from "react";
 import { IconCheck } from "../../components/Icons.js";
-import type { GitAuthMode } from "../../lib/git-auth-modes.js";
 import {
   GitAuthModePicker,
   GitHttpsCredentialFields,

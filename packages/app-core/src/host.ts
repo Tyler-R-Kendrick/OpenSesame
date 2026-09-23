@@ -12,8 +12,12 @@
  * part of the core with no host installed must not throw.
  */
 
+import type { DistributionContract } from "@opensesame/capability-composition";
+import type { ModuleTable } from "./lib/capabilities/loader.js";
+import type { SecurityProfile } from "./lib/deployment-profile.js";
+
 /**
- * Build-time configuration. In the browser this is Vite's `import.meta.env`;
+ * Build-time configuration. In the browser the shell copies it from Vite's
  * elsewhere the embedding shell supplies the same shape.
  */
 export type RuntimeEnv = {
@@ -30,8 +34,36 @@ export type RuntimeEnv = {
   readonly VITE_SUPPORT_AGENT_URL?: string;
 };
 
+/**
+ * What the shell's build compiled in for capability composition (ADR 0130):
+ * the table of optional module loaders and the distribution contract. Only a
+ * shell build has them, so a host without a build (a CLI, a test) omits them
+ * and anything that needs them fails closed.
+ */
+export type CapabilityArtifacts = {
+  readonly moduleTable: () => Promise<ModuleTable>;
+  readonly distribution: () => Promise<DistributionContract>;
+};
+
+/**
+ * The hosted static-auth SDK release the shell serves (its version directory
+ * and subresource-integrity hash), from the shell's `static-auth/manifest.json`.
+ */
+export type StaticAuthRelease = {
+  readonly version: string;
+  readonly sri: string;
+};
+
 export type Host = {
   readonly env: RuntimeEnv;
+  readonly capabilities?: CapabilityArtifacts;
+  /**
+   * The security profile the shell's build stamped. Absent means the safe
+   * default: a shared-origin demo that may not pair a local authority.
+   */
+  readonly securityProfile?: SecurityProfile;
+  /** Absent where no shell serves the SDK; embedding it then fails closed. */
+  readonly staticAuth?: StaticAuthRelease;
 };
 
 /**
@@ -57,6 +89,26 @@ export function host(): Host {
     );
   }
   return installed;
+}
+
+/** The shell's compiled capability artifacts; throws where none exist. */
+export function capabilityArtifacts(): CapabilityArtifacts {
+  const artifacts = host().capabilities;
+  if (!artifacts) {
+    throw new Error(
+      "app-core: this host compiled in no capability modules or distribution",
+    );
+  }
+  return artifacts;
+}
+
+/** The static-auth release this shell serves; throws where none is served. */
+export function staticAuthRelease(): StaticAuthRelease {
+  const release = host().staticAuth;
+  if (!release) {
+    throw new Error("app-core: this host serves no static-auth SDK release");
+  }
+  return release;
 }
 
 /** Shorthand for `host().env`. */

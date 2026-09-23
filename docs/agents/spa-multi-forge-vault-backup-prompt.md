@@ -96,18 +96,18 @@ your job is to **finish, correct, and prove** it — not to rubber-stamp it.
 | `docs/adr/0090-static-frontend-complete-without-backend.md` | No backend gate |
 | `docs/adr/0128-pages-without-host.md` | Zero Host in `apps/pages` |
 | `docs/adr/0127-*` (Connect relay) | Callback / proxy companion |
-| `apps/pages/src/lib/vault/offline-backup.ts` | Ciphertext envelope |
-| `apps/pages/src/lib/git-remote-local.ts` | Local remotes + sealed secrets |
-| `apps/pages/src/lib/git-auth-modes.ts` | Auth modes / URL sanitize |
+| `packages/app-core/src/lib/vault/offline-backup.ts` | Ciphertext envelope |
+| `packages/app-core/src/lib/git-remote-local.ts` | Local remotes + sealed secrets |
+| `packages/app-core/src/lib/git-auth-modes.ts` | Auth modes / URL sanitize |
 | `apps/pages/src/sections/connections/GitConnectForm.tsx` + `useGitConnectForm.ts` | Configure UX |
-| `apps/pages/src/lib/backup.ts`, `backup-target-local.ts` | Target CRUD API |
-| `apps/pages/src/lib/vault-backup-sync.ts`, `vault-backup-observer.ts` | Sync + events |
-| `apps/pages/src/lib/git-backup-forges.ts` | Forge id / URL parse |
+| `packages/app-core/src/lib/backup.ts`, `backup-target-local.ts` | Target CRUD API |
+| `packages/app-core/src/lib/vault-backup-sync.ts`, `vault-backup-observer.ts` | Sync + events |
+| `packages/app-core/src/lib/git-backup-forges.ts` | Forge id / URL parse |
 | `apps/connect-backend/github-app.mjs`, `github-app-contents.mjs` | App JWT + Contents |
 | `apps/connect-backend/git-backup-put.mjs` | Forge put proxy |
 | `apps/pages/scripts/github-app-relay-plugin.mjs` | Loopback relay |
 | `crates/connection-broker/src/catalog.json` | Provider authorities/scopes |
-| `apps/pages/src/lib/embedded-catalog.ts`, `vercel-connect-catalog.ts` | Pages catalog |
+| `packages/app-core/src/lib/embedded-catalog.ts`, `vercel-connect-catalog.ts` | Pages catalog |
 
 **Toolchain:** Node ≥ 22, pnpm 9.15 via Corepack, Vitest for Pages, `node --test`
 for connect-backend. No `sudo`.

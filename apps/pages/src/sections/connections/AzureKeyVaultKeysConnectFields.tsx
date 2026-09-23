@@ -2,8 +2,8 @@
  * Form fields for Settings › Connections › Azure Key Vault Keys.
  */
 
+import { fieldGuidance } from "@opensesame/app-core/lib/connector-guidance.js";
 import { useId } from "react";
-import { fieldGuidance } from "../../lib/connector-guidance.js";
 
 export type AzureKeyVaultKeysFormState = {
   versionedKeyId: string;

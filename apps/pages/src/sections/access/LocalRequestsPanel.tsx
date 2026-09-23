@@ -1,17 +1,17 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import "./local-authority.css";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import {
   type InboxStatusFilter,
   filterInboxRows,
-} from "../../lib/configuration/inbox-triage.js";
-import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
+} from "@opensesame/app-core/lib/configuration/inbox-triage.js";
 import {
   type LocalAccessRequest,
   removeSettledLocalAccessRequest,
   revokeLocalAccessRequest,
-} from "../../lib/local-access-requests.js";
-import type { LocalDirectory } from "../../lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-access-requests.js";
+import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
 import { RequestApproval } from "./RequestApproval.js";
 import { useLocalRequests } from "./useLocalRequests.js";

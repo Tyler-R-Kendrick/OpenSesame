@@ -2,15 +2,18 @@
  * Wallet › Spending passes — leases and reserved attempts.
  */
 
-import { useCallback, useState } from "react";
-import { IconTrash } from "../../components/Icons.js";
-import { StatusNote } from "../../components/StatusNote.js";
 import {
   listSpendingLeases,
   removeSpendingLease,
-} from "../../lib/spending-leases.js";
-import { formatUnits, getSpendingLedger } from "../../lib/spending-ledger.js";
-import { safeMerchantLabel } from "../../lib/wallet-safe-label.js";
+} from "@opensesame/app-core/lib/spending-leases.js";
+import {
+  formatUnits,
+  getSpendingLedger,
+} from "@opensesame/app-core/lib/spending-ledger.js";
+import { safeMerchantLabel } from "@opensesame/app-core/lib/wallet-safe-label.js";
+import { useCallback, useState } from "react";
+import { IconTrash } from "../../components/Icons.js";
+import { StatusNote } from "../../components/StatusNote.js";
 
 export function PassesPanel() {
   const [tick, setTick] = useState(0);

@@ -1,3 +1,29 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import { listIntegrations } from "@opensesame/app-core/lib/connections.js";
+import { canConfigureAutomatically } from "@opensesame/app-core/lib/connector-guidance.js";
+import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
+import {
+  readLocalGithubApp,
+  subscribeLocalGithubApp,
+} from "@opensesame/app-core/lib/github-app-manifest.js";
+import {
+  VERB_CHIP,
+  VERB_LABEL,
+  connectionVerb,
+  providerVerb,
+} from "@opensesame/app-core/lib/identity-graph.js";
+import {
+  CATEGORY_LABELS,
+  type Flash,
+  STATUS_CHIP,
+  connectorCeremonyRoot,
+  connectorPath,
+  errorText,
+  statusSentence,
+} from "@opensesame/app-core/sections/connections/shared.js";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router";
 import {
@@ -10,20 +36,6 @@ import {
   type StatusTone,
   statusTone,
 } from "../../components/StatusMark.js";
-import type { Connection, Provider } from "../../lib/connections.js";
-import { listIntegrations } from "../../lib/connections.js";
-import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
-import { isGitBackupProvider } from "../../lib/git-backup-forges.js";
-import {
-  readLocalGithubApp,
-  subscribeLocalGithubApp,
-} from "../../lib/github-app-manifest.js";
-import {
-  VERB_CHIP,
-  VERB_LABEL,
-  connectionVerb,
-  providerVerb,
-} from "../../lib/identity-graph.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AwsKmsConnectPanel } from "./AwsKmsConnectPanel.js";
 import { AzureKeyVaultKeysConnectPanel } from "./AzureKeyVaultKeysConnectPanel.js";
@@ -42,15 +54,6 @@ import {
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { YubikeyConnectPanel } from "./YubikeyConnectPanel.js";
-import {
-  CATEGORY_LABELS,
-  type Flash,
-  STATUS_CHIP,
-  connectorCeremonyRoot,
-  connectorPath,
-  errorText,
-  statusSentence,
-} from "./shared.js";
 
 /** One connector's page: authorize it, then decide who can use it and how. */
 export function ConnectorSettingsPage({

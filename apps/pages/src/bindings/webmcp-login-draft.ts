@@ -1,11 +1,14 @@
-import { useEffect, useRef } from "react";
 import {
   applyLoginDraftPatch,
   bindLoginDraft,
   loginDraftView,
-} from "../lib/vault/login-draft.js";
-import type { Folder, VaultItem } from "../lib/vault/model.js";
-import { setWebMcpEditorKind } from "../webmcp/context.js";
+} from "@opensesame/app-core/lib/vault/login-draft.js";
+import type {
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
+import { setWebMcpEditorKind } from "@opensesame/app-core/webmcp/context.js";
+import { useEffect, useRef } from "react";
 
 /** Publishes the live login editor to WebMCP for as long as it is mounted. */
 export function useWebMcpLoginDraft(

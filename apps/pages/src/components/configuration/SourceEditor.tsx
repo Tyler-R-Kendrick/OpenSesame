@@ -1,4 +1,4 @@
-import type { ConfigDiagnostic } from "../../lib/configuration/types.js";
+import type { ConfigDiagnostic } from "@opensesame/app-core/lib/configuration/types.js";
 
 export function SourceEditor(props: {
   id: string;

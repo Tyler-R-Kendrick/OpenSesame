@@ -55,7 +55,7 @@ Finish OpenSesame's Doppler capability parity (ADR 0041, `docs/competitors/doppl
 - **The changelog event vocabulary is frozen** in four files simultaneously:
   `packages/audit/src/changelog.ts`, `crates/connection-broker/src/changelog_hook.rs`,
   `packages/os-domain/src/types.ts` (union near line 573), and
-  `apps/pages/src/lib/changelog.ts`. The 11 existing names:
+  `packages/app-core/src/lib/changelog.ts`. The 11 existing names:
   `project.personal.ensured`, `secret.config.created|updated|deleted`,
   `secret.value.changed`, `sync.target.created|synced|failed`,
   `credential.rotation.requested|succeeded|failed`.
@@ -192,7 +192,7 @@ Zero production dependents today.
   `crates/storage/src/lib.rs:471` `insert_encrypted_item`) — right shape
   `UNIQUE(vault_id, item_id, revision)`, **no production writer** (only
   `apps/gateway/src/backup.rs:299` reads).
-- Pages offline: `apps/pages/src/lib/vault/offline-backup.ts` (ciphertext
+- Pages offline: `packages/app-core/src/lib/vault/offline-backup.ts` (ciphertext
   snapshot cache + 64-deep mutation queue), `store-sync.ts`
   (`storePathToSyncBlobId` → `project:{id}:{path}`), `sync_blobs.rs` gateway
   routes with `FORBIDDEN_PLAINTEXT_KEYS` guard.
@@ -575,7 +575,7 @@ pool is configured); reject non-frozen event types before insert (fail
 closed). `GET …/changelog` reads the table with cursor pagination by `seq`.
 Add `secret.value.rolled_back` to `CHANGELOG_EVENT_TYPES` **and, in the same
 commit, to** `packages/audit/src/changelog.ts`,
-`packages/os-domain/src/types.ts`, `apps/pages/src/lib/changelog.ts`, updating
+`packages/os-domain/src/types.ts`, `packages/app-core/src/lib/changelog.ts`, updating
 all vocabulary-freeze tests (WP-7 owns those four vocabulary edits — the one
 sanctioned cross-package touch, because the freeze demands one commit).
 **Must not:** write values or reversible digests; add UPDATE/DELETE on the table.

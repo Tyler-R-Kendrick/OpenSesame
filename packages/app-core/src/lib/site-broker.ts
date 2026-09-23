@@ -1,0 +1,616 @@
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { isLoopbackOrigin } from "@opensesame/static-auth";
+import { env, staticAuthRelease } from "../host.js";
+/**
+ * Origin-brokered sign-in for static relying parties (ADR 0034).
+ *
+ * This deployment cannot mint tokens. It relays an upstream id_token to an RP
+ * origin the human has approved, via postMessage — never "*".
+ * Wire contract: docs/architecture/federated-signin.md §2–§5.
+ */
+
+import type { UpstreamIdentity } from "./federation.js";
+import { originClientId } from "./federation.js";
+import { kvDelete, kvGet, kvSet } from "./kv.js";
+import { scopedKey } from "./projects.js";
+
+/**
+ * Base key names — read and written through the active project's scope, so
+ * each project keeps its own approved-site list and domain policy.
+ */
+export const CONSENTS_KEY = "site-broker.consents.v1";
+export const POLICY_KEY = "site-broker.policy.v1";
+
+/** Per-domain rule: whitelist allows, blacklist refuses. */
+export type DomainEffect = "whitelist" | "blacklist";
+
+export type DomainRule = {
+  domain: string;
+  effect: DomainEffect;
+};
+
+export type BrokerPolicy = {
+  rules: DomainRule[];
+};
+
+export type BrokerRequest = {
+  clientId: string;
+  /** Exact RP origin (scheme + host [+ port]). */
+  origin: string;
+  state: string;
+  scope: string;
+};
+
+export type BrokerAuthorizeParams = {
+  origin: string;
+  state: string;
+  scope?: string;
+};
+
+export type SiteConsent = {
+  origin: string;
+  scopes: string[];
+  approvedAt: string;
+  lastUsedAt: string;
+};
+
+function isSiteConsent(value: BoundaryValue): value is SiteConsent {
+  return (
+    isJsonObject(value) &&
+    isString(value.origin) &&
+    Array.isArray(value.scopes) &&
+    value.scopes.every(isString) &&
+    isString(value.approvedAt) &&
+    isString(value.lastUsedAt)
+  );
+}
+
+export type SignInSuccess = {
+  type: "opensesame:signin";
+  state: string;
+  id_token: string;
+  issuer: string;
+  audience: string;
+  jwks_uri: string;
+  expires_at: string;
+};
+
+export type SignInError = {
+  type: "opensesame:signin";
+  state: string;
+  error: string;
+  error_description?: string;
+};
+
+export type SignInMessage = SignInSuccess | SignInError;
+
+export type DeliverToRpOptions = {
+  redirectUri?: string | null;
+  close?: boolean;
+};
+
+const MIN_STATE_BYTES = 16;
+
+export function pagesPublicBase(origin: string = location.origin): string {
+  const base = env().BASE_URL || "/";
+  const normalised = base.endsWith("/") ? base : `${base}/`;
+  return `${origin}${normalised}`;
+}
+
+export function brokerAuthorizePath(): string {
+  return "broker/authorize";
+}
+
+export function brokerAuthorizeUrl(
+  params: BrokerAuthorizeParams,
+  base: string = pagesPublicBase(),
+): string {
+  const url = new URL(brokerAuthorizePath(), base);
+  url.searchParams.set("client_id", `origin:${params.origin}`);
+  url.searchParams.set("origin", params.origin);
+  url.searchParams.set("state", params.state);
+  url.searchParams.set("scope", params.scope ?? "openid");
+  url.searchParams.set("profile", "pages_passthrough_loopback");
+  return url.toString();
+}
+
+export function scriptTagSrc(base: string = pagesPublicBase()): string {
+  return new URL(
+    `static-auth/${staticAuthRelease().version}/opensesame-auth.min.js`,
+    base,
+  ).toString();
+}
+
+/**
+ * Parse and validate the broker query. Does not consult window.opener — the
+ * message is addressed only to `origin`, so a forged origin cannot deliver
+ * the token to the forger's window.
+ */
+export function parseBrokerRequest(
+  search: string,
+):
+  | { ok: true; request: BrokerRequest }
+  | { ok: false; error: string; detail: string } {
+  const params = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
+  );
+  const clientId = params.get("client_id")?.trim() ?? "";
+  const origin = params.get("origin")?.trim() ?? "";
+  const state = params.get("state")?.trim() ?? "";
+  const scope = (params.get("scope")?.trim() || "openid").replace(/\s+/g, " ");
+
+  if (!origin || !clientId || !state) {
+    return {
+      ok: false,
+      error: "invalid_request",
+      detail: "client_id, origin, and state are required.",
+    };
+  }
+
+  let parsedOrigin: URL;
+  try {
+    parsedOrigin = new URL(origin);
+  } catch {
+    return {
+      ok: false,
+      error: "invalid_request",
+      detail: "origin must be an absolute URL origin.",
+    };
+  }
+  if (parsedOrigin.origin !== origin) {
+    return {
+      ok: false,
+      error: "invalid_request",
+      detail: "origin must be exactly scheme://host[:port] with no path.",
+    };
+  }
+
+  if (
+    params.get("profile") !== "pages_passthrough_loopback" ||
+    !isLoopbackOrigin(origin)
+  ) {
+    return {
+      ok: false,
+      error: "unsupported_profile",
+      detail:
+        "Token passthrough requires the explicit loopback development profile. Remote sites use hosted Identity with PKCE.",
+    };
+  }
+
+  const expected = `origin:${origin}`;
+  if (clientId !== expected) {
+    return {
+      ok: false,
+      error: "origin_mismatch",
+      detail: `client_id must be ${expected}.`,
+    };
+  }
+
+  // ≥16 bytes of entropy once base64url-decoded, or ≥22 chars of opaque text.
+  if (state.length < 22 && !looksLikeEnoughEntropy(state)) {
+    return {
+      ok: false,
+      error: "invalid_request",
+      detail: "state must carry at least 16 bytes of entropy.",
+    };
+  }
+
+  return {
+    ok: true,
+    request: { clientId, origin, state, scope },
+  };
+}
+
+function looksLikeEnoughEntropy(state: string): boolean {
+  try {
+    const padded = state.replace(/-/g, "+").replace(/_/g, "/");
+    const pad =
+      padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+    const binary = atob(padded + pad);
+    return binary.length >= MIN_STATE_BYTES;
+  } catch {
+    return false;
+  }
+}
+
+export function scopeList(scope: string): string[] {
+  return scope.split(/\s+/).filter(Boolean);
+}
+
+export function loadConsents(): SiteConsent[] {
+  const raw = kvGet(scopedKey(CONSENTS_KEY));
+  if (!raw) return [];
+  try {
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed) || !Array.isArray(parsed.consents)) return [];
+    return parsed.consents.filter(isSiteConsent);
+  } catch {
+    return [];
+  }
+}
+
+function saveConsents(consents: SiteConsent[]): void {
+  kvSet(scopedKey(CONSENTS_KEY), JSON.stringify({ consents }));
+}
+
+export function consentFor(origin: string): SiteConsent | null {
+  return loadConsents().find((c) => c.origin === origin) ?? null;
+}
+
+/** True when prior consent covers every requested scope. */
+export function consentCovers(
+  consent: SiteConsent | null,
+  scope: string,
+): boolean {
+  if (!consent) return false;
+  const needed = new Set(scopeList(scope));
+  const have = new Set(consent.scopes);
+  for (const s of needed) {
+    if (!have.has(s)) return false;
+  }
+  return true;
+}
+
+export function approveConsent(origin: string, scope: string): SiteConsent {
+  const scopes = scopeList(scope);
+  const now = new Date().toISOString();
+  const existing = loadConsents();
+  const next: SiteConsent = {
+    origin,
+    scopes: Array.from(
+      new Set([...(consentFor(origin)?.scopes ?? []), ...scopes]),
+    ),
+    approvedAt: consentFor(origin)?.approvedAt ?? now,
+    lastUsedAt: now,
+  };
+  const without = existing.filter((c) => c.origin !== origin);
+  saveConsents(
+    [...without, next].sort((a, b) => a.origin.localeCompare(b.origin)),
+  );
+  return next;
+}
+
+export function touchConsent(origin: string): void {
+  const existing = loadConsents();
+  const hit = existing.find((c) => c.origin === origin);
+  if (!hit) return;
+  hit.lastUsedAt = new Date().toISOString();
+  saveConsents(existing);
+}
+
+export function revokeConsent(origin: string): void {
+  const next = loadConsents().filter((c) => c.origin !== origin);
+  if (next.length === 0) kvDelete(scopedKey(CONSENTS_KEY));
+  else saveConsents(next);
+}
+
+export function loadBrokerPolicy(): BrokerPolicy {
+  const raw = kvGet(scopedKey(POLICY_KEY));
+  if (!raw) return { rules: [] };
+  try {
+    const parsed = overlapCast(JSON.parse(raw));
+
+    if (Array.isArray(parsed.rules)) {
+      const rules = parsed.rules
+        .map((row) => normalizeRule(row))
+        .filter((row): row is DomainRule => row !== null);
+      return { rules: sortRules(rules) };
+    }
+
+    // Migrate global listMode + domains[] → per-row whitelist/blacklist.
+    if (Array.isArray(parsed.domains)) {
+      const effect: DomainEffect =
+        parsed.listMode === "allowlist" ? "whitelist" : "blacklist";
+      const rules = parsed.domains
+        .filter((d): d is string => isString(d))
+        .map((d) => normalizeDomainEntry(d))
+        .filter((d): d is string => d !== null)
+        .map((domain) => ({ domain, effect }));
+      return { rules: sortRules(rules) };
+    }
+
+    return { rules: [] };
+  } catch {
+    return { rules: [] };
+  }
+}
+
+function normalizeRule(row: BoundaryValue): DomainRule | null {
+  if (!isJsonObject(row)) return null;
+  const domainRaw = row.domain;
+  const effectRaw = row.effect;
+  if (!isString(domainRaw)) return null;
+  const domain = normalizeDomainEntry(domainRaw);
+  if (!domain) return null;
+  const effect: DomainEffect =
+    effectRaw === "blacklist" ? "blacklist" : "whitelist";
+  return { domain, effect };
+}
+
+function sortRules(rules: DomainRule[]): DomainRule[] {
+  return [...rules].sort((a, b) => a.domain.localeCompare(b.domain));
+}
+
+function saveBrokerPolicy(policy: BrokerPolicy): void {
+  kvSet(
+    scopedKey(POLICY_KEY),
+    JSON.stringify({ rules: sortRules(policy.rules) }),
+  );
+}
+
+/**
+ * Normalise a domain list entry. Accepts origin URLs, host:port, or bare host.
+ * Returns null when the input cannot be a useful match key.
+ */
+export function normalizeDomainEntry(raw: string): string | null {
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  if (trimmed.includes("://")) {
+    try {
+      const url = new URL(trimmed);
+      if (url.pathname !== "/" && url.pathname !== "") return null;
+      if (url.search || url.hash) return null;
+      return url.origin.toLowerCase();
+    } catch {
+      return null;
+    }
+  }
+
+  if (trimmed.includes("/") || trimmed.includes("?") || trimmed.includes("#")) {
+    return null;
+  }
+  if (trimmed.startsWith(".") || trimmed.endsWith(".")) return null;
+  return trimmed;
+}
+
+/** Whether an RP origin matches a single domain list entry. */
+export function originMatchesDomainEntry(
+  origin: string,
+  entry: string,
+): boolean {
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  const hostPort = `${host}${url.port ? `:${url.port}` : ""}`;
+  const normalised = normalizeDomainEntry(entry);
+  if (!normalised) return false;
+
+  if (normalised.includes("://")) {
+    return url.origin.toLowerCase() === normalised;
+  }
+
+  if (normalised.includes(":")) {
+    return hostPort === normalised;
+  }
+
+  return host === normalised || host.endsWith(`.${normalised}`);
+}
+
+/** Higher score = more specific match (exact origin beats bare host). */
+export function domainMatchScore(origin: string, entry: string): number {
+  if (!originMatchesDomainEntry(origin, entry)) return 0;
+  const normalised = normalizeDomainEntry(entry);
+  if (!normalised) return 0;
+  if (normalised.includes("://")) return 1000 + normalised.length;
+  if (normalised.includes(":")) return 500 + normalised.length;
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    if (host === normalised) return 100 + normalised.length;
+  } catch {
+    /* ignore */
+  }
+  return 50 + normalised.length;
+}
+
+function bestMatchingRule(
+  origin: string,
+  rules: DomainRule[],
+): DomainRule | null {
+  let best: DomainRule | null = null;
+  let bestScore = 0;
+  for (const rule of rules) {
+    const score = domainMatchScore(origin, rule.domain);
+    if (score > bestScore) {
+      best = rule;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+export function addDomainRule(
+  raw: string,
+  effect: DomainEffect = "whitelist",
+): BrokerPolicy | { error: string } {
+  const domain = normalizeDomainEntry(raw);
+  if (!domain) {
+    return {
+      error:
+        "Enter a hostname (example.com), host:port (localhost:5173), or origin (https://app.example.com).",
+    };
+  }
+  const current = loadBrokerPolicy();
+  const without = current.rules.filter((r) => r.domain !== domain);
+  const next: BrokerPolicy = {
+    rules: sortRules([...without, { domain, effect }]),
+  };
+  saveBrokerPolicy(next);
+  return next;
+}
+
+export function setDomainRuleEffect(
+  domain: string,
+  effect: DomainEffect,
+): BrokerPolicy {
+  const current = loadBrokerPolicy();
+  const target = normalizeDomainEntry(domain) ?? domain.toLowerCase();
+  const next: BrokerPolicy = {
+    rules: sortRules(
+      current.rules.map((r) => (r.domain === target ? { ...r, effect } : r)),
+    ),
+  };
+  saveBrokerPolicy(next);
+  return next;
+}
+
+export function removeDomainRule(domain: string): BrokerPolicy {
+  const current = loadBrokerPolicy();
+  const target = normalizeDomainEntry(domain) ?? domain.toLowerCase();
+  const next: BrokerPolicy = {
+    rules: current.rules.filter((r) => r.domain !== target),
+  };
+  saveBrokerPolicy(next);
+  return next;
+}
+
+/**
+ * Domain gate before consent:
+ * - Best matching blacklist → refuse
+ * - Best matching whitelist → allow
+ * - No match, but any whitelist exists → refuse (closed / restricted)
+ * - No match, no whitelists → allow loopback only.
+ * Domain rules may narrow admission, never enable remote passthrough.
+ */
+export function originMayUseBroker(origin: string): boolean {
+  if (!isLoopbackOrigin(origin)) return false;
+  const { rules } = loadBrokerPolicy();
+  const best = bestMatchingRule(origin, rules);
+  if (best?.effect === "blacklist") return false;
+  if (best?.effect === "whitelist") return true;
+  return !isBrokerRestricted({ rules });
+}
+
+/** True when at least one allow-list domain exists (closed world). */
+export function isBrokerRestricted(
+  policy: BrokerPolicy = loadBrokerPolicy(),
+): boolean {
+  return policy.rules.some((r) => r.effect === "whitelist");
+}
+
+export function domainFilterDenialMessage(
+  origin: string,
+  policy: BrokerPolicy = loadBrokerPolicy(),
+): string {
+  const best = bestMatchingRule(origin, policy.rules);
+  if (best?.effect === "blacklist") {
+    return `This origin matches a blocked domain (${best.domain}).`;
+  }
+  return "This origin is not on the allow list. Passthrough is restricted to loopback development sites; remote sites use hosted Identity with PKCE.";
+}
+
+export function buildSuccessMessage(
+  request: BrokerRequest,
+  identity: UpstreamIdentity,
+): SignInSuccess {
+  if (!originMayUseBroker(request.origin)) throw new Error("loopback_only");
+  return {
+    type: "opensesame:signin",
+    state: request.state,
+    id_token: identity.idToken,
+    issuer: identity.issuer,
+    audience: identity.audience || originClientId(),
+    jwks_uri: identity.jwksUri,
+    expires_at: new Date(identity.expiresAt).toISOString(),
+  };
+}
+
+export function buildErrorMessage(
+  state: string,
+  error: string,
+  detail?: string,
+): SignInError {
+  return {
+    type: "opensesame:signin",
+    state,
+    error,
+    ...(detail ? { error_description: detail } : undefined),
+  };
+}
+
+/**
+ * Deliver only to a loopback opener. Never transport tokens through a URL.
+ */
+function deliverToRpDefault(
+  message: SignInMessage,
+  targetOrigin: string,
+  options: DeliverToRpOptions = {},
+): "postMessage" | "none" {
+  if (!isLoopbackOrigin(targetOrigin)) return "none";
+  try {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(message, targetOrigin);
+      if (options.close !== false) {
+        window.close();
+      }
+      return "postMessage";
+    }
+  } catch {
+    /* cross-origin opener access can throw; postMessage itself is fine */
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(message, targetOrigin);
+        if (options.close !== false) window.close();
+        return "postMessage";
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  return "none";
+}
+
+export const siteBrokerSeams = {
+  deliverToRp: deliverToRpDefault,
+};
+
+export function deliverToRp(
+  message: SignInMessage,
+  targetOrigin: string,
+  options: DeliverToRpOptions = {},
+): "postMessage" | "none" {
+  return siteBrokerSeams.deliverToRp(message, targetOrigin, options);
+}
+
+/** Remote RPs must supply their own hosted Identity configuration. */
+export function staticSiteSnippet(opts: {
+  brokerBase: string;
+  siteOrigin: string;
+}): string {
+  const script = scriptTagSrc(opts.brokerBase);
+  const config = isLoopbackOrigin(opts.siteOrigin)
+    ? JSON.stringify({
+        profile: "pages_passthrough_loopback",
+        brokerBase: opts.brokerBase,
+        issuer: "https://shoo.dev",
+        audience: `origin:${new URL(opts.brokerBase).origin}`,
+      }).replace(/</g, "\\u003c")
+    : 'await fetch("/opensesame-auth-profile.json", { credentials: "omit", redirect: "error" }).then(response => { if (!response.ok) throw new Error("profile_unavailable"); return response.json(); })';
+  return `<!-- Hosted Identity + PKCE is required for remote sites. Self-hosting this SDK is supported. -->
+<script src="${script.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}" integrity="${staticAuthRelease().sri}" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<button type="button" id="opensesame-signin">Sign in</button>
+<script type="module">
+  const profile = ${config};
+  document.getElementById("opensesame-signin").addEventListener("click", () => OpenSesame.signIn(profile));
+  if (profile.profile === "hosted_identity") await OpenSesame.complete(profile);
+  // signed_in contains only a validated subject and expiry; never log credentials.
+</script>`;
+}
+
+/** Power-user snippet — explicit OpenSesame.signIn / acceptSession control. */
+export function staticSiteExplicitSnippet(opts: {
+  brokerBase: string;
+  siteOrigin: string;
+}): string {
+  return staticSiteSnippet(opts);
+}

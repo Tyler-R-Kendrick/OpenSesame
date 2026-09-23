@@ -4,5 +4,6 @@
  * before the env moved behind the host (ADR 0133).
  */
 import { configureHost } from "@opensesame/app-core/host.js";
+import { shellBuild } from "./shell-build.js";
 
-configureHost({ env: import.meta.env });
+configureHost({ env: import.meta.env, ...shellBuild });

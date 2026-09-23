@@ -1,9 +1,9 @@
+import type { WorkflowState } from "@opensesame/app-core/lib/sops/workflow.js";
 import type { RefObject } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { IconPlus, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import type { WorkflowState } from "../../../lib/sops/workflow.js";
 
 export type DocumentViewProps = {
   state: WorkflowState;

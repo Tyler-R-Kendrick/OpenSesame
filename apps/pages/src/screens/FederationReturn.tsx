@@ -19,22 +19,25 @@
  * whichever mounted instance survives applies its outcome.
  */
 
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { ambientAuthSeams, isAmbientIntent } from "../lib/ambient-auth-seam.js";
-import { storeAuthOutcome } from "../lib/auth-outcome.js";
-import { describeFederationError } from "../lib/federation-copy.js";
+import {
+  ambientAuthSeams,
+  isAmbientIntent,
+} from "@opensesame/app-core/lib/ambient-auth-seam.js";
+import { storeAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
+import { describeFederationError } from "@opensesame/app-core/lib/federation-copy.js";
 import {
   adoptBrokeredSession,
   completeSignIn,
   displayName,
-} from "../lib/federation.js";
+} from "@opensesame/app-core/lib/federation.js";
 import {
   adoptFederatedIdentity,
   openVaultAfterSignIn,
-} from "../lib/guest-auth.js";
-import { ensureIdentitySession } from "../lib/identity.js";
-import { joinOrgTenant } from "../lib/orgs.js";
+} from "@opensesame/app-core/lib/guest-auth.js";
+import { ensureIdentitySession } from "@opensesame/app-core/lib/identity.js";
+import { joinOrgTenant } from "@opensesame/app-core/lib/orgs.js";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";

@@ -10,6 +10,14 @@
  * module owners (S11–S16) create them.
  */
 
+import {
+  CAPABILITY_CATALOG,
+  optionalCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
+import {
+  runtimeModule,
+  workerModule,
+} from "@opensesame/app-core/lib/capabilities/descriptor.js";
 import type {
   CapabilityId,
   DistributionContract,
@@ -18,8 +26,6 @@ import type {
   ModuleId,
   WorkerVariant,
 } from "@opensesame/capability-composition";
-import { CAPABILITY_CATALOG, optionalCapabilityIds } from "./catalog.js";
-import { runtimeModule, workerModule } from "./descriptor.js";
 
 export type ModuleOwnership = Readonly<{
   /** Repo path under apps/pages of the module's entry source. */

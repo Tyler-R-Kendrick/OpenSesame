@@ -2,14 +2,14 @@
  * Wallet — budgets, payment methods, and spending passes.
  */
 
-import { Link, useLocation } from "react-router";
 import {
   WALLET_CATEGORIES,
   WALLET_CATEGORY_LABEL,
   type WalletCategory,
   walletCategoryFromLocation,
   walletPath,
-} from "../lib/crumbs.js";
+} from "@opensesame/app-core/lib/crumbs.js";
+import { Link, useLocation } from "react-router";
 import "./identity.css";
 import "./settings.css";
 import { BudgetsPanel } from "./wallet/BudgetsPanel.js";

@@ -1,10 +1,10 @@
-import { type FormEvent, useState } from "react";
-import { IconCheck, IconX } from "../../components/Icons.js";
-import type { ConnectorSetting } from "../../lib/connector-settings.js";
+import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
 import {
   SHARE_DURATIONS,
   SHARE_POLICIES,
-} from "../../lib/local-share-grants.js";
+} from "@opensesame/app-core/lib/local-share-grants.js";
+import { type FormEvent, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 
 /** The bind defaults: policy and duration the row's bind form opens with. */
 function DefaultsFields({

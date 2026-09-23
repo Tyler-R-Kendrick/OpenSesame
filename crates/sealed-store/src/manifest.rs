@@ -1,7 +1,7 @@
 //! Seal a Pages "store path manifest" into ciphertext entries.
 //!
 //! The Pages Settings panel exports a plaintext JSON array of
-//! `{ path, secret, trailer }` (see `apps/pages/src/lib/vault/store-sync.ts`).
+//! `{ path, secret, trailer }` (see `packages/app-core/src/lib/vault/store-sync.ts`).
 //! This module is the missing half of that bridge (ADR 0037 §6): it turns the
 //! manifest into encrypted store entries and one git commit, so plaintext
 //! never needs to be committed anywhere.

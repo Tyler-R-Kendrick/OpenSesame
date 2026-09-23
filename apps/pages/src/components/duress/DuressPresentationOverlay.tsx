@@ -3,13 +3,13 @@
  * over the vault listing (COMPARTMENT-UX → STORE).
  */
 
-import { createElement, useEffect, useState } from "react";
 import {
   type ActivePresentation,
   readActivePresentation,
   subscribeActivePresentation,
-} from "../../lib/duress/compartment/presentation-runtime.js";
-import { projectScopedView } from "../../lib/duress/compartment/scope.js";
+} from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
+import { projectScopedView } from "@opensesame/app-core/lib/duress/compartment/scope.js";
+import { createElement, useEffect, useState } from "react";
 import { DecoyStatus } from "./DecoyStatus.js";
 import { PresentationShell } from "./PresentationShell.js";
 

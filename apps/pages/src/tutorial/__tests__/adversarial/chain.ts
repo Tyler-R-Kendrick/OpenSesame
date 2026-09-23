@@ -8,6 +8,21 @@
  * every name below, so a suite's import is unchanged.
  */
 
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
+import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
+import { isKnownGuideRoute } from "@opensesame/app-core/tutorial/registry/routes.js";
+import {
+  isKnownGuidePredicate,
+  observeGuidePredicate,
+  readGuidePredicate,
+} from "@opensesame/app-core/tutorial/registry/state.js";
+import {
+  isKnownGuideTarget,
+  isMountedGuideTarget,
+  mountGuideTarget,
+  observeGuideTarget,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 import { type GuideProgram, compileGuide } from "@opensesame/guide-lang";
 import {
   type GuideRouteController,
@@ -27,21 +42,6 @@ import {
   type SupportTurn,
   supportVocabulary,
 } from "@opensesame/support-agent";
-import { buildSupportPageContext } from "../../registry/context.js";
-import { registerTutorialRealm } from "../../registry/optional-tutorials.test-support.js";
-import { registerGuidePredicates } from "../../registry/predicates.js";
-import { isKnownGuideRoute } from "../../registry/routes.js";
-import {
-  isKnownGuidePredicate,
-  observeGuidePredicate,
-  readGuidePredicate,
-} from "../../registry/state.js";
-import {
-  isKnownGuideTarget,
-  isMountedGuideTarget,
-  mountGuideTarget,
-  observeGuideTarget,
-} from "../../registry/targets.js";
 
 export const GUIDE_HEADER = "guide/1";
 

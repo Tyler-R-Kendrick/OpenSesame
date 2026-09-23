@@ -102,7 +102,7 @@
       "title": "The client plane keeps one share ledger",
       "statement": "Local authority in apps/pages remains the local share-grant ledger; no parallel local store is introduced.",
       "owner": "GA-P",
-      "enforcementPoint": "apps/pages/src/lib/local-share-grants.ts",
+      "enforcementPoint": "packages/app-core/src/lib/local-share-grants.ts",
       "status": "ratified",
       "evidence": null,
       "notes": "authority-fabric evidence 2026-09-15"

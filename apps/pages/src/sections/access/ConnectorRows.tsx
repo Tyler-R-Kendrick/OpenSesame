@@ -9,9 +9,12 @@ import { IconCheck, IconSettings, IconTrash } from "../../components/Icons.js";
  * already, and the ledger records the revocation.
  */
 
+import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
+import {
+  type LocalShare,
+  policyLabel,
+} from "@opensesame/app-core/lib/local-share-grants.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import type { ConnectorSetting } from "../../lib/connector-settings.js";
-import { type LocalShare, policyLabel } from "../../lib/local-share-grants.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 import { ConnectorBindForm } from "./ConnectorBindForm.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";

@@ -1,10 +1,10 @@
+import { approveDevice } from "@opensesame/app-core/lib/directory.js";
+import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
-import { approveDevice } from "../../lib/directory.js";
-import type { IdentitySession } from "../../lib/identity.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import type { Flash } from "../connections/shared.js";
 import { ConnectIdentityNote } from "./ConnectIdentityNote.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 

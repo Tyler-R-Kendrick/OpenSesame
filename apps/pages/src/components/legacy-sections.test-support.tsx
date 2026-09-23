@@ -9,11 +9,11 @@ import {
   registerLegacySectionRows,
   registerLegacySections,
   registerLegacySettingsCategories,
-} from "../lib/contributions.test-support.js";
+} from "@opensesame/app-core/lib/contributions.test-support.js";
+import { registerOptionalTutorials } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import { AccessRailTree } from "../modules/access.authority/AccessRailTree.js";
 import { IdentityRailTree } from "../modules/identity.local-iam/IdentityRailTree.js";
 import { WalletTree } from "../modules/wallet.spending/WalletTree.js";
-import { registerOptionalTutorials } from "../tutorial/registry/optional-tutorials.test-support.js";
 import { ConnectionsTreeEntries } from "./ConnectionsTree.js";
 
 function ConnectionsSettingsStub() {

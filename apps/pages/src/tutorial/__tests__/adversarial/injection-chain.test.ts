@@ -11,6 +11,7 @@
  * hold a program the parser refused and hand it on.
  */
 
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { GUIDE_INSTRUCTION_NAMES } from "@opensesame/guide-lang";
 import {
   type FakeSupportAgent,
@@ -20,7 +21,6 @@ import {
 } from "@opensesame/support-agent";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveGuideTargetElement } from "../../registry/targets.js";
 import {
   type SupportChain,
   createSupportChain,

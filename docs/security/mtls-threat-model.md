@@ -40,7 +40,7 @@ value is no longer accepted.
 |---|---|---|---|---|---|
 | Client TLS certificate on a request to a remote org operation | The operating system / browser certificate store, provisioned outside OpenSesame | The receiving origin's TLS stack; the page never sees it | That origin's listener only | The handshake; then the origin's `usable_until` | The browser can use any certificate the OS will hand it, to any origin that asks. Browser certificate use is ambient, so Origin/CSRF/consent checks remain load-bearing. |
 | `capabilities.browser_vault_key_injection` | Compiled constant | `crates/domain/src/transport/capability.rs` — always `Unsupported` | — | — | n/a. A page cannot put a vault key into a TLS handshake; nothing in the product pretends otherwise. |
-| Transport status shown in Settings | The Host status route, fetched by the page | `apps/pages/src/lib/transport-*.ts` render only; no page value feeds authorization | Display | Whatever the Host says | A hostile Host can show a misleading status. It cannot change what any listener enforces. |
+| Transport status shown in Settings | The Host status route, fetched by the page | `packages/app-core/src/lib/transport-*.ts` render only; no page value feeds authorization | Display | Whatever the Host says | A hostile Host can show a misleading status. It cannot change what any listener enforces. |
 
 The static app boots, unlocks and runs its local journeys with none of this
 configured. An unconfigured transport feature is not an error state.

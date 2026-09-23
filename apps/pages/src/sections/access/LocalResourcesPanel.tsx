@@ -3,25 +3,28 @@
  * vaults, this app, this device, and any capability connector in use.
  */
 
-import { useEffect, useState } from "react";
-import { getBundledProviders } from "../../lib/embedded-catalog.js";
-import { isGuestSession } from "../../lib/guest-isolation.js";
-import { readLocalDevices, thisDeviceId } from "../../lib/local-devices.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { isGuestSession } from "@opensesame/app-core/lib/guest-isolation.js";
+import {
+  readLocalDevices,
+  thisDeviceId,
+} from "@opensesame/app-core/lib/local-devices.js";
 import {
   PAGES_APPLICATION_ID,
   PAGES_APPLICATION_NAME,
   SUPPORT_AGENT_ID,
   readLocalDirectory,
-} from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   type LocalShare,
   listLocalShares,
   policyLabel,
-} from "../../lib/local-share-grants.js";
-import { loadSettings } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/local-share-grants.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import { listDeviceVaults } from "@opensesame/app-core/lib/vaults.js";
+import { useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
-import { listDeviceVaults } from "../../lib/vaults.js";
 
 type ResourceRow = {
   id: string;

@@ -6,6 +6,7 @@
  * explanation.
  */
 
+import type { OrgTenant } from "@opensesame/app-core/lib/orgs.js";
 import {
   cleanup,
   fireEvent,
@@ -14,7 +15,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgTenant } from "../../lib/orgs.js";
 import {
   IdentifierField,
   identifierFieldDependencies,

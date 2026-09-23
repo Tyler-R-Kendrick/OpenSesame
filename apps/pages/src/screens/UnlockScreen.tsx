@@ -1,4 +1,39 @@
 import {
+  outcomeWantsSignIn,
+  readAuthOutcome,
+} from "@opensesame/app-core/lib/auth-outcome.js";
+import {
+  continueAsGuest,
+  resumeGuestSession,
+} from "@opensesame/app-core/lib/guest-auth.js";
+import { currentSession } from "@opensesame/app-core/lib/identity.js";
+import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
+import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
+import { noWayIn } from "@opensesame/app-core/lib/settings.js";
+import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
+import { WrongPasswordError } from "@opensesame/app-core/lib/vault/crypto.js";
+import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
+import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
+import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  MIN_PIN_LENGTH,
+  type SecondStepId,
+  type UnlockMethodId,
+  checkWebauthnHost,
+  describeWebauthnError,
+  listAvailableUnlockMethods,
+  listSecondSteps,
+  pinPolicyProblems,
+  preferredUnlockMethod,
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import {
+  type DeviceVault,
+  deviceHasSeveralVaults,
+  listDeviceVaults,
+  switchVault,
+} from "@opensesame/app-core/lib/vaults.js";
+import { cancelPasskeyDuressCode } from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
+import {
   type FormEvent,
   useCallback,
   useEffect,
@@ -20,39 +55,8 @@ import {
 } from "../components/Icons.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
-import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
-import { continueAsGuest, resumeGuestSession } from "../lib/guest-auth.js";
-import { currentSession } from "../lib/identity.js";
-import { PERSONAL_PROJECT_ID } from "../lib/projects.js";
-import {
-  type FederatedProviderSummary,
-  listFederatedProviders,
-} from "../lib/providers.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
-import { noWayIn } from "../lib/settings.js";
-import { loadSetup, unlockViable } from "../lib/setup.js";
-import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { estimateStrength } from "../lib/vault/password.js";
-import type { SentCode } from "../lib/vault/remote-code.js";
-import { GUEST_TOMB } from "../lib/vault/store.js";
-import {
-  MIN_PIN_LENGTH,
-  type SecondStepId,
-  type UnlockMethodId,
-  checkWebauthnHost,
-  describeWebauthnError,
-  listAvailableUnlockMethods,
-  listSecondSteps,
-  pinPolicyProblems,
-  preferredUnlockMethod,
-} from "../lib/vault/unlock-methods.js";
-import {
-  type DeviceVault,
-  deviceHasSeveralVaults,
-  listDeviceVaults,
-  switchVault,
-} from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { FrontDoor } from "./FrontDoor.js";
@@ -74,7 +78,7 @@ import {
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
 import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
-import { cancelPasskeyDuressCode } from "./unlock/unlock-passkey-duress.js";
+import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -104,24 +108,7 @@ export function UnlockScreen() {
   const [vaultsOpen, setVaultsOpen] = useState(() =>
     unlockScreenDependencies.deviceHasSeveralVaults(),
   );
-  // Whatever this deployment brokers (D7), fetched once for both the front
-  // door and the unlock form. An empty catalog — no Identity API, an
-  // unreachable one, a deployment older than the endpoint — is not an error
-  // state: SignInPanel falls back to the single default upstream.
-  const [providers, setProviders] = useState<FederatedProviderSummary[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    void listFederatedProviders()
-      .then((list) => {
-        if (!cancelled) setProviders(list);
-      })
-      .catch(() => {
-        /* the empty catalog stands */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const providers = useFederatedProviders();
   // A locked screen is idle time: ask the service worker for a newer shell.
   useEffect(() => {
     void checkForAppUpdate();

@@ -1,4 +1,4 @@
-import type { LocalApplication } from "../../lib/local-applications.js";
+import type { LocalApplication } from "@opensesame/app-core/lib/local-applications.js";
 import { ApplicationDiagnostics } from "./ApplicationDiagnostics.js";
 import { ApplicationRecipePanel } from "./ApplicationRecipePanel.js";
 

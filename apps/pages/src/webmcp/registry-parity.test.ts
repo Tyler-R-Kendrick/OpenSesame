@@ -2,6 +2,17 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  HELP_TOPICS,
+  guideGoalIds,
+} from "@opensesame/app-core/tutorial/registry/goals.js";
+import {
+  type PagesWebMcpTool,
+  SECTION_PATHS,
+  WEBMCP_TOOLS,
+  type WebMcpSupportSeam,
+  webmcpSupportSeam,
+} from "@opensesame/app-core/webmcp/tools.js";
+import {
   CAPABILITIES,
   assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
@@ -13,14 +24,6 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { HELP_TOPICS, guideGoalIds } from "../tutorial/registry/goals.js";
-import {
-  type PagesWebMcpTool,
-  SECTION_PATHS,
-  WEBMCP_TOOLS,
-  type WebMcpSupportSeam,
-  webmcpSupportSeam,
-} from "./tools.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

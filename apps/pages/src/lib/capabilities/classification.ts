@@ -20,8 +20,8 @@
  * and fails on a file no rule matches.
  */
 
+import { optionalCapabilityIds } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
-import { optionalCapabilityIds } from "./catalog.js";
 import { LIB_RULES } from "./classification-lib.js";
 import { PACKAGE_RULES } from "./classification-packages.js";
 import { SECTION_RULES } from "./classification-sections.js";

@@ -16,6 +16,16 @@ import { Link } from "react-router";
  * card carries only the link, the user code, the QR, and the expiry.
  */
 
+import { b64ToBytes } from "@opensesame/app-core/lib/vault/crypto.js";
+import {
+  type CreatedDrop,
+  createDrop,
+  sweepDrop,
+} from "@opensesame/app-core/lib/vault/drop.js";
+import type {
+  DropItem,
+  SecretItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -25,14 +35,7 @@ import {
 } from "../../components/FieldRow.js";
 import { IconDrop, IconX } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
-import { b64ToBytes } from "../../lib/vault/crypto.js";
-import {
-  type CreatedDrop,
-  createDrop,
-  sweepDrop,
-} from "../../lib/vault/drop.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import type { DropItem, SecretItem } from "../../lib/vault/model.js";
 import { DROP_TTL_OPTIONS, TtlPicker } from "./DropTtl.js";
 
 export function formatExpiry(iso: string): string {

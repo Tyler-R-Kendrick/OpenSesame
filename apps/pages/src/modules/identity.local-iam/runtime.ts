@@ -17,16 +17,16 @@
  * `lib/local-authorization.ts` are bound in `activate` (`lib/local-iam-lock-resets.ts`).
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { bindLocalIamLockResets } from "../../lib/local-iam-lock-resets.js";
-import { LocalAuthorize } from "../../screens/LocalAuthorize.js";
-import { IdentitySection } from "../../sections/IdentitySection.js";
-import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { bindLocalIamLockResets } from "@opensesame/app-core/lib/local-iam-lock-resets.js";
 import {
   IDENTITY_ROUTES,
   IDENTITY_TARGETS,
-} from "../../tutorial/registry/identity-catalog.js";
-import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
+} from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { LocalAuthorize } from "../../screens/LocalAuthorize.js";
+import { IdentitySection } from "../../sections/IdentitySection.js";
+import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
 import { createActivation } from "../activation.js";
 import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { registerTutorial } from "../tutorial-contributions.js";

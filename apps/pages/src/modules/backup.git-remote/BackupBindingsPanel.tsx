@@ -6,8 +6,8 @@
  * `backup.git-remote` is active.
  */
 
-import type { ProviderCategory } from "../../lib/connections.js";
-import { getBundledProviders } from "../../lib/embedded-catalog.js";
+import type { ProviderCategory } from "@opensesame/app-core/lib/connections.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { featureBindingSections } from "../../sections/connections/page-tree.js";
 import {

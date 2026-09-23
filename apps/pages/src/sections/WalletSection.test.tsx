@@ -1,9 +1,9 @@
+import type { CardItem } from "@opensesame/app-core/lib/vault/model.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CardItem } from "../lib/vault/model.js";
 
 const vault = vi.hoisted(() => ({
   current: {
@@ -37,8 +37,8 @@ Object.assign(vaultHooksSeams, {
 import {
   clearSpendingLedgerStorage,
   resetSpendingLedgerCache,
-} from "../lib/spending-ledger.js";
-import { clearInstrumentBudgets } from "../lib/wallet-assignments.js";
+} from "@opensesame/app-core/lib/spending-ledger.js";
+import { clearInstrumentBudgets } from "@opensesame/app-core/lib/wallet-assignments.js";
 import { WalletSection } from "./WalletSection.js";
 
 function cardItem(name = "Corporate card"): CardItem {

@@ -15,12 +15,12 @@
  * replies to a conversation that no longer exists.
  */
 
-import { afterEach, describe, expect, it } from "vitest";
-import { vaultStore } from "../../../lib/vault/store.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   clearMountedGuideTargets,
   isMountedGuideTarget,
-} from "../../registry/targets.js";
+} from "@opensesame/app-core/tutorial/registry/targets.js";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   type SupportController,
   type SupportSessionDependencies,

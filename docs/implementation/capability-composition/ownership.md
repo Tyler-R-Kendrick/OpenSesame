@@ -44,9 +44,9 @@ loader, registry or vocabulary.
 
 | Universe | Shape | Owner |
 |---|---|---|
-| capability ID | `family.name[-name]` e.g. `connectors.external` | `apps/pages/src/lib/capabilities/catalog.ts` |
+| capability ID | `family.name[-name]` e.g. `connectors.external` | `packages/app-core/src/lib/capabilities/catalog.ts` |
 | operation ID | existing `@opensesame/capability-registry` ids, unchanged | `packages/capability-registry` |
-| module ID | `<capability-id>/<unit>` e.g. `connectors.external/section` | `apps/pages/src/lib/capabilities/ownership.ts` |
+| module ID | `<capability-id>/<unit>` e.g. `connectors.external/section` | `packages/app-core/src/lib/capabilities/ownership.ts` |
 | asset ID | dist-relative path e.g. `assets/ConnectionsSection-x.js` | build plugin output `dist/capability-graph.json` |
 
 Types for all four live in `packages/capability-composition/src/types.ts`
@@ -57,19 +57,19 @@ and are the only definitions.
 | Owner | Paths | Publishes |
 |---|---|---|
 | **S01** pure semantics | `packages/capability-composition/**` | `resolveComposition`, `explainCapability`, `reviewCompositionChange`, document parsers/validators, `exposureDigest`, `planDigest`, `receiptDigest`, `canonicalize`, reason codes, fixtures |
-| **S02** inventory | `apps/pages/src/lib/capabilities/catalog.ts`, `ownership.ts`, `presets.ts`, `apps/pages/capability-profiles/*.json`, `packages/capability-registry/src/capability-map.ts` | descriptors, module ownership map, presets, profile fixtures, operation→capability map |
-| **S03** trust | `apps/pages/src/lib/capabilities/trust/**` | policy envelope verification, provenance, join/import review, revision/rollback checks |
-| **S04** configuration resources | `apps/pages/src/lib/configuration/capabilities-*.ts` | instance-policy / installation-selection / vault-restriction resources, Visual/Source/Effective round trips, export |
+| **S02** inventory | `packages/app-core/src/lib/capabilities/catalog.ts`, `ownership.ts`, `presets.ts`, `apps/pages/capability-profiles/*.json`, `packages/capability-registry/src/capability-map.ts` | descriptors, module ownership map, presets, profile fixtures, operation→capability map |
+| **S03** trust | `packages/app-core/src/lib/capabilities/trust/**` | policy envelope verification, provenance, join/import review, revision/rollback checks |
+| **S04** configuration resources | `packages/app-core/src/lib/configuration/capabilities-*.ts` | instance-policy / installation-selection / vault-restriction resources, Visual/Source/Effective round trips, export |
 | **S05** bootstrap | `apps/pages/src/main.tsx`, `src/bootstrap/**`, `src/lib/runtime-config.ts`, `src/app-root.tsx` (the former `App.tsx` body) | core-only boot, parsed runtime config, core routes, unavailable/denied route |
-| **S06** loader/runtime | `apps/pages/src/lib/capabilities/{store,loader,registry,authority,lease}.ts` | store, `loadApprovedModule`, `activateApprovedCapability`, registrars, `assertCurrentOperationAuthority`, `admitOperation` |
+| **S06** loader/runtime | `packages/app-core/src/lib/capabilities/{store,loader,registry,authority,lease}.ts` | store, `loadApprovedModule`, `activateApprovedCapability`, registrars, `assertCurrentOperationAuthority`, `admitOperation` |
 | **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `scripts/build-profile.mjs`, `scripts/verify-capability-graph.mjs`, `vite.config.ts` (plugin wiring only), `bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
 | **S08** workers | `apps/pages/src/sw.ts`, `src/sw-push.ts`, `src/sw/**`, `src/lib/capabilities/worker-controller.ts`, `scripts/build-workers.mjs` | core-only worker, push variant, owned caches, asset-plan messages, registration controller |
 | **S09** setup/consent UI | `apps/pages/src/screens/capabilities/**`, `src/screens/SetupScreen.tsx`, `src/screens/FrontDoor.tsx` (requirements panel patch), `src/sections/settings/CapabilitiesPanel*.tsx` | purpose cards, capability cards, draft/review/apply, Settings › Capabilities |
 | **S10** shell | `src/components/AppShell.tsx`, `RailRows.tsx`, `NavDrawer.tsx`, `Crumbs.tsx`, `SettingsTree.tsx`, `KeymapSheet.tsx`, `src/lib/keymap.ts`, `src/lib/command-bar/types.ts`, `src/webmcp/navigation.ts` | contribution-driven navigation, commands, shortcuts, help |
 | **S11–S16** module owners | `apps/pages/src/modules/<capability-id>/runtime.ts` (+ moved feature code) | one `capabilityRuntime` per optional capability |
-| **S17** OpenFeature | `apps/pages/src/lib/capabilities/openfeature.ts` | local read-only provider over the store snapshot |
-| **S18** network | `apps/pages/src/lib/capabilities/egress.ts`, `scripts/security-headers.mjs` | egress adapter, capability-derived CSP/header templates |
-| **S19** lifecycle | `apps/pages/src/lib/capabilities/{change,migration,invalidation}.ts` | change coordinator, `setup.v1` migration review, cross-tab invalidation |
+| **S17** OpenFeature | `packages/app-core/src/lib/capabilities/openfeature.ts` | local read-only provider over the store snapshot |
+| **S18** network | `packages/app-core/src/lib/capabilities/egress.ts`, `scripts/security-headers.mjs` | egress adapter, capability-derived CSP/header templates |
+| **S19** lifecycle | `packages/app-core/src/lib/capabilities/{change,migration,invalidation}.ts` | change coordinator, `setup.v1` migration review, cross-tab invalidation |
 | **S20** registry parity | `packages/capability-registry/src/capability-map.ts` + parity tests | operation→capability prerequisites, profile projections |
 | **S21–S24** verification, docs | `apps/pages/scripts/verify-capabilities*.mjs`, `docs/**`, `docs/evidence/capability-composition/**` | property/fuzz suites, browser journeys, red-team fixtures, ADR, operator docs, evidence |
 

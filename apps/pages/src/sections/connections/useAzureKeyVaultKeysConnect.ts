@@ -2,23 +2,26 @@
  * State and actions for Settings › Connections › Azure Key Vault Keys.
  */
 
-import { type FormEvent, useEffect, useState } from "react";
 import {
   type AzureKeyVaultKeysDeviceConfig,
   clearAzureKeyVaultKeysConfig,
   readAzureKeyVaultKeysConfig,
   toAzureKeyVaultKeysPublic,
   writeAzureKeyVaultKeysConfig,
-} from "../../lib/azure-key-vault-keys-config.js";
-import { connectorLabel } from "../../lib/capabilities.js";
-import { bindCapabilityConnector } from "../../lib/capability-bind.js";
-import { loadSettings } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/azure-key-vault-keys-config.js";
+import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
+import { bindCapabilityConnector } from "@opensesame/app-core/lib/capability-bind.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { type FormEvent, useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   type AzureKeyVaultKeysFormState,
   emptyAzureKeyVaultKeysForm,
 } from "./AzureKeyVaultKeysConnectFields.js";
-import { type Flash, errorText } from "./shared.js";
 
 type AzureSettingsSlice = {
   capabilityConnectors: { encryption: { providerId: string } };

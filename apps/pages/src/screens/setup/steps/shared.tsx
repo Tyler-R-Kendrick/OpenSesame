@@ -7,13 +7,16 @@
  * which is why skipping a step never has to undo anything.
  */
 
-import { useState } from "react";
 import {
   type CapabilityConnectorBinding,
   type CapabilityId,
   normalizeCapabilityConnectors,
-} from "../../../lib/capabilities.js";
-import { loadSettings, saveSettings } from "../../../lib/settings.js";
+} from "@opensesame/app-core/lib/capabilities.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
+import { useState } from "react";
 import "./steps.css";
 
 /** The current binding for a capability family, and a chooser that persists. */

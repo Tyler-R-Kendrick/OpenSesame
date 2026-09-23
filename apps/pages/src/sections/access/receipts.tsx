@@ -8,15 +8,15 @@
  * screen, which the structural ratchet asks of anything that touches it.
  */
 
-import { type JsonObject, isString } from "@opensesame/os-domain";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
-import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import {
   IdentityError,
   identityBase,
   identityJson,
-} from "../../lib/identity.js";
+} from "@opensesame/app-core/lib/identity.js";
+import { type JsonObject, isString } from "@opensesame/os-domain";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { formatTime } from "./format.js";
 
 export type AuditEvent = {

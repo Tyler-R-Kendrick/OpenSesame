@@ -19,7 +19,7 @@ import {
   SOPS_SOURCE_COMMIT,
   SOPS_VERSION,
   provisionOracle,
-} from "../apps/pages/scripts/sops-oracle/oracle.mjs";
+} from "../packages/app-core/scripts/sops-oracle/oracle.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const evidence = join(root, "docs/evidence/2026-09-22-browser-local-sops");

@@ -193,7 +193,7 @@ correct behavior — do not fight it.
 The content script's `sender.origin` is the only authority on which rpId a
 ceremony may target. A page claiming `rpId: "google.com"` from
 `evil.example` must be rejected using the host-suffix rules already written in
-`apps/pages/src/lib/vault/unlock-methods.ts`. This is the single highest-value
+`packages/app-core/src/lib/vault/unlock-methods.ts`. This is the single highest-value
 security assertion in the whole work package; it needs a dedicated test.
 
 ### 6. A bundled list of passkey-capable sites is the wrong primary mechanism
@@ -279,7 +279,7 @@ be extended.
 
 ### 14. The plaintext CXF export already exists — audit it, do not rebuild it
 
-**This crossing has already been made.** `apps/pages/src/lib/vault/export/cxf.ts`
+**This crossing has already been made.** `packages/app-core/src/lib/vault/export/cxf.ts`
 shipped in #226, so the first plaintext export out of a vault whose every other
 byte is ciphertext is already in the tree.
 
@@ -331,7 +331,7 @@ usernames, no secrets).
   detection, 5-minute challenge store), exposed at
   `apps/control-plane/src/routes/mfa.ts` (`/v1/mfa/passkey/*`). The Better
   Auth passkey plugin is **not** used. **Out of scope — do not modify.**
-- *Vault unlock via WebAuthn PRF* — `apps/pages/src/lib/vault/unlock-methods.ts`
+- *Vault unlock via WebAuthn PRF* — `packages/app-core/src/lib/vault/unlock-methods.ts`
   (`PasskeyUnlockRecord`, HKDF-SHA-256 with info
   `opensesame/vault/webauthn-prf/v1`, `createPasskeyUnlockCeremony`,
   `getPasskeyUnlockCeremony`, plus the `checkWebauthnHost` / `isIpHostname` /
@@ -344,22 +344,22 @@ usernames, no secrets).
 
 **The vault:**
 
-- `apps/pages/src/lib/vault/model.ts` — `ItemKind` already includes
+- `packages/app-core/src/lib/vault/model.ts` — `ItemKind` already includes
   `"passkey"`, but `PasskeyItem` is metadata-only. `CertificateItem.privateKeyPem`
   is the existing precedent for private-key custody inside the sealed body.
-- `apps/pages/src/lib/vault/crypto.ts` — `VaultHeader.unlocks?: {passkey?, pin?, totp?}`,
+- `packages/app-core/src/lib/vault/crypto.ts` — `VaultHeader.unlocks?: {passkey?, pin?, totp?}`,
   Argon2 + XChaCha20Poly1305, whole-body sealing.
-- `apps/pages/src/lib/vault/store.ts` — `createWithPasskey`, `unlockWithPasskey`,
+- `packages/app-core/src/lib/vault/store.ts` — `createWithPasskey`, `unlockWithPasskey`,
   `enrollPasskey`, `removePasskey`, item CRUD.
-- `apps/pages/src/lib/vault/password.ts` — CSPRNG `generateCharacters` /
+- `packages/app-core/src/lib/vault/password.ts` — CSPRNG `generateCharacters` /
   `generatePassphrase`, `generatorEntropyBits`, and a hand-rolled
   `estimateStrengthDefault` (there is **no** `zxcvbn` dependency; do not add
   one), seam-injected via `passwordSeams`.
-- `apps/pages/src/lib/vault/health.ts` — `buildHealthReport` produces
+- `packages/app-core/src/lib/vault/health.ts` — `buildHealthReport` produces
   `weak` / `reused` / `old` / `no-2fa` findings over `LoginItem`s.
   `apps/pages/src/sections/vault/HealthPanel.tsx` renders them, and its "Fix
   this" button currently just links to `/vault/{id}/edit`.
-- `apps/pages/src/lib/vault/import/` — 18 `SourceId`s behind an ordered
+- `packages/app-core/src/lib/vault/import/` — 18 `SourceId`s behind an ordered
   `ADAPTERS` detection chain (`index.ts`), merge planning in `merge.ts`, UI in
   `apps/pages/src/sections/settings/ImportPanel.tsx`. Everything runs in-tab;
   nothing is uploaded.
@@ -371,7 +371,7 @@ usernames, no secrets).
     `DraftPasskey` carries a **required `authenticator` field**.
   - The CXF `SourceId` is **`"fido-cxf"`**, not `"cxf-json"`, with a
     registered adapter. There is also `"keepass-kdbx"`.
-  - **CXF export exists** at `apps/pages/src/lib/vault/export/cxf.ts`, with
+  - **CXF export exists** at `packages/app-core/src/lib/vault/export/cxf.ts`, with
     tests beside it.
   - `planMerge` already has a `case "passkey"` arm (`merge.ts:166`).
   - `summarise()` already counts passkeys (`index.ts:276`, `289`).
@@ -546,7 +546,7 @@ it, because three other agents are compiling against it.
 
 ### C1 — Vault item model additions
 
-*Owner: **WP-MODEL** (`apps/pages/src/lib/vault/model.ts`).*
+*Owner: **WP-MODEL** (`packages/app-core/src/lib/vault/model.ts`).*
 
 `PasskeyItem` keeps every existing field and gains these. **All new fields are
 optional**, so a vault sealed before this work deserializes unchanged:
@@ -618,7 +618,7 @@ export function activeItems(items: VaultItem[]): VaultItem[];
 
 ### C2 — Import draft shape
 
-*Owner: **WP-IMPORT-CORE** (`apps/pages/src/lib/vault/import/types.ts`).*
+*Owner: **WP-IMPORT-CORE** (`packages/app-core/src/lib/vault/import/types.ts`).*
 
 ```ts
 > **`DraftPasskey`, `draftPasskey()` and the `"fido-cxf"` `SourceId` already
@@ -696,7 +696,7 @@ throws.
 
 ### C4 — Health findings
 
-*Owner: **WP-HEALTH** (`apps/pages/src/lib/vault/health.ts`).*
+*Owner: **WP-HEALTH** (`packages/app-core/src/lib/vault/health.ts`).*
 
 The existing `HealthIssue` union gains three members and the finding's `item`
 widens from `LoginItem` to `LoginItem | PasskeyItem`:
@@ -923,9 +923,9 @@ yourself.
 
 **OWNS:**
 
-- `apps/pages/src/lib/vault/model.ts`
+- `packages/app-core/src/lib/vault/model.ts`
 - `apps/pages/src/lib/vault/passkey-keys.ts` (new)
-- `apps/pages/src/lib/vault/model.test.ts`, `passkey-keys.test.ts`
+- `packages/app-core/src/lib/vault/model.test.ts`, `passkey-keys.test.ts`
 
 **Do not own:** health, import, UI, store.ts.
 
@@ -978,9 +978,9 @@ pnpm audit:gitleaks
 
 **OWNS:**
 
-- `apps/pages/src/lib/vault/import/types.ts`
-- `apps/pages/src/lib/vault/import/index.ts`
-- `apps/pages/src/lib/vault/import/formats/cxf.ts` (new)
+- `packages/app-core/src/lib/vault/import/types.ts`
+- `packages/app-core/src/lib/vault/import/index.ts`
+- `packages/app-core/src/lib/vault/import/formats/cxf.ts` (new)
 - Tests for the above.
 
 **Do not own:** other format adapters, `merge.ts`, model.ts.
@@ -1033,9 +1033,9 @@ pnpm --filter @opensesame/pages test -- import
 
 **OWNS:**
 
-- `apps/pages/src/lib/vault/import/formats/bitwarden.ts`
-- `apps/pages/src/lib/vault/import/formats/onepassword.ts`
-- `apps/pages/src/lib/vault/import/formats/protonpass.ts`
+- `packages/app-core/src/lib/vault/import/formats/bitwarden.ts`
+- `packages/app-core/src/lib/vault/import/formats/onepassword.ts`
+- `packages/app-core/src/lib/vault/import/formats/protonpass.ts`
 - Tests for those three adapters.
 
 **Do not own:** `types.ts`, `index.ts`, `cxf.ts`, `merge.ts`.
@@ -1091,12 +1091,12 @@ pnpm --filter @opensesame/pages test -- bitwarden onepassword protonpass
 
 **OWNS:**
 
-- `apps/pages/src/lib/vault/import/merge.ts`
+- `packages/app-core/src/lib/vault/import/merge.ts`
 - The vault export path (locate it: the existing `opensesame` export writer
   under `apps/pages/src/lib/vault/`; if export lives in a section component,
-  extract the pure logic into `apps/pages/src/lib/vault/export/` and own that
+  extract the pure logic into `packages/app-core/src/lib/vault/export/` and own that
   directory)
-- `apps/pages/src/lib/vault/export/cxf.ts` (new)
+- `packages/app-core/src/lib/vault/export/cxf.ts` (new)
 - Tests for merge and export.
 
 **Do not own:** adapters, `types.ts`, `index.ts`, model.ts.
@@ -1177,7 +1177,7 @@ pnpm --filter @opensesame/pages test -- merge export
 
 **OWNS:**
 
-- `apps/pages/src/lib/vault/health.ts`
+- `packages/app-core/src/lib/vault/health.ts`
 - `apps/pages/src/lib/vault/wellknown.ts` (new)
 - `apps/pages/src/lib/vault/passkey-rps.seed.json` (new)
 - Tests for the above.
@@ -1327,7 +1327,7 @@ or they will render with an `undefined` class.
 
 **OWNS:**
 
-- `apps/pages/src/lib/settings.ts`
+- `packages/app-core/src/lib/settings.ts`
 - `apps/pages/src/sections/settings/RotationModePanel.tsx` (new)
 - Tests for both.
 
@@ -1563,7 +1563,7 @@ before writing code.
    `sender.origin`/`sender.tab`, **never** from the page's claimed value. A
    page's `rpId` is accepted only if the browser-derived host equals it or is a
    registrable-suffix match, using the host-suffix helpers in
-   `apps/pages/src/lib/vault/unlock-methods.ts` (`webauthnRpId`,
+   `packages/app-core/src/lib/vault/unlock-methods.ts` (`webauthnRpId`,
    `checkWebauthnHost`, `isIpHostname`). Reject with `rp-id-rejected`.
    **v1 handles top-level, same-origin frames only** — decline in cross-origin
    iframes rather than guessing.

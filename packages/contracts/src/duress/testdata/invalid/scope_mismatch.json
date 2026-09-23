@@ -14,7 +14,9 @@
           "organizationRef": null,
           "vaultRef": "vault-unknown",
           "deviceBindingRef": "device-1",
-          "compartmentRefs": ["comp-normal"]
+          "compartmentRefs": [
+            "comp-normal"
+          ]
         },
         "triggerKind": "application_code",
         "effects": {

@@ -3,8 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /** @vitest-environment jsdom */
 import { identityHookSeams } from "../../bindings/identity.js";
 
-import type { OperatorIdp, PagesSettings } from "../../lib/settings.js";
-import { defaultSignInMethods, settingsSeams } from "../../lib/settings.js";
+import type {
+  OperatorIdp,
+  PagesSettings,
+} from "@opensesame/app-core/lib/settings.js";
+import {
+  defaultSignInMethods,
+  settingsSeams,
+} from "@opensesame/app-core/lib/settings.js";
 
 /**
  * Setup is the allowlist, and this screen is where that has to be true.
@@ -33,8 +39,8 @@ Object.assign(settingsSeams, {
   }),
 });
 
-import { deviceIdentitySeams } from "../../lib/device-identity.js";
-import { identitySeams } from "../../lib/identity.js";
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
 });
@@ -45,8 +51,8 @@ Object.assign(deviceIdentitySeams, {
   remoteIdentityApi: () => state.identityApi,
 });
 
-import type { TrustedUpstream } from "../../lib/federation.js";
-import { federationSeams } from "../../lib/federation.js";
+import type { TrustedUpstream } from "@opensesame/app-core/lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 const beginSignIn = vi.fn((_upstream: TrustedUpstream) => Promise.resolve());
 Object.assign(federationSeams, {
   beginSignIn,

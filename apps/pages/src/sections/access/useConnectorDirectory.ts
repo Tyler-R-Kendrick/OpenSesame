@@ -9,8 +9,10 @@
  * answer wherever it is asked.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type Connection, listConnections } from "../../lib/connections.js";
+import {
+  type Connection,
+  listConnections,
+} from "@opensesame/app-core/lib/connections.js";
 import {
   type ConnectorDirectory,
   connectorResourceId,
@@ -18,21 +20,22 @@ import {
   readConnectorDirectory,
   readDirectoryEndpoint,
   syncConnectorDirectory,
-} from "../../lib/connector-directory.js";
+} from "@opensesame/app-core/lib/connector-directory.js";
 import {
   type ConnectorSetting,
   readConnectorSettings,
   settingFor,
   writeConnectorSetting,
-} from "../../lib/connector-settings.js";
-import { readLocalDirectory } from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/connector-settings.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   type LocalShare,
   createLocalShare,
   listLocalShares,
   revokeLocalShare,
-} from "../../lib/local-share-grants.js";
+} from "@opensesame/app-core/lib/local-share-grants.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHostConfigured } from "../../lib/use-configured.js";
 
 export type ConnectorRow = Readonly<{

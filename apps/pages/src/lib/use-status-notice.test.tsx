@@ -1,10 +1,10 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearNotices, listNotices } from "./notices.js";
 import { useStatusNotice } from "./use-status-notice.js";
 
-import type { StatusNoticeInput } from "./notices.js";
+import type { StatusNoticeInput } from "@opensesame/app-core/lib/notices.js";
 
 function Probe({ notice }: { notice: StatusNoticeInput | null }) {
   useStatusNotice(notice);

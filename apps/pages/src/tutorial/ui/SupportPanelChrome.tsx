@@ -3,13 +3,13 @@
  * live walkthrough strip.
  */
 
-import type { SupportAgentAvailability } from "@opensesame/support-agent";
-import { type ReactElement, useSyncExternalStore } from "react";
+import { guideGoal } from "@opensesame/app-core/tutorial/registry/goals.js";
 import {
   subscribeWebMcpRegistration,
   webmcpRegistrationSnapshot,
-} from "../../webmcp/registration.js";
-import { guideGoal } from "../registry/goals.js";
+} from "@opensesame/app-core/webmcp/registration.js";
+import type { SupportAgentAvailability } from "@opensesame/support-agent";
+import { type ReactElement, useSyncExternalStore } from "react";
 import { useSupport } from "../session.js";
 import { UNAVAILABLE_TEXT, webmcpStatusText } from "./messages.js";
 

@@ -1,14 +1,14 @@
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  readLocalGithubApp,
+  subscribeLocalGithubApp,
+} from "@opensesame/app-core/lib/github-app-manifest.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
 import { IconCheck, IconExternal } from "../../components/Icons.js";
 import { PasskeyCeremonyNote } from "../../components/PasskeyCeremonyNote.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import type { Provider } from "../../lib/connections.js";
-import {
-  readLocalGithubApp,
-  subscribeLocalGithubApp,
-} from "../../lib/github-app-manifest.js";
 import { OauthClientPanel } from "./OauthClientPanel.js";
-import type { Flash } from "./shared.js";
 
 function ScopePicker({
   provider,

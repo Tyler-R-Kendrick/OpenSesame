@@ -1,3 +1,13 @@
+import {
+  clearPendingConnectorDirectory,
+  connectorDirectorySeams,
+  syncConnectorDirectory,
+} from "@opensesame/app-core/lib/connector-directory.js";
+import { kvDelete } from "@opensesame/app-core/lib/kv.js";
+import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
+import type { DirectoryConnection } from "@opensesame/app-core/lib/nango-directory.js";
+import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -8,16 +18,6 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import {
-  clearPendingConnectorDirectory,
-  connectorDirectorySeams,
-  syncConnectorDirectory,
-} from "../../lib/connector-directory.js";
-import { kvDelete } from "../../lib/kv.js";
-import { localRequestFixture } from "../../lib/local-request.fixture.js";
-import { listLocalShares } from "../../lib/local-share-grants.js";
-import type { DirectoryConnection } from "../../lib/nango-directory.js";
-import { lockAllTombs } from "../../lib/vfs.js";
 import { ConnectorsPanel } from "./ConnectorsPanel.js";
 
 const github: DirectoryConnection = {

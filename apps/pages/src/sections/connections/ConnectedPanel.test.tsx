@@ -1,8 +1,8 @@
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Connection } from "../../lib/connections.js";
 import { ConnectedPanel } from "./ConnectedPanel.js";
 import { CONNECTIONS_PAGE_SIZE } from "./page-cap.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";

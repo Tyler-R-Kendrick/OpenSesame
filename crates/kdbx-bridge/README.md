@@ -33,7 +33,7 @@ pub fn map_kdbx(
 Everything in [`map`](src/map.rs) is a pure function over plain data — no
 `keepass` types, no file system, no crypto — so the contract below is
 unit-testable, mutation-testable, and portable to the TypeScript adapter in
-`apps/pages/src/lib/vault/import/formats/kdbx.ts`.
+`packages/app-core/src/lib/vault/import/formats/kdbx.ts`.
 
 ## Plane
 

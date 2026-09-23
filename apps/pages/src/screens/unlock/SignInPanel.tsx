@@ -30,37 +30,28 @@
  */
 
 import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { IconUser } from "../../components/Icons.js";
-import {
   clearAuthOutcome,
   outcomeForcesLogin,
   readAuthOutcome,
-} from "../../lib/auth-outcome.js";
-import type { ByoRegistration } from "../../lib/byo.js";
-import { describeFederationError } from "../../lib/federation-copy.js";
+} from "@opensesame/app-core/lib/auth-outcome.js";
+import type { ByoRegistration } from "@opensesame/app-core/lib/byo.js";
+import { describeFederationError } from "@opensesame/app-core/lib/federation-copy.js";
 import {
   type BeginSignInOptions,
   type TrustedUpstream,
   beginSignIn as beginFederatedSignIn,
   defaultUpstream,
   operatorUpstream,
-} from "../../lib/federation.js";
-import { landFocus } from "../../lib/focus.js";
-import { continueAsGuest } from "../../lib/guest-auth.js";
-import { isRemoteIdentityConfigured } from "../../lib/identity.js";
-import { readLastSignIn } from "../../lib/last-sign-in.js";
+} from "@opensesame/app-core/lib/federation.js";
+import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
+import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
+import { readLastSignIn } from "@opensesame/app-core/lib/last-sign-in.js";
 import {
   type OrgAuthMethod,
   type OrgTenant,
   orgAuthUpstream,
   routeOrgMethod,
-} from "../../lib/orgs.js";
+} from "@opensesame/app-core/lib/orgs.js";
 import {
   type FederatedProviderSummary,
   brokeredByoUpstream,
@@ -68,8 +59,17 @@ import {
   brokeredRealmUpstream,
   providerUpstream,
   requestEmailMagicLink,
-} from "../../lib/providers.js";
-import { signInMethods } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/providers.js";
+import { signInMethods } from "@opensesame/app-core/lib/settings.js";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { IconUser } from "../../components/Icons.js";
+import { landFocus } from "../../lib/focus.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { brandFor } from "./ProviderBrand.js";

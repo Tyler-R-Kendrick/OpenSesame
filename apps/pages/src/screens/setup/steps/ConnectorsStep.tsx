@@ -3,14 +3,14 @@
  * later tabs (backups) may reuse what this directory authorized.
  */
 
-import { useState } from "react";
-import { ConnectorDirectoryForm } from "../../../components/ConnectorDirectoryForm.js";
-import { StatusMark } from "../../../components/StatusMark.js";
 import {
   type ConnectorDirectory,
   pendingConnectorDirectory,
-} from "../../../lib/connector-directory.js";
-import type { DirectoryConnection } from "../../../lib/nango-directory.js";
+} from "@opensesame/app-core/lib/connector-directory.js";
+import type { DirectoryConnection } from "@opensesame/app-core/lib/nango-directory.js";
+import { useState } from "react";
+import { ConnectorDirectoryForm } from "../../../components/ConnectorDirectoryForm.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
 import { GuideTarget } from "../../../tutorial/registry/react.jsx";
 

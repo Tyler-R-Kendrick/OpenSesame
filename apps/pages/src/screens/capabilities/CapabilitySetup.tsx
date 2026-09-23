@@ -11,6 +11,11 @@
  * approved — Publish deployment configuration.
  */
 
+import { exportInstanceConfiguration } from "@opensesame/app-core/lib/configuration/capabilities-export.js";
+import {
+  PRESETS,
+  PUBLICATION_CAPABILITIES,
+} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useEffect, useRef } from "react";
 import {
@@ -23,11 +28,6 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { exportInstanceConfiguration } from "../../lib/configuration/capabilities-export.js";
-import {
-  PRESETS,
-  PUBLICATION_CAPABILITIES,
-} from "../../lib/configuration/capabilities-ports.js";
 import { landFocus } from "../../lib/focus.js";
 import { CapabilityCard } from "./CapabilityCard.js";
 import { CapabilityReview } from "./CapabilityReview.js";

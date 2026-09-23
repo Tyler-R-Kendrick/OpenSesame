@@ -4,22 +4,25 @@
  * in the core; this file only subscribes to it (ADR 0133 §1).
  */
 
-import type { ContributionKind } from "@opensesame/capability-composition";
-import { useMemo, useSyncExternalStore } from "react";
 import {
   contributions,
   subscribeRegistry,
-} from "../lib/capabilities/registry.js";
+} from "@opensesame/app-core/lib/capabilities/registry.js";
 import type {
   ContributionEntry,
   ItemKindContribution,
-} from "../lib/capabilities/runtime-contract.js";
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   contributionsSnapshot,
   injectedContributionsVersion,
   subscribeInjected,
-} from "../lib/contributions.js";
-import { type ItemKindRow, itemKindsFrom } from "../lib/item-kinds.js";
+} from "@opensesame/app-core/lib/contributions.js";
+import {
+  type ItemKindRow,
+  itemKindsFrom,
+} from "@opensesame/app-core/lib/item-kinds.js";
+import type { ContributionKind } from "@opensesame/capability-composition";
+import { useMemo, useSyncExternalStore } from "react";
 
 /** The registry's entries of `kind` alone, re-read on every registration. */
 export function useRegistryContributions<K extends ContributionKind>(

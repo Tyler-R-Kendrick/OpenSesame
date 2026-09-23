@@ -1,5 +1,8 @@
-import type { GitAuthMode } from "../../lib/git-auth-modes.js";
-import { GIT_AUTH_MODES, isGitAuthMode } from "../../lib/git-auth-modes.js";
+import type { GitAuthMode } from "@opensesame/app-core/lib/git-auth-modes.js";
+import {
+  GIT_AUTH_MODES,
+  isGitAuthMode,
+} from "@opensesame/app-core/lib/git-auth-modes.js";
 
 export function GitAuthModePicker({
   authMode,

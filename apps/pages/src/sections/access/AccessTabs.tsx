@@ -1,9 +1,12 @@
+import { accessPath } from "@opensesame/app-core/lib/access-routes.js";
 import { Link } from "react-router";
-import { accessPath } from "../../lib/access-routes.js";
 
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-view-names.js";
+import {
+  ACCESS_LABELS,
+  ACCESS_VIEWS,
+} from "@opensesame/app-core/lib/section-view-names.js";
 /** The Access views as tabs, each named so a guide can point at it. */
 export const ACCESS_TABS = ACCESS_VIEWS.map((id) => ({
   id,

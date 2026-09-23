@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import { IconCheck, IconX } from "../../components/Icons.js";
 import {
   type LocalDevice,
   removeLocalDevice,
   renameLocalDevice,
   thisDeviceId,
   touchThisDevice,
-} from "../../lib/local-devices.js";
+} from "@opensesame/app-core/lib/local-devices.js";
+import { useEffect, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   const [devices, setDevices] = useState<LocalDevice[] | null>(null);

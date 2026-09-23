@@ -15,12 +15,18 @@
  * so the screen never stops saying what is being looked at.
  */
 
+import {
+  itemTypeId,
+  typePlural,
+} from "@opensesame/app-core/lib/vault/item-types.js";
+import type {
+  Folder,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { IconFilter, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
-import { itemTypeId, typePlural } from "../../lib/vault/item-types.js";
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 /** One road out of the sheet: where it goes, what it is called, how many. */

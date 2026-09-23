@@ -1,6 +1,6 @@
 # SOPS wire compatibility
 
-What `apps/pages/src/lib/sops` reproduces from upstream SOPS, why each
+What `packages/app-core/src/lib/sops` reproduces from upstream SOPS, why each
 choice is upstream's rather than ours, and what it deliberately refuses.
 
 **Target:** SOPS **v3.13.3**, source commit

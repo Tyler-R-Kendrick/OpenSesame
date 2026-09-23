@@ -13,13 +13,20 @@
  * ever appears here before unlock.
  */
 
+import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
+import {
+  signOut,
+  switchAccount,
+} from "@opensesame/app-core/lib/session-exit.js";
+import {
+  type DeviceVault,
+  sealNewVault,
+  switchVault,
+} from "@opensesame/app-core/lib/vaults.js";
 import { useEffect, useRef, useState } from "react";
 import { IconMark, IconPlus } from "../components/Icons.js";
 import { VaultList } from "../components/VaultList.js";
 import { firstControl, landFocus } from "../lib/focus.js";
-import type { FederatedProviderSummary } from "../lib/providers.js";
-import { signOut, switchAccount } from "../lib/session-exit.js";
-import { type DeviceVault, sealNewVault, switchVault } from "../lib/vaults.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { AccountRow } from "./unlock/AccountRow.js";

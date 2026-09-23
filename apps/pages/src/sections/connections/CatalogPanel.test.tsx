@@ -1,8 +1,8 @@
+import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 /** @vitest-environment jsdom */
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { expect, it } from "vitest";
-import { vercelConnectCatalog } from "../../lib/vercel-connect-catalog.js";
 import { CatalogPanel } from "./CatalogPanel.js";
 
 it.skip("keeps browse-catalog tiles out of sequential Tab order", () => {

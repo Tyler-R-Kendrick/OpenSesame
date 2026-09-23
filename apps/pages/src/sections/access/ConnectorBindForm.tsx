@@ -1,4 +1,8 @@
 import {
+  SHARE_DURATIONS,
+  SHARE_POLICIES,
+} from "@opensesame/app-core/lib/local-share-grants.js";
+import {
   type FormEvent,
   type ReactNode,
   useEffect,
@@ -6,10 +10,6 @@ import {
   useState,
 } from "react";
 import { IconCheck, IconX } from "../../components/Icons.js";
-import {
-  SHARE_DURATIONS,
-  SHARE_POLICIES,
-} from "../../lib/local-share-grants.js";
 import type { BindInput, ConnectorIdentity } from "./useConnectorDirectory.js";
 
 type Choice = { id: string | number; label: string };

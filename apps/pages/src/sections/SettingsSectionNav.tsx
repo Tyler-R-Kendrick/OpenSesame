@@ -1,11 +1,11 @@
-import { type ComponentType, useEffect, useMemo, useRef } from "react";
-import { Link } from "react-router";
-import type { SettingsCategoryContribution } from "../lib/capabilities/runtime-contract.js";
-import { contributionsSnapshot } from "../lib/contributions.js";
+import type { SettingsCategoryContribution } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
 import {
   type SettingsCategory,
   settingsCategoryFromHash,
-} from "../lib/crumbs.js";
+} from "@opensesame/app-core/lib/crumbs.js";
+import { type ComponentType, useEffect, useMemo, useRef } from "react";
+import { Link } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js";
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";

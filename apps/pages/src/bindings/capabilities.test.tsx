@@ -1,13 +1,13 @@
 /** @vitest-environment jsdom */
 import { OpenFeature } from "@openfeature/web-sdk";
-import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
 import {
   approvedPlan,
   readySnapshot,
   storeDouble,
-} from "../lib/capabilities/__tests__/plan-fixtures.js";
-import { installCompositionProvider } from "../lib/capabilities/openfeature.js";
+} from "@opensesame/app-core/lib/capabilities/__tests__/plan-fixtures.js";
+import { installCompositionProvider } from "@opensesame/app-core/lib/capabilities/openfeature.js";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { useCapabilityFlag } from "./capabilities.js";
 
 const CONNECTORS = "connectors.external";

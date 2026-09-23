@@ -557,14 +557,14 @@ Baseline pinned to `dc3d11878c90f1088d094ff18f5ee9d301e4a57d`.
 
 | Ref | Path / topic |
 |---|---|
-| [R01] | `apps/pages/src/lib/capabilities.ts` |
+| [R01] | `packages/app-core/src/lib/capabilities.ts` |
 | [R02] | `apps/pages/src/components/KeyVaultCeremony.tsx` |
-| [R03] | `apps/pages/src/lib/capability-bind.ts` |
-| [R04] | `apps/pages/src/lib/vault/crypto.ts` |
-| [R05] | `apps/pages/src/lib/vault/unlock-methods.ts` |
-| [R06] | `apps/pages/src/lib/vault/store.ts` |
-| [R07] | `apps/pages/src/lib/vfs.ts` (+ tomb-migration, projects) |
-| [R08] | `apps/pages/src/lib/age-keys.ts` (+ AgeKeysPanel) |
+| [R03] | `packages/app-core/src/lib/capability-bind.ts` |
+| [R04] | `packages/app-core/src/lib/vault/crypto.ts` |
+| [R05] | `packages/app-core/src/lib/vault/unlock-methods.ts` |
+| [R06] | `packages/app-core/src/lib/vault/store.ts` |
+| [R07] | `packages/app-core/src/lib/vfs.ts` (+ tomb-migration, projects) |
+| [R08] | `packages/app-core/src/lib/age-keys.ts` (+ AgeKeysPanel) |
 | [R09] | `apps/pages/package.json` (`age-encryption@0.3.1`) |
 | [R10] | `crates/human-vault/src/lib.rs` |
 | [R11] | `crates/sealed-store/src/store.rs` (+ lib.rs) |
@@ -589,12 +589,12 @@ Baseline pinned to `dc3d11878c90f1088d094ff18f5ee9d301e4a57d`.
 
 GitHub deep links (baseline SHA):
 
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/lib/capabilities.ts
+- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/capabilities.ts
 - https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/components/KeyVaultCeremony.tsx
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/lib/capability-bind.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/lib/vault/crypto.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/lib/vault/unlock-methods.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/lib/vault/store.ts
+- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/capability-bind.ts
+- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/crypto.ts
+- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/unlock-methods.ts
+- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/store.ts
 - https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/crates/human-vault/src/lib.rs
 - https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/crates/sealed-store/src/store.rs
 - https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/docs/adr/0037-git-sealed-store.md

@@ -1,13 +1,13 @@
-/** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { describeCapability } from "../../lib/capabilities/catalog.js";
-import { connectCallbackBase } from "../../lib/connect-callback.js";
+import { describeCapability } from "@opensesame/app-core/lib/capabilities/catalog.js";
+import { connectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
 import {
   CONNECTIONS_ROUTES,
   CONNECTIONS_TARGETS,
-} from "../../tutorial/registry/connections-catalog.js";
-import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
-import type { PagesWebMcpTool } from "../../webmcp/tool-shared.js";
+} from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
+import { CONNECTIONS_GOALS } from "@opensesame/app-core/tutorial/registry/connections-goals.js";
+import type { PagesWebMcpTool } from "@opensesame/app-core/webmcp/tool-shared.js";
+/** @vitest-environment jsdom */
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,

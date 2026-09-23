@@ -18,28 +18,28 @@ const fed = vi.hoisted(() => ({
   openVaultAfterSignIn: vi.fn(),
 }));
 
-import { federationSeams } from "../lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 const originalFederationSeams = { ...federationSeams };
 Object.assign(federationSeams, {
   completeSignIn: fed.completeSignIn,
   adoptBrokeredSession: fed.adoptBrokeredSession,
 });
 
-import { orgSeams } from "../lib/orgs.js";
+import { orgSeams } from "@opensesame/app-core/lib/orgs.js";
 Object.assign(orgSeams, { joinOrgTenant: fed.joinOrgTenant });
 
-import { identitySeams } from "../lib/identity.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 identitySeams.connectProvisional = fed.ensureIdentitySession;
 identitySeams.currentSession = () => null;
 identitySeams.identityBase = () => "http://127.0.0.1:18788";
 
-import { guestAuthSeams } from "../lib/guest-auth.js";
+import { guestAuthSeams } from "@opensesame/app-core/lib/guest-auth.js";
 guestAuthSeams.adoptFederatedIdentity = fed.adoptFederatedIdentity;
 guestAuthSeams.openVaultAfterSignIn = fed.openVaultAfterSignIn;
 
-import { readAuthOutcome } from "../lib/auth-outcome.js";
+import { readAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
 
-import { FederationError } from "../lib/federation.js";
+import { FederationError } from "@opensesame/app-core/lib/federation.js";
 import {
   FederationReturn,
   resetFederationReturnCeremony,

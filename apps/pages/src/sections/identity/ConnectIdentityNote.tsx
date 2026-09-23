@@ -2,7 +2,10 @@ import { useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconAlert, IconLogin } from "../../components/Icons.js";
 
-import { loadSettings, saveSettings } from "../../lib/settings.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 
 import { useConnect } from "../../bindings/identity.js";

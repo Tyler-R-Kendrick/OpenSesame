@@ -18,7 +18,7 @@ const state = vi.hoisted(() => {
   return bag;
 });
 
-import { settingsSeams } from "../lib/settings.js";
+import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
 Object.assign(settingsSeams, {
   loadSettings: () => ({ mfaAppUrl: state.mfaAppUrl }),
@@ -29,7 +29,7 @@ Object.assign(settingsSeams, {
     };
   },
 });
-import { webauthnSeams } from "../lib/webauthn.js";
+import { webauthnSeams } from "@opensesame/app-core/lib/webauthn.js";
 const originalWebauthnSeams = { ...webauthnSeams };
 Object.assign(webauthnSeams, {
   WEBAUTHN_FALLBACK: "This browser cannot do passkeys here.",

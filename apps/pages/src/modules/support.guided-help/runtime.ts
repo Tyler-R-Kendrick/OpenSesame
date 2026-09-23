@@ -30,8 +30,8 @@
  * controller in StrictMode leaves no handler holding the session's keys.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { SUPPORT_TOOLS } from "../../webmcp/support-tools.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { SUPPORT_TOOLS } from "@opensesame/app-core/webmcp/support-tools.js";
 import { createActivation } from "../activation.js";
 import { type ContextWithPorts, tagWebMcpTool } from "../ports-b.js";
 import { SupportShell } from "./SupportShell.js";

@@ -1,3 +1,11 @@
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import { sopsCapability } from "@opensesame/app-core/lib/sops/capability.js";
+import {
+  ageCapability,
+  exportNativeManifestJson,
+  gpgCapability,
+  nativeManifestCapability,
+} from "@opensesame/app-core/lib/vault/protection/sops-browser.js";
 import { useState } from "react";
 import {
   IconDownload,
@@ -6,15 +14,7 @@ import {
   IconVault,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { setStatusNotice } from "../../lib/notices.js";
-import { sopsCapability } from "../../lib/sops/capability.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import {
-  ageCapability,
-  exportNativeManifestJson,
-  gpgCapability,
-  nativeManifestCapability,
-} from "../../lib/vault/protection/sops-browser.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import "./vault-key-protection.css";
 import { AgeInteropSheet } from "./AgeInteropSheet.js";

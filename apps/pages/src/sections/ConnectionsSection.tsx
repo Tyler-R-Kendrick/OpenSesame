@@ -1,32 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router";
-import { usePublishConnections } from "../components/ConnectionsNavigation.js";
-import { IconAlert, IconRefresh } from "../components/Icons.js";
-import { StatusMark } from "../components/StatusMark.js";
-import { mergeLocalGitConnections } from "../lib/connections-local-git.js";
+import { mergeLocalGitConnections } from "@opensesame/app-core/lib/connections-local-git.js";
 import {
   type Connection,
   ConnectionsError,
   type Provider,
   listConnections,
-} from "../lib/connections.js";
-import { getBundledProviders } from "../lib/embedded-catalog.js";
+} from "@opensesame/app-core/lib/connections.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useParams } from "react-router";
+import { usePublishConnections } from "../components/ConnectionsNavigation.js";
+import { IconAlert, IconRefresh } from "../components/Icons.js";
+import { StatusMark } from "../components/StatusMark.js";
 
+import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { useOnline } from "../lib/use-online.js";
-import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
 
-import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js";
+import {
+  type Flash,
+  type LoadFailure,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { noteGuideConnectionsPresent } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
 import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
-import {
-  type Flash,
-  type LoadFailure,
-  errorText,
-} from "./connections/shared.js";
 import "./connections.css";
 
 import { useIdentitySession } from "../bindings/identity.js";

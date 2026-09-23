@@ -14,23 +14,23 @@
  * keep the previous project's key from surviving into the next one.
  */
 
-import { useState, useSyncExternalStore } from "react";
-import { useNavigate } from "react-router";
-import { settingsPath } from "../lib/crumbs.js";
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import {
   createProject,
   projectsState,
   setActiveProject,
   subscribeProjects,
-} from "../lib/projects.js";
-import { vaultStore } from "../lib/vault/store.js";
+} from "@opensesame/app-core/lib/projects.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type DeviceVault,
   enterActiveProjectScope,
   guestVaultLabel,
   switchToGuest,
   vaultLabel,
-} from "../lib/vaults.js";
+} from "@opensesame/app-core/lib/vaults.js";
+import { useState, useSyncExternalStore } from "react";
+import { useNavigate } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconPlus } from "./Icons.js";
 import { VaultList } from "./VaultList.js";

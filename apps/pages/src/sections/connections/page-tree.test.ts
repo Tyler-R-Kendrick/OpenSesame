@@ -1,6 +1,6 @@
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { describe, expect, it } from "vitest";
-import type { Provider } from "../../lib/connections.js";
-import { getBundledProviders } from "../../lib/embedded-catalog.js";
 import { pageTreeLeaves } from "../../lib/page-to-tree.js";
 import {
   catalogPageSections,

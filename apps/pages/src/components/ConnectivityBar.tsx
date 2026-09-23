@@ -1,16 +1,19 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import { checkNow } from "../lib/connectivity-monitor.js";
+import { checkNow } from "@opensesame/app-core/lib/connectivity-monitor.js";
 import {
   type ConnectorId,
   type ConnectorStatus,
   isOfflineSet,
   needsAttention,
-} from "../lib/connectors.js";
-import { beginSignIn, defaultUpstream } from "../lib/federation.js";
-import { claimGuestAuth } from "../lib/guest-auth.js";
+} from "@opensesame/app-core/lib/connectors.js";
+import {
+  beginSignIn,
+  defaultUpstream,
+} from "@opensesame/app-core/lib/federation.js";
+import { claimGuestAuth } from "@opensesame/app-core/lib/guest-auth.js";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { failureSentence } from "@opensesame/app-core/lib/probe-failure.js";
 import { useModalFocus } from "../lib/modal-focus.js";
-import { failureSentence } from "../lib/probe-failure.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconLogin, IconVault, IconX } from "./Icons.js";
 import { IdentityCeremony } from "./IdentityCeremony.js";

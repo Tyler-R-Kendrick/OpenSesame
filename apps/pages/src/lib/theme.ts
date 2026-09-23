@@ -6,8 +6,8 @@
  * the choice into sealed prefs so Settings → Appearance stays consistent.
  */
 
+import { kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { useSyncExternalStore } from "react";
-import { kvGet, kvSet } from "./kv.js";
 
 export const THEME_KEY = "appearance.theme.v1";
 

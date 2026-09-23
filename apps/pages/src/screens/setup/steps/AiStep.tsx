@@ -2,20 +2,20 @@
  * Step — ai. Same two slug selects as Settings › Connections › Models.
  */
 
-import { useEffect, useState } from "react";
-import { browserInference } from "../../../lib/browser-inference.js";
-import { detectSpeechRecognition } from "../../../lib/command-bar/speech.js";
+import { browserInference } from "@opensesame/app-core/lib/browser-inference.js";
+import { detectSpeechRecognition } from "@opensesame/app-core/lib/command-bar/speech.js";
 import {
   type ModelProviderRecord,
   loadModelProvider,
   saveModelProvider,
-} from "../../../lib/model-provider.js";
+} from "@opensesame/app-core/lib/model-provider.js";
 import {
   type ModelSlugOption,
   connectedHarnessProviderIds,
   inferenceSlugOptions,
   voiceSlugOptions,
-} from "../../../lib/model-slugs.js";
+} from "@opensesame/app-core/lib/model-slugs.js";
+import { useEffect, useState } from "react";
 import { ModelRoleSelects } from "../../../sections/settings/AiModelRoles.js";
 
 export function AiStep() {

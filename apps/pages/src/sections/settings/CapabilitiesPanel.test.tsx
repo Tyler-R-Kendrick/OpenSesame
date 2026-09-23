@@ -1,3 +1,8 @@
+import { FIXTURE_MANAGED_POLICY } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
+import {
+  double,
+  resetDouble,
+} from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -7,19 +12,17 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FIXTURE_MANAGED_POLICY } from "../../lib/configuration/doubles/composition-fixture.js";
-import {
-  double,
-  resetDouble,
-} from "../../lib/configuration/doubles/test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 
-vi.mock("../../lib/configuration/capabilities-ports.js", async () => {
-  const { mockedPorts } = await import(
-    "../../lib/configuration/doubles/test-support.js"
-  );
-  return mockedPorts();
-});
+vi.mock(
+  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
+  async () => {
+    const { mockedPorts } = await import(
+      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
+    );
+    return mockedPorts();
+  },
+);
 
 import {
   CapabilitiesPanel,

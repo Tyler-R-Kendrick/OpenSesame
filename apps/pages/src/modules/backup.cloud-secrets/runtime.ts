@@ -19,7 +19,7 @@
  * cloud-secrets descriptor is authored yet (see the report).
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
 import { CloudSecretBindingsPanel } from "./CloudSecretBindingsPanel.js";
 

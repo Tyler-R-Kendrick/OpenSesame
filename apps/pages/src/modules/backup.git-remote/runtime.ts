@@ -35,11 +35,11 @@
  * forge remote store. No third-party git or GitHub SDK is used.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
-} from "../../lib/vault-backup-observer.js";
+} from "@opensesame/app-core/lib/vault-backup-observer.js";
 import { createActivation } from "../activation.js";
 import { BackupBindingsPanel } from "./BackupBindingsPanel.js";
 

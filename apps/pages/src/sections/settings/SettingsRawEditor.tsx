@@ -1,23 +1,17 @@
 import {
-  isBoolean,
-  isNumber,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
-import { useEffect, useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
-import {
   loadKeybindings,
   persistKeybindings,
-} from "../../lib/configuration/nav-persist.js";
-import type { SettingsCategory } from "../../lib/crumbs.js";
+} from "@opensesame/app-core/lib/configuration/nav-persist.js";
+import type { SettingsCategory } from "@opensesame/app-core/lib/crumbs.js";
 import {
   loadSettingsSource,
   saveSettingsSource,
-} from "../../lib/settings-source.js";
-import { loadSettings, saveSettings } from "../../lib/settings.js";
-import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import type { VaultPrefs } from "../../lib/vault/store.js";
+} from "@opensesame/app-core/lib/settings-source.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
+import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type RawFormat,
   type SettingsDoc,
@@ -26,7 +20,16 @@ import {
   settingsFields,
   settingsFilePath,
   suggestSettings,
-} from "./settings-files.js";
+} from "@opensesame/app-core/sections/settings/settings-files.js";
+import {
+  isBoolean,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { useEffect, useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 
 export function SettingsRawEditor({
   category,

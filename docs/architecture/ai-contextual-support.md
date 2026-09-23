@@ -59,7 +59,7 @@ tidiness; it is what makes the two halves of §1 testable independently.
 
 ## 3. The registries
 
-`apps/pages/src/tutorial/registry/` is the application's self-description, and
+`packages/app-core/src/tutorial/registry/` is the application's self-description, and
 it is the only channel by which the tutorial system learns anything about the
 app.
 
@@ -415,7 +415,7 @@ an agent may ask for a walkthrough somebody wrote, it may not author one. Both
 are session-scoped, both return only a fixed status and the authored id they
 were given, and neither reads a transcript. The capability-registry entries are
 what make that decision visible in the diff, and the registry-parity sweep in
-`apps/pages/src/webmcp/registry-parity.test.ts` fails if the implemented
+`packages/app-core/src/webmcp/registry-parity.test.ts` fails if the implemented
 catalog and the registry-derived catalog disagree.
 
 The reasoning for keeping guidance off the tool channel is in ADR 0088 §8: the
@@ -437,16 +437,16 @@ the first request for a guide that "just opens the approval dialog".
 | Identifiers must exist in this build | `packages/guide-lang/src/validate.ts` | `validateGuide`, `compileGuide` |
 | Budgets and identifiers re-checked before the DOM | `packages/guide-runtime/src/runtime.ts` | `createGuideRuntime` |
 | One live guide; every deadline owned by the runtime | `packages/guide-runtime/src/runtime.ts` | `start`, `cancel`, `GuideClock` |
-| Nothing but registry data reaches a model | `apps/pages/src/tutorial/registry/context.ts` | `buildSupportPageContext` |
+| Nothing but registry data reaches a model | `packages/app-core/src/tutorial/registry/context.ts` | `buildSupportPageContext` |
 | The outbound payload is rebuilt, not forwarded | `packages/support-agent/src/egress.ts` | `sanitizeSupportRequest` |
 | Denied key terms and host objects refused before egress | `packages/support-agent/src/egress.ts` | `SupportEgressRefused` |
 | Bounded repair that never echoes model text | `packages/support-agent/src/turn.ts` | `runSupportTurn` |
 | Security clauses cannot silently disappear | `packages/support-agent/src/instructions.ts` | `SUPPORT_POLICY_CLAUSES` |
-| The only identifier-to-element edge | `apps/pages/src/tutorial/registry/targets.ts` | `resolveGuideTargetElement` |
+| The only identifier-to-element edge | `packages/app-core/src/tutorial/registry/targets.ts` | `resolveGuideTargetElement` |
 | Model prose written as text, never markup | `apps/pages/src/tutorial/rendering/driver-renderer.ts` | `createDriverRenderer` |
 | Transcript never persisted; dropped on lock | `packages/support-agent/src/session.ts` | `destroy` |
-| Where a question may be sent, and that it carries no credential | `apps/pages/src/tutorial/agents/ag-ui/endpoint.ts` | `readAgUiEndpointUrl` |
-| A server's tool calls and state patches are unheard, not refused | `apps/pages/src/tutorial/agents/ag-ui/ag-ui-agent.ts` | `createAgUiSupportAgent` |
+| Where a question may be sent, and that it carries no credential | `packages/app-core/src/tutorial/agents/ag-ui/endpoint.ts` | `readAgUiEndpointUrl` |
+| A server's tool calls and state patches are unheard, not refused | `packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.ts` | `createAgUiSupportAgent` |
 | Agent payloads fenced before leaving a WebMCP handler | `packages/webmcp/src/fence.ts` | `fenceForAgent` |
 | No secret-shaped tool names on any agent catalog | `packages/capability-registry/src/index.ts` | `assertsNoSecretNames` |
 

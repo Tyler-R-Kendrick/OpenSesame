@@ -4,13 +4,20 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
+import type {
+  Folder,
+  LoginItem,
+  VaultItem,
+} from "@opensesame/app-core/lib/vault/model.js";
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import { connectivityBarDependencies } from "../../components/ConnectivityBar.js";
-import type { Connection, Provider } from "../../lib/connections.js";
-import type { ConnectorStatus } from "../../lib/connectors.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import type { Folder, LoginItem, VaultItem } from "../../lib/vault/model.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";
-import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 
 // The connector surfaces bind targets the connectors capability declares.
 let revokeRealm = () => {};
@@ -58,16 +65,16 @@ Object.assign(connectivityBarDependencies, {
   checkNow: () => undefined,
 });
 
+import {
+  duplicateGuideTargetMounts,
+  isMountedGuideTarget,
+  resolveGuideTargetElement,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 import { ConnectivityBar } from "../../components/ConnectivityBar.js";
 import { VaultSection } from "../../sections/VaultSection.js";
 import { CatalogPanel } from "../../sections/connections/CatalogPanel.js";
 import { ConnectedPanel } from "../../sections/connections/ConnectedPanel.js";
 import { HealthPanel } from "../../sections/vault/HealthPanel.js";
-import {
-  duplicateGuideTargetMounts,
-  isMountedGuideTarget,
-  resolveGuideTargetElement,
-} from "./targets.js";
 
 function provider(): Provider {
   return {

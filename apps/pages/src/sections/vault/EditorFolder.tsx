@@ -1,4 +1,4 @@
-import type { Folder } from "../../lib/vault/model.js";
+import type { Folder } from "@opensesame/app-core/lib/vault/model.js";
 
 export function EditorFolder({
   value,

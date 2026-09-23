@@ -2,23 +2,26 @@
  * State and actions for Settings › Connections › Google Cloud KMS.
  */
 
-import { type FormEvent, useEffect, useState } from "react";
-import { connectorLabel } from "../../lib/capabilities.js";
-import { bindCapabilityConnector } from "../../lib/capability-bind.js";
+import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
+import { bindCapabilityConnector } from "@opensesame/app-core/lib/capability-bind.js";
 import {
   type GcpKmsDeviceConfig,
   clearGcpKmsConfig,
   readGcpKmsConfig,
   toGcpKmsPublic,
   writeGcpKmsConfig,
-} from "../../lib/gcp-kms-config.js";
-import { loadSettings } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/gcp-kms-config.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { type FormEvent, useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   type GcpKmsFormState,
   emptyGcpKmsForm,
 } from "./GcpKmsConnectFields.js";
-import { type Flash, errorText } from "./shared.js";
 
 type GcpSettingsSlice = {
   capabilityConnectors: { encryption: { providerId: string } };

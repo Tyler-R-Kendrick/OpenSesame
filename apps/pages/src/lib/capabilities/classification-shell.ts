@@ -69,6 +69,11 @@ export const SHELL_RULES = [
   ),
   core("src/bootstrap/", null, "core-only boot (S05)"),
   core("src/host/", null, "installs the app-core host before boot (ADR 0133)"),
+  core("src/host", null, "the app-core host and its ports (ADR 0133)"),
+  core("src/test-host", null, "the app-core test host (ADR 0133)"),
+  core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
+  core("src/boot-transport", null, "boot never reaches the transport client"),
+  core("src/runtime-config.shipped", null, "the shipped runtime config file"),
   core("src/bindings/", null, "React hooks over the core's stores (ADR 0133)"),
   core(
     "src/screens/capabilities/",

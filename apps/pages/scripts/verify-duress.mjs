@@ -22,6 +22,8 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pages = join(here, "..");
+// The duress feature lives in the shared core (ADR 0133).
+const core = join(pages, "..", "..", "packages", "app-core");
 const root = join(pages, "..", "..");
 const evidenceDir = join(root, "docs", "evidence", "2026-09-21-duress");
 mkdirSync(evidenceDir, { recursive: true });
@@ -69,7 +71,7 @@ function run(id, command, args, opts = {}) {
 }
 
 function runStaticFeatureChecks() {
-  const featureDir = join(pages, "src/lib/duress/feature");
+  const featureDir = join(core, "src/lib/duress/feature");
   const violations = [];
   /** @type {string[]} */
   const sources = [];
@@ -123,7 +125,7 @@ run(
     "src/lib/duress/feature/feature.test.ts",
     "--maxWorkers=2",
   ],
-  { cwd: pages, required: true },
+  { cwd: core, required: true },
 );
 
 runStaticFeatureChecks();
@@ -140,7 +142,7 @@ run(
     "--exclude",
     "**/gaps.honest.test.ts",
   ],
-  { cwd: pages },
+  { cwd: core },
 );
 
 run("BROWSER-QA-journeys", "node", ["scripts/duress/run-journeys.mjs"], {
@@ -163,7 +165,7 @@ run("REPORT-contracts-duress", "pnpm", [
   "src/duress",
 ]);
 
-const duressIntegrationTests = readdirSync(join(pages, "src/lib/duress"))
+const duressIntegrationTests = readdirSync(join(core, "src/lib/duress"))
   .filter((name) => /^duress-.*\.test\.ts$/.test(name))
   .map((name) => join("src/lib/duress", name));
 
@@ -172,7 +174,7 @@ run(
   "pnpm",
   ["exec", "vitest", "run", ...duressIntegrationTests, "--maxWorkers=2"],
   {
-    cwd: pages,
+    cwd: core,
     blockIf: () =>
       duressIntegrationTests.length === 0
         ? "no src/lib/duress/duress-*.test.ts files"

@@ -9,6 +9,7 @@
  * the ones the core reads.
  */
 import { configureHost } from "@opensesame/app-core/host.js";
+import { shellBuild } from "./shell-build.js";
 
 configureHost({
   env: {
@@ -22,4 +23,5 @@ configureHost({
     VITE_OPENSESAME_CEREMONIES: import.meta.env.VITE_OPENSESAME_CEREMONIES,
     VITE_SUPPORT_AGENT_URL: import.meta.env.VITE_SUPPORT_AGENT_URL,
   },
+  ...shellBuild,
 });

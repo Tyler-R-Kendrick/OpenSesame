@@ -1,3 +1,4 @@
+import { itemTypeRegistry } from "@opensesame/app-core/lib/vault/item-types.js";
 /**
  * Item types — install and remove a VaultItemType manifest as data writes to
  * the sealed body (ADR 0087 §7; capability `vault.item_types.install`). The
@@ -7,7 +8,6 @@
 import { type ComponentType, useState } from "react";
 import { IconPlus, IconTrash } from "../../components/Icons.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import { itemTypeRegistry } from "../../lib/vault/item-types.js";
 import { ItemTypeVisual } from "./ItemTypeVisual.js";
 
 /** The vaults category: the vault switcher and the item types it can shape. */

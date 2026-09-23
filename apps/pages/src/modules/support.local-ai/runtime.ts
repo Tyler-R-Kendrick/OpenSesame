@@ -25,10 +25,10 @@
  * function, and the module it names is only `import()`ed when called.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { SETTINGS_READ_TOOL } from "@opensesame/app-core/webmcp/settings-tools.js";
 import { AiStep } from "../../screens/setup/steps/AiStep.js";
 import { installSupportAgentLoaders } from "../../tutorial/agent-seams.js";
-import { SETTINGS_READ_TOOL } from "../../webmcp/settings-tools.js";
 import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
 
@@ -42,7 +42,8 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     activation.onDispose(
       installSupportAgentLoaders({
-        promptApi: () => import("../../tutorial/agents/prompt-api/index.js"),
+        promptApi: () =>
+          import("@opensesame/app-core/tutorial/agents/prompt-api/index.js"),
       }),
     );
 

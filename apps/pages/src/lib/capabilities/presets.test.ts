@@ -2,12 +2,21 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  isKnownCapability,
+  optionalCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
+import {
+  PRESETS,
+  isRestrictedForHome,
+  presetById,
+  presetToInstancePolicy,
+} from "@opensesame/app-core/lib/capabilities/presets.js";
+import {
   isModuleId,
   parseDistributionContract,
   parseInstancePolicy,
 } from "@opensesame/capability-composition";
 import { describe, expect, it } from "vitest";
-import { isKnownCapability, optionalCapabilityIds } from "./catalog.js";
 import {
   HTML_ENTRY_OWNERSHIP,
   MODULE_OWNERSHIP,
@@ -16,12 +25,6 @@ import {
   distributionFromOwnership,
   modulesOwnedBy,
 } from "./ownership.js";
-import {
-  PRESETS,
-  isRestrictedForHome,
-  presetById,
-  presetToInstancePolicy,
-} from "./presets.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pagesRoot = join(here, "..", "..", "..");

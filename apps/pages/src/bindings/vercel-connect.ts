@@ -1,8 +1,8 @@
-import { useSyncExternalStore } from "react";
 import {
   subscribeVercelConnectAuth,
   vercelConnectConfigured,
-} from "../lib/vercel-connect.js";
+} from "@opensesame/app-core/lib/vercel-connect.js";
+import { useSyncExternalStore } from "react";
 
 export function useVercelConnectConfigured(): boolean {
   return useSyncExternalStore(

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 /** @vitest-environment jsdom */
 import { planeHookSeams } from "../../../bindings/planes.js";
 
-import { defaultCapabilityConnectors } from "../../../lib/capabilities.js";
-import { settingsSeams } from "../../../lib/settings.js";
+import { defaultCapabilityConnectors } from "@opensesame/app-core/lib/capabilities.js";
+import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
 import { createSetupSeams } from "../test-seams.js";
 import { MfaStep } from "./MfaStep.js";
 

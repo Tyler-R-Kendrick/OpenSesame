@@ -17,11 +17,17 @@ import {
   GUIDE_GOALS,
   HELP_TOPICS,
   guideGoalIds,
-} from "../../registry/goals.js";
-import { GUIDE_ROUTES } from "../../registry/routes.js";
-import { guidePredicateIds } from "../../registry/state.js";
-import { guideTargetIds } from "../../registry/targets.js";
+} from "@opensesame/app-core/tutorial/registry/goals.js";
+import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
+import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
+import {
+  clearMountedGuideTargets,
+  mountGuideTarget,
+  resolveGuideTargetElement,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 import { compileGuide } from "@opensesame/guide-lang";
 import type { GuideTargetId } from "@opensesame/guide-lang";
 import {
@@ -39,12 +45,6 @@ import {
 import { cleanup, render, screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { buildSupportPageContext } from "../../registry/context.js";
-import {
-  clearMountedGuideTargets,
-  mountGuideTarget,
-  resolveGuideTargetElement,
-} from "../../registry/targets.js";
 import type {
   GuideDriverConfig,
   GuideDriverFactory,

@@ -15,7 +15,7 @@ const fed = vi.hoisted(() => ({
   loadSession: vi.fn(),
 }));
 
-import { federationSeams } from "../lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 const originalFederationSeams = { ...federationSeams };
 Object.assign(federationSeams, {
   defaultUpstream: () => ({ displayName: "MockHub", accountKind: "GitHub" }),
@@ -24,15 +24,15 @@ Object.assign(federationSeams, {
   clearSession: fed.clearSession,
   loadSession: fed.loadSession,
 });
-import { siteBrokerSeams } from "../lib/site-broker.js";
+import { siteBrokerSeams } from "@opensesame/app-core/lib/site-broker.js";
 const originalSiteBrokerSeams = { ...siteBrokerSeams };
 Object.assign(siteBrokerSeams, {
   deliverToRp: vi.fn(originalSiteBrokerSeams.deliverToRp),
 });
 
-import { FederationError } from "../lib/federation.js";
-import { kvDelete } from "../lib/kv.js";
-import { scopedKey } from "../lib/projects.js";
+import { FederationError } from "@opensesame/app-core/lib/federation.js";
+import { kvDelete } from "@opensesame/app-core/lib/kv.js";
+import { scopedKey } from "@opensesame/app-core/lib/projects.js";
 import {
   CONSENTS_KEY,
   POLICY_KEY,
@@ -40,7 +40,7 @@ import {
   approveConsent,
   consentFor,
   deliverToRp,
-} from "../lib/site-broker.js";
+} from "@opensesame/app-core/lib/site-broker.js";
 import { BrokerAuthorize } from "./BrokerAuthorize.js";
 
 const mockedDeliver = vi.mocked(siteBrokerSeams.deliverToRp);

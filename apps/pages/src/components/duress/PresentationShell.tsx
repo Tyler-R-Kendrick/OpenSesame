@@ -1,5 +1,5 @@
+import type { ScopedView } from "@opensesame/app-core/lib/duress/compartment/scope.js";
 import { createElement } from "react";
-import type { ScopedView } from "../../lib/duress/compartment/scope.js";
 
 /**
  * Presentation shell for restricted/decoy/locked sessions.

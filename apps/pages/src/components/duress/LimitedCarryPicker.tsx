@@ -1,9 +1,9 @@
-import { createElement, useState } from "react";
 import {
   type LimitedCarryPlan,
   buildLimitedCarryPlan,
-} from "../../lib/duress/compartment/limited-carry.js";
-import type { CompartmentItem } from "../../lib/duress/compartment/registry.js";
+} from "@opensesame/app-core/lib/duress/compartment/limited-carry.js";
+import type { CompartmentItem } from "@opensesame/app-core/lib/duress/compartment/registry.js";
+import { createElement, useState } from "react";
 
 function carryPlanArgs(
   sourceItems: readonly CompartmentItem[],

@@ -1,4 +1,4 @@
-import { planRecipient } from "../../../lib/duress/settings/index.js";
+import { planRecipient } from "@opensesame/app-core/lib/duress/settings/index.js";
 import type { DuressEnrollmentViewModel } from "./useDuressEnrollmentPanel.js";
 
 export function DuressEnrollmentRecipientsFieldset({

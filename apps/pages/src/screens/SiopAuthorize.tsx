@@ -1,22 +1,22 @@
-import type { NormalizedAuthorizationRequest } from "@opensesame/siop-v2";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router";
-import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import {
   LocalDirectoryError,
   type LocalIdentity,
   readLocalDirectory,
-} from "../lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-directory.js";
 import {
   type LocalSession,
   signInLocalIdentity,
-} from "../lib/local-sessions.js";
+} from "@opensesame/app-core/lib/local-sessions.js";
 import {
   approveSiopAuthorization,
   bindSiopRequest,
   denySiopAuthorization,
   parsePagesSiopRequest,
-} from "../lib/siop-authority.js";
+} from "@opensesame/app-core/lib/siop-authority.js";
+import type { NormalizedAuthorizationRequest } from "@opensesame/siop-v2";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router";
+import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { useVault } from "../lib/vault/hooks.js";
 
 export function SiopAuthorize() {

@@ -1,7 +1,7 @@
+import type { ProviderCategory } from "@opensesame/app-core/lib/connections.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { type ComponentType, useEffect } from "react";
 import { useLocation } from "react-router";
-import type { ProviderCategory } from "../../lib/connections.js";
-import { getBundledProviders } from "../../lib/embedded-catalog.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { featureBindingSections } from "../connections/page-tree.js";

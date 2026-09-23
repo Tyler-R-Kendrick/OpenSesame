@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type LocalAccessRequest,
   listLocalAccessRequests,
-} from "../../lib/local-access-requests.js";
-import { readLocalApplications } from "../../lib/local-applications.js";
+} from "@opensesame/app-core/lib/local-access-requests.js";
+import { readLocalApplications } from "@opensesame/app-core/lib/local-applications.js";
 import {
   LocalDirectoryError,
   readLocalDirectory,
-} from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 async function read(tomb: string) {
   const [directory, applications, requests] = await Promise.all([

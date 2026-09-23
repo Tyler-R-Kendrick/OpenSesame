@@ -5,10 +5,10 @@
  * can bind to Azure Key Vault without a Host (ADR 0090).
  */
 
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { AzureKeyVaultKeysConnectFields } from "./AzureKeyVaultKeysConnectFields.js";
-import type { Flash } from "./shared.js";
 import { useAzureKeyVaultKeysConnect } from "./useAzureKeyVaultKeysConnect.js";
 
 export { azureKeyVaultKeysConnectDependencies } from "./useAzureKeyVaultKeysConnect.js";

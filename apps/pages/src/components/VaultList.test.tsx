@@ -1,7 +1,7 @@
+import type { DeviceVault } from "@opensesame/app-core/lib/vaults.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { DeviceVault } from "../lib/vaults.js";
 import { VaultList, describeVaultRow } from "./VaultList.js";
 
 const personal: DeviceVault = {

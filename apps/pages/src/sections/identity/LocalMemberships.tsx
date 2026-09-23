@@ -1,15 +1,15 @@
-import type { OrganizationRole } from "@opensesame/os-domain";
-import { useId, useRef, useState } from "react";
 import type {
   LocalDirectory,
   LocalDirectoryChange,
-} from "../../lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-directory.js";
 import {
   accessRoleLabel,
   isGuestIdentity,
   organizationRoleLabel,
   resolveAccessRole,
-} from "../../lib/local-rbac.js";
+} from "@opensesame/app-core/lib/local-rbac.js";
+import type { OrganizationRole } from "@opensesame/os-domain";
+import { useId, useRef, useState } from "react";
 
 type MembershipProps = {
   directory: LocalDirectory;

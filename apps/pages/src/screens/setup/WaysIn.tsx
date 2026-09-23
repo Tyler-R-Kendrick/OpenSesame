@@ -26,6 +26,29 @@
  * first-run questions — they live in Settings → Endpoints (ADR 0078 §4).
  */
 
+import {
+  FederationError,
+  defaultUpstream,
+  discover,
+  redirectUri,
+} from "@opensesame/app-core/lib/federation.js";
+import {
+  type OperatorIdp,
+  loadSettings,
+  normalizeOperatorIdp,
+  pageIsLoopback,
+  saveSettings,
+  shippedIdentityApi,
+  signInMethods,
+} from "@opensesame/app-core/lib/settings.js";
+import {
+  SETUP_PROVIDERS,
+  setupProviderFor,
+} from "@opensesame/app-core/screens/setup/providers.js";
+import {
+  type WaysInPatch,
+  applyWaysInPatch,
+} from "@opensesame/app-core/screens/setup/ways-in-patch.js";
 import { useReducer, useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
 import {
@@ -39,23 +62,7 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
-import {
-  FederationError,
-  defaultUpstream,
-  discover,
-  redirectUri,
-} from "../../lib/federation.js";
-import {
-  type OperatorIdp,
-  loadSettings,
-  normalizeOperatorIdp,
-  pageIsLoopback,
-  saveSettings,
-  shippedIdentityApi,
-  signInMethods,
-} from "../../lib/settings.js";
 import { brandFor } from "../unlock/ProviderBrand.js";
-import { SETUP_PROVIDERS, setupProviderFor } from "./providers.js";
 
 export const waysInDependencies = {
   loadSettings,
@@ -75,13 +82,6 @@ type WayIn = {
   kind: string;
   brandId: string;
   remove: () => void;
-};
-
-/** What a single edit changes; everything unnamed is left as it stands. */
-type WaysInPatch = {
-  builtin?: boolean;
-  providers?: OperatorIdp[];
-  identityApi?: string;
 };
 
 export function WaysIn() {
@@ -113,15 +113,7 @@ export function WaysIn() {
 
   function write(next: WaysInPatch) {
     const current = waysInDependencies.loadSettings();
-    const live = signInMethods(current);
-    waysInDependencies.saveSettings({
-      ...current,
-      identityApi: next.identityApi ?? current.identityApi,
-      signIn: {
-        builtin: next.builtin ?? live.builtin,
-        providers: next.providers ?? live.providers,
-      },
-    });
+    waysInDependencies.saveSettings(applyWaysInPatch(current, next));
     bump();
   }
 

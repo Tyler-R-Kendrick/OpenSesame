@@ -1,13 +1,13 @@
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { defaultPrefs } from "@opensesame/app-core/lib/vault/prefs.js";
+import type { VaultState } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Provider } from "../../lib/connections.js";
-import { getBundledProviders } from "../../lib/embedded-catalog.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { defaultPrefs } from "../../lib/vault/prefs.js";
-import type { VaultState } from "../../lib/vault/store.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
 import {
   YubikeyConnectPanel,

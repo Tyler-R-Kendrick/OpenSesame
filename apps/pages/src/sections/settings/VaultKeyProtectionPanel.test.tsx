@@ -1,12 +1,15 @@
-/** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadSettings, saveSettings } from "../../lib/settings.js";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
 import {
   ProtectionNotWiredError,
   protectionLifecycleStubs,
-} from "../../lib/vault/protection/protection-view.js";
+} from "@opensesame/app-core/lib/vault/protection/protection-view.js";
+/** @vitest-environment jsdom */
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { FormatsInteroperabilityPanel } from "./FormatsInteroperabilityPanel.js";
 import { VaultKeyProtectionPanel } from "./VaultKeyProtectionPanel.js";
 

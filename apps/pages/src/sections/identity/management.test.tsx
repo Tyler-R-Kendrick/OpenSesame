@@ -1,10 +1,10 @@
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { type JsonObject, isJsonObject, isString } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { identitySeams } from "../../lib/identity.js";
 import { AgentsPanel } from "./AgentsPanel.js";
 import { EditApplication } from "./EditApplication.js";
 import { UsersPanel } from "./UsersPanel.js";

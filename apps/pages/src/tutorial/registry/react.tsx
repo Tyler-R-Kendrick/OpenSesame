@@ -7,9 +7,9 @@
  * `disappear` without anybody polling the DOM.
  */
 
+import { mountGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
 import type { GuideTargetId } from "@opensesame/guide-lang";
 import { type ReactNode, useCallback, useRef } from "react";
-import { mountGuideTarget } from "./targets.js";
 
 /**
  * Returns a ref to spread onto the element that *is* the named control — the

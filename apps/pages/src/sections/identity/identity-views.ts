@@ -19,7 +19,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import { IDENTITY_VIEWS } from "../../lib/section-view-names.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export type IdentityView = (typeof IDENTITY_VIEWS)[number];
 
 const counts = new Map<IdentityView, number>();

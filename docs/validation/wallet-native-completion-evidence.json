@@ -135,8 +135,8 @@
       "result": "passed",
       "tests": ["T-13", "T-14"],
       "sourcePaths": [
-        "apps/pages/src/lib/local-access-requests.ts",
-        "apps/pages/src/lib/local-passkeys.ts"
+        "packages/app-core/src/lib/local-access-requests.ts",
+        "packages/app-core/src/lib/local-passkeys.ts"
       ]
     },
     "F04": {

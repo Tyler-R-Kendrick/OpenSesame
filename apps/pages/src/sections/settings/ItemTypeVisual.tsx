@@ -1,8 +1,8 @@
+import type { EditorMode } from "@opensesame/app-core/lib/configuration/draft.js";
+import { itemTypeRegistry } from "@opensesame/app-core/lib/vault/item-types.js";
+import { fieldsOfDefinition } from "@opensesame/app-core/sections/settings/item-type-fields.js";
 import { useMemo, useState } from "react";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
-import type { EditorMode } from "../../lib/configuration/draft.js";
-import { itemTypeRegistry } from "../../lib/vault/item-types.js";
-import { fieldsOfDefinition } from "./item-type-fields.js";
 
 export function ItemTypeVisual(props: {
   draft: string;

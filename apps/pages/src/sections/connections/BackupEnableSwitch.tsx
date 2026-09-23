@@ -1,3 +1,14 @@
+import {
+  type BackupTargetView,
+  backupTargetProviderId,
+  getBackupStatus,
+  setBackupTargetEnabled,
+} from "@opensesame/app-core/lib/backup.js";
+import {
+  HISTORY_BACKUP_GROUPS,
+  isHistorySelected,
+  toggleHistoryProvider,
+} from "@opensesame/app-core/lib/history-backups.js";
 /**
  * Binary enable switch for a backup/recovery connector.
  *
@@ -5,17 +16,6 @@
  * Otherwise the switch toggles vault-history selection for that provider.
  */
 import { type MouseEvent, useEffect, useState } from "react";
-import {
-  type BackupTargetView,
-  backupTargetProviderId,
-  getBackupStatus,
-  setBackupTargetEnabled,
-} from "../../lib/backup.js";
-import {
-  HISTORY_BACKUP_GROUPS,
-  isHistorySelected,
-  toggleHistoryProvider,
-} from "../../lib/history-backups.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 
 function historyToggleable(providerId: string): boolean {

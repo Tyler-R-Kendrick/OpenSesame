@@ -1,3 +1,8 @@
+import type {
+  CodeChannel,
+  UnlockMethodId,
+  WebauthnHostCheck,
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type ReactNode, useRef, useState } from "react";
 import {
   IconMail,
@@ -7,11 +12,6 @@ import {
   IconX,
 } from "../../../components/Icons.js";
 import { useModalFocus } from "../../../lib/modal-focus.js";
-import type {
-  CodeChannel,
-  UnlockMethodId,
-  WebauthnHostCheck,
-} from "../../../lib/vault/unlock-methods.js";
 import {
   KEY_SUBTITLE,
   KEY_TITLE,

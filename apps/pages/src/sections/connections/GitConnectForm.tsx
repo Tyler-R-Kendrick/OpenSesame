@@ -1,12 +1,18 @@
 /**
  * Generic git remote connector — forge-agnostic backup auth.
  */
-import type { Connection, Provider } from "../../lib/connections.js";
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { GitConnectFields } from "./GitConnectFields.js";
-import type { Flash } from "./shared.js";
 import { useGitConnectForm } from "./useGitConnectForm.js";
 
-export { GIT_AUTH_MODES, type GitAuthMode } from "../../lib/git-auth-modes.js";
+export {
+  GIT_AUTH_MODES,
+  type GitAuthMode,
+} from "@opensesame/app-core/lib/git-auth-modes.js";
 
 export function GitConnectForm({
   provider,

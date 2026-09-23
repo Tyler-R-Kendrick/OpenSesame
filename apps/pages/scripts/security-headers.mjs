@@ -74,7 +74,7 @@ function isOrigin(value) {
 
 /**
  * The compiled-in broker origins: `issuer` values of `TRUSTED_UPSTREAMS` in
- * `src/lib/federation.ts`, https only (the loopback mock IdP is a test seam).
+ * `packages/app-core/src/lib/federation.ts`, https only (the loopback mock IdP is a test seam).
  */
 export function brokerOrigins(federationSource) {
   const start = federationSource.indexOf("TRUSTED_UPSTREAMS");
@@ -94,7 +94,10 @@ export function brokerOrigins(federationSource) {
 
 export async function readBrokerOrigins() {
   const source = await readFile(
-    new URL("../src/lib/federation.ts", import.meta.url),
+    new URL(
+      "../../../packages/app-core/src/lib/federation.ts",
+      import.meta.url,
+    ),
     "utf8",
   );
   return brokerOrigins(source);
@@ -192,7 +195,7 @@ function directiveString(directives) {
     .join("; ");
 }
 
-/** Path-specific COOP exceptions mirroring `src/lib/opener-policy.ts`. */
+/** Path-specific COOP exceptions mirroring `packages/app-core/src/lib/opener-policy.ts`. */
 export function pathOverrides(basePath) {
   const root = basePath.endsWith("/") ? basePath : `${basePath}/`;
   return [

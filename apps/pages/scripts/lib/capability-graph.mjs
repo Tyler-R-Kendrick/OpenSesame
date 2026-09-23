@@ -41,6 +41,9 @@ const toPosix = (path) => path.replace(/\\/g, "/");
  * `.pnpm/<pkg>@<ver>/node_modules/` prefix removed). Virtual and `\0` ids
  * are kept verbatim minus the null byte.
  */
+/** The shared core's sources, laid out as `apps/pages/src` was. */
+const APP_CORE = "packages/app-core/src/";
+
 export function normalizeModuleId(id, { repoRoot }) {
   if (id.startsWith("\0")) return id.slice(1);
   if (id.startsWith("virtual:")) return id;
@@ -75,6 +78,10 @@ function matchCandidates(normalized) {
   const candidates = [normalized];
   if (normalized.startsWith("apps/pages/"))
     candidates.push(normalized.slice("apps/pages/".length));
+  // The shared core keeps the app's layout (ADR 0133), so its files keep the
+  // app-relative spelling the authored rules use.
+  if (normalized.startsWith(APP_CORE))
+    candidates.push(normalized.slice(APP_CORE.length - "src/".length));
   const workspace = normalized.match(/^packages\/([^/]+)\/(.*)$/);
   if (workspace)
     candidates.push(`node_modules/@opensesame/${workspace[1]}/${workspace[2]}`);
@@ -148,7 +155,7 @@ function fallbackClassification(normalized, directoryOwner) {
       capability: directoryOwner,
       rationale: "module directory",
     };
-  if (normalized.startsWith("apps/pages/"))
+  if (normalized.startsWith("apps/pages/") || normalized.startsWith(APP_CORE))
     return {
       classification: "core",
       capability: null,

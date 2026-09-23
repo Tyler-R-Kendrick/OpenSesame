@@ -1,3 +1,4 @@
+import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import type { JsonObject } from "@opensesame/os-domain";
 import {
   act,
@@ -17,7 +18,6 @@ import {
   useNavigationType,
 } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerLegacyItemKinds } from "../lib/contributions.test-support.js";
 import { expectVaultCommands } from "./vault/commands.test-support.js";
 import {
   makeDrop,
@@ -25,13 +25,13 @@ import {
   makeNote,
 } from "./vault/section-items.test-support.js";
 
-import { createKeymapHandler } from "../lib/keymap.js";
 import type {
   DropItem,
   Folder,
   LoginItem,
   NoteItem,
-} from "../lib/vault/model.js";
+} from "@opensesame/app-core/lib/vault/model.js";
+import { createKeymapHandler } from "../lib/keymap.js";
 
 type VaultHarness = {
   current: {
@@ -49,8 +49,8 @@ const vault: VaultHarness = {
   },
 };
 
+import { takeImportFile } from "@opensesame/app-core/lib/vault/import/handoff.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
-import { takeImportFile } from "../lib/vault/import/handoff.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
 const copySecret = vi.fn();
 const store = {

@@ -5,9 +5,9 @@
  * it exists only while `access.authority` is active.
  */
 
+import type { TreeProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { useLocation, useSearchParams } from "react-router";
 import { PageTreeBranch } from "../../components/PageTreeBranch.js";
-import type { TreeProps } from "../../lib/capabilities/runtime-contract.js";
 
 import {
   useHostConfigured,
@@ -17,7 +17,7 @@ import { useVault } from "../../lib/vault/hooks.js";
 import { useLocalShares } from "../../sections/access/LocalSharePanel.js";
 import { accessPageTree } from "../../sections/access/page-tree.js";
 
-import { ACCESS_VIEWS } from "../../lib/section-view-names.js";
+import { ACCESS_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export function AccessRailTree(_props: TreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();

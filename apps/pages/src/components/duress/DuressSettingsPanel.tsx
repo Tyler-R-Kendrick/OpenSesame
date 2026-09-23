@@ -1,10 +1,10 @@
-import { createElement, useMemo, useState } from "react";
 import {
   type ArmingChecklist,
   PRESET_CATALOG,
   type PresetId,
   canArmProfile,
-} from "../../lib/duress/settings/index.js";
+} from "@opensesame/app-core/lib/duress/settings/index.js";
+import { createElement, useMemo, useState } from "react";
 import { DuressSettingsPanelView } from "./DuressSettingsPanelView.js";
 
 /**

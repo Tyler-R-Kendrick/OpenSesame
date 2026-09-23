@@ -16,14 +16,14 @@ const orgs = vi.hoisted(() => ({
   joinOrgTenant: vi.fn(),
 }));
 
-import { orgSeams } from "../lib/orgs.js";
+import { orgSeams } from "@opensesame/app-core/lib/orgs.js";
 Object.assign(orgSeams, {
   lookupOrgTenant: orgs.lookupOrgTenant,
   listOrgMemberships: orgs.listOrgMemberships,
   joinOrgTenant: orgs.joinOrgTenant,
 });
 
-import { identitySeams } from "../lib/identity.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 Object.assign(identitySeams, {
   currentSession: () => null,
   connectProvisional: vi.fn(),
@@ -33,11 +33,14 @@ Object.assign(identityHookSeams, {
   useIdentitySession: () => null,
 });
 
-import { federationSeams } from "../lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 const beginSignIn = vi.fn();
 federationSeams.beginSignIn = beginSignIn;
 
-import { GUEST_PROFILE_ID, setActiveOrgProfileId } from "../lib/orgs.js";
+import {
+  GUEST_PROFILE_ID,
+  setActiveOrgProfileId,
+} from "@opensesame/app-core/lib/orgs.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
 
 function renderSwitcher() {
@@ -216,8 +219,8 @@ describe("AccountSwitcher", () => {
   });
 });
 
-import { accountSeams } from "../lib/account.js";
-import { sessionExitSeams } from "../lib/session-exit.js";
+import { accountSeams } from "@opensesame/app-core/lib/account.js";
+import { sessionExitSeams } from "@opensesame/app-core/lib/session-exit.js";
 
 describe("AccountSwitcher — the roads out", () => {
   const originalAccount = { ...accountSeams };

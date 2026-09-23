@@ -1,4 +1,4 @@
-import type { RawFormat } from "./settings-files.js";
+import type { RawFormat } from "@opensesame/app-core/sections/settings/settings-files.js";
 
 const VIEWS: ReadonlyArray<{
   id: "form" | RawFormat;

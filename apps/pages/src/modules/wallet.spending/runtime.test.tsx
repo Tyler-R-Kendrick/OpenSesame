@@ -19,7 +19,9 @@ describe("wallet.spending runtime", () => {
   });
 
   it("registers the wallet section, route, jump, tutorial and tools (LOAD-09)", async () => {
-    const { WALLET_TOOLS } = await import("../../webmcp/wallet-tools.js");
+    const { WALLET_TOOLS } = await import(
+      "@opensesame/app-core/webmcp/wallet-tools.js"
+    );
     await expectLifecycle(runtimeOf(runtime), {
       capability: "wallet.spending",
       kinds: [
@@ -62,8 +64,10 @@ describe("wallet.spending runtime", () => {
   });
 
   it("subscribes the ledger to tomb changes only while active", async () => {
-    const scope = await import("../../lib/wallet-storage-scope.js");
-    const ledger = await import("../../lib/spending-ledger.js");
+    const scope = await import(
+      "@opensesame/app-core/lib/wallet-storage-scope.js"
+    );
+    const ledger = await import("@opensesame/app-core/lib/spending-ledger.js");
     scope.setWalletStorageTomb("personal");
     const first = ledger.getSpendingLedger();
     const t = createTestContext();
@@ -78,9 +82,13 @@ describe("wallet.spending runtime", () => {
   });
 
   it("keeps leases and instrument bindings tomb-scoped with the capability disabled", async () => {
-    const scope = await import("../../lib/wallet-storage-scope.js");
-    const leases = await import("../../lib/spending-leases.js");
-    const assignments = await import("../../lib/wallet-assignments.js");
+    const scope = await import(
+      "@opensesame/app-core/lib/wallet-storage-scope.js"
+    );
+    const leases = await import("@opensesame/app-core/lib/spending-leases.js");
+    const assignments = await import(
+      "@opensesame/app-core/lib/wallet-assignments.js"
+    );
 
     // Never activated: no listener exists, and the caches must still miss
     // on a tomb switch — suppression is not isolation.
@@ -110,8 +118,10 @@ describe("wallet.spending runtime", () => {
   });
 
   it("misses after a switch away and straight back, which a tomb name alone cannot see", async () => {
-    const scope = await import("../../lib/wallet-storage-scope.js");
-    const leases = await import("../../lib/spending-leases.js");
+    const scope = await import(
+      "@opensesame/app-core/lib/wallet-storage-scope.js"
+    );
+    const leases = await import("@opensesame/app-core/lib/spending-leases.js");
 
     scope.setWalletStorageTomb("personal");
     leases.clearSpendingLeases();

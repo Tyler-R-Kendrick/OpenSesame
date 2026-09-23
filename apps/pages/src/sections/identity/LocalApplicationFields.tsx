@@ -2,8 +2,8 @@ import {
   APPLICATION_ROLES,
   type LocalScopeRoles,
   defaultScopeRoles,
-} from "../../lib/local-application-policy.js";
-import type { LocalDirectory } from "../../lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-application-policy.js";
+import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 
 export function ScopeRolesField({
   scopes,

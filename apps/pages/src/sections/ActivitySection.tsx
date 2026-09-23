@@ -2,13 +2,13 @@
  * Activity — durable app event log at `/activity`.
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { IconRefresh } from "../components/Icons.js";
 import {
   type ActivityEvent,
   listActivityEvents,
   subscribeActivity,
-} from "../lib/activity-log.js";
+} from "@opensesame/app-core/lib/activity-log.js";
+import { useCallback, useEffect, useState } from "react";
+import { IconRefresh } from "../components/Icons.js";
 import { useVault } from "../lib/vault/hooks.js";
 import "./identity.css";
 import "./settings.css";

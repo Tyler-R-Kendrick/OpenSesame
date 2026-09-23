@@ -1,12 +1,12 @@
+import * as idp from "@opensesame/app-core/lib/idp-registry.js";
+import * as accessBootstrap from "@opensesame/app-core/lib/local-access-bootstrap.js";
+import * as devices from "@opensesame/app-core/lib/local-devices.js";
+import * as directory from "@opensesame/app-core/lib/local-directory.js";
+import { notifyLocalIamChange } from "@opensesame/app-core/lib/local-iam-events.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
-import * as idp from "../lib/idp-registry.js";
-import * as accessBootstrap from "../lib/local-access-bootstrap.js";
-import * as devices from "../lib/local-devices.js";
-import * as directory from "../lib/local-directory.js";
-import { notifyLocalIamChange } from "../lib/local-iam-events.js";
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { contributeIdentityViews } from "../sections/identity/identity-views.js";
@@ -15,7 +15,7 @@ import { IdentityTree } from "./IdentityTree.js";
 import type { SectionRowModel } from "./RailRows.js";
 import { registerLegacyShell } from "./legacy-sections.test-support.js";
 
-import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 // the Identity section's rail targets are the identity capability's, so the row only exists on a plan that approved it.
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning) and each contributes its own; this subtree is the

@@ -17,14 +17,14 @@
  * (`lib/vault/protection/agent-boundary.ts`).
  */
 
-import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import { assertAgentMayNotUnwrapHumanRoot } from "../../lib/vault/protection/agent-boundary.js";
+import { assertAgentMayNotUnwrapHumanRoot } from "@opensesame/app-core/lib/vault/protection/agent-boundary.js";
 import {
   noteWebMcpAccepted,
   noteWebMcpFailure,
   noteWebMcpRegistered,
   noteWebMcpUnregistered,
-} from "../../webmcp/registration.js";
+} from "@opensesame/app-core/webmcp/registration.js";
+import type { WebMcpToolSpec } from "@opensesame/webmcp";
 
 const APP_ID = "opensesame-pages";
 

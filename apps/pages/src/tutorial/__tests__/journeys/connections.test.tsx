@@ -11,11 +11,11 @@
  * care about.
  */
 
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { GUIDE_RUNTIME_NOTES } from "@opensesame/guide-runtime";
 import { fakeAgentReplanning } from "@opensesame/support-agent";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveGuideTargetElement } from "../../registry/targets.js";
 import {
   askSupport,
   countClicks,

@@ -24,21 +24,21 @@
 import {
   ambientAuthSeams,
   resetAmbientAuthSeams,
-} from "../../lib/ambient-auth-seam.js";
-import { runAmbientAuthBoot } from "../../lib/ambient-auth/boot.js";
+} from "@opensesame/app-core/lib/ambient-auth-seam.js";
+import { runAmbientAuthBoot } from "@opensesame/app-core/lib/ambient-auth/boot.js";
 import {
   clearAutoAuthSuppression,
   fenceLocalSignOut,
   isAutoAuthSuppressed,
-} from "../../lib/ambient-auth/generation.js";
-import { applyAmbientReturn } from "../../lib/ambient-auth/return-path.js";
+} from "@opensesame/app-core/lib/ambient-auth/generation.js";
+import { applyAmbientReturn } from "@opensesame/app-core/lib/ambient-auth/return-path.js";
 import {
   applyDeployedAmbientPolicy,
   resetDeployedAmbientPolicy,
-} from "../../lib/ambient-auth/runtime.js";
-import { cancelAllTransactions } from "../../lib/ambient-auth/transactions.js";
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { isAuthCallbackSearch } from "../../lib/federation-callback.js";
+} from "@opensesame/app-core/lib/ambient-auth/runtime.js";
+import { cancelAllTransactions } from "@opensesame/app-core/lib/ambient-auth/transactions.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { isAuthCallbackSearch } from "@opensesame/app-core/lib/federation-callback.js";
 import { AmbientAuthPanel } from "../../sections/settings/AmbientAuthPanel.js";
 import { createActivation } from "../activation.js";
 import type { ContextWithPorts } from "../ports-b.js";

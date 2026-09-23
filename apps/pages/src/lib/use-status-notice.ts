@@ -5,12 +5,12 @@
  * this way instead of stacking banners above their content.
  */
 
-import { useEffect } from "react";
 import {
   type StatusNoticeInput,
   dismissNotice,
   setStatusNotice,
-} from "./notices.js";
+} from "@opensesame/app-core/lib/notices.js";
+import { useEffect } from "react";
 
 export function useStatusNotice(notice: StatusNoticeInput | null): void {
   const id = notice?.id;

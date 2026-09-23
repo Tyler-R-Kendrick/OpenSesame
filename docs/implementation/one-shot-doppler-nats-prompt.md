@@ -343,7 +343,7 @@ Docs alone make the product stance unambiguous for every other WP.
 - `apps/control-plane/src/__tests__/**` (project tests only)
 - `crates/sealed-store/src/tomb_registry.rs` (personal-project ↔ tomb name
   binding helpers only; do not rewrite otp/update)
-- `apps/pages/src/lib/settings.ts` + `settings.test.ts` (active project id)
+- `packages/app-core/src/lib/settings.ts` + `settings.test.ts` (active project id)
 - `apps/pages/src/sections/settings/` files **you create** for project
   picker / personal-default — do **not** rewrite
   `CapabilityConnectorsPanel.tsx` or `GithubHistoryRemotePicker.tsx`
@@ -480,7 +480,7 @@ Unit/integration tests prove fan-out invoke without secret leakage.
 - `apps/gateway/src/routes/changelog.rs` (create — Host-readable changelog
   for project configs; metadata only)
 - `apps/gateway/src/routes/mod.rs` (mount changelog)
-- `apps/pages/src/lib/changelog.ts` + tests (create)
+- `packages/app-core/src/lib/changelog.ts` + tests (create)
 - `apps/pages/src/sections/settings/ChangelogPanel.tsx` (create)
 - Emit-site **patches** limited to calling a small
   `record_secret_changelog(...)` helper you define — allowed touch points:
@@ -582,8 +582,8 @@ API responses.
 - `crates/host-core` or gateway sync blob routes **only if** an existing
   sync-blob API is present — extend `StoredSyncBlob` handling without
   plaintext
-- `apps/pages/src/lib/vault/store-sync.ts` + `store-sync.test.ts`
-- `apps/pages/src/lib/vault/offline-backup.ts` + tests (create)
+- `packages/app-core/src/lib/vault/store-sync.ts` + `store-sync.test.ts`
+- `packages/app-core/src/lib/vault/offline-backup.ts` + tests (create)
 - `apps/pages/src/sections/settings/OfflineBackupPanel.tsx` (create)
 - `apps/gateway/src/routes/sync_blobs.rs` (create or extend existing) —
   opaque ciphertext only
@@ -598,7 +598,7 @@ API responses.
 3. Host sync blobs remain `{ id, epoch, ciphertext }` — no server-side
    decrypt.
 4. When offline, Pages serves last cached ciphertext and queues mutations
-   (reuse patterns in `apps/pages/src/lib/queue.ts` if present).
+   (reuse patterns in `packages/app-core/src/lib/queue.ts` if present).
 5. Document threat model in module docs: backup file is as sensitive as
    the vault; protect at rest on disk.
 

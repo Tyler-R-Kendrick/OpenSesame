@@ -1,5 +1,5 @@
+import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import type { VaultPrefs } from "../../lib/vault/store.js";
 import { VisualPrefs } from "./VisualPrefs.js";
 
 export function GeneralPrefsPanel() {

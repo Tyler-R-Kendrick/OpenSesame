@@ -1,0 +1,517 @@
+import {
+  type BoundaryValue,
+  type JsonValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+import { type RuntimeEnv, env } from "../host.js";
+import { noteSettingsUpdated } from "./activity-log.js";
+import {
+  type CapabilityConnectorBinding,
+  type CapabilityConnectorMap,
+  type CapabilityId,
+  type HistoryBackupSelection,
+  defaultCapabilityConnectors,
+  normalizeCapabilityConnectors,
+} from "./capabilities.js";
+import { kvGet, kvSet, kvSetDurable } from "./kv.js";
+import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+
+/** Operator-configured IdP (browser OIDC + PKCE, ADR 0078) — not Identity API. */
+export type OperatorIdp = {
+  /** Preset id that brands the sign-in button ("google", "okta", …). */
+  providerId: string;
+  /** The OIDC issuer, as published in its discovery document. */
+  issuer: string;
+  /** The public client id the operator registered for this origin. */
+  clientId: string;
+  /** What the sign-in button calls it. */
+  label: string;
+};
+
+/** Allowlist of sign-in roads; the screen renders exactly this. */
+export type SignInMethods = {
+  /** Keep the compiled-in broker as a way in until an operator turns it off. */
+  builtin: boolean;
+  /** Providers the operator configured, in the order they were added. */
+  providers: OperatorIdp[];
+};
+
+export type PagesSettings = {
+  hostApi: string;
+  identityApi: string;
+  daemonApi: string;
+  /** Optional Mobile MFA PWA URL for passkey ceremony handoff QR. */
+  mfaAppUrl: string;
+  /** Capability → Host connector bindings (encryption, git history, …). */
+  capabilityConnectors: CapabilityConnectorMap;
+  /**
+   * Every way into this deployment. Absent means nobody has answered first-run
+   * setup, which reads as the shipped default: the compiled-in broker and
+   * nothing else. Optional so every existing settings literal stays valid.
+   */
+  signIn?: SignInMethods;
+  /**
+   * Active Host project id for secrets/env scope (outside the encrypted vault).
+   * Empty until personal/ensure or the operator picks a project.
+   */
+  activeProjectId?: string;
+};
+
+const PERSIST_KEY = "settings.v1";
+
+const TRAILING_SLASHES = /\/+$/;
+
+type PersistedSettings = {
+  hostApi: string;
+  identityApi: string;
+  daemonApi: string;
+  mfaAppUrl: string;
+  capabilityConnectors: CapabilityConnectorMap;
+  activeProjectId: string;
+  signIn: SignInMethods;
+};
+
+/**
+ * The loopback addresses `pages-dev.sh` runs the planes on (`:187xx` avoids
+ * the classic `:8787`/`:8788` collisions). These are *suggestions* a loopback
+ * tab may offer in a pairing field — never defaults the app assumes (ADR 0090).
+ */
+export const shippedHostApi = "http://127.0.0.1:18787";
+export const shippedIdentityApi = "http://127.0.0.1:18788";
+export const shippedDaemonApi = "http://127.0.0.1:18790";
+export const shippedMfaAppUrl = "http://127.0.0.1:5177";
+
+/** Legacy loopback endpoints we replace when VITE_* is set at runtime. */
+const LEGACY_HOST_APIS = [
+  shippedHostApi,
+  "http://127.0.0.1:8787",
+  "http://localhost:8787",
+  "http://localhost:18787",
+] as const;
+const LEGACY_IDENTITY_APIS = [
+  shippedIdentityApi,
+  "http://127.0.0.1:8788",
+  "http://localhost:8788",
+  "http://localhost:18788",
+] as const;
+
+const built = (key: Extract<keyof RuntimeEnv, `VITE_${string}`>) =>
+  env()[key]?.trim();
+
+/**
+ * Deployment-provided endpoints, loaded at boot from a same-origin
+ * `os-runtime-config.json` beside the bundle (written by deploy-pages.sh).
+ *
+ * `VITE_*` values are baked at build time, which a static Pages deploy never
+ * sets — that gap is exactly how the deployed vault shipped with no Identity
+ * API and every sign-in silently dead-ended. This layer carries the same
+ * values without a rebuild. It feeds `identityBase()` and friends only; the
+ * compiled `TRUSTED_UPSTREAMS` allowlist is deliberately out of its reach
+ * (ADR 0033 §2).
+ */
+export type RuntimeEndpointConfig = {
+  hostApi?: string;
+  identityApi?: string;
+  daemonApi?: string;
+  mfaAppUrl?: string;
+  /**
+   * Optional remote support endpoint (ADR 0087). A destination, never a
+   * credential: the browser sends no authorization header to it, so an
+   * operator who needs one puts a same-origin proxy in front.
+   */
+  supportAgentUrl?: string;
+};
+
+let deployedConfig: RuntimeEndpointConfig = {};
+
+export function applyRuntimeConfig(config: RuntimeEndpointConfig): void {
+  const next: RuntimeEndpointConfig = {};
+  if (config.hostApi?.trim()) next.hostApi = config.hostApi.trim();
+  if (config.identityApi?.trim()) next.identityApi = config.identityApi.trim();
+  if (config.daemonApi?.trim()) next.daemonApi = config.daemonApi.trim();
+  if (config.mfaAppUrl?.trim()) next.mfaAppUrl = config.mfaAppUrl.trim();
+  if (config.supportAgentUrl?.trim()) {
+    next.supportAgentUrl = config.supportAgentUrl.trim();
+  }
+  deployedConfig = next;
+  emitSettings();
+}
+
+function runtimeHostApiValue(): string | undefined {
+  return deployedConfig.hostApi || built("VITE_HOST_API");
+}
+
+function runtimeIdentityApiValue(): string | undefined {
+  return deployedConfig.identityApi || built("VITE_IDENTITY_API");
+}
+
+function runtimeDaemonApiValue(): string | undefined {
+  return deployedConfig.daemonApi || built("VITE_DAEMON_API");
+}
+
+function runtimeMfaAppUrlValue(): string | undefined {
+  return deployedConfig.mfaAppUrl || built("VITE_MFA_APP_URL");
+}
+
+const listeners = new Set<() => void>();
+
+/** Bumped on every write so a component can re-render for a changed base URL. */
+let epoch = 0;
+
+export function settingsEpoch(): number {
+  return epoch;
+}
+
+/** True when this tab is served from the same machine it can reach on loopback. */
+function pageIsLoopbackDefault(hostname?: string): boolean {
+  const host =
+    hostname ??
+    (globalThis.location === undefined
+      ? "127.0.0.1"
+      : globalThis.location.hostname);
+  return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
+}
+
+/**
+ * An OpenSesame Identity API is optional. First-run sign-in is the compiled
+ * Shoo/Google broker. Loopback URLs baked by `pages-dev.sh` (`VITE_IDENTITY_API`
+ * / `shippedIdentityApi`) must not become a requirement just because this tab
+ * is on localhost.
+ */
+function defaultIdentityApi(): string {
+  const deployed = deployedConfig.identityApi?.trim();
+  if (deployed) return deployed;
+  const baked = built("VITE_IDENTITY_API");
+  if (!baked || isLoopbackUrl(baked)) return "";
+  return baked;
+}
+
+/**
+ * What this app talks to when nobody has said: nothing.
+ *
+ * A local host is a capability somebody configures — `pages-dev.sh` bakes
+ * `VITE_*`, a deploy writes `os-runtime-config.json`, an operator fills in
+ * Settings → Endpoints or pairs a daemon — never something the app assumes
+ * from its own hostname (ADR 0090). The old split (loopback tabs defaulted to
+ * `127.0.0.1` Host/daemon/MFA endpoints, everything else to empty) made a dev
+ * tab look paired with services that were not running, and left every
+ * "Connect this machine" hint half true. Empty is honest on every origin: the
+ * pairing UI asks for an address instead of looking like loopback will work,
+ * and the shipped loopback values remain *suggestions* where a loopback tab
+ * asks for one (`shippedHostApi` and friends).
+ */
+function defaultsForPage(): PersistedSettings {
+  return {
+    hostApi: runtimeHostApiValue() || "",
+    identityApi: defaultIdentityApi(),
+    daemonApi: runtimeDaemonApiValue() || "",
+    mfaAppUrl: runtimeMfaAppUrlValue() || "",
+    capabilityConnectors: defaultCapabilityConnectors(),
+    activeProjectId: "",
+    signIn: defaultSignInMethods(),
+  };
+}
+
+function optionalString(value: JsonValue | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (!isString(value)) throw new Error("invalid persisted string");
+  return value;
+}
+
+function readCapabilityConnectors(
+  value: JsonValue | undefined,
+):
+  | Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>>
+  | undefined {
+  if (!isJsonObject(value)) return undefined;
+  const connectors: Partial<
+    Record<CapabilityId, Partial<CapabilityConnectorBinding>>
+  > = {};
+  for (const id of ["encryption", "history"] as const) {
+    const candidate = value[id];
+    if (!isJsonObject(candidate)) continue;
+    const binding: Partial<CapabilityConnectorBinding> = {};
+    if (isString(candidate.providerId)) {
+      binding.providerId = candidate.providerId;
+    }
+    if (isString(candidate.connectionId)) {
+      binding.connectionId = candidate.connectionId;
+    }
+    if (isString(candidate.remote)) {
+      binding.remote = candidate.remote;
+    }
+    if (id === "history" && Array.isArray(candidate.selections)) {
+      binding.selections = candidate.selections
+        .filter(isJsonObject)
+        .map((row) => {
+          const selection: HistoryBackupSelection = {
+            providerId: isString(row.providerId) ? row.providerId : "",
+            group: row.group === "postgres" ? "postgres" : "git",
+          };
+          if (isString(row.connectionId)) {
+            selection.connectionId = row.connectionId;
+          }
+          if (isString(row.remote)) selection.remote = row.remote;
+          if (
+            row.claimState === "provisional" ||
+            row.claimState === "claimed"
+          ) {
+            selection.claimState = row.claimState;
+          }
+          if (isString(row.provisionalAccountId)) {
+            selection.provisionalAccountId = row.provisionalAccountId;
+          }
+          return selection;
+        })
+        .filter((row) => row.providerId.length > 0);
+    }
+    connectors[id] = binding;
+  }
+  return connectors;
+}
+
+/** What a deployment nobody has set up offers: the compiled-in broker. */
+export function defaultSignInMethods(): SignInMethods {
+  return { builtin: true, providers: [] };
+}
+
+/**
+ * A provider is admitted only whole: an absolute https issuer (or loopback
+ * http, for a local IdP) and a non-empty client id. A half-written record
+ * would otherwise become a trusted issuer with nothing behind it — see
+ * `isOperatorIdpIssuer` in `federation.ts`, which reads this.
+ */
+export function normalizeOperatorIdp(
+  providerId: string,
+  issuer: string,
+  clientId: string,
+  label?: string,
+): OperatorIdp | null {
+  const trimmedIssuer = issuer.trim().replace(TRAILING_SLASHES, "");
+  const trimmedClientId = clientId.trim();
+  if (!trimmedIssuer || !trimmedClientId) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmedIssuer);
+  } catch {
+    return null;
+  }
+  // https, or loopback http for a local IdP. Anything else would send an
+  // authorization code over the wire in the clear.
+  if (parsed.protocol !== "https:" && !isLoopbackUrl(trimmedIssuer)) {
+    return null;
+  }
+  return {
+    providerId: providerId.trim(),
+    issuer: trimmedIssuer,
+    clientId: trimmedClientId,
+    label: label?.trim() || parsed.hostname,
+  };
+}
+
+function readOperatorIdp(value: JsonValue | undefined): OperatorIdp | null {
+  if (!isJsonObject(value)) return null;
+  const { providerId, issuer, clientId, label } = value;
+  if (!isString(issuer) || !isString(clientId)) return null;
+  return normalizeOperatorIdp(
+    isString(providerId) ? providerId : "",
+    issuer,
+    clientId,
+    isString(label) ? label : undefined,
+  );
+}
+
+/**
+ * The ways in, read back whole.
+ *
+ * A provider is admitted only if it could actually run a flow, and only once
+ * per issuer: two entries for one issuer would put the same button on the
+ * sign-in screen twice and make "remove" ambiguous.
+ */
+function readSignInMethods(value: JsonValue | undefined): SignInMethods {
+  if (!isJsonObject(value)) return defaultSignInMethods();
+  const providers: OperatorIdp[] = [];
+  const seen = new Set<string>();
+  const listed = value.providers;
+  if (Array.isArray(listed)) {
+    for (const entry of listed) {
+      const idp = readOperatorIdp(entry);
+      if (!idp || seen.has(idp.issuer)) continue;
+      seen.add(idp.issuer);
+      providers.push(idp);
+    }
+  }
+  return { builtin: value.builtin !== false, providers };
+}
+
+/** Every way into this deployment, defaults filled in. */
+export function signInMethods(
+  settings: PagesSettings = loadSettings(),
+): SignInMethods {
+  return settings.signIn ?? defaultSignInMethods();
+}
+
+/**
+ * True when nothing here could sign anybody in.
+ *
+ * Not the same as "no identity service": the compiled-in broker and every
+ * provider the operator brought run in the browser and need no service at all
+ * (ADR 0078). The unlock screen used to equate the two and offer setup above a
+ * working Google button.
+ */
+export function noWayIn(settings: PagesSettings = loadSettings()): boolean {
+  const methods = signInMethods(settings);
+  if (methods.builtin || methods.providers.length > 0) return false;
+  return settings.identityApi.trim().length === 0;
+}
+
+function loadPersisted(): PersistedSettings {
+  const defaults = defaultsForPage();
+  try {
+    const raw = kvGet(PERSIST_KEY);
+    if (!raw) return { ...defaults };
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) throw new Error("invalid persisted settings");
+    const hostApi = optionalString(parsed.hostApi)?.trim() ?? "";
+    const identityApi = optionalString(parsed.identityApi)?.trim() ?? "";
+    const daemonApi = optionalString(parsed.daemonApi)?.trim() ?? "";
+    const mfaAppUrl = optionalString(parsed.mfaAppUrl);
+    return {
+      hostApi:
+        hostApi &&
+        !(
+          runtimeHostApiValue() &&
+          LEGACY_HOST_APIS.some((legacy) => legacy === hostApi)
+        )
+          ? hostApi
+          : defaults.hostApi,
+      identityApi: (() => {
+        const rewriteLegacy =
+          Boolean(identityApi) &&
+          Boolean(runtimeIdentityApiValue()) &&
+          LEGACY_IDENTITY_APIS.some((legacy) => legacy === identityApi);
+        if (rewriteLegacy) return runtimeIdentityApiValue() ?? "";
+        return identityApi || defaults.identityApi;
+      })(),
+      daemonApi: daemonApi || defaults.daemonApi,
+      mfaAppUrl:
+        mfaAppUrl !== undefined ? mfaAppUrl.trim() : defaults.mfaAppUrl,
+      capabilityConnectors: normalizeCapabilityConnectors(
+        readCapabilityConnectors(parsed.capabilityConnectors),
+      ),
+      activeProjectId: isString(parsed.activeProjectId)
+        ? parsed.activeProjectId.trim()
+        : defaults.activeProjectId,
+      signIn: readSignInMethods(parsed.signIn),
+    };
+  } catch {
+    return { ...defaults };
+  }
+}
+
+function loadSettingsDefault(): PagesSettings {
+  return loadPersisted();
+}
+
+function emitSettings(): void {
+  epoch += 1;
+  for (const listener of listeners) listener();
+  noteSettingsUpdated();
+}
+
+function subscribeSettingsDefault(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function persistRecord(next: PagesSettings): PersistedSettings {
+  const defaults = defaultsForPage();
+  return {
+    hostApi: next.hostApi.trim() || defaults.hostApi,
+    identityApi: next.identityApi.trim() || defaults.identityApi,
+    daemonApi: next.daemonApi.trim() || defaults.daemonApi,
+    mfaAppUrl: next.mfaAppUrl?.trim() ?? "",
+    capabilityConnectors: normalizeCapabilityConnectors(
+      next.capabilityConnectors ?? defaults.capabilityConnectors,
+    ),
+    activeProjectId: next.activeProjectId?.trim() ?? "",
+    signIn: readSignInMethods({
+      builtin: next.signIn?.builtin !== false,
+      providers: (next.signIn?.providers ?? []).map((idp) => ({ ...idp })),
+    }),
+  };
+}
+
+function saveSettingsDefault(next: PagesSettings): void {
+  kvSet(PERSIST_KEY, JSON.stringify(persistRecord(next)));
+  emitSettings();
+}
+
+/** Persist pairing and wait for OPFS so a reload in this browser keeps Host. */
+export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
+  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistRecord(next)));
+  emitSettings();
+}
+
+/**
+ * Host/daemon already pointed at a reachable-from-github.io endpoint — do not
+ * demand "Connect this machine" again until the operator clears Settings.
+ */
+export function hasRemoteHostPairing(
+  settings: PagesSettings = loadSettings(),
+): boolean {
+  const host = settings.hostApi.trim();
+  if (host && !isLoopbackUrl(host)) return true;
+  const daemon = settings.daemonApi.trim();
+  if (!daemon || isLoopbackUrl(daemon)) return false;
+  return normalizeTailnetBase(daemon) !== null;
+}
+
+/** Auto-connect Identity only when this page can actually reach it. */
+function shouldAutoConnectDefault(
+  settings: PagesSettings = loadSettings(),
+  hostname?: string,
+): boolean {
+  const identity = settings.identityApi.trim();
+  if (!identity) return false;
+  if (pageIsLoopback(hostname)) return true;
+  return !isLoopbackUrl(identity);
+}
+
+export const settingsSeams = {
+  loadSettings: loadSettingsDefault,
+  saveSettings: saveSettingsDefault,
+  subscribeSettings: subscribeSettingsDefault,
+  pageIsLoopback: pageIsLoopbackDefault,
+  shouldAutoConnect: shouldAutoConnectDefault,
+  shippedDaemonApi,
+};
+
+export function loadSettings(): PagesSettings {
+  return settingsSeams.loadSettings();
+}
+
+export function saveSettings(next: PagesSettings): void {
+  settingsSeams.saveSettings(next);
+}
+
+export function subscribeSettings(listener: () => void): () => void {
+  return settingsSeams.subscribeSettings(listener);
+}
+
+export function pageIsLoopback(hostname?: string): boolean {
+  return hostname === undefined
+    ? settingsSeams.pageIsLoopback()
+    : settingsSeams.pageIsLoopback(hostname);
+}
+
+export function shouldAutoConnect(
+  settings?: PagesSettings,
+  hostname?: string,
+): boolean {
+  if (settings === undefined) return settingsSeams.shouldAutoConnect();
+  return settingsSeams.shouldAutoConnect(settings, hostname);
+}

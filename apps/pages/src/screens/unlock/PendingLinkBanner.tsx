@@ -12,14 +12,14 @@
  * attaching your sign-in" prompt is already waiting after unlock.)
  */
 
-import { useEffect, useReducer } from "react";
 import {
   type AuthOutcome,
   clearAuthOutcome,
   readAuthOutcome,
-} from "../../lib/auth-outcome.js";
-import { recoverPendingFederatedLink } from "../../lib/guest-auth.js";
-import { signOut } from "../../lib/session-exit.js";
+} from "@opensesame/app-core/lib/auth-outcome.js";
+import { recoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
+import { signOut } from "@opensesame/app-core/lib/session-exit.js";
+import { useEffect, useReducer } from "react";
 
 type BannerModel = {
   tone: "ok" | "warn" | "err" | "plain";
