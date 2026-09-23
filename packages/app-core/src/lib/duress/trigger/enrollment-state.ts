@@ -16,10 +16,10 @@ export type EnrolledTrigger = Readonly<{
   slot: SealedSlot;
   triggerKind: CodeTriggerKind;
   /** prf_and_code only: the PRF+code layer around the slot (see enrollment-seal.ts). */
-  prfEnvelope?: PrfAndCodeEnvelope;
-  prfEnvelopeRef?: string;
-  credentialIdB64?: string;
-  expectedOrigin?: string;
+  prfEnvelope?: PrfAndCodeEnvelope | undefined;
+  prfEnvelopeRef?: string | undefined;
+  credentialIdB64?: string | undefined;
+  expectedOrigin?: string | undefined;
 }>;
 
 export type EnrollmentCapabilities = Readonly<{
@@ -118,8 +118,8 @@ export function assertOwnerAndReadiness(state: EnrollmentState): void {
 export async function assertNoCollisions(input: {
   code: string;
   state: EnrollmentState;
-  ordinaryCode?: string;
-  ignoreProfileId?: string;
+  ordinaryCode?: string | undefined;
+  ignoreProfileId?: string | undefined;
 }): Promise<void> {
   assertTriggerCodeLength(input.code);
   assertNotReversePinConvention(input.code, input.ordinaryCode);

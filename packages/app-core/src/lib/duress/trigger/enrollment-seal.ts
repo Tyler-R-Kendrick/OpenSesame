@@ -28,14 +28,14 @@ export type TriggerSlotScope = Readonly<{
 
 export type SealedTriggerSlot = Readonly<{
   slot: SealedSlot;
-  prfEnvelope?: PrfAndCodeEnvelope;
+  prfEnvelope?: PrfAndCodeEnvelope | undefined;
 }>;
 
 /** What opening needs to know about an enrolled trigger. */
 export type OpenableTrigger = Readonly<{
   slot: SealedSlot;
   triggerKind: CodeTriggerKind;
-  prfEnvelope?: PrfAndCodeEnvelope;
+  prfEnvelope?: PrfAndCodeEnvelope | undefined;
 }>;
 
 export async function sealTriggerSlot(input: {
@@ -45,7 +45,7 @@ export async function sealTriggerSlot(input: {
   profileId: string;
   scope: TriggerSlotScope;
   plaintext: SlotPlaintext;
-  prfOutput?: Uint8Array | null;
+  prfOutput?: Uint8Array | null | undefined;
 }): Promise<SealedTriggerSlot> {
   const slot = await sealProfileSlot({
     code: input.code,
@@ -94,7 +94,7 @@ export async function openTriggerSlot(input: {
   enrolled: OpenableTrigger;
   code: string;
   expect: TriggerSlotScope;
-  prfOutput?: Uint8Array | null;
+  prfOutput?: Uint8Array | null | undefined;
 }): Promise<SlotPlaintext | null> {
   const { enrolled } = input;
   if (enrolled.triggerKind !== "prf_and_code") {

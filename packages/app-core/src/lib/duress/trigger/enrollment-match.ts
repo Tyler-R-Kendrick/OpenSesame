@@ -22,8 +22,8 @@ export async function openEnrolledTriggerPlaintext(input: {
   enrolled: EnrolledTrigger;
   code: string;
   expect: TriggerOpenExpect;
-  userVerified?: boolean;
-  prfOutput?: Uint8Array | null;
+  userVerified?: boolean | undefined;
+  prfOutput?: Uint8Array | null | undefined;
 }): Promise<SlotPlaintext | null> {
   const t = input.enrolled;
   if (t.triggerKind === "application_code") {

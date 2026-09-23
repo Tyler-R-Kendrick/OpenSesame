@@ -19,7 +19,9 @@ import {
 } from "./enrollment-state.js";
 import { type CodeTriggerKind, assertCapabilitiesForKind } from "./kinds.js";
 
-export type BeginEnrollmentDraftOpts = Readonly<{ replaceProfileId?: string }>;
+export type BeginEnrollmentDraftOpts = Readonly<{
+  replaceProfileId?: string | undefined;
+}>;
 
 export type StageTriggerInDraftInput = Readonly<{
   draft: EnrollmentDraft;
@@ -27,18 +29,18 @@ export type StageTriggerInDraftInput = Readonly<{
   profileId: string;
   triggerKind: CodeTriggerKind;
   plaintext: SlotPlaintext;
-  ordinaryCode?: string;
-  credentialIdB64?: string;
-  expectedOrigin?: string;
-  prfEnvelopeRef?: string;
+  ordinaryCode?: string | undefined;
+  credentialIdB64?: string | undefined;
+  expectedOrigin?: string | undefined;
+  prfEnvelopeRef?: string | undefined;
   /** prf_and_code: the enrolling passkey's PRF output (both layers need it). */
-  prfOutput?: Uint8Array | null;
+  prfOutput?: Uint8Array | null | undefined;
 }>;
 
 function assertPrfBinding(input: {
   triggerKind: CodeTriggerKind;
-  credentialIdB64?: string;
-  expectedOrigin?: string;
+  credentialIdB64?: string | undefined;
+  expectedOrigin?: string | undefined;
 }): void {
   if (input.triggerKind !== "prf_and_code") return;
   if (!input.credentialIdB64 || !input.expectedOrigin) {
@@ -186,12 +188,12 @@ export async function enrollTrigger(input: {
   profileId: string;
   triggerKind: CodeTriggerKind;
   plaintext: SlotPlaintext;
-  ordinaryCode?: string;
+  ordinaryCode?: string | undefined;
   replace?: boolean;
-  credentialIdB64?: string;
-  expectedOrigin?: string;
-  prfEnvelopeRef?: string;
-  prfOutput?: Uint8Array | null;
+  credentialIdB64?: string | undefined;
+  expectedOrigin?: string | undefined;
+  prfEnvelopeRef?: string | undefined;
+  prfOutput?: Uint8Array | null | undefined;
   autoRehearse?: boolean;
 }): Promise<EnrollmentState> {
   assertTriggerCodeLength(input.code);
