@@ -2,7 +2,7 @@
  * Opaque session-root digest for compartment admission (never raw key material).
  */
 
-import type { VaultHeader } from "../../vault/crypto.js";
+import type { VaultHeader } from "@opensesame/vault-core";
 
 export function sessionRootDigestFromHeader(
   header: VaultHeader | null,

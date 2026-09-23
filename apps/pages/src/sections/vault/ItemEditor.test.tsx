@@ -1,12 +1,12 @@
 import type { IssuedCertificate } from "@opensesame/app-core/lib/certs.js";
-import { createItem } from "@opensesame/app-core/lib/vault/model.js";
-import type {
-  CertificateItem,
-  Folder,
-  LoginItem,
-  SecretItem,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+import {
+  type CertificateItem,
+  type Folder,
+  type LoginItem,
+  type SecretItem,
+  type VaultItem,
+  createItem,
+} from "@opensesame/vault-core";
 import {
   cleanup,
   fireEvent,

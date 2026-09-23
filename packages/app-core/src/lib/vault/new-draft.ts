@@ -1,15 +1,16 @@
 import {
-  type FieldDefinition,
-  definitionFields,
-} from "@opensesame/vault-item-types";
-import { itemTypeRegistry, newValues } from "./item-types.js";
-import {
   type LegacyItemKind,
   type VaultItem,
   createItem,
   createTypedItem,
+  itemTypeRegistry,
   newUri,
-} from "./model.js";
+  newValues,
+} from "@opensesame/vault-core";
+import {
+  type FieldDefinition,
+  definitionFields,
+} from "@opensesame/vault-item-types";
 import { defaultCharOptions, generateCharacters } from "./password.js";
 
 const LEGACY_KINDS: readonly LegacyItemKind[] = [

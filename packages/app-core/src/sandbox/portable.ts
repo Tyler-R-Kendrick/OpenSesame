@@ -9,16 +9,16 @@ export { createSandboxHost } from "./host.js";
 export {
   VaultCorruptError,
   WrongPasswordError,
-} from "../lib/vault/crypto.js";
+} from "@opensesame/vault-core";
 export {
   createItem,
   hostOf,
   searchMatches,
   sortItems,
-} from "../lib/vault/model.js";
+} from "@opensesame/vault-core";
 export { testWebsitePattern } from "../lib/vault/website-pattern.js";
 export {
   openVaultFile,
   readVaultFile,
-} from "../lib/vault/vault-file.js";
-export { buildRows } from "../sections/vault/vault-tree-rows.js";
+} from "@opensesame/vault-core";
+export { buildRows } from "@opensesame/vault-core";

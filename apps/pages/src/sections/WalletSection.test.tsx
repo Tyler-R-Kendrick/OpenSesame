@@ -1,4 +1,4 @@
-import type { CardItem } from "@opensesame/app-core/lib/vault/model.js";
+import type { CardItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

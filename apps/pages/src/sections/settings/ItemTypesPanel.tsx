@@ -1,4 +1,4 @@
-import { itemTypeRegistry } from "@opensesame/app-core/lib/vault/item-types.js";
+import { itemTypeRegistry } from "@opensesame/vault-core";
 /**
  * Item types — install and remove a VaultItemType manifest as data writes to
  * the sealed body (ADR 0087 §7; capability `vault.item_types.install`). The

@@ -6,12 +6,12 @@ import {
   type LocalDirectory,
   changeLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
-import { mintVaultKey } from "@opensesame/app-core/lib/vault/crypto.js";
 import {
   lockAllTombs,
   unlockTomb,
   vfsSeams,
 } from "@opensesame/app-core/lib/vfs.js";
+import { mintVaultKey } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

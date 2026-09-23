@@ -1,6 +1,6 @@
-import type { Folder } from "@opensesame/app-core/lib/vault/model.js";
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import type { JsonObject } from "@opensesame/os-domain";
+import type { Folder } from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */

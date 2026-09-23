@@ -1,14 +1,15 @@
-import { toNativeEntry } from "@opensesame/vault-item-types";
-import { beforeEach, describe, expect, it } from "vitest";
-import { buildCxfExport } from "./export/cxf.js";
 import {
+  createItem,
+  createTypedItem,
   definitionFor,
   installItemType,
   installedDefinitions,
+  itemSubtitle,
   itemTypeId,
   itemTypeRegistry,
   itemValues,
   newValues,
+  searchMatches,
   syncInstalledTypes,
   typeExtension,
   typeLabel,
@@ -16,13 +17,10 @@ import {
   typedSubtitle,
   uninstallItemType,
   unknownTypeSubtitle,
-} from "./item-types.js";
-import {
-  createItem,
-  createTypedItem,
-  itemSubtitle,
-  searchMatches,
-} from "./model.js";
+} from "@opensesame/vault-core";
+import { toNativeEntry } from "@opensesame/vault-item-types";
+import { beforeEach, describe, expect, it } from "vitest";
+import { buildCxfExport } from "./export/cxf.js";
 import { entryToVaultItem, vaultItemToEntry } from "./store-sync.js";
 
 const RESIDENT_ID = JSON.stringify({

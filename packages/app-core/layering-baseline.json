@@ -1,0 +1,9 @@
+{
+  "lazyCycleEdges": [
+    "src/lib/device-identity-host.ts -> src/lib/device-identity-local.ts",
+    "src/lib/federation.ts -> src/lib/ambient-auth/complete.ts",
+    "src/lib/local-passkey-prf.ts -> src/lib/vault/store.ts",
+    "src/lib/local-rbac.ts -> src/lib/local-sessions.ts",
+    "src/lib/local-sessions.ts -> src/lib/local-passkeys.ts"
+  ]
+}

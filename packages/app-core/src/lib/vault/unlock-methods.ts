@@ -10,19 +10,27 @@ import { page } from "../../ports.js";
  */
 
 import {
+  type CodeChannel,
   type KdfParams,
   MAX_PBKDF2_ITERATIONS,
   PBKDF2_ITERATIONS,
+  type PasskeyUnlockRecord,
+  type PinUnlockRecord,
+  type RecoveryCodesRecord,
   SALT_BYTES,
   type SealedBlob,
+  type TotpGateRecord,
   VaultCorruptError,
   type VaultHeader,
+  type VaultUnlocks,
   WrongPasswordError,
   assertKdfParams,
   b64ToBytes,
   bytesToB64,
+  parseTotp,
   randomBytes,
-} from "./crypto.js";
+  totpCode,
+} from "@opensesame/vault-core";
 import {
   createPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyDefault,
@@ -32,7 +40,6 @@ import {
   PrfCeremonyError,
   assertUsablePrfOutput,
 } from "./protection/adapters/webauthn-prf-output.js";
-import { parseTotp, totpCode } from "./totp.js";
 
 export {
   type WebauthnHostCheck,
@@ -66,15 +73,6 @@ export const MAX_PIN_LENGTH = 12;
 /** PIN wraps use at least the password floor; extra iterations raise offline cost. */
 export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
-import type {
-  CodeChannel,
-  PasskeyUnlockRecord,
-  PinUnlockRecord,
-  RecoveryCodesRecord,
-  TotpGateRecord,
-  VaultUnlocks,
-} from "./unlock-records.js";
-
 export type {
   CodeChannel,
   PasskeyUnlockRecord,
@@ -83,7 +81,7 @@ export type {
   RemoteCodeRecord,
   TotpGateRecord,
   VaultUnlocks,
-} from "./unlock-records.js";
+} from "@opensesame/vault-core";
 
 /**
  * Passkey wraps present on a header. A legacy lone `passkey` migrates to a

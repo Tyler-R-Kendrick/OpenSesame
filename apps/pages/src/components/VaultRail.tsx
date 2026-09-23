@@ -2,10 +2,7 @@ import {
   type ItemKindRow,
   itemKindsSnapshot,
 } from "@opensesame/app-core/lib/item-kinds.js";
-import type {
-  Folder,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+import type { Folder, VaultItem } from "@opensesame/vault-core";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 

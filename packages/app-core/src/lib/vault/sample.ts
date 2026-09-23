@@ -10,7 +10,7 @@ import {
   createItem,
   newGrant,
   newUri,
-} from "./model.js";
+} from "@opensesame/vault-core";
 
 function daysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();

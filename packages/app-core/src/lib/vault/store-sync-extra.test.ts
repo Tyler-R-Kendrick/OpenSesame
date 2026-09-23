@@ -1,5 +1,5 @@
+import { createItem, newUri } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { createItem, newUri } from "./model.js";
 import {
   entriesToVaultItems,
   entryToVaultItem,

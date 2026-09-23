@@ -1,3 +1,4 @@
+import { type ProtectionContext, ROOT_KEY_BYTES } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { generateAgeKeyPair } from "../../../age-keys.js";
 import { mintRootKeyHandle } from "../adapter.js";
@@ -6,8 +7,6 @@ import {
   assertAgeRecoveryIndependent,
 } from "../age-bootstrap.js";
 import { ProtectionError } from "../errors.js";
-import { ROOT_KEY_BYTES } from "../limits.js";
-import type { ProtectionContext } from "../types.js";
 import { createAgeRecipientAdapter } from "./age-recipient-ops.js";
 import {
   ageRecipientCanSatisfyLastVerifiedGuard,

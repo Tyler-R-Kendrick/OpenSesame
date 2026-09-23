@@ -30,6 +30,8 @@
  */
 
 import { isString } from "@opensesame/os-domain";
+import type { TypedItem, VaultBody, VaultItem } from "@opensesame/vault-core";
+import { definitionFor } from "@opensesame/vault-core";
 import {
   FIELD_TYPES,
   type FieldValue,
@@ -41,8 +43,6 @@ import {
   base64ToBase64Url,
   base64UrlToBase64,
 } from "../import/types.js";
-import { definitionFor } from "../item-types.js";
-import type { TypedItem, VaultBody, VaultItem } from "../model.js";
 
 export const CXF_VERSION = 1 as const;
 export const CXF_EXPORTER = "OpenSesame" as const;

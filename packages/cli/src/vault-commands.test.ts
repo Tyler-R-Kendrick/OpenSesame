@@ -3,17 +3,17 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { unwrapRawVaultKeyFromPassword } from "@opensesame/app-core/lib/vault/crypto.js";
-import {
-  openVaultBody,
-  readVaultFile,
-} from "@opensesame/app-core/lib/vault/vault-file.js";
 import {
   type JsonObject,
   type JsonValue,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import {
+  openVaultBody,
+  readVaultFile,
+  unwrapRawVaultKeyFromPassword,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "./run.js";
 import { applyKeys } from "./tty-password.js";
@@ -33,7 +33,7 @@ const fixture: Fixture = overlapCast(
   JSON.parse(
     readFileSync(
       createRequire(import.meta.url).resolve(
-        "@opensesame/app-core/lib/vault/fixtures/vault-vectors.json",
+        "@opensesame/vault-core/fixtures/vault-vectors.json",
       ),
       "utf8",
     ),

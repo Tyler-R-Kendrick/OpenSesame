@@ -9,7 +9,7 @@ import { overlapCast } from "@opensesame/os-domain";
  * logins, cards, and notes in one file with mostly empty columns.
  */
 
-import { hostOf } from "../../model.js";
+import { hostOf } from "@opensesame/vault-core";
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,

@@ -35,7 +35,7 @@ type Opened = Omit<Vector["expect"], "items"> & {
 const fixture: Fixture = overlapCast(
   JSON.parse(
     readFileSync(
-      join(here, "../lib/vault/fixtures/vault-vectors.json"),
+      join(here, "../../../vault-core/src/fixtures/vault-vectors.json"),
       "utf8",
     ),
   ),

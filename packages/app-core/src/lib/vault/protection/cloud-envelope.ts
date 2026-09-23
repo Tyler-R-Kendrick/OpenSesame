@@ -4,20 +4,16 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
-import { openRootCapsule, sealRootCapsule } from "./capsule.js";
-import { ProtectionError } from "./errors.js";
 import {
   DOMAIN_CLOUD_WRAP,
+  type ProtectionContext,
   ROOT_KEY_BYTES,
+  type SealedBlobV1,
   WRAPPING_SECRET_BYTES,
-} from "./limits.js";
-import type { ProtectionContext, SealedBlobV1 } from "./types.js";
-
-function bytesToB64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
+} from "@opensesame/vault-core";
+import { bytesToB64 } from "@opensesame/vault-core";
+import { openRootCapsule, sealRootCapsule } from "./capsule.js";
+import { ProtectionError } from "./errors.js";
 
 export type CloudLocalEnvelope = {
   wrappingSecret: Uint8Array;

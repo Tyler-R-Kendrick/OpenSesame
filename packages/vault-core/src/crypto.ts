@@ -1,4 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { b64ToBytes, bytesToB64 } from "./bytes.js";
+
 /**
  * Vault cryptography — WebCrypto only, no dependencies, no dev-only stand-ins.
  *
@@ -64,7 +66,7 @@ export type VaultHeader = {
    * When absent, unlocks/wrap remain the legacy source and are projected on read.
    * `capabilityConnectors.encryption` never overrides this field.
    */
-  protection?: import("./protection/types.js").RootProtectionManifest;
+  protection?: import("./protection-types.js").RootProtectionManifest;
 };
 
 export type SealedBlob = {
@@ -84,19 +86,6 @@ export type PasswordWrappedVaultKey = {
 
 export function randomBytes(length: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(length));
-}
-
-export function bytesToB64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-export function b64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
 }
 
 async function deriveMasterKey(

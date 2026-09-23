@@ -11,18 +11,16 @@ import {
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
+import { isString } from "@opensesame/os-domain";
 import {
+  type VaultItem,
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
   readItemField,
-  typePlural,
-} from "@opensesame/app-core/lib/vault/item-types.js";
-import {
-  type VaultItem,
   sortItems,
-} from "@opensesame/app-core/lib/vault/model.js";
-import { isString } from "@opensesame/os-domain";
+  typePlural,
+} from "@opensesame/vault-core";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconPlus } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";

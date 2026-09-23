@@ -59,9 +59,20 @@ const KNOWN_ROUTES = new Set<string>([
   ]),
 ]);
 
-const LIB_SURFACE = /^lib\/(.+\.ts):(\w+)$/;
+/** `lib/<file>.ts:<export>` in the app core, `vault-core/<file>.ts:<export>` in the kernel. */
+const LIB_SURFACE = /^(lib|vault-core)\/(.+\.ts):(\w+)$/;
 
-const libModules = import.meta.glob("../lib/**/*.ts");
+const libModules = {
+  ...import.meta.glob("../lib/**/*.ts"),
+  ...import.meta.glob("../../../../packages/app-core/src/lib/**/*.ts"),
+  ...import.meta.glob("../../../../packages/vault-core/src/*.ts"),
+};
+/** `lib/` is the app core's, else the shell's own (`install.ts`). */
+const ROOTS = {
+  lib: "../../../../packages/app-core/src/lib/",
+  shell: "../lib/",
+  "vault-core": "../../../../packages/vault-core/src/",
+} as const;
 
 describe("WebMCP registry parity (ADR 0065)", () => {
   it.skip("implements exactly the registry-derived pages catalog", () => {
@@ -78,25 +89,37 @@ describe("WebMCP registry parity (ADR 0065)", () => {
     assertsNoInteractionSettlementTool(WEBMCP_TOOLS.map((tool) => tool.name));
   });
 
-  it.skip("every lib/<file>.ts:<export> pwa surface resolves to a real export", async () => {
+  it("every lib/ and vault-core/ pwa surface resolves to a real export", async () => {
     const surfaces = CAPABILITIES.flatMap((capability) => {
       const match = capability.surfaces.pwa?.match(LIB_SURFACE);
-      return match?.[1] && match[2]
-        ? [{ id: capability.id, file: match[1], name: match[2] }]
+      return match?.[1] && match[2] && match[3]
+        ? [
+            {
+              id: capability.id,
+              root: match[1] === "lib" ? ROOTS.lib : ROOTS["vault-core"],
+              label: `${match[1]}/${match[2]}`,
+              file: match[2],
+              name: match[3],
+            },
+          ]
         : [];
     });
     expect(surfaces.length).toBeGreaterThan(0);
     for (const surface of surfaces) {
-      const load = libModules[`../lib/${surface.file}`];
+      const load =
+        libModules[`${surface.root}${surface.file}`] ??
+        (surface.root === ROOTS.lib
+          ? libModules[`${ROOTS.shell}${surface.file}`]
+          : undefined);
       expect(
         load,
-        `${surface.id} names missing module lib/${surface.file}`,
+        `${surface.id} names missing module ${surface.label}`,
       ).toBeDefined();
       if (!load) continue;
       const module: JsonObject = overlapCast(await load());
       expect(
         surface.name in module,
-        `${surface.id} names missing export lib/${surface.file}:${surface.name}`,
+        `${surface.id} names missing export ${surface.label}:${surface.name}`,
       ).toBe(true);
     }
   });

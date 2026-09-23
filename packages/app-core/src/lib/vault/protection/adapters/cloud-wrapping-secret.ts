@@ -7,33 +7,20 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  DOMAIN_CLOUD_WRAP,
+  type ProtectionContext,
+  type ProtectionPurpose,
+  type ProtectorAvailability,
+  ROOT_KEY_BYTES,
+  type SealedBlobV1,
+  WRAPPING_SECRET_BYTES,
+} from "@opensesame/vault-core";
 import { maybePage } from "../../../../ports.js";
 import { openRootCapsule, sealRootCapsule } from "../capsule.js";
 import { ProtectionError } from "../errors.js";
-import {
-  DOMAIN_CLOUD_WRAP,
-  ROOT_KEY_BYTES,
-  WRAPPING_SECRET_BYTES,
-} from "../limits.js";
-import type {
-  ProtectionContext,
-  ProtectionPurpose,
-  ProtectorAvailability,
-  SealedBlobV1,
-} from "../types.js";
 
-export function bytesToB64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-export function b64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
-}
+export { b64ToBytes, bytesToB64 } from "@opensesame/vault-core";
 
 export function mintWrappingSecret(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(WRAPPING_SECRET_BYTES));

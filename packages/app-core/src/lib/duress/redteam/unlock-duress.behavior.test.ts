@@ -4,11 +4,11 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UNLOCK_PIN_MISS } from "../../../screens/unlock/unlock-duress-refuse.js";
 import { unlockWithPasskeyAfterDuressGate } from "../../../screens/unlock/unlock-passkey-duress.js";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
-import { WrongPasswordError } from "../../vault/crypto.js";
 import { duressSessionFence } from "../session/fence.js";
 import {
   armPersistedUnlockEnrollment,

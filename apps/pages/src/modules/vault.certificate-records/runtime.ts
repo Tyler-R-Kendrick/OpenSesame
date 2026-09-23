@@ -8,7 +8,7 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { KIND_LABEL } from "@opensesame/app-core/lib/vault/model.js";
+import { KIND_LABEL } from "@opensesame/vault-core";
 import { IconShield } from "../../components/Icons.js";
 import { createActivation } from "../activation.js";
 

@@ -4,14 +4,14 @@
  * envelope format itself is `offline-backup-format.ts`.
  */
 import { overlapCast } from "@opensesame/os-domain";
-import { kvGet, kvSet } from "../kv.js";
 import {
   type OfflineBackupEnvelope,
   type SyncBlobCiphertext,
   buildOfflineBackupEnvelope,
   parseOfflineBackupEnvelope,
   serializeOfflineBackupEnvelope,
-} from "./offline-backup-format.js";
+} from "@opensesame/vault-core";
+import { kvGet, kvSet } from "../kv.js";
 
 export {
   MAX_OFFLINE_BACKUP_BYTES,
@@ -21,7 +21,7 @@ export {
   type SyncBlobCiphertext,
   assertCiphertextOnlyBackupJson,
   refuseDeploymentSealWrap,
-} from "./offline-backup-format.js";
+} from "@opensesame/vault-core";
 
 const CACHE_KEY_PREFIX = "vault.offline-ciphertext.v1:";
 const MUTATION_QUEUE_KEY = "vault.offline-mutations.v1";

@@ -1,8 +1,8 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 
+import type { VaultBody } from "@opensesame/vault-core";
 import { buildCxfExport, serializeCxfExport } from "../../export/cxf.js";
-import type { VaultBody } from "../../model.js";
 import type { ParseResult } from "../types.js";
 import { fidoCxf } from "./cxf.js";
 

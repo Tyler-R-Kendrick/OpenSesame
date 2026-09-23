@@ -1,8 +1,8 @@
+import { decodeBase32 } from "@opensesame/vault-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { normaliseTotp } from "./import/types.js";
 import { joinStorePath, splitStorePath } from "./store-sync.js";
-import { decodeBase32 } from "./totp.js";
 
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 

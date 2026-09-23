@@ -10,23 +10,15 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import {
+  DOMAIN_CAPSULE,
+  type ProtectionContext,
+  ROOT_KEY_BYTES,
+  type SealedBlobV1,
+} from "@opensesame/vault-core";
+import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core";
 import { canonicalizeToBytes } from "./canonicalize.js";
 import { ProtectionError } from "./errors.js";
-import { DOMAIN_CAPSULE, ROOT_KEY_BYTES } from "./limits.js";
-import type { ProtectionContext, SealedBlobV1 } from "./types.js";
-
-function bytesToB64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function b64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
-}
 
 export type RootCapsulePlaintext = {
   v: 1;

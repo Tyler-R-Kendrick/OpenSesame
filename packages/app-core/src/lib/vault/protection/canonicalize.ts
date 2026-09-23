@@ -11,8 +11,8 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { DOMAIN_CAPSULE, DOMAIN_MANIFEST } from "@opensesame/vault-core";
 import { ProtectionError } from "./errors.js";
-import { DOMAIN_CAPSULE, DOMAIN_MANIFEST } from "./limits.js";
 
 export { DOMAIN_CAPSULE, DOMAIN_MANIFEST };
 

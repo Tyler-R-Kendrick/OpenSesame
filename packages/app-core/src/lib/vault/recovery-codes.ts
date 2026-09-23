@@ -3,7 +3,7 @@
  * standing in for any second step once each (ADR 0091).
  */
 
-import { type SealedBlob, WrongPasswordError } from "./crypto.js";
+import { type SealedBlob, WrongPasswordError } from "@opensesame/vault-core";
 import {
   type RecoveryCodesRecord,
   normalizeRecoveryCode,

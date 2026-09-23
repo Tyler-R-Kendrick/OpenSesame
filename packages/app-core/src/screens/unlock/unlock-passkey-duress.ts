@@ -6,7 +6,7 @@
  * complete code before any protected-root unwrap.
  */
 
-import { WrongPasswordError } from "../../lib/vault/crypto.js";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import { maybePage } from "../../ports.js";
 import {
   loadEnrollmentStateForUnlock,

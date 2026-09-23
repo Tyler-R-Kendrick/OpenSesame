@@ -1,11 +1,11 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
   type LocalGrantRecord,
   readLocalGrantRecords,
   writeLocalGrantRecords,
 } from "./local-grant-store.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { lockAllTombs, readFile, unlockTomb, writeFile } from "./vfs.js";
 
 let tomb: string;

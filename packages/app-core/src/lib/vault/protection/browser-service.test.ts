@@ -1,4 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
+import { createItem } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvGet } from "../../kv.js";
 import {
@@ -10,7 +11,6 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../../vfs.js";
-import { createItem } from "../model.js";
 import { ATTEMPTS_KEY, VaultStore } from "../store.js";
 import { LEGACY_PREFS_KEY } from "../tomb-migration.js";
 import { ProtectionError } from "./errors.js";

@@ -10,19 +10,17 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import { ProtectionError } from "./errors.js";
 import {
+  type AuthenticatedLegacyGates,
   MANIFEST_SCHEMA_VERSION,
   MAX_MANIFEST_ENCODED_BYTES,
   MAX_PROTECTION_RECORDS,
   MAX_RECORD_ENCODED_BYTES,
-} from "./limits.js";
-import type {
-  AuthenticatedLegacyGates,
-  ProtectionPurpose,
-  ProtectionRecord,
-  RootProtectionManifest,
-} from "./types.js";
+  type ProtectionPurpose,
+  type ProtectionRecord,
+  type RootProtectionManifest,
+} from "@opensesame/vault-core";
+import { ProtectionError } from "./errors.js";
 
 const PROTECTOR_KINDS = new Set([
   "password",

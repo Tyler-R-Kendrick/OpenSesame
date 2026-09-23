@@ -3,9 +3,9 @@
  * Clocks are always injected — never sleep for lockoutMs (INV-25).
  */
 
+import { WrongPasswordError } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { continueAfterDuressMatch } from "../../../screens/unlock/unlock-duress-continue.js";
-import { WrongPasswordError } from "../../vault/crypto.js";
 
 function continueMatch(presentation: string, profileId = "p-test") {
   return {

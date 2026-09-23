@@ -1,5 +1,5 @@
+import type { CardItem, TypedItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import type { CardItem, TypedItem } from "./vault/model.js";
 import {
   isPaymentInstrument,
   listPaymentInstruments,

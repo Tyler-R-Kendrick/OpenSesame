@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   AZURE_KEY_VAULT_KEYS_CONFIG_PATH,
@@ -7,7 +8,6 @@ import {
   writeAzureKeyVaultKeysConfig,
 } from "./azure-key-vault-keys-config.js";
 import { kvDelete } from "./kv.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   INDEX_PATH,
   PERSONAL_TOMB,

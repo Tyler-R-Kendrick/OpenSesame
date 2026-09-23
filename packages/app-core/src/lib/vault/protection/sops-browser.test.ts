@@ -1,3 +1,4 @@
+import type { RootProtectionManifest } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { generateAgeKeyPair } from "../../age-keys.js";
 import {
@@ -7,7 +8,6 @@ import {
   importAgeArmored,
   sopsCapability,
 } from "./sops-browser.js";
-import type { RootProtectionManifest } from "./types.js";
 
 describe("sops-browser formats interop", () => {
   it("reports honest capabilities", () => {

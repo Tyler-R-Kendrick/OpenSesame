@@ -3,11 +3,11 @@
  * Not available in a generic browser; native client only.
  */
 
-import { ProtectionError } from "../errors.js";
 import type {
   DeviceLocalProtectorRecord,
   ProtectorAvailability,
-} from "../types.js";
+} from "@opensesame/vault-core";
+import { ProtectionError } from "../errors.js";
 
 export function deviceLocalCapabilities(): ProtectorAvailability {
   return {

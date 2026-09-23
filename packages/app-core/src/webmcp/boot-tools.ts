@@ -5,6 +5,7 @@
  * the configured Identity API base; never an item, never a secret.
  */
 
+import { activeItems } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import {
   type TargetState,
@@ -12,7 +13,6 @@ import {
 } from "../lib/connectivity-monitor.js";
 import { isOnline } from "../lib/connectivity.js";
 import { currentSession, identityBase } from "../lib/identity.js";
-import { activeItems } from "../lib/vault/model.js";
 import { vaultStore } from "../lib/vault/store.js";
 import {
   SECTION_PATHS,

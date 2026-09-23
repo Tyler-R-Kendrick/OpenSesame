@@ -11,7 +11,6 @@ import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
 import { noWayIn } from "@opensesame/app-core/lib/settings.js";
 import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
-import { WrongPasswordError } from "@opensesame/app-core/lib/vault/crypto.js";
 import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
@@ -33,6 +32,7 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { cancelPasskeyDuressCode } from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import {
   type FormEvent,
   useCallback,

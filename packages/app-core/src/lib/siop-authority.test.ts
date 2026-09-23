@@ -3,6 +3,7 @@ import {
   serializeAuthorizationRequest,
   verifySelfIssuedIdToken,
 } from "@opensesame/siop-v2";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
@@ -24,7 +25,6 @@ import {
   siopIssuerProfile,
 } from "./siop-authority.js";
 import { ensureSiopKey } from "./siop-keys.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 

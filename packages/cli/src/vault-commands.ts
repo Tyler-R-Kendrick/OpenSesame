@@ -8,15 +8,13 @@
  */
 import { readFile } from "node:fs/promises";
 import { configureHost } from "@opensesame/app-core/host.js";
-import {
-  VaultCorruptError,
-  WrongPasswordError,
-} from "@opensesame/app-core/lib/vault/crypto.js";
+import { createNodeHost } from "@opensesame/app-core/node/host.js";
 import {
   type OpenedVaultFile,
+  VaultCorruptError,
+  WrongPasswordError,
   openVaultFile,
-} from "@opensesame/app-core/lib/vault/vault-file.js";
-import { createNodeHost } from "@opensesame/app-core/node/host.js";
+} from "@opensesame/vault-core";
 import { emit } from "./output.js";
 import type { ParsedCommand } from "./parse.js";
 import { readPasswordFromTty } from "./tty-password.js";

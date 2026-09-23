@@ -4,7 +4,6 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import { kvDeleteDurable, kvGet, kvSetDurable } from "./kv.js";
 import {
   type SealedBlob,
   assertSealed,
@@ -13,7 +12,8 @@ import {
   openJson,
   sealJson,
   vaultSealBinding,
-} from "./vault/crypto.js";
+} from "@opensesame/vault-core";
+import { kvDeleteDurable, kvGet, kvSetDurable } from "./kv.js";
 
 /**
  * Encrypted VFS (ADR 0063). AES-GCM seals bind tomb and path as additional

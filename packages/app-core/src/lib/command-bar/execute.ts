@@ -1,6 +1,9 @@
 import { isString } from "@opensesame/os-domain";
-import { definitionFor, readItemField } from "../vault/item-types.js";
-import type { VaultItem } from "../vault/model.js";
+import {
+  type VaultItem,
+  definitionFor,
+  readItemField,
+} from "@opensesame/vault-core";
 import {
   type AppCommand,
   type CommandOutcome,

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { DOMAIN_CAPSULE, DOMAIN_CLOUD_WRAP } from "@opensesame/vault-core";
 import {
   agentMayInvokeCryptoAlias,
   assertAgentMayNotUnwrapHumanRoot,
   isRootProtectionDomain,
 } from "./agent-boundary.js";
 import { ProtectionError } from "./errors.js";
-import { DOMAIN_CAPSULE, DOMAIN_CLOUD_WRAP } from "./limits.js";
 
 describe("agent-boundary (KP-39)", () => {
   it("recognizes root-protection ciphertext domains", () => {

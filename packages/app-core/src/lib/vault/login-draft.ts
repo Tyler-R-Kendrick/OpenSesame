@@ -1,5 +1,9 @@
-import type { Folder, LoginItem, VaultItem } from "./model.js";
-import { newUri } from "./model.js";
+import {
+  type Folder,
+  type LoginItem,
+  type VaultItem,
+  newUri,
+} from "@opensesame/vault-core";
 
 export type LoginDraftView = {
   name: string;

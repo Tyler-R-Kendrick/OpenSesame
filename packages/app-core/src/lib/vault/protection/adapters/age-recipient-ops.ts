@@ -14,6 +14,14 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import {
+  type AgeRecipientProtectorRecord,
+  DOMAIN_CAPSULE,
+  type ProtectionContext,
+  ROOT_KEY_BYTES,
+  type VerificationEvidence,
+  bytesToB64,
+} from "@opensesame/vault-core";
+import {
   type AgeIdentityCustody,
   decryptWithAge,
   encryptWithAge,
@@ -37,17 +45,10 @@ import { canonicalizeToBytes } from "../canonicalize.js";
 import { contextsEqual } from "../capsule.js";
 import { ProtectionError } from "../errors.js";
 import { newProtectorId } from "../ids.js";
-import { DOMAIN_CAPSULE, ROOT_KEY_BYTES } from "../limits.js";
-import type {
-  AgeRecipientProtectorRecord,
-  ProtectionContext,
-  VerificationEvidence,
-} from "../types.js";
 
 import type { AgeRecipientAdapterOptions } from "./age-recipient.js";
 import {
   buildPayload,
-  bytesToB64,
   equalBytes,
   openAgeCapsule,
   requireRecipients,

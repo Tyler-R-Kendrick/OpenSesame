@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
 import {
   TotpParseError,
   decodeBase32,
   parseTotp,
   secondsRemaining,
   totpSetupUri,
-} from "./totp.js";
+} from "@opensesame/vault-core";
+import { describe, expect, it } from "vitest";
 
 describe("decodeBase32", () => {
   it("rejects empty and undecodable secrets", () => {

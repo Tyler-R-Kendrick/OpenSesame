@@ -1,4 +1,4 @@
-import type { Folder, VaultBody, VaultItem } from "./model.js";
+import type { Folder, VaultBody, VaultItem } from "@opensesame/vault-core";
 
 export function itemCreatePath(
   kind: string | undefined,

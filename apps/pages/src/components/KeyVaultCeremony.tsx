@@ -8,8 +8,8 @@ import {
 } from "@opensesame/app-core/lib/capability-bind.js";
 import { openConsentPopup } from "@opensesame/app-core/lib/connections.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
-import { PBKDF2_ITERATIONS } from "@opensesame/app-core/lib/vault/crypto.js";
 import { preferenceMechanismLabel } from "@opensesame/app-core/lib/vault/protection/protection-view.js";
+import { PBKDF2_ITERATIONS } from "@opensesame/vault-core";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { IconLock, IconPasskey, IconShield } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";

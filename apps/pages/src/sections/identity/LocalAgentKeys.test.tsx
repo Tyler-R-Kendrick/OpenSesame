@@ -2,13 +2,13 @@ import * as agentAuthentication from "@opensesame/app-core/lib/local-agent-auth.
 import { readLocalAgentKeys } from "@opensesame/app-core/lib/local-agent-keys.js";
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
-import { mintVaultKey } from "@opensesame/app-core/lib/vault/crypto.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   type LocalAgentChallenge,
   createLocalAgentKey,
 } from "@opensesame/static-auth";
+import { mintVaultKey } from "@opensesame/vault-core";
 import {
   act,
   cleanup,

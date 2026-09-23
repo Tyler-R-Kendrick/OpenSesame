@@ -1,5 +1,31 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
 import {
+  type Folder,
+  type InstallResult,
+  type SealedBlob,
+  type VaultBody,
+  VaultCorruptError,
+  type VaultHeader,
+  type VaultItem,
+  WrongPasswordError,
+  assertSealed,
+  createVault,
+  emptyBody,
+  importVaultKey,
+  installItemType,
+  installedDefinitions,
+  mergeVaultBodies,
+  mintVaultKey,
+  openJson,
+  rewrapVaultKey,
+  sealJson,
+  syncInstalledTypes,
+  uninstallItemType,
+  unwrapRawVaultKeyFromPassword,
+  vaultSealBinding,
+  wrapVaultKeyWithPassword,
+} from "@opensesame/vault-core";
+import {
   activitySeams,
   noteVaultBodyPersisted,
   noteVaultUnlocked,
@@ -40,39 +66,9 @@ import {
   writePlaintextFile,
   writeSealedFile,
 } from "../vfs.js";
-import {
-  type SealedBlob,
-  VaultCorruptError,
-  type VaultHeader,
-  WrongPasswordError,
-  assertSealed,
-  createVault,
-  importVaultKey,
-  mintVaultKey,
-  openJson,
-  rewrapVaultKey,
-  sealJson,
-  unwrapRawVaultKeyFromPassword,
-  vaultSealBinding,
-  wrapVaultKeyWithPassword,
-} from "./crypto.js";
 import { headerCarriesGate } from "./header-gate.js";
 import { writeItem } from "./item-path.js";
-import {
-  type InstallResult,
-  installItemType,
-  installedDefinitions,
-  syncInstalledTypes,
-  uninstallItemType,
-} from "./item-types.js";
 import { emitVaultLock } from "./lock-events.js";
-import {
-  type Folder,
-  type VaultBody,
-  type VaultItem,
-  emptyBody,
-  mergeVaultBodies,
-} from "./model.js";
 import {
   probePasskeyPrf,
   unlockVaultWithHeldPrf,

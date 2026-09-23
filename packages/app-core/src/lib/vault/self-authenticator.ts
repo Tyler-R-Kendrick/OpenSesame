@@ -16,9 +16,16 @@
  * and restoring it reinstates the supply.
  */
 
-import { type VaultHeader, WrongPasswordError } from "./crypto.js";
-import { type LoginItem, type VaultBody, createItem } from "./model.js";
-import { parseTotp, totpCode, totpSetupUri } from "./totp.js";
+import {
+  type LoginItem,
+  type VaultBody,
+  type VaultHeader,
+  WrongPasswordError,
+  createItem,
+  parseTotp,
+  totpCode,
+  totpSetupUri,
+} from "@opensesame/vault-core";
 import {
   type TotpGateRecord,
   openTotpSecret,

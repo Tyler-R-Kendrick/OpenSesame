@@ -2,11 +2,15 @@
  * Carry an unlocked vault key into another project tomb (ADR 0089).
  */
 
+import {
+  type VaultBody,
+  VaultCorruptError,
+  type VaultHeader,
+  emptyBody,
+} from "@opensesame/vault-core";
 import { carryProjectsViewInto, projectsState } from "../projects.js";
 import { BODY_PATH, lockTomb, readSealedFile, unlockTomb } from "../vfs.js";
-import { VaultCorruptError, type VaultHeader } from "./crypto.js";
 import { emitVaultLock } from "./lock-events.js";
-import { type VaultBody, emptyBody } from "./model.js";
 import { readTombHeader, sharesWrapRecord } from "./store-header.js";
 import {
   discardTombCaches,

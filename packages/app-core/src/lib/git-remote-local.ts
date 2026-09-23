@@ -3,6 +3,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { createItem } from "@opensesame/vault-core";
 /**
  * Browser-held forge-agnostic git remotes (ADR 0090).
  * Public metadata stays in localStorage; credentials seal in the vault.
@@ -10,7 +11,6 @@ import {
 import { maybeLocalStore } from "../ports.js";
 import type { GitAuthMode, GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitAuthMode } from "./git-auth-modes.js";
-import { createItem } from "./vault/model.js";
 import { vaultStore } from "./vault/store.js";
 
 const PUBLIC_KEY = "opensesame.git-remotes.v1";

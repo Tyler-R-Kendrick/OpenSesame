@@ -1,6 +1,5 @@
 import { isString } from "@opensesame/os-domain";
-import { itemTypeId } from "./vault/item-types.js";
-import type { VaultItem } from "./vault/model.js";
+import { type VaultItem, itemTypeId } from "@opensesame/vault-core";
 
 const INSTRUMENT_TYPES = new Set(["card", "bank-account"]);
 

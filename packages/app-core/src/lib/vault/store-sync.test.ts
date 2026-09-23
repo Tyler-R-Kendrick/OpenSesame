@@ -1,5 +1,5 @@
+import { type Folder, createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { type Folder, createItem } from "./model.js";
 import {
   entriesToVaultItems,
   entryToVaultItem,

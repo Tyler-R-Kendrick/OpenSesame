@@ -4,18 +4,18 @@
  * never enrolled protectors (KP-04).
  */
 
-import type { VaultHeader } from "../crypto.js";
+import {
+  type EncryptionSetupIntent,
+  MANIFEST_SCHEMA_VERSION,
+  type ProtectionRecord,
+  type RootProtectionManifest,
+  type VaultHeader,
+} from "@opensesame/vault-core";
 import {
   type VaultUnlocks,
   listPasskeyUnlockRecords,
 } from "../unlock-methods.js";
 import { newProtectorId, newRootKeyId, newVaultId } from "./ids.js";
-import { MANIFEST_SCHEMA_VERSION } from "./limits.js";
-import type {
-  EncryptionSetupIntent,
-  ProtectionRecord,
-  RootProtectionManifest,
-} from "./types.js";
 
 export type LegacyMigrationInput = {
   header: VaultHeader;

@@ -3,10 +3,10 @@ import {
   localRequestDigest,
   writeLocalRequestRecords,
 } from "@opensesame/app-core/lib/local-request-store.js";
-import { mintVaultKey } from "@opensesame/app-core/lib/vault/crypto.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import type { LocalAccessRequestRecord } from "@opensesame/contracts";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

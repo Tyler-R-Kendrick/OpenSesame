@@ -4,13 +4,13 @@
  * endpoints and RSA1_5. Injectible transport for unit tests (KP-31/KP-34/KP-36).
  */
 
-import { ProtectionError } from "../errors.js";
 import type {
   AzureKeyVaultKeysProtectorRecord,
   ProtectionContext,
   ProtectorAvailability,
   SealedBlobV1,
-} from "../types.js";
+} from "@opensesame/vault-core";
+import { ProtectionError } from "../errors.js";
 import {
   assertAllowedCloudEndpoint,
   assertRootKey,

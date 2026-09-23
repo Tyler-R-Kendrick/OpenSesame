@@ -16,11 +16,6 @@ import {
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { itemKindsFrom } from "@opensesame/app-core/lib/item-kinds.js";
 import { kvDelete, kvGet } from "@opensesame/app-core/lib/kv.js";
-import { randomBytes } from "@opensesame/app-core/lib/vault/crypto.js";
-import {
-  KIND_LABEL,
-  createItem,
-} from "@opensesame/app-core/lib/vault/model.js";
 import { assertCiphertextOnlyBackupJson } from "@opensesame/app-core/lib/vault/offline-backup.js";
 import {
   ATTEMPTS_KEY,
@@ -43,6 +38,7 @@ import {
   vfsFlush,
 } from "@opensesame/app-core/lib/vfs.js";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { KIND_LABEL, createItem, randomBytes } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
 

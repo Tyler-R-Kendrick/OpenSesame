@@ -1,3 +1,4 @@
+import { createVault } from "@opensesame/vault-core";
 /**
  * The guest tomb's own gate (ADR 0091): a guest may enroll a PIN or a passkey
  * and an authenticator code, and that gate is what their unlock asks for —
@@ -6,7 +7,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import { GUEST_TOMB, HEADER_PATH, PERSONAL_TOMB, tombFileKey } from "../vfs.js";
-import { createVault } from "./crypto.js";
 import { VaultStore } from "./store.js";
 
 const HEADER_KEY = tombFileKey(PERSONAL_TOMB, HEADER_PATH);

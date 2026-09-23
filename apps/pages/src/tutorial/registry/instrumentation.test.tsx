@@ -9,12 +9,8 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
-import type {
-  Folder,
-  LoginItem,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
+import type { Folder, LoginItem, VaultItem } from "@opensesame/vault-core";
 import { connectivityBarDependencies } from "../../components/ConnectivityBar.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";

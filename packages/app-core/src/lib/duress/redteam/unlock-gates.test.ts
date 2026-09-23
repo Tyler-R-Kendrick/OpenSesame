@@ -3,6 +3,7 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import {
   UNLOCK_PASSKEY_MISS,
@@ -11,7 +12,6 @@ import {
   resolveRequireDurable,
 } from "../../../screens/unlock/unlock-duress-refuse.js";
 import { unlockWithPasskeyAfterDuressGate } from "../../../screens/unlock/unlock-passkey-duress.js";
-import { WrongPasswordError } from "../../vault/crypto.js";
 
 describe("resolveRequireDurable", () => {
   it("defaults to true and passes explicit false through", () => {

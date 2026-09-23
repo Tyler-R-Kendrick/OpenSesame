@@ -3,10 +3,14 @@
  * decoration — so refresh, share, and click all land on the same area.
  */
 
+import {
+  type ItemKind,
+  KIND_LABEL,
+  itemTypeRegistry,
+  typePlural,
+} from "@opensesame/vault-core";
 import { accessPath, isAccessView } from "./access-routes.js";
 import { contributionsSnapshot } from "./contributions.js";
-import { itemTypeRegistry, typePlural } from "./vault/item-types.js";
-import { type ItemKind, KIND_LABEL } from "./vault/model.js";
 
 export type Crumb = {
   label: string;

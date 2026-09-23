@@ -3,7 +3,12 @@
  * Manifest projection on unlock, enroll candidate→commit, session cancel.
  */
 
-import type { VaultHeader } from "../crypto.js";
+import type {
+  ProtectionRecord,
+  RecoveryKeyProtectorRecord,
+  RootProtectionManifest,
+  VaultHeader,
+} from "@opensesame/vault-core";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
 import {
   type HeldWebauthnPrf,
@@ -31,11 +36,6 @@ import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 import { resolveProtectionManifest } from "./protection-view.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import type { ProtectionSessionGuard } from "./session-guard.js";
-import type {
-  ProtectionRecord,
-  RecoveryKeyProtectorRecord,
-  RootProtectionManifest,
-} from "./types.js";
 
 export type ProtectionBrowserHost = {
   isGuestOrEphemeral(): boolean;

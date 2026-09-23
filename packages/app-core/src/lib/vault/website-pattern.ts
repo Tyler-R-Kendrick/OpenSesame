@@ -1,8 +1,8 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { type LoginUri, browsableUrl } from "@opensesame/vault-core";
 import { workerConstructor } from "../../ports.js";
-import { type LoginUri, browsableUrl } from "./model.js";
 
-export type { LoginUri, UriMatch } from "./model.js";
+export type { LoginUri, UriMatch } from "@opensesame/vault-core";
 
 export function loginWebsiteLink(uri: LoginUri): string | null {
   return uri.match === "wildcard" || uri.match === "regex"

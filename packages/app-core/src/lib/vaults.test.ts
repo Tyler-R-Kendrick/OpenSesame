@@ -1,3 +1,4 @@
+import { createVault } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { guestAuthSeams } from "./guest-auth.js";
 import { kvDelete, kvSet } from "./kv.js";
@@ -10,7 +11,6 @@ import {
   type ProjectsState,
   projectSeams,
 } from "./projects.js";
-import { createVault } from "./vault/crypto.js";
 import { GUEST_TOMB, vaultStore } from "./vault/store.js";
 import {
   describeSealedAt,

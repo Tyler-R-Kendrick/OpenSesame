@@ -4,6 +4,7 @@
  * session for open presentations, or like a wrong secret for locked ones.
  */
 
+import { WrongPasswordError } from "@opensesame/vault-core";
 import type { PresentationClass } from "../../lib/duress/access/context.js";
 import {
   clearActivePresentation,
@@ -15,7 +16,6 @@ import {
   openPresentation,
 } from "../../lib/duress/compartment/session.js";
 import type { SlotPlaintext } from "../../lib/duress/crypto/slots.js";
-import { WrongPasswordError } from "../../lib/vault/crypto.js";
 
 export type DuressContinueStore = Readonly<{
   createGuest: (options?: { resume?: boolean }) => Promise<void>;

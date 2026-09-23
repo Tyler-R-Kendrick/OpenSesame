@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureDefaultAccess } from "./local-access-bootstrap.js";
 import { readLocalApplications } from "./local-applications.js";
@@ -11,7 +12,6 @@ import {
 import { readLocalDirectory } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
 import { listLocalShares } from "./local-share-grants.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;

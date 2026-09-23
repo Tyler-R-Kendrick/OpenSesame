@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ensureSiopKey,
@@ -6,7 +7,6 @@ import {
   revokeSiopKey,
   rotateSiopKey,
 } from "./siop-keys.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { readFile, unlockTomb, writeFile } from "./vfs.js";
 
 const subjectId = "local_11111111-1111-4111-8111-111111111111";

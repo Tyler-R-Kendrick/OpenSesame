@@ -1,6 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { randomBytes } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { randomBytes } from "../../crypto.js";
 import {
   type PasskeyUnlockRecord,
   PrfCeremonyError,

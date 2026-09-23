@@ -12,7 +12,6 @@ import { itemKindsFrom } from "@opensesame/app-core/lib/item-kinds.js";
 import { kvDelete, kvGet } from "@opensesame/app-core/lib/kv.js";
 import { fidoCxf } from "@opensesame/app-core/lib/vault/import/formats/cxf.js";
 import { summarise } from "@opensesame/app-core/lib/vault/import/index.js";
-import { createItem } from "@opensesame/app-core/lib/vault/model.js";
 import {
   agentMayInvokeCryptoAlias,
   assertAgentMayNotUnwrapHumanRoot,
@@ -32,6 +31,7 @@ import {
   tombFileKey,
   vfsFlush,
 } from "@opensesame/app-core/lib/vfs.js";
+import { createItem } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
 

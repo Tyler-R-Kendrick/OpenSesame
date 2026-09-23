@@ -1,3 +1,8 @@
+import type {
+  ProtectionContext,
+  ProtectionRecord,
+  RootProtectionManifest,
+} from "@opensesame/vault-core";
 import { mintRootKeyHandle } from "./adapter.js";
 import { enrollAgeWebauthn } from "./adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./adapters/webauthn-prf-ops.js";
@@ -5,11 +10,6 @@ import { createWebauthnPrfProtector } from "./adapters/webauthn-prf-ops.js";
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
 import { enrollRecoveryKey, openWithRecoveryKey } from "./recovery-key.js";
-import type {
-  ProtectionContext,
-  ProtectionRecord,
-  RootProtectionManifest,
-} from "./types.js";
 
 export function contextForRecord(
   manifest: RootProtectionManifest,

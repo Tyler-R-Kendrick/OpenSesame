@@ -17,9 +17,9 @@ import { sharedSessionCapabilities } from "./shared-sessions.js";
  * - cli:    the command line as typed ("opensesame task terminate",
  *           "opensesame-id claim poll"); apps/cli and packages/cli parity
  *           tests assert the tokens exist in the clap/arg-parser sources.
- * - pwa:    "lib/<file>.ts:<export>" for an apps/pages seam the pages sweep
- *           import-checks, "route:/section[/subroute]" for a pages route, or
- *           "pwa-app:<surface>" for the thin apps/pwa shell.
+ * - pwa:    "lib|vault-core/<file>.ts:<export>" for an app core, shell or
+ *           kernel seam the pages sweep import-checks, "route:/section[/sub]"
+ *           for a pages route, or "pwa-app:<surface>" for the apps/pwa shell.
  * - mcp_host / mcp_client: the MCP tool name on that server.
  * - webmcp: the document.modelContext tool name (pwa unless "pwa-app:*").
  */
@@ -325,7 +325,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame task list",
-      pwa: "lib/access.ts:listTasks",
+      pwa: null,
       mcp_host: "task_list",
       mcp_client: null,
       webmcp: "opensesame_access_read",
@@ -338,7 +338,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame task inspect",
-      pwa: "lib/access.ts:getTask",
+      pwa: null,
       mcp_host: "task_status",
       mcp_client: null,
       webmcp: "opensesame_access_read",
@@ -351,7 +351,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: "opensesame task terminate",
-      pwa: "lib/access.ts:terminateTask",
+      pwa: null,
       mcp_host: "task_terminate",
       mcp_client: null,
       webmcp: "opensesame_task_terminate",
@@ -425,7 +425,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:listDelegations",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
@@ -441,7 +441,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:listMyOffers",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
@@ -457,7 +457,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:narrowDelegation",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_delegation_narrow",
@@ -473,7 +473,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:revokeDelegation",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_delegation_revoke",
@@ -489,7 +489,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:revokeOffer",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_delegation_revoke",
@@ -505,7 +505,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:mintOffer",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -523,7 +523,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:claimDelegation",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_open_delegation_claim",
@@ -537,7 +537,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:listRelayRequests",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
@@ -553,7 +553,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/access.ts:approveRelayRequest",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_open_relay_approval",
@@ -1140,7 +1140,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame rotate runs",
-      pwa: "lib/agent-runs.ts:listRuns",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1157,7 +1157,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame rotate watch",
-      pwa: "lib/agent-runs.ts:readLog",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1182,7 +1182,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: "opensesame rotate attach",
-      pwa: "lib/agent-runs.ts:takeControl",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1631,7 +1631,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/access-requests.ts:decideAccessRequest",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1649,7 +1649,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/access-requests.ts:getRequestComparison",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1851,7 +1851,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/vault/item-types.ts:itemTypeRegistry",
+      pwa: "vault-core/item-types.ts:itemTypeRegistry",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

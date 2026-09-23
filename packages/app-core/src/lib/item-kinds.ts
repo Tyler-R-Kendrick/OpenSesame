@@ -10,9 +10,9 @@
  * type uses.
  */
 
+import { KIND_LABEL } from "@opensesame/vault-core";
 import type { ItemKindContribution } from "./capabilities/runtime-contract.js";
 import { contributionsSnapshot } from "./contributions.js";
-import { KIND_LABEL } from "./vault/model.js";
 
 export type ItemKindRow = Readonly<{
   /** The item type id, also the `?f=` filter value. */

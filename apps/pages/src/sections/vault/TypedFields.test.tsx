@@ -1,13 +1,11 @@
 import {
+  type Folder,
+  type VaultItem,
+  createTypedItem,
   itemTypeRegistry,
   newValues,
   syncInstalledTypes,
-} from "@opensesame/app-core/lib/vault/item-types.js";
-import type {
-  Folder,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
-import { createTypedItem } from "@opensesame/app-core/lib/vault/model.js";
+} from "@opensesame/vault-core";
 import {
   cleanup,
   fireEvent,

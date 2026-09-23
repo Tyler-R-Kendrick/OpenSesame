@@ -13,7 +13,7 @@ import type {
   PasskeyItem,
   SecretItem,
   VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+} from "@opensesame/vault-core";
 
 type VaultFixture = {
   current: { items: VaultItem[]; folders: Folder[] };

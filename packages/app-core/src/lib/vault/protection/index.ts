@@ -1,7 +1,7 @@
 /** Public exports for vault root protection. */
 
-export * from "./limits.js";
-export * from "./types.js";
+export * from "@opensesame/vault-core/protection-limits.js";
+export * from "@opensesame/vault-core/protection-types.js";
 export * from "./errors.js";
 export * from "./canonicalize.js";
 export * from "./capsule.js";

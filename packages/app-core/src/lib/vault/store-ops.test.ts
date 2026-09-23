@@ -1,4 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type VaultItem,
+  createItem,
+  createVault,
+  parseTotp,
+  totpCode,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import {
@@ -11,8 +18,7 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
-import { createVault } from "./crypto.js";
-import { type VaultItem, createItem } from "./model.js";
+import { enrollTotp } from "./store-totp.fixture.js";
 import {
   ATTEMPTS_KEY,
   PREFS_CONFIG_PATH,
@@ -25,14 +31,6 @@ import {
 import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
 /** Enroll an authenticator code the way Settings does: begin, then confirm. */
-async function enrollTotp(store: VaultStore): Promise<string> {
-  const uri = await store.beginTotpEnrollment();
-  const secret = new URL(uri).searchParams.get("secret") ?? "";
-  const { totpCode, parseTotp } = await import("./totp.js");
-  await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
-  return uri;
-}
-
 const PASSWORD = "correct horse battery staple";
 const NEXT_PASSWORD = "fourteen ungulate carriage nail";
 
@@ -421,7 +419,6 @@ describe("VaultStore session lifecycle", () => {
 
 describe("VaultStore TOTP challenge flow", () => {
   async function totpVault() {
-    const { parseTotp, totpCode } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
     const uri = await enrollTotp(store);
@@ -647,7 +644,6 @@ describe("VaultStore authenticator enrollment", () => {
     // A wrong code during enrollment is not a failed unlock.
     expect(store.getSnapshot().failedAttempts).toBe(0);
     const secret = new URL(uri).searchParams.get("secret") ?? "";
-    const { totpCode, parseTotp } = await import("./totp.js");
     await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
     expect(store.getSnapshot().header?.unlocks?.totp).toBeDefined();
   });

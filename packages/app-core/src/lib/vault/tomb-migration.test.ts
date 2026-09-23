@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   IDP_REGISTRY_CONFIG_PATH,
@@ -32,7 +33,6 @@ import {
   unlockTomb,
   vfsFlush,
 } from "../vfs.js";
-import { mintVaultKey } from "./crypto.js";
 import { PREFS_CONFIG_PATH } from "./store.js";
 import {
   LEGACY_BODY_KEY,

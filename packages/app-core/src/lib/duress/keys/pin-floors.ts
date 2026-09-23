@@ -7,7 +7,7 @@ import {
   MAX_PBKDF2_ITERATIONS,
   SALT_BYTES,
   b64ToBytes,
-} from "../../vault/crypto.js";
+} from "@opensesame/vault-core";
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,

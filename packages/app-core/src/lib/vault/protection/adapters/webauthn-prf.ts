@@ -6,8 +6,15 @@
  * not mutate unlock wraps — failed enroll must never call `withPasskeyUnlock`.
  */
 
+import {
+  LEGACY_WEBAUTHN_PRF_DOMAIN,
+  type ProtectorAvailability,
+  type VerificationEvidence,
+  type WebauthnPrfProtectorRecord,
+  b64ToBytes,
+  bytesToB64,
+} from "@opensesame/vault-core";
 import { credentials, publicKeyCredentialApi } from "../../../../ports.js";
-import { b64ToBytes, bytesToB64 } from "../../crypto.js";
 import {
   type PasskeyCeremony,
   type PasskeyUnlockCeremonyResult,
@@ -36,12 +43,6 @@ import {
   mintRootKeyHandle,
 } from "../adapter.js";
 import { ProtectionError } from "../errors.js";
-import { LEGACY_WEBAUTHN_PRF_DOMAIN } from "../limits.js";
-import type {
-  ProtectorAvailability,
-  VerificationEvidence,
-  WebauthnPrfProtectorRecord,
-} from "../types.js";
 import {
   PrfCeremonyError,
   assertUsablePrfOutput,

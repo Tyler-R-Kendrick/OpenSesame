@@ -7,7 +7,7 @@
  * a passkey, PIN or password wrap, or an authenticator code — and then that
  * gate is what the unlock asks for.
  */
-import type { VaultHeader } from "./crypto.js";
+import type { VaultHeader } from "@opensesame/vault-core";
 import { hasSecondStep, primaryUnlockCount } from "./unlock-methods.js";
 
 export function headerCarriesGate(header: VaultHeader | null): boolean {

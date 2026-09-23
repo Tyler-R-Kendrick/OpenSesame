@@ -3,28 +3,16 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type ProtectionContext,
+  ROOT_KEY_BYTES,
+  type RecoveryKeyProtectorRecord,
+  type SealedBlobV1,
+} from "@opensesame/vault-core";
+import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core";
 import { openRootCapsule, sealRootCapsule } from "./capsule.js";
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
-import { ROOT_KEY_BYTES } from "./limits.js";
-import type {
-  ProtectionContext,
-  RecoveryKeyProtectorRecord,
-  SealedBlobV1,
-} from "./types.js";
-
-function bytesToB64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function b64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
-}
 
 const RECOVERY_INFO = new TextEncoder().encode(
   "opensesame/vault/recovery-key/v1",

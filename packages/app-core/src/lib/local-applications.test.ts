@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   configureLocalApplication,
@@ -18,7 +19,6 @@ import {
 } from "./local-directory.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";
 import { signInLocalIdentity } from "./local-sessions.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import {
   lockAllTombs,

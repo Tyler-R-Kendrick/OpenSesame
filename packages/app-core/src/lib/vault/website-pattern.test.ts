@@ -1,6 +1,5 @@
+import { createItem, newUri } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { newUri } from "./model.js";
-import { createItem } from "./model.js";
 import { entryToVaultItem, vaultItemToEntry } from "./store-sync.js";
 import {
   loginWebsiteLink,

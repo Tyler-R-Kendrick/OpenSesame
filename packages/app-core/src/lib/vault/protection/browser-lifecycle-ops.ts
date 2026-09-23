@@ -2,24 +2,25 @@
  * Manifest mutation helpers for preferred / remove / test / rotate (BROWSER).
  */
 
-import type { VaultHeader } from "../crypto.js";
-import { mintVaultKey, wrapVaultKeyWithPassword } from "../crypto.js";
+import {
+  MANIFEST_SCHEMA_VERSION,
+  type PasswordProtectorRecord,
+  type ProtectionRecord,
+  type RecoveryKeyProtectorRecord,
+  type RootProtectionManifest,
+  type VaultHeader,
+  mintVaultKey,
+  wrapVaultKeyWithPassword,
+} from "@opensesame/vault-core";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId, newProtectorId } from "./ids.js";
 import {
   assertCanRemoveProtector,
   assertExpectedRevision,
 } from "./lifecycle.js";
-import { MANIFEST_SCHEMA_VERSION } from "./limits.js";
 import { sealAuthenticatedManifest } from "./manifest-auth.js";
 import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
-import type {
-  PasswordProtectorRecord,
-  ProtectionRecord,
-  RecoveryKeyProtectorRecord,
-  RootProtectionManifest,
-} from "./types.js";
 
 export type LifecycleHost = {
   getHeader(): VaultHeader | null;

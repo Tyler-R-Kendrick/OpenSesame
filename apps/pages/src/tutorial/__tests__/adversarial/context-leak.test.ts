@@ -16,7 +16,6 @@
  * the user-authored labels that suite has no reason to carry.
  */
 
-import { createItem, newUri } from "@opensesame/app-core/lib/vault/model.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { buildAgUiOutboundBody } from "@opensesame/app-core/tutorial/agents/ag-ui/outbound.js";
 import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
@@ -38,6 +37,7 @@ import {
   buildSupportInstructions,
   sanitizeSupportRequest,
 } from "@opensesame/support-agent";
+import { createItem, newUri } from "@opensesame/vault-core";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   OVERLAY_SELECTOR,

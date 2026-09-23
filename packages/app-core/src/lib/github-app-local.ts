@@ -5,6 +5,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { createItem } from "@opensesame/vault-core";
 /**
  * Local GitHub App record, PEM stash, claim, and install listing.
  * Registration URLs live in `github-app-manifest.ts`.
@@ -12,7 +13,6 @@ import {
 import { maybeLocalStore, sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
-import { createItem } from "./vault/model.js";
 import { GUEST_TOMB, vaultStore } from "./vault/store.js";
 
 const PUBLIC_KEY = "opensesame.github-app.public";

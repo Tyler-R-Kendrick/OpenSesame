@@ -1,4 +1,5 @@
 import type { LocalAuthorizationRequest } from "@opensesame/static-auth";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { vi } from "vitest";
 import {
   consumeLocalAccessRequest,
@@ -15,7 +16,6 @@ import { enrollLocalPasskey } from "./local-passkeys.js";
 import { createLocalApplicationRequest } from "./local-request-authorization.js";
 import type { LocalSession } from "./local-sessions.js";
 import { signInLocalIdentity } from "./local-sessions.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { unlockTomb } from "./vfs.js";
 
 export async function consumedApplicationRequest(

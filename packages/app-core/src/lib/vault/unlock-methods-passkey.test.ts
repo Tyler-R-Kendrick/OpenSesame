@@ -1,5 +1,4 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   VaultCorruptError,
   type VaultHeader,
@@ -7,7 +6,8 @@ import {
   createVault,
   importVaultKey,
   randomBytes,
-} from "./crypto.js";
+} from "@opensesame/vault-core";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,

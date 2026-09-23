@@ -2,8 +2,11 @@
  * Last-verified-path guard and revision-checked mutation helpers (C08, KP-11).
  */
 
+import type {
+  ProtectionRecord,
+  RootProtectionManifest,
+} from "@opensesame/vault-core";
 import { ProtectionError } from "./errors.js";
-import type { ProtectionRecord, RootProtectionManifest } from "./types.js";
 
 export function isVerifiedIndependentPath(record: ProtectionRecord): boolean {
   // Untested recovery grants (e.g. public age recipients) never count.

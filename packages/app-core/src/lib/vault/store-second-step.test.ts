@@ -1,3 +1,5 @@
+import { WrongPasswordError } from "@opensesame/vault-core";
+import { parseTotp, totpCode } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import {
@@ -9,7 +11,6 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
-import { WrongPasswordError } from "./crypto.js";
 import { type SentCode, remoteCodeSeams } from "./remote-code.js";
 import { SELF_AUTHENTICATOR_TITLE } from "./self-authenticator.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
@@ -51,7 +52,6 @@ function fakeIdentity() {
 async function enrollTotp(store: VaultStore): Promise<string> {
   const uri = await store.beginTotpEnrollment();
   const secret = new URL(uri).searchParams.get("secret") ?? "";
-  const { totpCode, parseTotp } = await import("./totp.js");
   await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
   return secret;
 }
@@ -228,7 +228,6 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   }
 
   it("registers a login entry for itself when the gate is enrolled", async () => {
-    const { totpCode, parseTotp } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
     const secret = await enrollTotp(store);
@@ -255,7 +254,6 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   });
 
   it("asks for the code once the entry is trashed, and does not resurrect it", async () => {
-    const { totpCode, parseTotp } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
     const secret = await enrollTotp(store);
@@ -289,7 +287,6 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   });
 
   it("registers itself for a gate sealed before the marker existed", async () => {
-    const { totpCode, parseTotp } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
     const secret = await enrollTotp(store);

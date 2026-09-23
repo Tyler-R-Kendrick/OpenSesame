@@ -8,8 +8,8 @@
  */
 
 import { type JsonObject, isString } from "@opensesame/os-domain";
+import type { VaultItem } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import type { VaultItem } from "../lib/vault/model.js";
 import { vaultStore } from "../lib/vault/store.js";
 import { webmcpNavigationSeam } from "./navigation.js";
 

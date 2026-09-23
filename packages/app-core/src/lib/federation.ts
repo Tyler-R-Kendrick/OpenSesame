@@ -5,14 +5,17 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
+import {
+  decodeJwtEnvelope,
+  randomString,
+  sha256Base64Url,
+} from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
 import { env } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
 import { parseAuthCallback } from "./federation-callback.js";
-import { b64urlDecode, b64urlEncode } from "./federation-encoding.js";
 import {
   type PendingAuth,
   storePending,
@@ -264,14 +267,6 @@ export function decodeJwtClaims(token: string): JsonObject {
   }
 }
 
-async function sha256(input: string): Promise<Uint8Array> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(input),
-  );
-  return new Uint8Array(digest);
-}
-
 /**
  * The subject a relying party at `origin` derives for itself, per
  * docs/architecture/federated-signin.md §3. Computed the same way here only so
@@ -281,14 +276,14 @@ export async function derivedSubjectFor(
   pairwiseSub: string,
   origin: string,
 ): Promise<string> {
-  return b64urlEncode(await sha256(`${pairwiseSub}:${origin}`));
+  return sha256Base64Url(`${pairwiseSub}:${origin}`);
 }
 
 type Pkce = { verifier: string; challenge: string };
 
 async function createPkce(): Promise<Pkce> {
-  const verifier = b64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
-  return { verifier, challenge: b64urlEncode(await sha256(verifier)) };
+  const verifier = randomString(32);
+  return { verifier, challenge: await sha256Base64Url(verifier) };
 }
 
 export async function discover(issuer: string): Promise<OidcDiscovery> {
@@ -404,7 +399,7 @@ async function beginSignInDefault(
   ambientAuthSeams.clearAutoAuthSuppression();
   const discovery = await discoveryFor(upstream);
   const { verifier, challenge } = await createPkce();
-  const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
+  const state = randomString(16);
   // An operator's own provider needs a subject and a name to be worth signing
   // in with; the origin-profile brokers have always answered `openid` alone.
   const scope =

@@ -7,7 +7,6 @@
  */
 
 import { isBoolean } from "@opensesame/os-domain";
-import { buildHealthReport } from "../lib/vault/health.js";
 import {
   type DropState,
   type ItemKind,
@@ -17,11 +16,14 @@ import {
   type VaultItem,
   activeItems,
   newUri,
+  parseTotp,
   searchMatches,
-} from "../lib/vault/model.js";
+  secondsRemaining,
+  totpCode,
+} from "@opensesame/vault-core";
+import { buildHealthReport } from "../lib/vault/health.js";
 import { newItemDraft } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
-import { parseTotp, secondsRemaining, totpCode } from "../lib/vault/totp.js";
 import {
   assertMetadataOnlyWrite,
   suggestItemMetadata,

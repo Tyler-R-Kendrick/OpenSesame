@@ -16,16 +16,16 @@ import { Link } from "react-router";
  * card carries only the link, the user code, the QR, and the expiry.
  */
 
-import { b64ToBytes } from "@opensesame/app-core/lib/vault/crypto.js";
 import {
   type CreatedDrop,
   createDrop,
   sweepDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
-import type {
-  DropItem,
-  SecretItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+import {
+  type DropItem,
+  type SecretItem,
+  b64ToBytes,
+} from "@opensesame/vault-core";
 import {
   ConcealedValue,
   CopyButton,

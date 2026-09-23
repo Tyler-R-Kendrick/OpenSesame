@@ -230,18 +230,6 @@ export const MIXED_MODULES: readonly MixedModule[] = [
     ],
   },
   {
-    path: "src/lib/vault/model.ts",
-    keeps: "item model, login/note/card/secret kinds",
-    extract: [
-      {
-        capability: "vault.passkey-records",
-        what: "passkey kind fields/labels → item-kind contribution",
-      },
-      { capability: "vault.certificate-records", what: "certificate kind" },
-      { capability: "sharing.drops", what: "drop kind" },
-    ],
-  },
-  {
     path: "src/lib/vault/protection/index.ts",
     keeps: "device-local, password/PIN, webauthn-prf adapters",
     extract: [

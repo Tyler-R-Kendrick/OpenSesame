@@ -13,7 +13,7 @@ export {
   isDuressKdfError,
 } from "../keys/pin-floors.js";
 
-import { VaultCorruptError } from "../../vault/crypto.js";
+import { VaultCorruptError } from "@opensesame/vault-core";
 import type { BoundaryValue } from "../json-boundary.js";
 import { DuressKdfError } from "../keys/pin-floors.js";
 

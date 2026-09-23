@@ -3,13 +3,13 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import {
   continueAfterDuressMatch,
   resolveDuressPresentation,
 } from "../../../screens/unlock/unlock-duress-continue.js";
 import { UNLOCK_PIN_MISS } from "../../../screens/unlock/unlock-duress-refuse.js";
-import { WrongPasswordError } from "../../vault/crypto.js";
 
 function continueMatch(presentation: string, profileId = "p-test") {
   return {

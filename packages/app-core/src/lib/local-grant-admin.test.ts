@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   listRecordedLocalGrants,
@@ -8,7 +9,6 @@ import {
   readLocalGrantRecords,
   writeLocalGrantRecords,
 } from "./local-grant-store.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   lockAllTombs,
   lockTomb,

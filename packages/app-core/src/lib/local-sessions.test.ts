@@ -1,4 +1,5 @@
 import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import { readLocalPasskeys, revokeLocalPasskey } from "./local-credentials.js";
@@ -16,7 +17,6 @@ import {
   signInLocalIdentity,
   withLocalIdentitySession,
 } from "./local-sessions.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import {
   lockAllTombs,

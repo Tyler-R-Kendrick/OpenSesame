@@ -1,4 +1,5 @@
 import { createLocalAgentKey } from "@opensesame/static-auth";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { beginLocalAgentAuthentication } from "./local-agent-auth.js";
 import {
@@ -23,7 +24,6 @@ import {
   signInLocalAgent,
   withLocalIdentitySession,
 } from "./local-sessions.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, readFile, unlockTomb, vfsSeams } from "./vfs.js";
 

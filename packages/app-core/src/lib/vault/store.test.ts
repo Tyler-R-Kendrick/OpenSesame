@@ -1,4 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  PBKDF2_ITERATIONS,
+  createItem,
+  createVault,
+  parseTotp,
+  totpCode,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
 import {
@@ -17,8 +24,7 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
-import { PBKDF2_ITERATIONS, createVault } from "./crypto.js";
-import { createItem } from "./model.js";
+import { enrollTotp } from "./store-totp.fixture.js";
 import {
   ATTEMPTS_KEY,
   GUEST_TOMB,
@@ -32,14 +38,6 @@ import {
 import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
 /** Enroll an authenticator code the way Settings does: begin, then confirm. */
-async function enrollTotp(store: VaultStore): Promise<string> {
-  const uri = await store.beginTotpEnrollment();
-  const secret = new URL(uri).searchParams.get("secret") ?? "";
-  const { totpCode, parseTotp } = await import("./totp.js");
-  await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
-  return uri;
-}
-
 const PASSWORD = "correct horse battery staple";
 
 /** The personal tomb's vault files — where header/body live now (ADR 0063). */
@@ -430,7 +428,6 @@ describe("VaultStore multi-method unlock", () => {
   });
 
   it("requires TOTP after primary unlock when MFA is enrolled", async () => {
-    const { totpCode, parseTotp } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
     const uri = await enrollTotp(store);

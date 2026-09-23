@@ -3,8 +3,8 @@ import {
   type DropPayload,
   createDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
-import type { Folder } from "@opensesame/app-core/lib/vault/model.js";
 import { generatePassphrase } from "@opensesame/app-core/lib/vault/password.js";
+import type { Folder } from "@opensesame/vault-core";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";

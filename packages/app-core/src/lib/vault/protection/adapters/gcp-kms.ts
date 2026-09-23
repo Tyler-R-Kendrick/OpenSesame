@@ -4,13 +4,13 @@
  * present. Injectible transport for unit tests (KP-31/KP-35/KP-36).
  */
 
-import { ProtectionError } from "../errors.js";
 import type {
   GcpKmsProtectorRecord,
   ProtectionContext,
   ProtectorAvailability,
   SealedBlobV1,
-} from "../types.js";
+} from "@opensesame/vault-core";
+import { ProtectionError } from "../errors.js";
 import {
   aadBytesFromProtection,
   assertRootKey,

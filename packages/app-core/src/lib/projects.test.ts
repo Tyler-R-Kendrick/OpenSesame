@@ -121,7 +121,7 @@ describe("project registry sanitization", () => {
   it("sanitizes a legacy full record as it seals into the tomb", async () => {
     // The full list lives sealed per tomb now; the repair rules run when the
     // legacy plaintext record migrates on unlock.
-    const { mintVaultKey } = await import("./vault/crypto.js");
+    const { mintVaultKey } = await import("@opensesame/vault-core/crypto.js");
     const { unlockTomb } = await import("./vfs.js");
     const { migrateProjectsToVfs } = await import("./projects.js");
     const { vaultKey } = await mintVaultKey();

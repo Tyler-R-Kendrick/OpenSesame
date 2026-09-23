@@ -1,16 +1,14 @@
 import { activeProject } from "@opensesame/app-core/lib/projects.js";
-import type {
-  Folder,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
-import { tombPath } from "@opensesame/app-core/lib/vault/paths.js";
 import { readFile, writeFile } from "@opensesame/app-core/lib/vfs.js";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import {
   type DirRow,
+  type Folder,
   type TreeRow,
+  type VaultItem,
   buildRows,
-} from "@opensesame/app-core/sections/vault/vault-tree-rows.js";
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
+  tombPath,
+} from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import {

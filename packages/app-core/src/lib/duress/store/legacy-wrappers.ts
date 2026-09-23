@@ -16,7 +16,7 @@ import {
  * Scans plaintext tomb headers only — never opens sealed bodies.
  */
 
-import type { VaultHeader } from "../../vault/crypto.js";
+import type { VaultHeader } from "@opensesame/vault-core";
 import { readTombHeader } from "../../vault/store-header.js";
 import { listTombs } from "../../vfs.js";
 

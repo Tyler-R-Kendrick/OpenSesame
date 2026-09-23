@@ -1,6 +1,6 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete } from "./kv.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   INDEX_PATH,
   PERSONAL_TOMB,

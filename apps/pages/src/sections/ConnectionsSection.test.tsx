@@ -1,5 +1,5 @@
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import type { SecretItem } from "@opensesame/app-core/lib/vault/model.js";
+import type { SecretItem } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */

@@ -1,10 +1,10 @@
-import { createItem } from "@opensesame/app-core/lib/vault/model.js";
-import type {
-  Folder,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
 /** @vitest-environment jsdom */
 import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type Folder,
+  type VaultItem,
+  createItem,
+} from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import {

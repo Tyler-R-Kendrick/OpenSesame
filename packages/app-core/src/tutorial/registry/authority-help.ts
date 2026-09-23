@@ -80,7 +80,4 @@ export const AUTHORITY_TUTORIALS = {
   "browser.identity.authenticate": "browser.authenticate",
   "browser.client.revoke": "browser.revoke",
   "configs.permissions.read": "configs.permissions",
-  "agent.runs.read": "agent.observe",
-  "agent.runs.observe": "agent.observe",
-  "agent.runs.control": "agent.control",
 } as const;

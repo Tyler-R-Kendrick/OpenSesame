@@ -16,13 +16,11 @@
  */
 
 import {
+  type Folder,
+  type VaultItem,
   itemTypeId,
   typePlural,
-} from "@opensesame/app-core/lib/vault/item-types.js";
-import type {
-  Folder,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+} from "@opensesame/vault-core";
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { IconFilter, IconX } from "../../components/Icons.js";

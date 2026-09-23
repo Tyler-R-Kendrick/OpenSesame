@@ -3,22 +3,20 @@ import {
   issueCertificate,
 } from "@opensesame/app-core/lib/certs.js";
 import {
-  definitionFor,
-  itemTypeId,
-  itemTypeRegistry,
-} from "@opensesame/app-core/lib/vault/item-types.js";
-import {
-  type Folder,
-  type VaultItem,
-  newGrant,
-} from "@opensesame/app-core/lib/vault/model.js";
-import {
   acceptsDraftUsername,
   newItemDraft,
   prefillNewDraft,
 } from "@opensesame/app-core/lib/vault/new-draft.js";
 import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type Folder,
+  type VaultItem,
+  definitionFor,
+  itemTypeId,
+  itemTypeRegistry,
+  newGrant,
+} from "@opensesame/vault-core";
 import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";

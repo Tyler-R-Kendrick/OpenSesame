@@ -7,7 +7,7 @@ import { overlapCast } from "@opensesame/os-domain";
  * Safari and Firefox each write their own.
  */
 
-import { hostOf } from "../../model.js";
+import { hostOf } from "@opensesame/vault-core";
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,

@@ -1,4 +1,4 @@
-import { type LoginItem, type VaultItem, hostOf } from "./model.js";
+import { type LoginItem, type VaultItem, hostOf } from "@opensesame/vault-core";
 import { estimateStrength } from "./password.js";
 
 export type HealthIssue = "weak" | "reused" | "old" | "no-2fa";

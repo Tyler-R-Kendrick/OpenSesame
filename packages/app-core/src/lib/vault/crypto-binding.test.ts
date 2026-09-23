@@ -1,6 +1,11 @@
+import {
+  createVault,
+  openJson,
+  openJsonForRebind,
+  sealJson,
+  vaultSealBinding,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { createVault, openJson, sealJson, vaultSealBinding } from "./crypto.js";
-import { openJsonForRebind } from "./seal-open.js";
 
 const PASSWORD = "correct horse battery staple";
 

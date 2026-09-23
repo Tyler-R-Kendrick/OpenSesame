@@ -11,11 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  DropItem,
-  SecretItem,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+import type { DropItem, SecretItem, VaultItem } from "@opensesame/vault-core";
 
 const store = vi.hoisted(() => ({
   saveItem: vi.fn<(item: VaultItem) => Promise<void>>(),

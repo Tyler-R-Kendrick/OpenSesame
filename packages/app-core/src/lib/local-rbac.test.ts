@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureOwnerPerson } from "./local-directory-bootstrap.js";
 import { changeLocalDirectory, readLocalDirectory } from "./local-directory.js";
@@ -11,7 +12,6 @@ import {
   resolveAccessRole,
   resolveCurrentAccessRole,
 } from "./local-rbac.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
 

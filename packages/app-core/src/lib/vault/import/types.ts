@@ -8,7 +8,7 @@ import { type BoundaryValue, isNumber, isString } from "@opensesame/os-domain";
  * preview can be shown, discarded, or re-parsed without leaving debris.
  */
 
-import type { UriMatch } from "../model.js";
+import type { UriMatch } from "@opensesame/vault-core";
 
 export type SourceId =
   | "opensesame"

@@ -15,7 +15,7 @@ import {
  * STORE-E — vault store surface for duress activation coordination.
  */
 
-import type { VaultHeader } from "../../vault/crypto.js";
+import type { VaultHeader } from "@opensesame/vault-core";
 import { discardTombCaches } from "../../vault/tomb-migration.js";
 import { GUEST_TOMB } from "../../vfs.js";
 

@@ -4,13 +4,13 @@
  * on decrypt. Injectible transport for unit tests (KP-31/KP-33/KP-36).
  */
 
-import { ProtectionError } from "../errors.js";
 import type {
   AwsKmsProtectorRecord,
   ProtectionContext,
   ProtectorAvailability,
   SealedBlobV1,
-} from "../types.js";
+} from "@opensesame/vault-core";
+import { ProtectionError } from "../errors.js";
 import {
   type CloudProtectionBinding,
   assertRootKey,

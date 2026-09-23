@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvGet } from "./kv.js";
 import {
@@ -17,7 +18,6 @@ import {
   readLocalDirectory,
 } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   lockAllTombs,
   readFile,

@@ -1,0 +1,32 @@
+{
+  "name": "@opensesame/vault-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The OpenSesame vault format kernel (ADR 0133): header, seals, unlock records, item model, vault files and backups — no platform, no host, no storage",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./*.json": "./src/*.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/vault-item-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  },
+  "sideEffects": false
+}

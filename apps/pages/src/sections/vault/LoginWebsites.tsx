@@ -1,9 +1,5 @@
-import {
-  type LoginUri,
-  type UriMatch,
-  newUri,
-} from "@opensesame/app-core/lib/vault/model.js";
 import { testWebsitePattern } from "@opensesame/app-core/lib/vault/website-pattern.js";
+import { type LoginUri, type UriMatch, newUri } from "@opensesame/vault-core";
 import { useState } from "react";
 import { IconPlus, IconX } from "../../components/Icons.js";
 

@@ -3,17 +3,17 @@
  * Manifest is authority; capability preference is setup intent only.
  */
 
-import type { CapabilityConnectorBinding } from "../../capabilities.js";
-import type { VaultHeader } from "../crypto.js";
-import {
-  encryptionSetupIntentFromBinding,
-  migrateLegacyHeaderToManifest,
-} from "./migrate-legacy.js";
 import type {
   EncryptionSetupIntent,
   ProtectionRecord,
   RootProtectionManifest,
-} from "./types.js";
+  VaultHeader,
+} from "@opensesame/vault-core";
+import type { CapabilityConnectorBinding } from "../../capabilities.js";
+import {
+  encryptionSetupIntentFromBinding,
+  migrateLegacyHeaderToManifest,
+} from "./migrate-legacy.js";
 
 export type ProtectorViewRow = {
   protectorId: string;

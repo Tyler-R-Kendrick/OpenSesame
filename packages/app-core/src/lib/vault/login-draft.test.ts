@@ -1,3 +1,4 @@
+import { createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
   applyLoginDraftPatch,
@@ -5,7 +6,6 @@ import {
   loginDraftView,
   requireLoginDraft,
 } from "./login-draft.js";
-import { createItem } from "./model.js";
 
 describe("login draft port", () => {
   it("projects metadata and never includes the password", () => {

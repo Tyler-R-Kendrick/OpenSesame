@@ -7,10 +7,10 @@
  *   remains a separate operator tool and is not a Pages dependency.
  */
 
+import type { RootProtectionManifest } from "@opensesame/vault-core";
 import * as age from "age-encryption";
 import { isAgeIdentity, isAgeRecipient } from "../../age-keys.js";
 import { ProtectionError } from "./errors.js";
-import type { RootProtectionManifest } from "./types.js";
 
 export type FormatCapability =
   | { available: true; runtime: "browser" }

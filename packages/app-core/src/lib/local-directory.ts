@@ -5,6 +5,7 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { VaultCorruptError } from "@opensesame/vault-core";
 import { lockManager } from "../ports.js";
 import { kvRefresh } from "./kv.js";
 import {
@@ -21,7 +22,6 @@ import {
   type LocalMembership,
 } from "./local-directory-types.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
-import { VaultCorruptError } from "./vault/crypto.js";
 import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
 export const LOCAL_DIRECTORY_PATH = "config/identity-directory";

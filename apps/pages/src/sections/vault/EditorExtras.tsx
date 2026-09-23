@@ -2,7 +2,7 @@ import {
   type CustomField,
   type VaultItem,
   newId,
-} from "@opensesame/app-core/lib/vault/model.js";
+} from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   IconEye,

@@ -1,4 +1,5 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { WrongPasswordError, randomBytes } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet } from "../kv.js";
 import {
@@ -10,7 +11,6 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
-import { WrongPasswordError, randomBytes } from "./crypto.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 import type { PasskeyCeremony } from "./unlock-methods.js";
 import { unlockMethodsSeams } from "./unlock-methods.js";

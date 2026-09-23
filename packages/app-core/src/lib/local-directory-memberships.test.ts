@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GUEST_PERSON_ID,
@@ -7,7 +8,6 @@ import {
   type LocalDirectory,
   changeLocalDirectory,
 } from "./local-directory.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;

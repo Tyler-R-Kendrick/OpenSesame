@@ -1,16 +1,14 @@
-import {
-  definitionFor,
-  itemTypeId,
-  typeLabel,
-} from "@opensesame/app-core/lib/vault/item-types.js";
+import { generate } from "@opensesame/app-core/lib/vault/password.js";
 import {
   type ItemKind,
   type VaultItem,
+  definitionFor,
   hostOf,
   isVaultCustodied,
-} from "@opensesame/app-core/lib/vault/model.js";
-import { generate } from "@opensesame/app-core/lib/vault/password.js";
-import { totpSetupUri } from "@opensesame/app-core/lib/vault/totp.js";
+  itemTypeId,
+  totpSetupUri,
+  typeLabel,
+} from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";

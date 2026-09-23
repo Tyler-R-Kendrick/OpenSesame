@@ -1,7 +1,7 @@
+import { createItem } from "@opensesame/vault-core";
 import { expect, it } from "vitest";
 import { kvSeams } from "../kv.js";
 import { resolveItemPath } from "./item-path.js";
-import { createItem } from "./model.js";
 import { VaultStore } from "./store.js";
 
 it("rolls back a staged folder on write failure and persists it with the item on retry", async () => {

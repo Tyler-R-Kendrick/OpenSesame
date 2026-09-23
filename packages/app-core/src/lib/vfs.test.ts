@@ -1,6 +1,4 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { beforeEach, describe, expect, it } from "vitest";
-import { kvDelete, kvDurability, kvGet, kvHydrate, kvSet } from "./kv.js";
 import {
   type SealedBlob,
   VaultCorruptError,
@@ -8,7 +6,9 @@ import {
   openJson,
   sealJson,
   vaultSealBinding,
-} from "./vault/crypto.js";
+} from "@opensesame/vault-core";
+import { beforeEach, describe, expect, it } from "vitest";
+import { kvDelete, kvDurability, kvGet, kvHydrate, kvSet } from "./kv.js";
 import {
   BODY_PATH,
   HEADER_PATH,

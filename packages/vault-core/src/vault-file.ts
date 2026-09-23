@@ -8,7 +8,6 @@
  * and `vault ls` print, and what an isolate runs to prove the read path.
  */
 import { isString, overlapCast } from "@opensesame/os-domain";
-import { buildRows } from "../../sections/vault/vault-tree-rows.js";
 import {
   type SealedBlob,
   VaultCorruptError,
@@ -23,6 +22,7 @@ import {
   parseOfflineBackupEnvelope as parseOfflineBackup,
 } from "./offline-backup-format.js";
 import { openJsonForRebind } from "./seal-open.js";
+import { buildRows } from "./tree-rows.js";
 
 export const VAULT_EXPORT_FORMAT = "opensesame-vault-export";
 

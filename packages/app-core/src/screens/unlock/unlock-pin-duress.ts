@@ -2,7 +2,7 @@
  * PIN unlock path: complete-code duress routing before vault unwrap (INV-03).
  */
 
-import { WrongPasswordError } from "../../lib/vault/crypto.js";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import { onCompleteUnlockCodeSubmission } from "../../sections/settings/security/duress-unlock-bridge.js";
 import {
   type DuressContinueStore,

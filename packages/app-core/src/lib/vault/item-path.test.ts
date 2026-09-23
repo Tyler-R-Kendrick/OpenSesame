@@ -1,6 +1,6 @@
+import { createItem, emptyBody } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { itemCreatePath, resolveItemPath, writeItem } from "./item-path.js";
-import { createItem, emptyBody } from "./model.js";
 
 const folder = { id: "work", name: "Work", createdAt: "2026-01-01" };
 const nested = { id: "nested", name: "Work/test", createdAt: "2026-01-01" };

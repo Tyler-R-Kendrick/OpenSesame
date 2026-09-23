@@ -24,6 +24,7 @@
     "@opensesame/app-core": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*",
+    "@opensesame/vault-core": "workspace:*",
     "zod": "3.25.67"
   },
   "devDependencies": {

@@ -1,3 +1,10 @@
+import {
+  WrongPasswordError,
+  itemTypeRegistry,
+  parseTotp,
+  syncInstalledTypes,
+  totpCode,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete } from "../kv.js";
 import {
@@ -9,8 +16,6 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
-import { WrongPasswordError } from "./crypto.js";
-import { itemTypeRegistry, syncInstalledTypes } from "./item-types.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 
 const PASSWORD = "correct horse battery staple";
@@ -72,7 +77,6 @@ describe("vault session boundary", () => {
     expect(itemTypeRegistry().has("resident-id")).toBe(true);
     const uri = await store.beginTotpEnrollment();
     const secret = new URL(uri).searchParams.get("secret") ?? "";
-    const { totpCode, parseTotp } = await import("./totp.js");
     await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
     const selfId = store.getSnapshot().header?.unlocks?.totp?.selfItemId ?? "";
     await store.trashItem(selfId);

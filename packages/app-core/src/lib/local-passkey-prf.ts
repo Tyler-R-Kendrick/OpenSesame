@@ -1,6 +1,6 @@
 import { bytesToB64url } from "@opensesame/sdk-browser";
+import { b64ToBytes } from "@opensesame/vault-core";
 import type { LocalPasskey } from "./local-credentials.js";
-import { b64ToBytes } from "./vault/crypto.js";
 import {
   hasUsablePrfOutput,
   readPrfFirst,

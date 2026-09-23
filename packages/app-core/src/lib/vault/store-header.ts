@@ -1,6 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
+import type { VaultHeader } from "@opensesame/vault-core";
 import { HEADER_PATH, listTombs, readPlaintextFile } from "../vfs.js";
-import type { VaultHeader } from "./crypto.js";
 
 /**
  * Whether any tomb on this device holds a sealed vault. The guest road

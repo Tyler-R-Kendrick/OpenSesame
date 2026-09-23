@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   AGE_KEYS_CONFIG_PATH,
@@ -12,7 +13,6 @@ import {
   writeAgeKeyConfig,
 } from "./age-keys.js";
 import { kvDelete } from "./kv.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   PERSONAL_TOMB,
   TOMBS_REGISTRY_KEY,

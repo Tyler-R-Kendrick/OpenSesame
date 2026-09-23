@@ -3,13 +3,13 @@
  * Handles must never be JSON-serialized.
  */
 
-import { ProtectionError } from "./errors.js";
 import type {
   ProtectionContext,
   ProtectionRecord,
   ProtectorAvailability,
   VerificationEvidence,
-} from "./types.js";
+} from "@opensesame/vault-core";
+import { ProtectionError } from "./errors.js";
 
 const HANDLE_BRAND = Symbol("ClientRootKeyHandle");
 

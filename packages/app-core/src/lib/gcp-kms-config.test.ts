@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   GCP_KMS_CONFIG_PATH,
@@ -7,7 +8,6 @@ import {
   writeGcpKmsConfig,
 } from "./gcp-kms-config.js";
 import { kvDelete } from "./kv.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   INDEX_PATH,
   PERSONAL_TOMB,

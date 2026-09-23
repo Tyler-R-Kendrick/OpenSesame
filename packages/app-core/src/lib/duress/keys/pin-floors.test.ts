@@ -1,5 +1,5 @@
+import { MAX_PBKDF2_ITERATIONS } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { MAX_PBKDF2_ITERATIONS } from "../../vault/crypto.js";
 import { PIN_PBKDF2_ITERATIONS } from "../../vault/unlock-methods.js";
 import {
   DURESS_PIN_PBKDF2_ITERATIONS,

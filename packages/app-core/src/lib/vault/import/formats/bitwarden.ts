@@ -15,7 +15,7 @@ import {
  * than login and note, so it is offered as a fallback rather than a peer.
  */
 
-import type { UriMatch } from "../../model.js";
+import type { UriMatch } from "@opensesame/vault-core";
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,

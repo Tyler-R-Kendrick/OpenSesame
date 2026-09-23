@@ -3,7 +3,7 @@
  * before activating a parked primary key (INV-03).
  */
 
-import { WrongPasswordError } from "../../lib/vault/crypto.js";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import type { SecondStepId } from "../../lib/vault/unlock-methods.js";
 import { onCompleteUnlockCodeSubmission } from "../../sections/settings/security/duress-unlock-bridge.js";
 import {

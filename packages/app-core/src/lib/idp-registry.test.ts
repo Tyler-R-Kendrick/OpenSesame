@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEVICE_IDP_ID,
@@ -16,7 +17,6 @@ import {
   removeIdpRegistration,
 } from "./idp-registry.js";
 import { kvDelete, kvGet } from "./kv.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import {
   PERSONAL_TOMB,
   TOMBS_REGISTRY_KEY,

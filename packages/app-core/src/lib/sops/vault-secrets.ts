@@ -13,7 +13,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import type { ItemKind, VaultItem } from "../vault/model.js";
+import type { ItemKind, VaultItem } from "@opensesame/vault-core";
 import { SopsError } from "./errors.js";
 import { emitJsonTree, parseJsonTree } from "./json-codec.js";
 import { type SopsNode, entry } from "./model.js";

@@ -12,10 +12,10 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { VaultCorruptError } from "@opensesame/vault-core";
 import { userAgent } from "../ports.js";
 import { kvGet, kvRefresh, kvSet } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
-import { VaultCorruptError } from "./vault/crypto.js";
 import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
 export const LOCAL_DEVICES_PATH = "config/identity-devices";

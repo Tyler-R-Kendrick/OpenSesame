@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
+  createItem,
   installItemType,
   itemTypeRegistry,
   syncInstalledTypes,
-} from "./item-types.js";
-import { createItem } from "./model.js";
+} from "@opensesame/vault-core";
+import { describe, expect, it } from "vitest";
 import {
   acceptsDraftUsername,
   generateDraftLabels,

@@ -5,11 +5,11 @@
  * with the plugin and hardware present.
  */
 
-import { ProtectionError } from "../errors.js";
 import type {
   ProtectorAvailability,
   YubikeyPivAgeProtectorRecord,
-} from "../types.js";
+} from "@opensesame/vault-core";
+import { ProtectionError } from "../errors.js";
 
 export function yubikeyPivAgeCapabilities(): ProtectorAvailability {
   return {

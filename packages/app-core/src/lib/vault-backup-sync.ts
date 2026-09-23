@@ -9,6 +9,7 @@ import {
   overlapCast,
   readString,
 } from "@opensesame/os-domain";
+import type { SealedBlob, VaultHeader } from "@opensesame/vault-core";
 import {
   type LocalBackupTarget,
   clearLocalBackupPending,
@@ -25,7 +26,6 @@ import {
 import { getLocalGitRemote } from "./git-remote-local.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
-import type { SealedBlob, VaultHeader } from "./vault/crypto.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,

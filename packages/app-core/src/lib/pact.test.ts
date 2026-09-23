@@ -2,21 +2,20 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertSourceOrder } from "@opensesame/testing";
+import { createVault } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { kvGet } from "./kv.js";
 import { clearStagedClaimTokens, enqueue } from "./queue.js";
-import { createVault } from "./vault/crypto.js";
 import { MIN_PIN_LENGTH, wrapVaultKeyWithPin } from "./vault/unlock-methods.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe("PACT — Pages vault / queue / authz", () => {
   it("vault key import is non-extractable; PIN floor is enforced", async () => {
-    assertSourceOrder(readFileSync(join(here, "vault/crypto.ts"), "utf8"), [
-      'importKey("raw"',
-      "false",
-      '"encrypt"',
-    ]);
+    assertSourceOrder(
+      readFileSync(join(here, "../../../vault-core/src/crypto.ts"), "utf8"),
+      ['importKey("raw"', "false", '"encrypt"'],
+    );
     const { vaultKey } = await createVault("correct horse battery staple");
     expect(vaultKey.extractable).toBe(false);
     await expect(crypto.subtle.exportKey("raw", vaultKey)).rejects.toThrow();

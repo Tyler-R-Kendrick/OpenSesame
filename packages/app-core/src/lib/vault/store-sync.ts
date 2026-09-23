@@ -5,7 +5,6 @@ import type { FieldValues } from "@opensesame/vault-item-types";
  * Used when bridging the Pages OPFS vault with a git-native store.
  */
 
-import { definitionFor } from "./item-types.js";
 import {
   type Folder,
   type SecretItem,
@@ -13,8 +12,9 @@ import {
   type UriMatch,
   type VaultItem,
   createItem,
+  definitionFor,
   newId,
-} from "./model.js";
+} from "@opensesame/vault-core";
 
 export type StorePlainEntry = {
   path: string;

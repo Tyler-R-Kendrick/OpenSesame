@@ -4,10 +4,10 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { itemTypeRegistry } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { COMMAND_SECTIONS, commandSections } from "../lib/command-bar/types.js";
 import { settingsCategories, settingsPath } from "../lib/crumbs.js";
-import { itemTypeRegistry } from "../lib/vault/item-types.js";
 import { readDraftPrefill } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
 

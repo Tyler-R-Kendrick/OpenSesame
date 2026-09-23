@@ -1,3 +1,9 @@
+import {
+  mintVaultKey,
+  openJson,
+  sealJson,
+  vaultSealBinding,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvGet } from "../kv.js";
 import {
@@ -12,12 +18,6 @@ import {
   vfsFlush,
   vfsSeams,
 } from "../vfs.js";
-import {
-  mintVaultKey,
-  openJson,
-  sealJson,
-  vaultSealBinding,
-} from "./crypto.js";
 import { rebindTombSeals } from "./seal-rebind.js";
 
 describe("seal rebind", () => {

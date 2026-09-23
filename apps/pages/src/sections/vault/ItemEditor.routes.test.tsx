@@ -1,5 +1,5 @@
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
-import { createItem } from "@opensesame/app-core/lib/vault/model.js";
+import { createItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import {
   cleanup,

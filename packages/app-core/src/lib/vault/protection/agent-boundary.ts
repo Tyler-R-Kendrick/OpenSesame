@@ -8,14 +8,14 @@
  * hooks appear. It never returns root material.
  */
 
-import { ProtectionError } from "./errors.js";
 import {
   DOMAIN_CAPSULE,
   DOMAIN_CLOUD_WRAP,
   DOMAIN_MANIFEST,
   DOMAIN_MANIFEST_MAC,
-} from "./limits.js";
-import type { ProtectionPurpose } from "./types.js";
+  type ProtectionPurpose,
+} from "@opensesame/vault-core";
+import { ProtectionError } from "./errors.js";
 
 /** Ciphertext domains that bind human-vault root protection material. */
 export const ROOT_PROTECTION_DOMAINS = [

@@ -76,7 +76,6 @@ const SIGNIN_FILES = [
   "identity",
   "federation",
   "federation-copy",
-  "federation-encoding",
   "federation-callback",
   "federation-pending",
   "federation-restoration",

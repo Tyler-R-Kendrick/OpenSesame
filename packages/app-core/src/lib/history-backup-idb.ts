@@ -1,4 +1,6 @@
+import { bytesToB64 } from "@opensesame/vault-core";
 import { indexedDatabases } from "../ports.js";
+
 /**
  * Store for provisional Postgres-family history accounts and entries.
  * Uses IndexedDB when available; falls back to memory (tests / private mode).
@@ -42,16 +44,6 @@ export function randomHistoryId(prefix: string): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
   return `${prefix}_${hex}`;
-}
-
-export function bytesToB64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    const code = bytes[i];
-    if (code === undefined) break;
-    binary += String.fromCharCode(code);
-  }
-  return btoa(binary);
 }
 
 function openDb(): Promise<IDBDatabase> {

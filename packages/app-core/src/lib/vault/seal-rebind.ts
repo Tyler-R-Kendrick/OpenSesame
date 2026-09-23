@@ -10,6 +10,13 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import {
+  type SealedBlob,
+  assertSealed,
+  openJsonForRebind,
+  sealJson,
+  vaultSealBinding,
+} from "@opensesame/vault-core";
+import {
   BODY_PATH,
   INDEX_PATH,
   SEAL_BOUND_MARKER_PATH,
@@ -18,15 +25,8 @@ import {
   vfsSeams,
   writePlaintextFile,
 } from "../vfs.js";
-import {
-  type SealedBlob,
-  assertSealed,
-  sealJson,
-  vaultSealBinding,
-} from "./crypto.js";
-import { openJsonForRebind } from "./seal-open.js";
 
-export { openJsonForRebind } from "./seal-open.js";
+export { openJsonForRebind } from "@opensesame/vault-core";
 
 type TombIndex = { v: 1; files: Record<string, number> };
 

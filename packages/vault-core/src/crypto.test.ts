@@ -1,10 +1,9 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
+import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import {
   VaultCorruptError,
   WrongPasswordError,
-  b64ToBytes,
-  bytesToB64,
   createVault,
   openJson,
   randomBytes,
@@ -80,7 +79,7 @@ describe("vault key lifecycle", () => {
     const { vaultKey } = await createVault(PASSWORD);
     const sealed = await sealJson(vaultKey, { balance: 10 });
     const bytes = b64ToBytes(sealed.ctB64);
-    bytes[0] ^= 0xff;
+    bytes[0] = (bytes[0] ?? 0) ^ 0xff;
 
     await expect(
       openJson(vaultKey, { ivB64: sealed.ivB64, ctB64: bytesToB64(bytes) }),

@@ -1,7 +1,5 @@
-/** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
-import { deliverToRp, parseBrokerRequest } from "../site-broker.js";
 import {
+  createTypedItem,
   installItemType,
   itemTypeRegistry,
   newValues,
@@ -9,8 +7,10 @@ import {
   typedSearchText,
   uninstallItemType,
   unknownTypeSubtitle,
-} from "../vault/item-types.js";
-import { createTypedItem } from "../vault/model.js";
+} from "@opensesame/vault-core";
+/** @vitest-environment jsdom */
+import { describe, expect, it } from "vitest";
+import { deliverToRp, parseBrokerRequest } from "../site-broker.js";
 import { COMMENTED, PREFS, draft } from "./adv-fixtures.js";
 import { commitApproval } from "./approval-freshness.js";
 import { inventoryBackup } from "./backup-coverage.js";

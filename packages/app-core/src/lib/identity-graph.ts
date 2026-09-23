@@ -1,11 +1,11 @@
-import type { Connection, ConnectionStatus, Provider } from "./connections.js";
-import { kvGet, kvSet } from "./kv.js";
 import {
   type VaultItem,
   createItem,
   hostOf,
   itemSubtitle,
-} from "./vault/model.js";
+} from "@opensesame/vault-core";
+import type { Connection, ConnectionStatus, Provider } from "./connections.js";
+import { kvGet, kvSet } from "./kv.js";
 
 export const FIRST_RUN_KEY = "connections.firstRun.v1";
 export const FIRST_RUN_PROVIDER_IDS = ["github", "vercel", "linear"] as const;

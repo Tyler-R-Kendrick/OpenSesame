@@ -1,8 +1,5 @@
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
-import {
-  itemTypeRegistry,
-  typeExtension,
-} from "@opensesame/app-core/lib/vault/item-types.js";
+import { itemTypeRegistry, typeExtension } from "@opensesame/vault-core";
 import { Link } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 

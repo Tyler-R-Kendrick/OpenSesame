@@ -1,6 +1,7 @@
 import type { OrganizationRole } from "@opensesame/os-domain";
 import { createPkcePair } from "@opensesame/sdk-browser";
 import { createLocalAgentKey } from "@opensesame/static-auth";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { beginLocalAgentAuthentication } from "./local-agent-auth.js";
 import { verifyAgentApplicationChannel } from "./local-agent-channel.fixture.js";
@@ -37,7 +38,6 @@ import {
   signInLocalAgent,
   signInLocalIdentity,
 } from "./local-sessions.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb, vfsSeams } from "./vfs.js";
 

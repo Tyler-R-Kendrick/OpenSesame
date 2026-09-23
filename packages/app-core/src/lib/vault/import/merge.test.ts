@@ -1,7 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type Folder,
+  type LoginItem,
+  type VaultItem,
+  createItem,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import type { Folder, LoginItem, VaultItem } from "../model.js";
-import { createItem } from "../model.js";
 import { defaultMergeOptions, planMerge } from "./merge.js";
 import { type DraftItem, draftCard, draftLogin, draftNote } from "./types.js";
 

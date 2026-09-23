@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import type { VaultBody, VaultItem } from "@opensesame/vault-core";
 import { fidoCxf } from "../import/formats/cxf.js";
 import type { DraftItem, ParseInput } from "../import/types.js";
-import type { VaultBody, VaultItem } from "../model.js";
 import {
   CXF_EXTENSION,
   CXF_TYPES,

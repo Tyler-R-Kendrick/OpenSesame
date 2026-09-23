@@ -3,7 +3,7 @@
  * secret handles live in adapter.ts.
  */
 
-import type { MANIFEST_SCHEMA_VERSION } from "./limits.js";
+import type { MANIFEST_SCHEMA_VERSION } from "./protection-limits.js";
 
 export type ProtectorKind =
   | "password"

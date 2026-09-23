@@ -1,12 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
 import {
   WrongPasswordError,
   createVault,
   importVaultKey,
   openJson,
+  parseTotp,
   sealJson,
-} from "./crypto.js";
-import { parseTotp, totpCode } from "./totp.js";
+  totpCode,
+} from "@opensesame/vault-core";
+import { describe, expect, it, vi } from "vitest";
 import {
   assertKeepsPrimaryUnlock,
   checkWebauthnHost,

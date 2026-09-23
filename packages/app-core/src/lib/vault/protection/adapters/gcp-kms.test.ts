@@ -1,6 +1,6 @@
+import type { ProtectionContext } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { ProtectionError } from "../errors.js";
-import type { ProtectionContext } from "../types.js";
 import {
   assertAllowedCloudEndpoint,
   mintWrappingSecret,

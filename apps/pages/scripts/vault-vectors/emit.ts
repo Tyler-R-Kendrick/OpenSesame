@@ -1,15 +1,4 @@
 import {
-  type SealedBlob,
-  type VaultHeader,
-  createVault,
-  sealJson,
-  vaultSealBinding,
-} from "@opensesame/app-core/lib/vault/crypto.js";
-import {
-  type VaultBody,
-  createItem,
-} from "@opensesame/app-core/lib/vault/model.js";
-import {
   buildOfflineBackup,
   serializeOfflineBackup,
 } from "@opensesame/app-core/lib/vault/offline-backup.js";
@@ -33,6 +22,15 @@ import { vfsFlush } from "@opensesame/app-core/lib/vfs.js";
  * tomb use the same crypto functions the store calls.
  */
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type SealedBlob,
+  type VaultBody,
+  type VaultHeader,
+  createItem,
+  createVault,
+  sealJson,
+  vaultSealBinding,
+} from "@opensesame/vault-core";
 
 /** NFKC folds the fullwidth P and the ﬁ ligature: "Passphrase fixture vector 2026". */
 export const VECTOR_PASSWORD = "Ｐassphrase ﬁxture vector 2026";

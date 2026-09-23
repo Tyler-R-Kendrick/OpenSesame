@@ -11,7 +11,7 @@ import {
   type LoginUri,
   type VaultItem,
   newId,
-} from "../model.js";
+} from "@opensesame/vault-core";
 import { duplicateKey } from "./index.js";
 import type { DraftItem } from "./types.js";
 

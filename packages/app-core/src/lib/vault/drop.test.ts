@@ -3,6 +3,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { type DropItem, createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearSession, identitySeams } from "../identity.js";
 import {
@@ -20,7 +21,6 @@ import {
   sweepDrop,
   sweepDrops,
 } from "./drop.js";
-import { type DropItem, createItem } from "./model.js";
 
 const identityFetch = vi.hoisted(() => vi.fn());
 const connectProvisional = vi.hoisted(() => vi.fn());

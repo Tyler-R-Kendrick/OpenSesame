@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 492,
-    "violations": 781,
-    "oversizedLines": 248566
+    "files": 491,
+    "violations": 780,
+    "oversizedLines": 247972
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -796,7 +796,7 @@
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
-      "max-lines": 1001,
+      "max-lines": 999,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
@@ -804,11 +804,11 @@
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
-      "max-lines": 508,
+      "max-lines": 506,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines": 516,
+      "max-lines": 514,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
@@ -1152,7 +1152,7 @@
     },
     "packages/app-core/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 942,
+      "max-lines": 937,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/github-app-presence.ts": {
@@ -1198,9 +1198,6 @@
     },
     "packages/app-core/src/lib/vault/drop.test.ts": {
       "max-lines": 526
-    },
-    "packages/app-core/src/lib/vault/drop.ts": {
-      "max-lines": 570
     },
     "packages/app-core/src/lib/vault/export/cxf.ts": {
       "complexity": 1,
@@ -1250,13 +1247,6 @@
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "packages/app-core/src/lib/vault/model.test.ts": {
-      "max-lines": 416
-    },
-    "packages/app-core/src/lib/vault/model.ts": {
-      "complexity": 1,
-      "max-lines": 549
-    },
     "packages/app-core/src/lib/vault/password.ts": {
       "complexity": 1,
       "max-lines": 496
@@ -1265,20 +1255,20 @@
       "max-statements": 1
     },
     "packages/app-core/src/lib/vault/store-ops.test.ts": {
-      "max-lines": 677
+      "max-lines": 673
     },
     "packages/app-core/src/lib/vault/store-sync.ts": {
       "complexity": 2,
       "max-lines": 407
     },
     "packages/app-core/src/lib/vault/store.test.ts": {
-      "max-lines": 528
+      "max-lines": 525
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1726
+      "max-lines": 1722
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 589
+      "max-lines": 587
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470
@@ -1602,6 +1592,13 @@
     },
     "packages/trust-broker/src/index.ts": {
       "complexity": 1
+    },
+    "packages/vault-core/src/model.test.ts": {
+      "max-lines": 416
+    },
+    "packages/vault-core/src/model.ts": {
+      "complexity": 1,
+      "max-lines": 549
     },
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,

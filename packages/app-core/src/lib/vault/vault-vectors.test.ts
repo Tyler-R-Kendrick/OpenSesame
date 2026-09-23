@@ -4,28 +4,26 @@
  * failure here is a format break, never a reason to regenerate it.
  */
 import { overlapCast } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
 import {
+  type SealedVaultFile,
+  type VaultBody,
   VaultCorruptError,
   type VaultHeader,
   WrongPasswordError,
   b64ToBytes,
+  openVaultBody,
+  openVaultFile,
+  readVaultFile,
   unwrapRawVaultKeyFromPassword,
-} from "./crypto.js";
-import fixture from "./fixtures/vault-vectors.json";
-import type { VaultBody } from "./model.js";
+} from "@opensesame/vault-core";
+import fixture from "@opensesame/vault-core/fixtures/vault-vectors.json";
+import { describe, expect, it } from "vitest";
 import { VaultStore } from "./store.js";
 import {
   listPasskeyUnlockRecords,
   unwrapVaultKeyWithPin,
   unwrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-import {
-  type SealedVaultFile,
-  openVaultBody,
-  openVaultFile,
-  readVaultFile,
-} from "./vault-file.js";
 
 type Expectation = {
   tomb: string;
@@ -54,13 +52,6 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
 }
 
 const vectors = Object.entries(fixture.vectors);
-
-/** Every string anywhere under `value`. */
-function stringLeaves(value: unknown): string[] {
-  if (typeof value === "string") return [value];
-  if (value === null || typeof value !== "object") return [];
-  return Object.values(value).flatMap(stringLeaves);
-}
 
 describe("golden vault vectors", () => {
   it.each(vectors)("%s opens with the password", async (_name, vector) => {
@@ -151,37 +142,5 @@ describe("golden vault vectors", () => {
     const names = store.getSnapshot().items.map((item) => item.name);
     expect(names).toEqual(["Personal login", "Personal note"]);
     store.lock();
-  });
-
-  it.each(vectors)("%s lists names and paths, never values", async (_n, v) => {
-    const opened = await openVaultFile(v.file, fixture.password);
-    expect(
-      opened.items.map(({ id, name, kind }) => ({ id, name, kind })),
-    ).toEqual(v.expect.items);
-    expect(opened).toMatchObject({
-      tomb: v.expect.tomb,
-      bound: v.expect.bound,
-      rev: v.expect.rev,
-    });
-    for (const item of opened.items) expect(item.path).toContain(item.name);
-    const printed = JSON.stringify(opened);
-    const body = await openBody(
-      await unwrapRawVaultKeyFromPassword(
-        readVaultFile(v.file).header,
-        fixture.password,
-      ),
-      readVaultFile(v.file),
-    );
-    const values = body.body.items.flatMap((item) => {
-      const { id: _id, name: _name, kind: _kind, ...rest } = item;
-      return stringLeaves(rest).filter((value) => value.length >= 6);
-    });
-    expect(values.length).toBeGreaterThan(0);
-    for (const value of values) expect(printed).not.toContain(value);
-  });
-
-  it("refuses anything that is not a vault file", () => {
-    expect(() => readVaultFile("{}")).toThrow(VaultCorruptError);
-    expect(() => readVaultFile("not json")).toThrow(VaultCorruptError);
   });
 });

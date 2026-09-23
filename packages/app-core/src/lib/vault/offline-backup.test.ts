@@ -1,5 +1,5 @@
+import type { SealedBlob, VaultHeader } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { SealedBlob, VaultHeader } from "./crypto.js";
 import {
   buildOfflineBackup,
   cacheCiphertextSnapshot,

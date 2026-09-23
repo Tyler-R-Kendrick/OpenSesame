@@ -46,6 +46,7 @@
     "@opensesame/siop-v2": "workspace:*",
     "@opensesame/static-auth": "workspace:*",
     "@opensesame/support-agent": "workspace:*",
+    "@opensesame/vault-core": "workspace:*",
     "@opensesame/vault-item-types": "workspace:*",
     "@opensesame/wallet-budget": "workspace:*",
     "@opensesame/wallet-consent": "workspace:*",

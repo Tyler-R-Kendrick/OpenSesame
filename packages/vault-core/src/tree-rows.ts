@@ -4,8 +4,8 @@
  * matching directory whole and otherwise only matching children. The Pages
  * tree renders these rows; a CLI or a native list can list them the same way.
  */
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
-import { itemExtension, pathSegment } from "../../lib/vault/paths.js";
+import type { Folder, VaultItem } from "./model.js";
+import { itemExtension, pathSegment } from "./paths.js";
 
 export type DirRow = {
   type: "dir";

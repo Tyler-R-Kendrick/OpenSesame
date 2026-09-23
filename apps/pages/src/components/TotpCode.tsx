@@ -4,7 +4,7 @@ import {
   parseTotp,
   secondsRemaining,
   totpCode,
-} from "@opensesame/app-core/lib/vault/totp.js";
+} from "@opensesame/vault-core";
 import { type CSSProperties, useEffect, useState } from "react";
 
 const RADIUS = 8;

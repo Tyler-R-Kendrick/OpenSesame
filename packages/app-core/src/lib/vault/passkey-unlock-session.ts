@@ -7,7 +7,7 @@ import {
   type VaultHeader,
   WrongPasswordError,
   importVaultKey,
-} from "./crypto.js";
+} from "@opensesame/vault-core";
 import {
   getPasskeyUnlockCeremony,
   unwrapVaultKeyWithPrf,

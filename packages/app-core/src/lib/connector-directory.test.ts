@@ -1,3 +1,4 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,7 +15,6 @@ import {
 } from "./connector-directory.js";
 import { kvDelete } from "./kv.js";
 import type { DirectoryConnection } from "./nango-directory.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 
 const github: DirectoryConnection = {

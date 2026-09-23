@@ -30,7 +30,7 @@ import type {
   Folder,
   LoginItem,
   NoteItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+} from "@opensesame/vault-core";
 import { createKeymapHandler } from "../lib/keymap.js";
 
 type VaultHarness = {

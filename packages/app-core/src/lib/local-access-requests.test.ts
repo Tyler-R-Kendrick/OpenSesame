@@ -3,6 +3,7 @@ import {
   bytesToB64url,
   sha256Base64Url,
 } from "@opensesame/sdk-browser";
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   consumeLocalAccessRequest,
@@ -23,7 +24,6 @@ import {
   type LocalSession,
   revokeLocalIdentitySession,
 } from "./local-sessions.js";
-import { mintVaultKey } from "./vault/crypto.js";
 import { vaultStore } from "./vault/store.js";
 import { readFile, unlockTomb, vfsSeams, writeFile } from "./vfs.js";
 

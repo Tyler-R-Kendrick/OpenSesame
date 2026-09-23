@@ -8,8 +8,8 @@ import {
   pushNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
-import { createItem } from "@opensesame/app-core/lib/vault/model.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { createItem } from "@opensesame/vault-core";
 import {
   NotificationsBar,
   notificationsBarDependencies,

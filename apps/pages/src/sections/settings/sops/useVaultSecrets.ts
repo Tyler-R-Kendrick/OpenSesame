@@ -17,8 +17,8 @@ import {
   exportVaultSecrets,
   importVaultSecrets,
 } from "@opensesame/app-core/lib/sops/vault-secrets.js";
-import type { VaultItem } from "@opensesame/app-core/lib/vault/model.js";
 import { identityList } from "@opensesame/app-core/sections/settings/sops/identities.js";
+import type { VaultItem } from "@opensesame/vault-core";
 import { useCallback } from "react";
 
 function notice(tone: "info" | "err", body: string): void {

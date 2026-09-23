@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { type Folder, createItem } from "../../lib/vault/model.js";
-import { buildRows } from "./vault-tree-rows.js";
+import { type Folder, createItem } from "./model.js";
+import { buildRows } from "./tree-rows.js";
 
 function login(name: string, folderId?: string) {
   const item = createItem("login", name);

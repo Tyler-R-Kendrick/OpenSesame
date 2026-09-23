@@ -4,6 +4,7 @@
  */
 
 import { isString, overlapCast } from "@opensesame/os-domain";
+import { b64ToBytes, bytesToB64, randomBytes } from "@opensesame/vault-core";
 import {
   isPublicKeyCredential,
   maybePage,
@@ -11,7 +12,6 @@ import {
   publicKeyCredentialApi,
   requireCredentials,
 } from "../../../../ports.js";
-import { b64ToBytes, bytesToB64, randomBytes } from "../../crypto.js";
 import type {
   PasskeyCeremony,
   PasskeyUnlockCeremonyResult,

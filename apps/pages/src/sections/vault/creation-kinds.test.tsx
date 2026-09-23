@@ -23,12 +23,12 @@ import {
   CORE_ITEM_KINDS,
   itemKindsSnapshot,
 } from "@opensesame/app-core/lib/item-kinds.js";
-import { createItem } from "@opensesame/app-core/lib/vault/model.js";
-import type {
-  CertificateItem,
-  Folder,
-  VaultItem,
-} from "@opensesame/app-core/lib/vault/model.js";
+import {
+  type CertificateItem,
+  type Folder,
+  type VaultItem,
+  createItem,
+} from "@opensesame/vault-core";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import {

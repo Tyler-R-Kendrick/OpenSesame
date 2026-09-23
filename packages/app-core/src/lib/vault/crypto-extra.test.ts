@@ -1,5 +1,4 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
 import {
   MAX_PBKDF2_ITERATIONS,
   PBKDF2_ITERATIONS,
@@ -16,7 +15,8 @@ import {
   unlockVaultKey,
   unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
-} from "./crypto.js";
+} from "@opensesame/vault-core";
+import { describe, expect, it } from "vitest";
 
 const PASSWORD = "correct horse battery staple";
 

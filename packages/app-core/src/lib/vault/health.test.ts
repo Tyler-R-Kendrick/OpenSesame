@@ -1,7 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type LoginItem,
+  type VaultItem,
+  createItem,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { buildHealthReport } from "./health.js";
-import { type LoginItem, type VaultItem, createItem } from "./model.js";
 
 function login(
   name: string,
