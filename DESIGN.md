@@ -248,8 +248,11 @@ on the cursor or hovered row carries the verbs, and the `/` and `?` key
 chips in the path strip are buttons.
 
 The page owns its right-click (`components/context-menu/`). A right button,
-a long press, `Shift+F10` or the Menu key opens the app's menu for whatever it
-landed on — the focused row, for a key — and every entry is a verb the page
+a long press (a finger or a stylus held still — recognised by the page, since
+iOS sends no event for it; the lift that ends it never also taps), `Shift+F10`,
+the Menu key, or `Shift+Enter` on a listing (for a keyboard with neither) opens
+the app's menu for whatever it landed on — the focused row, for a key — and
+every entry is a verb the page
 already has, with its key beside it, so the menu teaches the keymap rather
 than adding a second road. The `⋯` menu is the same list. A rail row offers
 open, expand/collapse, its directory's `config.yaml`, new item, copy link and
@@ -259,6 +262,11 @@ restore and delete in the trash; anywhere else the link, the selected text and
 the page (back, forward, reload, command bar, keys, lock). A destructive entry
 asks twice, re-labelled in place, like the detail pane's delete key. While a
 menu is open it owns every key; Escape and Tab close it and hand focus back.
+With a mouse the menu is a popover at the pointer; on a phone (coarse pointer
+or ≤900px) it is an action sheet on the bottom edge — over a scrim, in reach of
+the thumb, titled with what it is for, 44px entries — because a popover under
+a finger would cover the very row it is about and rest on the controls around
+it. The scrim's tap only dismisses; it never reaches what lies beneath.
 Two things keep the browser's own menu: a text field (paste and spelling are
 the browser's) and a right-click with Shift held.
 

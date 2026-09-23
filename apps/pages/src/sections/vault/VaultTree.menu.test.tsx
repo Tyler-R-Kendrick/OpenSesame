@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -9,6 +10,8 @@ import {
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ContextMenuLayer } from "../../components/context-menu/ContextMenuLayer.js";
+import { closeContextMenu } from "../../components/context-menu/menu-model.js";
+import { gestureLimits } from "../../lib/gestures.js";
 import { VaultTree, vaultTreeSeams } from "./VaultTree.js";
 import { makeLogin, makeNote } from "./section-items.test-support.js";
 import type { VaultTreeActions } from "./vault-menu.js";
@@ -39,7 +42,10 @@ let actions = spies();
 beforeEach(() => {
   actions = spies();
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  act(() => closeContextMenu());
+  cleanup();
+});
 
 function draw(items = [makeLogin(), makeNote()]) {
   render(
@@ -97,6 +103,28 @@ describe("the vault listing's context menu", () => {
       }),
     );
     expect(actions.purge).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the same menu for a finger held on a row", () => {
+    vi.useFakeTimers();
+    try {
+      draw();
+      const row = screen.getByText("Webmail");
+      const down = new MouseEvent("pointerdown", { bubbles: true });
+      Object.defineProperty(down, "pointerType", { value: "touch" });
+      act(() => {
+        row.dispatchEvent(down);
+        vi.advanceTimersByTime(gestureLimits.longPressMs + 10);
+      });
+      expect(
+        screen.getByRole("menu", { name: "Actions for Webmail" }),
+      ).toBeTruthy();
+      // The lift that ends the hold does not also open the item.
+      fireEvent.click(row);
+      expect(actions.open).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shares one list with the row's ⋯ key", () => {

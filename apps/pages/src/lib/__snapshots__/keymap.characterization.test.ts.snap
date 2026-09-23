@@ -67,6 +67,10 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
     "Share once",
   ],
   [
+    "Shift-F10 / Shift-Enter",
+    "Actions for the focused row",
+  ],
+  [
     "g v/c/a/i/w/y/s",
     "Go to a section",
   ],

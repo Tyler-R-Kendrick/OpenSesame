@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 // Real keyboard input only: no click(), focus(), or synthetic keydown setup.
 import { expect } from "@playwright/test";
 import { approveByKeyboard } from "./lib/capability-keyboard-contract.mjs";
+import { contextMenuKeyboardContract } from "./lib/context-menu-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -206,6 +207,7 @@ try {
       await page.keyboard.press("ArrowDown");
       await expect(page).not.toHaveURL(before);
       await expect(rail).toBeFocused();
+      await contextMenuKeyboardContract(page);
       await page.keyboard.press("Tab");
       await expect(rail).not.toBeFocused();
     }

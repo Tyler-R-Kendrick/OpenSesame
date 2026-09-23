@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
 import {
   AUDIT,
   PHONES,
@@ -287,6 +288,7 @@ async function walk(browser, phone) {
   await openOverflowRow(page, /^Help$/, stop("more-support"));
 
   await vaultItem(page, stop);
+  await contextMenuTouchContract(page, stop, { harness, openTab, audit });
 
   // A locked reload is the screen most phone sessions actually start on.
   await openTab(page, "Vault");

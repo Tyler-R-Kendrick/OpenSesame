@@ -1,31 +1,23 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
-import { typing } from "../../lib/keymap-targets.js";
 import { ContextMenuList } from "./ContextMenuList.js";
+import { useContextMenuInput } from "./context-menu-input.js";
 import {
   type MenuPlacement,
   clampToViewport,
   closeContextMenu,
   contextMenuSnapshot,
-  noteKeyboardContextMenu,
-  openContextMenu,
-  openedByKeyboard,
   subscribeContextMenu,
 } from "./menu-model.js";
-import { pageMenu } from "./page-menu.js";
 
 /**
- * The page owns its right-click. Every `contextmenu` — a right button, a long
- * press, `Shift+F10`, the Menu key — opens this app's menu for whatever it
- * landed on; a surface with a menu of its own (the rail, the vault listing)
- * opens it and marks the event handled, and anything else gets the page's
- * menu: its link, its selected text, and the page itself.
+ * The page owns its right-click. Every ask for a menu — a right button, a
+ * long press, `Shift+F10`, the Menu key, `Shift+Enter` on a listing
+ * (`context-menu-input.ts`) — opens this app's menu for whatever it landed
+ * on; a surface with a menu of its own (the rail, the vault listing) opens it
+ * and marks the event handled, and anything else gets the page's menu: its
+ * link, its selected text, and the page itself. With a mouse it is a popover
+ * at the pointer; on a phone, an action sheet at the bottom edge.
  *
  * Two things keep the browser's own menu, deliberately. A text field, where
  * paste and spelling suggestions are the browser's to offer and a page cannot
@@ -33,7 +25,7 @@ import { pageMenu } from "./page-menu.js";
  * past a web app's menu to the browser's.
  */
 export function ContextMenuLayer() {
-  useContextMenuInterception(useNavigate());
+  useContextMenuInput(useNavigate());
   const open = useSyncExternalStore(
     subscribeContextMenu,
     contextMenuSnapshot,
@@ -57,10 +49,42 @@ export function ContextMenuLayer() {
   }, [open]);
 
   if (!open) return null;
+  const close = (restore: boolean) => {
+    const back = open.returnFocus;
+    closeContextMenu();
+    if (restore && back?.isConnected) back.focus({ preventScroll: true });
+  };
+  // A new menu is a new list: focus and the armed entry start over.
+  const key = `${open.x},${open.y},${open.label}`;
+  if (asSheet()) {
+    // Under a finger the menu is an action sheet: a scrim makes covering
+    // the page deliberate (and catches the tap meant to dismiss it), and
+    // the list sits at the bottom edge, in reach of the thumb, named for
+    // what it is about because it is no longer drawn beside it.
+    return (
+      <div className="sheet-layer ctxmenu-layer">
+        <button
+          type="button"
+          className="scrim ctxmenu-scrim"
+          aria-label="Close menu"
+          tabIndex={-1}
+          onClick={() => close(true)}
+        />
+        <ContextMenuList
+          key={key}
+          groups={open.groups}
+          label={open.label}
+          title={open.label}
+          className="ctxmenu ctxmenu--sheet"
+          ignoreOutside=".ctxmenu-scrim"
+          onClose={close}
+        />
+      </div>
+    );
+  }
   return (
     <ContextMenuList
-      // A new menu is a new list: focus and the armed entry start over.
-      key={`${open.x},${open.y},${open.label}`}
+      key={key}
       listRef={(node) => {
         list.current = node;
       }}
@@ -74,82 +98,15 @@ export function ContextMenuLayer() {
         // entry can take focus in the same frame.
         opacity: placed ? undefined : 0,
       }}
-      onClose={(restore) => {
-        const back = open.returnFocus;
-        closeContextMenu();
-        if (restore && back?.isConnected) back.focus({ preventScroll: true });
-      }}
+      onClose={close}
     />
   );
 }
 
-/** Where a keyboard-opened menu is about: the tree row the cursor is on. */
-function keyboardTarget(): Element | null {
-  const focused = document.activeElement;
-  const row = focused?.getAttribute("aria-activedescendant");
-  return (row ? document.getElementById(row) : null) ?? focused;
-}
-
-function useContextMenuInterception(navigate: (to: string) => void) {
-  const go = useRef(navigate);
-  go.current = navigate;
-  useEffect(() => {
-    let syntheticUntil = 0;
-    const onKey = (event: KeyboardEvent) => {
-      const menuKey =
-        event.key === "ContextMenu" || (event.shiftKey && event.key === "F10");
-      if (!menuKey || event.defaultPrevented) return;
-      noteKeyboardContextMenu();
-      if (typing(event.target)) return;
-      const target = keyboardTarget();
-      if (!target) return;
-      event.preventDefault();
-      syntheticUntil = Date.now() + 500;
-      const rect = target.getBoundingClientRect();
-      target.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-          clientX: rect.left,
-          clientY: rect.bottom,
-        }),
-      );
-    };
-    const first = (event: MouseEvent) => {
-      // The browser may still send its own event for the key we already
-      // answered; one menu per press.
-      if (event.isTrusted && Date.now() < syntheticUntil) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-      if (event.isTrusted && event.shiftKey && !openedByKeyboard()) {
-        event.stopImmediatePropagation();
-      }
-    };
-    const last = (event: MouseEvent) => {
-      if (event.defaultPrevented) return;
-      const target = event.target instanceof Element ? event.target : null;
-      if (typing(target)) return;
-      if (target?.closest(".ctxmenu")) {
-        event.preventDefault();
-        return;
-      }
-      const groups = pageMenu(
-        target,
-        window.getSelection()?.toString() ?? "",
-        (to) => go.current(to),
-      );
-      openContextMenu(event, target, "Page actions", groups);
-    };
-    window.addEventListener("keydown", onKey, true);
-    window.addEventListener("contextmenu", first, true);
-    document.addEventListener("contextmenu", last);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("contextmenu", first, true);
-      document.removeEventListener("contextmenu", last);
-      closeContextMenu();
-    };
-  }, []);
+/** The phone arrangement (DESIGN.md § Touch): coarse pointer or narrow. */
+function asSheet(): boolean {
+  return (
+    window.matchMedia?.("(pointer: coarse), (max-width: 900px)").matches ??
+    false
+  );
 }

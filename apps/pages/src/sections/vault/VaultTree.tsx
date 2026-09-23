@@ -23,7 +23,6 @@ import {
 import { SlashSearchField } from "../../components/SlashSearch.js";
 import { ContextMenuList } from "../../components/context-menu/ContextMenuList.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
-import { longPress } from "../../lib/gestures.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { formatExpiry } from "./DropCeremony.js";
@@ -177,25 +176,6 @@ export function VaultTree({
   useEffect(() => {
     if (query !== null) searchRef.current?.focus();
   }, [query]);
-
-  // Holding a row opens its actions — the touch twin of the ⋯ key, which a
-  // finger cannot reveal by hovering.
-  useEffect(() => {
-    const list = treeRef.current;
-    if (!list) return;
-    return longPress(list, (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const row = target.closest("[data-vtree-key]");
-      if (!(row instanceof HTMLElement)) return;
-      const key = row.dataset.vtreeKey;
-      if (!key) return;
-      const hit = rowsRef.current.find((candidate) => candidate.key === key);
-      if (hit?.type !== "item") return;
-      setCursor(key);
-      setMenuFor(key);
-    });
-  }, []);
 
   useEffect(() => {
     const rowAt = (key: string | null) =>

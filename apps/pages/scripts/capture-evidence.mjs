@@ -167,6 +167,34 @@ const STEPS = {
     await row.click({ button: "right" });
     await page.waitForTimeout(500);
   },
+  /**
+   * Hold a finger still on the first element matching `selector` — real CDP
+   * touch events, the same the touch gate uses — then lift it.
+   */
+  async hold(page, selector) {
+    const target = page.locator(selector).first();
+    const box = await target.boundingBox();
+    if (!box)
+      throw new Error(
+        `capture-evidence hold("${selector}"): nothing to hold — refusing a silent miss`,
+      );
+    const point = {
+      x: Math.round(box.x + Math.min(box.width / 2, 48)),
+      y: Math.round(box.y + box.height / 2),
+    };
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [point],
+    });
+    await page.waitForTimeout(900);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await cdp.detach();
+    await page.waitForTimeout(700);
+  },
   /** Pick a context-menu entry when this build has one (a base may not). */
   async menuOptional(page, name) {
     const entry = page
@@ -213,6 +241,22 @@ const STEPS = {
           ".section__head .set__view-btn",
         ).length,
         menuEntries: items.length,
+        menuMode: document.querySelector(".ctxmenu--sheet")
+          ? "sheet"
+          : document.querySelector(".ctxmenu")
+            ? "popover"
+            : "none",
+        menuCoversRow: (() => {
+          const menu = document
+            .querySelector(".ctxmenu")
+            ?.getBoundingClientRect();
+          const row = document
+            .querySelector(".vtree__row")
+            ?.getBoundingClientRect();
+          if (!menu || !row) return null;
+          return !(menu.bottom <= row.top || menu.top >= row.bottom);
+        })(),
+        url: location.pathname + location.search,
         menuEntryHeights: [
           ...new Set(
             items.map((item) =>

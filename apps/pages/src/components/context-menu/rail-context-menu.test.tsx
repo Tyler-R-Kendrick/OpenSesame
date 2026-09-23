@@ -90,6 +90,15 @@ describe("the rail's context menu", () => {
     expect(document.activeElement).toBe(tree);
   });
 
+  it("opens on Shift+Enter too, for a keyboard with no F10 or Menu key", () => {
+    renderShell("/vault", <ContextMenuLayer />);
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "Enter", shiftKey: true });
+    const [first] = within(menu()).getAllByRole("menuitem");
+    expect(document.activeElement).toBe(first);
+  });
+
   it("asks twice before emptying the trash", () => {
     act(() => saveShowHidden(true));
     renderShell("/vault", <ContextMenuLayer />);

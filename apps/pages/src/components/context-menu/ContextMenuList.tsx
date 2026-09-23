@@ -25,7 +25,8 @@ type Live = {
 /**
  * While the menu is open it owns the keyboard — every key but Tab stops here,
  * so a `j` meant for the menu never moves the tree beneath it — and any
- * pointer-down outside it, a blur or a resize closes it.
+ * pointer-down outside it, a scroll, a blur or a resize closes it (a
+ * scrolled page would leave it pointing at a row that moved away).
  */
 function useMenuDismissal(
   own: RefObject<HTMLDivElement | null>,
@@ -66,15 +67,26 @@ function useMenuDismissal(
       live.current.onClose(false);
     };
     const away = () => live.current.onClose(false);
+    // Opening can nudge its own row into view (the cursor follows the row
+    // that was asked about); only a scroll after that is the person's.
+    const openedAt = performance.now();
+    const scrolled = (event: Event) => {
+      // A long sheet scrolls itself; that is reading the menu, not leaving.
+      if (event.target instanceof Node && own.current?.contains(event.target))
+        return;
+      if (performance.now() - openedAt > 250) away();
+    };
     window.addEventListener("keydown", onKey, true);
     document.addEventListener("pointerdown", onPointer, true);
     window.addEventListener("blur", away);
     window.addEventListener("resize", away);
+    window.addEventListener("scroll", scrolled, true);
     return () => {
       window.removeEventListener("keydown", onKey, true);
       document.removeEventListener("pointerdown", onPointer, true);
       window.removeEventListener("blur", away);
       window.removeEventListener("resize", away);
+      window.removeEventListener("scroll", scrolled, true);
     };
   }, [own, live, ignoreOutside]);
 }
@@ -142,6 +154,7 @@ export function ContextMenuList({
   style,
   listRef,
   ignoreOutside,
+  title,
 }: {
   groups: readonly MenuGroup[];
   label: string;
@@ -153,6 +166,8 @@ export function ContextMenuList({
   listRef?: (node: HTMLDivElement | null) => void;
   /** Pointer-downs inside this selector do not count as "outside". */
   ignoreOutside?: string;
+  /** Drawn above the entries where the menu is not beside what it is for. */
+  title?: string;
 }) {
   const items = groups.flat();
   const [active, setActive] = useState(() => stepIndex(items, -1, 1));
@@ -190,6 +205,11 @@ export function ContextMenuList({
       aria-label={label}
       onContextMenu={(event) => event.preventDefault()}
     >
+      {title ? (
+        <p className="ctxmenu__title" aria-hidden="true">
+          {title}
+        </p>
+      ) : null}
       {groups.map((group, groupIndex) => [
         groupIndex > 0 ? (
           <hr key={`sep-${group[0]?.id}`} className="ctxmenu__sep" />

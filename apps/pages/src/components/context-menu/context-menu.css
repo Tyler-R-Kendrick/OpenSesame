@@ -22,6 +22,49 @@
   position: fixed;
 }
 
+/* The phone arrangement: an action sheet on the bottom edge, full width,
+   above a scrim (`.sheet-layer` and `.scrim` are the app's own). It clears
+   the home indicator, and a long menu scrolls inside itself without handing
+   the flick to the page. */
+.ctxmenu--sheet {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  min-width: 0;
+  max-width: none;
+  max-height: min(75vh, 32rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  border-width: 1px 0 0;
+  border-radius: 0;
+  animation: ctxmenu-rise 160ms var(--ease);
+}
+
+.ctxmenu__title {
+  margin: 0;
+  font-family: inherit;
+  padding: 0.6rem 0.5rem 0.4rem;
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes ctxmenu-rise {
+  from {
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctxmenu--sheet {
+    animation: none;
+  }
+}
+
 .ctxmenu__sep {
   margin: 0.25rem 0;
   border: 0;
@@ -112,5 +155,16 @@
 
   .ctxmenu__hint {
     display: none;
+  }
+
+  /* Holding a row asks for its menu, so the platform must not answer the
+     hold first: no iOS link preview, no text-selection magnifier. */
+  .railtree__row,
+  .vtree__row,
+  .drawer__row,
+  .set__nav a {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
