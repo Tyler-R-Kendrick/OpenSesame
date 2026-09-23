@@ -180,18 +180,9 @@ impl Scheduler {
             .collect()
     }
 
-    #[must_use]
-    pub fn queue_len(&self) -> usize {
-        self.retries.len()
-    }
-
-    #[must_use]
-    pub fn parked(&self) -> Vec<Retry> {
-        self.retries
-            .values()
-            .filter(|r| r.parked)
-            .cloned()
-            .collect()
+    /// Every tracked retry, backing off or parked.
+    pub fn entries(&self) -> impl Iterator<Item = &Retry> {
+        self.retries.values()
     }
 
     /// Forget a certificate (revoked, deleted).

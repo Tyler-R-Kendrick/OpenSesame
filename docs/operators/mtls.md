@@ -395,7 +395,24 @@ profile and writes an audit event. The same holds for the service-binding set
 (`POST /api/v1/operator/transport/certificates/revoke` with `thumbprint`);
 an organization's configurators keep revocation of their own certificates by
 `certificate_id`, issuance, and the read-only status, trust, facts and
-renewal views. A trust write never re-activates a withdrawn generation and
+renewal views. The facts and renewal views are organization-scoped for a
+session: a target whose certificate another organization holds answers
+`404`, and the renewal queue lists only the caller's organization's
+entries; the deployment operator sees every target and the whole queue.
+
+A trust write is validated whole (every anchor builds, the document fits in
+64 KiB) and stored with a compare-and-set against the *stored* revision
+before it is activated, so a refused write — `400` for an oversized or
+unusable set, `500` when the store refuses — leaves the serving anchors
+exactly as they were, and two gateway processes holding the same revision
+cannot both win (the loser gets `409 stale_revision`). If activation fails
+after the store accepted the write, the previous profiles are stored again
+under the next revision, so no process is left serving a set the store does
+not hold. Every gateway process re-reads the stored trust set every 15 s
+(the bindings `REFRESH_INTERVAL`) and at boot before it serves, activating a
+newer revision — a removed anchor stops being trusted on the other replicas
+within that bound, not at their next restart — and never moving back to an
+older one. A trust write never re-activates a withdrawn generation and
 is refused (`generation_stale`) if the serving generation changed while it
 was being built. A bundle is never fetched or imported
 because a certificate, CSR, URL or manifest suggested it.
@@ -431,7 +448,7 @@ and audit lineage: the binding matches by name selector, and only a
 
 | Layer | Mechanism | Takes effect |
 |---|---|---|
-| New handshakes | Remove the root or add the thumbprint to `denied_thumbprints` (binding revision bump, CAS), optionally `P_CRL_FILE` | The next connection attempt in the process that took the write; other gateway processes sharing the store adopt the new binding revision within 15 s (`REFRESH_INTERVAL`) or on their next binding read or write. |
+| New handshakes | The revoke verb writes the thumbprint to the durable revoked-leaf denylist (`host_kv` `transport.revoked_leaves`), then to `denied_thumbprints` on every stored binding (binding revision bump, CAS retried on a lost race); or remove the root; optionally `P_CRL_FILE` | The next connection attempt in the process that took the write; other gateway processes sharing the store adopt the denylist and the new binding revision within 15 s (`REFRESH_INTERVAL`) or on their next binding read or write. The denylist is read before a restarted gateway serves (an unreadable denylist stops boot) and is consulted for every binding, including one created after the revocation. If either durable write cannot be applied the verb answers with an error (`409 stale_revision` after bounded retries, `500 storage_error`), not `200` — the leaf is already refused in the process that took the call; repeat the revocation, which is idempotent. |
 | Clients behind a trusted ingress | The same revoked-leaf hook is applied to the forwarded originating leaf, and a certificate-bound token naming a revoked leaf is refused (`evidence_revoked`) | The next forwarded request. |
 | Existing native HTTP connections | Every protected request re-resolves the binding and rechecks `denied_thumbprints`, the trust and credential generations, and `usable_until` (`authenticated_at + min(usable_for, certificate remaining)`) | The next protected request on that connection, and unconditionally when `usable_until` passes. |
 | NATS sessions | The callout response carries an authorization expiry the **server** enforces by disconnecting; the client's own timer is not relied on | The expiry issued at admission; shorten it in the callout policy if you need a tighter bound. A reissued decision on reconnect goes through admission again. |

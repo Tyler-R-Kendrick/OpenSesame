@@ -204,6 +204,9 @@ impl TrustProfileSet {
 pub struct ActivatedEpoch {
     pub revision: u32,
     pub next_overlap_expiry: Option<DateTime<Utc>>,
+    /// Every profile name the activated set stored, so a later activation
+    /// never mistakes a removed stored profile for a deployment-plane one.
+    pub names: std::collections::BTreeSet<TrustProfileRef>,
 }
 
 /// Why a trust write was refused.
@@ -280,4 +283,4 @@ pub fn bundles(
     Ok(out)
 }
 
-pub use crate::transport_lifecycle::trust_store::{load, put_cas, reconcile};
+pub use crate::transport_lifecycle::trust_store::{load, put_cas, reconcile, refresh};

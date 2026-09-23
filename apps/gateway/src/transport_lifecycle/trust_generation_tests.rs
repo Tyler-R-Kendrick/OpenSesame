@@ -178,3 +178,128 @@ async fn two_same_revision_writes_exactly_one_succeeds() {
         .any(|outcome| matches!(outcome, Err(TrustError::StaleRevision { current: 1 }))));
     assert_eq!(trust::load(&state).await.expect("load").revision, 1);
 }
+
+/// A second gateway process over the same store: its own lifecycle and its
+/// own serving generation, the database shared.
+fn replica(state: &AppState, client_ca: &DisposableCa) -> (AppState, Arc<TransportGenerations>) {
+    let other = AppState {
+        transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
+        ..state.clone()
+    };
+    let generations = attached(&other, client_ca);
+    (other, generations)
+}
+
+fn serves(generations: &TransportGenerations, name: &str) -> bool {
+    generations
+        .current()
+        .trust(&support::profile_ref(name))
+        .is_ok()
+}
+
+/// Replica B keeps nothing A removed past its next refresh, and a write B
+/// builds on the revision it last saw is refused against the stored one.
+#[tokio::test]
+async fn a_replica_adopts_a_removal_on_refresh_and_its_stale_write_is_refused() {
+    let client_ca = DisposableCa::new("clients");
+    let a = support::state().await;
+    let a_generations = attached(&a, &client_ca);
+    let (b, b_generations) = replica(&a, &client_ca);
+
+    trust::put_cas(&a, one_profile(0), "operator-a", false)
+        .await
+        .expect("A adds");
+    assert!(serves(&a_generations, "peers"));
+    assert!(!serves(&b_generations, "peers"), "B has not refreshed yet");
+    assert!(trust::refresh(&b, chrono::Utc::now())
+        .await
+        .expect("B refresh"));
+    assert!(serves(&b_generations, "peers"), "B adopts A's addition");
+
+    let removal = TrustProfileSet {
+        revision: 1,
+        profiles: Vec::new(),
+    };
+    trust::put_cas(&a, removal, "operator-a", false)
+        .await
+        .expect("A removes");
+    assert!(!serves(&a_generations, "peers"));
+    assert!(serves(&b_generations, "peers"), "B still on revision 1");
+    assert!(trust::refresh(&b, chrono::Utc::now())
+        .await
+        .expect("B refresh"));
+    assert!(
+        !serves(&b_generations, "peers"),
+        "B stops trusting the removed anchor without a restart",
+    );
+    assert!(
+        !trust::refresh(&b, chrono::Utc::now()).await.expect("again"),
+        "nothing newer: a refresh is a no-op",
+    );
+
+    // B still holds revision 1 in hand; the store is at 2.
+    let error = trust::put_cas(&b, one_profile(1), "operator-b", false)
+        .await
+        .expect_err("stale against the store");
+    assert!(
+        matches!(error, TrustError::StaleRevision { current: 2 }),
+        "{error:?}"
+    );
+    assert!(!serves(&b_generations, "peers"));
+    assert!(!serves(&a_generations, "peers"));
+    assert_eq!(trust::load(&a).await.expect("load").revision, 2);
+}
+
+/// A document over the size bound is refused before anything activates.
+#[tokio::test]
+async fn an_oversized_document_leaves_the_running_generation_unchanged() {
+    let state = support::state().await;
+    let generations = attached(&state, &DisposableCa::new("clients"));
+    let before = generations.current().number;
+    // Explanatory text outside the PEM blocks: each profile's anchors stay
+    // within their own bound and still build, the document as a whole
+    // does not fit.
+    let padding = "padding outside any pem block\n".repeat(1_400);
+    let padded = |name: &str| {
+        let mut stored = profile(name, &DisposableCa::new(name));
+        stored.anchors_pem.push_str(&padding);
+        stored
+    };
+    let oversized = TrustProfileSet {
+        revision: 0,
+        profiles: vec![padded("peers-a"), padded("peers-b")],
+    };
+    let error = trust::put_cas(&state, oversized, "operator", false)
+        .await
+        .expect_err("oversized");
+    assert!(matches!(error, TrustError::Invalid(_)), "{error:?}");
+    assert_eq!(error.http_status(), 400);
+    assert_eq!(generations.current().number, before, "nothing activated");
+    assert!(!serves(&generations, "peers-a"));
+    assert_eq!(trust::load(&state).await.expect("load").revision, 0);
+}
+
+/// A store that refuses the write leaves the serving anchors as they were.
+#[tokio::test]
+async fn a_store_failure_leaves_the_running_generation_unchanged() {
+    let state = support::state().await;
+    let generations = attached(&state, &DisposableCa::new("clients"));
+    let before = generations.current().number;
+    for event in ["INSERT", "UPDATE"] {
+        sqlx::query(&format!(
+            "CREATE TRIGGER trust_store_down_{event} BEFORE {event} ON host_kv \
+             WHEN NEW.key = '{}' BEGIN SELECT RAISE(ABORT, 'store down'); END",
+            trust::KV_TRUST_PROFILES,
+        ))
+        .execute(state.db.pool())
+        .await
+        .expect("trigger");
+    }
+    let error = trust::put_cas(&state, one_profile(0), "operator", false)
+        .await
+        .expect_err("store down");
+    assert!(matches!(error, TrustError::Storage(_)), "{error:?}");
+    assert_eq!(error.http_status(), 500);
+    assert_eq!(generations.current().number, before, "nothing activated");
+    assert!(!serves(&generations, "peers"));
+}

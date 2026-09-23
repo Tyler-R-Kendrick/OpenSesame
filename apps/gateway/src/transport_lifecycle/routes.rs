@@ -2,7 +2,8 @@
 //!
 //! Organization-scoped handlers (issuing a certificate for the caller's
 //! organization, revoking one of its certificates by id, reading trust,
-//! facts and the renewal queue) are configurator-gated exactly like
+//! facts and the renewal queue — the last two filtered to the caller's
+//! organization for a session caller) are configurator-gated exactly like
 //! `taskbus_config` (`resolve_caller` → `can_configure_integrations`).
 //! Deployment-scoped writes are the deployment operator's alone: replacing
 //! the trust profiles every listener verifies peers against, and revoking an
@@ -231,16 +232,31 @@ pub async fn put_trust(
 /// Issued, delivered, loaded, active, superseded, expired, revoked and
 /// enforcement-observed, each on its own, so a renewal that succeeded is
 /// never read as an installation that happened.
+///
+/// An organization's configurator reads only targets whose certificate its
+/// organization holds; any other target is `404`, the same answer as one
+/// that does not exist. The deployment operator reads every target.
 pub async fn get_facts(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(target): Path<String>,
 ) -> Response {
-    if let Err(response) = require_configurator(&state, &headers) {
-        return response;
-    }
+    let who = match require_configurator(&state, &headers) {
+        Ok(who) => who,
+        Err(response) => return response,
+    };
     if target.len() > 128 || !target.chars().all(|c| c.is_ascii_graphic()) {
         return refuse(400, "invalid_request", "target is not a bounded ascii name");
+    }
+    if let Caller::Session {
+        organization_id, ..
+    } = &who
+    {
+        match target_in_organization(&state, &target, organization_id).await {
+            Ok(true) => {}
+            Ok(false) => return refuse(404, "not_found", "no such transport target"),
+            Err(error) => return refuse(500, "storage_error", &error.to_string()),
+        }
     }
     match facts::load(&state, &target).await {
         Ok(loaded) => (
@@ -257,21 +273,56 @@ pub async fn get_facts(
     }
 }
 
+/// Whether `target` (a certificate id, or a listener target serving one)
+/// names a certificate `organization` holds.
+async fn target_in_organization(
+    state: &AppState,
+    target: &str,
+    organization: &opensesame_domain::OrganizationId,
+) -> anyhow::Result<bool> {
+    let certificate = state
+        .transport_lifecycle
+        .certificate_for(target)
+        .unwrap_or_else(|| target.to_owned());
+    Ok(state
+        .db
+        .get_certificate(&organization.to_string(), &certificate)
+        .await?
+        .is_some())
+}
+
 /// `GET /api/v1/operator/transport/renewals`
 ///
 /// The retry queue: what is backing off, what parked, and how many failures
 /// the queue refused to take. A parked certificate is the visible failure
 /// ADR 0052 §11 asks for; it also rang the bell as a `SecurityNotice`.
+///
+/// An organization's configurator sees its own organization's entries only;
+/// the deployment operator sees the whole queue.
 pub async fn get_renewals(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    if let Err(response) = require_configurator(&state, &headers) {
-        return response;
-    }
+    let who = match require_configurator(&state, &headers) {
+        Ok(who) => who,
+        Err(response) => return response,
+    };
+    let only = match &who {
+        Caller::Operator => None,
+        Caller::Session {
+            organization_id, ..
+        } => Some(organization_id.to_string()),
+    };
     let (queued, parked, overflowed) = state.transport_lifecycle.with_scheduler(|scheduler| {
+        let visible: Vec<_> = scheduler
+            .entries()
+            .filter(|retry| {
+                only.as_ref()
+                    .is_none_or(|org| &retry.organization_id == org)
+            })
+            .collect();
         (
-            scheduler.queue_len(),
-            scheduler
-                .parked()
-                .into_iter()
+            visible.len(),
+            visible
+                .iter()
+                .filter(|retry| retry.parked)
                 .map(|retry| {
                     json!({
                         "certificate_id": retry.certificate_id,

@@ -20,10 +20,12 @@
 //! | [`renewal`] | the lifecycle-feed subscriber, lease, bounded retry with jitter |
 //! | [`activation`] | candidate → `TransportGenerations::activate`, facts either way |
 //! | [`revocation`] | denylist, binding denials, the revoke verb |
+//! | [`revocation_store`] | the durable denylist, the retried binding denial |
 //! | [`crl`] | CRL freshness: stale is `degraded`, never silently ignored |
 //! | [`minting`] | the leaf shape a purpose implies, and the signing itself |
 //! | [`pem_reload`] | re-reading an externally renewed `pem` listener pair |
 //! | [`trust`] | operator trust profiles: validation, CAS, overlap rollover, re-activation |
+//! | [`trust_activate`] | building a stored set's candidate, and swapping it in |
 //! | [`facts`] | the independent per-target facts, persisted in `host_kv` |
 //! | [`routes`] | the operator routes, merged by the coordinator |
 
@@ -37,8 +39,10 @@ pub mod minting;
 pub mod pem_reload;
 pub mod renewal;
 pub mod revocation;
+pub mod revocation_store;
 pub mod routes;
 pub mod trust;
+pub mod trust_activate;
 pub mod trust_store;
 
 #[cfg(test)]
@@ -53,6 +57,8 @@ mod issuance_tests;
 mod pem_reload_tests;
 #[cfg(test)]
 mod renewal_tests;
+#[cfg(test)]
+mod revocation_durable_tests;
 #[cfg(test)]
 mod revocation_tests;
 #[cfg(test)]
@@ -176,6 +182,16 @@ impl LifecycleState {
             .write()
             .unwrap_or_else(poisoned)
             .insert(target.to_owned(), certificate_id.to_owned());
+    }
+
+    /// The certificate `target` serves, if one was bound.
+    #[must_use]
+    pub fn certificate_for(&self, target: &str) -> Option<String> {
+        self.targets
+            .read()
+            .unwrap_or_else(poisoned)
+            .get(target)
+            .cloned()
     }
 
     /// Every target currently serving `certificate_id`.

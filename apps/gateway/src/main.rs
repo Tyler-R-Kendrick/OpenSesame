@@ -67,10 +67,15 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(lifecycle::scanner::run(state.clone()));
     // Transport renewal retries and bounded trust-overlap reconcile (ADR 0132).
     transport_lifecycle::boot::attach(&state);
+    // The durable revoked-leaf denylist and the stored trust profiles are in
+    // force before anything is served; an unreadable denylist stops boot.
+    transport_lifecycle::boot::restore(&state).await?;
     tokio::spawn(transport_lifecycle::renewal::run(state.clone()));
     // Replicas sharing one store converge on the stored binding set within
     // `transport::bindings::REFRESH_INTERVAL` (a revocation's denials above all).
     tokio::spawn(transport::bindings::run_refresh(state.clone()));
+    // …and on the stored trust profiles and revoked-leaf denylist, same cadence.
+    tokio::spawn(transport_lifecycle::boot::run_refresh(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
     // saga — claim under lease, exponential backoff, visible dead letters.
     tokio::spawn(security::delivery::run(state.clone()));

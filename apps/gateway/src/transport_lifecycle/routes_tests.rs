@@ -162,3 +162,64 @@ async fn an_organization_admin_keeps_its_organization_scoped_routes() {
     assert_ne!(status, StatusCode::FORBIDDEN);
     assert_ne!(status, StatusCode::UNAUTHORIZED);
 }
+
+fn member(state: &AppState, organization: OrganizationId) -> HeaderMap {
+    crate::app_state::test_session_headers(
+        state,
+        crate::test_principals::P01,
+        organization,
+        OrganizationRole::Admin,
+    )
+}
+
+/// Facts and the renewal queue are read within the caller's organization:
+/// another organization's target is a `404`, and its parked certificates,
+/// attempt counts and failure codes are not listed. The deployment operator
+/// still reads both.
+#[tokio::test]
+async fn facts_and_renewals_stay_inside_the_callers_organization() {
+    let state = support::state().await;
+    let (owner, other) = (OrganizationId::new(), OrganizationId::new());
+    support::seed_authority(&state, &owner).await;
+    let issued = crate::transport_lifecycle::issuance::issue_for_transport(
+        &state,
+        &owner,
+        support::listener_request("owner.test"),
+        "operator",
+    )
+    .await
+    .expect("issue");
+    let certificate = issued.certificate_id;
+    let facts = format!("/api/v1/operator/transport/facts/{certificate}");
+
+    let (status, body) = call(&state, "GET", &facts, member(&state, owner), None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["target"], certificate.as_str());
+    let (status, body) = call(&state, "GET", &facts, member(&state, other), None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert!(body.get("history").is_none());
+    let (status, _) = call(&state, "GET", &facts, operator(&state), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let now = chrono::Utc::now();
+    let tenant = owner.to_string();
+    state.transport_lifecycle.with_scheduler(|scheduler| {
+        for _ in 0..crate::transport_lifecycle::renewal::MAX_ATTEMPTS {
+            scheduler.claim(&tenant, &certificate, now);
+            scheduler.release_failure(&tenant, &certificate, "issuer_unavailable", now, 0.0);
+        }
+    });
+    let renewals = "/api/v1/operator/transport/renewals";
+    let (status, body) = call(&state, "GET", renewals, member(&state, other), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["queued"], 0, "{body}");
+    assert_eq!(body["parked"], json!([]), "{body}");
+    assert!(!body.to_string().contains(&certificate));
+    for headers in [member(&state, owner), operator(&state)] {
+        let (status, body) = call(&state, "GET", renewals, headers, None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["queued"], 1, "{body}");
+        assert_eq!(body["parked"][0]["certificate_id"], certificate.as_str());
+        assert_eq!(body["parked"][0]["last_code"], "issuer_unavailable");
+    }
+}
