@@ -312,6 +312,9 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
     execute: async (args) => {
       requireUnlocked();
       const item = findItem(str(args, "itemId"));
+      // A live code is the second factor itself: the same share reach as a
+      // read, checked before the rate-limit ledger is touched.
+      await assertItemReach(item.id, "read");
       if (item.kind !== "login" || item.totp === "") {
         throw new Error("item_has_no_totp");
       }
@@ -346,9 +349,10 @@ export const OPEN_REVEAL_TOOL: PagesWebMcpTool = {
     required: ["itemId"],
     additionalProperties: false,
   },
-  execute: (args) => {
+  execute: async (args) => {
     requireUnlocked();
     const item = findItem(str(args, "itemId"));
+    await assertItemReach(item.id, "read");
     return ceremonyOpened(`/vault/${encodeURIComponent(item.id)}`);
   },
 };

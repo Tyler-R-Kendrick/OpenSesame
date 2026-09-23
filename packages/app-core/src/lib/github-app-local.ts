@@ -5,19 +5,27 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import { createItem } from "@opensesame/vault-core";
 /**
- * Local GitHub App record, PEM stash, claim, and install listing.
- * Registration URLs live in `github-app-manifest.ts`.
+ * Local GitHub App record, claim, and install listing. The App's secret
+ * (memory until sealed, then a bound vault item) lives in
+ * `github-app-secret.ts`. Registration URLs live in `github-app-manifest.ts`.
  */
 import { maybeLocalStore, sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
-import { GUEST_TOMB, vaultStore } from "./vault/store.js";
+import {
+  adoptLegacyPendingPem,
+  forgetGithubAppSecret,
+  sealPendingGithubAppSecret,
+} from "./github-app-secret.js";
+
+export {
+  hasPendingGithubAppSecret,
+  pemFromVault,
+  stashPendingGithubAppSecret,
+} from "./github-app-secret.js";
 
 const PUBLIC_KEY = "opensesame.github-app.public";
-/** Held only until the vault can seal the PEM (claim may land before unlock). */
-const PENDING_PEM_KEY = "opensesame.github-app.pending-pem";
 const STATE_KEY = "opensesame.github-app.state";
 
 const localAppListeners = new Set<() => void>();
@@ -36,13 +44,9 @@ function notifyLocalGithubApp(): void {
 
 /** Drop the local App record (uninstall on GitHub or Remove on this device). */
 export function forgetLocalGithubApp(): void {
-  const store = maybeLocalStore();
-  if (store) {
-    store.removeItem(PUBLIC_KEY);
-    store.removeItem(PENDING_PEM_KEY);
-  }
+  maybeLocalStore()?.removeItem(PUBLIC_KEY);
+  forgetGithubAppSecret();
   try {
-    sessionStore().removeItem(PENDING_PEM_KEY);
     sessionStore().removeItem(STATE_KEY);
   } catch {
     /* private mode */
@@ -115,6 +119,12 @@ let cachedPublicRaw: string | null = null;
 let cachedPublicApp: LocalGithubApp | null = null;
 
 export function readLocalGithubApp(): LocalGithubApp | null {
+  const app = readPublicRecord();
+  adoptLegacyPendingPem(app);
+  return app;
+}
+
+function readPublicRecord(): LocalGithubApp | null {
   const store = maybeLocalStore();
   if (!store) return null;
   const raw = store.getItem(PUBLIC_KEY);
@@ -172,85 +182,10 @@ export function rememberLocalGithubApp(app: LocalGithubApp): void {
   if (previous !== raw) notifyLocalGithubApp();
 }
 
-export async function sealGithubAppSecret(
-  name: string,
-  secret: string,
-): Promise<void> {
-  const item = createItem("secret", name);
-  item.value = secret;
-  await vaultStore.addItems([item]);
-}
-
-export function clearPendingPemIfOwned(): void {
-  if (!readLocalGithubApp()?.ownerLogin) return;
-  // Guest cannot seal the PEM (wipe on lock). Keep pending until a durable vault.
-  const snap = vaultStore.getSnapshot();
-  if (snap.guest || snap.tomb === "guest") return;
-  clearPendingPem();
-}
-
-export function stashPendingPem(secret: string): void {
-  if (!secret.includes("PRIVATE KEY")) return;
-  const store = maybeLocalStore();
-  if (store) store.setItem(PENDING_PEM_KEY, secret);
-  else sessionStore().setItem(PENDING_PEM_KEY, secret);
-}
-
-function clearPendingPem(): void {
-  sessionStore().removeItem(PENDING_PEM_KEY);
-  maybeLocalStore()?.removeItem(PENDING_PEM_KEY);
-}
-
-export function pendingPem(): string | null {
-  const raw =
-    maybeLocalStore()?.getItem(PENDING_PEM_KEY) ??
-    sessionStore().getItem(PENDING_PEM_KEY);
-  if (!raw || !raw.includes("PRIVATE KEY")) return null;
-  const pemStart = raw.indexOf("-----BEGIN");
-  return pemStart >= 0 ? raw.slice(pemStart) : raw.trim();
-}
-
-function extractPem(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed.includes("BEGIN") && trimmed.includes("PRIVATE KEY")) {
-    const pemStart = trimmed.indexOf("-----BEGIN");
-    return pemStart >= 0 ? trimmed.slice(pemStart) : trimmed;
-  }
-  return null;
-}
-
-export function pemFromVault(appName: string): string | null {
-  if (vaultStore.getSnapshot().tomb === GUEST_TOMB) return null;
-  const pending = pendingPem();
-  if (pending) return pending;
-  const { status, items } = vaultStore.getSnapshot();
-  if (status !== "unlocked") return null;
-  for (const item of items) {
-    if (item.kind !== "secret") continue;
-    if (item.name !== appName) continue;
-    const pem = extractPem(item.value);
-    if (pem) return pem;
-  }
-  for (const item of items) {
-    if (item.kind !== "secret") continue;
-    const pem = extractPem(item.value);
-    if (pem) return pem;
-  }
-  return null;
-}
-
-/** Seal a pending PEM once the vault is unlocked, then list installs. */
+/** Seal a pending App secret once a durable vault is unlocked. */
 export async function sealPendingGithubAppPem(): Promise<void> {
-  const app = readLocalGithubApp();
-  const secret = pendingPem();
-  if (!app || !secret) return;
-  const { status, tomb } = vaultStore.getSnapshot();
-  if (status !== "unlocked" || tomb === "guest") return;
-  try {
-    await sealGithubAppSecret(app.displayName, secret);
-  } catch {
-    // Stay pending until the next unlock.
-  }
+  readLocalGithubApp();
+  await sealPendingGithubAppSecret();
 }
 
 function slugFromHtmlUrl(htmlUrl: string | null): string | null {
@@ -300,7 +235,6 @@ export async function refreshGithubAppOwner(
       ownerType,
     };
     rememberLocalGithubApp(next);
-    clearPendingPemIfOwned();
     return next;
   } catch {
     return app;

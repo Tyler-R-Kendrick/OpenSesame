@@ -98,7 +98,7 @@ type AppCredentials = {
 
 function credentialsDefault(): AppCredentials | null {
   const app = readLocalGithubApp();
-  const pem = app ? pemFromVault(app.displayName) : null;
+  const pem = app ? pemFromVault(app) : null;
   if (!app?.id || !pem || app.installations.length === 0) return null;
   return {
     appId: app.id,
