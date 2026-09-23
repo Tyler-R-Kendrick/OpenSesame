@@ -79,7 +79,10 @@ pub async fn pinned_client(url: &Url, timeout: Duration) -> Result<reqwest::Clie
         .timeout(timeout)
         // A redirect is a response, never a chase: following one would let an
         // allowed host hand us an address the fence already refused.
-        .redirect(reqwest::redirect::Policy::none());
+        .redirect(reqwest::redirect::Policy::none())
+        // An environment proxy resolves the name itself, which would bypass
+        // the addresses pinned below.
+        .no_proxy();
     let builder = match url.host() {
         Some(Host::Domain(name)) => {
             let port = url.port_or_known_default().unwrap_or(443);
@@ -127,6 +130,13 @@ mod tests {
         assert!(matches!(vet(&[public, private]), Err(Refusal::Blocked(_))));
         assert!(matches!(vet(&[]), Err(Refusal::Unresolved(_))));
         assert!(vet(&[public]).is_ok());
+    }
+
+    #[test]
+    fn the_pinned_client_never_uses_an_environment_proxy() {
+        let src = include_str!("endpoint_fence.rs");
+        let body = &src[src.find("pub async fn pinned_client").unwrap()..];
+        assert!(body.contains(".no_proxy()"));
     }
 
     #[tokio::test]
