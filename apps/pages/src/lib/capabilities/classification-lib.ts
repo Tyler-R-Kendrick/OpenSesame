@@ -150,6 +150,7 @@ const LOCAL_IAM_FILES = [
   "local-agent-keys",
   "local-application-approval",
   "local-application-policy",
+  "local-application-shape",
   "local-applications",
   "local-authenticator",
   "local-authorization",

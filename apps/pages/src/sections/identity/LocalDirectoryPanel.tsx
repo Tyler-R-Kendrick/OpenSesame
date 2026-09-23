@@ -1,12 +1,12 @@
 import { kvDurability } from "@opensesame/app-core/lib/kv.js";
 import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
+import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import {
   type LocalDirectory,
   type LocalDirectoryChange,
   LocalDirectoryError,
   type LocalIdentity,
   type LocalIdentityKind,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";

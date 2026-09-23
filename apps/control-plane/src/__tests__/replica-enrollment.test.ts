@@ -3,10 +3,16 @@ import * as schema from "@opensesame/database/schema";
 import { isString, overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { DurableJwtReplayCache } from "../repos/durable-jwt-replay.js";
 import { DurableMap } from "../repos/durable-map.js";
+
+// Each PGlite test here boots a database and applies every migration inside
+// the test itself; on a loaded CI runner that alone took most of the
+// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
+// budget the beforeAll-based PGlite suites give the identical setup.
+vi.setConfig({ testTimeout: 60_000 });
 
 const OPERATOR = "replica-operator-token";
 const PEPPER = "replica-test-only-claim-pepper-32chars";

@@ -5,6 +5,7 @@ import {
   type ClientClaimChallengeStore,
   type ClientRecordStore,
   type OAuthClientRecord,
+  OAuthClientSectorClaimedError,
   createPostgresClientClaimChallengeStore,
   createPostgresClientRecordStore,
 } from "../src/index.js";
@@ -141,6 +142,7 @@ describe("createPostgresClientRecordStore", () => {
         admissionMode: "origin_profile",
         displayName: "Duplicate origin",
         sectorIdentifier: client.origin,
+        sectorKey: `dup-${randomUUID()}`,
         tokenEndpointAuthMethod: "none",
         state: "active",
         origin: client.origin,
@@ -174,14 +176,20 @@ describe("createPostgresClientRecordStore", () => {
         updatedAt: new Date(),
       }),
     );
-    const foreign = await clients.insertAtomic(
+    // One owner may hold a sector across clients; another owner may not.
+    const mine2 = await clients.insertAtomic(
       makeClient({
-        ownerPrincipalId: other.id,
+        ownerPrincipalId: owner.id,
         sectorIdentifier: sector,
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
     );
+    await expect(
+      clients.insertAtomic(
+        makeClient({ ownerPrincipalId: other.id, sectorIdentifier: sector }),
+      ),
+    ).rejects.toBeInstanceOf(OAuthClientSectorClaimedError);
     const third = await clients.insertAtomic(
       makeClient({
         ownerPrincipalId: owner.id,
@@ -191,14 +199,16 @@ describe("createPostgresClientRecordStore", () => {
     );
 
     const owned = await clients.listByOwner(owner.id);
-    expect(owned.map((c) => c.id).sort()).toEqual([mine.id, third.id].sort());
-    expect(owned).toHaveLength(2);
+    expect(owned.map((c) => c.id).sort()).toEqual(
+      [mine.id, mine2.id, third.id].sort(),
+    );
+    expect(owned).toHaveLength(3);
     expect(owned.every((c) => c.ownerPrincipalId === owner.id)).toBe(true);
     expect(owned[0]?.createdAt).toBeInstanceOf(Date);
 
     const bySector = await clients.findBySectorIdentifier(sector);
     expect(bySector.map((c) => c.id).sort()).toEqual(
-      [mine.id, foreign.id].sort(),
+      [mine.id, mine2.id].sort(),
     );
     expect(
       await clients.findBySectorIdentifier(

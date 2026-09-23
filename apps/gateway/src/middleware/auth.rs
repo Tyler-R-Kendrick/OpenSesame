@@ -76,6 +76,7 @@ pub fn require_session(
     let bound = meta.dpop_jkt.is_some();
     let agent = meta.credential_kind == crate::session_claims::CredentialKind::AgentCapability;
     if agent != token.starts_with("agent-capability:")
+        || (agent && !auth.starts_with(crate::middleware::agent_grants::AGENT_BEARER))
         || (agent && headers.contains_key("dpop"))
         || bound != auth.starts_with("DPoP ")
         || (bound && (origin != meta.origin.as_deref() || !headers.contains_key("dpop")))

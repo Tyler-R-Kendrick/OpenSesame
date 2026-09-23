@@ -4,7 +4,8 @@ import {
   CreateOAuthClientRequestSchema,
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
-import type { OAuthClientRecord } from "@opensesame/os-domain";
+import { canonicalSectorIdentifier } from "@opensesame/oauth-provider";
+import { type OAuthClientRecord, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -18,6 +19,13 @@ import {
   toResponse,
   toStoreRecord,
 } from "./oauth-client-map.js";
+import {
+  SECTOR_TAKEN,
+  rotationRefusal,
+  sectorClaimedByAnother,
+  sectorControlRefusal,
+  sectorTakenOrThrow,
+} from "./oauth-client-sector.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
@@ -96,27 +104,6 @@ async function assertRegistrationQuota(
   return null;
 }
 
-/**
- * A sector identifier may not be claimed across owners.
- *
- * Two clients sharing a sector see the same pairwise subject for the same
- * person, which is exactly the linkage pairwise subjects exist to prevent.
- * Sharing one between a single owner's clients is a legitimate choice; taking
- * another owner's sector is a way to learn the `sub` they see.
- */
-async function sectorClaimedByAnother(
-  ctx: AppContext,
-  principalId: string,
-  sectorIdentifier: string,
-): Promise<boolean> {
-  const claimants =
-    await ctx.stores.oauthClients.findBySectorIdentifier(sectorIdentifier);
-  return claimants.some(
-    (client) =>
-      client.state !== "revoked" && client.ownerPrincipalId !== principalId,
-  );
-}
-
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
@@ -141,17 +128,29 @@ oauthClientRoutes.post(
       );
     }
 
+    const denied = await assertVerified(ctx, principalId, "register");
+    if (denied) return denied;
+    // Sector control is proven before the lock: it may fetch a document.
+    const unproven = await sectorControlRefusal(
+      ctx,
+      parsed.data.sectorIdentifier,
+      parsed.data.redirectUris,
+      parsed.data.sectorIdentifierUri,
+    );
+    if (unproven) return unproven;
+
     // ponytail: registration is low-volume; one lock also makes sector ownership
     // atomic. Split into durable principal/sector locks if registration throughput matters.
     return serializeKeyed(
       ctx.stores.principalMutations,
       "oauth-clients",
       async () => {
-        const denied = await assertVerified(ctx, principalId, "register");
-        if (denied) return denied;
         const overQuota = await assertRegistrationQuota(ctx, principalId);
         if (overQuota) return overQuota;
 
+        const sectorIdentifier = canonicalSectorIdentifier(
+          parsed.data.sectorIdentifier,
+        );
         if (parsed.data.admissionMode !== "pre_registered") {
           return c.json(
             {
@@ -163,21 +162,8 @@ oauthClientRoutes.post(
           );
         }
 
-        if (
-          await sectorClaimedByAnother(
-            ctx,
-            principalId,
-            parsed.data.sectorIdentifier,
-          )
-        ) {
-          return c.json(
-            {
-              error: "sector_identifier_taken",
-              message:
-                "another principal already registered a client under this sectorIdentifier",
-            },
-            409,
-          );
+        if (await sectorClaimedByAnother(ctx, principalId, sectorIdentifier)) {
+          return c.json(SECTOR_TAKEN, 409);
         }
 
         const now = ctx.clock();
@@ -187,7 +173,7 @@ oauthClientRoutes.post(
           admissionMode: "pre_registered",
           displayName: parsed.data.displayName,
           redirectUris: parsed.data.redirectUris,
-          sectorIdentifier: parsed.data.sectorIdentifier,
+          sectorIdentifier,
           grantTypes: parsed.data.grantTypes,
           responseTypes: parsed.data.responseTypes,
           tokenEndpointAuthMethod: parsed.data.tokenEndpointAuthMethod,
@@ -205,7 +191,11 @@ oauthClientRoutes.post(
             400,
           );
         }
-        await ctx.stores.oauthClients.insertAtomic(toStoreRecord(client));
+        try {
+          await ctx.stores.oauthClients.insertAtomic(toStoreRecord(client));
+        } catch (err) {
+          return sectorTakenOrThrow(overlapCast(err));
+        }
 
         await appendAuditEvent(ctx.repos.auditEvents, {
           eventType: "oauth_client.created",
@@ -277,6 +267,15 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   if (publicCc) {
     return c.json({ error: "invalid_client_auth", message: publicCc }, 400);
   }
+  if (parsed.data.redirectUris !== undefined) {
+    const unproven = await sectorControlRefusal(
+      ctx,
+      next.sectorIdentifier,
+      next.redirectUris,
+      parsed.data.sectorIdentifierUri,
+    );
+    if (unproven) return unproven;
+  }
   await ctx.stores.oauthClients.update(toStoreRecord(next));
 
   await appendAuditEvent(ctx.repos.auditEvents, {
@@ -300,6 +299,13 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
+  const refused = await rotationRefusal(
+    ctx,
+    principalId,
+    client.id,
+    client.sectorIdentifier,
+  );
+  if (refused) return refused;
   const now = ctx.clock();
   const rotated: OAuthClientRecord = {
     ...client,
@@ -307,6 +313,16 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     createdAt: now,
     updatedAt: now,
   };
+  // The successor claims the sector before the old id retires, so a rotation
+  // the claim refuses changes nothing. `successorOf` re-decides the pre-check
+  // under the claim lock: a release that lands in between refuses it.
+  try {
+    await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated), {
+      successorOf: client.id,
+    });
+  } catch (err) {
+    return sectorTakenOrThrow(overlapCast(err));
+  }
   await ctx.stores.oauthClients.update(
     toStoreRecord({
       ...client,
@@ -314,7 +330,6 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
       updatedAt: now,
     }),
   );
-  await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated));
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "oauth_client.rotated",

@@ -7,12 +7,14 @@ use clap::Subcommand;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use opensesame_sealed_store::{
     discover_piv_age, protect_add_store_age_recipient, protect_add_store_recovery,
-    protect_list_store, protect_remove_store, protect_rewrap_store_password,
-    protect_root_rotate_store, protect_test_store_password, protect_test_store_recovery,
+    protect_list_store, protect_test_store_password, protect_test_store_recovery,
     refuse_destructive_ykman, resolve_sops_bin, sops_decrypt, sops_encrypt, SopsFormat,
 };
 
-use crate::store::{prompt_password, require_reveal, resolve_root};
+use crate::store::{prompt_password, prompt_secret_hidden, require_reveal, resolve_root};
+
+mod rotate;
+use rotate::{cmd_protect_remove, cmd_protect_rewrap, cmd_protect_root_rotate, RotateArgs};
 
 #[derive(Subcommand, Debug)]
 pub enum PassProtectCmd {
@@ -35,20 +37,30 @@ pub enum PassProtectCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
-    /// Remove a protector by id.
+    /// Remove a protector by id and rotate the root key so it stops opening the store.
     Remove {
         protector_id: String,
         #[arg(long)]
         yes: bool,
+        /// Keep the root key: the removed protector still opens the store via history.
+        #[arg(long)]
+        no_rotate: bool,
+        #[command(flatten)]
+        rotate: RotateArgs,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
         tomb: Option<String>,
     },
-    /// Rewrap the password protector under a new passphrase.
+    /// Set a new passphrase and rotate the root key so the old one stops opening the store.
     Rewrap {
         #[arg(long)]
         yes: bool,
+        /// Keep the root key: the old passphrase still opens the store via history.
+        #[arg(long)]
+        no_rotate: bool,
+        #[command(flatten)]
+        rotate: RotateArgs,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
@@ -59,12 +71,15 @@ pub enum PassProtectCmd {
         #[command(subcommand)]
         cmd: PassProtectRecoveryCmd,
     },
-    /// Rotate the store root key (requires deliberate content-key consent).
+    /// Rotate the store root key, re-encrypting every entry and attachment.
     RootRotate {
         #[arg(long)]
         yes: bool,
-        #[arg(long)]
+        /// Accepted for older scripts; re-encryption is now always part of rotation.
+        #[arg(long, hide = true)]
         allow_content_key_change: bool,
+        #[command(flatten)]
+        rotate: RotateArgs,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
@@ -108,9 +123,10 @@ pub enum PassProtectRecoveryCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
-    /// Test a recovery key (base64url) without printing secrets.
+    /// Test a recovery key without printing secrets. The key (base64url) is read
+    /// from a hidden prompt or stdin — never argv, which shell history and
+    /// `/proc/<pid>/cmdline` keep.
     Test {
-        recovery: String,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
@@ -145,22 +161,22 @@ pub fn run(cmd: PassProtectCmd) -> anyhow::Result<()> {
             }
         },
         PassProtectCmd::Test { path, tomb } => cmd_protect_test(path.as_deref(), tomb.as_deref()),
-        PassProtectCmd::Remove { protector_id, yes, path, tomb } => {
-            cmd_protect_remove(&protector_id, path.as_deref(), tomb.as_deref(), yes)
+        PassProtectCmd::Remove { protector_id, yes, no_rotate, rotate, path, tomb } => {
+            cmd_protect_remove(&protector_id, path.as_deref(), tomb.as_deref(), yes, no_rotate, rotate)
         }
-        PassProtectCmd::Rewrap { yes, path, tomb } => {
-            cmd_protect_rewrap(path.as_deref(), tomb.as_deref(), yes)
+        PassProtectCmd::Rewrap { yes, no_rotate, rotate, path, tomb } => {
+            cmd_protect_rewrap(path.as_deref(), tomb.as_deref(), yes, no_rotate, rotate)
         }
         PassProtectCmd::Recovery { cmd } => match cmd {
             PassProtectRecoveryCmd::Add { yes, reveal, path, tomb } => {
                 cmd_protect_add_recovery(path.as_deref(), tomb.as_deref(), yes, reveal)
             }
-            PassProtectRecoveryCmd::Test { recovery, path, tomb } => {
-                cmd_protect_recovery_test(&recovery, path.as_deref(), tomb.as_deref())
+            PassProtectRecoveryCmd::Test { path, tomb } => {
+                cmd_protect_recovery_test(path.as_deref(), tomb.as_deref())
             }
         },
-        PassProtectCmd::RootRotate { yes, allow_content_key_change, path, tomb } => {
-            cmd_protect_root_rotate(path.as_deref(), tomb.as_deref(), yes, allow_content_key_change)
+        PassProtectCmd::RootRotate { yes, rotate, path, tomb, .. } => {
+            cmd_protect_root_rotate(path.as_deref(), tomb.as_deref(), yes, rotate)
         }
         PassProtectCmd::PivDiscover {} => cmd_protect_piv_discover(),
         PassProtectCmd::Sops { cmd } => match cmd {
@@ -196,24 +212,6 @@ pub fn cmd_protect_test(path: Option<&Path>, tomb: Option<&str>) -> anyhow::Resu
     let password = prompt_password("Store passphrase")?;
     protect_test_store_password(&root, password.as_bytes())?;
     eprintln!("ok");
-    Ok(())
-}
-
-pub fn cmd_protect_rewrap(
-    path: Option<&Path>,
-    tomb: Option<&str>,
-    yes: bool,
-) -> anyhow::Result<()> {
-    require_yes(yes, "rewrap")?;
-    let root = resolve_root(path, tomb)?;
-    let old = prompt_password("Current store passphrase")?;
-    let new = prompt_password("New store passphrase")?;
-    let confirm = prompt_password("Confirm new store passphrase")?;
-    if new != confirm {
-        anyhow::bail!("passphrases do not match");
-    }
-    protect_rewrap_store_password(&root, old.as_bytes(), new.as_bytes())?;
-    eprintln!("rewrap ok");
     Ok(())
 }
 
@@ -254,26 +252,9 @@ pub fn cmd_protect_add_age(
     Ok(())
 }
 
-pub fn cmd_protect_remove(
-    protector_id: &str,
-    path: Option<&Path>,
-    tomb: Option<&str>,
-    yes: bool,
-) -> anyhow::Result<()> {
-    require_yes(yes, "remove protector")?;
+pub fn cmd_protect_recovery_test(path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
     let root = resolve_root(path, tomb)?;
-    let password = prompt_password("Store passphrase")?;
-    protect_remove_store(&root, password.as_bytes(), protector_id)?;
-    eprintln!("removed {protector_id}");
-    Ok(())
-}
-
-pub fn cmd_protect_recovery_test(
-    recovery_b64: &str,
-    path: Option<&Path>,
-    tomb: Option<&str>,
-) -> anyhow::Result<()> {
-    let root = resolve_root(path, tomb)?;
+    let recovery_b64 = prompt_secret_hidden("Recovery key (base64url)")?;
     let bytes = URL_SAFE_NO_PAD
         .decode(recovery_b64.trim())
         .map_err(|e| anyhow::anyhow!("recovery key decode: {e}"))?;
@@ -284,20 +265,6 @@ pub fn cmd_protect_recovery_test(
     key.copy_from_slice(&bytes);
     protect_test_store_recovery(&root, &key)?;
     eprintln!("ok");
-    Ok(())
-}
-
-pub fn cmd_protect_root_rotate(
-    path: Option<&Path>,
-    tomb: Option<&str>,
-    yes: bool,
-    allow_content_key_change: bool,
-) -> anyhow::Result<()> {
-    require_yes(yes, "root-rotate")?;
-    let root = resolve_root(path, tomb)?;
-    let password = prompt_password("Store passphrase")?;
-    let _vrk = protect_root_rotate_store(&root, password.as_bytes(), allow_content_key_change)?;
-    eprintln!("root-rotate ok (entries may need lifecycle rebind)");
     Ok(())
 }
 

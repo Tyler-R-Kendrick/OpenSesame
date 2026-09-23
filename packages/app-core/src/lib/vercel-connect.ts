@@ -17,9 +17,16 @@ export { toConnectConnection } from "./vercel-connect-map.js";
 export const CONNECT_API = "https://api.vercel.com";
 
 export type VercelConnectAuth = {
+  /** Direct-transport Vercel token; empty when only the relay is used. */
   token: string;
   teamId?: string;
   projectId?: string;
+  /**
+   * The relay operator's management key (`OPENSESAME_CONNECT_MANAGE_KEY`):
+   * sent as a bearer on relay create/authorize/revoke, sealed in the tomb
+   * with the rest of this record, never written in the clear.
+   */
+  manageKey?: string;
 };
 
 export class ConnectError extends Error {

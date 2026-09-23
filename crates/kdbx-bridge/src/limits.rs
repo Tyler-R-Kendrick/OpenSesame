@@ -7,15 +7,19 @@
 //! amount of CPU, and it costs the attacker a few bytes of header.
 //!
 //! `keepass` has no API for inspecting the outer header without deriving, so
-//! this module walks the KDBX 4 outer header itself — bounds-checked, no
-//! allocation, no crypto — and refuses obviously hostile work factors up
-//! front. `KeePass`'s own limits are far below these; a real database written by
-//! any mainstream client passes.
+//! this module walks the outer header itself — bounds-checked, no allocation,
+//! no crypto — and refuses hostile work factors up front. `KeePass`'s own
+//! limits are far below these; a real database written by any mainstream
+//! client passes.
 //!
-//! The screen is best effort by design: a header this walker cannot follow is
-//! passed through to `keepass`, which rejects it with a proper parse error.
-//! It never accepts a file the parser would reject, only refuses some the
-//! parser would otherwise spend a gigabyte on.
+//! The screen fails **closed**. Every format `keepass` would run a KDF for is
+//! walked: KDBX 4 (the `KdfParameters` variant dictionary), KDBX 3 (the
+//! `TransformRounds` field) and `KeePass` 1 (`transform_rounds` at a fixed
+//! offset). A KDBX 3/4 header this walker cannot finish, a field too short to
+//! hold the value the parser will read, or a second `KdfParameters` field
+//! (the parser keeps the *last* one) is refused as malformed, never passed on
+//! unscreened. Only input with no recognizable version header is left to the
+//! parser, which rejects it before any KDF runs.
 
 use crate::KdbxError;
 
@@ -28,57 +32,67 @@ pub const MAX_KDF_ITERATIONS: u64 = 1 << 12;
 pub const MAX_KDF_PARALLELISM: u32 = 64;
 /// Largest `AES-KDF` round count accepted. `KeePass` defaults to 60 000.
 pub const MAX_AES_KDF_ROUNDS: u64 = 1 << 26;
+/// Largest total `Argon2` work accepted: memory (bytes) × passes. Each limit
+/// above is reasonable alone, but 1 GiB × 4096 passes is not; this caps the
+/// product at 16 GiB of memory traffic (1 GiB × 16, or 64 MiB × 256).
+pub const MAX_KDF_WORK_BYTES: u64 = 1 << 34;
 
-/// Longest outer header this walker will follow, in bytes. A real KDBX 4
-/// header is a few hundred bytes; the cap keeps a malformed one from turning
-/// the walk into a scan of the whole file.
-const MAX_HEADER_BYTES: usize = 64 * 1024;
+/// Longest outer header this walker will follow, in bytes. A real header is a
+/// few hundred bytes; past this the file is refused rather than scanned.
+const MAX_HEADER_BYTES: usize = 1 << 20;
+
+/// Size of the version header every KDBX flavour starts with.
+const VERSION_HEADER_BYTES: usize = 12;
+const KDBX_SIGNATURE: [u8; 4] = [0x03, 0xd9, 0xa2, 0x9a];
+const KEEPASS_1_ID: u32 = 0xb54b_fb65;
+const KEEPASS_LATEST_ID: u32 = 0xb54b_fb67;
+/// Where `KeePass` 1 keeps its `u32` `transform_rounds`.
+const KDB1_ROUNDS_OFFSET: usize = 120;
 
 const HEADER_END: u8 = 0;
+/// KDBX 3 `TransformRounds` — a `u64` AES-KDF round count.
+const HEADER_TRANSFORM_ROUNDS: u8 = 6;
+/// KDBX 4 `KdfParameters` — a variant dictionary.
 const HEADER_KDF_PARAMS: u8 = 11;
 
 const VD_END: u8 = 0x00;
 const VD_U32: u8 = 0x04;
 const VD_U64: u8 = 0x05;
 
-/// Reject a KDBX 4 header whose KDF parameters ask for absurd work.
-///
-/// Files that are not KDBX 4, and headers this walker cannot follow, return
-/// `Ok(())` — classification of those is the parser's job.
+/// Reject a `KeePass` header whose KDF parameters ask for absurd work, or that
+/// cannot be screened at all.
 pub(crate) fn check_kdf_limits(bytes: &[u8]) -> Result<(), KdbxError> {
-    let Some(params) = kdf_params(bytes) else {
-        return Ok(());
-    };
-
-    if let Some(memory) = params.memory {
-        if memory > MAX_KDF_MEMORY_BYTES {
-            return Err(KdbxError::Malformed(format!(
-                "KDF memory cost of {memory} bytes exceeds the {MAX_KDF_MEMORY_BYTES} byte limit"
-            )));
-        }
-    }
-    if let Some(iterations) = params.iterations {
-        if iterations > MAX_KDF_ITERATIONS {
-            return Err(KdbxError::Malformed(format!(
-                "KDF iteration count of {iterations} exceeds the {MAX_KDF_ITERATIONS} limit"
-            )));
-        }
-    }
-    if let Some(parallelism) = params.parallelism {
-        if parallelism > MAX_KDF_PARALLELISM {
-            return Err(KdbxError::Malformed(format!(
-                "KDF parallelism of {parallelism} exceeds the {MAX_KDF_PARALLELISM} limit"
-            )));
-        }
-    }
-    if let Some(rounds) = params.rounds {
-        if rounds > MAX_AES_KDF_ROUNDS {
-            return Err(KdbxError::Malformed(format!(
-                "AES-KDF round count of {rounds} exceeds the {MAX_AES_KDF_ROUNDS} limit"
-            )));
-        }
+    let params = kdf_params(bytes)?;
+    over("KDF memory cost", params.memory, MAX_KDF_MEMORY_BYTES)?;
+    over("KDF iteration count", params.iterations, MAX_KDF_ITERATIONS)?;
+    over(
+        "KDF parallelism",
+        params.parallelism.map(u64::from),
+        u64::from(MAX_KDF_PARALLELISM),
+    )?;
+    over("AES-KDF round count", params.rounds, MAX_AES_KDF_ROUNDS)?;
+    if let (Some(memory), Some(iterations)) = (params.memory, params.iterations) {
+        let work = memory.saturating_mul(iterations);
+        over(
+            "KDF work (memory × iterations)",
+            Some(work),
+            MAX_KDF_WORK_BYTES,
+        )?;
     }
     Ok(())
+}
+
+fn over(what: &str, value: Option<u64>, limit: u64) -> Result<(), KdbxError> {
+    match value {
+        Some(value) if value > limit => Err(KdbxError::Malformed(format!(
+            "{what} of {value} exceeds the {limit} limit"
+        ))),
+        _ => Ok(()),
+    }
+}
+
+fn malformed(why: &str) -> KdbxError {
+    KdbxError::Malformed(format!("KDBX header cannot be screened: {why}"))
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -89,7 +103,7 @@ struct KdfParams {
     iterations: Option<u64>,
     /// Argon2 `P`.
     parallelism: Option<u32>,
-    /// AES-KDF `R`.
+    /// AES-KDF `R` (KDBX 4), `TransformRounds` (KDBX 3) or `KeePass` 1 rounds.
     rounds: Option<u64>,
 }
 
@@ -126,58 +140,115 @@ impl<'a> Cursor<'a> {
     }
 }
 
-/// Walk the KDBX 4 outer header and read the KDF variant dictionary.
-fn kdf_params(bytes: &[u8]) -> Option<KdfParams> {
-    // 12-byte version header: signature (4), secondary id (4), minor (2),
-    // major (2). Only KDBX 4 uses u32 header field lengths.
-    let major = {
-        let mut cursor = Cursor::new(bytes, 10);
-        cursor.u16()?
+/// Dispatch on the version header to the walker for that format.
+fn kdf_params(bytes: &[u8]) -> Result<KdfParams, KdbxError> {
+    let mut version = Cursor::new(bytes, 0);
+    let (Some(signature), Some(secondary)) = (version.take(4), version.u32()) else {
+        // Too short to be anything: the parser rejects it before any KDF.
+        return Ok(KdfParams::default());
     };
-    if major != 4 {
-        return None;
+    if signature != KDBX_SIGNATURE {
+        return Ok(KdfParams::default());
     }
+    if secondary == KEEPASS_1_ID {
+        // A header shorter than the fixed `KeePass` 1 layout is refused by the
+        // parser before it derives anything.
+        let rounds = Cursor::new(bytes, KDB1_ROUNDS_OFFSET).u32().map(u64::from);
+        return Ok(KdfParams {
+            rounds,
+            ..KdfParams::default()
+        });
+    }
+    let (_minor, Some(major)) = (version.u16(), version.u16()) else {
+        return Ok(KdfParams::default());
+    };
+    match (secondary, major) {
+        (KEEPASS_LATEST_ID, 3) => walk_kdbx3(bytes),
+        (KEEPASS_LATEST_ID, 4) => walk_kdbx4(bytes),
+        // KDB2 and unknown versions: the parser refuses them outright.
+        _ => Ok(KdfParams::default()),
+    }
+}
 
-    let mut cursor = Cursor::new(bytes, 12);
+/// Walk KDBX 3 header fields (`u8` id, `u16` length) to the end marker,
+/// screening *every* `TransformRounds` field — the parser keeps the last.
+fn walk_kdbx3(bytes: &[u8]) -> Result<KdfParams, KdbxError> {
+    let mut cursor = Cursor::new(bytes, VERSION_HEADER_BYTES);
+    let mut params = KdfParams::default();
     loop {
         if cursor.pos > MAX_HEADER_BYTES {
-            return None;
+            return Err(malformed("outer header is too long"));
         }
-        let id = cursor.u8()?;
-        let size = cursor.u32()? as usize;
-        if size > MAX_HEADER_BYTES {
-            return None;
-        }
-        let data = cursor.take(size)?;
-        if id == HEADER_KDF_PARAMS {
-            return variant_dictionary(data);
-        }
-        if id == HEADER_END {
-            return None;
+        let (Some(id), Some(size)) = (cursor.u8(), cursor.u16()) else {
+            return Err(malformed("truncated outer header"));
+        };
+        let data = cursor
+            .take(usize::from(size))
+            .ok_or_else(|| malformed("truncated outer header field"))?;
+        match id {
+            HEADER_END => return Ok(params),
+            HEADER_TRANSFORM_ROUNDS => {
+                let rounds =
+                    read_u64(data).ok_or_else(|| malformed("short TransformRounds field"))?;
+                params.rounds = Some(params.rounds.map_or(rounds, |seen| seen.max(rounds)));
+            }
+            _ => {}
         }
     }
 }
 
-/// Read `M`, `I`, `P` and `R` out of a KDF variant dictionary.
-fn variant_dictionary(bytes: &[u8]) -> Option<KdfParams> {
+/// Walk KDBX 4 header fields (`u8` id, `u32` length) to the end marker and
+/// read the one KDF variant dictionary.
+fn walk_kdbx4(bytes: &[u8]) -> Result<KdfParams, KdbxError> {
+    let mut cursor = Cursor::new(bytes, VERSION_HEADER_BYTES);
+    let mut params: Option<KdfParams> = None;
+    loop {
+        if cursor.pos > MAX_HEADER_BYTES {
+            return Err(malformed("outer header is too long"));
+        }
+        let (Some(id), Some(size)) = (cursor.u8(), cursor.u32()) else {
+            return Err(malformed("truncated outer header"));
+        };
+        let size = usize::try_from(size).unwrap_or(usize::MAX);
+        if size > MAX_HEADER_BYTES {
+            return Err(malformed("outer header field is too long"));
+        }
+        let data = cursor
+            .take(size)
+            .ok_or_else(|| malformed("truncated outer header field"))?;
+        match id {
+            HEADER_END => return Ok(params.unwrap_or_default()),
+            HEADER_KDF_PARAMS if params.is_some() => {
+                return Err(malformed("more than one KdfParameters field"));
+            }
+            HEADER_KDF_PARAMS => params = Some(variant_dictionary(data)?),
+            _ => {}
+        }
+    }
+}
+
+/// Read `M`, `I`, `P` and `R` out of a KDF variant dictionary. A later entry
+/// of the same name and type replaces an earlier one, as in the parser.
+fn variant_dictionary(bytes: &[u8]) -> Result<KdfParams, KdbxError> {
+    let bad = || malformed("unreadable KdfParameters dictionary");
     let mut cursor = Cursor::new(bytes, 0);
-    let _version = cursor.u16()?;
+    let _version = cursor.u16().ok_or_else(bad)?;
     let mut params = KdfParams::default();
     loop {
-        let value_type = cursor.u8()?;
+        let value_type = cursor.u8().ok_or_else(bad)?;
         if value_type == VD_END {
-            return Some(params);
+            return Ok(params);
         }
-        let name_len = cursor.u32()? as usize;
-        let name = cursor.take(name_len)?;
-        let value_len = cursor.u32()? as usize;
-        let value = cursor.take(value_len)?;
+        let name_len = cursor.u32().ok_or_else(bad)? as usize;
+        let name = cursor.take(name_len).ok_or_else(bad)?;
+        let value_len = cursor.u32().ok_or_else(bad)? as usize;
+        let value = cursor.take(value_len).ok_or_else(bad)?;
 
         match (name, value_type) {
-            (b"M", VD_U64) => params.memory = read_u64(value),
-            (b"I", VD_U64) => params.iterations = read_u64(value),
-            (b"P", VD_U32) => params.parallelism = read_u32(value),
-            (b"R", VD_U64) => params.rounds = read_u64(value),
+            (b"M", VD_U64) => params.memory = Some(read_u64(value).ok_or_else(bad)?),
+            (b"I", VD_U64) => params.iterations = Some(read_u64(value).ok_or_else(bad)?),
+            (b"P", VD_U32) => params.parallelism = Some(read_u32(value).ok_or_else(bad)?),
+            (b"R", VD_U64) => params.rounds = Some(read_u64(value).ok_or_else(bad)?),
             _ => {}
         }
     }
@@ -194,139 +265,5 @@ fn read_u32(value: &[u8]) -> Option<u32> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Build a KDBX 4 header carrying one KDF variant dictionary.
-    fn header_with(entries: &[(&[u8], u8, Vec<u8>)]) -> Vec<u8> {
-        let mut vd = Vec::new();
-        vd.extend_from_slice(&0x0100u16.to_le_bytes());
-        for (name, value_type, value) in entries {
-            vd.push(*value_type);
-            vd.extend_from_slice(
-                &u32::try_from(name.len())
-                    .expect("fixture name length fits u32")
-                    .to_le_bytes(),
-            );
-            vd.extend_from_slice(name);
-            vd.extend_from_slice(
-                &u32::try_from(value.len())
-                    .expect("fixture value length fits u32")
-                    .to_le_bytes(),
-            );
-            vd.extend_from_slice(value);
-        }
-        vd.push(VD_END);
-
-        let mut out = vec![0x03, 0xd9, 0xa2, 0x9a];
-        out.extend_from_slice(&0xb54b_fb67u32.to_le_bytes()); // secondary id
-        out.extend_from_slice(&1u16.to_le_bytes()); // minor
-        out.extend_from_slice(&4u16.to_le_bytes()); // major
-                                                    // A field the walker must skip over.
-        out.push(4);
-        out.extend_from_slice(&32u32.to_le_bytes());
-        out.extend_from_slice(&[0u8; 32]);
-        // The KDF parameters.
-        out.push(HEADER_KDF_PARAMS);
-        out.extend_from_slice(
-            &u32::try_from(vd.len())
-                .expect("fixture dictionary length fits u32")
-                .to_le_bytes(),
-        );
-        out.extend_from_slice(&vd);
-        // End of header.
-        out.push(HEADER_END);
-        out.extend_from_slice(&0u32.to_le_bytes());
-        out
-    }
-
-    fn u64v(value: u64) -> Vec<u8> {
-        value.to_le_bytes().to_vec()
-    }
-
-    fn u32v(value: u32) -> Vec<u8> {
-        value.to_le_bytes().to_vec()
-    }
-
-    #[test]
-    fn realistic_argon2_parameters_pass() {
-        let header = header_with(&[
-            (b"M", VD_U64, u64v(64 * 1024 * 1024)),
-            (b"I", VD_U64, u64v(2)),
-            (b"P", VD_U32, u32v(4)),
-        ]);
-        assert!(check_kdf_limits(&header).is_ok());
-    }
-
-    #[test]
-    fn a_terabyte_of_memory_is_refused() {
-        let header = header_with(&[(b"M", VD_U64, u64v(1 << 40))]);
-        let err = check_kdf_limits(&header).unwrap_err();
-        assert!(matches!(err, KdbxError::Malformed(_)), "{err:?}");
-        assert!(err.to_string().contains("memory cost"));
-    }
-
-    #[test]
-    fn an_absurd_iteration_count_is_refused() {
-        let header = header_with(&[(b"I", VD_U64, u64v(u64::MAX))]);
-        assert!(check_kdf_limits(&header).is_err());
-    }
-
-    #[test]
-    fn an_absurd_lane_count_is_refused() {
-        let header = header_with(&[(b"P", VD_U32, u32v(u32::MAX))]);
-        assert!(check_kdf_limits(&header).is_err());
-    }
-
-    #[test]
-    fn an_absurd_aes_kdf_round_count_is_refused() {
-        let header = header_with(&[(b"R", VD_U64, u64v(u64::MAX))]);
-        assert!(check_kdf_limits(&header).is_err());
-    }
-
-    #[test]
-    fn limits_are_inclusive_at_the_boundary() {
-        let at = header_with(&[(b"M", VD_U64, u64v(MAX_KDF_MEMORY_BYTES))]);
-        assert!(check_kdf_limits(&at).is_ok());
-        let over = header_with(&[(b"M", VD_U64, u64v(MAX_KDF_MEMORY_BYTES + 1))]);
-        assert!(check_kdf_limits(&over).is_err());
-    }
-
-    #[test]
-    fn non_kdbx4_input_is_left_to_the_parser() {
-        let mut header = header_with(&[(b"M", VD_U64, u64v(1 << 40))]);
-        header[10] = 3; // major version 3
-        header[11] = 0;
-        assert!(check_kdf_limits(&header).is_ok());
-    }
-
-    #[test]
-    fn truncated_and_malformed_headers_are_left_to_the_parser() {
-        let full = header_with(&[(b"M", VD_U64, u64v(1 << 40))]);
-        for len in 0..full.len() {
-            // Never panics; a header the walker cannot follow is passed on.
-            let _ = check_kdf_limits(&full[..len]);
-        }
-        assert!(check_kdf_limits(&[]).is_ok());
-        assert!(check_kdf_limits(&[0xff; 12]).is_ok());
-    }
-
-    #[test]
-    fn a_header_field_claiming_a_huge_length_does_not_scan_the_file() {
-        let mut header = vec![0x03, 0xd9, 0xa2, 0x9a];
-        header.extend_from_slice(&0xb54b_fb67u32.to_le_bytes());
-        header.extend_from_slice(&1u16.to_le_bytes());
-        header.extend_from_slice(&4u16.to_le_bytes());
-        header.push(4);
-        header.extend_from_slice(&u32::MAX.to_le_bytes());
-        header.extend_from_slice(&[0u8; 64]);
-        assert!(check_kdf_limits(&header).is_ok());
-    }
-
-    #[test]
-    fn a_dictionary_with_wrong_value_types_is_ignored() {
-        // `M` declared as a u32 is not the Argon2 memory field.
-        let header = header_with(&[(b"M", VD_U32, u32v(u32::MAX))]);
-        assert!(check_kdf_limits(&header).is_ok());
-    }
-}
+#[path = "limits_tests.rs"]
+mod tests;

@@ -1,10 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
-  UnsafeMetadataUrlError,
-  assertSafeMetadataUrl,
-} from "@opensesame/oauth-provider";
-import {
   type ByoUpstream,
   type ByoUpstreamClientAuth,
   type ByoUpstreamRegistrationSource,
@@ -15,7 +11,16 @@ import {
 } from "@opensesame/os-domain";
 import * as client from "openid-client";
 import type { AppContext } from "../context.js";
+import {
+  ByoRegistrationError,
+  type ByoRegistrationErrorCode,
+  INVALID_ISSUER_MESSAGE,
+  assertSafeUpstreamUrl,
+  upstreamFetch,
+} from "./byo-fence.js";
 import { normalizeIssuer } from "./registry.js";
+
+export type { ByoRegistrationErrorCode } from "./byo-fence.js";
 
 /**
  * Bring your own identity provider (D5, ADR 0055).
@@ -59,13 +64,6 @@ import { normalizeIssuer } from "./registry.js";
  * deliberately omits it).
  */
 
-/** Refusals a visitor can cause. Everything else throws. */
-export type ByoRegistrationErrorCode =
-  | "invalid_issuer"
-  | "discovery_failed"
-  | "registration_unsupported"
-  | "rate_limited";
-
 export type ByoRegistrationInput = {
   issuer: string;
   clientId?: string;
@@ -89,13 +87,6 @@ export type ByoRegistrationResult =
   | { record: ByoUpstream }
   | { error: ByoRegistrationErrorCode; message: string };
 
-/**
- * One message for "no such issuer", "that host is not reachable from here"
- * and "that URL is not https". A visitor typing their own issuer needs to know
- * the URL was refused; nobody needs to know which rule refused it.
- */
-const INVALID_ISSUER_MESSAGE =
-  "That issuer URL cannot be used for sign-in from this server.";
 const DISCOVERY_FAILED_MESSAGE =
   "That issuer did not answer with an OpenID Connect discovery document.";
 const REGISTRATION_UNSUPPORTED_MESSAGE =
@@ -147,72 +138,6 @@ function consumeRegistrationBudget(fingerprint: string, now: number): boolean {
   return true;
 }
 
-/** Internal control flow; every instance becomes a result-shaped refusal. */
-class ByoRegistrationError extends Error {
-  override readonly name = "ByoRegistrationError";
-  readonly code: ByoRegistrationErrorCode;
-
-  constructor(code: ByoRegistrationErrorCode, message: string) {
-    super(message);
-    this.code = code;
-  }
-}
-
-/**
- * Loopback literals a dev stack federates to.
- *
- * `assertSafeMetadataUrl` refuses loopback outright, and it is right to: in
- * production nothing a visitor names should resolve to this machine. But the
- * reference IdP and the whole local stack live on `127.0.0.1`, so a deployment
- * that already opted into dev defaults (never production —
- * `assertSecureConfig` forbids the combination) gets exactly this exception:
- * an IP LITERAL in 127/8 or `::1`. Names are deliberately excluded, including
- * `localhost` and `*.localhost`, because a name can be made to resolve
- * anywhere and the guard would then be judging the wrong thing.
- */
-function isDevLoopbackHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/g, "");
-  if (host === "::1") return true;
-  const octets = host.split(".");
-  if (octets.length !== 4) return false;
-  return (
-    octets[0] === "127" &&
-    octets.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
-  );
-}
-
-/**
- * The fence in front of every URL this module dereferences: the issuer the
- * visitor typed, and the `registration_endpoint` their discovery document
- * names. Both are equally untrusted — a document is not an authority.
- */
-function assertSafeUpstreamUrl(ctx: AppContext, raw: string): URL {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
-  }
-  if (url.username || url.password) {
-    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
-  }
-  const httpAllowed = ctx.config.allowDevDefaults && url.protocol === "http:";
-  if (url.protocol !== "https:" && !httpAllowed) {
-    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
-  }
-  if (ctx.config.allowDevDefaults && isDevLoopbackHost(url.hostname)) {
-    return url;
-  }
-  try {
-    return assertSafeMetadataUrl(url.href);
-  } catch (error) {
-    if (error instanceof UnsafeMetadataUrlError) {
-      throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
-    }
-    throw error;
-  }
-}
-
 function trimmedField(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed || trimmed.length > MAX_CLIENT_FIELD_LENGTH) return undefined;
@@ -232,19 +157,18 @@ async function discoverIssuerMetadata(
   ctx: AppContext,
   issuer: string,
 ): Promise<JsonObject> {
-  const url = assertSafeUpstreamUrl(
-    ctx,
-    `${issuer}/.well-known/openid-configuration`,
-  );
   let response: Response;
   try {
-    response = await fetch(url, {
-      method: "GET",
-      redirect: "error",
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
-    });
-  } catch {
+    response = await upstreamFetch(
+      ctx,
+      `${issuer}/.well-known/openid-configuration`,
+      {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+      },
+    );
+  } catch (error) {
+    if (error instanceof ByoRegistrationError) throw error;
     throw new ByoRegistrationError(
       "discovery_failed",
       DISCOVERY_FAILED_MESSAGE,
@@ -309,15 +233,12 @@ async function registerDynamically(
   issuerUrl: URL,
   redirectUri: string,
 ): Promise<RegisteredClient> {
-  const guardedFetch: client.CustomFetch = (url, options) => {
-    assertSafeUpstreamUrl(ctx, url);
-    // SAFETY: CustomFetchOptions is the fetch init openid-client already built
-    // (method/headers/body/signal); only the redirect policy is added.
-    const init: RequestInit = overlapCast({ ...options, redirect: "error" });
-    return fetch(url, init);
-  };
+  // SAFETY: CustomFetchOptions is the init openid-client already built
+  // (method/headers/body/signal); guardedFetch refuses a streamed body.
+  const fenced: client.CustomFetch = (url, options) =>
+    upstreamFetch(ctx, url, overlapCast(options));
   const options: client.DynamicClientRegistrationRequestOptions = {
-    [client.customFetch]: guardedFetch,
+    [client.customFetch]: fenced,
     ...(ctx.config.allowDevDefaults
       ? { execute: [client.allowInsecureRequests] }
       : undefined),
@@ -348,8 +269,10 @@ async function registerDynamically(
       };
     } catch (cause) {
       // A blocked registration endpoint is a refusal, not something to retry
-      // under a different client-authentication method.
+      // under a different client-authentication method (openid-client wraps).
+      const inner = cause instanceof Error ? cause.cause : cause;
       if (cause instanceof ByoRegistrationError) throw cause;
+      if (inner instanceof ByoRegistrationError) throw inner;
     }
   }
   throw new ByoRegistrationError(

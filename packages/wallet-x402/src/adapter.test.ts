@@ -11,6 +11,10 @@ import {
 import type { LocalExactRuntime } from "./exact-settle.js";
 import { fixtureChallenge, fixtureProfile } from "./fixtures.js";
 
+function heldReservation(reservedAmount: string) {
+  return { reservedAmount, commit: () => {}, release: () => {} };
+}
+
 function dummyRuntime(amount: string): LocalExactRuntime {
   return {
     rpcUrl: "http://127.0.0.1:9",
@@ -67,7 +71,7 @@ describe("x402 adapter", () => {
           ...dummyRuntime("1"),
           rpcUrl: "http://127.0.0.1:31337@attacker.example",
         },
-        remainingAllocation: "1",
+        reservation: heldReservation("1"),
       }),
     ).rejects.toThrow("LOCAL_RPC_REQUIRED");
   });
@@ -76,7 +80,7 @@ describe("x402 adapter", () => {
     await expect(
       prepareX402Payment({
         runtime: dummyRuntime("1000000"),
-        remainingAllocation: "1",
+        reservation: heldReservation("1"),
       }),
     ).rejects.toBeInstanceOf(X402InsufficientAvailableError);
   });

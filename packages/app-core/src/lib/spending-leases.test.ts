@@ -6,7 +6,9 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildLocalPaymentApprovalDigest,
+  enrollPaymentApprovalKey,
   localPaymentApprovalIntent,
+  resetPaymentApprovalKeys,
 } from "./spending-consent.js";
 import {
   clearSpendingLeases,
@@ -55,8 +57,9 @@ function windowedIntent(
   });
 }
 
-function signedProof(digest: string) {
-  const keys = generatePaymentApprovalKeyPair();
+const OWNER_KEYS = generatePaymentApprovalKeyPair();
+
+function signedProof(digest: string, keys = OWNER_KEYS) {
   const verifiedBytes = signPaymentApprovalDigest(digest, keys.privateKeyPkcs8);
   return {
     boundDigest: digest,
@@ -71,6 +74,8 @@ describe("spending-leases", () => {
     clearSpendingLedgerStorage();
     resetSpendingLedgerCache();
     clearSpendingLeases();
+    resetPaymentApprovalKeys();
+    enrollPaymentApprovalKey(OWNER_KEYS.publicKeySpki);
     getSpendingLedger().transact((tx) => {
       tx.openNode({
         nodeId: "household",
@@ -114,6 +119,20 @@ describe("spending-leases", () => {
     if (!forged.ok) {
       expect(forged.reason).toBe("unverified_assurance");
     }
+    expect(listSpendingLeases()).toHaveLength(0);
+
+    // A valid signature from a key the owner never enrolled proves nothing.
+    const selfSigned = await issueSpendingLease({
+      allocationRef: intent.allocationRef,
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest, generatePaymentApprovalKeyPair()),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
+    });
+    expect(selfSigned).toEqual({ ok: false, reason: "key_not_enrolled" });
     expect(listSpendingLeases()).toHaveLength(0);
 
     const issued = await issueSpendingLease({

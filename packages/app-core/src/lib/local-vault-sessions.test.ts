@@ -3,8 +3,8 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureDefaultAccess } from "./local-access-bootstrap.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import { ensureOwnerPerson } from "./local-directory-bootstrap.js";
-import { changeLocalDirectory } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
 import { listLocalShares } from "./local-share-grants.js";
 import {

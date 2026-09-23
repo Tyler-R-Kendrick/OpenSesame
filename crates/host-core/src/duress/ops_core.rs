@@ -84,6 +84,7 @@ pub enum DuressOpError {
     EpochMismatch,
     InvalidTransition,
     StillHeld,
+    HoldExists,
 }
 
 impl DuressOpError {
@@ -99,6 +100,7 @@ impl DuressOpError {
             Self::EpochMismatch => "epoch_mismatch",
             Self::InvalidTransition => "invalid_transition",
             Self::StillHeld => "still_held",
+            Self::HoldExists => "hold_exists",
         }
     }
 }
@@ -116,9 +118,18 @@ fn require_purpose(expected: DuressPurpose, presented: &str) -> Result<(), Dures
 
 /// Accept an independent-authority hold. Purpose-bound; durable epochs required.
 ///
+/// A hold already accepted for the incident is never overwritten: a re-delivery
+/// of the identical hold is idempotent and returns the stored one untouched
+/// (phase and clock included), another authority is refused, and the same
+/// authority changing the terms (duration, epochs, ceiling) is refused too —
+/// a re-accept must not reset a timed hold, reopen a resolved one, or swap
+/// its ceiling.
+///
 /// # Errors
 ///
-/// Returns [`DuressOpError::PurposeMismatch`] when `purpose` is unbound.
+/// Returns [`DuressOpError::PurposeMismatch`] when `purpose` is unbound,
+/// [`DuressOpError::AuthorityMismatch`] when another authority holds the
+/// incident, and [`DuressOpError::HoldExists`] for changed terms.
 #[allow(clippy::too_many_arguments)]
 pub fn accept_independent_hold(
     store: &mut DuressAuthorityStore,
@@ -142,6 +153,20 @@ pub fn accept_independent_hold(
         phase: HoldPhase::Active,
         ceiling_ref: ceiling_ref.into(),
     };
+    if let Some(existing) = store.hold(&hold.incident_id) {
+        if existing.authority_ref != hold.authority_ref {
+            return Err(DuressOpError::AuthorityMismatch);
+        }
+        let same_terms = existing.hold_id == hold.hold_id
+            && existing.epochs.matches(hold.epochs)
+            && existing.duration == hold.duration
+            && existing.ceiling_ref == hold.ceiling_ref;
+        return if same_terms {
+            Ok(existing.clone())
+        } else {
+            Err(DuressOpError::HoldExists)
+        };
+    }
     store.put_hold(hold.clone());
     Ok(hold)
 }
@@ -226,15 +251,31 @@ pub fn resolve_recovery(
 }
 
 /// Supersede an incident when a newer epoch narrows scope.
+///
+/// Superseding lifts the hold's deny ceiling, so it demands what resolving
+/// does: the authority that accepted the hold and the hold's current epochs.
+///
+/// # Errors
+///
+/// Returns [`DuressOpError::AuthorityMismatch`] / [`DuressOpError::EpochMismatch`]
+/// when the caller does not present the hold's own authority and epochs.
 pub fn supersede_incident(
     store: &mut DuressAuthorityStore,
     purpose: &str,
     incident_id: &str,
+    authority_ref: &str,
+    presented_epochs: DurableEpochs,
 ) -> Result<(), DuressOpError> {
     require_purpose(DuressPurpose::SupersedeIncident, purpose)?;
     let hold = store
         .hold_mut(incident_id)
         .ok_or(DuressOpError::UnknownIncident)?;
+    if hold.authority_ref != authority_ref {
+        return Err(DuressOpError::AuthorityMismatch);
+    }
+    if !hold.epochs.matches(presented_epochs) {
+        return Err(DuressOpError::EpochMismatch);
+    }
     hold.phase = HoldPhase::Superseded;
     store.set_incident_state(incident_id, IncidentState::Superseded);
     Ok(())

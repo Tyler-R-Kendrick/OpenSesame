@@ -1,5 +1,4 @@
 import { appendAuditEvent } from "@opensesame/audit";
-import { overlapCast } from "@opensesame/os-domain";
 import * as client from "openid-client";
 import { z } from "zod";
 import type { ControlPlaneConfig } from "../config.js";
@@ -9,6 +8,7 @@ import {
   verifyOrgIdToken,
 } from "../routes/org-assertion.js";
 import { mintAppleClientSecret } from "./apple-secret.js";
+import { siteOrigin, upstreamFetch } from "./federated-fetch.js";
 import type { OidcProviderDescriptor } from "./registry.js";
 import { type TrustResolution, resolveTrustedIssuer } from "./trust.js";
 
@@ -198,10 +198,6 @@ export function isTrustedUpstream(
   return config.trustedUpstreamIssuers.includes(issuer);
 }
 
-function siteOrigin(config: ControlPlaneConfig): string {
-  return new URL(config.publicUrl).origin;
-}
-
 /**
  * Origin-profile client id (ADR 0034): derived from our own origin, never
  * registered with the broker and never secret-bearing.
@@ -227,6 +223,8 @@ export type FederatedClientMode = {
   scopes: string;
   /** Apple: the assertion comes back as a cross-site form POST (D3). */
   responseMode?: "form_post";
+  /** A visitor's or tenant's issuer: every request is DNS-fenced (T21). */
+  fenced?: true;
 };
 
 /**
@@ -336,6 +334,7 @@ export async function clientModeFor(
           : client.None(),
       originProfile: false,
       scopes: DEFAULT_OIDC_SCOPES,
+      fenced: true,
     };
   }
   /*
@@ -362,6 +361,7 @@ export async function clientModeFor(
         : client.None(),
       originProfile: false,
       scopes: DEFAULT_OIDC_SCOPES,
+      fenced: true,
     };
   }
   return {
@@ -369,6 +369,7 @@ export async function clientModeFor(
     auth: client.None(),
     originProfile: true,
     scopes: DEFAULT_OIDC_SCOPES,
+    fenced: true,
   };
 }
 
@@ -431,26 +432,6 @@ export function interactionScopedState(uid: string): string {
 }
 
 /**
- * A broker validating an origin-profile client checks the `Origin` header
- * byte-equals the origin encoded in the client id (see
- * `apps/mock-upstream-idp/src/server.ts`, which answers `origin_cors_denied`
- * otherwise). A browser sets that header itself; a server-side exchange must
- * set it explicitly, and it must be our real public origin — the same value
- * already baked into the client id, so this asserts nothing new.
- */
-function originPinnedFetch(origin: string): client.CustomFetch {
-  return (url, options) => {
-    // SAFETY: CustomFetchOptions is the fetch init shape openid-client already
-    // built (method/headers/body/signal); only the Origin header is added.
-    const init: RequestInit = overlapCast({
-      ...options,
-      headers: { ...options.headers, Origin: origin },
-    });
-    return fetch(url, init);
-  };
-}
-
-/**
  * Discovery results, cached per issuer AND per client id (T1).
  *
  * One issuer can now be reached as more than one client — the same corporate
@@ -482,8 +463,8 @@ async function upstreamConfiguration(
   const options: client.DiscoveryRequestOptions = {
     // The Origin header is what binds an origin-profile client; every other
     // mode is bound by its credential and must not claim a browser origin.
-    ...(mode.originProfile
-      ? { [client.customFetch]: originPinnedFetch(siteOrigin(ctx.config)) }
+    ...(mode.originProfile || mode.fenced
+      ? { [client.customFetch]: upstreamFetch(ctx.config, mode) }
       : undefined),
     // Only a dev stack may point at an http:// broker; production config
     // refuses a non-HTTPS entry in the allowlist outright (assertSecureConfig).
@@ -659,7 +640,10 @@ export async function completeFederatedAuth(
    */
   let verified: VerifiedOrgIdToken;
   try {
-    verified = await verifyOrgIdToken(rawIdToken, pending.issuer);
+    verified = await verifyOrgIdToken(rawIdToken, pending.issuer, {
+      blockPrivateIssuerHosts:
+        mode.fenced === true && !ctx.config.allowDevDefaults,
+    });
   } catch (cause) {
     throw new FederatedAuthError(
       "exchange_failed",
@@ -718,10 +702,8 @@ export function disposeRefreshToken(
       mode.auth,
     );
     revocation.timeout = REFRESH_REVOCATION_TIMEOUT_SECONDS;
-    if (mode.originProfile) {
-      revocation[client.customFetch] = originPinnedFetch(
-        siteOrigin(ctx.config),
-      );
+    if (mode.originProfile || mode.fenced) {
+      revocation[client.customFetch] = upstreamFetch(ctx.config, mode);
     }
     if (ctx.config.allowDevDefaults) {
       client.allowInsecureRequests(revocation);

@@ -330,3 +330,37 @@ fn ath_mismatch_rejected() {
     .unwrap_err();
     assert_eq!(err, ProofError::AccessTokenHashMismatch);
 }
+
+#[test]
+fn future_dated_proof_cannot_be_replayed_after_max_age() {
+    let (_, jwk, encoding_key) = test_keypair();
+    let first_seen = 1_700_000_000i64;
+    // Dated as far ahead as the validator tolerates: acceptable until
+    // iat + max_age, which is max_age + skew after it is first seen.
+    let iat = first_seen + crate::DPOP_MAX_FUTURE_SKEW_SECS;
+    let mut claims = sample_claims(iat);
+    claims.jti = "future-dated-jti".into();
+    let proof = sign_dpop_proof(&jwk, &encoding_key, &claims).expect("sign proof");
+    let validator = DpopValidator::new(InMemoryReplayCache::with_limits(300, 16), 300);
+    let at = |now: i64| {
+        validator.validate(
+            Some(&proof),
+            "POST",
+            "https://api.example/resource",
+            now,
+            None,
+            None,
+        )
+    };
+    assert!(at(first_seen).is_ok());
+    // Past the cache's own TTL but still inside the proof's window: the
+    // validator would accept it on iat, so the replay cache must refuse it.
+    for replay_at in [first_seen + 301, iat + 300] {
+        assert!(
+            matches!(at(replay_at), Err(ProofError::Replay(_))),
+            "replay at {replay_at} must be refused"
+        );
+    }
+    // After the window the proof is refused on its own age.
+    assert!(matches!(at(iat + 301), Err(ProofError::InvalidProof(_))));
+}

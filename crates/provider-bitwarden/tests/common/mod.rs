@@ -50,13 +50,13 @@ impl Shape {
         }
     }
 
-    /// Deliberately small work factors: these run in a debug-profile test
-    /// suite. `tests/vectors/crypto_vectors.json` carries the
-    /// production-shaped parameters instead.
+    /// Deliberately small work factors (Argon2id at Bitwarden's prelogin
+    /// floor): these run in a debug-profile test suite.
+    /// `tests/vectors/crypto_vectors.json` carries production-shaped ones.
     pub fn kdf(self) -> Kdf {
         match self {
             Shape::Cloud => Kdf::Pbkdf2 { iterations: 10_000 },
-            Shape::Vaultwarden => Kdf::argon2id(2, 8 * 1024, 1).expect("valid argon2 params"),
+            Shape::Vaultwarden => Kdf::argon2id(2, 16 * 1024, 1).expect("valid argon2 params"),
         }
     }
 

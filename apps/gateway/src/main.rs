@@ -67,7 +67,15 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(lifecycle::scanner::run(state.clone()));
     // Transport renewal retries and bounded trust-overlap reconcile (ADR 0132).
     transport_lifecycle::boot::attach(&state);
+    // The durable revoked-leaf denylist and the stored trust profiles are in
+    // force before anything is served; an unreadable denylist stops boot.
+    transport_lifecycle::boot::restore(&state).await?;
     tokio::spawn(transport_lifecycle::renewal::run(state.clone()));
+    // Replicas sharing one store converge on the stored binding set within
+    // `transport::bindings::REFRESH_INTERVAL` (a revocation's denials above all).
+    tokio::spawn(transport::bindings::run_refresh(state.clone()));
+    // …and on the stored trust profiles and revoked-leaf denylist, same cadence.
+    tokio::spawn(transport_lifecycle::boot::run_refresh(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
     // saga — claim under lease, exponential backoff, visible dead letters.
     tokio::spawn(security::delivery::run(state.clone()));
@@ -139,8 +147,30 @@ mod pact_coverage {
             include_str!("routes/rotation.rs"),
             &[
                 "fn authorize(st: &AppState, headers: &axum::http::HeaderMap)",
-                "validate_target(&st",
+                "access::may_request(",
+                "upsert_rotation_policy(",
                 "let job = match request_rotation(",
+            ],
+        );
+    }
+
+    /// INV-BUDGET: OpenFGA and intent building can refuse, and a refusal
+    /// after the hold would leave a reservation nothing ever releases.
+    #[test]
+    fn invoke_authorizes_fully_before_holding_budget() {
+        // The file opens with a test-only import, so read from the handler on.
+        let src = include_str!("routes/intents.rs");
+        let handler = &src[src
+            .find("let resolved = match resolve_invocation(")
+            .unwrap()..];
+        opensesame_host_core::pact::assert_source_order(
+            handler,
+            &[
+                "authorize_invocation(&st",
+                "intents_projection::authorize_openfga(",
+                "let intent = match build_intent(",
+                "intents_budget::spend_invoke_budgets(",
+                "intents_queue::dispatch_or_hold(",
             ],
         );
     }

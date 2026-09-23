@@ -12,11 +12,17 @@
 //!    `enforce_current_generation` on every guarded request, so a keep-alive
 //!    connection authenticated before the revocation is refused on its next
 //!    operation (AT-TLS-REVOKEDLIVE). Effective immediately for this process.
-//! 3. **Bindings** — the thumbprint is appended to `denied_thumbprints` on
-//!    every service binding through the bindings store's CAS write, so
-//!    admission in *every* process reading the stored set denies it. Not
-//!    possible when the deployment plane pins the set in a file: reported,
-//!    never silently skipped.
+//! 3. **Durable** — the thumbprint enters the stored revoked-leaf denylist
+//!    ([`super::revocation_store`]), which every process reads before it
+//!    serves and on the refresh cadence, and which admission consults for
+//!    every binding, including one created after the revocation. It is then
+//!    appended to `denied_thumbprints` on every stored service binding
+//!    through the bindings store's CAS write, retried on a lost race. Either
+//!    write failing is an error response, never a `200` with a note — but a
+//!    failed denylist write (full, over quota, unreachable) still goes on to
+//!    the bindings, the facts and the notice first, so the leaf is held
+//!    durably wherever it can be. Not possible for bindings the deployment
+//!    plane pins in a file: reported, never silently skipped.
 //! 4. **Facts and notice** — a `revoked` fact on every target the
 //!    certificate served, and a `transport.certificate.revoked` notice on
 //!    the security feed.
@@ -31,9 +37,7 @@
 //! CRL freshness lives beside this, in [`super::crl`].
 
 use chrono::{DateTime, Utc};
-use opensesame_domain::transport::{
-    validate_thumbprint, ServiceBindingSet, TransportError, MAX_LIST_ENTRIES,
-};
+use opensesame_domain::transport::{validate_thumbprint, TransportError};
 use opensesame_domain::OrganizationId;
 use opensesame_security_events::{NoticeState, SecurityNotice, Severity};
 use opensesame_storage::StoredCertificateRevocation;
@@ -41,9 +45,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::app_state::AppState;
 use crate::managed_certs::{transport_metadata, CustodyError};
-use crate::transport::bindings::{self, BindingsSource, PutError};
 use crate::transport_lifecycle::facts::{self, Fact};
 use crate::transport_lifecycle::minting::leaf_thumbprint;
+use crate::transport_lifecycle::revocation_store::{self, DurableError, Revoked};
 
 /// The notice published on revocation.
 pub const EVENT_REVOKED: &str = "transport.certificate.revoked";
@@ -89,6 +93,16 @@ impl RevokeReason {
     }
 }
 
+/// Who is revoking: the durable denylist keeps the operator's room apart
+/// from what tenants may fill.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Revoker {
+    /// The deployment operator (the only caller that may name a thumbprint).
+    Operator,
+    /// An organization's owner or admin, revoking its own certificate.
+    Tenant,
+}
+
 /// The operator's request: a managed certificate by id, or any leaf by
 /// thumbprint. Exactly one of the two.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -130,6 +144,11 @@ pub enum RevokeError {
     Thumbprint(TransportError),
     #[error(transparent)]
     Custody(#[from] CustodyError),
+    /// A durable layer (the stored denylist, the stored bindings) could not
+    /// be applied. The leaf is already refused in this process; the
+    /// revocation is idempotent, so the operator retries.
+    #[error("revocation not applied durably: {0}")]
+    Durable(#[from] DurableError),
 }
 
 impl RevokeError {
@@ -138,6 +157,7 @@ impl RevokeError {
         match self {
             Self::Ambiguous | Self::Thumbprint(_) => "invalid_request",
             Self::Custody(inner) => inner.code(),
+            Self::Durable(inner) => inner.code(),
         }
     }
 
@@ -146,6 +166,7 @@ impl RevokeError {
         match self {
             Self::Ambiguous | Self::Thumbprint(_) => 400,
             Self::Custody(inner) => inner.http_status(),
+            Self::Durable(inner) => inner.http_status(),
         }
     }
 }
@@ -158,10 +179,12 @@ impl RevokeError {
 pub async fn revoke_transport(
     state: &AppState,
     organization: &OrganizationId,
+    revoker: Revoker,
     request: RevokeRequest,
 ) -> Result<RevocationOutcome, RevokeError> {
     let tenant = organization.to_string();
     let now = Utc::now();
+    let mut not_after = None;
     let (certificate_id, thumbprint) = match (&request.certificate_id, &request.thumbprint) {
         (Some(id), None) => {
             let row = state
@@ -171,6 +194,9 @@ pub async fn revoke_transport(
                 .map_err(CustodyError::Storage)?
                 .ok_or(CustodyError::NotFound)?;
             let thumbprint = recorded_thumbprint(&row).ok_or(CustodyError::LeafNotRetained)?;
+            not_after = DateTime::parse_from_rfc3339(&row.expires_at)
+                .ok()
+                .map(|t| t.with_timezone(&Utc));
             if row.status == "active" {
                 let revocation = StoredCertificateRevocation {
                     id: format!("revocation:{}", uuid::Uuid::new_v4()),
@@ -209,8 +235,17 @@ pub async fn revoke_transport(
             .transport_lifecycle
             .with_scheduler(|s| s.forget(&tenant, id));
     }
-    // Layer 3: the stored binding set, for every process.
-    let bindings_note = deny_in_bindings(state, &thumbprint).await;
+    // Layer 3: the durable denylist (every process, every binding — also
+    // ones created later — and across restarts), then the stored binding
+    // set. A denylist that refuses the entry does not stop the bindings,
+    // facts or notice: the error is returned only once they have run.
+    let entry = Revoked {
+        thumbprint: &thumbprint,
+        organization: (revoker == Revoker::Tenant).then_some(tenant.as_str()),
+        not_after,
+    };
+    let persisted = revocation_store::persist(state, &entry, now).await;
+    let bindings_note = revocation_store::deny_in_bindings(state, &thumbprint).await;
     // Layer 4: facts and the feed.
     let mut targets = certificate_id
         .as_deref()
@@ -239,6 +274,10 @@ pub async fn revoke_transport(
         now,
     )
     .await;
+    // Facts and the notice are recorded either way: the leaf *is* revoked
+    // in this process, and durably in whichever layer took it.
+    persisted?;
+    let bindings_note = bindings_note?;
     Ok(RevocationOutcome {
         certificate_id,
         leaf_thumbprint_sha256: thumbprint,
@@ -259,47 +298,6 @@ fn recorded_thumbprint(row: &opensesame_storage::StoredManagedCertificate) -> Op
             crate::managed_certs_tls::retained_leaf_pem(row)
                 .and_then(|pem| leaf_thumbprint(&pem).ok())
         })
-}
-
-/// Append `thumbprint` to every stored binding's `denied_thumbprints`.
-/// Returns a one-line note for the response.
-async fn deny_in_bindings(state: &AppState, thumbprint: &str) -> String {
-    let file = std::env::var("OPENSESAME_SERVICE_BINDINGS_FILE")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .map(std::path::PathBuf::from);
-    let loaded = match bindings::load(&state.db, file.as_deref()).await {
-        Ok(loaded) => loaded,
-        Err(error) => return format!("not_updated: bindings unreadable ({})", error.code()),
-    };
-    if loaded.source == BindingsSource::Env {
-        return "not_updated: OPENSESAME_SERVICE_BINDINGS_FILE pins the set; add the thumbprint to denied_thumbprints there".into();
-    }
-    let mut proposed: ServiceBindingSet = loaded.set;
-    let mut changed = false;
-    for binding in &mut proposed.bindings {
-        if binding.denied_thumbprints.iter().any(|d| d == thumbprint) {
-            continue;
-        }
-        if binding.denied_thumbprints.len() >= MAX_LIST_ENTRIES {
-            return format!("not_updated: binding {} denylist is full", binding.id);
-        }
-        binding.denied_thumbprints.push(thumbprint.to_owned());
-        changed = true;
-    }
-    if !changed {
-        return "unchanged".into();
-    }
-    let live = state.transport_lifecycle.bindings();
-    match bindings::put_cas(&state.db, loaded.source, live.as_deref(), proposed).await {
-        Ok(set) => format!("updated: revision {}", set.revision),
-        Err(PutError::EnvOverride) => "not_updated: env override".into(),
-        Err(PutError::StaleRevision { current }) => {
-            format!("not_updated: stale revision (current {current}); retry")
-        }
-        Err(PutError::Invalid(error)) => format!("not_updated: {}", error.code()),
-        Err(PutError::Storage(_)) => "not_updated: storage error".into(),
-    }
 }
 
 async fn publish_revoked(

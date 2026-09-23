@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 491,
-    "violations": 780,
-    "oversizedLines": 247847
+    "files": 489,
+    "violations": 775,
+    "oversizedLines": 246300
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -54,9 +54,6 @@
       "max-lines": 448,
       "max-lines-per-function": 1
     },
-    "apps/cli/src/attach.rs": {
-      "max-lines": 402
-    },
     "apps/cli/src/bridge.rs": {
       "max-lines": 514
     },
@@ -73,16 +70,11 @@
       "max-lines": 466
     },
     "apps/cli/src/store.rs": {
-      "max-lines": 952
+      "max-lines": 950
     },
     "apps/connect-backend/github-app.mjs": {
       "complexity": 3,
       "max-depth": 2,
-      "max-lines-per-function": 1,
-      "max-statements": 1
-    },
-    "apps/connect-backend/manage.mjs": {
-      "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -218,10 +210,10 @@
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/interactions/byo.ts": {
-      "max-lines": 513
+      "max-lines": 436
     },
     "apps/control-plane/src/interactions/federated.ts": {
-      "max-lines": 860
+      "max-lines": 842
     },
     "apps/control-plane/src/interactions/handlers.ts": {
       "complexity": 2,
@@ -229,7 +221,7 @@
     },
     "apps/control-plane/src/interactions/ldap.ts": {
       "complexity": 1,
-      "max-lines": 659,
+      "max-lines": 653,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/interactions/oauth2.ts": {
@@ -242,7 +234,7 @@
     },
     "apps/control-plane/src/interactions/saml.ts": {
       "complexity": 2,
-      "max-lines": 1007,
+      "max-lines": 1001,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -310,7 +302,7 @@
       "max-statements": 1
     },
     "apps/control-plane/src/routes/mfa.ts": {
-      "max-lines": 659,
+      "max-lines": 658,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/routes/notification-callbacks.ts": {
@@ -340,7 +332,7 @@
     },
     "apps/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
-      "max-lines": 975
+      "max-lines": 956
     },
     "apps/control-plane/src/routes/principals.ts": {
       "complexity": 2,
@@ -498,7 +490,7 @@
       "max-lines": 955
     },
     "apps/gateway/src/routes/rotation.rs": {
-      "max-lines": 658
+      "max-lines": 645
     },
     "apps/gateway/src/routes/security.rs": {
       "max-lines": 838
@@ -513,7 +505,7 @@
       "max-lines": 979
     },
     "apps/gateway/src/security/delivery.rs": {
-      "max-lines": 719
+      "max-lines": 691
     },
     "apps/gateway/src/security/hooks.rs": {
       "max-lines": 550
@@ -847,7 +839,7 @@
       "max-lines": 646
     },
     "apps/pm-bridges/src/store.rs": {
-      "max-lines": 654
+      "max-lines": 439
     },
     "apps/pm-bridges/tests/keepassxc_handshake.rs": {
       "max-lines": 656
@@ -1029,7 +1021,7 @@
       "max-lines": 564
     },
     "crates/provider-bitwarden/src/crypto.rs": {
-      "max-lines": 944
+      "max-lines": 795
     },
     "crates/provider-bitwarden/src/vault.rs": {
       "max-lines": 520
@@ -1050,13 +1042,13 @@
       "max-lines": 420
     },
     "crates/sealed-store/src/attachment.rs": {
-      "max-lines": 1220
+      "max-lines": 1185
     },
     "crates/sealed-store/src/git.rs": {
       "max-lines": 432
     },
     "crates/sealed-store/src/store.rs": {
-      "max-lines": 649
+      "max-lines": 628
     },
     "crates/security-events/src/notice.rs": {
       "max-lines": 406
@@ -1265,7 +1257,7 @@
       "max-lines": 525
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1722
+      "max-lines": 1711
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 587
@@ -1352,8 +1344,7 @@
       "max-lines-per-function": 2
     },
     "packages/database/src/client-store.ts": {
-      "complexity": 1,
-      "max-lines": 535
+      "complexity": 1
     },
     "packages/database/src/consent-store.ts": {
       "max-lines-per-function": 1
@@ -1376,7 +1367,7 @@
       "max-lines": 2888
     },
     "packages/database/src/schema/index.ts": {
-      "max-lines": 2371
+      "max-lines": 2370
     },
     "packages/database/src/scim-store.ts": {
       "max-lines-per-function": 1
@@ -1437,7 +1428,7 @@
       "max-lines-per-function": 1
     },
     "packages/notification-adapters/src/adapters/web-push.ts": {
-      "max-lines": 526
+      "max-lines": 519
     },
     "packages/notification-adapters/src/adapters/wechat.ts": {
       "max-lines-per-function": 1
@@ -1533,7 +1524,7 @@
     },
     "packages/sdk-browser/src/client.ts": {
       "complexity": 1,
-      "max-lines": 622,
+      "max-lines": 621,
       "max-lines-per-function": 1
     },
     "packages/sdk-browser/src/edge-cases.test.ts": {

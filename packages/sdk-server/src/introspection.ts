@@ -8,7 +8,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { AuthError, AuthorizationError } from "./errors.js";
-import { hasRequiredScopes } from "./jwt-utils.js";
+import { hasRequiredScopes, readJwtAudience } from "./jwt-utils.js";
 import { assertSecureUrl } from "./verifier.js";
 
 export interface IntrospectedAccessToken {
@@ -25,6 +25,13 @@ export interface IntrospectedAccessToken {
 
 export interface IntrospectOpaqueAccessTokenOptions {
   introspectionEndpoint: string;
+  /**
+   * The audience (resource identifier) this server accepts. Required: an
+   * authorization server reports any live token as `active`, including one
+   * minted for a different resource, so an active token whose `aud` does not
+   * name one of these is refused. Several values accept any one of them.
+   */
+  audience: string | readonly string[];
   clientId?: string;
   clientSecret?: string;
   fetch?: typeof fetch;
@@ -57,15 +64,34 @@ function isDeepJsonObject(value: BoundaryValue): value is JsonObject {
   return isJsonObject(value) && Object.values(value).every(isJsonValue);
 }
 
-/** Introspect an opaque access token via RFC 7662 (fail-closed on errors). */
-export async function introspectOpaqueAccessToken(
+function expectedAudiences(audience: string | readonly string[]): string[] {
+  const list = new Array<string>()
+    .concat(audience)
+    .filter((entry) => isString(entry) && entry.length > 0);
+  if (list.length === 0) {
+    throw new Error("introspection audience must not be empty");
+  }
+  return list;
+}
+
+/** RFC 7662 `aud`: a string or an array of strings, one of which must match. */
+function audienceMatches(value: BoundaryValue, expected: string[]): boolean {
+  const aud = readJwtAudience(value);
+  if (aud === undefined) return false;
+  return new Array<string>()
+    .concat(aud)
+    .some((entry) => expected.includes(entry));
+}
+
+/**
+ * The RFC 7662 request. Redirects are refused: following one would carry the
+ * token (and possibly the client credentials) to wherever it pointed.
+ */
+function introspectionRequest(
   token: string,
   options: IntrospectOpaqueAccessTokenOptions,
-): Promise<IntrospectedAccessToken> {
-  assertSecureUrl(options.introspectionEndpoint, "introspectionEndpoint");
-  const fetchFn = options.fetch ?? globalThis.fetch;
+): RequestInit {
   const body = new URLSearchParams({ token });
-
   const headers = new Headers({
     "Content-Type": "application/x-www-form-urlencoded",
     Accept: "application/json",
@@ -80,17 +106,33 @@ export async function introspectOpaqueAccessToken(
     body.set("client_id", options.clientId);
   }
 
+  const init: RequestInit = {
+    method: "POST",
+    headers,
+    body,
+    redirect: "error",
+  };
+  if (options.signal !== undefined) {
+    init.signal = options.signal;
+  }
+  return init;
+}
+
+/** Introspect an opaque access token via RFC 7662 (fail-closed on errors). */
+export async function introspectOpaqueAccessToken(
+  token: string,
+  options: IntrospectOpaqueAccessTokenOptions,
+): Promise<IntrospectedAccessToken> {
+  assertSecureUrl(options.introspectionEndpoint, "introspectionEndpoint");
+  const audiences = expectedAudiences(options.audience);
+  const fetchFn = options.fetch ?? globalThis.fetch;
+
   let response: Response;
   try {
-    const init: RequestInit = {
-      method: "POST",
-      headers,
-      body,
-    };
-    if (options.signal !== undefined) {
-      init.signal = options.signal;
-    }
-    response = await fetchFn(options.introspectionEndpoint, init);
+    response = await fetchFn(
+      options.introspectionEndpoint,
+      introspectionRequest(token, options),
+    );
   } catch (error) {
     throw new AuthError(
       "introspection_failed",
@@ -126,6 +168,10 @@ export async function introspectOpaqueAccessToken(
 
   if (data.active !== true) {
     throw new AuthError("token_inactive", "Token is not active");
+  }
+
+  if (!audienceMatches(data.aud ?? null, audiences)) {
+    throw new AuthError("invalid_audience", "Token audience is invalid");
   }
 
   const scope = isString(data.scope) ? data.scope : undefined;

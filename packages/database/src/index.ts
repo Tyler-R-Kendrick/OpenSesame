@@ -94,18 +94,28 @@ export {
   createMemoryClientOriginStore,
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
-  createPostgresClientRecordStore,
-  type ClientAdmissionMode,
   type ClientClaimChallengeRecord,
   type ClientClaimChallengeStore,
   type ClientOriginRecord,
   type ClientOriginStatus,
   type ClientOriginStore,
+} from "./client-origin-store.js";
+export {
+  createPostgresClientRecordStore,
+  type ClientAdmissionMode,
   type ClientRecordStore,
   type ClientState,
+  type InsertOptions,
   type OAuthClientRecord,
   type OwnershipStatus,
 } from "./client-store.js";
+export {
+  OAuthClientSectorClaimedError,
+  sectorKeyOf,
+  sectorOwnerKey,
+  type SectorKeyBlock,
+  type SectorKeyRelease,
+} from "./client-sector-claims.js";
 export {
   createMemoryConsentStore,
   createPostgresConsentStore,

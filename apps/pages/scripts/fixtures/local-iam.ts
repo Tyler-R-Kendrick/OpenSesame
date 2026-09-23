@@ -1,9 +1,9 @@
 import "./install-browser-host.js";
 import { registerLocalAgentKey } from "@opensesame/app-core/lib/local-agent-keys.js";
 import { configureLocalApplication } from "@opensesame/app-core/lib/local-applications.js";
+import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import {
   type LocalDirectoryChange,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
 import { enrollLocalPasskey } from "@opensesame/app-core/lib/local-passkeys.js";

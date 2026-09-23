@@ -66,7 +66,7 @@ describe("hosted claim mapping adapter", () => {
       },
       body: JSON.stringify({
         displayName: "Claims RP",
-        redirectUris: ["https://rp.example/cb"],
+        redirectUris: ["https://claimsrp.example/cb"],
         sectorIdentifier: "https://claimsrp.example",
       }),
     });

@@ -74,6 +74,69 @@ export const SectorIdentifierSchema = z
   });
 
 /**
+ * The OIDC `sector_identifier_uri` (Core §8.1): an https document on the
+ * sector's own host listing every redirect URI. The URL shape says nothing
+ * about who controls the sector, so it is only half the proof: Identity
+ * fetches it and requires it to list every redirect URI before a client may
+ * name a sector outside its redirect hosts.
+ */
+export const SectorIdentifierUriSchema = z
+  .string()
+  .max(2048)
+  .refine(isAllowedSectorIdentifier, {
+    message:
+      "sectorIdentifierUri must be an https URL without query, fragment, or credentials",
+  });
+
+function webHostname(raw: string): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+  return url.hostname || undefined;
+}
+
+/**
+ * The redirect URIs that do not by themselves tie a client to its declared
+ * sector: any whose host is neither the sector's host nor a subdomain of it
+ * (loopback and private-use-scheme URIs included — they have no host a sector
+ * could be proven by). A registration naming any of these must prove the
+ * sector some other way (`sectorIdentifierUri`), or a verified principal could
+ * hold another party's sector while receiving codes somewhere else.
+ */
+export function redirectUrisOutsideSector(
+  sectorIdentifier: string,
+  redirectUris: readonly string[],
+): string[] {
+  const sector = webHostname(sectorIdentifier);
+  return redirectUris.filter((uri) => {
+    const host = webHostname(uri);
+    if (!sector || !host) return true;
+    return host !== sector && !host.endsWith(`.${sector}`);
+  });
+}
+
+/**
+ * Operator release of a sector key (a squatted sector). The key is derived
+ * from `sectorIdentifier` exactly as the issuer derives it; `reason` is kept in
+ * the audit record. With `nextOwnerPrincipalId` the key is held for that
+ * principal (its real owner) instead of left open to the next registrant.
+ */
+export const ReleaseSectorClaimRequestSchema = z
+  .object({
+    sectorIdentifier: z.string().trim().min(1).max(2048),
+    reason: z.string().trim().min(1).max(512),
+    nextOwnerPrincipalId: z.string().trim().min(1).max(256).optional(),
+  })
+  .strict();
+export type ReleaseSectorClaimRequest = z.infer<
+  typeof ReleaseSectorClaimRequestSchema
+>;
+
+/**
  * Grant and response types this issuer will honour.
  *
  * These were free-form strings, so a registration could declare `implicit`
@@ -124,6 +187,7 @@ export const CreateOAuthClientRequestSchema = z
     displayName: z.string().min(1).max(128),
     redirectUris: z.array(RedirectUriSchema).min(1),
     sectorIdentifier: SectorIdentifierSchema,
+    sectorIdentifierUri: SectorIdentifierUriSchema.optional(),
     grantTypes: z
       .array(GrantTypeSchema)
       .default(["authorization_code", "refresh_token"]),
@@ -143,6 +207,7 @@ export const PatchOAuthClientRequestSchema = z
   .object({
     displayName: z.string().min(1).max(128).optional(),
     redirectUris: z.array(RedirectUriSchema).min(1).optional(),
+    sectorIdentifierUri: SectorIdentifierUriSchema.optional(),
     allowedScopes: z.array(z.string()).optional(),
     allowedResources: z.array(z.string()).optional(),
     grantTypes: z.array(GrantTypeSchema).min(1).optional(),

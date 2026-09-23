@@ -167,6 +167,41 @@ impl TransportGenerations {
             .activation
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.swap_in(candidate)
+    }
+
+    /// Compare-and-set activation: make `candidate` current only while
+    /// generation `expected` is still the one serving and has not been
+    /// withdrawn. A caller that derived its candidate from a snapshot of
+    /// generation `expected` (keeping its identity, say) uses this so a
+    /// rotation or withdrawal that landed in between is never overwritten
+    /// with the older material — and a withdrawn generation is never
+    /// resurrected by a candidate that merely copied its identity.
+    ///
+    /// # Errors
+    ///
+    /// `GenerationStale` when the current generation is no longer
+    /// `expected` or is withdrawn; otherwise as
+    /// [`GenerationCandidate::validate`]. Either way the current generation
+    /// is untouched.
+    pub fn activate_if_current(
+        &self,
+        expected: u64,
+        candidate: GenerationCandidate,
+    ) -> Result<u64, TransportError> {
+        let _serial = self
+            .activation
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let current = self.current.load();
+        if current.number != expected || current.withdrawn.is_some() {
+            return Err(TransportError::GenerationStale);
+        }
+        self.swap_in(candidate)
+    }
+
+    /// Validate and store. Callers hold `activation`.
+    fn swap_in(&self, candidate: GenerationCandidate) -> Result<u64, TransportError> {
         let now = Utc::now();
         candidate.validate(now)?;
         let number = self.current.load().number + 1;

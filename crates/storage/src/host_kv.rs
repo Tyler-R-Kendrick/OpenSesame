@@ -57,6 +57,34 @@ impl Db {
         Ok(result.rows_affected() > 0)
     }
 
+    /// Compare-and-set a host-operator key/value entry: write `value` only
+    /// when the stored value is exactly `expected` (`None`: only when the key
+    /// is absent). Returns `true` when this call wrote. One statement, so two
+    /// processes sharing the store cannot both win against the same read.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database write fails.
+    pub async fn compare_and_set_host_kv(
+        &self,
+        key: &str,
+        expected: Option<&str>,
+        value: &str,
+    ) -> anyhow::Result<bool> {
+        let Some(expected) = expected else {
+            return self.try_claim_host_kv(key, value).await;
+        };
+        let result =
+            sqlx::query("UPDATE host_kv SET value = ?, updated_at = ? WHERE key = ? AND value = ?")
+                .bind(value)
+                .bind(Utc::now().to_rfc3339())
+                .bind(key)
+                .bind(expected)
+                .execute(&self.pool)
+                .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
     /// Delete a host-operator key/value entry.
     ///
     /// # Errors

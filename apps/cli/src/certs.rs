@@ -7,6 +7,7 @@ use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
     fs,
+    io::Write as _,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
@@ -127,7 +128,7 @@ pub async fn cmd_issue(server: &str, output: &str, options: IssueOptions) -> Res
         fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         let stem = sanitize_stem(&common_name);
         write_pem(&dir.join(format!("{stem}.crt.pem")), cert, 0o644)?;
-        write_pem(&dir.join(format!("{stem}.key.pem")), key, 0o600)?;
+        write_private_pem(&dir.join(format!("{stem}.key.pem")), key)?;
         if !ca.is_empty() {
             write_pem(&dir.join("ca.crt.pem"), ca, 0o644)?;
         }
@@ -196,10 +197,18 @@ fn sanitize_stem(cn: &str) -> String {
     }
 }
 
+/// Write a public PEM (a certificate or CA) at `mode`.
 fn write_pem(path: &Path, pem: &str, mode: u32) -> Result<()> {
     fs::write(path, pem).with_context(|| format!("writing {}", path.display()))?;
     fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
     Ok(())
+}
+
+/// Write a private key: created `0600` from its first byte and renamed into
+/// place, never written at the umask's mode and chmodded afterwards.
+fn write_private_pem(path: &Path, pem: &str) -> Result<()> {
+    crate::attach::write_owner_only(path, |file| Ok(file.write_all(pem.as_bytes())?))
+        .with_context(|| format!("writing {}", path.display()))
 }
 
 /// `opensesame cert key` — collect a host-custody private key (ADR 0075).
@@ -224,7 +233,7 @@ pub async fn cmd_key(
         .and_then(Value::as_str)
         .context("Host did not return a managed private key")?;
     if let Some(path) = out {
-        write_pem(&path, pem, 0o600)?;
+        write_private_pem(&path, pem)?;
         eprintln!("wrote {}", path.display());
         return Ok(());
     }
@@ -237,4 +246,35 @@ pub async fn cmd_key(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mode_of(path: &Path) -> u32 {
+        fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[test]
+    fn a_private_key_is_owner_only_even_over_a_world_readable_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("host.key.pem");
+        fs::write(&path, "old").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        write_private_pem(&path, "-----BEGIN PRIVATE KEY-----\n").unwrap();
+        assert_eq!(mode_of(&path), 0o600);
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "-----BEGIN PRIVATE KEY-----\n"
+        );
+    }
+
+    #[test]
+    fn a_public_certificate_keeps_its_readable_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("host.crt.pem");
+        write_pem(&path, "cert", 0o644).unwrap();
+        assert_eq!(mode_of(&path), 0o644);
+    }
 }

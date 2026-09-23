@@ -4,10 +4,16 @@ import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { DurableMap, incrementSecurityCounter } from "../repos/durable-map.js";
 import { durablePasskeyCredentials } from "../repos/durable-passkey-store.js";
+
+// Each PGlite test here boots a database and applies every migration inside
+// the test itself; on a loaded CI runner that alone took most of the
+// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
+// budget the beforeAll-based PGlite suites give the identical setup.
+vi.setConfig({ testTimeout: 60_000 });
 
 it("shares sessions/revocation and atomic passkey/counter state across app instances", async () => {
   const client = new PGlite();

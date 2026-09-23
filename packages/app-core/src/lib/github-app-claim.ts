@@ -11,20 +11,18 @@ import { sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import {
   type LocalGithubApp,
-  clearPendingPemIfOwned,
   forgetLocalGithubApp,
+  hasPendingGithubAppSecret,
   ownerFromPayload,
   pemFromVault,
-  pendingPem,
   readInstallations,
   readLocalGithubApp,
   refreshGithubAppOwner,
   rememberLocalGithubApp,
-  sealGithubAppSecret,
-  stashPendingPem,
+  sealPendingGithubAppPem,
+  stashPendingGithubAppSecret,
 } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
-import { vaultStore } from "./vault/store.js";
 
 async function applyInstallationsPayload(
   app: LocalGithubApp,
@@ -44,7 +42,6 @@ async function applyInstallationsPayload(
     installations,
   };
   rememberLocalGithubApp(next);
-  clearPendingPemIfOwned();
   return ownerLogin ? next : ((await refreshGithubAppOwner(next)) ?? next);
 }
 
@@ -53,7 +50,7 @@ export async function refreshGithubAppInstallations(
   app: LocalGithubApp | null = readLocalGithubApp(),
 ): Promise<LocalGithubApp | null> {
   if (!app) return null;
-  const pem = pemFromVault(app.displayName);
+  const pem = pemFromVault(app);
   if (!pem) return refreshGithubAppOwner(app);
   const base = githubAppRelayBase();
   if (base === "") return app;
@@ -71,7 +68,9 @@ export async function refreshGithubAppInstallations(
     );
     if (!response.ok) {
       if (response.status === 401 || response.status === 404) {
-        if (pendingPem()) return refreshGithubAppOwner(app);
+        if (hasPendingGithubAppSecret(app.id)) {
+          return refreshGithubAppOwner(app);
+        }
         forgetLocalGithubApp();
         return null;
       }
@@ -80,16 +79,6 @@ export async function refreshGithubAppInstallations(
     return applyInstallationsPayload(app, payload);
   } catch {
     return refreshGithubAppOwner(app);
-  }
-}
-
-async function sealClaimSecret(name: string, secret: string): Promise<void> {
-  if (secret === "" || vaultStore.getSnapshot().status !== "unlocked") return;
-  if (vaultStore.getSnapshot().tomb === "guest") return;
-  try {
-    await sealGithubAppSecret(name, secret);
-  } catch {
-    /* pending already holds it */
   }
 }
 
@@ -133,10 +122,10 @@ export async function claimGithubAppCode(
       installations: [],
     };
     rememberLocalGithubApp(app);
-    if (secret !== "") stashPendingPem(secret);
+    // Memory only; sealed now when a durable vault is open, else on unlock.
+    stashPendingGithubAppSecret(app, secret);
+    await sealPendingGithubAppPem();
     const refreshed = await refreshGithubAppInstallations(app);
-    await sealClaimSecret(name, secret);
-    clearPendingPemIfOwned();
     if (refreshed?.ownerLogin) rememberLocalGithubApp(refreshed);
     return "registered";
   } catch {

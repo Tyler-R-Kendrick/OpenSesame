@@ -3,6 +3,7 @@
  */
 
 import type { SlotPlaintext } from "../crypto/slots.js";
+import { openTriggerSlot } from "./enrollment-seal.js";
 import type { EnrolledTrigger } from "./enrollment-state.js";
 import {
   type CodeTriggerKind,
@@ -21,8 +22,8 @@ export async function openEnrolledTriggerPlaintext(input: {
   enrolled: EnrolledTrigger;
   code: string;
   expect: TriggerOpenExpect;
-  userVerified?: boolean;
-  prfOutput?: Uint8Array | null;
+  userVerified?: boolean | undefined;
+  prfOutput?: Uint8Array | null | undefined;
 }): Promise<SlotPlaintext | null> {
   const t = input.enrolled;
   if (t.triggerKind === "application_code") {
@@ -41,13 +42,12 @@ export async function openEnrolledTriggerPlaintext(input: {
     });
   }
   if (t.triggerKind === "prf_and_code") {
-    if (!input.prfOutput || input.prfOutput.length < 32) {
-      return null;
-    }
-    return openApplicationCode({
+    // Both layers: the PRF output and the code (enrollment-seal.ts).
+    return openTriggerSlot({
+      enrolled: t,
       code: input.code,
-      slot: t.slot,
       expect: input.expect,
+      prfOutput: input.prfOutput,
     });
   }
   return null;
@@ -67,6 +67,16 @@ export function bindingMatchesTrigger(
     credentialIdB64?: string;
   }>,
 ): boolean {
+  // A passkey-bound trigger is only ever tried with evidence from that very
+  // passkey on that very origin; missing evidence is not a match.
+  if (enrolled.triggerKind === "prf_and_code") {
+    return (
+      enrolled.credentialIdB64 !== undefined &&
+      enrolled.credentialIdB64 === options.credentialIdB64 &&
+      enrolled.expectedOrigin !== undefined &&
+      enrolled.expectedOrigin === options.origin
+    );
+  }
   if (
     enrolled.expectedOrigin &&
     options.origin &&

@@ -1,7 +1,8 @@
 /**
  * Sealed Vercel Connect session for Pages (ADR 0090 / ADR 0115).
- * The bearer stays in the tomb (or in memory until the first unlock seals it).
- * Never compiled into the static bundle.
+ * The bearer — a direct Vercel token, the relay's management key, or both —
+ * stays in the tomb (or in memory until the first unlock seals it).
+ * Never compiled into the static bundle, never in plaintext storage.
  */
 
 import {
@@ -23,6 +24,7 @@ type SealedConnectAuth = {
   token: string;
   teamId?: string;
   projectId?: string;
+  manageKey?: string;
 };
 
 let pending: VercelConnectAuth | null = null;
@@ -33,13 +35,23 @@ function text(value: BoundaryValue | undefined, max = 512): string {
 
 function parseRecord(value: BoundaryValue): SealedConnectAuth | null {
   if (!isJsonObject(value) || value.version !== 1) return null;
-  const token = text(value.token, 512);
-  if (!token) return null;
-  const teamId = text(value.teamId, 128);
-  const projectId = text(value.projectId, 128);
+  return normalize({
+    token: text(value.token, 512),
+    teamId: text(value.teamId, 128),
+    projectId: text(value.projectId, 128),
+    manageKey: text(value.manageKey, 512),
+  });
+}
+
+/** Trimmed, empties dropped; null when it holds neither bearer. */
+function normalize(auth: VercelConnectAuth): SealedConnectAuth | null {
+  const token = auth.token.trim();
+  const manageKey = auth.manageKey?.trim() ?? "";
+  if (!token && !manageKey) return null;
   const record: SealedConnectAuth = { version: 1, token };
-  if (teamId) record.teamId = teamId;
-  if (projectId) record.projectId = projectId;
+  if (auth.teamId?.trim()) record.teamId = auth.teamId.trim();
+  if (auth.projectId?.trim()) record.projectId = auth.projectId.trim();
+  if (manageKey) record.manageKey = manageKey;
   return record;
 }
 
@@ -47,6 +59,7 @@ function toAuth(record: SealedConnectAuth): VercelConnectAuth {
   const auth: VercelConnectAuth = { token: record.token };
   if (record.teamId) auth.teamId = record.teamId;
   if (record.projectId) auth.projectId = record.projectId;
+  if (record.manageKey) auth.manageKey = record.manageKey;
   return auth;
 }
 
@@ -82,11 +95,8 @@ export async function writeVercelConnectAuth(
   tomb: string,
   auth: VercelConnectAuth,
 ): Promise<void> {
-  const token = auth.token.trim();
-  if (!token) throw new Error("A Vercel token is required.");
-  const record: SealedConnectAuth = { version: 1, token };
-  if (auth.teamId?.trim()) record.teamId = auth.teamId.trim();
-  if (auth.projectId?.trim()) record.projectId = auth.projectId.trim();
+  const record = normalize(auth);
+  if (!record) throw new Error("A Vercel token or management key is required.");
   const bytes = new TextEncoder().encode(JSON.stringify(record));
   if (bytes.length > MAX_BYTES) {
     throw new Error("That Connect session is too large to keep here.");
@@ -121,10 +131,9 @@ export async function armVercelConnectAuth(
   tomb: string | null,
   opts: VercelConnectAuthOpts = {},
 ): Promise<void> {
-  const next: VercelConnectAuth = { token: auth.token.trim() };
-  if (auth.teamId?.trim()) next.teamId = auth.teamId.trim();
-  if (auth.projectId?.trim()) next.projectId = auth.projectId.trim();
-  if (!next.token) throw new Error("A Vercel token is required.");
+  const record = normalize(auth);
+  if (!record) throw new Error("A Vercel token or management key is required.");
+  const next = toAuth(record);
   setVercelConnectAuth(next);
   if (tomb && !opts.ephemeral) {
     pending = null;

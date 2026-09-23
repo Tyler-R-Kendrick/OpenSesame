@@ -133,6 +133,7 @@ async fn a_leaf_revoked_by_thumbprint_alone_is_refused_at_a_fresh_handshake() {
     let outcome = revocation::revoke_transport(
         &state,
         &state.connection_organization,
+        revocation::Revoker::Operator,
         RevokeRequest {
             certificate_id: None,
             thumbprint: Some(leaf.thumbprint.clone()),
@@ -199,6 +200,7 @@ async fn a_revocation_is_refused_at_the_handshake_while_the_bindings_file_pins_t
     let outcome = revocation::revoke_transport(
         &state,
         &state.connection_organization,
+        revocation::Revoker::Operator,
         RevokeRequest {
             certificate_id: None,
             thumbprint: Some(leaf.thumbprint.clone()),
@@ -238,6 +240,7 @@ async fn an_unrevoked_leaf_still_completes_a_fresh_handshake() {
     revocation::revoke_transport(
         &state,
         &state.connection_organization,
+        revocation::Revoker::Operator,
         RevokeRequest {
             certificate_id: None,
             thumbprint: Some(revoked.thumbprint.clone()),

@@ -37,8 +37,40 @@ pub async fn activate_candidate(
     generations: &TransportGenerations,
     candidate: GenerationCandidate,
 ) -> Result<u64, TransportError> {
-    let previous = generations.current().number;
-    match generations.activate(candidate) {
+    let outcome = generations.activate(candidate);
+    record_outcome(state, target, outcome).await
+}
+
+/// As [`activate_candidate`], but only while generation `expected` is still
+/// serving and not withdrawn ([`TransportGenerations::activate_if_current`]).
+/// For callers that built `candidate` from a snapshot of `expected` — a
+/// trust write keeping the serving identity — so a rotation or withdrawal
+/// that landed in between is neither overwritten nor undone.
+///
+/// # Errors
+///
+/// `GenerationStale` when the serving generation moved on (nothing is
+/// recorded: the material was never tried), otherwise as
+/// [`activate_candidate`].
+pub async fn activate_candidate_if_current(
+    state: &AppState,
+    target: &str,
+    generations: &TransportGenerations,
+    expected: u64,
+    candidate: GenerationCandidate,
+) -> Result<u64, TransportError> {
+    match generations.activate_if_current(expected, candidate) {
+        Err(TransportError::GenerationStale) => Err(TransportError::GenerationStale),
+        outcome => record_outcome(state, target, outcome).await,
+    }
+}
+
+async fn record_outcome(
+    state: &AppState,
+    target: &str,
+    outcome: Result<u64, TransportError>,
+) -> Result<u64, TransportError> {
+    match outcome {
         Ok(number) => {
             let now = Utc::now();
             facts::note(
@@ -80,7 +112,6 @@ pub async fn activate_candidate(
                 },
             )
             .await;
-            debug_assert_eq!(generations.current().number, previous);
             Err(error)
         }
     }

@@ -1,13 +1,11 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
 } from "./local-directory-bootstrap.js";
-import {
-  type LocalDirectory,
-  changeLocalDirectory,
-} from "./local-directory.js";
+import type { LocalDirectory } from "./local-directory.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;

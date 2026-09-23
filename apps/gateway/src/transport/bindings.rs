@@ -10,7 +10,13 @@
 //!
 //! Replacement is compare-and-set on the set's `revision`: the caller sends
 //! the revision it read, the store advances it by one, and a stale revision
-//! is refused so two operators cannot overwrite each other blind.
+//! is refused so two operators cannot overwrite each other blind. The
+//! revision compared is the *stored* one and the write is conditional on
+//! the document read, so gateway processes sharing one store cannot
+//! overwrite each other either; each re-reads the store every
+//! [`REFRESH_INTERVAL`] (and on every `PUT`/`GET` of the set) so a
+//! replacement another process made — a revocation's `denied_thumbprints`
+//! above all — reaches its admission within that bound.
 
 use std::path::Path;
 use std::sync::RwLock;
@@ -113,13 +119,25 @@ pub async fn load(db: &Db, file: Option<&Path>) -> Result<LoadedBindings, Transp
     }
 }
 
-/// Serializes replacements process-wide even when no runtime holds the set.
+/// Serializes replacements within one process. Across processes sharing
+/// the store, the conditional write in [`put_cas`] is what serializes.
 static PUT_SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-/// Compare-and-set replacement. `proposed.revision` must equal the current
-/// revision; the stored set carries `current + 1`. When `live` is given it
-/// is updated under its write lock after the store succeeds, so admission
-/// sees the new set atomically.
+/// How often a running gateway re-reads the stored set ([`run_refresh`]).
+/// With several gateway processes sharing one store this bounds how long a
+/// replica keeps admitting on a set another replica has replaced — a
+/// revocation's `denied_thumbprints` above all: at most this long, plus the
+/// time to its next `PUT` or `GET` of the set, which refresh immediately.
+pub const REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Compare-and-set replacement. `proposed.revision` must equal the revision
+/// **stored** now — not this process's in-memory copy, which another
+/// gateway sharing the store may have superseded — and the stored set
+/// carries `current + 1`. The write itself is conditional on the exact
+/// document that was read, so two processes holding the same read cannot
+/// both land. When `live` is given it adopts a newer stored set as soon as
+/// one is seen, and the new set under its write lock after the store
+/// succeeds, so admission sees it atomically.
 ///
 /// # Errors
 ///
@@ -134,20 +152,18 @@ pub async fn put_cas(
         return Err(PutError::EnvOverride);
     }
     let _serial = PUT_SERIAL.lock().await;
-    let current = match live {
-        Some(lock) => {
-            lock.read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .revision
-        }
-        None => {
-            load(db, None)
-                .await
-                .map_err(PutError::Invalid)?
-                .set
-                .revision
-        }
+    let raw = db
+        .get_host_kv(KV_SERVICE_BINDINGS)
+        .await
+        .map_err(|e| PutError::Storage(e.to_string()))?;
+    let stored = match raw.as_deref() {
+        Some(raw) => parse_bounded(raw).map_err(PutError::Invalid)?,
+        None => ServiceBindingSet::empty(),
     };
+    if let Some(lock) = live {
+        adopt_if_newer(lock, &stored);
+    }
+    let current = stored.revision;
     if proposed.revision != current {
         return Err(PutError::StaleRevision { current });
     }
@@ -165,15 +181,82 @@ pub async fn put_cas(
             "service bindings: document exceeds {MAX_BINDINGS_BYTES} bytes"
         ))));
     }
-    db.set_host_kv(KV_SERVICE_BINDINGS, &json)
+    let written = db
+        .compare_and_set_host_kv(KV_SERVICE_BINDINGS, raw.as_deref(), &json)
         .await
         .map_err(|e| PutError::Storage(e.to_string()))?;
+    if !written {
+        // Another process wrote between the read and the write.
+        let now = load(db, None).await.map_err(PutError::Invalid)?.set;
+        if let Some(lock) = live {
+            adopt_if_newer(lock, &now);
+        }
+        return Err(PutError::StaleRevision {
+            current: now.revision,
+        });
+    }
     if let Some(lock) = live {
         *lock
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = proposed.clone();
     }
     Ok(proposed)
+}
+
+/// Replace `live` with `stored` when the store is ahead. Never moves the
+/// live set backwards. Returns whether it changed.
+fn adopt_if_newer(live: &RwLock<ServiceBindingSet>, stored: &ServiceBindingSet) -> bool {
+    let mut guard = live
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if stored.revision > guard.revision {
+        *guard = stored.clone();
+        true
+    } else {
+        false
+    }
+}
+
+/// Re-read the stored set and adopt it when it is newer than `live`. A set
+/// pinned by the env file is the deployment plane's and is not re-read.
+///
+/// # Errors
+///
+/// The store's or the stored document's error; `live` is then untouched.
+pub async fn refresh(
+    db: &Db,
+    source: BindingsSource,
+    live: &RwLock<ServiceBindingSet>,
+) -> Result<bool, TransportError> {
+    if source == BindingsSource::Env {
+        return Ok(false);
+    }
+    let loaded = load(db, None).await?;
+    Ok(adopt_if_newer(live, &loaded.set))
+}
+
+/// Keep this process's live set within [`REFRESH_INTERVAL`] of the store.
+/// A no-op loop exit when no transport runtime is configured.
+pub async fn run_refresh(state: crate::app_state::AppState) {
+    let Some(runtime) = state.transport.clone() else {
+        return;
+    };
+    if runtime.bindings_source == BindingsSource::Env {
+        return;
+    }
+    let mut ticks = tokio::time::interval(REFRESH_INTERVAL);
+    ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        ticks.tick().await;
+        match refresh(&state.db, runtime.bindings_source, &runtime.bindings).await {
+            Ok(true) => tracing::info!("service bindings refreshed from the store"),
+            Ok(false) => {}
+            Err(error) => tracing::warn!(
+                code = error.code(),
+                "service bindings could not be refreshed; keeping the live set"
+            ),
+        }
+    }
 }
 
 /// True when any binding in the set denies this leaf: the listener's

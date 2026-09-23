@@ -180,6 +180,16 @@ describe("SETTINGS-C codes / disarm / import", () => {
     expect("enrolledCode" in enrolled.status).toBe(false);
     const view = publicCodeSlotView(enrolled.status);
     expect(JSON.stringify(view)).not.toContain("12345678");
+    // Nothing derived from the code either: no digest, not even a prefix.
+    expect(Object.keys(view).sort()).toEqual([
+      "enrolled",
+      "lastReplacedAt",
+      "profileId",
+      "slotId",
+    ]);
+    expect(JSON.stringify(view)).not.toContain(
+      enrolled.status.materialDigest.slice(0, 8),
+    );
     const disarmed = disarmProfile(enrolled.status);
     expect(disarmed.enrolled).toBe(false);
     expect(assertNoEnrolledCodeDisplay({ code: "12345678" }).ok).toBe(false);

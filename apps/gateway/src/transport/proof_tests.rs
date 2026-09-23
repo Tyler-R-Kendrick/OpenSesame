@@ -86,6 +86,49 @@ fn behind_an_ingress_the_originating_certificate_binds() {
     );
 }
 
+/// A revoked originating client behind a trusted ingress: the token names
+/// exactly its certificate, and the listener's revoked-leaf hook (lifecycle
+/// denylist + binding `denied_thumbprints`) names it too. The binding is
+/// refused as revoked rather than honoured.
+#[test]
+fn a_revoked_originating_certificate_does_not_satisfy_its_binding() {
+    let ingress = peer("edge.test", THUMB_A, 1);
+    let evidence = forwarded("client.test", THUMB_B, &ingress);
+    let mut extensions = tls_extensions(&ingress, 1);
+    extensions.insert(opensesame_ingress_evidence::OriginatingPeerExtension(
+        std::sync::Arc::new(evidence),
+    ));
+    let deny: opensesame_transport_security::DenyThumbprint =
+        std::sync::Arc::new(|thumbprint: &str| thumbprint == THUMB_B);
+    extensions.insert(opensesame_transport_security::PeerDenyHook(deny));
+    assert_eq!(
+        require_certificate_binding(Some(&cnf_for(THUMB_B)), &extensions),
+        Err(TransportError::EvidenceRevoked)
+    );
+    // Revoking someone else changes nothing for this client.
+    let other: opensesame_transport_security::DenyThumbprint =
+        std::sync::Arc::new(|thumbprint: &str| thumbprint == THUMB_A);
+    extensions.insert(opensesame_transport_security::PeerDenyHook(other));
+    assert!(require_certificate_binding(Some(&cnf_for(THUMB_B)), &extensions).is_ok());
+}
+
+/// The same rule for a direct peer, wired the way the Host wires it: the
+/// lifecycle denylist a revoke verb writes is part of the listener's hook.
+#[test]
+fn a_leaf_revoked_through_the_lifecycle_does_not_satisfy_its_binding() {
+    let lifecycle = crate::transport_lifecycle::LifecycleState::new();
+    let mut extensions = tls_extensions(&peer("client.test", THUMB_A, 1), 1);
+    extensions.insert(opensesame_transport_security::PeerDenyHook(
+        lifecycle.deny_hook(),
+    ));
+    assert!(require_certificate_binding(Some(&cnf_for(THUMB_A)), &extensions).is_ok());
+    lifecycle.deny(THUMB_A);
+    assert_eq!(
+        require_certificate_binding(Some(&cnf_for(THUMB_A)), &extensions),
+        Err(TransportError::EvidenceRevoked)
+    );
+}
+
 #[test]
 fn tokens_without_a_certificate_confirmation_are_unchanged() {
     let extensions = plain_extensions();

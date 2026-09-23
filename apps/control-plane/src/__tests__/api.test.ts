@@ -1609,7 +1609,7 @@ describe("control-plane API", () => {
         },
         body: JSON.stringify({
           displayName: "RP",
-          redirectUris: ["https://rp.example/cb"],
+          redirectUris: [`${sectorIdentifier}/cb`],
           sectorIdentifier,
         }),
       });

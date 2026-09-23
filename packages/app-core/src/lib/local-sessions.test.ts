@@ -3,7 +3,13 @@ import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import { readLocalPasskeys, revokeLocalPasskey } from "./local-credentials.js";
-import { changeLocalDirectory, readLocalDirectory } from "./local-directory.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
+import {
+  type LocalDirectoryChange,
+  commitLocalDirectoryUnderLock,
+  readLocalDirectory,
+  withLocalDirectoryLock,
+} from "./local-directory.js";
 import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import {
   authenticateLocalPasskey,
@@ -258,14 +264,21 @@ describe("browser-local identity sessions", () => {
 
   it("does not resurrect a session when a disabled identity is re-enabled", async () => {
     const session = await signInLocalIdentity(tomb, principalId);
+    // The signed-in person holds no Access capability, so the panel's gated
+    // write would refuse them; this test is about session liveness, and the
+    // commit primitive stands in for the vault custodian.
+    const commit = (revision: number, change: LocalDirectoryChange) =>
+      withLocalDirectoryLock(tomb, () =>
+        commitLocalDirectoryUnderLock(tomb, revision, change),
+      );
     const directory = await readLocalDirectory(tomb);
-    const disabled = await changeLocalDirectory(tomb, directory.revision, {
+    const disabled = await commit(directory.revision, {
       action: "update",
       id: principalId,
       name: "Local person",
       enabled: false,
     });
-    await changeLocalDirectory(tomb, disabled.revision, {
+    await commit(disabled.revision, {
       action: "update",
       id: principalId,
       name: "Local person",

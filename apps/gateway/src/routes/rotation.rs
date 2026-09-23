@@ -21,6 +21,9 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
+
+#[path = "rotation_access.rs"]
+mod access;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
 
 #[allow(clippy::result_large_err)]
@@ -199,12 +202,15 @@ pub async fn request(
         Err(resp) => return resp,
     };
 
-    if let Err(response) = validate_target(&st, &organization_id, &target).await {
+    let interval = body.interval.as_deref().filter(|s| !s.trim().is_empty());
+    if let Err(response) =
+        access::may_request(&st, &who, &organization_id, &target, interval.is_some()).await
+    {
         return response;
     }
 
     let mut policy_id = None;
-    if let Some(interval) = body.interval.as_deref().filter(|s| !s.trim().is_empty()) {
+    if let Some(interval) = interval {
         let Some(duration) = parse_interval(interval) else {
             return (
                 StatusCode::BAD_REQUEST,
@@ -286,29 +292,6 @@ pub async fn request(
     (StatusCode::ACCEPTED, Json(response)).into_response()
 }
 
-async fn validate_target(
-    st: &AppState,
-    organization_id: &opensesame_domain::OrganizationId,
-    target: &RotationTarget,
-) -> Result<(), Response> {
-    let RotationTarget::Connection { connection_id } = target else {
-        return Ok(());
-    };
-    if st
-        .connection_broker
-        .get_connection(organization_id, connection_id)
-        .await
-        .is_ok()
-    {
-        return Ok(());
-    }
-    Err((
-        StatusCode::NOT_FOUND,
-        Json(json!({"error": "connection_not_found"})),
-    )
-        .into_response())
-}
-
 /// `GET /api/v1/rotations/{id}` — job status only (no secrets).
 pub async fn get_job(
     State(st): State<AppState>,
@@ -328,8 +311,10 @@ pub async fn get_job(
         .get_rotation_job(&organization_id.to_string(), &id)
         .await
     {
-        Ok(Some(job)) => Json(secrets_never_returned(job.public_view())).into_response(),
-        Ok(None) => (
+        Ok(Some(job)) if access::may_see(&st, &who, &organization_id, &job).await => {
+            Json(secrets_never_returned(job.public_view())).into_response()
+        }
+        Ok(_) => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "not_found", "hint": "rotation job not found"})),
         )
@@ -353,11 +338,13 @@ pub async fn list_jobs(State(st): State<AppState>, headers: axum::http::HeaderMa
         .list_rotation_jobs(&organization_id.to_string(), 100)
         .await
     {
-        Ok(jobs) => {
-            let jobs: Vec<_> = jobs
-                .into_iter()
-                .map(|j| secrets_never_returned(j.public_view()))
-                .collect();
+        Ok(all) => {
+            let mut jobs = Vec::with_capacity(all.len());
+            for job in all {
+                if access::may_see(&st, &who, &organization_id, &job).await {
+                    jobs.push(secrets_never_returned(job.public_view()));
+                }
+            }
             Json(json!({"rotations": jobs, "secrets_returned": false})).into_response()
         }
         Err(e) => broker_error(&e),

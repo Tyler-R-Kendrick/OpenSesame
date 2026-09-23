@@ -12,6 +12,7 @@ import {
   mintVaultKey,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
+import { assertNewPassword } from "../unlock-secret-guard.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId, newProtectorId } from "./ids.js";
 import {
@@ -189,11 +190,15 @@ export async function testProtector(
 /**
  * Mint a new vault root, re-seal the body, re-wrap with password, and reset
  * the protection manifest to the password path (root-rotate).
+ *
+ * The new password meets the same floor as every other master-password path
+ * (policy, then the duress-code collision probe) before any key changes.
  */
 export async function rotateCompromisedRoot(
   host: LifecycleHost,
   input: { password: string },
 ): Promise<void> {
+  await assertNewPassword(input.password);
   const header = host.getHeader();
   if (!header) {
     throw new ProtectionError(

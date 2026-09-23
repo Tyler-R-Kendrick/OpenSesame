@@ -90,6 +90,24 @@ describe("zero-config origin mode", () => {
     await expect(sesame.signIn({ returnTo: "//evil.com" })).rejects.toThrow(
       BrowserOriginError,
     );
+    await expect(sesame.signIn({ returnTo: "/\t/evil.com" })).rejects.toThrow(
+      BrowserOriginError,
+    );
+  });
+
+  it("never hands back a stored returnTo that is not a same-origin path", () => {
+    const storage = new MemStorage();
+    storage.setItem("opensesame:returnTo", "/\t/evil.com");
+    const sesame = createOpenSesame({
+      issuer: ISSUER,
+      storage,
+      windowLocation: {
+        href: `${PAGE}/`,
+        assign: () => undefined,
+        replace: () => undefined,
+      },
+    });
+    expect(sesame.getReturnTo()).toBeNull();
   });
 
   it("validates the ID token, strips refresh tokens from storage, and scrubs the URL", async () => {

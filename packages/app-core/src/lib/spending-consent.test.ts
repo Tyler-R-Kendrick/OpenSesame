@@ -6,11 +6,14 @@ import {
   generatePaymentApprovalKeyPair,
   signPaymentApprovalDigest,
 } from "@opensesame/wallet-consent";
-import { describe, expect, it } from "vitest";
+import { signDigestWithEphemeralP256 } from "@opensesame/wallet-consent/verify";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   assessLocalPaymentApproval,
   buildLocalPaymentApprovalDigest,
+  enrollPaymentApprovalKey,
   localPaymentApprovalIntent,
+  resetPaymentApprovalKeys,
 } from "./spending-consent.js";
 
 const TAMPER = {
@@ -28,6 +31,8 @@ const TAMPER = {
 } satisfies Record<PaymentApprovalDigestField, string>;
 
 describe("spending-consent", () => {
+  beforeEach(() => resetPaymentApprovalKeys());
+
   it("matches the Node wallet-consent digest encoding", async () => {
     const intent = localPaymentApprovalIntent({
       amount: "700",
@@ -44,6 +49,7 @@ describe("spending-consent", () => {
       const honest = localPaymentApprovalIntent({ amount: "700" });
       const digest = await buildLocalPaymentApprovalDigest(honest);
       const keys = generatePaymentApprovalKeyPair();
+      enrollPaymentApprovalKey(keys.publicKeySpki);
       const proof = {
         boundDigest: digest,
         verifiedBytes: signPaymentApprovalDigest(digest, keys.privateKeyPkcs8),
@@ -90,6 +96,7 @@ describe("spending-consent", () => {
     expect(mismatch).toEqual({ ok: false, reason: "digest_mismatch" });
 
     const dummyKeys = generatePaymentApprovalKeyPair();
+    enrollPaymentApprovalKey(dummyKeys.publicKeySpki);
     const dummyBytes = await assessLocalPaymentApproval({
       intent,
       proof: {
@@ -99,5 +106,18 @@ describe("spending-consent", () => {
       },
     });
     expect(dummyBytes).toEqual({ ok: false, reason: "signature_invalid" });
+  });
+
+  it("refuses an approval signed by a key the device never enrolled", async () => {
+    const intent = localPaymentApprovalIntent({ amount: "700" });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    enrollPaymentApprovalKey(generatePaymentApprovalKeyPair().publicKeySpki);
+    const selfSigned = await signDigestWithEphemeralP256(digest);
+    expect(
+      await assessLocalPaymentApproval({
+        intent,
+        proof: { boundDigest: digest, ...selfSigned },
+      }),
+    ).toEqual({ ok: false, reason: "key_not_enrolled" });
   });
 });

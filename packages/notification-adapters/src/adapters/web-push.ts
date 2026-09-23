@@ -52,7 +52,7 @@ import type {
   RenderInput,
   RenderedMessage,
 } from "../contract.js";
-import { classifyThrown, deliveryAbortSignal, httpOutcome } from "../http.js";
+import { deliverToPublicEndpoint, postPublicOnly } from "../public-endpoint.js";
 import { renderNotification } from "../templates.js";
 
 export const WEB_PUSH_PROVIDER_ID = "native_push";
@@ -94,7 +94,8 @@ export interface WebPushConfig {
 }
 
 export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
-  const fetchImpl: FetchLike = config.fetchImpl ?? fetch;
+  // The endpoint is browser-supplied: public-only, pinned, no redirects.
+  const post = config.fetchImpl ?? postPublicOnly;
   const now: ClockLike = config.now ?? (() => new Date());
   const ttl = config.ttlSeconds ?? 60;
 
@@ -147,25 +148,17 @@ export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
         error: `subscription:${err instanceof Error ? err.name : "invalid"}`,
       };
     }
-    try {
-      const response = await fetchImpl(subscription.endpoint, {
-        method: "POST",
-        headers: {
-          authorization,
-          "content-encoding": "aes128gcm",
-          "content-type": "application/octet-stream",
-          ttl: String(ttl),
-          urgency: "high",
-        },
-        body,
-        signal: deliveryAbortSignal(),
-      });
-      // 404 and 410 mean the subscription is gone; `classifyHttpStatus`
-      // already calls those permanent, which is what retires the row.
-      return httpOutcome(response.status);
-    } catch (err) {
-      return classifyThrown(err instanceof Error ? err : undefined);
-    }
+    // 404 and 410 mean the subscription is gone; `classifyHttpStatus`
+    // already calls those permanent, which is what retires the row. So is a
+    // private or non-HTTPS endpoint, which is refused before any request.
+    const headers = {
+      authorization,
+      "content-encoding": "aes128gcm",
+      "content-type": "application/octet-stream",
+      ttl: String(ttl),
+      urgency: "high",
+    };
+    return deliverToPublicEndpoint(post, subscription.endpoint, headers, body);
   };
 
   // No `verifyCallback`: a push service delivers, it does not report back a

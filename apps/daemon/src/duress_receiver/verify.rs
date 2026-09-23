@@ -1,7 +1,7 @@
 //! Structural + ECDSA P-256 SHA-256 envelope checks matching Pages
 //! `peer/envelope.ts` signing input and WebCrypto verify semantics.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use base64::Engine;
 use ecdsa::signature::Verifier;
@@ -36,29 +36,66 @@ pub struct EnvelopeVerifyExpect {
     pub now_ms: Option<i64>,
 }
 
+/// Future-dated `issuedAt` tolerance — Pages `PEER_BOUNDS.clockSkewMs`.
+pub const CLOCK_SKEW_MS: i64 = 5 * 60_000;
+/// Longest envelope lifetime accepted — Pages `PEER_BOUNDS.maxTtlMs`.
+pub const MAX_TTL_MS: i64 = 24 * 60 * 60_000;
+
+/// Nonces seen, each kept until its envelope expires. An expired envelope is
+/// refused on its timestamps before the cache is consulted, so forgetting its
+/// nonce reopens nothing — and the cache no longer refuses every envelope once
+/// `max` distinct nonces have ever been seen.
 pub struct ReplayCache {
     max: usize,
-    seen: HashSet<String>,
+    seen: HashMap<String, i64>,
 }
 
 impl ReplayCache {
     pub fn new(max: usize) -> Self {
         Self {
             max,
-            seen: HashSet::new(),
+            seen: HashMap::new(),
         }
     }
 
-    pub fn remember(&mut self, nonce: &str) -> Result<(), &'static str> {
-        if self.seen.contains(nonce) {
+    pub fn remember(
+        &mut self,
+        nonce: &str,
+        expires_ms: i64,
+        now_ms: i64,
+    ) -> Result<(), &'static str> {
+        self.seen.retain(|_, expiry| *expiry >= now_ms);
+        if self.seen.contains_key(nonce) {
             return Err("ambiguous_trigger");
         }
         if self.seen.len() >= self.max {
             return Err("unsupported_factor");
         }
-        self.seen.insert(nonce.to_string());
+        self.seen.insert(nonce.to_string(), expires_ms);
         Ok(())
     }
+}
+
+/// Timestamps must parse, run forwards, stay within the lifetime bound, not be
+/// issued in the future beyond skew, and not have expired.
+fn check_window(env: &PeerEnvelopeView, now: i64) -> Result<i64, &'static str> {
+    let parse = |value: &str| {
+        chrono::DateTime::parse_from_rfc3339(value)
+            .map(|t| t.timestamp_millis())
+            .map_err(|_| "unsupported_factor")
+    };
+    let issued = parse(&env.issued_at)?;
+    let expires = parse(&env.expires_at)?;
+    if expires <= issued || expires - issued > MAX_TTL_MS {
+        return Err("unsupported_factor");
+    }
+    if expires.saturating_sub(now) > MAX_TTL_MS + CLOCK_SKEW_MS {
+        return Err("unsupported_factor");
+    }
+    if issued > now.saturating_add(CLOCK_SKEW_MS) || expires < now {
+        return Err("stale_session");
+    }
+    Ok(expires)
 }
 
 /// Parse an enrolled peer verifying key from SPKI DER (base64) or SEC1 bytes.
@@ -146,15 +183,10 @@ pub fn verify_envelope_view(
     if env.signature_b64.is_empty() {
         return Err("unavailable_authority");
     }
-    let expires = chrono::DateTime::parse_from_rfc3339(&env.expires_at)
-        .map(|t| t.timestamp_millis())
-        .map_err(|_| "unsupported_factor")?;
     let now = expect
         .now_ms
         .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-    if expires < now {
-        return Err("stale_session");
-    }
+    let expires = check_window(env, now)?;
 
     let Some(vk) = verifying_key else {
         // Fail closed: receiver must not accept unsigned/unkeyed envelopes.
@@ -163,7 +195,7 @@ pub fn verify_envelope_view(
     verify_ecdsa_p256_sha256(env, vk)?;
 
     // Replay only after cryptographic acceptance so forgeries cannot fill the cache.
-    replay.remember(&env.nonce)?;
+    replay.remember(&env.nonce, expires, now)?;
 
     let _ = (
         &env.issuer,
@@ -172,7 +204,6 @@ pub fn verify_envelope_view(
         &env.incident_id,
         env.policy_revision,
         env.key_epoch,
-        &env.issued_at,
     );
     Ok(())
 }
@@ -242,6 +273,74 @@ mod crypto_tests {
         assert_eq!(
             verify_envelope_view(&view, &expect, &mut replay3, None).unwrap_err(),
             "unavailable_authority"
+        );
+    }
+
+    fn resign(sk: &SigningKey, view: &mut PeerEnvelopeView) {
+        let sig: Signature = sk.sign(&signing_input_bytes(view));
+        view.signature_b64 = base64::engine::general_purpose::STANDARD.encode(sig.to_bytes());
+    }
+
+    fn expect() -> EnvelopeVerifyExpect {
+        EnvelopeVerifyExpect {
+            audience: "recv".into(),
+            permitted_operations: vec!["quarantine_device".into()],
+            vault_ref: None,
+            now_ms: None,
+        }
+    }
+
+    #[test]
+    fn future_dated_and_overlong_envelopes_are_refused() {
+        let sk = SigningKey::random(&mut rand_core::OsRng);
+        let vk = VerifyingKey::from(&sk);
+        let now = chrono::Utc::now();
+        let mut future = signed_view(&sk);
+        future.issued_at = (now + chrono::Duration::hours(1)).to_rfc3339();
+        future.expires_at = (now + chrono::Duration::hours(2)).to_rfc3339();
+        resign(&sk, &mut future);
+        let mut replay = ReplayCache::new(16);
+        assert_eq!(
+            verify_envelope_view(&future, &expect(), &mut replay, Some(&vk)).unwrap_err(),
+            "stale_session"
+        );
+
+        let mut forever = signed_view(&sk);
+        forever.expires_at = (now + chrono::Duration::days(3650)).to_rfc3339();
+        resign(&sk, &mut forever);
+        assert_eq!(
+            verify_envelope_view(&forever, &expect(), &mut replay, Some(&vk)).unwrap_err(),
+            "unsupported_factor"
+        );
+
+        let mut backwards = signed_view(&sk);
+        backwards.issued_at = (now + chrono::Duration::seconds(90)).to_rfc3339();
+        resign(&sk, &mut backwards);
+        assert_eq!(
+            verify_envelope_view(&backwards, &expect(), &mut replay, Some(&vk)).unwrap_err(),
+            "unsupported_factor"
+        );
+    }
+
+    #[test]
+    fn replay_cache_evicts_expired_nonces_instead_of_filling_up() {
+        let mut replay = ReplayCache::new(2);
+        replay.remember("nonce-aaa", 1_000, 0).unwrap();
+        replay.remember("nonce-bbb", 1_000, 0).unwrap();
+        assert_eq!(
+            replay.remember("nonce-ccc", 5_000, 500).unwrap_err(),
+            "unsupported_factor"
+        );
+        assert_eq!(
+            replay.remember("nonce-aaa", 1_000, 500).unwrap_err(),
+            "ambiguous_trigger"
+        );
+        // Once the first two have expired they no longer hold a slot.
+        replay.remember("nonce-ccc", 5_000, 1_001).unwrap();
+        replay.remember("nonce-ddd", 5_000, 1_001).unwrap();
+        assert_eq!(
+            replay.remember("nonce-ccc", 5_000, 1_002).unwrap_err(),
+            "ambiguous_trigger"
         );
     }
 }

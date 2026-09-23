@@ -175,10 +175,40 @@ fn git_daemon_denial_exits_nonzero_with_empty_stdout() {
 
 #[test]
 fn git_without_connection_id_fails_closed() {
-    let out = run_helper(GIT_BIN, &["get"], "host=github.com\n\n", &[]);
+    let out = run_helper(
+        GIT_BIN,
+        &["get"],
+        "protocol=https\nhost=github.com\n\n",
+        &[],
+    );
     assert!(!out.status.success());
     assert!(out.stdout.is_empty());
     assert!(String::from_utf8_lossy(&out.stderr).contains("OPENSESAME_GIT_CONNECTION_ID"));
+}
+
+#[test]
+fn git_get_for_another_host_or_plain_http_mints_and_prints_nothing() {
+    let stub = spawn_stub_daemon(200, &mint_body(), 1);
+    let sock = stub.sock.to_str().unwrap();
+    for input in [
+        "protocol=https\nhost=attacker.example\n\n",
+        "protocol=https\nhost=github.com.evil.example\n\n",
+        "protocol=http\nhost=github.com\n\n",
+        "host=github.com\n\n",
+    ] {
+        let envs = [
+            ("OPENSESAME_AGENT_SOCK", sock),
+            ("OPENSESAME_GIT_CONNECTION_ID", "conn_test"),
+        ];
+        let out = run_helper(GIT_BIN, &["get"], input, &envs);
+        // A clean, empty answer: git falls through to its next helper.
+        assert!(out.status.success(), "{input:?}");
+        assert!(out.stdout.is_empty(), "{input:?}");
+    }
+    assert!(
+        stub.requests.lock().unwrap().is_empty(),
+        "no mint was asked for"
+    );
 }
 
 // ——— docker-credential-opensesame —————————————————————————————————

@@ -179,7 +179,18 @@ pub async fn revoke(
         .revoke_agent_client(&principal.to_string(), &org.to_string(), &client)
         .await
     {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            // The durable grant is gone; drop the claims the guard cached for it too.
+            if let Ok(mut sessions) = st.sessions.lock() {
+                sessions.retain(|_, claims| {
+                    claims.credential_kind != CredentialKind::AgentCapability
+                        || claims.client_id != client
+                        || claims.principal_id != principal
+                        || claims.organization_id != org
+                });
+            }
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(_) => refused(),
     }
 }
@@ -210,3 +221,7 @@ pub fn claims(grant: &AgentGrant) -> Option<HostSessionClaims> {
         .valid_for(&grant.resource, Utc::now())
         .then_some(claims)
 }
+
+#[cfg(test)]
+#[path = "agent_capabilities_tests.rs"]
+mod tests;

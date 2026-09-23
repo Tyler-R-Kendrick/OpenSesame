@@ -11,7 +11,9 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildLocalPaymentApprovalDigest,
+  enrollPaymentApprovalKey,
   localPaymentApprovalIntent,
+  resetPaymentApprovalKeys,
 } from "./spending-consent.js";
 import {
   clearSpendingLedgerStorage,
@@ -48,15 +50,19 @@ function ensureLocalStorage(): void {
 }
 
 const caller = { principalRef: "principal-owner" };
+const OWNER_KEYS = generatePaymentApprovalKeyPair();
 
-async function approvedIssue(proposalId: string, amount: string) {
+async function approvedIssue(
+  proposalId: string,
+  amount: string,
+  keys = OWNER_KEYS,
+) {
   const intent = localPaymentApprovalIntent({
     amount,
     recipient: "0xabc",
     allocationRef: "child-a",
   });
   const digest = await buildLocalPaymentApprovalDigest(intent);
-  const keys = generatePaymentApprovalKeyPair();
   return issuePreparedSpend({
     proposalId,
     intent,
@@ -74,6 +80,8 @@ describe("wallet-agent-broker", () => {
     clearSpendingLedgerStorage();
     resetSpendingLedgerCache();
     resetWalletAgentBroker();
+    resetPaymentApprovalKeys();
+    enrollPaymentApprovalKey(OWNER_KEYS.publicKeySpki);
     getSpendingLedger().transact((tx) => {
       tx.openNode({
         nodeId: "household",
@@ -104,6 +112,25 @@ describe("wallet-agent-broker", () => {
       claimedPrincipalRef: "forged-principal",
     });
     expect(result).toEqual({ ok: false, code: "CALLER_NOT_AUTHORIZED" });
+  });
+
+  it("refuses an approval self-signed with a key the owner never enrolled", async () => {
+    const proposed = proposeWalletPayment({
+      caller,
+      nodeId: "child-a",
+      amount: "10",
+      destination: "0xabc",
+    });
+    if (!proposed.ok) throw new Error("expected proposal");
+    const selfSigned = await approvedIssue(
+      proposed.proposal.proposalId,
+      "10",
+      generatePaymentApprovalKeyPair(),
+    );
+    expect(selfSigned).toEqual({ ok: false, code: "key_not_enrolled" });
+    // The refusal does not burn the proposal for the owner's real approval.
+    const owner = await approvedIssue(proposed.proposal.proposalId, "10");
+    expect(owner.ok).toBe(true);
   });
 
   it("refuses caller-constructed prepared refs", () => {

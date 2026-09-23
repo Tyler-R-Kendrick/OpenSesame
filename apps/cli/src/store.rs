@@ -11,8 +11,8 @@ use opensesame_sealed_store::{
     generate_password, git_passthrough, init_store, init_store_key, load_tomb_registry,
     parse_manifest, parse_otpauth, push_backup, remote_url, resolve_store_dir, resolve_tomb_paths,
     restore_entry, rotate_secret_entry, save_tomb_registry, seal_manifest, set_auto_push,
-    set_remote, totp_code, unlock_store_key, validate_otpauth, Entry, StoreRoot, TombBackend,
-    TombEntry, UpdateMode, UpdateOptions,
+    set_remote, totp_code, unlock_store_key, Entry, StoreRoot, TombBackend, TombEntry, UpdateMode,
+    UpdateOptions,
 };
 use regex::Regex;
 
@@ -359,7 +359,7 @@ fn is_github_https(url: &str) -> bool {
 
 // —— OTP ——————————————————————————————————————————————————
 
-fn read_uri_input(echo: bool) -> anyhow::Result<String> {
+pub(crate) fn read_uri_input(echo: bool) -> anyhow::Result<String> {
     if !io::stdin().is_terminal() {
         let mut buf = String::new();
         io::stdin().read_to_string(&mut buf)?;
@@ -441,7 +441,14 @@ pub fn cmd_otp_append(
     Ok(())
 }
 
-pub fn cmd_otp_uri(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+/// The URI carries the TOTP seed, so it is plaintext output like `show`.
+pub fn cmd_otp_uri(
+    name: &str,
+    reveal: bool,
+    path: Option<&Path>,
+    tomb: Option<&str>,
+) -> anyhow::Result<()> {
+    require_reveal(reveal)?;
     let (root, key) = open_unlocked(path, tomb)?;
     let entry = root.show(name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
     let otp = entry
@@ -449,15 +456,6 @@ pub fn cmd_otp_uri(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyho
         .ok_or_else(|| anyhow::anyhow!("no otpauth:// URI in {name}"))?;
     println!("{}", otp.uri);
     Ok(())
-}
-
-pub fn cmd_otp_validate(uri: &str) -> anyhow::Result<()> {
-    if validate_otpauth(uri) {
-        println!("ok");
-        Ok(())
-    } else {
-        anyhow::bail!("invalid otpauth URI");
-    }
 }
 
 // —— update ———————————————————————————————————————————————
@@ -906,7 +904,7 @@ pub fn cmd_export_kdbx(
     }
     let bytes = export_kdbx(&root, &key, prefix, &password, ExportOptions::default())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    std::fs::write(dest, &bytes)?;
+    crate::attach::write_owner_only(dest, |file| Ok(file.write_all(&bytes)?))?;
     println!("wrote {} ({} bytes)", dest.display(), bytes.len());
     Ok(())
 }

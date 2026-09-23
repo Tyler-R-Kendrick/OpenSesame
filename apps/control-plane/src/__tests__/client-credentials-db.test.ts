@@ -90,7 +90,7 @@ describe("Identity /token client_credentials on Postgres", () => {
       },
       body: JSON.stringify({
         displayName: "Workload",
-        redirectUris: ["https://workload.example/cb"],
+        redirectUris: ["https://workload-db.example/cb"],
         sectorIdentifier: "https://workload-db.example",
         grantTypes: ["client_credentials"],
         responseTypes: [],

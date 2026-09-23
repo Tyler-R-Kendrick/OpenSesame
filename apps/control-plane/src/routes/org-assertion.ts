@@ -14,6 +14,10 @@ import {
   decodeProtectedHeader,
   jwtVerify,
 } from "jose";
+import {
+  UnsafeUpstreamError,
+  guardedFetch,
+} from "../services/guarded-fetch.js";
 
 const ALLOWED_ALGS = ["RS256", "ES256"] as const;
 const ALLOWED_ALG_SET = new Set<string>(ALLOWED_ALGS);
@@ -84,7 +88,9 @@ type GuardedFetchInit = { headers?: HeadersInit; signal?: AbortSignal };
 /**
  * Fetch a guarded URL. Redirects are refused rather than followed: a 302 to
  * `169.254.169.254` would otherwise walk straight past the host guard, which
- * only ever sees the first URL.
+ * only ever sees the first URL. With the guard on, the name is resolved and
+ * the connection pinned to an address that passed it (`guardedFetch`): a
+ * public name answering with `10.0.0.1` is refused, not dialled.
  */
 async function safeIssuerFetch(
   rawUrl: string,
@@ -92,12 +98,18 @@ async function safeIssuerFetch(
   init?: GuardedFetchInit,
 ): Promise<Response> {
   const url = assertSafeIssuerUrl(rawUrl, blockPrivateHosts);
-  return fetch(url, {
-    method: "GET",
-    redirect: "error",
-    signal: init?.signal ?? AbortSignal.timeout(DISCOVERY_MS),
-    ...(init?.headers ? { headers: init.headers } : undefined),
-  });
+  try {
+    return await guardedFetch(url, blockPrivateHosts, {
+      signal: init?.signal ?? AbortSignal.timeout(DISCOVERY_MS),
+      headers: init?.headers,
+    });
+  } catch (error) {
+    if (!(error instanceof UnsafeUpstreamError)) throw error;
+    throw new OrgAssertionError(
+      "unsafe_issuer",
+      "Issuer host is not reachable from this deployment.",
+    );
+  }
 }
 
 async function discoverJwksUriDefault(

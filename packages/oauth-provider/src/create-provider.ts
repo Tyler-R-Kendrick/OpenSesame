@@ -53,7 +53,7 @@ import {
 import { parseOriginClientId } from "./origin/canonical.js";
 import {
   MemoryPairwiseSubjectStore,
-  createPairwiseIdentifierCallback,
+  createPairwiseIdentifierCallback as pairwiseCallback,
 } from "./pairwise/store.js";
 import { canonicalResource, isResourceAllowed } from "./resource-indicators.js";
 import type {
@@ -255,7 +255,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
     : "client_secret_basic";
   let sector = meta.client_id;
   if (sectorIdentifierUri) {
-    sector = sectorIdentifierUri;
+    sector = new URL(sectorIdentifierUri).host;
   } else if (meta.redirect_uris?.[0]) {
     try {
       sector = new URL(meta.redirect_uris[0]).host;
@@ -358,7 +358,7 @@ export function createOpenSesameProvider(
     clients: staticClients,
     jwks,
     subjectTypes: ["pairwise"],
-    pairwiseIdentifier: createPairwiseIdentifierCallback(pairwiseStore),
+    pairwiseIdentifier: pairwiseCallback(pairwiseStore, clientStore),
     // `loadExistingGrant` is a documented runtime option this oidc-provider
     // version supports but its published Configuration type omits — hence the
     // cast onto the spread, not onto the whole configuration.

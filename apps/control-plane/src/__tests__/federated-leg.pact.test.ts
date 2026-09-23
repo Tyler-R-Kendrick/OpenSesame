@@ -108,7 +108,7 @@ describeSourceOracle("PACT — federated leg fail-closed ordering", () => {
     assertSourceOrder(federatedSource, [
       "async function upstreamConfiguration",
       "mode.originProfile",
-      "originPinnedFetch(siteOrigin(ctx.config))",
+      "upstreamFetch(ctx.config, mode)",
     ]);
   });
 
@@ -150,7 +150,8 @@ describeSourceOracle("PACT — federated leg fail-closed ordering", () => {
     assertSourceOrder(federatedSource, [
       "authorizationCodeGrant",
       "tokens.id_token",
-      "verifyOrgIdToken(rawIdToken, pending.issuer)",
+      "verifyOrgIdToken(rawIdToken, pending.issuer, {",
+      "blockPrivateIssuerHosts:",
       "verified.sub",
     ]);
   });

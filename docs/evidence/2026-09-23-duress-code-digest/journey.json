@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "open": "Security" },
+        { "scrollTo": "Vault key protection" },
+        { "shot": "390-security-duress-slot" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "open": "Security" },
+        { "expand": "Security" },
+        { "scrollTo": "Vault key protection" },
+        { "shot": "1280-security-duress-slot" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-security-duress-slot",
+      "width": 390,
+      "title": "Settings › Security, where Duress profiles would sit — 390 × 844",
+      "caption": "Guest vault, Settings › Security scrolled to Vault key protection. The Duress profiles panel (and its Trigger codes row, the one this change edits) renders between Vault key protection and Unlock methods only when resolveDuressMode returns local_only or optional_peer. The shipped build calls it with an empty object, so both builds draw the same screen: the branch's 'Slot 1: enrolled' without a digest prefix is not reachable here, and neither was the base's 'digest xxxxxxxx…'.",
+      "before": "#duress-profiles 0, Trigger codes 0, 'digest' on page: no; Vault key protection → Unlock methods, gap 24px",
+      "after": "#duress-profiles 0, Trigger codes 0, 'digest' on page: no; Vault key protection → Unlock methods, gap 24px; 0 px differ"
+    },
+    {
+      "shot": "1280-security-duress-slot",
+      "width": 1280,
+      "title": "Settings › Security, where Duress profiles would sit — 1280 × 800",
+      "caption": "Desktop, mouse context, Security expanded in the rail. The rail lists Vault key protection, Formats, Age keys and Transport; there is no Duress row in either build, because the panel is gated off at compile time. The pair differs in 12 pixels on one anti-aliased column (x = 279), nothing in the panel area.",
+      "before": "#duress-profiles 0, Trigger codes 0, 'digest' on page: no; 8 panel headings, none Duress profiles",
+      "after": "#duress-profiles 0, Trigger codes 0, 'digest' on page: no; 8 panel headings, none Duress profiles; 12 px differ (x = 279)"
+    }
+  ]
+}

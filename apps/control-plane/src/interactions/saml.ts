@@ -13,22 +13,24 @@ import type { Profile } from "@node-saml/node-saml";
 import { parseDomFromString, xpath } from "@node-saml/node-saml/lib/xml.js";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
-  UnsafeMetadataUrlError,
-  assertSafeMetadataUrl,
-} from "@opensesame/oauth-provider";
-import {
   type Organization,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
 import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
+import { sameOriginPath } from "../middleware/same-origin-path.js";
 import {
   jitJoinOrganization,
   usesNativeSaml,
 } from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
+import {
+  UnsafeUpstreamError,
+  assertPublicUpstreamUrl,
+  guardedFetch,
+} from "../services/guarded-fetch.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { organizationAssertedEmailIsVerified } from "../services/org-email-trust.js";
 import {
@@ -274,24 +276,22 @@ function pemFromBase64(certificate: string): string {
 /**
  * Fetch a tenant-supplied metadata URL under the network fence.
  *
- * Same posture as the org-assertion leg: `assertSafeMetadataUrl` refuses
- * private, loopback, link-local and cloud-metadata targets (T21), redirects
- * are refused rather than followed — a 302 to `169.254.169.254` would
- * otherwise walk straight past a guard that only ever saw the first URL — and
- * the private-host half is relaxed only under dev defaults, where the
- * reference IdP and the dev stack live on loopback.
+ * Same posture as the org-assertion leg: `guardedFetch` refuses private,
+ * loopback, link-local and cloud-metadata targets (T21) — as written AND as
+ * the name resolves, pinning the socket to the address it judged — refuses
+ * redirects rather than following them, and bounds the body. The private-host
+ * half is relaxed only under dev defaults, where the dev stack is loopback.
  */
 async function fetchMetadataDocument(
   ctx: AppContext,
   rawUrl: string,
 ): Promise<string> {
+  const blockPrivateHosts = !ctx.config.allowDevDefaults;
   let url: URL;
   try {
-    url = ctx.config.allowDevDefaults
-      ? new URL(rawUrl)
-      : assertSafeMetadataUrl(rawUrl);
+    url = blockPrivateHosts ? assertPublicUpstreamUrl(rawUrl) : new URL(rawUrl);
   } catch (error) {
-    if (error instanceof UnsafeMetadataUrlError) {
+    if (error instanceof UnsafeUpstreamError) {
       throw new SamlAuthError(
         "metadata_unavailable",
         "The organization's SAML metadata host is not reachable from this deployment.",
@@ -310,10 +310,9 @@ async function fetchMetadataDocument(
   }
   let response: Response;
   try {
-    response = await fetch(url, {
-      method: "GET",
-      redirect: "error",
+    response = await guardedFetch(url, blockPrivateHosts, {
       signal: AbortSignal.timeout(METADATA_FETCH_MS),
+      maxBytes: MAX_SAML_RESPONSE_BYTES,
     });
   } catch {
     throw new SamlAuthError(
@@ -570,23 +569,18 @@ function firstAttribute(
  * absolute URL or a rooted path — never a bare relative string that resolves
  * to whatever it happens to resolve to), and does it actually land on our
  * origin? A protocol-relative `//host/…` passes the first and fails the
- * second, which is precisely why both are asked.
+ * second, which is precisely why both are asked — and both are asked of the
+ * value a browser will parse, so a stripped tab or a `/..//host` path is
+ * refused too (`sameOriginPath`).
  */
 export function samlRelayPath(
   config: ControlPlaneConfig,
   relayState: string | undefined,
 ): string {
-  if (!relayState || !relayState.startsWith("/")) {
-    if (!relayState || !/^https?:\/\//i.test(relayState)) return "/";
-  }
-  let target: URL;
-  try {
-    target = new URL(relayState, `${baseUrl(config)}/`);
-  } catch {
-    return "/";
-  }
-  if (target.origin !== new URL(baseUrl(config)).origin) return "/";
-  return `${target.pathname}${target.search}`;
+  if (!relayState) return "/";
+  return (
+    sameOriginPath(relayState, baseUrl(config), { allowAbsolute: true }) ?? "/"
+  );
 }
 
 async function readResponseRouting(

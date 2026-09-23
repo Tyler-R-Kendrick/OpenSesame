@@ -14,6 +14,7 @@ use crate::path::{
     confined_read, confined_remove, confined_write, logical_to_relative, relative_to_logical,
 };
 use crate::recipients::Recipients;
+use crate::store_lock::StoreLock;
 use crate::{age_fmt, gpg, Entry, StoreError, StoreRoot};
 
 const KEY_FILE: &str = ".opensesame-key";
@@ -156,7 +157,7 @@ impl StoreRoot {
         Ok(self.path.join(Self::entry_relative(name, ext)?))
     }
 
-    fn entry_relative(name: &str, ext: &str) -> Result<PathBuf, StoreError> {
+    pub(crate) fn entry_relative(name: &str, ext: &str) -> Result<PathBuf, StoreError> {
         let rel = logical_to_relative(name)?;
         // Append, never `with_extension`: that would swallow the final label of
         // dotted names, colliding `github.com` and `github.org` into one file
@@ -258,6 +259,8 @@ impl StoreRoot {
         key: &ItemDataKey,
         format: Option<FormatHint>,
     ) -> Result<(), StoreError> {
+        // Held until the ciphertext is on disk: see `store_lock`.
+        let _lock = StoreLock::for_sealing(&self.path, name, key)?;
         let plaintext = entry.render().into_bytes();
         let format = format.unwrap_or_else(|| self.preferred_write_format());
         match format {
@@ -289,37 +292,12 @@ impl StoreRoot {
     ///
     /// Returns an error when validation or the underlying operation fails.
     pub fn show(&self, name: &str, key: &ItemDataKey) -> Result<Entry, StoreError> {
-        let (path, hint) = self.find_existing(name)?;
-        let mut legacy_osseal = false;
-        let rel = path
-            .strip_prefix(&self.path)
-            .map_err(|_| StoreError::InvalidPath("path escapes store root".into()))?;
-        let plaintext = match hint {
-            FormatHint::Osseal => {
-                let blob = confined_read(&self.path, rel)?;
-                let expected = self.revisions()?.get(name).copied();
-                let opened = open_osseal(&blob, key, name, expected)?;
-                if !opened.legacy && expected.is_none() {
-                    self.record_revision(name, opened.revision)?;
-                }
-                legacy_osseal = opened.legacy;
-                opened.plaintext
-            }
-            FormatHint::Gpg => gpg::decrypt_gpg(&confined_read(&self.path, rel)?)?,
-            FormatHint::Age => {
-                return Err(StoreError::Age(
-                    "age decrypt requires identity; use CLI age identity env".into(),
-                ));
-            }
-        };
-        let text =
-            String::from_utf8(plaintext).map_err(|e| StoreError::Crypto(format!("utf8: {e}")))?;
-        let entry = Entry::parse(&text);
-        if legacy_osseal {
-            self.write_entry(name, &entry, key, Some(FormatHint::Osseal))?;
-            auto_commit(&self.path, COMMIT_REBIND)?;
+        if self.find_existing(name)?.1 == FormatHint::Age {
+            return Err(StoreError::Age(
+                "age decrypt requires identity; use CLI age identity env".into(),
+            ));
         }
-        Ok(entry)
+        self.show_with_age_identity(name, key, None)
     }
 
     /// Show with optional age identity (secret key string).
@@ -375,6 +353,7 @@ impl StoreRoot {
         let rel = path
             .strip_prefix(&self.path)
             .map_err(|_| StoreError::InvalidPath("path escapes store root".into()))?;
+        let _lock = StoreLock::shared(&self.path)?;
         confined_remove(&self.path, rel)?;
         auto_commit(&self.path, COMMIT_REMOVE)?;
         Ok(())

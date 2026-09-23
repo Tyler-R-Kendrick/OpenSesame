@@ -1,9 +1,17 @@
 //! Operator routes over the certificate lifecycle (ADR 0132).
 //!
-//! Every handler is configurator-gated exactly like `taskbus_config`
-//! (`resolve_caller` → `can_configure_integrations`); none of them reads
-//! transport evidence, so an admitted mTLS peer never reaches one — mTLS is
-//! not an alternate operator login.
+//! Organization-scoped handlers (issuing a certificate for the caller's
+//! organization, revoking one of its certificates by id, reading trust,
+//! facts and the renewal queue — the last two filtered to the caller's
+//! organization for a session caller) are configurator-gated exactly like
+//! `taskbus_config` (`resolve_caller` → `can_configure_integrations`).
+//! Deployment-scoped writes are the deployment operator's alone: replacing
+//! the trust profiles every listener verifies peers against, and revoking an
+//! arbitrary leaf *by thumbprint* (which denies it process-wide and in every
+//! organization's bindings), require `Caller::Operator`; an owner or admin of
+//! one organization gets `403`. None of them reads transport evidence, so an
+//! admitted mTLS peer never reaches one — mTLS is not an alternate operator
+//! login.
 //!
 //! **No response here can carry private key material.** The issuance view is
 //! public PEM (leaf + issuer) and metadata; the revocation view is a
@@ -29,6 +37,7 @@ use serde_json::json;
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, Caller};
+use crate::transport::routes::require_deployment_operator;
 use crate::transport_lifecycle::{crl, facts, issuance, revocation, trust};
 
 /// The routes this module contributes, merged by the coordinator in
@@ -135,8 +144,23 @@ pub async fn revoke_certificate(
     let Ok(Json(request)) = body else {
         return refuse(400, "invalid_request", "body is not a revocation request");
     };
+    // A thumbprint names no organization: it denies that leaf in this whole
+    // process and in every organization's bindings. Only the deployment
+    // operator may do that; a tenant revokes its own certificates by id.
+    if request.thumbprint.is_some() && !matches!(who, Caller::Operator) {
+        return refuse(
+            403,
+            "forbidden",
+            "revoking by thumbprint is deployment-scoped; revoke your organization's certificate by certificate_id",
+        );
+    }
     let organization = who.organization(state.connection_organization);
-    match revocation::revoke_transport(&state, &organization, request).await {
+    let revoker = if matches!(who, Caller::Operator) {
+        revocation::Revoker::Operator
+    } else {
+        revocation::Revoker::Tenant
+    };
+    match revocation::revoke_transport(&state, &organization, revoker, request).await {
         Ok(outcome) => (StatusCode::OK, Json(json!({ "revocation": outcome }))).into_response(),
         Err(error) => refuse(error.http_status(), error.code(), &error.to_string()),
     }
@@ -194,15 +218,15 @@ pub async fn put_trust(
     headers: HeaderMap,
     body: Result<Json<PutTrustBody>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    let who = match require_configurator(&state, &headers) {
-        Ok(who) => who,
-        Err(response) => return response,
-    };
+    // Trust profiles are deployment-wide: every listener verifies every
+    // organization's peers against them. Not an organization admin's call.
+    if let Err(response) = require_deployment_operator(&state, &headers) {
+        return response;
+    }
     let Ok(Json(body)) = body else {
         return refuse(400, "invalid_request", "body is not a trust profile set");
     };
-    let actor = who.actor_subject().to_owned();
-    match trust::put_cas(&state, body.set, &actor, body.force).await {
+    match trust::put_cas(&state, body.set, "operator", body.force).await {
         Ok(set) => (StatusCode::OK, Json(json!({ "trust": set }))).into_response(),
         Err(error) => refuse(error.http_status(), error.code(), &error.to_string()),
     }
@@ -213,16 +237,31 @@ pub async fn put_trust(
 /// Issued, delivered, loaded, active, superseded, expired, revoked and
 /// enforcement-observed, each on its own, so a renewal that succeeded is
 /// never read as an installation that happened.
+///
+/// An organization's configurator reads only targets whose certificate its
+/// organization holds; any other target is `404`, the same answer as one
+/// that does not exist. The deployment operator reads every target.
 pub async fn get_facts(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(target): Path<String>,
 ) -> Response {
-    if let Err(response) = require_configurator(&state, &headers) {
-        return response;
-    }
+    let who = match require_configurator(&state, &headers) {
+        Ok(who) => who,
+        Err(response) => return response,
+    };
     if target.len() > 128 || !target.chars().all(|c| c.is_ascii_graphic()) {
         return refuse(400, "invalid_request", "target is not a bounded ascii name");
+    }
+    if let Caller::Session {
+        organization_id, ..
+    } = &who
+    {
+        match target_in_organization(&state, &target, organization_id).await {
+            Ok(true) => {}
+            Ok(false) => return refuse(404, "not_found", "no such transport target"),
+            Err(error) => return refuse(500, "storage_error", &error.to_string()),
+        }
     }
     match facts::load(&state, &target).await {
         Ok(loaded) => (
@@ -239,21 +278,56 @@ pub async fn get_facts(
     }
 }
 
+/// Whether `target` (a certificate id, or a listener target serving one)
+/// names a certificate `organization` holds.
+async fn target_in_organization(
+    state: &AppState,
+    target: &str,
+    organization: &opensesame_domain::OrganizationId,
+) -> anyhow::Result<bool> {
+    let certificate = state
+        .transport_lifecycle
+        .certificate_for(target)
+        .unwrap_or_else(|| target.to_owned());
+    Ok(state
+        .db
+        .get_certificate(&organization.to_string(), &certificate)
+        .await?
+        .is_some())
+}
+
 /// `GET /api/v1/operator/transport/renewals`
 ///
 /// The retry queue: what is backing off, what parked, and how many failures
 /// the queue refused to take. A parked certificate is the visible failure
 /// ADR 0052 §11 asks for; it also rang the bell as a `SecurityNotice`.
+///
+/// An organization's configurator sees its own organization's entries only;
+/// the deployment operator sees the whole queue.
 pub async fn get_renewals(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    if let Err(response) = require_configurator(&state, &headers) {
-        return response;
-    }
+    let who = match require_configurator(&state, &headers) {
+        Ok(who) => who,
+        Err(response) => return response,
+    };
+    let only = match &who {
+        Caller::Operator => None,
+        Caller::Session {
+            organization_id, ..
+        } => Some(organization_id.to_string()),
+    };
     let (queued, parked, overflowed) = state.transport_lifecycle.with_scheduler(|scheduler| {
+        let visible: Vec<_> = scheduler
+            .entries()
+            .filter(|retry| {
+                only.as_ref()
+                    .is_none_or(|org| &retry.organization_id == org)
+            })
+            .collect();
         (
-            scheduler.queue_len(),
-            scheduler
-                .parked()
-                .into_iter()
+            visible.len(),
+            visible
+                .iter()
+                .filter(|retry| retry.parked)
                 .map(|retry| {
                     json!({
                         "certificate_id": retry.certificate_id,

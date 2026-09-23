@@ -306,13 +306,13 @@ impl ControlLease {
     ///
     /// # Errors
     ///
-    /// [`ControlError::InvalidTransition`] when no request is outstanding.
+    /// [`ControlError::InvalidTransition`] unless a request is outstanding (ADR 0081 §6).
     pub fn withdraw_handoff(&mut self) -> Result<(), ControlError> {
-        if self.queued_handoff && self.state == ControlState::AgentDriving {
-            self.queued_handoff = false;
-            return Ok(());
+        match self.state {
+            ControlState::AgentDriving if self.queued_handoff => self.queued_handoff = false,
+            ControlState::HandoffRequested => self.state = ControlState::AgentDriving,
+            _ => return Err(ControlError::InvalidTransition),
         }
-        self.state = self.state.transition(ControlState::AgentDriving)?;
         Ok(())
     }
 

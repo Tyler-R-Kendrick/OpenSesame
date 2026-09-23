@@ -225,3 +225,56 @@ fn already_dispatched_survives_active_hold() {
             } if dispatch_id == "d-1"
         ));
 }
+
+fn accept(store: &mut DuressAuthorityStore, authority: &str, duration: HoldDuration) -> Result<crate::duress::IndependentHold, DuressOpError> {
+        accept_independent_hold(
+            store,
+            DuressPurpose::AcceptIndependentHold.as_str(),
+            "h1",
+            authority,
+            "inc-1",
+            epochs(),
+            duration,
+            1_000,
+            "ceiling-1",
+        )
+}
+
+#[test]
+fn supersede_needs_the_holds_authority_and_epochs() {
+        let mut store = DuressAuthorityStore::new();
+        accept(&mut store, "auth-1", HoldDuration::Indefinite).expect("accept");
+        let purpose = DuressPurpose::SupersedeIncident.as_str();
+
+        let stranger = supersede_incident(&mut store, purpose, "inc-1", "auth-2", epochs());
+        assert_eq!(stranger, Err(DuressOpError::AuthorityMismatch));
+        let stale = supersede_incident(&mut store, purpose, "inc-1", "auth-1", epochs().bump_incident());
+        assert_eq!(stale, Err(DuressOpError::EpochMismatch));
+        assert!(active_ceiling(&store, "inc-1").is_some(), "ceiling must survive refused supersedes");
+
+        supersede_incident(&mut store, purpose, "inc-1", "auth-1", epochs()).expect("supersede");
+        assert_eq!(store.hold("inc-1").unwrap().phase, HoldPhase::Superseded);
+        assert!(active_ceiling(&store, "inc-1").is_none());
+}
+
+#[test]
+fn an_accepted_hold_is_never_silently_overwritten() {
+        let mut store = DuressAuthorityStore::new();
+        accept(&mut store, "auth-1", HoldDuration::Indefinite).expect("accept");
+        store.hold_mut("inc-1").unwrap().phase = HoldPhase::RecoveryRequested;
+
+        // Another authority cannot replace it.
+        assert_eq!(
+            accept(&mut store, "auth-2", HoldDuration::Indefinite),
+            Err(DuressOpError::AuthorityMismatch)
+        );
+        // The same authority cannot shorten it into an expiring hold.
+        assert_eq!(
+            accept(&mut store, "auth-1", HoldDuration::DurationMs(1)),
+            Err(DuressOpError::HoldExists)
+        );
+        // An identical re-delivery is idempotent and resets nothing.
+        let again = accept(&mut store, "auth-1", HoldDuration::Indefinite).expect("idempotent");
+        assert_eq!(again.phase, HoldPhase::RecoveryRequested);
+        assert_eq!(store.hold("inc-1").unwrap().duration, HoldDuration::Indefinite);
+}

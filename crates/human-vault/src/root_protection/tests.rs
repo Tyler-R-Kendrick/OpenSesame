@@ -47,3 +47,54 @@ fn malformed_legacy_reports_precise_error() {
     let err = parse_legacy_password_wrapper(r#"{"salt":"x"}"#).unwrap_err();
     assert!(matches!(err, ProtectionError::MalformedLegacy(_)));
 }
+
+fn only_password_id(root: &std::path::Path) -> String {
+    protect_list(root)
+        .unwrap()
+        .into_iter()
+        .find(|p| p.kind == "password")
+        .unwrap()
+        .protector_id
+}
+
+/// A recovery key is only ever tested natively — no unlock path reads it — so
+/// the last password record is the last way in, recovery key or not.
+#[test]
+fn last_password_is_kept_even_beside_a_recovery_key() {
+    let dir = tempfile::tempdir().unwrap();
+    init_versioned_key_file(dir.path(), b"pw").unwrap();
+    protect_add_recovery(dir.path(), b"pw").unwrap();
+    let password_id = only_password_id(dir.path());
+    let err = protect_remove(dir.path(), b"pw", &password_id).unwrap_err();
+    assert_eq!(err, ProtectionError::LastVerifiedPath);
+    let unlock_edit = RotationEdit {
+        remove_protector: Some(&password_id),
+        ..RotationEdit::default()
+    };
+    let no_age = |_: &VaultRootKey, _: &[String]| Err(ProtectionError::Crypto);
+    let err = prepare_root_rotation(dir.path(), b"pw", unlock_edit, &no_age).err();
+    assert_eq!(err, Some(ProtectionError::LastVerifiedPath));
+    unlock_key_file_with_password(dir.path(), b"pw").unwrap();
+}
+
+#[test]
+fn rotation_plan_rewraps_under_a_new_root_and_writes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (old_idk, _) = init_versioned_key_file(dir.path(), b"pw").unwrap();
+    let before = std::fs::read(dir.path().join(KEY_FILE_NAME)).unwrap();
+    let no_age = |_: &VaultRootKey, _: &[String]| Err(ProtectionError::Crypto);
+    let edit = RotationEdit {
+        new_password: Some(b"next"),
+        ..RotationEdit::default()
+    };
+    let plan = prepare_root_rotation(dir.path(), b"pw", edit, &no_age).unwrap();
+    assert_eq!(plan.old_vrk.0, old_idk.0);
+    assert_ne!(plan.new_vrk.0, old_idk.0);
+    assert_eq!(plan.manifest.root_epoch, 2);
+    assert_eq!(
+        std::fs::read(dir.path().join(KEY_FILE_NAME)).unwrap(),
+        before
+    );
+    verify_manifest_auth(&plan.new_vrk, &plan.manifest).unwrap();
+    assert!(verify_manifest_auth(&plan.old_vrk, &plan.manifest).is_err());
+}

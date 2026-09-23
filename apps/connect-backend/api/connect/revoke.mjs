@@ -1,15 +1,7 @@
-import { handleManage } from "../../manage.mjs";
+import { handleManage, manageInput } from "../../manage.mjs";
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin ?? "";
-  const body =
-    req.method === "GET" || req.method === "OPTIONS" ? {} : (req.body ?? {});
-  const outcome = await handleManage({
-    method: req.method ?? "POST",
-    path: "/api/connect/revoke",
-    origin,
-    body: typeof body === "object" && body !== null ? body : {},
-  });
+  const outcome = await handleManage(manageInput(req, "/api/connect/revoke"));
   for (const [key, value] of Object.entries(outcome.headers)) {
     res.setHeader(key, value);
   }

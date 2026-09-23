@@ -13,6 +13,11 @@
 //!   listener, any listener the layer is not told about — the fields are
 //!   removed and nothing is attached (AT-INGRESS-SPOOF).
 //!
+//! A forwarded leaf that verifies but that the revoked-leaf hook
+//! ([`OriginatingPeerLayer::with_deny_thumbprint`]) names is refused `403
+//! evidence_revoked` the same way: revocation reaches a client behind the
+//! ingress, not only the ingress's own connection.
+//!
 //! The extension is inserted into the request's own extensions, never into
 //! connection state, so two requests on one kept-alive connection from the
 //! ingress each see only their own originating identity, and a request with
@@ -27,7 +32,9 @@ use axum::body::Body;
 use axum::http::{header, HeaderValue, Request, Response, StatusCode};
 use chrono::Utc;
 use opensesame_domain::transport::{TransportError, TransportPolicy, VerifiedPeer};
-use opensesame_transport_security::{ListenerProvenance, PeerExtension, TrustBundle};
+use opensesame_transport_security::{
+    DenyThumbprint, ListenerProvenance, PeerExtension, TrustBundle,
+};
 use tower::{Layer, Service};
 
 use crate::admission::IngressAdmission;
@@ -45,6 +52,12 @@ struct Shared {
     admission: Arc<dyn IngressAdmission>,
     trust: Arc<TrustBundle>,
     limits: IngressLimits,
+    /// Revoked-leaf hook for *originating* leaves: the same authorities that
+    /// refuse a direct peer's handshake (the lifecycle denylist, binding
+    /// `denied_thumbprints`). The listener's per-request guard only sees the
+    /// ingress's own leaf, so without this a revoked client behind a trusted
+    /// ingress would keep its identity.
+    deny: Option<DenyThumbprint>,
 }
 
 /// Builds the layer. `trust` is the originating-client bundle
@@ -61,6 +74,7 @@ pub fn originating_peer_layer(
             admission,
             trust,
             limits,
+            deny: None,
         }),
     }
 }
@@ -68,6 +82,24 @@ pub fn originating_peer_layer(
 #[derive(Clone)]
 pub struct OriginatingPeerLayer {
     shared: Arc<Shared>,
+}
+
+impl OriginatingPeerLayer {
+    /// Refuse forwarded evidence whose leaf `deny` names (`403
+    /// evidence_revoked`, handler never runs). Wire it to the same hook the
+    /// listener gives `ServerProfile::deny_thumbprint`, so a revocation reaches
+    /// clients behind the ingress exactly as it reaches direct peers.
+    #[must_use]
+    pub fn with_deny_thumbprint(self, deny: DenyThumbprint) -> Self {
+        Self {
+            shared: Arc::new(Shared {
+                admission: Arc::clone(&self.shared.admission),
+                trust: Arc::clone(&self.shared.trust),
+                limits: self.shared.limits,
+                deny: Some(deny),
+            }),
+        }
+    }
 }
 
 impl<S> Layer<S> for OriginatingPeerLayer {
@@ -165,7 +197,7 @@ fn decide<B>(shared: &Shared, req: &Request<B>) -> Decision {
         }
     };
     match verify_originating(&chain, &shared.trust, peer, Utc::now(), listener_id) {
-        Ok(originating) => Decision::Attach(Arc::new(originating)),
+        Ok(originating) => attach_unless_revoked(shared, originating, listener_id),
         Err(error) => {
             tracing::warn!(
                 listener = %listener_id,
@@ -176,6 +208,28 @@ fn decide<B>(shared: &Shared, req: &Request<B>) -> Decision {
             Decision::Refuse(error, None)
         }
     }
+}
+
+/// A verified originating leaf the revoked-leaf hook names is refused, not
+/// attached.
+fn attach_unless_revoked(
+    shared: &Shared,
+    originating: VerifiedPeer,
+    listener_id: &str,
+) -> Decision {
+    let revoked = shared
+        .deny
+        .as_ref()
+        .is_some_and(|deny| deny(originating.leaf_thumbprint_sha256()));
+    if !revoked {
+        return Decision::Attach(Arc::new(originating));
+    }
+    tracing::warn!(
+        listener = %listener_id,
+        leaf = originating.leaf_thumbprint_sha256(),
+        "forwarded evidence names a revoked leaf"
+    );
+    Decision::Refuse(TransportError::EvidenceRevoked, None)
 }
 
 /// Removes every `Client-Cert` and `Client-Cert-Chain` field.

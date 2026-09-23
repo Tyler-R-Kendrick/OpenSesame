@@ -11,8 +11,9 @@
 //!
 //! Order of checks mirrors SW-CONTRACT's documented semantics, because the
 //! deny code is part of the contract: listener policy → peer evidence →
-//! usable window and generation freshness (inside `ServiceCaller::admit`) →
-//! binding resolution → operation allowlist.
+//! revoked leaf (the lifecycle's durable denylist) → usable window and
+//! generation freshness (inside `ServiceCaller::admit`) → binding
+//! resolution → operation allowlist.
 
 use axum::http::Extensions;
 use axum::response::Response;
@@ -95,6 +96,18 @@ fn admit(
         return Err(deny_response(&TransportError::ListenerPolicyMismatch));
     };
     let peer = peer_evidence(extensions)?;
+    // The durable revoked-leaf denylist (restored at boot, refreshed from
+    // the store) holds for every binding — including one created after the
+    // revocation, which carries no `denied_thumbprints` of its own.
+    let revoked = std::iter::once(&peer)
+        .chain(peer.ingress())
+        .any(|evidence| {
+            st.transport_lifecycle
+                .is_denied(evidence.leaf_thumbprint_sha256())
+        });
+    if revoked {
+        return Err(deny(&TransportError::EvidenceRevoked));
+    }
     let current = runtime.generations.current().number;
     let bindings = runtime.binding_set();
     let caller = ServiceCaller::admit(

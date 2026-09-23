@@ -16,7 +16,6 @@ import {
   installedDefinitions,
   mergeVaultBodies,
   mintVaultKey,
-  openJson,
   rewrapVaultKey,
   sealJson,
   syncInstalledTypes,
@@ -31,6 +30,14 @@ import {
   noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
+import {
+  decoyScratchScope,
+  endEphemeralTomb,
+  forgetDecoyScratch,
+  guestTombIsSealed,
+  isGuestSessionTomb,
+  presentedTomb,
+} from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
 import { sessionRootDigestFromHeader } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
@@ -83,7 +90,6 @@ import {
 import {
   VAULT_PREFS_REVISION,
   type VaultPrefs,
-  assertMasterPasswordPolicy,
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
@@ -101,6 +107,7 @@ import {
   startTotpEnrollment,
   withSelfAuthenticatorRegistration,
 } from "./self-authenticator.js";
+import { loadVaultBody } from "./store-body.js";
 import {
   deviceHoldsSealedVault,
   readTombHeader,
@@ -118,7 +125,6 @@ import {
   type TotpGateRecord,
   type VaultUnlocks,
   assertKeepsPrimaryUnlock,
-  assertPinPolicy,
   createPasskeyUnlockCeremony,
   hasSecondStep,
   normalizeRecoveryCode,
@@ -135,6 +141,7 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
+import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
@@ -385,7 +392,7 @@ export class VaultStore {
     );
     return {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
-      tomb: this.#scope.tomb,
+      tomb: presentedTomb(this.#scope.tomb),
       guest: this.#ephemeral && this.#vaultKey !== null,
       header: this.#header,
       items: this.#body.items,
@@ -442,7 +449,7 @@ export class VaultStore {
   }
 
   async create(password: string, hint?: string): Promise<void> {
-    assertMasterPasswordPolicy(password);
+    await assertNewPassword(password);
     const { header, vaultKey, rawVaultKey } = await createVault(password, hint);
     await this.#persistNewVault(header, vaultKey, rawVaultKey);
   }
@@ -498,16 +505,22 @@ export class VaultStore {
     this.#emit();
   }
 
-  async createGuest(options?: { resume?: boolean }): Promise<void> {
+  async createGuest(options?: {
+    resume?: boolean;
+    decoy?: boolean;
+  }): Promise<void> {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
     // Guests always run in GUEST_TOMB — physically separate from member tombs,
-    // including first-run when no sealed vault exists yet.
-    this.#scope = guestVaultScope();
+    // including first-run when no sealed vault exists yet. A duress decoy never
+    // wipes a guest tomb that holds its own key: it runs in a scratch tomb.
+    const scratch = options?.decoy === true && guestTombIsSealed();
+    this.#scope = scratch ? decoyScratchScope() : guestVaultScope();
     // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them
     // (GitHub App install return must not wipe the registrant).
-    if (!options?.resume) clearGuestConnections();
+    if (!options?.resume && !scratch) clearGuestConnections();
+    forgetDecoyScratch(this.#scope.tomb);
     // Whatever a previous guest left behind is ciphertext under a key that
     // died with its tab — unreadable, and in the way of a fresh session.
     lockTomb(this.#scope.tomb);
@@ -532,7 +545,7 @@ export class VaultStore {
 
   /** First-run seal under a PIN wrap — no master password required. */
   async createWithPin(pin: string): Promise<void> {
-    assertPinPolicy(pin);
+    await assertNewPin(pin);
     const { vaultKey, rawVaultKey } = await mintVaultKey();
     try {
       const record = await wrapVaultKeyWithPin(rawVaultKey, pin);
@@ -627,33 +640,7 @@ export class VaultStore {
   }
 
   async #loadBody(vaultKey: CryptoKey): Promise<VaultBody> {
-    const sealed = readSealedFile(this.#scope.tomb, BODY_PATH);
-    if (!sealed) return emptyBody();
-    const binding = vaultSealBinding(this.#scope.tomb, BODY_PATH);
-    try {
-      const body = await openJson<VaultBody>(vaultKey, sealed, binding);
-      const rev = body.rev ?? 0;
-      if (rev < (this.#header?.bodyRev ?? 0)) {
-        throw new VaultCorruptError(
-          "this vault file is older than the last write recorded on this device. " +
-            "If you restored a backup, import it from Settings instead; " +
-            "the vault here was not opened, so nothing has been lost yet",
-        );
-      }
-      return {
-        v: 1,
-        items: body.items ?? [],
-        folders: body.folders ?? [],
-        ...(body.itemTypes !== undefined
-          ? { itemTypes: body.itemTypes }
-          : undefined),
-        rev,
-      };
-    } catch (error) {
-      throw error instanceof VaultCorruptError
-        ? error
-        : new VaultCorruptError("unreadable body");
-    }
+    return loadVaultBody(this.#scope.tomb, vaultKey, this.#header);
   }
 
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
@@ -918,7 +905,7 @@ export class VaultStore {
 
   async enrollPin(pin: string): Promise<void> {
     const { header } = this.#requireUnlocked();
-    assertPinPolicy(pin);
+    await assertNewPin(pin);
     const record = await wrapVaultKeyWithPin(this.#requireRaw(), pin);
     const unlocks: VaultUnlocks = {
       ...header.unlocks,
@@ -939,7 +926,7 @@ export class VaultStore {
 
   async enrollPassword(password: string): Promise<void> {
     const { header } = this.#requireUnlocked();
-    assertMasterPasswordPolicy(password);
+    await assertNewPassword(password);
     const { kdf, wrap } = await wrapVaultKeyWithPassword(
       this.#requireRaw(),
       password,
@@ -1180,22 +1167,24 @@ export class VaultStore {
     // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock
     // screen on guest when that was the last authorized account.
     const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
-    const guestBesideVault = ephemeralTomb === GUEST_TOMB;
+    const guestBesideVault = isGuestSessionTomb(ephemeralTomb);
     const lockedTomb = this.#scope.tomb;
     if (this.#ephemeral) {
       this.#header = null;
       this.#ephemeral = false;
+      forgetDecoyScratch(lockedTomb);
     }
     lockTomb(this.#scope.tomb);
     discardTombCaches();
     if (guestBesideVault) {
       if (recordLastVault) writeLastVaultId(GUEST_TOMB);
       this.#scope = guestVaultScope();
-      this.#header = null;
+      // A decoy's scratch tomb hands back to the sealed guest it stood beside.
+      this.#header = ephemeralTomb === GUEST_TOMB ? null : this.#readHeader();
     } else if (recordLastVault) {
       writeLastVaultId(lockedTomb);
     }
-    if (ephemeralTomb) void wipeTombOnDestroy(ephemeralTomb);
+    if (ephemeralTomb) void endEphemeralTomb(ephemeralTomb);
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();
@@ -1226,7 +1215,7 @@ export class VaultStore {
         "This vault has no master password. Add one under Unlock methods first.",
       );
     }
-    assertMasterPasswordPolicy(next);
+    await assertNewPassword(next);
     const header = await rewrapVaultKey(this.#header, current, next, hint);
     await this.#persistHeader(header);
   }
@@ -1630,7 +1619,7 @@ export class VaultStore {
     // Deleting is at least as final as locking, so it runs the same teardown:
     // clipboard, Identity session, staged claims.
     this.lock();
-    if (scope.tomb === GUEST_TOMB) {
+    if (isGuestSessionTomb(scope.tomb)) {
       this.#scope = scopedVaultScope();
       this.#header = this.#readHeader();
       writeLastVaultId(this.#scope.tomb);

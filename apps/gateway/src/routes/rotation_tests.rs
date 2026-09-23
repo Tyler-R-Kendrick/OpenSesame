@@ -178,3 +178,96 @@ async fn jobs_are_durable_and_value_blind_across_router_instances() {
     assert!(!text.contains("refresh_token"));
     assert!(!text.contains("\"password\""));
 }
+
+async fn connection_owned_by(st: &AppState, owner: &str) -> String {
+    use opensesame_connection_broker::model::ConnectionStatus;
+    use opensesame_connection_broker::store as broker_store;
+    let now = chrono::Utc::now();
+    let row = broker_store::ConnectionRow {
+        id: opensesame_domain::ConnectionId::new().to_string(),
+        organization_id: st.connection_organization.to_string(),
+        project_id: None,
+        provider_id: "github".into(),
+        integration_id: "deployment:github".into(),
+        logical_name: "github-owner".into(),
+        display_name: "Owner's GitHub".into(),
+        status: ConnectionStatus::Active,
+        status_detail: None,
+        requested_scopes: vec![],
+        granted_scopes: vec![],
+        account_label: None,
+        owner_kind: "user".into(),
+        owner_subject: Some(owner.into()),
+        shareability: "private".into(),
+        max_invoke_level: 2,
+        materialization: "deny".into(),
+        egress: opensesame_domain::EgressBinding {
+            scheme: "https".into(),
+            authorities: vec!["api.github.com".into()],
+            path_prefixes: vec![],
+            allow_redirects_cross_authority: false,
+        },
+        created_at: now,
+        updated_at: now,
+    };
+    broker_store::insert_connection(st.connection_broker.pool(), &row)
+        .await
+        .unwrap();
+    row.id
+}
+
+#[tokio::test]
+async fn a_member_rotates_only_their_own_connection_and_never_schedules() {
+    let st = test_demo_state().await;
+    let org = st.connection_organization;
+    let owner = test_session_headers(&st, P23, org, OrganizationRole::Member);
+    let other = test_session_headers(&st, P24, org, OrganizationRole::Member);
+    let id = connection_owned_by(&st, P23).await;
+
+    // Someone else's connection reads as absent, with or without an interval.
+    for body in [
+        json!({"connection_id": id}),
+        json!({"connection_id": id, "execute_now": true}),
+    ] {
+        let (status, _) = send(&st, &other, "POST", "/api/v1/rotations", body).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+    // A durable policy is the owner/admin surface, even for one's own connection.
+    let (status, _) = send(
+        &st,
+        &owner,
+        "POST",
+        "/api/v1/rotations",
+        json!({"connection_id": id, "interval": "1s"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert!(st
+        .connection_broker
+        .list_rotation_policies(&org.to_string())
+        .await
+        .unwrap()
+        .is_empty());
+
+    let (status, accepted) = send(
+        &st,
+        &owner,
+        "POST",
+        "/api/v1/rotations",
+        json!({"connection_id": id}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{accepted}");
+    let job = accepted["id"].as_str().unwrap().to_string();
+
+    // The owner sees the job; another member neither lists nor fetches it.
+    let (_, listed) = send(&st, &owner, "GET", "/api/v1/rotations", json!({})).await;
+    assert_eq!(listed["rotations"].as_array().unwrap().len(), 1);
+    let (_, listed) = send(&st, &other, "GET", "/api/v1/rotations", json!({})).await;
+    assert!(listed["rotations"].as_array().unwrap().is_empty());
+    let uri = format!("/api/v1/rotations/{job}");
+    let (status, _) = send(&st, &other, "GET", &uri, json!({})).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = send(&st, &owner, "GET", &uri, json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+}

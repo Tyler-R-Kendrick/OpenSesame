@@ -4,7 +4,7 @@
 //! derived from anything a peer presented: a CSR, a certificate extension, a
 //! connector manifest or a URL in a chain cannot add an anchor here. The only
 //! way in is this module's compare-and-set write, reached from the
-//! configurator-gated route in [`super::routes`].
+//! deployment-operator route in [`super::routes`].
 //!
 //! Four rules the tests hold to:
 //!
@@ -204,6 +204,9 @@ impl TrustProfileSet {
 pub struct ActivatedEpoch {
     pub revision: u32,
     pub next_overlap_expiry: Option<DateTime<Utc>>,
+    /// Every profile name the activated set stored, so a later activation
+    /// never mistakes a removed stored profile for a deployment-plane one.
+    pub names: std::collections::BTreeSet<TrustProfileRef>,
 }
 
 /// Why a trust write was refused.
@@ -215,6 +218,16 @@ pub enum TrustError {
     StillReferenced { profile: String, binding: String },
     #[error(transparent)]
     Invalid(TransportError),
+    /// The serving generation is withdrawn (a revoked or lapsed source).
+    /// A trust write does not bring it back; the source's next good
+    /// snapshot, or an operator re-activation of a live identity, does.
+    #[error("the serving transport generation is withdrawn ({})", .0.code())]
+    Withdrawn(TransportError),
+    /// The serving generation changed while the write was being built (a
+    /// rotation, a withdrawal). Nothing was activated or stored; re-read and
+    /// retry.
+    #[error("the serving transport generation changed during the write; retry")]
+    GenerationChanged,
     #[error("trust store: {0}")]
     Storage(String),
 }
@@ -226,6 +239,8 @@ impl TrustError {
             Self::StaleRevision { .. } => "stale_revision",
             Self::StillReferenced { .. } => "trust_still_referenced",
             Self::Invalid(inner) => inner.code(),
+            Self::Withdrawn(_) => "generation_withdrawn",
+            Self::GenerationChanged => "generation_stale",
             Self::Storage(_) => "storage_error",
         }
     }
@@ -233,7 +248,7 @@ impl TrustError {
     #[must_use]
     pub const fn http_status(&self) -> u16 {
         match self {
-            Self::StaleRevision { .. } => 409,
+            Self::StaleRevision { .. } | Self::Withdrawn(_) | Self::GenerationChanged => 409,
             Self::StillReferenced { .. } | Self::Invalid(_) => 400,
             Self::Storage(_) => 500,
         }
@@ -268,4 +283,4 @@ pub fn bundles(
     Ok(out)
 }
 
-pub use crate::transport_lifecycle::trust_store::{load, put_cas, reconcile};
+pub use crate::transport_lifecycle::trust_store::{load, put_cas, reconcile, refresh};

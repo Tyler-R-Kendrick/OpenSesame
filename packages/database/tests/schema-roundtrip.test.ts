@@ -150,6 +150,7 @@ describe("schema round-trips (tables without repositories)", () => {
       displayName: "RP",
       redirectUris: ["https://rp.example/cb"],
       sectorIdentifier: "rp.example",
+      sectorKey: "rp.example",
       grantTypes: ["authorization_code"],
       responseTypes: ["code"],
       tokenEndpointAuthMethod: "none",
@@ -202,6 +203,7 @@ describe("schema round-trips (tables without repositories)", () => {
       admissionMode: "pre_registered",
       displayName: "CLI",
       sectorIdentifier: "cli.example",
+      sectorKey: "cli.example",
       tokenEndpointAuthMethod: "none",
       state: "active",
     });

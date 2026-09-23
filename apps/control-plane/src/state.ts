@@ -94,6 +94,13 @@ export interface MfaCodeChallenge {
   attempts: number;
 }
 
+/** One rolling send window: a principal's, or a destination digest's. */
+export interface MfaCodeSendWindow {
+  /** When each send in the window happened, epoch ms, oldest first. */
+  sentAt: number[];
+  expiresAt: number;
+}
+
 export interface AppStores {
   hostAuthorizations: SecurityMap<
     import("./services/host-authorization.js").HostAuthorizationPending
@@ -169,6 +176,8 @@ export interface AppStores {
   mfaFailures: SecurityMap<number>;
   /** challengeId → a one-time code sent by email or text, until it is spent */
   mfaCodes: SecurityMap<MfaCodeChallenge>;
+  /** principal / destination digest → code sends this hour (never refunded) */
+  mfaCodeSends: SecurityMap<MfaCodeSendWindow>;
   /** challengeId → expected nonce/aud/issuer for hosted SIOP link (ADR 0117) */
   siopLinkChallenges: SecurityMap<SiopLinkChallenge>;
   /**
@@ -254,6 +263,7 @@ export function createAppStores(options?: {
     claimApprovalAttempts: new Map(),
     mfaFailures: new Map(),
     mfaCodes: new Map(),
+    mfaCodeSends: new Map(),
     siopLinkChallenges: new Map(),
     enrollmentTickets: new Map(),
     claimMappings: new Map(),

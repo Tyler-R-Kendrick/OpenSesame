@@ -189,7 +189,7 @@ function resolveGithubCredentialsDefault(): {
   pem: string;
 } | null {
   const app = readLocalGithubApp();
-  const pem = app ? pemFromVault(app.displayName) : null;
+  const pem = app ? pemFromVault(app) : null;
   if (!app?.id || !pem) return null;
   return { appId: app.id, pem };
 }

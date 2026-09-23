@@ -58,6 +58,7 @@ const EXPECTED_TABLES = [
   "agent_provider_assertion_replays",
   "delegations",
   "oauth_clients",
+  "oauth_client_sector_claims",
   "client_origins",
   "client_claim_challenges",
   "pairwise_subjects",

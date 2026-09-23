@@ -103,3 +103,30 @@ describe("MemoryClientRecordStore insertAtomic", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("MemoryClientRecordStore findBySectorKey", () => {
+  it("finds every spelling that shares a pairwise key", async () => {
+    const store = new MemoryClientRecordStore();
+    const spellings = ["https://rp.example", "https://RP.example:443/"];
+    for (const [i, sectorIdentifier] of spellings.entries()) {
+      await store.insertAtomic(
+        makeOriginClient({
+          id: `rp-${i}`,
+          origin: `https://rp-${i}.example`,
+          sectorIdentifier,
+          // One owner may put several clients on a key; two may not.
+          ownerPrincipalId: "prn_rp",
+        }),
+      );
+    }
+    await store.insertAtomic(
+      makeOriginClient({
+        id: "path",
+        origin: "https://path.example",
+        sectorIdentifier: "https://rp.example/p",
+      }),
+    );
+    const found = await store.findBySectorKey("rp.example");
+    expect(found.map((c) => c.id).sort()).toEqual(["rp-0", "rp-1"]);
+  });
+});

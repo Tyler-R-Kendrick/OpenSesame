@@ -1,4 +1,5 @@
-//! Human root-protection mutations (list/add/test/remove/rewrap/recovery/rotate).
+//! Human root-protection mutations (list/add/test/remove/rewrap/recovery).
+//! Root rotation lives in `rotation.rs`.
 
 use crate::password_wrap::{unwrap_vrk_with_password, wrap_vrk_with_password};
 use crate::VaultRootKey;
@@ -90,7 +91,9 @@ pub fn protect_test_password(
     Ok(())
 }
 
-/// Rewrap the password protector under a new password (same VRK).
+/// Rewrap the password protector under a new password without rotating the
+/// root key. The previous `.opensesame-key` (git history, a pushed remote)
+/// still opens the store with the old password; revocation needs rotation.
 ///
 /// # Errors
 ///
@@ -154,12 +157,15 @@ pub fn protect_add_recovery(
     Ok((recovery, fingerprint))
 }
 
-/// Remove a protector by id. Refuses removing the last password/recovery path
-/// when it would leave the vault unopenable by known software methods.
+/// Remove a protector by id without rotating the root key.
+///
+/// The root key is unchanged, so an earlier `.opensesame-key` (git history, a
+/// pushed remote) still carries the removed wrap and still opens the store.
+/// Callers that mean revocation use the rotating path instead.
 ///
 /// # Errors
 ///
-/// Returns `LastVerifiedPath` when removal would brick the vault.
+/// Returns `LastVerifiedPath` when removal would leave no way to unlock.
 pub fn protect_remove(
     root: &std::path::Path,
     password: &[u8],
@@ -167,7 +173,24 @@ pub fn protect_remove(
 ) -> Result<(), ProtectionError> {
     let contents = load_key_file(root)?;
     let (vrk, mut manifest) = ensure_versioned_manifest(password, contents)?;
-    let before = manifest.records.len();
+    remove_record(&mut manifest, protector_id)?;
+    manifest.revision = manifest.revision.saturating_add(1);
+    seal_manifest_auth(&vrk, &mut manifest)?;
+    write_key_file(root, &KeyFileContents::Manifest(manifest))?;
+    Ok(())
+}
+
+/// Drop one record, refusing to remove the last password record.
+///
+/// Every native unlock path (`unlock_key_file_with_password`,
+/// `ensure_versioned_manifest`) reads a password record; a recovery key or an
+/// age capsule is only ever *tested*, never used to open the store. So the
+/// last password record is the last unlock path no matter what else is
+/// enrolled, and removing it would lock the owner out.
+pub(crate) fn remove_record(
+    manifest: &mut RootProtectionManifest,
+    protector_id: &str,
+) -> Result<(), ProtectionError> {
     let target_is_password = manifest.records.iter().any(|r| {
         matches!(r, ProtectionRecord::Password { protector_id: id, .. } if id == protector_id)
     });
@@ -176,34 +199,20 @@ pub fn protect_remove(
         .iter()
         .filter(|r| matches!(r, ProtectionRecord::Password { .. }))
         .count();
-    let soft_count = manifest
-        .records
-        .iter()
-        .filter(|r| {
-            matches!(
-                r,
-                ProtectionRecord::Password { .. } | ProtectionRecord::RecoveryKey { .. }
-            )
-        })
-        .count();
-    if target_is_password && password_count <= 1 && soft_count <= 1 {
+    if target_is_password && password_count <= 1 {
         return Err(ProtectionError::LastVerifiedPath);
     }
+    let before = manifest.records.len();
     manifest
         .records
         .retain(|r| r.protector_id() != protector_id);
     if manifest.records.len() == before {
         return Err(ProtectionError::ProtectorNotFound);
     }
-    if let Some(pref) = manifest.preferred_protector_id.as_deref() {
-        if pref == protector_id {
-            manifest.preferred_protector_id =
-                manifest.records.first().map(|r| r.protector_id().to_string());
-        }
+    if manifest.preferred_protector_id.as_deref() == Some(protector_id) {
+        manifest.preferred_protector_id =
+            manifest.records.first().map(|r| r.protector_id().to_string());
     }
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&vrk, &mut manifest)?;
-    write_key_file(root, &KeyFileContents::Manifest(manifest))?;
     Ok(())
 }
 
@@ -237,59 +246,6 @@ pub fn protect_test_recovery(
         }
     }
     Err(ProtectionError::ProtectorNotFound)
-}
-
-/// Rotate the root key: rewrap every software protector under a new VRK.
-/// Entry ciphertext is NOT rewritten here — callers must re-seal store entries
-/// when content keys change. This native store still uses `ItemDataKey(vrk.0)`,
-/// so root rotation requires a store-wide rebind (LIFECYCLE owns that).
-///
-/// This function only rotates the key-file epoch and password/recovery wraps
-/// when `allow_content_key_change` is true, returning the new content key.
-///
-/// # Errors
-///
-/// Returns unlock/wrap failures, or `Unavailable` when rotation would change
-/// content keys without deliberate consent.
-pub fn protect_root_rotate(
-    root: &std::path::Path,
-    password: &[u8],
-    allow_content_key_change: bool,
-) -> Result<VaultRootKey, ProtectionError> {
-    if !allow_content_key_change {
-        return Err(ProtectionError::Unavailable(
-            "root-rotate changes ItemDataKey(vrk.0); pass --allow-content-key-change".into(),
-        ));
-    }
-    let contents = load_key_file(root)?;
-    let (_old_vrk, mut manifest) = ensure_versioned_manifest(password, contents)?;
-    let new_vrk = VaultRootKey::generate();
-    let new_password_wrapper = wrap_vrk_with_password(password, &new_vrk)?;
-    for record in &mut manifest.records {
-        match record {
-            ProtectionRecord::Password {
-                wrapper,
-                proof_status,
-                ..
-            } => {
-                *wrapper = new_password_wrapper.clone();
-                *proof_status = ProofStatus::Stale;
-            }
-            ProtectionRecord::RecoveryKey { .. }
-            | ProtectionRecord::AgeRecipient { .. }
-            | ProtectionRecord::YubikeyPivAge { .. } => {
-                return Err(ProtectionError::Unavailable(
-                    "root-rotate currently supports password-only manifests; remove age/recovery first or use lifecycle rebind".into(),
-                ));
-            }
-        }
-    }
-    manifest.root_epoch = manifest.root_epoch.saturating_add(1);
-    manifest.root_key_id = uuid::Uuid::new_v4().to_string();
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&new_vrk, &mut manifest)?;
-    write_key_file(root, &KeyFileContents::Manifest(manifest))?;
-    Ok(new_vrk)
 }
 
 /// Add an age-recipient protector record (capsule already age-encrypted).

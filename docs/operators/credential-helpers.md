@@ -47,7 +47,14 @@ git config --global credential.helper opensesame
 export OPENSESAME_GIT_CONNECTION_ID="conn_…"            # required
 export OPENSESAME_GITHUB_INSTALLATION_ID="12345678"     # github App connections
 # export OPENSESAME_GIT_USERNAME="x-access-token"       # override default
+# export OPENSESAME_GIT_HOSTS="github.com,ghe.example.com:8443"  # default github.com
 ```
+
+The helper answers `get` only when git asks for `protocol=https` and a `host`
+that exactly matches an entry in `OPENSESAME_GIT_HOSTS` (comma-separated, port
+included when git sends one). Anything else — another host, a submodule on an
+attacker's server, plain `http` — gets an empty answer, so git falls through to
+its next helper and the minted token never reaches a host it was not minted for.
 
 On `get` the helper mints and prints `username` / `password` in the git
 credential protocol. `store` and `erase` are deliberate no-ops: nothing is

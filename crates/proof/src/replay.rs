@@ -22,11 +22,31 @@ pub trait ReplayCache: Send + Sync {
         let _ = now;
         self.check_and_record(jti)
     }
+
+    /// Record a `jti` whose proof stays acceptable until `valid_until` (the
+    /// last second the validator would still admit it). The entry must be
+    /// retained at least that long; the default forwards to
+    /// [`ReplayCache::check_and_record_at`], so an implementation that only
+    /// has a fixed TTL must size it for `max_age + DPOP_MAX_FUTURE_SKEW_SECS`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
+    fn check_and_record_until(
+        &self,
+        jti: &str,
+        now: i64,
+        valid_until: i64,
+    ) -> Result<(), ProofError> {
+        let _ = valid_until;
+        self.check_and_record_at(jti, now)
+    }
 }
 
-/// Proofs older than this are rejected by the validator, so remembering a `jti`
-/// beyond the window (plus skew) adds no protection — only unbounded growth.
-pub const DEFAULT_REPLAY_TTL_SECS: i64 = 300;
+/// The validator's usual `max_age` (300s) plus the future `iat` skew it
+/// accepts: a proof dated ahead stays valid that much longer than one dated
+/// now. Remembering a `jti` beyond that adds no protection — only growth.
+pub const DEFAULT_REPLAY_TTL_SECS: i64 = 300 + crate::jwk::DPOP_MAX_FUTURE_SKEW_SECS;
 /// Hard ceiling on retained `jti` values; the cache fails closed when reached.
 pub const DEFAULT_REPLAY_CAPACITY: usize = 100_000;
 /// `jti` values longer than this are rejected rather than stored.
@@ -34,11 +54,13 @@ pub const MAX_JTI_LEN: usize = 256;
 
 /// In-memory replay cache suitable for single-process validators.
 ///
-/// Bounded two ways: entries expire after `ttl_secs` and the map is capped at
-/// `capacity`. At capacity the cache rejects new proofs (fail closed) rather
-/// than evicting entries, since evicting would re-open the replay window.
+/// Bounded two ways: entries expire after `ttl_secs` (or later, at the
+/// proof's own `valid_until`) and the map is capped at `capacity`. At capacity
+/// the cache rejects new proofs (fail closed) rather than evicting entries,
+/// since evicting would re-open the replay window.
 #[derive(Debug)]
 pub struct InMemoryReplayCache {
+    /// `jti` → last second the entry must still be remembered.
     seen: Mutex<HashMap<String, i64>>,
     ttl_secs: i64,
     capacity: usize,
@@ -82,6 +104,15 @@ impl ReplayCache for InMemoryReplayCache {
     }
 
     fn check_and_record_at(&self, jti: &str, now: i64) -> Result<(), ProofError> {
+        self.check_and_record_until(jti, now, now)
+    }
+
+    fn check_and_record_until(
+        &self,
+        jti: &str,
+        now: i64,
+        valid_until: i64,
+    ) -> Result<(), ProofError> {
         if jti.is_empty() {
             return Err(ProofError::InvalidProof("empty jti".into()));
         }
@@ -93,12 +124,11 @@ impl ReplayCache for InMemoryReplayCache {
             .lock()
             .map_err(|_| ProofError::InvalidProof("replay cache poisoned".into()))?;
 
-        // Drop entries that can no longer be replayed within the proof window.
-        let cutoff = now - self.ttl_secs;
-        guard.retain(|_, seen_at| *seen_at > cutoff);
+        // Drop entries that can no longer be replayed: their proof is past both
+        // the cache TTL and its own acceptance window.
+        guard.retain(|_, retain_until| *retain_until >= now);
 
-        if let Some(seen_at) = guard.get(jti) {
-            let _ = seen_at;
+        if guard.contains_key(jti) {
             return Err(ProofError::Replay(jti.to_string()));
         }
         if guard.len() >= self.capacity {
@@ -106,7 +136,8 @@ impl ReplayCache for InMemoryReplayCache {
                 "replay cache at capacity; rejecting proof".into(),
             ));
         }
-        guard.insert(jti.to_string(), now);
+        let retain_until = now.saturating_add(self.ttl_secs).max(valid_until);
+        guard.insert(jti.to_string(), retain_until);
         Ok(())
     }
 }
@@ -133,6 +164,22 @@ mod tests {
         // Past the window the proof itself is already rejected on iat, so the
         // entry is pruned instead of retained forever.
         cache.check_and_record_at("jti-2", 1_400).unwrap();
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn entries_outlive_the_ttl_until_the_proof_itself_expires() {
+        let cache = InMemoryReplayCache::with_limits(300, 16);
+        // A proof first seen at 1_000 but acceptable until 1_360 (future iat).
+        cache.check_and_record_until("jti-1", 1_000, 1_360).unwrap();
+        for replay_at in [1_350, 1_360] {
+            assert!(matches!(
+                cache.check_and_record_until("jti-1", replay_at, 1_360),
+                Err(ProofError::Replay(_))
+            ));
+        }
+        // Once the proof is past its own window the entry may go.
+        cache.check_and_record_at("jti-2", 1_361).unwrap();
         assert_eq!(cache.len(), 1);
     }
 

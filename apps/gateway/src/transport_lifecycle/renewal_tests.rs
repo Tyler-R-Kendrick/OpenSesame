@@ -73,7 +73,7 @@ fn a_failure_backs_off_before_it_is_retried_and_parks_after_the_last_attempt() {
         Claim::Parked,
         "a parked certificate never retries on its own, however long it waits",
     );
-    assert_eq!(scheduler.parked().len(), 1);
+    assert_eq!(scheduler.entries().filter(|retry| retry.parked).count(), 1);
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn the_retry_queue_is_bounded_so_a_flood_cannot_grow_the_task_count() {
         scheduler.claim(ORG, &id, now);
         scheduler.release_failure(ORG, &id, "storage_error", now, 0.5);
     }
-    assert_eq!(scheduler.queue_len(), MAX_QUEUE);
+    assert_eq!(scheduler.entries().count(), MAX_QUEUE);
     assert_eq!(scheduler.overflowed, 20);
     // The ones already tracked keep retrying; the refusal is visible, not silent.
     assert!(scheduler.due(now + Duration::hours(1)).len() <= MAX_QUEUE);

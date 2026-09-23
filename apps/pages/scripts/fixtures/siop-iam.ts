@@ -3,9 +3,9 @@ import {
   configureLocalApplication,
   readLocalApplications,
 } from "@opensesame/app-core/lib/local-applications.js";
+import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import {
   type LocalDirectoryChange,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
 import { enrollLocalPasskey } from "@opensesame/app-core/lib/local-passkeys.js";

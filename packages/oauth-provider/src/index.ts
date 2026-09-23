@@ -6,6 +6,7 @@ export type {
   OwnershipStatus,
   PairwiseSubject,
   PairwiseSubjectStore,
+  SectorKeyRelease,
 } from "./types.js";
 export { ORIGIN_PROFILE_FORBIDDEN_SCOPES } from "./types.js";
 export { readOAuthProviderEnv } from "./env.js";
@@ -52,7 +53,14 @@ export {
 export {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback,
+  type PairwiseClientLookup,
 } from "./pairwise/store.js";
+export {
+  canonicalSectorIdentifier,
+  pairwiseSectorKey,
+  pairwiseSubjectSector,
+  sectorIdentifierSpellings,
+} from "./pairwise/sector.js";
 export {
   ClientAdmissionError,
   createClientAdmissionPolicy,
@@ -61,7 +69,9 @@ export {
 } from "./clients/admission.js";
 export {
   type ClientRecordStore,
+  type InsertOptions,
   MemoryClientRecordStore,
+  SectorKeyClaimedError,
 } from "./clients/store.js";
 export {
   findOriginClient,

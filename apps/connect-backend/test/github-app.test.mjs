@@ -277,9 +277,15 @@ describe("github app webhook pending queue", () => {
       "http://localhost:5180",
     );
     assert.equal(denied.status, 400);
+    // GitHub confirms installation 42 belongs to App 1 before anything drains.
+    const owns = async () => ({
+      status: 200,
+      text: async () => JSON.stringify({ id: 42, app_id: 1 }),
+    });
     const pending = await handleGithubAppWebhookPending(
       { appId: "1", pem, installationId: "42" },
       "http://localhost:5180",
+      owns,
     );
     assert.equal(pending.status, 200);
     const parsed = JSON.parse(pending.body);
@@ -288,6 +294,7 @@ describe("github app webhook pending queue", () => {
     const empty = await handleGithubAppWebhookPending(
       { appId: "1", pem, installationId: "42" },
       "http://localhost:5180",
+      owns,
     );
     assert.equal(JSON.parse(empty.body).events.length, 0);
     if (previous === undefined) process.env.GITHUB_WEBHOOK_SECRET = "";
