@@ -224,12 +224,13 @@ impl UntrustedText {
 }
 
 /// Characters that let displayed text differ from actual text, plus the C0/C1
-/// controls that let it escape a terminal or a log line. Newline and tab
-/// survive because a rationale is prose.
+/// controls that let it escape a terminal or a log line. The directional set
+/// matches `isBidiControl` in `packages/notification-adapters` (U+061C ARABIC
+/// LETTER MARK included). Newline and tab survive because a rationale is prose.
 fn is_display_hazard(ch: char) -> bool {
     matches!(
         ch,
-        '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'
+        '\u{061c}' | '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'
     ) || (ch.is_control() && ch != '\n' && ch != '\t')
 }
 
@@ -301,6 +302,14 @@ mod tests {
             "Session expired: re-enter your master password"
         );
         assert!(!captured.was_truncated());
+    }
+
+    #[test]
+    fn every_invisible_directional_mark_is_stripped() {
+        let marks = "\u{061c}\u{200e}\u{200f}\u{202a}\u{202e}\u{2066}\u{2069}";
+        let captured = UntrustedText::capture(&format!("pay{marks} alice"));
+        assert_eq!(captured.as_untrusted_str(), "pay alice");
+        assert!(!is_display_hazard('\u{0600}'));
     }
 
     #[test]

@@ -8,6 +8,7 @@
   },
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
+    "@opensesame/oauth-provider": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/webhooks": "workspace:*"
   },

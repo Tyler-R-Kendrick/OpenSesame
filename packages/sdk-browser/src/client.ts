@@ -11,6 +11,7 @@ import {
   assertSafeReturnTo,
   defaultOriginCallback,
   originProfileClientId,
+  safeStoredReturnTo,
 } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
 import type {
@@ -437,9 +438,7 @@ export function createOpenSesame(
       return session;
     },
 
-    getReturnTo() {
-      return storage.getItem(RETURN_TO_KEY);
-    },
+    getReturnTo: () => safeStoredReturnTo(storage.getItem(RETURN_TO_KEY)),
 
     async continueAnonymously() {
       const res = await fetchImpl(`${apiBase}/v1/principals/provisional`, {

@@ -26,6 +26,7 @@ import {
   type JsonObject,
   channelCapabilities,
 } from "@opensesame/os-domain";
+import { postWebhook } from "@opensesame/webhooks/delivery";
 
 import type {
   ChannelAdapter,
@@ -36,11 +37,9 @@ import type {
   RenderedMessage,
 } from "../contract.js";
 import {
-  classifyThrown,
-  deliveryAbortSignal,
-  httpOutcome,
-  isHttpsUrl,
-} from "../http.js";
+  deliverToPublicEndpoint,
+  endpointRefusal,
+} from "../public-endpoint.js";
 import { renderNotification } from "../templates.js";
 
 export const TEAMS_PROVIDER_ID = "teams";
@@ -50,16 +49,19 @@ export interface TeamsConfig {
    * The operator's incoming-webhook URL. It is a bearer capability: whoever
    * holds it can post into that channel as this connector, which is why a
    * non-HTTPS one is refused rather than downgraded, and why it is never
-   * echoed into a delivery error.
+   * echoed into a delivery error. It is also a destination somebody else
+   * chose, so it must be public: loopback, private and metadata hosts are
+   * refused, and the default transport pins DNS and never follows a redirect.
    */
   webhookUrl?: string;
   fetchImpl?: FetchLike;
 }
 
 export function createTeamsAdapter(config: TeamsConfig): ChannelAdapter {
-  const fetchImpl: FetchLike = config.fetchImpl ?? fetch;
+  const post = config.fetchImpl ?? postWebhook;
 
-  const isConfigured = (): boolean => isHttpsUrl(config.webhookUrl);
+  const isConfigured = (): boolean =>
+    endpointRefusal(config.webhookUrl) === undefined;
 
   const capabilities = (): ChannelCapabilities => channelCapabilities("teams");
 
@@ -79,20 +81,13 @@ export function createTeamsAdapter(config: TeamsConfig): ChannelAdapter {
     const url = dest.incomingWebhookUrl ?? config.webhookUrl;
     // Checked again for the per-destination override: a binding row is
     // storage, and storage is not a trust boundary.
-    if (!isHttpsUrl(url) || !url) {
+    const refusal = endpointRefusal(url);
+    if (refusal === "insecure_endpoint" || !url) {
       return { status: "unconfigured", error: "no_webhook_url" };
     }
-    try {
-      const response = await fetchImpl(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildCard(msg)),
-        signal: deliveryAbortSignal(),
-      });
-      return httpOutcome(response.status);
-    } catch (err) {
-      return classifyThrown(err instanceof Error ? err : undefined);
-    }
+    const headers = { "content-type": "application/json" };
+    const card = JSON.stringify(buildCard(msg));
+    return deliverToPublicEndpoint(post, url, headers, card);
   };
 
   // No `verifyCallback`, and no `update`: an incoming webhook returns no

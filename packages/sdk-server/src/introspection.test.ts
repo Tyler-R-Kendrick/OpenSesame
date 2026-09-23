@@ -5,6 +5,7 @@ import { introspectOpaqueAccessToken } from "./introspection.js";
 
 const ENDPOINT = "https://issuer.example/introspect";
 const TOKEN = "opaque-access-token-value";
+const AUDIENCE = "https://api.example";
 
 interface MockIntrospectionResponse {
   ok?: boolean;
@@ -30,6 +31,7 @@ describe("introspectOpaqueAccessToken", () => {
     const fetchImpl = mockFetch({
       json: {
         active: true,
+        aud: AUDIENCE,
         sub: "user-1",
         scope: "openid profile",
         client_id: "rp-alpha",
@@ -38,6 +40,7 @@ describe("introspectOpaqueAccessToken", () => {
 
     const result = await introspectOpaqueAccessToken(TOKEN, {
       introspectionEndpoint: ENDPOINT,
+      audience: AUDIENCE,
       clientId: "rp-alpha",
       clientSecret: "secret",
       fetch: fetchImpl,
@@ -56,6 +59,7 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
       }),
     ).rejects.toMatchObject({ code: "token_inactive" });
@@ -63,6 +67,7 @@ describe("introspectOpaqueAccessToken", () => {
     try {
       await introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
       });
     } catch (error) {
@@ -80,6 +85,7 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
       }),
     ).rejects.toMatchObject({ code: "introspection_failed" });
@@ -95,6 +101,7 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
       }),
     ).rejects.toMatchObject({ code: "introspection_failed" });
@@ -110,6 +117,7 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
       }),
     ).rejects.toMatchObject({ code: "introspection_failed" });
@@ -123,6 +131,7 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
       }),
     ).rejects.toMatchObject({ code: "introspection_failed" });
@@ -132,6 +141,7 @@ describe("introspectOpaqueAccessToken", () => {
     const fetchImpl = mockFetch({
       json: {
         active: true,
+        aud: AUDIENCE,
         sub: "user-1",
         scope: "openid",
       },
@@ -140,6 +150,7 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
         requiredScopes: ["admin"],
       }),
@@ -148,6 +159,7 @@ describe("introspectOpaqueAccessToken", () => {
     try {
       await introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
         fetch: fetchImpl,
         requiredScopes: ["admin"],
       });
@@ -164,14 +176,18 @@ describe("introspectOpaqueAccessToken", () => {
     const fetchImpl: typeof fetch = async (_url, init) => {
       capturedAuth =
         new Headers(init?.headers).get("Authorization") ?? undefined;
-      return new Response(JSON.stringify({ active: true, sub: "user-1" }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ active: true, aud: AUDIENCE, sub: "user-1" }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
     };
 
     await introspectOpaqueAccessToken(TOKEN, {
       introspectionEndpoint: ENDPOINT,
+      audience: AUDIENCE,
       clientId: "client-id",
       clientSecret: "client-secret",
       fetch: fetchImpl,
@@ -186,7 +202,78 @@ describe("introspectOpaqueAccessToken", () => {
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
         introspectionEndpoint: "http://idp.example/introspect",
+        audience: AUDIENCE,
       }),
     ).rejects.toThrow(/https/i);
+  });
+  it.each([
+    ["a different audience", { aud: "https://other.example" }],
+    ["an audience list without ours", { aud: ["a", "https://other.example"] }],
+    ["no audience at all", {}],
+    ["a malformed audience", { aud: 42 }],
+    ["an empty audience list", { aud: [] }],
+  ])("refuses an active token with %s", async (_label, claims) => {
+    const fetchImpl = mockFetch({
+      json: { active: true, sub: "user-1", ...claims },
+    });
+    await expect(
+      introspectOpaqueAccessToken(TOKEN, {
+        introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
+        fetch: fetchImpl,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_audience" });
+  });
+
+  it("accepts a token whose audience list names any configured audience", async () => {
+    const fetchImpl = mockFetch({
+      json: { active: true, sub: "user-1", aud: ["x", "https://b.example"] },
+    });
+    const result = await introspectOpaqueAccessToken(TOKEN, {
+      introspectionEndpoint: ENDPOINT,
+      audience: ["https://a.example", "https://b.example"],
+      fetch: fetchImpl,
+    });
+    expect(result.sub).toBe("user-1");
+  });
+
+  it("refuses to run without a configured audience", async () => {
+    await expect(
+      introspectOpaqueAccessToken(TOKEN, {
+        introspectionEndpoint: ENDPOINT,
+        audience: [],
+        fetch: mockFetch({ json: { active: true, aud: AUDIENCE } }),
+      }),
+    ).rejects.toThrow(/audience/);
+  });
+
+  it("never follows a redirect from the introspection endpoint", async () => {
+    let redirectMode: RequestRedirect | undefined;
+    // Behaves as fetch does: "error" turns a 3xx into a network error, while
+    // "follow" would have posted the token on to the Location.
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      redirectMode = init?.redirect;
+      if (init?.redirect === "error") throw new TypeError("redirect");
+      return new Response(JSON.stringify({ active: true, aud: AUDIENCE }), {
+        status: 200,
+      });
+    };
+    await expect(
+      introspectOpaqueAccessToken(TOKEN, {
+        introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
+        fetch: fetchImpl,
+      }),
+    ).rejects.toMatchObject({ code: "introspection_failed" });
+    expect(redirectMode).toBe("error");
+
+    const redirected = mockFetch({ status: 307, json: { active: true } });
+    await expect(
+      introspectOpaqueAccessToken(TOKEN, {
+        introspectionEndpoint: ENDPOINT,
+        audience: AUDIENCE,
+        fetch: redirected,
+      }),
+    ).rejects.toMatchObject({ code: "introspection_failed" });
   });
 });

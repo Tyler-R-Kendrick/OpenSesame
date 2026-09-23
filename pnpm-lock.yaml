@@ -1538,6 +1538,9 @@ importers:
 
   packages/notification-adapters:
     dependencies:
+      '@opensesame/oauth-provider':
+        specifier: workspace:*
+        version: link:../oauth-provider
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain

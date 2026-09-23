@@ -144,4 +144,22 @@ describe("assertSafeReturnTo", () => {
       BrowserOriginError,
     );
   });
+
+  it("rejects paths the URL parser would turn protocol-relative", () => {
+    for (const candidate of [
+      "/\t/evil.com",
+      "/\n/evil.com",
+      "/\r/evil.com",
+      " //evil.com",
+      "/\u0000/evil.com",
+      "/ /evil.com",
+      "/\u00a0/evil.com",
+    ]) {
+      expect(() => assertSafeReturnTo(candidate)).toThrow(BrowserOriginError);
+    }
+  });
+
+  it("keeps query and fragment on an accepted path", () => {
+    expect(assertSafeReturnTo("/a/b?x=1#frag")).toBe("/a/b?x=1#frag");
+  });
 });
