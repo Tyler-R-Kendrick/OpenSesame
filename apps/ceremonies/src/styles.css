@@ -185,6 +185,8 @@ label {
 
 input {
   width: 100%;
+  /* Sized to a value, not to the card (DESIGN.md § Fields have a measure). */
+  max-width: 30rem;
   /* 44px touch target; 16px font stops iOS zoom-on-focus. */
   min-height: 2.75rem;
   padding: 0.45rem 0.65rem;
@@ -382,6 +384,7 @@ a.button:hover {
 
 select {
   width: 100%;
+  max-width: 30rem;
   min-height: 2.75rem;
   padding: 0.45rem 0.65rem;
   border: 1px solid var(--line-strong);

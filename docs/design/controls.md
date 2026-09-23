@@ -66,9 +66,41 @@ connector. Revoking a grant. Copying a callback. Loading another page of rows.
   the guest road. Those are not executing verbs.
 - It lives inside a card or a panel body. A screen's foot is still `.go`.
 
+## 2a. The form commit — `FormCommit`
+
+**The key that saves a form of several fields.** Connecting a provider.
+Saving a Git remote. Creating a local request. Saving an item.
+
+```tsx
+<FormCommit label="Save Git remote" disabled={!canSave}>
+  <button type="button" className="icon-btn" aria-label="Cancel" title="Cancel">
+    <IconX size={16} />
+  </button>
+</FormCommit>
+```
+
+- It is the `.go` square with its `.go-verb`, from `components/FormCommit.tsx`
+  — the same object at the foot of every multi-field form.
+- The form's secondary keys are its children and ride the same row.
+- A one-field form does not use it: its key ends the field's row
+  (`.field-inline`, or a `FieldShell` `tail`).
+
+## Where a key lives
+
+A key sits on the row of what it acts on, at the row's end. Never a row of
+its own. See DESIGN.md § Keys have a home.
+
+| The key acts on | Its home |
+| --- | --- |
+| the panel | the panel head, beside the title |
+| one field | that field's label row, `.keyed-row` |
+| a one-field form | the end of the field, `.field-inline` or `FieldShell` `tail` |
+| a form of several fields | `FormCommit` |
+| a record | the record's row, folding into a block at its top end |
+
 ## The rule in one line
 
-> A screen's foot commits with `.go`. Every other executing action is an `icon-btn`. A status is a `StatusMark`, never a text pill.
+> A screen's foot commits with `.go`; a form of several fields with `FormCommit`. Every other executing action is an `icon-btn` on the row of what it acts on. A status is a `StatusMark`, never a text pill.
 
 ## 3. Status — `StatusMark`
 
@@ -97,7 +129,15 @@ and a Claude Code `PostToolUse` hook:
 3. **Every `.go` carries an accessible name.** The glyph is not a label.
 4. **Every `.go` has a `.go-verb` beside it.** An unlabelled ink square is a
    mystery-meat control.
-5. **Vault commands are persistent icon keys.** The top path strip retains
+5. **A commit key has a home** (`commit-key-has-a-home`). An icon-key
+   submit sits in `.keyed-row`, `.field-inline`, a `FieldShell` `tail`, or an
+   inline one-field form. Anywhere else it is a glyph on a row of its own;
+   use `FormCommit`.
+6. **A field has a measure** (`field-has-a-measure`). A CSS rule that gives
+   an `input`, `select` or `textarea` `width: 100%` also gives it a
+   `max-width`: `var(--field-max)`, `var(--text-max)`, or `none` for an
+   overlay.
+7. **Vault commands are persistent icon keys.** The top path strip retains
    New item (`+`), Import, and Export in empty, filtered, trash, and populated
    views. Each has an accessible name and tooltip. Text-button styles in
    `VaultSection` or `VaultPathbar` are a hard lint failure; render tests pin

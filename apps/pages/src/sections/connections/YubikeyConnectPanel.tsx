@@ -21,6 +21,7 @@ import {
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useEffect, useId, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -266,16 +267,10 @@ export function YubikeyConnectPanel({
             />
           </div>
         </details>
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            disabled={busy}
-            aria-label={busy ? "Saving YubiKey" : "Save YubiKey"}
-            title={busy ? "Saving YubiKey" : "Save YubiKey"}
-          >
-            <IconCheck size={16} />
-          </button>
+        <FormCommit
+          label={busy ? "Saving YubiKey" : "Save YubiKey"}
+          disabled={busy}
+        >
           <button
             type="button"
             className="icon-btn icon-btn--sm"
@@ -296,7 +291,7 @@ export function YubikeyConnectPanel({
           >
             <IconTrash size={16} />
           </button>
-        </div>
+        </FormCommit>
       </form>
     </div>
   );

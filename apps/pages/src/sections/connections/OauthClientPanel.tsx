@@ -24,6 +24,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconCopy, IconExternal } from "../../components/Icons.js";
 import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 
@@ -221,22 +222,15 @@ export function OauthClientPanel({
           <IconCopy size={16} />
         </button>
       </div>
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn icon-btn--sm"
-          disabled={
-            busy !== null ||
-            !online ||
-            clientId.trim() === "" ||
-            clientSecret.trim() === ""
-          }
-          aria-label={busy === "client" ? "Sealing" : "Save OAuth client"}
-          title={busy === "client" ? "Sealing" : "Save OAuth client"}
-        >
-          <IconCheck size={16} />
-        </button>
-      </div>
+      <FormCommit
+        label={busy === "client" ? "Sealing" : "Save OAuth client"}
+        disabled={
+          busy !== null ||
+          !online ||
+          clientId.trim() === "" ||
+          clientSecret.trim() === ""
+        }
+      />
     </form>
   );
 
@@ -246,26 +240,16 @@ export function OauthClientPanel({
 
   return (
     <div className="conn-client-setup">
-      <div className="actions">
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          disabled={!online || busy !== null}
-          aria-label={
-            busy === "app"
-              ? "Opening GitHub"
-              : "Create GitHub App for this organization"
-          }
-          title={
-            busy === "app"
-              ? "Opening GitHub"
-              : "Create GitHub App for this organization"
-          }
-          onClick={() => void deployGithubApp()}
-        >
-          <IconExternal size={16} />
-        </button>
-      </div>
+      <FormCommit
+        label={
+          busy === "app"
+            ? "Opening GitHub"
+            : "Create GitHub App for this organization"
+        }
+        disabled={!online || busy !== null}
+        icon={<IconExternal size={18} />}
+        onClick={() => void deployGithubApp()}
+      />
       <details className="conn-client-alt">
         <summary>Or use an existing OAuth app</summary>
         {form}

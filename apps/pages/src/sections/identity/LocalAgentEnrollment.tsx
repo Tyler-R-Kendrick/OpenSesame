@@ -1,5 +1,6 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { useEffect, useId, useRef, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
@@ -62,16 +63,7 @@ export function LocalAgentEnrollment({
           </span>
         </>
       ) : null}
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={disabled || !draft.trim()}
-          aria-label="Save public key"
-          title="Save public key"
-        >
-          <IconCheck size={16} />
-        </button>
+      <FormCommit label="Save public key" disabled={disabled || !draft.trim()}>
         <button
           type="button"
           className="icon-btn"
@@ -82,7 +74,7 @@ export function LocalAgentEnrollment({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   );
 }

@@ -1,5 +1,6 @@
 import type { GitAuthMode } from "@opensesame/app-core/lib/git-auth-modes.js";
 import type { FormEvent } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck } from "../../components/Icons.js";
 import {
   GitAuthModePicker,
@@ -88,17 +89,10 @@ export function GitConnectFields({ model }: { model: GitConnectFieldsModel }) {
           />
         </div>
       </details>
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn icon-btn--sm"
-          disabled={model.busy || !model.canSave}
-          aria-label={model.busy ? "Saving" : "Save Git remote"}
-          title={model.busy ? "Saving" : "Save Git remote"}
-        >
-          <IconCheck size={16} />
-        </button>
-      </div>
+      <FormCommit
+        label={model.busy ? "Saving" : "Save Git remote"}
+        disabled={model.busy || !model.canSave}
+      />
     </form>
   );
 }

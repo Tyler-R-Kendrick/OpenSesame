@@ -22,6 +22,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
@@ -385,15 +386,10 @@ function RegistrationForm({
           Use exact HTTPS callbacks, or HTTP on loopback for development.
           Include openid. No client secret is stored in an application.
         </p>
-        <button
-          type="submit"
-          className="icon-btn"
+        <FormCommit
+          label="Save registration"
           disabled={!organizationId || !redirects.trim() || !scopes.trim()}
-          aria-label="Save registration"
-          title="Save registration"
-        >
-          <IconCheck size={16} />
-        </button>
+        />
       </fieldset>
     </form>
   );

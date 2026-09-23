@@ -23,8 +23,14 @@
       }
     ],
     "breakpoints": [
-      { "name": "vault-collapse", "value": "900px" },
-      { "name": "rail-collapse", "value": "820px" }
+      {
+        "name": "vault-collapse",
+        "value": "900px"
+      },
+      {
+        "name": "rail-collapse",
+        "value": "820px"
+      }
     ]
   },
   "components": [
@@ -92,6 +98,11 @@
       "description": "A compact, path-first vault item with keyboard focus.",
       "html": "<button class=\"ds-vault-row\"><span aria-hidden=\"true\">▸</span><span>Work/GitHub</span></button>",
       "css": ".ds-vault-row{display:flex;width:100%;gap:.5rem;align-items:center;padding:.4rem .6rem;border:0;border-radius:var(--radius);background:transparent;color:var(--ink);font:500 .8125rem var(--mono);text-align:left}.ds-vault-row:hover{background:var(--surface-3)}.ds-vault-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.ds-vault-row:active{background:var(--accent-wash)}"
+    },
+    {
+      "name": "Form Commit",
+      "kind": "custom",
+      "description": "The commit of a form of several fields: the shared .go ink square with its verb beside it in the margin voice (components/FormCommit.tsx). The form's secondary keys (cancel, prefer) ride the same row. A one-field form ends the field's row instead (.field-inline or a FieldShell tail)."
     }
   ],
   "narrative": {
@@ -119,6 +130,21 @@
         "name": "The No-Recovery Rule",
         "body": "Never soften the absence of a recovery path.",
         "section": "colors"
+      },
+      {
+        "name": "The Keys Have a Home Rule",
+        "body": "A key sits at the end of the row of what it acts on: the panel head, the field's label row, the field itself, or the record's row. A form of several fields commits with FormCommit, the .go square and its verb. Never a bare glyph on a row of its own.",
+        "section": "components"
+      },
+      {
+        "name": "The Field Measure Rule",
+        "body": "A field is sized to its value, not its panel: single-line fields and selects stop at --field-max (30rem), editors at --text-max (46rem). A phone never reaches either.",
+        "section": "layout"
+      },
+      {
+        "name": "The Long Page Index Rule",
+        "body": "On a phone, a page whose panels the desktop rail links to by name draws the same entries as an On this page strip under its tabs. One tab strip everywhere; it scrolls, never wraps, and keeps its selected tab in view by scrolling itself.",
+        "section": "layout"
       }
     ],
     "dos": [
@@ -131,7 +157,10 @@
       "Don't add a shortcut around the master password.",
       "Don't put a secret, or a hash of one, on the network.",
       "Don't let prose run the full width of a panel.",
-      "Don't clone Bitwarden's brand identity."
+      "Don't clone Bitwarden's brand identity.",
+      "Don't leave a key alone on a row under the field it commits.",
+      "Don't let a field, select or filter grow to the width of its panel.",
+      "Don't make a phone scroll a long page to reach a panel the rail names."
     ]
   }
 }

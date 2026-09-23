@@ -6,6 +6,7 @@
  */
 
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GcpKmsConnectFields } from "./GcpKmsConnectFields.js";
@@ -81,20 +82,12 @@ export function GcpKmsConnectPanel({
           configured={panel.configured}
           onChange={panel.setField}
         />
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            disabled={panel.busy}
-            aria-label={
-              panel.busy ? "Saving Google Cloud KMS" : "Save Google Cloud KMS"
-            }
-            title={
-              panel.busy ? "Saving Google Cloud KMS" : "Save Google Cloud KMS"
-            }
-          >
-            <IconCheck size={16} />
-          </button>
+        <FormCommit
+          label={
+            panel.busy ? "Saving Google Cloud KMS" : "Save Google Cloud KMS"
+          }
+          disabled={panel.busy}
+        >
           <button
             type="button"
             className="icon-btn icon-btn--sm"
@@ -115,7 +108,7 @@ export function GcpKmsConnectPanel({
           >
             <IconTrash size={16} />
           </button>
-        </div>
+        </FormCommit>
       </form>
     </div>
   );

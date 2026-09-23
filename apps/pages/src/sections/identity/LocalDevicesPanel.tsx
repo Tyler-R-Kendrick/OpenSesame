@@ -6,6 +6,7 @@ import {
   touchThisDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { useEffect, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconX } from "../../components/Icons.js";
 
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
@@ -183,16 +184,7 @@ function RenameForm({
           onChange={(event) => onChange(event.target.value)}
         />
       </div>
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={busy || !draft.name.trim()}
-          aria-label="Save name"
-          title="Save name"
-        >
-          <IconCheck size={16} />
-        </button>
+      <FormCommit label="Save name" disabled={busy || !draft.name.trim()}>
         <button
           type="button"
           className="icon-btn"
@@ -203,7 +195,7 @@ function RenameForm({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   );
 }

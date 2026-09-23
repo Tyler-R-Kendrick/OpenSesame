@@ -220,6 +220,48 @@ const STEPS = {
     });
     await page.waitForTimeout(600);
   },
+  /**
+   * Switch an optional capability on, through Settings › Capabilities' own
+   * Add and Apply — Access, Identity and Connections are capabilities, and a
+   * guest device has none of them until it chooses (ADR 0130).
+   */
+  async enable(page, title) {
+    await STEPS.tab(page, "settings");
+    await STEPS.open(page, "Capabilities");
+    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    if (!(await add.count())) return;
+    await press(add.first());
+    await page.waitForTimeout(400);
+    await press(page.getByTestId("capability-apply"));
+    await page
+      .getByTestId("capability-review")
+      .waitFor({ state: "detached", timeout: 20_000 });
+    await page.waitForTimeout(600);
+  },
+  /** A new section loads with the app root, so a chosen one needs a reload. */
+  async reload(page) {
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(5200);
+    await STEPS.guest(page);
+  },
+  /** Follow a link to a path in the app, the way a shared deep link lands. */
+  async visit(page, route) {
+    await page.evaluate((href) => {
+      history.pushState(null, "", href);
+      dispatchEvent(new PopStateEvent("popstate"));
+    }, `${base}${route}`);
+    await page.waitForTimeout(1200);
+  },
+  /** Print each match's box, so a sheet's numbers come from the browser. */
+  async measure(page, selector) {
+    const boxes = await page.locator(selector).evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return `${Math.round(box.width)}x${Math.round(box.height)} @${Math.round(box.left)},${Math.round(box.top)}`;
+      }),
+    );
+    console.log(`  measure ${selector}: ${boxes.join(" | ") || "none"}`);
+  },
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);

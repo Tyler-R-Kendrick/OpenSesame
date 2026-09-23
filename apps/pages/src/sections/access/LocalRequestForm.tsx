@@ -9,6 +9,7 @@ import {
 } from "@opensesame/app-core/lib/local-directory.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
 import { useId, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
 import { LocalAgentKeys } from "../identity/LocalAgentKeys.js";
 import { LocalIdentitySession } from "../identity/LocalIdentitySession.js";
@@ -93,16 +94,11 @@ export function LocalRequestForm({
             maxLength={240}
           />
         </div>
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn"
-            disabled={!applications.length}
-            aria-label="Create local request"
-            title="Create local request"
-          >
-            <IconPlus size={16} />
-          </button>
+        <FormCommit
+          label="Create local request"
+          disabled={!applications.length}
+          icon={<IconPlus size={18} />}
+        >
           <button
             type="button"
             className="icon-btn"
@@ -112,7 +108,7 @@ export function LocalRequestForm({
           >
             <IconX size={16} />
           </button>
-        </div>
+        </FormCommit>
       </form>
     </fieldset>
   );

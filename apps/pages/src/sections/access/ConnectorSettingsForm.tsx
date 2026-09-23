@@ -4,6 +4,7 @@ import {
   SHARE_POLICIES,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import { type FormEvent, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconX } from "../../components/Icons.js";
 
 /** The bind defaults: policy and duration the row's bind form opens with. */
@@ -124,15 +125,7 @@ export function ConnectorSettingsForm({
           onPolicy={setPolicy}
           onDuration={setDuration}
         />
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            aria-label="Save"
-            title="Save"
-          >
-            <IconCheck size={16} />
-          </button>
+        <FormCommit label="Save">
           <button
             type="button"
             className="icon-btn icon-btn--sm"
@@ -142,7 +135,7 @@ export function ConnectorSettingsForm({
           >
             <IconX size={16} />
           </button>
-        </div>
+        </FormCommit>
       </fieldset>
     </form>
   );

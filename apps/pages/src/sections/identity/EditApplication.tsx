@@ -9,6 +9,7 @@ import {
   updateApplication,
 } from "@opensesame/app-core/lib/identity-management.js";
 import { useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconCheck, IconX } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { SourceEditor } from "../../components/configuration/SourceEditor.js";
@@ -252,20 +253,14 @@ function HostedApplicationActions(props: {
 }) {
   const visualReady = Boolean(props.name.trim() && props.redirects.trim());
   return (
-    <div className="actions">
-      <button
-        type="submit"
-        className="icon-btn"
-        disabled={
-          props.busy ||
-          !props.online ||
-          (props.mode === "visual" ? !visualReady : !props.parsed.ok)
-        }
-        aria-label="Save application"
-        title="Save application"
-      >
-        <IconCheck size={16} />
-      </button>
+    <FormCommit
+      label="Save application"
+      disabled={
+        props.busy ||
+        !props.online ||
+        (props.mode === "visual" ? !visualReady : !props.parsed.ok)
+      }
+    >
       <button
         type="button"
         className="btn btn--sm"
@@ -300,6 +295,6 @@ function HostedApplicationActions(props: {
       >
         <IconX size={16} />
       </button>
-    </div>
+    </FormCommit>
   );
 }

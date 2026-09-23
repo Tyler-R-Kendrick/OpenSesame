@@ -1,6 +1,7 @@
 import { accessPath } from "@opensesame/app-core/lib/access-routes.js";
 import { Link } from "react-router";
 
+import { useStripItem } from "../../lib/strip.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 import {
@@ -53,10 +54,14 @@ export function AccessTabLink({
   to: string;
   current: boolean;
 }) {
-  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
+  const stripRef = useStripItem<HTMLAnchorElement>(current);
   return (
     <Link
-      ref={ref}
+      ref={(element) => {
+        stripRef(element);
+        guideRef(element);
+      }}
       to={to}
       role="tab"
       aria-selected={current}

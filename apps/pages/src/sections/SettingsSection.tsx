@@ -1,5 +1,7 @@
 import { Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { PageIndex } from "../components/PageIndex.js";
+import { settingsPageSources } from "./settings/page-tree.js";
 
 import {
   settingsCategoryFromLocation,
@@ -122,6 +124,7 @@ export function SettingsSection({
             onSelect={setOpenPath}
           />
         )}
+        {form ? <PageIndex entries={pageEntries(category)} /> : null}
         {form && ContributedPanel ? <ContributedPanel /> : null}
         {form && category === "general" ? (
           <>
@@ -151,6 +154,34 @@ export function SettingsSection({
     </SettingsFileContext.Provider>
   );
 }
+
+/**
+ * Panels a capability draws inside a category the core already has, so
+ * Security can carry the ambient opt-in without this file importing it. A
+ * contribution for a panel Security already draws is skipped: Formats
+ * rendered twice on one page (and twice under one element id).
+ */
+/** The rail's entries for one category, for the phone's page index. */
+function pageEntries(category: string) {
+  return (
+    settingsPageSources().find((tab) => tab.id === category)?.sections ?? []
+  );
+}
+
+function useCategoryPanels(category: string) {
+  return [...useContributions("settings-panel")]
+    .filter((panel) => panel.category === category)
+    .filter(
+      (panel) =>
+        !(category === "security" && SECURITY_OWN_PANELS.has(panel.id)),
+    )
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+}
+
+/** Panel ids `SecurityPanels` draws itself, by the ids their sections carry. */
+const SECURITY_OWN_PANELS: ReadonlySet<string> = new Set([
+  "formats-interoperability",
+]);
 
 /** The Security category's own panels, in the order the screen draws them. */
 function SecurityPanels({

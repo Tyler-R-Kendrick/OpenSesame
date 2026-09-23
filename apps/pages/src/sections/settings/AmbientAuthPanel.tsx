@@ -46,7 +46,23 @@ export function AmbientAuthPanel() {
 
   return (
     <section className="card" aria-labelledby={id}>
-      <h2 id={id}>Automatic sign-in</h2>
+      <div className="keyed-row">
+        <h2 id={id}>Automatic sign-in</h2>
+        {deployed ? null : (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Don't sign me in automatically"
+            title="Don't sign me in automatically"
+            onClick={() => {
+              clearUserAmbientPreference();
+              bump();
+            }}
+          >
+            <IconX size={16} />
+          </button>
+        )}
+      </div>
       {deployed ? (
         <p>
           This deployment is configured to sign you in with{" "}
@@ -65,7 +81,8 @@ export function AmbientAuthPanel() {
       ) : (
         <ul className="stack">
           {providers.map((idp) => (
-            <li key={idp.issuer}>
+            <li key={idp.issuer} className="keyed-row keyed-row--field">
+              <span>{idp.label}</span>
               <button
                 type="button"
                 className="icon-btn"
@@ -78,20 +95,6 @@ export function AmbientAuthPanel() {
             </li>
           ))}
         </ul>
-      )}
-      {deployed ? null : (
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Don't sign me in automatically"
-          title="Don't sign me in automatically"
-          onClick={() => {
-            clearUserAmbientPreference();
-            bump();
-          }}
-        >
-          <IconX size={16} />
-        </button>
       )}
     </section>
   );
