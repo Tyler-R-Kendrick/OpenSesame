@@ -1175,6 +1175,37 @@
     }
   },
   {
+    "id": "certificates.est.enrollment",
+    "title": "Enroll a client certificate over EST (RFC 7030)",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "an enrollment endpoint is spoken by a protocol client, not by an agent (ADR 0068 §8)",
+        "adr": "0068-enrollment-protocol-servers.md"
+      },
+      "mcp_host": {
+        "reason": "an enrollment endpoint is spoken by a protocol client, not by an agent (ADR 0068 §8)",
+        "adr": "0068-enrollment-protocol-servers.md"
+      },
+      "mcp_client": {
+        "reason": "an enrollment endpoint is spoken by a protocol client, not by an agent (ADR 0068 §8)",
+        "adr": "0068-enrollment-protocol-servers.md"
+      },
+      "webmcp": {
+        "reason": "an enrollment endpoint is spoken by a protocol client, not by an agent (ADR 0068 §8)",
+        "adr": "0068-enrollment-protocol-servers.md"
+      }
+    }
+  },
+  {
     "id": "delegations.list",
     "title": "List delegations",
     "plane": "host",

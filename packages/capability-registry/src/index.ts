@@ -3,6 +3,7 @@ import {
   accessPortalCapabilities,
 } from "./access-portal.js";
 import { connectorDirectoryCapabilities } from "./connectors.js";
+import { enrollmentCapabilities } from "./enrollment.js";
 import { generalAuthorityCapabilities } from "./general-authority.js";
 import { identityManagementCapabilities } from "./identity-management.js";
 import { itemTypeCapabilities } from "./item-types.js";
@@ -410,6 +411,7 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   ...sharedSessionCapabilities,
   ...transportSecurityCapabilities,
+  ...enrollmentCapabilities,
   // ── Host plane: delegations, offers, relay ────────────────────────────
   {
     id: "delegations.list",
