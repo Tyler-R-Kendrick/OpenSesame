@@ -219,6 +219,14 @@ fn decode_header(proof_jwt: &str) -> Result<Header, ProofError> {
         .map_err(|_| ProofError::InvalidProof("malformed header".into()))
 }
 
+/// How far into the future a proof's `iat` may sit (clock skew allowance).
+///
+/// A proof dated this far ahead stays acceptable until `iat + max_age`, i.e.
+/// up to `max_age + DPOP_MAX_FUTURE_SKEW_SECS` after it is first seen, so a
+/// replay cache must remember its `jti` at least that long
+/// (`ReplayCache::check_and_record_until`).
+pub const DPOP_MAX_FUTURE_SKEW_SECS: i64 = 60;
+
 ///
 /// # Errors
 ///
@@ -303,7 +311,10 @@ pub fn decode_dpop_proof(
     {
         return Err(ProofError::InvalidProof("iat too old".into()));
     }
-    if now.checked_add(60).is_none_or(|latest| claims.iat > latest) {
+    if now
+        .checked_add(DPOP_MAX_FUTURE_SKEW_SECS)
+        .is_none_or(|latest| claims.iat > latest)
+    {
         return Err(ProofError::InvalidProof("iat in future".into()));
     }
 

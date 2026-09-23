@@ -4,6 +4,11 @@ import {
   CreateOAuthClientRequestSchema,
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
+import {
+  canonicalSectorIdentifier,
+  pairwiseSectorKey,
+  sectorIdentifierSpellings,
+} from "@opensesame/oauth-provider";
 import type { OAuthClientRecord } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
@@ -102,19 +107,33 @@ async function assertRegistrationQuota(
  * Two clients sharing a sector see the same pairwise subject for the same
  * person, which is exactly the linkage pairwise subjects exist to prevent.
  * Sharing one between a single owner's clients is a legitimate choice; taking
- * another owner's sector is a way to learn the `sub` they see.
+ * another owner's sector is a way to learn the `sub` they see. The `sub` is
+ * keyed on this registered value (`pairwiseSectorKey`), not on the redirect
+ * host, so this check is what actually decides who shares a subject. Every
+ * spelling that reaches the same key is looked up, and the issuer's own host
+ * is reserved for the first-party clients oidc-provider keys on it.
  */
 async function sectorClaimedByAnother(
   ctx: AppContext,
   principalId: string,
   sectorIdentifier: string,
 ): Promise<boolean> {
-  const claimants =
-    await ctx.stores.oauthClients.findBySectorIdentifier(sectorIdentifier);
-  return claimants.some(
-    (client) =>
-      client.state !== "revoked" && client.ownerPrincipalId !== principalId,
-  );
+  if (
+    pairwiseSectorKey(sectorIdentifier) ===
+    pairwiseSectorKey(new URL(ctx.config.issuer).origin)
+  ) {
+    return true;
+  }
+  for (const spelling of sectorIdentifierSpellings(sectorIdentifier)) {
+    const claimants =
+      await ctx.stores.oauthClients.findBySectorIdentifier(spelling);
+    const foreign = claimants.some(
+      (client) =>
+        client.state !== "revoked" && client.ownerPrincipalId !== principalId,
+    );
+    if (foreign) return true;
+  }
+  return false;
 }
 
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
@@ -152,6 +171,9 @@ oauthClientRoutes.post(
         const overQuota = await assertRegistrationQuota(ctx, principalId);
         if (overQuota) return overQuota;
 
+        const sectorIdentifier = canonicalSectorIdentifier(
+          parsed.data.sectorIdentifier,
+        );
         if (parsed.data.admissionMode !== "pre_registered") {
           return c.json(
             {
@@ -163,13 +185,7 @@ oauthClientRoutes.post(
           );
         }
 
-        if (
-          await sectorClaimedByAnother(
-            ctx,
-            principalId,
-            parsed.data.sectorIdentifier,
-          )
-        ) {
+        if (await sectorClaimedByAnother(ctx, principalId, sectorIdentifier)) {
           return c.json(
             {
               error: "sector_identifier_taken",
@@ -187,7 +203,7 @@ oauthClientRoutes.post(
           admissionMode: "pre_registered",
           displayName: parsed.data.displayName,
           redirectUris: parsed.data.redirectUris,
-          sectorIdentifier: parsed.data.sectorIdentifier,
+          sectorIdentifier,
           grantTypes: parsed.data.grantTypes,
           responseTypes: parsed.data.responseTypes,
           tokenEndpointAuthMethod: parsed.data.tokenEndpointAuthMethod,

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { PairwiseSubject, PairwiseSubjectStore } from "../types.js";
+import { pairwiseSectorKey } from "./sector.js";
 
 /**
  * In-memory pairwise subject mapping (tests / ephemeral).
@@ -40,20 +41,39 @@ export class MemoryPairwiseSubjectStore implements PairwiseSubjectStore {
   }
 }
 
+/** The one client-store lookup the pairwise callback needs. */
+export type PairwiseClientLookup = {
+  findById(id: string): Promise<{ sectorIdentifier?: string } | undefined>;
+};
+
 /**
  * Build oidc-provider `pairwiseIdentifier` callback from a PairwiseSubjectStore.
- * Sector comes from client.sectorIdentifier (OIDC pairwise); falls back to clientId.
+ *
+ * The sector is the OpenSesame client record's registered `sectorIdentifier`
+ * (via `clients`), because that is the value ownership is checked against.
+ * oidc-provider's own `client.sectorIdentifier` — the host of
+ * `redirect_uris[0]` when no `sector_identifier_uri` is set — is only the
+ * fallback for clients the record store does not hold (static configuration),
+ * then `clientId`. See `pairwise/sector.ts` for how a sector becomes a key.
  */
-export function createPairwiseIdentifierCallback(store: PairwiseSubjectStore) {
+export function createPairwiseIdentifierCallback(
+  store: PairwiseSubjectStore,
+  clients?: PairwiseClientLookup,
+) {
   return async (
     _ctx: BoundaryValue,
     accountId: string,
     client: { clientId?: string; sectorIdentifier?: string },
   ): Promise<string> => {
+    const clientId = isString(client.clientId) ? client.clientId.trim() : "";
+    const record =
+      clients && clientId ? await clients.findById(clientId) : undefined;
+    const declared = record?.sectorIdentifier;
+    const registered = isString(declared) ? pairwiseSectorKey(declared) : "";
     const sector =
+      registered ||
       (isString(client.sectorIdentifier) && client.sectorIdentifier.trim()) ||
-      (isString(client.clientId) && client.clientId.trim()) ||
-      "";
+      clientId;
     if (!sector) {
       throw new Error(
         "pairwiseIdentifier: client must supply sectorIdentifier or clientId (refusing a shared default sector)",

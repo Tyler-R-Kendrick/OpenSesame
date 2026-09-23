@@ -6,10 +6,14 @@ export {
   reconcileX402Payment,
   refuseMutatedExactAmount,
   X402_ADAPTER_BLOCKED_REASON,
+  X402_PREPARED_TTL_MS,
   X402AdapterBlockedError,
   X402AccountingUnavailableError,
   X402InsufficientAvailableError,
   type LocalExactRuntime,
+  type X402AllocationReservation,
+  type X402SettlementOutcome,
+  type X402SettlementPort,
 } from "./adapter.js";
 export {
   assertLocalExactRuntime,

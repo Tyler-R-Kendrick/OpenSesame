@@ -113,9 +113,14 @@ export type IssuePreparedSpendRefusal =
   | "digest_mismatch"
   | "missing_verified_bytes"
   | "unverified_assurance"
+  | "key_not_enrolled"
   | "signature_invalid";
 
-/** Owner/consent path issues a single-use prepared ref. Not agent-callable. */
+/**
+ * Owner/consent path issues a single-use prepared ref. Not agent-callable.
+ * The approval must verify against a key enrolled with
+ * `enrollPaymentApprovalKey`; a key carried in the proof is only a hint.
+ */
 export async function issuePreparedSpend(input: {
   readonly proposalId: string;
   readonly intent: LocalPaymentApprovalIntent;

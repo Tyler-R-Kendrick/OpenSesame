@@ -11,6 +11,10 @@ import {
   readExactTokenBalance,
 } from "./exact-settle.js";
 
+function heldReservation(reservedAmount: string) {
+  return { reservedAmount, commit: () => {}, release: () => {} };
+}
+
 function runtimeFromEnv(): LocalExactRuntime | null {
   const rpcUrl = process.env.WALLET_X402_RPC;
   const asset = process.env.WALLET_X402_ASSET;
@@ -49,7 +53,7 @@ describe("x402 exact live settle", () => {
     }
     const prepared = await prepareX402Payment({
       runtime,
-      remainingAllocation: runtime.amount,
+      reservation: heldReservation(runtime.amount),
     });
     expect(await refuseMutatedExactAmount(prepared.ref, "2000000")).toBe(true);
     const executed = await executeX402Payment({ preparedRef: prepared.ref });
@@ -74,7 +78,7 @@ describe("x402 exact live settle", () => {
     await expect(
       prepareX402Payment({
         runtime,
-        remainingAllocation: tooSmall,
+        reservation: heldReservation(tooSmall),
       }),
     ).rejects.toBeInstanceOf(X402InsufficientAvailableError);
     expect(await readExactTokenBalance(runtime, payer)).toBe(beforePayer);

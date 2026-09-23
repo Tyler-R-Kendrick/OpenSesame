@@ -311,13 +311,13 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       expect(payload.aud).toBe(CLIENT_ID);
       expect(payload.nonce).toBe("n-1");
       expect(isString(payload.sub)).toBe(true);
-      // Pairwise: the sub is not the account id, and it is the truthful
-      // persisted mapping for (account, sector).
+      // Pairwise: the sub is not the account id, and it is the persisted
+      // mapping for (account, the record's own `sector_<uuid>`, used verbatim).
       expect(payload.sub).not.toBe(accountId);
-      const sector = overlapCast(client).sectorIdentifier;
+      const record = await started.ctx.oauth.clientStore.findById(CLIENT_ID);
       const mapping = await started.ctx.oauth.pairwiseStore.find(
         accountId,
-        sector,
+        record?.sectorIdentifier ?? "",
       );
       expect(mapping).toBeDefined();
       expect(payload.sub).toBe(mapping?.subject);

@@ -9,6 +9,7 @@ import { isMainnetChainId } from "./chain-guard.js";
 import {
   type LocalExactRuntime,
   type PreparedExactPayment,
+  assertLocalExactRuntime,
   createExactPaymentPayload,
   settleExactPayment,
   verifyExactPaymentMismatch,
@@ -40,7 +41,7 @@ export class X402AccountingUnavailableError extends Error {
   readonly code = "ACCOUNTING_AUTHORITY_UNAVAILABLE" as const;
   constructor() {
     super(
-      "ACCOUNTING_AUTHORITY_UNAVAILABLE: remaining allocation is required before prepare",
+      "ACCOUNTING_AUTHORITY_UNAVAILABLE: an allocation reservation is required before prepare",
     );
     this.name = "X402AccountingUnavailableError";
   }
@@ -50,7 +51,7 @@ export class X402InsufficientAvailableError extends Error {
   readonly code = "INSUFFICIENT_AVAILABLE" as const;
   constructor() {
     super(
-      "INSUFFICIENT_AVAILABLE: payment amount exceeds remaining allocation",
+      "INSUFFICIENT_AVAILABLE: payment amount exceeds the reserved allocation",
     );
     this.name = "X402InsufficientAvailableError";
   }
@@ -63,12 +64,13 @@ function parseAllocationUnits(value: string): bigint {
   return BigInt(value);
 }
 
-function assertWithinRemaining(
+function assertWithinReservation(
   amount: string,
-  remainingAllocation: string,
+  reservation: X402AllocationReservation,
 ): void {
   if (
-    parseAllocationUnits(amount) > parseAllocationUnits(remainingAllocation)
+    parseAllocationUnits(amount) >
+    parseAllocationUnits(reservation.reservedAmount)
   ) {
     throw new X402InsufficientAvailableError();
   }
@@ -104,10 +106,63 @@ export function assessX402Adapter(
   return assessExactPayment(input);
 }
 
+/**
+ * A hold the caller's accounting authority has already placed for this one
+ * payment — for example an `@opensesame/wallet-budget` `reserve` of an
+ * attempt id, wrapped so `commit`/`release` settle that attempt. This package
+ * does not depend on a ledger, so it takes the hold as a handle instead of a
+ * remaining-balance string: a string is a snapshot two prepares can both
+ * spend, a reservation is not.
+ *
+ * Ownership: the caller keeps the hold until `prepareX402Payment` returns a
+ * ref (and must release it itself if prepare throws). From then on the
+ * adapter settles it exactly once — `commit` after a confirmed settlement,
+ * `release` when the ref expires or settlement reports failure. If settlement
+ * throws, the outcome is unknown and the hold is left in place for
+ * reconciliation rather than released.
+ */
+export interface X402AllocationReservation {
+  /** Units held for this payment (decimal string). */
+  readonly reservedAmount: string;
+  commit(): void | Promise<void>;
+  release(): void | Promise<void>;
+}
+
+/** Settlement outcome as the exact scheme reports it. */
+export type X402SettlementOutcome = {
+  readonly success: boolean;
+  readonly transaction?: string | undefined;
+  readonly errorReason?: string | undefined;
+};
+
+/**
+ * Where a prepared payment is built and settled. Chosen at prepare time and
+ * pinned to the ref, so whoever executes cannot swap it. Defaults to the
+ * local Anvil exact scheme; the local-runtime guard runs either way.
+ */
+export type X402SettlementPort = {
+  readonly createPayload: (
+    runtime: LocalExactRuntime,
+  ) => Promise<PreparedExactPayment>;
+  readonly settle: (
+    prepared: PreparedExactPayment,
+  ) => Promise<X402SettlementOutcome>;
+};
+
+const LOCAL_EXACT_SETTLEMENT: X402SettlementPort = {
+  createPayload: createExactPaymentPayload,
+  settle: settleExactPayment,
+};
+
 type PreparedSlot = {
   readonly prepared: PreparedExactPayment;
-  readonly remainingAllocation: string;
+  readonly reservation: X402AllocationReservation;
+  readonly settlement: X402SettlementPort;
+  readonly expiresAtMs: number;
 };
+
+/** How long a prepared payment may wait for execution. */
+export const X402_PREPARED_TTL_MS = 60_000;
 
 type DescribeX402AdapterInput = {
   readonly localExecutionVerified?: boolean;
@@ -131,7 +186,8 @@ export type ReconciledX402Payment = {
 
 type PrepareX402PaymentInput = {
   readonly runtime: LocalExactRuntime;
-  readonly remainingAllocation: string;
+  readonly reservation: X402AllocationReservation;
+  readonly settlement?: X402SettlementPort;
 };
 
 type ExecuteX402PaymentInput = {
@@ -150,17 +206,29 @@ export async function prepareX402Payment(
   if (input === undefined) throw new X402AdapterBlockedError("prepare");
   if (isMainnetChainId(input.runtime.chainId))
     throw new Error("MAINNET_DENIED");
-  if (input.remainingAllocation === undefined) {
+  assertLocalExactRuntime(input.runtime);
+  if (input.reservation === undefined) {
     throw new X402AccountingUnavailableError();
   }
-  assertWithinRemaining(input.runtime.amount, input.remainingAllocation);
-  const prepared = await createExactPaymentPayload(input.runtime);
+  assertWithinReservation(input.runtime.amount, input.reservation);
+  const settlement = input.settlement ?? LOCAL_EXACT_SETTLEMENT;
+  const prepared = await settlement.createPayload(input.runtime);
   const ref = `prepared:x402:${globalThis.crypto.randomUUID()}`;
+  const expiresAtMs = Date.now() + X402_PREPARED_TTL_MS;
   preparedSlots.set(ref, {
     prepared,
-    remainingAllocation: input.remainingAllocation,
+    reservation: input.reservation,
+    settlement,
+    expiresAtMs,
   });
-  return { ref, expiresAt: new Date(Date.now() + 60_000).toISOString() };
+  return { ref, expiresAt: new Date(expiresAtMs).toISOString() };
+}
+
+function failedSettlement(settled: X402SettlementOutcome): ExecutedX402Payment {
+  const detail = settled.errorReason ?? "settle_failed";
+  return settled.transaction === undefined
+    ? { status: "failed", detail }
+    : { status: "failed", detail, transaction: settled.transaction };
 }
 
 export async function executeX402Payment(
@@ -174,34 +242,24 @@ export async function executeX402Payment(
       detail: "PreparedExecutionRef missing or already used",
     };
   }
-  try {
-    assertWithinRemaining(
-      slot.prepared.runtime.amount,
-      slot.remainingAllocation,
-    );
-  } catch (error) {
-    if (error instanceof X402InsufficientAvailableError) {
-      return { status: "failed", detail: error.code };
-    }
-    throw error;
-  }
+  // Single-use from here on, before any await, so a concurrent execute of the
+  // same ref finds nothing.
   preparedSlots.delete(input.preparedRef);
-  const settled = await settleExactPayment(slot.prepared);
-  if (!settled.success) {
-    return settled.transaction === undefined
-      ? {
-          status: "failed",
-          detail: settled.errorReason ?? "settle_failed",
-        }
-      : {
-          status: "failed",
-          detail: settled.errorReason ?? "settle_failed",
-          transaction: settled.transaction,
-        };
+  if (Date.now() >= slot.expiresAtMs) {
+    await slot.reservation.release();
+    return { status: "failed", detail: "PREPARED_REF_EXPIRED" };
   }
+  const settled = await slot.settlement.settle(slot.prepared);
+  if (!settled.success) {
+    await slot.reservation.release();
+    return failedSettlement(settled);
+  }
+  // A success with no transaction hash still moved funds as far as the
+  // facilitator is concerned; keep the hold for reconciliation.
   if (settled.transaction === undefined) {
     return { status: "failed", detail: "settle_missing_transaction" };
   }
+  await slot.reservation.commit();
   return {
     status: "confirmed",
     detail: "exact eip3009 settled on local chain",

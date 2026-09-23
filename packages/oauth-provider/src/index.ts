@@ -52,7 +52,13 @@ export {
 export {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback,
+  type PairwiseClientLookup,
 } from "./pairwise/store.js";
+export {
+  canonicalSectorIdentifier,
+  pairwiseSectorKey,
+  sectorIdentifierSpellings,
+} from "./pairwise/sector.js";
 export {
   ClientAdmissionError,
   createClientAdmissionPolicy,

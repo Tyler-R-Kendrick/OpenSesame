@@ -259,4 +259,98 @@ describe("oauth clients routes edge cases", () => {
       (await createClient(app, owner.accessToken, clientBody())).status,
     ).toBe(201);
   });
+
+  it("keys the pairwise sub on the registered sector, not the redirect host", async () => {
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const alice = await verified(app, "oauth-sector-alice");
+    const bob = await verified(app, "oauth-sector-bob");
+    // Both redirect to the same host; each declares its own sector.
+    const shared = { redirectUris: ["http://localhost:3000/callback"] };
+    const a = overlapCast(
+      await (
+        await createClient(
+          app,
+          alice.accessToken,
+          clientBody({ ...shared, sectorIdentifier: "https://alice.example" }),
+        )
+      ).json(),
+    );
+    const b = overlapCast(
+      await (
+        await createClient(
+          app,
+          bob.accessToken,
+          clientBody({ ...shared, sectorIdentifier: "https://bob.example" }),
+        )
+      ).json(),
+    );
+    const pairwise: (
+      ctx: BoundaryValue,
+      accountId: string,
+      client: BoundaryValue,
+    ) => Promise<string> = overlapCast(
+      ctx.oauth.configuration.pairwiseIdentifier,
+    );
+    const subFor = async (clientId: string) =>
+      pairwise({}, "prn_same_person", {
+        clientId,
+        // What oidc-provider derives from redirect_uris[0] for both clients.
+        sectorIdentifier: "localhost:3000",
+      });
+    const subA = await subFor(a.id);
+    expect(subA).not.toBe(await subFor(b.id));
+    // Stable for an unchanged sector, and keyed where the registry says.
+    expect(await subFor(a.id)).toBe(subA);
+    const mapping = await ctx.oauth.pairwiseStore.find(
+      "prn_same_person",
+      "alice.example",
+    );
+    expect(mapping?.subject).toBe(subA);
+
+    // Changing the redirect host cannot move a client onto another sector.
+    const patched = await app.request(`/v1/oauth/clients/${b.id}`, {
+      method: "PATCH",
+      headers: { ...auth(bob.accessToken), "content-type": "application/json" },
+      body: JSON.stringify({ redirectUris: ["https://alice.example/cb"] }),
+    });
+    expect(patched.status).toBe(200);
+    expect(await subFor(b.id)).not.toBe(subA);
+  });
+
+  it("refuses another spelling of a held sector, and the issuer's own host", async () => {
+    const { app } = createControlPlane({ config: testConfig() });
+    const owner = await verified(app, "oauth-spelling-owner");
+    const other = await verified(app, "oauth-spelling-other");
+    const created = await createClient(
+      app,
+      owner.accessToken,
+      clientBody({ sectorIdentifier: "https://Spell.example:443/" }),
+    );
+    expect(created.status).toBe(201);
+    expect(overlapCast(await created.json()).sectorIdentifier).toBe(
+      "https://spell.example",
+    );
+    for (const sectorIdentifier of [
+      "https://spell.example",
+      "https://SPELL.example/",
+      "https://127.0.0.1:8788",
+    ]) {
+      const res = await createClient(
+        app,
+        other.accessToken,
+        clientBody({ sectorIdentifier }),
+      );
+      expect(res.status).toBe(409);
+    }
+    // A distinct path on a shared host is a distinct sector.
+    expect(
+      (
+        await createClient(
+          app,
+          other.accessToken,
+          clientBody({ sectorIdentifier: "https://spell.example/other" }),
+        )
+      ).status,
+    ).toBe(201);
+  });
 });

@@ -24,6 +24,7 @@ describe("@opensesame/wallet-consent exports", () => {
     const forged = await verifyDigestBoundApproval({
       expectedDigest: digest,
       proof: { boundDigest: digest, mechanism: "webauthn" },
+      trustedKeys: [],
     });
     expect(forged.ok).toBe(false);
     const keys = generatePaymentApprovalKeyPair();
@@ -38,6 +39,7 @@ describe("@opensesame/wallet-consent exports", () => {
           ),
           publicKeySpki: keys.publicKeySpki,
         },
+        trustedKeys: [keys.publicKeySpki],
       }),
     ).toEqual({ ok: true, verifiedMechanism: "es256" });
   });

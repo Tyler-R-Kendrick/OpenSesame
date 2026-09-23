@@ -87,9 +87,26 @@ export {
 } from "@opensesame/wallet-consent/verify";
 
 /**
+ * Payment-approval keys this device enrolled (SPKI DER). An approval verifies
+ * only against one of these — never against a key the proof carries — so an
+ * approval self-signed with a fresh key proves nothing. Enrollment is the
+ * owner's ceremony; nothing on an agent-facing path may call it.
+ */
+const enrolledApprovalKeys: Uint8Array[] = [];
+
+export function enrollPaymentApprovalKey(publicKeySpki: Uint8Array): void {
+  if (publicKeySpki.byteLength === 0) return;
+  enrolledApprovalKeys.push(new Uint8Array(publicKeySpki));
+}
+
+export function resetPaymentApprovalKeys(): void {
+  enrolledApprovalKeys.length = 0;
+}
+
+/**
  * Refuse client-written assurance/mechanism labels (WAL-B01). Digest must
  * match executable terms; verified assertion bytes are required for any
- * strong-proof claim.
+ * strong-proof claim, and they must verify against an enrolled key.
  */
 export async function assessLocalPaymentApproval(input: {
   readonly intent: LocalPaymentApprovalIntent;
@@ -99,5 +116,6 @@ export async function assessLocalPaymentApproval(input: {
   return verifyDigestBoundApproval({
     expectedDigest,
     proof: input.proof,
+    trustedKeys: [...enrolledApprovalKeys],
   });
 }
