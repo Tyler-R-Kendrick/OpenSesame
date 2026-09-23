@@ -18,7 +18,11 @@ import {
 import type { SlotPlaintext } from "../../lib/duress/crypto/slots.js";
 
 export type DuressContinueStore = Readonly<{
-  createGuest: (options?: { resume?: boolean }) => Promise<void>;
+  /** `decoy: true` — a sealed guest tomb is never wiped (VaultStore.createGuest). */
+  createGuest: (options?: {
+    resume?: boolean;
+    decoy?: boolean;
+  }) => Promise<void>;
   cancelTotpChallenge?: () => void;
 }>;
 
@@ -43,8 +47,10 @@ export function resolveDuressPresentation(value: string): PresentationClass {
 
 /**
  * Decoy / restricted / normal: mint a presentation session from the slot key,
- * project a scoped view for PresentationShell, then open the isolated guest
- * tomb so the app shell unlocks without the protected root (INV-03 / INV-05).
+ * project a scoped view for PresentationShell, then open a fresh guest-road
+ * session so the app shell unlocks without the protected root (INV-03 /
+ * INV-05). The session is a decoy: it never wipes a guest tomb that holds a
+ * sealed vault of its own.
  */
 export async function continueAfterDuressMatch(
   store: DuressContinueStore,
@@ -84,6 +90,6 @@ export async function continueAfterDuressMatch(
   match.plaintext.compartmentKey.fill(0);
   match.plaintext.actionCapability?.fill(0);
 
-  await store.createGuest();
+  await store.createGuest({ decoy: true });
   return "duress_session";
 }

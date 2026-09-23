@@ -18,7 +18,7 @@
   "totals": {
     "files": 491,
     "violations": 780,
-    "oversizedLines": 247826
+    "oversizedLines": 247816
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1265,7 +1265,7 @@
       "max-lines": 525
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1722
+      "max-lines": 1712
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 587

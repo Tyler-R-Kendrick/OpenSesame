@@ -6,6 +6,7 @@
 import type { PresentationClass } from "../access/context.js";
 import { createIndependentCompartmentKey } from "../crypto/slots.js";
 import type { JournalWriteResult } from "../store/journal.js";
+import { codeOpensDeviceVault } from "../store/ordinary-unlock-probe.js";
 import {
   clearEnrollmentStateForUnlock,
   persistEnrollmentStateForUnlock,
@@ -26,6 +27,11 @@ export type SealUnlockTriggerInput = Readonly<{
   presentation: PresentationClass | string;
   previous?: EnrollmentState | null;
   ownerConsent?: boolean;
+  /**
+   * Whether `code` is also an ordinary unlock secret. Defaults to trying every
+   * vault's PIN and password wraps on this device; tests may stand in.
+   */
+  opensOrdinaryUnlock?: (code: string) => Promise<boolean>;
 }>;
 
 function asPresentation(value: string): PresentationClass {
@@ -48,6 +54,12 @@ function asPresentation(value: string): PresentationClass {
 export async function sealUnlockTriggerFromCeremony(
   input: SealUnlockTriggerInput,
 ): Promise<EnrollmentState> {
+  // The trigger is checked before any unwrap: one equal to a vault's own PIN
+  // or password would open the decoy in place of that vault, every time.
+  const opensOrdinary = input.opensOrdinaryUnlock ?? codeOpensDeviceVault;
+  if (await opensOrdinary(input.code)) {
+    throw new Error("ambiguous_trigger: collides with ordinary code");
+  }
   const previous = input.previous ?? null;
   const base =
     previous ??

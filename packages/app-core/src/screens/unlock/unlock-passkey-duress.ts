@@ -6,7 +6,7 @@
  * complete code before any protected-root unwrap.
  */
 
-import { WrongPasswordError } from "@opensesame/vault-core";
+import { type VaultHeader, WrongPasswordError } from "@opensesame/vault-core";
 import { maybePage } from "../../ports.js";
 import {
   loadEnrollmentStateForUnlock,
@@ -40,6 +40,8 @@ type PasskeyUnlockStore = DuressContinueStore &
     unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
     probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
     unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
+    /** The unlocking vault's header: names the passkey the PRF output came from. */
+    getSnapshot?: () => Readonly<{ header: VaultHeader | null }>;
   }>;
 
 function armedTwoInputTrigger(): boolean {
@@ -62,11 +64,17 @@ export async function unlockWithPasskeyAfterDuressGate(
   }
 
   const prfOutput = await store.probePasskeyPrf(signal);
-  stashPasskeyDuressEvidence({
-    userVerified: true,
-    prfOutput: new Uint8Array(prfOutput),
-    origin: maybePage()?.location.origin,
-  });
+  // The ceremony asks for the header's own passkey, so its credential id is
+  // the one a prf_and_code trigger's binding is checked against.
+  const passkey = store.getSnapshot?.().header?.unlocks?.passkey;
+  stashPasskeyDuressEvidence(
+    toSelectOptions({
+      userVerified: true,
+      prfOutput: new Uint8Array(prfOutput),
+      origin: maybePage()?.location.origin,
+      credentialIdB64: passkey?.credentialIdB64,
+    }),
+  );
   return "needs_duress_code";
 }
 

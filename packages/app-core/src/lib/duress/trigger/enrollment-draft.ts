@@ -7,9 +7,8 @@ import {
   MAX_SLOTS,
   type SlotPlaintext,
   assertTriggerCodeLength,
-  openProfileSlot,
-  sealProfileSlot,
 } from "../crypto/slots.js";
+import { openTriggerSlot, sealTriggerSlot } from "./enrollment-seal.js";
 import {
   type EnrollmentDraft,
   type EnrollmentState,
@@ -32,7 +31,22 @@ export type StageTriggerInDraftInput = Readonly<{
   credentialIdB64?: string;
   expectedOrigin?: string;
   prfEnvelopeRef?: string;
+  /** prf_and_code: the enrolling passkey's PRF output (both layers need it). */
+  prfOutput?: Uint8Array | null;
 }>;
+
+function assertPrfBinding(input: {
+  triggerKind: CodeTriggerKind;
+  credentialIdB64?: string;
+  expectedOrigin?: string;
+}): void {
+  if (input.triggerKind !== "prf_and_code") return;
+  if (!input.credentialIdB64 || !input.expectedOrigin) {
+    throw new Error(
+      "unsupported_factor: prf_and_code requires credential and origin binding",
+    );
+  }
+}
 
 export function beginEnrollmentDraft(
   state: EnrollmentState,
@@ -90,35 +104,32 @@ export async function stageTriggerInDraft(
     ignoreProfileId: replacing,
   });
 
-  if (input.triggerKind === "prf_and_code") {
-    if (!input.credentialIdB64 || !input.expectedOrigin) {
-      throw new Error(
-        "unsupported_factor: prf_and_code requires credential and origin binding",
-      );
-    }
-  }
+  assertPrfBinding(input);
 
-  const slot = await sealProfileSlot({
+  const { slot, prfEnvelope } = await sealTriggerSlot({
+    triggerKind: input.triggerKind,
     code: input.code,
     slotId: `slot-${input.profileId}-${state.policyRevision}-${state.keyEpoch}`,
     profileId: input.profileId,
-    vaultRef: state.vaultRef,
-    deviceBindingRef: state.deviceBindingRef,
-    policyRevision: state.policyRevision,
-    keyEpoch: state.keyEpoch,
+    scope: expectFrom(state),
     plaintext: input.plaintext,
+    prfOutput: input.prfOutput,
   });
 
   return {
     ...input.draft,
     pending: {
       slot,
+      prfEnvelope,
       triggerKind: input.triggerKind,
       credentialIdB64: input.credentialIdB64,
       expectedOrigin: input.expectedOrigin,
       prfEnvelopeRef: input.prfEnvelopeRef,
     },
     rehearsalCode: input.code,
+    rehearsalPrfOutput: input.prfOutput
+      ? new Uint8Array(input.prfOutput)
+      : null,
     rehearsalPassed: false,
     profileId: input.profileId,
   };
@@ -130,11 +141,12 @@ export async function runIsolatedRehearsal(
   if (!draft.pending || !draft.rehearsalCode || !draft.profileId) {
     throw new Error("recovery_required: nothing staged for rehearsal");
   }
-  const opened = await openProfileSlot(
-    draft.rehearsalCode,
-    draft.pending.slot,
-    expectFrom(draft.stateSnapshot),
-  );
+  const opened = await openTriggerSlot({
+    enrolled: draft.pending,
+    code: draft.rehearsalCode,
+    expect: expectFrom(draft.stateSnapshot),
+    prfOutput: draft.rehearsalPrfOutput,
+  });
   if (!opened) {
     throw new Error("recovery_required: isolated rehearsal failed");
   }
@@ -154,6 +166,7 @@ export function commitEnrollmentDraft(draft: EnrollmentDraft): EnrollmentState {
     throw new Error("recovery_required: owner consent missing");
   }
 
+  draft.rehearsalPrfOutput?.fill(0);
   const replaceId = draft.replaceProfileId ?? draft.profileId;
   const retained = draft.stateSnapshot.triggers.filter(
     (t) => t.slot.profileId !== replaceId,
@@ -178,6 +191,7 @@ export async function enrollTrigger(input: {
   credentialIdB64?: string;
   expectedOrigin?: string;
   prfEnvelopeRef?: string;
+  prfOutput?: Uint8Array | null;
   autoRehearse?: boolean;
 }): Promise<EnrollmentState> {
   assertTriggerCodeLength(input.code);
@@ -206,22 +220,15 @@ export async function enrollTrigger(input: {
     if (!replace && state.triggers.length >= MAX_SLOTS) {
       throw new Error("unsupported_factor: slot limit");
     }
-    if (input.triggerKind === "prf_and_code") {
-      if (!input.credentialIdB64 || !input.expectedOrigin) {
-        throw new Error(
-          "unsupported_factor: prf_and_code requires credential and origin binding",
-        );
-      }
-    }
-    const slot = await sealProfileSlot({
+    assertPrfBinding(input);
+    const { slot, prfEnvelope } = await sealTriggerSlot({
+      triggerKind: input.triggerKind,
       code: input.code,
       slotId: `slot-${state.triggers.length + 1}`,
       profileId: input.profileId,
-      vaultRef: state.vaultRef,
-      deviceBindingRef: state.deviceBindingRef,
-      policyRevision: state.policyRevision,
-      keyEpoch: state.keyEpoch,
+      scope: expectFrom(state),
       plaintext: input.plaintext,
+      prfOutput: input.prfOutput,
     });
     const retained = replace
       ? state.triggers.filter((t) => t.slot.profileId !== input.profileId)
@@ -232,6 +239,7 @@ export async function enrollTrigger(input: {
         ...retained,
         {
           slot,
+          prfEnvelope,
           triggerKind: input.triggerKind,
           credentialIdB64: input.credentialIdB64,
           expectedOrigin: input.expectedOrigin,
@@ -255,6 +263,7 @@ export async function enrollTrigger(input: {
     credentialIdB64: input.credentialIdB64,
     expectedOrigin: input.expectedOrigin,
     prfEnvelopeRef: input.prfEnvelopeRef,
+    prfOutput: input.prfOutput,
   } satisfies StageTriggerInDraftInput);
   draft = await runIsolatedRehearsal(draft);
   return commitEnrollmentDraft(draft);

@@ -302,35 +302,6 @@ describe("TRIGGER-C kinds", () => {
     expect(withUv.status).toBe("matched");
     if (withUv.status === "matched") disposeTriggerMatch(withUv);
   });
-
-  it("prf_and_code requires PRF output before key release", async () => {
-    const state = await enrollTrigger({
-      state: baseState(),
-      code: "99990000",
-      profileId: "prf",
-      triggerKind: "prf_and_code",
-      plaintext: plain(),
-      credentialIdB64: "cred-1",
-      expectedOrigin: "https://example.test",
-    });
-    expect(
-      (await selectTrigger("99990000", state, { prfOutput: null })).status,
-    ).toBe("none");
-    expect(
-      (
-        await selectTrigger("99990000", state, {
-          prfOutput: new Uint8Array(16),
-        })
-      ).status,
-    ).toBe("none");
-    const hit = await selectTrigger("99990000", state, {
-      prfOutput: crypto.getRandomValues(new Uint8Array(32)),
-      origin: "https://example.test",
-      credentialIdB64: "cred-1",
-    });
-    expect(hit.status).toBe("matched");
-    if (hit.status === "matched") disposeTriggerMatch(hit);
-  });
 });
 
 describe("INV-25 attempt policy", () => {

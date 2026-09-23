@@ -25,8 +25,7 @@ export function DuressEnrollmentCodesSection({
       </p>
       {slotView ? (
         <p>
-          Slot {slotView.slotId}: {slotView.enrolled ? "enrolled" : "empty"}{" "}
-          digest {slotView.materialDigestPrefix || "(none)"}
+          Slot {slotView.slotId}: {slotView.enrolled ? "enrolled" : "empty"}
         </p>
       ) : (
         <p>No enrolled trigger on this device.</p>

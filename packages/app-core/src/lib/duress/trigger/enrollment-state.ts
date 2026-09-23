@@ -4,6 +4,7 @@
 
 import { defined } from "@opensesame/contracts";
 import {
+  type PrfAndCodeEnvelope,
   type SealedSlot,
   assertTriggerCodeLength,
   openProfileSlot,
@@ -14,6 +15,8 @@ import type { CodeTriggerKind } from "./kinds.js";
 export type EnrolledTrigger = Readonly<{
   slot: SealedSlot;
   triggerKind: CodeTriggerKind;
+  /** prf_and_code only: the PRF+code layer around the slot (see enrollment-seal.ts). */
+  prfEnvelope?: PrfAndCodeEnvelope;
   prfEnvelopeRef?: string;
   credentialIdB64?: string;
   expectedOrigin?: string;
@@ -43,6 +46,8 @@ export type EnrollmentDraft = Readonly<{
   stateSnapshot: EnrollmentState;
   pending: EnrolledTrigger | null;
   rehearsalCode: string | null;
+  /** prf_and_code only: the PRF output the rehearsal opens with; zeroed on commit. */
+  rehearsalPrfOutput?: Uint8Array | null;
   rehearsalPassed: boolean;
   profileId: string | null;
   replaceProfileId: string | null;
@@ -135,6 +140,8 @@ export async function assertNoCollisions(input: {
     if (input.ignoreProfileId && t.slot.profileId === input.ignoreProfileId) {
       continue;
     }
+    // A prf_and_code slot cannot be tried with a code alone — by design.
+    if (t.triggerKind === "prf_and_code") continue;
     const opened = await openProfileSlot(
       input.code,
       t.slot,

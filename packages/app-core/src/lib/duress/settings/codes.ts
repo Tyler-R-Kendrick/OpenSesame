@@ -125,19 +125,19 @@ export type PublicCodeSlotView = Readonly<{
   slotId: string;
   profileId: string;
   enrolled: boolean;
-  materialDigestPrefix: string;
   lastReplacedAt: string | null;
 }>;
 
-/** Public view model — never includes enrolled cleartext. */
+/**
+ * Public view model — enrollment state only. Nothing derived from the code
+ * reaches it: even a digest prefix of a short numeric code is a lookup table
+ * away from the code itself, and a screenshot would carry it.
+ */
 export function publicCodeSlotView(status: CodeSlotStatus): PublicCodeSlotView {
   return {
     slotId: status.slotId,
     profileId: status.profileId,
     enrolled: status.enrolled,
-    materialDigestPrefix: status.materialDigest
-      ? `${status.materialDigest.slice(0, 8)}…`
-      : "",
     lastReplacedAt: status.lastReplacedAt,
   } satisfies PublicCodeSlotView;
 }
