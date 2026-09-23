@@ -170,6 +170,11 @@ pub fn certificates_der(chain_pem: &str) -> Result<Vec<Vec<u8>>, PkiError> {
     x509::parse_pem_blocks(chain_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)
 }
 
+/// SHA-256 fingerprint, canonical lowercase hex, over a certificate's DER.
+///
+/// # Errors
+/// Returns [`PkiError::InvalidPem`] when the document is not one certificate,
+/// [`PkiError::TooLarge`] past this crate's caps.
 pub fn fingerprint_sha256(cert_pem: &str) -> Result<String, PkiError> {
     let blocks = x509::parse_pem_blocks(cert_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
