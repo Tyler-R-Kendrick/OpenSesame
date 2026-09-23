@@ -155,12 +155,20 @@ function transitiveDeps(components, name, seen = new Set()) {
   return seen;
 }
 
+/**
+ * A browser package's sources, without tests and without a Node-host
+ * platform subpath (`src/node/**`, ADR 0133): that is the CLI's host, which
+ * `pnpm quality:app-core` keeps as the only place `node:*` may appear and
+ * which no browser entry reaches — the bundle scan above checks the chunks
+ * a browser actually loads.
+ */
 function shippedSources(dir) {
   return globSync("src/**/*.{ts,tsx,js,mjs}", { cwd: join(root, dir) })
     .filter(
       (f) =>
         !/\.(test|spec)\.[cm]?[jt]sx?$/.test(f) &&
-        !/__tests__|\/test\//.test(f),
+        !/__tests__|\/test\//.test(f) &&
+        !/^src\/node\//.test(f),
     )
     .sort();
 }
