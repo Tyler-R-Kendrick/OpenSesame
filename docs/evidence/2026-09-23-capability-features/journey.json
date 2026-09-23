@@ -1,0 +1,38 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "open": "Capabilities" },
+        { "count": [".capspanel__row", "[role=switch]", ".capfeature"] },
+        { "shot": "390-capabilities" },
+        { "switchOptional": "Backups" },
+        { "pressOptional": "Apply configuration" },
+        { "scrollTo": "Capabilities" },
+        { "count": ["[aria-label='Backups providers'] li"] },
+        { "shot": "390-backups-on" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Settings" },
+        { "open": "Capabilities" },
+        { "count": [".capspanel__row", "[role=switch]", ".capfeature"] },
+        { "shot": "1280-capabilities" },
+        { "switchOptional": "Backups" },
+        { "pressOptional": "Apply configuration" },
+        { "scrollTo": "Capabilities" },
+        { "shot": "1280-backups-on" }
+      ]
+    }
+  ],
+  "sheets": []
+}

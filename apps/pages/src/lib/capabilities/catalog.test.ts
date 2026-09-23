@@ -3,7 +3,7 @@ import {
   PROMPT_EXAMPLE_IDS,
   coreCapabilityIds,
   describeCapability,
-  optionalCapabilityIds,
+  modularCapabilityIds,
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { runtimeModule } from "@opensesame/app-core/lib/capabilities/descriptor.js";
 import {
@@ -44,7 +44,7 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
     }
   });
 
-  it("keeps the ownership.md §5 core set (plus the shell root)", () => {
+  it("keeps the ownership.md §5 core set, the shell root and the always-on set", () => {
     expect(coreCapabilityIds().sort()).toEqual(
       [
         "backup.local-encrypted",
@@ -54,6 +54,17 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         "shell.navigation",
         "vault.local-unlock",
         "vault.passwords",
+        // Always-on: core in every plan, code delivered as a module.
+        "access.authority",
+        "activity.log",
+        "backup.cloud-secrets",
+        "connectors.external",
+        "identity.ambient-sso",
+        "identity.federation",
+        "support.guided-help",
+        "vault.certificate-records",
+        "vault.interop-formats",
+        "vault.passkey-records",
       ].sort(),
     );
   });
@@ -70,14 +81,15 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
     }
   });
 
-  it("core descriptors are statically linked: no loadable module ids", () => {
+  it("a core descriptor is statically linked or always-on with exactly its runtime module", () => {
     for (const id of coreCapabilityIds()) {
-      expect(descriptor(id).moduleIds, id).toEqual([]);
+      const modules = descriptor(id).moduleIds;
+      if (modules.length > 0) expect(modules, id).toEqual([runtimeModule(id)]);
     }
   });
 
-  it("every optional descriptor names <id>/runtime first and every module id is owned", () => {
-    for (const id of optionalCapabilityIds()) {
+  it("every modular descriptor names <id>/runtime first and every module id is owned", () => {
+    for (const id of modularCapabilityIds()) {
       const entry = descriptor(id);
       expect(entry.moduleIds[0], id).toBe(runtimeModule(id));
       for (const moduleId of entry.moduleIds) {

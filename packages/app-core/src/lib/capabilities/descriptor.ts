@@ -62,6 +62,31 @@ export function core(
 }
 
 /**
+ * An always-on descriptor: core tier — present in every distribution and
+ * every plan, never offered as a switch — whose code still arrives as a
+ * module. The change controller activates it through the same loader and
+ * lease as an optional one, so the bootstrap never statically reaches it;
+ * nothing but the tier differs, and no consent is asked for it.
+ */
+export function alwaysOn(
+  id: CapabilityId,
+  title: string,
+  summary: string,
+  overrides: Overrides = {},
+): AuthoredDescriptor {
+  const extra = overrides.moduleIds ?? [];
+  return {
+    ...NARROWEST,
+    ...overrides,
+    moduleIds: [runtimeModule(id), ...extra],
+    id,
+    tier: "core",
+    title,
+    summary,
+  };
+}
+
+/**
  * An optional descriptor. Its runtime module is always `<id>/runtime`
  * (ownership.md §4.3); extra module ids (a worker part) are appended.
  */

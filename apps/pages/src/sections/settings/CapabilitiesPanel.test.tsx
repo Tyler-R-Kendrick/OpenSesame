@@ -3,6 +3,10 @@ import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import {
+  guestsAllowed,
+  setGuestsAllowed,
+} from "@opensesame/app-core/lib/guest-access.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -11,6 +15,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 
@@ -28,6 +33,14 @@ import {
   CapabilitiesPanel,
   capabilitiesPanelSeams,
 } from "./CapabilitiesPanel.js";
+
+function renderPanel() {
+  return render(
+    <MemoryRouter>
+      <CapabilitiesPanel />
+    </MemoryRouter>,
+  );
+}
 
 const realUseVault = vaultHooksSeams.useVault;
 const realNow = capabilitiesPanelSeams.now;
@@ -78,25 +91,26 @@ afterEach(() => {
   vaultHooksSeams.useVault = realUseVault;
 });
 
-describe("what this device uses", () => {
-  it("shows one row per capability with its lifecycle, and actions only on running ones", () => {
-    render(<CapabilitiesPanel />);
+describe("Advanced — one row per optional capability", () => {
+  it("shows each optional capability with its lifecycle, and actions only on running ones", () => {
+    renderPanel();
     const panel = screen.getByTestId("capabilities-panel");
     expect(panel.textContent).toContain("Agent tools (WebMCP)");
     expect(panel.textContent).toContain("active");
     expect(
       screen.getByRole("button", { name: "Disable Agent tools (WebMCP) now" }),
     ).toBeTruthy();
+    // Always-on capabilities are not configurations: no row at all.
     expect(
-      screen.queryByRole("button", { name: "Disable Passwords now" }),
-    ).toBeNull();
+      screen.getByRole("list", { name: "Optional capabilities" }).textContent,
+    ).not.toContain("Passwords");
     expect(
       screen.queryByRole("button", { name: "Disable Shared drops now" }),
     ).toBeNull();
   });
 
   it("Disable now goes straight to the store's emergency disable", async () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(
       screen.getByRole("button", { name: "Disable Agent tools (WebMCP) now" }),
     );
@@ -105,7 +119,7 @@ describe("what this device uses", () => {
   });
 
   it("Retire safely reviews, then commits with the root removed", async () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(
       screen.getByRole("button", {
         name: "Retire Agent tools (WebMCP) safely",
@@ -123,7 +137,7 @@ describe("what this device uses", () => {
   });
 
   it("Add reviews, then commits with the root added — a choice is not one-way", async () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     // Not running here, and this installation may have it: the row offers a
     // way in. Before this, setup was the only place to choose, and setup
     // lives before sign-in.
@@ -148,7 +162,7 @@ describe("what this device uses", () => {
     // the second with `selection-revision`. That is how a person who had
     // chosen one capability could never choose a second.
     capabilitiesPanelSeams.now = () => "2026-09-10T00:00:00.000Z";
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
@@ -168,7 +182,7 @@ describe("what this device uses", () => {
   });
 
   it("offers no way in for a capability already running, or one this distribution lacks", () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(
       screen.queryByRole("button", { name: "Add Agent tools (WebMCP)" }),
     ).toBeNull();
@@ -182,7 +196,7 @@ describe("what this device uses", () => {
       },
       evaluatedModuleIds: ["agents.webmcp/runtime"],
     });
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.getByTestId("capabilities-restart").textContent).toContain(
       "reload",
     );
@@ -194,7 +208,7 @@ describe("what this device uses", () => {
   });
 
   it("switches Visual / Source / Effective", () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(screen.getAllByRole("button", { name: "Effective" })[0]);
     expect(screen.getByLabelText("Effective plan").textContent).toContain(
       "approvedCapabilities",
@@ -208,18 +222,18 @@ describe("what this device uses", () => {
 
 describe("SURFACE-06 — a member never sees policy controls", () => {
   it("shows the instance policy only to the operator of a personal-local device in the personal tomb", () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.getByTestId("instance-capabilities-panel")).toBeTruthy();
     expect(screen.getByTestId("purpose-card-personal")).toBeTruthy();
   });
 
   it("hides it from a guest and from any other tomb", () => {
     vault = { tomb: "personal", guest: true };
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     cleanup();
     vault = { tomb: "project-4f2a", guest: false };
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
   });
 
@@ -228,9 +242,125 @@ describe("SURFACE-06 — a member never sees policy controls", () => {
       policy: FIXTURE_MANAGED_POLICY,
       provenance: "same-origin-deployment",
     });
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     expect(screen.queryByTestId("purpose-card-personal")).toBeNull();
     expect(screen.queryByRole("button", { name: /Personal/ })).toBeNull();
+  });
+});
+
+describe("features — one switch per way of using the app", () => {
+  it("draws the features and no always-on capability as a switch", () => {
+    renderPanel();
+    const features = screen.getByRole("list", { name: "Features" });
+    for (const title of [
+      "Guests",
+      "AI",
+      "Backups",
+      "Payments",
+      "Servers",
+      "Sharing",
+      "Networking",
+    ]) {
+      expect(features.textContent, title).toContain(title);
+    }
+    expect(screen.queryByRole("switch", { name: "Passwords" })).toBeNull();
+    expect(
+      screen.queryByRole("switch", { name: "Passkey records" }),
+    ).toBeNull();
+  });
+
+  it("switching a feature on reviews, then commits every capability behind it", async () => {
+    renderPanel();
+    const sharing = screen.getByRole("switch", { name: "Sharing" });
+    expect(sharing.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(sharing);
+    expect(screen.getByTestId("capability-review")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(1));
+    const selected = double.commits[0]?.draft.selectedOptional ?? [];
+    expect(selected).toContain("sharing.drops");
+    expect(selected).toContain("sharing.household");
+    // The roots the installation already had are kept.
+    expect(selected).toContain("agents.webmcp");
+  });
+
+  it("switching a running feature off removes it and keeps the rest", async () => {
+    renderPanel();
+    const ai = screen.getByRole("switch", { name: "AI" });
+    expect(ai.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(ai);
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(1));
+    expect(double.commits[0]?.draft.selectedOptional).not.toContain(
+      "agents.webmcp",
+    );
+  });
+
+  it("configures a feature's providers under it only while it is on", () => {
+    renderPanel();
+    // Backups is off: its git providers are not drawn.
+    expect(
+      screen.queryByRole("list", { name: "Backups providers" }),
+    ).toBeNull();
+    cleanup();
+    const selection = {
+      ...PERSONAL_SELECTION,
+      selectedOptional: ["backup.git-remote", "connectors.external"],
+    };
+    const exposure: Record<string, string> = {};
+    for (const id of double.preview(selection).approvedCapabilities)
+      exposure[id] = `sha256:fixture-${id}`;
+    resetDouble({
+      selection,
+      receipt: {
+        ...withReceipt(),
+        roots: selection.selectedOptional,
+        exposure,
+      },
+    });
+    renderPanel();
+    const tiles = screen.getByRole("list", { name: "Backups providers" });
+    expect(tiles.textContent).toContain("GitHub");
+    expect(tiles.textContent).toContain("GitLab");
+  });
+
+  it("configures the always-on providers with no switch", () => {
+    renderPanel();
+    const providers = screen.getByRole("region", { name: "Providers" });
+    expect(providers.textContent).toContain("Identity providers");
+    expect(providers.textContent).toContain("Password managers");
+    // A provider may carry its own enable switch (a backup road); a group
+    // never does.
+    for (const group of ["Identity providers", "Password managers"]) {
+      expect(screen.queryByRole("switch", { name: group })).toBeNull();
+    }
+  });
+});
+
+describe("Allow guests", () => {
+  it("is on by default and turns off durably", async () => {
+    renderPanel();
+    const guests = screen.getByRole("switch", { name: "Allow guests" });
+    expect(guests.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(guests);
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("switch", { name: "Allow guests" })
+          .getAttribute("aria-checked"),
+      ).toBe("false"),
+    );
+    expect(guestsAllowed()).toBe(false);
+    await setGuestsAllowed(true);
+  });
+
+  it("cannot be switched off from inside a guest session", () => {
+    vault = { tomb: "personal", guest: true };
+    renderPanel();
+    expect(
+      screen.getByRole<HTMLButtonElement>("switch", { name: "Allow guests" })
+        .disabled,
+    ).toBe(true);
   });
 });

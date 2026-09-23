@@ -19,6 +19,7 @@ import { kvGet, kvHydrate } from "../kv.js";
 import { runtimeConfigSnapshot } from "../runtime-config.js";
 import { loadSettings } from "../settings.js";
 import { loadSetup } from "../setup.js";
+import { optionalCapabilityIds } from "./catalog.js";
 
 export type LegacySource =
   | "setup.v1"
@@ -136,13 +137,21 @@ function dedupe(suggestions: readonly LegacySuggestion[]): LegacySuggestion[] {
   );
 }
 
-/** Synchronous review over whatever is hydrated. Enables nothing. */
+/**
+ * Synchronous review over whatever is hydrated. Enables nothing. Evidence
+ * for an always-on capability (operator providers, a connector directory)
+ * suggests nothing: that capability is in every plan already.
+ */
 export function reviewLegacyConfiguration(): LegacyReview {
   const out: LegacySuggestion[] = [];
   identitySuggestions(out);
   supportSuggestions(out);
   connectorSuggestions(out);
-  return { suggestions: dedupe(out), enabled: [] };
+  const optional = new Set(optionalCapabilityIds());
+  return {
+    suggestions: dedupe(out).filter((s) => optional.has(s.capability)),
+    enabled: [],
+  };
 }
 
 /** Hydrate the legacy records the core boot skips, then review. */

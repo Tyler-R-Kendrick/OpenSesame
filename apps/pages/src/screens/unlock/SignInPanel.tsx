@@ -68,9 +68,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { IconUser } from "../../components/Icons.js";
 import { landFocus } from "../../lib/focus.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
+import { GuestButton, GuestSkip } from "./GuestRoad.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { brandFor } from "./ProviderBrand.js";
 import { SignInSocialBar } from "./SignInSocialBar.js";
@@ -376,17 +376,7 @@ export function SignInPanel(props: Props) {
               corner where a "skip" always lives. First run only — beside an
               existing vault a guest principal would seal a second one. Never
               gated on an Identity API: guest works fully offline. */}
-          {firstRun ? (
-            <button
-              type="button"
-              className="unlock__switch signin__skip"
-              aria-label="Skip sign-in and continue as guest"
-              disabled={busy}
-              onClick={startGuest}
-            >
-              Skip
-            </button>
-          ) : null}
+          {firstRun ? <GuestSkip busy={busy} onGuest={startGuest} /> : null}
           <div className="signin__providers">
             <SignInSocialBar
               busy={busy}
@@ -416,16 +406,9 @@ export function SignInPanel(props: Props) {
                 Never gated on an Identity API (`continueAsGuest` seals a local
                 vault and works with no service at all) and never withheld
                 beside an existing vault (the store isolates it in its own
-                tomb). AGENTS.md §5: removing this button is a regression. */}
-            <button
-              type="button"
-              className="btn btn--block signin__provider"
-              disabled={busy}
-              onClick={startGuest}
-            >
-              <IconUser size={18} />
-              Continue as guest
-            </button>
+                tomb); only the operator's "Allow guests" switch removes it.
+                AGENTS.md §5: removing this button otherwise is a regression. */}
+            <GuestButton busy={busy} onGuest={startGuest} />
             {brokerNotes.map((note) => (
               <p className="hint signin__provider-note" key={note}>
                 {note}

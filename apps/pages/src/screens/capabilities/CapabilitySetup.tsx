@@ -167,8 +167,9 @@ function Cards({ model }: { model: CapabilitySetupModel }) {
   const { catalog, draft, snapshot } = model;
   const titleOf = (id: CapabilityId) =>
     catalog.capabilities.find((entry) => entry.id === id)?.title ?? id;
-  const ordered = [...catalog.capabilities].sort(
-    (a, b) => Number(b.tier === "core") - Number(a.tier === "core"),
+  // Always-on capabilities are in every plan: nothing to choose, no card.
+  const ordered = catalog.capabilities.filter(
+    (entry) => entry.tier === "optional",
   );
   return (
     <ul className="capcards" aria-label="Capabilities">

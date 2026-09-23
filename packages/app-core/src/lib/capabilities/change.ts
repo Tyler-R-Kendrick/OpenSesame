@@ -5,7 +5,7 @@
  *
  * It follows the store. When the generation moves it first deactivates the
  * previous generation — handles disposed, registrations revoked — and only
- * then activates every approved optional capability under the new lease,
+ * then activates every approved modular capability under the new lease,
  * one at a time, re-checking the lease between each. Transitions are
  * serialized on one promise chain so a burst of bumps cannot interleave an
  * activation with the disposal that should have preceded it.
@@ -27,11 +27,24 @@ import { contributions } from "./registry.js";
 import { isCapabilityDenied } from "./runtime-contract.js";
 import type { CompositionStore } from "./store.js";
 
-/** Approved capabilities the loader has to activate: the optional tier only. */
-export function optionalApproved(plan: EffectivePlan): CapabilityId[] {
-  return plan.approvedCapabilities.filter(
-    (id) => plan.capabilities[id]?.tier === "optional",
-  );
+/**
+ * Approved capabilities the loader has to activate: every one that owns a
+ * page module in this plan — the optional tier and the always-on core
+ * (`alwaysOn` in `descriptor.ts`). Always-on first, so the functions every
+ * installation has arrive before the ones it chose. A core capability with
+ * no module is statically linked and has nothing to activate.
+ */
+export function modularApproved(plan: EffectivePlan): CapabilityId[] {
+  const owns = (id: CapabilityId) =>
+    plan.approvedModules.some(
+      (module) => module.startsWith(`${id}/`) && !module.endsWith("/worker"),
+    );
+  const approved = plan.approvedCapabilities.filter(owns);
+  const tier = (id: CapabilityId) => plan.capabilities[id]?.tier;
+  return [
+    ...approved.filter((id) => tier(id) === "core"),
+    ...approved.filter((id) => tier(id) !== "core"),
+  ];
 }
 
 function readVaultContext(): { tomb: string | null; guest: boolean } {
@@ -74,7 +87,7 @@ export function activatePlan(store: CompositionStore): () => void {
     const plan = store.getSnapshot().plan;
     if (!plan) return;
     const lease = store.currentLease();
-    for (const id of optionalApproved(plan)) {
+    for (const id of modularApproved(plan)) {
       if (!leaseIsCurrent(lease, store.getSnapshot().generation)) return;
       try {
         await changeSeams.activateApprovedCapability(id, lease);

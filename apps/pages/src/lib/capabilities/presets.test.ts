@@ -145,6 +145,14 @@ describe("PRESETS", () => {
           `${preset.id} pre-selects unoffered ${id}`,
         ).toBe(true);
       }
+      // An always-on capability is in every plan; a preset never names it.
+      for (const id of [
+        ...preset.required,
+        ...preset.optional,
+        ...preset.defaultSelected,
+      ]) {
+        expect(optionalCapabilityIds(), `${preset.id}: ${id}`).toContain(id);
+      }
       expect(new Set(preset.optional).size).toBe(preset.optional.length);
       for (const id of preset.required)
         expect(preset.optional).not.toContain(id);
@@ -173,7 +181,7 @@ describe("PRESETS", () => {
     for (const id of ["homelab", "organization"] as const) {
       const preset = presetById(id);
       for (const family of [
-        "connectors.external",
+        "support.remote-ai",
         "enterprise.ca-administration",
         "agents.webmcp",
       ]) {

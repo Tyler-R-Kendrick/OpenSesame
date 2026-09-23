@@ -1,21 +1,22 @@
 /** @vitest-environment jsdom */
 
 /**
- * SURFACE-08 — what a household is offered when it creates an item.
+ * SURFACE-08 — what a person is offered when they create an item.
  *
- * The Family preset selects `vault.passkey-records`, `sharing.household`,
- * `sharing.drops` and `support.guided-help` and nothing else, so certificate
- * records, the connectors capability and the wallet are all absent from that
- * plan. This walks the surfaces a person actually creates through — the type
- * picker in the new-item editor and the kind filters in the vault rail — and
- * proves those three are not offered, while a certificate already sealed in
- * the vault still opens and still reads back every field.
+ * Passkey and certificate records are always on: every plan carries them.
+ * Drops belong to the Sharing feature, which the Personal preset does not
+ * select, so a Personal plan offers passkeys and certificates but no drop.
+ * This walks the surfaces a person actually creates through — the type
+ * picker in the new-item editor and the kind filters in the vault rail —
+ * and proves the drop is not offered, while a drop already sealed in the
+ * vault still opens.
  *
  * The parsers are untouched by composition on purpose: a plan decides what
- * may be *made*, never what may be *read*, or a household that turned a
- * capability off would lose the records it already had.
+ * may be *made*, never what may be *read*, or a person who turned a
+ * feature off would lose the records they already had.
  */
 
+import { describeCapability } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { PRESETS } from "@opensesame/app-core/lib/capabilities/presets.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { LEGACY_ITEM_KINDS } from "@opensesame/app-core/lib/contributions.test-support.js";
@@ -24,7 +25,6 @@ import {
   itemKindsSnapshot,
 } from "@opensesame/app-core/lib/item-kinds.js";
 import {
-  type CertificateItem,
   type Folder,
   type VaultItem,
   createItem,
@@ -58,36 +58,34 @@ import { VaultRail } from "../../components/VaultRail.js";
 import { ItemEditor } from "./ItemEditor.js";
 
 /**
- * The item kinds a Family plan's approved capabilities contribute. Derived
- * from the preset rather than restated, so a change to what Family selects
- * fails here instead of quietly widening the creation menu.
+ * The item kinds a Personal plan's capabilities contribute: the always-on
+ * ones, plus whatever the preset pre-selects. Derived from the catalog and
+ * the preset rather than restated, so a change to either fails here instead
+ * of quietly widening the creation menu.
  */
-const FAMILY_SELECTED = new Set(
-  PRESETS.find((preset) => preset.id === "family")?.defaultSelected ?? [],
+const PERSONAL_SELECTED = new Set(
+  PRESETS.find((preset) => preset.id === "personal")?.defaultSelected ?? [],
 );
-const FAMILY_ITEM_KINDS = {
+const ITEM_KIND_OWNERS = {
   "vault.passkey-records": LEGACY_ITEM_KINDS[0],
   "sharing.drops": LEGACY_ITEM_KINDS[1],
   "vault.certificate-records": LEGACY_ITEM_KINDS[2],
 } as const;
+const inPersonalPlan = (capability: string) =>
+  describeCapability(capability)?.tier === "core" ||
+  PERSONAL_SELECTED.has(capability);
 
-function registerFamilyPlan(): () => void {
-  const revokes = Object.entries(FAMILY_ITEM_KINDS)
-    .filter(([capability]) => FAMILY_SELECTED.has(capability))
+function registerPersonalPlan(): () => void {
+  const revokes = Object.entries(ITEM_KIND_OWNERS)
+    .filter(([capability]) => inPersonalPlan(capability))
     .map(([, kind]) => registerContributionForTest("item-kind", kind));
   return () => {
     for (const revoke of revokes) revoke();
   };
 }
 
-function certificate(): CertificateItem {
-  return {
-    ...createItem("certificate", "Router TLS"),
-    id: "itm_cert",
-    commonName: "router.home.arpa",
-    certificatePem: "-----BEGIN CERTIFICATE-----\nsealed\n-----END-----",
-    privateKeyPem: "-----BEGIN PRIVATE KEY-----\nsealed\n-----END-----",
-  } as CertificateItem;
+function drop(): VaultItem {
+  return { ...createItem("drop", "Shared wifi"), id: "itm_drop" };
 }
 
 function renderEditor(path: string) {
@@ -111,44 +109,43 @@ function typeOptions(): string[] {
 
 let revokePlan = () => {};
 
-describe("what a Family plan offers when an item is created", () => {
+describe("what a Personal plan offers when an item is created", () => {
   beforeEach(() => {
-    vault.current = { items: [certificate()], folders: [] };
-    revokePlan = registerFamilyPlan();
+    vault.current = { items: [drop()], folders: [] };
+    revokePlan = registerPersonalPlan();
   });
   afterEach(() => {
     revokePlan();
     cleanup();
   });
 
-  it("selects passkeys and drops, and no certificate capability", () => {
-    expect(FAMILY_SELECTED.has("vault.passkey-records")).toBe(true);
-    expect(FAMILY_SELECTED.has("sharing.drops")).toBe(true);
-    expect(FAMILY_SELECTED.has("vault.certificate-records")).toBe(false);
-    expect(FAMILY_SELECTED.has("connectors.external")).toBe(false);
-    expect(FAMILY_SELECTED.has("wallet.spending")).toBe(false);
+  it("carries passkeys and certificates always, and selects no sharing", () => {
+    expect(inPersonalPlan("vault.passkey-records")).toBe(true);
+    expect(inPersonalPlan("vault.certificate-records")).toBe(true);
+    expect(inPersonalPlan("sharing.drops")).toBe(false);
+    expect(PERSONAL_SELECTED.has("wallet.spending")).toBe(false);
   });
 
-  it("leaves the certificate type out of the new-item type picker", () => {
+  it("leaves the drop type out of the new-item type picker", () => {
     renderEditor("/vault/new");
     const offered = typeOptions();
     for (const core of CORE_ITEM_KINDS) {
       expect(offered, core.id).toContain(core.id);
     }
     expect(offered).toContain("passkey");
-    expect(offered).toContain("drop");
-    expect(offered).not.toContain("certificate");
+    expect(offered).toContain("certificate");
+    expect(offered).not.toContain("drop");
   });
 
-  it("leaves the certificate filter out of the vault rail", () => {
+  it("leaves the drop filter out of the vault rail", () => {
     const kinds = itemKindsSnapshot();
     expect(kinds.map((kind) => kind.id)).toEqual([
       "login",
       "passkey",
       "card",
       "secret",
-      "drop",
       "note",
+      "certificate",
     ]);
     const { container } = render(
       <MemoryRouter>
@@ -159,7 +156,7 @@ describe("what a Family plan offers when an item is created", () => {
             all: 1,
             favorites: 0,
             trash: 0,
-            byKind: new Map([["certificate", 1]]),
+            byKind: new Map([["drop", 1]]),
             byFolder: new Map(),
           }}
           selectedTo="/vault"
@@ -171,28 +168,30 @@ describe("what a Family plan offers when an item is created", () => {
       ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
     ].map((link) => link.getAttribute("href"));
     expect(filters).toContain("/vault?f=passkey");
-    expect(filters).toContain("/vault?f=drop");
-    expect(filters).not.toContain("/vault?f=certificate");
+    expect(filters).toContain("/vault?f=certificate");
+    expect(filters).not.toContain("/vault?f=drop");
   });
 
-  it("still opens the certificate already sealed in this vault", () => {
-    renderEditor("/vault/itm_cert/edit");
-    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
-      "Router TLS",
-    );
-    // The record is read by the same parser it always was; only creating a
-    // new one is gated, so nothing a household already holds is lost.
-    expect(screen.getByText(".cert")).toBeTruthy();
-    expect(vault.current.items[0]?.kind).toBe("certificate");
+  it("still finds the drop already sealed in this vault", () => {
+    renderEditor("/vault/itm_drop/edit");
+    // A drop is never edited, with or without Sharing; the record is still
+    // read and the editor points back at it rather than reading as missing.
+    expect(screen.getByText("Drops cannot be edited")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Back to the drop" })
+        .getAttribute("href"),
+    ).toBe("/vault/itm_drop");
+    expect(vault.current.items[0]?.kind).toBe("drop");
   });
 
-  it("offers the certificate type again once that capability is approved", () => {
+  it("offers the drop type again once Sharing is switched on", () => {
     const revoke = registerContributionForTest(
       "item-kind",
-      FAMILY_ITEM_KINDS["vault.certificate-records"],
+      ITEM_KIND_OWNERS["sharing.drops"],
     );
     renderEditor("/vault/new");
-    expect(typeOptions()).toContain("certificate");
+    expect(typeOptions()).toContain("drop");
     revoke();
   });
 });

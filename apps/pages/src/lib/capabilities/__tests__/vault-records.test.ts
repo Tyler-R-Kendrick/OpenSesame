@@ -95,11 +95,12 @@ function cxfWithPasskey() {
   };
 }
 
-describe("VAULT-06 — an import that asks for a capability this device lacks", () => {
+describe("VAULT-06 — an import enables nothing", () => {
   it("keeps the record, explains it, and enables nothing", async () => {
+    // Passkeys and formats are always on; the plan is core-only otherwise.
     const plan = profilePlan("family-local");
-    expect(approved(plan, "vault.passkey-records")).toBe(false);
-    expect(approved(plan, "vault.interop-formats")).toBe(false);
+    expect(approved(plan, "vault.passkey-records")).toBe(true);
+    expect(approved(plan, "vault.interop-formats")).toBe(true);
 
     const result = fidoCxf.parse(cxfWithPasskey());
     const drafted = result.items[0];
@@ -115,16 +116,16 @@ describe("VAULT-06 — an import that asks for a capability this device lacks", 
     for (const warning of result.warnings)
       expect(warning.length).toBeLessThan(400);
 
-    // Landing it in the vault changes nothing about the plan, and the kinds a
-    // person may create here stay the core four.
+    // Landing it in the vault changes nothing about the plan: nothing
+    // optional is switched on by a record arriving.
     const store = new VaultStore();
     await store.create(PASSWORD);
     const record = createItem("passkey", "example.org");
     await store.saveItem(record);
     await store.flushPendingWrites();
     expect(itemKindsFrom([]).map((row) => row.id)).not.toContain("passkey");
-    expect(approved(profilePlan("family-local"), "vault.passkey-records")).toBe(
-      false,
+    expect(profilePlan("family-local").approvedCapabilities).toEqual(
+      plan.approvedCapabilities,
     );
   });
 });

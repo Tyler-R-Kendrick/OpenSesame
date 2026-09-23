@@ -371,7 +371,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0133).
+  0001–0134).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -399,7 +399,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
 - **Never remove or hide the guest/anonymous access flow** from the Pages
-  sign-in and unlock screens. It lives in three places and all three are
+  sign-in and unlock screens — the one exception is the operator's own
+  "Allow guests" switch in Settings › Capabilities
+  (`packages/app-core/src/lib/guest-access.ts`, default on, fails toward on,
+  cannot be switched off from a guest session; ADR 0134). Every placement
+  reads it through `apps/pages/src/screens/unlock/GuestRoad.tsx`. It lives in three places and all three are
   required: the "Continue as guest" button in
   `apps/pages/src/screens/unlock/SignInPanel.tsx` on **both** placements
   (first run *and* the sign-in panel opened from the user menu beside an
@@ -554,6 +558,13 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - **Every new user-facing feature is a capability, and an optional one never
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
+  Most functions are **always-on** (`alwaysOn` in
+  `catalog-always-on.ts`, ADR 0134): core tier, never a switch, code still
+  loaded as a module after boot. An optional capability belongs to exactly
+  one **feature** in `packages/app-core/src/lib/capabilities/features.ts`
+  (AI, Backups, Payments, Servers, Sharing, Networking, Notifications,
+  Telemetry); Settings › Capabilities draws one switch per feature with its
+  providers under it, and the per-capability rows only under Advanced.
   Adding a feature is five things beside ADR 0065's registry entry: a
   descriptor in `packages/app-core/src/lib/capabilities/catalog-*.ts`, a module entry
   `apps/pages/src/modules/<capability-id>/runtime.ts` exporting

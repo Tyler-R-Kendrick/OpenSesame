@@ -20,9 +20,9 @@ export type Crumb = {
 
 /**
  * The categories the core Settings page always has, in tab order —
- * General → Security → Vaults → Capabilities → Danger. `connections` is a
- * `settings-category` contribution from the connectors capability and is a
- * category only while that capability is in the plan.
+ * General → Security → Vaults → Capabilities → Danger. `connections` is an
+ * older category that now reads as Capabilities (`SETTINGS_HASH_ALIAS`); a
+ * module may still contribute a category of its own.
  */
 export const SETTINGS_CATEGORIES = [
   "general",
@@ -79,10 +79,17 @@ export const WALLET_CATEGORY_LABEL = {
   methods: "Payment methods",
 } satisfies Record<WalletCategory, string>;
 
-/** Legacy hashes that are not themselves a settings category. */
+/**
+ * Legacy hashes and paths that are not themselves a settings category. The
+ * Connections, Backups and Cloud secrets categories became Settings ›
+ * Capabilities, where each provider is configured under its feature.
+ */
 const SETTINGS_HASH_ALIAS = new Map<string, string>([
-  ["taskbus", "connections"],
-  ["connectivity", "connections"],
+  ["taskbus", "capabilities"],
+  ["connectivity", "capabilities"],
+  ["connections", "capabilities"],
+  ["backups", "capabilities"],
+  ["cloud-secrets", "capabilities"],
   ["unlock", "security"],
 ]);
 
@@ -316,14 +323,11 @@ function walletCrumbs(parts: string[]): Crumb[] {
 
 function settingsCrumbs(parts: string[]): Crumb[] {
   const category = parts[1];
-  if (!category || !isSettingsCategory(category) || category === "general") {
-    return [{ label: "Settings" }];
-  }
   if (category === "connections" && parts[2]) {
     const provider = decodeURIComponent(parts[2]);
     const crumbs: Crumb[] = [
       { label: "Settings", to: "/settings" },
-      { label: "Connections", to: "/settings/connections" },
+      { label: "Capabilities", to: "/settings/capabilities" },
       { label: provider },
     ];
     if (parts[3]) {
@@ -335,8 +339,13 @@ function settingsCrumbs(parts: string[]): Crumb[] {
     }
     return crumbs;
   }
+  const aliased = category ? SETTINGS_HASH_ALIAS.get(category) : undefined;
+  const named = aliased ?? category;
+  if (!named || !isSettingsCategory(named) || named === "general") {
+    return [{ label: "Settings" }];
+  }
   return [
     { label: "Settings", to: "/settings" },
-    { label: settingsCategoryLabel(category) },
+    { label: settingsCategoryLabel(named) },
   ];
 }

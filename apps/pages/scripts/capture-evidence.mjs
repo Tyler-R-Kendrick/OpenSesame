@@ -157,6 +157,27 @@ const STEPS = {
       await page.waitForTimeout(800);
     }
   },
+  /**
+   * Flip a named switch (`role="switch"`) when this build has it. A base
+   * build that has no such switch is a legitimate difference, not a miss.
+   */
+  async switchOptional(page, name) {
+    const target = page.getByRole("switch", { name, exact: true }).first();
+    if ((await target.count()) && (await target.isEnabled())) {
+      await press(target);
+      await page.waitForTimeout(1000);
+    }
+  },
+  /**
+   * Print how many elements match each selector, so a sheet's before/after
+   * numbers are read from the browser rather than from the diff.
+   */
+  async count(page, selectors) {
+    for (const selector of [selectors].flat()) {
+      const n = await page.locator(selector).count();
+      console.log(`  count ${selector}: ${n}`);
+    }
+  },
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);

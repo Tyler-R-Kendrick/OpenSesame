@@ -22,22 +22,18 @@ describe("backup.git-remote runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the Backups category and the observer job (LOAD-09)", async () => {
+  it("registers only the observer job (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "backup.git-remote",
-      kinds: ["background-job", "settings-category"],
-      count: 2,
+      kinds: ["background-job"],
+      count: 1,
     });
   });
 
-  it("names the category exactly", async () => {
+  it("adds no settings category: Capabilities draws the Backups tiles", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(
-      t
-        .entries("settings-category")
-        .map((c) => [c.id, c.label, c.guideId, c.order]),
-    ).toEqual([["backups", "Backups", "settings.backup", 45]]);
+    expect(t.entries("settings-category")).toEqual([]);
     expect(t.hydrated).toEqual([]);
     expect(t.egressCalls).toEqual([]);
     await handle.dispose();

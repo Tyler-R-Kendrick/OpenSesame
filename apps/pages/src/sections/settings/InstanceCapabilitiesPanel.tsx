@@ -5,7 +5,8 @@
  * the personal tomb, not as a guest. A member of a managed instance never
  * sees a policy control (SURFACE-06) — the panel renders nothing, not a
  * disabled form. It lists the permitted catalog with each capability's
- * reason codes (`explainCapability`), offers the purpose presets as the
+ * reason codes (`explainCapability`) — always-on ones are in every plan and
+ * never listed — offers the purpose presets as the
  * instance's policy (written through `saveLocalInstancePolicy`, the one
  * writer of `capabilities.policy.local.v1`), and the Source view of
  * `capabilities/instance-policy.yaml`.
@@ -89,26 +90,28 @@ export function InstanceCapabilitiesPanel() {
             onChoose={(preset) => void choosePreset(preset)}
           />
           <ul className="capspanel" aria-label="Permitted catalog">
-            {CAPABILITY_CATALOG.capabilities.map((descriptor) => {
-              const explanation = plan
-                ? explainCapability(plan, descriptor.id)
-                : null;
-              const status = capabilityStatus(
-                explanation?.state,
-                snapshot.lifecycle[descriptor.id],
-              );
-              return (
-                <li key={descriptor.id} className="capspanel__row">
-                  <span className="capspanel__name">
-                    <strong>{descriptor.title}</strong>
-                    <span>
-                      {explanation?.state.reasons.join(" · ") ?? "unresolved"}
+            {CAPABILITY_CATALOG.capabilities
+              .filter((descriptor) => descriptor.tier === "optional")
+              .map((descriptor) => {
+                const explanation = plan
+                  ? explainCapability(plan, descriptor.id)
+                  : null;
+                const status = capabilityStatus(
+                  explanation?.state,
+                  snapshot.lifecycle[descriptor.id],
+                );
+                return (
+                  <li key={descriptor.id} className="capspanel__row">
+                    <span className="capspanel__name">
+                      <strong>{descriptor.title}</strong>
+                      <span>
+                        {explanation?.state.reasons.join(" · ") ?? "unresolved"}
+                      </span>
                     </span>
-                  </span>
-                  <StatusMark tone={status.tone} label={status.label} />
-                </li>
-              );
-            })}
+                    <StatusMark tone={status.tone} label={status.label} />
+                  </li>
+                );
+              })}
           </ul>
         </>
       ) : null}

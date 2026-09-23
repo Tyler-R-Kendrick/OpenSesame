@@ -49,16 +49,10 @@ const DENY: NetworkPolicy = {
  * remote-AI or telemetry surface. Personal and Family offer only these.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
-  "vault.passkey-records",
-  "vault.certificate-records",
-  "vault.interop-formats",
   "sharing.drops",
-  "access.authority",
   "identity.local-iam",
   "identity.siop",
   "identity.site-broker",
-  "activity.log",
-  "support.guided-help",
   "support.local-ai",
 ];
 
@@ -89,7 +83,7 @@ export const PRESETS: readonly Preset[] = [
       "One person's vault on their own devices. Local functions only; nothing external is offered.",
     required: [],
     optional: LOCAL_FUNCTIONS,
-    defaultSelected: ["vault.passkey-records", "support.guided-help"],
+    defaultSelected: [],
     network: ALLOW,
   },
   {
@@ -100,12 +94,7 @@ export const PRESETS: readonly Preset[] = [
       "A household sharing chosen items with each other. Local functions and drops; external services are refused outright.",
     required: [],
     optional: [...LOCAL_FUNCTIONS, "sharing.household"],
-    defaultSelected: [
-      "vault.passkey-records",
-      "sharing.household",
-      "sharing.drops",
-      "support.guided-help",
-    ],
+    defaultSelected: ["sharing.household", "sharing.drops"],
     network: DENY,
   },
   {
@@ -113,16 +102,10 @@ export const PRESETS: readonly Preset[] = [
     version: 1,
     title: "Homelab",
     summary:
-      "A self-hosted Host and Identity API at home. Everything is offered; connectors, enterprise and agent tools wait to be chosen.",
+      "A self-hosted Host and Identity API at home. Everything is offered; enterprise and agent tools wait to be chosen.",
     required: [],
     optional: everyOptional(),
-    defaultSelected: [
-      "vault.passkey-records",
-      "access.authority",
-      "identity.local-iam",
-      "activity.log",
-      "support.guided-help",
-    ],
+    defaultSelected: ["identity.local-iam"],
     network: ALLOW,
   },
   {
@@ -130,16 +113,10 @@ export const PRESETS: readonly Preset[] = [
     version: 1,
     title: "Organization",
     summary:
-      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are required; connectors, enterprise and agent tools are offered, not pre-selected.",
-    required: ["identity.federation", "access.authority"],
-    optional: everyOptional().filter(
-      (id) => id !== "identity.federation" && id !== "access.authority",
-    ),
-    defaultSelected: [
-      "vault.passkey-records",
-      "activity.log",
-      "support.guided-help",
-    ],
+      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise, server and agent tools are offered, not pre-selected.",
+    required: [],
+    optional: everyOptional(),
+    defaultSelected: [],
     network: ALLOW,
   },
   {

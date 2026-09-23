@@ -275,6 +275,28 @@ describe("resolveComposition", () => {
     );
   });
 
+  it("a policy that still requires a now-core capability owes nothing for it", () => {
+    const base = familyInput();
+    const policy = base.instancePolicy;
+    if (policy === null) throw new Error("family fixture has a policy");
+    const { plan } = resolveWithConsent(
+      familyInput({
+        instancePolicy: {
+          ...policy,
+          capabilities: {
+            ...policy.capabilities,
+            required: [...policy.capabilities.required, "vault.passwords"],
+          },
+        },
+        installation: fixtureSelection({
+          acceptedRequired: ["identity.federation"],
+        }),
+      }),
+    );
+    expect(plan.consent.requiredNotAccepted).toEqual([]);
+    expect(plan.capabilities["vault.passwords"]?.approved).toBe(true);
+  });
+
   it("policyValid:false yields a core-only plan with POLICY_UNVERIFIED on every optional capability", () => {
     const { plan } = resolveWithConsent(
       familyInput({ policyValid: false, provenance: "invitation-unverified" }),

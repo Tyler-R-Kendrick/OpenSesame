@@ -66,6 +66,7 @@ const SHELL_FILES = [
   "item-kinds",
 ];
 const SIGNIN_FILES = [
+  "guest-access",
   "guest-auth",
   "guest-isolation",
   "local-guest",

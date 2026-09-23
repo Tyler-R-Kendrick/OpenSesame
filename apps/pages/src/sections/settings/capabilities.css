@@ -76,3 +76,51 @@
   flex-wrap: wrap;
   min-width: 0;
 }
+
+/* Features: one row per way of using the app, providers under it while on. */
+.capfeatures {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.capfeature {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.capfeature__providers {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 0 0.25rem 0.75rem;
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+
+.capproviders {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.capadvanced {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.capadvanced > summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.capadvanced[open] > summary {
+  margin-bottom: 0.25rem;
+}

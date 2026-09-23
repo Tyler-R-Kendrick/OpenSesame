@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "managed-missing-required",
-  "notes": "Organization policy requiring access.authority and identity.federation; the installation accepted neither. Joining is refused (REQUIRED_NOT_ACCEPTED), nothing optional approved.",
+  "notes": "Organization policy requiring identity.local-iam; the installation did not accept it. Joining is refused (REQUIRED_NOT_ACCEPTED), nothing optional approved.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -13,31 +13,21 @@
     },
     "capabilities": {
       "default": "deny",
-      "required": ["access.authority", "identity.federation"],
-      "optional": [
-        "activity.log",
-        "support.guided-help",
-        "vault.passkey-records"
-      ],
+      "required": ["identity.local-iam"],
+      "optional": ["sharing.drops"],
       "prohibited": [
         "agents.webmcp",
-        "backup.cloud-secrets",
         "backup.git-remote",
-        "connectors.external",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
-        "identity.ambient-sso",
-        "identity.local-iam",
         "identity.siop",
         "identity.site-broker",
+        "networking.tailnet",
         "notifications.web-push",
-        "sharing.drops",
         "sharing.household",
         "support.local-ai",
         "support.remote-ai",
         "telemetry.external",
-        "vault.certificate-records",
-        "vault.interop-formats",
         "wallet.spending"
       ]
     },
@@ -58,7 +48,7 @@
     "basePolicyRevision": "8",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["vault.passkey-records"],
+    "selectedOptional": ["sharing.drops"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

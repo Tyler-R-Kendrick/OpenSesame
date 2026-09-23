@@ -69,12 +69,19 @@ describe("CONSENT-01 — the cards import nothing and connect to nothing", () =>
     fireEvent.click(road("Customize this installation"));
     fireEvent.click(screen.getByTestId("purpose-card-custom"));
     for (const descriptor of FIXTURE_CATALOG.capabilities) {
+      // Always-on capabilities are in every plan: no card to choose them.
+      if (descriptor.tier === "core") {
+        expect(
+          screen.queryByTestId(`capability-card-${descriptor.id}`),
+        ).toBeNull();
+        continue;
+      }
       expect(card(descriptor.id)).toBeTruthy();
       fireEvent.click(
         screen.getByRole("button", { name: `Details of ${descriptor.title}` }),
       );
       expect(card(descriptor.id).textContent).toContain("in this distribution");
-      if (descriptor.tier === "optional") fireEvent.click(pick(descriptor.id));
+      fireEvent.click(pick(descriptor.id));
     }
     expect(moduleTableSpy).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
