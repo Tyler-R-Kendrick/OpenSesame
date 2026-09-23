@@ -73,6 +73,17 @@ impl StoreLock {
         Ok(Self { _file: file })
     }
 
+    /// A key-file edit (add, remove or rewrap a protector): exclusive, so two
+    /// edits cannot interleave their read-modify-write of the key file (an
+    /// `add` racing a `remove` would write the removed protector back), and
+    /// refused, like any write, while a rotation's staging exists.
+    pub(crate) fn key_file_edit(root: &Path) -> Result<Self, StoreError> {
+        refuse_staging(root)?;
+        let lock = Self::exclusive(root)?;
+        refuse_staging(root)?;
+        Ok(lock)
+    }
+
     /// A write that seals `name` under `key`: [`Self::shared`], plus a refusal
     /// of reserved locations and of a key that is not the store's current root.
     pub(crate) fn for_sealing(

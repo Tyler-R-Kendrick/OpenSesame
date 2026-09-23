@@ -51,8 +51,9 @@ pub fn protect_rewrap_store_password(
     old_password: &[u8],
     new_password: &[u8],
 ) -> Result<(), StoreError> {
-    // Key-file edits wait out a rotation, whose commit would overwrite them.
-    let _lock = StoreLock::shared(root)?;
+    // One key-file edit at a time, and none while a rotation runs (its commit
+    // would overwrite the edit).
+    let _lock = StoreLock::key_file_edit(root)?;
     Ok(protect_rewrap_password(root, old_password, new_password)?)
 }
 
@@ -65,7 +66,7 @@ pub fn protect_add_store_recovery(
     root: &Path,
     password: &[u8],
 ) -> Result<([u8; 32], String), StoreError> {
-    let _lock = StoreLock::shared(root)?;
+    let _lock = StoreLock::key_file_edit(root)?;
     Ok(protect_add_recovery(root, password)?)
 }
 
@@ -80,7 +81,7 @@ pub fn protect_remove_store(
     password: &[u8],
     protector_id: &str,
 ) -> Result<(), StoreError> {
-    let _lock = StoreLock::shared(root)?;
+    let _lock = StoreLock::key_file_edit(root)?;
     Ok(protect_remove(root, password, protector_id)?)
 }
 
@@ -103,7 +104,7 @@ pub fn protect_add_store_age_recipient(
     password: &[u8],
     recipients: &[String],
 ) -> Result<String, StoreError> {
-    let _lock = StoreLock::shared(root)?;
+    let _lock = StoreLock::key_file_edit(root)?;
     let (_, _, vrk) =
         opensesame_human_vault::root_protection::unlock_key_file_with_password(root, password)
             .map_err(StoreError::from)?;

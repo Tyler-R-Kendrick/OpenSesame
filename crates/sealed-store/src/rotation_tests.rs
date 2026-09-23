@@ -321,6 +321,30 @@ fn a_rotation_is_refused_while_a_writer_holds_the_store() {
     rotate_store_root(dir.path(), PW, RotationEdit::default()).unwrap();
 }
 
+#[cfg(unix)]
+#[test]
+fn a_protector_edit_waits_for_no_one_else_on_the_key_file() {
+    let (dir, _store, _key) = seeded();
+    protect_add_store_recovery(dir.path(), PW).unwrap();
+    let recovery_id = crate::protect_list_store(dir.path())
+        .unwrap()
+        .into_iter()
+        .find(|protector| protector.kind.contains("recovery"))
+        .expect("the recovery protector is listed")
+        .protector_id;
+    // Another key-file edit in progress: a remove may not interleave with it
+    // (an add racing a remove would write the removed protector back).
+    let other_edit = crate::store_lock::StoreLock::key_file_edit(dir.path()).unwrap();
+    assert!(crate::protect_remove_store(dir.path(), PW, &recovery_id).is_err());
+    assert!(protect_add_store_recovery(dir.path(), PW).is_err());
+    drop(other_edit);
+    // Nor with an ordinary write that is checking the key file.
+    let writer = crate::store_lock::StoreLock::shared(dir.path()).unwrap();
+    assert!(crate::protect_remove_store(dir.path(), PW, &recovery_id).is_err());
+    drop(writer);
+    crate::protect_remove_store(dir.path(), PW, &recovery_id).unwrap();
+}
+
 #[test]
 fn a_sealed_file_that_escapes_the_rotation_rolls_it_back() {
     let (dir, store, old_key) = seeded();
