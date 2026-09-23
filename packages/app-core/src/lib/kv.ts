@@ -1,3 +1,4 @@
+import { originFiles } from "../ports.js";
 /**
  * Same-origin KV with OPFS primary + in-memory fallback.
  * Never uses localStorage/sessionStorage (XSS-exfiltrable; banned by ast-grep).
@@ -32,7 +33,7 @@ async function opfsRoot(
   strict = false,
 ): Promise<FileSystemDirectoryHandle | null> {
   try {
-    const root = (await navigator.storage?.getDirectory?.()) ?? null;
+    const root = (await originFiles()?.()) ?? null;
     durability = root ? "persistent" : "memory";
     return root;
   } catch (error) {
@@ -171,12 +172,13 @@ export async function kvHydrate(keys: string[]): Promise<void> {
 export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
     throw new Error("Invalid storage read limit");
-  if (!navigator.storage?.getDirectory) {
+  const openRoot = originFiles();
+  if (!openRoot) {
     durability = "memory";
     return;
   }
   try {
-    const root = await navigator.storage.getDirectory();
+    const root = await openRoot();
     durability = "persistent";
     let handle: FileSystemFileHandle;
     try {

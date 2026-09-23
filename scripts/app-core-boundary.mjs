@@ -8,12 +8,19 @@
  *
  * packages/app-core may not reach into an app or another package by relative
  * path, load React, read `import.meta.env`, import a Vite virtual module or
- * import itself by name. See scripts/lib/app-core-boundary.mjs.
+ * import itself by name; only the Node host and tests may import `node:*`.
+ * Outside the browser host, worker entries and tests it may use only the
+ * runtime contract — every other browser global is a port. See
+ * scripts/lib/app-core-boundary.mjs and scripts/lib/app-core-portability.mjs.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { blockingCount, findViolations } from "./lib/app-core-boundary.mjs";
+import {
+  findBrowserGlobals,
+  mustBePortable,
+} from "./lib/app-core-portability.mjs";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = join(repo, "packages/app-core");
@@ -39,6 +46,15 @@ const report = findViolations(files, {
   packageName: "@opensesame/app-core",
   packageDepth: 2,
 });
+report.browserGlobals = findBrowserGlobals(
+  join(root, "tsconfig.json"),
+  (fileName) => mustBePortable(relative(root, fileName).split("\\").join("/")),
+).map(({ file, line, name }) => ({
+  file: relative(root, file).split("\\").join("/"),
+  line,
+  name,
+}));
+const blocking = blockingCount(report) + report.browserGlobals.length;
 
 if (argv.has("--json")) {
   console.log(JSON.stringify(report, null, 2));
@@ -46,7 +62,7 @@ if (argv.has("--json")) {
   const edge = ({ from, to, typeOnly }) =>
     `${from} -> ${to}${typeOnly ? " (type)" : ""}`;
   console.log(
-    `app-core boundary: ${files.size} files, ${blockingCount(report)} violation(s) ` +
+    `app-core boundary: ${files.size} files, ${blocking} violation(s) ` +
       `(${report.reactTypes.length} type-only React import(s) allowed)`,
   );
   const show = (title, rows, fmt) => {
@@ -63,6 +79,16 @@ if (argv.has("--json")) {
     report.selfImports,
     edge,
   );
+  show(
+    "Node built-ins outside src/node (use a port):",
+    report.nodeImports,
+    edge,
+  );
+  show(
+    "browser globals outside src/browser (use a port):",
+    report.browserGlobals,
+    ({ file, line, name }) => `${file}:${line} ${name}`,
+  );
 }
 
-if (argv.has("--check") && blockingCount(report) > 0) process.exit(1);
+if (argv.has("--check") && blocking > 0) process.exit(1);

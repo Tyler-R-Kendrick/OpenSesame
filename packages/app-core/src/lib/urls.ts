@@ -1,3 +1,7 @@
+import {
+  normalizeHttpBaseUrl,
+  normalizeLoopbackBaseUrl,
+} from "@opensesame/api-client";
 /**
  * Where this page is allowed to send things.
  *
@@ -9,10 +13,7 @@
  * extension already uses; there is one definition of "loopback" in this repo, not
  * one per surface.
  */
-import {
-  normalizeHttpBaseUrl,
-  normalizeLoopbackBaseUrl,
-} from "@opensesame/api-client";
+import { maybePage, page } from "../ports.js";
 
 function isLoopbackUrlDefault(raw: string): boolean {
   return normalizeLoopbackBaseUrl(raw) !== null;
@@ -67,11 +68,10 @@ export function normalizeTailnetBase(raw: string): string | null {
  * origin it does not control.
  */
 export function isSameOrigin(base: string): boolean {
-  if (globalThis.location === undefined) return false;
+  if (maybePage() === undefined) return false;
   try {
     return (
-      new URL(base, globalThis.location.href).origin ===
-      globalThis.location.origin
+      new URL(base, page().location.href).origin === page().location.origin
     );
   } catch {
     return false;

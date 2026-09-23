@@ -2,6 +2,7 @@
  * Connector-page presence: App registrant, installs, permissions, backup.
  * Host list when available; otherwise the local App JWT via the Connect relay.
  */
+import { maybePage } from "../ports.js";
 import {
   type GithubAppPermission,
   getBackupStatus,
@@ -92,7 +93,7 @@ function requestedPermissions(): GithubAppPermission[] {
 
 /** Load registrant + live install accounts for the GitHub connector page. */
 export async function loadGithubAppPresenceState(
-  search = globalThis.location?.search ?? "",
+  search = maybePage()?.location.search ?? "",
 ): Promise<GithubAppPresenceState> {
   await sealPendingGithubAppPem();
   const highlighted = installationIdFromLocation(search);

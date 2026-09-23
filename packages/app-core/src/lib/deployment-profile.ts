@@ -1,5 +1,6 @@
 import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { host } from "../host.js";
+import { pageOrigin } from "../ports.js";
 
 /** What a host that stamped no profile gets: nothing may pair locally. */
 const SHARED_ORIGIN_DEMO: SecurityProfile = {
@@ -46,7 +47,7 @@ export function resolveDeploymentProfile(
 }
 
 export function mayPairLocalAuthority(
-  origin: string = location.origin,
+  origin: string = pageOrigin(),
   configured: SecurityProfile = compiledSecurityProfile(),
 ): boolean {
   return resolveDeploymentProfile(origin, configured) !== "shared_origin_demo";

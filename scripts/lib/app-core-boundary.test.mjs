@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   blockingCount,
   findViolations,
+  mayUseNode,
   parseImports,
   resolveFromPackage,
 } from "./app-core-boundary.mjs";
@@ -109,5 +110,29 @@ describe("findViolations", () => {
       ],
     ]);
     expect(findViolations(files, OPTIONS).react).toHaveLength(1);
+  });
+
+  it("keeps Node's built-ins in the Node host and tests", () => {
+    const files = new Map([
+      ["src/node/host.ts", 'import { homedir } from "node:os";'],
+      ["src/lib/a.test.ts", 'import { readFileSync } from "node:fs";'],
+      ["src/lib/sops/test/fixtures.ts", 'import { join } from "node:path";'],
+      ["src/lib/vault/store.ts", 'import { readFileSync } from "node:fs";'],
+      ["src/sandbox/host.ts", 'import { createHash } from "node:crypto";'],
+    ]);
+    const report = findViolations(files, OPTIONS);
+    expect(report.nodeImports.map((edge) => edge.from)).toEqual([
+      "src/lib/vault/store.ts",
+      "src/sandbox/host.ts",
+    ]);
+    expect(blockingCount(report)).toBe(2);
+  });
+
+  it("knows which paths may use Node", () => {
+    expect(mayUseNode("src/node/file-storage.ts")).toBe(true);
+    expect(mayUseNode("src/test-host.ts")).toBe(true);
+    expect(mayUseNode("src/lib/x.test.ts")).toBe(true);
+    expect(mayUseNode("src/lib/kv.ts")).toBe(false);
+    expect(mayUseNode("src/browser/host.ts")).toBe(false);
   });
 });

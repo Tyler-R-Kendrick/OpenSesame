@@ -6,6 +6,7 @@
  */
 
 import { isString } from "@opensesame/os-domain";
+import { sessionStore } from "../ports.js";
 import {
   IdentityError,
   identityBase,
@@ -127,7 +128,7 @@ export function discardOrgProfile(): void {
 /** Legacy sessionStorage copy, for the unlock-time migration only. */
 export function readLegacyOrgProfile(): string | null {
   try {
-    const raw = sessionStorage.getItem(LEGACY_ACTIVE_KEY);
+    const raw = sessionStore().getItem(LEGACY_ACTIVE_KEY);
     return raw && raw.length > 0 ? raw : null;
   } catch {
     return null;
@@ -136,7 +137,7 @@ export function readLegacyOrgProfile(): string | null {
 
 export function clearLegacyOrgProfile(): void {
   try {
-    sessionStorage.removeItem(LEGACY_ACTIVE_KEY);
+    sessionStore().removeItem(LEGACY_ACTIVE_KEY);
   } catch {
     /* storage unavailable — nothing to clear */
   }

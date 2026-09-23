@@ -12,6 +12,13 @@ import {
   sha256Base64Url,
 } from "@opensesame/sdk-browser";
 import {
+  credentials,
+  maybePage,
+  page,
+  pageOrigin,
+  requireCredentials,
+} from "../ports.js";
+import {
   type LocalPasskey,
   readLocalPasskeys,
   requireLocalPerson,
@@ -88,7 +95,7 @@ export function consumeLocalAuthentication(
     performance.now() >= deadline ||
     !tombUnlocked(evidence.tomb) ||
     evidence.requestDigest !== requestDigest ||
-    evidence.origin !== location.origin ||
+    evidence.origin !== pageOrigin() ||
     Date.now() < evidence.authTime ||
     Date.now() - evidence.authTime >= CEREMONY_MS
   )
@@ -96,17 +103,17 @@ export function consumeLocalAuthentication(
   return evidence;
 }
 function ceremony() {
-  if (!globalThis.isSecureContext || !navigator.credentials)
+  if (!maybePage()?.isSecureContext || !credentials())
     throw new LocalDirectoryError("Passkeys require a secure browser context.");
   return {
     challenge: crypto.getRandomValues(new Uint8Array(32)),
-    rp: { origin: location.origin, rpID: location.hostname },
+    rp: { origin: pageOrigin(), rpID: page().location.hostname },
     expiresAt: Date.now() + CEREMONY_MS,
   };
 }
 
 function requireLive(start: ReturnType<typeof ceremony>) {
-  if (Date.now() >= start.expiresAt || location.origin !== start.rp.origin)
+  if (Date.now() >= start.expiresAt || pageOrigin() !== start.rp.origin)
     throw new LocalDirectoryError("The passkey ceremony expired. Start again.");
 }
 
@@ -196,7 +203,7 @@ export async function enrollLocalPasskey(
   }));
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
   const userId = new TextEncoder().encode(principalId);
-  const credential = await navigator.credentials.create({
+  const credential = await requireCredentials().create({
     publicKey: {
       challenge: start.challenge,
       rp: { id: start.rp.rpID, name: "OpenSesame local identity" },
@@ -258,7 +265,7 @@ async function getSignInCredential(
   keys: LocalPasskey[],
   prf: { eval: { first: Uint8Array } },
 ): Promise<PublicKeyCredential> {
-  const credential = await navigator.credentials.get({
+  const credential = await requireCredentials().get({
     publicKey: {
       challenge: start.challenge,
       rpId: start.rp.rpID,

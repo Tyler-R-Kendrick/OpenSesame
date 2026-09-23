@@ -1,3 +1,4 @@
+import { page } from "../../ports.js";
 /**
  * Portable encrypted output (B12, PERSIST-01, SB-075): an ordinary Blob
  * download that works in Firefox and WebKit with no File System Access
@@ -27,11 +28,7 @@ export function downloadText(
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   live.add(url);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.rel = "noopener";
-  anchor.click();
+  page().startDownload(url, fileName);
   // Revoking synchronously can cancel the download in some engines.
   setTimeout(() => {
     URL.revokeObjectURL(url);

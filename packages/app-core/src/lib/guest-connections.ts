@@ -9,12 +9,13 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { maybeSessionStore } from "../ports.js";
 import { readGuestSessionPerson } from "./local-guest.js";
 
 const KEY = "opensesame.guest.connections.v2";
 
 function readMap(): Map<string, string[]> {
-  const store = globalThis.sessionStorage;
+  const store = maybeSessionStore();
   const out = new Map<string, string[]>();
   if (!store) return out;
   const raw = store.getItem(KEY);
@@ -39,7 +40,7 @@ function readMap(): Map<string, string[]> {
 }
 
 function writeMap(map: Map<string, string[]>): void {
-  const store = globalThis.sessionStorage;
+  const store = maybeSessionStore();
   if (!store) return;
   if (map.size === 0) {
     store.removeItem(KEY);

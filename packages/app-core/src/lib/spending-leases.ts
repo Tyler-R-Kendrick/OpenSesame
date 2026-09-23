@@ -13,6 +13,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import type { SpendingLeaseStatus } from "@opensesame/os-domain/wallet";
+import { localStore } from "../ports.js";
 import {
   type DigestBoundApprovalRefusal,
   type DigestBoundPaymentProof,
@@ -164,7 +165,7 @@ function readAll(): LeaseRecord[] {
 function writeAll(rows: readonly LeaseRecord[]): void {
   const next = cacheRows([...rows]);
   try {
-    localStorage.setItem(leaseKey(), JSON.stringify(next));
+    localStore().setItem(leaseKey(), JSON.stringify(next));
   } catch {
     // Keep memory copy if storage is unavailable.
   }
@@ -199,7 +200,7 @@ function readSpentAssertions(): Set<string> {
 function markAssertionSpent(fp: string): void {
   const next = readSpentAssertions();
   next.add(fp);
-  localStorage.setItem(
+  localStore().setItem(
     walletStorageKey(SPENT_ASSERTIONS_KEY),
     JSON.stringify([...next]),
   );
@@ -220,12 +221,10 @@ export function removeSpendingLease(id: string): void {
 export function clearSpendingLeases(): void {
   cacheRows([]);
   try {
-    localStorage.removeItem(leaseKey());
-    localStorage.removeItem(walletStorageKey(SPENT_ASSERTIONS_KEY));
-    if (walletStorageTomb() === "personal") {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(SPENT_ASSERTIONS_KEY);
-    }
+    const keys = [leaseKey(), walletStorageKey(SPENT_ASSERTIONS_KEY)];
+    if (walletStorageTomb() === "personal")
+      keys.push(STORAGE_KEY, SPENT_ASSERTIONS_KEY);
+    for (const key of keys) localStore().removeItem(key);
   } catch {
     // ignore
   }

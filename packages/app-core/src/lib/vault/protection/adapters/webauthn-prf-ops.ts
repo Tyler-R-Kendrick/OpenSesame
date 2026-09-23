@@ -6,6 +6,7 @@
  * not mutate unlock wraps — failed enroll must never call `withPasskeyUnlock`.
  */
 
+import { credentials, publicKeyCredentialApi } from "../../../../ports.js";
 import { b64ToBytes, bytesToB64 } from "../../crypto.js";
 import {
   type PasskeyCeremony,
@@ -234,8 +235,8 @@ export function createWebauthnPrfProtector(
       const host = checkWebauthnHost();
       const ready =
         host.ok &&
-        globalThis.navigator?.credentials?.create !== undefined &&
-        globalThis.PublicKeyCredential !== undefined;
+        credentials()?.create !== undefined &&
+        publicKeyCredentialApi() !== undefined;
       return {
         implementation: "implemented",
         runtime: ready ? "available" : "unavailable",

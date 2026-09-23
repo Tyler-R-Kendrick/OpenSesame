@@ -1,3 +1,4 @@
+import { publicKeyCredentialApi } from "../ports.js";
 /** How much WebAuthn this browser can actually finish. */
 
 export type WebAuthnSupport = "ok" | "partial" | "missing";
@@ -6,9 +7,7 @@ async function detectWebAuthnDefault(
   cred: Pick<
     typeof PublicKeyCredential,
     "isUserVerifyingPlatformAuthenticatorAvailable"
-  > | null = globalThis.PublicKeyCredential === undefined
-    ? null
-    : PublicKeyCredential,
+  > | null = publicKeyCredentialApi() ?? null,
 ): Promise<WebAuthnSupport> {
   if (!cred) return "missing";
   try {

@@ -7,6 +7,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { localStore } from "../ports.js";
 import {
   onWalletTombChange,
   walletStorageKey,
@@ -49,7 +50,7 @@ function readAll(): Record<string, string> {
   const scope = walletStorageScope();
   if (cache !== null && cacheScope === scope) return cache;
   try {
-    const raw = localStorage.getItem(assignmentKey());
+    const raw = localStore().getItem(assignmentKey());
     if (raw === null || raw === "") return cacheAll({});
     const parsed: BoundaryValue = JSON.parse(raw);
     if (!isJsonObject(parsed)) return cacheAll({});
@@ -66,7 +67,7 @@ function readAll(): Record<string, string> {
 function persistCache(): void {
   if (cache === null) return;
   try {
-    localStorage.setItem(assignmentKey(), JSON.stringify(cache));
+    localStore().setItem(assignmentKey(), JSON.stringify(cache));
   } catch {
     // Keep memory copy if storage is unavailable.
   }
@@ -113,7 +114,7 @@ export function unbindBudget(budgetId: string): void {
 export function clearInstrumentBudgets(): void {
   cacheAll({});
   try {
-    localStorage.removeItem(assignmentKey());
+    localStore().removeItem(assignmentKey());
   } catch {
     // ignore
   }

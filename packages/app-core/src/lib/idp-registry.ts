@@ -18,6 +18,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { localStore } from "../ports.js";
 import { pagesIdentityPublicBase } from "./device-identity.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, writeFile } from "./vfs.js";
@@ -225,7 +226,7 @@ export function discardIdpRegistry(): void {
 /** Legacy localStorage copy, for the unlock-time migration only. */
 export function readLegacyIdpRegistry(): string | null {
   try {
-    return localStorage.getItem(LEGACY_STORAGE_KEY);
+    return localStore().getItem(LEGACY_STORAGE_KEY);
   } catch {
     // Storage can be denied outright (private mode); nothing to migrate.
     return null;
@@ -234,7 +235,7 @@ export function readLegacyIdpRegistry(): string | null {
 
 export function clearLegacyIdpRegistry(): void {
   try {
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    localStore().removeItem(LEGACY_STORAGE_KEY);
   } catch {
     /* storage unavailable — nothing to clear */
   }

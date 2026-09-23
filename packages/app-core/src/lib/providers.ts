@@ -27,6 +27,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { pageOrigin } from "../ports.js";
 import { TRUSTED_UPSTREAMS, type TrustedUpstream } from "./federation.js";
 import {
   identityBase,
@@ -204,7 +205,7 @@ async function requestEmailMagicLinkDefault(email: string): Promise<void> {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "omit",
-    body: JSON.stringify({ email, callbackURL: location.origin }),
+    body: JSON.stringify({ email, callbackURL: pageOrigin() }),
     timeoutMs: PROVIDERS_FETCH_MS,
   });
   if (!res.ok) {

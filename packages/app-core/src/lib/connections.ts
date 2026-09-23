@@ -18,6 +18,7 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
+import { page } from "../ports.js";
 import {
   noteConnectionCreated,
   noteConnectionRevoked,
@@ -445,18 +446,11 @@ function submitGithubAppManifestDefault(
       "GitHub App registration URL is not github.com — refusing to submit.",
     );
   }
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = `${registration.action}?state=${encodeURIComponent(registration.state)}`;
-  form.acceptCharset = "UTF-8";
-  form.target = "_self";
-  const input = document.createElement("input");
-  input.type = "hidden";
-  input.name = "manifest";
-  input.value = JSON.stringify(registration.manifest);
-  form.appendChild(input);
-  document.body.appendChild(form);
-  form.submit();
+  page().submitForm(
+    `${registration.action}?state=${encodeURIComponent(registration.state)}`,
+    { manifest: JSON.stringify(registration.manifest) },
+    "_self",
+  );
   // If CSP or a browser policy blocks the navigation, the caller must recover the UI.
 }
 
@@ -716,7 +710,7 @@ async function awaitConsentDefault(
       sawMessage = true;
       resolve();
     };
-    window.addEventListener("message", onMessage);
+    page().addEventListener("message", onMessage);
   });
 
   try {
@@ -753,7 +747,7 @@ async function awaitConsentDefault(
     }
     return { result: "abandoned" };
   } finally {
-    if (onMessage) window.removeEventListener("message", onMessage);
+    if (onMessage) page().removeEventListener("message", onMessage);
   }
 }
 
@@ -762,7 +756,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 function openConsentPopupDefault(url: string): Window | null {
-  return window.open(
+  return page().open(
     url,
     "opensesame-connect",
     "width=680,height=820,noopener=no,noreferrer=no",

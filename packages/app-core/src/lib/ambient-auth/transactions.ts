@@ -13,6 +13,11 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import {
+  lockManager,
+  maybeLocalStore,
+  maybeSessionStore,
+} from "../../ports.js";
 import type { AuthenticationIntent } from "./types.js";
 import { AUTHENTICATION_INTENT_KINDS } from "./types.js";
 import type { AmbientTransport } from "./types.js";
@@ -81,7 +86,7 @@ function memoryStore(
 
 function readAll(): Map<string, FederationTransaction> {
   try {
-    const raw = globalThis.localStorage?.getItem(TX_STORE_KEY);
+    const raw = maybeLocalStore()?.getItem(TX_STORE_KEY);
     if (!raw) return new Map();
     const parsed: BoundaryValue = JSON.parse(raw);
     if (!Array.isArray(parsed)) return new Map();
@@ -102,7 +107,7 @@ function writeAll(map: Map<string, FederationTransaction>): void {
     .slice(0, TX_MAX_RECORDS);
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(TX_STORE_KEY, JSON.stringify(records));
+    maybeLocalStore()?.setItem(TX_STORE_KEY, JSON.stringify(records));
   } catch {
     /* quota / private mode */
   }
@@ -280,8 +285,8 @@ export type LegacyPending = {
 export function inspectLegacyPending(): LegacyPending | null {
   try {
     const raw =
-      globalThis.localStorage?.getItem(LEGACY_PKCE_KEY) ??
-      globalThis.sessionStorage?.getItem(LEGACY_PKCE_KEY);
+      maybeLocalStore()?.getItem(LEGACY_PKCE_KEY) ??
+      maybeSessionStore()?.getItem(LEGACY_PKCE_KEY);
     if (!raw) return null;
     const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
     if (!isJsonObject(parsed) || !isString(parsed.state)) return null;
@@ -307,7 +312,7 @@ export async function withTransactionLock<T>(
   name: string,
   run: () => Promise<T> | T,
 ): Promise<T> {
-  const locks = globalThis.navigator?.locks;
+  const locks = lockManager();
   if (!locks?.request) return await run();
   return await locks.request(name, { mode: "exclusive" }, async () => run());
 }

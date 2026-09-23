@@ -1,3 +1,4 @@
+import { maybeLocalStore } from "../ports.js";
 /**
  * The raw text of each settings document (`settings/general.yaml`, …), kept
  * per path so a hand-written comment survives a save and a reload. The typed
@@ -10,7 +11,7 @@ type SourceMap = Record<string, string>;
 
 function readAll(): SourceMap {
   try {
-    const raw = globalThis.localStorage?.getItem(KEY);
+    const raw = maybeLocalStore()?.getItem(KEY);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
@@ -33,7 +34,7 @@ export function loadSettingsSource(path: string): string | undefined {
 export function saveSettingsSource(path: string, text: string): void {
   const next = { ...readAll(), [path]: text };
   try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify(next));
+    maybeLocalStore()?.setItem(KEY, JSON.stringify(next));
   } catch {
     // A full or absent store keeps the typed projection working: the comment
     // is preserved for the session and re-derived values still round-trip.

@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 /**
  * Browser-local vault backup target (ADR 0128).
  *
@@ -5,7 +6,7 @@
  * enable/disable and sync run entirely in the SPA. Ciphertext is pushed
  * through the Connect relay.
  */
-import type { JsonObject } from "@opensesame/os-domain";
+import { pageOrigin } from "../ports.js";
 import {
   type PutBackupTargetInput,
   buildLocalBackupTarget,
@@ -268,7 +269,7 @@ export function installationIdFromLocation(search: string): string | null {
 }
 
 export function githubBackupReturnTo(): string {
-  return `${window.location.origin}/settings`;
+  return `${pageOrigin()}/settings`;
 }
 
 export function githubAppInstallUrl(input: {

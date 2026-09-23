@@ -8,6 +8,7 @@ import {
 import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
 import { env } from "../host.js";
+import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
 import { parseAuthCallback } from "./federation-callback.js";
@@ -194,7 +195,7 @@ export function isBrokeredIssuer(issuer: string): boolean {
 }
 
 /** The client id this origin has at any origin-profile broker. */
-export function originClientId(origin: string = location.origin): string {
+export function originClientId(origin: string = pageOrigin()): string {
   return `origin:${origin}`;
 }
 
@@ -205,7 +206,7 @@ export function originClientId(origin: string = location.origin): string {
  */
 export function redirectUri(): string {
   const base = env().BASE_URL || "/";
-  return `${location.origin}${base}`;
+  return `${pageOrigin()}${base}`;
 }
 
 /**
@@ -220,7 +221,7 @@ export function redirectUri(): string {
  * screen, which never cared what path it renders at.
  */
 export function originCallbackUri(): string {
-  return `${location.origin}/opensesame/callback`;
+  return `${pageOrigin()}/opensesame/callback`;
 }
 
 export type OidcDiscovery = {
@@ -455,18 +456,15 @@ async function beginSignInDefault(
       url.searchParams.set("kc_idp_hint", options.providerHint);
       url.searchParams.set("login_hint_provider", options.providerHint);
     }
-    if (options.loginHint) {
+    if (options.loginHint)
       url.searchParams.set("login_hint", options.loginHint);
-    }
-    if (options.prompt) {
-      url.searchParams.set("prompt", options.prompt);
-    }
+    if (options.prompt) url.searchParams.set("prompt", options.prompt);
   }
-  location.assign(url.toString());
+  page().location.assign(url.toString());
 }
 
 /** True when the current URL looks like an upstream sending the browser back. */
-export function hasAuthResponse(search: string = location.search): boolean {
+export function hasAuthResponse(search = page().location.search): boolean {
   const params = new URLSearchParams(search);
   if (params.has("github_app") || params.has("github_app_code")) return false;
   return params.has("code") || params.has("error");
@@ -550,7 +548,7 @@ async function requireActiveUpstreamSession(
  * not an upstream response, so it is safe to call on every startup.
  */
 async function completeSignInDefault(): Promise<CompletedSignIn | null> {
-  const parsed = parseAuthCallback(location.search);
+  const parsed = parseAuthCallback(page().location.search);
   if (parsed.kind === "none") return null;
   if (parsed.kind === "malformed") {
     clearAuthResponseFromUrl();
@@ -837,11 +835,11 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
 
 /** Strip the code out of the address bar so a reload cannot replay it. */
 export function clearAuthResponseFromUrl(): void {
-  const url = new URL(location.href);
+  const url = new URL(page().location.href);
   for (const key of ["code", "state", "error", "error_description", "scope"]) {
     url.searchParams.delete(key);
   }
-  history.replaceState(null, "", url.toString());
+  page().replaceUrl(url.toString());
 }
 
 /**
@@ -892,7 +890,7 @@ async function completeSignInWired(): Promise<CompletedSignIn | null> {
   const { completeAmbientIfPresent } = await import(
     "./ambient-auth/complete.js"
   );
-  const ambient = await completeAmbientIfPresent(location.search);
+  const ambient = await completeAmbientIfPresent(page().location.search);
   if (ambient) {
     clearAuthResponseFromUrl();
     return ambient.completed;

@@ -12,6 +12,7 @@ import type {
   ModuleId,
   RuntimeFacts,
 } from "@opensesame/capability-composition";
+import { maybeEnvironment } from "../../ports.js";
 
 const evaluated = new Set<ModuleId>();
 
@@ -32,19 +33,16 @@ export function resetEvaluatedModulesForTest(): void {
 
 function hostEnvironments(): ExecutionEnvironment[] {
   const out: ExecutionEnvironment[] = ["document"];
-  if (typeof Worker !== "undefined") out.push("dedicated-worker");
-  if (typeof SharedWorker !== "undefined") out.push("shared-worker");
+  const workers = maybeEnvironment()?.workers;
+  if (workers?.dedicated) out.push("dedicated-worker");
+  if (workers?.shared) out.push("shared-worker");
   if (serviceWorkerUsable()) out.push("service-worker");
   return out;
 }
 
 function serviceWorkerUsable(): boolean {
   try {
-    return (
-      typeof navigator !== "undefined" &&
-      "serviceWorker" in navigator &&
-      navigator.serviceWorker !== undefined
-    );
+    return maybeEnvironment()?.workers.service === true;
   } catch {
     return false;
   }

@@ -15,6 +15,7 @@
 import type { DistributionContract } from "@opensesame/capability-composition";
 import type { ModuleTable } from "./lib/capabilities/loader.js";
 import type { SecurityProfile } from "./lib/deployment-profile.js";
+import type { Ports } from "./ports.js";
 
 /**
  * Build-time configuration. In the browser the shell copies it from Vite's
@@ -54,7 +55,12 @@ export type StaticAuthRelease = {
   readonly sri: string;
 };
 
-export type Host = {
+/**
+ * Everything a shell hands the core: build configuration and artifacts, plus
+ * the platform ports (`ports.ts`) — storage, the page, WebAuthn, workers and
+ * the rest — each optional, read when used.
+ */
+export type Host = Ports & {
   readonly env: RuntimeEnv;
   readonly capabilities?: CapabilityArtifacts;
   /**
@@ -73,6 +79,26 @@ export type Host = {
  */
 declare global {
   var __opensesameAppCoreHost: Host | undefined;
+}
+
+/**
+ * A host from a shell's ports and its build: `rest` wins where both name a
+ * field. Property descriptors are copied, not values, so a port read through
+ * a getter (the browser's reads its global each time) stays live.
+ */
+export function composeHost(
+  ports: Ports,
+  rest: Omit<Host, keyof Ports> & Partial<Ports>,
+): Host {
+  const composed = Object.defineProperties(
+    {},
+    Object.getOwnPropertyDescriptors(ports),
+  );
+  // SAFETY: `rest` supplies `env`, the one field `Ports` lacks.
+  return Object.defineProperties(
+    composed,
+    Object.getOwnPropertyDescriptors(rest),
+  ) as Host;
 }
 
 /** Install the host. The shell calls this once, before loading the app. */

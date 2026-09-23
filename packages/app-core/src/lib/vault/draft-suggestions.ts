@@ -3,6 +3,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { maybeEnvironment } from "../../ports.js";
 import { detectLocalLanguageModel } from "../../tutorial/agents/prompt-api/detect.js";
 import {
   type DraftLabels,
@@ -13,7 +14,7 @@ import {
 export type SuggestionContext = { typeId: string; website?: string };
 export const draftSuggestionSeams = {
   model: detectLocalLanguageModel,
-  userActivated: () => globalThis.navigator?.userActivation?.isActive === true,
+  userActivated: () => maybeEnvironment()?.userActivated === true,
 };
 
 /** Deliberately no item, DOM, storage, existing username or free-form prompt input. */

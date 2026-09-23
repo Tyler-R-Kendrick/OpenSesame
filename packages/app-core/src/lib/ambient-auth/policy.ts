@@ -10,6 +10,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { maybeLocalStore } from "../../ports.js";
 import type { OperatorIdp } from "../settings.js";
 import {
   type ProviderConnection,
@@ -344,7 +345,7 @@ export const USER_AMBIENT_PREFERENCE_KEY = "opensesame:ambient-auth:preference";
 
 export function readUserAmbientPreference(): BoundaryValue | null {
   try {
-    const raw = globalThis.localStorage?.getItem(USER_AMBIENT_PREFERENCE_KEY);
+    const raw = maybeLocalStore()?.getItem(USER_AMBIENT_PREFERENCE_KEY);
     if (!raw) return null;
     return overlapCast(JSON.parse(raw));
   } catch {
@@ -355,7 +356,7 @@ export function readUserAmbientPreference(): BoundaryValue | null {
 export function writeUserAmbientPreference(value: BoundaryValue): void {
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(
+    maybeLocalStore()?.setItem(
       USER_AMBIENT_PREFERENCE_KEY,
       JSON.stringify(value),
     );
@@ -366,7 +367,7 @@ export function writeUserAmbientPreference(value: BoundaryValue): void {
 
 export function clearUserAmbientPreference(): void {
   try {
-    globalThis.localStorage?.removeItem(USER_AMBIENT_PREFERENCE_KEY);
+    maybeLocalStore()?.removeItem(USER_AMBIENT_PREFERENCE_KEY);
   } catch {
     /* storage unavailable */
   }

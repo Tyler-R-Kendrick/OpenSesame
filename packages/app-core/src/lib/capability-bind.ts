@@ -17,6 +17,7 @@
  * discarded rather than written into the current selection.
  */
 
+import { page } from "../ports.js";
 import {
   type CapabilityConnectorBinding,
   type CapabilityId,
@@ -278,7 +279,7 @@ export async function authorizeCapabilityConnector(
         scopes,
       );
     if (popup) popup.location.href = authorizationUrl;
-    else window.location.href = authorizationUrl;
+    else page().location.href = authorizationUrl;
 
     const outcome = await capabilityBindDependencies.awaitConsent(
       connection.connectionId,

@@ -7,6 +7,7 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
+import { maybePage } from "../../../../ports.js";
 import { openRootCapsule, sealRootCapsule } from "../capsule.js";
 import { ProtectionError } from "../errors.js";
 import {
@@ -194,7 +195,7 @@ export function zeroBytes(bytes: Uint8Array): void {
 }
 
 export function isBrowserRuntime(): boolean {
-  return globalThis.window !== undefined;
+  return maybePage() !== undefined;
 }
 
 /**

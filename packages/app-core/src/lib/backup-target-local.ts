@@ -1,7 +1,3 @@
-/**
- * Device-local backup targets for the Pages SPA (ADR 0128).
- * One row per provider — GitHub App or forge git remote.
- */
 import {
   type JsonObject,
   isNumber,
@@ -10,6 +6,11 @@ import {
   overlapCast,
   readString,
 } from "@opensesame/os-domain";
+/**
+ * Device-local backup targets for the Pages SPA (ADR 0128).
+ * One row per provider — GitHub App or forge git remote.
+ */
+import { maybeLocalStore } from "../ports.js";
 
 const PUBLIC_KEY = "opensesame.backup.targets";
 const LEGACY_KEY = "opensesame.backup.target";
@@ -106,7 +107,7 @@ function parseOne(raw: JsonObject): LocalBackupTarget | null {
 }
 
 function readBlob(): string | null {
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (store) {
     try {
       const multi = store.getItem(PUBLIC_KEY);
@@ -122,7 +123,7 @@ function readBlob(): string | null {
 
 function writeBlob(raw: string | null): void {
   memoryRaw = raw;
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (!store) {
     notify();
     return;

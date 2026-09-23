@@ -5,6 +5,7 @@
  */
 
 import { isNumber, overlapCast } from "@opensesame/os-domain";
+import { localStore, sessionStore } from "../ports.js";
 
 export const PKCE_KEY = "opensesame:federation:pkce";
 export const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
@@ -33,12 +34,12 @@ export type TakenPending = {
 };
 
 function readRawPending(): string | null {
-  return localStorage.getItem(PKCE_KEY) ?? sessionStorage.getItem(PKCE_KEY);
+  return localStore().getItem(PKCE_KEY) ?? sessionStore().getItem(PKCE_KEY);
 }
 
 function dropRawPending(): void {
-  localStorage.removeItem(PKCE_KEY);
-  sessionStorage.removeItem(PKCE_KEY);
+  localStore().removeItem(PKCE_KEY);
+  sessionStore().removeItem(PKCE_KEY);
 }
 
 function parsePending(raw: string): TakenPending {
@@ -71,7 +72,7 @@ export function consumePending(): void {
 export function storePending(pending: PendingAuth): void {
   // localStorage, not sessionStorage, ON PURPOSE: PWA handoff.
   // ast-grep-ignore: ts-localstorage-set
-  localStorage.setItem(
+  localStore().setItem(
     PKCE_KEY,
     JSON.stringify({ ...pending, createdAt: Date.now() }),
   );

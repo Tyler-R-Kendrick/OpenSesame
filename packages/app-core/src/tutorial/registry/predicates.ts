@@ -15,6 +15,7 @@
 
 import { currentSession } from "../../lib/identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { isOnline, page } from "../../ports.js";
 import {
   type GuideRouteId,
   guideRouteForPath,
@@ -42,7 +43,7 @@ export function noteGuideConnectionsPresent(present: boolean): void {
 }
 
 function currentRoute(): GuideRouteId {
-  return guideRouteForPath(window.location.pathname);
+  return guideRouteForPath(page().location.pathname);
 }
 
 function onRoute(prefix: GuideRouteId): boolean {
@@ -121,7 +122,7 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
   {
     id: "network.online",
     description: "This browser believes it has a network.",
-    read: () => window.navigator.onLine,
+    read: () => isOnline(),
   },
 ];
 

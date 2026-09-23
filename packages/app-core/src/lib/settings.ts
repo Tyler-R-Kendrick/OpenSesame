@@ -5,6 +5,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { type RuntimeEnv, env } from "../host.js";
+import { maybePage, page } from "../ports.js";
 import { noteSettingsUpdated } from "./activity-log.js";
 import {
   type CapabilityConnectorBinding,
@@ -167,9 +168,7 @@ export function settingsEpoch(): number {
 function pageIsLoopbackDefault(hostname?: string): boolean {
   const host =
     hostname ??
-    (globalThis.location === undefined
-      ? "127.0.0.1"
-      : globalThis.location.hostname);
+    (maybePage() === undefined ? "127.0.0.1" : page().location.hostname);
   return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
 }
 

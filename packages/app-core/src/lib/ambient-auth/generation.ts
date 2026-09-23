@@ -12,6 +12,7 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { maybeLocalStore } from "../../ports.js";
 
 const GENERATION_KEY = "opensesame:ambient-auth:generation";
 const SUPPRESSION_KEY = "opensesame:ambient-auth:suppressed";
@@ -23,7 +24,7 @@ export type AuthFence = {
 
 function readNumber(key: string): number {
   try {
-    const raw = globalThis.localStorage?.getItem(key);
+    const raw = maybeLocalStore()?.getItem(key);
     if (!raw) return 0;
     const n = Number(raw);
     return Number.isSafeInteger(n) && n >= 0 ? n : 0;
@@ -35,7 +36,7 @@ function readNumber(key: string): number {
 function writeNumber(key: string, value: number): void {
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(key, String(value));
+    maybeLocalStore()?.setItem(key, String(value));
   } catch {
     /* quota / private mode */
   }
@@ -50,7 +51,7 @@ export function readAuthFence(): AuthFence {
 
 function readSuppressed(): boolean {
   try {
-    return globalThis.localStorage?.getItem(SUPPRESSION_KEY) === "1";
+    return maybeLocalStore()?.getItem(SUPPRESSION_KEY) === "1";
   } catch {
     return false;
   }
@@ -73,7 +74,7 @@ export function fenceLocalSignOut(): AuthFence {
   writeNumber(GENERATION_KEY, next);
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(SUPPRESSION_KEY, "1");
+    maybeLocalStore()?.setItem(SUPPRESSION_KEY, "1");
   } catch {
     /* storage unavailable — generation bump still fences in-memory callers */
   }
@@ -83,7 +84,7 @@ export function fenceLocalSignOut(): AuthFence {
 /** A deliberate new sign-in (not automatic) may lift suppression. */
 export function clearAutoAuthSuppression(): void {
   try {
-    globalThis.localStorage?.removeItem(SUPPRESSION_KEY);
+    maybeLocalStore()?.removeItem(SUPPRESSION_KEY);
   } catch {
     /* storage unavailable */
   }
@@ -103,7 +104,7 @@ export type AttemptRecord = {
 
 export function readAttemptRecord(): AttemptRecord | null {
   try {
-    const raw = globalThis.localStorage?.getItem(ATTEMPT_KEY);
+    const raw = maybeLocalStore()?.getItem(ATTEMPT_KEY);
     if (!raw) return null;
     const parsed: BoundaryValue = JSON.parse(raw);
     if (!isJsonObject(parsed)) return null;
@@ -127,7 +128,7 @@ export function readAttemptRecord(): AttemptRecord | null {
 export function writeAttemptRecord(record: AttemptRecord): void {
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(ATTEMPT_KEY, JSON.stringify(record));
+    maybeLocalStore()?.setItem(ATTEMPT_KEY, JSON.stringify(record));
   } catch {
     /* quota / private mode */
   }
@@ -135,7 +136,7 @@ export function writeAttemptRecord(record: AttemptRecord): void {
 
 export function clearAttemptRecord(): void {
   try {
-    globalThis.localStorage?.removeItem(ATTEMPT_KEY);
+    maybeLocalStore()?.removeItem(ATTEMPT_KEY);
   } catch {
     /* storage unavailable */
   }

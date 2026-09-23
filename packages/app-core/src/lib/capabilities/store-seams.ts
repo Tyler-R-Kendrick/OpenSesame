@@ -13,6 +13,7 @@ import type {
   WorkspaceCapabilityRestriction,
 } from "@opensesame/capability-composition";
 import { capabilityArtifacts } from "../../host.js";
+import { lockManager } from "../../ports.js";
 import { installationId as readInstallationId } from "./installation.js";
 import type { ManagedPolicyReview } from "./store-docs.js";
 
@@ -25,8 +26,7 @@ export const storeSeams = {
     import("./catalog.js").then((m) => m.CAPABILITY_CATALOG),
   distribution: (): Promise<DistributionContract> =>
     capabilityArtifacts().distribution(),
-  locks: (): LockManagerLike | undefined =>
-    typeof navigator === "undefined" ? undefined : navigator.locks,
+  locks: (): LockManagerLike | undefined => lockManager(),
   now: (): string => new Date().toISOString(),
   installationId: (): string => readInstallationId(),
   /** S03/S04: a per-vault narrowing, when one is stored. */

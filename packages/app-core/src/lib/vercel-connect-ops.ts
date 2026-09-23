@@ -8,6 +8,7 @@ import {
   isJsonObject,
 } from "@opensesame/os-domain";
 import { env } from "../host.js";
+import { maybePage } from "../ports.js";
 import { connectCallbackBase } from "./connect-callback.js";
 import type { Connection } from "./connections.js";
 import { releaseGuestConnection, visibleToGuest } from "./guest-connections.js";
@@ -239,7 +240,7 @@ export type VercelAuthorizeResult = {
  */
 export function connectReturnTo(connectionId: string, origin?: string): string {
   const base = env().BASE_URL || "/";
-  const root = origin ?? globalThis.location?.origin ?? "http://localhost";
+  const root = origin ?? maybePage()?.location.origin ?? "http://localhost";
   return `${root}${base}connections?connection=${encodeURIComponent(connectionId)}`;
 }
 

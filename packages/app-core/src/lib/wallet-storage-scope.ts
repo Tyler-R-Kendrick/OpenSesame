@@ -3,6 +3,7 @@
  * cannot read or close the personal ledger.
  */
 
+import { localStore } from "../ports.js";
 import { vaultStore } from "./vault/store.js";
 
 let override: string | null = null;
@@ -62,14 +63,14 @@ export function walletStorageKey(base: string): string {
 export function readWalletStorage(base: string): string | null {
   try {
     const scopedKey = walletStorageKey(base);
-    const scoped = localStorage.getItem(scopedKey);
+    const scoped = localStore().getItem(scopedKey);
     if (scoped !== null && scoped !== "") return scoped;
     if (walletStorageTomb() !== "personal") return scoped;
-    const legacy = localStorage.getItem(base);
+    const legacy = localStore().getItem(base);
     if (legacy === null || legacy === "") return scoped;
     try {
-      localStorage.setItem(scopedKey, legacy);
-      localStorage.removeItem(base);
+      localStore().setItem(scopedKey, legacy);
+      localStore().removeItem(base);
     } catch {
       // Quota: still serve the unsuffixed bytes this read.
     }

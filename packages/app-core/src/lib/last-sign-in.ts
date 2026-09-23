@@ -8,6 +8,7 @@
  * on the way back in.
  */
 
+import { maybeLocalStore } from "../ports.js";
 import { signInMethods } from "./settings.js";
 
 export const LAST_SIGN_IN_KEY = "opensesame:federation:last-method";
@@ -60,7 +61,7 @@ function rememberLastSignInDefault(id: string): void {
   if (!canonical) return;
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(LAST_SIGN_IN_KEY, canonical);
+    maybeLocalStore()?.setItem(LAST_SIGN_IN_KEY, canonical);
   } catch {
     /* Node without --localstorage-file, or quota / private mode */
   }
@@ -68,7 +69,7 @@ function rememberLastSignInDefault(id: string): void {
 
 function readLastSignInDefault(): string | null {
   try {
-    const raw = globalThis.localStorage?.getItem(LAST_SIGN_IN_KEY);
+    const raw = maybeLocalStore()?.getItem(LAST_SIGN_IN_KEY);
     if (!raw) return null;
     return canonicalSignInMethod(raw) || null;
   } catch {

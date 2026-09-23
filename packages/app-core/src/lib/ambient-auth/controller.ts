@@ -4,6 +4,7 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { page } from "../../ports.js";
 import type { OperatorIdp } from "../settings.js";
 import { runSilentIframeAttempt } from "./controller-silent.js";
 import {
@@ -162,7 +163,7 @@ export const ambientControllerSeams: AmbientControllerSeams = {
     throw new Error("discovery not wired");
   },
   navigate: (url) => {
-    location.assign(url);
+    page().location.assign(url);
   },
   clock: { now: () => Date.now() },
 };

@@ -1,12 +1,13 @@
-/**
- * Browser-held forge-agnostic git remotes (ADR 0090).
- * Public metadata stays in localStorage; credentials seal in the vault.
- */
 import {
   type BoundaryValue,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+/**
+ * Browser-held forge-agnostic git remotes (ADR 0090).
+ * Public metadata stays in localStorage; credentials seal in the vault.
+ */
+import { maybeLocalStore } from "../ports.js";
 import type { GitAuthMode, GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitAuthMode } from "./git-auth-modes.js";
 import { createItem } from "./vault/model.js";
@@ -87,7 +88,7 @@ function parseRows(parsed: BoundaryValue): LocalGitRemote[] {
 }
 
 function readRaw(): LocalGitRemote[] {
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (!store) return memoryRemotes.map((row) => ({ ...row }));
   const raw = store.getItem(PUBLIC_KEY);
   if (!raw) return [];
@@ -101,7 +102,7 @@ function readRaw(): LocalGitRemote[] {
 
 function writeRaw(rows: LocalGitRemote[]): void {
   memoryRemotes = rows.map((row) => ({ ...row }));
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (store) {
     if (rows.length === 0) {
       store.removeItem(PUBLIC_KEY);

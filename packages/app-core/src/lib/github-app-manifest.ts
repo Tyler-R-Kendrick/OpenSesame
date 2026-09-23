@@ -1,10 +1,11 @@
+import type { JsonObject } from "@opensesame/os-domain";
 /**
  * GitHub App Manifest flow for every Pages origin.
  *
  * Conversion and installation listing go through the Connect relay
  * (`apps/connect-backend`) — one shape for localhost, GitHub Pages, and Vercel.
  */
-import type { JsonObject } from "@opensesame/os-domain";
+import { maybePage, sessionStore } from "../ports.js";
 import {
   githubAppRedirectUrl,
   githubAppRelayBase,
@@ -86,11 +87,11 @@ export function buildGithubAppRegistration(body: {
   const name = (body.displayName?.trim() || "OpenSesame").slice(0, 32);
   const state = crypto.randomUUID().replaceAll("-", "");
   try {
-    sessionStorage.setItem(STATE_KEY, state);
+    sessionStore().setItem(STATE_KEY, state);
   } catch {
     /* node / private mode — claim still carries state in the form body */
   }
-  const origin = body.origin ?? globalThis.location?.origin ?? "";
+  const origin = body.origin ?? maybePage()?.location.origin ?? "";
   const redirectUrl = githubAppRedirectUrl(body.returnTo, origin);
   return {
     action: REGISTER_URL,

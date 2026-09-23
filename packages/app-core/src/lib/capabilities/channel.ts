@@ -6,17 +6,15 @@
  * origin-local script can at most cause one extra read.
  */
 
+import { type BroadcastLike, openBroadcast } from "../../ports.js";
 import { CAPABILITIES_CHANNEL } from "./keys.js";
 
-let channel: BroadcastChannel | null | undefined;
+let channel: BroadcastLike | null | undefined;
 
-function open(): BroadcastChannel | null {
+function open(): BroadcastLike | null {
   if (channel !== undefined) return channel;
   try {
-    channel =
-      typeof BroadcastChannel === "undefined"
-        ? null
-        : new BroadcastChannel(CAPABILITIES_CHANNEL);
+    channel = openBroadcast(CAPABILITIES_CHANNEL);
   } catch {
     channel = null;
   }

@@ -1,12 +1,13 @@
-/**
- * GitHub App convert + installation listing against the Connect relay.
- */
 import {
   type JsonObject,
   isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+/**
+ * GitHub App convert + installation listing against the Connect relay.
+ */
+import { sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import {
   type LocalGithubApp,
@@ -96,9 +97,9 @@ export async function claimGithubAppCode(
   code: string,
   state: string,
 ): Promise<"registered" | "ignored" | "failed"> {
-  const expected = sessionStorage.getItem("opensesame.github-app.state");
+  const expected = sessionStore().getItem("opensesame.github-app.state");
   if (!expected || expected !== state || code.trim() === "") return "ignored";
-  sessionStorage.removeItem("opensesame.github-app.state");
+  sessionStore().removeItem("opensesame.github-app.state");
   try {
     const base = githubAppRelayBase();
     if (base === "") return "failed";

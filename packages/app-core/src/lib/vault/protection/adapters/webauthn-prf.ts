@@ -6,6 +6,7 @@
  * not mutate unlock wraps — failed enroll must never call `withPasskeyUnlock`.
  */
 
+import { credentials, publicKeyCredentialApi } from "../../../../ports.js";
 import { b64ToBytes, bytesToB64 } from "../../crypto.js";
 import {
   type PasskeyCeremony,
@@ -91,13 +92,13 @@ async function resolveExtensionPrf(
   }
   if (
     !publicKeyCredential ||
-    globalThis.PublicKeyCredential === undefined ||
-    PublicKeyCredential.getClientCapabilities === undefined
+    publicKeyCredentialApi()?.getClientCapabilities === undefined
   ) {
     return "unknown";
   }
   try {
-    const caps = await PublicKeyCredential.getClientCapabilities();
+    const caps = await publicKeyCredentialApi()?.getClientCapabilities?.();
+    if (!caps) return "unknown";
     const prfFlag = caps["extension:prf"] ?? caps.prf;
     if (prfFlag === true) return true;
     if (prfFlag === false) return false;
@@ -128,8 +129,7 @@ function probePlatformCredentials(injected: boolean): {
   publicKeyCredential: boolean;
   credentialsReady: boolean;
 } {
-  const credentialsApi =
-    globalThis.navigator?.credentials?.create !== undefined;
+  const credentialsApi = credentials()?.create !== undefined;
   if (injected) {
     return {
       credentialsApi,
@@ -139,7 +139,7 @@ function probePlatformCredentials(injected: boolean): {
   }
   return {
     credentialsApi,
-    publicKeyCredential: globalThis.PublicKeyCredential !== undefined,
+    publicKeyCredential: publicKeyCredentialApi() !== undefined,
     credentialsReady: credentialsApi,
   };
 }

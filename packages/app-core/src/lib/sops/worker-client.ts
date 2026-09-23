@@ -8,6 +8,7 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { maybeWorkerConstructor, workerConstructor } from "../../ports.js";
 import type { SopsFormat } from "./document.js";
 import { SopsError } from "./errors.js";
 import type { Inspection } from "./inspect.js";
@@ -26,7 +27,7 @@ type Pending = {
 
 /** True when this runtime can host a same-origin module worker. */
 export function workerSupported(): boolean {
-  return "Worker" in globalThis && "URL" in globalThis;
+  return maybeWorkerConstructor() !== undefined;
 }
 
 export class SopsWorkerClient implements SopsRunner {
@@ -36,6 +37,7 @@ export class SopsWorkerClient implements SopsRunner {
 
   #ensure(): Worker {
     if (this.#worker) return this.#worker;
+    const Worker = workerConstructor();
     const worker = new Worker(new URL("./sops.worker.ts", import.meta.url), {
       type: "module",
       name: "opensesame-sops",

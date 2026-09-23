@@ -23,6 +23,7 @@ import {
   createBudgetLedger,
   createInMemoryBudgetStore,
 } from "@opensesame/wallet-budget";
+import { localStore } from "../ports.js";
 import {
   SPENDING_LEDGER_STORAGE_KEY,
   readPersisted,
@@ -99,11 +100,11 @@ export function resetSpendingLedgerCache(): void {
 
 export function clearSpendingLedgerStorage(): void {
   try {
-    localStorage.removeItem(walletStorageKey(SPENDING_LEDGER_STORAGE_KEY));
-    localStorage.removeItem(walletStorageKey(LABELS_KEY));
+    localStore().removeItem(walletStorageKey(SPENDING_LEDGER_STORAGE_KEY));
+    localStore().removeItem(walletStorageKey(LABELS_KEY));
     if (walletStorageTomb() === "personal") {
-      localStorage.removeItem(SPENDING_LEDGER_STORAGE_KEY);
-      localStorage.removeItem(LABELS_KEY);
+      localStore().removeItem(SPENDING_LEDGER_STORAGE_KEY);
+      localStore().removeItem(LABELS_KEY);
     }
   } catch {
     // Ignore missing Storage (SSR / Node without stub).
@@ -131,9 +132,9 @@ function readLabels(): Record<string, string> {
   if (labelCache !== null && labelScope === scope) return labelCache;
   labelScope = scope;
   try {
-    let raw = localStorage.getItem(walletStorageKey(LABELS_KEY));
+    let raw = localStore().getItem(walletStorageKey(LABELS_KEY));
     if ((raw === null || raw === "") && walletStorageTomb() === "personal") {
-      raw = localStorage.getItem(LABELS_KEY);
+      raw = localStore().getItem(LABELS_KEY);
     }
     if (raw === null || raw === "") {
       labelCache = {};
@@ -160,7 +161,7 @@ function writeLabels(labels: Record<string, string>): void {
   labelCache = labels;
   labelScope = walletStorageScope();
   try {
-    localStorage.setItem(walletStorageKey(LABELS_KEY), JSON.stringify(labels));
+    localStore().setItem(walletStorageKey(LABELS_KEY), JSON.stringify(labels));
   } catch {
     // Quota / private mode — keep the in-memory labels.
   }

@@ -6,6 +6,7 @@ import {
 } from "@opensesame/os-domain";
 import { exactOrigin } from "@opensesame/static-auth";
 import { env } from "../host.js";
+import { maybePage } from "../ports.js";
 import { kvRefresh } from "./kv.js";
 import {
   type LocalScopeRoles,
@@ -239,7 +240,7 @@ export async function configureLocalApplication(
 
 export function pagesApplicationRedirect(): string | null {
   try {
-    const origin = globalThis.location?.origin;
+    const origin = maybePage()?.location.origin;
     if (!origin) return null;
     const href = new URL(env().BASE_URL || "/", origin).href;
     return validRedirect(href) ? href : null;

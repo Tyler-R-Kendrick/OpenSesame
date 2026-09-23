@@ -12,6 +12,7 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { userAgent } from "../ports.js";
 import { kvGet, kvRefresh, kvSet } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VaultCorruptError } from "./vault/crypto.js";
@@ -48,7 +49,7 @@ export function thisDeviceId(): string {
   return id;
 }
 
-export function describePlatform(ua = navigator.userAgent): string {
+export function describePlatform(ua = userAgent()): string {
   if (/iPhone|iPad/i.test(ua)) return "iOS";
   if (/Android/i.test(ua)) return "Android";
   if (/Mac OS X/i.test(ua)) return "macOS";
@@ -57,7 +58,7 @@ export function describePlatform(ua = navigator.userAgent): string {
   return "Unknown";
 }
 
-export function defaultDeviceName(ua = navigator.userAgent): string {
+export function defaultDeviceName(ua = userAgent()): string {
   const browser = /Edg\//.test(ua)
     ? "Edge"
     : /Chrome\//.test(ua)

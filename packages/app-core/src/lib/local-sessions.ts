@@ -5,6 +5,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { bytesToB64url, sha256Base64Url } from "@opensesame/sdk-browser";
+import { pageOrigin } from "../ports.js";
 import { kvRefresh } from "./kv.js";
 import { readLocalAgentKeys } from "./local-agent-keys.js";
 import { readLocalPasskeys } from "./local-credentials.js";
@@ -150,7 +151,7 @@ async function writeSessions(tomb: string, sessions: SessionRecord[]) {
 async function requireCurrent(tomb: string, record: SessionRecord) {
   const now = Date.now();
   if (
-    record.origin !== location.origin ||
+    record.origin !== pageOrigin() ||
     now < record.authTime ||
     now >= record.expiresAt
   )
@@ -284,7 +285,7 @@ async function sessionUnderLock(tomb: string, session: LocalSession) {
   const assertActive = () => {
     if (
       presentations.get(session) !== presentation ||
-      record.origin !== location.origin ||
+      record.origin !== pageOrigin() ||
       Date.now() < record.authTime ||
       Date.now() >= record.expiresAt
     )

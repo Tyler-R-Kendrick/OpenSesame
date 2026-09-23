@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
+import { type WebStorage, maybeLocalStore, maybePage } from "../../ports.js";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 
 const STORAGE_KEY = "opensesame.local-drop-claims.v1";
@@ -66,9 +67,9 @@ export type LocalDropPollState = "pending" | "consumed" | "expired";
 
 let legacyMigrated = false;
 
-function legacyStorage(): Storage | null {
+function legacyStorage(): WebStorage | null {
   try {
-    return globalThis.localStorage ?? null;
+    return maybeLocalStore() ?? null;
   } catch {
     return null;
   }
@@ -87,13 +88,9 @@ function migrateLegacyDropState(): void {
   }
 }
 
-const kvBackedStorage: Storage = {
+const kvBackedStorage: WebStorage = {
   get length(): number {
     return 0;
-  },
-  clear(): void {
-    kvDelete(STORAGE_KEY);
-    kvDelete(PEPPER_KEY);
   },
   getItem(key: string): string | null {
     migrateLegacyDropState();
@@ -112,7 +109,7 @@ const kvBackedStorage: Storage = {
 };
 
 export const localDropClaimSeams = {
-  storage(): Storage {
+  storage(): WebStorage {
     return kvBackedStorage;
   },
   claimBase(): string {
@@ -120,7 +117,7 @@ export const localDropClaimSeams = {
   },
 };
 
-function storage(): Storage {
+function storage(): WebStorage {
   return localDropClaimSeams.storage();
 }
 
@@ -197,7 +194,7 @@ function toPollState(state: LocalClaimRecord["state"]): LocalDropPollState {
 
 /** Origin + Vite base, no trailing slash — the Pages claim host. */
 export function pagesClaimBase(
-  origin = globalThis.location?.origin ?? "",
+  origin = maybePage()?.location.origin ?? "",
   base = env().BASE_URL || "/",
 ): string {
   if (!isString(origin) || origin.length === 0) {

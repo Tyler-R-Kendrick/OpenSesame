@@ -4,6 +4,7 @@ import {
   type LocalAgentChallenge,
   verifyLocalAgentChallenge,
 } from "@opensesame/static-auth";
+import { pageOrigin } from "../ports.js";
 import {
   type LocalAgentKey,
   agentKeyMaterial,
@@ -53,7 +54,7 @@ function refused(): never {
 }
 function live(item: Pending) {
   if (
-    location.origin !== item.challenge.origin ||
+    pageOrigin() !== item.challenge.origin ||
     Date.now() >= item.challenge.expiresAt ||
     performance.now() >= item.deadline
   )
@@ -67,7 +68,7 @@ export async function beginLocalAgentAuthentication(
   credentialId: string,
 ): Promise<LocalAgentChallenge> {
   const queue = pending;
-  const origin = location.origin;
+  const origin = pageOrigin();
   return withLocalDirectoryLock(tomb, async () => {
     const directory = await requireLocalAgent(tomb, principalId);
     const key = (await readLocalAgentKeys(tomb)).find(
@@ -83,7 +84,7 @@ export async function beginLocalAgentAuthentication(
       )
         queue.delete(digest);
     }
-    if (queue !== pending || origin !== location.origin || queue.size >= 128)
+    if (queue !== pending || origin !== pageOrigin() || queue.size >= 128)
       refused();
     const challenge = Object.freeze({
       nonce: randomString(32),
@@ -94,7 +95,7 @@ export async function beginLocalAgentAuthentication(
     });
     const deadline = performance.now() + 120_000;
     const digest = await sha256Base64Url(challenge.nonce);
-    if (queue !== pending || origin !== location.origin || queue.size >= 128)
+    if (queue !== pending || origin !== pageOrigin() || queue.size >= 128)
       refused();
     queue.set(digest, {
       tomb,
@@ -172,7 +173,7 @@ export function consumeLocalAgentAuthentication(
 ): LocalAuthentication {
   if (
     !evidenceSet.delete(evidence) ||
-    evidence.origin !== location.origin ||
+    evidence.origin !== pageOrigin() ||
     Date.now() < evidence.authTime ||
     Date.now() - evidence.authTime >= 120_000
   )

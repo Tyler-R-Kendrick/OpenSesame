@@ -5,6 +5,7 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { lockManager } from "../ports.js";
 import { kvRefresh } from "./kv.js";
 import {
   changedMemberships,
@@ -223,11 +224,12 @@ export async function withLocalDirectoryLock<T>(
   action: () => Promise<T>,
 ): Promise<T> {
   // No unlocked-tab fallback: two editors must not silently overwrite each other.
-  if (!navigator.locks)
+  const locks = lockManager();
+  if (!locks)
     throw new LocalDirectoryError(
       "This browser cannot safely edit the directory. Use a browser with Web Locks support.",
     );
-  return navigator.locks.request(`opensesame-directory-${tomb}`, action);
+  return locks.request(`opensesame-directory-${tomb}`, action);
 }
 
 export {

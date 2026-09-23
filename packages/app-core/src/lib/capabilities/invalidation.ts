@@ -9,6 +9,7 @@
  * durable state and lets the store decide; none of them carries a plan.
  */
 
+import { maybePage } from "../../ports.js";
 import { kvHydrate } from "../kv.js";
 import { onVaultLock } from "../vault/lock-events.js";
 import { type VaultState, vaultStore } from "../vault/store.js";
@@ -53,16 +54,18 @@ export function startInvalidationWatch(store: CompositionStore): () => void {
   const onPageShow = (event: PageTransitionEvent) => {
     if (event.persisted) void store.revalidate("bfcache-resume");
   };
-  const onVisibility = () => {
-    if (document.visibilityState === "visible")
-      void store.revalidate("visible");
-  };
-  window.addEventListener("pageshow", onPageShow);
-  document.addEventListener("visibilitychange", onVisibility);
-  stops.push(() => window.removeEventListener("pageshow", onPageShow));
-  stops.push(() =>
-    document.removeEventListener("visibilitychange", onVisibility),
-  );
+  // A host with no page has no bfcache and no visibility to watch.
+  const current = maybePage();
+  if (current) {
+    current.addEventListener("pageshow", onPageShow);
+    stops.push(() => current.removeEventListener("pageshow", onPageShow));
+    stops.push(
+      current.onVisibilityChange(() => {
+        if (current.visibilityState === "visible")
+          void store.revalidate("visible");
+      }),
+    );
+  }
 
   const vault = invalidationSeams.vaultStore();
   let lastVault = vaultIdOf(vault.getSnapshot());

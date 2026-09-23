@@ -12,6 +12,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { sessionStore } from "../ports.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
 
 /** @deprecated Legacy singleton — detect only; never mint again. */
@@ -91,7 +92,7 @@ function persistSessionPerson(person: GuestSessionPerson): void {
   const raw = JSON.stringify(person);
   kvSet(GUEST_PERSON_KEY, raw);
   try {
-    sessionStorage.setItem(GUEST_SESSION_KEY, raw);
+    sessionStore().setItem(GUEST_SESSION_KEY, raw);
   } catch {
     /* private mode — OPFS/kv remains the surviving copy */
   }
@@ -112,7 +113,7 @@ export function mintGuestSessionPerson(): GuestSessionPerson {
 /** Read the tab's guest principal without minting one. */
 export function readGuestSessionPerson(): GuestSessionPerson | null {
   try {
-    const cached = sessionStorage.getItem(GUEST_SESSION_KEY);
+    const cached = sessionStore().getItem(GUEST_SESSION_KEY);
     if (cached) {
       const fromCache = readStoredGuestPerson(cached);
       if (fromCache) return fromCache;
@@ -125,7 +126,7 @@ export function readGuestSessionPerson(): GuestSessionPerson | null {
   const person = readStoredGuestPerson(durable);
   if (person) {
     try {
-      sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(person));
+      sessionStore().setItem(GUEST_SESSION_KEY, JSON.stringify(person));
     } catch {
       /* ignore */
     }
@@ -146,7 +147,7 @@ export function guestSessionPerson(): GuestSessionPerson {
 export function clearGuestSessionPerson(): void {
   kvDelete(GUEST_PERSON_KEY);
   try {
-    sessionStorage.removeItem(GUEST_SESSION_KEY);
+    sessionStore().removeItem(GUEST_SESSION_KEY);
   } catch {
     /* ignore */
   }

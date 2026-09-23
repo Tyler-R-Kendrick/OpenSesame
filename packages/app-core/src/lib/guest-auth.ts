@@ -6,6 +6,7 @@
  * the OIDC redirect; browser storage never receives the bearer.
  */
 
+import { sessionStore } from "../ports.js";
 import { loadSession as loadFederationSession } from "./federation.js";
 import { claimProvisionalHistoryAccounts } from "./history-backups.js";
 import {
@@ -74,7 +75,7 @@ export const guestAuthDependencies = {
  */
 export function storedKeyPresent(key: string): boolean {
   try {
-    return sessionStorage.getItem(key) !== null;
+    return sessionStore().getItem(key) !== null;
   } catch {
     return false;
   }
@@ -86,7 +87,7 @@ function markPendingLink(): void {
     // something an XSS could exfiltrate, and the only thing this leaks is
     // that a link is pending, which the notice on screen already says.
     // ast-grep-ignore: ts-localstorage-set
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
   } catch {
     /* private mode — the in-memory notice is the only prompt then */
   }
@@ -94,7 +95,7 @@ function markPendingLink(): void {
 
 function clearPendingLink(): void {
   try {
-    sessionStorage.removeItem(PENDING_LINK_KEY);
+    sessionStore().removeItem(PENDING_LINK_KEY);
   } catch {
     /* nothing was stored */
   }

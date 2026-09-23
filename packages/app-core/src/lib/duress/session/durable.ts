@@ -3,6 +3,7 @@
  * OPFS / localStorage adapters supply get/set; BroadcastChannel is hint-only.
  */
 
+import { type WebStorage, maybeLocalStore } from "../../../ports.js";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -11,9 +12,8 @@ import {
 } from "../json-boundary.js";
 import type { FenceState } from "./fence.js";
 
-function readBrowserLocalStorage(): Storage | null {
-  if (!("localStorage" in globalThis)) return null;
-  return globalThis.localStorage;
+function readBrowserLocalStorage(): WebStorage | null {
+  return maybeLocalStore() ?? null;
 }
 
 function parseStoredFence(raw: string): FenceState | null {
@@ -64,7 +64,7 @@ export function createMemoryFenceStore(
  * not a tamper clock (INV-19).
  */
 export function createLocalStorageFenceStore(
-  storage: Storage | null = readBrowserLocalStorage(),
+  storage: WebStorage | null = readBrowserLocalStorage(),
 ): DurableFenceStore {
   return {
     async get() {

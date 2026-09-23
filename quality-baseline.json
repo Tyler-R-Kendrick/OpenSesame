@@ -18,7 +18,7 @@
   "totals": {
     "files": 493,
     "violations": 782,
-    "oversizedLines": 248822
+    "oversizedLines": 248809
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1136,7 +1136,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/connections.ts": {
-      "max-lines": 895
+      "max-lines": 889
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
@@ -1152,7 +1152,7 @@
     },
     "packages/app-core/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 944,
+      "max-lines": 942,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/github-app-presence.ts": {
@@ -1184,7 +1184,7 @@
     },
     "packages/app-core/src/lib/settings.ts": {
       "complexity": 1,
-      "max-lines": 517
+      "max-lines": 516
     },
     "packages/app-core/src/lib/siop-keys.ts": {
       "complexity": 1
@@ -1194,7 +1194,7 @@
     },
     "packages/app-core/src/lib/site-broker.ts": {
       "complexity": 1,
-      "max-lines": 616
+      "max-lines": 614
     },
     "packages/app-core/src/lib/vault/drop.test.ts": {
       "max-lines": 526
@@ -1281,7 +1281,7 @@
       "max-lines": 1726
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 769
+      "max-lines": 767
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470

@@ -6,6 +6,7 @@ import {
 } from "@opensesame/os-domain";
 import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { env, staticAuthRelease } from "../host.js";
+import { page, pageOrigin } from "../ports.js";
 /**
  * Origin-brokered sign-in for static relying parties (ADR 0034).
  *
@@ -96,7 +97,7 @@ export type DeliverToRpOptions = {
 
 const MIN_STATE_BYTES = 16;
 
-export function pagesPublicBase(origin: string = location.origin): string {
+export function pagesPublicBase(origin: string = pageOrigin()): string {
   const base = env().BASE_URL || "/";
   const normalised = base.endsWith("/") ? base : `${base}/`;
   return `${origin}${normalised}`;
@@ -546,28 +547,25 @@ function deliverToRpDefault(
   options: DeliverToRpOptions = {},
 ): "postMessage" | "none" {
   if (!isLoopbackOrigin(targetOrigin)) return "none";
-  try {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage(message, targetOrigin);
-      if (options.close !== false) {
-        window.close();
-      }
-      return "postMessage";
-    }
-  } catch {
-    /* cross-origin opener access can throw; postMessage itself is fine */
+  const close = options.close !== false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage(message, targetOrigin);
-        if (options.close !== false) window.close();
-        return "postMessage";
-      }
+      return postToOpener(message, targetOrigin, close)
+        ? "postMessage"
+        : "none";
     } catch {
-      /* fall through */
+      /* cross-origin opener access can throw once; postMessage itself is fine */
     }
   }
-
   return "none";
+}
+
+function postToOpener(message: SignInMessage, to: string, close: boolean) {
+  const opener = page().opener;
+  if (!opener || opener.closed) return false;
+  opener.postMessage(message, to);
+  if (close) page().close();
+  return true;
 }
 
 export const siteBrokerSeams = {

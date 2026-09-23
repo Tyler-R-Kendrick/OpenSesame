@@ -1,4 +1,5 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { workerConstructor } from "../../ports.js";
 import { browsableUrl } from "./model.js";
 
 export type UriMatch =
@@ -54,6 +55,7 @@ export async function testWebsitePattern(
   return new Promise((resolve) => {
     let worker: Worker;
     try {
+      const Worker = workerConstructor();
       worker = new Worker(
         new URL("./website-pattern.worker.ts", import.meta.url),
         { type: "module" },

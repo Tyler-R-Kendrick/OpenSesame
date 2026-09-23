@@ -14,6 +14,7 @@ import {
   serializeFragmentSuccess,
 } from "@opensesame/siop-v2";
 import { env } from "../host.js";
+import { maybePage } from "../ports.js";
 import {
   type LocalApplication,
   readLocalApplications,
@@ -51,7 +52,7 @@ function refused(
 
 /** Dynamic Self-Issued issuer on this Pages origin (`…/identity/siop`). */
 export function dynamicSiopIssuer(
-  origin = globalThis.location?.origin ?? "",
+  origin = maybePage()?.location.origin ?? "",
   base = env().BASE_URL || "/",
 ): string {
   if (!isString(origin) || origin.length === 0)

@@ -1,6 +1,3 @@
-/**
- * localStorage wire format for the browser spending ledger (ADR 0123).
- */
 import {
   type BoundaryValue,
   type JsonObject,
@@ -16,6 +13,10 @@ import type {
   JournalEntry,
   NodeState,
 } from "@opensesame/wallet-budget";
+/**
+ * localStorage wire format for the browser spending ledger (ADR 0123).
+ */
+import { localStore } from "../ports.js";
 
 import { emitActivity } from "./activity-log.js";
 import { readWalletStorage, walletStorageKey } from "./wallet-storage-scope.js";
@@ -317,7 +318,7 @@ export function writePersisted(snapshot: BudgetSnapshot): void {
     outcome: "succeeded",
   });
   try {
-    localStorage.setItem(
+    localStore().setItem(
       walletStorageKey(SPENDING_LEDGER_STORAGE_KEY),
       JSON.stringify(snapshotToPersisted(snapshot)),
     );

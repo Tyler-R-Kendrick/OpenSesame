@@ -1,6 +1,7 @@
 import { SupportError } from "@opensesame/support-agent";
+import { isOnline } from "../../../ports.js";
 export function isOnlineDefault(): boolean {
-  return globalThis.navigator?.onLine !== false;
+  return isOnline();
 }
 export function abortPromise(signal: AbortSignal): Promise<null> {
   return new Promise((settle) => {

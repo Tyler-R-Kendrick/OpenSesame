@@ -1,4 +1,5 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
+import { maybePage, page } from "../../ports.js";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -441,6 +442,17 @@ export type WebauthnHostCheck = {
   reason: string;
 };
 
+/** The hostname asked about, else this page's, else the one in `href`. */
+function webauthnHost(hostname: string | undefined, href: string): string {
+  const host = hostname?.trim() || (maybePage()?.location.hostname ?? "");
+  if (host) return host;
+  try {
+    return new URL(href).hostname;
+  } catch {
+    return "localhost";
+  }
+}
+
 /**
  * WebAuthn RP IDs must be DNS names. Chrome rejects `127.0.0.1` (and other IPs)
  * with `SecurityError: This is an invalid domain.` before any authenticator prompt.
@@ -450,20 +462,8 @@ function checkWebauthnHostDefault(
   href?: string,
 ): WebauthnHostCheck {
   const resolvedHref =
-    href ??
-    (globalThis.window === undefined
-      ? "http://localhost/"
-      : window.location.href);
-  let host =
-    hostname?.trim() ||
-    (globalThis.window !== undefined ? window.location.hostname : "");
-  if (!host) {
-    try {
-      host = new URL(resolvedHref).hostname;
-    } catch {
-      host = "localhost";
-    }
-  }
+    href ?? maybePage()?.location.href ?? "http://localhost/";
+  const host = webauthnHost(hostname, resolvedHref);
   if (!isIpHostname(host)) {
     return {
       ok: true,
@@ -495,9 +495,7 @@ function checkWebauthnHostDefault(
 
 /** Relying-party id for WebAuthn on this origin. */
 export function webauthnRpId(
-  hostname: string = globalThis.window === undefined
-    ? "localhost"
-    : window.location.hostname,
+  hostname: string = maybePage()?.location.hostname ?? "localhost",
 ): string {
   const host = hostname.trim() || "localhost";
   // Never hand the browser an IP RP ID — preflight should have redirected first.

@@ -4,6 +4,13 @@
  * protected ops (AUTH-C, INV-37). Extends ProtectionSessionGuard generation.
  */
 
+import {
+  type BroadcastLike,
+  lockManager,
+  maybeLocalStore,
+  maybePage,
+  openBroadcast,
+} from "../../../ports.js";
 import { ProtectionSessionGuard } from "../../vault/protection/session-guard.js";
 import type { AccessContext } from "../access/context.js";
 import {
@@ -77,7 +84,7 @@ function parseFence(raw: string | null): FenceState | null {
 function persistFence(state: FenceState): void {
   try {
     // ast-grep-ignore: ts-localstorage-set
-    globalThis.localStorage?.setItem(FENCE_STORAGE_KEY, JSON.stringify(state));
+    maybeLocalStore()?.setItem(FENCE_STORAGE_KEY, JSON.stringify(state));
   } catch {
     /* quota / private mode — in-memory fence still authoritative in this tab */
   }
@@ -85,9 +92,7 @@ function persistFence(state: FenceState): void {
 
 function readDurableFence(): FenceState | null {
   try {
-    return parseFence(
-      globalThis.localStorage?.getItem(FENCE_STORAGE_KEY) ?? null,
-    );
+    return parseFence(maybeLocalStore()?.getItem(FENCE_STORAGE_KEY) ?? null);
   } catch {
     return null;
   }
@@ -97,13 +102,13 @@ export class DuressSessionFence {
   readonly guard = new ProtectionSessionGuard();
   #fence: FenceState = emptyFence();
   #context: AccessContext | null = null;
-  #channel: BroadcastChannel | null = null;
+  #channel: BroadcastLike | null = null;
   #lockDepth = 0;
   #pageshowBound = false;
 
   constructor(channelName = "opensesame-duress-fence") {
-    if (globalThis.BroadcastChannel !== undefined) {
-      this.#channel = new BroadcastChannel(channelName);
+    this.#channel = openBroadcast(channelName);
+    if (this.#channel) {
       this.#channel.onmessage = () => {
         // Hint only — never trust peer payload; re-read durable store.
         this.rehydrateFromDurable({ bumpIfChanged: true });
@@ -128,11 +133,12 @@ export class DuressSessionFence {
    * this first.
    */
   #bindBfcache(): void {
-    if (this.#pageshowBound || globalThis.addEventListener === undefined) {
+    const current = maybePage();
+    if (this.#pageshowBound || current === undefined) {
       return;
     }
     this.#pageshowBound = true;
-    globalThis.addEventListener("pageshow", (event: Event) => {
+    current.addEventListener("pageshow", (event: Event) => {
       const persistedFlag =
         "persisted" in event
           ? overlapCast<Event, { persisted: BoundaryValue }>(event).persisted
@@ -199,7 +205,7 @@ export class DuressSessionFence {
         this.#lockDepth -= 1;
       }
     };
-    const locks = globalThis.navigator?.locks;
+    const locks = lockManager();
     if (locks?.request) {
       return locks.request(FENCE_LOCK_NAME, execute);
     }
@@ -270,7 +276,7 @@ export class DuressSessionFence {
       this.#context = null;
       this.guard.bump();
       try {
-        globalThis.localStorage?.removeItem(FENCE_STORAGE_KEY);
+        maybeLocalStore()?.removeItem(FENCE_STORAGE_KEY);
       } catch {
         /* ignore */
       }

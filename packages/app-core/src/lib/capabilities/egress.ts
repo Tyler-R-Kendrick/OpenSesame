@@ -1,3 +1,9 @@
+import type {
+  CapabilityDescriptor,
+  CapabilityId,
+  EffectivePlan,
+  EgressClass,
+} from "@opensesame/capability-composition";
 /**
  * Destination-validated fetch for optional modules (S18).
  *
@@ -11,12 +17,7 @@
  * redirect is never followed anywhere (NET-04); and no URL with a query
  * string is ever written to an error or a log (`redactUrl`).
  */
-import type {
-  CapabilityDescriptor,
-  CapabilityId,
-  EffectivePlan,
-  EgressClass,
-} from "@opensesame/capability-composition";
+import { pageOrigin } from "../../ports.js";
 import {
   localNetworkFetchSeams,
   targetAddressSpaceFor,
@@ -306,7 +307,7 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
  * a module holding a wider port than its plan.
  */
 export function installPlanAwareEgress(
-  origin: string = location.origin,
+  origin: string = pageOrigin(),
   fetchImpl?: typeof fetch,
 ): void {
   egressSeams.createEgressPort = (capability: CapabilityId) => {

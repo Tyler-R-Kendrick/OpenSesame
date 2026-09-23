@@ -20,6 +20,7 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
+import { maybePage } from "../ports.js";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
 import { identityBase, probeIdentityDetailed } from "./identity.js";
 import { type FailureClass, classifyThrown } from "./probe-failure.js";
@@ -184,7 +185,7 @@ function nextDelay(): number {
 }
 
 function hidden(): boolean {
-  return globalThis.document?.visibilityState === "hidden";
+  return maybePage()?.visibilityState === "hidden";
 }
 
 /** Probing a hidden tab spends battery on an answer nobody can see. */
@@ -334,14 +335,13 @@ function start(): void {
     // A base URL changing makes every cached verdict about it meaningless.
     connectivityMonitorDependencies.subscribeSettings(() => checkNow()),
   ];
-  if (globalThis.document) {
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") checkNow();
-      else schedule();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    teardown.push(() =>
-      document.removeEventListener("visibilitychange", onVisibility),
+  const current = maybePage();
+  if (current) {
+    teardown.push(
+      current.onVisibilityChange(() => {
+        if (current.visibilityState === "visible") checkNow();
+        else schedule();
+      }),
     );
   }
   checkNow();

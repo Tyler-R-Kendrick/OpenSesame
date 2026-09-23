@@ -13,6 +13,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { sessionStore } from "../ports.js";
 
 const OUTCOME_KEY = "opensesame:federation:outcome";
 
@@ -62,7 +63,7 @@ function storeAuthOutcomeDefault(outcome: AuthOutcome): void {
     // Outcome text only — never tokens. The same information is already on
     // screen the moment it happens; this just survives one navigation.
     // ast-grep-ignore: ts-localstorage-set
-    sessionStorage.setItem(OUTCOME_KEY, JSON.stringify(outcome));
+    sessionStore().setItem(OUTCOME_KEY, JSON.stringify(outcome));
   } catch {
     /* private mode — the in-memory render is the only surface then */
   }
@@ -70,7 +71,7 @@ function storeAuthOutcomeDefault(outcome: AuthOutcome): void {
 
 function readAuthOutcomeDefault(): AuthOutcome | null {
   try {
-    const raw = sessionStorage.getItem(OUTCOME_KEY);
+    const raw = sessionStore().getItem(OUTCOME_KEY);
     if (!raw) return null;
     const parsed: BoundaryValue = JSON.parse(raw);
     if (!isAuthOutcome(parsed)) return null;
@@ -86,7 +87,7 @@ function readAuthOutcomeDefault(): AuthOutcome | null {
 
 function clearAuthOutcomeDefault(): void {
   try {
-    sessionStorage.removeItem(OUTCOME_KEY);
+    sessionStore().removeItem(OUTCOME_KEY);
   } catch {
     /* nothing was stored */
   }

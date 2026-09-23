@@ -7,6 +7,7 @@
  */
 
 import type { CapabilityId } from "@opensesame/capability-composition";
+import { maybePage } from "../../ports.js";
 import {
   EgressDenied,
   type EgressPort,
@@ -18,7 +19,7 @@ import { compositionStore } from "./store.js";
 
 function pageOrigin(): string | null {
   try {
-    return globalThis.location?.origin ?? null;
+    return maybePage()?.location.origin ?? null;
   } catch {
     return null;
   }

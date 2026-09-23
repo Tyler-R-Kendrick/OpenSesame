@@ -4,6 +4,7 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
+import { type WebStorage, maybeLocalStore } from "../../ports.js";
 import { isBindableAction } from "./actions.js";
 
 import {
@@ -20,9 +21,9 @@ import {
 const KEYBINDINGS_KEY = "opensesame.keybindings.v1";
 const VIEWS_KEY = "opensesame.saved-views.v1";
 
-function webStorage(): Storage | undefined {
+function webStorage(): WebStorage | undefined {
   try {
-    return globalThis.window?.localStorage ?? globalThis.localStorage;
+    return maybeLocalStore();
   } catch {
     return undefined;
   }

@@ -4,6 +4,13 @@
  */
 
 import { isString, overlapCast } from "@opensesame/os-domain";
+import {
+  isPublicKeyCredential,
+  maybePage,
+  pageOrigin,
+  publicKeyCredentialApi,
+  requireCredentials,
+} from "../../../../ports.js";
 import { b64ToBytes, bytesToB64, randomBytes } from "../../crypto.js";
 import {
   type PasskeyCeremony,
@@ -57,8 +64,7 @@ function readCeremonyClientData(
 }
 
 function expectedWebauthnOrigin(): string {
-  if (globalThis.window === undefined) return "http://localhost";
-  return window.location.origin;
+  return maybePage()?.location.origin ?? "http://localhost";
 }
 
 function assertCeremonyClientData(
@@ -120,7 +126,7 @@ export async function createPasskeyUnlockCeremonyDefault(
   if (signal?.aborted) {
     throw new DOMException("The operation was aborted.", "AbortError");
   }
-  if (globalThis.PublicKeyCredential === undefined) {
+  if (publicKeyCredentialApi() === undefined) {
     throw new PrfCeremonyError(
       "unsupported",
       "This browser cannot create a passkey.",
@@ -136,7 +142,7 @@ export async function createPasskeyUnlockCeremonyDefault(
   const userId = randomBytes(16);
   let result: Credential | null;
   try {
-    result = await navigator.credentials.create({
+    result = await requireCredentials().create({
       publicKey: {
         challenge: overlapCast(randomBytes(32)),
         rp: { id: rpId, name: "OpenSesame" },
@@ -173,7 +179,7 @@ export async function createPasskeyUnlockCeremonyDefault(
   if (!result) {
     throw new PrfCeremonyError("canceled", "Passkey creation was cancelled.");
   }
-  if (!(result instanceof PublicKeyCredential)) {
+  if (!isPublicKeyCredential(result)) {
     throw new PrfCeremonyError(
       "unsupported",
       "Passkey creation returned an unexpected credential type.",
@@ -201,7 +207,7 @@ function assertCeremonyRecords(
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted.", "AbortError");
   }
-  if (globalThis.PublicKeyCredential === undefined) {
+  if (publicKeyCredentialApi() === undefined) {
     throw new PrfCeremonyError(
       "unsupported",
       "This browser cannot use a passkey.",
@@ -272,7 +278,7 @@ async function getPasskeyCredential(
 ): Promise<PublicKeyCredential> {
   let result: Credential | null;
   try {
-    result = await navigator.credentials.get(request);
+    result = await requireCredentials().get(request);
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw error;
@@ -285,7 +291,7 @@ async function getPasskeyCredential(
   if (!result) {
     throw new PrfCeremonyError("canceled", "Passkey unlock was cancelled.");
   }
-  if (!(result instanceof PublicKeyCredential)) {
+  if (!isPublicKeyCredential(result)) {
     throw new PrfCeremonyError(
       "unsupported",
       "Passkey unlock returned an unexpected credential type.",

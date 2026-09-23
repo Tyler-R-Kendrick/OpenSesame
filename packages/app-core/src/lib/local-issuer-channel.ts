@@ -4,6 +4,7 @@ import {
   type LocalAuthorizationRequest,
   localMessage,
 } from "@opensesame/static-auth";
+import { page, pageOrigin } from "../ports.js";
 import { decideLocalAccessRequest } from "./local-access-requests.js";
 import {
   beginLocalAgentAuthentication,
@@ -54,14 +55,14 @@ export class LocalIssuerChannel {
     private readonly status: (next: LocalIssuerStatus) => void,
   ) {
     this.request = structuredClone(input);
-    const opener: Window | null = window.opener;
+    const opener: Window | null = page().opener;
     if (!opener || opener.closed) throw new Error("missing_relying_party");
     this.opener = opener;
     this.origin = new URL(this.request.redirectUri).origin;
     this.timer = setTimeout(this.close, 300_000);
     this.offLock = vaultStore.onLock(this.close);
-    window.addEventListener("message", this.connect);
-    window.addEventListener("pagehide", this.close);
+    page().addEventListener("message", this.connect);
+    page().addEventListener("pagehide", this.close);
     opener.postMessage(
       { type: "opensesame:local:ready", state: this.request.state },
       this.origin,
@@ -73,8 +74,8 @@ export class LocalIssuerChannel {
     this.closed = true;
     clearTimeout(this.timer);
     this.offLock();
-    window.removeEventListener("message", this.connect);
-    window.removeEventListener("pagehide", this.close);
+    page().removeEventListener("message", this.connect);
+    page().removeEventListener("pagehide", this.close);
     this.port?.postMessage({ type: "closed", state: this.request.state });
     this.port?.close();
     this.grant = null;
@@ -244,7 +245,7 @@ export class LocalIssuerChannel {
       [...new Set(["openid", scope])],
       async (record) => ({
         type: "identity",
-        issuer: location.origin,
+        issuer: pageOrigin(),
         sub: record.principalId,
         audience: record.applicationId,
         nonce: record.nonce,

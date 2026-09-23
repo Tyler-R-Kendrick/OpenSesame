@@ -1,3 +1,4 @@
+import { indexedDatabases } from "../ports.js";
 /**
  * Store for provisional Postgres-family history accounts and entries.
  * Uses IndexedDB when available; falls back to memory (tests / private mode).
@@ -55,7 +56,7 @@ export function bytesToB64(bytes: Uint8Array): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDatabases().open(DB_NAME, DB_VERSION);
     req.onerror = () => reject(req.error ?? new Error("indexedDB open failed"));
     req.onupgradeneeded = () => {
       const db = req.result;

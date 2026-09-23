@@ -1,7 +1,3 @@
-/**
- * Local GitHub App record, PEM stash, claim, and install listing.
- * Registration URLs live in `github-app-manifest.ts`.
- */
 import {
   type JsonObject,
   type JsonValue,
@@ -9,6 +5,11 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+/**
+ * Local GitHub App record, PEM stash, claim, and install listing.
+ * Registration URLs live in `github-app-manifest.ts`.
+ */
+import { maybeLocalStore, sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import { createItem } from "./vault/model.js";
@@ -35,14 +36,14 @@ function notifyLocalGithubApp(): void {
 
 /** Drop the local App record (uninstall on GitHub or Remove on this device). */
 export function forgetLocalGithubApp(): void {
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (store) {
     store.removeItem(PUBLIC_KEY);
     store.removeItem(PENDING_PEM_KEY);
   }
   try {
-    sessionStorage.removeItem(PENDING_PEM_KEY);
-    sessionStorage.removeItem(STATE_KEY);
+    sessionStore().removeItem(PENDING_PEM_KEY);
+    sessionStore().removeItem(STATE_KEY);
   } catch {
     /* private mode */
   }
@@ -114,7 +115,7 @@ let cachedPublicRaw: string | null = null;
 let cachedPublicApp: LocalGithubApp | null = null;
 
 export function readLocalGithubApp(): LocalGithubApp | null {
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (!store) return null;
   const raw = store.getItem(PUBLIC_KEY);
   if (raw === cachedPublicRaw) return cachedPublicApp;
@@ -150,7 +151,7 @@ export function readLocalGithubApp(): LocalGithubApp | null {
 }
 
 export function rememberLocalGithubApp(app: LocalGithubApp): void {
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (!store) return;
   const raw = JSON.stringify({
     id: app.id,
@@ -190,20 +191,20 @@ export function clearPendingPemIfOwned(): void {
 
 export function stashPendingPem(secret: string): void {
   if (!secret.includes("PRIVATE KEY")) return;
-  const store = globalThis.localStorage;
+  const store = maybeLocalStore();
   if (store) store.setItem(PENDING_PEM_KEY, secret);
-  else sessionStorage.setItem(PENDING_PEM_KEY, secret);
+  else sessionStore().setItem(PENDING_PEM_KEY, secret);
 }
 
 function clearPendingPem(): void {
-  sessionStorage.removeItem(PENDING_PEM_KEY);
-  globalThis.localStorage?.removeItem(PENDING_PEM_KEY);
+  sessionStore().removeItem(PENDING_PEM_KEY);
+  maybeLocalStore()?.removeItem(PENDING_PEM_KEY);
 }
 
 export function pendingPem(): string | null {
   const raw =
-    globalThis.localStorage?.getItem(PENDING_PEM_KEY) ??
-    sessionStorage.getItem(PENDING_PEM_KEY);
+    maybeLocalStore()?.getItem(PENDING_PEM_KEY) ??
+    sessionStore().getItem(PENDING_PEM_KEY);
   if (!raw || !raw.includes("PRIVATE KEY")) return null;
   const pemStart = raw.indexOf("-----BEGIN");
   return pemStart >= 0 ? raw.slice(pemStart) : raw.trim();

@@ -5,6 +5,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { isLoopbackOrigin } from "@opensesame/static-auth";
+import { page, pageOrigin } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import {
   browserPairingSignal,
@@ -33,7 +34,7 @@ export class HostAuthorizationError extends Error {
 
 export const hostAuthorizationSeams = {
   open: (url: string) =>
-    window.open(url, "_blank", "popup,width=540,height=680"),
+    page().open(url, "_blank", "popup,width=540,height=680"),
   hostFetch,
   /** Remote Identity only — device host has no WebAuthn ceremony popup. */
   identityBase: remoteIdentityApi,
@@ -80,7 +81,7 @@ export async function authorizeHost(
   const url = new URL(
     `${identity.href.replace(/\/$/, "")}/v1/host-authorizations/ceremony`,
   );
-  url.searchParams.set("origin", location.origin);
+  url.searchParams.set("origin", pageOrigin());
   url.searchParams.set("state", state);
   const popup = hostAuthorizationSeams.open(url.href);
   if (!popup) throw new HostAuthorizationError();
@@ -146,7 +147,7 @@ function exchange(
     const cleanup = () => {
       settled = true;
       clearInterval(closed);
-      window.removeEventListener("message", receive);
+      page().removeEventListener("message", receive);
       signal.removeEventListener("abort", fail);
     };
     const fail = () => {
@@ -165,7 +166,7 @@ function exchange(
       if (settled) throw new HostAuthorizationError();
       if (
         !isJsonObject(challenge) ||
-        challenge.origin !== location.origin ||
+        challenge.origin !== pageOrigin() ||
         challenge.operation !== request.operation ||
         challenge.target_id !== request.target_id ||
         challenge.transition !== request.transition ||
@@ -217,7 +218,7 @@ function exchange(
     const closed = setInterval(() => {
       if (popup.closed) fail();
     }, 250);
-    window.addEventListener("message", receive);
+    page().addEventListener("message", receive);
     signal.addEventListener("abort", fail, { once: true });
     if (signal.aborted) fail();
   });

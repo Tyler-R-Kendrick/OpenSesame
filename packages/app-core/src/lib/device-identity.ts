@@ -8,6 +8,7 @@
 
 import { isString } from "@opensesame/os-domain";
 import { env } from "../host.js";
+import { maybePage } from "../ports.js";
 import { deviceIdentityFetch } from "./device-identity-host.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { loadSettings } from "./settings.js";
@@ -49,7 +50,7 @@ export function resolveIdentityBase(): string {
 
 /** Origin + Vite base, no trailing slash — the device identity issuer URL. */
 export function pagesIdentityPublicBase(
-  origin = globalThis.location?.origin ?? "",
+  origin = maybePage()?.location.origin ?? "",
   base = env().BASE_URL || "/",
 ): string {
   if (!isString(origin) || origin.length === 0) {

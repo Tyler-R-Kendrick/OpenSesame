@@ -1,3 +1,4 @@
+import { maybePage } from "../ports.js";
 import { connectCallbackBase } from "./connect-callback.js";
 
 /**
@@ -6,7 +7,7 @@ import { connectCallbackBase } from "./connect-callback.js";
  * does not depend on a stale Connect process. Elsewhere use Connect base.
  */
 export function githubAppRelayBase(
-  origin = globalThis.location?.origin ?? "",
+  origin = maybePage()?.location.origin ?? "",
 ): string {
   const local = origin.replace(/\/+$/u, "");
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/u.test(local)) {
@@ -20,7 +21,7 @@ export function githubAppRelayBase(
 /** GitHub-facing callback that bounces to `returnTo` with code + state. */
 export function githubAppRedirectUrl(
   returnTo: string,
-  origin = globalThis.location?.origin ?? "",
+  origin = maybePage()?.location.origin ?? "",
 ): string {
   const base = githubAppRelayBase(origin);
   return `${base}/api/github-app/callback?return_to=${encodeURIComponent(returnTo)}`;

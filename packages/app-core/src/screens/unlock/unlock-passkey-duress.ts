@@ -7,6 +7,7 @@
  */
 
 import { WrongPasswordError } from "../../lib/vault/crypto.js";
+import { maybePage } from "../../ports.js";
 import {
   loadEnrollmentStateForUnlock,
   onCompleteUnlockCodeSubmission,
@@ -64,7 +65,7 @@ export async function unlockWithPasskeyAfterDuressGate(
   stashPasskeyDuressEvidence({
     userVerified: true,
     prfOutput: new Uint8Array(prfOutput),
-    origin: globalThis.location?.origin,
+    origin: maybePage()?.location.origin,
   });
   return "needs_duress_code";
 }
