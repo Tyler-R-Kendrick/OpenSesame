@@ -2,6 +2,7 @@
  * Draft enrollment flow with isolated rehearsal before commit (TRIGGER-A).
  */
 
+import { defined } from "@opensesame/contracts";
 import {
   MAX_SLOTS,
   type SlotPlaintext,
@@ -9,7 +10,6 @@ import {
   openProfileSlot,
   sealProfileSlot,
 } from "../crypto/slots.js";
-import { defined } from "../defined.js";
 import {
   type EnrollmentDraft,
   type EnrollmentState,

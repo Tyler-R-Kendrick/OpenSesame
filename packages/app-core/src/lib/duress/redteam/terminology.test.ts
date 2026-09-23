@@ -5,11 +5,13 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  DURESS_ATTACK_TREES,
+  findForbiddenClaims,
+} from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
 import { recordCanaryHit } from "../canary/detect.js";
 import { executeLocalRemoval } from "../removal/local-remove.js";
-import { DURESS_ATTACK_TREES } from "./attack-trees.js";
-import { findForbiddenClaims } from "./terminology.js";
 
 const ROOT = join(
   dirname(fileURLToPath(import.meta.url)),

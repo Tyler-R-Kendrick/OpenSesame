@@ -3,6 +3,7 @@
  * Failures are intentional findings — do not force-pass.
  */
 
+import { defined } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
 import {
   assertContextAllows,
@@ -19,7 +20,6 @@ import {
   sealPrfAndCode,
   sealProfileSlot,
 } from "../crypto/slots.js";
-import { defined } from "../defined.js";
 import { overlapCast } from "../json-boundary.js";
 import {
   combineRecoveryShares,

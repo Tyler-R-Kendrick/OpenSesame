@@ -5,8 +5,9 @@ export {
   RT_VAULT,
   RT_DEVICE,
 } from "./fixtures.js";
-export { DURESS_ATTACK_TREES, attackTreeById } from "./attack-trees.js";
 export {
-  findForbiddenClaims,
+  DURESS_ATTACK_TREES,
   FORBIDDEN_CLAIM_PATTERNS,
-} from "./terminology.js";
+  attackTreeById,
+  findForbiddenClaims,
+} from "@opensesame/contracts";

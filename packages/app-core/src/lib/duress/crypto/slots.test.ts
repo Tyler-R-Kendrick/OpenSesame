@@ -1,5 +1,5 @@
+import { defined } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
-import { defined } from "../defined.js";
 import { overlapCast } from "../json-boundary.js";
 import { DuressKdfError } from "../keys/pin-floors.js";
 import {

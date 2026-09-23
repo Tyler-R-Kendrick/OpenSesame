@@ -2,12 +2,12 @@
  * Enrollment state shapes and shared normalization (TRIGGER-A).
  */
 
+import { defined } from "@opensesame/contracts";
 import {
   type SealedSlot,
   assertTriggerCodeLength,
   openProfileSlot,
 } from "../crypto/slots.js";
-import { defined } from "../defined.js";
 import { assertNotReversePinConvention, fingerprintCode } from "./codes.js";
 import type { CodeTriggerKind } from "./kinds.js";
 

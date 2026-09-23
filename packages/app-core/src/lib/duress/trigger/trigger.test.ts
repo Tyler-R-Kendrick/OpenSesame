@@ -1,6 +1,6 @@
+import { defined } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
 import { createIndependentCompartmentKey } from "../crypto/slots.js";
-import { defined } from "../defined.js";
 import { TriggerAttemptPolicy } from "./attempt-policy.js";
 import {
   assertNotReversePinConvention,

@@ -2,11 +2,11 @@
  * Complete-code trigger selection at unlock (TRIGGER-B, INV-03).
  */
 
+import { defined } from "@opensesame/contracts";
 import {
   type SlotPlaintext,
   assertTriggerCodeLength,
 } from "../crypto/slots.js";
-import { defined } from "../defined.js";
 import {
   type TriggerMatchCandidate,
   bindingMatchesTrigger,
