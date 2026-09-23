@@ -64,4 +64,12 @@ describe("marketplaces.json", () => {
       sources: [DEFAULT_MARKETPLACE, "github:octo/types"],
     });
   });
+
+  it("restores ours only over a file that parses and has room", () => {
+    expect(withDefaultMarketplace("{").ok).toBe(false);
+    const full = encodeMarketplacesFile(
+      Array.from({ length: MAX_MARKETPLACES }, (_, at) => `github:octo/t${at}`),
+    );
+    expect(withDefaultMarketplace(full).ok).toBe(false);
+  });
 });

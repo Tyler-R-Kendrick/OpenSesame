@@ -26,9 +26,12 @@ function openTomb(store: Store): string | null {
 export function useItemTypeFiles(): VirtualFileProvider {
   const store = useVaultStore();
   // A write to the sealed body redraws through the store; re-reading on every
-  // revision keeps a tomb-file write visible to both views as well.
-  useVault();
+  // revision keeps a tomb-file write visible to both views as well. The
+  // provider is rebuilt when the open vault changes — switching, locking or
+  // unlocking — so nothing reads or writes one vault's files into another's.
+  const { tomb, status } = useVault();
   useSettingsFilesRevision();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tomb and status name the vault the provider reads, through the store
   return useMemo(() => {
     const provider = itemTypeFiles({
       tomb: () => openTomb(store),
@@ -53,7 +56,7 @@ export function useItemTypeFiles(): VirtualFileProvider {
         return outcome;
       },
     };
-  }, [store]);
+  }, [store, tomb, status]);
 }
 
 export function useCategoryFiles(

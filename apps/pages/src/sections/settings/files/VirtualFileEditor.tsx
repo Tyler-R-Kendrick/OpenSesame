@@ -92,19 +92,26 @@ function useFileText(
 function HeadKeys({
   file,
   outcome,
-  canSave,
+  refusal,
   onSave,
   onRemove,
 }: {
   file: VirtualFile;
   outcome: Outcome;
-  canSave: boolean;
+  /** Why the text as it stands would be refused; a save is withheld. */
+  refusal: string | null;
   onSave: () => void;
   onRemove: () => void;
 }) {
+  // The state is one glyph: a refusal of the text as it stands, else the
+  // outcome of the last save (DESIGN.md § Status is a symbol).
+  const mark =
+    refusal !== null
+      ? { tone: "err" as const, text: refusal }
+      : (outcome ?? null);
   return (
     <span className="vfile__keys">
-      {outcome ? <StatusMark tone={outcome.tone} label={outcome.text} /> : null}
+      {mark ? <StatusMark tone={mark.tone} label={mark.text} /> : null}
       {file.readOnly ? (
         <span
           className="vfile__lock"
@@ -118,7 +125,7 @@ function HeadKeys({
         <button
           type="button"
           className="icon-btn icon-btn--sm"
-          disabled={!canSave}
+          disabled={refusal !== null}
           aria-label={`Save ${file.path}`}
           title="Save"
           onClick={onSave}
@@ -179,7 +186,7 @@ export function VirtualFileEditor({
         <HeadKeys
           file={file}
           outcome={outcome}
-          canSave={check.ok}
+          refusal={check.ok ? null : check.message}
           onSave={() => void save()}
           onRemove={() => void remove()}
         />
@@ -192,6 +199,7 @@ export function VirtualFileEditor({
           autoComplete="off"
           wrap="off"
           readOnly={file.readOnly}
+          aria-invalid={!check.ok}
           rows={Math.min(Math.max(text.split("\n").length + 1, 8), 32)}
           value={text}
           onChange={(event) => {
@@ -205,12 +213,6 @@ export function VirtualFileEditor({
             }
           }}
         />
-        {check.ok ? null : (
-          <p className="vfile__refusal">
-            <StatusMark tone="err" label="Refused" />
-            <span>{check.message}</span>
-          </p>
-        )}
         <output className="visually-hidden" aria-live="polite">
           {outcome?.text ?? ""}
         </output>

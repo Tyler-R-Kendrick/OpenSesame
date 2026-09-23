@@ -33,6 +33,8 @@ that repository. List it in Settings by any of these forms:
   `/tree/<ref>/<dir>` path
 - `gitea+https://host/owner/repo` or `gitlab+https://host/group/repo` for a
   self-hosted forge
-- the raw https address of the index itself
+- the raw https address of the index itself. Use this for GitHub
+  Enterprise or Bitbucket Server, whose raw routes are not the public
+  ones.
 
 Add `#ref` to pin a branch, tag or commit.

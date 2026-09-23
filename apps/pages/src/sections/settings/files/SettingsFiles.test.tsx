@@ -128,7 +128,8 @@ describe("Settings' file viewer", () => {
     fireEvent.change(editor(MARKETPLACES_PATH), {
       target: { value: '{ "marketplaces": ["http://nope"] }' },
     });
-    expect(screen.getByText(/marketplaces\[0\]/)).toBeTruthy();
+    expect(screen.getByRole("img", { name: /marketplaces\[0\]/ })).toBeTruthy();
+    expect(editor(MARKETPLACES_PATH).getAttribute("aria-invalid")).toBe("true");
     const save = screen.getByRole("button", {
       name: `Save ${MARKETPLACES_PATH}`,
     });

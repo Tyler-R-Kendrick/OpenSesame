@@ -12,7 +12,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MarketplaceListing } from "@opensesame/app-core/lib/item-type-marketplace/load.js";
 import { parseMarketplacesFile } from "@opensesame/app-core/lib/item-type-marketplace/marketplaces-file.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import {
+  lockAllTombs,
+  unlockTomb,
+  writeFile,
+} from "@opensesame/app-core/lib/vfs.js";
 import {
   MARKETPLACES_PATH,
   installedPath,
@@ -234,6 +238,7 @@ describe("ItemTypesPanel", () => {
   it("adds an external repository as a line in marketplaces.json", async () => {
     renderPanel();
     fireEvent.click(tab("Marketplace"));
+    await screen.findByText("github.com/tyler-r-kendrick/OpenSesame@main");
     const field = screen.getByLabelText("Add a marketplace");
     fireEvent.change(field, { target: { value: "nope" } });
     fireEvent.click(screen.getByRole("button", { name: "Add marketplace" }));
@@ -269,5 +274,52 @@ describe("ItemTypesPanel", () => {
       }),
     );
     await screen.findByText("github.com/tyler-r-kendrick/OpenSesame@main");
+  });
+
+  it("reads the open vault's marketplaces.json, and follows a switch to another", async () => {
+    const first = TOMB;
+    const second = `${TOMB}-other`;
+    unlockTomb(second, (await mintVaultKey()).vaultKey);
+    const file = (repo: string) =>
+      new TextEncoder().encode(JSON.stringify({ marketplaces: [repo] }));
+    await writeFile(
+      first,
+      "config/item-types/marketplaces.json",
+      file("github:octo/first"),
+    );
+    await writeFile(
+      second,
+      "config/item-types/marketplaces.json",
+      file("github:octo/second"),
+    );
+    let open = first;
+    // One store, as the app has: only the vault it has open changes.
+    const switching = { ...store, activeTomb: () => open };
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({ ...vaultStore.getSnapshot(), tomb: open }),
+      useVaultStore: () => switching,
+    });
+    const view = renderPanel();
+    fireEvent.click(tab("Marketplace"));
+    await screen.findByText("github.com/octo/first");
+    open = second;
+    view.rerender(
+      <SettingsFileContext.Provider value={{ openFile: opened }}>
+        <FileProbe />
+        <ItemTypesPanel />
+      </SettingsFileContext.Provider>,
+    );
+    await screen.findByText("github.com/octo/second");
+    expect(screen.queryByText("github.com/octo/first")).toBeNull();
+  });
+
+  it("offers no edit of marketplaces.json before it has been read", () => {
+    renderPanel();
+    fireEvent.click(tab("Marketplace"));
+    fireEvent.change(screen.getByLabelText("Add a marketplace"), {
+      target: { value: "octo/types" },
+    });
+    const add = screen.getByRole("button", { name: "Add marketplace" });
+    expect((add as HTMLButtonElement).disabled).toBe(true);
   });
 });

@@ -116,6 +116,29 @@ describe("item types as files", () => {
     expect(outcome.ok).toBe(false);
   });
 
+  it("never lets a new file replace a type that is already installed", async () => {
+    installItemType(manifest("ftest"));
+    const outcome = await files().write(
+      NEW_TYPE_PATH,
+      manifest("ftest", "2.0.0"),
+    );
+    expect(outcome).toEqual({
+      ok: false,
+      message: "ftest is already installed; change it in ftest.json.",
+    });
+    expect(
+      (await files().write(installedPath("ftest"), manifest("ftest", "2.0.0")))
+        .ok,
+    ).toBe(true);
+  });
+
+  it("reports a removal that removed nothing", async () => {
+    expect(await files().remove(installedPath("absent"))).toEqual({
+      ok: false,
+      message: "absent is not installed.",
+    });
+  });
+
   it("refuses what the parser refuses, and a built-in id", async () => {
     expect((await files().write(NEW_TYPE_PATH, "{}")).ok).toBe(false);
     const wifi = manifest("wifi").replace(".ftest", ".wifi2");

@@ -128,6 +128,53 @@ describe("parseMarketplaceSource", () => {
   });
 });
 
+describe("hosts and index links", () => {
+  it("never reads a self-hosted GitHub or Bitbucket through the public site", () => {
+    expect(
+      parseMarketplaceSource("github+https://ghe.corp.example/acme/types"),
+    ).toBeNull();
+    expect(
+      parseMarketplaceSource("bitbucket+https://bb.corp.example/ws/types"),
+    ).toBeNull();
+    expect(
+      parseMarketplaceSource(
+        `https://ghe.corp.example/acme/types/raw/main/${INDEX_PATH}`,
+      ),
+    ).toEqual({
+      forge: "raw",
+      base: "https://ghe.corp.example/acme/types/raw/main/",
+    });
+  });
+
+  it("reads a forge's link to the index file as that repository", () => {
+    expect(parse(`https://github.com/o/r/blob/main/${INDEX_PATH}`)).toEqual({
+      forge: "github",
+      host: "github.com",
+      repo: "o/r",
+      ref: "main",
+      root: "",
+    });
+    expect(
+      parse(`https://gitlab.com/g/r/-/blob/dev/sub/${INDEX_PATH}`),
+    ).toEqual({
+      forge: "gitlab",
+      host: "gitlab.com",
+      repo: "g/r",
+      ref: "dev",
+      root: "sub",
+    });
+  });
+
+  it("round-trips a ref with a slash beside a directory, and HEAD as no pin", () => {
+    const source = parse("https://github.com/o/r/tree/x/sub#release/1.0");
+    expect(source).toMatchObject({ ref: "release/1.0", root: "sub" });
+    expect(parse(sourceReference(source))).toEqual(source);
+    const bitbucket = parse("https://bitbucket.org/ws/r/src/HEAD/sub");
+    expect(bitbucket).toMatchObject({ ref: null, root: "sub" });
+    expect(parse(sourceReference(bitbucket))).toEqual(bitbucket);
+  });
+});
+
 describe("sourceReference", () => {
   it.each([
     DEFAULT_MARKETPLACE,

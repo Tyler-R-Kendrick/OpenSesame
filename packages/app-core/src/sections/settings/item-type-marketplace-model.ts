@@ -9,9 +9,8 @@
 import {
   type ItemTypeDefinition,
   type ItemTypeRegistry,
-  RESERVED_DIRECTORIES,
-  RESERVED_TYPE_IDS,
-  directoryName,
+  compareVersions,
+  describeErrors,
 } from "@opensesame/vault-item-types";
 import type { MarketplaceOffer } from "../../lib/item-type-marketplace/load.js";
 
@@ -23,57 +22,24 @@ export type OfferState =
   | { readonly kind: "conflict"; readonly reason: string }
   | { readonly kind: "invalid"; readonly reason: string };
 
-function compareVersions(left: string, right: string): number {
-  const l = left.split(".").map(Number);
-  const r = right.split(".").map(Number);
-  for (let at = 0; at < 3; at += 1) {
-    const a = l[at] ?? 0;
-    const b = r[at] ?? 0;
-    if (a !== b) return a < b ? -1 : 1;
-  }
-  return 0;
+function publisherConflict(
+  current: ItemTypeDefinition,
+  offered: ItemTypeDefinition,
+): OfferState | undefined {
+  if (current.metadata.publisher === offered.metadata.publisher)
+    return undefined;
+  return {
+    kind: "conflict",
+    reason: `Installed from ${publisherLabel(current.metadata.publisher)}`,
+  };
 }
 
 /**
- * The refusal the registry would give for how the type is named: another
- * type's extension, title or vault directory, or a name the rail keeps.
+ * Where an offer stands. The registry decides: `check` answers exactly what
+ * an install would, so a row never offers an install or an update that the
+ * registry then refuses — a clashing title, extension or vault directory
+ * included, on an update as much as a first install.
  */
-function nameClash(
-  registry: ItemTypeRegistry,
-  definition: ItemTypeDefinition,
-): string | undefined {
-  const own = definition.metadata.id;
-  const directory = directoryName(definition);
-  if (RESERVED_TYPE_IDS.includes(own)) return `${own} is a vault filter`;
-  if (RESERVED_DIRECTORIES.includes(directory))
-    return `${directory}/ is a reserved vault directory`;
-  const title = definition.spec.title.trim().toLowerCase();
-  for (const { definition: other } of registry.list()) {
-    if (other.metadata.id === own) continue;
-    if (other.spec.extension === definition.spec.extension)
-      return `${definition.spec.extension} is already ${other.spec.title}`;
-    if (other.spec.title.trim().toLowerCase() === title)
-      return `${other.spec.title} is already a type`;
-    if (directoryName(other) === directory)
-      return `${directory}/ is already ${other.spec.title}`;
-  }
-  return undefined;
-}
-
-function installedState(
-  current: ItemTypeDefinition,
-  offered: ItemTypeDefinition,
-): OfferState {
-  if (current.metadata.publisher !== offered.metadata.publisher)
-    return {
-      kind: "conflict",
-      reason: `Installed from ${publisherLabel(current.metadata.publisher)}`,
-    };
-  return compareVersions(offered.metadata.version, current.metadata.version) > 0
-    ? { kind: "update", from: current.metadata.version }
-    : { kind: "installed", version: current.metadata.version };
-}
-
 export function offerState(
   registry: ItemTypeRegistry,
   offer: MarketplaceOffer,
@@ -83,10 +49,20 @@ export function offerState(
   const id = definition.metadata.id;
   if (registry.isBuiltin(id)) return { kind: "builtin" };
   const current = registry.get(id);
-  if (current !== undefined) return installedState(current, definition);
-  const clash = nameClash(registry, definition);
-  if (clash !== undefined) return { kind: "conflict", reason: clash };
-  return { kind: "available" };
+  if (current !== undefined) {
+    const publisher = publisherConflict(current, definition);
+    if (publisher !== undefined) return publisher;
+    const newer =
+      compareVersions(definition.metadata.version, current.metadata.version) >
+      0;
+    if (!newer) return { kind: "installed", version: current.metadata.version };
+  }
+  const checked = registry.check(offer.text);
+  if (!checked.ok)
+    return { kind: "conflict", reason: describeErrors(checked.errors) };
+  return current === undefined
+    ? { kind: "available" }
+    : { kind: "update", from: current.metadata.version };
 }
 
 /** The sentence a row's status glyph carries. */

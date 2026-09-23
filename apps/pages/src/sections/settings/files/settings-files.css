@@ -122,16 +122,6 @@ details > .vfiles__dirname {
   color: var(--ink-2);
 }
 
-.vfile__refusal {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  max-width: 62ch;
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-}
-
 @media (max-width: 900px) {
   .vfiles {
     grid-template-columns: minmax(0, 1fr);

@@ -125,14 +125,17 @@ export function withoutMarketplace(
 /** Ours put back first, keeping whatever else is listed. */
 export function withDefaultMarketplace(text: string): MarketplacesEdit {
   const current = parseMarketplacesFile(text);
+  // A file that does not parse is the person's to fix; restoring over it
+  // would erase whatever they were in the middle of writing.
+  if (!current.ok) return current;
   const ours = canonicalReference(DEFAULT_MARKETPLACE) ?? DEFAULT_MARKETPLACE;
-  const rest = current.ok
-    ? current.sources.filter((entry) => entry !== ours)
-    : [];
+  const rest = current.sources.filter((entry) => entry !== ours);
+  if (rest.length >= MAX_MARKETPLACES)
+    return { ok: false, message: `At most ${MAX_MARKETPLACES} marketplaces.` };
   return {
     ok: true,
     reference: ours,
-    text: encodeMarketplacesFile([ours, ...rest].slice(0, MAX_MARKETPLACES)),
+    text: encodeMarketplacesFile([ours, ...rest]),
   };
 }
 

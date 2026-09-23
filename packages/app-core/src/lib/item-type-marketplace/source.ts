@@ -72,7 +72,9 @@ export function isSafeRelativePath(path: string, max = 256): boolean {
 }
 
 function cleanRef(ref: string | undefined): string | null | undefined {
-  if (ref === undefined || ref === "") return null;
+  // `HEAD` is every forge's default branch: stored as "no pin", so Bitbucket
+  // (whose file route has no `HEAD` alias) still resolves its main branch.
+  if (ref === undefined || ref === "" || ref === "HEAD") return null;
   return REF.test(ref) && isSafeRelativePath(ref, 128) ? ref : undefined;
 }
 
@@ -109,14 +111,25 @@ function forgeSource(
   if (repo === null || cleanedRef === undefined || cleanedRoot === undefined)
     return null;
   if (!HOST.test(host)) return null;
+  // Their raw routes live on the public service's own hosts, so a GitHub or
+  // Bitbucket source anywhere else would be read from the same-named
+  // repository on the public site. A self-hosted instance is listed by the
+  // raw address of its index instead.
+  const only = PUBLIC_HOST_ONLY[forge];
+  if (only !== undefined && host !== only) return null;
   return { forge, host, repo, ref: cleanedRef, root: cleanedRoot };
 }
 
+const PUBLIC_HOST_ONLY: Readonly<Partial<Record<MarketplaceForge, string>>> = {
+  github: "github.com",
+  bitbucket: "bitbucket.org",
+};
+
 /** `…/tree/<ref>/<root>` and each forge's spelling of it. */
 const TREE_MARKERS: Readonly<Record<MarketplaceForge, readonly string[]>> = {
-  github: ["tree", "blob"],
+  github: ["tree", "blob", "raw"],
   gitlab: ["-"],
-  gitea: ["src"],
+  gitea: ["src", "raw"],
   bitbucket: ["src"],
 };
 
@@ -129,7 +142,8 @@ function splitTree(
   );
   if (at < 0) return { repo: [...segments] };
   let rest = segments.slice(at + 1);
-  if (forge === "gitlab" && rest[0] === "tree") rest = rest.slice(1);
+  if (forge === "gitlab" && ["tree", "blob", "raw"].includes(rest[0] ?? ""))
+    rest = rest.slice(1);
   if (forge === "gitea" && ["branch", "tag", "commit"].includes(rest[0] ?? ""))
     rest = rest.slice(1);
   return {
@@ -142,11 +156,16 @@ function splitTree(
 function fromUrl(url: URL, named: MarketplaceForge | undefined, ref?: string) {
   const host = url.host.toLowerCase();
   const segments = url.pathname.split("/").filter((part) => part !== "");
-  if (url.pathname.endsWith(`/${INDEX_PATH}`)) return rawSource(url);
+  const index = url.pathname.endsWith(`/${INDEX_PATH}`);
   const forge = named ?? KNOWN_HOSTS[host] ?? guessForge(host);
-  if (forge === undefined) return null;
+  if (forge === undefined) return index ? rawSource(url) : null;
   const tree = splitTree(forge, segments);
-  return forgeSource(forge, host, tree.repo, ref ?? tree.ref, tree.root);
+  // A link to the index file itself (`…/blob/main/.opensesame/…`) names the
+  // directory the marketplace lives in, read through the forge like any other.
+  const root = index
+    ? (tree.root ?? "").slice(0, -INDEX_PATH.length)
+    : tree.root;
+  return forgeSource(forge, host, tree.repo, ref ?? tree.ref, root);
 }
 
 /** A self-hosted forge usually says which one it is in its name. */
@@ -243,8 +262,10 @@ export function sourceReference(source: MarketplaceSource): string {
     : `${source.forge}+https://${source.host}/${source.repo}`;
   const pin = source.ref === null ? "" : `#${source.ref}`;
   if (source.root === "") return `${where}${pin}`;
-  const tree = `${TREE_SPELLING[source.forge]}/${source.ref ?? "HEAD"}/${source.root}`;
-  return `${source.forge}+https://${source.host}/${source.repo}/${tree}`;
+  // The directory rides a tree path at HEAD and the pin rides `#`, so a ref
+  // containing `/` never runs into the directory when it is read back.
+  const tree = `${TREE_SPELLING[source.forge]}/HEAD/${source.root}`;
+  return `${source.forge}+https://${source.host}/${source.repo}/${tree}${pin}`;
 }
 
 /** What a row calls a source: host, repository, and the ref when pinned. */

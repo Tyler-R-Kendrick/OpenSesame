@@ -70,7 +70,10 @@ async function readCapped(response: Response, max: number): Promise<string> {
   const body = response.body;
   if (!body) return "";
   const reader = body.getReader();
-  const decoder = new TextDecoder("utf-8", { fatal: true });
+  // `ignoreBOM` keeps a byte-order mark in the text, so re-encoding it gives
+  // back the exact bytes served: the SHA-256 a pin is checked against is the
+  // one `scripts/pin-marketplace.mjs` wrote over the file on disk.
+  const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
   let out = "";
   let bytes = 0;
   for (;;) {
@@ -160,6 +163,12 @@ async function readOffer(
   const digest = bytesToHex(sha256(new TextEncoder().encode(text)));
   if (entry.sha256 !== null && entry.sha256 !== digest)
     return { ok: false, path, problem: "Does not match the pinned SHA-256." };
+  if (text.startsWith("\uFEFF"))
+    return {
+      ok: false,
+      path,
+      problem: "Starts with a byte-order mark; save it as UTF-8 without one.",
+    };
   const parsed = parseDefinition(text, "community");
   if (!parsed.ok)
     return { ok: false, path, problem: describeErrors(parsed.errors) };

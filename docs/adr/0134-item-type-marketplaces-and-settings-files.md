@@ -56,7 +56,9 @@ everything else (ADR 0065 §4):
   name. Paths are relative, with no `.` or `..` segments, and end in
   `.json`.
 - An optional `sha256` pins the bytes. A definition that does not match
-  its pin is shown as refused and cannot be installed.
+  its pin is shown as refused and cannot be installed. The hash is taken
+  over the exact bytes served, byte-order mark included. A definition
+  that starts with a BOM is then refused, rather than failing its pin.
 - The envelope, `metadata` and every entry are parsed strictly. `spec`
   tolerates keys it does not know, so one index can later list other
   things (connectors) without breaking older clients.
@@ -79,11 +81,19 @@ is read through its forge's anonymous raw-file endpoint instead:
 
 | Forge | Reference forms | Read from |
 |---|---|---|
-| GitHub | `owner/repo`, `github:owner/repo`, `https://github.com/owner/repo[/tree/ref/dir]`, `git@github.com:owner/repo.git` | `raw.githubusercontent.com` |
+| GitHub (github.com only) | `owner/repo`, `github:owner/repo`, `https://github.com/owner/repo[/tree/ref/dir]`, a link to the index file, `git@github.com:owner/repo.git` | `raw.githubusercontent.com` |
 | GitLab (and self-hosted) | `gitlab:group/sub/repo`, `https://gitlab.com/…[/-/tree/ref/dir]`, `gitlab+https://host/…` | `/api/v4/projects/:id/repository/files/:path/raw` |
 | Gitea / Forgejo / Codeberg | `codeberg:owner/repo`, `…/src/branch/ref/dir`, `gitea+https://host/…`, `forgejo+https://host/…` | `/api/v1/repos/:owner/:repo/raw/:path` |
-| Bitbucket | `bitbucket:ws/repo`, `https://bitbucket.org/ws/repo[/src/ref/dir]` | `api.bitbucket.org/2.0/…/src/:ref/:path` (the main branch is resolved first) |
-| Anything else | the raw https address of `…/.opensesame/marketplace.json` | that address's directory |
+| Bitbucket (bitbucket.org only) | `bitbucket:ws/repo`, `https://bitbucket.org/ws/repo[/src/ref/dir]` | `api.bitbucket.org/2.0/…/src/:ref/:path` (the main branch is resolved first) |
+| Anything else, GitHub Enterprise and Bitbucket Server included | the raw https address of `…/.opensesame/marketplace.json` | that address's directory |
+
+GitHub's and Bitbucket's raw routes live on the public service's own
+hosts. So a `github+https://` or `bitbucket+https://` source on any
+other host is refused: it would otherwise be read from the same-named
+repository on the public site. `HEAD` as a ref means the default
+branch and is stored as no pin. A directory is stored on a tree path at
+`HEAD` with the pin after `#`, so a ref containing `/` reads back
+unchanged.
 
 - A `#ref` suffix pins a branch, tag or commit on any form.
 - References are stored in one canonical spelling, so two spellings of
@@ -110,8 +120,10 @@ every refusal in ADR 0087 §5 applies unchanged:
 The Marketplace view shows each offer's fields, with concealed ones
 marked, before its install key does anything. An offer's state (not
 installed, installed, update, built in, conflict, refused) is computed
-from the registry by `item-type-marketplace-model.ts`. The view never
-decides it.
+from the registry by `item-type-marketplace-model.ts`. It asks
+`ItemTypeRegistry.check()`, a dry run that answers exactly as `install`
+would, so a row never offers an install or an update the registry then
+refuses. The view never decides it.
 
 ### 4. Settings is files; the Form is a view of them
 
@@ -138,7 +150,12 @@ directory new files may be created in. `itemTypeFiles`
   every row has a key that opens its file in the viewer.
 - **A new file is a new type.** A file's name follows its
   `metadata.id`. Saving a definition whose id differs from its file name
-  is refused.
+  is refused, and so is a new file whose id is already installed: that
+  type is changed in its own file.
+- **An edit is made to the file as read.** The Marketplace view edits
+  `marketplaces.json` only after reading it from the vault that is open
+  now. Switching, locking or unlocking a vault re-reads it, so one
+  vault's list is never written into another's.
 - **The Visual/Source sub-toggle and the paste field are gone.** There is
   one source view for the page, and it shows files.
 

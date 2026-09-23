@@ -154,7 +154,7 @@ function AddSource({ market }: { market: Marketplaces }) {
           <button
             type="submit"
             className="icon-btn"
-            disabled={draft.trim() === ""}
+            disabled={!market.ready || draft.trim() === ""}
             aria-label="Add marketplace"
             title="Add marketplace"
           >
@@ -190,9 +190,9 @@ export function MarketplaceSources({ market }: { market: Marketplaces }) {
             />
           ))}
         </ul>
-      ) : (
+      ) : market.ready ? (
         <p className="itype-empty">No marketplaces listed.</p>
-      )}
+      ) : null}
       <div className="itype-sources__foot">
         <AddSource market={market} />
         {hasDefault ? null : (

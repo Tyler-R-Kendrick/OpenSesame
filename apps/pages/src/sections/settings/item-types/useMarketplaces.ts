@@ -15,7 +15,6 @@ import {
   loadMarketplace,
 } from "@opensesame/app-core/lib/item-type-marketplace/load.js";
 import {
-  DEFAULT_MARKETPLACES_FILE,
   type MarketplacesEdit,
   parseMarketplacesFile,
   withDefaultMarketplace,
@@ -48,16 +47,24 @@ export function forgetMarketplaceListings(): void {
 }
 
 type FileRead = {
+  /** The provider that read it: a different vault's provider is not it. */
+  readonly files: VirtualFileProvider | null;
   /** The write this read answers; a newer one re-reads. */
   readonly revision: number;
   readonly text: string | null;
   readonly unreadable: boolean;
 };
 
-function useMarketplacesFile(files: VirtualFileProvider): FileRead {
+/**
+ * The file as last read, or null while a read for this vault and this
+ * revision is still outstanding. Nothing is shown — or edited — from a read
+ * that belongs to another vault or to the file before its latest write.
+ */
+function useMarketplacesFile(files: VirtualFileProvider) {
   // Re-read whenever any settings file is written, from either view.
   const revision = useSettingsFilesRevision();
   const [read, setRead] = useState<FileRead>({
+    files: null,
     revision: -1,
     text: null,
     unreadable: false,
@@ -66,17 +73,21 @@ function useMarketplacesFile(files: VirtualFileProvider): FileRead {
     let live = true;
     void files.read(MARKETPLACES_PATH).then(
       (text) => {
-        if (live) setRead({ revision, text, unreadable: false });
+        if (live) setRead({ files, revision, text, unreadable: false });
       },
       () => {
-        if (live) setRead({ revision, text: null, unreadable: true });
+        if (live) setRead({ files, revision, text: null, unreadable: true });
       },
     );
     return () => {
       live = false;
     };
   }, [files, revision]);
-  return read;
+  const fresh = read.files === files && read.revision === revision;
+  return {
+    text: fresh ? read.text : null,
+    unreadable: fresh && read.unreadable,
+  };
 }
 
 export function useMarketplaces(active: boolean, files: VirtualFileProvider) {
@@ -116,15 +127,28 @@ export function useMarketplaces(active: boolean, files: VirtualFileProvider) {
     }
   }, [active, joined, load]);
 
-  const edit = async (next: MarketplacesEdit): Promise<EditOutcome> => {
+  const unreadMessage = unreadable
+    ? "marketplaces.json could not be opened with this vault's key."
+    : "marketplaces.json is still being read.";
+  /**
+   * Every edit is made to the file as it was just read. Until that read is
+   * in, there is nothing to edit — writing an edit of a default instead
+   * would drop every repository the stored file lists.
+   */
+  const edit = async (
+    change: (current: string) => MarketplacesEdit,
+  ): Promise<EditOutcome> => {
+    if (text === null) return { ok: false, message: unreadMessage };
+    const next = change(text);
     if (!next.ok) return next;
     const written = await files.write(MARKETPLACES_PATH, next.text);
     return written.ok ? { ok: true } : written;
   };
-  const current = text ?? DEFAULT_MARKETPLACES_FILE;
 
   return {
     sources,
+    /** The file has been read, so an edit has something to edit. */
+    ready: text !== null,
     /** The file does not parse: the view shows nothing it cannot stand on. */
     fileProblem: unreadable
       ? "marketplaces.json could not be opened with this vault's key."
@@ -134,11 +158,11 @@ export function useMarketplaces(active: boolean, files: VirtualFileProvider) {
     stateOf: (reference: string): ListingState =>
       listings.get(reference) ?? { status: "idle" },
     load,
-    add: (raw: string) => edit(withMarketplace(current, raw)),
+    add: (raw: string) => edit((current) => withMarketplace(current, raw)),
     remove: (reference: string) => {
       listings.delete(reference);
-      return edit(withoutMarketplace(current, reference));
+      return edit((current) => withoutMarketplace(current, reference));
     },
-    restore: () => edit(withDefaultMarketplace(current)),
+    restore: () => edit(withDefaultMarketplace),
   };
 }

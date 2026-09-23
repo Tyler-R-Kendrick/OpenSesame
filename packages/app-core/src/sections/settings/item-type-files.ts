@@ -100,6 +100,13 @@ function checkDefinition(path: string, text: string): FileCheck {
       ok: false,
       message: `metadata.id is ${id}; this file is ${named}.json. A new id is a new file.`,
     };
+  // A new file may not quietly replace a type already installed: that type
+  // is changed in its own file, where the person can see what it was.
+  if (named !== id && installedDefinitions()[id] !== undefined)
+    return {
+      ok: false,
+      message: `${id} is already installed; change it in ${id}.json.`,
+    };
   return { ok: true };
 }
 
@@ -176,7 +183,8 @@ export function itemTypeFiles(ports: ItemTypeFilePorts): VirtualFileProvider {
       const id = idOf(path, INSTALLED_DIR);
       if (id === null)
         return { ok: false, message: "This file cannot be removed." };
-      await ports.uninstall(id);
+      if (!(await ports.uninstall(id)))
+        return { ok: false, message: `${id} is not installed.` };
       return { ok: true, path };
     },
   };

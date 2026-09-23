@@ -149,6 +149,21 @@ describe("loadMarketplace", () => {
     expect((await loadMarketplace(bitbucket)).offers).toEqual([]);
   });
 
+  it("pins the exact bytes served, byte-order mark included", async () => {
+    const withBom = `\uFEFF${VEHICLE}`;
+    serve({
+      [`${BASE}/.opensesame/marketplace.json`]: index([
+        { path: "bom.json", sha256: digest(withBom) },
+      ]),
+      [`${BASE}/bom.json`]: withBom,
+    });
+    const [offer] = (await loadMarketplace(source())).offers;
+    expect(offer).toMatchObject({
+      ok: false,
+      problem: expect.stringMatching(/byte-order mark/),
+    });
+  });
+
   it("stops reading a body past its cap", async () => {
     serve({
       [`${BASE}/.opensesame/marketplace.json`]: index([{ path: "big.json" }]),
