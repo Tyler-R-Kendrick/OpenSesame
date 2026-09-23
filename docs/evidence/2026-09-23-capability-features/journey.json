@@ -86,17 +86,17 @@
       "shot": "390-capabilities",
       "width": 390,
       "title": "Settings \u203a Capabilities \u2014 390 \u00d7 844",
-      "caption": "The page was a list of catalog ids, always-on ones included. It is now one switch per way of using the app, with Allow guests first.",
-      "before": "31 catalog rows (7 core 'always on', 24 optional), 0 switches",
-      "after": "Guests + 8 feature rows, 1 switch each; 15 optional rows under Advanced"
+      "caption": "The operator's page (a sealed personal vault) was two lists of catalog ids, always-on ones included. It is now one switch per way of using the app, with Allow guests first; guests and managed members never see that switch.",
+      "before": "62 rows: 31 capabilities (7 core 'always on', 24 optional) + 31 in the instance policy; 0 switches",
+      "after": "Guests + 8 feature rows, one switch each; 15 optional rows (+15 policy rows) under Advanced"
     },
     {
       "shot": "1280-capabilities",
       "width": 1280,
       "title": "Settings \u203a Capabilities and the rail \u2014 1280 \u00d7 900",
-      "caption": "Always-on functions are back for a fresh guest: the rail carries connections, access and activity again, and none of them appears as a switch.",
-      "before": "rail sections: vault, settings; 31 catalog rows",
-      "after": "rail sections: vault, connections, access, activity, settings; 9 row switches"
+      "caption": "Always-on functions are back on a fresh device: the rail carries connections, access and activity again, and none of them is a switch.",
+      "before": "rail: vault, settings; 62 catalog rows",
+      "after": "rail: vault, connections, access, activity, settings; 9 row switches"
     },
     {
       "shot": "390-backups-on",
