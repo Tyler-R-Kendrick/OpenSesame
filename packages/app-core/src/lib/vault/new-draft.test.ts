@@ -31,6 +31,10 @@ describe("new vault draft defaults", () => {
           },
           spec: {
             ...definition.spec,
+            // Every registered type is its own directory, so a copy needs
+            // its own names as well as its own extension.
+            title: "Defaulted database",
+            plural: "Defaulted databases",
             extension: ".testdb",
             sections: definition.spec.sections.map((section) => ({
               ...section,

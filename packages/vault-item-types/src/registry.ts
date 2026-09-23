@@ -39,6 +39,56 @@ function refusal(
   return { ok: false, errors: [{ code, path, message }] };
 }
 
+/**
+ * Directory names the vault rail draws that are not a type's own: the fixed
+ * filters beside the type directories, and the short names the rail gives
+ * platform kinds whose plurals would read differently (`certs`, `notes`). An
+ * install may not claim one, or its items would share a directory with
+ * something else.
+ */
+export const RESERVED_DIRECTORIES: readonly string[] = [
+  "all",
+  "favorites",
+  "trash",
+  "certs",
+  "notes",
+];
+
+/**
+ * Ids no type may take. A type id is also the vault's `?f=` filter value, and
+ * these three already mean something there: a type called `favorites` would
+ * have a directory that opens the favorites instead.
+ */
+export const RESERVED_TYPE_IDS: readonly string[] = [
+  "all",
+  "favorites",
+  "trash",
+];
+
+/**
+ * The vault directory a type's items live under: its plural as a path
+ * segment (`Wi-Fi networks` → `wi-fi-networks`). ASCII-only on purpose, so
+ * the host plane derives the byte-identical name without a Unicode table; a
+ * plural with no ASCII letter or digit falls back to the type id, which is
+ * already a segment.
+ */
+export function directoryName(definition: ItemTypeDefinition): string {
+  const slug = definition.spec.plural
+    .replaceAll(/[A-Z]/g, (letter) => letter.toLowerCase())
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
+  return slug === "" ? definition.metadata.id : slug;
+}
+
+/**
+ * How two titles are compared: case and surrounding ASCII space never count.
+ * ASCII only, because `String.prototype.trim` and Rust's `str::trim` disagree
+ * about U+FEFF, and the two planes must refuse the same installs.
+ */
+function titleKey(title: string): string {
+  return title.replaceAll(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase();
+}
+
 function compareVersions(left: string, right: string): number {
   const l = left.split(".").map(Number);
   const r = right.split(".").map(Number);
@@ -78,6 +128,13 @@ export class ItemTypeRegistry {
       this.registerBuiltin(definition);
       return { ok: true, definition };
     }
+    if (RESERVED_TYPE_IDS.includes(id)) {
+      return refusal(
+        "id",
+        "metadata.id",
+        `\`${id}\` is a vault filter and cannot name a type`,
+      );
+    }
     if (this.#builtin.has(id)) {
       return refusal(
         "id",
@@ -97,6 +154,8 @@ export class ItemTypeRegistry {
         `\`${definition.spec.extension}\` is already used by \`${clash}\``,
       );
     }
+    const name = this.#nameClash(definition);
+    if (name !== undefined) return name;
     const current = this.#installed.get(id);
     if (
       current !== undefined &&
@@ -123,6 +182,48 @@ export class ItemTypeRegistry {
     }
     this.#installed.set(id, { definition, source });
     return { ok: true, definition };
+  }
+
+  /**
+   * Every registered type is one directory in the vault and one name in the
+   * type picker, so an install may not reuse another type's title or
+   * directory, nor a directory the rail keeps for itself. Two types sharing
+   * either would draw as one, and their items would be indistinguishable.
+   */
+  #nameClash(definition: ItemTypeDefinition): InstallOutcome | undefined {
+    const self = definition.metadata.id;
+    const directory = directoryName(definition);
+    if (RESERVED_DIRECTORIES.includes(directory)) {
+      return refusal(
+        "name",
+        "spec.plural",
+        `\`${directory}\` is a reserved vault directory`,
+      );
+    }
+    const title = titleKey(definition.spec.title);
+    for (const other of this.#definitions()) {
+      if (other.metadata.id === self) continue;
+      if (titleKey(other.spec.title) === title) {
+        return refusal(
+          "name",
+          "spec.title",
+          `\`${definition.spec.title}\` is already the title of \`${other.metadata.id}\``,
+        );
+      }
+      if (directoryName(other) === directory) {
+        return refusal(
+          "name",
+          "spec.plural",
+          `\`${directory}\` is already the directory of \`${other.metadata.id}\``,
+        );
+      }
+    }
+    return undefined;
+  }
+
+  *#definitions(): Iterable<ItemTypeDefinition> {
+    yield* this.#builtin.values();
+    for (const entry of this.#installed.values()) yield entry.definition;
   }
 
   /** The type already rendering this extension, if it is not `self`. */

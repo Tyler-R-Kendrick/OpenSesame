@@ -1,6 +1,10 @@
 import { foldersForKind } from "@opensesame/app-core/components/vault-rail-model.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
-import type { Folder, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultItem,
+  itemTypeId,
+} from "@opensesame/vault-core";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 
@@ -23,7 +27,7 @@ export function VaultRail({
   folders: Folder[];
   counts: VaultCounts;
   selectedTo: string;
-  /** Core kinds plus approved `item-kind` contributions (SURFACE-08). */
+  /** One directory per item type: platform kinds, then installed types. */
   kinds: readonly ItemKindRow[];
 }) {
   const nested = new Set(
@@ -131,7 +135,7 @@ function KindFilter({
           count: items.filter(
             (item) =>
               item.deletedAt === null &&
-              item.kind === id &&
+              itemTypeId(item) === id &&
               item.folderId === folder.id,
           ).length,
         })),
