@@ -105,7 +105,7 @@
     "better-auth": "1.6.26",
     "drizzle-kit": "0.31.10",
     "drizzle-orm": "0.45.2",
-    "hono": "4.13.1",
+    "hono": "4.13.5",
     "jose": "6.2.8",
     "oidc-provider": "9.11.2",
     "oxlint": "1.79.0",
