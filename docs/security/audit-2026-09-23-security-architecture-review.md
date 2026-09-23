@@ -230,6 +230,9 @@ fix; the sealed-store root-protection work also has its own record in
     edits hold the exclusive lock.
 
 
+Passes six to nine re-reviewed each of those fixes in turn; the ninth
+reported no confirmed findings.
+
 ## Operator-visible changes
 
 - Relay-managed Connect: create, authorize and revoke now need
@@ -264,6 +267,12 @@ fix; the sealed-store root-protection work also has its own record in
   git to a real name before rotating.
 
 ## Not changed
+
+- A client PATCH locks the client row and then the sector claim; an operator
+  release locks the claim and then the client rows. On a multi-connection
+  Postgres the two can deadlock, and Postgres aborts one of them (a 500 the
+  caller retries). Neither commits a partial change, so this is an
+  availability edge on an operator action, not an authorization gap.
 
 - A sector can still be claimed by naming redirect URIs on the victim's own
   host. Such a client can never receive codes, so the worst it does is hold
