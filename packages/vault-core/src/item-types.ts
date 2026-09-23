@@ -56,7 +56,12 @@ export function syncInstalledTypes(
 ): void {
   registry = builtinRegistry();
   installedSource = installed ?? {};
-  for (const text of Object.values(installedSource)) {
+  // By id, so that when two devices each installed a type under the same
+  // name before they synced, every device keeps the same one. The other stays
+  // in the body untouched; its items render through the unknown-type fallback.
+  const ids = Object.keys(installedSource).sort();
+  for (const id of ids) {
+    const text = installedSource[id];
     if (text === undefined) continue;
     registry.install(text, "vault");
   }

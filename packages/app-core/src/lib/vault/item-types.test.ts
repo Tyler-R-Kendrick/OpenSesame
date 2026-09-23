@@ -286,3 +286,33 @@ describe("a plugin-defined item survives every path out of the vault", () => {
     }
   });
 });
+
+describe("colliding installs from two devices", () => {
+  const named = (id: string) =>
+    RESIDENT_ID.replace('"resident-id"', `"${id}"`).replace(
+      '".rid"',
+      `".${id.replaceAll("-", "")}"`,
+    );
+
+  it("keeps the same one on every device, whatever order the body holds", () => {
+    // Each device installed a type called "Resident ID" before they synced.
+    syncInstalledTypes({
+      "zz-permit": named("zz-permit"),
+      "aa-permit": named("aa-permit"),
+    });
+    const first = itemTypeRegistry().has("aa-permit");
+    syncInstalledTypes({
+      "aa-permit": named("aa-permit"),
+      "zz-permit": named("zz-permit"),
+    });
+    expect(itemTypeRegistry().has("aa-permit")).toBe(first);
+    expect(first).toBe(true);
+    expect(itemTypeRegistry().has("zz-permit")).toBe(false);
+    // The other definition stays in the body, untouched.
+    expect(Object.keys(installedDefinitions()).sort()).toEqual([
+      "aa-permit",
+      "zz-permit",
+    ]);
+    syncInstalledTypes(undefined);
+  });
+});

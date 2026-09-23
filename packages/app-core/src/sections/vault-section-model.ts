@@ -10,23 +10,32 @@ import {
   itemTypeRegistry,
   readItemField,
 } from "@opensesame/vault-core";
+import { RESERVED_TYPE_IDS } from "@opensesame/vault-item-types";
 
 /**
  * The filter chips, in registry order (built-ins first), for the types this
- * vault actually holds. Derived rather than listed: a plugin-defined type is a
- * type like any other, so it earns its own chip the moment an item exists
- * (ADR 0087 §1). A hardcoded list would quietly bucket every community type
- * into one undifferentiated pile.
+ * vault actually holds and every type installed into it. Derived rather than
+ * listed: a plugin-defined type is a type like any other, so it earns its own
+ * chip the moment it is installed, as it earns its own rail directory (ADR
+ * 0087 §1). A hardcoded list would quietly bucket every community type into
+ * one undifferentiated pile.
  */
 export function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
   const present = new Set(live.map(itemTypeId));
   const ordered = itemTypeRegistry()
     .list()
-    .map(({ definition }) => definition.metadata.id)
-    .filter((id) => present.has(id));
+    .filter(
+      ({ definition, source }) =>
+        source !== "builtin" || present.has(definition.metadata.id),
+    )
+    .map(({ definition }) => definition.metadata.id);
   // A type whose definition is not installed here still deserves its chip;
   // the label falls back to the id rather than the item vanishing from view.
-  const orphans = [...present].filter((id) => !itemTypeRegistry().has(id));
+  // An id that is also a filter (`trash`) gets no chip: it would open the
+  // filter, not the type.
+  const orphans = [...present].filter(
+    (id) => !itemTypeRegistry().has(id) && !RESERVED_TYPE_IDS.includes(id),
+  );
   return [...ordered, ...orphans.sort()];
 }
 

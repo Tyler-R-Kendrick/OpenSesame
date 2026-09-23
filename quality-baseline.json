@@ -18,7 +18,7 @@
   "totals": {
     "files": 489,
     "violations": 775,
-    "oversizedLines": 246265
+    "oversizedLines": 246136
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1096,7 +1096,7 @@
       "max-lines": 444
     },
     "crates/vault-item-types/src/validate.rs": {
-      "max-lines": 575
+      "max-lines": 474
     },
     "crates/vault-item-types/tests/conformance.rs": {
       "max-lines": 532
@@ -1600,7 +1600,7 @@
     },
     "packages/vault-item-types/src/validate.ts": {
       "complexity": 2,
-      "max-lines": 741,
+      "max-lines": 713,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
