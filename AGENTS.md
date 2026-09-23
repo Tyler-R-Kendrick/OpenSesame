@@ -264,6 +264,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/example-agent` / `apps/example-headless` | Example agent / headless client |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
+| `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |
@@ -371,7 +372,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0134).
+  0001–0135).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -403,7 +404,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   "Allow guests" switch in Settings › Capabilities
   (`packages/app-core/src/lib/guest-access.ts`, default on, fails toward on,
   turned off only by the device's operator, back on by anyone signed in but
-  a guest; ADR 0134). Every placement reads it through
+  a guest; ADR 0135). Every placement reads it through
   `apps/pages/src/screens/unlock/GuestRoad.tsx`, `openGuestVault` refuses a
   guest session while it is off, and the last-vault pointer and vault list
   stop offering the guest tomb. It lives in three places and all three are
@@ -516,6 +517,16 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
+- **Settings is files, and the Form is a view of them**
+  ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
+  Configuration a Settings panel edits lives in a virtual file a
+  `VirtualFileProvider` stores; the page's source view is a file viewer over
+  those paths, and every Form key is a write to one of them. Do not add a
+  per-panel Visual/Source toggle or a paste box: add a provider and let the
+  file viewer show it. An item-type marketplace is a git repository read
+  through its forge's anonymous raw-file route; it confers no trust — every
+  definition it offers meets ADR 0087's parser and registry — and it is read
+  only when a person opens it.
 - A vault item type is a manifest, never a code path. Adding one is a JSON
   file in `packages/vault-item-types/definitions/` (embedded by both planes),
   and a user can install one at runtime with no build. Fields name types from
@@ -562,7 +573,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
   Most functions are **always-on** (`alwaysOn` in
-  `catalog-always-on.ts`, ADR 0134): core tier, never a switch, code still
+  `catalog-always-on.ts`, ADR 0135): core tier, never a switch, code still
   loaded as a module after boot. An optional capability belongs to exactly
   one **feature** in `packages/app-core/src/lib/capabilities/features.ts`
   (AI, Backups, Payments, Servers, Sharing, Networking, Notifications,

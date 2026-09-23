@@ -60,6 +60,19 @@ const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = fileURLToPath(new URL("../dist", import.meta.url));
 
+/**
+ * `remote` maps an external URL to a repository-relative file served in its
+ * place — only for a feature that reads a file this branch adds, which the
+ * real host will not have until the branch lands. The README must say so.
+ */
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const remote = Object.fromEntries(
+  Object.entries(journey.remote ?? {}).map(([url, file]) => [
+    url,
+    path.join(repoRoot, file),
+  ]),
+);
+
 const harness = createHarness({
   dist,
   origin,
@@ -138,6 +151,12 @@ const STEPS = {
       .first();
     if ((await target.count()) && (await target.isEnabled())) {
       await press(target);
+      await page.waitForTimeout(1000);
+      return;
+    }
+    const tab = page.getByRole("tab", { name: new RegExp(name, "i") }).first();
+    if (await tab.count()) {
+      await press(tab);
       await page.waitForTimeout(1000);
     }
   },
@@ -257,6 +276,7 @@ async function capture(browser, into) {
       device: screen.desktop
         ? { viewport: { width: screen.width, height: screen.height } }
         : phoneContext({ width: screen.width, height: screen.height }),
+      remote,
     });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait

@@ -7,7 +7,7 @@
 // optional capability, and the moment a person adds one through Settings ›
 // Capabilities it is there. An absence alone proves nothing — a section can
 // vanish because it crashed — so each capability is checked both ways.
-// Always-on capabilities (ADR 0134) are the opposite claim: present with
+// Always-on capabilities (ADR 0135) are the opposite claim: present with
 // nothing chosen, and never offered as a row.
 
 import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
@@ -15,7 +15,7 @@ import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
 /** Rail rows an installation that has approved nothing must not have. */
 const GATED_RAIL_ROWS = ["identity/", "wallet/"];
 
-/** Rail rows of always-on capabilities (ADR 0134): there before any choice. */
+/** Rail rows of always-on capabilities (ADR 0135): there before any choice. */
 const ALWAYS_ON_RAIL_ROWS = ["connections/", "access/", "activity/"];
 
 /** A. Nothing optional is on the rail before anything is chosen. */

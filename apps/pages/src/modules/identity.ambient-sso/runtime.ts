@@ -64,7 +64,7 @@ export function resetAmbientBootForTest(): void {
  * reaches no provider at all.
  */
 /**
- * A boot evaluation is once per document. Always on (ADR 0134), this module
+ * A boot evaluation is once per document. Always on (ADR 0135), this module
  * is disposed and activated again on every plan generation — a feature
  * switched on elsewhere — and re-running the boot then would revalidate the
  * saved session and consider a silent attempt again for no reason.

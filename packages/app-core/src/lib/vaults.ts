@@ -132,7 +132,7 @@ function describeVault(project: PagesProject): DeviceVault {
 function listDeviceVaultsDefault(): DeviceVault[] {
   const snapshot = vaultStore.getSnapshot();
   const guestOpen = snapshot.status === "unlocked" && snapshot.guest;
-  // With guests switched off there is no guest row to open (ADR 0134 §4),
+  // With guests switched off there is no guest row to open (ADR 0135 §4),
   // unless a guest session is the one open right now.
   const guestRow = guestOpen
     ? [guestVault("open")]

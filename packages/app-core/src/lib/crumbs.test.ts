@@ -21,7 +21,7 @@ afterAll(() => revoke());
 
 describe("settings rest paths", () => {
   it("reads a category from the path, then the hash", () => {
-    // Connections and Backups became Settings › Capabilities (ADR 0134).
+    // Connections and Backups became Settings › Capabilities (ADR 0135).
     expect(settingsCategoryFromLocation("/settings/connections", "")).toBe(
       "capabilities",
     );

@@ -233,7 +233,7 @@ async function chooseCapabilitiesHere(page, titles) {
     await page.waitForTimeout(700);
   };
   for (const title of titles) {
-    // Always on (ADR 0134): in every plan, with no row to add it from.
+    // Always on (ADR 0135): in every plan, with no row to add it from.
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await openSettings();
     await page.waitForTimeout(500);

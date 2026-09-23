@@ -5,6 +5,7 @@ import {
 import { connectorDirectoryCapabilities } from "./connectors.js";
 import { generalAuthorityCapabilities } from "./general-authority.js";
 import { identityManagementCapabilities } from "./identity-management.js";
+import { itemTypeCapabilities } from "./item-types.js";
 import { sharedSessionCapabilities } from "./shared-sessions.js";
 /**
  * Agent-surface capability registry (ADR 0065).
@@ -145,14 +146,6 @@ const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   reason:
     "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",
   adr: ADR_SECURITY_EVENTS,
-};
-
-const ADR_ITEM_TYPE_PLUGINS = "0087-vault-item-type-plugins.md";
-
-const ITEM_TYPE_HUMAN_CEREMONY: CapabilityExclusion = {
-  reason:
-    "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
-  adr: ADR_ITEM_TYPE_PLUGINS,
 };
 
 const CUSTODY_KEY_MATERIAL: CapabilityExclusion = {
@@ -1844,38 +1837,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: NEVER_AGENT_SECRET,
     },
   },
-  {
-    id: "vault.item_types.list",
-    title: "List the item types registered on this device",
-    plane: "client_local",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: "vault-core/item-types.ts:itemTypeRegistry",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: { webmcp: ITEM_TYPE_HUMAN_CEREMONY },
-  },
-  {
-    id: "vault.item_types.install",
-    title: "Install or remove a vault item type definition",
-    plane: "client_local",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: ITEM_TYPE_HUMAN_CEREMONY,
-      mcp_client: ITEM_TYPE_HUMAN_CEREMONY,
-      webmcp: ITEM_TYPE_HUMAN_CEREMONY,
-    },
-  },
+  ...itemTypeCapabilities,
   {
     id: "vault.export",
     title: "Export/backup the vault (plaintext-capable)",

@@ -62,7 +62,7 @@ export function settingsFields(
   if (category === "security") return SECURITY;
   if (category === "vaults") return VAULTS;
   // The endpoints file moved with the providers: Connections folded into
-  // Capabilities (ADR 0134), and so did its settings file.
+  // Capabilities (ADR 0135), and so did its settings file.
   if (category === "connections" || category === "capabilities")
     return CONNECTIVITY;
   return [];

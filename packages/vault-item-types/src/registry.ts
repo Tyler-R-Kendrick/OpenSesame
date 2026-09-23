@@ -89,7 +89,8 @@ function titleKey(title: string): string {
   return title.replaceAll(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase();
 }
 
-function compareVersions(left: string, right: string): number {
+/** Compare two `major.minor.patch` versions: negative, zero or positive. */
+export function compareVersions(left: string, right: string): number {
   const l = left.split(".").map(Number);
   const r = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) {
@@ -117,17 +118,33 @@ export class ItemTypeRegistry {
    * name a later install can redefine underneath items that already exist.
    */
   install(text: string, source: DefinitionSource): InstallOutcome {
-    const trust: DefinitionTrust =
-      source === "builtin" ? "platform" : "community";
+    if (source === "builtin") {
+      const parsed = parseDefinition(text, "platform");
+      if (parsed.ok) this.registerBuiltin(parsed.definition);
+      return parsed;
+    }
+    const outcome = this.check(text);
+    if (outcome.ok) {
+      this.#installed.set(outcome.definition.metadata.id, {
+        definition: outcome.definition,
+        source,
+      });
+    }
+    return outcome;
+  }
+
+  /**
+   * What `install` would answer for a community definition, without
+   * installing it. A view that offers an install (a marketplace row) asks
+   * this rather than keeping its own copy of the rules, so the offer and the
+   * install can never disagree.
+   */
+  check(text: string): InstallOutcome {
+    const trust: DefinitionTrust = "community";
     const parsed = parseDefinition(text, trust);
     if (!parsed.ok) return parsed;
     const { definition } = parsed;
     const id = definition.metadata.id;
-
-    if (source === "builtin") {
-      this.registerBuiltin(definition);
-      return { ok: true, definition };
-    }
     if (RESERVED_TYPE_IDS.includes(id)) {
       return refusal(
         "id",
@@ -180,7 +197,6 @@ export class ItemTypeRegistry {
         `\`${id}\` is already installed at ${current.definition.metadata.version}`,
       );
     }
-    this.#installed.set(id, { definition, source });
     return { ok: true, definition };
   }
 

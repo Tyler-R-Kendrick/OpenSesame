@@ -51,7 +51,7 @@ export async function checkFrontDoor(page, check, text, base) {
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onSetup = await snap(page, "A2-setup");
-  // Connectors and operator identity providers are always on (ADR 0134),
+  // Connectors and operator identity providers are always on (ADR 0135),
   // so their tabs are here with nothing chosen; the AI and backup tabs still
   // wait for their features.
   const tabs = (await page.getByRole("tab").allTextContents())

@@ -1,0 +1,189 @@
+{
+  "out": ".",
+  "remote": {
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/.opensesame/marketplace.json": ".opensesame/marketplace.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/backup-codes.json": "marketplace/item-types/backup-codes.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/combination-lock.json": "marketplace/item-types/combination-lock.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/email-account.json": "marketplace/item-types/email-account.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/gift-card.json": "marketplace/item-types/gift-card.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/vehicle.json": "marketplace/item-types/vehicle.json"
+  },
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-installed"
+        },
+        {
+          "pressOptional": "Marketplace"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-marketplace"
+        },
+        {
+          "pressOptional": "Inspect Vehicle"
+        },
+        {
+          "pressOptional": "Install Vehicle"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-installed-vehicle"
+        },
+        {
+          "pressOptional": "Open marketplaces.json"
+        },
+        {
+          "shot": "1280-file-marketplaces"
+        },
+        {
+          "pressOptional": "^vehicle.json"
+        },
+        {
+          "shot": "1280-file-vehicle"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-installed"
+        },
+        {
+          "pressOptional": "Marketplace"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-marketplace"
+        },
+        {
+          "pressOptional": "Inspect Vehicle"
+        },
+        {
+          "pressOptional": "Install Vehicle"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-installed-vehicle"
+        },
+        {
+          "pressOptional": "Open marketplaces.json"
+        },
+        {
+          "shot": "390-file-marketplaces"
+        },
+        {
+          "pressOptional": "^vehicle.json"
+        },
+        {
+          "shot": "390-file-vehicle"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-installed",
+      "width": 1280,
+      "title": "Settings \u203a Vaults \u203a Item types, 1280 \u00d7 900",
+      "caption": "Before: the panel's own Visual/Source toggle sits over an always-open paste box, then a list of the 23 built-ins, each with a remove key that does nothing because a built-in cannot be removed. After: flat Installed and Marketplace tabs. Installed lists settings/item-types/installed/*.json; the built-ins are folded under builtin/, read-only, each with a key that opens its file.",
+      "before": "panel controls: Visual/Source toggle + paste box; remove keys on built-ins: 23 (all no-ops)",
+      "after": "tabs: Installed, Marketplace; remove keys on built-ins: 0; paste boxes: 0"
+    },
+    {
+      "shot": "1280-marketplace",
+      "width": 1280,
+      "title": "Marketplace, 1280 \u00d7 900",
+      "caption": "New. marketplaces.json lists ours by default: github.com/tyler-r-kendrick/OpenSesame@main. Opening the tab reads its .opensesame/marketplace.json; nothing is read before that. Each offer row leads with the extension it will wear in the vault tree and carries inspect and install keys. Any GitHub, GitLab, Gitea/Forgejo/Codeberg or Bitbucket repository, or a raw index address, can be added.",
+      "before": "marketplaces: none (no way to find a type)",
+      "after": "marketplaces: 1 (default); offers: 5, all SHA-256 pinned"
+    },
+    {
+      "shot": "1280-installed-vehicle",
+      "width": 1280,
+      "title": "Inspect, then install, 1280 \u00d7 900",
+      "caption": "Inspect opens the offer's fields, with concealed ones locked, before install does anything. Installing writes settings/item-types/installed/vehicle.json through the same parser and registry as any other write. The row then shows the installed glyph, and the head count moves to 1 installed.",
+      "before": "no marketplace to install from",
+      "after": "Vehicle: 10 fields shown, 2 concealed; installed, 1.0.0"
+    },
+    {
+      "shot": "1280-file-marketplaces",
+      "width": 1280,
+      "title": "The source view is a file viewer, 1280 \u00d7 900",
+      "caption": "Opening marketplaces.json from its row switches Settings to its source view with that file open. The view is a file tree beside the open file: settings/vaults.yaml, item-types/marketplaces.json, installed/ (with + for a new file) and builtin/. The Form and this file are the same bytes.",
+      "before": "no file behind the panel to open (the Form stays); source view files: 1 (settings/vaults.yaml)",
+      "after": "source view files: 25 before the install (vaults.yaml, marketplaces.json, 23 built-ins); vehicle.json after"
+    },
+    {
+      "shot": "1280-file-vehicle",
+      "width": 1280,
+      "title": "An installed type is a file, 1280 \u00d7 900",
+      "caption": "installed/vehicle.json is the authored definition the vault body keeps. Save runs the parser; the trash key uninstalls (armed in place; items keep their values). Built-in files open read-only with a lock glyph and no save key.",
+      "before": "no file behind an installed type",
+      "after": "installed/vehicle.json: save + remove keys; builtin/*.json read-only"
+    },
+    {
+      "shot": "390-installed",
+      "width": 390,
+      "title": "Settings \u203a Vaults on a phone, 390 \u00d7 844",
+      "caption": "Before, the Settings column grew to its widest child (the tab strip), so every panel ran past the right edge and was clipped. After, the section grid is minmax(0, 1fr): the tab strip scrolls itself and the Item types panel ends inside the 16px gutter.",
+      "before": "Item types panel right edge 462px in a 390px viewport (clipped)",
+      "after": "right edge 374px (390 \u2212 16px gutter); nothing clipped"
+    },
+    {
+      "shot": "390-marketplace",
+      "width": 390,
+      "title": "Marketplace on a phone, 390 \u00d7 844",
+      "caption": "At phone width the actions drop under each row's text, so no key is clipped. Every key keeps its 44px target.",
+      "before": "no marketplace",
+      "after": "source row and offer rows: keys wrap under the text; 44px keys"
+    },
+    {
+      "shot": "390-file-vehicle",
+      "width": 390,
+      "title": "The file viewer on a phone, 390 \u00d7 844",
+      "caption": "On a phone the tree sits above the open file. Directories are indented a step per level, selection is inverse video, and every row is a 44px target.",
+      "before": "source view: one document",
+      "after": "file tree above the open file; 44px rows"
+    }
+  ]
+}

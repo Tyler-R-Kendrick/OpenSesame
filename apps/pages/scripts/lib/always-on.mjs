@@ -1,4 +1,4 @@
-// Always-on capabilities (ADR 0134), by the title Settings › Capabilities
+// Always-on capabilities (ADR 0135), by the title Settings › Capabilities
 // would have shown them under. They are in every plan and have no row, no
 // Add key and no setup card, so a walk that asks for one has nothing to do.
 // Mirrors `catalog-always-on.ts`; `always-on.test.mjs` holds the two equal.

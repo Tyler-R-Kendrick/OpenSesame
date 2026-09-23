@@ -1,4 +1,4 @@
-# ADR 0134 — Always-on capabilities and feature rollups
+# ADR 0135 — Always-on capabilities and feature rollups
 
 - Status: Accepted
 - Date: 2026-09-23

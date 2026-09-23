@@ -71,7 +71,7 @@ export async function openSection(page, label) {
 export async function addCapabilities(page, titles) {
   await openSettingsCategory(page, "Capabilities");
   for (const title of titles) {
-    // Always on (ADR 0134): in every plan, with no row to add it from.
+    // Always on (ADR 0135): in every plan, with no row to add it from.
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await openAdvanced(page);
     const add = page.getByRole("button", { name: `Add ${title}`, exact: true });

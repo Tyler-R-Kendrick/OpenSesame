@@ -173,7 +173,7 @@ function mergePrefs(prefs: VaultPrefs, doc: SettingsDoc): VaultPrefs {
   return next;
 }
 
-function paint(source: string) {
+export function paint(source: string) {
   return source.split("\n").map((line, index) => (
     <span key={`${index}-${line}`}>
       {paintLine(line)}

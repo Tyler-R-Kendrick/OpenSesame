@@ -154,7 +154,7 @@ async function configureBadRemote(page) {
   await guest(page, ORIGIN, BASE);
   await openSection(page, "settings/");
   // Connections is always on and folded into Settings › Capabilities
-  // (ADR 0134): the endpoints file is that category's YAML view now.
+  // (ADR 0135): the endpoints file is that category's YAML view now.
   await addCapability(page, check, snap, "External connectors", "connections/");
   await openSection(page, "settings/");
   await page

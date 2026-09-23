@@ -28,7 +28,7 @@ export function writeLastVaultId(id: string): void {
  * Whether the device reopens into the guest tomb. Not while the operator
  * has switched guests off: the device then reopens on its own vault, so a
  * guest tomb — even one a guest sealed with a PIN of its own — is not a
- * way back in (ADR 0134 §4). The pointer is left as it is, so switching
+ * way back in (ADR 0135 §4). The pointer is left as it is, so switching
  * guests back on returns the device to where it was.
  */
 export function lastVaultIsGuest(): boolean {

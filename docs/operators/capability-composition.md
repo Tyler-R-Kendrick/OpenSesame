@@ -44,7 +44,7 @@ The catalog has **17 core** capabilities and **15 optional** ones. Core is
 always present and cannot be prohibited. Seven are statically linked:
 `shell.navigation`, `vault.passwords`, `vault.local-unlock`,
 `backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
-`install.pwa`. Ten are **always-on** (ADR 0134): core in every plan, but their
+`install.pwa`. Ten are **always-on** (ADR 0135): core in every plan, but their
 code still arrives as a module after boot — `vault.passkey-records`,
 `vault.certificate-records`, `vault.interop-formats`, `backup.cloud-secrets`,
 `connectors.external`, `access.authority`, `identity.federation`,

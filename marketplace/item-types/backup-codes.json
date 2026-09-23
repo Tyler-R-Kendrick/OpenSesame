@@ -1,0 +1,44 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "backup-codes",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Backup codes",
+    "plural": "Backup codes",
+    "extension": ".codes",
+    "summary": "The one-time recovery codes a service issues when two-step sign-in is turned on.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "codes",
+        "title": "Codes",
+        "fields": [
+          {
+            "id": "service",
+            "type": "string",
+            "label": "Service",
+            "required": true
+          },
+          { "id": "account", "type": "string", "label": "Account" },
+          { "id": "codes", "type": "key-material", "label": "Codes" },
+          { "id": "issuedAt", "type": "date", "label": "Issued" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "codes",
+      "trailer": [
+        { "key": "service", "field": "service" },
+        { "key": "account", "field": "account" },
+        { "key": "issued_at", "field": "issuedAt" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["service", "account"],
+    "search": ["service", "account"]
+  }
+}

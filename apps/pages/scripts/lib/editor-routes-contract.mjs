@@ -7,7 +7,7 @@ import { expect } from "@playwright/test";
  * a device that has approved nothing has no rail row for them (ADR 0130) —
  * asserted below rather than quietly dropped, because a listing that
  * disappears for the wrong reason would otherwise read as a passing gate.
- * Passkey records are always on (ADR 0134), so their listing is there.
+ * Passkey records are always on (ADR 0135), so their listing is there.
  */
 export async function checkEditorRoutes(page, check) {
   check(
