@@ -1,6 +1,6 @@
 import * as agentAuthentication from "@opensesame/app-core/lib/local-agent-auth.js";
 import { readLocalAgentKeys } from "@opensesame/app-core/lib/local-agent-keys.js";
-import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */

@@ -7,9 +7,9 @@ import {
 } from "./local-access-requests.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   type LocalDirectoryChange,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "./local-directory.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";

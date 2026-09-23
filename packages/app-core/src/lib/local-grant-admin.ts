@@ -7,6 +7,7 @@ import {
   readLocalGrantRecords,
   writeLocalGrantRecords,
 } from "./local-grant-store.js";
+import { assertAccessCapability } from "./local-rbac.js";
 import { tombUnlocked } from "./vfs.js";
 
 /** Display-only projection. No nonce, bearer, session digest or private handle. */
@@ -59,6 +60,8 @@ export async function revokeRecordedLocalGrant(
     throw new LocalDirectoryError(
       "This local grant is unavailable. Reload the list.",
     );
+  // Revoking someone's grant is grant administration, whoever holds the tab.
+  await assertAccessCapability(tomb, "manage_grants");
   return withLocalDirectoryLock(tomb, async () => {
     const records = await readLocalGrantRecords(tomb);
     if (!records.some((row) => row.id === id))

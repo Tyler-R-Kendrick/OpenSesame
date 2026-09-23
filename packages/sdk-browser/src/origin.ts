@@ -73,6 +73,13 @@ export function assertSafeReturnTo(returnTo: string): string {
   if (resolved.origin !== RETURN_TO_BASE) {
     throw new BrowserOriginError("returnTo must be a same-origin path");
   }
+  // Dot segments collapse during resolution: "/..//evil.com" and
+  // "/%2e%2e//evil.com" both resolve to the pathname "//evil.com", which a
+  // navigation would read as protocol-relative. The check runs on the
+  // resolved value because that is what is returned.
+  if (resolved.pathname.startsWith("//") || resolved.pathname.includes("\\")) {
+    throw new BrowserOriginError("returnTo must be a same-origin path");
+  }
   return `${resolved.pathname}${resolved.search}${resolved.hash}`;
 }
 

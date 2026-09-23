@@ -90,7 +90,6 @@ import {
 import {
   VAULT_PREFS_REVISION,
   type VaultPrefs,
-  assertMasterPasswordPolicy,
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
@@ -126,7 +125,6 @@ import {
   type TotpGateRecord,
   type VaultUnlocks,
   assertKeepsPrimaryUnlock,
-  assertPinPolicy,
   createPasskeyUnlockCeremony,
   hasSecondStep,
   normalizeRecoveryCode,
@@ -143,6 +141,7 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
+import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
@@ -450,7 +449,7 @@ export class VaultStore {
   }
 
   async create(password: string, hint?: string): Promise<void> {
-    assertMasterPasswordPolicy(password);
+    await assertNewPassword(password);
     const { header, vaultKey, rawVaultKey } = await createVault(password, hint);
     await this.#persistNewVault(header, vaultKey, rawVaultKey);
   }
@@ -546,7 +545,7 @@ export class VaultStore {
 
   /** First-run seal under a PIN wrap — no master password required. */
   async createWithPin(pin: string): Promise<void> {
-    assertPinPolicy(pin);
+    await assertNewPin(pin);
     const { vaultKey, rawVaultKey } = await mintVaultKey();
     try {
       const record = await wrapVaultKeyWithPin(rawVaultKey, pin);
@@ -906,7 +905,7 @@ export class VaultStore {
 
   async enrollPin(pin: string): Promise<void> {
     const { header } = this.#requireUnlocked();
-    assertPinPolicy(pin);
+    await assertNewPin(pin);
     const record = await wrapVaultKeyWithPin(this.#requireRaw(), pin);
     const unlocks: VaultUnlocks = {
       ...header.unlocks,
@@ -927,7 +926,7 @@ export class VaultStore {
 
   async enrollPassword(password: string): Promise<void> {
     const { header } = this.#requireUnlocked();
-    assertMasterPasswordPolicy(password);
+    await assertNewPassword(password);
     const { kdf, wrap } = await wrapVaultKeyWithPassword(
       this.#requireRaw(),
       password,
@@ -1216,7 +1215,7 @@ export class VaultStore {
         "This vault has no master password. Add one under Unlock methods first.",
       );
     }
-    assertMasterPasswordPolicy(next);
+    await assertNewPassword(next);
     const header = await rewrapVaultKey(this.#header, current, next, hint);
     await this.#persistHeader(header);
   }

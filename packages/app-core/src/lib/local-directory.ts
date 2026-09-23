@@ -173,17 +173,12 @@ function changedEntries(
   );
 }
 
-export async function changeLocalDirectory(
-  tomb: string,
-  revision: number,
-  change: LocalDirectoryChange,
-): Promise<LocalDirectory> {
-  return withLocalDirectoryLock(tomb, () =>
-    commitLocalDirectoryUnderLock(tomb, revision, change),
-  );
-}
-
-/** Internal commit primitive: callers must hold the directory/session fence. */
+/**
+ * Internal commit primitive: callers must hold the directory/session fence
+ * and have decided who may make the change — bootstrap for its own records,
+ * an owner/admin session for memberships, `changeLocalDirectory`
+ * (`local-directory-admin.ts`) for the Identity/Access panel.
+ */
 export async function commitLocalDirectoryUnderLock(
   tomb: string,
   revision: number,

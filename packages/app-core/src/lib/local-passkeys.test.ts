@@ -10,7 +10,7 @@ import {
   revokeLocalPasskey,
   writeLocalPasskeys,
 } from "./local-credentials.js";
-import { changeLocalDirectory } from "./local-directory.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   authenticateLocalPasskey,
   consumeLocalAuthentication,

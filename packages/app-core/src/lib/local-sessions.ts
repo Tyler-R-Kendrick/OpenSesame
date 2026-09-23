@@ -16,6 +16,7 @@ import {
 } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import type { LocalAuthentication } from "./local-passkeys.js";
+import { assertAccessCapability } from "./local-rbac.js";
 import { onVaultLock } from "./vault/lock-events.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -338,10 +339,19 @@ export async function listLocalIdentitySessions(
       .map(publicSession),
   );
 }
+
+/**
+ * Ending a session this tab holds is signing out; ending anyone else's is
+ * grant administration and needs `manage_grants`, checked before the fence.
+ */
 export async function revokeLocalIdentitySession(
   tomb: string,
   id: string,
 ): Promise<void> {
+  const own = [...activeSessions].some(
+    ([key, session]) => key.startsWith(`${tomb}:`) && session.id === id,
+  );
+  if (!own) await assertAccessCapability(tomb, "manage_grants");
   return withLocalDirectoryLock(tomb, async () => {
     const sessions = await readSessions(tomb);
     await writeSessions(

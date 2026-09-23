@@ -14,6 +14,7 @@
 
 import {
   type LocalDirectory,
+  type LocalDirectoryChange,
   LocalDirectoryError,
   type LocalIdentity,
   readLocalDirectory,
@@ -206,6 +207,23 @@ export async function assertAccessCapability(
   }
 
   return role;
+}
+
+/**
+ * Who may make a directory change through the Identity/Access panel: records
+ * (create, rename, enable, delete) are identity administration, memberships
+ * are membership administration. Guest status is read from the display name,
+ * so an unchecked rename would let a demoted guest turn the claimed owner
+ * into a "guest" and so make itself operator — hence every rename is gated.
+ */
+export async function assertDirectoryChangeAllowed(
+  tomb: string,
+  change: LocalDirectoryChange,
+): Promise<AccessRole> {
+  return assertAccessCapability(
+    tomb,
+    change.action === "membership" ? "manage_memberships" : "manage_identity",
+  );
 }
 
 /** Refuse elevating the guest principal when a claimed operator path exists. */

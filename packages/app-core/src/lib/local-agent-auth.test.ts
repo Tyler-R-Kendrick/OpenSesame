@@ -8,10 +8,12 @@ import {
   revokeLocalAgentKey,
 } from "./local-agent-keys.js";
 import { approveLocalApplication } from "./local-authorization.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   type LocalDirectoryChange,
-  changeLocalDirectory,
+  commitLocalDirectoryUnderLock,
   readLocalDirectory,
+  withLocalDirectoryLock,
 } from "./local-directory.js";
 import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import {
@@ -147,12 +149,17 @@ describe("vault-local agent authentication", () => {
         codeChallengeMethod: "S256",
       }),
     ).rejects.toThrow("unavailable");
-    await change({
-      action: "membership",
-      organizationId: organization,
-      principalId: agent,
-      role: null,
-    });
+    // The agent's own session is this tab's actor and holds no Access
+    // capability, so the custodian's removal goes through the commit primitive.
+    const revision = (await readLocalDirectory(tomb)).revision;
+    await withLocalDirectoryLock(tomb, () =>
+      commitLocalDirectoryUnderLock(tomb, revision, {
+        action: "membership",
+        organizationId: organization,
+        principalId: agent,
+        role: null,
+      }),
+    );
     await expect(
       readLocalOrganization(tomb, session, organization),
     ).rejects.toThrow("unavailable");

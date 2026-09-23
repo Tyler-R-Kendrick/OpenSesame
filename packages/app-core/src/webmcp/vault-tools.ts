@@ -224,8 +224,10 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
     },
     execute: async (args) => {
       requireUnlocked();
-      const item = findItem(str(args, "itemId"));
-      await assertItemReach(item.id, "read");
+      // Reach first: an unshared actor learns nothing about which ids exist.
+      const itemId = str(args, "itemId");
+      await assertItemReach(itemId, "read");
+      const item = findItem(itemId);
       return {
         ...projectVaultItemMeta(item),
         healthIssues: healthIssuesById().get(item.id) ?? [],
@@ -311,10 +313,12 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
     },
     execute: async (args) => {
       requireUnlocked();
-      const item = findItem(str(args, "itemId"));
       // A live code is the second factor itself: the same share reach as a
-      // read, checked before the rate-limit ledger is touched.
-      await assertItemReach(item.id, "read");
+      // read, checked before the item is looked up (so a missing id and an
+      // unshared one refuse alike) and before the rate-limit ledger.
+      const itemId = str(args, "itemId");
+      await assertItemReach(itemId, "read");
+      const item = findItem(itemId);
       if (item.kind !== "login" || item.totp === "") {
         throw new Error("item_has_no_totp");
       }
@@ -351,8 +355,9 @@ export const OPEN_REVEAL_TOOL: PagesWebMcpTool = {
   },
   execute: async (args) => {
     requireUnlocked();
-    const item = findItem(str(args, "itemId"));
-    await assertItemReach(item.id, "read");
+    const itemId = str(args, "itemId");
+    await assertItemReach(itemId, "read");
+    const item = findItem(itemId);
     return ceremonyOpened(`/vault/${encodeURIComponent(item.id)}`);
   },
 };

@@ -8,13 +8,13 @@ import {
   requireLocalApplicationAdmission,
 } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   PAGES_APPLICATION_ID,
   ensureOwnerPerson,
 } from "./local-directory-bootstrap.js";
 import {
   type LocalDirectoryChange,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "./local-directory.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";

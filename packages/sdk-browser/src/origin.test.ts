@@ -7,6 +7,7 @@ import {
   canonicalizeBrowserOrigin,
   defaultOriginCallback,
   originProfileClientId,
+  safeStoredReturnTo,
 } from "./origin.js";
 
 const PROD = { production: true } as const;
@@ -157,6 +158,27 @@ describe("assertSafeReturnTo", () => {
     ]) {
       expect(() => assertSafeReturnTo(candidate)).toThrow(BrowserOriginError);
     }
+  });
+
+  it("rejects dot segments that resolve to a protocol-relative path", () => {
+    for (const candidate of [
+      "/..//evil.com",
+      "/.//evil.com",
+      "/%2e%2e//evil.com",
+      "/%2E%2E//evil.com",
+      "/%2e//evil.com",
+      "/a/..//evil.com",
+      "/a/b/../..//evil.com",
+      "/././/evil.com",
+    ]) {
+      expect(() => assertSafeReturnTo(candidate)).toThrow(BrowserOriginError);
+      expect(safeStoredReturnTo(candidate)).toBeNull();
+    }
+  });
+
+  it("still accepts ordinary dot segments that stay on a path", () => {
+    expect(assertSafeReturnTo("/a/../b")).toBe("/b");
+    expect(assertSafeReturnTo("/a/./b")).toBe("/a/b");
   });
 
   it("keeps query and fragment on an accepted path", () => {

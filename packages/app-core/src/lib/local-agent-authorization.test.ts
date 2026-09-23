@@ -21,9 +21,9 @@ import {
   revokeLocalApplicationGrant,
   withLocalApplicationGrant,
 } from "./local-authorization.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   type LocalDirectoryChange,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "./local-directory.js";
 import {

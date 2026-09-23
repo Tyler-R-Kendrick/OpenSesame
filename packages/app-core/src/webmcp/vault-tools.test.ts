@@ -104,4 +104,28 @@ describe("item-addressed vault tools honor share reach", () => {
     ).rejects.toThrow("share_grant_denied");
     expect(navigate).not.toHaveBeenCalled();
   });
+
+  it("refuses a missing id and a real id alike for an unshared member", async () => {
+    const item = loginWithTotp();
+    openVault([item]);
+    memberWithoutShares();
+    vi.spyOn(webmcpNavigationSeam, "navigate").mockImplementation(() => {});
+    const itemTools = [
+      tool("opensesame_vault_item_read"),
+      tool("opensesame_vault_item_write"),
+      tool("opensesame_totp_code"),
+      OPEN_REVEAL_TOOL,
+    ];
+    for (const entry of itemTools) {
+      for (const itemId of [item.id, "no-such-item"]) {
+        const args =
+          entry.name === "opensesame_vault_item_write"
+            ? { itemId, name: "Renamed" }
+            : { itemId };
+        await expect(Promise.resolve(entry.execute(args))).rejects.toThrow(
+          "share_grant_denied",
+        );
+      }
+    }
+  });
 });

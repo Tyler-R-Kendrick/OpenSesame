@@ -7,10 +7,10 @@ import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   type LocalDirectoryChange,
   LocalDirectoryError,
-  changeLocalDirectory,
   readLocalDirectory,
 } from "./local-directory.js";
 import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";

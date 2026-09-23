@@ -2,25 +2,30 @@ import {
   type BoundaryValue,
   isJsonObject,
   isNumber,
-  isString,
 } from "@opensesame/os-domain";
-import { exactOrigin } from "@opensesame/static-auth";
 import { env } from "../host.js";
 import { maybePage } from "../ports.js";
 import { kvRefresh } from "./kv.js";
 import {
-  type LocalScopeRoles,
   defaultScopeRoles,
-  isScopeRoles,
   permitsApplicationScopes,
 } from "./local-application-policy.js";
+import {
+  type LocalApplication,
+  type LocalApplicationRegistration,
+  type LocalApplications,
+  isApplication,
+  isRegistration,
+  strings,
+  validRedirect,
+} from "./local-application-shape.js";
 import {
   LocalDirectoryError,
   readLocalDirectory,
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
-import { isGuestIdentity } from "./local-rbac.js";
+import { assertAccessCapability, isGuestIdentity } from "./local-rbac.js";
 import {
   type LocalSession,
   withLocalIdentitySession,
@@ -31,83 +36,17 @@ import {
 } from "./pages-dogfood.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
+export type {
+  LocalApplication,
+  LocalApplicationRegistration,
+  LocalApplications,
+} from "./local-application-shape.js";
+
 const PATH = "config/identity-applications";
 const MAX_BYTES = 512_000;
-export type LocalApplicationRegistration = {
-  applicationId: string;
-  organizationId: string;
-  redirectUris: string[];
-  scopes: string[];
-  scopeRoles?: LocalScopeRoles[];
-};
-export type LocalApplication = LocalApplicationRegistration & {
-  revision: number;
-};
-export type LocalApplications = {
-  version: 2;
-  revision: number;
-  applications: LocalApplication[];
-};
-
 function unavailable(): never {
   throw new LocalDirectoryError("This application is unavailable.");
 }
-function validRedirect(raw: string): boolean {
-  try {
-    const url = new URL(raw);
-    exactOrigin(url.origin);
-    return (
-      raw.length <= 2048 &&
-      raw === url.href &&
-      !url.username &&
-      !url.password &&
-      !url.hash &&
-      !raw.includes("#") &&
-      !raw.includes("*")
-    );
-  } catch {
-    return false;
-  }
-}
-function strings(value: BoundaryValue, max: number): value is string[] {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.length <= max &&
-    value.every(isString) &&
-    new Set(value).size === value.length
-  );
-}
-function isRegistration(
-  value: BoundaryValue,
-): value is LocalApplicationRegistration {
-  return (
-    isJsonObject(value) &&
-    isString(value.applicationId) &&
-    /^local_[0-9a-f-]{36}$/.test(value.applicationId) &&
-    isString(value.organizationId) &&
-    /^local_[0-9a-f-]{36}$/.test(value.organizationId) &&
-    strings(value.redirectUris, 16) &&
-    value.redirectUris.every(validRedirect) &&
-    strings(value.scopes, 32) &&
-    value.scopes.includes("openid") &&
-    value.scopes.every((scope) =>
-      /^[A-Za-z0-9][A-Za-z0-9:._-]{0,63}$/.test(scope),
-    ) &&
-    (value.scopeRoles === undefined ||
-      isScopeRoles(value.scopeRoles, value.scopes))
-  );
-}
-function isApplication(value: BoundaryValue): value is LocalApplication {
-  return (
-    isJsonObject(value) &&
-    isNumber(value.revision) &&
-    Number.isSafeInteger(value.revision) &&
-    value.revision > 0 &&
-    isRegistration(value)
-  );
-}
-
 function checkApplicationRevisions(
   version: 1 | 2,
   revision: number,
@@ -186,8 +125,23 @@ async function requireDirectoryBinding(
   return directory;
 }
 
-/** Human vault-custodian configuration. Null removes admission without deleting the directory record. */
+/**
+ * Human vault-custodian configuration. Null removes admission without deleting
+ * the directory record. The acting person needs `manage_policies`: a member or
+ * a guest demoted beside a claimed operator may not widen an application.
+ */
 export async function configureLocalApplication(
+  tomb: string,
+  revision: number,
+  applicationId: string,
+  registration: LocalApplicationRegistration | null,
+): Promise<LocalApplications> {
+  await assertAccessCapability(tomb, "manage_policies");
+  return writeLocalApplication(tomb, revision, applicationId, registration);
+}
+
+/** The write itself; bootstrap's own Pages registration comes straight here. */
+async function writeLocalApplication(
   tomb: string,
   revision: number,
   applicationId: string,
@@ -286,7 +240,7 @@ export async function ensurePagesApplicationRegistration(
     scopes: dogfoodScopes,
     scopeRoles: dogfoodRoles,
   };
-  await configureLocalApplication(
+  await writeLocalApplication(
     tomb,
     current.revision,
     applicationId,

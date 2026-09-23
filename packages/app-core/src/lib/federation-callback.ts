@@ -107,6 +107,33 @@ function sanitizeDescription(value: string | null): string | null {
   return trimmed.slice(0, 120);
 }
 
+/** A path stays under the app's base path ("" is the origin root). */
+function underRoot(path: string, root: string): boolean {
+  return !root || path === root || path.startsWith(`${root}/`);
+}
+
+/**
+ * Dot segments collapse during resolution ("/OpenSesame/..//evil.com" is
+ * "//evil.com"), so the path a navigation would use is checked again after
+ * resolving, base path included.
+ */
+function resolvedReturnPath(
+  returnTo: string,
+  origin: string,
+  root: string,
+): string | undefined {
+  try {
+    const resolved = new URL(returnTo, origin);
+    if (resolved.origin !== origin) return undefined;
+    const path = resolved.pathname;
+    if (path.startsWith("//") || path.includes("\\")) return undefined;
+    if (!underRoot(path, root)) return undefined;
+    return `${path}${resolved.search}`;
+  } catch {
+    return undefined;
+  }
+}
+
 export function assertSafeReturnTo(
   returnTo: string | undefined,
   origin: string,
@@ -117,14 +144,6 @@ export function assertSafeReturnTo(
   if (!returnTo.startsWith("/")) return undefined;
   if (returnTo.includes("\\") || returnTo.includes("@")) return undefined;
   const root = basePath === "/" ? "" : basePath.replace(/\/+$/, "");
-  if (root && returnTo !== root && !returnTo.startsWith(`${root}/`)) {
-    return undefined;
-  }
-  try {
-    const resolved = new URL(returnTo, origin);
-    if (resolved.origin !== origin) return undefined;
-    return `${resolved.pathname}${resolved.search}`;
-  } catch {
-    return undefined;
-  }
+  if (!underRoot(returnTo, root)) return undefined;
+  return resolvedReturnPath(returnTo, origin, root);
 }

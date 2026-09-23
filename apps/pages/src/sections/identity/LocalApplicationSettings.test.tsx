@@ -2,10 +2,8 @@ import {
   configureLocalApplication,
   readLocalApplications,
 } from "@opensesame/app-core/lib/local-applications.js";
-import {
-  type LocalDirectory,
-  changeLocalDirectory,
-} from "@opensesame/app-core/lib/local-directory.js";
+import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
+import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import {
   lockAllTombs,
   unlockTomb,

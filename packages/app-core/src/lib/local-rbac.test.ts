@@ -2,8 +2,11 @@
 
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureLocalApplication } from "./local-applications.js";
+import { changeLocalDirectory } from "./local-directory-admin.js";
 import { ensureOwnerPerson } from "./local-directory-bootstrap.js";
-import { changeLocalDirectory, readLocalDirectory } from "./local-directory.js";
+import { readLocalDirectory } from "./local-directory.js";
+import { revokeRecordedLocalGrant } from "./local-grant-admin.js";
 import { isGuestPersonEntry, mintGuestSessionPerson } from "./local-guest.js";
 import {
   accessRoleLabel,
@@ -164,6 +167,63 @@ describe("local RBAC", () => {
       next.memberships.find((row) => row.principalId === guest.id)?.role,
     ).toBe("member");
     expect(await resolveCurrentAccessRole(GUEST_TOMB)).toBe("guest");
+  });
+});
+
+const OPERATOR_ONLY = /Only an operator/;
+
+describe("local Access capabilities are enforced on every write", () => {
+  it("refuses a demoted guest renaming the claimed owner or changing roles", async () => {
+    const guest = mintGuestSessionPerson();
+    vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
+      ...vaultStore.getSnapshot(),
+      guest: true,
+    });
+    await ensureOwnerPerson(tomb, guest.name);
+    let directory = await readLocalDirectory(tomb);
+    const org = directory.entries.find((row) => row.kind === "organization");
+    const app = directory.entries.find((row) => row.kind === "application");
+    directory = await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: "Ada",
+    });
+    const ada = directory.entries.find((row) => row.name === "Ada");
+    directory = await changeLocalDirectory(tomb, directory.revision, {
+      action: "membership",
+      organizationId: org?.id ?? "",
+      principalId: ada?.id ?? "",
+      role: "owner",
+    });
+    expect(await resolveCurrentAccessRole(tomb)).toBe("guest");
+    // Guest status is read from the name: "guest-7" would demote Ada and
+    // hand the guest operator back.
+    await expect(
+      changeLocalDirectory(tomb, directory.revision, {
+        action: "update",
+        id: ada?.id ?? "",
+        name: "guest-7",
+        enabled: true,
+      }),
+    ).rejects.toThrow(OPERATOR_ONLY);
+    await expect(
+      changeLocalDirectory(tomb, directory.revision, {
+        action: "membership",
+        organizationId: org?.id ?? "",
+        principalId: guest.id,
+        role: "owner",
+      }),
+    ).rejects.toThrow(OPERATOR_ONLY);
+    await expect(
+      configureLocalApplication(tomb, 0, app?.id ?? "", null),
+    ).rejects.toThrow(OPERATOR_ONLY);
+    await expect(revokeRecordedLocalGrant(tomb, "grant-1")).rejects.toThrow(
+      OPERATOR_ONLY,
+    );
+    const after = await readLocalDirectory(tomb);
+    expect(after.revision).toBe(directory.revision);
+    expect(hasClaimedOperator(after)).toBe(true);
+    expect(await resolveCurrentAccessRole(tomb)).toBe("guest");
   });
 });
 
