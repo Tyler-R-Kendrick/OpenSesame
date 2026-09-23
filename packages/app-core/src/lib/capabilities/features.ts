@@ -193,11 +193,19 @@ export function switchFeature(
   );
   if (!on) {
     // Forget the choices this feature's capabilities made, so adding one of
-    // them again later asks the question again instead of reusing an answer.
+    // them again later asks the question again instead of reusing an answer
+    // — unless a root that stays still answers to the same slot.
+    const slotsOf = (ids: readonly CapabilityId[]) =>
+      new Set(
+        catalog.capabilities
+          .filter((entry) => ids.includes(entry.id))
+          .flatMap((entry) => entry.alternatives.map((slot) => slot.slot)),
+      );
+    const stillNeeded = slotsOf(kept);
     const slots = new Set(
-      catalog.capabilities
-        .filter((entry) => feature.capabilities.includes(entry.id))
-        .flatMap((entry) => entry.alternatives.map((slot) => slot.slot)),
+      [...slotsOf(feature.capabilities)].filter(
+        (slot) => !stillNeeded.has(slot),
+      ),
     );
     const alternatives = Object.fromEntries(
       Object.entries(current.alternatives).filter(([slot]) => !slots.has(slot)),

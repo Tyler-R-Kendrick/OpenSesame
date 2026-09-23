@@ -50,7 +50,7 @@ export const CAPABILITY = "identity.ambient-sso";
 export const ambientRuntimeSeams = {
   runAmbientAuthBoot,
   externalServicesDenied: () =>
-    compositionStore.getSnapshot().plan?.network.externalServices === "deny",
+    compositionStore.getSnapshot().plan?.network.externalServices !== "allow",
 };
 
 /** Test-only: forget that this document already booted. */
@@ -73,11 +73,13 @@ const boot = { ran: false };
 
 export function startAmbientBoot(signal: AbortSignal): void {
   if (signal.aborted || boot.ran) return;
-  // Always on is not a way round the operator's network envelope: the boot
-  // is this capability's one automatic external call, and a plan that denies
-  // external services (the Family preset, a managed policy) keeps it off.
-  if (ambientRuntimeSeams.externalServicesDenied()) return;
+  // The first start decides for this document, run or not: a policy that
+  // relaxes later does not start a boot in the middle of someone's session.
   boot.ran = true;
+  // Always on is not a way round the operator's network envelope: the boot
+  // is this capability's one automatic external call, and a plan that does
+  // not allow external services — or no plan yet — keeps it off.
+  if (ambientRuntimeSeams.externalServicesDenied()) return;
   const { search, pathname } = window.location;
   ambientRuntimeSeams.runAmbientAuthBoot({
     hasAuthCallback: isAuthCallbackSearch(search),

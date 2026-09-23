@@ -1,23 +1,18 @@
+/** @vitest-environment jsdom */
 import { FIXTURE_MANAGED_POLICY } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
 import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { capabilitiesPanelSeams } from "./CapabilitiesPanel.js";
 import {
-  guestsAllowed,
-  setGuestsAllowed,
-} from "@opensesame/app-core/lib/guest-access.js";
-/** @vitest-environment jsdom */
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+  PERSONAL_SELECTION,
+  installPanelFixture,
+  panelVault,
+  renderPanel,
+} from "./capabilities-panel.test-support.js";
 
 vi.mock(
   "@opensesame/app-core/lib/configuration/capabilities-ports.js",
@@ -29,67 +24,7 @@ vi.mock(
   },
 );
 
-import {
-  CapabilitiesPanel,
-  capabilitiesPanelSeams,
-} from "./CapabilitiesPanel.js";
-
-function renderPanel() {
-  return render(
-    <MemoryRouter>
-      <CapabilitiesPanel />
-    </MemoryRouter>,
-  );
-}
-
-const realUseVault = vaultHooksSeams.useVault;
-const realNow = capabilitiesPanelSeams.now;
-let vault = { tomb: "personal", guest: false };
-
-const PERSONAL_SELECTION = {
-  schemaVersion: 1 as const,
-  kind: "InstallationCapabilitySelection" as const,
-  instanceId: "personal-local",
-  installationId: "inst-1",
-  basePolicyRevision: "0",
-  revision: "1",
-  acceptedRequired: [],
-  selectedOptional: ["agents.webmcp", "vault.passkey-records"],
-  chosenAlternatives: {},
-  delivery: { prefetch: "none" as const, offlineCache: "shell-only" as const },
-};
-
-function withReceipt() {
-  const plan = double.preview(PERSONAL_SELECTION);
-  const exposure: Record<string, string> = {};
-  for (const id of plan.approvedCapabilities)
-    exposure[id] = `sha256:fixture-${id}`;
-  return {
-    schemaVersion: 1 as const,
-    instanceId: "personal-local",
-    installationId: "inst-1",
-    policyRevision: "0",
-    selectionRevision: "1",
-    acceptedAt: "2026-09-22T00:00:00Z",
-    roots: ["agents.webmcp", "vault.passkey-records"],
-    exposure,
-    receiptDigest: "sha256:r",
-  };
-}
-
-beforeEach(() => {
-  vault = { tomb: "personal", guest: false };
-  vaultHooksSeams.useVault = () => ({ ...realUseVault(), ...vault });
-  resetDouble({ selection: PERSONAL_SELECTION, receipt: withReceipt() });
-  double.setActive("agents.webmcp");
-  capabilitiesPanelSeams.reload = vi.fn();
-  capabilitiesPanelSeams.now = realNow;
-});
-afterEach(() => {
-  cleanup();
-  capabilitiesPanelSeams.now = realNow;
-  vaultHooksSeams.useVault = realUseVault;
-});
+installPanelFixture();
 
 describe("Advanced — one row per optional capability", () => {
   it("shows each optional capability with its lifecycle, and actions only on running ones", () => {
@@ -228,11 +163,11 @@ describe("SURFACE-06 — a member never sees policy controls", () => {
   });
 
   it("hides it from a guest and from any other tomb", () => {
-    vault = { tomb: "personal", guest: true };
+    panelVault.current = { tomb: "personal", guest: true };
     renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     cleanup();
-    vault = { tomb: "project-4f2a", guest: false };
+    panelVault.current = { tomb: "project-4f2a", guest: false };
     renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
   });
@@ -246,95 +181,6 @@ describe("SURFACE-06 — a member never sees policy controls", () => {
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     expect(screen.queryByTestId("purpose-card-personal")).toBeNull();
     expect(screen.queryByRole("button", { name: /Personal/ })).toBeNull();
-  });
-});
-
-describe("features — one switch per way of using the app", () => {
-  it("draws the features and no always-on capability as a switch", () => {
-    renderPanel();
-    const features = screen.getByRole("list", { name: "Features" });
-    for (const title of [
-      "Guests",
-      "AI",
-      "Backups",
-      "Payments",
-      "Servers",
-      "Sharing",
-      "Networking",
-    ]) {
-      expect(features.textContent, title).toContain(title);
-    }
-    expect(screen.queryByRole("switch", { name: "Passwords" })).toBeNull();
-    expect(
-      screen.queryByRole("switch", { name: "Passkey records" }),
-    ).toBeNull();
-  });
-
-  it("switching a feature on reviews, then commits every capability behind it", async () => {
-    renderPanel();
-    const sharing = screen.getByRole("switch", { name: "Sharing" });
-    expect(sharing.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(sharing);
-    expect(screen.getByTestId("capability-review")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("capability-apply"));
-    await waitFor(() => expect(double.commits).toHaveLength(1));
-    const selected = double.commits[0]?.draft.selectedOptional ?? [];
-    expect(selected).toContain("sharing.drops");
-    expect(selected).toContain("sharing.household");
-    // The roots the installation already had are kept.
-    expect(selected).toContain("agents.webmcp");
-  });
-
-  it("switching a running feature off removes it and keeps the rest", async () => {
-    renderPanel();
-    const ai = screen.getByRole("switch", { name: "AI" });
-    expect(ai.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(ai);
-    fireEvent.click(screen.getByTestId("capability-apply"));
-    await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(double.commits[0]?.draft.selectedOptional).not.toContain(
-      "agents.webmcp",
-    );
-  });
-
-  it("configures a feature's providers under it only while it is on", () => {
-    renderPanel();
-    // Backups is off: its git providers are not drawn.
-    expect(
-      screen.queryByRole("list", { name: "Backups providers" }),
-    ).toBeNull();
-    cleanup();
-    const selection = {
-      ...PERSONAL_SELECTION,
-      selectedOptional: ["backup.git-remote", "connectors.external"],
-    };
-    const exposure: Record<string, string> = {};
-    for (const id of double.preview(selection).approvedCapabilities)
-      exposure[id] = `sha256:fixture-${id}`;
-    resetDouble({
-      selection,
-      receipt: {
-        ...withReceipt(),
-        roots: selection.selectedOptional,
-        exposure,
-      },
-    });
-    renderPanel();
-    const tiles = screen.getByRole("list", { name: "Backups providers" });
-    expect(tiles.textContent).toContain("GitHub");
-    expect(tiles.textContent).toContain("GitLab");
-  });
-
-  it("configures the always-on providers with no switch", () => {
-    renderPanel();
-    const providers = screen.getByRole("region", { name: "Providers" });
-    expect(providers.textContent).toContain("Identity providers");
-    expect(providers.textContent).toContain("Password managers");
-    // A provider may carry its own enable switch (a backup road); a group
-    // never does.
-    for (const group of ["Identity providers", "Password managers"]) {
-      expect(screen.queryByRole("switch", { name: group })).toBeNull();
-    }
   });
 });
 
@@ -356,41 +202,5 @@ describe("Advanced", () => {
     expect(details().open).toBe(true);
     details().open = false;
     fireEvent(details(), new Event("toggle"));
-  });
-});
-
-describe("Allow guests", () => {
-  it("is on by default and turns off durably", async () => {
-    renderPanel();
-    const guests = screen.getByRole("switch", { name: "Allow guests" });
-    expect(guests.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(guests);
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole("switch", { name: "Allow guests" })
-          .getAttribute("aria-checked"),
-      ).toBe("false"),
-    );
-    expect(guestsAllowed()).toBe(false);
-    await setGuestsAllowed(true);
-  });
-
-  it("is the operator's alone: no guest, project tomb or managed member sees it", () => {
-    vault = { tomb: "personal", guest: true };
-    renderPanel();
-    expect(screen.queryByRole("switch", { name: "Allow guests" })).toBeNull();
-    cleanup();
-    vault = { tomb: "project-4f2a", guest: false };
-    renderPanel();
-    expect(screen.queryByRole("switch", { name: "Allow guests" })).toBeNull();
-    cleanup();
-    vault = { tomb: "personal", guest: false };
-    resetDouble({
-      policy: FIXTURE_MANAGED_POLICY,
-      provenance: "same-origin-deployment",
-    });
-    renderPanel();
-    expect(screen.queryByRole("switch", { name: "Allow guests" })).toBeNull();
   });
 });

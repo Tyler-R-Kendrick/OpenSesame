@@ -25,7 +25,9 @@ import { setGuestsAllowed } from "@opensesame/app-core/lib/guest-access.js";
 import type { EffectivePlan } from "@opensesame/capability-composition";
 import { useComposition } from "../../bindings/capabilities.js";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
+import { IconPlus } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ModelProviderPanel } from "./ModelProviderPanel.js";
@@ -110,6 +112,8 @@ function FeatureRow({ feature, current, onPropose, rowRef }: RowProps) {
   const state = featureState(feature, plan);
   const standing = standingOf(feature, plan);
   const switchable = state.on || state.available.length > 0;
+  const propose = (on: boolean) =>
+    onPropose(switchFeature(current, feature, on, plan, CAPABILITY_CATALOG));
   return (
     <li className="capfeature" id={`feature-${feature.id}`} ref={rowRef}>
       <div className="capspanel__row">
@@ -122,22 +126,24 @@ function FeatureRow({ feature, current, onPropose, rowRef }: RowProps) {
           {!switchable || (state.on && !state.complete) ? (
             <StatusMark tone={standing.tone} label={standing.label} />
           ) : null}
+          {state.on && !state.complete ? (
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={`Turn on all of ${feature.title}`}
+              title={`Turn on all of ${feature.title}`}
+              onClick={() => propose(true)}
+            >
+              <IconPlus size={14} />
+            </button>
+          ) : null}
           {switchable ? (
             <Switch
               label={feature.title}
               on={state.on}
-              onToggle={() =>
-                onPropose(
-                  switchFeature(
-                    current,
-                    feature,
-                    // A partly-on feature completes; a whole one turns off.
-                    !state.on || !state.complete,
-                    plan,
-                    CAPABILITY_CATALOG,
-                  ),
-                )
-              }
+              // The switch reads "on" while anything runs, so pressing it
+              // always turns the feature off; the key beside it completes it.
+              onToggle={() => propose(!state.on)}
             />
           ) : null}
         </span>
@@ -158,14 +164,17 @@ function BackupsRow(props: RowProps) {
 }
 
 /**
- * Allow guests — the operator's switch alone (`useDeviceOperator`). A guest
- * never sees it, so the one person holding the device on the guest road
- * cannot shut that road behind themselves; neither can a member of a
- * managed instance or someone in a project tomb.
+ * Allow guests — the operator's switch (`useDeviceOperator`). A guest never
+ * sees it, so the one person holding the device on the guest road cannot
+ * shut that road behind themselves. Once guests are off, anyone signed in
+ * here may turn them back on: the default is on, and a device whose operator
+ * is gone must still be able to get the road back.
  */
 function GuestRow() {
   const allowed = useGuestsAllowed();
-  if (!useDeviceOperator()) return null;
+  const operator = useDeviceOperator();
+  const { guest } = useVault();
+  if (!operator && (allowed || guest)) return null;
   const label = allowed ? "on" : "off";
   return (
     <li className="capfeature" id="feature-guests">

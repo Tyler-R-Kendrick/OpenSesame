@@ -6,6 +6,7 @@
  */
 
 import { isString } from "@opensesame/os-domain";
+import { guestsAllowed } from "./guest-access.js";
 import { kvGet, kvSet } from "./kv.js";
 import { GUEST_TOMB } from "./vfs.js";
 
@@ -23,6 +24,13 @@ export function writeLastVaultId(id: string): void {
   kvSet(LAST_VAULT_KEY, trimmed);
 }
 
+/**
+ * Whether the device reopens into the guest tomb. Not while the operator
+ * has switched guests off: the device then reopens on its own vault, so a
+ * guest tomb — even one a guest sealed with a PIN of its own — is not a
+ * way back in (ADR 0134 §4). The pointer is left as it is, so switching
+ * guests back on returns the device to where it was.
+ */
 export function lastVaultIsGuest(): boolean {
-  return readLastVaultId() === GUEST_TOMB;
+  return readLastVaultId() === GUEST_TOMB && guestsAllowed();
 }

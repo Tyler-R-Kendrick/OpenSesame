@@ -57,9 +57,12 @@ under each new plan generation: `contributions()` answers only the current
 generation's registrations, which is the fence ADR 0130's authority model
 rests on, and an always-on capability gets no exemption from it.
 
-The build still treats each always-on `src/modules/<id>/` directory as
-optional source, so a static import of one from the bootstrap is reported by
-the capability graph; the capability's other files are classified core.
+Every file an always-on capability owns, its `src/modules/<id>/` directory
+included, is classified core — the capability graph's BUILD-06 invariant
+requires a core capability's module directory to be core. The bootstrap still
+reaches the module only through the loader under the current plan's lease;
+it is the ownership rule, not the classification, that keeps it out of the
+entry chunk.
 
 Documents written before this change may still name one of these ids. The
 resolver ignores a core id in a selection, and a policy that *requires* one
@@ -119,10 +122,13 @@ full-size button on both sign-in placements, the first-run Skip, the unlock
 footer, and the Identity ceremony's guest claim — reads it through
 `screens/unlock/GuestRoad.tsx` or `useGuestsAllowed`, so none can drift, and
 `openGuestVault` in `guest-auth.ts`, where both guest roads end, refuses a
-guest session outright while it is off. Only the device's operator sees the
-switch (`useDeviceOperator`: personal-local, the personal tomb, not a guest)
-— the same rule as the instance policy, so neither a guest nor a member of a
-managed instance can shut the guest road.
+guest session outright while it is off, and the last-vault pointer and the
+vault list stop offering the guest tomb. Only the device's operator may turn
+the switch off (`useDeviceOperator`: personal-local, the personal tomb, not a
+guest) — the same rule as the instance policy, so neither a guest nor a
+member of a managed instance can shut the guest road. Once it is off, anyone
+signed in (never a guest) may turn it back on: withdrawal is the exception,
+and a device whose operator is gone must still be able to get the road back.
 
 This is the only thing that may withdraw the guest road. AGENTS.md §5's rule
 stands otherwise unchanged: guest is never gated on an Identity API, the
