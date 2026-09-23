@@ -155,6 +155,25 @@ impl Db {
         Ok(row.as_ref().map(stored_certificate_profile))
     }
 
+    /// Looks a profile up by id alone — the handle an enrollment protocol
+    /// endpoint carries in its path. `id` is the table's primary key, so the
+    /// organization is unambiguous; callers get it back from the row and keep
+    /// every later lookup org-scoped.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
+    pub async fn get_certificate_profile_by_id(
+        &self,
+        profile_id: &str,
+    ) -> anyhow::Result<Option<StoredCertificateProfile>> {
+        let row = sqlx::query("SELECT * FROM certificate_profiles WHERE id = ?")
+            .bind(profile_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.as_ref().map(stored_certificate_profile))
+    }
+
     /// # Errors
     ///
     /// Returns an error when the query fails.
