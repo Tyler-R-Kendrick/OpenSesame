@@ -89,9 +89,11 @@ const browser = await launch();
   setStep("E-gated");
   await checkGatedSectionsAbsent(page, check);
   for (const [title, rail] of [
+    // Always on: checked present, never offered as a row.
     ["Guided help", null],
     ["External connectors", "connections/"],
     ["Access authority", "access/"],
+    // Optional: absent, then added.
     ["Browser-local IAM", "identity/"],
   ]) {
     setStep(`E-add-${(rail ?? title).replace("/", "")}`);
@@ -277,8 +279,9 @@ const browser = await launch();
     Boolean(session?.includes("pw_verify")),
     "federation session saved on device",
   );
-  // This is a fresh device: the identity section and the provider directory
-  // are capabilities, so they are added here the way a person adds them.
+  // This is a fresh device: the identity section is the Servers feature's,
+  // so it is added the way a person adds it; the provider directory is
+  // always on and has nothing to add.
   setStep("C-add-identity");
   await addCapability(page, check, snap, "Browser-local IAM", "identity/");
   await addCapability(page, check, snap, "Operator identity providers");

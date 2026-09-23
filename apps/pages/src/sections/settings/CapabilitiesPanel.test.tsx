@@ -1,18 +1,18 @@
+/** @vitest-environment jsdom */
 import { FIXTURE_MANAGED_POLICY } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
 import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
-/** @vitest-environment jsdom */
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { capabilitiesPanelSeams } from "./CapabilitiesPanel.js";
 import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+  PERSONAL_SELECTION,
+  installPanelFixture,
+  panelVault,
+  renderPanel,
+} from "./capabilities-panel.test-support.js";
 
 vi.mock(
   "@opensesame/app-core/lib/configuration/capabilities-ports.js",
@@ -24,79 +24,28 @@ vi.mock(
   },
 );
 
-import {
-  CapabilitiesPanel,
-  capabilitiesPanelSeams,
-} from "./CapabilitiesPanel.js";
+installPanelFixture();
 
-const realUseVault = vaultHooksSeams.useVault;
-const realNow = capabilitiesPanelSeams.now;
-let vault = { tomb: "personal", guest: false };
-
-const PERSONAL_SELECTION = {
-  schemaVersion: 1 as const,
-  kind: "InstallationCapabilitySelection" as const,
-  instanceId: "personal-local",
-  installationId: "inst-1",
-  basePolicyRevision: "0",
-  revision: "1",
-  acceptedRequired: [],
-  selectedOptional: ["agents.webmcp", "vault.passkey-records"],
-  chosenAlternatives: {},
-  delivery: { prefetch: "none" as const, offlineCache: "shell-only" as const },
-};
-
-function withReceipt() {
-  const plan = double.preview(PERSONAL_SELECTION);
-  const exposure: Record<string, string> = {};
-  for (const id of plan.approvedCapabilities)
-    exposure[id] = `sha256:fixture-${id}`;
-  return {
-    schemaVersion: 1 as const,
-    instanceId: "personal-local",
-    installationId: "inst-1",
-    policyRevision: "0",
-    selectionRevision: "1",
-    acceptedAt: "2026-09-22T00:00:00Z",
-    roots: ["agents.webmcp", "vault.passkey-records"],
-    exposure,
-    receiptDigest: "sha256:r",
-  };
-}
-
-beforeEach(() => {
-  vault = { tomb: "personal", guest: false };
-  vaultHooksSeams.useVault = () => ({ ...realUseVault(), ...vault });
-  resetDouble({ selection: PERSONAL_SELECTION, receipt: withReceipt() });
-  double.setActive("agents.webmcp");
-  capabilitiesPanelSeams.reload = vi.fn();
-  capabilitiesPanelSeams.now = realNow;
-});
-afterEach(() => {
-  cleanup();
-  capabilitiesPanelSeams.now = realNow;
-  vaultHooksSeams.useVault = realUseVault;
-});
-
-describe("what this device uses", () => {
-  it("shows one row per capability with its lifecycle, and actions only on running ones", () => {
-    render(<CapabilitiesPanel />);
+describe("Advanced — one row per optional capability", () => {
+  it("shows each optional capability with its lifecycle, and actions only on running ones", () => {
+    renderPanel();
     const panel = screen.getByTestId("capabilities-panel");
     expect(panel.textContent).toContain("Agent tools (WebMCP)");
     expect(panel.textContent).toContain("active");
     expect(
       screen.getByRole("button", { name: "Disable Agent tools (WebMCP) now" }),
     ).toBeTruthy();
+    // Always-on capabilities are not configurations: no row at all.
     expect(
-      screen.queryByRole("button", { name: "Disable Passwords now" }),
-    ).toBeNull();
+      screen.getByRole("list", { name: "Optional capabilities" }).textContent,
+    ).not.toContain("Passwords");
     expect(
       screen.queryByRole("button", { name: "Disable Shared drops now" }),
     ).toBeNull();
   });
 
   it("Disable now goes straight to the store's emergency disable", async () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(
       screen.getByRole("button", { name: "Disable Agent tools (WebMCP) now" }),
     );
@@ -105,7 +54,7 @@ describe("what this device uses", () => {
   });
 
   it("Retire safely reviews, then commits with the root removed", async () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(
       screen.getByRole("button", {
         name: "Retire Agent tools (WebMCP) safely",
@@ -123,7 +72,7 @@ describe("what this device uses", () => {
   });
 
   it("Add reviews, then commits with the root added — a choice is not one-way", async () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     // Not running here, and this installation may have it: the row offers a
     // way in. Before this, setup was the only place to choose, and setup
     // lives before sign-in.
@@ -148,7 +97,7 @@ describe("what this device uses", () => {
     // the second with `selection-revision`. That is how a person who had
     // chosen one capability could never choose a second.
     capabilitiesPanelSeams.now = () => "2026-09-10T00:00:00.000Z";
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
@@ -168,7 +117,7 @@ describe("what this device uses", () => {
   });
 
   it("offers no way in for a capability already running, or one this distribution lacks", () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(
       screen.queryByRole("button", { name: "Add Agent tools (WebMCP)" }),
     ).toBeNull();
@@ -182,7 +131,7 @@ describe("what this device uses", () => {
       },
       evaluatedModuleIds: ["agents.webmcp/runtime"],
     });
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.getByTestId("capabilities-restart").textContent).toContain(
       "reload",
     );
@@ -194,7 +143,7 @@ describe("what this device uses", () => {
   });
 
   it("switches Visual / Source / Effective", () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     fireEvent.click(screen.getAllByRole("button", { name: "Effective" })[0]);
     expect(screen.getByLabelText("Effective plan").textContent).toContain(
       "approvedCapabilities",
@@ -208,18 +157,18 @@ describe("what this device uses", () => {
 
 describe("SURFACE-06 — a member never sees policy controls", () => {
   it("shows the instance policy only to the operator of a personal-local device in the personal tomb", () => {
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.getByTestId("instance-capabilities-panel")).toBeTruthy();
     expect(screen.getByTestId("purpose-card-personal")).toBeTruthy();
   });
 
   it("hides it from a guest and from any other tomb", () => {
-    vault = { tomb: "personal", guest: true };
-    render(<CapabilitiesPanel />);
+    panelVault.current = { tomb: "personal", guest: true };
+    renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     cleanup();
-    vault = { tomb: "project-4f2a", guest: false };
-    render(<CapabilitiesPanel />);
+    panelVault.current = { tomb: "project-4f2a", guest: false };
+    renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
   });
 
@@ -228,9 +177,30 @@ describe("SURFACE-06 — a member never sees policy controls", () => {
       policy: FIXTURE_MANAGED_POLICY,
       provenance: "same-origin-deployment",
     });
-    render(<CapabilitiesPanel />);
+    renderPanel();
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     expect(screen.queryByTestId("purpose-card-personal")).toBeNull();
     expect(screen.queryByRole("button", { name: /Personal/ })).toBeNull();
+  });
+});
+
+describe("Advanced", () => {
+  it("stays open across a review, so the row just changed is still in view", async () => {
+    renderPanel();
+    const details = () =>
+      screen.getByTestId("capabilities-advanced") as HTMLDetailsElement;
+    expect(details().open).toBe(false);
+    details().open = true;
+    fireEvent(details(), new Event("toggle"));
+    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(1));
+    expect(details().open).toBe(true);
+    // And when the plan change remounts the panel.
+    cleanup();
+    renderPanel();
+    expect(details().open).toBe(true);
+    details().open = false;
+    fireEvent(details(), new Event("toggle"));
   });
 });

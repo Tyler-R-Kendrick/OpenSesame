@@ -71,7 +71,6 @@ Object.assign(passwordSeams, {
   defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
   generate: () => "harbor-cinder-lattice-quarry",
 });
-import { registerLegacySettingsCategories } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { registerOptionalTutorials } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 const stubPanels: SettingsPanels = {
@@ -87,33 +86,15 @@ const endpoints = {
   mfaAppUrl: "",
   capabilityConnectors: { encryption: { providerId: "webcrypto" } },
 };
-/**
- * Connections is not a core Settings category: the connectors capability
- * contributes it, with the panel it draws. These tests are about the shell —
- * that the hash alias, the rest path and the nav all reach the contributed
- * category and mount its panel — so the panel here is a stand-in, and what
- * the real one renders is `modules/connectors.external`'s own test.
- */
-function ConnectionsCategoryStub() {
-  return (
-    <>
-      <h2>Connections</h2>
-      <stubPanels.ModelProviderPanel />
-    </>
-  );
-}
-
-let revokeConnections: readonly (() => void)[] = [];
+let revokeTutorials: (() => void) | null = null;
 beforeEach(() => {
-  revokeConnections = [
-    // The tutorial targets first: a category link binds `settings.connections`,
-    // and the registry refuses an id the live catalog does not declare.
-    registerOptionalTutorials(),
-    registerLegacySettingsCategories(ConnectionsCategoryStub),
-  ];
+  // The tutorial targets first: a category link binds its guide id, and the
+  // registry refuses an id the live catalog does not declare.
+  revokeTutorials = registerOptionalTutorials();
 });
 afterEach(() => {
-  for (const revoke of revokeConnections) revoke();
+  revokeTutorials?.();
+  revokeTutorials = null;
 });
 
 function renderSettings(entry = "") {
@@ -202,14 +183,16 @@ describe("SettingsSection", () => {
   });
 
   it("activates categories from the hash and the nav", async () => {
+    // `#taskbus` is a legacy Connections hash; Connections is Capabilities now.
     renderSettings("#taskbus");
-    expect(screen.getByRole("heading", { name: "Connections" })).toBeTruthy();
+    expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
     const nav = screen.getByRole("navigation", {
       name: /Settings sections/i,
     });
     expect(
       nav.querySelector('[aria-current="page"]')?.textContent?.toLowerCase(),
-    ).toBe("connections");
+    ).toBe("capabilities");
+    expect(screen.queryByRole("link", { name: "Connections" })).toBeNull();
 
     await userEvent.click(screen.getByRole("link", { name: /Danger/i }));
     expect(
@@ -322,24 +305,28 @@ describe("SettingsSection", () => {
     expect(screen.queryByLabelText("Confirm")).toBeNull();
   });
 
-  it("opens a category from a rest path", () => {
-    renderSettings("/settings/connections");
-    expect(screen.getByRole("heading", { name: "Connections" })).toBeTruthy();
-    expect(
-      screen
-        .getByRole("link", { name: "Connections" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
-    expect(screen.queryByText("Appearance")).toBeNull();
+  it("opens Capabilities from the old Connections and Backups paths", () => {
+    for (const path of ["/settings/connections", "/settings/backups"]) {
+      renderSettings(path);
+      expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
+      expect(
+        screen
+          .getByRole("link", { name: "Capabilities" })
+          .getAttribute("aria-current"),
+      ).toBe("page");
+      expect(screen.queryByText("Appearance")).toBeNull();
+      cleanup();
+    }
   });
 
-  it("renders the connectivity child panels", () => {
+  it("puts every provider on Capabilities, with no Connections tab", () => {
     renderSettings("#connectivity");
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Project" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
-    expect(screen.queryByTestId("active-project-panel")).toBeNull();
-    expect(screen.getByTestId("model-provider-panel")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Providers" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Identity providers" }),
+    ).toBeTruthy();
   });
 
   it("destroys the vault only after confirmation", async () => {

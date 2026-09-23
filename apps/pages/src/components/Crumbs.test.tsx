@@ -63,7 +63,7 @@ describe("Crumbs", () => {
     expect(
       screen.getByRole("link", { name: "Settings" }).getAttribute("href"),
     ).toBe("/settings");
-    expect(screen.getAllByText("Connections").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Capabilities").length).toBeGreaterThan(0);
     unmount();
 
     renderAt("/connections/github/conn_1");

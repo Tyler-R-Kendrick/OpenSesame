@@ -3,14 +3,20 @@ import { expect } from "@playwright/test";
 /**
  * Verify the actual New link and keyboard command agree with the active view.
  *
- * The listings walked here are the core ones. Drops are `sharing.drops` and
- * passkey records are `vault.passkey-records`, so a device that has approved
- * nothing has no rail row for either (ADR 0130) — asserted below rather than
- * quietly dropped, because a listing that disappears for the wrong reason
- * would otherwise read as a passing gate.
+ * The listings walked here are the core ones. Drops are `sharing.drops`, so
+ * a device that has approved nothing has no rail row for them (ADR 0130) —
+ * asserted below rather than quietly dropped, because a listing that
+ * disappears for the wrong reason would otherwise read as a passing gate.
+ * Passkey records are always on (ADR 0135), so their listing is there.
  */
 export async function checkEditorRoutes(page, check) {
-  for (const gated of ["drop", "passkey"]) {
+  check(
+    (await page
+      .locator('.railtree__kids a[href$="/vault?f=passkey"]')
+      .count()) > 0,
+    "passkey: the listing is there with nothing chosen (always on)",
+  );
+  for (const gated of ["drop"]) {
     check(
       (await page
         .locator(`.railtree__kids a[href$="/vault?f=${gated}"]`)

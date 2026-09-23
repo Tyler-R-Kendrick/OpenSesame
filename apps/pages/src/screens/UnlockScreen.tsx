@@ -2,10 +2,7 @@ import {
   outcomeWantsSignIn,
   readAuthOutcome,
 } from "@opensesame/app-core/lib/auth-outcome.js";
-import {
-  continueAsGuest,
-  resumeGuestSession,
-} from "@opensesame/app-core/lib/guest-auth.js";
+import { resumeGuestSession } from "@opensesame/app-core/lib/guest-auth.js";
 import { currentSession } from "@opensesame/app-core/lib/identity.js";
 import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
@@ -64,6 +61,7 @@ import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { CodeField } from "./unlock/CodeField.js";
+import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
@@ -1023,32 +1021,16 @@ function UnlockForm({
               Sign in instead
             </button>
           ) : null}
-          {/* The guest road on the unlock form itself: whoever holds this
-              device without its key still gets in, as a guest in an isolated
-              tomb, and the sealed vault stays exactly as it is. Never removed,
-              never gated (AGENTS.md §5) — including beside the guest tomb,
-              where it resumes rather than gates. */}
+          {/* The guest road on the unlock form itself (GuestRoad.tsx): never
+              gated on anything but the operator's "Allow guests" switch
+              (AGENTS.md §5) — including beside the guest tomb, where it
+              resumes rather than gates. */}
           {!firstRun && !showSignIn && !showReset ? (
-            <button
-              type="button"
-              className="unlock__switch"
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                setBusy(true);
-                void continueAsGuest()
-                  .catch((caught) => {
-                    setError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Guest login failed.",
-                    );
-                  })
-                  .finally(() => setBusy(false));
-              }}
-            >
-              Continue as guest
-            </button>
+            <GuestUnlockSwitch
+              busy={busy}
+              setBusy={setBusy}
+              setError={setError}
+            />
           ) : null}
           {!firstRun && !showSignIn ? (
             showReset ? (

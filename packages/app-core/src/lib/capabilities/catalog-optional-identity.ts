@@ -1,5 +1,7 @@
 /**
- * Optional descriptors — access, identity and enterprise families.
+ * Optional descriptors — the servers family: this device as an identity
+ * host (browser-local IAM, SIOP, the site broker) and the enterprise
+ * directory and certificate authority.
  */
 
 import { type AuthoredDescriptor, optional } from "./descriptor.js";
@@ -11,102 +13,6 @@ const IDENTITY_API_EGRESS = {
 } as const;
 
 export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
-  optional(
-    "access.authority",
-    "Access authority",
-    "The Access section: local grants, requests, sessions, resources and policies, plus Host-plane tasks, delegations, relay approvals, receipts and pairing when a Host is configured.",
-    {
-      operationIds: [
-        "agent_identities.read",
-        "authority.portal.templates.manage",
-        "authority.portal.templates.read",
-        "browser.client.revoke",
-        "browser.identity.authenticate",
-        "browser.pairing.begin",
-        "changelog.read",
-        "configs.browse",
-        "configs.permissions.read",
-        "configs.set",
-        "daemon.status",
-        "delegations.claim",
-        "delegations.list",
-        "delegations.narrow",
-        "delegations.offers.list",
-        "delegations.offers.revoke",
-        "delegations.revoke",
-        "host.health",
-        "host.health.pages",
-        "host.whoami",
-        "identity.local.access.manage",
-        "identity.local.policy.manage",
-        "identity.local.requests.manage",
-        "receipts.read",
-        "relay.decide",
-        "relay.inbox",
-        "tasks.inspect",
-        "tasks.list",
-        "tasks.terminate",
-        "transport.capabilities.discover",
-        "transport.identity.reference",
-        "transport.status.view",
-        "transport.verify.run",
-      ],
-      egress: [
-        {
-          class: "external-service",
-          purpose: "the configured Host API and Identity API",
-          automatic: false,
-        },
-        {
-          class: "peer-or-local-network",
-          purpose:
-            "a Host or daemon on the local network or tailnet during browser pairing",
-          automatic: false,
-        },
-      ],
-      browserPermissions: ["webauthn"],
-      offlineLimits:
-        "Local grants, requests and policies work offline; Host sessions, delegations and receipts need the Host.",
-    },
-  ),
-  optional(
-    "identity.federation",
-    "Operator identity providers",
-    "Sign in through operator-registered OpenID providers, bring-your-own issuers and the Identity API's directory: the Providers tab, the setup identity and MFA tabs.",
-    {
-      egress: [
-        IDENTITY_API_EGRESS,
-        {
-          class: "user-mediated-navigation",
-          purpose: "the OpenID redirect to a provider a person pressed",
-          automatic: false,
-        },
-      ],
-      requiresService: true,
-      offlineLimits:
-        "Provider sign-in needs the Identity API and the provider.",
-    },
-  ),
-  optional(
-    "identity.ambient-sso",
-    "Ambient single sign-on",
-    "Silent sign-in on boot through Microsoft Entra or another configured provider, with the MSAL redirect bridge page.",
-    {
-      dependencies: ["identity.federation"],
-      egress: [
-        {
-          class: "external-service",
-          purpose:
-            "Microsoft Entra or the configured OpenID provider, for a silent token on boot",
-          automatic: true,
-        },
-      ],
-      requiresService: true,
-      requiresDocumentReload: true,
-      offlineLimits:
-        "Silent sign-in is skipped offline; the saved session is used.",
-    },
-  ),
   optional(
     "identity.local-iam",
     "Browser-local IAM",

@@ -1,40 +1,11 @@
 /**
- * Optional descriptors — the vault, sharing and backup families. Default
- * off; each is chosen, reviewed and accepted before its module is fetched.
+ * Optional descriptors — sharing and git backup. Default off; each is
+ * chosen, reviewed and accepted before its module is fetched.
  */
 
 import { type AuthoredDescriptor, optional } from "./descriptor.js";
 
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
-  optional(
-    "vault.passkey-records",
-    "Passkey records",
-    "Keep passkeys as vault items: the passkey kind, its editor fields and its WebAuthn-backed ceremonies.",
-    {
-      browserPermissions: ["webauthn"],
-      keyAccess: "item-plaintext",
-      itemKinds: ["passkey"],
-    },
-  ),
-  optional(
-    "vault.certificate-records",
-    "Certificate records",
-    "Keep X.509 certificates as vault items and issue self-signed ones locally with WebCrypto.",
-    {
-      keyAccess: "item-plaintext",
-      itemKinds: ["certificate"],
-    },
-  ),
-  optional(
-    "vault.interop-formats",
-    "Import and export formats",
-    "Read other managers' exports (KDBX, CXF, CSV, ZIP, browser and manager formats) and write CXF; the Formats panel in Settings.",
-    {
-      // KDBX key derivation runs Argon2 in Wasm on large files.
-      environments: ["document", "dedicated-worker"],
-      keyAccess: "item-plaintext",
-    },
-  ),
   optional(
     "sharing.drops",
     "Secret drops",
@@ -94,25 +65,6 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       requiresService: true,
       offlineLimits:
         "Snapshots queue locally and push when the remote is reachable.",
-    },
-  ),
-  optional(
-    "backup.cloud-secrets",
-    "Cloud key services",
-    "Wrap the vault key with AWS KMS, GCP KMS, Azure Key Vault, YubiKey PIV or age recipients, and read or write SOPS documents.",
-    {
-      egress: [
-        {
-          class: "external-service",
-          purpose:
-            "the AWS KMS, GCP KMS or Azure Key Vault endpoint a person configured",
-          automatic: false,
-        },
-      ],
-      browserPermissions: ["webauthn"],
-      keyAccess: "protector-wrap",
-      offlineLimits:
-        "age and YubiKey protectors work offline; a cloud KMS protector needs its endpoint to unwrap.",
     },
   ),
 ];

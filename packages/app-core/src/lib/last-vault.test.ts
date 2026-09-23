@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { setGuestsAllowed } from "./guest-access.js";
 import { kvDelete, kvGet } from "./kv.js";
 import {
   LAST_VAULT_KEY,
@@ -25,5 +26,18 @@ describe("last-vault", () => {
   it("ignores blank ids", () => {
     writeLastVaultId("  ");
     expect(readLastVaultId()).toBeNull();
+  });
+
+  it("does not reopen into the guest tomb while guests are switched off", async () => {
+    writeLastVaultId(GUEST_TOMB);
+    await setGuestsAllowed(false);
+    try {
+      expect(lastVaultIsGuest()).toBe(false);
+      // The pointer itself is kept, so switching guests back on returns.
+      expect(readLastVaultId()).toBe(GUEST_TOMB);
+    } finally {
+      await setGuestsAllowed(true);
+    }
+    expect(lastVaultIsGuest()).toBe(true);
   });
 });

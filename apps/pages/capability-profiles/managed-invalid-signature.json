@@ -15,27 +15,18 @@
       "default": "deny",
       "required": [],
       "optional": [
-        "access.authority",
-        "activity.log",
         "identity.local-iam",
         "identity.siop",
         "identity.site-broker",
         "sharing.drops",
-        "support.guided-help",
-        "support.local-ai",
-        "vault.certificate-records",
-        "vault.interop-formats",
-        "vault.passkey-records"
+        "support.local-ai"
       ],
       "prohibited": [
         "agents.webmcp",
-        "backup.cloud-secrets",
         "backup.git-remote",
-        "connectors.external",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
-        "identity.ambient-sso",
-        "identity.federation",
+        "networking.tailnet",
         "notifications.web-push",
         "sharing.household",
         "support.remote-ai",
@@ -60,7 +51,7 @@
     "basePolicyRevision": "13",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["vault.passkey-records"],
+    "selectedOptional": ["sharing.drops"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

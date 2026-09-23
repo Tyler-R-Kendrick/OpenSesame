@@ -5,9 +5,10 @@
  * generic git / password-store, ADR 0090), and the repository picker on a
  * connector's settings page.
  *
- * Contributed: the Backups settings category (the backup/recovery tiles
- * that used to sit in Settings › Connections) and the backup observer as a
- * background job. Its guide target
+ * The Backups feature on Settings › Capabilities: switching it on selects
+ * this capability, and while it is approved that page draws the
+ * backup/recovery tiles (the git providers). Contributed: the backup
+ * observer as a background job. Its guide target
  * `settings.backup` and goal are authored in the registry's connections
  * files and contributed by `connectors.external`, which this capability
  * depends on (catalog), so they are declared whenever this category mounts. The per-connector pages (`GithubInstallationPanel`,
@@ -41,7 +42,6 @@ import {
   stopVaultBackupObserver,
 } from "@opensesame/app-core/lib/vault-backup-observer.js";
 import { createActivation } from "../activation.js";
-import { BackupBindingsPanel } from "./BackupBindingsPanel.js";
 
 export const CAPABILITY = "backup.git-remote";
 
@@ -67,13 +67,6 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    activation.register("settings-category", {
-      id: "backups",
-      label: "Backups",
-      guideId: "settings.backup",
-      Panel: BackupBindingsPanel,
-      order: 45,
-    });
     activation.register("background-job", {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {

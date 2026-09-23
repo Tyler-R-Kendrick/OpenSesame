@@ -61,7 +61,10 @@ export function settingsFields(
   if (category === "general") return GENERAL;
   if (category === "security") return SECURITY;
   if (category === "vaults") return VAULTS;
-  if (category === "connections") return CONNECTIVITY;
+  // The endpoints file moved with the providers: Connections folded into
+  // Capabilities (ADR 0135), and so did its settings file.
+  if (category === "connections" || category === "capabilities")
+    return CONNECTIVITY;
   return [];
 }
 
@@ -69,7 +72,9 @@ export function settingsFilePath(
   category: SettingsCategory,
   format: RawFormat,
 ): string {
-  return `settings/${category}.${format}`;
+  // Same path as before the fold, so a file a person already saved is found.
+  const file = category === "capabilities" ? "connections" : category;
+  return `settings/${file}.${format}`;
 }
 
 export function emptyDoc(): SettingsDoc {

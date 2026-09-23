@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "managed-prohibited",
-  "notes": "Managed instance that prohibits connectors, enterprise, WebMCP agents, remote AI and telemetry as deliberate refusals. The installation tries to select connectors.external anyway; it must resolve PROHIBITED_BY_INSTANCE while vault.passkey-records is approved.",
+  "notes": "Managed instance that prohibits git backup, enterprise, WebMCP agents, remote AI and telemetry as deliberate refusals. The installation tries to select backup.git-remote anyway; it must resolve PROHIBITED_BY_INSTANCE while sharing.drops is approved.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -15,23 +15,18 @@
       "default": "deny",
       "required": [],
       "optional": [
-        "access.authority",
-        "activity.log",
         "identity.local-iam",
         "identity.siop",
         "identity.site-broker",
         "sharing.drops",
-        "support.guided-help",
-        "support.local-ai",
-        "vault.certificate-records",
-        "vault.interop-formats",
-        "vault.passkey-records"
+        "support.local-ai"
       ],
       "prohibited": [
         "agents.webmcp",
-        "connectors.external",
+        "backup.git-remote",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
+        "networking.tailnet",
         "support.remote-ai",
         "telemetry.external"
       ]
@@ -53,7 +48,7 @@
     "basePolicyRevision": "12",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["connectors.external", "vault.passkey-records"],
+    "selectedOptional": ["backup.git-remote", "sharing.drops"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

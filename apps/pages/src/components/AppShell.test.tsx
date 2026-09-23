@@ -127,13 +127,16 @@ describe("AppShell", () => {
     );
     expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw", "gy", "gs"]);
   });
-  it("lists Vaults and Connections as sibling settings tabs", () => {
+  it("lists Vaults and Capabilities as sibling settings tabs, with no Connections tab", () => {
     const { container } = renderShell("/settings/security");
     const rail = container.querySelector(".railtree");
     const vaults = rail?.querySelector('a[href="/settings/vaults"]');
-    const connections = rail?.querySelector('a[href="/settings/connections"]');
+    const capabilities = rail?.querySelector(
+      'a[href="/settings/capabilities"]',
+    );
     expect(vaults?.getAttribute("aria-level")).toBe("2");
-    expect(connections?.getAttribute("aria-level")).toBe("2");
+    expect(capabilities?.getAttribute("aria-level")).toBe("2");
+    expect(rail?.querySelector('a[href="/settings/connections"]')).toBeNull();
   });
   it.each([
     ["/vault?f=favorites", "Vault", "favorites"],

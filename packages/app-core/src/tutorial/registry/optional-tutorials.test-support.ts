@@ -6,7 +6,6 @@
  */
 
 import { registerContributionForTest } from "../../lib/contributions.js";
-import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
 import { OPTIONAL_TUTORIALS, type TutorialPartition } from "./authored.js";
 
 export function registerTutorialPartition(
@@ -36,16 +35,12 @@ export function registerOptionalTutorials(): () => void {
 }
 
 /**
- * Every optional partition *and* the Settings categories the same modules
- * contribute — `/settings/connections` is a guide route because the
- * connectors capability contributes that category, not because any catalog
- * authors it twice. What a tutorial suite needs to see the whole corpus.
+ * Every optional partition. The settings guides route to
+ * `/settings/capabilities`, a core category, so no category registration is
+ * needed beside them. What a tutorial suite needs to see the whole corpus.
  */
 export function registerTutorialRealm(): () => void {
-  const revokes = [
-    registerOptionalTutorials(),
-    registerLegacySettingsCategories(),
-  ];
+  const revokes = [registerOptionalTutorials()];
   return () => {
     for (const revoke of revokes) revoke();
   };

@@ -8,6 +8,7 @@
 
 import { sessionStore } from "../ports.js";
 import { loadSession as loadFederationSession } from "./federation.js";
+import { assertGuestsAllowed } from "./guest-access.js";
 import { claimProvisionalHistoryAccounts } from "./history-backups.js";
 import {
   GUEST_NOTICE_BODY,
@@ -170,13 +171,11 @@ async function seedGuestAccess(): Promise<void> {
 }
 
 async function openGuestVault(mode: "fresh" | "resume"): Promise<void> {
-  if (mode === "fresh") {
-    // Continue-as-guest always mints a new unclaimed principal (`guest-N`).
-    mintGuestSessionPerson();
-  } else if (!readGuestSessionPerson()) {
-    // Unlock on the guest road with no surviving principal — mint once.
-    mintGuestSessionPerson();
-  }
+  // Both guest roads end here, so the operator's switch is enforced here too.
+  assertGuestsAllowed();
+  // A fresh guest always mints a new principal (`guest-N`); a resume mints
+  // one only when no principal survived the lock.
+  if (mode === "fresh" || !readGuestSessionPerson()) mintGuestSessionPerson();
   await guestAuthDependencies.createGuest({ resume: mode === "resume" });
   await seedGuestAccess();
 }

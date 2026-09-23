@@ -72,7 +72,11 @@ export function SettingsRawEditor({
         return;
       }
     }
-    if (category === "connections" || category === "vaults") {
+    if (
+      category === "connections" ||
+      category === "capabilities" ||
+      category === "vaults"
+    ) {
       saveSettings(mergePages(decoded.doc));
     }
     // Keep the document as written: comments and ordering are the person's.

@@ -1,7 +1,8 @@
 /**
- * `connectors.external` — provider connections by reference (ADR 0115):
- * the Connections section and its rail entries, the connector settings
- * pages, the Connections settings category, the setup connectors tab, the
+ * `connectors.external` — provider connections by reference (ADR 0115),
+ * always on: the Connections section and its rail entries, the connector
+ * settings pages (whose tiles Settings › Capabilities draws under each
+ * feature), the setup connectors tab, the
  * connection WebMCP tools, and the unlock effects that seal a parked
  * directory sync and arm Connect.
  *
@@ -43,7 +44,6 @@ import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
-import { ConnectionsSettingsPanel } from "./ConnectionsSettingsPanel.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 
 export const CAPABILITY = "connectors.external";
@@ -116,13 +116,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       element: ConnectionsSection,
       framed: true,
       order: 21,
-    });
-    activation.register("settings-category", {
-      id: "connections",
-      label: "Connections",
-      guideId: "settings.connections",
-      Panel: ConnectionsSettingsPanel,
-      order: 300,
     });
     activation.register("setup-panel", {
       id: "connectors",

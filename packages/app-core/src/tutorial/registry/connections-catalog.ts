@@ -104,38 +104,6 @@ export const CONNECTIONS_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "connections.bindings",
   },
   {
-    id: "settings.connections",
-    description:
-      "The Connections settings category: feature bindings for identity, backup and recovery, encryption, and the other capability families.",
-    role: "navigation",
-    routes: ["/settings"],
-    capabilityId: null,
-  },
-  {
-    id: "settings.connectivity",
-    description:
-      "The Connections settings page: core status, the active project, models, and feature bindings.",
-    role: "navigation",
-    routes: ["/settings"],
-    capabilityId: "host.health.pages",
-  },
-  {
-    id: "settings.backup",
-    description:
-      "Server-side GitHub backup of the sealed store, and the offline encrypted export that moves a vault to another device.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "backup.target.set",
-  },
-  {
-    id: "settings.model-provider",
-    description:
-      "Two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "model_plane.choose",
-  },
-  {
     id: "settings.secret-configs",
     description:
       "Write-only intake for secret-config values. Keys and metadata are listed; values never come back out.",

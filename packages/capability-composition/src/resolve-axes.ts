@@ -180,12 +180,17 @@ export function buildContext(input: ResolveInput): ResolveContext {
     instanceId,
     input.vaultId,
   );
+  const index = indexCatalog(input.catalog);
+  // A core capability is in every plan already; a policy written before it
+  // became core may still name it as required, and that is owed nothing.
   const required = new Set(
-    policy === null || !input.policyValid ? [] : policy.capabilities.required,
+    (policy === null || !input.policyValid
+      ? []
+      : policy.capabilities.required
+    ).filter((id) => index.get(id)?.tier !== "core"),
   );
   // A stale selection accepts nothing: every required root is owed again.
   const accepted = new Set(stale ? [] : (installation?.acceptedRequired ?? []));
-  const index = indexCatalog(input.catalog);
   const selectedRoots = selectedRootsOf(installation);
   return {
     input,

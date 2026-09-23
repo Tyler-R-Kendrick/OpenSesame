@@ -102,17 +102,14 @@ const EXPECTED: Record<string, string[]> = {
   "minimal-local": [],
   "family-local": [],
   "family-sharing-selected": ["sharing.drops", "sharing.household"],
-  "single-provider-selected": ["backup.git-remote", "connectors.external"],
+  "single-provider-selected": ["backup.git-remote"],
   "enterprise-selected": [
-    "access.authority",
     "enterprise.ca-administration",
     "enterprise.directory-provisioning",
-    "identity.federation",
     "identity.local-iam",
-    "vault.certificate-records",
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
-  "managed-prohibited": ["vault.passkey-records"],
+  "managed-prohibited": ["sharing.drops"],
 };
 
 describe("capability profiles", () => {
@@ -139,8 +136,10 @@ describe("capability profiles", () => {
         ...selection.selectedOptional,
         ...Object.values(selection.chosenAlternatives),
       ];
+      const core = new Set(coreCapabilityIds());
       for (const id of listed) {
         expect(known.has(id), `${profile.name}: ${id}`).toBe(true);
+        expect(core.has(id), `${profile.name}: core ${id}`).toBe(false);
         expect(id.includes("*"), `${profile.name}: wildcard ${id}`).toBe(false);
       }
       expect(typeof selection.revision).toBe("string");
@@ -168,11 +167,11 @@ describe("capability profiles", () => {
     });
   }
 
-  it("family profiles keep connectors, enterprise, agents, remote AI and telemetry unapproved", () => {
+  it("family profiles keep git backup, enterprise, agents, remote AI and telemetry unapproved", () => {
     for (const name of ["family-local", "family-sharing-selected"]) {
       const plan = resolve(name);
       for (const id of [
-        "connectors.external",
+        "networking.tailnet",
         "enterprise.directory-provisioning",
         "enterprise.ca-administration",
         "agents.webmcp",
@@ -206,7 +205,7 @@ describe("capability profiles", () => {
 
   it("managed-prohibited refuses the prohibited root and says why", () => {
     const state =
-      resolve("managed-prohibited").capabilities["connectors.external"];
+      resolve("managed-prohibited").capabilities["backup.git-remote"];
     expect(state?.approved).toBe(false);
     expect(state?.reasons).toContain("PROHIBITED_BY_INSTANCE");
   });
@@ -215,7 +214,7 @@ describe("capability profiles", () => {
     const plan = resolve("managed-invalid-signature");
     expect(approvedOptional(plan)).toEqual([]);
     expect(plan.policyValid).toBe(false);
-    expect(plan.capabilities["vault.passkey-records"]?.reasons).toContain(
+    expect(plan.capabilities["sharing.drops"]?.reasons).toContain(
       "POLICY_UNVERIFIED",
     );
     expect(plan.network.externalServices).toBe("deny");
@@ -224,7 +223,7 @@ describe("capability profiles", () => {
   it("managed-invalid-instance is a PROFILE_MISMATCH with nothing optional approved", () => {
     const plan = resolve("managed-invalid-instance");
     expect(approvedOptional(plan)).toEqual([]);
-    expect(plan.capabilities["vault.passkey-records"]?.reasons).toContain(
+    expect(plan.capabilities["sharing.drops"]?.reasons).toContain(
       "PROFILE_MISMATCH",
     );
   });
@@ -244,10 +243,7 @@ describe("capability profiles", () => {
 
   it("managed-missing-required refuses joining and approves nothing optional", () => {
     const plan = resolve("managed-missing-required");
-    expect(plan.consent.requiredNotAccepted).toEqual([
-      "access.authority",
-      "identity.federation",
-    ]);
+    expect(plan.consent.requiredNotAccepted).toEqual(["identity.local-iam"]);
     expect(approvedOptional(plan)).toEqual([]);
   });
 

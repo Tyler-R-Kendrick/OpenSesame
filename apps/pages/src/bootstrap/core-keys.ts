@@ -6,6 +6,7 @@
  */
 
 import { CAPABILITY_BOOT_KEYS } from "@opensesame/app-core/lib/capabilities/keys.js";
+import { GUEST_ACCESS_KEY } from "@opensesame/app-core/lib/guest-access.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 import {
   GUEST_ORDINAL_KEY,
@@ -31,6 +32,8 @@ export const CORE_BOOT_KEYS: readonly string[] = [
   // Guest slug ordinal + durable principal — same cold-load case.
   GUEST_ORDINAL_KEY,
   GUEST_PERSON_KEY,
+  // Whether the guest road is offered at all — read before any vault opens.
+  GUEST_ACCESS_KEY,
   // Installation id, selection, receipt, policies, generation counter.
   ...CAPABILITY_BOOT_KEYS,
 ];

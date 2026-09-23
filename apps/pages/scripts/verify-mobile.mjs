@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ALWAYS_ON_TITLES, openAdvanced } from "./lib/always-on.mjs";
 import {
   AUDIT,
   PHONES,
@@ -232,6 +233,8 @@ async function chooseCapabilitiesHere(page, titles) {
     await page.waitForTimeout(700);
   };
   for (const title of titles) {
+    // Always on (ADR 0135): in every plan, with no row to add it from.
+    if (ALWAYS_ON_TITLES.has(title)) continue;
     await openSettings();
     await page.waitForTimeout(500);
     const tab = page.getByRole("link", { name: "Capabilities", exact: true });
@@ -241,6 +244,7 @@ async function chooseCapabilitiesHere(page, titles) {
     }
     await tab.tap();
     await page.waitForTimeout(700);
+    await openAdvanced(page);
     const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
     if ((await add.count()) === 0) continue;
     await add.tap();

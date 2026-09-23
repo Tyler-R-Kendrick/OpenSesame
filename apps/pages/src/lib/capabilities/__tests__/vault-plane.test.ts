@@ -281,18 +281,21 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
     // And nothing a tomb holds can turn a prohibited capability on, because
     // no field in that document says "on".
     for (const plan of [base, narrowed, foreign])
-      expect(approved(plan, "connectors.external")).toBe(false);
+      expect(approved(plan, "backup.git-remote")).toBe(false);
   });
 });
 
 describe("VAULT-05 — records of an excluded kind survive without their surfaces", () => {
-  it("round-trips a passkey record while offering no way to create one", async () => {
+  it("round-trips a drop record while offering no way to create one", async () => {
+    // Passkeys, certificates and formats are always on; a drop is the kind
+    // whose capability a family installation can still leave out.
     const plan = profilePlan("family-local");
-    expect(approved(plan, "vault.passkey-records")).toBe(false);
+    expect(approved(plan, "sharing.drops")).toBe(false);
+    expect(approved(plan, "vault.passkey-records")).toBe(true);
 
     const store = new VaultStore();
     await store.create(PASSWORD);
-    const record = createItem("passkey", "github.com");
+    const record = createItem("drop", "shared wifi");
     await store.saveItem(record);
     await store.flushPendingWrites();
     store.lock();
@@ -302,15 +305,15 @@ describe("VAULT-05 — records of an excluded kind survive without their surface
     const kept = reopened
       .getSnapshot()
       .items.find((item) => item.id === record.id);
-    expect(kept?.kind).toBe("passkey");
-    expect(kept?.name).toBe("github.com");
+    expect(kept?.kind).toBe("drop");
+    expect(kept?.name).toBe("shared wifi");
 
     // With nothing contributed, the kinds a person may create here are the
-    // core four — no passkey row, no filter, no "+ new" for it — while the
+    // core four — no drop row, no filter, no "+ new" for it — while the
     // label the stored record renders with is untouched.
     const kinds = itemKindsFrom([]).map((row) => row.id);
     expect(kinds).toEqual(["login", "card", "secret", "note"]);
-    expect(kinds).not.toContain("passkey");
-    expect(KIND_LABEL.passkey).toBeTruthy();
+    expect(kinds).not.toContain("drop");
+    expect(KIND_LABEL.drop).toBeTruthy();
   });
 });

@@ -153,13 +153,12 @@ async function configureBadRemote(page) {
   setStep("badremote-configure");
   await guest(page, ORIGIN, BASE);
   await openSection(page, "settings/");
-  // Connections is the external-connectors capability's own settings
-  // category (ADR 0130), so a device that has approved nothing does not have
-  // it. Add it the way a person does, then carry on into the file.
+  // Connections is always on and folded into Settings › Capabilities
+  // (ADR 0135): the endpoints file is that category's YAML view now.
   await addCapability(page, check, snap, "External connectors", "connections/");
   await openSection(page, "settings/");
   await page
-    .getByRole("link", { name: "Connections", exact: true })
+    .getByRole("link", { name: "Capabilities", exact: true })
     .last()
     .click();
   await page.getByRole("button", { name: "YAML", exact: true }).click();

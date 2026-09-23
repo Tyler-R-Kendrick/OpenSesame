@@ -1,5 +1,6 @@
 import { briefOrigin } from "@opensesame/os-domain";
 import { useState } from "react";
+import { useGuestsAllowed } from "../bindings/guest-access.js";
 
 import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
 import { defaultUpstream } from "@opensesame/app-core/lib/federation.js";
@@ -74,6 +75,7 @@ export function IdentityCeremony({
   const upstream = identityCeremonyDependencies.defaultUpstream();
   const [flash, setFlash] = useState<Flash>(null);
   const [busy, setBusy] = useState<"guest" | "refresh" | null>(null);
+  const guestsAllowed = useGuestsAllowed();
 
   const issuer = briefOrigin(
     session?.issuerOrigin ?? identityCeremonyDependencies.identityBase(),
@@ -185,7 +187,7 @@ export function IdentityCeremony({
               }
         }
         secondary={
-          session
+          session || !guestsAllowed
             ? undefined
             : {
                 label:

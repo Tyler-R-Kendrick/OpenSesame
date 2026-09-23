@@ -31,6 +31,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { phoneContext } from "./lib/mobile-contract.mjs";
+import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
@@ -92,6 +93,15 @@ async function press(locator) {
 }
 
 const STEPS = {
+  /**
+   * Seal a password vault on this device: the operator's own installation,
+   * where Settings shows what a guest never sees (Allow guests, the
+   * instance policy).
+   */
+  async seal(page) {
+    await sealWithPassword(page);
+    await page.waitForTimeout(1400);
+  },
   async guest(page) {
     await press(
       page.getByRole("button", { name: "Continue as guest", exact: true }),
@@ -175,6 +185,38 @@ const STEPS = {
       await row.locator(".railtree__caret").click({ force: true });
       await page.waitForTimeout(800);
     }
+  },
+  /**
+   * Flip a named switch (`role="switch"`) when this build has it. A base
+   * build that has no such switch is a legitimate difference, not a miss.
+   */
+  async switchOptional(page, name) {
+    const target = page.getByRole("switch", { name, exact: true }).first();
+    if ((await target.count()) && (await target.isEnabled())) {
+      await press(target);
+      await page.waitForTimeout(1000);
+    }
+  },
+  /**
+   * Print how many elements match each selector, so a sheet's before/after
+   * numbers are read from the browser rather than from the diff.
+   */
+  async count(page, selectors) {
+    for (const selector of [selectors].flat()) {
+      const n = await page.locator(selector).count();
+      console.log(`  count ${selector}: ${n}`);
+    }
+  },
+  /** `scrollTo`, for a heading only one of the two builds has. */
+  async scrollToOptional(page, name) {
+    const heading = page
+      .getByRole("heading", { name: new RegExp(name, "i") })
+      .first();
+    if (!(await heading.count())) return;
+    await heading.evaluate((node) => {
+      node.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    await page.waitForTimeout(600);
   },
   async escape(page) {
     await page.keyboard.press("Escape");

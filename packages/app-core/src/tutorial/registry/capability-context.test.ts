@@ -34,8 +34,8 @@ describe("authored route-scoped capability context", () => {
   it("places Host pairing and metadata permissions on their relevant routes", () => {
     const ids = (route: string) =>
       capabilitiesForContext(CAPABILITIES, route, []).map((item) => item.id);
-    expect(ids("/settings/connections")).toContain("browser.pairing.begin");
-    expect(ids("/settings/connections")).toContain("configs.permissions.read");
+    expect(ids("/settings/capabilities")).toContain("browser.pairing.begin");
+    expect(ids("/settings/capabilities")).toContain("configs.permissions.read");
     expect(ids("/connections")).toContain("browser.identity.authenticate");
     expect(ids("/vault")).not.toContain("configs.permissions.read");
     expect(ids("/vault")).not.toContain("browser.pairing.begin");

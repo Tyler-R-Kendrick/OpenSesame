@@ -46,6 +46,31 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/settings"],
     capabilityId: null,
   },
+  // Settings › Capabilities draws these in core, before any module lands.
+  {
+    id: "settings.connectivity",
+    description:
+      "The providers on Settings › Capabilities: identity providers, encryption, password managers, cloud secret storage and local storage — the connectors of always-on functions.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: "host.health.pages",
+  },
+  {
+    id: "settings.backup",
+    description:
+      "The Backups feature on Settings › Capabilities: switch it on, then choose the git provider the encrypted vault backs up to.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "backup.target.set",
+  },
+  {
+    id: "settings.model-provider",
+    description:
+      "Under the AI feature: two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "model_plane.choose",
+  },
   {
     id: "settings.age-keys",
     description: "Age recipients and identities for this vault.",
