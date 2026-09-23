@@ -14,9 +14,7 @@
           "organizationRef": null,
           "vaultRef": "vault-1",
           "deviceBindingRef": "device-1",
-          "compartmentRefs": [
-            "comp-normal"
-          ]
+          "compartmentRefs": ["comp-normal"]
         },
         "triggerKind": "application_code",
         "effects": {
@@ -43,9 +41,7 @@
           "organizationRef": null,
           "vaultRef": "vault-1",
           "deviceBindingRef": "device-1",
-          "compartmentRefs": [
-            "comp-normal"
-          ]
+          "compartmentRefs": ["comp-normal"]
         },
         "triggerKind": "application_code",
         "effects": {

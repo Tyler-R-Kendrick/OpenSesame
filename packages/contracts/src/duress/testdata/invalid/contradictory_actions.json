@@ -14,9 +14,7 @@
           "organizationRef": null,
           "vaultRef": "vault-1",
           "deviceBindingRef": "device-1",
-          "compartmentRefs": [
-            "comp-normal"
-          ]
+          "compartmentRefs": ["comp-normal"]
         },
         "triggerKind": "canary_activation",
         "effects": {
@@ -36,9 +34,7 @@
           "providerRevocationRefs": [],
           "removal": {
             "kind": "local_enumerated",
-            "resourceRefs": [
-              "comp-normal"
-            ],
+            "resourceRefs": ["comp-normal"],
             "preserveSealedOutbox": false,
             "acceptUnrecoverability": true
           },
