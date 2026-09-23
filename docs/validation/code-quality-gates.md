@@ -141,7 +141,35 @@ counted syntactically, which is enough to spot a component drifting into the
 zone of pain (stable and concrete, high Ca with low A) and not enough to fail
 a merge over. D shows `n/a` for a component with no couplings, where I is 0/0.
 
-## 3. Bundle budgets — `pnpm quality:bundle`
+## 3. The shared core — `pnpm quality:app-core`
+
+Checks `packages/app-core` and `packages/vault-core` (ADR 0133). Every rule
+is a hard failure except the lazy-cycle ledger, which only shrinks.
+
+- **Boundary.** No relative import leaves the package (the repository's
+  `connectors/` and `fixtures/` excepted), no React value import (a
+  type-only one is allowed and counted), no `import.meta.env` (read
+  `env()`), no Vite `virtual:` module, no self-import by package name, and
+  `node:*` only under `src/node/**` and in tests.
+- **Portability.** Using the TypeScript checker, no value reference to a
+  browser-only global — anything declared by the DOM or WebWorker libs —
+  outside `src/browser/**`, worker entries (`*.worker.ts`) and tests, unless
+  it is in the runtime contract every host provides (`crypto`, `fetch`,
+  `URL`, `TextEncoder`, timers, …; `RUNTIME_CONTRACT` in
+  `scripts/lib/app-core-portability.mjs`). Type positions do not count.
+  Everything else goes through a port in `src/ports.ts`. vault-core has no
+  browser host, so it may use none.
+- **Layering.** No cycle of static imports. A lazy `import()` that closes a
+  loop is recorded in `packages/app-core/layering-baseline.json`; a new one
+  fails, and one that disappears fails until it is struck
+  (`node scripts/app-core-boundary.mjs --update`).
+
+Two tests hold the runtime side: `packages/app-core/src/no-host-import.test.ts`
+imports every module with no host installed (a port read at import fails),
+and `src/sandbox/bare-isolate.test.ts` runs the portable entry in an empty V8
+context against the golden vault vectors.
+
+## 4. Bundle budgets — `pnpm quality:bundle`
 
 Builds `apps/pages`, `apps/pwa` and `apps/console`, then measures `total`,
 `javascript`, `javascriptGzip`, `css` and `largestAsset` against

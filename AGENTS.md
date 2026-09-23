@@ -58,7 +58,9 @@ pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disabl
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
-pnpm quality:app-core    # app-core boundary (ADR 0133): no reach into an app, no React value, no import.meta.env, no virtual module
+pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
+                          #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
+                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
 pnpm quality:bundle      # build apps/pages|pwa|console, check bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
@@ -260,12 +262,13 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/browser-extension` | WXT browser extension |
 | `apps/example-rp-alpha` / `apps/example-rp-beta` | Example relying-party apps |
 | `apps/example-agent` / `apps/example-headless` | Example agent / headless client |
-| `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools and the support registries — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) and its ports. No React value, no `import.meta.env`, no Vite virtual module, no reach into an app (`pnpm quality:app-core`). Pages installs the browser host first thing in `main.tsx` (`apps/pages/src/host/boot.ts`) |
+| `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
+| `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |
 | `packages/api-client` | Host API TS client |
-| `packages/cli` | Client CLI, binary `opensesame-id` |
+| `packages/cli` | Client CLI, binary `opensesame-id` — includes `vault verify <file>` / `vault ls <file>` over an export or offline backup (master password from the terminal only; names and paths, never values) |
 | `packages/auth-upstream` / `oauth-provider` / `claims` / `device-auth` | Identity-plane building blocks |
 | `packages/policy` / `audit` / `contracts` | Authorization policy, audit trail, shared contracts |
 | `packages/ceremony-kit` | UI-independent ceremony logic — canonical interaction URLs, the interaction client, display-safe summaries (ADR 0086) |
