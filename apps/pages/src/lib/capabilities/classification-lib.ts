@@ -196,6 +196,11 @@ const LOCAL_AI_FILES = [
 const WALLET_FILES = ["spending-", "wallet-"];
 
 export const LIB_RULES = [
+  core(
+    `${L}item-type-marketplace/`,
+    "vault.passwords",
+    "item-type marketplaces read from a git repository (ADR 0134)",
+  ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),
   ),

@@ -26,12 +26,21 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       operationIds: [
         "vault.item_types.install",
         "vault.item_types.list",
+        "vault.item_types.marketplace",
         "vault.items.read_meta",
         "vault.items.reveal",
         "vault.items.search",
         "vault.items.write_meta",
         "vault.login_draft",
         "vault.totp.code",
+      ],
+      egress: [
+        {
+          class: "external-service",
+          purpose:
+            "git repositories a person lists as item-type marketplaces, read only when they open one (ADR 0134)",
+          automatic: false,
+        },
       ],
       // Untrusted website-pattern regexes run in a disposable worker.
       environments: ["document", "dedicated-worker"],

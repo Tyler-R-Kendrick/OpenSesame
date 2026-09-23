@@ -124,7 +124,16 @@ function answerShoo(route, url, { request, origin }) {
 
 async function newPage(
   browser,
-  { shoo = false, dist, origin, base, record, expectedFallbackUrl, device },
+  {
+    shoo = false,
+    dist,
+    origin,
+    base,
+    record,
+    expectedFallbackUrl,
+    device,
+    remote = {},
+  },
 ) {
   // A phone is not a narrow desktop: `(pointer: coarse)` decides whether the
   // touch rules apply at all, and it comes from the context, not the viewport.
@@ -153,6 +162,20 @@ async function newPage(
       });
       const answered = answerShoo(route, url, { request, origin });
       if (answered) return answered;
+    }
+    // A remote file a journey names (evidence of a feature that reads a
+    // repository before the file exists on the default branch) is served
+    // from the working tree, byte for byte, with the CORS a raw host sends.
+    const served = remote[url.href];
+    if (served !== undefined) {
+      return route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          "access-control-allow-origin": "*",
+        },
+        body: fs.readFileSync(served),
+      });
     }
     if (request.isNavigationRequest()) {
       return route.fulfill({

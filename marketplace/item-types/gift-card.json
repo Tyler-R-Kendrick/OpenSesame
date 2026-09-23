@@ -1,0 +1,46 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "gift-card",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Gift card",
+    "plural": "Gift cards",
+    "extension": ".gift",
+    "summary": "A store card's number, its PIN, and where to check what is left on it.",
+    "categories": ["finance"],
+    "sections": [
+      {
+        "id": "card",
+        "title": "Card",
+        "fields": [
+          {
+            "id": "merchant",
+            "type": "string",
+            "label": "Merchant",
+            "required": true
+          },
+          { "id": "cardNumber", "type": "concealed", "label": "Card number" },
+          { "id": "pin", "type": "pin", "label": "PIN" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" },
+          { "id": "balanceUrl", "type": "url", "label": "Balance page" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "cardNumber",
+      "trailer": [
+        { "key": "merchant", "field": "merchant" },
+        { "key": "pin", "field": "pin" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "url", "field": "balanceUrl" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["merchant"],
+    "search": ["merchant"]
+  }
+}

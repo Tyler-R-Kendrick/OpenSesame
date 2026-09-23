@@ -66,6 +66,7 @@ export const CAPABILITY_TUTORIALS = {
   "vault.login_draft": "vault.item.create",
   "vault.item_types.list": "vault.item-types.install",
   "vault.item_types.install": "vault.item-types.install",
+  "vault.item_types.marketplace": "vault.item-types.install",
   "vault.export": "vault.export",
   "app.status": "host.health.check",
   "app.navigate": "client.support",
