@@ -162,16 +162,17 @@ const STEPS = {
     await page.waitForTimeout(500);
   },
   /**
-   * Type into a labelled field, the way a person pastes a definition. `text`
-   * may be an object, which is written as the JSON it describes.
+   * Type into a labelled field, the way a person pastes a definition. The
+   * step carries either `text`, written as it is, or `json`, a value written
+   * as the JSON it describes.
    */
-  async fill(page, { label, text }) {
+  async fill(page, { label, text, json }) {
     const field = page.getByLabel(label, { exact: true }).first();
     if (!(await field.count()))
       throw new Error(
         `capture-evidence fill("${label}"): no field matched — refusing a silent miss`,
       );
-    await field.fill(typeof text === "string" ? text : JSON.stringify(text));
+    await field.fill(json === undefined ? text : JSON.stringify(json));
     await page.waitForTimeout(300);
   },
   /**
@@ -181,7 +182,8 @@ const STEPS = {
   async report(page, selector) {
     const texts = await page.locator(selector).allInnerTexts();
     console.log(`  report ${selector}:`);
-    for (const text of texts) console.log(`    ${text.replaceAll(/\s+/g, " ")}`);
+    for (const text of texts)
+      console.log(`    ${text.replaceAll(/\s+/g, " ")}`);
   },
   /**
    * Bring a named heading to the top of the viewport. A panel below the
