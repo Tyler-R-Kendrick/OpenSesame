@@ -92,9 +92,14 @@
           "318 authored lines across two stylesheets (measured 150 KiB).",
           "The number is a ceiling, not a target; it falls again when the",
           "optional capabilities stop reaching the core entry and their CSS",
-          "leaves the always-loaded graph."
+          "leaves the always-loaded graph.",
+          "2026-09-23: 153 -> 160 for ADR 0134: the Item types panel (tabs,",
+          "type rows, marketplace sources and offers) and Settings' file",
+          "viewer add two stylesheets, 4.0 + 1.7 KiB minified, against 0.4",
+          "KiB of the old item-type rules removed. Measured 156.9 KiB; the",
+          "budget keeps ~2% headroom."
         ],
-        "css": 153,
+        "css": 160,
         "largestAsset": 12800
       }
     },
