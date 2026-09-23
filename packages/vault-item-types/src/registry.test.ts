@@ -10,42 +10,10 @@ import {
 } from "./builtin.js";
 import { FIELD_TYPES } from "./catalogue.js";
 import { BUILTIN_DEFINITION_JSON } from "./definitions.generated.js";
-import {
-  ItemTypeRegistry,
-  RESERVED_DIRECTORIES,
-  directoryName,
-} from "./registry.js";
+import { ItemTypeRegistry } from "./registry.js";
 import { subtitleFor } from "./values.js";
 
-function communityDefinition(
-  id: string,
-  publisher: string,
-  version = "1.0.0",
-): string {
-  return JSON.stringify({
-    apiVersion: "opensesame.dev/v1alpha1",
-    kind: "VaultItemType",
-    metadata: { id, version, publisher },
-    spec: {
-      title: "Community type",
-      plural: "Community types",
-      extension: ".ct",
-      summary: "Installed at runtime, with no build.",
-      categories: ["other"],
-      sections: [
-        {
-          id: "main",
-          title: "Main",
-          fields: [{ id: "label", type: "string", label: "Label" }],
-        },
-      ],
-      native: { secret: null, trailer: [{ key: "label", field: "label" }] },
-      cxf: { credential: "custom-fields" },
-      subtitle: ["label"],
-      search: ["label"],
-    },
-  });
-}
+import { communityDefinition } from "./registry.test-support.js";
 
 describe("the built-in corpus", () => {
   it("parses every shipped definition", () => {
@@ -61,16 +29,6 @@ describe("the built-in corpus", () => {
   it("gives every type a distinct VFS extension", () => {
     const extensions = builtinDefinitions().map((d) => d.spec.extension);
     expect(new Set(extensions).size).toBe(extensions.length);
-  });
-
-  it("gives every type a distinct title and vault directory", () => {
-    const titles = builtinDefinitions().map((d) => d.spec.title.toLowerCase());
-    expect(new Set(titles).size).toBe(titles.length);
-    const directories = builtinDefinitions().map(directoryName);
-    expect(new Set(directories).size).toBe(directories.length);
-    for (const directory of directories) {
-      expect(RESERVED_DIRECTORIES).not.toContain(directory);
-    }
   });
 
   it("names a ceremony handler only where the platform implements one", () => {
@@ -198,101 +156,6 @@ describe("ItemTypeRegistry", () => {
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.errors[0]?.code).toBe("extension");
-  });
-
-  it("derives a type's directory from its plural", () => {
-    const registry = builtinRegistry();
-    const directory = (id: string) => {
-      const definition = registry.get(id);
-      return definition === undefined ? undefined : directoryName(definition);
-    };
-    expect(directory("login")).toBe("logins");
-    expect(directory("wifi")).toBe("wi-fi-networks");
-    expect(directory("api-credential")).toBe("api-credentials");
-    const unspellable = registry.install(
-      communityDefinition("glyphs", "https://community.test").replace(
-        '"Community types"',
-        '"\u00e9\u00e9"',
-      ),
-      "vault",
-    );
-    expect(unspellable.ok && directoryName(unspellable.definition)).toBe(
-      "glyphs",
-    );
-  });
-
-  it("refuses an install whose directory is another type's", () => {
-    const registry = builtinRegistry();
-    // `Logins` is the directory every login already lives in; a second type
-    // there would pour its items in with them.
-    const outcome = registry.install(
-      communityDefinition("impostor", "https://community.test").replace(
-        '"Community types"',
-        '" LOGINS "',
-      ),
-      "vault",
-    );
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.errors[0]).toMatchObject({
-      code: "name",
-      path: "spec.plural",
-    });
-    expect(outcome.errors[0]?.message).toContain("login");
-  });
-
-  it("refuses an install whose title is another type's", () => {
-    const registry = builtinRegistry();
-    const outcome = registry.install(
-      communityDefinition("impostor", "https://community.test").replace(
-        '"Community type"',
-        '"secure NOTE"',
-      ),
-      "vault",
-    );
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.errors[0]).toMatchObject({
-      code: "name",
-      path: "spec.title",
-    });
-  });
-
-  it("refuses a directory the rail keeps for itself", () => {
-    for (const reserved of RESERVED_DIRECTORIES) {
-      const outcome = builtinRegistry().install(
-        communityDefinition("impostor", "https://community.test").replace(
-          '"Community types"',
-          JSON.stringify(reserved),
-        ),
-        "vault",
-      );
-      expect(outcome.ok ? "installed" : outcome.errors[0]?.code).toBe("name");
-    }
-  });
-
-  it("refuses a second installed type under the same names", () => {
-    const registry = builtinRegistry();
-    expect(
-      registry.install(communityDefinition("first", "https://a.test"), "vault")
-        .ok,
-    ).toBe(true);
-    const outcome = registry.install(
-      communityDefinition("second", "https://b.test").replace('".ct"', '".c2"'),
-      "vault",
-    );
-    expect(outcome.ok ? "installed" : outcome.errors[0]?.code).toBe("name");
-    // Uninstalling frees the names for the next type.
-    registry.uninstall("first");
-    expect(
-      registry.install(
-        communityDefinition("second", "https://b.test").replace(
-          '".ct"',
-          '".c2"',
-        ),
-        "vault",
-      ).ok,
-    ).toBe(true);
   });
 
   it("lets a type keep its own extension across an upgrade", () => {

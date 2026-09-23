@@ -111,6 +111,16 @@ describe("vault directories", () => {
     expect(new Set(segments).size).toBe(segments.length);
   });
 
+  it("never draws a type not installed here over a fixed row", () => {
+    const rows = withTypeDirectories(kinds, ["trash", "favorites", "notes"]);
+    const added = rows.slice(kinds.length);
+    // A filter id would open the filter, so it gets no directory; a reserved
+    // directory name is numbered like any other taken one.
+    expect(added.map((row) => [row.id, row.segment])).toEqual([
+      ["notes", "notes-2"],
+    ]);
+  });
+
   it("holds each platform kind's directory as its type's or a reserved one", () => {
     // The registry refuses an install whose directory is another type's or
     // reserved; that only protects the rail if every name the rail draws for

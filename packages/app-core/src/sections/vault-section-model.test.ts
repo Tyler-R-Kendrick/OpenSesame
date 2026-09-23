@@ -48,6 +48,14 @@ describe("chipTypeIds", () => {
     ).toEqual(["login", "wifi"]);
   });
 
+  it("offers no chip for a filter id, which would open the filter", () => {
+    const wifi = itemTypeRegistry().get("wifi");
+    if (wifi === undefined) throw new Error("wifi is a built-in type");
+    // A type installed elsewhere under a filter's id, before that was refused.
+    const stray = { ...createTypedItem(wifi, {}), typeId: "trash" };
+    expect(chipTypeIds([stray])).toEqual([]);
+  });
+
   it("offers an installed type before it holds an item", () => {
     installItemType(BOAT);
     expect(chipTypeIds([createItem("login")])).toEqual(["login", "boat"]);

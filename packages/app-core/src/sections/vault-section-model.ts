@@ -10,6 +10,7 @@ import {
   itemTypeRegistry,
   readItemField,
 } from "@opensesame/vault-core";
+import { RESERVED_TYPE_IDS } from "@opensesame/vault-item-types";
 
 /**
  * The filter chips, in registry order (built-ins first), for the types this
@@ -30,7 +31,11 @@ export function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
     .map(({ definition }) => definition.metadata.id);
   // A type whose definition is not installed here still deserves its chip;
   // the label falls back to the id rather than the item vanishing from view.
-  const orphans = [...present].filter((id) => !itemTypeRegistry().has(id));
+  // An id that is also a filter (`trash`) gets no chip: it would open the
+  // filter, not the type.
+  const orphans = [...present].filter(
+    (id) => !itemTypeRegistry().has(id) && !RESERVED_TYPE_IDS.includes(id),
+  );
   return [...ordered, ...orphans.sort()];
 }
 

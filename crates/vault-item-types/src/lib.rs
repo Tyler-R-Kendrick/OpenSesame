@@ -24,6 +24,7 @@ pub use native::{
 };
 pub use registry::{
     directory_name, ItemTypeRegistry, LoadError, Registered, Source, RESERVED_DIRECTORIES,
+    RESERVED_TYPE_IDS,
 };
 pub use schema::{
     CxfCredentialId, FieldDefinition, HandlerId, ItemTypeDefinition, ItemTypeMetadata,

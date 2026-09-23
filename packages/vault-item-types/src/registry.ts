@@ -55,6 +55,17 @@ export const RESERVED_DIRECTORIES: readonly string[] = [
 ];
 
 /**
+ * Ids no type may take. A type id is also the vault's `?f=` filter value, and
+ * these three already mean something there: a type called `favorites` would
+ * have a directory that opens the favorites instead.
+ */
+export const RESERVED_TYPE_IDS: readonly string[] = [
+  "all",
+  "favorites",
+  "trash",
+];
+
+/**
  * The vault directory a type's items live under: its plural as a path
  * segment (`Wi-Fi networks` → `wi-fi-networks`). ASCII-only on purpose, so
  * the host plane derives the byte-identical name without a Unicode table; a
@@ -69,9 +80,13 @@ export function directoryName(definition: ItemTypeDefinition): string {
   return slug === "" ? definition.metadata.id : slug;
 }
 
-/** How two titles are compared: case and surrounding space never count. */
+/**
+ * How two titles are compared: case and surrounding ASCII space never count.
+ * ASCII only, because `String.prototype.trim` and Rust's `str::trim` disagree
+ * about U+FEFF, and the two planes must refuse the same installs.
+ */
 function titleKey(title: string): string {
-  return title.trim().toLowerCase();
+  return title.replaceAll(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase();
 }
 
 function compareVersions(left: string, right: string): number {
@@ -112,6 +127,13 @@ export class ItemTypeRegistry {
     if (source === "builtin") {
       this.registerBuiltin(definition);
       return { ok: true, definition };
+    }
+    if (RESERVED_TYPE_IDS.includes(id)) {
+      return refusal(
+        "id",
+        "metadata.id",
+        `\`${id}\` is a vault filter and cannot name a type`,
+      );
     }
     if (this.#builtin.has(id)) {
       return refusal(

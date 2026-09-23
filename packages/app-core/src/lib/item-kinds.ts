@@ -15,7 +15,11 @@ import {
   itemTypeRegistry,
   typeLabel,
 } from "@opensesame/vault-core";
-import { directoryName } from "@opensesame/vault-item-types";
+import {
+  RESERVED_DIRECTORIES,
+  RESERVED_TYPE_IDS,
+  directoryName,
+} from "@opensesame/vault-item-types";
 import type { ItemKindContribution } from "./capabilities/runtime-contract.js";
 import { contributionsSnapshot } from "./contributions.js";
 
@@ -80,7 +84,9 @@ const TYPE_DIRECTORY_ORDER = 100;
  *
  * The registry refuses an install whose directory is taken, so a registered
  * type always gets its own name; only a type not installed here, named by its
- * bare id, can meet a taken one, and it is numbered rather than merged.
+ * bare id, can meet a taken one, and it is numbered rather than merged. An id
+ * that is also a filter (`trash`) gets no directory at all: its link would
+ * open the filter. Its items stay under `all`.
  */
 export function withTypeDirectories(
   rows: readonly ItemKindRow[],
@@ -88,7 +94,10 @@ export function withTypeDirectories(
 ): readonly ItemKindRow[] {
   const registry = itemTypeRegistry();
   const ids = new Set(rows.map((row) => row.id));
-  const taken = new Set(rows.map((row) => row.segment));
+  const taken = new Set([
+    ...RESERVED_DIRECTORIES,
+    ...rows.map((row) => row.segment),
+  ]);
   const wanted = new Set(
     registry
       .list()
@@ -96,7 +105,8 @@ export function withTypeDirectories(
       .map(({ definition }) => definition.metadata.id),
   );
   for (const id of present) {
-    if (!GATED_KINDS.has(id) && id !== "typed") wanted.add(id);
+    if (GATED_KINDS.has(id) || id === "typed") continue;
+    if (!RESERVED_TYPE_IDS.includes(id)) wanted.add(id);
   }
   const added = [...wanted]
     .filter((id) => !ids.has(id))

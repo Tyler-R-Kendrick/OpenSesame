@@ -59,6 +59,11 @@ fn refusal(code: ErrorCode, path: &str, message: impl Into<String>) -> Definitio
 /// something else.
 pub const RESERVED_DIRECTORIES: [&str; 5] = ["all", "favorites", "trash", "certs", "notes"];
 
+/// Ids no type may take. A type id is also the vault's `?f=` filter value, and
+/// these three already mean something there: a type called `favorites` would
+/// have a directory that opens the favorites instead.
+pub const RESERVED_TYPE_IDS: [&str; 3] = ["all", "favorites", "trash"];
+
 /// The vault directory a type's items live under: its plural as a path
 /// segment (`Wi-Fi networks` → `wi-fi-networks`). ASCII-only, byte for byte
 /// the TypeScript derivation; a plural with no ASCII letter or digit falls
@@ -82,9 +87,13 @@ pub fn directory_name(definition: &ItemTypeDefinition) -> String {
     }
 }
 
-/// How two titles are compared: case and surrounding space never count.
+/// How two titles are compared: case and surrounding ASCII space never count.
+/// ASCII only, because `str::trim` and JavaScript's `trim` disagree about
+/// U+FEFF, and the two planes must refuse the same installs.
 fn title_key(title: &str) -> String {
-    title.trim().to_lowercase()
+    title
+        .trim_matches(|c: char| c.is_ascii_whitespace())
+        .to_lowercase()
 }
 
 fn compare_versions(left: &str, right: &str) -> std::cmp::Ordering {
@@ -164,6 +173,13 @@ impl ItemTypeRegistry {
         if source == Source::Builtin {
             self.builtin.insert(id, definition.clone());
             return Ok(definition);
+        }
+        if RESERVED_TYPE_IDS.contains(&id.as_str()) {
+            return Err(refusal(
+                ErrorCode::Id,
+                "metadata.id",
+                format!("`{id}` is a vault filter and cannot name a type"),
+            ));
         }
         if self.builtin.contains_key(&id) {
             return Err(refusal(

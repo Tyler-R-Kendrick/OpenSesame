@@ -3,7 +3,7 @@
 use std::fs;
 
 use opensesame_vault_item_types::{
-    directory_name, ErrorCode, ItemTypeRegistry, Source, RESERVED_DIRECTORIES,
+    directory_name, ErrorCode, ItemTypeRegistry, Source, RESERVED_DIRECTORIES, RESERVED_TYPE_IDS,
 };
 
 fn community(id: &str, publisher: &str, version: &str) -> String {
@@ -286,4 +286,40 @@ fn refuses_an_install_that_claims_another_types_names() {
             Source::Vault,
         )
         .expect("uninstalling frees the names");
+}
+
+#[test]
+fn refuses_an_id_that_is_already_a_vault_filter() {
+    let mut registry = ItemTypeRegistry::with_builtins();
+    for reserved in RESERVED_TYPE_IDS {
+        let errors = registry
+            .install(
+                &community(reserved, "https://community.test", "1.0.0"),
+                Source::Vault,
+            )
+            .expect_err("a filter value cannot name a type");
+        assert!(errors.has(ErrorCode::Id));
+    }
+}
+
+#[test]
+fn compares_titles_without_case_or_surrounding_ascii_space() {
+    let mut registry = ItemTypeRegistry::with_builtins();
+    let errors = registry
+        .install(
+            &community("impostor", "https://community.test", "1.0.0")
+                .replace("\"Community type\"", "\"\\t LOGIN \\n\""),
+            Source::Vault,
+        )
+        .expect_err("a padded built-in title is taken");
+    assert!(errors.has(ErrorCode::Name));
+    // A byte-order mark is not space on both planes, so it stays part of the
+    // title on both, and the install is not a clash on either.
+    registry
+        .install(
+            &community("marked", "https://community.test", "1.0.0")
+                .replace("\"Community type\"", "\"\\ufeffLogin\""),
+            Source::Vault,
+        )
+        .expect("a marked title is its own");
 }

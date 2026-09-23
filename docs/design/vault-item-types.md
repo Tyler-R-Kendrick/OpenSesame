@@ -169,7 +169,8 @@ Each of these is a parse-time refusal with a message naming the path:
   A type's directory is its `plural` as a path segment (`Event tickets` →
   `event-tickets`); it appears in the vault rail as soon as the type is
   installed, so it must be its own. `all`, `favorites`, `trash`, `certs` and
-  `notes` are reserved by the rail itself;
+  `notes` are reserved by the rail itself, and `all`, `favorites` and `trash`
+  cannot be a type id either (the id is the vault's filter value);
 - carry any key the schema does not define — unknown fields are refused
   rather than ignored, at every level;
 - exceed 64 KiB, 16 sections, 64 fields, or 32 options.
