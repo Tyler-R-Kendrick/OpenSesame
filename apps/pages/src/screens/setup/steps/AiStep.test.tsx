@@ -1,18 +1,18 @@
+import { browserInferenceSeams } from "@opensesame/app-core/lib/browser-inference.js";
+import {
+  resetSpeechSeams,
+  speechSeams,
+} from "@opensesame/app-core/lib/command-bar/speech.js";
+import { kvSetDurable } from "@opensesame/app-core/lib/kv.js";
+import {
+  MODEL_PROVIDER_KEY,
+  loadModelProvider,
+} from "@opensesame/app-core/lib/model-provider.js";
+import { modelSlugSeams } from "@opensesame/app-core/lib/model-slugs.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { browserInferenceSeams } from "../../../lib/browser-inference.js";
-import {
-  resetSpeechSeams,
-  speechSeams,
-} from "../../../lib/command-bar/speech.js";
-import { kvSetDurable } from "../../../lib/kv.js";
-import {
-  MODEL_PROVIDER_KEY,
-  loadModelProvider,
-} from "../../../lib/model-provider.js";
-import { modelSlugSeams } from "../../../lib/model-slugs.js";
 import { AiStep } from "./AiStep.js";
 
 const originalSeams = { ...browserInferenceSeams };

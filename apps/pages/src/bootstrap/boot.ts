@@ -7,32 +7,32 @@
  * can run before a person's selection has been read.
  */
 
-import { collectRuntimeFacts } from "../lib/capabilities/facts.js";
-import { ensureInstallationId } from "../lib/capabilities/installation.js";
+import { collectRuntimeFacts } from "@opensesame/app-core/lib/capabilities/facts.js";
+import { ensureInstallationId } from "@opensesame/app-core/lib/capabilities/installation.js";
 import {
   startInvalidationWatch,
   vaultIdOf,
-} from "../lib/capabilities/invalidation.js";
-import { vaultSelectionKey } from "../lib/capabilities/keys.js";
-import { compositionStore } from "../lib/capabilities/store.js";
-import { kvHydrate } from "../lib/kv.js";
-import { lastVaultIsGuest } from "../lib/last-vault.js";
+} from "@opensesame/app-core/lib/capabilities/invalidation.js";
+import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
+import { lastVaultIsGuest } from "@opensesame/app-core/lib/last-vault.js";
 import {
   activeProject,
   projectScopedKeys,
   rehydrateProjects,
-} from "../lib/projects.js";
+} from "@opensesame/app-core/lib/projects.js";
 import {
   type ParsedRuntimeConfig,
   loadRuntimeConfig,
-} from "../lib/runtime-config.js";
-import { bootstrapTheme } from "../lib/theme.js";
-import { vaultStore } from "../lib/vault/store.js";
+} from "@opensesame/app-core/lib/runtime-config.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   migrateLegacyVaultStorage,
   tombStorageKeys,
-} from "../lib/vault/tomb-migration.js";
-import { GUEST_TOMB } from "../lib/vfs.js";
+} from "@opensesame/app-core/lib/vault/tomb-migration.js";
+import { GUEST_TOMB } from "@opensesame/app-core/lib/vfs.js";
+import { bootstrapTheme } from "../lib/theme.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
 
 export type CoreBoot = Readonly<{

@@ -12,17 +12,19 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pages = join(here, "..");
+// The duress feature lives in the shared core (ADR 0133).
+const core = join(pages, "..", "..", "packages", "app-core");
 const root = join(pages, "..", "..");
 const evidenceDir = join(root, "docs", "evidence", "2026-09-21-duress");
 mkdirSync(evidenceDir, { recursive: true });
 
 const featureUrl = pathToFileURL(
-  join(pages, "src/lib/duress/feature/index.ts"),
+  join(core, "src/lib/duress/feature/index.ts"),
 ).href;
 
 // Prefer compiled/vitest path: run assertions by spawning vitest on a tiny file
 // is heavy; instead re-implement the probe against registry sources on disk.
-const registryPath = join(pages, "src/lib/duress/feature/registry.ts");
+const registryPath = join(core, "src/lib/duress/feature/registry.ts");
 const registrySrc = readFileSync(registryPath, "utf8");
 
 /** @type {{ id: string, ok: boolean, detail: string }[]} */
@@ -56,7 +58,7 @@ const modulePaths = [
   "peer/envelope.ts",
 ];
 
-const duressRoot = join(pages, "src/lib/duress");
+const duressRoot = join(core, "src/lib/duress");
 /** @type {Record<string, string>} */
 const digests = {};
 let missing = 0;
@@ -92,7 +94,7 @@ check(
 
 // Feature-off refusal is covered by vitest; assert source contains the gate.
 const formatSrc = readFileSync(
-  join(pages, "src/lib/duress/feature/format.ts"),
+  join(core, "src/lib/duress/feature/format.ts"),
   "utf8",
 );
 check(

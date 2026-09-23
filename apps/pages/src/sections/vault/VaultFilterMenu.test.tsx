@@ -1,5 +1,10 @@
 /** @vitest-environment jsdom */
 import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type Folder,
+  type VaultItem,
+  createItem,
+} from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import {
@@ -11,8 +16,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { createItem } from "../../lib/vault/model.js";
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
 
 /**
  * The vault's filters on a phone: one key, and a sheet behind it.

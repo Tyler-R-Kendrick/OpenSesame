@@ -224,7 +224,7 @@ describe("agent-surface parity rules", () => {
 });
 
 const PWA_SURFACE =
-  /^(lib\/[\w/.-]+\.ts:\w+|route:\/(?:[\w-]+(?:\/[\w-]+)*)?|pwa-app:[\w-]+)$/;
+  /^((?:lib|vault-core)\/[\w/.-]+\.ts:\w+|route:\/(?:[\w-]+(?:\/[\w-]+)*)?|pwa-app:[\w-]+)$/;
 it("admits exact nested routes without URL or path ambiguity", () => {
   for (const route of [
     "route:/",

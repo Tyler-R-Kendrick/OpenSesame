@@ -1,5 +1,3 @@
-import type { PolicyDocument } from "@opensesame/contracts";
-import { useEffect, useId, useMemo, useState } from "react";
 import {
   type ArmingChecklist,
   type CodeSlotStatus,
@@ -9,8 +7,10 @@ import {
   buildPresetPolicy,
   emptyArmingChecklist,
   resolveMotionPreference,
-} from "../../../lib/duress/settings/index.js";
-import type { EnrollmentState } from "../../../lib/duress/trigger/enrollment.js";
+} from "@opensesame/app-core/lib/duress/settings/index.js";
+import type { EnrollmentState } from "@opensesame/app-core/lib/duress/trigger/enrollment.js";
+import type { PolicyDocument } from "@opensesame/contracts";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { DuressEnrollmentPanelProps } from "./DuressEnrollmentPanel.js";
 
 type EnrollmentScope = Readonly<{

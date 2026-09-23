@@ -1,11 +1,11 @@
-import { overlapCast } from "@opensesame/os-domain";
-import { type ComponentType, type ReactNode, useMemo } from "react";
-import { NavLink } from "react-router";
 import type {
   SectionContribution,
   TreeProps,
-} from "../lib/capabilities/runtime-contract.js";
-import { contributionsSnapshot } from "../lib/contributions.js";
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
+import { overlapCast } from "@opensesame/os-domain";
+import { type ComponentType, type ReactNode, useMemo } from "react";
+import { NavLink } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
   ICONS_BY_NAME,

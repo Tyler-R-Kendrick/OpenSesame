@@ -1,8 +1,14 @@
+import * as agentAuthentication from "@opensesame/app-core/lib/local-agent-auth.js";
+import { readLocalAgentKeys } from "@opensesame/app-core/lib/local-agent-keys.js";
+import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
+import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   type LocalAgentChallenge,
   createLocalAgentKey,
 } from "@opensesame/static-auth";
+import { mintVaultKey } from "@opensesame/vault-core";
 import {
   act,
   cleanup,
@@ -13,12 +19,6 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import * as agentAuthentication from "../../lib/local-agent-auth.js";
-import { readLocalAgentKeys } from "../../lib/local-agent-keys.js";
-import { changeLocalDirectory } from "../../lib/local-directory.js";
-import { currentLocalIdentitySession } from "../../lib/local-sessions.js";
-import { mintVaultKey } from "../../lib/vault/crypto.js";
-import { lockAllTombs, unlockTomb } from "../../lib/vfs.js";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 
 let tomb: string;

@@ -1,6 +1,6 @@
+import type { ConnectorDecision } from "@opensesame/app-core/lib/duress/compartment/connectors.js";
+import type { OpenOutcome } from "@opensesame/app-core/lib/duress/compartment/session.js";
 import { createElement } from "react";
-import type { ConnectorDecision } from "../../lib/duress/compartment/connectors.js";
-import type { OpenOutcome } from "../../lib/duress/compartment/session.js";
 
 /**
  * Honest status for decoy/locked outcomes — never fabricates production success.

@@ -1,8 +1,8 @@
+import { draftSuggestionSeams } from "@opensesame/app-core/lib/vault/draft-suggestions.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { draftSuggestionSeams } from "../../lib/vault/draft-suggestions.js";
 import { DraftSuggestions } from "./DraftSuggestions.js";
 
 const original = draftSuggestionSeams.model;

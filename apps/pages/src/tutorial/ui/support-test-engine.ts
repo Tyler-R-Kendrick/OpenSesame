@@ -1,3 +1,8 @@
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
+import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
+import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
+import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { compileGuide } from "@opensesame/guide-lang";
 import {
   type FakeGuideRoutes,
@@ -16,11 +21,6 @@ import {
   createSupportSession,
   supportVocabulary,
 } from "@opensesame/support-agent";
-import { buildSupportPageContext } from "../registry/context.js";
-import { guideGoalIds } from "../registry/goals.js";
-import { GUIDE_ROUTES } from "../registry/routes.js";
-import { guidePredicateIds } from "../registry/state.js";
-import { guideTargetIds } from "../registry/targets.js";
 import type { SupportEngine, SupportTransport } from "../session.js";
 
 /**

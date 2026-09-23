@@ -1,3 +1,4 @@
+import type { WebauthnHostCheck } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 /** @vitest-environment jsdom */
 import type { JsonObject } from "@opensesame/os-domain";
 import {
@@ -11,7 +12,6 @@ import {
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { WebauthnHostCheck } from "../../lib/vault/unlock-methods.js";
 
 const vault: { current: { header: JsonObject | null; guest?: boolean } } =
   vi.hoisted(() => ({
@@ -61,15 +61,14 @@ const describeWebauthnError = vi.hoisted(() =>
   ),
 );
 
-import { unlockMethodsSeams } from "../../lib/vault/unlock-methods.js";
+import { unlockMethodsSeams } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { webauthnHostSeams } from "@opensesame/app-core/lib/vault/webauthn-host.js";
 const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
-Object.assign(unlockMethodsSeams, {
-  listAvailableUnlockMethods,
-  checkWebauthnHost,
-  describeWebauthnError,
-});
+const originalWebauthnHostSeams = { ...webauthnHostSeams };
+Object.assign(unlockMethodsSeams, { listAvailableUnlockMethods });
+Object.assign(webauthnHostSeams, { checkWebauthnHost, describeWebauthnError });
 
-import { passwordSeams } from "../../lib/vault/password.js";
+import { passwordSeams } from "@opensesame/app-core/lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
 Object.assign(passwordSeams, {
   estimateStrength: (password: string) => ({
@@ -85,9 +84,9 @@ Object.assign(qrSeams, {
 });
 
 const identityApi = vi.hoisted(() => ({ current: "http://127.0.0.1:8788" }));
-import { deviceIdentitySeams } from "../../lib/device-identity.js";
-import { federationSeams } from "../../lib/federation.js";
-import { identitySeams } from "../../lib/identity.js";
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
 const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
 const originalFederationSeams = { ...federationSeams };
@@ -524,6 +523,7 @@ describe("UnlockMethodsPanel", () => {
 afterEach(() => {
   Object.assign(vaultHooksSeams, originalVaultHooksSeams);
   Object.assign(unlockMethodsSeams, originalUnlockMethodsSeams);
+  Object.assign(webauthnHostSeams, originalWebauthnHostSeams);
   Object.assign(passwordSeams, originalPasswordSeams);
   Object.assign(qrSeams, originalQrSeams);
   Object.assign(identitySeams, originalIdentitySeams);
@@ -533,8 +533,8 @@ afterEach(() => {
     useVault: () => vault.current,
     useVaultStore: () => store,
   });
-  Object.assign(unlockMethodsSeams, {
-    listAvailableUnlockMethods,
+  Object.assign(unlockMethodsSeams, { listAvailableUnlockMethods });
+  Object.assign(webauthnHostSeams, {
     checkWebauthnHost,
     describeWebauthnError,
   });

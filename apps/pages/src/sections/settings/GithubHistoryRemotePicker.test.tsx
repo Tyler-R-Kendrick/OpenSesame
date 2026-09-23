@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const listGithubRepos = vi.hoisted(() => vi.fn());
 const createGithubPasswordRepo = vi.hoisted(() => vi.fn());
 
-import { githubHistorySeams } from "../../lib/github-history.js";
+import { githubHistorySeams } from "@opensesame/app-core/lib/github-history.js";
 const originalGithubHistorySeams = { ...githubHistorySeams };
 Object.assign(githubHistorySeams, {
   listGithubRepos,
@@ -15,8 +15,8 @@ Object.assign(githubHistorySeams, {
   remoteFromRepo: (repo: { cloneUrl: string }) => repo.cloneUrl,
 });
 
-import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
-import type { Connection } from "../../lib/connections.js";
+import type { CapabilityConnectorBinding } from "@opensesame/app-core/lib/capabilities.js";
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import { GithubHistoryRemotePicker } from "./GithubHistoryRemotePicker.js";
 
 function makeBinding(remote: string | null = null): CapabilityConnectorBinding {

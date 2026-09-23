@@ -1,6 +1,7 @@
-import { type FormEvent, useId, useState } from "react";
-import { IconCheck, IconInfo } from "../../components/Icons.js";
-import type { Connection, Provider } from "../../lib/connections.js";
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import {
   authorizeConnection,
   awaitConsent,
@@ -8,19 +9,24 @@ import {
   openConsentPopup,
   setConnectionConfiguration,
   setConnectionCredential,
-} from "../../lib/connections.js";
+} from "@opensesame/app-core/lib/connections.js";
 import {
   configurationDefaults,
   configurationPayload,
   fieldGuidance,
   needsScopeSelection,
-} from "../../lib/connector-guidance.js";
-import { isGitBackupProvider } from "../../lib/git-backup-forges.js";
-import { ensureHostSession } from "../../lib/identity.js";
-import { usesConnect } from "../../lib/vercel-connect.js";
+} from "@opensesame/app-core/lib/connector-guidance.js";
+import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
+import { ensureHostSession } from "@opensesame/app-core/lib/identity.js";
+import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { type FormEvent, useId, useState } from "react";
+import { IconCheck, IconInfo } from "../../components/Icons.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 import { OauthConnectBody } from "./OauthConnectBody.js";
-import { type Flash, errorText } from "./shared.js";
 
 export function defaultsFor(provider: Provider) {
   const defaults = new Map<string, string>();

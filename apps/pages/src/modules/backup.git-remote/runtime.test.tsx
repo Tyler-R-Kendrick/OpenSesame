@@ -44,7 +44,9 @@ describe("backup.git-remote runtime", () => {
   });
 
   it("runs the backup observer only while active, and starts nothing on activate", async () => {
-    const observer = await import("../../lib/vault-backup-observer.js");
+    const observer = await import(
+      "@opensesame/app-core/lib/vault-backup-observer.js"
+    );
     const interval = vi.spyOn(globalThis, "setInterval");
     const clear = vi.spyOn(globalThis, "clearInterval");
     const t = createTestContext();

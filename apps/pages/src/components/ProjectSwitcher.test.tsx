@@ -36,7 +36,7 @@ const proj = vi.hoisted(() => ({
   unlocked: false,
 }));
 
-import { projectSeams } from "../lib/projects.js";
+import { projectSeams } from "@opensesame/app-core/lib/projects.js";
 Object.assign(projectSeams, {
   projectsState: () => proj.state,
   subscribeProjects: () => () => {},
@@ -44,10 +44,10 @@ Object.assign(projectSeams, {
   setActiveProject: proj.setActiveProject,
 });
 
-import { vaultStore } from "../lib/vault/store.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 vi.spyOn(vaultStore, "isUnlocked").mockImplementation(() => proj.unlocked);
 
-import { guestAuthSeams } from "../lib/guest-auth.js";
+import { guestAuthSeams } from "@opensesame/app-core/lib/guest-auth.js";
 Object.assign(guestAuthSeams, { continueAsGuest: proj.continueAsGuest });
 
 import { ProjectSwitcher, projectSwitcherSeams } from "./ProjectSwitcher.js";

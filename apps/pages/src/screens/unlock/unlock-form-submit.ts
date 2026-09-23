@@ -1,8 +1,8 @@
-import type { FormEvent, MutableRefObject } from "react";
 import type {
   SecondStepId,
   UnlockMethodId,
-} from "../../lib/vault/unlock-methods.js";
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import type { FormEvent, MutableRefObject } from "react";
 import {
   submitFirstRunUnlock,
   submitGuestUnlock,

@@ -4,7 +4,7 @@ import { useEnabledIdentityViews } from "./identity-views.js";
 import {
   IDENTITY_LABELS,
   type IDENTITY_VIEWS,
-} from "../../lib/section-view-names.js";
+} from "@opensesame/app-core/lib/section-view-names.js";
 export type IdentityTab = (typeof IDENTITY_VIEWS)[number];
 
 export function IdentityTabs({

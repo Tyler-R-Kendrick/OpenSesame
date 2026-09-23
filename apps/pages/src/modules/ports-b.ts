@@ -16,10 +16,10 @@
  * (SURFACE-05). An entry without `operationIds` is never registered.
  */
 
+import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { PagesWebMcpTool } from "@opensesame/app-core/webmcp/tool-shared.js";
 import type { RegistrationHandle } from "@opensesame/capability-composition";
 import type { ComponentType, ReactNode } from "react";
-import type { ApprovedCapabilityContext } from "../lib/capabilities/runtime-contract.js";
-import type { PagesWebMcpTool } from "../webmcp/tool-shared.js";
 
 /** Kept as the name the wave-B runtimes import; the contract carries it all now. */
 export type ContextWithPorts = ApprovedCapabilityContext;

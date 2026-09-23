@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import {
   type HostAuthorizationRequest,
   authenticateBrowser,
   authorizeHost,
-} from "../lib/host-authorization.js";
+} from "@opensesame/app-core/lib/host-authorization.js";
+import { useEffect, useRef, useState } from "react";
 import { CeremonyShell } from "./CeremonyShell.js";
 export const hostCeremonySeams = { authenticateBrowser, authorizeHost };
 

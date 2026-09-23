@@ -22,7 +22,7 @@
  * Egress: none today. Side effects: none at import.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "enterprise.ca-administration";

@@ -5,9 +5,9 @@
  * the shell draws the section row from the `section` contribution.
  */
 
+import type { TreeProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { useLocation, useSearchParams } from "react-router";
 import { PageTreeBranch } from "../../components/PageTreeBranch.js";
-import type { TreeProps } from "../../lib/capabilities/runtime-contract.js";
 import { useEnabledIdentityViews } from "../../sections/identity/identity-views.js";
 import { identityPageTree } from "../../sections/identity/page-tree.js";
 import { useIdentityRailSnapshot } from "../../sections/identity/use-local-directory.js";

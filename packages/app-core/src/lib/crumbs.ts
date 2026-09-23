@@ -1,0 +1,342 @@
+/**
+ * SPA rest-path crumbs. Each segment is a real in-app location, not a hash
+ * decoration — so refresh, share, and click all land on the same area.
+ */
+
+import {
+  type ItemKind,
+  KIND_LABEL,
+  itemTypeRegistry,
+  typePlural,
+} from "@opensesame/vault-core";
+import { accessPath, isAccessView } from "./access-routes.js";
+import { contributionsSnapshot } from "./contributions.js";
+
+export type Crumb = {
+  label: string;
+  /** Absent on the current page. */
+  to?: string;
+};
+
+/**
+ * The categories the core Settings page always has, in tab order —
+ * General → Security → Vaults → Capabilities → Danger. `connections` is a
+ * `settings-category` contribution from the connectors capability and is a
+ * category only while that capability is in the plan.
+ */
+export const SETTINGS_CATEGORIES = [
+  "general",
+  "security",
+  "vaults",
+  "capabilities",
+  "danger",
+] as const;
+export type CoreSettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
+/** Every category id this code knows how to name; contributed ones included. */
+export type SettingsCategory = CoreSettingsCategory | "connections";
+
+export const SETTINGS_CATEGORY_LABEL: Readonly<
+  Record<SettingsCategory, string>
+> = {
+  general: "General",
+  connections: "Connections",
+  security: "Security",
+  vaults: "Vaults",
+  capabilities: "Capabilities",
+  danger: "Danger",
+};
+
+/** Core categories plus every registered `settings-category`, in order. */
+export function settingsCategories(): readonly string[] {
+  const contributed = contributionsSnapshot("settings-category")
+    .map((entry) => entry.id)
+    .filter((id) => !SETTINGS_CATEGORY_SET.has(id));
+  return [...SETTINGS_CATEGORIES, ...contributed];
+}
+
+/** The label a category is drawn with: authored here, or its contribution's. */
+export function settingsCategoryLabel(category: string): string {
+  if (category in SETTINGS_CATEGORY_LABEL) {
+    return SETTINGS_CATEGORY_LABEL[category as SettingsCategory];
+  }
+  return (
+    contributionsSnapshot("settings-category").find(
+      (entry) => entry.id === category,
+    )?.label ?? capitalize(category)
+  );
+}
+
+function capitalize(segment: string): string {
+  return segment.charAt(0).toUpperCase() + segment.slice(1);
+}
+
+export const WALLET_CATEGORIES = ["budgets", "methods", "passes"] as const;
+export type WalletCategory = (typeof WALLET_CATEGORIES)[number];
+
+export const WALLET_CATEGORY_LABEL = {
+  budgets: "Budgets",
+  passes: "Spending passes",
+  methods: "Payment methods",
+} satisfies Record<WalletCategory, string>;
+
+/** Legacy hashes that are not themselves a settings category. */
+const SETTINGS_HASH_ALIAS = new Map<string, string>([
+  ["taskbus", "connections"],
+  ["connectivity", "connections"],
+  ["unlock", "security"],
+]);
+
+const VAULT_FILTER_LABEL = new Map([
+  ["favorites", "Favorites"],
+  ["trash", "Trash"],
+]);
+
+/**
+ * A vault filter is a type id (ADR 0087), so its crumb comes from the type's
+ * own definition. The two non-type filters above keep their fixed labels.
+ */
+function vaultFilterLabel(filter: string): string | undefined {
+  const fixed = VAULT_FILTER_LABEL.get(filter);
+  if (fixed !== undefined) return fixed;
+  return itemTypeRegistry().has(filter) ? typePlural(filter) : undefined;
+}
+
+const ITEM_KINDS = new Set<string>(Object.keys(KIND_LABEL));
+const SETTINGS_CATEGORY_SET = new Set<string>(SETTINGS_CATEGORIES);
+const WALLET_CATEGORY_SET = new Set<string>(WALLET_CATEGORIES);
+
+function isItemKind(value: string): value is ItemKind {
+  return ITEM_KINDS.has(value);
+}
+
+/** A core category, or a contributed one that is registered right now. */
+export function isSettingsCategory(value: string): value is SettingsCategory {
+  return (
+    SETTINGS_CATEGORY_SET.has(value) ||
+    contributionsSnapshot("settings-category").some(
+      (entry) => entry.id === value,
+    )
+  );
+}
+
+export function isWalletCategory(value: string): value is WalletCategory {
+  return WALLET_CATEGORY_SET.has(value);
+}
+
+/** `/wallet/methods` → methods; bare `/wallet` → budgets. */
+export function walletCategoryFromLocation(pathname: string): WalletCategory {
+  const match = pathname.match(/\/wallet\/([^/]+)/);
+  const fromPath = match?.[1];
+  if (fromPath && isWalletCategory(fromPath)) return fromPath;
+  return "budgets";
+}
+
+export function walletPath(category: WalletCategory): string {
+  return category === "budgets" ? "/wallet" : `/wallet/${category}`;
+}
+
+export function settingsCategoryFromHash(
+  hash: string,
+): SettingsCategory | null {
+  const raw = hash.replace(/^#/, "");
+  if (isSettingsCategory(raw)) return raw;
+  const aliased = SETTINGS_HASH_ALIAS.get(raw);
+  return aliased !== undefined && isSettingsCategory(aliased) ? aliased : null;
+}
+
+/** `/settings/connections` or `/settings#connectivity` → connections. */
+export function settingsCategoryFromLocation(
+  pathname: string,
+  hash: string,
+): SettingsCategory {
+  const match = pathname.match(/\/settings\/([^/]+)/);
+  const fromPath = match?.[1];
+  if (fromPath) {
+    const aliased = SETTINGS_HASH_ALIAS.get(fromPath);
+    if (aliased !== undefined && isSettingsCategory(aliased)) return aliased;
+    if (isSettingsCategory(fromPath)) return fromPath;
+  }
+  return settingsCategoryFromHash(hash) ?? "general";
+}
+
+export function settingsPath(category: string, hash = ""): string {
+  const base = category === "general" ? "/settings" : `/settings/${category}`;
+  const fragment = hash.replace(/^#/, "");
+  if (!fragment || fragment === category) return base;
+  return `${base}#${fragment}`;
+}
+
+export type CrumbContext = {
+  itemName?: string;
+  folderName?: string;
+  folderId?: string;
+  providerName?: string;
+  connectionName?: string;
+};
+
+export function crumbsFor(
+  pathname: string,
+  search = "",
+  ctx: CrumbContext = {},
+): Crumb[] {
+  const params = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
+  );
+  const parts = pathname.split("/").filter(Boolean);
+  const segment = parts[0];
+  if (segment === undefined) return [];
+  if (segment === "vault") return vaultCrumbs(parts, params, ctx);
+  if (segment === "settings") return settingsCrumbs(parts);
+  const section = contributionsSnapshot("section").find(
+    (entry) => entry.segment === segment,
+  );
+  // A section that is not in the plan has no path to spell out: the row is
+  // its name and nothing under it links anywhere.
+  if (section === undefined) return current(capitalize(segment));
+  const build = SECTION_CRUMBS[segment];
+  return build ? build(parts, ctx) : current(section.label);
+}
+
+function current(label: string): Crumb[] {
+  return [{ label }];
+}
+
+/**
+ * Crumb builders for the optional sections that spell out a rest path, keyed
+ * by the section's segment. A registered section without one is a single
+ * current crumb carrying its contributed label.
+ */
+const SECTION_CRUMBS: Readonly<
+  Record<string, (parts: string[], ctx: CrumbContext) => Crumb[]>
+> = {
+  connections: (parts, ctx) => connectionsCrumbs(parts, ctx),
+  access: (parts) => accessCrumbs(parts),
+  wallet: (parts) => walletCrumbs(parts),
+};
+
+function accessCrumbs(parts: string[]): Crumb[] {
+  if (parts[1] === "new") {
+    return [{ label: "Access", to: "/access" }, { label: "new" }];
+  }
+  if (parts[1] === "import") {
+    return [{ label: "Access", to: "/access" }, { label: "import" }];
+  }
+  const tab = parts[1];
+  if (!tab || !isAccessView(tab) || tab === "grants") {
+    return [{ label: "Access" }];
+  }
+  const crumbs: Crumb[] = [{ label: "Access", to: "/access" }, { label: tab }];
+  if (parts[2] === "new") {
+    crumbs[1] = { label: tab, to: accessPath(tab) };
+    crumbs.push({ label: "new" });
+  }
+  return crumbs;
+}
+
+export {
+  accessImportPath,
+  accessIsImportCeremony,
+  accessIsNewCeremony,
+  accessNewPath,
+  accessPath,
+  accessViewFromLocation,
+} from "./access-routes.js";
+
+function vaultCrumbs(
+  parts: string[],
+  params: URLSearchParams,
+  ctx: CrumbContext,
+): Crumb[] {
+  const crumbs: Crumb[] = [{ label: "Vault", to: "/vault" }];
+  const rest = parts.slice(1);
+  const folderId = params.get("folder") ?? ctx.folderId;
+  const filter = params.get("f");
+
+  if (rest[0] === "health") {
+    crumbs.push({ label: "Password health" });
+    return crumbs;
+  }
+  if (rest[0] === "new" && rest[1] && isItemKind(rest[1])) {
+    const kind = rest[1];
+    crumbs.push({ label: `New ${KIND_LABEL[kind].toLowerCase()}` });
+    return crumbs;
+  }
+  if (rest[0] && rest[0] !== "new") {
+    if (folderId && ctx.folderName) {
+      crumbs.push({
+        label: ctx.folderName,
+        to: `/vault?folder=${encodeURIComponent(folderId)}`,
+      });
+    }
+    crumbs.push({ label: ctx.itemName || "Item" });
+    if (rest[1] === "edit") crumbs.push({ label: "Edit" });
+    return crumbs;
+  }
+  if (folderId && ctx.folderName) {
+    crumbs.push({ label: ctx.folderName });
+    return crumbs;
+  }
+  const filterLabel = filter ? vaultFilterLabel(filter) : undefined;
+  if (filterLabel) {
+    crumbs.push({ label: filterLabel });
+    return crumbs;
+  }
+  return [{ label: "Vault" }];
+}
+
+function connectionsCrumbs(parts: string[], ctx: CrumbContext): Crumb[] {
+  const crumbs: Crumb[] = [{ label: "Connections", to: "/connections" }];
+  const provider = parts[1];
+  if (!provider) return [{ label: "Connections" }];
+  const providerLabel = ctx.providerName || decodeURIComponent(provider);
+  const connection = parts[2];
+  if (!connection) {
+    crumbs.push({ label: providerLabel });
+    return crumbs;
+  }
+  crumbs.push({
+    label: providerLabel,
+    to: `/connections/${provider}`,
+  });
+  crumbs.push({
+    label: ctx.connectionName || decodeURIComponent(connection),
+  });
+  return crumbs;
+}
+
+function walletCrumbs(parts: string[]): Crumb[] {
+  const category =
+    parts[1] && isWalletCategory(parts[1]) ? parts[1] : "budgets";
+  if (category === "budgets") return current("Wallet");
+  return [
+    { label: "Wallet", to: "/wallet" },
+    { label: WALLET_CATEGORY_LABEL[category] },
+  ];
+}
+
+function settingsCrumbs(parts: string[]): Crumb[] {
+  const category = parts[1];
+  if (!category || !isSettingsCategory(category) || category === "general") {
+    return [{ label: "Settings" }];
+  }
+  if (category === "connections" && parts[2]) {
+    const provider = decodeURIComponent(parts[2]);
+    const crumbs: Crumb[] = [
+      { label: "Settings", to: "/settings" },
+      { label: "Connections", to: "/settings/connections" },
+      { label: provider },
+    ];
+    if (parts[3]) {
+      crumbs[2] = {
+        label: provider,
+        to: `/settings/connections/${parts[2]}`,
+      };
+      crumbs.push({ label: decodeURIComponent(parts[3]) });
+    }
+    return crumbs;
+  }
+  return [
+    { label: "Settings", to: "/settings" },
+    { label: settingsCategoryLabel(category) },
+  ];
+}

@@ -9,13 +9,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /** @vitest-environment jsdom */
 import { identityHookSeams } from "../bindings/identity.js";
 
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
+import { guestAuthSeams } from "@opensesame/app-core/lib/guest-auth.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import type { PagesSettings } from "@opensesame/app-core/lib/settings.js";
+import {
+  defaultSignInMethods,
+  settingsSeams,
+} from "@opensesame/app-core/lib/settings.js";
 import { isFunction } from "@opensesame/os-domain";
-import { deviceIdentitySeams } from "../lib/device-identity.js";
-import { federationSeams } from "../lib/federation.js";
-import { guestAuthSeams } from "../lib/guest-auth.js";
-import { identitySeams } from "../lib/identity.js";
-import type { PagesSettings } from "../lib/settings.js";
-import { defaultSignInMethods, settingsSeams } from "../lib/settings.js";
 
 /**
  * The front door (ADR 0115): the two roads made large, with every sign-in

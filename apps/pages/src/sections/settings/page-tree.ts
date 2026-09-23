@@ -1,7 +1,10 @@
-import { type SettingsCategory, settingsPath } from "../../lib/crumbs.js";
-import { getBundledProviders } from "../../lib/embedded-catalog.js";
+import {
+  type SettingsCategory,
+  settingsPath,
+} from "@opensesame/app-core/lib/crumbs.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { settingsTabsSnapshot } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import { type PageTreeSource, pageTabTree } from "../../lib/page-to-tree.js";
-import { settingsTabsSnapshot } from "../SettingsSectionNav.js";
 import { featureBindingSections } from "../connections/page-tree.js";
 
 /** Live lists a Settings tab may mirror (Vaults on this device). */

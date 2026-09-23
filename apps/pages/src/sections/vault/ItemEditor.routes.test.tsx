@@ -1,3 +1,5 @@
+import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
+import { createItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -9,9 +11,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerLegacyItemKinds } from "../../lib/contributions.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { createItem } from "../../lib/vault/model.js";
 import { ItemEditor } from "./ItemEditor.js";
 
 const original = { ...vaultHooksSeams };

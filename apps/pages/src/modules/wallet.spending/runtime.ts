@@ -19,16 +19,16 @@
  * keyed by tomb as well, so a switch nobody observed still misses.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { watchSpendingLeaseScope } from "../../lib/spending-leases.js";
-import { watchSpendingLedgerScope } from "../../lib/spending-ledger.js";
-import { watchWalletAssignmentScope } from "../../lib/wallet-assignments.js";
-import { WalletSection } from "../../sections/WalletSection.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
+import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
+import { watchWalletAssignmentScope } from "@opensesame/app-core/lib/wallet-assignments.js";
 import {
   WALLET_ROUTES,
   WALLET_TARGETS,
-} from "../../tutorial/registry/wallet-catalog.js";
-import { WALLET_TOOLS } from "../../webmcp/wallet-tools.js";
+} from "@opensesame/app-core/tutorial/registry/wallet-catalog.js";
+import { WALLET_TOOLS } from "@opensesame/app-core/webmcp/wallet-tools.js";
+import { WalletSection } from "../../sections/WalletSection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { WalletTree } from "./WalletTree.js";

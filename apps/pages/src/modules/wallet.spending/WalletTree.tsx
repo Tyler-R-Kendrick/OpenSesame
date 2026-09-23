@@ -4,14 +4,14 @@
  * shell draws them only while `wallet.spending` is active.
  */
 
-import { PageTreeLeafRow } from "../../components/PageTreeBranch.js";
-import type { TreeProps } from "../../lib/capabilities/runtime-contract.js";
+import type { TreeProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   WALLET_CATEGORIES,
   WALLET_CATEGORY_LABEL,
   walletCategoryFromLocation,
   walletPath,
-} from "../../lib/crumbs.js";
+} from "@opensesame/app-core/lib/crumbs.js";
+import { PageTreeLeafRow } from "../../components/PageTreeBranch.js";
 
 export function WalletTree({ pathname }: TreeProps) {
   const current = walletPath(walletCategoryFromLocation(pathname));

@@ -1,9 +1,9 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": [
-    "apps/pages/src/screens/unlock/unlock-duress-continue.ts",
-    "apps/pages/src/screens/unlock/unlock-pin-duress.ts",
-    "apps/pages/src/screens/unlock/unlock-duress-refuse.ts"
+    "packages/app-core/src/screens/unlock/unlock-duress-continue.ts",
+    "packages/app-core/src/screens/unlock/unlock-pin-duress.ts",
+    "packages/app-core/src/screens/unlock/unlock-duress-refuse.ts"
   ],
   "ignorePatterns": [
     ".agents/**",

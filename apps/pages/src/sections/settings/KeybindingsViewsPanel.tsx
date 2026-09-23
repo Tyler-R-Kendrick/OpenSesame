@@ -1,14 +1,14 @@
-import { overlapCast } from "@opensesame/os-domain";
-import { useState } from "react";
-import { IconCheck, IconRefresh, IconStar } from "../../components/Icons.js";
-import { resetKeybindings } from "../../lib/configuration/keybindings.js";
+import { resetKeybindings } from "@opensesame/app-core/lib/configuration/keybindings.js";
 import {
   currentKeybindings,
   loadKeybindings,
   loadViews,
   persistKeybindings,
   persistView,
-} from "../../lib/configuration/nav-persist.js";
+} from "@opensesame/app-core/lib/configuration/nav-persist.js";
+import { overlapCast } from "@opensesame/os-domain";
+import { useState } from "react";
+import { IconCheck, IconRefresh, IconStar } from "../../components/Icons.js";
 
 export function KeybindingsViewsPanel() {
   const [bindingsText, setBindingsText] = useState(() =>

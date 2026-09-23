@@ -4,7 +4,7 @@
  * local-IAM popups, which must keep `window.opener` (ADR 0034).
  */
 
-import { crossOriginOpenerPolicy } from "../lib/opener-policy.js";
+import { crossOriginOpenerPolicy } from "@opensesame/app-core/lib/opener-policy.js";
 
 export function isolated(
   response: Response,

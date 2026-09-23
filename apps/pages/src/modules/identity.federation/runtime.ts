@@ -22,13 +22,13 @@
  * on mount; the setup tabs are only drawn once the ceremony opens them.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { IDENTITY_READ_TOOL } from "@opensesame/app-core/webmcp/identity-tools.js";
 import { IdentityStep } from "../../screens/setup/steps/IdentityStep.js";
 import { MfaStep } from "../../screens/setup/steps/MfaStep.js";
 import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
-import { IDENTITY_TARGETS } from "../../tutorial/registry/identity-catalog.js";
-import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
-import { IDENTITY_READ_TOOL } from "../../webmcp/identity-tools.js";
 import { createActivation } from "../activation.js";
 import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { tagWebMcpTool } from "../ports-b.js";

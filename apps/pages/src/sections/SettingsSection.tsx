@@ -1,8 +1,13 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import { settingsCategoryFromLocation, settingsPath } from "../lib/crumbs.js";
-import { resolveDuressMode } from "../lib/duress/feature/mode.js";
+import {
+  settingsCategoryFromLocation,
+  settingsPath,
+} from "@opensesame/app-core/lib/crumbs.js";
+import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
+import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
+import type { RawFormat } from "@opensesame/app-core/sections/settings/settings-files.js";
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
@@ -11,7 +16,6 @@ import {
   CategoryLink,
   SECURITY_FRAGMENT_REDIRECT,
   type SettingsPanels,
-  categoryFromHash,
   defaultPanels,
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
@@ -24,7 +28,6 @@ import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
 import { SettingsRawEditor } from "./settings/SettingsRawEditor.js";
 import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
-import type { RawFormat } from "./settings/settings-files.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
@@ -35,7 +38,7 @@ const TransportPanel = lazy(() =>
   })),
 );
 
-export { settingsTabs, type SettingsPanels } from "./SettingsSectionNav.js";
+export type { SettingsPanels } from "./SettingsSectionNav.js";
 
 export function SettingsSection({
   panels = defaultPanels,

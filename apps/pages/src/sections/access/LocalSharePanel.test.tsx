@@ -1,9 +1,9 @@
+import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { localRequestFixture } from "../../lib/local-request.fixture.js";
-import { lockAllTombs } from "../../lib/vfs.js";
 import { LocalSharePanel } from "./LocalSharePanel.js";
 
 beforeEach(() => {

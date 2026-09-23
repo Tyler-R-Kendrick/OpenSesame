@@ -5,6 +5,7 @@
  * and the secret never rendered back.
  */
 
+import { ByoError } from "@opensesame/app-core/lib/byo.js";
 import {
   cleanup,
   fireEvent,
@@ -13,7 +14,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ByoError } from "../../lib/byo.js";
 import { ByoProviderSheet, byoSheetDependencies } from "./ByoProviderSheet.js";
 
 const REAL = { ...byoSheetDependencies };

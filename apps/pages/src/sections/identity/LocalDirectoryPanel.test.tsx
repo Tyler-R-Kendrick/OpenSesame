@@ -1,8 +1,8 @@
+import * as accessBootstrap from "@opensesame/app-core/lib/local-access-bootstrap.js";
+import * as directory from "@opensesame/app-core/lib/local-directory.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import * as accessBootstrap from "../../lib/local-access-bootstrap.js";
-import * as directory from "../../lib/local-directory.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LocalDirectoryPanel } from "./LocalDirectoryPanel.js";
 

@@ -1,14 +1,14 @@
+import {
+  beginLocalAgentAuthentication,
+  cancelLocalAgentAuthentication,
+} from "@opensesame/app-core/lib/local-agent-auth.js";
+import type { LocalAgentKey } from "@opensesame/app-core/lib/local-agent-keys.js";
+import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
+import { signInLocalAgent } from "@opensesame/app-core/lib/local-sessions.js";
 import type { LocalAgentChallenge } from "@opensesame/static-auth";
 import { useEffect, useRef, useState } from "react";
 import { IconCheck, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import {
-  beginLocalAgentAuthentication,
-  cancelLocalAgentAuthentication,
-} from "../../lib/local-agent-auth.js";
-import type { LocalAgentKey } from "../../lib/local-agent-keys.js";
-import { LocalDirectoryError } from "../../lib/local-directory.js";
-import { signInLocalAgent } from "../../lib/local-sessions.js";
 
 type Props = {
   tomb: string;

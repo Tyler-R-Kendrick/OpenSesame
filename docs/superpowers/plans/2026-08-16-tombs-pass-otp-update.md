@@ -32,7 +32,7 @@
 | `crates/sealed-store/src/lib.rs` | Exports |
 | `apps/cli/src/main.rs` | `PassCmd::Otp`, `Update`, `Tomb`, `Open`, `Close` |
 | `apps/cli/src/store.rs` | Command implementations |
-| `apps/pages/src/lib/vault/store-sync.ts` | totp ↔ otp trailer mapping |
+| `packages/app-core/src/lib/vault/store-sync.ts` | totp ↔ otp trailer mapping |
 | `apps/pages/src/sections/vault/ItemDetail.tsx` | Update password/secret action |
 | `docs/competitors/tomb.md` | Competitor note |
 | `docs/competitors/pass.md` | otp/update/tomb bullets |

@@ -160,7 +160,7 @@ single `--mutate` path per invocation:
 | `packages/siop-v2/src/validity.ts` | 67 | 0 | 0 | 0 | **100%** | **Yes** — epochs / `i_am_siop` / freshness extracted from `id-token.ts` |
 | `packages/siop-v2/src/link-profile.ts` | 43 | 0 | 0 | 0 | **100%** | **Yes** — challenge profile + email-join refuse for ADR 0117 |
 | `packages/siop-v2/src/id-token.ts` | — | — | — | — | — | **No** — mint/verify/JOSE orchestration; decision branches live in the modules above |
-| `apps/pages/src/lib/siop-authority.ts` | 48 | 27 | 0 | 9 | 57.14% | **No** — jsdom ceremony path; optional-chaining / string-copy survivors |
+| `packages/app-core/src/lib/siop-authority.ts` | 48 | 27 | 0 | 9 | 57.14% | **No** — jsdom ceremony path; optional-chaining / string-copy survivors |
 | `apps/control-plane/src/services/siop-verify.ts` | — | — | — | — | — | **No** — take/restore/audit orchestration held by PACT; profile decisions in `link-profile.ts` |
 
 Scoped runs (2026-09-15):

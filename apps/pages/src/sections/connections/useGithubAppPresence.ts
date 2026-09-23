@@ -1,13 +1,13 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { subscribeLocalBackupTarget } from "../../lib/backup-target-local.js";
+import { subscribeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-local.js";
 import {
   readLocalGithubApp,
   subscribeLocalGithubApp,
-} from "../../lib/github-app-manifest.js";
+} from "@opensesame/app-core/lib/github-app-manifest.js";
 import {
   loadGithubAppPresenceState,
   presenceFromLocal,
-} from "../../lib/github-app-presence.js";
+} from "@opensesame/app-core/lib/github-app-presence.js";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 
 /** Subscribe to local App + Host presence for the GitHub connector page. */

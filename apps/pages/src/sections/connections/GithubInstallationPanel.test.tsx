@@ -1,14 +1,17 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
+import {
+  type Connection,
+  connectionSeams,
+} from "@opensesame/app-core/lib/connections.js";
+import { githubHistorySeams } from "@opensesame/app-core/lib/github-history.js";
+import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
+import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
-import { type Connection, connectionSeams } from "../../lib/connections.js";
-import { githubHistorySeams } from "../../lib/github-history.js";
-import { localRequestFixture } from "../../lib/local-request.fixture.js";
-import { listLocalShares } from "../../lib/local-share-grants.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { lockAllTombs } from "../../lib/vfs.js";
 import { GithubCardDetails } from "./GithubInstallationPanel.js";
 
 const originalConnectionSeams = { ...connectionSeams };

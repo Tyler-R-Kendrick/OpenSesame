@@ -20,7 +20,7 @@ export const accessPortalCapabilities: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: "opensesame task start",
-      pwa: "lib/access-sessions.ts:createAccessSession",
+      pwa: null,
       mcp_host: "task_start",
       mcp_client: null,
       webmcp: null,
@@ -40,7 +40,7 @@ export const accessPortalCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/access-requests.ts:createAccessRequest",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

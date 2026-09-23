@@ -1,13 +1,14 @@
-import type { LocalAgentPublicKey } from "@opensesame/static-auth";
-import { registerLocalAgentKey } from "../../src/lib/local-agent-keys.js";
-import { configureLocalApplication } from "../../src/lib/local-applications.js";
+import "./install-browser-host.js";
+import { registerLocalAgentKey } from "@opensesame/app-core/lib/local-agent-keys.js";
+import { configureLocalApplication } from "@opensesame/app-core/lib/local-applications.js";
 import {
   type LocalDirectoryChange,
   changeLocalDirectory,
   readLocalDirectory,
-} from "../../src/lib/local-directory.js";
-import { enrollLocalPasskey } from "../../src/lib/local-passkeys.js";
-import { vaultStore } from "../../src/lib/vault/store.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { enrollLocalPasskey } from "@opensesame/app-core/lib/local-passkeys.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import type { LocalAgentPublicKey } from "@opensesame/static-auth";
 
 /** Disposable browser-context fixture. This entry is never part of the Pages build. */
 export async function seed() {

@@ -14,12 +14,12 @@
  * capability mid-session is reflected without a reload.
  */
 
-import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import {
   contributionsSnapshot,
   subscribeContributions,
-} from "../../lib/contributions.js";
-import { webmcpNavigationSeam } from "../../webmcp/navigation.js";
+} from "@opensesame/app-core/lib/contributions.js";
+import { webmcpNavigationSeam } from "@opensesame/app-core/webmcp/navigation.js";
+import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { type WebMcpScope, registerWebMcpScope } from "./registrar.js";
 
 type Scoped = WebMcpToolSpec & { readonly scope?: string };

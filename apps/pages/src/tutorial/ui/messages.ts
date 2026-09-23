@@ -8,12 +8,12 @@
  * somebody who already could not work out what to do.
  */
 
+import type { WebMcpRegistrationSnapshot } from "@opensesame/app-core/webmcp/registration.js";
 import type { GuideRuntimeErrorCode } from "@opensesame/guide-runtime";
 import type {
   SupportErrorCode,
   SupportUnavailableReason,
 } from "@opensesame/support-agent";
-import type { WebMcpRegistrationSnapshot } from "../../webmcp/registration.js";
 
 /** Why nothing can answer — said plainly, including when the answer is "we can't". */
 export const UNAVAILABLE_TEXT = {

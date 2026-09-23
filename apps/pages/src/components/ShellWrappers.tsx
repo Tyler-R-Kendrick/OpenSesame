@@ -1,5 +1,5 @@
+import type { ShellWrapperContribution } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import type { ReactNode } from "react";
-import type { ShellWrapperContribution } from "../lib/capabilities/runtime-contract.js";
 
 /**
  * The shell body inside every wrapper an approved capability contributed,

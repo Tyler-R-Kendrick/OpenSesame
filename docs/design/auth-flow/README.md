@@ -83,7 +83,7 @@ their source). What they agree on, and this canvas follows:
 
 Verified against the live service, its docs and the published `@shoojs/*`
 packages on 2026-09-01; the details are in the ADR and in
-`apps/pages/src/lib/federation.ts` comments.
+`packages/app-core/src/lib/federation.ts` comments.
 
 - Shoo is a Google-only broker (Ping Labs / t3.gg), free, "super early WIP",
   hosted on Railway; `github.com/pingdotgg/shoo` is "coming soon" and 404s.
@@ -100,7 +100,7 @@ packages on 2026-09-01; the details are in the ADR and in
   PKCE and state, finishes the callback on `/shoo/callback`, and stores the
   identity in `localStorage["shoo_identity"]`. Our Pages CSP is
   `script-src 'self'`, so the app speaks the dialect itself
-  (`apps/pages/src/lib/federation.ts`) — nothing in it has to change.
+  (`packages/app-core/src/lib/federation.ts`) — nothing in it has to change.
 - **Sign-out is local only.** `clearIdentity()` deletes web storage; there is
   no `end_session_endpoint` and no revocation endpoint (all 404). The
   `shoo_session` cookie on shoo.dev survives and is ended at `shoo.dev/me`.

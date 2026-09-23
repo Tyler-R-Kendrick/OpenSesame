@@ -1,4 +1,22 @@
+import {
+  acknowledgeCertificateDelivery,
+  issueCertificate,
+} from "@opensesame/app-core/lib/certs.js";
+import {
+  acceptsDraftUsername,
+  newItemDraft,
+  prefillNewDraft,
+} from "@opensesame/app-core/lib/vault/new-draft.js";
+import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { overlapCast } from "@opensesame/os-domain";
+import {
+  type Folder,
+  type VaultItem,
+  definitionFor,
+  itemTypeId,
+  itemTypeRegistry,
+  newGrant,
+} from "@opensesame/vault-core";
 import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
@@ -11,27 +29,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { PasswordGenerator } from "../../components/PasswordGenerator.js";
-import {
-  acknowledgeCertificateDelivery,
-  issueCertificate,
-} from "../../lib/certs.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import {
-  definitionFor,
-  itemTypeId,
-  itemTypeRegistry,
-} from "../../lib/vault/item-types.js";
-import {
-  type Folder,
-  type VaultItem,
-  newGrant,
-} from "../../lib/vault/model.js";
-import {
-  acceptsDraftUsername,
-  newItemDraft,
-  prefillNewDraft,
-} from "../../lib/vault/new-draft.js";
-import { validateWebsitePatterns } from "../../lib/vault/website-pattern.js";
 import { DraftSuggestions } from "./DraftSuggestions.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";

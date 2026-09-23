@@ -1,23 +1,11 @@
-import {
-  isBoolean,
-  isNumber,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
-import { useEffect, useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
-import {
-  loadKeybindings,
-  persistKeybindings,
-} from "../../lib/configuration/nav-persist.js";
-import type { SettingsCategory } from "../../lib/crumbs.js";
+import { persistKeybindings } from "@opensesame/app-core/lib/configuration/nav-persist.js";
+import type { SettingsCategory } from "@opensesame/app-core/lib/crumbs.js";
 import {
   loadSettingsSource,
   saveSettingsSource,
-} from "../../lib/settings-source.js";
-import { loadSettings, saveSettings } from "../../lib/settings.js";
-import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import type { VaultPrefs } from "../../lib/vault/store.js";
+} from "@opensesame/app-core/lib/settings-source.js";
+import { saveSettings } from "@opensesame/app-core/lib/settings.js";
+import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type RawFormat,
   type SettingsDoc,
@@ -26,7 +14,17 @@ import {
   settingsFields,
   settingsFilePath,
   suggestSettings,
-} from "./settings-files.js";
+} from "@opensesame/app-core/sections/settings/settings-files.js";
+import {
+  applySuggestion,
+  mergePages,
+  readDoc,
+  valueClass,
+} from "@opensesame/app-core/sections/settings/settings-raw-editor-model.js";
+import { isBoolean, isNumber, overlapCast } from "@opensesame/os-domain";
+import { useEffect, useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 
 export function SettingsRawEditor({
   category,
@@ -155,51 +153,6 @@ export function SettingsRawEditor({
   );
 }
 
-function readDoc(category: SettingsCategory, prefs: VaultPrefs): SettingsDoc {
-  const pages = loadSettings();
-  if (category === "general") {
-    return {
-      values: {
-        theme: prefs.theme,
-        clipboardClearSeconds: prefs.clipboardClearSeconds,
-      },
-      keybindings: { ...persistSafeBindings() },
-    };
-  }
-  if (category === "security") {
-    return {
-      values: {
-        autoLockMinutes: prefs.autoLockMinutes,
-        lockOnHide: prefs.lockOnHide,
-        signOutOnLock: prefs.signOutOnLock,
-      },
-      keybindings: {},
-    };
-  }
-  if (category === "vaults") {
-    return {
-      values: { activeProjectId: pages.activeProjectId ?? "" },
-      keybindings: {},
-    };
-  }
-  if (category === "connections") {
-    return {
-      values: {
-        hostApi: pages.hostApi,
-        identityApi: pages.identityApi,
-        daemonApi: pages.daemonApi,
-        mfaAppUrl: pages.mfaAppUrl,
-      },
-      keybindings: {},
-    };
-  }
-  return { values: {}, keybindings: {} };
-}
-
-function persistSafeBindings() {
-  return { ...loadKeybindings() };
-}
-
 function mergePrefs(prefs: VaultPrefs, doc: SettingsDoc): VaultPrefs {
   const next = { ...prefs };
   const theme = doc.values.theme;
@@ -214,40 +167,6 @@ function mergePrefs(prefs: VaultPrefs, doc: SettingsDoc): VaultPrefs {
   const clipboard = doc.values.clipboardClearSeconds;
   if (isNumber(clipboard)) next.clipboardClearSeconds = clipboard;
   return next;
-}
-
-function mergePages(doc: SettingsDoc) {
-  const current = loadSettings();
-  const text = (key: string, fallback: string) => {
-    const value = doc.values[key];
-    return isString(value) ? value : fallback;
-  };
-  return {
-    ...current,
-    hostApi: text("hostApi", current.hostApi),
-    identityApi: text("identityApi", current.identityApi),
-    daemonApi: text("daemonApi", current.daemonApi),
-    mfaAppUrl: text("mfaAppUrl", current.mfaAppUrl),
-    activeProjectId: text("activeProjectId", current.activeProjectId ?? ""),
-  };
-}
-
-function applySuggestion(
-  source: string,
-  caret: number,
-  suggestion: string,
-  format: RawFormat,
-): string {
-  const start = source.lastIndexOf("\n", Math.max(0, caret - 1)) + 1;
-  const endBreak = source.indexOf("\n", caret);
-  const end = endBreak === -1 ? source.length : endBreak;
-  const line = source.slice(start, end);
-  const sep = format === "toml" ? "=" : ":";
-  const hasSep = line.includes(sep);
-  const next = hasSep
-    ? `${line.slice(0, line.indexOf(sep) + 1)} ${suggestion}`
-    : `${suggestion}${sep} `;
-  return `${source.slice(0, start)}${next}${source.slice(end)}`;
 }
 
 function paint(source: string) {
@@ -274,12 +193,4 @@ function paintLine(line: string) {
       <span className={valueClass(value)}>{value}</span>
     </>
   );
-}
-
-function valueClass(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed === "true" || trimmed === "false") return "set-raw__bool";
-  if (/^-?\d+$/.test(trimmed)) return "set-raw__num";
-  if (trimmed.startsWith('"') || trimmed.startsWith("'")) return "set-raw__str";
-  return "set-raw__str";
 }

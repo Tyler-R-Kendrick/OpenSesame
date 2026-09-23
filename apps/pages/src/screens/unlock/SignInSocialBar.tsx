@@ -5,15 +5,18 @@
  * the row and ringed so a Google user does not tap GitHub by proximity.
  */
 
-import type { ReactNode, RefObject } from "react";
-import { IconDots, IconLogin, IconSite } from "../../components/Icons.js";
-import type { TrustedUpstream } from "../../lib/federation.js";
+import type { TrustedUpstream } from "@opensesame/app-core/lib/federation.js";
 import {
   isLastSignInMethod,
   promoteLastSignIn,
-} from "../../lib/last-sign-in.js";
-import type { FederatedProviderSummary } from "../../lib/providers.js";
-import type { OperatorIdp, SignInMethods } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/last-sign-in.js";
+import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
+import type {
+  OperatorIdp,
+  SignInMethods,
+} from "@opensesame/app-core/lib/settings.js";
+import type { ReactNode, RefObject } from "react";
+import { IconDots, IconLogin, IconSite } from "../../components/Icons.js";
 import { brandFor } from "./ProviderBrand.js";
 
 const VISIBLE_PROVIDERS = 4;

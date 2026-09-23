@@ -1,6 +1,6 @@
+import { DURESS_ATTACK_TREES, attackTreeById } from "@opensesame/contracts";
+import { findForbiddenClaims } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
-import { DURESS_ATTACK_TREES, attackTreeById } from "./attack-trees.js";
-import { findForbiddenClaims } from "./terminology.js";
 
 describe("duress redteam catalogs", () => {
   it("covers coercion, operator, peer, stale, backup, alert, crypto", () => {

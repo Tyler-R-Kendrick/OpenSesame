@@ -73,7 +73,7 @@ import { contributeIdentityViews } from "../sections/identity/identity-views.js"
 import { AppShell } from "./AppShell.js";
 import { registerLegacyShell } from "./legacy-sections.test-support.js";
 
-import { IDENTITY_VIEWS } from "../lib/section-view-names.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export const ITEMS = [
   { kind: "login", deletedAt: null, favorite: true, folderId: "f1" },
   { kind: "login", deletedAt: null, favorite: false, folderId: null },

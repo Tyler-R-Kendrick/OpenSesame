@@ -8,12 +8,12 @@
  * the app.
  */
 
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import type { FakeSupportAgent } from "@opensesame/support-agent";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { expect } from "vitest";
-import { registerTutorialRealm } from "../registry/optional-tutorials.test-support.js";
 import {
   SupportProvider,
   type SupportTransport,

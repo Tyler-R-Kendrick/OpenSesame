@@ -15,8 +15,11 @@ import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
 import { configure, screen, waitFor, within } from "@testing-library/react";
 
 configure({ asyncUtilTimeout: 10_000 });
+import {
+  GUIDE_GOALS,
+  HELP_TOPICS,
+} from "@opensesame/app-core/tutorial/registry/goals.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { GUIDE_GOALS, HELP_TOPICS } from "../../registry/goals.js";
 import { GUIDE_ERROR_TEXT, UNAVAILABLE_TEXT } from "../../ui/messages.js";
 import { openSupport, renderJourney, resetJourney } from "./harness.jsx";
 

@@ -8,10 +8,13 @@ import {
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PERSONAL_PROJECT_ID, projectSeams } from "../../lib/projects.js";
+import {
+  PERSONAL_PROJECT_ID,
+  projectSeams,
+} from "@opensesame/app-core/lib/projects.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { vaultsSeams } from "@opensesame/app-core/lib/vaults.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { vaultStore } from "../../lib/vault/store.js";
-import { vaultsSeams } from "../../lib/vaults.js";
 import { VaultsPanel } from "./VaultsPanel.js";
 
 const state = {

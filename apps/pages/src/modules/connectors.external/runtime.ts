@@ -23,24 +23,24 @@
  *    user-initiated.
  */
 
-import { resetConnectionsNavigation } from "../../components/ConnectionsNavigation.js";
-import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { applyConnectCallbackBase } from "../../lib/connect-callback.js";
-import { DIRECTORY_KEY } from "../../lib/connector-directory.js";
-import { FIRST_RUN_KEY } from "../../lib/identity-graph.js";
-import { disarmVercelConnectAuth } from "../../lib/vercel-connect-session.js";
-import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
-import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
+import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
+import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
+import { disarmVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
 import {
   CONNECTIONS_ROUTES,
   CONNECTIONS_TARGETS,
-} from "../../tutorial/registry/connections-catalog.js";
-import { CONNECTIONS_GOALS } from "../../tutorial/registry/connections-goals.js";
+} from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
+import { CONNECTIONS_GOALS } from "@opensesame/app-core/tutorial/registry/connections-goals.js";
 import {
   CONNECTIONS_READ_TOOL,
   OPEN_CONNECT_CEREMONY_TOOL,
-} from "../../webmcp/connections-tools.js";
+} from "@opensesame/app-core/webmcp/connections-tools.js";
+import { resetConnectionsNavigation } from "../../components/ConnectionsNavigation.js";
+import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
+import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
+import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { ConnectionsSettingsPanel } from "./ConnectionsSettingsPanel.js";

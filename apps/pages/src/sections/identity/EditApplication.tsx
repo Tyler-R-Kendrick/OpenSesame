@@ -1,17 +1,17 @@
+import type { EditorMode } from "@opensesame/app-core/lib/configuration/draft.js";
+import {
+  hostedClientToYaml,
+  parseHostedApplicationSource,
+} from "@opensesame/app-core/lib/configuration/hosted-application.js";
+import type { OAuthClient } from "@opensesame/app-core/lib/directory.js";
+import {
+  previewHostedClaims,
+  updateApplication,
+} from "@opensesame/app-core/lib/identity-management.js";
 import { useState } from "react";
 import { IconCheck, IconX } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { SourceEditor } from "../../components/configuration/SourceEditor.js";
-import type { EditorMode } from "../../lib/configuration/draft.js";
-import {
-  hostedClientToYaml,
-  parseHostedApplicationSource,
-} from "../../lib/configuration/hosted-application.js";
-import type { OAuthClient } from "../../lib/directory.js";
-import {
-  previewHostedClaims,
-  updateApplication,
-} from "../../lib/identity-management.js";
 
 type HostedDraftSave = {
   displayName: string;

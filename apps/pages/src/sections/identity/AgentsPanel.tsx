@@ -1,3 +1,8 @@
+import {
+  listManagedAgents,
+  registerManagedAgent,
+  updateManagedAgent,
+} from "@opensesame/app-core/lib/identity-management.js";
 import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -8,11 +13,6 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import {
-  listManagedAgents,
-  registerManagedAgent,
-  updateManagedAgent,
-} from "../../lib/identity-management.js";
 
 function useAgents() {
   const [agents, setAgents] = useState<AgentResponse[]>([]);

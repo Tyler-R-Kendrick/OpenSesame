@@ -69,7 +69,7 @@ Prospective, unbuilt, and listed only so two swarms do not pick the same file:
 | Policy | `policy/openfga/model.fga` (additive delta), `packages/policy` |
 | Host | `crates/host-core` (evaluation), `crates/storage` (a new module, per ADR 0093), `crates/lifecycle` (expiry) |
 | Identity | `apps/control-plane`, `packages/database`, `packages/audit` |
-| Client | `apps/pages/src/lib/local-share-grants.ts` and the Access surfaces |
+| Client | `packages/app-core/src/lib/local-share-grants.ts` and the Access surfaces |
 | Parity | `packages/capability-registry` plus the per-surface sweeps |
 
 ## Related

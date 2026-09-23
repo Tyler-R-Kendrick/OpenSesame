@@ -13,7 +13,7 @@ import type {
   PasskeyItem,
   SecretItem,
   VaultItem,
-} from "../../lib/vault/model.js";
+} from "@opensesame/vault-core";
 
 type VaultFixture = {
   current: { items: VaultItem[]; folders: Folder[] };
@@ -50,7 +50,7 @@ Object.assign(vaultHooksSeams, {
 });
 
 Object.assign(planeHookSeams, { usePlaneStatus: () => planes.value });
-import { connectionSeams } from "../../lib/connections.js";
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { listConnections, connectionEvents });
 

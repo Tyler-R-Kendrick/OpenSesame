@@ -1,8 +1,8 @@
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { connectionSeams } from "../../lib/connections.js";
-import { identitySeams } from "../../lib/identity.js";
 import { useGithubAppDeployment } from "./useGithubAppDeployment.js";
 
 afterEach(() => {

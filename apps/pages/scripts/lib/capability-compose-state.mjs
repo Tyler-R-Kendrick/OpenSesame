@@ -28,7 +28,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // This module lives in `apps/pages/scripts/lib/`, so the app root is two up.
 export const DEFAULT_APP_ROOT = resolve(here, "../..");
 const INVENTORY_FILES = {
-  catalog: "src/lib/capabilities/catalog.ts",
+  catalog: "../../packages/app-core/src/lib/capabilities/catalog.ts",
   ownership: "src/lib/capabilities/ownership.ts",
   classification: "src/lib/capabilities/classification.ts",
 };

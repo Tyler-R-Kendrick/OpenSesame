@@ -1,3 +1,8 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -9,8 +14,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, expect, it } from "vitest";
-import type { Connection, Provider } from "../lib/connections.js";
-import { getBundledProviders } from "../lib/embedded-catalog.js";
 import { createKeymapHandler } from "../lib/keymap.js";
 import {
   ConnectionsNavigation,

@@ -5,22 +5,25 @@
  * recipient; OpenSesame seals it in the vault and can bind encryption to it.
  */
 
-import { type FormEvent, useEffect, useId, useState } from "react";
-import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { connectorLabel } from "../../lib/capabilities.js";
-import { bindCapabilityConnector } from "../../lib/capability-bind.js";
-import { fieldGuidance } from "../../lib/connector-guidance.js";
-import { loadSettings } from "../../lib/settings.js";
-import { useVault } from "../../lib/vault/hooks.js";
-import { yubikeyPivAgeCapabilities } from "../../lib/vault/protection/adapters/yubikey-piv-age.js";
+import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
+import { bindCapabilityConnector } from "@opensesame/app-core/lib/capability-bind.js";
+import { fieldGuidance } from "@opensesame/app-core/lib/connector-guidance.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import { yubikeyPivAgeCapabilities } from "@opensesame/app-core/lib/vault/protection/adapters/yubikey-piv-age.js";
 import {
   type YubikeyDeviceConfig,
   clearYubikeyConfig,
   readYubikeyConfig,
   writeYubikeyConfig,
-} from "../../lib/yubikey-config.js";
-import { type Flash, errorText } from "./shared.js";
+} from "@opensesame/app-core/lib/yubikey-config.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { type FormEvent, useEffect, useId, useState } from "react";
+import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import { useVault } from "../../lib/vault/hooks.js";
 
 type YubikeySettingsSlice = {
   capabilityConnectors: { encryption: { providerId: string } };

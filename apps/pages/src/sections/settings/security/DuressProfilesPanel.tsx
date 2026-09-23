@@ -3,16 +3,16 @@
  * Wires compiler exposure into the shared DuressSettingsPanel presentation.
  */
 
-import type { CompilerCatalog, PolicyDocument } from "@opensesame/contracts";
-import { createElement, useMemo } from "react";
-import { DuressSettingsPanel } from "../../../components/duress/DuressSettingsPanel.js";
 import {
   type ArmingChecklist,
   type PolicyPreview,
   type PresetId,
   formatExposureLines,
   previewPolicy,
-} from "../../../lib/duress/settings/index.js";
+} from "@opensesame/app-core/lib/duress/settings/index.js";
+import type { CompilerCatalog, PolicyDocument } from "@opensesame/contracts";
+import { createElement, useMemo } from "react";
+import { DuressSettingsPanel } from "../../../components/duress/DuressSettingsPanel.js";
 
 export type DuressProfilesPanelProps = Readonly<{
   document: PolicyDocument | null;

@@ -43,7 +43,7 @@
 | `apps/cli/src/main.rs` | Wire store verbs + `init --sealed-store` |
 | `apps/cli/Cargo.toml` | Depend on sealed-store |
 | `crates/connector-host/src/providers.rs` | Native password-store plans |
-| `apps/pages/src/lib/vault/store-sync.ts` | Push/pull mapping |
+| `packages/app-core/src/lib/vault/store-sync.ts` | Push/pull mapping |
 | `apps/pages/src/sections/SettingsSection.tsx` | Sync UI |
 | `docs/adr/0037-git-sealed-store.md` | ADR |
 | `AGENTS.md` | Command crib sheet |
@@ -441,7 +441,7 @@ EOF
 
 **Interfaces:**
 - `pub fn generate_password(length: usize, symbols: bool) -> String` — CSPRNG from `rand`
-- Align character sets with Pages `apps/pages/src/lib/vault/password.ts` where practical
+- Align character sets with Pages `packages/app-core/src/lib/vault/password.ts` where practical
 
 - [ ] **Step 1: Test length and charset**
 
@@ -471,10 +471,10 @@ EOF
 ### Task 8: Pages PWA store sync (pull/push)
 
 **Files:**
-- Create: `apps/pages/src/lib/vault/store-sync.ts`
-- Create: `apps/pages/src/lib/vault/store-sync.test.ts`
+- Create: `packages/app-core/src/lib/vault/store-sync.ts`
+- Create: `packages/app-core/src/lib/vault/store-sync.test.ts`
 - Modify: `apps/pages/src/sections/SettingsSection.tsx`
-- Modify: `apps/pages/src/lib/vault/model.ts` (only if mapping needs exported helpers)
+- Modify: `packages/app-core/src/lib/vault/model.ts` (only if mapping needs exported helpers)
 
 **Interfaces:**
 - `export type StorePlainEntry = { path: string; secret: string; trailer: string }`

@@ -1,14 +1,14 @@
+import type {
+  RouteContribution,
+  ShellWrapperContribution,
+  UnlockEffectContribution,
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { Outlet } from "react-router";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App, type AppSlots } from "./App.js";
-import type {
-  RouteContribution,
-  ShellWrapperContribution,
-  UnlockEffectContribution,
-} from "./lib/capabilities/runtime-contract.js";
 
 const env = {
   hasAuthResponse: false,

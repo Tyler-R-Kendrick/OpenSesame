@@ -1,5 +1,5 @@
+import type { TransportViewState } from "@opensesame/app-core/lib/transport-rows.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import type { TransportViewState } from "../../../lib/transport-rows.js";
 
 /**
  * One row per dimension — desired, credential, runtime, observed,

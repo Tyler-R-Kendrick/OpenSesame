@@ -4,19 +4,22 @@
  * under the existing policy, encrypt new content, rotate onto a new key.
  */
 
-import { useCallback } from "react";
-import { setStatusNotice } from "../../../lib/notices.js";
-import { downloadText, encryptedName } from "../../../lib/sops/download.js";
-import { parseAgeRecipient } from "../../../lib/sops/keys/age.js";
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import {
+  downloadText,
+  encryptedName,
+} from "@opensesame/app-core/lib/sops/download.js";
+import { parseAgeRecipient } from "@opensesame/app-core/lib/sops/keys/age.js";
 import {
   type EncryptionPlan,
   planFromRecipients,
-} from "../../../lib/sops/plan.js";
+} from "@opensesame/app-core/lib/sops/plan.js";
 import type {
   SopsWorkflow,
   WorkflowState,
-} from "../../../lib/sops/workflow.js";
-import { identityList } from "./identities.js";
+} from "@opensesame/app-core/lib/sops/workflow.js";
+import { identityList } from "@opensesame/app-core/sections/settings/sops/identities.js";
+import { useCallback } from "react";
 
 export function notice(tone: "info" | "err", body: string): void {
   setStatusNotice({

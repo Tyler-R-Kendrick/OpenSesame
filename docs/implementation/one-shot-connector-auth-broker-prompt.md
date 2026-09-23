@@ -98,7 +98,7 @@ This work implements a corrected reading of the connector landscape:
   `tasks.rs`
 - Wire contracts: `packages/contracts/src/connections.ts` (rejects token leaks)
 - TS client: `packages/api-client/`
-- Pages: `apps/pages/src/lib/connections.ts`,
+- Pages: `packages/app-core/src/lib/connections.ts`,
   `apps/pages/src/sections/ConnectionsSection.tsx`,
   `apps/pages/src/sections/settings/CapabilityConnectorsPanel.tsx`
 - Architecture doc: `docs/architecture/connection-broker.md`
@@ -613,7 +613,7 @@ cargo +1.88.0 test -p opensesame-connector-registry --all-targets
 - `apps/pages/src/sections/settings/CapabilityConnectorsPanel.tsx`
 - `apps/pages/src/sections/settings.css` / `apps/pages/src/styles.css` only as
   needed for new form classes
-- `apps/pages/src/lib/connections.ts` (client wrappers for custom provider APIs)
+- `packages/app-core/src/lib/connections.ts` (client wrappers for custom provider APIs)
 - New: `apps/pages/src/sections/connections/CustomConnectorForm.tsx` (or
   equivalent path under sections/connections)
 - Tests: `apps/pages/src/lib/connections.test.ts`, new form tests under

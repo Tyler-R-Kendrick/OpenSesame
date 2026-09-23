@@ -1,22 +1,25 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  VERB_CHIP,
+  VERB_LABEL,
+  connectionVerb,
+  providerVerb,
+} from "@opensesame/app-core/lib/identity-graph.js";
+import {
+  STATUS_CHIP,
+  type connectorCeremonyRoot,
+  connectorPath,
+  statusSentence,
+} from "@opensesame/app-core/sections/connections/shared.js";
 import { Link } from "react-router";
 import {
   StatusMark,
   type StatusTone,
   statusTone,
 } from "../../components/StatusMark.js";
-import type { Connection, Provider } from "../../lib/connections.js";
-import {
-  VERB_CHIP,
-  VERB_LABEL,
-  connectionVerb,
-  providerVerb,
-} from "../../lib/identity-graph.js";
-import {
-  STATUS_CHIP,
-  type connectorCeremonyRoot,
-  connectorPath,
-  statusSentence,
-} from "./shared.js";
 
 export type ConnectorTitleStatus = { tone: StatusTone; label: string };
 

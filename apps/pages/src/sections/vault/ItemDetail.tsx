@@ -1,3 +1,14 @@
+import { generate } from "@opensesame/app-core/lib/vault/password.js";
+import {
+  type ItemKind,
+  type VaultItem,
+  definitionFor,
+  hostOf,
+  isVaultCustodied,
+  itemTypeId,
+  totpSetupUri,
+  typeLabel,
+} from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
@@ -25,45 +36,9 @@ import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import {
-  definitionFor,
-  itemTypeId,
-  typeLabel,
-} from "../../lib/vault/item-types.js";
-import {
-  type ItemKind,
-  type VaultItem,
-  hostOf,
-  isVaultCustodied,
-} from "../../lib/vault/model.js";
-import { estimateStrength, generate } from "../../lib/vault/password.js";
-import { totpSetupUri } from "../../lib/vault/totp.js";
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
+import { StrengthBar } from "./StrengthBar.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
-
-const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
-
-function StrengthBar({ password }: { password: string }) {
-  const strength = estimateStrength(password);
-  const color = `var(${STRENGTH_VARS[strength.score]})`;
-  return (
-    <div className="sbar">
-      <div className="sbar__track" aria-hidden="true">
-        {[0, 1, 2, 3].map((index) => (
-          <span
-            key={index}
-            style={
-              index <= strength.score - 1 ? { background: color } : undefined
-            }
-          />
-        ))}
-      </div>
-      <span className="sbar__label" style={{ color }}>
-        {strength.label} · ≈{strength.bits} bits
-      </span>
-    </div>
-  );
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -1021,4 +996,4 @@ function LastReceipt({ connectionRef }: { connectionRef: string }) {
     : "Connection receipts are unavailable on this device.";
   return <p className="frow__notes">{line}</p>;
 }
-import { loginWebsiteLink } from "../../lib/vault/website-pattern.js";
+import { loginWebsiteLink } from "@opensesame/app-core/lib/vault/website-pattern.js";

@@ -47,6 +47,13 @@ tracing = { workspace = true }
 [dev-dependencies]
 opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
 http-body-util = { workspace = true }
+# One explicitly held HTTP/1 connection for AT-INGRESS-POOL: reqwest's pool
+# returns a kept-alive connection asynchronously, so "one TLS connection" is
+# made true by construction instead of by timing. Same versions and features
+# `opensesame-transport-security` already pulls in.
+hyper = { workspace = true }
+hyper-util = { workspace = true }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
 proptest = { workspace = true }
 reqwest = { workspace = true }
 tempfile = { workspace = true }

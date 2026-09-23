@@ -11,17 +11,17 @@
  * switcher forked the key silently.
  */
 
-import { useState } from "react";
-import { IconPlus, IconTrash, IconX } from "../../components/Icons.js";
-import { VaultList } from "../../components/VaultList.js";
-import { PERSONAL_PROJECT_ID } from "../../lib/projects.js";
-import { useVault } from "../../lib/vault/hooks.js";
+import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import {
   type DeviceVault,
   removeVault,
   sealNewVault,
   switchVault,
-} from "../../lib/vaults.js";
+} from "@opensesame/app-core/lib/vaults.js";
+import { useState } from "react";
+import { IconPlus, IconTrash, IconX } from "../../components/Icons.js";
+import { VaultList } from "../../components/VaultList.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
 
 import { useDeviceVaults } from "../../bindings/vaults.js";

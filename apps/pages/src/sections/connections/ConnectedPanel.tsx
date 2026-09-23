@@ -1,13 +1,20 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  STATUS_CHIP,
+  connectorPath,
+  statusSentence,
+} from "@opensesame/app-core/sections/connections/shared.js";
 import { useState, useTransition } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconPlus, IconSettings } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
-import type { Connection, Provider } from "../../lib/connections.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { CONNECTIONS_PAGE_SIZE, nextPageCount } from "./page-cap.js";
-import { STATUS_CHIP, connectorPath, statusSentence } from "./shared.js";
 
 function nothingConnected() {
   return (

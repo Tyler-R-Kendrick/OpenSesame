@@ -149,7 +149,7 @@ export const sharedSessionCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/join-session.ts:askToJoin",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

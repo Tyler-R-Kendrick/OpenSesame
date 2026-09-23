@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
-import { IconPlus, IconRefresh, IconTrash } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { readLocalDirectory } from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   type LocalShare,
   createLocalShare,
   listLocalShares,
   policyLabel,
   revokeLocalShare,
-} from "../../lib/local-share-grants.js";
+} from "@opensesame/app-core/lib/local-share-grants.js";
+import { useCallback, useEffect, useState } from "react";
+import { IconPlus, IconRefresh, IconTrash } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { ShareGrantForm } from "./ShareGrantForm.js";
 
 export function useLocalShares(tomb: string) {
@@ -85,7 +85,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
           },
         ] = await Promise.all([
           readLocalDirectory(tomb),
-          import("../../lib/local-rbac.js"),
+          import("@opensesame/app-core/lib/local-rbac.js"),
         ]);
         const actor = await resolveCurrentAccessRole(tomb);
         setCanGrant(canAccess(actor, "manage_grants"));

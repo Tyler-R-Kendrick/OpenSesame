@@ -1,0 +1,14 @@
+{
+  "10": "a",
+  "2": "b",
+  "name": "ada",
+  "big": 9223372036854775807,
+  "f": 1.5,
+  "e": 1e2,
+  "t": true,
+  "n": null,
+  "arr": [1, "x", { "k": null }, []],
+  "obj": {},
+  "unicode": "héllo 🌍",
+  "note_unencrypted": "clear"
+}

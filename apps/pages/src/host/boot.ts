@@ -8,18 +8,23 @@
  * the build environment into the public bundle; naming each key inlines only
  * the ones the core reads.
  */
-import { configureHost } from "@opensesame/app-core/host.js";
+import { browserPorts } from "@opensesame/app-core/browser/host.js";
+import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import { shellBuild } from "./shell-build.js";
 
-configureHost({
-  env: {
-    BASE_URL: import.meta.env.BASE_URL,
-    DEV: import.meta.env.DEV,
-    VITE_CONNECT_CALLBACK_BASE: import.meta.env.VITE_CONNECT_CALLBACK_BASE,
-    VITE_DAEMON_API: import.meta.env.VITE_DAEMON_API,
-    VITE_HOST_API: import.meta.env.VITE_HOST_API,
-    VITE_IDENTITY_API: import.meta.env.VITE_IDENTITY_API,
-    VITE_MFA_APP_URL: import.meta.env.VITE_MFA_APP_URL,
-    VITE_OPENSESAME_CEREMONIES: import.meta.env.VITE_OPENSESAME_CEREMONIES,
-    VITE_SUPPORT_AGENT_URL: import.meta.env.VITE_SUPPORT_AGENT_URL,
-  },
-});
+configureHost(
+  composeHost(browserPorts(), {
+    env: {
+      BASE_URL: import.meta.env.BASE_URL,
+      DEV: import.meta.env.DEV,
+      VITE_CONNECT_CALLBACK_BASE: import.meta.env.VITE_CONNECT_CALLBACK_BASE,
+      VITE_DAEMON_API: import.meta.env.VITE_DAEMON_API,
+      VITE_HOST_API: import.meta.env.VITE_HOST_API,
+      VITE_IDENTITY_API: import.meta.env.VITE_IDENTITY_API,
+      VITE_MFA_APP_URL: import.meta.env.VITE_MFA_APP_URL,
+      VITE_OPENSESAME_CEREMONIES: import.meta.env.VITE_OPENSESAME_CEREMONIES,
+      VITE_SUPPORT_AGENT_URL: import.meta.env.VITE_SUPPORT_AGENT_URL,
+    },
+    ...shellBuild,
+  }),
+);

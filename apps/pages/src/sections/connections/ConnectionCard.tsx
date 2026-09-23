@@ -1,3 +1,21 @@
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  authorizeConnection,
+  awaitConsent,
+  openConsentPopup,
+  revokeConnection,
+} from "@opensesame/app-core/lib/connections.js";
+import { isLocalGitRemoteId } from "@opensesame/app-core/lib/git-remote-local.js";
+import {
+  type Flash,
+  STATUS_CHIP,
+  errorText,
+  formatWhen,
+  statusSentence,
+} from "@opensesame/app-core/sections/connections/shared.js";
 import { useState } from "react";
 import {
   IconExternal,
@@ -6,24 +24,9 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
-import type { Connection, Provider } from "../../lib/connections.js";
-import {
-  authorizeConnection,
-  awaitConsent,
-  openConsentPopup,
-  revokeConnection,
-} from "../../lib/connections.js";
-import { isLocalGitRemoteId } from "../../lib/git-remote-local.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { GithubBackupField } from "./GithubBackupRepo.js";
 import { GithubCardDetails } from "./GithubInstallationPanel.js";
-import {
-  type Flash,
-  STATUS_CHIP,
-  errorText,
-  formatWhen,
-  statusSentence,
-} from "./shared.js";
 
 function ignoreBackupReady(_ready: boolean): void {}
 

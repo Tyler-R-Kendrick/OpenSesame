@@ -1,11 +1,11 @@
+import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import type { JsonObject } from "@opensesame/os-domain";
+import type { Folder } from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Folder } from "../lib/vault/model.js";
-import type { VaultPrefs } from "../lib/vault/store.js";
 type TestItem = { id: string; deletedAt?: string | null; sample?: boolean };
 const vault: {
   current: {
@@ -57,10 +57,10 @@ Object.assign(vaultHooksSeams, {
 });
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
-import { settingsSeams } from "../lib/settings.js";
+import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
 Object.assign(settingsSeams, { loadSettings, saveSettings });
-import { passwordSeams } from "../lib/vault/password.js";
+import { passwordSeams } from "@opensesame/app-core/lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
 Object.assign(passwordSeams, {
   estimateStrength: (password: string) => ({
@@ -71,8 +71,8 @@ Object.assign(passwordSeams, {
   defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
   generate: () => "harbor-cinder-lattice-quarry",
 });
-import { registerLegacySettingsCategories } from "../lib/contributions.test-support.js";
-import { registerOptionalTutorials } from "../tutorial/registry/optional-tutorials.test-support.js";
+import { registerLegacySettingsCategories } from "@opensesame/app-core/lib/contributions.test-support.js";
+import { registerOptionalTutorials } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,

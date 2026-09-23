@@ -3,17 +3,17 @@
  * setup; this only picks which connected (or built-in) slug each role uses.
  */
 
-import { type ReactElement, useId } from "react";
 import {
   type ModelProviderRecord,
   withInference,
   withVoice,
-} from "../../lib/model-provider.js";
+} from "@opensesame/app-core/lib/model-provider.js";
 import {
   type ModelSlugOption,
   choiceFromSlug,
   choiceToSlug,
-} from "../../lib/model-slugs.js";
+} from "@opensesame/app-core/lib/model-slugs.js";
+import { type ReactElement, useId } from "react";
 import "./ai-model-roles.css";
 
 export type ModelRoleSelectsProps = {
@@ -87,25 +87,4 @@ export function ModelRoleSelects(props: ModelRoleSelectsProps): ReactElement {
       </select>
     </div>
   );
-}
-
-export function emptyAiRecord(): ModelProviderRecord {
-  return {
-    kind: "none",
-    provider: "",
-    endpoint: "",
-    model: "",
-    voice: {
-      provider: "browser-speech",
-      kind: "browser",
-      endpoint: "",
-      model: "en-US",
-    },
-    inference: {
-      provider: "",
-      kind: "none",
-      endpoint: "",
-      model: "",
-    },
-  };
 }

@@ -21,24 +21,27 @@
  * React components that read on mount.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 
-import { AccessSection } from "../../sections/AccessSection.js";
 import {
   ACCESS_ROUTES,
   ACCESS_TARGETS,
-} from "../../tutorial/registry/access-catalog.js";
-import { ACCESS_GOALS } from "../../tutorial/registry/access-goals.js";
-import { AUTHORITY_GOALS } from "../../tutorial/registry/authority-help.js";
-import { IDENTITY_TARGETS } from "../../tutorial/registry/identity-catalog.js";
-import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
+} from "@opensesame/app-core/tutorial/registry/access-catalog.js";
+import { ACCESS_GOALS } from "@opensesame/app-core/tutorial/registry/access-goals.js";
+import { AUTHORITY_GOALS } from "@opensesame/app-core/tutorial/registry/authority-help.js";
+import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { AccessSection } from "../../sections/AccessSection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 import { AccessRailTree } from "./AccessRailTree.js";
 import { AccessRedirect } from "./AccessRedirect.js";
 
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-view-names.js";
+import {
+  ACCESS_LABELS,
+  ACCESS_VIEWS,
+} from "@opensesame/app-core/lib/section-view-names.js";
 export const CAPABILITY = "access.authority";
 
 /**

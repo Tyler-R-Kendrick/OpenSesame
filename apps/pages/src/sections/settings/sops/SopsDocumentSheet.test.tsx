@@ -1,3 +1,5 @@
+import { planFromRecipients } from "@opensesame/app-core/lib/sops/plan.js";
+import { sopsSession } from "@opensesame/app-core/lib/sops/session.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -9,8 +11,6 @@ import {
 } from "@testing-library/react";
 import * as age from "age-encryption";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { planFromRecipients } from "../../../lib/sops/plan.js";
-import { sopsSession } from "../../../lib/sops/session.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { SopsDocumentSheet } from "./SopsDocumentSheet.js";
 
@@ -70,7 +70,7 @@ describe("SB-035/076 the SOPS document sheet runs the real engine in the browser
           vaultScope: null,
           documentGeneration: 1,
           approvedPlanDigest: await (
-            await import("../../../lib/sops/plan.js")
+            await import("@opensesame/app-core/lib/sops/plan.js")
           ).planDigest(plan),
         }),
         signal: sopsSession.signal,
@@ -132,7 +132,7 @@ describe("SB-035/076 the SOPS document sheet runs the real engine in the browser
         vaultScope: null,
         documentGeneration: 1,
         approvedPlanDigest: await (
-          await import("../../../lib/sops/plan.js")
+          await import("@opensesame/app-core/lib/sops/plan.js")
         ).planDigest(plan),
       }),
       signal: sopsSession.signal,

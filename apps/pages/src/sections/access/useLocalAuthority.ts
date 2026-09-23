@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { readLocalDirectory } from "../../lib/local-directory.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import {
   listRecordedLocalGrants,
   revokeRecordedLocalGrant,
-} from "../../lib/local-grant-admin.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/local-grant-admin.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   listLocalIdentitySessions,
   revokeLocalIdentitySession,
-} from "../../lib/local-sessions.js";
+} from "@opensesame/app-core/lib/local-sessions.js";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type LocalAuthorityRow = Readonly<{
   id: string;

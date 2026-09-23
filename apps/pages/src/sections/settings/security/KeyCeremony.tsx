@@ -1,3 +1,10 @@
+import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
+import {
+  MAX_PIN_LENGTH,
+  type UnlockMethodId,
+  type WebauthnHostCheck,
+  pinPolicyProblems,
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type FormEvent, type ReactNode, useState } from "react";
 import {
   type CeremonyAlt,
@@ -13,13 +20,6 @@ import {
 } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
-import { estimateStrength } from "../../../lib/vault/password.js";
-import {
-  MAX_PIN_LENGTH,
-  type UnlockMethodId,
-  type WebauthnHostCheck,
-  pinPolicyProblems,
-} from "../../../lib/vault/unlock-methods.js";
 import type { Run } from "./run.js";
 
 export type KeyKind = UnlockMethodId;

@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
-import { crossOriginOpenerPolicy } from "./src/lib/opener-policy.ts";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const osDomainBrowser = fileURLToPath(

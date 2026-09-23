@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
-import { StatusMark } from "../../../components/StatusMark.js";
-import { TRANSPORT_POLICIES } from "../../../lib/transport-model.js";
-import { policyLabel } from "../../../lib/transport-rows.js";
+import { TRANSPORT_POLICIES } from "@opensesame/app-core/lib/transport-model.js";
+import { policyLabel } from "@opensesame/app-core/lib/transport-rows.js";
 import {
   EXECUTION_TARGETS,
   type LocatorKind,
@@ -9,7 +7,9 @@ import {
   type TransportTargetSettings,
   isRefName,
   locatorKind,
-} from "../../../lib/transport-settings.js";
+} from "@opensesame/app-core/lib/transport-settings.js";
+import { useEffect, useState } from "react";
+import { StatusMark } from "../../../components/StatusMark.js";
 
 const EXECUTION_LABEL: Record<TransportExecutionTarget, string> = {
   browser: "This browser",

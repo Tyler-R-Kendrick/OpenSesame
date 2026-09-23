@@ -8,7 +8,6 @@
  * never writes it anywhere itself.
  */
 
-import { useState } from "react";
 import {
   type ConnectorDirectory,
   directoryOriginLabel,
@@ -16,13 +15,14 @@ import {
   readDirectoryEndpoint,
   syncConnectorDirectory,
   writeDirectoryEndpoint,
-} from "../lib/connector-directory.js";
+} from "@opensesame/app-core/lib/connector-directory.js";
 import {
   HOSTED_DIRECTORY,
   SHIPPED_LOCAL_DIRECTORY,
   normalizeDirectoryEndpoint,
-} from "../lib/nango-directory.js";
-import { pageIsLoopback } from "../lib/settings.js";
+} from "@opensesame/app-core/lib/nango-directory.js";
+import { pageIsLoopback } from "@opensesame/app-core/lib/settings.js";
+import { useState } from "react";
 import { type FieldFill, FieldShell } from "./FieldShell.js";
 import { IconConnection, IconSecret } from "./Icons.js";
 import { type StatusMessage, StatusNote } from "./StatusNote.js";

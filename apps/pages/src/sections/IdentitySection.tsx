@@ -1,4 +1,67 @@
 import {
+  ByoError,
+  type ByoProviderInput,
+  registerByoProvider,
+} from "@opensesame/app-core/lib/byo.js";
+import {
+  type DirectoryPrincipal,
+  type LinkedIdentity,
+  type OAuthClient,
+  type OrgMember,
+  addOrgMember,
+  createOAuthClient,
+  createOrganization,
+  getMe,
+  listLinkedIdentities,
+  listOAuthClients,
+  listOrgMembers,
+  removeOrgMember,
+  revokeOAuthClient,
+  rotateOAuthClient,
+  unlinkIdentity,
+} from "@opensesame/app-core/lib/directory.js";
+import {
+  beginSignIn,
+  defaultUpstream,
+  upstreamByIssuer,
+} from "@opensesame/app-core/lib/federation.js";
+import { isGuestSession } from "@opensesame/app-core/lib/guest-isolation.js";
+import {
+  type IdentitySession,
+  identityBase,
+  remoteIdentityApi,
+} from "@opensesame/app-core/lib/identity.js";
+import {
+  IDP_PRESETS,
+  type IdpPreset,
+  presetFor,
+  presetIssuer,
+} from "@opensesame/app-core/lib/idp-presets.js";
+import {
+  DEVICE_IDP_ID,
+  type IdpProviderType,
+  type IdpRecord,
+  dismissIdpCeremony,
+  listAdditionalIdpRegistrations,
+  listIdpRegistrations,
+  registerIdp,
+  removeIdpRegistration,
+} from "@opensesame/app-core/lib/idp-registry.js";
+import {
+  GUEST_PROFILE_ID,
+  ORG_SLUG_RE,
+  type OrgMembership,
+  activeOrgProfileId,
+  listOrgMemberships,
+} from "@opensesame/app-core/lib/orgs.js";
+import {
+  type FederatedProviderSummary,
+  brokeredByoUpstream,
+  listFederatedProviders,
+  providerUpstream,
+} from "@opensesame/app-core/lib/providers.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import {
   type FormEvent,
   useCallback,
   useEffect,
@@ -6,7 +69,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import {
   IconAlert,
@@ -23,76 +85,12 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { StatusMark, statusTone } from "../components/StatusMark.js";
-import {
-  ByoError,
-  type ByoProviderInput,
-  registerByoProvider,
-} from "../lib/byo.js";
-import {
-  DirectoryError,
-  type DirectoryPrincipal,
-  type LinkedIdentity,
-  type OAuthClient,
-  type OrgMember,
-  addOrgMember,
-  createOAuthClient,
-  createOrganization,
-  getMe,
-  listLinkedIdentities,
-  listOAuthClients,
-  listOrgMembers,
-  removeOrgMember,
-  revokeOAuthClient,
-  rotateOAuthClient,
-  unlinkIdentity,
-} from "../lib/directory.js";
-import {
-  beginSignIn,
-  defaultUpstream,
-  upstreamByIssuer,
-} from "../lib/federation.js";
-import { isGuestSession } from "../lib/guest-isolation.js";
-import {
-  type IdentitySession,
-  identityBase,
-  remoteIdentityApi,
-} from "../lib/identity.js";
-import {
-  IDP_PRESETS,
-  type IdpPreset,
-  presetFor,
-  presetIssuer,
-} from "../lib/idp-presets.js";
-import {
-  DEVICE_IDP_ID,
-  type IdpProviderType,
-  type IdpRecord,
-  dismissIdpCeremony,
-  listAdditionalIdpRegistrations,
-  listIdpRegistrations,
-  registerIdp,
-  removeIdpRegistration,
-} from "../lib/idp-registry.js";
-import {
-  GUEST_PROFILE_ID,
-  ORG_SLUG_RE,
-  type OrgMembership,
-  activeOrgProfileId,
-  listOrgMemberships,
-} from "../lib/orgs.js";
-import {
-  type FederatedProviderSummary,
-  brokeredByoUpstream,
-  listFederatedProviders,
-  providerUpstream,
-} from "../lib/providers.js";
 import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { monogram } from "./connections/connector-marks.js";
-import type { Flash } from "./connections/shared.js";
 import { AgentsPanel } from "./identity/AgentsPanel.js";
 import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
 import { DevicesPanel } from "./identity/DevicesPanel.js";
@@ -105,6 +103,13 @@ import { useEnabledIdentityViews } from "./identity/identity-views.js";
 import "../screens/unlock.css";
 import "./identity.css";
 
+import {
+  formatTime,
+  identityErrorText,
+  providerChipLabel,
+  stateChip,
+  truncateId,
+} from "@opensesame/app-core/sections/identity-section-model.js";
 import { useIdentitySession } from "../bindings/identity.js";
 /**
  * Browser-local identity management, with optional hosted Identity
@@ -254,13 +259,6 @@ export function IdentitySection() {
       )}
     </div>
   );
-}
-
-function identityErrorText<Thrown>(error: Thrown): string {
-  if (error instanceof DirectoryError) return error.message;
-  if (error instanceof ByoError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Something went wrong.";
 }
 
 /* --------------------------------------------------------------- ceremony */
@@ -882,22 +880,6 @@ function PeoplePanel({
   );
 }
 
-const PRINCIPAL_STATE_CHIP = new Map([
-  ["provisional", { label: "Guest", tone: "chip--warn" }],
-  ["active", { label: "active", tone: "chip--ok" }],
-  ["suspended", { label: "suspended", tone: "chip--err" }],
-  ["closed", { label: "closed", tone: "" }],
-]);
-
-function stateChip(state: string): { label: string; tone: string } {
-  return PRINCIPAL_STATE_CHIP.get(state) ?? { label: state, tone: "" };
-}
-
-/** Principal ids are opaque and long; show enough to recognise, copy the rest. */
-function truncateId(id: string): string {
-  return id.length > 18 ? `${id.slice(0, 14)}…${id.slice(-4)}` : id;
-}
-
 function MeCard({ online }: { online: boolean }) {
   const [me, setMe] = useState<DirectoryPrincipal | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1467,16 +1449,6 @@ function ProvidersPanel({
       </div>
     </section>
   );
-}
-
-function providerChipLabel(
-  device: boolean,
-  kind: IdpRecord["kind"],
-  presetLabel: string | undefined,
-): string {
-  if (device) return "This device";
-  if (kind === "first-class") return "First-class";
-  return presetLabel ?? "Custom OIDC";
 }
 
 function ProviderMark({
@@ -2281,41 +2253,6 @@ function CreateOrgForm({
 /* ------------------------------------------------------------ no principal */
 
 /* ----------------------------------------------------------------- helpers */
-
-/** Ticks so expiry countdowns move without a refetch. */
-function useNow(stepMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), stepMs);
-    return () => window.clearInterval(timer);
-  }, [stepMs]);
-  return now;
-}
-
-function countdown(iso: string, now: number): string {
-  const at = Date.parse(iso);
-  if (Number.isNaN(at)) return "—";
-  const seconds = Math.round((at - now) / 1000);
-  if (seconds <= 0) return "expired";
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
-  if (seconds < 60) return rtf.format(seconds, "second");
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return rtf.format(minutes, "minute");
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return rtf.format(hours, "hour");
-  return rtf.format(Math.round(hours / 24), "day");
-}
-
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function useCopy() {
   const [copied, setCopied] = useState<string | null>(null);

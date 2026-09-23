@@ -1,9 +1,9 @@
+import { localGitToConnection } from "@opensesame/app-core/lib/connections-local-git.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { localGitToConnection } from "../../lib/connections-local-git.js";
-import type { Provider } from "../../lib/connections.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 

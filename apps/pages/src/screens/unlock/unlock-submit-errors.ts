@@ -1,7 +1,7 @@
+import type { UnlockMethodId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { describeWebauthnError } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { WrongPasswordError } from "@opensesame/vault-core";
 import type { MutableRefObject } from "react";
-import { WrongPasswordError } from "../../lib/vault/crypto.js";
-import type { UnlockMethodId } from "../../lib/vault/unlock-methods.js";
-import { describeWebauthnError } from "../../lib/vault/unlock-methods.js";
 
 export function applyUnlockSubmitFailure(input: {
   caught: unknown;

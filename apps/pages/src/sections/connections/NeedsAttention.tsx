@@ -1,26 +1,29 @@
-import { useState } from "react";
-import { Link } from "react-router";
-import { StatusMark, statusTone } from "../../components/StatusMark.js";
-import type { Connection, Provider } from "../../lib/connections.js";
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import {
   authorizeConnection,
   awaitConsent,
   openConsentPopup,
-} from "../../lib/connections.js";
+} from "@opensesame/app-core/lib/connections.js";
 import {
   VERB_CHIP,
   VERB_LABEL,
   connectionVerb,
   unfinishedConnections,
-} from "../../lib/identity-graph.js";
-import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { ConnectorMark } from "./ConnectorMark.js";
+} from "@opensesame/app-core/lib/identity-graph.js";
 import {
   type Flash,
   connectorPath,
   errorText,
   statusSentence,
-} from "./shared.js";
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { useState } from "react";
+import { Link } from "react-router";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { ConnectorMark } from "./ConnectorMark.js";
 
 /** Connections that exist but cannot be used until the user acts. Finishing
  *  an authorization is the same consent round trip the connect form runs, so

@@ -121,8 +121,8 @@ export const crossPlaneScenarios = Object.freeze([
     title: "apps/pages keeps one local authority ledger, not two",
     target: {
       kind: "ledger-inventory",
-      canonical: "apps/pages/src/lib/local-share-grants.ts",
-      directory: "apps/pages/src/lib",
+      canonical: "packages/app-core/src/lib/local-share-grants.ts",
+      directory: "packages/app-core/src/lib",
       inventory:
         "docs/implementation/general-authority/local-ledger-inventory.json",
     },

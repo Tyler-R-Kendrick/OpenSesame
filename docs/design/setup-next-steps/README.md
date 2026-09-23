@@ -55,8 +55,8 @@ plane and for the bypass rule the Models sheet states in its last line: skipping
 resolves to the device's own model where the browser carries one that can be
 shown a page, and to nothing where it cannot. Never to a download — the top rung
 is the only fallback, and the two rungs below it are offers with their cost
-named. `apps/pages/src/lib/browser-inference.ts` is that ladder;
-`apps/pages/src/lib/model-provider.ts` is the rule.
+named. `packages/app-core/src/lib/browser-inference.ts` is that ladder;
+`packages/app-core/src/lib/model-provider.ts` is the rule.
 
 [ADR 0079](../../adr/0079-shared-sessions-and-scoped-grants.md) §3 for the
 seven-day ceiling and for refusing an over-long lifetime rather than clamping

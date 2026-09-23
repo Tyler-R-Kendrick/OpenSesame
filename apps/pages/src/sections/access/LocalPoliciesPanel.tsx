@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { IconRefresh } from "../../components/Icons.js";
 import {
   type LocalDirectory,
   readLocalDirectory,
-} from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IconRefresh } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { LocalApplicationSettings } from "../identity/LocalApplicationSettings.js";
 

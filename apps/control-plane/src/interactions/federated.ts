@@ -136,7 +136,7 @@ function isLoopback(issuer: string): boolean {
 
 /**
  * Label and id for an allowlisted issuer. Mirrors the Pages `TRUSTED_UPSTREAMS`
- * table (`apps/pages/src/lib/federation.ts`) so both surfaces name the same
+ * table (`packages/app-core/src/lib/federation.ts`) so both surfaces name the same
  * broker the same way — shoo.dev fronts Google sign-in but is a third-party
  * broker, and the label says so instead of impersonating first-party Google
  * (real `accounts.google.com` is registry id `google`, ADR 0055).

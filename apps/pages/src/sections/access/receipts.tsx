@@ -8,38 +8,20 @@
  * screen, which the structural ratchet asks of anything that touches it.
  */
 
-import { type JsonObject, isString } from "@opensesame/os-domain";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
-import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import {
   IdentityError,
   identityBase,
   identityJson,
-} from "../../lib/identity.js";
+} from "@opensesame/app-core/lib/identity.js";
+import {
+  type AuditEvent,
+  isReceiptEvent,
+  outcomeChip,
+} from "@opensesame/app-core/sections/access/receipts-model.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
+import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { formatTime } from "./format.js";
-
-export type AuditEvent = {
-  id: string;
-  occurredAt: string;
-  eventType: string;
-  outcome: string;
-  actorType?: string;
-  clientId?: string;
-  metadata?: JsonObject;
-};
-
-function isReceiptEvent(event: AuditEvent): boolean {
-  if (
-    event.eventType.startsWith("agent.") ||
-    event.eventType.startsWith("connection.")
-  ) {
-    return true;
-  }
-  if (event.actorType === "agent") return true;
-  const instance = event.metadata?.agentInstanceId;
-  return isString(instance) && instance.length > 0;
-}
 
 /** One line of the trail: when, what, and how it came out. */
 function ReceiptRow({ event }: { event: AuditEvent }) {
@@ -153,14 +135,4 @@ export function Receipts({
       </div>
     </section>
   );
-}
-
-const OUTCOME_CHIP = new Map([
-  ["succeeded", "chip--ok"],
-  ["denied", "chip--warn"],
-  ["failed", "chip--err"],
-]);
-
-export function outcomeChip(outcome: string): string {
-  return OUTCOME_CHIP.get(outcome) ?? "";
 }

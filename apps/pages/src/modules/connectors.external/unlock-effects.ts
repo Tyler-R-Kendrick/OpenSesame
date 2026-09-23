@@ -7,9 +7,9 @@
  * own signal aborts — a capability disabled mid-flight seals nothing more.
  */
 
-import type { UnlockEffectContribution } from "../../lib/capabilities/runtime-contract.js";
-import { sealPendingConnectorDirectory } from "../../lib/connector-directory.js";
-import { hydrateVercelConnectAuth } from "../../lib/vercel-connect-session.js";
+import type { UnlockEffectContribution } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { sealPendingConnectorDirectory } from "@opensesame/app-core/lib/connector-directory.js";
+import { hydrateVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
 
 /** Test seam: the two sealing calls, swappable without a module mock. */

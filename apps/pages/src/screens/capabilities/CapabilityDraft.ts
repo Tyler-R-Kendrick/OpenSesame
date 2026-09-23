@@ -9,15 +9,15 @@
  */
 
 import type {
+  CapabilityPreset,
+  CompositionSnapshot,
+} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import type {
   CapabilityCatalog,
   CapabilityId,
   EffectivePlan,
   InstallationCapabilitySelection,
 } from "@opensesame/capability-composition";
-import type {
-  CapabilityPreset,
-  CompositionSnapshot,
-} from "../../lib/configuration/capabilities-ports.js";
 
 /** How the person came in — each a choice object on the entry screen. */
 export type CapabilityRoad = "minimal" | "customize" | "join";

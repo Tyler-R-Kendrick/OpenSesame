@@ -6,8 +6,8 @@
  * file stays inside the 400-line budget's recorded allowance.
  */
 
+import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { vi } from "vitest";
-import type { IdentitySession } from "../../lib/identity.js";
 
 export const online = { value: true };
 export const session: { current: IdentitySession | null } = {
@@ -19,11 +19,11 @@ export const listFederatedProviders = vi.fn();
 export const registerByoProvider = vi.fn();
 export const registry: { raw: string | null } = { raw: null };
 
-import { deviceIdentitySeams } from "../../lib/device-identity.js";
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 
 export { deviceIdentitySeams };
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { identityHookSeams } from "../../bindings/identity.js";
-import { identitySeams } from "../../lib/identity.js";
 export const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
 identitySeams.identityBase = () => "http://127.0.0.1:8788";
 Object.assign(identityHookSeams, {
@@ -35,7 +35,7 @@ deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
 import { useOnlineSeams } from "../../lib/use-online.js";
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
 
-import { idpRegistrySeams } from "../../lib/idp-registry.js";
+import { idpRegistrySeams } from "@opensesame/app-core/lib/idp-registry.js";
 Object.assign(idpRegistrySeams, {
   read: () => registry.raw,
   write: (raw: string) => {
@@ -46,10 +46,10 @@ Object.assign(idpRegistrySeams, {
   },
 });
 
-import { providersSeams } from "../../lib/providers.js";
+import { providersSeams } from "@opensesame/app-core/lib/providers.js";
 Object.assign(providersSeams, { listFederatedProviders });
 
-import { federationSeams } from "../../lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 Object.assign(federationSeams, {
   beginSignIn,
   defaultUpstream: () => ({
@@ -60,7 +60,7 @@ Object.assign(federationSeams, {
   }),
 });
 
-import { ByoError, byoSeams } from "../../lib/byo.js";
+import { ByoError, byoSeams } from "@opensesame/app-core/lib/byo.js";
 Object.assign(byoSeams, { registerByoProvider });
 
 export const directory = {
@@ -78,13 +78,16 @@ export const directory = {
   approveDevice: vi.fn(),
 };
 
-import { DirectoryError, directorySeams } from "../../lib/directory.js";
+import {
+  DirectoryError,
+  directorySeams,
+} from "@opensesame/app-core/lib/directory.js";
 Object.assign(directorySeams, directory);
 
 export const listOrgMemberships = vi.fn();
 export const activeOrgProfileId = vi.fn();
 
-import { orgSeams } from "../../lib/orgs.js";
+import { orgSeams } from "@opensesame/app-core/lib/orgs.js";
 Object.assign(orgSeams, { listOrgMemberships, activeOrgProfileId });
 
 export { ByoError, DirectoryError };

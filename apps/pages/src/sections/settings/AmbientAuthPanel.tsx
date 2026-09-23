@@ -4,18 +4,18 @@ import { IconCheck, IconX } from "../../components/Icons.js";
  * shown as configuration, never as device management.
  */
 
-import { useId, useReducer } from "react";
 import {
   clearUserAmbientPreference,
   resolveAmbientAuthPolicy,
   writeUserAmbientPreference,
-} from "../../lib/ambient-auth/policy.js";
+} from "@opensesame/app-core/lib/ambient-auth/policy.js";
 import {
   protocolForIssuer,
   providerConnectionKey,
-} from "../../lib/ambient-auth/provider.js";
-import { deployedAmbientPolicy } from "../../lib/ambient-auth/runtime.js";
-import { signInMethods } from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/ambient-auth/provider.js";
+import { deployedAmbientPolicy } from "@opensesame/app-core/lib/ambient-auth/runtime.js";
+import { signInMethods } from "@opensesame/app-core/lib/settings.js";
+import { useId, useReducer } from "react";
 
 export function AmbientAuthPanel() {
   const id = useId();

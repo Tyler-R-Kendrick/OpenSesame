@@ -1,3 +1,4 @@
+import { installRouterNavigate } from "@opensesame/app-core/lib/router-seam.js";
 import {
   type ReactNode,
   useCallback,
@@ -13,7 +14,6 @@ import {
   focusVaultListing,
   registerKeymapHelp,
 } from "../lib/keymap.js";
-import { installRouterNavigate } from "../lib/router-seam.js";
 import { useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccountSwitcher } from "./AccountSwitcher.js";

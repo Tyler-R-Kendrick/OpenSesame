@@ -49,22 +49,24 @@ function runPagesScript(script) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-run("@opensesame/pages", [
+run("@opensesame/app-core", [
   "src/lib/configuration",
+  "src/lib/vault/item-types.test.ts",
+  "src/lib/site-broker-delivery.test.ts",
+]);
+
+run("@opensesame/pages", [
   "src/sections/settings/page-tree.test.ts",
   "src/sections/settings/ItemTypeVisual.test.tsx",
   "src/sections/settings/ItemTypesPanel.test.tsx",
   "src/sections/identity/ApplicationSurfaces.test.tsx",
   "src/sections/identity/LocalApplicationSettings.test.tsx",
   "src/sections/identity/management.test.tsx",
-  "src/lib/configuration/hosted-application.test.ts",
   "src/sections/SettingsSection.test.tsx",
   "src/sections/settings/GeneralPrefsPanel.test.tsx",
   "src/lib/keymap.behavior.test.ts",
   "src/sections/settings/SecretConfigsPanel.test.tsx",
   "src/sections/settings/SecretConfigEmptyCreate.test.tsx",
-  "src/lib/vault/item-types.test.ts",
-  "src/lib/site-broker-delivery.test.ts",
 ]);
 
 const oauthArgs = [

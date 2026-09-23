@@ -1,11 +1,11 @@
-import { type CSSProperties, useEffect, useState } from "react";
 import {
   type TotpConfig,
   TotpParseError,
   parseTotp,
   secondsRemaining,
   totpCode,
-} from "../lib/vault/totp.js";
+} from "@opensesame/vault-core";
+import { type CSSProperties, useEffect, useState } from "react";
 
 const RADIUS = 8;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;

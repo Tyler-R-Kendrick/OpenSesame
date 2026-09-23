@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { IconRefresh } from "../../components/Icons.js";
-import { suggestDraftLabels } from "../../lib/vault/draft-suggestions.js";
+import { suggestDraftLabels } from "@opensesame/app-core/lib/vault/draft-suggestions.js";
 import {
   type DraftLabels,
   acceptsDraftUsername,
   draftWebsite,
-} from "../../lib/vault/new-draft.js";
+} from "@opensesame/app-core/lib/vault/new-draft.js";
+import { useEffect, useRef, useState } from "react";
+import { IconRefresh } from "../../components/Icons.js";
 
 type Props = {
   typeId: string;

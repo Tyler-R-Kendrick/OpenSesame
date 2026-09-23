@@ -4,8 +4,6 @@
  * storage (see `saveSession`), never inside the encrypted vault.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
 import {
   FederationError,
   type UpstreamIdentity,
@@ -14,7 +12,7 @@ import {
   defaultUpstream,
   displayName,
   loadSession,
-} from "../lib/federation.js";
+} from "@opensesame/app-core/lib/federation.js";
 import {
   type BrokerRequest,
   approveConsent,
@@ -27,7 +25,9 @@ import {
   originMayUseBroker,
   parseBrokerRequest,
   touchConsent,
-} from "../lib/site-broker.js";
+} from "@opensesame/app-core/lib/site-broker.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";

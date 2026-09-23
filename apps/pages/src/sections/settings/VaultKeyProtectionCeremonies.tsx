@@ -1,8 +1,7 @@
-/**
- * Settings › Vault key protection — one sheet for add / rotate / test / age.
- * Matches Unlock methods: forms live in the sheet, never under a row.
- */
-
+import {
+  runCaught,
+  status,
+} from "@opensesame/app-core/sections/settings/vault-key-protection-ceremonies-model.js";
 import { type ReactNode, useRef, useState } from "react";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
@@ -14,9 +13,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
-import { setStatusNotice } from "../../lib/notices.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import { ProtectionError } from "../../lib/vault/protection/errors.js";
 
 export type ProtectionSheetKind =
   | "add"
@@ -29,14 +26,6 @@ export type ProtectionSheetRequest = {
   protectorId?: string;
 };
 
-function status(
-  tone: "info" | "warn" | "err",
-  title: string,
-  body: string,
-): void {
-  setStatusNotice({ id: "vault-key-protection", tone, title, body });
-}
-
 function downloadOnce(filename: string, body: string): void {
   const blob = new Blob([body], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
@@ -45,21 +34,6 @@ function downloadOnce(filename: string, body: string): void {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
-}
-
-async function runCaught(
-  work: () => Promise<void>,
-  fallback: string,
-): Promise<void> {
-  try {
-    await work();
-  } catch (caught) {
-    if (caught instanceof ProtectionError || caught instanceof Error) {
-      status("err", "Vault key protection", caught.message);
-      return;
-    }
-    status("err", "Vault key protection", fallback);
-  }
 }
 
 function AddCeremony({

@@ -189,7 +189,7 @@ describe("sweeps that could go quiet", () => {
       ledgerInventory: { declared: [ledger.target.canonical] },
       ledgerCandidates: [
         ledger.target.canonical,
-        "apps/pages/src/lib/rival.ts",
+        "packages/app-core/src/lib/rival.ts",
       ],
     };
     const resolution = resolveScenario(ledger, facts);
@@ -204,12 +204,15 @@ describe("sweeps that could go quiet", () => {
       ledgerInventory: {
         declared: [ledger.target.canonical],
         notLedgers: [
-          { path: "apps/pages/src/lib/local-grant-store.ts", reason: "OIDC" },
+          {
+            path: "packages/app-core/src/lib/local-grant-store.ts",
+            reason: "OIDC",
+          },
         ],
       },
       ledgerCandidates: [
         ledger.target.canonical,
-        "apps/pages/src/lib/local-grant-store.ts",
+        "packages/app-core/src/lib/local-grant-store.ts",
       ],
     };
     expect(resolveScenario(ledger, facts).status).toBe("pass");

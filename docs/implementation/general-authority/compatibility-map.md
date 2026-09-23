@@ -16,7 +16,7 @@ Neither is decided. This map states the constraints both answers must satisfy.
 |---|---|
 | Identity-plane authority | `ProjectMembership` in `packages/os-domain/src/types.ts` — `projectId`, `principalId`, `role` of `owner \| admin \| member` |
 | The word "Grant" | Host `crates/domain` `Grant` + TS `AuthorityGrant`/`AuthorityRecord` in `packages/os-domain/src/authority-grant.ts` (#408). Identity `requestedGrant?: JsonObject` remains a request payload, not a second engine |
-| Client-plane authority | `LocalShare` / `ShareKind` / `ShareTarget` in `apps/pages/src/lib/local-share-grants.ts` — the one ledger, with `connection` bindings added by ADR 0115 |
+| Client-plane authority | `LocalShare` / `ShareKind` / `ShareTarget` in `packages/app-core/src/lib/local-share-grants.ts` — the one ledger, with `connection` bindings added by ADR 0115 |
 | "AccessLease" | Does not appear anywhere in the repository |
 
 So "extending Grant" means extending the membership/share-grant authority

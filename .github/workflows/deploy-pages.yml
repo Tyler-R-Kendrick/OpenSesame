@@ -6,7 +6,7 @@
 # (Settings → Pages → Build and deployment → Source).
 #
 # Deployment endpoints ride beside the bundle as os-runtime-config.json,
-# read by the app at boot (apps/pages/src/lib/runtime-config.ts). Set them
+# read by the app at boot (packages/app-core/src/lib/runtime-config.ts). Set them
 # as repository Actions *variables* (Settings → Secrets and variables →
 # Actions → Variables): PAGES_IDENTITY_API, PAGES_HOST_API,
 # PAGES_DAEMON_API, PAGES_MFA_APP_URL. All optional — with none set the

@@ -1,3 +1,11 @@
+import { searchHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
+import {
+  GUIDE_GOALS,
+  type GuideGoalDescriptor,
+  guideGoal,
+  helpTopicsForRoute,
+} from "@opensesame/app-core/tutorial/registry/goals.js";
+import { guideRouteWithin } from "@opensesame/app-core/tutorial/registry/routes.js";
 import {
   type ReactElement,
   useCallback,
@@ -8,14 +16,6 @@ import {
 } from "react";
 import { IconSupport, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
-import {
-  GUIDE_GOALS,
-  type GuideGoalDescriptor,
-  guideGoal,
-  helpTopicsForRoute,
-  searchHelpTopics,
-} from "../registry/goals.js";
-import { guideRouteWithin } from "../registry/routes.js";
 import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
 import { SupportComposer } from "./SupportComposer.js";

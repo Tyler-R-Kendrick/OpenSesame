@@ -1,9 +1,9 @@
-import { useState } from "react";
 import {
   mappingOverridesReserved,
   previewSyntheticClaims,
-} from "../../lib/configuration/claim-preview.js";
-import type { LocalApplicationRegistration } from "../../lib/local-applications.js";
+} from "@opensesame/app-core/lib/configuration/claim-preview.js";
+import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
+import { useState } from "react";
 
 export function ApplicationSetupCard(props: {
   registration: LocalApplicationRegistration | undefined;

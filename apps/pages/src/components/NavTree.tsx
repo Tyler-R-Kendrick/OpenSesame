@@ -1,3 +1,7 @@
+import { uniqueFolderKind } from "@opensesame/app-core/components/vault-rail-model.js";
+import { settingsCategoryFromLocation } from "@opensesame/app-core/lib/crumbs.js";
+import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
+import type { Folder, VaultItem } from "@opensesame/vault-core";
 /**
  * The rail's section tree, split out of `AppShell` so the shell file stays
  * within the module-size budget (ADR 0093). Nothing about the contract moved:
@@ -7,10 +11,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { settingsCategoryFromLocation } from "../lib/crumbs.js";
-import type { ItemKindRow } from "../lib/item-kinds.js";
 import { useVault } from "../lib/vault/hooks.js";
-import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
   SectionRow,
@@ -20,7 +21,7 @@ import {
   useSections,
 } from "./RailRows.js";
 import { SettingsTree } from "./SettingsTree.js";
-import { type VaultCounts, VaultRail, uniqueFolderKind } from "./VaultRail.js";
+import { type VaultCounts, VaultRail } from "./VaultRail.js";
 import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";

@@ -1,0 +1,10 @@
+{
+  "secret": "s",
+  "public_unencrypted": "p",
+  "nested": {
+    "inner_unencrypted": {
+      "deep": "still-clear"
+    },
+    "other": "hidden"
+  }
+}

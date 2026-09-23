@@ -9,14 +9,14 @@
  */
 
 import type {
+  ApprovedCapabilityContext,
+  ContributionEntry,
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type {
   ContributionKind,
   RegistrationHandle,
   RuntimeHandle,
 } from "@opensesame/capability-composition";
-import type {
-  ApprovedCapabilityContext,
-  ContributionEntry,
-} from "../lib/capabilities/runtime-contract.js";
 
 export type Activation = Readonly<{
   /** Register through the context and remember the handle. */

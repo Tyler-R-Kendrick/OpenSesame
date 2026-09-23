@@ -4,24 +4,24 @@
       "objective": "Visual/Source prefs draft",
       "workId": "DOC-EDIT",
       "entry": "apps/pages/src/sections/settings/GeneralPrefsPanel.tsx",
-      "domain": "apps/pages/src/lib/configuration/prefs-adapter.ts",
+      "domain": "packages/app-core/src/lib/configuration/prefs-adapter.ts",
       "tests": [
-        "apps/pages/src/lib/configuration/yaml-profile.test.ts",
-        "apps/pages/src/lib/configuration/prefs-adapter.test.ts",
+        "packages/app-core/src/lib/configuration/yaml-profile.test.ts",
+        "packages/app-core/src/lib/configuration/prefs-adapter.test.ts",
         "apps/pages/src/sections/settings/GeneralPrefsPanel.test.tsx"
       ]
     },
     {
       "objective": "Path aliases ADV-01",
       "workId": "CFG-TREE",
-      "entry": "apps/pages/src/lib/configuration/registry.ts",
-      "tests": ["apps/pages/src/lib/configuration/registry.test.ts"]
+      "entry": "packages/app-core/src/lib/configuration/registry.ts",
+      "tests": ["packages/app-core/src/lib/configuration/registry.test.ts"]
     },
     {
       "objective": "Commands and views",
       "workId": "NAV-ACTIONS",
-      "entry": "apps/pages/src/lib/configuration/actions.ts",
-      "tests": ["apps/pages/src/lib/configuration/nav.test.ts"]
+      "entry": "packages/app-core/src/lib/configuration/actions.ts",
+      "tests": ["packages/app-core/src/lib/configuration/nav.test.ts"]
     },
     {
       "objective": "Hosted claims and client_credentials",

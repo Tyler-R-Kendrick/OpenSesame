@@ -67,10 +67,18 @@ describe("PACT — console operator + claim stash", () => {
     const stash = readClaimStash();
     expect(stash?.token).toBe("osc_clm_x.secret");
     expect(stash?.principalId).toBe("prn_1");
+    // This app binds tab-scoped session storage; the shared stash writes it.
     assertSourceOrder(readFileSync(join(here, "claim-stash.ts"), "utf8"), [
-      "sessionStorage.setItem",
-      "JSON.stringify(next)",
+      "createClaimStash(",
+      "sessionStorage",
     ]);
+    assertSourceOrder(
+      readFileSync(
+        join(here, "../../../../packages/ceremony-kit/src/claim-stash.ts"),
+        "utf8",
+      ),
+      ["storage()?.setItem(key, JSON.stringify(next))"],
+    );
     expect(
       readFileSync(join(here, "../pages/ClaimPage.tsx"), "utf8"),
     ).not.toMatch(/searchParams.*token/);

@@ -1,6 +1,6 @@
+import { kvDelete, kvSet } from "@opensesame/app-core/lib/kv.js";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { kvDelete, kvSet } from "./kv.js";
 import {
   THEME_KEY,
   applyTheme,

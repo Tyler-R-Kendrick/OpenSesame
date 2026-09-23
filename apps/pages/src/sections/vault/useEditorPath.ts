@@ -1,6 +1,6 @@
+import { resolveItemPath } from "@opensesame/app-core/lib/vault/item-path.js";
+import type { Folder, VaultItem } from "@opensesame/vault-core";
 import { useState } from "react";
-import { resolveItemPath } from "../../lib/vault/item-path.js";
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
 
 type EditorPathValue = Pick<VaultItem, "name" | "folderId">;
 

@@ -8,9 +8,9 @@
  * walk the screen the same way. Test support: never imported by the app.
  */
 
+import { resetDouble } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, vi } from "vitest";
-import { resetDouble } from "../../lib/configuration/doubles/test-support.js";
 import type { InstallOutcome, InstallState } from "../../lib/install.js";
 import { installViewSeams } from "../../lib/use-install.js";
 import { SetupScreen, setupScreenDependencies } from "../SetupScreen.js";

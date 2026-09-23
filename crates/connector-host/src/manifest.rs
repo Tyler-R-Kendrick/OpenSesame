@@ -24,7 +24,7 @@ pub const MANIFEST_WIT_WORLD: &str = "opensesame:connector/connector@1.0.0";
 pub const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 
 /// Capability families a connector may claim (ADR 0065 §1). Kept in sync with
-/// `CapabilityId` in `apps/pages/src/lib/capabilities.ts`.
+/// `CapabilityId` in `packages/app-core/src/lib/capabilities.ts`.
 pub const MANIFEST_FAMILIES: [&str; 6] = [
     "encryption",
     "history",

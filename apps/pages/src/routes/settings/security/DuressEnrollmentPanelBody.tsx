@@ -1,4 +1,4 @@
-import { activationRequiresNewPermissionPrompt } from "../../../lib/duress/settings/index.js";
+import { activationRequiresNewPermissionPrompt } from "@opensesame/app-core/lib/duress/settings/index.js";
 import { DuressEnrollmentCodesSection } from "./DuressEnrollmentCodesSection.js";
 import { DuressEnrollmentFooterSection } from "./DuressEnrollmentFooterSection.js";
 import { DuressEnrollmentMiddleSection } from "./DuressEnrollmentMiddleSection.js";

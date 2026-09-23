@@ -1,19 +1,19 @@
+import * as directory from "@opensesame/app-core/lib/local-directory.js";
+import * as grants from "@opensesame/app-core/lib/local-grant-admin.js";
+import {
+  listRecordedLocalGrants,
+  revokeRecordedLocalGrant,
+} from "@opensesame/app-core/lib/local-grant-admin.js";
+import { notifyLocalIamChange } from "@opensesame/app-core/lib/local-iam-events.js";
+import * as sessions from "@opensesame/app-core/lib/local-sessions.js";
+import {
+  listLocalIdentitySessions,
+  revokeLocalIdentitySession,
+} from "@opensesame/app-core/lib/local-sessions.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import * as directory from "../../lib/local-directory.js";
-import * as grants from "../../lib/local-grant-admin.js";
-import {
-  listRecordedLocalGrants,
-  revokeRecordedLocalGrant,
-} from "../../lib/local-grant-admin.js";
-import { notifyLocalIamChange } from "../../lib/local-iam-events.js";
-import * as sessions from "../../lib/local-sessions.js";
-import {
-  listLocalIdentitySessions,
-  revokeLocalIdentitySession,
-} from "../../lib/local-sessions.js";
 import { LocalAuthorityPanel } from "./LocalAuthorityPanel.js";
 
 beforeEach(() => {

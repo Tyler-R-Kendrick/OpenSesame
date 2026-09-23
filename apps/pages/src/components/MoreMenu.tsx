@@ -27,13 +27,13 @@
  * first affordance on a phone: `?` opened it on a desktop and nothing did here.
  */
 
-import { type RefObject, useCallback, useRef, useState } from "react";
 import {
   type ConnectorId,
   type ConnectorStatus,
   isOfflineSet,
   needsAttention,
-} from "../lib/connectors.js";
+} from "@opensesame/app-core/lib/connectors.js";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import { showKeymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";

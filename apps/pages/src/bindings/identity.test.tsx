@@ -1,15 +1,15 @@
-import type { BoundaryValue } from "@opensesame/os-domain";
-/** @vitest-environment jsdom */
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultCapabilityConnectors } from "../lib/capabilities.js";
+import { defaultCapabilityConnectors } from "@opensesame/app-core/lib/capabilities.js";
 import {
   clearHostSession,
   clearSession,
   connectProvisional,
   probeOrphanSession,
-} from "../lib/identity.js";
-import { saveSettings } from "../lib/settings.js";
+} from "@opensesame/app-core/lib/identity.js";
+import { saveSettings } from "@opensesame/app-core/lib/settings.js";
+import type { BoundaryValue } from "@opensesame/os-domain";
+/** @vitest-environment jsdom */
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   useConnect,

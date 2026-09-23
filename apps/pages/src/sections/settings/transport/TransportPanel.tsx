@@ -1,7 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { IconRefresh, IconShield } from "../../../components/Icons.js";
-import { StatusMark } from "../../../components/StatusMark.js";
-import { toTransportViewState } from "../../../lib/transport-rows.js";
+import { toTransportViewState } from "@opensesame/app-core/lib/transport-rows.js";
 import {
   DEFAULT_TRANSPORT_TARGET,
   type TransportTargetSettings,
@@ -12,13 +9,16 @@ import {
   transportTargetNames,
   transportTargetSettings,
   withTransportTarget,
-} from "../../../lib/transport-settings.js";
+} from "@opensesame/app-core/lib/transport-settings.js";
 import {
   type TransportStatusResult,
   lastTransportStatus,
   readTransportStatus,
-} from "../../../lib/transport-status.js";
-import { runTransportVerify } from "../../../lib/transport-verify.js";
+} from "@opensesame/app-core/lib/transport-status.js";
+import { runTransportVerify } from "@opensesame/app-core/lib/transport-verify.js";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { IconRefresh, IconShield } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { TransportBrowserRow } from "./TransportBrowserRow.js";
 import { TransportStatusRows } from "./TransportStatusRows.js";

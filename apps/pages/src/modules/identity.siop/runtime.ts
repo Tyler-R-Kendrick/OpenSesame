@@ -17,9 +17,9 @@
  * the key pair is derived inside the ceremony.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { SiopAuthorize } from "../../screens/SiopAuthorize.js";
-import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";

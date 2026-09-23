@@ -1,7 +1,7 @@
 # ADR 0133 — One shared application core for the PWA, the CLIs and Android
 
-- **Status:** Proposed
-- **Date:** 2026-09-22
+- **Status:** Accepted — implemented (see *As built*)
+- **Date:** 2026-09-22; as built 2026-09-23
 - **Deciders:** OpenSesame maintainers
 - **Relates to:** ADR 0017 (host/client topology), ADR 0058 (native
   authenticator), ADR 0065 (agent-surface parity), ADR 0088 (in-product
@@ -164,6 +164,85 @@ Each step is one pull request and green on its own:
 7. Break the cycle and split domain packages.
 8. Extract headless view-models from the largest screens, and remove the
    duplicates listed above.
+
+## As built
+
+Everything in *Sequence* landed. Where the build departed from the plan
+above, this section is the record.
+
+**Packages.**
+- `@opensesame/app-core` holds the client core, laid out as `apps/pages/src`
+  was, including the screens' view-models (`*-model.ts` beside the path of the
+  component they serve). Pages keeps rendering, state, effects and the
+  presentation that is genuinely DOM work (downloads, clipboard, key
+  handling, the wordmark animation).
+- `@opensesame/vault-core` is the vault format kernel: header, KDF and seals,
+  unlock records, the item model and paths, TOTP, the offline-backup
+  envelope, the vault-file reader and the secret-drop format, with the golden
+  vectors. It depends on `os-domain` and `vault-item-types` only and compiles
+  under the strict repository base. The ceremonies app opens drops with it,
+  so the drop format has one implementation.
+- **Further splits are drawn where a consumer needs a subset,** not ahead of
+  one. `vault-core` exists because the CLI and an Android isolate need the
+  read path without the rest. The other domain packages listed in step 7
+  would add package boilerplate with no new reuse; what they were meant to
+  buy — no import cycle — is enforced directly (below).
+
+**Ports** (`src/ports.ts`), read at call time through accessors: storage
+(`local`, `session`), `page` (address, opener and window messaging,
+visibility, download, form post), `authenticator` (WebAuthn), `environment`
+(online state, user agent, user activation, which workers exist), `locks`,
+`broadcast`, `worker` (a constructor, so each capability module keeps Vite's
+literal `new Worker(new URL(…), import.meta.url)` and its worker stays in
+that capability's chunk), `serviceWorker`, `originFiles` (OPFS) and
+`indexedDB`. The planned `kv`/`blobStore` ports were unnecessary: the kv
+backends sit on `originFiles` and `indexedDB`. Clipboard, notifications and
+inference stay in the shell or behind existing seams.
+
+**Hosts.** `src/browser/host.ts` (Pages installs it in `src/host/boot.ts`
+before anything else), `src/node/host.ts` (the CLI: file-backed local
+storage, atomic writes, mode 0600) and `src/sandbox/host.ts`.
+`sandbox/runtime-contract.ts` installs what a bare isolate lacks and never
+replaces what it has: `crypto.subtle` (PBKDF2, HKDF, HMAC, AES-GCM, SHA-256
+over `@noble/hashes` and `@noble/ciphers`), UTF-8 codecs, `atob`/`btoa` and
+`URL` (whatwg-url). Entropy is the embedder's only; with none,
+`getRandomValues` throws. `assertHostIntl` refuses an isolate that cannot
+NFKC-normalise.
+
+**Gates** (`pnpm quality:app-core`, `docs/validation/code-quality-gates.md`
+§3). The planned portability *ledger* became a zero-violation rule: no value
+use of a browser-only global outside `src/browser/**`, worker entries and
+tests. The layering ledger became: no static import cycle at all (nine were
+broken — barrel re-exports, a seam module the ceremony imported back, a dead
+import, and the device-local Identity host now loads its local IAM routes on
+first use), plus a ledger of the five lazy `import()` edges that still close
+a loop, which only shrinks. `node:*` may appear only in `src/node/**`.
+`no-host-import.test.ts` proves no module reads a port while it loads;
+`sandbox/bare-isolate.test.ts` replays the golden vectors in an empty V8
+context.
+
+**CLI.** `opensesame-id vault verify <file>` and `vault ls <file>` read the
+master password from the terminal only and print the tomb, binding,
+revision and each item's path and kind. Registry entries `vault.file.verify`
+and `vault.file.list` exclude every agent surface (ADR 0005).
+
+**Duplicates removed.** One base64 (`vault-core`) instead of nine private
+copies; federation's PKCE and base64url on `sdk-browser`; the drop format;
+the duress attack trees, terminology and `defined` guard in
+`@opensesame/contracts`; the console's claim stash on ceremony-kit's. The
+claim stash was never a copy of `lib/queue.ts`, as *Context* supposed: its
+storage is injected because Pages keeps claim bearers in memory only.
+
+**Registry.** The PWA path check is on again and resolves `lib/` in the
+core or the shell and `vault-core/` in the kernel. It found twenty `pwa:`
+surfaces naming files deleted on 2026-09-20 (tasks, delegations, relay,
+agent runs, access requests, join); they are `null`, and their operations
+and tutorial mappings are gone with them. The item model's kinds are format,
+not capability code — every reader must open every kind a sealed body holds.
+
+**Known and unchanged.** `verify:capability-graph` fails on `main` as well
+(355 findings: the entry statically reaches several optional capability
+chunks). This work leaves that set as it found it, one finding fewer.
 
 ## Consequences
 

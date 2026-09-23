@@ -1,5 +1,5 @@
+import type { IconName } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import type { ComponentType } from "react";
-import type { IconName } from "../lib/capabilities/runtime-contract.js";
 import {
   IconAlert,
   IconClock,

@@ -5,10 +5,10 @@
  * can bind to GCP KMS without a Host (ADR 0090).
  */
 
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GcpKmsConnectFields } from "./GcpKmsConnectFields.js";
-import type { Flash } from "./shared.js";
 import { useGcpKmsConnect } from "./useGcpKmsConnect.js";
 
 export { gcpKmsConnectDependencies } from "./useGcpKmsConnect.js";

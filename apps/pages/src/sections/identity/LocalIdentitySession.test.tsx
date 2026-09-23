@@ -1,7 +1,7 @@
+import * as sessions from "@opensesame/app-core/lib/local-sessions.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import * as sessions from "../../lib/local-sessions.js";
 import { useLocalSessionPresentation } from "./LocalIdentitySession.js";
 
 function Presentation() {

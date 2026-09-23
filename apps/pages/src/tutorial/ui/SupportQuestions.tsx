@@ -4,12 +4,12 @@
  * authored GuideLang walkthrough for that answer.
  */
 
-import type { ReactElement } from "react";
 import {
   type GuideGoalDescriptor,
   type HelpTopic,
   guideGoal,
-} from "../registry/goals.js";
+} from "@opensesame/app-core/tutorial/registry/goals.js";
+import type { ReactElement } from "react";
 import type { SupportController } from "../session.js";
 
 export type SupportQuestion = {

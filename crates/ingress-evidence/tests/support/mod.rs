@@ -15,6 +15,9 @@ use axum::routing::get;
 use axum::{Json, Router};
 use base64::Engine as _;
 use chrono::Utc;
+use http_body_util::{BodyExt as _, Empty};
+use hyper::body::Bytes;
+use hyper_util::rt::TokioIo;
 use opensesame_domain::transport::{
     BindingPurpose, BindingScope, PeerIdentitySelector, ServiceBinding, ServiceBindingSet,
     TlsVersion, TransportPolicy, TrustProfileKind, TrustProfileRef,
@@ -24,9 +27,9 @@ use opensesame_ingress_evidence::{
 };
 use opensesame_transport_security::testkit::{DisposableCa, IssuedLeaf, LeafSpec, SanEntry};
 use opensesame_transport_security::{
-    reqwest_builder, ClientProfile, Generation, ListenerCounters, ListenerProvenance,
-    PeerExtension, SecureListener, ServerNamePolicy, ServerProfile, TransportGenerations,
-    TrustBundle,
+    client_config, dial_name, reqwest_builder, ClientProfile, Generation, ListenerCounters,
+    ListenerProvenance, PeerExtension, SecureListener, ServerNamePolicy, ServerProfile,
+    TransportGenerations, TrustBundle,
 };
 use rustls_pki_types::pem::PemObject as _;
 use rustls_pki_types::CertificateDer;
@@ -269,9 +272,9 @@ pub async fn spawn_origin_with(
     }
 }
 
-/// A reqwest client that presents `identity` (if any) and trusts the origin CA.
-pub fn client(pki: &Pki, identity: Option<&IssuedLeaf>, addr: SocketAddr) -> reqwest::Client {
-    let profile = ClientProfile {
+/// Presents `identity` (if any) and trusts the origin CA.
+fn client_profile(pki: &Pki, identity: Option<&IssuedLeaf>) -> ClientProfile {
+    ClientProfile {
         server_trust: TrustBundle::from_pem(
             TrustProfileRef::new("origin").expect("profile"),
             TrustProfileKind::PrivateRoot,
@@ -281,15 +284,77 @@ pub fn client(pki: &Pki, identity: Option<&IssuedLeaf>, addr: SocketAddr) -> req
         server_name: ServerNamePolicy::Dns(ORIGIN_NAME.into()),
         identity: identity.map(|leaf| Arc::new(leaf.identity())),
         min_version: TlsVersion::Tls13,
-    };
+    }
+}
+
+/// A reqwest client that presents `identity` (if any) and trusts the origin CA.
+pub fn client(pki: &Pki, identity: Option<&IssuedLeaf>, addr: SocketAddr) -> reqwest::Client {
     let base = reqwest::Client::builder()
         .no_proxy()
         .pool_max_idle_per_host(1)
         .resolve(ORIGIN_NAME, addr);
-    reqwest_builder(&profile, base)
+    reqwest_builder(&client_profile(pki, identity), base)
         .expect("client profile")
         .build()
         .expect("client")
+}
+
+pub type OneConnection = hyper::client::conn::http1::SendRequest<Empty<Bytes>>;
+
+/// Exactly one TLS connection to the origin, held open: every request sent
+/// through the returned handle travels over it, one after another. Unlike a
+/// pooled client, reuse does not depend on when the connection is handed
+/// back, so a second handshake can only mean the origin dropped it.
+pub async fn one_connection(
+    pki: &Pki,
+    identity: Option<&IssuedLeaf>,
+    addr: SocketAddr,
+) -> OneConnection {
+    let profile = client_profile(pki, identity);
+    let config = client_config(&profile).expect("client config");
+    let name = dial_name(&profile.server_name, ORIGIN_NAME).expect("server name");
+    let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
+    let tls = tokio_rustls::TlsConnector::from(Arc::new(config))
+        .connect(name, tcp)
+        .await
+        .expect("tls handshake");
+    let (sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(tls))
+        .await
+        .expect("http/1 handshake");
+    tokio::spawn(async move {
+        if let Err(error) = connection.await {
+            eprintln!("connection stopped: {error:?}");
+        }
+    });
+    sender
+}
+
+/// Sends `GET path` with `headers` over `connection` and reads the echo.
+pub async fn seen_over(
+    connection: &mut OneConnection,
+    path: &str,
+    headers: &[(&str, &str)],
+) -> Seen {
+    connection
+        .ready()
+        .await
+        .expect("the one connection is still open");
+    let mut request = http::Request::get(path).header(http::header::HOST, ORIGIN_NAME);
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+    let response = connection
+        .send_request(request.body(Empty::new()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), 200, "handler answered");
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+    serde_json::from_slice(&body).expect("seen json")
 }
 
 pub fn url(addr: SocketAddr, path: &str) -> String {

@@ -2,11 +2,11 @@
 
 Design contract. Decision record:
 [ADR 0063](../adr/0063-encrypted-vfs-tombs.md). Read first:
-`apps/pages/src/lib/kv.ts` (current OPFS layer),
-`apps/pages/src/lib/vault/store.ts` (header/body/prefs keys, sealing),
-`apps/pages/src/lib/vault/crypto.ts` (`SealedBlob`, key wrap),
-`apps/pages/src/lib/idp-registry.ts`, `apps/pages/src/lib/settings.ts`,
-`apps/pages/src/lib/projects.ts`, `apps/pages/src/lib/vault/host-backup.ts`
+`packages/app-core/src/lib/kv.ts` (current OPFS layer),
+`packages/app-core/src/lib/vault/store.ts` (header/body/prefs keys, sealing),
+`packages/app-core/src/lib/vault/crypto.ts` (`SealedBlob`, key wrap),
+`packages/app-core/src/lib/idp-registry.ts`, `packages/app-core/src/lib/settings.ts`,
+`packages/app-core/src/lib/projects.ts`, `apps/pages/src/lib/vault/host-backup.ts`
 (ciphertext push — stays the git persistence path, unchanged).
 
 ## What changes

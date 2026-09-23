@@ -1,3 +1,18 @@
+import type { EditorMode } from "@opensesame/app-core/lib/configuration/draft.js";
+import {
+  type LocalScopeRoles,
+  defaultScopeRoles,
+} from "@opensesame/app-core/lib/local-application-policy.js";
+import {
+  type LocalApplication,
+  type LocalApplications,
+  configureLocalApplication,
+  readLocalApplications,
+} from "@opensesame/app-core/lib/local-applications.js";
+import {
+  type LocalDirectory,
+  LocalDirectoryError,
+} from "@opensesame/app-core/lib/local-directory.js";
 import {
   type RefObject,
   useCallback,
@@ -9,21 +24,6 @@ import {
 } from "react";
 import { IconCheck } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
-import type { EditorMode } from "../../lib/configuration/draft.js";
-import {
-  type LocalScopeRoles,
-  defaultScopeRoles,
-} from "../../lib/local-application-policy.js";
-import {
-  type LocalApplication,
-  type LocalApplications,
-  configureLocalApplication,
-  readLocalApplications,
-} from "../../lib/local-applications.js";
-import {
-  type LocalDirectory,
-  LocalDirectoryError,
-} from "../../lib/local-directory.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
 import { ApplicationSourceEditor } from "./ApplicationSourceEditor.js";
 import {

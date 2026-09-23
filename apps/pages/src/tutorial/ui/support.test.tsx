@@ -1,3 +1,10 @@
+import { GUIDE_GOALS } from "@opensesame/app-core/tutorial/registry/goals.js";
+import {
+  noteWebMcpAccepted,
+  noteWebMcpRegistered,
+  resetWebMcpRegistrationForTests,
+} from "@opensesame/app-core/webmcp/registration.js";
+import { webmcpSupportSeam } from "@opensesame/app-core/webmcp/tools.js";
 /** @vitest-environment jsdom */
 import {
   createFakeSupportAgent,
@@ -16,13 +23,6 @@ import {
   createKeymapHandler,
   registerVaultKeymap,
 } from "../../lib/keymap.js";
-import {
-  noteWebMcpAccepted,
-  noteWebMcpRegistered,
-  resetWebMcpRegistrationForTests,
-} from "../../webmcp/registration.js";
-import { webmcpSupportSeam } from "../../webmcp/tools.js";
-import { GUIDE_GOALS } from "../registry/goals.js";
 import { chooseSupportAgent, supportSessionSeams } from "../session.js";
 import {
   ask,

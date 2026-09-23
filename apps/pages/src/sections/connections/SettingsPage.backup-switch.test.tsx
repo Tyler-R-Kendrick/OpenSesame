@@ -1,3 +1,10 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { isHistorySelected } from "@opensesame/app-core/lib/history-backups.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -8,10 +15,6 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
-import type { Provider } from "../../lib/connections.js";
-import { isHistorySelected } from "../../lib/history-backups.js";
-import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 

@@ -1,8 +1,10 @@
-import { overlapCast } from "@opensesame/os-domain";
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
+import type { AppInstallAccount } from "@opensesame/app-core/lib/github-app-repos.js";
+import { localAppConnection } from "@opensesame/app-core/sections/connections/github-app-config-summary-model.js";
+import { buildGithubAppSummaryModel } from "@opensesame/app-core/sections/connections/githubAppSummaryModel.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useMemo } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
-import type { Connection } from "../../lib/connections.js";
-import type { AppInstallAccount } from "../../lib/github-app-repos.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 import {
   GithubAppInstallRows,
@@ -10,42 +12,7 @@ import {
   GithubAppRepoList,
 } from "./GithubAppConfigRows.js";
 import { GithubBackupField } from "./GithubBackupRepo.js";
-import { buildGithubAppSummaryModel } from "./githubAppSummaryModel.js";
-import type { Flash } from "./shared.js";
 import { useGithubAppPresence } from "./useGithubAppPresence.js";
-
-/** App-only bind path when no OAuth connection card is mounted. */
-function localAppConnection(accountLabel: string | null): Connection {
-  return overlapCast({
-    connectionId: "local-github-app",
-    connectionRef: "local-github-app",
-    logicalName: "github",
-    displayName: "GitHub",
-    providerId: "github",
-    integrationId: null,
-    status: "active",
-    statusDetail: null,
-    organizationId: "local",
-    projectId: null,
-    ownerKind: "user",
-    shareability: "private",
-    requestedScopes: [],
-    grantedScopes: [],
-    accountLabel,
-    expiresAt: null,
-    refreshable: false,
-    lastRefreshedAt: null,
-    maxInvokeLevel: 1,
-    egress: {
-      scheme: "https",
-      authorities: ["api.github.com"],
-      pathPrefixes: [],
-    },
-    bindings: [],
-    createdAt: "1970-01-01T00:00:00.000Z",
-    updatedAt: "1970-01-01T00:00:00.000Z",
-  }) satisfies Connection;
-}
 
 /**
  * App configuration after install: name, registrant, installs, permissions,

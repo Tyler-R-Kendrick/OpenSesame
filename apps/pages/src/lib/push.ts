@@ -4,6 +4,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { b64urlToBytes } from "@opensesame/sdk-browser";
 
 /**
  * Web Push enrolment, and the two pure functions the service worker uses to
@@ -242,14 +243,6 @@ export async function fetchApplicationServerKey(
     );
   }
   return key;
-}
-
-function b64urlToBytes(value: string): Uint8Array {
-  const pad = "=".repeat((4 - (value.length % 4)) % 4);
-  const binary = atob((value + pad).replaceAll("-", "+").replaceAll("_", "/"));
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
 }
 
 async function registration(): Promise<ServiceWorkerRegistration> {

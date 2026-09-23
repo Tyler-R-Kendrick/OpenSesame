@@ -1,56 +1,44 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  loadDuressRuntime,
+  resolveDuressMode,
+} from "@opensesame/app-core/lib/duress/feature/mode.js";
 /**
  * REDTEAM-F — honest gaps. Fail until owning swarms close the surface.
  * Do not delete; refresh `.duress-swarm/requests/*` instead.
  */
 import { describe, expect, it } from "vitest";
-import { loadDuressRuntime, resolveDuressMode } from "../feature/mode.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pagesSrc = join(here, "..", "..", "..");
+const coreSrc = join(pagesSrc, "..", "..", "..", "packages", "app-core", "src");
+
+/** A source path in the shell, or in the shared core it moved to (ADR 0133). */
+function src(...parts: string[]): string {
+  const shell = join(pagesSrc, ...parts);
+  return existsSync(shell) ? shell : join(coreSrc, ...parts);
+}
 
 describe("REDTEAM-F honest gaps (must not force-pass)", () => {
   it("GAP-UNLOCK-WIRE: unlock roads gate PIN/password/passkey/second-step", () => {
-    const bridge = join(
-      pagesSrc,
+    const bridge = src(
       "sections",
       "settings",
       "security",
       "duress-unlock-bridge.ts",
     );
-    const pinGate = join(pagesSrc, "screens", "unlock", "unlock-pin-duress.ts");
-    const passwordGate = join(
-      pagesSrc,
-      "screens",
-      "unlock",
-      "unlock-password-duress.ts",
-    );
-    const passkeyGate = join(
-      pagesSrc,
-      "screens",
-      "unlock",
-      "unlock-passkey-duress.ts",
-    );
-    const secondStepGate = join(
-      pagesSrc,
+    const pinGate = src("screens", "unlock", "unlock-pin-duress.ts");
+    const passwordGate = src("screens", "unlock", "unlock-password-duress.ts");
+    const passkeyGate = src("screens", "unlock", "unlock-passkey-duress.ts");
+    const secondStepGate = src(
       "screens",
       "unlock",
       "unlock-second-step-duress.ts",
     );
-    const continueGate = join(
-      pagesSrc,
-      "screens",
-      "unlock",
-      "unlock-duress-continue.ts",
-    );
-    const formPaths = join(
-      pagesSrc,
-      "screens",
-      "unlock",
-      "unlock-form-paths.ts",
-    );
+    const continueGate = src("screens", "unlock", "unlock-duress-continue.ts");
+    const formPaths = src("screens", "unlock", "unlock-form-paths.ts");
     expect(existsSync(bridge)).toBe(true);
     expect(existsSync(pinGate)).toBe(true);
     expect(existsSync(passwordGate)).toBe(true);
@@ -75,9 +63,7 @@ describe("REDTEAM-F honest gaps (must not force-pass)", () => {
     expect(continueBody).toMatch(/openPresentation/);
     expect(readFileSync(bridge, "utf8")).toMatch(/options\.select|select\?:/);
     expect(
-      existsSync(
-        join(pagesSrc, "screens", "unlock", "unlock-passkey-evidence.ts"),
-      ),
+      existsSync(src("screens", "unlock", "unlock-passkey-evidence.ts")),
     ).toBe(true);
     expect(pathsBody).toMatch(/unlockWithPinAfterDuressGate/);
     expect(pathsBody).toMatch(/unlockWithPasswordAfterDuressGate/);
@@ -86,22 +72,15 @@ describe("REDTEAM-F honest gaps (must not force-pass)", () => {
   });
 
   it("GAP-SETTINGS-NAV: Settings shell mounts enrollment when mode is non-off", async () => {
-    const settingsSection = join(pagesSrc, "sections", "SettingsSection.tsx");
-    const securityShell = join(
-      pagesSrc,
-      "sections",
-      "settings",
-      "SettingsSecurity.tsx",
-    );
-    const panel = join(
-      pagesSrc,
+    const settingsSection = src("sections", "SettingsSection.tsx");
+    const securityShell = src("sections", "settings", "SettingsSecurity.tsx");
+    const panel = src(
       "sections",
       "settings",
       "security",
       "DuressProfilesPanel.tsx",
     );
-    const enrollment = join(
-      pagesSrc,
+    const enrollment = src(
       "routes",
       "settings",
       "security",

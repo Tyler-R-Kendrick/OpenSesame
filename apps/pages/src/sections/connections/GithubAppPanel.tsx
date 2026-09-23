@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
-import { IconExternal } from "../../components/Icons.js";
-import type { Integration, Provider } from "../../lib/connections.js";
+import type {
+  Integration,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import {
   listIntegrations,
   startGithubAppRegistration,
   submitGithubAppManifest,
-} from "../../lib/connections.js";
-import { type Flash, errorText } from "./shared.js";
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { useEffect, useState } from "react";
+import { IconExternal } from "../../components/Icons.js";
 
 export function GithubTenantAppPanel({
   provider,

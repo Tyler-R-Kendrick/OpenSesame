@@ -7,6 +7,16 @@
  * (CONSENT-02).
  */
 
+import {
+  CAPABILITY_CATALOG,
+  type CapabilityPreset,
+  type CompositionSnapshot,
+  type OutcomeView,
+  buildConsentReceipt,
+  compositionStore,
+  previewPlan,
+  viewOutcome,
+} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type {
   CapabilityCatalog,
   CapabilityId,
@@ -21,16 +31,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import {
-  CAPABILITY_CATALOG,
-  type CapabilityPreset,
-  type CompositionSnapshot,
-  type OutcomeView,
-  buildConsentReceipt,
-  compositionStore,
-  previewPlan,
-  viewOutcome,
-} from "../../lib/configuration/capabilities-ports.js";
 import {
   type CapabilityDraft,
   acceptRequired,

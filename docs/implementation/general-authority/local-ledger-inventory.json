@@ -1,42 +1,42 @@
 {
-  "$comment": "INV-GA-10 inventory (GA-P-01). Declares which apps/pages local stores are the authority share ledger, and which similarly named modules are not. A filename heuristic alone would treat application OIDC grants and Access roles as rival ledgers.",
-  "canonical": "apps/pages/src/lib/local-share-grants.ts",
-  "declared": ["apps/pages/src/lib/local-share-grants.ts"],
+  "$comment": "INV-GA-10 inventory (GA-P-01). Declares which client-plane local stores are the authority share ledger, and which similarly named modules are not. A filename heuristic alone would treat application OIDC grants and Access roles as rival ledgers.",
+  "canonical": "packages/app-core/src/lib/local-share-grants.ts",
+  "declared": ["packages/app-core/src/lib/local-share-grants.ts"],
   "notLedgers": [
     {
-      "path": "apps/pages/src/lib/local-grant-store.ts",
+      "path": "packages/app-core/src/lib/local-grant-store.ts",
       "reason": "Browser-local application OIDC grants (tokens issued to relying parties). Not the share-authority ledger; ADR 0115 binds connectors through local-share-grants instead."
     },
     {
-      "path": "apps/pages/src/lib/local-grant-admin.ts",
+      "path": "packages/app-core/src/lib/local-grant-admin.ts",
       "reason": "Admin UI helpers over local-grant-store application registrations, not a second authority model."
     },
     {
-      "path": "apps/pages/src/lib/local-rbac.ts",
+      "path": "packages/app-core/src/lib/local-rbac.ts",
       "reason": "Access-panel role labels for the local directory. Roles here do not grant ConnectionRef authority; share grants do."
     },
     {
-      "path": "apps/pages/src/lib/local-access-requests.ts",
+      "path": "packages/app-core/src/lib/local-access-requests.ts",
       "reason": "Pending access-request ceremonies. Settlement writes into local-share-grants; this file is the inbox, not the ledger."
     },
     {
-      "path": "apps/pages/src/lib/local-authorization.ts",
+      "path": "packages/app-core/src/lib/local-authorization.ts",
       "reason": "In-flight application authorization codes and presentations. Cleared on vault lock; not durable share authority."
     },
     {
-      "path": "apps/pages/src/lib/local-applications.ts",
+      "path": "packages/app-core/src/lib/local-applications.ts",
       "reason": "Registered local relying-party metadata (redirect URIs, scopes). Authority to act is still a share grant."
     },
     {
-      "path": "apps/pages/src/lib/host-shared-session-store.ts",
+      "path": "packages/app-core/src/lib/host-shared-session-store.ts",
       "reason": "Bookmarks and local mirrors of Host shared sessions (ADR 0079). Writes durable share rows through local-share-grants; it is not a second ledger."
     },
     {
-      "path": "apps/pages/src/lib/shared-sessions.ts",
+      "path": "packages/app-core/src/lib/shared-sessions.ts",
       "reason": "Host API client for shared-session open/grant/revoke. Authority persisted on the device still goes through local-share-grants."
     },
     {
-      "path": "apps/pages/src/lib/siop-authority.ts",
+      "path": "packages/app-core/src/lib/siop-authority.ts",
       "reason": "SIOPv2 self-issued redirect ceremony over local application registrations. Not a share-grant store."
     }
   ]

@@ -1,7 +1,7 @@
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { connectionSeams } from "../../lib/connections.js";
 import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 
 const registration = {

@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
-import { SourceEditor } from "../../components/configuration/SourceEditor.js";
 import {
   parseApplicationSource,
   registrationToYaml,
-} from "../../lib/configuration/application-document.js";
-import { commitLocalApplicationSource } from "../../lib/configuration/local-application-source.js";
-import type { LocalApplicationRegistration } from "../../lib/local-applications.js";
+} from "@opensesame/app-core/lib/configuration/application-document.js";
+import { commitLocalApplicationSource } from "@opensesame/app-core/lib/configuration/local-application-source.js";
+import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
+import { useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
+import { SourceEditor } from "../../components/configuration/SourceEditor.js";
 
 export function ApplicationSourceEditor(props: {
   applicationId: string;

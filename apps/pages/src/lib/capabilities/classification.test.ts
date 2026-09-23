@@ -1,8 +1,11 @@
 import { readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  isKnownCapability,
+  optionalCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { describe, expect, it } from "vitest";
-import { isKnownCapability, optionalCapabilityIds } from "./catalog.js";
 import {
   MIXED_MODULES,
   SOURCE_CLASSIFICATION,
@@ -13,14 +16,17 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const pagesRoot = join(here, "..", "..", "..");
 
-function walk(dir: string, out: string[] = []): string[] {
+/** The shared core keeps the app's layout (ADR 0133); rules name it as `src/…`. */
+const coreRoot = join(pagesRoot, "..", "..", "packages", "app-core");
+
+function walk(dir: string, root = pagesRoot, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) {
       if (name === "node_modules") continue;
-      walk(full, out);
+      walk(full, root, out);
     } else if (/\.(ts|tsx|css|html)$/.test(name)) {
-      out.push(relative(pagesRoot, full).split("\\").join("/"));
+      out.push(relative(root, full).split("\\").join("/"));
     }
   }
   return out;
@@ -28,6 +34,7 @@ function walk(dir: string, out: string[] = []): string[] {
 
 const SOURCES = [
   ...walk(join(pagesRoot, "src")),
+  ...walk(join(coreRoot, "src"), coreRoot),
   ...walk(join(pagesRoot, "auth")),
   "index.html",
 ];

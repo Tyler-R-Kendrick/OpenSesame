@@ -18,12 +18,12 @@
  * card's corner where a skip always lives.
  */
 
+import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
 import { useEffect, useRef } from "react";
 import { IconAuthority } from "../components/Icons.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { landFocus } from "../lib/focus.js";
-import type { FederatedProviderSummary } from "../lib/providers.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";

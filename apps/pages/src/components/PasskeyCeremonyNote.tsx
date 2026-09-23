@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
 import {
   loadSettings,
   saveSettings,
   subscribeSettings,
-} from "../lib/settings.js";
-import { webauthnSeams } from "../lib/webauthn.js";
+} from "@opensesame/app-core/lib/settings.js";
+import { webauthnSeams } from "@opensesame/app-core/lib/webauthn.js";
+import { useEffect, useState } from "react";
 import { FieldShell } from "./FieldShell.js";
 import { IconAlert, IconPhone } from "./Icons.js";
 import { QrCode } from "./QrCode.js";

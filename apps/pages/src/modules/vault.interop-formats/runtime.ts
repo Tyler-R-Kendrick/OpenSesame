@@ -24,7 +24,7 @@
  * registers no handler until it is called.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { FormatsInteroperabilityPanel } from "../../sections/settings/FormatsInteroperabilityPanel.js";
 import { createActivation } from "../activation.js";
 import type { ContextWithPorts } from "../ports-b.js";

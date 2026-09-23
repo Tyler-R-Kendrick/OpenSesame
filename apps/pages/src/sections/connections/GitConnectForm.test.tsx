@@ -1,15 +1,18 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
+import {
+  ConnectionsError,
+  connectionSeams,
+} from "@opensesame/app-core/lib/connections.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  forgetAllLocalGitRemotes,
+  listLocalGitRemotes,
+} from "@opensesame/app-core/lib/git-remote-local.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
-import { ConnectionsError, connectionSeams } from "../../lib/connections.js";
-import type { Provider } from "../../lib/connections.js";
-import {
-  forgetAllLocalGitRemotes,
-  listLocalGitRemotes,
-} from "../../lib/git-remote-local.js";
-import { vaultStore } from "../../lib/vault/store.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 
 const original = { ...connectionSeams };

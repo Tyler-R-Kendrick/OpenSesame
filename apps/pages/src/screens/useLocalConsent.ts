@@ -1,19 +1,19 @@
-import type { LocalAuthorizationRequest } from "@opensesame/static-auth";
-import { useEffect, useRef, useState } from "react";
-import { readLocalApplications } from "../lib/local-applications.js";
+import { readLocalApplications } from "@opensesame/app-core/lib/local-applications.js";
 import {
   LocalDirectoryError,
   type LocalIdentity,
   readLocalDirectory,
-} from "../lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-directory.js";
 import {
   LocalIssuerChannel,
   type LocalIssuerStatus,
-} from "../lib/local-issuer-channel.js";
+} from "@opensesame/app-core/lib/local-issuer-channel.js";
 import {
   type LocalSession,
   signInLocalIdentity,
-} from "../lib/local-sessions.js";
+} from "@opensesame/app-core/lib/local-sessions.js";
+import type { LocalAuthorizationRequest } from "@opensesame/static-auth";
+import { useEffect, useRef, useState } from "react";
 
 export function useLocalConsent(
   tomb: string,

@@ -1,5 +1,8 @@
+import {
+  accessPath,
+  accessViewFromLocation,
+} from "@opensesame/app-core/lib/access-routes.js";
 import { useLocation } from "react-router";
-import { accessPath, accessViewFromLocation } from "../lib/access-routes.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { AccessBookPanel } from "./access/AccessBookPanel.js";

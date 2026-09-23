@@ -18,9 +18,12 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router";
 
-import { beginSignIn } from "../lib/federation.js";
-import { IdentityError, ensureIdentitySession } from "../lib/identity.js";
-import { guestVaultLabel } from "../lib/local-guest.js";
+import { beginSignIn } from "@opensesame/app-core/lib/federation.js";
+import {
+  IdentityError,
+  ensureIdentitySession,
+} from "@opensesame/app-core/lib/identity.js";
+import { guestVaultLabel } from "@opensesame/app-core/lib/local-guest.js";
 import {
   GUEST_PROFILE_ID,
   type OrgAuthMethod,
@@ -33,9 +36,13 @@ import {
   routeOrgMethod,
   setActiveOrgProfileId,
   subscribeOrgProfile,
-} from "../lib/orgs.js";
-import { brokeredOrgUpstream } from "../lib/providers.js";
-import { attachAccount, signOut, switchAccount } from "../lib/session-exit.js";
+} from "@opensesame/app-core/lib/orgs.js";
+import { brokeredOrgUpstream } from "@opensesame/app-core/lib/providers.js";
+import {
+  attachAccount,
+  signOut,
+  switchAccount,
+} from "@opensesame/app-core/lib/session-exit.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconCheck, IconPlus, IconUser } from "./Icons.js";

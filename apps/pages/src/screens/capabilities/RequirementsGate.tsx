@@ -6,8 +6,8 @@
  * and writes nothing (MODEL-10).
  */
 
+import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { useState } from "react";
-import { CAPABILITY_CATALOG } from "../../lib/configuration/capabilities-ports.js";
 import { InstallationRequirements } from "./InstallationRequirements.js";
 import "./capabilities.css";
 

@@ -5,19 +5,19 @@
  * tile draws the same way whichever capability owns the group.
  */
 
-import { useEffect, useState } from "react";
-import { Link } from "react-router";
 import {
   type BackupTargetView,
   backupTargetProviderId,
   getBackupStatus,
-} from "../../lib/backup.js";
-import type { Provider } from "../../lib/connections.js";
+} from "@opensesame/app-core/lib/backup.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import {
   HISTORY_BACKUP_GROUPS,
   isHistorySelected,
   loadHistorySelections,
-} from "../../lib/history-backups.js";
+} from "@opensesame/app-core/lib/history-backups.js";
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { BackupEnableSwitch } from "../connections/BackupEnableSwitch.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 

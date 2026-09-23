@@ -1,4 +1,4 @@
-import { estimateStrength } from "../../lib/vault/password.js";
+import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
 

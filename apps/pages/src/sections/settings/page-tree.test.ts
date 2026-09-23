@@ -1,5 +1,5 @@
+import { registerLegacySettingsCategories } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { registerLegacySettingsCategories } from "../../lib/contributions.test-support.js";
 import {
   connectionsSettingsSections,
   settingsPageSources,

@@ -1,4 +1,13 @@
 import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type Folder,
+  type VaultItem,
+  createItem,
+  createTypedItem,
+  itemTypeRegistry,
+  newValues,
+  syncInstalledTypes,
+} from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -11,13 +20,6 @@ import {
   it,
   vi,
 } from "vitest";
-import {
-  itemTypeRegistry,
-  newValues,
-  syncInstalledTypes,
-} from "../../lib/vault/item-types.js";
-import { createItem, createTypedItem } from "../../lib/vault/model.js";
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
 
 /**
  * A plugin-defined type is a type like any other in the vault list (ADR 0087

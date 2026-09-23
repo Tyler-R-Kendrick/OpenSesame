@@ -5,10 +5,14 @@
  * claim lives on this origin when Pages is the claim host.
  */
 
+import {
+  type DropPayload,
+  openDrop,
+  presentDrop,
+} from "@opensesame/app-core/lib/vault/drop.js";
 import { isString } from "@opensesame/os-domain";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { type DropPayload, openDrop, presentDrop } from "../lib/vault/drop.js";
 
 function readFragment(): { token: string; key: string } | null {
   const hash = globalThis.location?.hash?.replace(/^#/, "") ?? "";

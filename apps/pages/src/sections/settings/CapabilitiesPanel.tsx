@@ -12,6 +12,14 @@
  * sees (SURFACE-06).
  */
 
+import { effectivePlanToYaml } from "@opensesame/app-core/lib/configuration/capabilities-document.js";
+import {
+  CAPABILITY_CATALOG,
+  buildConsentReceipt,
+  compositionStore,
+  previewPlan,
+  viewOutcome,
+} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useState } from "react";
 import {
@@ -21,14 +29,6 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { effectivePlanToYaml } from "../../lib/configuration/capabilities-document.js";
-import {
-  CAPABILITY_CATALOG,
-  buildConsentReceipt,
-  compositionStore,
-  previewPlan,
-  viewOutcome,
-} from "../../lib/configuration/capabilities-ports.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   alternativesFor,

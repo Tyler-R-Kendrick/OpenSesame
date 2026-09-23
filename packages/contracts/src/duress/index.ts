@@ -7,3 +7,6 @@ export * from "./scenarios.js";
 export * from "./digest.js";
 export * from "./compiler.js";
 export * from "./import-export.js";
+export * from "./attack-trees.js";
+export * from "./terminology.js";
+export * from "./defined.js";

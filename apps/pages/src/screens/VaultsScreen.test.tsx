@@ -9,8 +9,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../bindings/identity.js";
 
-import { PERSONAL_PROJECT_ID, projectSeams } from "../lib/projects.js";
-import { vaultsSeams } from "../lib/vaults.js";
+import {
+  PERSONAL_PROJECT_ID,
+  projectSeams,
+} from "@opensesame/app-core/lib/projects.js";
+import { vaultsSeams } from "@opensesame/app-core/lib/vaults.js";
 
 const state = {
   v: 1 as const,
@@ -36,7 +39,7 @@ const originalVaultsSeams = { ...vaultsSeams };
 const switchVault = vi.fn();
 const sealNewVault = vi.fn();
 
-import { identitySeams } from "../lib/identity.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 Object.assign(identitySeams, {
   identityBase: () => "",
 });
@@ -44,7 +47,7 @@ Object.assign(identityHookSeams, {
   useIdentitySession: () => null,
 });
 
-import { federationSeams } from "../lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 Object.assign(federationSeams, {
   beginSignIn: () => Promise.resolve(),
   defaultUpstream: () => ({

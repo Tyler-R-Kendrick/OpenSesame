@@ -13,10 +13,10 @@
  * No tutorial descriptors exist for drops yet.
  */
 
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { LOCAL_DROP_CLAIM_KEYS } from "@opensesame/app-core/lib/vault/local-drop-claims.js";
+import { KIND_LABEL } from "@opensesame/vault-core";
 import { IconDrop } from "../../components/Icons.js";
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { LOCAL_DROP_CLAIM_KEYS } from "../../lib/vault/local-drop-claims.js";
-import { KIND_LABEL } from "../../lib/vault/model.js";
 import { DropClaimScreen } from "../../screens/DropClaimScreen.js";
 import { createActivation } from "../activation.js";
 

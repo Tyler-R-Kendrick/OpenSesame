@@ -3,9 +3,9 @@
  * Feature mode stays off by default (INV-01); panel is present for local_only|optional_peer.
  */
 
+import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import type { CompilerCatalog, PolicyDocument } from "@opensesame/contracts";
 import { type ReactNode, createElement } from "react";
-import { resolveDuressMode } from "../../lib/duress/feature/mode.js";
 import {
   DuressProfilesPanel,
   type DuressProfilesPanelProps,

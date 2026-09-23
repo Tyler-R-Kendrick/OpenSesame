@@ -9,27 +9,27 @@
  * that replaces the seam with its double drives these hooks too.
  */
 
+import {
+  capabilityEnabled,
+  subscribeCapabilityFlags,
+} from "@opensesame/app-core/lib/capabilities/openfeature-consumer.js";
+import type { ContributionEntry } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { CompositionSnapshot } from "@opensesame/app-core/lib/capabilities/store-types.js";
+import {
+  type WorkerStatus,
+  subscribeWorkerStatus,
+  workerStatus,
+} from "@opensesame/app-core/lib/capabilities/worker-controller.js";
+import {
+  compositionStore,
+  contributionSource,
+} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type {
   CapabilityId,
   CapabilityState,
   ContributionKind,
 } from "@opensesame/capability-composition";
 import { useMemo, useSyncExternalStore } from "react";
-import {
-  capabilityEnabled,
-  subscribeCapabilityFlags,
-} from "../lib/capabilities/openfeature-consumer.js";
-import type { ContributionEntry } from "../lib/capabilities/runtime-contract.js";
-import type { CompositionSnapshot } from "../lib/capabilities/store-types.js";
-import {
-  type WorkerStatus,
-  subscribeWorkerStatus,
-  workerStatus,
-} from "../lib/capabilities/worker-controller.js";
-import {
-  compositionStore,
-  contributionSource,
-} from "../lib/configuration/capabilities-ports.js";
 
 export function useComposition(): CompositionSnapshot {
   return useSyncExternalStore(

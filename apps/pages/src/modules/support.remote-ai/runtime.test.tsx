@@ -1,13 +1,13 @@
+import {
+  currentAgUiEndpoint,
+  resetAgUiEndpointForTest,
+} from "@opensesame/app-core/tutorial/agents/ag-ui/endpoint.js";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   resetSupportAgentLoadersForTest,
   supportAgentLoaders,
 } from "../../tutorial/agent-seams.js";
-import {
-  currentAgUiEndpoint,
-  resetAgUiEndpointForTest,
-} from "../../tutorial/agents/ag-ui/endpoint.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,

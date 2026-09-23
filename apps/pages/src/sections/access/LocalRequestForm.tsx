@@ -1,15 +1,15 @@
-import { useId, useState } from "react";
-import { IconPlus, IconX } from "../../components/Icons.js";
 import {
   type LocalAccessRequest,
   createLocalAccessRequest,
-} from "../../lib/local-access-requests.js";
-import type { LocalApplication } from "../../lib/local-applications.js";
+} from "@opensesame/app-core/lib/local-access-requests.js";
+import type { LocalApplication } from "@opensesame/app-core/lib/local-applications.js";
 import {
   type LocalDirectory,
   LocalDirectoryError,
-} from "../../lib/local-directory.js";
-import { currentLocalIdentitySession } from "../../lib/local-sessions.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
+import { useId, useState } from "react";
+import { IconPlus, IconX } from "../../components/Icons.js";
 import { LocalAgentKeys } from "../identity/LocalAgentKeys.js";
 import { LocalIdentitySession } from "../identity/LocalIdentitySession.js";
 

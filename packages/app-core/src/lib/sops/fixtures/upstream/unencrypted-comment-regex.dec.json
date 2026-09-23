@@ -1,0 +1,11 @@
+{
+  "secret_a": "one",
+  "public_b": "two",
+  "nested": {
+    "inner": "three",
+    "other": "four"
+  },
+  "list": ["five", "six"],
+  "pw": "p",
+  "token": "t"
+}

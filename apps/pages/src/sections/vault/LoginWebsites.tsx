@@ -1,7 +1,7 @@
+import { testWebsitePattern } from "@opensesame/app-core/lib/vault/website-pattern.js";
+import { type LoginUri, type UriMatch, newUri } from "@opensesame/vault-core";
 import { useState } from "react";
 import { IconPlus, IconX } from "../../components/Icons.js";
-import { type LoginUri, type UriMatch, newUri } from "../../lib/vault/model.js";
-import { testWebsitePattern } from "../../lib/vault/website-pattern.js";
 
 const MATCHES: UriMatch[] = [
   "domain",

@@ -9,7 +9,10 @@ import { IconAuthority } from "./Icons.js";
 import type { SectionRowModel } from "./RailRows.js";
 import { registerLegacyShell } from "./legacy-sections.test-support.js";
 
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../lib/section-view-names.js";
+import {
+  ACCESS_LABELS,
+  ACCESS_VIEWS,
+} from "@opensesame/app-core/lib/section-view-names.js";
 // the Access section's rail targets are the access capability's, so the row only exists on a plan that approved it.
 let revokeShell = () => {};
 beforeAll(() => {

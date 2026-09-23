@@ -6,11 +6,11 @@ import {
   PolicyProfileSchema,
   compileDuressPolicy,
 } from "@opensesame/contracts";
+import { DURESS_ATTACK_TREES } from "@opensesame/contracts";
 /**
  * Package-level duress compiler fuzz (REDTEAM-C) — no apps/pages imports.
  */
 import { describe, expect, it } from "vitest";
-import { DURESS_ATTACK_TREES } from "./attack-trees.js";
 
 const catalog: CompilerCatalog = {
   ownerPrincipalRefs: ["owner-1"],

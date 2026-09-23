@@ -37,10 +37,13 @@
  * session scope from a shell wrapper mounted only while the vault is open.
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { BOOT_TOOLS } from "../../webmcp/boot-tools.js";
-import { LOGIN_DRAFT_TOOLS } from "../../webmcp/login-tools.js";
-import { OPEN_REVEAL_TOOL, VAULT_TOOLS } from "../../webmcp/vault-tools.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { BOOT_TOOLS } from "@opensesame/app-core/webmcp/boot-tools.js";
+import { LOGIN_DRAFT_TOOLS } from "@opensesame/app-core/webmcp/login-tools.js";
+import {
+  OPEN_REVEAL_TOOL,
+  VAULT_TOOLS,
+} from "@opensesame/app-core/webmcp/vault-tools.js";
 import { createActivation } from "../activation.js";
 import { type ContextWithPorts, tagWebMcpTool } from "../ports-b.js";
 import { WebMcpSessionTools } from "./SessionTools.js";

@@ -1,3 +1,10 @@
+import { releaseDownloads } from "@opensesame/app-core/lib/sops/download.js";
+import { sopsSession } from "@opensesame/app-core/lib/sops/session.js";
+import { SopsWorkflow } from "@opensesame/app-core/lib/sops/workflow.js";
+import {
+  loadVaultIdentities,
+  loadVaultRecipients,
+} from "@opensesame/app-core/sections/settings/sops/identities.js";
 import {
   useEffect,
   useMemo,
@@ -6,12 +13,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useModalFocus } from "../../../lib/modal-focus.js";
-import { releaseDownloads } from "../../../lib/sops/download.js";
-import { sopsSession } from "../../../lib/sops/session.js";
-import { SopsWorkflow } from "../../../lib/sops/workflow.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import { SopsDocumentView } from "./SopsDocumentView.js";
-import { loadVaultIdentities, loadVaultRecipients } from "./identities.js";
 import { notice, useSopsDocumentActions } from "./useSopsDocument.js";
 
 export function SopsDocumentSheet({ onClose }: { onClose: () => void }) {

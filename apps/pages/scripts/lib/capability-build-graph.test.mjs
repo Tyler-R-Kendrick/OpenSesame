@@ -38,7 +38,7 @@ describe("classification", () => {
       "core",
     );
     assert.equal(
-      classify("/repo/apps/pages/src/lib/kv.ts").rationale,
+      classify("/repo/packages/app-core/src/lib/kv.ts").rationale,
       "core lib",
     );
   });

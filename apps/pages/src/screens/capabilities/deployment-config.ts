@@ -4,9 +4,9 @@
  * the deployment. Produced from the snapshot's policy; a file, not a request.
  */
 
+import { documentToYaml } from "@opensesame/app-core/lib/configuration/capabilities-document.js";
+import type { CompositionSnapshot } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { overlapCast } from "@opensesame/os-domain";
-import { documentToYaml } from "../../lib/configuration/capabilities-document.js";
-import type { CompositionSnapshot } from "../../lib/configuration/capabilities-ports.js";
 
 export function deploymentConfigurationYaml(
   snapshot: CompositionSnapshot,

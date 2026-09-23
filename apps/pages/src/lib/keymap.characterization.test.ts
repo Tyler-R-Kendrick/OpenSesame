@@ -1,3 +1,4 @@
+import { registerLegacyShellData } from "@opensesame/app-core/lib/contributions.test-support.js";
 /** @vitest-environment jsdom */
 import {
   afterAll,
@@ -8,7 +9,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { registerLegacyShellData } from "./contributions.test-support.js";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,

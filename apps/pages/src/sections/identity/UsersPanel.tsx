@@ -1,3 +1,13 @@
+import {
+  type DirectoryUser,
+  createDirectoryUser,
+  listDirectoryUsers,
+  updateDirectoryUser,
+} from "@opensesame/app-core/lib/identity-management.js";
+import {
+  type OrgMembership,
+  listOrgMemberships,
+} from "@opensesame/app-core/lib/orgs.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
@@ -7,13 +17,6 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import {
-  type DirectoryUser,
-  createDirectoryUser,
-  listDirectoryUsers,
-  updateDirectoryUser,
-} from "../../lib/identity-management.js";
-import { type OrgMembership, listOrgMemberships } from "../../lib/orgs.js";
 
 /** Provisioning reserves a directory identity; sign-in must still verify it. */
 function useUsers() {

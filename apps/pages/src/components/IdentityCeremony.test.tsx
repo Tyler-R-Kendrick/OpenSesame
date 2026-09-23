@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ConnectorStatus } from "../lib/connectors.js";
+import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
 import {
   IdentityCeremony,
   expiryPhrase,

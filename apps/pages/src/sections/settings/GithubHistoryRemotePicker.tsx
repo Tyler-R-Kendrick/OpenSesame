@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
-import { StatusNote } from "../../components/StatusNote.js";
-import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
-import type { Connection } from "../../lib/connections.js";
+import type { CapabilityConnectorBinding } from "@opensesame/app-core/lib/capabilities.js";
+import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
   type GithubRepoSummary,
   createGithubPasswordRepo,
   listGithubRepos,
   remoteFromRepo,
-} from "../../lib/github-history.js";
+} from "@opensesame/app-core/lib/github-history.js";
+import { useCallback, useEffect, useState } from "react";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { StatusNote } from "../../components/StatusNote.js";
 
 type Props = {
   binding: CapabilityConnectorBinding;

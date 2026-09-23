@@ -2,20 +2,20 @@
  * Wallet › Payment methods — vault cards and bank accounts.
  */
 
-import { useCallback, useState } from "react";
-import { Link } from "react-router";
-import { IconPlus } from "../../components/Icons.js";
-import { listBudgetRows } from "../../lib/spending-ledger.js";
-import { useVault } from "../../lib/vault/hooks.js";
+import { listBudgetRows } from "@opensesame/app-core/lib/spending-ledger.js";
 import {
   assignInstrumentBudget,
   budgetIdForInstrument,
-} from "../../lib/wallet-assignments.js";
+} from "@opensesame/app-core/lib/wallet-assignments.js";
 import {
   listPaymentInstruments,
   paymentInstrumentDetail,
   paymentInstrumentKindLabel,
-} from "../../lib/wallet-instruments.js";
+} from "@opensesame/app-core/lib/wallet-instruments.js";
+import { useCallback, useState } from "react";
+import { Link } from "react-router";
+import { IconPlus } from "../../components/Icons.js";
+import { useVault } from "../../lib/vault/hooks.js";
 
 export function MethodsPanel() {
   const { items } = useVault();

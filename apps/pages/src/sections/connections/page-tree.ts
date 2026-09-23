@@ -1,22 +1,25 @@
-import type { Connection, Provider } from "../../lib/connections.js";
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import {
   canConfigureAutomatically,
   isConnectionCatalogProvider,
-} from "../../lib/connector-guidance.js";
-import { unfinishedConnections } from "../../lib/identity-graph.js";
-import { isManagedConnector } from "../../lib/managed-connectors.js";
-import {
-  type PageTreeLeaf,
-  type PageTreeSource,
-  pageToTree,
-} from "../../lib/page-to-tree.js";
+} from "@opensesame/app-core/lib/connector-guidance.js";
+import { unfinishedConnections } from "@opensesame/app-core/lib/identity-graph.js";
+import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
 import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
   FEATURE_BINDING_CATEGORIES,
   connectorPath,
   isFeatureBindingCategory,
-} from "./shared.js";
+} from "@opensesame/app-core/sections/connections/shared.js";
+import {
+  type PageTreeLeaf,
+  type PageTreeSource,
+  pageToTree,
+} from "../../lib/page-to-tree.js";
 
 function leaf(
   id: string,

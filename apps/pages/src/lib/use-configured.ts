@@ -11,7 +11,10 @@
  * Identity API adds is the networked control-plane.
  */
 
-import { identityBase, isRemoteIdentityConfigured } from "./identity.js";
+import {
+  identityBase,
+  isRemoteIdentityConfigured,
+} from "@opensesame/app-core/lib/identity.js";
 import { useSettingsEpoch } from "./use-settings.js";
 
 /** Always false — Pages no longer speaks Host (ADR 0128). */

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Writes src/lib/vault/fixtures/vault-vectors.json (ADR 0133 §7).
+ * Writes packages/vault-core/src/fixtures/vault-vectors.json
+ * (ADR 0133 §7).
  *
  * The vault modules read the runtime env through the app-core host, which
  * `src/host/boot.ts` installs from Vite's `import.meta.env`, so they load
@@ -14,7 +15,10 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const out = join(root, "src/lib/vault/fixtures/vault-vectors.json");
+const out = join(
+  root,
+  "../../packages/vault-core/src/fixtures/vault-vectors.json",
+);
 
 if (existsSync(out) && !process.argv.includes("--force")) {
   console.error(

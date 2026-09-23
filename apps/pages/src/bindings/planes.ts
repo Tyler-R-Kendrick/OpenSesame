@@ -1,5 +1,8 @@
-import { identityBase } from "../lib/identity.js";
-import { type PlaneStatus, classifyIdentity } from "../lib/planes.js";
+import { identityBase } from "@opensesame/app-core/lib/identity.js";
+import {
+  type PlaneStatus,
+  classifyIdentity,
+} from "@opensesame/app-core/lib/planes.js";
 import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useConnectivityMonitor } from "./connectivity-monitor.js";
 import { useIdentitySession } from "./identity.js";

@@ -1,12 +1,18 @@
-import { useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
-import type { Connection, Provider } from "../../lib/connections.js";
+import type {
+  Connection,
+  Provider,
+} from "@opensesame/app-core/lib/connections.js";
 import {
   buildConnectorReminder,
   hasConnectorReminder,
-} from "../../lib/identity-graph.js";
+} from "@opensesame/app-core/lib/identity-graph.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { type Flash, errorText } from "./shared.js";
 
 /** After a connect, offer to drop a pointer (never the token) into the vault. */
 export function VaultReminderBanner({

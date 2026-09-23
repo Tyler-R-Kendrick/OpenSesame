@@ -1,5 +1,5 @@
+import type { Folder } from "@opensesame/vault-core";
 import { isTouchPointer } from "../../lib/gestures.js";
-import type { Folder } from "../../lib/vault/model.js";
 import { EditorFolder } from "./EditorFolder.js";
 import { EditorType } from "./EditorType.js";
 

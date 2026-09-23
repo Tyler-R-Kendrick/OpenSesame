@@ -9,6 +9,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import {
   type CapabilityId,
   type EffectivePlan,
@@ -20,7 +21,6 @@ import {
   parseInstancePolicy,
   resolveComposition,
 } from "@opensesame/capability-composition";
-import { CAPABILITY_CATALOG } from "../catalog.js";
 import { distributionFromOwnership } from "../ownership.js";
 
 const profilesDir = join(

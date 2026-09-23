@@ -1,3 +1,14 @@
+import "./install-test-host.js";
+import {
+  buildOfflineBackup,
+  serializeOfflineBackup,
+} from "@opensesame/app-core/lib/vault/offline-backup.js";
+import { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  wrapVaultKeyWithPin,
+  wrapVaultKeyWithPrf,
+} from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { vfsFlush } from "@opensesame/app-core/lib/vfs.js";
 /**
  * Golden vault vectors (ADR 0133 §7, docs/architecture/vault-format-v1.md).
  *
@@ -14,22 +25,13 @@
 import { overlapCast } from "@opensesame/os-domain";
 import {
   type SealedBlob,
+  type VaultBody,
   type VaultHeader,
+  createItem,
   createVault,
   sealJson,
   vaultSealBinding,
-} from "../../src/lib/vault/crypto.js";
-import { type VaultBody, createItem } from "../../src/lib/vault/model.js";
-import {
-  buildOfflineBackup,
-  serializeOfflineBackup,
-} from "../../src/lib/vault/offline-backup.js";
-import { VaultStore } from "../../src/lib/vault/store.js";
-import {
-  wrapVaultKeyWithPin,
-  wrapVaultKeyWithPrf,
-} from "../../src/lib/vault/unlock-methods.js";
-import { vfsFlush } from "../../src/lib/vfs.js";
+} from "@opensesame/vault-core";
 
 /** NFKC folds the fullwidth P and the ﬁ ligature: "Passphrase fixture vector 2026". */
 export const VECTOR_PASSWORD = "Ｐassphrase ﬁxture vector 2026";

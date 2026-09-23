@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import { crossOriginOpenerPolicy } from "@opensesame/app-core/lib/opener-policy.js";
 import { createServer } from "vite";
 import { test } from "vitest";
-import { crossOriginOpenerPolicy } from "../src/lib/opener-policy.js";
 
 const base = "/OpenSesame/";
 

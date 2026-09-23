@@ -1,3 +1,4 @@
+import { buildRepoSuggestions } from "@opensesame/app-core/sections/connections/GithubBackupRepoSuggestions.js";
 /**
  * One repository combobox: type a valid owner/repo or pick from the list.
  */
@@ -9,7 +10,6 @@ import {
   applyChoice,
   useOutsideClose,
 } from "./GithubBackupRepoCombobox.js";
-import { buildRepoSuggestions } from "./GithubBackupRepoSuggestions.js";
 import type { useGithubBackupRepo } from "./useGithubBackupRepo.js";
 
 type RepoState = ReturnType<typeof useGithubBackupRepo>;

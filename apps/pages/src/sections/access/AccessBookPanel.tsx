@@ -1,6 +1,9 @@
+import {
+  listLocalGrants,
+  removeLocalGrant,
+} from "@opensesame/app-core/lib/access-book.js";
 import { useState } from "react";
 import { IconTrash } from "../../components/Icons.js";
-import { listLocalGrants, removeLocalGrant } from "../../lib/access-book.js";
 
 /**
  * Grants this device holds in `access.book.v1` — independent of Host

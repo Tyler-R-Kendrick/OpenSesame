@@ -58,7 +58,9 @@ pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disabl
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
-pnpm quality:app-core    # Pages→app-core partition (ADR 0133): no moving code may import staying code or React
+pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
+                          #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
+                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
 pnpm quality:bundle      # build apps/pages|pwa|console, check bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
@@ -251,21 +253,22 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `apps/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
-| `apps/pages` | Installable GitHub Pages offline PWA — authority vault |
-| `apps/pages/src/tutorial` | In-product contextual support: the semantic target/route/predicate registries, the Driver.js renderer, the on-device and AG-UI transports, and the support panel (ADR 0088) |
-| `apps/pages/src/lib/nango-directory.ts`, `apps/pages/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
+| `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
+| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
+| `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Background worker |
 | `apps/browser-extension` | WXT browser extension |
 | `apps/example-rp-alpha` / `apps/example-rp-beta` | Example relying-party apps |
 | `apps/example-agent` / `apps/example-headless` | Example agent / headless client |
-| `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133). Today: the host (`configureHost`/`env()`); step 3 relocates Pages' non-UI logic here with `git mv`. No React; Pages installs the browser host first thing in `main.tsx` (`src/host/boot.ts`) |
+| `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
+| `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |
 | `packages/api-client` | Host API TS client |
-| `packages/cli` | Client CLI, binary `opensesame-id` |
+| `packages/cli` | Client CLI, binary `opensesame-id` — includes `vault verify <file>` / `vault ls <file>` over an export or offline backup (master password from the terminal only; names and paths, never values) |
 | `packages/auth-upstream` / `oauth-provider` / `claims` / `device-auth` | Identity-plane building blocks |
 | `packages/policy` / `audit` / `contracts` | Authorization policy, audit trail, shared contracts |
 | `packages/ceremony-kit` | UI-independent ceremony logic — canonical interaction URLs, the interaction client, display-safe summaries (ADR 0086) |
@@ -383,7 +386,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   by itself); once the ceremony is answered or skipped, setup lives behind
   unlock (Settings), not as quiet foot links. `setupRequired` does not
   exist and must not come back. No
-  default may point at a local host: `lib/settings.ts` defaults are empty on
+  default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
   offer, never something the app assumes. With no Identity API configured a
   guest or federated sign-in is complete, not pending — no notice may name a
@@ -405,10 +408,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
-  legitimate. `continueAsGuest` (`apps/pages/src/lib/guest-auth.ts`) seals a
+  legitimate. `continueAsGuest` (`packages/app-core/src/lib/guest-auth.ts`) seals a
   local vault and works with no Identity service at all; the registered-auth
   claim degrades to a bell notice (ADR 0033). Beside a sealed vault the store
-  runs the guest in the isolated `GUEST_TOMB` (`apps/pages/src/lib/vault/store.ts`
+  runs the guest in the isolated `GUEST_TOMB` (`packages/app-core/src/lib/vault/store.ts`
   `createGuest`), so the existing vault is never read, written, or deleted,
   and `lock()` keeps the unlock screen on guest when that was the last
   authorized account — isolation is the answer to "a guest would
@@ -426,7 +429,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   plaintext header, then the authenticator gate if enrolled). The unlock tabs
   are exactly the enrolled methods, never a uniform three; an enrolled
   authenticator code is announced as step 2 before step 1 is taken. Sign out
-  is one operation in `apps/pages/src/lib/session-exit.ts` (forget the
+  is one operation in `packages/app-core/src/lib/session-exit.ts` (forget the
   assertion, revoke Identity, lock, note it for the sign-in panel); "switch
   account" is that plus `prompt=login` on the next OIDC leg, and never on
   Shoo's dialect, which ignores it. A second step (authenticator, email or
@@ -445,7 +448,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   ([ADR 0091](docs/adr/0091-account-exits-and-unlock-ceremony.md)).
 - A device holds several vaults (the personal tomb, one per project, the
   guest tomb), and there is exactly one list of them: `listDeviceVaults()` in
-  `apps/pages/src/lib/vaults.ts`, rendered by `components/VaultList.tsx` on the
+  `packages/app-core/src/lib/vaults.ts`, rendered by `components/VaultList.tsx` on the
   front door (`screens/VaultsScreen.tsx`), the `@tomb` prompt, and Settings →
   Vaults. Do not add a second switcher. A project's name is sealed inside its
   tomb, so nothing may show it before unlock (`vaultLabel` says
@@ -540,7 +543,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   GuideLang and nothing else, and GuideLang has no directive for a click, a
   keystroke, a submit, a fetch, a tool call, a selector or a URL — an id it
   names is resolved through the target registry in
-  `apps/pages/src/tutorial/registry`, or the program is discarded whole. Model
+  `packages/app-core/src/tutorial/registry`, or the program is discarded whole. Model
   text reaches the document as text; the renderer hands Driver.js a placeholder
   and writes prose with `textContent`. Page context is assembled from authored
   registries only, never from the DOM, so no secret, item name or folder name
@@ -552,9 +555,9 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
   Adding a feature is five things beside ADR 0065's registry entry: a
-  descriptor in `apps/pages/src/lib/capabilities/catalog-*.ts`, a module entry
+  descriptor in `packages/app-core/src/lib/capabilities/catalog-*.ts`, a module entry
   `apps/pages/src/modules/<capability-id>/runtime.ts` exporting
-  `capabilityRuntime`, an ownership rule in `lib/capabilities/ownership.ts`
+  `capabilityRuntime`, an ownership rule in `apps/pages/src/lib/capabilities/ownership.ts`
   plus a source-classification rule, an operation mapping in
   `packages/capability-registry/src/capability-map.ts`, and a profile fixture
   that proves its **absence** (`minimal-local` resolves to zero optional

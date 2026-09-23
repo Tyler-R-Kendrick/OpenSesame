@@ -1,6 +1,7 @@
-import { type ItemKindRow, itemKindsSnapshot } from "../lib/item-kinds.js";
+import { foldersForKind } from "@opensesame/app-core/components/vault-rail-model.js";
+import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
+import type { Folder, VaultItem } from "@opensesame/vault-core";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
-import type { Folder, VaultItem } from "../lib/vault/model.js";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 
 export type VaultCounts = {
@@ -10,37 +11,6 @@ export type VaultCounts = {
   byKind: Map<string, number>;
   byFolder: Map<string, number>;
 };
-
-export function foldersForKind(
-  kind: string,
-  items: VaultItem[],
-  folders: Folder[],
-) {
-  const ids = new Set(
-    items
-      .filter(
-        (item) =>
-          item.deletedAt === null && item.kind === kind && item.folderId,
-      )
-      .map((item) => item.folderId),
-  );
-  return folders.filter((folder) => ids.has(folder.id));
-}
-
-export function uniqueFolderKind(
-  items: VaultItem[],
-  folderId: string,
-  rows: readonly ItemKindRow[] = itemKindsSnapshot(),
-): string | null {
-  const kinds = new Set(
-    items
-      .filter((item) => item.deletedAt === null && item.folderId === folderId)
-      .map((item) => item.kind),
-  );
-  if (kinds.size !== 1) return null;
-  const kind = [...kinds][0];
-  return kind && rows.some((entry) => entry.id === kind) ? kind : null;
-}
 
 export function VaultRail({
   items,

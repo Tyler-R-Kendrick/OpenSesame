@@ -1,11 +1,11 @@
-import { createElement } from "react";
 import {
   type PresentationClass,
   type VaultItemView,
   projectCounts,
   projectVisibleItems,
-} from "../../lib/duress/compartment/project.js";
-import type { ScopedView } from "../../lib/duress/compartment/scope.js";
+} from "@opensesame/app-core/lib/duress/compartment/project.js";
+import type { ScopedView } from "@opensesame/app-core/lib/duress/compartment/scope.js";
+import { createElement } from "react";
 
 /** Restricted / decoy vault list — prefer ScopedView from openPresentation. */
 export function CompartmentProjectionView(

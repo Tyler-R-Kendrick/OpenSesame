@@ -1,10 +1,13 @@
-import { useEffect, useRef } from "react";
 import {
   type Provider,
   startGithubAppRegistration,
   submitGithubAppManifest,
-} from "../../lib/connections.js";
-import { type Flash, errorText } from "./shared.js";
+} from "@opensesame/app-core/lib/connections.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
+import { useEffect, useRef } from "react";
 
 export function useGithubAppRegistration(
   provider: Pick<Provider, "id" | "displayName">,

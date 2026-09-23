@@ -1,18 +1,21 @@
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
+import { holdBrowserCertificate } from "@opensesame/app-core/lib/transport-browser.js";
+import {
+  loadTransportSettings,
+  saveTransportSettings,
+} from "@opensesame/app-core/lib/transport-settings.js";
+import { transportStatusWire } from "@opensesame/app-core/lib/transport-status.fixture.js";
+import {
+  resetTransportStatusForTests,
+  transportStatusSeams,
+} from "@opensesame/app-core/lib/transport-status.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadSettings, saveSettings } from "../../../lib/settings.js";
-import { holdBrowserCertificate } from "../../../lib/transport-browser.js";
-import {
-  loadTransportSettings,
-  saveTransportSettings,
-} from "../../../lib/transport-settings.js";
-import { transportStatusWire } from "../../../lib/transport-status.fixture.js";
-import {
-  resetTransportStatusForTests,
-  transportStatusSeams,
-} from "../../../lib/transport-status.js";
 import { TransportPanel } from "./TransportPanel.js";
 
 const REMOTE = "https://authority.example.test";

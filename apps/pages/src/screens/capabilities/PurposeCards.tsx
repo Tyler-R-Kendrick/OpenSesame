@@ -6,7 +6,7 @@
  * object (a purpose), which is why it may carry words.
  */
 
-import type { CapabilityPreset } from "../../lib/configuration/capabilities-ports.js";
+import type { CapabilityPreset } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 
 export function PurposeCards({
   presets,

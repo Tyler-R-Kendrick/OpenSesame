@@ -1,3 +1,8 @@
+import {
+  decideRemotePreview,
+  remotePreviewSnapshot,
+  requestRemoteConsent,
+} from "@opensesame/app-core/tutorial/agents/ag-ui/consent.js";
 /** @vitest-environment jsdom */
 import {
   act,
@@ -7,11 +12,6 @@ import {
   screen,
 } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import {
-  decideRemotePreview,
-  remotePreviewSnapshot,
-  requestRemoteConsent,
-} from "../agents/ag-ui/consent.js";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
 
 afterEach(cleanup);

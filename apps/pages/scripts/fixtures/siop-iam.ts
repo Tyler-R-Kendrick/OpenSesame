@@ -1,14 +1,15 @@
+import "./install-browser-host.js";
 import {
   configureLocalApplication,
   readLocalApplications,
-} from "../../src/lib/local-applications.js";
+} from "@opensesame/app-core/lib/local-applications.js";
 import {
   type LocalDirectoryChange,
   changeLocalDirectory,
   readLocalDirectory,
-} from "../../src/lib/local-directory.js";
-import { enrollLocalPasskey } from "../../src/lib/local-passkeys.js";
-import { vaultStore } from "../../src/lib/vault/store.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { enrollLocalPasskey } from "@opensesame/app-core/lib/local-passkeys.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 
 /** Disposable browser-context fixture. This entry is never part of the Pages build. */
 export async function seed() {

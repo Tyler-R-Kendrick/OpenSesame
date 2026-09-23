@@ -8,8 +8,8 @@
  * support: never imported by the app.
  */
 
+import { registerLegacyShellData } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { vi } from "vitest";
-import { registerLegacyShellData } from "./contributions.test-support.js";
 import type { ListingMotion, VaultKeymapTarget } from "./keymap.js";
 
 /**

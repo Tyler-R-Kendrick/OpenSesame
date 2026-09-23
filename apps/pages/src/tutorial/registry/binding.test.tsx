@@ -1,14 +1,14 @@
-/** @vitest-environment jsdom */
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { useState } from "react";
-import { afterEach, describe, expect, it } from "vitest";
-import { useGuideTarget } from "./react.jsx";
 import {
   duplicateGuideTargetMounts,
   isMountedGuideTarget,
   observeGuideTarget,
   resolveGuideTargetElement,
-} from "./targets.js";
+} from "@opensesame/app-core/tutorial/registry/targets.js";
+/** @vitest-environment jsdom */
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { useState } from "react";
+import { afterEach, describe, expect, it } from "vitest";
+import { useGuideTarget } from "./react.jsx";
 
 /**
  * Binding has to follow the element, not the component that renders it.

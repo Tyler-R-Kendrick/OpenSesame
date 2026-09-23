@@ -10,7 +10,7 @@ import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ConnectorStatus } from "../lib/connectors.js";
+import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
 
 type ConnectivityBarTestEnvironment = { connectors: ConnectorStatus[] };
 const env: ConnectivityBarTestEnvironment = { connectors: [] };

@@ -1,4 +1,12 @@
 import {
+  type Folder,
+  type VaultItem,
+  createTypedItem,
+  itemTypeRegistry,
+  newValues,
+  syncInstalledTypes,
+} from "@opensesame/vault-core";
+import {
   cleanup,
   fireEvent,
   render,
@@ -16,13 +24,6 @@ import {
   it,
   vi,
 } from "vitest";
-import {
-  itemTypeRegistry,
-  newValues,
-  syncInstalledTypes,
-} from "../../lib/vault/item-types.js";
-import type { Folder, VaultItem } from "../../lib/vault/model.js";
-import { createTypedItem } from "../../lib/vault/model.js";
 
 /**
  * The generic ceremony, end to end (ADR 0087).

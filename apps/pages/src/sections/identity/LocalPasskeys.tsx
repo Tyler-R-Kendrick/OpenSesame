@@ -1,4 +1,15 @@
 import {
+  type LocalPasskey,
+  readLocalPasskeys,
+  revokeLocalPasskey,
+} from "@opensesame/app-core/lib/local-credentials.js";
+import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import {
+  type LocalPasskeyVaultOffer,
+  viewBuffer,
+} from "@opensesame/app-core/lib/local-passkeys.js";
+import {
   type RefObject,
   useEffect,
   useLayoutEffect,
@@ -7,17 +18,6 @@ import {
 } from "react";
 import { IconCheck, IconPlus, IconX } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
-import {
-  type LocalPasskey,
-  readLocalPasskeys,
-  revokeLocalPasskey,
-} from "../../lib/local-credentials.js";
-import { LocalDirectoryError } from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import {
-  type LocalPasskeyVaultOffer,
-  viewBuffer,
-} from "../../lib/local-passkeys.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { LocalIdentitySession } from "./LocalIdentitySession.js";
 import { CredentialRows } from "./LocalPasskeyRows.js";
@@ -210,7 +210,9 @@ export function useCredentialCommands(
         setMessage("Passkey revoked.");
         return;
       }
-      const passkeys = await import("../../lib/local-passkeys.js");
+      const passkeys = await import(
+        "@opensesame/app-core/lib/local-passkeys.js"
+      );
       const enrolled = await passkeys.enrollLocalPasskey(tomb, principalId);
       tracked.setKeys(
         (await readLocalPasskeys(tomb)).filter(

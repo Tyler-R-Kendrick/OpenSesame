@@ -1,9 +1,9 @@
+import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import type { LocalSession } from "@opensesame/app-core/lib/local-sessions.js";
 import { useEffect, useState } from "react";
 import { IconLock, IconPasskey } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { LocalDirectoryError } from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
-import type { LocalSession } from "../../lib/local-sessions.js";
 
 export function useLocalSessionPresentation(tomb: string, principalId: string) {
   const [session, setSession] = useState<LocalSession | null>(null);
@@ -14,7 +14,7 @@ export function useLocalSessionPresentation(tomb: string, principalId: string) {
     async function refresh() {
       const request = ++generation;
       try {
-        const api = await import("../../lib/local-sessions.js");
+        const api = await import("@opensesame/app-core/lib/local-sessions.js");
         const current = await api.currentLocalIdentitySession(
           tomb,
           principalId,
@@ -82,7 +82,7 @@ export function LocalIdentitySession({
     setBusy(true);
     setError("");
     try {
-      const api = await import("../../lib/local-sessions.js");
+      const api = await import("@opensesame/app-core/lib/local-sessions.js");
       if (signOut) {
         if (session) await api.revokeLocalIdentitySession(tomb, session.id);
         setSession(null);

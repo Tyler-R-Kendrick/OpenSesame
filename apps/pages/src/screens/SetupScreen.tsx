@@ -32,9 +32,12 @@ import {
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
 
+import {
+  loadSettings,
+  signInMethods,
+} from "@opensesame/app-core/lib/settings.js";
+import { completeSetup } from "@opensesame/app-core/lib/setup.js";
 import { landFocus } from "../lib/focus.js";
-import { loadSettings, signInMethods } from "../lib/settings.js";
-import { completeSetup } from "../lib/setup.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { CapabilitySetup } from "./capabilities/CapabilitySetup.js";

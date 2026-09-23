@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
-import { StatusMark } from "../../components/StatusMark.js";
 import {
   type BrowserInferenceVerdict,
   browserInference,
-} from "../../lib/browser-inference.js";
-import { detectSpeechRecognition } from "../../lib/command-bar/speech.js";
+} from "@opensesame/app-core/lib/browser-inference.js";
+import { detectSpeechRecognition } from "@opensesame/app-core/lib/command-bar/speech.js";
 import {
   MODEL_PROVIDER_PRESETS,
   type ModelProviderPreset,
-} from "../../lib/model-catalog.js";
+} from "@opensesame/app-core/lib/model-catalog.js";
 import {
   type ModelProviderRecord,
   NO_MODEL_PROVIDER,
@@ -16,13 +14,15 @@ import {
   loadModelProvider,
   resolveModelPlane,
   saveModelProvider,
-} from "../../lib/model-provider.js";
+} from "@opensesame/app-core/lib/model-provider.js";
 import {
   type ModelSlugOption,
   connectedHarnessProviderIds,
   inferenceSlugOptions,
   voiceSlugOptions,
-} from "../../lib/model-slugs.js";
+} from "@opensesame/app-core/lib/model-slugs.js";
+import { useCallback, useEffect, useState } from "react";
+import { StatusMark } from "../../components/StatusMark.js";
 import { ModelRoleSelects } from "./AiModelRoles.js";
 
 export type { ModelProviderPreset };

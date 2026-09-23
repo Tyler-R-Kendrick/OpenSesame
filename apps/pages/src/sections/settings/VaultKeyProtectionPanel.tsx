@@ -1,14 +1,13 @@
-import { type Ref, useMemo, useState } from "react";
-import { IconAlert, IconPlus } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { loadSettings } from "../../lib/settings.js";
-import { useVault } from "../../lib/vault/hooks.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {
   LIFECYCLE_NOT_READY_REASON,
   preferenceMechanismLabel,
-  protectionLifecycleStubs,
   selectProtectionView,
-} from "../../lib/vault/protection/protection-view.js";
+} from "@opensesame/app-core/lib/vault/protection/protection-view.js";
+import { type Ref, useMemo, useState } from "react";
+import { IconAlert, IconPlus } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import {
   type ProtectionSheetRequest,
@@ -17,32 +16,12 @@ import {
 import { ProtectorRow } from "./VaultProtectorRow.js";
 import { useVaultKeyProtectionActions } from "./useVaultKeyProtectionActions.js";
 import "./vault-key-protection.css";
-
-export type VaultKeyProtectionActions = {
-  onAdd?: () => void;
-  onTest?: (protectorId: string) => void;
-  onPreferred?: (protectorId: string) => void;
-  onRemove?: (protectorId: string) => void;
-  onRotateCompromised?: () => void;
-};
+import {
+  type VaultKeyProtectionActions,
+  resolveActions,
+} from "@opensesame/app-core/sections/settings/vault-key-protection-panel-model.js";
 
 type ProtectionView = ReturnType<typeof selectProtectionView>;
-
-function resolveActions(
-  actions: VaultKeyProtectionActions | undefined,
-): Required<VaultKeyProtectionActions> {
-  return {
-    onAdd: actions?.onAdd ?? (() => protectionLifecycleStubs.add()),
-    onTest: actions?.onTest ?? ((id) => protectionLifecycleStubs.test(id)),
-    onPreferred:
-      actions?.onPreferred ?? ((id) => protectionLifecycleStubs.preferred(id)),
-    onRemove:
-      actions?.onRemove ?? ((id) => protectionLifecycleStubs.remove(id)),
-    onRotateCompromised:
-      actions?.onRotateCompromised ??
-      (() => protectionLifecycleStubs.rotateCompromised()),
-  };
-}
 
 function VaultKeyProtectionBody({
   panelRef,

@@ -1,6 +1,3 @@
-import { useRef, useState, useSyncExternalStore } from "react";
-import { IconDownload, IconUpload } from "../../../components/Icons.js";
-import { StatusMark } from "../../../components/StatusMark.js";
 import {
   PublicPemError,
   exportPublicCertificatePem,
@@ -8,8 +5,11 @@ import {
   holdBrowserCertificate,
   importPublicCertificatePem,
   subscribeBrowserCertificate,
-} from "../../../lib/transport-browser.js";
-import type { BrowserManagedProfile } from "../../../lib/transport-settings.js";
+} from "@opensesame/app-core/lib/transport-browser.js";
+import type { BrowserManagedProfile } from "@opensesame/app-core/lib/transport-settings.js";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { IconDownload, IconUpload } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 
 const REFUSAL_LABEL = {
   too_large: "Larger than a certificate",

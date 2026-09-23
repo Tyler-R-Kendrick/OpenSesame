@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { IconCheck } from "../../components/Icons.js";
 import {
   evaluateDecision,
   localApplicationEvaluator,
-} from "../../lib/configuration/evaluate.js";
+} from "@opensesame/app-core/lib/configuration/evaluate.js";
 import {
   type SavedPolicyTest,
   publicationBlocked,
   runSavedPolicyTests,
-} from "../../lib/configuration/policy-tests.js";
-import type { LocalScopeRoles } from "../../lib/local-application-policy.js";
+} from "@opensesame/app-core/lib/configuration/policy-tests.js";
+import type { LocalScopeRoles } from "@opensesame/app-core/lib/local-application-policy.js";
+import { useState } from "react";
+import { IconCheck } from "../../components/Icons.js";
 
 export function ApplicationDiagnostics(props: {
   policy?: LocalScopeRoles[];

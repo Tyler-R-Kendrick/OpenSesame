@@ -11,11 +11,11 @@
  * least of all the one that drops their keys.
  */
 
+import { guideGoal } from "@opensesame/app-core/tutorial/registry/goals.js";
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { fakeAgentAnswering } from "@opensesame/support-agent";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { guideGoal } from "../../registry/goals.js";
-import { resolveGuideTargetElement } from "../../registry/targets.js";
 import {
   askSupport,
   countClicks,

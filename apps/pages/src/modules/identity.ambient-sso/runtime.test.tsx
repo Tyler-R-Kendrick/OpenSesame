@@ -1,9 +1,9 @@
-/** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   deployedAmbientPolicy,
   resetDeployedAmbientPolicy,
-} from "../../lib/ambient-auth/runtime.js";
+} from "@opensesame/app-core/lib/ambient-auth/runtime.js";
+/** @vitest-environment jsdom */
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ContextWithPorts } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,

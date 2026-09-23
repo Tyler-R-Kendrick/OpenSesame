@@ -1,3 +1,5 @@
+import type { SignInMethods } from "@opensesame/app-core/lib/settings.js";
+import type { UnlockMethodId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 /**
  * The seams every UnlockScreen suite shares: the vault store's state and
  * methods, WebAuthn, guest, federation, identity, organisations, the provider
@@ -12,8 +14,6 @@ import {
 } from "@opensesame/os-domain";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
-import type { SignInMethods } from "../lib/settings.js";
-import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
 export type TestVaultState = {
   status: "empty" | "locked";
@@ -95,22 +95,25 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => v.store,
 });
 
-import { unlockMethodsSeams } from "../lib/vault/unlock-methods.js";
+import { unlockMethodsSeams } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { webauthnHostSeams } from "@opensesame/app-core/lib/vault/webauthn-host.js";
 export const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
 Object.assign(unlockMethodsSeams, {
   listAvailableUnlockMethods: () => v.methods,
   preferredUnlockMethod: () => v.preferred,
+});
+Object.assign(webauthnHostSeams, {
   checkWebauthnHost: () => v.host,
   describeWebauthnError: (error: BoundaryValue) =>
     `webauthn: ${error instanceof Error ? error.message : String(error)}`,
 });
 
-import { guestAuthSeams } from "../lib/guest-auth.js";
+import { guestAuthSeams } from "@opensesame/app-core/lib/guest-auth.js";
 export const continueAsGuest = vi.fn();
 export const resumeGuestSession = vi.fn();
 Object.assign(guestAuthSeams, { continueAsGuest, resumeGuestSession });
 
-import { federationSeams } from "../lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 export const beginSignIn = vi.fn();
 export const UPSTREAM = {
   id: "shoo",
@@ -127,10 +130,10 @@ Object.assign(federationSeams, {
 
 export const FEDERATED_BUTTON = `Continue with ${UPSTREAM.accountKind}`;
 
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { identityHookSeams } from "../bindings/identity.js";
-import { deviceIdentitySeams } from "../lib/device-identity.js";
-import { identitySeams } from "../lib/identity.js";
-import type { IdentitySession } from "../lib/identity.js";
 identitySeams.identityBase = () => "http://127.0.0.1:18788";
 export const endSession = vi.fn();
 export type SessionHolder = { current: IdentitySession | null };
@@ -138,12 +141,12 @@ export const sessionHolder: SessionHolder = { current: null };
 identityHookSeams.useIdentitySession = () => sessionHolder.current;
 identitySeams.endSession = endSession;
 
-import { orgSeams } from "../lib/orgs.js";
+import { orgSeams } from "@opensesame/app-core/lib/orgs.js";
 export const lookupOrgTenant = vi.fn();
 export const lookupOrgByDomain = vi.fn();
 Object.assign(orgSeams, { lookupOrgTenant, lookupOrgByDomain });
 
-import { providersSeams } from "../lib/providers.js";
+import { providersSeams } from "@opensesame/app-core/lib/providers.js";
 export const listFederatedProviders = vi.fn();
 export const requestEmailMagicLink = vi.fn();
 Object.assign(providersSeams, {

@@ -1,11 +1,11 @@
+import { DEFAULT_PASSWORD_REPO_NAME } from "@opensesame/app-core/lib/github-history.js";
+import { sanitizeRepoSlug } from "@opensesame/app-core/sections/connections/GithubBackupRepoResolve.js";
+import type { RepoSuggestion } from "@opensesame/app-core/sections/connections/GithubBackupRepoSuggestions.js";
 /**
  * Combobox chrome for the GitHub backup repository field.
  */
 import { type KeyboardEvent, useEffect } from "react";
 import { IconChevronRight } from "../../components/Icons.js";
-import { DEFAULT_PASSWORD_REPO_NAME } from "../../lib/github-history.js";
-import { sanitizeRepoSlug } from "./GithubBackupRepoResolve.js";
-import type { RepoSuggestion } from "./GithubBackupRepoSuggestions.js";
 import type { useGithubBackupRepo } from "./useGithubBackupRepo.js";
 
 type RepoState = ReturnType<typeof useGithubBackupRepo>;

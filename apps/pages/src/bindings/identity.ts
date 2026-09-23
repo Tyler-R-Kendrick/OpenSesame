@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
 import {
   type IdentitySession,
   currentSession,
   ensureIdentitySession,
   orphanSessionActive,
   subscribeIdentitySession,
-} from "../lib/identity.js";
+} from "@opensesame/app-core/lib/identity.js";
+import { useCallback, useEffect, useState } from "react";
 
 /** Live orphan-cookie state, so a failed revoke puts the warning back. */
 function useOrphanSessionDefault(): boolean {

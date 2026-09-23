@@ -18,11 +18,25 @@
  * them is part of a support journey, and leaving them in would make every
  * story below a test of them as well.
  */
-import { guideGoalIds } from "../../registry/goals.js";
-import { GUIDE_ROUTES } from "../../registry/routes.js";
-import { guidePredicateIds } from "../../registry/state.js";
-import { guideTargetIds } from "../../registry/targets.js";
+import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
+import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
+import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 
+import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
+import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
+import { isKnownGuideRoute } from "@opensesame/app-core/tutorial/registry/routes.js";
+import {
+  isKnownGuidePredicate,
+  observeGuidePredicate,
+  readGuidePredicate,
+} from "@opensesame/app-core/tutorial/registry/state.js";
+import {
+  clearMountedGuideTargets,
+  isKnownGuideTarget,
+  isMountedGuideTarget,
+  observeGuideTarget,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 import { compileGuide } from "@opensesame/guide-lang";
 import type {
   GuideOutcome,
@@ -54,20 +68,6 @@ import { registerLegacyShell } from "../../../components/legacy-sections.test-su
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { CatalogPanel } from "../../../sections/connections/CatalogPanel.js";
 import { HealthPanel } from "../../../sections/vault/HealthPanel.js";
-import { buildSupportPageContext } from "../../registry/context.js";
-import { registerGuidePredicates } from "../../registry/predicates.js";
-import { isKnownGuideRoute } from "../../registry/routes.js";
-import {
-  isKnownGuidePredicate,
-  observeGuidePredicate,
-  readGuidePredicate,
-} from "../../registry/state.js";
-import {
-  clearMountedGuideTargets,
-  isKnownGuideTarget,
-  isMountedGuideTarget,
-  observeGuideTarget,
-} from "../../registry/targets.js";
 import {
   type SupportEngine,
   type SupportHost,

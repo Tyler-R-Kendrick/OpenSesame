@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { kvDurability } from "../../lib/kv.js";
-import { ensureDefaultAccess } from "../../lib/local-access-bootstrap.js";
+import { kvDurability } from "@opensesame/app-core/lib/kv.js";
+import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import {
   type LocalDirectory,
   type LocalDirectoryChange,
@@ -11,8 +8,11 @@ import {
   type LocalIdentityKind,
   changeLocalDirectory,
   readLocalDirectory,
-} from "../../lib/local-directory.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { DirectoryForm, DirectoryRows, LABELS } from "./LocalDirectoryViews.js";
 

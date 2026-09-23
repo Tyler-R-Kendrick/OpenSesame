@@ -60,4 +60,4 @@ OpenSesame’s Pages/Host embedded catalog imports Fnox-parity provider coverage
 | `fnox.toml` | Not adopted as Host config — `.env.schema` / settings instead |
 
 Related: [`connectors/fnox-parity.json`](../../connectors/fnox-parity.json),
-[`apps/pages/src/lib/embedded-catalog.ts`](../../apps/pages/src/lib/embedded-catalog.ts).
+[`packages/app-core/src/lib/embedded-catalog.ts`](../../packages/app-core/src/lib/embedded-catalog.ts).

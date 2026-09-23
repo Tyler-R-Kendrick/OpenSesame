@@ -1,3 +1,9 @@
+import {
+  type Strength,
+  defaultPassphraseOptions,
+  estimateStrength,
+  generate,
+} from "@opensesame/app-core/lib/vault/password.js";
 import { type FormEvent, useState } from "react";
 import { FieldShell } from "../components/FieldShell.js";
 import {
@@ -9,12 +15,6 @@ import {
 } from "../components/Icons.js";
 import { StatusNote } from "../components/StatusNote.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import {
-  type Strength,
-  defaultPassphraseOptions,
-  estimateStrength,
-  generate,
-} from "../lib/vault/password.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 
 function StrengthReadout({

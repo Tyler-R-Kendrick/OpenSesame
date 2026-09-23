@@ -1,3 +1,11 @@
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import {
+  idpRegistrySeams,
+  listIdpRegistrations,
+  registerIdp,
+} from "@opensesame/app-core/lib/idp-registry.js";
+import { providersSeams } from "@opensesame/app-core/lib/providers.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -12,25 +20,17 @@ import {
 } from "vitest";
 /** @vitest-environment jsdom */
 import { identityHookSeams } from "../../bindings/identity.js";
-import { federationSeams } from "../../lib/federation.js";
-import { identitySeams } from "../../lib/identity.js";
-import {
-  idpRegistrySeams,
-  listIdpRegistrations,
-  registerIdp,
-} from "../../lib/idp-registry.js";
-import { providersSeams } from "../../lib/providers.js";
 
-import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
 import {
   IDENTITY_ROUTES,
   IDENTITY_TARGETS,
-} from "../../tutorial/registry/identity-catalog.js";
-import { IDENTITY_GOALS } from "../../tutorial/registry/identity-goals.js";
+} from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
+import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
 import { IdentitySection } from "../IdentitySection.js";
 import { contributeIdentityViews } from "./identity-views.js";
 
-import { IDENTITY_VIEWS } from "../../lib/section-view-names.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning), and each contributes its own view. These cases
 // describe a deployment that approved them, so they register the same

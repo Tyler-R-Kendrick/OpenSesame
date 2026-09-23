@@ -27,7 +27,7 @@ import {
   SOPS_VERSION,
   provisionOracle,
   runSops,
-} from "./sops-oracle/oracle.mjs";
+} from "../../../packages/app-core/scripts/sops-oracle/oracle.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, "..", "src", "lib", "sops", "fixtures", "upstream");

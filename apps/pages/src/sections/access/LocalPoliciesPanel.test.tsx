@@ -1,18 +1,18 @@
-/** @vitest-environment jsdom */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   configureLocalApplication,
   readLocalApplications,
-} from "../../lib/local-applications.js";
+} from "@opensesame/app-core/lib/local-applications.js";
 import {
   type LocalDirectoryChange,
   changeLocalDirectory,
   readLocalDirectory,
-} from "../../lib/local-directory.js";
-import { mintVaultKey } from "../../lib/vault/crypto.js";
-import { lockAllTombs, unlockTomb } from "../../lib/vfs.js";
+} from "@opensesame/app-core/lib/local-directory.js";
+import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import { mintVaultKey } from "@opensesame/vault-core";
+/** @vitest-environment jsdom */
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalPolicyEditor } from "./LocalPoliciesPanel.js";
 
 let tomb: string;

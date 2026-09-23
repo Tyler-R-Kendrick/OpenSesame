@@ -3,8 +3,8 @@
  *
  * Two identifier universes meet here and stay distinct: the keys are the
  * registry's *operation* ids (unchanged, ADR 0065), the values are the Pages
- * *product capability* ids a person selects (`apps/pages/src/lib/capabilities/
- * catalog.ts`). Every registry entry carrying a `pwa` or `webmcp` surface is
+ * *product capability* ids a person selects (`packages/app-core/src/lib/
+ * capabilities/catalog.ts`). Every registry entry carrying a `pwa` or `webmcp` surface is
  * owned by exactly one product capability; the registry test enforces
  * completeness and the Pages catalog test enforces that the catalog's
  * `operationIds` are exactly this map grouped by value.
@@ -53,7 +53,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: access authority (local PAM + Host plane) -------------
     "authority.portal.templates.manage": "access.authority",
     "authority.portal.templates.read": "access.authority",
-    "tasks.start": "access.authority",
     "tasks.list": "access.authority",
     "tasks.inspect": "access.authority",
     "tasks.terminate": "access.authority",
@@ -65,20 +64,15 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "transport.verify.run": "access.authority",
     "transport.identity.reference": "access.authority",
     "transport.capabilities.discover": "access.authority",
-    "shared_sessions.join_request": "access.authority",
     "delegations.list": "access.authority",
     "delegations.offers.list": "access.authority",
     "delegations.narrow": "access.authority",
     "delegations.revoke": "access.authority",
     "delegations.offers.revoke": "access.authority",
-    "delegations.offers.mint": "access.authority",
     "delegations.claim": "access.authority",
     "relay.inbox": "access.authority",
     "relay.decide": "access.authority",
     "agent_identities.read": "access.authority",
-    "identity.approval.requests": "access.authority",
-    "identity.approval.activation": "access.authority",
-    "identity.approval.comparison": "access.authority",
     "identity.local.requests.manage": "access.authority",
     "identity.local.policy.manage": "access.authority",
     "identity.local.access.manage": "access.authority",
@@ -89,9 +83,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "browser.pairing.begin": "access.authority",
     "browser.identity.authenticate": "access.authority",
     "browser.client.revoke": "access.authority",
-    "agent.runs.read": "access.authority",
-    "agent.runs.observe": "access.authority",
-    "agent.runs.control": "access.authority",
     "configs.browse": "access.authority",
     "configs.set": "access.authority",
     "configs.permissions.read": "access.authority",

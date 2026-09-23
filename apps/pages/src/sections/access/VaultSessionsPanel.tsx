@@ -7,11 +7,11 @@ import { useCallback, useEffect, useState } from "react";
 import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   SHARE_DURATIONS,
   SHARE_POLICIES,
-} from "../../lib/local-share-grants.js";
+} from "@opensesame/app-core/lib/local-share-grants.js";
 import {
   type LocalVaultSession,
   type SessionGrantSpec,
@@ -20,9 +20,9 @@ import {
   restartVaultSession,
   startVaultSession,
   stopVaultSession,
-} from "../../lib/local-vault-sessions.js";
+} from "@opensesame/app-core/lib/local-vault-sessions.js";
+import { listDeviceVaults } from "@opensesame/app-core/lib/vaults.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import { listDeviceVaults } from "../../lib/vaults.js";
 
 export function VaultSessionsPanel({ tomb }: { tomb: string }) {
   const [sessions, setSessions] = useState<LocalVaultSession[]>([]);

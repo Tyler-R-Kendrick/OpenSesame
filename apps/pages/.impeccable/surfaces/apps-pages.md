@@ -7,7 +7,7 @@ related_targets:
   - "apps/pages/src/screens/UnlockScreen.tsx"
   - "apps/pages/src/components/AppShell.tsx"
   - "apps/pages/src/sections/VaultSection.tsx"
-  - "apps/pages/src/lib/vault/crypto.ts"
+  - "packages/app-core/src/lib/vault/crypto.ts"
 ---
 
 # Surface brief: apps/pages

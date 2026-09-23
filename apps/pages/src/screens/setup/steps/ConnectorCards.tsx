@@ -9,14 +9,11 @@
  * lost) through the same `awaitConsent` the Connections page uses.
  */
 
-import { useEffect, useState } from "react";
-import { IconConnection } from "../../../components/Icons.js";
-import { StatusMark } from "../../../components/StatusMark.js";
 import {
   type CapabilityId,
   capabilityDef,
   connectorLabel,
-} from "../../../lib/capabilities.js";
+} from "@opensesame/app-core/lib/capabilities.js";
 import {
   type Connection,
   authorizeConnection,
@@ -24,7 +21,10 @@ import {
   createConnection,
   listConnections,
   openConsentPopup,
-} from "../../../lib/connections.js";
+} from "@opensesame/app-core/lib/connections.js";
+import { useEffect, useState } from "react";
+import { IconConnection } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { useCapabilityChoice } from "./shared.js";
 
 type CardState =

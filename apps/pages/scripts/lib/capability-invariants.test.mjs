@@ -104,7 +104,7 @@ describe("violations: hardened exclusions", () => {
         isEntry: true,
       }),
       chunk("assets/index-abc.js", [
-        mod("apps/pages/src/lib/kv.ts", "core"),
+        mod("packages/app-core/src/lib/kv.ts", "core"),
         mod("apps/pages/src/lib/push.ts", "optional", "notifications.web-push"),
       ]),
     ]);

@@ -8,12 +8,12 @@
  * `tutorial/registry/activity-catalog.ts` (`nav.activity`, `/activity`).
  */
 
-import type { CapabilityRuntime } from "../../lib/capabilities/runtime-contract.js";
-import { ActivitySection } from "../../sections/ActivitySection.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   ACTIVITY_ROUTES,
   ACTIVITY_TARGETS,
-} from "../../tutorial/registry/activity-catalog.js";
+} from "@opensesame/app-core/tutorial/registry/activity-catalog.js";
+import { ActivitySection } from "../../sections/ActivitySection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { WalletActivityRedirect } from "./ActivityRedirect.js";

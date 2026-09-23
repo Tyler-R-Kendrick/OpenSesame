@@ -1247,7 +1247,7 @@ describe("UnlockScreen — TOTP step-up", () => {
 
 /* ── Several vaults on one device (ADR 0089) ─────────────────────────── */
 
-import { vaultsSeams } from "../lib/vaults.js";
+import { vaultsSeams } from "@opensesame/app-core/lib/vaults.js";
 
 describe("UnlockScreen — several vaults on this device", () => {
   const originalDeps = { ...unlockScreenDependencies };

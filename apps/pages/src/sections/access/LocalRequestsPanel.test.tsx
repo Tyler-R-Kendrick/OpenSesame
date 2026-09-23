@@ -1,15 +1,15 @@
-/** @vitest-environment jsdom */
-import type { LocalAccessRequestRecord } from "@opensesame/contracts";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { withLocalDirectoryLock } from "../../lib/local-directory.js";
+import { withLocalDirectoryLock } from "@opensesame/app-core/lib/local-directory.js";
 import {
   localRequestDigest,
   writeLocalRequestRecords,
-} from "../../lib/local-request-store.js";
-import { mintVaultKey } from "../../lib/vault/crypto.js";
-import { lockAllTombs, unlockTomb } from "../../lib/vfs.js";
+} from "@opensesame/app-core/lib/local-request-store.js";
+import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+/** @vitest-environment jsdom */
+import type { LocalAccessRequestRecord } from "@opensesame/contracts";
+import { mintVaultKey } from "@opensesame/vault-core";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalRequestsPanel } from "./LocalRequestsPanel.js";
 
 let tomb: string;

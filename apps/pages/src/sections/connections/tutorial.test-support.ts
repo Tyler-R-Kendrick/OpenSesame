@@ -10,9 +10,9 @@
  * still fails closed with `guide_target_undeclared` (ADR 0088/0130).
  */
 
+import { CONNECTIONS_TARGETS } from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
 import { afterEach, beforeEach } from "vitest";
 import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
-import { CONNECTIONS_TARGETS } from "../../tutorial/registry/connections-catalog.js";
 
 /** Registers the declare/undeclare pair around every test in the file. */
 export function declareConnectionsTutorial(): void {

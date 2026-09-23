@@ -440,7 +440,7 @@
     "kind": "act",
     "surfaces": {
       "cli": "opensesame task start",
-      "pwa": "lib/access-sessions.ts:createAccessSession",
+      "pwa": null,
       "mcp_host": "task_start",
       "mcp_client": null,
       "webmcp": null
@@ -459,7 +459,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access-requests.ts:createAccessRequest",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -620,7 +620,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame task list",
-      "pwa": "lib/access.ts:listTasks",
+      "pwa": null,
       "mcp_host": "task_list",
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
@@ -633,7 +633,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame task inspect",
-      "pwa": "lib/access.ts:getTask",
+      "pwa": null,
       "mcp_host": "task_status",
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
@@ -646,7 +646,7 @@
     "kind": "act",
     "surfaces": {
       "cli": "opensesame task terminate",
-      "pwa": "lib/access.ts:terminateTask",
+      "pwa": null,
       "mcp_host": "task_terminate",
       "mcp_client": null,
       "webmcp": "opensesame_task_terminate"
@@ -888,7 +888,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/join-session.ts:askToJoin",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -1181,7 +1181,7 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:listDelegations",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
@@ -1200,7 +1200,7 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:listMyOffers",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
@@ -1219,7 +1219,7 @@
     "kind": "act",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:narrowDelegation",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_delegation_narrow"
@@ -1238,7 +1238,7 @@
     "kind": "act",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:revokeDelegation",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_delegation_revoke"
@@ -1257,7 +1257,7 @@
     "kind": "act",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:revokeOffer",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_delegation_revoke"
@@ -1276,7 +1276,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:mintOffer",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -1303,7 +1303,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:claimDelegation",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_open_delegation_claim"
@@ -1326,7 +1326,7 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:listRelayRequests",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
@@ -1345,7 +1345,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access.ts:approveRelayRequest",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_open_relay_approval"
@@ -2567,7 +2567,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame rotate runs",
-      "pwa": "lib/agent-runs.ts:listRuns",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -2590,7 +2590,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame rotate watch",
-      "pwa": "lib/agent-runs.ts:readLog",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -2613,7 +2613,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame rotate attach",
-      "pwa": "lib/agent-runs.ts:takeControl",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -3526,7 +3526,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access-requests.ts:decideAccessRequest",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -3553,7 +3553,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/access-requests.ts:getRequestComparison",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -3678,6 +3678,60 @@
       "mcp_client": {
         "reason": "the login editor is a browser form; headless MCP cannot fill it",
         "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "vault.file.verify",
+    "title": "Verify a vault export or offline backup opens",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id vault verify",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "the shared core's offline read path is exposed to the CLI for a person verifying their own backup, not to a page's agent tools",
+        "adr": "0133-shared-app-core.md"
+      }
+    }
+  },
+  {
+    "id": "vault.file.list",
+    "title": "List a vault file's items by path and kind, never values",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id vault ls",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "the shared core's offline read path is exposed to the CLI for a person verifying their own backup, not to a page's agent tools",
+        "adr": "0133-shared-app-core.md"
       }
     }
   },
@@ -4029,7 +4083,7 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/vault/item-types.ts:itemTypeRegistry",
+      "pwa": "vault-core/item-types.ts:itemTypeRegistry",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null

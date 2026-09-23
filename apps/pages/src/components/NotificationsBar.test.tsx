@@ -3,9 +3,13 @@ import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { clearNotices, pushNotice, setStatusNotice } from "../lib/notices.js";
-import { createItem } from "../lib/vault/model.js";
-import { vaultStore } from "../lib/vault/store.js";
+import {
+  clearNotices,
+  pushNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { createItem } from "@opensesame/vault-core";
 import {
   NotificationsBar,
   notificationsBarDependencies,

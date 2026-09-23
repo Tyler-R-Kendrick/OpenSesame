@@ -5,18 +5,21 @@
  * any-of protection, never a change to the source document's policy.
  */
 
-import { useCallback } from "react";
-import { setStatusNotice } from "../../../lib/notices.js";
-import { downloadText } from "../../../lib/sops/download.js";
-import { parseAgeRecipient } from "../../../lib/sops/keys/age.js";
-import { planDigest, planFromRecipients } from "../../../lib/sops/plan.js";
-import { sopsSession } from "../../../lib/sops/session.js";
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import { downloadText } from "@opensesame/app-core/lib/sops/download.js";
+import { parseAgeRecipient } from "@opensesame/app-core/lib/sops/keys/age.js";
+import {
+  planDigest,
+  planFromRecipients,
+} from "@opensesame/app-core/lib/sops/plan.js";
+import { sopsSession } from "@opensesame/app-core/lib/sops/session.js";
 import {
   exportVaultSecrets,
   importVaultSecrets,
-} from "../../../lib/sops/vault-secrets.js";
-import type { VaultItem } from "../../../lib/vault/model.js";
-import { identityList } from "./identities.js";
+} from "@opensesame/app-core/lib/sops/vault-secrets.js";
+import { identityList } from "@opensesame/app-core/sections/settings/sops/identities.js";
+import type { VaultItem } from "@opensesame/vault-core";
+import { useCallback } from "react";
 
 function notice(tone: "info" | "err", body: string): void {
   setStatusNotice({

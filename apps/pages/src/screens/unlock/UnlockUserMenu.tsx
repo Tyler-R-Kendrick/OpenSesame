@@ -9,17 +9,20 @@
  * Sign out.
  */
 
+import type { Account } from "@opensesame/app-core/lib/account.js";
+import { guestVaultLabel } from "@opensesame/app-core/lib/local-guest.js";
+import {
+  signOut,
+  switchAccount,
+} from "@opensesame/app-core/lib/session-exit.js";
+import type { DeviceVault } from "@opensesame/app-core/lib/vaults.js";
+import { GUEST_TOMB } from "@opensesame/app-core/lib/vfs.js";
 import { useState } from "react";
 import {
   IconCheck,
   IconChevronRight,
   IconUser,
 } from "../../components/Icons.js";
-import type { Account } from "../../lib/account.js";
-import { guestVaultLabel } from "../../lib/local-guest.js";
-import { signOut, switchAccount } from "../../lib/session-exit.js";
-import type { DeviceVault } from "../../lib/vaults.js";
-import { GUEST_TOMB } from "../../lib/vfs.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { brandFor } from "./ProviderBrand.js";
 

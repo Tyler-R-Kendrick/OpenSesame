@@ -1,12 +1,21 @@
-import type { Host, RuntimeEnv } from "./host.js";
+import { browserPorts } from "./browser/host.js";
+import { type Host, type RuntimeEnv, composeHost } from "./host.js";
 
-export type TestHostOverrides = { readonly env?: Partial<RuntimeEnv> };
+export type TestHostOverrides = Readonly<
+  Partial<Omit<Host, "env">> & { env?: Partial<RuntimeEnv> }
+>;
 
-/** A host for tests: a development build served from `/`, nothing else. */
+/**
+ * A host for tests: a development build served from `/`, with the browser's
+ * ports read live — so a jsdom suite, or one that stubs a global, sees what
+ * it set up — unless the test names its own.
+ */
 export function createTestHost(overrides: TestHostOverrides = {}): Host {
-  return {
-    env: { BASE_URL: "/", DEV: true, ...overrides.env },
-  };
+  const { env, ...ports } = overrides;
+  return composeHost(browserPorts(), {
+    env: { BASE_URL: "/", DEV: true, ...env },
+    ...ports,
+  });
 }
 
 /** Remove the installed host, for tests of the uninstalled state. */

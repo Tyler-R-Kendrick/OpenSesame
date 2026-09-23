@@ -5,15 +5,15 @@
  * a mock. Create once per test file; `reset` per test.
  */
 
-import { type Mock, vi } from "vitest";
-import type { OidcDiscovery } from "../../lib/federation.js";
-import { federationSeams } from "../../lib/federation.js";
+import type { OidcDiscovery } from "@opensesame/app-core/lib/federation.js";
+import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 import {
   type PagesSettings,
   type SignInMethods,
   defaultSignInMethods,
   settingsSeams,
-} from "../../lib/settings.js";
+} from "@opensesame/app-core/lib/settings.js";
+import { type Mock, vi } from "vitest";
 import { setupScreenDependencies } from "../SetupScreen.js";
 import { waysInDependencies } from "./WaysIn.js";
 

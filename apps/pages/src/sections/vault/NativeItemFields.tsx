@@ -1,5 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
-import type { VaultItem } from "../../lib/vault/model.js";
+import type { VaultItem } from "@opensesame/vault-core";
 import { OptionalField } from "./EditorExtras.js";
 
 type Props = {

@@ -7,18 +7,21 @@
  * product does when the capability that owns a record is not there.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
-import { itemKindsFrom } from "../../item-kinds.js";
-import { kvDelete, kvGet } from "../../kv.js";
-import { fidoCxf } from "../../vault/import/formats/cxf.js";
-import { summarise } from "../../vault/import/index.js";
-import { createItem } from "../../vault/model.js";
+import { capabilityFlagKey } from "@opensesame/app-core/lib/capabilities/openfeature.js";
+import { itemKindsFrom } from "@opensesame/app-core/lib/item-kinds.js";
+import { kvDelete, kvGet } from "@opensesame/app-core/lib/kv.js";
+import { fidoCxf } from "@opensesame/app-core/lib/vault/import/formats/cxf.js";
+import { summarise } from "@opensesame/app-core/lib/vault/import/index.js";
 import {
   agentMayInvokeCryptoAlias,
   assertAgentMayNotUnwrapHumanRoot,
-} from "../../vault/protection/agent-boundary.js";
-import { ATTEMPTS_KEY, GUEST_TOMB, VaultStore } from "../../vault/store.js";
-import { LEGACY_PREFS_KEY } from "../../vault/tomb-migration.js";
+} from "@opensesame/app-core/lib/vault/protection/agent-boundary.js";
+import {
+  ATTEMPTS_KEY,
+  GUEST_TOMB,
+  VaultStore,
+} from "@opensesame/app-core/lib/vault/store.js";
+import { LEGACY_PREFS_KEY } from "@opensesame/app-core/lib/vault/tomb-migration.js";
 import {
   BODY_PATH,
   HEADER_PATH,
@@ -27,8 +30,9 @@ import {
   PERSONAL_TOMB,
   tombFileKey,
   vfsFlush,
-} from "../../vfs.js";
-import { capabilityFlagKey } from "../openfeature.js";
+} from "@opensesame/app-core/lib/vfs.js";
+import { createItem } from "@opensesame/vault-core";
+import { beforeEach, describe, expect, it } from "vitest";
 import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
 
 const PASSWORD = "correct horse battery staple";

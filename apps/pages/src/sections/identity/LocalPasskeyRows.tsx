@@ -4,8 +4,8 @@
  * runs the revocation, and the sibling control keeps the passkey.
  */
 
+import type { LocalPasskey } from "@opensesame/app-core/lib/local-credentials.js";
 import { IconTrash, IconX } from "../../components/Icons.js";
-import type { LocalPasskey } from "../../lib/local-credentials.js";
 
 export type PasskeyRowsModel = {
   keys: LocalPasskey[] | null;

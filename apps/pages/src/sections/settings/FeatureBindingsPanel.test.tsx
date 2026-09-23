@@ -1,3 +1,13 @@
+import { backupSeams } from "@opensesame/app-core/lib/backup.js";
+import {
+  isHistorySelected,
+  loadHistorySelections,
+} from "@opensesame/app-core/lib/history-backups.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
+import { CONNECTIONS_TARGETS } from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -8,14 +18,7 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupSeams } from "../../lib/backup.js";
-import {
-  isHistorySelected,
-  loadHistorySelections,
-} from "../../lib/history-backups.js";
-import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
-import { CONNECTIONS_TARGETS } from "../../tutorial/registry/connections-catalog.js";
 import { FeatureBindingsPanel } from "./FeatureBindingsPanel.js";
 
 const originalBackup = { ...backupSeams };

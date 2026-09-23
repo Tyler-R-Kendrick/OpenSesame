@@ -1,5 +1,8 @@
-import { type ConnectorStatus, buildConnectors } from "../lib/connectors.js";
-import { loadSettings } from "../lib/settings.js";
+import {
+  type ConnectorStatus,
+  buildConnectors,
+} from "@opensesame/app-core/lib/connectors.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useConnectivityMonitor } from "./connectivity-monitor.js";
 import { usePlaneStatus } from "./planes.js";

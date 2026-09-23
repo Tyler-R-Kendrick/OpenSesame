@@ -1,9 +1,9 @@
+import { accountSeams } from "@opensesame/app-core/lib/account.js";
+import { mintGuestSessionPerson } from "@opensesame/app-core/lib/local-guest.js";
+import { GUEST_TOMB, PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { accountSeams } from "../../lib/account.js";
-import { mintGuestSessionPerson } from "../../lib/local-guest.js";
-import { GUEST_TOMB, PERSONAL_TOMB } from "../../lib/vfs.js";
 import { UnlockUserMenu, unlockAccountLabel } from "./UnlockUserMenu.js";
 
 function memoryStorage(): Storage {

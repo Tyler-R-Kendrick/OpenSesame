@@ -1,7 +1,7 @@
 import type {
   LocalIdentity,
   LocalIdentityKind,
-} from "../../lib/local-directory.js";
+} from "@opensesame/app-core/lib/local-directory.js";
 import {
   type PageTreeLeaf,
   type PageTreeSource,
@@ -11,7 +11,7 @@ import {
 import {
   IDENTITY_LABELS,
   IDENTITY_VIEWS,
-} from "../../lib/section-view-names.js";
+} from "@opensesame/app-core/lib/section-view-names.js";
 export type IdentityRailSnapshot = {
   directory?: readonly LocalIdentity[];
   providers?: readonly { id: string; label: string }[];

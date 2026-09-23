@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { registerLegacyShellData } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { describe, expect, it } from "vitest";
-import { registerLegacyShellData } from "./contributions.test-support.js";
 import { keymapHelp } from "./keymap.js";
 
 /**

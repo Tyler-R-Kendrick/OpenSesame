@@ -1,10 +1,10 @@
-import { type Dispatch, type SetStateAction, useEffect, useRef } from "react";
-import type { CapabilityId } from "../../lib/capabilities.js";
+import type { CapabilityId } from "@opensesame/app-core/lib/capabilities.js";
 import {
   startGithubAppRegistration,
   submitGithubAppManifest,
-} from "../../lib/connections.js";
-import { ensureHostSession } from "../../lib/identity.js";
+} from "@opensesame/app-core/lib/connections.js";
+import { ensureHostSession } from "@opensesame/app-core/lib/identity.js";
+import { type Dispatch, type SetStateAction, useEffect, useRef } from "react";
 
 export type ConnectorFlash = { tone: "ok" | "err" | "warn"; text: string };
 

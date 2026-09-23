@@ -1,3 +1,4 @@
+import { activatePlan } from "@opensesame/app-core/lib/capabilities/change.js";
 import {
   type ComponentType,
   type ReactNode,
@@ -17,18 +18,17 @@ import {
   useLocation,
 } from "react-router";
 import { Wrapped } from "./components/ShellWrappers.js";
-import { activatePlan } from "./lib/capabilities/change.js";
 
 import type {
   RouteContribution,
   ShellWrapperContribution,
   UnlockEffectContribution,
-} from "./lib/capabilities/runtime-contract.js";
-import { planIsSettling } from "./lib/capabilities/settling.js";
-import { compositionStore } from "./lib/capabilities/store.js";
-import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
+import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
-import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "./lib/guest-auth.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
@@ -212,9 +212,9 @@ function useAfterUnlock(
 ): void {
   useEffect(() => {
     if (status !== "unlocked") {
-      void import("./lib/duress/compartment/presentation-runtime.js").then(
-        ({ clearActivePresentation }) => clearActivePresentation(),
-      );
+      void import(
+        "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js"
+      ).then(({ clearActivePresentation }) => clearActivePresentation());
       return;
     }
     if (!tomb) return;
