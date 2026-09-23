@@ -12,6 +12,7 @@
 //! cannot disagree about what a bank account is (ADR 0087 §8).
 
 pub mod catalogue;
+mod errors;
 pub mod native;
 pub mod registry;
 pub mod schema;
@@ -21,7 +22,10 @@ pub use catalogue::{FieldPart, FieldShape, FieldTypeId, FIELD_TYPE_IDS};
 pub use native::{
     decode_value, encode_value, from_entry, to_entry, FieldValue, FieldValues, Readback,
 };
-pub use registry::{ItemTypeRegistry, LoadError, Registered, Source};
+pub use registry::{
+    directory_name, ItemTypeRegistry, LoadError, Registered, Source, RESERVED_DIRECTORIES,
+    RESERVED_TYPE_IDS,
+};
 pub use schema::{
     CxfCredentialId, FieldDefinition, HandlerId, ItemTypeDefinition, ItemTypeMetadata,
     ItemTypeSpec, NativeProjection, SectionDefinition, TrailerMapping, DEFINITION_API_VERSION,

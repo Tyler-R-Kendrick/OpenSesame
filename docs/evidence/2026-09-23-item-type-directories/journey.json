@@ -1,0 +1,320 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "json": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "event-ticket",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Event ticket",
+                "plural": "Event tickets",
+                "extension": ".ticket",
+                "summary": "Installed at runtime, with no build.",
+                "categories": ["other"],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": ["label"],
+                "search": ["label"]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "json": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "account",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Account",
+                "plural": "Logins",
+                "extension": ".acct",
+                "summary": "Installed at runtime, with no build.",
+                "categories": ["other"],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": ["label"],
+                "search": ["label"]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-install"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "report": ".railtree__row"
+        },
+        {
+          "shot": "1280-rail"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "json": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "event-ticket",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Event ticket",
+                "plural": "Event tickets",
+                "extension": ".ticket",
+                "summary": "Installed at runtime, with no build.",
+                "categories": ["other"],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": ["label"],
+                "search": ["label"]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "json": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "account",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Account",
+                "plural": "Logins",
+                "extension": ".acct",
+                "summary": "Installed at runtime, with no build.",
+                "categories": ["other"],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": ["label"],
+                "search": ["label"]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-install"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "press": "Filter"
+        },
+        {
+          "report": "[role=dialog] a"
+        },
+        {
+          "shot": "390-filter"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-rail",
+      "width": 1280,
+      "title": "Vault rail after installing a type \u2014 1280 \u00d7 900",
+      "caption": "The same journey on both builds: a guest installs an \"Event ticket\" type in Settings \u203a Vaults, then opens the vault. Before, an installed type had no directory: the rail listed only the platform kinds, so a community type's items had nowhere to live but \"all\". After, every installed type is its own directory, named by its plural, and it appears the moment the type is installed, before it holds an item.",
+      "before": "vault/ directories: all, favorites, logins, cards, secrets, notes, trash (7); none for Event ticket",
+      "after": "vault/ directories: all, favorites, logins, cards, secrets, notes, event-tickets, trash (8)"
+    },
+    {
+      "shot": "1280-install",
+      "width": 1280,
+      "title": "Installing a type named \"Logins\" \u2014 1280 \u00d7 900",
+      "caption": "The second install in the journey is an impostor: a type called \"Account\" whose plural is \"Logins\". Before, it installed, and its items would have shared a name with every login. After, the registry refuses it with the new `name` code, because a directory is a name people navigate by and two types may not share one (nor a title, nor a directory the rail reserves).",
+      "before": "status after the \"Logins\" install: \"Installed. Available now \u2014 no reload needed.\"",
+      "after": "status after the \"Logins\" install: \"spec.plural: `logins` is already the directory of `login`\""
+    },
+    {
+      "shot": "390-filter",
+      "width": 390,
+      "title": "Filter sheet on a phone \u2014 390 \u00d7 844",
+      "caption": "A phone reaches the same directories through the filter sheet. Before, a type earned a road there only once an item of it existed. After, an installed type has its road from the moment it is installed, matching the rail.",
+      "before": "filter roads: All items, Favorites, Trash (3)",
+      "after": "filter roads: All items, Favorites, Event tickets, Trash (4)"
+    },
+    {
+      "shot": "390-install",
+      "width": 390,
+      "title": "Installing a type named \"Logins\" on a phone \u2014 390 \u00d7 844",
+      "caption": "The refusal at phone width, in the panel's existing status line.",
+      "before": "status: \"Installed. Available now \u2014 no reload needed.\"",
+      "after": "status: \"spec.plural: `logins` is already the directory of `login`\""
+    }
+  ]
+}

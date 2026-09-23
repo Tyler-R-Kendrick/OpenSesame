@@ -52,6 +52,50 @@ fn refusal(code: ErrorCode, path: &str, message: impl Into<String>) -> Definitio
     }])
 }
 
+/// Directory names the vault rail draws that are not a type's own: the fixed
+/// filters beside the type directories, and the short names the rail gives
+/// platform kinds whose plurals would read differently (`certs`, `notes`). An
+/// install may not claim one, or its items would share a directory with
+/// something else.
+pub const RESERVED_DIRECTORIES: [&str; 5] = ["all", "favorites", "trash", "certs", "notes"];
+
+/// Ids no type may take. A type id is also the vault's `?f=` filter value, and
+/// these three already mean something there: a type called `favorites` would
+/// have a directory that opens the favorites instead.
+pub const RESERVED_TYPE_IDS: [&str; 3] = ["all", "favorites", "trash"];
+
+/// The vault directory a type's items live under: its plural as a path
+/// segment (`Wi-Fi networks` → `wi-fi-networks`). ASCII-only, byte for byte
+/// the TypeScript derivation; a plural with no ASCII letter or digit falls
+/// back to the type id, which is already a segment.
+#[must_use]
+pub fn directory_name(definition: &ItemTypeDefinition) -> String {
+    let mut slug = String::with_capacity(definition.spec.plural.len());
+    for ch in definition.spec.plural.chars() {
+        let ch = ch.to_ascii_lowercase();
+        if ch.is_ascii_lowercase() || ch.is_ascii_digit() {
+            slug.push(ch);
+        } else if !slug.is_empty() && !slug.ends_with('-') {
+            slug.push('-');
+        }
+    }
+    let slug = slug.trim_end_matches('-');
+    if slug.is_empty() {
+        definition.metadata.id.clone()
+    } else {
+        slug.to_owned()
+    }
+}
+
+/// How two titles are compared: case and surrounding ASCII space never count.
+/// ASCII only, because `str::trim` and JavaScript's `trim` disagree about
+/// U+FEFF, and the two planes must refuse the same installs.
+fn title_key(title: &str) -> String {
+    title
+        .trim_matches(|c: char| c.is_ascii_whitespace())
+        .to_lowercase()
+}
+
 fn compare_versions(left: &str, right: &str) -> std::cmp::Ordering {
     let parse = |value: &str| -> Vec<u64> {
         value
@@ -130,6 +174,13 @@ impl ItemTypeRegistry {
             self.builtin.insert(id, definition.clone());
             return Ok(definition);
         }
+        if RESERVED_TYPE_IDS.contains(&id.as_str()) {
+            return Err(refusal(
+                ErrorCode::Id,
+                "metadata.id",
+                format!("`{id}` is a vault filter and cannot name a type"),
+            ));
+        }
         if self.builtin.contains_key(&id) {
             return Err(refusal(
                 ErrorCode::Id,
@@ -149,6 +200,9 @@ impl ItemTypeRegistry {
                     definition.spec.extension
                 ),
             ));
+        }
+        if let Some(clash) = self.name_clash(&definition) {
+            return Err(clash);
         }
         if let Some(current) = self.installed.get(&id) {
             if current.definition.metadata.publisher != definition.metadata.publisher {
@@ -221,6 +275,51 @@ impl ItemTypeRegistry {
             loaded += 1;
         }
         Ok(loaded)
+    }
+
+    /// Every registered type is one directory in the vault and one name in the
+    /// type picker, so an install may not reuse another type's title or
+    /// directory, nor a directory the rail keeps for itself. Two types sharing
+    /// either would draw as one, and their items would be indistinguishable.
+    fn name_clash(&self, definition: &ItemTypeDefinition) -> Option<DefinitionErrors> {
+        let self_id = definition.metadata.id.as_str();
+        let directory = directory_name(definition);
+        if RESERVED_DIRECTORIES.contains(&directory.as_str()) {
+            return Some(refusal(
+                ErrorCode::Name,
+                "spec.plural",
+                format!("`{directory}` is a reserved vault directory"),
+            ));
+        }
+        let title = title_key(&definition.spec.title);
+        let others = self
+            .builtin
+            .values()
+            .chain(self.installed.values().map(|entry| &entry.definition))
+            .filter(|other| other.metadata.id != self_id);
+        for other in others {
+            if title_key(&other.spec.title) == title {
+                return Some(refusal(
+                    ErrorCode::Name,
+                    "spec.title",
+                    format!(
+                        "`{}` is already the title of `{}`",
+                        definition.spec.title, other.metadata.id
+                    ),
+                ));
+            }
+            if directory_name(other) == directory {
+                return Some(refusal(
+                    ErrorCode::Name,
+                    "spec.plural",
+                    format!(
+                        "`{directory}` is already the directory of `{}`",
+                        other.metadata.id
+                    ),
+                ));
+            }
+        }
+        None
     }
 
     /// The type already rendering this extension, if it is not `self_id`.
