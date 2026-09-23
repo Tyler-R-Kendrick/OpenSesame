@@ -161,6 +161,15 @@ pub fn verify_sans(certificate_pem: &str, expected: &[SanEntry]) -> Result<(), P
 /// # Errors
 /// Returns [`PkiError::InvalidPem`] when the armour is malformed and
 /// [`PkiError::InvalidDer`] when the body is not a parseable certificate.
+/// Parses a PEM bundle into DER certificates, in order.
+///
+/// # Errors
+/// Returns [`PkiError::InvalidPem`] when the bundle is malformed or empty,
+/// [`PkiError::TooLarge`] past this crate's caps.
+pub fn certificates_der(chain_pem: &str) -> Result<Vec<Vec<u8>>, PkiError> {
+    x509::parse_pem_blocks(chain_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)
+}
+
 pub fn fingerprint_sha256(cert_pem: &str) -> Result<String, PkiError> {
     let blocks = x509::parse_pem_blocks(cert_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;

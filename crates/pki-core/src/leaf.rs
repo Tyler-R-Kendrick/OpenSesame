@@ -210,6 +210,30 @@ pub fn issue_leaf_from_csr(
     params: &LeafParams,
 ) -> Result<IssuedLeaf, PkiError> {
     let request = csr::parse_csr(csr_pem)?;
+    issue_leaf_from_facts(issuer_cert_pem, issuer_key, &request, params)
+}
+
+/// Signs a certificate for a DER (binary) certificate signing request — the
+/// shape an EST `simpleenroll` body carries.
+///
+/// # Errors
+/// As [`issue_leaf_from_csr`].
+pub fn issue_leaf_from_csr_der(
+    issuer_cert_pem: &str,
+    issuer_key: &KeyPair,
+    csr_der: &[u8],
+    params: &LeafParams,
+) -> Result<IssuedLeaf, PkiError> {
+    let request = csr::parse_csr_der(csr_der)?;
+    issue_leaf_from_facts(issuer_cert_pem, issuer_key, &request, params)
+}
+
+fn issue_leaf_from_facts(
+    issuer_cert_pem: &str,
+    issuer_key: &KeyPair,
+    request: &crate::csr::CsrFacts,
+    params: &LeafParams,
+) -> Result<IssuedLeaf, PkiError> {
     let public_key = rcgen::SubjectPublicKeyInfo::from_der(&request.public_key_der)
         .map_err(|_| PkiError::CsrParse)?;
     let (issuer, chain_pem) = issuer_context(issuer_cert_pem, issuer_key)?;
