@@ -278,7 +278,7 @@ export function pruneExpired(now: number): void {
 
 export type LegacyPending = {
   state: string;
-  createdAt?: number;
+  createdAt?: number | undefined;
   intentMissing: boolean;
 };
 

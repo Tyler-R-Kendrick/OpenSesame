@@ -61,7 +61,7 @@ export type LocalAuthentication = Readonly<{
   origin: string;
   amr: readonly string[];
   /** Digest of the frozen request and decision, never inferred from identity. */
-  requestDigest?: string;
+  requestDigest?: string | undefined;
 }>;
 let unspentAuthentications = new WeakMap<LocalAuthentication, number>();
 

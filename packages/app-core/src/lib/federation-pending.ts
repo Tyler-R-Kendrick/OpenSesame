@@ -19,12 +19,12 @@ export type PendingAuth = {
   jwksUri: string;
   scope: string;
   createdAt?: number;
-  sessionCheckEndpoint?: string;
+  sessionCheckEndpoint?: string | undefined;
   redirectUri?: string;
   clientId?: string;
-  returnTo?: string;
-  orgSlug?: string;
-  orgMethod?: "sso" | "saml";
+  returnTo?: string | undefined;
+  orgSlug?: string | undefined;
+  orgMethod?: "sso" | "saml" | undefined;
 };
 
 export type TakenPending = {

@@ -122,7 +122,7 @@ export class VaultProtectionBrowserService {
 
   async #stageEnrollment(
     kind: "recovery-key" | "age-webauthn" | "webauthn-prf",
-    held?: HeldWebauthnPrf,
+    held?: HeldWebauthnPrf | undefined,
   ): Promise<EnrollCandidateResult> {
     this.#assertCanMutate();
     assertNotCanceled(this.#host.session.signal);

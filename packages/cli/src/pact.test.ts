@@ -10,7 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 describe("PACT — client CLI emit / session", () => {
   it("redacts before printing, including JSON-looking human text", () => {
-    assertSourceOrder(readFileSync(join(here, "run.ts"), "utf8"), [
+    assertSourceOrder(readFileSync(join(here, "output.ts"), "utf8"), [
       "const redacted = redactSecrets(data)",
       'trimmed.startsWith("{")',
       "JSON.stringify(redacted",

@@ -46,7 +46,7 @@ export async function provenEnrollmentRecord(input: {
   operationId: string;
   sessionGeneration: number;
   signal: AbortSignal;
-  held?: HeldWebauthnPrf;
+  held?: HeldWebauthnPrf | undefined;
 }): Promise<{ record: ProtectionRecord; recoverySecretB64?: string }> {
   if (input.held) {
     return {

@@ -43,14 +43,14 @@ export type KdfParams = {
 export type VaultHeader = {
   v: 1;
   /** Present when a master-password wrap is enrolled. */
-  kdf?: KdfParams;
+  kdf?: KdfParams | undefined;
   /** AES-GCM(MK) over the raw vault key — password unlock. */
-  wrap?: SealedBlob;
+  wrap?: SealedBlob | undefined;
   /**
    * Alternate unlock wraps (passkey PRF, PIN) and optional TOTP second factor.
    * At least one of `wrap` or `unlocks.passkey` / `unlocks.pin` must exist.
    */
-  unlocks?: import("./unlock-methods.js").VaultUnlocks;
+  unlocks?: import("./unlock-methods.js").VaultUnlocks | undefined;
   createdAt: string;
   /** Optional self-authored reminder. Never the password itself. */
   hint?: string;
@@ -58,7 +58,7 @@ export type VaultHeader = {
    * Highest body revision written. Recorded after the body lands, so it trails a
    * newer body at worst; a body claiming less than this is an older copy.
    */
-  bodyRev?: number;
+  bodyRev?: number | undefined;
   /**
    * Versioned root-protection manifest (authority for enrolled protectors).
    * When absent, unlocks/wrap remain the legacy source and are projected on read.

@@ -223,7 +223,7 @@ export type VaultBody = {
    * key, and compared against the header on unlock: a body that has gone
    * backwards is one restored from an older copy, not the vault as last left.
    */
-  rev?: number;
+  rev?: number | undefined;
 };
 
 /**

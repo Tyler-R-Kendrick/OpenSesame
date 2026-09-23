@@ -1238,6 +1238,9 @@ importers:
       '@opensesame/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@opensesame/app-core':
+        specifier: workspace:*
+        version: link:../app-core
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain

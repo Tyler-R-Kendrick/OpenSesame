@@ -28,7 +28,7 @@ import {
 
 export type PasskeyCeremonyGetOptions = {
   rpId?: string;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
   credentialIdB64?: string;
 };
 
@@ -165,7 +165,7 @@ export async function createPasskeyUnlockCeremonyDefault(
           prf: { eval: { first: prfSalt } },
         }),
       },
-      signal,
+      ...(signal ? { signal } : undefined),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -269,7 +269,7 @@ function buildPrfGetRequest(
       timeout: 120_000,
       extensions: overlapCast({ prf: prfExtension }),
     },
-    signal,
+    ...(signal ? { signal } : undefined),
   };
 }
 

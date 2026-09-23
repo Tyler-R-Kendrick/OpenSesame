@@ -83,7 +83,7 @@ export type TrustedUpstream = {
    * check the broker built for browsers — its server verifies the signature
    * and the revocation list and answers active/login_required.
    */
-  sessionCheckEndpoint?: string;
+  sessionCheckEndpoint?: string | undefined;
 };
 /**
  * Trust is configuration, not discovery: an issuer absent from this list is
@@ -240,9 +240,9 @@ export type UpstreamIdentity = {
   audience: string;
   jwksUri: string;
   expiresAt: number;
-  email?: string;
-  name?: string;
-  picture?: string;
+  email?: string | undefined;
+  name?: string | undefined;
+  picture?: string | undefined;
 };
 
 export class FederationError extends Error {
@@ -361,9 +361,9 @@ function discoveryFor(upstream: TrustedUpstream): Promise<OidcDiscovery> {
  */
 export type BeginSignInOptions = {
   scope?: string;
-  returnTo?: string;
-  orgSlug?: string;
-  orgMethod?: "sso" | "saml";
+  returnTo?: string | undefined;
+  orgSlug?: string | undefined;
+  orgMethod?: "sso" | "saml" | undefined;
   /**
    * Which provider the brokered login page should pre-select. Sent under both
    * spellings the hosted page accepts, exactly as `packages/sdk-browser` does.
@@ -473,9 +473,9 @@ export function hasAuthResponse(search = page().location.search): boolean {
 export type CompletedSignIn = {
   identity: UpstreamIdentity;
   /** In-app path to resume (e.g. broker/authorize query) after upstream return. */
-  returnTo?: string;
-  orgSlug?: string;
-  orgMethod?: "sso" | "saml";
+  returnTo?: string | undefined;
+  orgSlug?: string | undefined;
+  orgMethod?: "sso" | "saml" | undefined;
   /**
    * The OAuth access token from the exchange, present only when the issuer was
    * the Identity API itself — the brokered flow (D8). It is the credential

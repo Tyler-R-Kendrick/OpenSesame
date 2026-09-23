@@ -101,7 +101,7 @@ export function recoverJournal<T>(key: string): JournalRecord<T> | null {
  */
 type WriteJournalOptions = Readonly<{
   requireDurable?: boolean;
-  expectedRevision?: number;
+  expectedRevision?: number | undefined;
   now?: () => string;
 }>;
 const defaultWriteJournalOptions = {} satisfies WriteJournalOptions;

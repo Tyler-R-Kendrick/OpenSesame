@@ -44,7 +44,7 @@ export function loadCompartmentRegistry(): CompartmentRegistry | null {
 
 type Options = Readonly<{
   requireDurable?: boolean;
-  expectedRevision?: number;
+  expectedRevision?: number | undefined;
 }>;
 const defaultOptions = {} satisfies Options;
 

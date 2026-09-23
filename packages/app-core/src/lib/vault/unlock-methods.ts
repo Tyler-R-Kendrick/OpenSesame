@@ -103,7 +103,7 @@ export type RecoveryCodesRecord = {
 
 export type VaultUnlocks = {
   /** Legacy single passkey wrap — still written for older readers. */
-  passkey?: PasskeyUnlockRecord;
+  passkey?: PasskeyUnlockRecord | undefined;
   /** Multi-credential PRF wraps; on read, a lone `passkey` becomes one entry. */
   passkeys?: PasskeyUnlockRecord[];
   pin?: PinUnlockRecord;
@@ -420,7 +420,7 @@ export type PasskeyUnlockCeremonyResult = {
 
 export type PasskeyCeremonyGetOptions = {
   rpId?: string;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
   credentialIdB64?: string;
 };
 

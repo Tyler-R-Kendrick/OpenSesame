@@ -126,7 +126,7 @@ function parseDestination(
 
 function approvedIn(plan: EffectivePlan | null, id: CapabilityId): boolean {
   return plan !== null && Object.hasOwn(plan.capabilities, id)
-    ? plan.capabilities[id].approved
+    ? (plan.capabilities[id]?.approved ?? false)
     : false;
 }
 

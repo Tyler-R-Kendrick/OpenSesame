@@ -69,7 +69,7 @@ export type IdentitySession = {
    * Absent for a token the operator pasted in: only the API knows its horizon,
    * and guessing one would drop a working token. A 401 ends it instead.
    */
-  expiresAt?: string;
+  expiresAt?: string | undefined;
   /**
    * Pasted in by the operator rather than minted here, so no cookie belongs to
    * it. Requests must withhold cookies or a surviving one answers in its place.

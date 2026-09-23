@@ -50,7 +50,7 @@ export type AuthorizedEnrollmentRequest = {
   sessionGeneration: number;
   context: ProtectionContext;
   rootHandle: ClientRootKeyHandle;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 };
 
 export type AuthorizedProofRequest = {
@@ -58,7 +58,7 @@ export type AuthorizedProofRequest = {
   sessionGeneration: number;
   context: ProtectionContext;
   record: ProtectionRecord;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 };
 
 export type AuthorizedOpenRequest = {
@@ -66,7 +66,7 @@ export type AuthorizedOpenRequest = {
   sessionGeneration: number;
   context: ProtectionContext;
   record: ProtectionRecord;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 };
 
 export type PendingProtection = {

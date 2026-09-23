@@ -10,7 +10,6 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { createApiClient } from "@opensesame/api-client";
 import {
   type BoundaryValue,
   type JsonValue,
@@ -24,6 +23,8 @@ import {
   loopbackLogin,
   redactSecrets,
 } from "@opensesame/sdk-cli";
+import { runHostCommand } from "./host-commands.js";
+import { emit } from "./output.js";
 import {
   type ParsedCommand,
   type SessionFile,
@@ -31,6 +32,7 @@ import {
   helpText,
   parseArgs,
 } from "./parse.js";
+import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -64,7 +66,7 @@ interface RefreshTokenResponse {
   expires_in?: BoundaryValue;
 }
 
-interface RunDependencies {
+interface RunDependencies extends VaultDependencies {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   openBrowser?: (url: string) => void;
@@ -200,24 +202,6 @@ async function clearSession(): Promise<void> {
   } catch {
     // ignore
   }
-}
-
-function emit(
-  flags: { json: boolean },
-  human: string,
-  data: JsonValue | undefined,
-): void {
-  const redacted = redactSecrets(data);
-  if (flags.json) {
-    process.stdout.write(`${JSON.stringify(redacted, null, 2)}\n`);
-    return;
-  }
-  const trimmed = human.trimStart();
-  const safeHuman =
-    trimmed.startsWith("{") || trimmed.startsWith("[")
-      ? JSON.stringify(redacted, null, 2)
-      : human;
-  process.stdout.write(`${safeHuman}\n`);
 }
 
 function publicKeyJktPlaceholder(): string {
@@ -486,56 +470,13 @@ async function dispatch(
       return 0;
     }
 
-    case "host-health": {
-      const host = createApiClient({
-        baseUrl: command.hostUrl,
-        fetchImpl,
-      });
-      const health = await host.health();
-      const daemon = await host.probeDaemon();
-      const daemonHealth: JsonValue | undefined = overlapCast(daemon.health);
-      emit(
-        command.flags,
-        health.ok
-          ? `Host API up. Daemon ${daemon.available ? "available" : "unavailable"}.`
-          : "Host API unreachable.",
-        {
-          health: { ok: health.ok, body: health.body },
-          daemon: {
-            available: daemon.available,
-            url: daemon.url,
-            ...(daemonHealth === undefined
-              ? undefined
-              : { health: daemonHealth }),
-          },
-        },
-      );
-      return health.ok ? 0 : 1;
-    }
+    case "host-health":
+    case "host-discover":
+      return runHostCommand(command, fetchImpl);
 
-    case "host-discover": {
-      const host = createApiClient({
-        baseUrl: command.hostUrl,
-        fetchImpl,
-      });
-      const discovery = await host.discover();
-      emit(command.flags, `Discovery source: ${discovery.source}`, {
-        source: discovery.source,
-        ...(discovery.resource === undefined
-          ? undefined
-          : { resource: discovery.resource }),
-        ...(discovery.authorizationServers === undefined
-          ? undefined
-          : { authorizationServers: discovery.authorizationServers }),
-        ...(discovery.dpopBound === undefined
-          ? undefined
-          : { dpopBound: discovery.dpopBound }),
-        ...(discovery.ready === undefined
-          ? undefined
-          : { ready: discovery.ready }),
-      });
-      return discovery.source === "none" ? 1 : 0;
-    }
+    case "vault-verify":
+    case "vault-ls":
+      return runVaultCommand(command, deps);
 
     default: {
       const _exhaustive: never = command;

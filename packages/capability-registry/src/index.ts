@@ -27,7 +27,7 @@ import { sharedSessionCapabilities } from "./shared-sessions.js";
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
 import { securityAuthorityCapabilities } from "./security-authority.js";
 import { transportSecurityCapabilities } from "./transport-security.js";
-import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
+import { vaultCapabilities } from "./vault.js";
 import { walletSpendingCapabilities } from "./wallet-spending.js";
 export {
   AGENT_SECRET_NAME_PATTERN,
@@ -1743,7 +1743,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: "opensesame_vault_item_write",
     },
   },
-  ...vaultLoginDraftCapabilities,
+  ...vaultCapabilities,
   ...walletSpendingCapabilities,
   {
     id: "vault.items.reveal",

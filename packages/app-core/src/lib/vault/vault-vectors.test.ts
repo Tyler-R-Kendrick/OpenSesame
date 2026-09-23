@@ -6,25 +6,26 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
-  type SealedBlob,
   VaultCorruptError,
   type VaultHeader,
   WrongPasswordError,
   b64ToBytes,
-  importVaultKey,
   unwrapRawVaultKeyFromPassword,
-  vaultSealBinding,
 } from "./crypto.js";
 import fixture from "./fixtures/vault-vectors.json";
 import type { VaultBody } from "./model.js";
-import { parseOfflineBackup } from "./offline-backup.js";
-import { openJsonForRebind } from "./seal-rebind.js";
 import { VaultStore } from "./store.js";
 import {
   listPasskeyUnlockRecords,
   unwrapVaultKeyWithPin,
   unwrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
+import {
+  type SealedVaultFile,
+  openVaultBody,
+  openVaultFile,
+  readVaultFile,
+} from "./vault-file.js";
 
 type Expectation = {
   tomb: string;
@@ -32,35 +33,12 @@ type Expectation = {
   rev: number | null;
   items: { id: string; name: string; kind: string }[];
 };
-type Opened = { header: VaultHeader; body: SealedBlob; tomb: string };
+type Opened = SealedVaultFile;
 
 /** Envelope → header, sealed body and the tomb its binding names (format §7). */
-function openEnvelope(file: string): Opened {
-  if (file.includes('"opensesame-offline-backup"')) {
-    const backup = parseOfflineBackup(file);
-    return {
-      header: backup.vault.header,
-      body: backup.vault.body,
-      tomb: backup.projectId ?? "personal",
-    };
-  }
-  const exported: Opened & { format: string } = overlapCast(JSON.parse(file));
-  expect(exported.format).toBe("opensesame-vault-export");
-  return exported;
-}
-
-async function openBody(
-  raw: Uint8Array,
-  opened: Opened,
-): Promise<{ body: VaultBody; bound: boolean }> {
-  const key = await importVaultKey(raw);
-  const result = await openJsonForRebind<VaultBody>(
-    key,
-    opened.body,
-    vaultSealBinding(opened.tomb, "body"),
-  );
-  return { body: result.value, bound: !result.rebound };
-}
+const openEnvelope = readVaultFile;
+const openBody = (raw: Uint8Array, opened: Opened) =>
+  openVaultBody(opened, raw);
 
 function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
   return {
@@ -76,6 +54,13 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
 }
 
 const vectors = Object.entries(fixture.vectors);
+
+/** Every string anywhere under `value`. */
+function stringLeaves(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (value === null || typeof value !== "object") return [];
+  return Object.values(value).flatMap(stringLeaves);
+}
 
 describe("golden vault vectors", () => {
   it.each(vectors)("%s opens with the password", async (_name, vector) => {
@@ -166,5 +151,37 @@ describe("golden vault vectors", () => {
     const names = store.getSnapshot().items.map((item) => item.name);
     expect(names).toEqual(["Personal login", "Personal note"]);
     store.lock();
+  });
+
+  it.each(vectors)("%s lists names and paths, never values", async (_n, v) => {
+    const opened = await openVaultFile(v.file, fixture.password);
+    expect(
+      opened.items.map(({ id, name, kind }) => ({ id, name, kind })),
+    ).toEqual(v.expect.items);
+    expect(opened).toMatchObject({
+      tomb: v.expect.tomb,
+      bound: v.expect.bound,
+      rev: v.expect.rev,
+    });
+    for (const item of opened.items) expect(item.path).toContain(item.name);
+    const printed = JSON.stringify(opened);
+    const body = await openBody(
+      await unwrapRawVaultKeyFromPassword(
+        readVaultFile(v.file).header,
+        fixture.password,
+      ),
+      readVaultFile(v.file),
+    );
+    const values = body.body.items.flatMap((item) => {
+      const { id: _id, name: _name, kind: _kind, ...rest } = item;
+      return stringLeaves(rest).filter((value) => value.length >= 6);
+    });
+    expect(values.length).toBeGreaterThan(0);
+    for (const value of values) expect(printed).not.toContain(value);
+  });
+
+  it("refuses anything that is not a vault file", () => {
+    expect(() => readVaultFile("{}")).toThrow(VaultCorruptError);
+    expect(() => readVaultFile("not json")).toThrow(VaultCorruptError);
   });
 });

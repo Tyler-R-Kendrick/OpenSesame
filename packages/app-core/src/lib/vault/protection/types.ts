@@ -219,7 +219,7 @@ export type RootProtectionManifest = {
   purpose: ProtectionPurpose;
   records: ProtectionRecord[];
   preferredProtectorId?: string;
-  legacyGates?: AuthenticatedLegacyGates;
+  legacyGates?: AuthenticatedLegacyGates | undefined;
   /** Base64url HMAC/AEAD tag over canonical manifest without this field. */
   authB64?: string;
 };
