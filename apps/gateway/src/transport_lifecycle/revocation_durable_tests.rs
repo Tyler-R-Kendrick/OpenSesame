@@ -352,3 +352,48 @@ async fn a_tenant_at_its_quota_cannot_block_an_operator_revocation() {
     let (_, stored) = revocation_store::load(&state).await.expect("load");
     assert!(stored.contains(THUMB_A));
 }
+
+/// Operator and legacy entries past `OPERATOR_RESERVED` do not let tenants
+/// take the reserved slots: the tenant share counts every entry.
+#[tokio::test]
+async fn operator_and_legacy_entries_never_let_tenants_take_the_reserved_slots() {
+    let state = support::state().await;
+    let now = Utc::now();
+    let tenant_share = MAX_REVOKED - OPERATOR_RESERVED;
+    let operator = OPERATOR_RESERVED + 16;
+    let mut seeded = RevokedLeaves {
+        thumbprints: (0..operator).map(filler).collect(),
+        leaves: BTreeMap::new(),
+    };
+    for index in operator..tenant_share {
+        let leaf = RevokedLeaf {
+            organization: Some(format!("org_{}", index / MAX_REVOKED_PER_ORGANIZATION)),
+            not_after: Some(now + Duration::days(30)),
+        };
+        seeded.leaves.insert(filler(index), leaf);
+    }
+    seed(&state, &seeded).await;
+    let tenant = Revoked {
+        thumbprint: THUMB_A,
+        organization: Some("org_new"),
+        not_after: Some(now + Duration::days(30)),
+    };
+    let refused = revocation_store::persist(&state, &tenant, now).await;
+    assert!(matches!(refused, Err(DurableError::Full)), "{refused:?}");
+
+    // Every reserved slot is still the operator's, up to the last one.
+    let (_, mut stored) = revocation_store::load(&state).await.expect("load");
+    let reserved = MAX_REVOKED..MAX_REVOKED + OPERATOR_RESERVED - 1;
+    stored.thumbprints.extend(reserved.map(filler));
+    seed(&state, &stored).await;
+    let last = Revoked {
+        thumbprint: THUMB_A,
+        organization: None,
+        not_after: None,
+    };
+    revocation_store::persist(&state, &last, now)
+        .await
+        .expect("the operator's last reserved slot");
+    let (_, stored) = revocation_store::load(&state).await.expect("load");
+    assert_eq!(stored.all().count(), MAX_REVOKED);
+}

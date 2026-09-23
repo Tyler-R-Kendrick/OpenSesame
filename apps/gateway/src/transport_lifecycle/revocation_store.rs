@@ -15,9 +15,12 @@
 //! conditional write, entries whose leaf expired more than
 //! [`PRUNE_GRACE_SECONDS`] ago are dropped (an expired leaf fails the
 //! handshake on its own). An organization holds at most
-//! [`MAX_REVOKED_PER_ORGANIZATION`] live entries, and tenants together never
-//! take the last [`OPERATOR_RESERVED`] of [`MAX_REVOKED`] slots, so a tenant
-//! issuing and revoking its own certificates cannot crowd out the operator.
+//! [`MAX_REVOKED_PER_ORGANIZATION`] live entries, and a tenant revocation is
+//! refused once the list holds `MAX_REVOKED - OPERATOR_RESERVED` entries of
+//! any kind, so the last [`OPERATOR_RESERVED`] of [`MAX_REVOKED`] slots are
+//! free for the operator however many operator and legacy entries fill the
+//! rest: a tenant issuing and revoking its own certificates cannot crowd out
+//! the operator.
 //! Entries with no metadata (the operator's by-thumbprint revocations, and
 //! everything an older gateway wrote) stay in `thumbprints`, the original
 //! shape, and count as the operator's.
@@ -110,21 +113,22 @@ impl RevokedLeaves {
 
     /// Why one more entry for `organization` does not fit, if it does not.
     fn refuse(&self, organization: Option<&str>) -> Option<DurableError> {
+        let total = self.len();
         let Some(organization) = organization else {
-            // Tenants never hold more than MAX_REVOKED - OPERATOR_RESERVED,
-            // so only the operator's own entries can fill these slots.
-            return (self.len() >= MAX_REVOKED).then_some(DurableError::Full);
+            return (total >= MAX_REVOKED).then_some(DurableError::Full);
         };
-        let tenant = self.leaves.values().filter(|l| l.organization.is_some());
-        let (mut tenants, mut own) = (0, 0);
-        for leaf in tenant {
-            tenants += 1;
-            own += usize::from(leaf.organization.as_deref() == Some(organization));
-        }
+        let own = self
+            .leaves
+            .values()
+            .filter(|l| l.organization.as_deref() == Some(organization))
+            .count();
         if own >= MAX_REVOKED_PER_ORGANIZATION {
             return Some(DurableError::Quota);
         }
-        (tenants >= MAX_REVOKED - OPERATOR_RESERVED).then_some(DurableError::Full)
+        // Counted against every entry, not the tenants' alone: operator and
+        // legacy entries share the list, and a tenant may never take the
+        // operator's reserved slots whoever filled the rest.
+        (total >= MAX_REVOKED - OPERATOR_RESERVED).then_some(DurableError::Full)
     }
 }
 

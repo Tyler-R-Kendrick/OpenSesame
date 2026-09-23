@@ -1,13 +1,19 @@
-//! The rotation's own inventory of everything sealed under the vault root.
+//! The one inventory of everything sealed under the vault root.
 //!
-//! This deliberately does not reuse the `ls` / attachment-listing walkers:
-//! those hide dot-named files and directories from the person browsing the
-//! store, but `pass insert Dev/.npmrc` is a legal entry, and a rotation that
-//! skipped it would leave it sealed under the revoked root. Here nothing is
-//! hidden except the store's own reserved locations, none of which may hold an
-//! entry (`StoreLock::for_sealing` refuses them): `.git`, the staging
-//! directory, and the chunk pool, whose objects the rotation accounts for
-//! through their manifests and then prunes.
+//! Rotation re-encrypts from it, and attachment listing, garbage collection
+//! and replication read their manifests from it too, so all four see one set.
+//! It deliberately does not reuse the `ls` walker: that hides dot-named files
+//! and directories from the person browsing the store, but `pass insert
+//! Dev/.npmrc` and `pass attach add Dev/.w2` are legal, and a walker that
+//! skipped them would leave them under the revoked root, let GC reclaim their
+//! chunks, or keep them out of a replica. Here nothing is hidden except the
+//! store's own reserved locations, none of which may hold an entry
+//! (`StoreLock::for_sealing` refuses them): `.git`, the staging directory, and
+//! the chunk pool, whose objects the rotation accounts for through their
+//! manifests and then prunes. A directory whose name differs from one of those
+//! only in ASCII case fails the walk closed: on a case-folding filesystem it is
+//! the reserved location, on a case-sensitive one it is not, and the walk
+//! cannot tell which.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -61,11 +67,40 @@ pub(crate) fn inventory(root: &Path) -> Result<SealedInventory, StoreError> {
     Ok(out)
 }
 
-fn reserved(segments: &[String]) -> bool {
-    match segments {
-        [only] => only == ".git" || only == ROTATION_STAGING_DIR,
-        [first, second] => first == POOL_DIR[0] && second == POOL_DIR[1],
-        _ => false,
+/// How a directory relates to the store's reserved locations.
+#[derive(Debug, PartialEq, Eq)]
+enum Reserved {
+    /// Ordinary content: walk it.
+    No,
+    /// The reserved location itself: skip it.
+    Exact,
+    /// Differs from a reserved name only in ASCII case. On a case-folding
+    /// filesystem it *is* that location; on a case-sensitive one it is a
+    /// separate directory that could hold sealed content. Either way the walk
+    /// cannot vouch for it, so it fails closed.
+    CaseVariant,
+}
+
+fn reserved(segments: &[String]) -> Reserved {
+    let names: &[&str] = match segments {
+        [only] if only == ".git" || only == ROTATION_STAGING_DIR => return Reserved::Exact,
+        [first, second] if first == POOL_DIR[0] && second == POOL_DIR[1] => return Reserved::Exact,
+        [_] => &[".git", ROTATION_STAGING_DIR],
+        [_, _] => &POOL_DIR,
+        _ => return Reserved::No,
+    };
+    let variant = if let [only] = segments {
+        names.iter().any(|name| only.eq_ignore_ascii_case(name))
+    } else {
+        segments
+            .iter()
+            .zip(names)
+            .all(|(segment, name)| segment.eq_ignore_ascii_case(name))
+    };
+    if variant {
+        Reserved::CaseVariant
+    } else {
+        Reserved::No
     }
 }
 
@@ -95,8 +130,16 @@ fn walk(
             )));
         }
         if file_type.is_dir() {
-            if !reserved(segments) {
-                walk(&entry.path(), segments, out)?;
+            match reserved(segments) {
+                Reserved::No => walk(&entry.path(), segments, out)?,
+                Reserved::Exact => {}
+                Reserved::CaseVariant => {
+                    return Err(StoreError::InvalidPath(format!(
+                        "{} differs only in case from a reserved store directory; rename it \
+                         before rotating",
+                        segments.join("/")
+                    )));
+                }
             }
         } else if file_type.is_file() {
             classify(segments, out)?;
@@ -175,6 +218,39 @@ mod tests {
         let attachments: Vec<_> = found.attachments.iter().map(String::as_str).collect();
         assert_eq!(attachments, ["Dev/.w2"]);
         assert_eq!(found.foreign, 1);
+    }
+
+    #[test]
+    fn reserved_names_match_in_any_ascii_case() {
+        let seg = |parts: &[&str]| parts.iter().map(|p| (*p).to_string()).collect::<Vec<_>>();
+        assert_eq!(reserved(&seg(&[".git"])), Reserved::Exact);
+        assert_eq!(
+            reserved(&seg(&[".attachments", "objects"])),
+            Reserved::Exact
+        );
+        let staging = ROTATION_STAGING_DIR.to_ascii_uppercase();
+        for variant in [
+            seg(&[".GIT"]),
+            seg(&[".Git"]),
+            seg(&[&staging]),
+            seg(&[".Attachments", "OBJECTS"]),
+        ] {
+            assert_eq!(reserved(&variant), Reserved::CaseVariant, "{variant:?}");
+        }
+        assert_eq!(reserved(&seg(&[".gitx"])), Reserved::No);
+        assert_eq!(reserved(&seg(&["Dev", ".git"])), Reserved::No);
+        assert_eq!(reserved(&seg(&[".attachments"])), Reserved::No);
+    }
+
+    #[test]
+    fn a_differently_cased_reserved_directory_is_never_walked_as_content() {
+        for rel in [".GIT/stray.osseal", ".Attachments/Objects/ab/x.osseal"] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"x").unwrap();
+            assert!(inventory(dir.path()).is_err(), "{rel}");
+        }
     }
 
     #[cfg(unix)]

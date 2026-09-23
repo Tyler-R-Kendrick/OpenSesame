@@ -31,8 +31,15 @@ use crate::StoreError;
 pub(crate) const STORE_LOCK_FILE: &str = ".opensesame-lock";
 
 /// Top-level names no entry or attachment may live under: rotation does not
-/// walk them for content, so nothing sealed may be written there.
-const RESERVED_TOP_LEVEL: [&str; 3] = [".git", ".attachments", ROTATION_STAGING_DIR];
+/// walk them for content, so nothing sealed may be written there. Compared
+/// ASCII-case-insensitively: on a case-folding filesystem `.GIT/token` lands
+/// in `.git/`.
+const RESERVED_TOP_LEVEL: [&str; 4] = [
+    ".git",
+    ".attachments",
+    ROTATION_STAGING_DIR,
+    STORE_LOCK_FILE,
+];
 
 /// A held store lock; released when dropped (or when the process exits).
 pub(crate) struct StoreLock {
@@ -97,8 +104,17 @@ fn refuse_staging(root: &Path) -> Result<(), StoreError> {
 }
 
 fn refuse_reserved_name(name: &str) -> Result<(), StoreError> {
-    let first = name.trim().split('/').next().unwrap_or_default();
-    if RESERVED_TOP_LEVEL.contains(&first) {
+    // The first path component as the platform splits it (so a backslash counts on
+    // Windows), not merely up to the first `/`.
+    let first = Path::new(name.trim())
+        .components()
+        .next()
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if RESERVED_TOP_LEVEL
+        .iter()
+        .any(|reserved| first.eq_ignore_ascii_case(reserved))
+    {
         return Err(StoreError::InvalidPath(format!(
             "{first} is reserved for the store's own state"
         )));
@@ -179,4 +195,29 @@ fn open_lock_file(root: &Path) -> Result<File, StoreError> {
 #[cfg(not(unix))]
 fn acquire(_file: &File, _exclusive: bool) -> Result<(), Option<StoreError>> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reserved_top_level_names_are_refused_in_any_ascii_case() {
+        let staging = format!("{}/x", ROTATION_STAGING_DIR.to_ascii_uppercase());
+        for name in [
+            ".git/x",
+            ".GIT/token",
+            ".Git",
+            ".Attachments/x",
+            ".ATTACHMENTS/objects/ab",
+            staging.as_str(),
+            ".OpenSesame-Lock/x",
+            "  .GIT/padded",
+        ] {
+            assert!(refuse_reserved_name(name).is_err(), "{name}");
+        }
+        for name in ["Dev/.git", ".gitx/token", "Dev/.GIT/x", ".npmrc", "Dev/.w2"] {
+            assert!(refuse_reserved_name(name).is_ok(), "{name}");
+        }
+    }
 }

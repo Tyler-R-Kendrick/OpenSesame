@@ -606,12 +606,17 @@ impl StoreRoot {
         Ok(units)
     }
 
-    /// Logical names of every stored attachment.
+    /// Logical names of every stored attachment, sorted.
+    ///
+    /// This is the rotation's own inventory, so listing, garbage collection,
+    /// replication and rotation all see one set: a dot-named attachment
+    /// (`Dev/.w2`) is legal, and a walker that hid it would let GC reclaim its
+    /// chunks and replication leave it behind. The walk fails closed (a
+    /// symlink, an unreadable directory, a name the store cannot address), so
+    /// GC deletes nothing when it cannot account for every manifest.
     pub(crate) fn attachment_names(&self) -> Result<Vec<String>, StoreError> {
-        let mut names = Vec::new();
-        collect_manifests(&self.path, &self.path, &mut names)?;
-        names.sort();
-        Ok(names)
+        let inventory = crate::rotation_walk::inventory(&self.path)?;
+        Ok(inventory.attachments.into_iter().collect())
     }
 
     /// `(digest, relative path)` for every chunk object in the pool.
@@ -692,50 +697,6 @@ fn summary_of(name: &str, manifest: &AttachmentManifest) -> AttachmentSummary {
     }
 }
 
-/// Walk the store for `.osattach` files, skipping dot-prefixed directories so
-/// the object pool and local state files are never treated as manifests.
-fn collect_manifests(root: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(), StoreError> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(StoreError::Io(e)),
-    };
-    for entry in entries {
-        let entry = entry.map_err(StoreError::Io)?;
-        let file_name = entry.file_name();
-        let Some(file_name) = file_name.to_str() else {
-            continue;
-        };
-        if file_name.starts_with('.') {
-            continue;
-        }
-        let file_type = entry.file_type().map_err(StoreError::Io)?;
-        if file_type.is_symlink() {
-            continue;
-        }
-        if file_type.is_dir() {
-            collect_manifests(root, &entry.path(), out)?;
-            continue;
-        }
-        let Some(stem) = file_name.strip_suffix(&format!(".{ATTACH_EXT}")) else {
-            continue;
-        };
-        let rel_dir = entry
-            .path()
-            .parent()
-            .and_then(|p| p.strip_prefix(root).ok())
-            .map(Path::to_path_buf)
-            .unwrap_or_default();
-        let logical = if rel_dir.as_os_str().is_empty() {
-            stem.to_string()
-        } else {
-            format!("{}/{}", rel_dir.to_string_lossy(), stem)
-        };
-        out.push(logical);
-    }
-    Ok(())
-}
-
 /// Read exactly `buf.len()` bytes, treating a short stream as an error.
 fn read_exact_chunk(source: &mut dyn Read, buf: &mut [u8]) -> Result<(), StoreError> {
     let mut filled = 0;
@@ -774,6 +735,10 @@ pub(crate) fn hex_to_bytes(hex: &str, out: &mut [u8; 16]) -> Result<(), StoreErr
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "attachment_inventory_tests.rs"]
+mod inventory_tests;
 
 #[cfg(test)]
 mod pact {

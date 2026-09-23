@@ -217,6 +217,95 @@ fn nothing_in_the_store_reveals_the_document() {
 }
 
 #[test]
+fn a_dot_named_document_survives_gc_and_reaches_a_replica() {
+    let f = given_a_store_with_a_document();
+    let added = run(
+        &f.store,
+        &[
+            "pass",
+            "attach",
+            "add",
+            "Dev/.w2",
+            f.source.to_str().unwrap(),
+        ],
+    );
+    assert!(added.status.success(), "attach add failed: {added:?}");
+
+    // Age every chunk past the grace window, so GC would reclaim any chunk it
+    // failed to account for.
+    let aged = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600);
+    let chunks: Vec<PathBuf> = walk(&f.store)
+        .into_iter()
+        .filter(|p| p.extension().is_some_and(|e| e == "oschunk"))
+        .collect();
+    assert_eq!(chunks.len(), 3, "the document spans three chunks");
+    for chunk in &chunks {
+        std::fs::File::options()
+            .write(true)
+            .open(chunk)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(aged))
+            .unwrap();
+    }
+
+    let gc = run(&f.store, &["pass", "attach", "gc"]);
+    assert!(gc.status.success(), "attach gc failed: {gc:?}");
+    assert!(
+        stdout(&gc).contains("removed 0 orphan(s)"),
+        "{}",
+        stdout(&gc)
+    );
+    assert!(
+        chunks.iter().all(|c| c.exists()),
+        "no referenced chunk may go"
+    );
+
+    let out = f.store.parent().unwrap().join("recovered.pdf");
+    let got = run(
+        &f.store,
+        &[
+            "pass",
+            "attach",
+            "get",
+            "Dev/.w2",
+            "--reveal",
+            "--out",
+            out.to_str().unwrap(),
+        ],
+    );
+    assert!(got.status.success(), "attach get failed: {got:?}");
+    assert_eq!(std::fs::read(&out).unwrap(), payload());
+
+    let replica = f.store.parent().unwrap().join("replica");
+    let synced = run(
+        &f.store,
+        &[
+            "pass",
+            "attach",
+            "sync",
+            "--to-dir",
+            replica.to_str().unwrap(),
+        ],
+    );
+    assert!(synced.status.success(), "attach sync failed: {synced:?}");
+    let copied = walk(&replica);
+    assert!(
+        copied
+            .iter()
+            .any(|p| p.ends_with("attachments/Dev/.w2.osattach")),
+        "the manifest must be replicated: {copied:?}"
+    );
+    assert_eq!(
+        copied
+            .iter()
+            .filter(|p| p.extension().is_some_and(|e| e == "oschunk"))
+            .count(),
+        3,
+        "every chunk must be replicated: {copied:?}"
+    );
+}
+
+#[test]
 fn fixture_byte_conversion_covers_modulus_boundary() {
     assert_eq!(fixture_byte(250), 250);
     assert_eq!(fixture_byte(251), 0);
