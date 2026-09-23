@@ -14,9 +14,12 @@ pub mod tokens;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use futures::StreamExt as _;
 use opensesame_nats_callout::bridge::{run, BridgeCore};
 use opensesame_nats_callout::host_client::HttpHost;
 use opensesame_nats_callout::response::ResponseSigner;
+use opensesame_nats_callout::xkey::CalloutXKey;
+use opensesame_nats_callout::{AUTH_SUBJECT, SERVER_XKEY_HEADER};
 use opensesame_transport_security::{
     client_config, Generation, SecureListener, ServerProfile, TransportGenerations,
 };
@@ -29,6 +32,27 @@ use opensesame_domain::transport::{TransportPolicy, TrustProfileRef};
 /// Events a client saw, newest last.
 pub type EventLog = Arc<Mutex<Vec<String>>>;
 
+/// One callout request exactly as the server sent it, recorded by a passive
+/// plain subscriber on the protected subject. The recorder never answers —
+/// the queue-group bridge is the only responder — so recording cannot change
+/// any decision.
+#[derive(Clone)]
+pub struct RecordedEnvelope {
+    pub payload: Vec<u8>,
+    pub server_xkey_header: Option<String>,
+}
+
+/// How one [`Stack`] wires the callout envelope.
+#[derive(Default)]
+pub struct StackOptions {
+    /// Public curve key written to `auth_callout.xkey`; `None` leaves the
+    /// server sending bare request JWTs.
+    pub server_xkey: Option<String>,
+    /// Seed for the callout xkey the serving bridge core uses; `None` leaves
+    /// the bridge unable to serve sealed envelopes at all.
+    pub bridge_xkey_seed: Option<String>,
+}
+
 pub struct Stack {
     _dir: tempfile::TempDir,
     pki: pki::Pki,
@@ -36,17 +60,47 @@ pub struct Stack {
     pub host: Arc<MockHost>,
     host_url: url::Url,
     account_seed: String,
+    xkey_seed: Option<String>,
+    envelopes: Arc<Mutex<Vec<RecordedEnvelope>>>,
     shutdown: tokio::sync::oneshot::Sender<()>,
+    recorder: tokio::task::JoinHandle<()>,
     bridge: tokio::task::JoinHandle<()>,
 }
 
 impl Stack {
-    /// Start every component and wait until the bridge is serving.
+    /// Start every component with bare (unsealed) callouts and wait until the
+    /// bridge is serving.
     ///
     /// # Panics
     ///
     /// When any component fails to start.
     pub async fn start() -> Self {
+        Self::start_with(StackOptions::default()).await
+    }
+
+    /// Start with `auth_callout.xkey` set on the server and the serving
+    /// bridge holding the matching callout xkey: every request arrives as an
+    /// `xkv1` envelope and the reply must be sealed back to the server.
+    ///
+    /// # Panics
+    ///
+    /// When any component fails to start.
+    pub async fn start_sealed() -> Self {
+        let xkey = CalloutXKey::generate();
+        let seed = xkey.seed().expect("xkey seed");
+        Self::start_with(StackOptions {
+            server_xkey: Some(xkey.public_key()),
+            bridge_xkey_seed: Some(seed),
+        })
+        .await
+    }
+
+    /// Start every component and wait until the bridge is serving.
+    ///
+    /// # Panics
+    ///
+    /// When any component fails to start.
+    pub async fn start_with(options: StackOptions) -> Self {
         let dir = opensesame_transport_security::testkit::tempdir();
         let pki = pki::Pki::generate(dir.path());
         let account = nkeys::KeyPair::new_account();
@@ -61,14 +115,21 @@ impl Stack {
             &pki,
             &account.public_key(),
             &bridge_user.public_key(),
+            options.server_xkey.as_deref(),
         );
         host.pin(HostPins {
             server_public_keys: vec![nats.server_public_key.clone()],
             callout_subject: account.public_key(),
         });
 
-        let core = Arc::new(build_core(&pki, &account_seed, &host_url, false));
-        let options = async_nats::ConnectOptions::new()
+        let core = Arc::new(build_core(
+            &pki,
+            &account_seed,
+            &host_url,
+            false,
+            xkey_from(options.bridge_xkey_seed.as_deref()),
+        ));
+        let connect_options = async_nats::ConnectOptions::new()
             .name("live-bridge")
             .nkey(bridge_user.seed().expect("bridge seed"))
             .require_tls(true)
@@ -77,10 +138,12 @@ impl Stack {
             )
             .connection_timeout(Duration::from_secs(5))
             .retry_on_initial_connect();
-        let nats_client = options
+        let nats_client = connect_options
             .connect(nats.url())
             .await
             .expect("bridge connects to nats");
+        let envelopes: Arc<Mutex<Vec<RecordedEnvelope>>> = Arc::new(Mutex::new(Vec::new()));
+        let recorder = spawn_recorder(nats_client.clone(), Arc::clone(&envelopes));
         let bridge = tokio::spawn(async move {
             let _ = run(nats_client, core).await;
         });
@@ -92,7 +155,10 @@ impl Stack {
             host,
             host_url,
             account_seed,
+            xkey_seed: options.bridge_xkey_seed,
+            envelopes,
             shutdown,
+            recorder,
             bridge,
         }
     }
@@ -110,14 +176,49 @@ impl Stack {
             .public_key()
     }
 
-    /// A bridge core wired to the mock Host with the bridge's certificate.
+    /// A bridge core wired to the mock Host with the bridge's certificate and
+    /// no callout xkey.
     ///
     /// # Panics
     ///
     /// When the client cannot be built.
     #[must_use]
     pub fn bridge_core(&self) -> BridgeCore {
-        build_core(&self.pki, &self.account_seed, &self.host_url, false)
+        build_core(&self.pki, &self.account_seed, &self.host_url, false, None)
+    }
+
+    /// The same core holding this stack's callout xkey — the one the server's
+    /// `auth_callout.xkey` names.
+    ///
+    /// # Panics
+    ///
+    /// When the stack was started without an xkey or the client cannot be
+    /// built.
+    #[must_use]
+    pub fn bridge_core_with_xkey(&self) -> BridgeCore {
+        build_core(
+            &self.pki,
+            &self.account_seed,
+            &self.host_url,
+            false,
+            xkey_from(self.xkey_seed.as_deref()),
+        )
+    }
+
+    /// The same core holding a fresh, unrelated callout xkey.
+    ///
+    /// # Panics
+    ///
+    /// When the client cannot be built.
+    #[must_use]
+    pub fn bridge_core_with_fresh_xkey(&self) -> BridgeCore {
+        build_core(
+            &self.pki,
+            &self.account_seed,
+            &self.host_url,
+            false,
+            Some(CalloutXKey::generate()),
+        )
     }
 
     /// The same core with an unrelated worker certificate — the Host must
@@ -128,7 +229,13 @@ impl Stack {
     /// When the client cannot be built.
     #[must_use]
     pub fn bridge_core_with_worker_certificate(&self) -> BridgeCore {
-        build_core(&self.pki, &self.account_seed, &self.host_url, true)
+        build_core(&self.pki, &self.account_seed, &self.host_url, true, None)
+    }
+
+    /// Every callout request the recorder saw, oldest first.
+    #[must_use]
+    pub fn envelopes(&self) -> Vec<RecordedEnvelope> {
+        self.envelopes.lock().expect("envelopes").clone()
     }
 
     /// Connect an application client presenting `token`.
@@ -160,9 +267,10 @@ impl Stack {
         Ok((client, log))
     }
 
-    /// Stop the bridge, the mock Host and nats-server.
+    /// Stop the bridge, the recorder, the mock Host and nats-server.
     pub async fn stop(mut self) {
         self.bridge.abort();
+        self.recorder.abort();
         let _ = self.shutdown.send(());
         // Let the aborted bridge task and the listener's shutdown actually
         // run before the process is torn down.
@@ -176,6 +284,7 @@ fn build_core(
     account_seed: &str,
     host_url: &url::Url,
     worker_certificate: bool,
+    xkey: Option<CalloutXKey>,
 ) -> BridgeCore {
     let profile = if worker_certificate {
         pki.worker_to_host()
@@ -185,7 +294,7 @@ fn build_core(
     BridgeCore {
         signer: ResponseSigner::from_seed(account_seed, 300).expect("signer"),
         server_public_keys: vec![],
-        xkey: None,
+        xkey,
         target_account: server::APP_ACCOUNT.to_owned(),
         callout_subject: None,
         source: Arc::new(HttpHost::new(&profile, host_url).expect("host client")),
@@ -238,6 +347,37 @@ async fn start_host(
     let url =
         url::Url::parse(&format!("https://{}:{}", pki::HOST_DNS, addr.port())).expect("host url");
     (url, tx)
+}
+
+/// The callout xkey named by a stack's seed.
+fn xkey_from(seed: Option<&str>) -> Option<CalloutXKey> {
+    seed.map(|s| CalloutXKey::from_seed(s).expect("xkey seed"))
+}
+
+/// A passive plain subscriber on the protected subject: it records every
+/// callout envelope exactly as the server sent it (payload and
+/// `Nats-Server-Xkey` header) and never answers — the queue-group bridge is
+/// the only responder, so recording cannot change any decision.
+fn spawn_recorder(
+    client: async_nats::Client,
+    envelopes: Arc<Mutex<Vec<RecordedEnvelope>>>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let Ok(mut sub) = client.subscribe(AUTH_SUBJECT).await else {
+            return;
+        };
+        while let Some(message) = sub.next().await {
+            let server_xkey_header = message
+                .headers
+                .as_ref()
+                .and_then(|h| h.get(SERVER_XKEY_HEADER))
+                .map(|v| v.as_str().to_owned());
+            envelopes.lock().expect("envelopes").push(RecordedEnvelope {
+                payload: message.payload.to_vec(),
+                server_xkey_header,
+            });
+        }
+    })
 }
 
 /// Count permission-violation events, waiting briefly for `want` of them.
