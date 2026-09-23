@@ -48,16 +48,33 @@ function prefillQuery(value: JsonValue | undefined, typeId: string): string {
   return search.size ? `?${search}` : "";
 }
 
-function itemDestination(section: string, args: JsonObject): string {
-  const snapshot = vaultStore.getSnapshot();
+/**
+ * Share reach comes before the existence check, so an actor without a share
+ * hears `share_grant_denied` for every id, real or not, and navigation is no
+ * oracle for which items exist. Opening the edit ceremony needs write reach.
+ */
+async function itemDestination(
+  section: string,
+  args: JsonObject,
+): Promise<string> {
+  const itemId = args.itemId;
   if (
     section !== "/vault" ||
-    snapshot.status !== "unlocked" ||
-    !isString(args.itemId) ||
-    !snapshot.items.some((item) => item.id === args.itemId && !item.deletedAt)
+    vaultStore.getSnapshot().status !== "unlocked" ||
+    !isString(itemId)
   )
     throw new Error("invalid_item_destination");
-  return `/${encodeURIComponent(args.itemId)}${args.edit === true ? "/edit" : ""}`;
+  const edit = args.edit === true;
+  const { assertShareReach } = await import("../lib/local-share-reach.js");
+  await assertShareReach(
+    vaultStore.activeTomb(),
+    { kind: "item", id: itemId },
+    edit ? "write" : "read",
+  );
+  const { items } = vaultStore.getSnapshot();
+  if (!items.some((item) => item.id === itemId && !item.deletedAt))
+    throw new Error("invalid_item_destination");
+  return `/${encodeURIComponent(itemId)}${edit ? "/edit" : ""}`;
 }
 
 function navigationInputSchema(): WebMcpToolSpec["inputSchema"] {
@@ -112,7 +129,7 @@ export const navigationTool: WebMcpToolSpec = {
   get inputSchema() {
     return navigationInputSchema();
   },
-  execute(args) {
+  async execute(args) {
     if (!isString(args.section)) throw new Error("missing_argument:section");
     const section = args.section.startsWith("/")
       ? args.section
@@ -121,7 +138,7 @@ export const navigationTool: WebMcpToolSpec = {
       throw new Error("unknown_section");
     let location = section;
     if (args.itemId !== undefined) {
-      location += itemDestination(section, args);
+      location += await itemDestination(section, args);
     } else if (args.edit !== undefined) throw new Error("edit_requires_item");
     if (args.itemType !== undefined) {
       if (

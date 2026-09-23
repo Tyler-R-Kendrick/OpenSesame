@@ -1,8 +1,11 @@
+import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   registerLegacyJumps,
   registerLegacyTabPaths,
 } from "../lib/contributions.test-support.js";
+import { shareReachSeams } from "../lib/local-share-reach.js";
+import { vaultStore } from "../lib/vault/store.js";
 import {
   navigationPaths,
   navigationTool,
@@ -30,10 +33,10 @@ afterEach(() => {
 });
 
 describe("WebMCP navigation", () => {
-  it("opens validated public prefills without allowing secrets or automatic submission", () => {
+  it("opens validated public prefills without allowing secrets or automatic submission", async () => {
     const navigate = vi.fn();
     webmcpNavigationSeam.navigate = navigate;
-    navigationTool.execute({
+    await navigationTool.execute({
       section: "/vault/new",
       itemType: "login",
       prefill: {
@@ -51,13 +54,13 @@ describe("WebMCP navigation", () => {
       { uri: "https://example.com?token=sentinel" },
       { name: 5 },
     ]) {
-      expect(() =>
+      await expect(
         navigationTool.execute({ section: "/vault/new", prefill }),
-      ).toThrow("invalid_prefill");
+      ).rejects.toThrow("invalid_prefill");
     }
-    expect(() =>
+    await expect(
       navigationTool.execute({ section: "/settings", prefill: { name: "no" } }),
-    ).toThrow("invalid_prefill");
+    ).rejects.toThrow("invalid_prefill");
     expect(navigate).toHaveBeenCalledOnce();
   });
   it("opens every authored destination, including real section tabs", async () => {
@@ -78,8 +81,8 @@ describe("WebMCP navigation", () => {
     "/vault/../settings",
     "/vault?token=abc",
     "/settings/nope",
-  ])("refuses unrecognized destination %s", (section) => {
-    expect(() => navigationTool.execute({ section })).toThrow(
+  ])("refuses unrecognized destination %s", async (section) => {
+    await expect(navigationTool.execute({ section })).rejects.toThrow(
       "unknown_section",
     );
   });
@@ -89,27 +92,84 @@ describe("WebMCP navigation", () => {
     webmcpNavigationSeam.navigate = navigate;
     await navigationTool.execute({ section: "/vault/new", itemType: "login" });
     expect(navigate).toHaveBeenCalledWith("/vault/new/login");
-    expect(() =>
+    await expect(
       navigationTool.execute({
         section: "/vault/new",
         itemType: "not-installed",
       }),
-    ).toThrow("invalid_item_type_destination");
-    expect(() =>
+    ).rejects.toThrow("invalid_item_type_destination");
+    await expect(
       navigationTool.execute({ section: "/settings", itemType: "login" }),
-    ).toThrow("invalid_item_type_destination");
+    ).rejects.toThrow("invalid_item_type_destination");
   });
 
-  it("refuses unknown item routes and edit without an item", () => {
-    expect(() =>
+  it("refuses unknown item routes and edit without an item", async () => {
+    await expect(
       navigationTool.execute({
         section: "/vault",
         itemId: "missing",
         edit: true,
       }),
-    ).toThrow("invalid_item_destination");
-    expect(() =>
+    ).rejects.toThrow("invalid_item_destination");
+    await expect(
       navigationTool.execute({ section: "/vault", edit: true }),
-    ).toThrow("edit_requires_item");
+    ).rejects.toThrow("edit_requires_item");
+  });
+
+  describe("item routes honor share reach", () => {
+    const item = createItem("login", "Bank");
+
+    beforeEach(() => {
+      const snapshot = vaultStore.getSnapshot();
+      vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
+        ...snapshot,
+        status: "unlocked",
+        tomb: "personal",
+        guest: false,
+        items: [item],
+      });
+      vi.spyOn(vaultStore, "activeTomb").mockReturnValue("personal");
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function memberWithoutShares(): void {
+      vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
+        "member",
+      );
+      vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(false);
+      vi.spyOn(shareReachSeams, "currentSession").mockReturnValue({
+        principalId: "member-1",
+        accessToken: "",
+        issuerOrigin: "https://id.example",
+      });
+      vi.spyOn(shareReachSeams, "listLocalShares").mockResolvedValue([]);
+    }
+
+    it("denies a member with no share, for real and unknown ids alike", async () => {
+      memberWithoutShares();
+      const navigate = vi.fn();
+      webmcpNavigationSeam.navigate = navigate;
+      for (const itemId of [item.id, "missing"]) {
+        for (const edit of [false, true]) {
+          await expect(
+            navigationTool.execute({ section: "/vault", itemId, edit }),
+          ).rejects.toThrow("share_grant_denied");
+        }
+      }
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it("opens the item for an operator", async () => {
+      vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
+        "operator",
+      );
+      vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
+      const navigate = vi.fn();
+      webmcpNavigationSeam.navigate = navigate;
+      await navigationTool.execute({ section: "/vault", itemId: item.id });
+      expect(navigate).toHaveBeenCalledWith(`/vault/${item.id}`);
+    });
   });
 });
