@@ -65,13 +65,12 @@ pub fn parse_key_file_json(json: &str) -> Result<KeyFileContents, ProtectionErro
     Ok(KeyFileContents::Manifest(manifest))
 }
 
-/// Persist key-file contents under `root`.
+/// Serialize key-file contents exactly as [`write_key_file`] would.
 ///
 /// # Errors
 ///
-/// Returns IO or encoding failures.
-pub fn write_key_file(root: &Path, contents: &KeyFileContents) -> Result<(), ProtectionError> {
-    let path = root.join(KEY_FILE_NAME);
+/// Returns bounds or encoding failures.
+pub fn encode_key_file(contents: &KeyFileContents) -> Result<String, ProtectionError> {
     let json = match contents {
         KeyFileContents::Legacy(wrapper) => serde_json::to_string_pretty(wrapper)
             .map_err(|e| ProtectionError::MalformedEncoding(e.to_string()))?,
@@ -84,8 +83,56 @@ pub fn write_key_file(root: &Path, contents: &KeyFileContents) -> Result<(), Pro
     if json.len() > MAX_MANIFEST_ENCODED_BYTES {
         return Err(ProtectionError::OversizedManifest);
     }
-    fs::write(path, json)?;
+    Ok(json)
+}
+
+/// Persist key-file contents under `root`, atomically: a sibling temp file is
+/// written and fsynced, then renamed over `.opensesame-key`, so a crash leaves
+/// either the old key file or the new one — never a truncated wrap.
+///
+/// # Errors
+///
+/// Returns IO or encoding failures.
+pub fn write_key_file(root: &Path, contents: &KeyFileContents) -> Result<(), ProtectionError> {
+    let json = encode_key_file(contents)?;
+    let tmp = root.join(format!(
+        "{KEY_FILE_NAME}.{}.tmp",
+        uuid::Uuid::new_v4().simple()
+    ));
+    let written = write_synced(&tmp, json.as_bytes())
+        .and_then(|()| fs::rename(&tmp, root.join(KEY_FILE_NAME)));
+    if let Err(error) = written {
+        let _ = fs::remove_file(&tmp);
+        return Err(error.into());
+    }
+    sync_dir(root);
     Ok(())
+}
+
+/// Create `path` owner-only, write `bytes`, and fsync before returning.
+///
+/// # Errors
+///
+/// Returns the underlying IO failure.
+pub fn write_synced(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let mut file = options.open(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
+}
+
+/// Best-effort directory fsync so a completed rename survives power loss.
+pub fn sync_dir(dir: &Path) {
+    #[cfg(unix)]
+    if let Ok(handle) = fs::File::open(dir) {
+        let _ = handle.sync_all();
+    }
+    #[cfg(not(unix))]
+    let _ = dir;
 }
 
 /// Create a versioned key file wrapping a fresh VRK under `password`.

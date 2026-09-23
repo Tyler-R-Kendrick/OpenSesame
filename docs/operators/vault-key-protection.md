@@ -14,14 +14,23 @@ CLI (native sealed store):
 ```bash
 opensesame pass protect list [--path DIR] [--tomb NAME]
 opensesame pass protect test
-opensesame pass protect add-recovery --yes
-opensesame pass protect add-age --recipient age1... --yes
-opensesame pass protect remove --id PROTECTOR_ID --yes
-opensesame pass protect rewrap --yes
-opensesame pass protect recovery-test --key-file ./recovery.key
-opensesame pass protect root-rotate --yes
+opensesame pass protect recovery add --yes [--reveal]
+opensesame pass protect recovery test          # key from a hidden prompt or stdin, never argv
+opensesame pass protect add age --recipient age1... --yes
+opensesame pass protect remove PROTECTOR_ID --yes [--no-rotate]
+opensesame pass protect rewrap --yes [--no-rotate]
+opensesame pass protect root-rotate --yes [--reissue-recovery --reveal]
 opensesame pass protect piv-discover   # non-destructive
 ```
+
+On the native store only a password protector unlocks; a recovery key or an
+age capsule is tested, never used to open the store. So the last password
+protector cannot be removed, whatever else is enrolled.
+
+`remove` and `rewrap` rotate the root key by default (below). With
+`--no-rotate` they only edit `.opensesame-key`, and say so: the previous key
+file is still in git history and any pushed remote, and its wrap still opens
+the unchanged root.
 
 ## Offline recovery
 
@@ -41,10 +50,30 @@ of the sole verified method.
 
 ## Compromised root
 
-Use rotate compromised vault key / `pass protect root-rotate`. Current content
-is rewritten under a new root where the store uses the root as the content key.
-Historical ciphertext and removed wrappers may still reveal an unchanged old
-root — rotation is not retroactive secrecy.
+`pass protect root-rotate` (and `remove` / `rewrap` unless `--no-rotate`)
+mints a new root key and re-encrypts every `.osseal` entry and every
+attachment — manifest and chunks — under it. The password protector is
+rewrapped, age capsules are resealed to their recorded recipients, and a
+recovery key, whose secret is never stored, cannot follow: the rotation
+refuses until you remove it or pass `--reissue-recovery --reveal`, which
+prints a new recovery key once. A second password protector refuses the same
+way, since its passphrase is not the one supplied.
+
+Nothing is destroyed on failure. New ciphertext is staged in
+`.opensesame-rotation/` and swapped in only once every item re-encrypted; the
+new `.opensesame-key` is renamed into place last. Any error before that
+rename restores the previous files and leaves the key file untouched. If the
+process dies mid-swap, `.opensesame-rotation/` keeps `key.next` (the new key
+file), `old/` (the previous ciphertext) and `plan.json` (which path each
+numbered file belongs to), and the next rotation refuses until it is resolved.
+
+`.gpg` and `.age` entries are not sealed under the root and are left as they
+are. Rotation is not retroactive secrecy: ciphertext and key files already in
+git history still open with the old root, and `pass history` / `pass restore`
+cannot open pre-rotation versions with the new one. A long-running process
+holding the old key in memory (a password-manager bridge, the connector host)
+must be restarted after a rotation, or what it writes is sealed under the
+retired root.
 
 ## SOPS
 

@@ -5,10 +5,9 @@ use std::path::Path;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use opensesame_human_vault::root_protection::{
     protect_add_age_recipient, protect_add_recovery, protect_list, protect_remove,
-    protect_rewrap_password, protect_root_rotate, protect_test_password, protect_test_recovery,
-    ProtectionError, ProtectorSummary,
+    protect_rewrap_password, protect_test_password, protect_test_recovery, ProtectionError,
+    ProtectorSummary,
 };
-use opensesame_human_vault::VaultRootKey;
 
 use crate::age_fmt::encrypt_age;
 use crate::StoreError;
@@ -40,7 +39,8 @@ pub fn protect_test_store_password(root: &Path, password: &[u8]) -> Result<(), S
     Ok(protect_test_password(root, password)?)
 }
 
-/// Rewrap password protector.
+/// Rewrap password protector without rotating the root (see
+/// [`crate::rotate_store_root`] for the revoking form).
 ///
 /// # Errors
 ///
@@ -65,7 +65,8 @@ pub fn protect_add_store_recovery(
     Ok(protect_add_recovery(root, password)?)
 }
 
-/// Remove protector by id.
+/// Remove protector by id without rotating the root (see
+/// [`crate::rotate_store_root`] for the revoking form).
 ///
 /// # Errors
 ///
@@ -85,23 +86,6 @@ pub fn protect_remove_store(
 /// Returns capsule failures.
 pub fn protect_test_store_recovery(root: &Path, recovery_key: &[u8; 32]) -> Result<(), StoreError> {
     Ok(protect_test_recovery(root, recovery_key)?)
-}
-
-/// Root-rotate with deliberate content-key change consent.
-///
-/// # Errors
-///
-/// Returns unavailable without consent, or wrap failures.
-pub fn protect_root_rotate_store(
-    root: &Path,
-    password: &[u8],
-    allow_content_key_change: bool,
-) -> Result<VaultRootKey, StoreError> {
-    Ok(protect_root_rotate(
-        root,
-        password,
-        allow_content_key_change,
-    )?)
 }
 
 /// Add age-recipient protector by encrypting a root capsule to recipients.
@@ -129,7 +113,6 @@ pub fn protect_add_store_age_recipient(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use opensesame_human_vault::root_protection::{write_key_file, KeyFileContents};
     use opensesame_human_vault::{wrap_vrk_with_password, ItemDataKey, VaultRootKey};
 

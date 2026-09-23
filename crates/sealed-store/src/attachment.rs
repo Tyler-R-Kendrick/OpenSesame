@@ -173,7 +173,7 @@ pub fn sanitize_filename(filename: &str) -> Option<String> {
     Some(cleaned)
 }
 
-fn object_relative(digest_hex: &str) -> Result<PathBuf, StoreError> {
+pub(crate) fn object_relative(digest_hex: &str) -> Result<PathBuf, StoreError> {
     // The digest is produced by us from BLAKE3 output, but it also arrives from
     // a decrypted manifest, so validate before it reaches a path.
     if digest_hex.len() != 64 || !digest_hex.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -185,7 +185,7 @@ fn object_relative(digest_hex: &str) -> Result<PathBuf, StoreError> {
         .join(format!("{lowered}.{CHUNK_EXT}")))
 }
 
-fn attach_relative(name: &str) -> Result<PathBuf, StoreError> {
+pub(crate) fn attach_relative(name: &str) -> Result<PathBuf, StoreError> {
     let rel = logical_to_relative(name)?;
     // Append rather than `with_extension`, matching entry naming so a dotted
     // logical name keeps its final label.
@@ -196,7 +196,7 @@ fn attach_relative(name: &str) -> Result<PathBuf, StoreError> {
 }
 
 impl StoreRoot {
-    fn attachment_revisions(&self) -> Result<BTreeMap<String, u64>, StoreError> {
+    pub(crate) fn attachment_revisions(&self) -> Result<BTreeMap<String, u64>, StoreError> {
         let path = self.path.join(ATTACHMENT_REVISION_FILE);
         if !path.exists() {
             return Ok(BTreeMap::new());
@@ -363,7 +363,7 @@ impl StoreRoot {
         Ok(summary_of(name, &manifest))
     }
 
-    fn open_manifest(
+    pub(crate) fn open_manifest(
         &self,
         name: &str,
         key: &ItemDataKey,
@@ -604,7 +604,7 @@ impl StoreRoot {
     }
 
     /// Logical names of every stored attachment.
-    fn attachment_names(&self) -> Result<Vec<String>, StoreError> {
+    pub(crate) fn attachment_names(&self) -> Result<Vec<String>, StoreError> {
         let mut names = Vec::new();
         collect_manifests(&self.path, &self.path, &mut names)?;
         names.sort();
@@ -764,7 +764,7 @@ fn hex_lower(bytes: &[u8]) -> String {
     out
 }
 
-fn hex_to_bytes(hex: &str, out: &mut [u8; 16]) -> Result<(), StoreError> {
+pub(crate) fn hex_to_bytes(hex: &str, out: &mut [u8; 16]) -> Result<(), StoreError> {
     if hex.len() != 32 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(StoreError::Crypto("invalid attachment id".into()));
     }

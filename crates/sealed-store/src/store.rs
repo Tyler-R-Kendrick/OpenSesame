@@ -156,7 +156,7 @@ impl StoreRoot {
         Ok(self.path.join(Self::entry_relative(name, ext)?))
     }
 
-    fn entry_relative(name: &str, ext: &str) -> Result<PathBuf, StoreError> {
+    pub(crate) fn entry_relative(name: &str, ext: &str) -> Result<PathBuf, StoreError> {
         let rel = logical_to_relative(name)?;
         // Append, never `with_extension`: that would swallow the final label of
         // dotted names, colliding `github.com` and `github.org` into one file
