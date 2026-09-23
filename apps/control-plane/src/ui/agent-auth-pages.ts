@@ -1,3 +1,4 @@
+import { sameOriginPath } from "../middleware/same-origin-path.js";
 import { escapeHtml } from "../middleware/security-headers.js";
 
 export const AGENT_AUTH_CLAIM_CSP =
@@ -10,17 +11,19 @@ export function agentAuthClaimRedirectUri(issuer: string): string {
   return `${issuer.replace(/\/+$/u, "")}/claim/resume`;
 }
 
+/** Fixed origin `return_to` is resolved against; only its path survives. */
+const RETURN_TO_ORIGIN = "https://control-plane.invalid";
+
 /**
- * Claim `return_to` is interpolated into an href. Only a same-origin path is
- * allowed: a scheme, a protocol-relative URL, or a backslash would send the
- * signed-in browser somewhere else.
+ * Claim `return_to` is interpolated into an href and handed to a 303. Only a
+ * same-origin path is allowed: a scheme, a protocol-relative URL, a backslash,
+ * or a control or space character a browser strips before resolving would
+ * send the signed-in browser somewhere else (`sameOriginPath`).
  */
 export function safeAgentAuthReturnTo(value: string): string {
-  if (!value.startsWith("/")) return "/claim";
-  if (value.startsWith("//") || value.includes("\\") || value.includes("://")) {
-    return "/claim";
-  }
-  return value;
+  const path = sameOriginPath(value, RETURN_TO_ORIGIN);
+  if (path === undefined || path.includes("://")) return "/claim";
+  return path;
 }
 
 const CLAIM_ERROR_COPY = {

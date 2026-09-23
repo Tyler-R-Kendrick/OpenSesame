@@ -61,10 +61,14 @@ that merely parses drains nothing.
 must be a bare `https://host[:port]` origin — no userinfo, path, query or
 fragment — whose name is neither an IP literal nor a DNS answer in a
 loopback, private, link-local, CGNAT, metadata or other non-public range.
-Forge requests never follow redirects. An operator can pin the accepted
-hosts with `OPENSESAME_GITEA_HOSTS` (comma-separated `host` or `host:port`;
-listed hosts are trusted as written) — the pin also closes the gap between
-the DNS check and the connection. Requests with no `Origin` are refused.
+The request then connects only to the addresses that check vetted
+(`pinned-fetch.mjs` answers the socket's lookup from that list, while SNI,
+certificate verification and `Host` keep the name), so a resolver that
+answers differently the second time (DNS rebinding) cannot steer it to a
+private address. Forge requests never follow redirects. An operator can pin
+the accepted hosts with `OPENSESAME_GITEA_HOSTS` (comma-separated `host` or
+`host:port`; listed hosts are trusted as written and resolved normally).
+Requests with no `Origin` are refused.
 
 ## Run it locally
 

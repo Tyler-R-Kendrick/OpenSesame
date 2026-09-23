@@ -9,6 +9,6 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test test/callback.test.mjs test/github-app.test.mjs test/manage.test.mjs test/relay-hardening.test.mjs"
+    "test": "node --test test/callback.test.mjs test/github-app.test.mjs test/manage.test.mjs test/relay-hardening.test.mjs test/pinned-fetch.test.mjs"
   }
 }

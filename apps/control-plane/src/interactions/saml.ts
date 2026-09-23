@@ -19,6 +19,7 @@ import {
 } from "@opensesame/os-domain";
 import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
+import { sameOriginPath } from "../middleware/same-origin-path.js";
 import {
   jitJoinOrganization,
   usesNativeSaml,
@@ -568,23 +569,18 @@ function firstAttribute(
  * absolute URL or a rooted path — never a bare relative string that resolves
  * to whatever it happens to resolve to), and does it actually land on our
  * origin? A protocol-relative `//host/…` passes the first and fails the
- * second, which is precisely why both are asked.
+ * second, which is precisely why both are asked — and both are asked of the
+ * value a browser will parse, so a stripped tab or a `/..//host` path is
+ * refused too (`sameOriginPath`).
  */
 export function samlRelayPath(
   config: ControlPlaneConfig,
   relayState: string | undefined,
 ): string {
-  if (!relayState || !relayState.startsWith("/")) {
-    if (!relayState || !/^https?:\/\//i.test(relayState)) return "/";
-  }
-  let target: URL;
-  try {
-    target = new URL(relayState, `${baseUrl(config)}/`);
-  } catch {
-    return "/";
-  }
-  if (target.origin !== new URL(baseUrl(config)).origin) return "/";
-  return `${target.pathname}${target.search}`;
+  if (!relayState) return "/";
+  return (
+    sameOriginPath(relayState, baseUrl(config), { allowAbsolute: true }) ?? "/"
+  );
 }
 
 async function readResponseRouting(

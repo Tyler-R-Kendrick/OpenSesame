@@ -3,12 +3,14 @@
  * Body: `{ forge, token, owner, repo, branch?, contentBase64, message?,
  *         username?, baseUrl? }` where forge is
  * gitlab|bitbucket|codeberg|origin|gitea. A `gitea` `baseUrl` must be a bare
- * public https origin (`forge-host-guard.mjs`); forge requests never follow
- * redirects.
+ * public https origin (`forge-host-guard.mjs`) and its requests connect only
+ * to the addresses that check vetted (`pinned-fetch.mjs`); forge requests
+ * never follow redirects.
  */
 
 import { corsOrigin } from "./allowlist.mjs";
-import { giteaBaseAllowed } from "./forge-host-guard.mjs";
+import { vetGiteaBase } from "./forge-host-guard.mjs";
+import { createPinnedFetch } from "./pinned-fetch.mjs";
 
 const UA = "OpenSesame-ConnectRelay/1";
 const BACKUP_PATH = "opensesame-vault.backup.json";
@@ -256,7 +258,7 @@ async function putOrigin(input, fetchImpl) {
  */
 
 async function putForForge(forge, body, input, deps) {
-  const { fetchImpl, lookup } = deps;
+  const { fetchImpl, lookup, pinFetch } = deps;
   if (forge === "gitlab") return putGitlab(input, fetchImpl);
   if (forge === "bitbucket") return putBitbucket(input, fetchImpl);
   if (forge === "codeberg") {
@@ -268,11 +270,15 @@ async function putForForge(forge, body, input, deps) {
     if (!baseUrl) {
       return { ok: false, status: 400, message: "gitea_base_url_required" };
     }
-    const base = await giteaBaseAllowed(baseUrl, lookup);
-    if (!base) {
+    const vetted = await vetGiteaBase(baseUrl, lookup);
+    if (!vetted) {
       return { ok: false, status: 400, message: "gitea_base_url_refused" };
     }
-    return putGiteaStyle(base, input, fetchImpl);
+    // Connect to the vetted addresses, never to a second DNS answer.
+    const forgeFetch = vetted.addresses
+      ? pinFetch(vetted.addresses)
+      : fetchImpl;
+    return putGiteaStyle(vetted.origin, input, forgeFetch);
   }
   return putOrigin(input, fetchImpl);
 }
@@ -312,11 +318,16 @@ function parseGitBackupPutBody(body) {
 }
 const REFUSALS = new Set(["gitea_base_url_required", "gitea_base_url_refused"]);
 
+/**
+ * `pinFetch(addresses)` builds the fetch a vetted Gitea origin is reached
+ * with; it is injectable for tests, like `fetchImpl` and `lookup`.
+ */
 export async function handleGitBackupPut(
   body,
   origin,
   fetchImpl = fetch,
   lookup = undefined,
+  pinFetch = createPinnedFetch,
 ) {
   const cors = corsHeaders(origin);
   if (!cors["access-control-allow-origin"]) {
@@ -330,7 +341,11 @@ export async function handleGitBackupPut(
 
   let result;
   try {
-    result = await putForForge(forge, body, input, { fetchImpl, lookup });
+    result = await putForForge(forge, body, input, {
+      fetchImpl,
+      lookup,
+      pinFetch,
+    });
     if (result && result.ok === false && REFUSALS.has(result.message)) {
       return json(400, { error: result.message }, cors);
     }

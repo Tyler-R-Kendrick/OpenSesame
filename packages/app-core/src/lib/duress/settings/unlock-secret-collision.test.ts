@@ -89,5 +89,17 @@ describe("an ordinary unlock secret may not equal an armed duress code", () => {
     await expect(store.changeMasterPassword(password, DURESS)).rejects.toThrow(
       AMBIGUOUS,
     );
+    store.lock();
+    // Root rotation is a member-vault operation (a guest cannot mutate
+    // protectors), so it is checked on a sealed personal vault.
+    const member = new VaultStore();
+    await member.create(password);
+    await member.protection.ensureProtectionProjected();
+    const epoch = member.getSnapshot().header?.protection?.rootEpoch;
+    await expect(
+      member.protection.rotateCompromisedRoot({ password: DURESS }),
+    ).rejects.toThrow(AMBIGUOUS);
+    expect(member.getSnapshot().header?.protection?.rootEpoch).toBe(epoch);
+    await member.destroy();
   });
 });

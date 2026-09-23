@@ -18,7 +18,7 @@
   "totals": {
     "files": 489,
     "violations": 776,
-    "oversizedLines": 246898
+    "oversizedLines": 246894
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -234,7 +234,7 @@
     },
     "apps/control-plane/src/interactions/saml.ts": {
       "complexity": 2,
-      "max-lines": 1005,
+      "max-lines": 1001,
       "max-lines-per-function": 2,
       "max-statements": 1
     },

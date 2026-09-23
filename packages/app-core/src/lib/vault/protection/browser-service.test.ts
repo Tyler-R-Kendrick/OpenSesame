@@ -170,4 +170,24 @@ describe("VaultProtectionBrowserService", () => {
     await again.unlock(PASSWORD);
     expect(again.getSnapshot().status).toBe("unlocked");
   });
+
+  it("refuses a root rotation under a password below the policy floor", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.protection.ensureProtectionProjected();
+    const before = store.getSnapshot().header;
+
+    for (const weak of ["a", "short", "aaaaaaaaaaaa"]) {
+      await expect(
+        store.protection.rotateCompromisedRoot({ password: weak }),
+      ).rejects.toThrow();
+    }
+    const after = store.getSnapshot().header;
+    expect(after?.wrap?.ctB64).toBe(before?.wrap?.ctB64);
+    expect(after?.protection?.rootEpoch).toBe(before?.protection?.rootEpoch);
+    store.lock();
+    const again = new VaultStore();
+    await again.unlock(PASSWORD);
+    expect(again.getSnapshot().status).toBe("unlocked");
+  });
 });

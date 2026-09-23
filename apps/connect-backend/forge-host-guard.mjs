@@ -7,9 +7,10 @@
  * link-local, carrier-grade NAT, metadata or otherwise non-public address.
  * An operator may pin the accepted hosts with `OPENSESAME_GITEA_HOSTS`
  * (comma-separated `host` or `host:port`); a listed host is trusted as
- * written. DNS is checked before the request and the request itself refuses
- * redirects; a name that re-resolves between the check and the connection
- * is the residual the allowlist closes.
+ * written. DNS is checked before the request, and the request then connects
+ * only to the addresses that check vetted (`pinned-fetch.mjs`), so a name
+ * that re-resolves between the check and the connection (DNS rebinding) can
+ * not steer the socket; the request itself refuses redirects.
  */
 
 import { lookup as dnsLookup } from "node:dns/promises";
@@ -143,27 +144,33 @@ function bareHttpsOrigin(raw) {
   return url;
 }
 
-async function resolvesPublic(hostname, lookup) {
+/** The public addresses `hostname` resolves to, or null if any is not. */
+async function publicAddresses(hostname, lookup) {
   const literal = hostname.replace(/^\[|\]$/g, "");
-  if (isIP(literal)) return !isNonPublicAddress(literal);
-  if (BLOCKED_NAMES.test(literal.replace(/\.$/, ""))) return false;
+  const family = isIP(literal);
+  if (family) {
+    return isNonPublicAddress(literal) ? null : [{ address: literal, family }];
+  }
+  if (BLOCKED_NAMES.test(literal.replace(/\.$/, ""))) return null;
   let answers;
   try {
     answers = await lookup(literal, { all: true, verbatim: true });
   } catch {
-    return false;
+    return null;
   }
-  if (!Array.isArray(answers) || answers.length === 0) return false;
-  return answers.every(
-    (answer) => answer && !isNonPublicAddress(String(answer.address)),
-  );
+  if (!Array.isArray(answers) || answers.length === 0) return null;
+  const vetted = answers.map((answer) => String(answer?.address ?? ""));
+  if (vetted.some((address) => isNonPublicAddress(address))) return null;
+  return vetted.map((address) => ({ address, family: isIP(address) }));
 }
 
 /**
- * The `https://host[:port]` a Gitea request may go to, or null when
- * `baseUrl` is not one. `lookup` is injectable for tests.
+ * `{ origin, addresses }` for a Gitea `baseUrl` a request may go to, or null
+ * when it is not one. `addresses` are the vetted answers the connection must
+ * be pinned to; it is null only for an operator-pinned host, which is
+ * trusted as written. `lookup` is injectable for tests.
  */
-export async function giteaBaseAllowed(raw, lookup = dnsLookup) {
+export async function vetGiteaBase(raw, lookup = dnsLookup) {
   const url = bareHttpsOrigin(raw);
   if (!url) return null;
   const pinned = operatorHosts();
@@ -171,7 +178,13 @@ export async function giteaBaseAllowed(raw, lookup = dnsLookup) {
     const listed =
       pinned.has(url.host.toLowerCase()) ||
       pinned.has(url.hostname.toLowerCase());
-    return listed ? url.origin : null;
+    return listed ? { origin: url.origin, addresses: null } : null;
   }
-  return (await resolvesPublic(url.hostname, lookup)) ? url.origin : null;
+  const addresses = await publicAddresses(url.hostname, lookup);
+  return addresses ? { origin: url.origin, addresses } : null;
+}
+
+/** The `https://host[:port]` origin `vetGiteaBase` admits, or null. */
+export async function giteaBaseAllowed(raw, lookup = dnsLookup) {
+  return (await vetGiteaBase(raw, lookup))?.origin ?? null;
 }

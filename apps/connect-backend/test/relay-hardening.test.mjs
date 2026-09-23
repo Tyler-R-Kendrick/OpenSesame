@@ -10,6 +10,7 @@ import {
   handleGithubAppWebhook,
   handleGithubAppWebhookPending,
 } from "../github-app-contents.mjs";
+import { pinnedLookup } from "../pinned-fetch.mjs";
 
 const ORIGIN = "http://localhost:5180";
 // Node runs test files in parallel; this file keeps a queue of its own.
@@ -126,6 +127,10 @@ describe("webhook-pending drain", () => {
 
 const publicDns = async () => [{ address: "93.184.216.34", family: 4 }];
 
+const unreachableFetch = async () => {
+  throw new Error("the unpinned fetch must not be used for a vetted host");
+};
+
 function giteaBody(baseUrl) {
   return {
     forge: "gitea",
@@ -208,13 +213,19 @@ describe("git backup put proxy — gitea base URL", () => {
 
   it("writes to a public Gitea origin and never follows a redirect", async () => {
     const { calls, fetchImpl } = recordingForge();
+    const pins = [];
     const outcome = await handleGitBackupPut(
       giteaBody("https://git.example.org:3000/"),
       ORIGIN,
-      fetchImpl,
+      unreachableFetch,
       publicDns,
+      (addresses) => {
+        pins.push(addresses);
+        return fetchImpl;
+      },
     );
     assert.equal(outcome.status, 200);
+    assert.deepEqual(pins, [[{ address: "93.184.216.34", family: 4 }]]);
     assert.equal(JSON.parse(outcome.body).commitSha, "gt-sha");
     assert.equal(calls.length, 2);
     for (const call of calls) {
@@ -225,6 +236,62 @@ describe("git backup put proxy — gitea base URL", () => {
       );
       assert.equal(call.init.redirect, "error");
     }
+  });
+});
+
+describe("git backup put proxy — DNS rebinding", () => {
+  it("connects only to the address the check vetted", async () => {
+    // A rebinding resolver: public for the check, private for anyone after.
+    let queries = 0;
+    const rebinding = async () => {
+      queries += 1;
+      return [
+        { address: queries === 1 ? "93.184.216.34" : "10.0.0.7", family: 4 },
+      ];
+    };
+    const connected = [];
+    const pinFetch = (addresses) => {
+      const lookup = pinnedLookup(addresses);
+      return async (url, init) => {
+        const host = new URL(url).hostname;
+        // What the socket would connect to, after the resolver has flipped.
+        await rebinding(host);
+        const address = await new Promise((resolve, reject) =>
+          lookup(host, { all: true }, (error, all) =>
+            error ? reject(error) : resolve(all),
+          ),
+        );
+        connected.push(...address.map((entry) => entry.address));
+        return recordingForge().fetchImpl(url, init);
+      };
+    };
+    const outcome = await handleGitBackupPut(
+      giteaBody("https://rebind.example"),
+      ORIGIN,
+      unreachableFetch,
+      rebinding,
+      pinFetch,
+    );
+    assert.equal(outcome.status, 200);
+    assert.ok(queries > 1, "the resolver was asked again and flipped");
+    assert.ok(connected.length > 0);
+    assert.ok(connected.every((address) => address === "93.184.216.34"));
+  });
+
+  it("refuses a rebinding name before any request when the check sees private", async () => {
+    let calls = 0;
+    const outcome = await handleGitBackupPut(
+      giteaBody("https://rebind.example"),
+      ORIGIN,
+      unreachableFetch,
+      async () => [{ address: "10.0.0.7", family: 4 }],
+      () => {
+        calls += 1;
+        return unreachableFetch;
+      },
+    );
+    assert.equal(outcome.status, 400);
+    assert.equal(calls, 0);
   });
 });
 
