@@ -1,10 +1,14 @@
 /**
  * Forge-agnostic vault ciphertext upsert via the Connect relay.
  * Body: `{ forge, token, owner, repo, branch?, contentBase64, message?,
- *         username? }` where forge is gitlab|bitbucket|codeberg|origin|gitea.
+ *         username?, baseUrl? }` where forge is
+ * gitlab|bitbucket|codeberg|origin|gitea. A `gitea` `baseUrl` must be a bare
+ * public https origin (`forge-host-guard.mjs`); forge requests never follow
+ * redirects.
  */
 
 import { corsOrigin } from "./allowlist.mjs";
+import { giteaBaseAllowed } from "./forge-host-guard.mjs";
 
 const UA = "OpenSesame-ConnectRelay/1";
 const BACKUP_PATH = "opensesame-vault.backup.json";
@@ -140,7 +144,7 @@ async function putGiteaStyle(base, input, fetchImpl) {
   let sha = null;
   const existing = await fetchImpl(
     `${url}?ref=${encodeURIComponent(input.branch)}`,
-    { headers },
+    { headers, redirect: "error" },
   );
   if (existing.ok) {
     try {
@@ -160,6 +164,7 @@ async function putGiteaStyle(base, input, fetchImpl) {
     method: "PUT",
     headers,
     body: JSON.stringify(putBody),
+    redirect: "error",
   });
   const text = await response.text();
   let payload = {};
@@ -250,7 +255,8 @@ async function putOrigin(input, fetchImpl) {
  * Upsert sealed vault ciphertext on a forge remote.
  */
 
-async function putForForge(forge, body, input, fetchImpl) {
+async function putForForge(forge, body, input, deps) {
+  const { fetchImpl, lookup } = deps;
   if (forge === "gitlab") return putGitlab(input, fetchImpl);
   if (forge === "bitbucket") return putBitbucket(input, fetchImpl);
   if (forge === "codeberg") {
@@ -259,10 +265,14 @@ async function putForForge(forge, body, input, fetchImpl) {
   if (forge === "gitea") {
     const baseUrl =
       body && typeof body.baseUrl === "string" ? body.baseUrl.trim() : "";
-    if (!baseUrl.startsWith("https://")) {
+    if (!baseUrl) {
       return { ok: false, status: 400, message: "gitea_base_url_required" };
     }
-    return putGiteaStyle(baseUrl.replace(/\/+$/, ""), input, fetchImpl);
+    const base = await giteaBaseAllowed(baseUrl, lookup);
+    if (!base) {
+      return { ok: false, status: 400, message: "gitea_base_url_refused" };
+    }
+    return putGiteaStyle(base, input, fetchImpl);
   }
   return putOrigin(input, fetchImpl);
 }
@@ -300,9 +310,16 @@ function parseGitBackupPutBody(body) {
     },
   };
 }
-export async function handleGitBackupPut(body, origin, fetchImpl = fetch) {
+const REFUSALS = new Set(["gitea_base_url_required", "gitea_base_url_refused"]);
+
+export async function handleGitBackupPut(
+  body,
+  origin,
+  fetchImpl = fetch,
+  lookup = undefined,
+) {
   const cors = corsHeaders(origin);
-  if (origin && !cors["access-control-allow-origin"]) {
+  if (!cors["access-control-allow-origin"]) {
     return json(403, { error: "origin_not_allowed" });
   }
   const parsed = parseGitBackupPutBody(body);
@@ -313,13 +330,9 @@ export async function handleGitBackupPut(body, origin, fetchImpl = fetch) {
 
   let result;
   try {
-    result = await putForForge(forge, body, input, fetchImpl);
-    if (
-      result &&
-      result.ok === false &&
-      result.message === "gitea_base_url_required"
-    ) {
-      return json(400, { error: "gitea_base_url_required" }, cors);
+    result = await putForForge(forge, body, input, { fetchImpl, lookup });
+    if (result && result.ok === false && REFUSALS.has(result.message)) {
+      return json(400, { error: result.message }, cors);
     }
   } catch (error) {
     return json(
@@ -352,7 +365,7 @@ export async function handleGitBackupPut(body, origin, fetchImpl = fetch) {
 
 export function handleGitBackupPutOptions(origin) {
   const cors = corsHeaders(origin);
-  if (origin && !cors["access-control-allow-origin"]) {
+  if (!cors["access-control-allow-origin"]) {
     return json(403, { error: "origin_not_allowed" });
   }
   return { status: 204, headers: cors, body: "" };

@@ -180,6 +180,8 @@ const server = createServer((req, res) => {
         method: req.method ?? "GET",
         path: url.pathname,
         origin,
+        authorization: req.headers.authorization ?? "",
+        requestHost,
         body,
       });
       res.writeHead(outcome.status, outcome.headers);

@@ -36,6 +36,18 @@ import {
 
 export { isConnectConnector, usesConnect } from "./vercel-connect.js";
 
+/**
+ * A relay mutation (create/authorize/revoke) spends the operator's Vercel
+ * token, so the relay wants the operator's management key. It rides in the
+ * header, from the sealed session record, and only on those three calls.
+ */
+function relayMutation(body: JsonObject): RequestInit {
+  const headers = new Headers();
+  const manageKey = vercelConnectSeams.auth()?.manageKey?.trim();
+  if (manageKey) headers.set("authorization", `Bearer ${manageKey}`);
+  return { method: "POST", headers, body: JSON.stringify(body) };
+}
+
 const TIMEOUT_MS = 8000;
 
 type TeamQueryExtra = {
@@ -190,13 +202,13 @@ export async function createVercelConnection(body: {
   }
   const transport = requireTransport();
   if (transport === "relay") {
-    const reply = await relayFetch("/api/connect/connectors", {
-      method: "POST",
-      body: JSON.stringify({
+    const reply = await relayFetch(
+      "/api/connect/connectors",
+      relayMutation({
         service: body.providerId,
         name: body.displayName || body.providerId,
       }),
-    });
+    );
     const mapped = toConnectConnection(connectorOf(reply) ?? {}, {});
     if (!mapped) {
       throw new ConnectError(
@@ -258,10 +270,10 @@ export async function authorizeVercelConnection(
     const payload: JsonObject = { connectorId: id };
     if (scopes?.length) payload.scopes = scopes;
     if (callbackUrl) payload.callbackUrl = callbackUrl;
-    const reply = await relayFetch("/api/connect/authorize", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const reply = await relayFetch(
+      "/api/connect/authorize",
+      relayMutation(payload),
+    );
     const url = isJsonObject(reply) ? text(reply.url) : "";
     if (!url) {
       throw new ConnectError(
@@ -309,10 +321,10 @@ export async function revokeVercelConnection(
   if (guest) releaseGuestConnection(id);
   if (connectRelayConfigured()) {
     try {
-      await relayFetch("/api/connect/revoke", {
-        method: "POST",
-        body: JSON.stringify({ connectorId: id }),
-      });
+      await relayFetch(
+        "/api/connect/revoke",
+        relayMutation({ connectorId: id }),
+      );
       return { revoked: true, providerRevocation: "ok" };
     } catch (error) {
       if (!guest) throw error;

@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 490,
-    "violations": 779,
+    "files": 489,
+    "violations": 776,
     "oversizedLines": 246899
   },
   "files": {
@@ -75,11 +75,6 @@
     "apps/connect-backend/github-app.mjs": {
       "complexity": 3,
       "max-depth": 2,
-      "max-lines-per-function": 1,
-      "max-statements": 1
-    },
-    "apps/connect-backend/manage.mjs": {
-      "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
