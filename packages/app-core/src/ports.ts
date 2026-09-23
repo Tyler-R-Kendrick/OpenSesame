@@ -188,7 +188,7 @@ export function publicKeyCredentialApi():
 
 /** `value instanceof PublicKeyCredential`, on a host that has the interface. */
 export function isPublicKeyCredential(
-  value: object | null | undefined,
+  value: Credential | null | undefined,
 ): value is PublicKeyCredential {
   const api = publicKeyCredentialApi();
   return api !== undefined && value instanceof api;

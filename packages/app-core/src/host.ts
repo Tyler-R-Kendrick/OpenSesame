@@ -94,7 +94,7 @@ export function composeHost(
     {},
     Object.getOwnPropertyDescriptors(ports),
   );
-  // SAFETY: `rest` supplies `env`, the one field `Ports` lacks.
+  // SAFETY: checked by the parameter types — `ports` carries only optional Host fields and `rest` carries `env`, the one required field, so the merged object satisfies the Host contract.
   return Object.defineProperties(
     composed,
     Object.getOwnPropertyDescriptors(rest),

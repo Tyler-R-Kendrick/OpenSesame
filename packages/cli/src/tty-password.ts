@@ -17,11 +17,15 @@ const ENTER = new Set(["\r", "\n", "\u0004"]);
 const BACKSPACE = new Set(["\u007f", "\b"]);
 const INTERRUPT = "\u0003";
 
+/** The password so far, and whether Enter, Ctrl-D or Ctrl-C ended it. */
+export type KeyStep = Readonly<{
+  typed: string;
+  done: boolean;
+  interrupted: boolean;
+}>;
+
 /** Fold one keystroke chunk into `typed`; `done` once Enter or Ctrl-D arrives. */
-export function applyKeys(
-  typed: string,
-  chunk: string,
-): { typed: string; done: boolean; interrupted: boolean } {
+export function applyKeys(typed: string, chunk: string): KeyStep {
   // An arrow or function key arrives as one escape sequence; it types nothing.
   if (chunk.startsWith("\u001b"))
     return { typed, done: false, interrupted: false };
@@ -37,11 +41,10 @@ export function applyKeys(
 
 export function readPasswordFromTty(
   prompt: string,
-  input: ReadStream = process.stdin as ReadStream,
+  input: ReadStream = process.stdin,
   output: NodeJS.WriteStream = process.stderr,
 ): Promise<string> {
-  if (!input.isTTY || typeof input.setRawMode !== "function")
-    return Promise.reject(new NoTerminalError());
+  if (!input.isTTY) return Promise.reject(new NoTerminalError());
   output.write(prompt);
   input.setRawMode(true);
   input.resume();

@@ -7,7 +7,7 @@
  * field value leaves this module: this is what `opensesame-id vault verify`
  * and `vault ls` print, and what an isolate runs to prove the read path.
  */
-import { overlapCast } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
 import { buildRows } from "../../sections/vault/vault-tree-rows.js";
 import {
   type SealedBlob,
@@ -42,6 +42,9 @@ export type VaultFileEntry = Readonly<{
   /** Where the vault tree lists it: `Folder/name.ext` or `name.ext`. */
   path: string;
 }>;
+
+/** A vault body opened with its key, and whether it is bound to its tomb. */
+export type OpenedVaultBody = Readonly<{ body: VaultBody; bound: boolean }>;
 
 export type OpenedVaultFile = Readonly<{
   format: VaultFileFormat;
@@ -78,7 +81,7 @@ export function readVaultFile(text: string): SealedVaultFile {
   }
   if (
     parsed?.format !== VAULT_EXPORT_FORMAT ||
-    typeof parsed.tomb !== "string" ||
+    !isString(parsed.tomb) ||
     !parsed.header ||
     !parsed.body
   ) {
@@ -96,7 +99,7 @@ export function readVaultFile(text: string): SealedVaultFile {
 export async function openVaultBody(
   file: SealedVaultFile,
   rawKey: Uint8Array,
-): Promise<{ body: VaultBody; bound: boolean }> {
+): Promise<OpenedVaultBody> {
   const key = await importVaultKey(rawKey);
   const opened = await openJsonForRebind<VaultBody>(
     key,

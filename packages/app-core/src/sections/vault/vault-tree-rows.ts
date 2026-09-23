@@ -35,10 +35,13 @@ export function itemMatches(item: VaultItem, query: string): boolean {
 }
 
 /** Items grouped under the folders that exist; the rest sit at the root. */
-function groupByFolder(
-  items: VaultItem[],
-  folders: Folder[],
-): { grouped: Map<string, VaultItem[]>; rootItems: VaultItem[] } {
+/** Items under each live folder, and the items at the root. */
+type FolderGroups = {
+  grouped: Map<string, VaultItem[]>;
+  rootItems: VaultItem[];
+};
+
+function groupByFolder(items: VaultItem[], folders: Folder[]): FolderGroups {
   const grouped = new Map<string, VaultItem[]>();
   const rootItems: VaultItem[] = [];
   const folderIds = new Set(folders.map((folder) => folder.id));

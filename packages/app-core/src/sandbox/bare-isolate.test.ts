@@ -10,14 +10,35 @@ import { randomFillSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Context, createContext, runInContext } from "node:vm";
+import { createContext, runInContext } from "node:vm";
+import { type JsonValue, overlapCast } from "@opensesame/os-domain";
 import { build } from "esbuild";
 import { beforeAll, describe, expect, it } from "vitest";
+import type { RuntimeContractOptions } from "./runtime-contract.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const osDomain = join(here, "../../../os-domain/src");
-const fixture = JSON.parse(
-  readFileSync(join(here, "../lib/vault/fixtures/vault-vectors.json"), "utf8"),
+type Listed = { id: string; name: string; kind: string };
+type Vector = {
+  file: string;
+  expect: { tomb: string; bound: boolean; rev: number | null; items: Listed[] };
+};
+type Fixture = {
+  password: string;
+  passwordNfkc: string;
+  vectors: Record<string, Vector>;
+};
+type Opened = Omit<Vector["expect"], "items"> & {
+  items: (Listed & { path: string })[];
+};
+
+const fixture: Fixture = overlapCast(
+  JSON.parse(
+    readFileSync(
+      join(here, "../lib/vault/fixtures/vault-vectors.json"),
+      "utf8",
+    ),
+  ),
 );
 
 async function bundle(entry: string, globalName: string): Promise<string> {
@@ -46,13 +67,20 @@ async function bundle(entry: string, globalName: string): Promise<string> {
   return output.text;
 }
 
-type Json = ReturnType<typeof JSON.parse>;
 let runtime = "";
 let core = "";
 
+/** What the test hands into an isolate's global scope, and nothing else. */
+type Isolate = {
+  __options?: RuntimeContractOptions;
+  __file?: string;
+  __password?: string;
+  __nfkc?: string;
+};
+
 /** A fresh, empty context with the contract installed and the core loaded. */
-function isolate(entropy = true): Context {
-  const context = createContext({});
+function isolate(entropy = true): Isolate {
+  const context: Isolate = createContext({});
   runInContext(runtime, context);
   runInContext(
     "OpenSesameRuntime.installRuntimeContract(globalThis, globalThis.__options)",
@@ -70,12 +98,12 @@ function isolate(entropy = true): Context {
 }
 
 /** Run `source` inside the isolate; results cross back as JSON only. */
-async function inside(context: Context, source: string): Promise<Json> {
+async function inside(context: Isolate, source: string): Promise<JsonValue> {
   const text = await runInContext(
     `(async () => JSON.stringify(await (async () => { ${source} })()))()`,
     context,
   );
-  return text === undefined ? undefined : JSON.parse(text);
+  return text === undefined ? null : JSON.parse(text);
 }
 
 beforeAll(async () => {
@@ -125,22 +153,24 @@ describe("the portable core in a bare V8 context", () => {
 
   it.each(Object.entries(fixture.vectors))(
     "opens the %s vector unchanged",
-    async (_name, vector: Json) => {
+    async (_name, vector) => {
       const context = isolate();
       Object.assign(context, {
         __file: vector.file,
         __password: fixture.password,
       });
-      const opened = await inside(
-        context,
-        `OpenSesameCore.configureHost(OpenSesameCore.createSandboxHost());
+      const opened: Opened = overlapCast(
+        await inside(
+          context,
+          `OpenSesameCore.configureHost(OpenSesameCore.createSandboxHost());
          return OpenSesameCore.openVaultFile(__file, __password);`,
+        ),
       );
       expect({
         tomb: opened.tomb,
         bound: opened.bound,
         rev: opened.rev,
-        items: opened.items.map(({ id, name, kind }: Json) => ({
+        items: opened.items.map(({ id, name, kind }) => ({
           id,
           name,
           kind,

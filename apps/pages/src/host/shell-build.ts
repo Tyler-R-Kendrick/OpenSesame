@@ -9,8 +9,9 @@ import securityProfile from "../../public/security-profile.json";
 import staticAuth from "../../public/static-auth/manifest.json";
 import { capabilityArtifacts } from "./capability-artifacts.js";
 
-// SAFETY: scripts/security-profile.mjs validates this file before the build,
-// and the checked-in copy is its shared-origin default.
+/* SAFETY: checked at the build boundary — scripts/security-profile.mjs
+   validates this file before the build, and the checked-in copy is its
+   shared-origin default. */
 const stamped = securityProfile as SecurityProfile;
 
 export const shellBuild: Omit<Host, "env"> = {

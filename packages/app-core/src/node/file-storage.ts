@@ -15,6 +15,7 @@ import {
   writeSync,
 } from "node:fs";
 import { dirname } from "node:path";
+import { isString } from "@opensesame/os-domain";
 import { createMemoryStorage } from "../memory-storage.js";
 import type { WebStorage } from "../ports.js";
 
@@ -26,8 +27,8 @@ function readEntries(path: string): [string, string][] {
     return [];
   }
   const parsed: Record<string, string> = JSON.parse(text);
-  return Object.entries(parsed).filter(
-    (entry): entry is [string, string] => typeof entry[1] === "string",
+  return Object.entries(parsed).filter((entry): entry is [string, string] =>
+    isString(entry[1]),
   );
 }
 

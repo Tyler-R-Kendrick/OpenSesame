@@ -121,12 +121,9 @@ const environment: EnvironmentPort = {
   },
   get workers() {
     return {
-      dedicated: typeof Worker !== "undefined",
-      shared: typeof SharedWorker !== "undefined",
-      service:
-        typeof navigator !== "undefined" &&
-        "serviceWorker" in navigator &&
-        navigator.serviceWorker !== undefined,
+      dedicated: globalThis.Worker !== undefined,
+      shared: globalThis.SharedWorker !== undefined,
+      service: globalThis.navigator?.serviceWorker !== undefined,
     };
   },
 };
@@ -150,12 +147,12 @@ export function browserPorts(): Ports {
       return globalThis.navigator?.locks ?? undefined;
     },
     get broadcast() {
-      return typeof BroadcastChannel === "undefined"
+      return globalThis.BroadcastChannel === undefined
         ? undefined
         : (name: string): BroadcastLike => new BroadcastChannel(name);
     },
     get worker() {
-      return typeof Worker === "function" ? Worker : undefined;
+      return globalThis.Worker;
     },
     get serviceWorker() {
       return globalThis.navigator?.serviceWorker ?? undefined;

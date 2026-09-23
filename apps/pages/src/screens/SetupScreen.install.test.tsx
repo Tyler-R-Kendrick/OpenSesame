@@ -15,16 +15,6 @@ import {
 } from "./setup/test-harness.js";
 import { createSetupSeams } from "./setup/test-seams.js";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
-
 const seams = createSetupSeams();
 const { completeSetup } = seams;
 

@@ -11,10 +11,7 @@ for (const [name, value] of [
   ["TextEncoder", SandboxTextEncoder],
   ["TextDecoder", SandboxTextDecoder],
 ] as const) {
-  if (
-    !Object.hasOwn(globalThis, name) &&
-    Reflect.get(globalThis, name) === undefined
-  )
+  if (!(name in globalThis))
     Object.defineProperty(globalThis, name, {
       value,
       writable: true,

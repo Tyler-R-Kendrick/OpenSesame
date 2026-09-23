@@ -38,11 +38,11 @@ function describe(opened: OpenedVaultFile): string {
   return `${opened.format}: ${binding} ${opened.tomb}${rev}, ${count}`;
 }
 
-function refusal(error: unknown): string {
+function refusal(error: Error): string {
   if (error instanceof WrongPasswordError) return "Wrong master password.";
   if (error instanceof VaultCorruptError)
     return `Not a readable vault file: ${error.message}`;
-  return error instanceof Error ? error.message : String(error);
+  return error.message;
 }
 
 export async function runVaultCommand(
@@ -57,6 +57,7 @@ export async function runVaultCommand(
   try {
     opened = await openVaultFile(text, password);
   } catch (error) {
+    if (!(error instanceof Error)) throw error;
     process.stderr.write(`${refusal(error)}\n`);
     return 1;
   }

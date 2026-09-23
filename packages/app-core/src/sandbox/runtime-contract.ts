@@ -23,13 +23,15 @@ import {
 
 export type EntropySource = <T extends ArrayBufferView | null>(array: T) => T;
 
+type TimerHandle = ReturnType<typeof setTimeout>;
+
 export type RuntimeContractOptions = Readonly<{
   /** Fills a typed array with cryptographically secure random bytes. */
   getRandomValues?: EntropySource;
   /** The embedder's timers, where it has an event loop to run them. */
   timers?: Readonly<{
-    setTimeout: (handler: () => void, ms?: number) => number | object;
-    clearTimeout: (handle: number | object | undefined) => void;
+    setTimeout: (handler: () => void, ms?: number) => TimerHandle;
+    clearTimeout: (handle: TimerHandle | undefined) => void;
   }>;
 }>;
 
@@ -66,46 +68,36 @@ function randomUUID(fill: EntropySource): () => string {
   };
 }
 
-type Target = Record<string, unknown>;
-
-function define(target: Target, name: string, value: unknown, out: string[]) {
-  if (target[name] !== undefined) return;
-  Object.defineProperty(target, name, {
-    value,
-    writable: true,
-    configurable: true,
-    enumerable: false,
-  });
-  out.push(name);
-}
-
 /** Installs what is missing; returns the names it installed. */
 export function installRuntimeContract(
-  target: object = globalThis,
+  target: typeof globalThis = globalThis,
   options: RuntimeContractOptions = {},
 ): string[] {
-  const scope = target as Target;
-  const installed: string[] = [];
   const fill = randomValues(options.getRandomValues);
-  define(
-    scope,
-    "crypto",
-    {
+  const contract = {
+    crypto: {
       subtle: sandboxSubtle,
       getRandomValues: fill,
       randomUUID: randomUUID(fill),
     },
-    installed,
-  );
-  define(scope, "TextEncoder", SandboxTextEncoder, installed);
-  define(scope, "TextDecoder", SandboxTextDecoder, installed);
-  define(scope, "atob", sandboxAtob, installed);
-  define(scope, "btoa", sandboxBtoa, installed);
-  define(scope, "URL", WhatwgUrl, installed);
-  define(scope, "URLSearchParams", WhatwgParams, installed);
-  if (options.timers) {
-    define(scope, "setTimeout", options.timers.setTimeout, installed);
-    define(scope, "clearTimeout", options.timers.clearTimeout, installed);
+    TextEncoder: SandboxTextEncoder,
+    TextDecoder: SandboxTextDecoder,
+    atob: sandboxAtob,
+    btoa: sandboxBtoa,
+    URL: WhatwgUrl,
+    URLSearchParams: WhatwgParams,
+    ...options.timers,
+  };
+  const installed: string[] = [];
+  for (const [name, value] of Object.entries(contract)) {
+    if (name in target) continue;
+    Object.defineProperty(target, name, {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
+    installed.push(name);
   }
   return installed;
 }
@@ -117,7 +109,7 @@ export function installRuntimeContract(
  */
 export function assertHostIntl(): void {
   const normalizes =
-    typeof "".normalize === "function" &&
+    "normalize" in String.prototype &&
     "Ａ①".normalize("NFKC") === "A1" &&
     "é".normalize("NFC") === "é";
   if (!normalizes)

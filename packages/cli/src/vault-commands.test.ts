@@ -8,7 +8,12 @@ import {
   openVaultBody,
   readVaultFile,
 } from "@opensesame/app-core/lib/vault/vault-file.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  type JsonValue,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "./run.js";
 import { applyKeys } from "./tty-password.js";
@@ -72,11 +77,14 @@ const typed = (password: string) => ({
   readPassword: vi.fn(async () => password),
 });
 
-/** Every string anywhere under `value`. */
-function stringLeaves(value: object | string | null): string[] {
-  if (typeof value === "string") return [value];
-  if (value === null || typeof value !== "object") return [];
-  return Object.values(value).flatMap(stringLeaves);
+/** Every string anywhere in a JSON-serialisable value. */
+function stringLeaves(value: JsonValue): string[] {
+  const found: string[] = [];
+  JSON.parse(JSON.stringify(value), (_key, leaf: JsonValue) => {
+    if (isString(leaf)) found.push(leaf);
+    return leaf;
+  });
+  return found;
 }
 
 describe("opensesame-id vault verify / ls over the golden vectors", () => {
@@ -182,7 +190,7 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
   });
 
   it("reads the password from a terminal only", async () => {
-    const stdin = process.stdin as NodeJS.ReadStream;
+    const stdin = process.stdin;
     const wasTty = stdin.isTTY;
     Object.defineProperty(stdin, "isTTY", { value: false, configurable: true });
     try {

@@ -12,6 +12,7 @@ import { hkdf } from "@noble/hashes/hkdf";
 import { hmac } from "@noble/hashes/hmac";
 import { pbkdf2Async } from "@noble/hashes/pbkdf2";
 import { sha256 } from "@noble/hashes/sha2";
+import { isString } from "@opensesame/os-domain";
 
 type Named = string | { name: string };
 type Params = {
@@ -38,7 +39,7 @@ const unsupported = (what: string) =>
   failure("NotSupportedError", `sandbox crypto does not support ${what}`);
 
 function nameOf(algorithm: Named): string {
-  return (typeof algorithm === "string" ? algorithm : algorithm.name)
+  return (isString(algorithm) ? algorithm : algorithm.name)
     .toUpperCase()
     .replace(/^SHA(\d)/, "SHA-$1");
 }
