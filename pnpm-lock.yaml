@@ -1016,6 +1016,9 @@ importers:
       '@noble/ciphers':
         specifier: 1.3.0
         version: 1.3.0
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
       '@openfeature/web-sdk':
         specifier: 1.10.0
         version: 1.10.0(@openfeature/core@1.12.0)
@@ -1085,6 +1088,9 @@ importers:
       kdbxweb:
         specifier: 2.1.1
         version: 2.1.1
+      whatwg-url:
+        specifier: 14.2.0
+        version: 14.2.0
       yaml:
         specifier: 2.8.1
         version: 2.8.1
@@ -1101,6 +1107,12 @@ importers:
       '@types/react':
         specifier: 19.2.7
         version: 19.2.7
+      '@types/whatwg-url':
+        specifier: 13.0.0
+        version: 13.0.0
+      esbuild:
+        specifier: '>=0.25.0'
+        version: 0.28.1
       fast-check:
         specifier: 4.9.0
         version: 4.9.0
@@ -13366,13 +13378,11 @@ snapshots:
 
   '@types/webextension-polyfill@0.12.5': {}
 
-  '@types/webidl-conversions@7.0.3':
-    optional: true
+  '@types/webidl-conversions@7.0.3': {}
 
   '@types/whatwg-url@13.0.0':
     dependencies:
       '@types/webidl-conversions': 7.0.3
-    optional: true
 
   '@types/ws@8.18.1':
     dependencies:
