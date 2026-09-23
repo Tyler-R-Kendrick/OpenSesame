@@ -169,7 +169,22 @@ export const SETTINGS_CONFIG_FILE = "config.yaml";
  * shared link would never reach the app.
  */
 export function settingsConfigRoute(category: string): string {
-  return `${settingsPath(category)}?file=${SETTINGS_CONFIG_FILE}`;
+  return settingsFileRoute(category, SETTINGS_CONFIG_FILE);
+}
+
+/**
+ * Any file a settings directory keeps, by its path (`config.yaml` is the
+ * directory's own; the rest are its providers', such as an item type's
+ * `settings/item-types/installed/<id>.json`).
+ */
+export function settingsFileRoute(category: string, file: string): string {
+  return `${settingsPath(category)}?file=${encodeURIComponent(file)}`;
+}
+
+/** The file a settings location has open, or null for the form. */
+export function settingsFileFromSearch(search: string): string | null {
+  const file = new URLSearchParams(search).get("file");
+  return file === null || file === "" ? null : file;
 }
 
 /** Whether a settings location is showing its directory's `config.yaml`. */
@@ -334,10 +349,8 @@ function walletCrumbs(parts: string[]): Crumb[] {
 
 function settingsCrumbs(parts: string[], params: URLSearchParams): Crumb[] {
   const category = parts[1] ?? "general";
-  if (
-    isSettingsCategory(category) &&
-    params.get("file") === SETTINGS_CONFIG_FILE
-  ) {
+  const file = params.get("file");
+  if (isSettingsCategory(category) && file) {
     // A directory's file: the directory is a link, the file is where you are.
     return [
       { label: "Settings", to: "/settings" },
@@ -345,7 +358,7 @@ function settingsCrumbs(parts: string[], params: URLSearchParams): Crumb[] {
         label: settingsCategoryLabel(category),
         to: settingsPath(category),
       },
-      { label: SETTINGS_CONFIG_FILE },
+      { label: file.slice(file.lastIndexOf("/") + 1) },
     ];
   }
   if (!category || !isSettingsCategory(category) || category === "general") {

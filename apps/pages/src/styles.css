@@ -1366,6 +1366,10 @@ body {
 .section__inner {
   max-width: 60rem;
   display: grid;
+  /* One column that never grows past the buffer: a scroller inside it (the
+     Settings tab strip on a phone) scrolls itself instead of widening the
+     column, and every panel after it, past the screen's edge. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
 }
 

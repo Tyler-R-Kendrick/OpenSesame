@@ -8,6 +8,7 @@ import {
   crumbsFor,
   settingsCategoryFromHash,
   settingsCategoryFromLocation,
+  settingsFileRoute,
   settingsPath,
 } from "./crumbs.js";
 
@@ -162,5 +163,17 @@ describe("a settings directory's config.yaml", () => {
       { label: "Connections", to: "/settings/connections" },
       { label: "config.yaml" },
     ]);
+  });
+});
+
+describe("any file a settings directory keeps", () => {
+  it("is addressed on its directory's route, and named by its file", () => {
+    const path = "settings/item-types/builtin/wifi.json";
+    expect(settingsFileRoute("vaults", path)).toBe(
+      "/settings/vaults?file=settings%2Fitem-types%2Fbuiltin%2Fwifi.json",
+    );
+    expect(
+      crumbsFor("/settings/vaults", `?file=${encodeURIComponent(path)}`)[2],
+    ).toEqual({ label: "wifi.json" });
   });
 });

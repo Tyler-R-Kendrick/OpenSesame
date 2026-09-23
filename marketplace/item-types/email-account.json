@@ -1,0 +1,66 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "email-account",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Email account",
+    "plural": "Email accounts",
+    "extension": ".mail",
+    "summary": "A mailbox and the incoming and outgoing servers a mail client needs to reach it.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "account",
+        "title": "Account",
+        "fields": [
+          {
+            "id": "address",
+            "type": "email",
+            "label": "Address",
+            "required": true
+          },
+          { "id": "username", "type": "string", "label": "Username" },
+          { "id": "password", "type": "password", "label": "Password" }
+        ]
+      },
+      {
+        "id": "servers",
+        "title": "Servers",
+        "fields": [
+          { "id": "incoming", "type": "host-port", "label": "Incoming server" },
+          {
+            "id": "incomingProtocol",
+            "type": "select",
+            "label": "Incoming protocol",
+            "options": ["imap", "pop3", "jmap", "exchange"]
+          },
+          { "id": "outgoing", "type": "host-port", "label": "Outgoing server" },
+          {
+            "id": "security",
+            "type": "select",
+            "label": "Security",
+            "options": ["tls", "starttls", "none"]
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "password",
+      "trailer": [
+        { "key": "email", "field": "address" },
+        { "key": "username", "field": "username" },
+        { "key": "incoming", "field": "incoming" },
+        { "key": "incoming_protocol", "field": "incomingProtocol" },
+        { "key": "outgoing", "field": "outgoing" },
+        { "key": "security", "field": "security" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["address"],
+    "search": ["address", "username"]
+  }
+}

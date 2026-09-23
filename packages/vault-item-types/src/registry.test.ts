@@ -103,6 +103,26 @@ describe("ItemTypeRegistry", () => {
     expect(registry.isBuiltin("field-notes")).toBe(false);
   });
 
+  it("checks an install without making it, and answers as install would", () => {
+    const registry = builtinRegistry();
+    const text = communityDefinition("field-notes", "https://community.test");
+    expect(registry.check(text).ok).toBe(true);
+    expect(registry.has("field-notes")).toBe(false);
+    registry.install(text, "vault");
+    const takeover = communityDefinition("field-notes", "https://other.test");
+    const older = communityDefinition(
+      "field-notes",
+      "https://community.test",
+      "0.9.0",
+    );
+    for (const refused of [takeover, older, "{}"]) {
+      const checked = registry.check(refused);
+      expect(checked.ok).toBe(false);
+      expect(registry.install(refused, "vault")).toEqual(checked);
+    }
+    expect(registry.get("field-notes")?.metadata.version).toBe("1.0.0");
+  });
+
   it("uninstalls without touching anything else", () => {
     const registry = builtinRegistry();
     registry.install(

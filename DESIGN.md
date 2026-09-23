@@ -462,6 +462,22 @@ Every type uses the shared folder/name title and native document tab order,
 with Save and Cancel after the fields. Drop retention stays an explicit,
 unchecked custody choice; payload and expiry remain visible.
 
+### Settings is files
+Settings' files are a file viewer, not a second form, and there is no
+Form/source switch: a file is addressed like a page, `?file=<path>` on its
+directory's route, reached from the rail, the command bar or a row's open key,
+and Back returns to the form. A category is its document
+(`settings/<category>/config.yaml`) plus the virtual files its providers
+keep. For Vaults those are `settings/item-types/marketplaces.json`,
+`installed/<id>.json` and read-only `builtin/<id>.json`. The files sit as a mono
+tree, indented a step per directory, beside the open file. Selection is inverse
+video. A new file starts from the `+` key on the directory it belongs in. A
+built-in file carries the lock glyph and never a save key. The Form is drawn
+from the same files, and every Form key writes one of them. A row carries a
+key that opens its file. Do not draw a per-panel Visual/Source toggle or a
+paste box: give the configuration a file, and the viewer shows it
+([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
+
 ### Field rows
 The vault's atom: a small sentence-case label, value, and right-aligned
 actions. Secrets render as dots with a reveal toggle, and copy never requires

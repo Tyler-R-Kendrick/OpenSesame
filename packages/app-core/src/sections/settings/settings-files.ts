@@ -19,6 +19,8 @@ export {
   SETTINGS_CONFIG_FILE,
   isSettingsConfigSearch,
   settingsConfigRoute,
+  settingsFileFromSearch,
+  settingsFileRoute,
 } from "../../lib/crumbs.js";
 
 export type FieldKind =
