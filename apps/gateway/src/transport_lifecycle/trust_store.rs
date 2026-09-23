@@ -7,7 +7,9 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use opensesame_domain::transport::{ServiceBindingSet, TransportError, TrustProfileRef};
+use opensesame_domain::transport::{
+    ServiceBindingSet, TransportError, TrustProfileKind, TrustProfileRef,
+};
 use opensesame_security_events::{NoticeState, SecurityNotice, Severity};
 use opensesame_transport_security::TrustBundle;
 
@@ -65,6 +67,10 @@ pub async fn put_cas(
     actor: &str,
     force: bool,
 ) -> Result<TrustProfileSet, TrustError> {
+    // Load → compare → activate → store is one critical section per
+    // process, like `bindings::put_cas`: two writers with the same revision
+    // cannot both pass the compare.
+    let _serial = TRUST_SERIAL.lock().await;
     let now = Utc::now();
     proposed.validate(now).map_err(TrustError::Invalid)?;
     let current = load(state).await.map_err(TrustError::Invalid)?;
@@ -87,11 +93,7 @@ pub async fn put_cas(
             forced.push((profile.clone(), binding));
         }
     }
-    let base = state.transport_lifecycle.base_trust();
-    let peer_trust = bundles(&base, &proposed, now).map_err(TrustError::Invalid)?;
-    reactivate(state, peer_trust)
-        .await
-        .map_err(TrustError::Invalid)?;
+    reactivate(state, &current, &proposed, now).await?;
     proposed.revision = current.revision.checked_add(1).ok_or_else(|| {
         TrustError::Invalid(TransportError::malformed("trust: revision overflow"))
     })?;
@@ -166,30 +168,102 @@ async fn live_bindings(state: &AppState) -> ServiceBindingSet {
         .map_or_else(|_| ServiceBindingSet::empty(), |loaded| loaded.set)
 }
 
-/// Swap the peer-trust map into a new generation, keeping the identity that
-/// is serving. Nothing else about the generation changes.
+/// Serializes trust writes (and the overlap reconcile) process-wide.
+static TRUST_SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Build the peer-trust map for `stored` on top of the deployment plane's
+/// bundles *as they serve now* and swap it into a new generation, keeping
+/// the identity that is serving. Nothing else about the generation changes.
+///
+/// Three things this refuses to do:
+///
+/// - **Resurrect a withdrawn generation.** A withdrawal (a revoked or lapsed
+///   source) is not undone by copying its identity into a fresh candidate.
+/// - **Overwrite a concurrent rotation.** The candidate is derived from one
+///   generation and activated only while that generation still serves
+///   (`activate_if_current`); otherwise the write is refused.
+/// - **Roll deployment-plane bundles back to boot.** A deployment-plane
+///   source (the SPIFFE Workload API above all) replaces its bundles on
+///   every snapshot, so the boot-time copy goes stale. Those profiles are
+///   taken from the serving generation, never from the boot snapshot.
 async fn reactivate(
     state: &AppState,
-    peer_trust: BTreeMap<TrustProfileRef, TrustBundle>,
-) -> Result<(), TransportError> {
+    previously_stored: &TrustProfileSet,
+    stored: &TrustProfileSet,
+    now: DateTime<Utc>,
+) -> Result<(), TrustError> {
     let Some(generations) = state.transport_lifecycle.generations() else {
+        // No runtime: still refuse a set whose anchors would not build.
+        bundles(&state.transport_lifecycle.base_trust(), stored, now)
+            .map_err(TrustError::Invalid)?;
         return Ok(());
     };
     let current = generations.current();
+    if let Some(reason) = &current.withdrawn {
+        return Err(TrustError::Withdrawn(reason.clone()));
+    }
+    let base = deployment_plane_trust(state, &current, previously_stored);
+    let peer_trust = bundles(&base, stored, now).map_err(TrustError::Invalid)?;
     let candidate = opensesame_transport_security::GenerationCandidate {
         identity: current.identity.clone(),
         peer_trust,
         own_trust: None,
         identity_required: current.identity.is_some(),
     };
-    activation::activate_candidate(
+    match activation::activate_candidate_if_current(
         state,
         crate::transport_lifecycle::HOST_LISTENER_TARGET,
         &generations,
+        current.number,
         candidate,
     )
     .await
-    .map(|_| ())
+    {
+        Ok(_) => Ok(()),
+        Err(TransportError::GenerationStale) => Err(TrustError::GenerationChanged),
+        Err(error) => Err(TrustError::Invalid(error)),
+    }
+}
+
+/// The deployment plane's bundles as the serving generation holds them.
+///
+/// Names come from the boot snapshot (`base_trust`) — a stored profile can
+/// never add one — but each bundle is the one serving now, and a name the
+/// serving generation no longer carries (a trust domain the Workload API
+/// dropped) is not brought back. On a SPIFFE listener every trust domain
+/// the current snapshot delivered is deployment-plane too, including ones
+/// federated after boot; a name the store already owns is left to the store.
+fn deployment_plane_trust(
+    state: &AppState,
+    current: &opensesame_transport_security::Generation,
+    previously_stored: &TrustProfileSet,
+) -> BTreeMap<TrustProfileRef, TrustBundle> {
+    let boot = state.transport_lifecycle.base_trust();
+    let spiffe = state.transport.as_ref().is_some_and(|runtime| {
+        runtime.config.listener.as_ref().is_some_and(|listener| {
+            matches!(
+                listener.identity,
+                opensesame_transport_security::env::NativeIdentitySpec::Spiffe { .. }
+            )
+        })
+    });
+    let stored_name = |profile: &TrustProfileRef| {
+        previously_stored
+            .profiles
+            .iter()
+            .any(|stored| &stored.profile == profile)
+    };
+    current
+        .peer_trust
+        .iter()
+        .filter(|(profile, bundle)| {
+            boot.contains_key(*profile)
+                || (spiffe
+                    && bundle.kind() == TrustProfileKind::SpiffeTrustDomain
+                    && !stored_name(profile))
+        })
+        .map(|(profile, bundle)| (profile.clone(), bundle.clone()))
+        .collect()
 }
 
 /// Narrow the anchors again once a bounded rollover overlap has lapsed.
@@ -205,10 +279,15 @@ pub async fn reconcile(state: &AppState, now: DateTime<Utc>) -> Result<(), Trans
     if !due {
         return Ok(());
     }
+    let _serial = TRUST_SERIAL.lock().await;
     let stored = load(state).await?;
-    let base = state.transport_lifecycle.base_trust();
-    let peer_trust = bundles(&base, &stored, now)?;
-    reactivate(state, peer_trust).await?;
+    reactivate(state, &stored, &stored, now)
+        .await
+        .map_err(|error| match error {
+            TrustError::Invalid(inner) | TrustError::Withdrawn(inner) => inner,
+            TrustError::GenerationChanged => TransportError::GenerationStale,
+            other => TransportError::malformed(other.to_string()),
+        })?;
     state.transport_lifecycle.with_trust_epoch(|epoch| {
         epoch.next_overlap_expiry = stored.next_overlap_expiry(now);
     });

@@ -138,3 +138,93 @@ fn a_denied_thumbprint_is_visible_to_the_listener_hook() {
     assert!(bindings::denies_thumbprint(&bindings_set, &"a".repeat(64)));
     assert!(!bindings::denies_thumbprint(&bindings_set, &"b".repeat(64)));
 }
+
+/// Two gateway processes over one store, each with its own live set loaded
+/// at boot. A revokes a leaf (a new stored revision); B, still holding the
+/// boot revision in memory, is refused when it writes against it instead of
+/// silently overwriting A's denial — and B's live set, which admission
+/// reads, picks A's write up on refresh.
+#[tokio::test]
+async fn a_replica_with_a_stale_live_set_cannot_overwrite_another_replicas_write() {
+    let db = Db::connect_memory().await.expect("db");
+    let seeded = bindings::put_cas(&db, BindingsSource::Default, None, one())
+        .await
+        .expect("seed");
+    let replica_a = std::sync::RwLock::new(seeded.clone());
+    let replica_b = std::sync::RwLock::new(seeded.clone());
+
+    // A denies a leaf.
+    let mut denial = seeded.clone();
+    denial.bindings[0].denied_thumbprints.push("d".repeat(64));
+    let stored = bindings::put_cas(&db, BindingsSource::Stored, Some(&replica_a), denial)
+        .await
+        .expect("replica A writes");
+    assert_eq!(stored.revision, seeded.revision + 1);
+
+    // B writes against the revision it booted with: refused, with the
+    // stored revision named, and the denial is still in the store.
+    let mut stale = seeded.clone();
+    stale.bindings[0]
+        .allowed_operations
+        .push("nats.callout.decide.extra".into());
+    assert_eq!(
+        bindings::put_cas(&db, BindingsSource::Stored, Some(&replica_b), stale).await,
+        Err(PutError::StaleRevision {
+            current: stored.revision
+        })
+    );
+    let reloaded = bindings::load(&db, None).await.expect("reload").set;
+    assert!(bindings::denies_thumbprint(&reloaded, &"d".repeat(64)));
+    // The refused write already brought B up to date.
+    assert!(bindings::denies_thumbprint(
+        &replica_b.read().unwrap(),
+        &"d".repeat(64)
+    ));
+}
+
+#[tokio::test]
+async fn refresh_adopts_a_newer_stored_set_and_never_moves_backwards() {
+    let db = Db::connect_memory().await.expect("db");
+    let seeded = bindings::put_cas(&db, BindingsSource::Default, None, one())
+        .await
+        .expect("seed");
+    let replica_b = std::sync::RwLock::new(seeded.clone());
+
+    // Another process writes; B has not written anything.
+    let mut denial = seeded.clone();
+    denial.bindings[0].denied_thumbprints.push("e".repeat(64));
+    bindings::put_cas(&db, BindingsSource::Stored, None, denial)
+        .await
+        .expect("other replica writes");
+    assert!(!bindings::denies_thumbprint(
+        &replica_b.read().unwrap(),
+        &"e".repeat(64)
+    ));
+    assert!(bindings::refresh(&db, BindingsSource::Stored, &replica_b)
+        .await
+        .expect("refresh"));
+    assert!(bindings::denies_thumbprint(
+        &replica_b.read().unwrap(),
+        &"e".repeat(64)
+    ));
+    // Already current: nothing to adopt.
+    assert!(!bindings::refresh(&db, BindingsSource::Stored, &replica_b)
+        .await
+        .expect("refresh"));
+
+    // A live set ahead of the store is never rolled back to it.
+    let mut ahead_set = one();
+    ahead_set.revision = 99;
+    let ahead = std::sync::RwLock::new(ahead_set);
+    assert!(!bindings::refresh(&db, BindingsSource::Stored, &ahead)
+        .await
+        .expect("refresh"));
+    assert_eq!(ahead.read().unwrap().revision, 99);
+
+    // A pinned env file is never replaced from the store.
+    let pinned = std::sync::RwLock::new(ServiceBindingSet::empty());
+    assert!(!bindings::refresh(&db, BindingsSource::Env, &pinned)
+        .await
+        .expect("refresh"));
+    assert!(pinned.read().unwrap().bindings.is_empty());
+}

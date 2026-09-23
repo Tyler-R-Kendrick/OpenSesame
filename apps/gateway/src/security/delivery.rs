@@ -24,7 +24,6 @@ use base64::Engine as _;
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use opensesame_connection_broker::crypto::{open_scoped, SealedBlob};
-use opensesame_connector_host::is_blocked_host;
 use opensesame_security_events::Delivery;
 use opensesame_storage::{StoredSecurityDelivery, StoredSecurityHook, SECURITY_HOOK_SECRET_SCOPE};
 use sha2::Sha256;
@@ -236,7 +235,7 @@ async fn send(
     // Re-checked at send time, not only at registration: a hook registered
     // before an operator tightened the fence, or one whose host now resolves
     // somewhere private, must not be delivered to.
-    assert_deliverable(endpoint).map_err(Failure::Permanent)?;
+    let client = delivery_client(endpoint).await?;
 
     let secret = open_secret(state, hook)?;
     // Not necessarily an envelope: rows queued before migration 0020 hold a
@@ -244,14 +243,6 @@ async fn send(
     let queued = sinks::decode(&delivery.payload_json);
     let rendered =
         sinks::render_queued(kind, &queued, secret.as_deref()).map_err(Failure::Permanent)?;
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
-        // A redirect is a response, never a chase: following one would let an
-        // allowed host hand us an address the fence already refused.
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|error| Failure::Retryable(format!("http client: {error}")))?;
 
     let mut request = client
         .post(endpoint)
@@ -344,7 +335,7 @@ async fn send_a2h(
         .endpoint_url
         .as_deref()
         .ok_or_else(|| Failure::Permanent("a2h hook has no gateway URL".into()))?;
-    assert_deliverable(endpoint).map_err(Failure::Permanent)?;
+    let client = delivery_client(endpoint).await?;
 
     // The ledger stores the shared envelope (ADR 0080 §1), so the agent
     // family's own payload is one field in. Reading the row as a bare agent
@@ -399,11 +390,6 @@ async fn send_a2h(
     let body = serde_json::to_string(&message)
         .map_err(|error| Failure::Permanent(format!("intent could not be encoded: {error}")))?;
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|error| Failure::Retryable(format!("http client: {error}")))?;
     let response = client
         .post(format!("{}/v1/intent", endpoint.trim_end_matches('/')))
         .header("content-type", "application/json")
@@ -452,32 +438,18 @@ fn run_attach_url(public_url: &str, run_id: &str) -> String {
 /// Returns the reason when the URL is not absolute HTTPS or names a
 /// loopback, private, link-local, or metadata address.
 pub fn assert_deliverable(endpoint: &str) -> Result<(), String> {
-    let url =
-        url_host(endpoint).ok_or_else(|| "endpoint is not an absolute https URL".to_string())?;
-    if is_blocked_host(&url) {
-        return Err("endpoint resolves to a private or metadata address".into());
-    }
-    Ok(())
+    super::endpoint_fence::parse_deliverable(endpoint).map(|_| ())
 }
 
-/// The host of an absolute `https://` URL, or `None` for anything else.
-fn url_host(endpoint: &str) -> Option<String> {
-    let rest = endpoint.strip_prefix("https://")?;
-    let authority = rest
-        .split(['/', '?', '#'])
-        .next()
-        .filter(|authority| !authority.is_empty())?;
-    // Credentials in a delivery URL are a footgun and a secret in a column.
-    if authority.contains('@') {
-        return None;
-    }
-    let host = match authority.strip_prefix('[') {
-        // IPv6 literal: keep the brackets so `is_blocked_host` sees the form
-        // it strips itself.
-        Some(rest) => format!("[{}]", rest.split(']').next()?),
-        None => authority.split(':').next()?.to_string(),
-    };
-    (!host.is_empty()).then_some(host)
+/// A client pinned to the vetted addresses of a deliverable endpoint.
+async fn delivery_client(endpoint: &str) -> Result<reqwest::Client, Failure> {
+    let url = super::endpoint_fence::parse_deliverable(endpoint).map_err(Failure::Permanent)?;
+    super::endpoint_fence::pinned_client(&url, Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
+        .await
+        .map_err(|refusal| match refusal {
+            super::endpoint_fence::Refusal::Blocked(reason) => Failure::Permanent(reason),
+            super::endpoint_fence::Refusal::Unresolved(reason) => Failure::Retryable(reason),
+        })
 }
 
 /// The hook's signing secret, for callers outside this module.

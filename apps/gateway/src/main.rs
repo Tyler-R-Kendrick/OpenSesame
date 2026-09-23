@@ -68,6 +68,9 @@ async fn main() -> anyhow::Result<()> {
     // Transport renewal retries and bounded trust-overlap reconcile (ADR 0132).
     transport_lifecycle::boot::attach(&state);
     tokio::spawn(transport_lifecycle::renewal::run(state.clone()));
+    // Replicas sharing one store converge on the stored binding set within
+    // `transport::bindings::REFRESH_INTERVAL` (a revocation's denials above all).
+    tokio::spawn(transport::bindings::run_refresh(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
     // saga — claim under lease, exponential backoff, visible dead letters.
     tokio::spawn(security::delivery::run(state.clone()));

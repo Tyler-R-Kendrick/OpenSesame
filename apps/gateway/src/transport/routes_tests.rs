@@ -28,9 +28,26 @@ async fn call(
     operator: bool,
     body: Option<String>,
 ) -> (StatusCode, Value) {
-    let mut builder = Request::builder().method(method).uri(path);
+    let mut headers = axum::http::HeaderMap::new();
     if operator {
-        builder = builder.header("x-opensesame-operator", st.operator_token.clone());
+        headers.insert(
+            "x-opensesame-operator",
+            st.operator_token.parse().expect("header"),
+        );
+    }
+    call_with(st, method, path, headers, body).await
+}
+
+async fn call_with(
+    st: &crate::app_state::AppState,
+    method: &str,
+    path: &str,
+    headers: axum::http::HeaderMap,
+    body: Option<String>,
+) -> (StatusCode, Value) {
+    let mut builder = Request::builder().method(method).uri(path);
+    for (name, value) in &headers {
+        builder = builder.header(name, value);
     }
     let body = match body {
         Some(body) => {
@@ -82,6 +99,43 @@ async fn every_route_is_configurator_gated() {
         let (status, _) = call(&st, method, path, false, body).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{method} {path}");
     }
+}
+
+/// The binding set and the enforcement probe are deployment-scoped: an
+/// owner or admin session of *an* organization is not the deployment's
+/// administrator and gets `403`; the status view stays readable to them.
+#[tokio::test]
+async fn an_organization_admin_cannot_touch_deployment_scoped_routes() {
+    use opensesame_domain::{OrganizationId, OrganizationRole};
+    let st = Box::pin(state(bridge())).await;
+    for role in [OrganizationRole::Admin, OrganizationRole::Owner] {
+        let session = || {
+            crate::app_state::test_session_headers(
+                &st,
+                crate::test_principals::P01,
+                OrganizationId::new(),
+                role,
+            )
+        };
+        for (method, path, body) in [
+            ("GET", BINDINGS, None),
+            (
+                "PUT",
+                BINDINGS,
+                Some("{\"revision\":1,\"bindings\":[]}".to_owned()),
+            ),
+            ("POST", VERIFY, Some("{\"target\":\"host-tls\"}".to_owned())),
+        ] {
+            let (status, value) = call_with(&st, method, path, session(), body).await;
+            assert_eq!(status, StatusCode::FORBIDDEN, "{method} {path} as {role:?}");
+            assert_eq!(value["error"], "forbidden");
+        }
+        let (status, _) = call_with(&st, "GET", STATUS, session(), None).await;
+        assert_eq!(status, StatusCode::OK, "status stays readable as {role:?}");
+    }
+    // The refused PUT changed nothing.
+    let live = st.transport.as_ref().expect("runtime").binding_set();
+    assert_eq!(live, bridge());
 }
 
 #[tokio::test]

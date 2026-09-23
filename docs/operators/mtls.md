@@ -385,10 +385,19 @@ which this work does not test.
 
 ## Root approval and trust rollover
 
-Trust anchors are administrator decisions. `PUT
-/api/v1/operator/transport/trust` (configurator-gated, ≤ 64 KiB,
+Trust anchors are deployment decisions. `PUT
+/api/v1/operator/transport/trust` (deployment operator credential only — an
+organization's owner or admin session gets `403`; ≤ 64 KiB,
 `deny_unknown_fields`) installs, replaces or removes a bundle for a named
-profile and writes an audit event. A bundle is never fetched or imported
+profile and writes an audit event. The same holds for the service-binding set
+(`GET`/`PUT /api/v1/operator/transport/bindings`), the enforcement probe
+(`POST /api/v1/operator/transport/verify`) and revocation *by thumbprint*
+(`POST /api/v1/operator/transport/certificates/revoke` with `thumbprint`);
+an organization's configurators keep revocation of their own certificates by
+`certificate_id`, issuance, and the read-only status, trust, facts and
+renewal views. A trust write never re-activates a withdrawn generation and
+is refused (`generation_stale`) if the serving generation changed while it
+was being built. A bundle is never fetched or imported
 because a certificate, CSR, URL or manifest suggested it.
 
 Rollover is an explicit overlap: install the new root beside the old under the
@@ -422,7 +431,8 @@ and audit lineage: the binding matches by name selector, and only a
 
 | Layer | Mechanism | Takes effect |
 |---|---|---|
-| New handshakes | Remove the root or add the thumbprint to `denied_thumbprints` (binding revision bump, CAS), optionally `P_CRL_FILE` | The next connection attempt. |
+| New handshakes | Remove the root or add the thumbprint to `denied_thumbprints` (binding revision bump, CAS), optionally `P_CRL_FILE` | The next connection attempt in the process that took the write; other gateway processes sharing the store adopt the new binding revision within 15 s (`REFRESH_INTERVAL`) or on their next binding read or write. |
+| Clients behind a trusted ingress | The same revoked-leaf hook is applied to the forwarded originating leaf, and a certificate-bound token naming a revoked leaf is refused (`evidence_revoked`) | The next forwarded request. |
 | Existing native HTTP connections | Every protected request re-resolves the binding and rechecks `denied_thumbprints`, the trust and credential generations, and `usable_until` (`authenticated_at + min(usable_for, certificate remaining)`) | The next protected request on that connection, and unconditionally when `usable_until` passes. |
 | NATS sessions | The callout response carries an authorization expiry the **server** enforces by disconnecting; the client's own timer is not relied on | The expiry issued at admission; shorten it in the callout policy if you need a tighter bound. A reissued decision on reconnect goes through admission again. |
 | OpenBao tokens | The token's TTL, or `auth/token/revoke` | The token's own lifetime. Certificate revocation leaves it valid. |
@@ -466,7 +476,7 @@ device.
 | `enforcement` | `unverified`, `verified { at, target, generation, accepted_with_certificate, rejected_without_certificate, fresh_until }`, `stale { verified_at, generation, current_generation }` | Whether the target was shown to reject callers without a certificate, under which generation, and until when that evidence counts. |
 | `capabilities` | per-source `supported` / `unsupported` / `external_provisioning_required`, plus `client_presents_certificate` and `server_enforces_certificate` | What this runtime can do at all. `browser_vault_key_injection` is always `unsupported`. |
 
-`POST /api/v1/operator/transport/verify` is the only thing that moves
+`POST /api/v1/operator/transport/verify` (deployment operator only) is the only thing that moves
 `enforcement` to `verified`. It sends `GET /health/live` to the named target
 twice — with the configured client identity and with none — and records both
 results against the generation in force. Only the pair counts: an accepted

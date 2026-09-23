@@ -1,11 +1,17 @@
 //! Operator transport routes: status, service bindings, and the enforcement
 //! probe.
 //!
-//! Gated exactly like `routes/taskbus_config.rs` — a Host session whose role
-//! may configure integrations, or the deployment operator token. Transport
-//! evidence is deliberately *not* a way in here: mTLS is not an alternate
-//! operator login, so an admitted service peer that never presented a
-//! session gets the same 403 anyone else would.
+//! Reads (`status`) are gated like `routes/taskbus_config.rs` — a Host
+//! session whose role may configure integrations, or the deployment operator
+//! token. Everything deployment-scoped is the deployment operator's alone:
+//! the binding set (which carries `Deployment`-scoped bindings and every
+//! organization's bindings side by side) is read and replaced, and the
+//! enforcement probe is started, only by `Caller::Operator`. An owner or
+//! admin of *an* organization is not an administrator of the deployment, so
+//! their session gets `403` there. Transport evidence is deliberately *not*
+//! a way in here: mTLS is not an alternate operator login, so an admitted
+//! service peer that never presented a session gets the same 403 anyone
+//! else would.
 //!
 //! Every body is bounded and rejects unknown fields; the status body is
 //! `TransportStatusView` exactly, with no path, distinguished name, socket,
@@ -65,6 +71,27 @@ fn require_configurator(
     Ok(who)
 }
 
+/// Deployment-scoped reads and writes: the operator credential only. An
+/// organization's owner or admin session is refused — its role is scoped to
+/// its own organization, and these routes are not.
+#[allow(clippy::result_large_err)]
+pub(crate) fn require_deployment_operator(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<(), Response> {
+    match resolve_caller(st, headers)? {
+        Caller::Operator => Ok(()),
+        Caller::Session { .. } => Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "forbidden",
+                "hint": "the deployment operator credential is required for deployment-scoped transport configuration"
+            })),
+        )
+            .into_response()),
+    }
+}
+
 fn unconfigured() -> Response {
     (
         StatusCode::OK,
@@ -94,12 +121,19 @@ pub async fn get_status(State(st): State<AppState>, headers: axum::http::HeaderM
 }
 
 pub async fn get_bindings(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
+    if let Err(resp) = require_deployment_operator(&st, &headers) {
         return resp;
     }
     let Some(runtime) = st.transport.as_ref() else {
         return unconfigured();
     };
+    // Another gateway sharing the store may have replaced the set; report
+    // (and admit on) what is stored rather than this process's older copy.
+    if let Err(error) =
+        bindings::refresh(&st.db, runtime.bindings_source, runtime.bindings.as_ref()).await
+    {
+        tracing::warn!(code = error.code(), "service bindings refresh failed");
+    }
     (
         StatusCode::OK,
         Json(json!({
@@ -118,7 +152,7 @@ pub async fn put_bindings(
     headers: axum::http::HeaderMap,
     body: String,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
+    if let Err(resp) = require_deployment_operator(&st, &headers) {
         return resp;
     }
     let Some(runtime) = st.transport.as_ref() else {
@@ -192,7 +226,7 @@ pub async fn verify(
     headers: axum::http::HeaderMap,
     Json(body): Json<VerifyBody>,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
+    if let Err(resp) = require_deployment_operator(&st, &headers) {
         return resp;
     }
     let Some(runtime) = st.transport.as_ref() else {

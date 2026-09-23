@@ -56,7 +56,11 @@ mod renewal_tests;
 #[cfg(test)]
 mod revocation_tests;
 #[cfg(test)]
+mod routes_tests;
+#[cfg(test)]
 pub(crate) mod test_support;
+#[cfg(test)]
+mod trust_generation_tests;
 #[cfg(test)]
 mod trust_tests;
 

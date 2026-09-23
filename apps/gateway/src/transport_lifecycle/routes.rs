@@ -1,9 +1,16 @@
 //! Operator routes over the certificate lifecycle (ADR 0132).
 //!
-//! Every handler is configurator-gated exactly like `taskbus_config`
-//! (`resolve_caller` → `can_configure_integrations`); none of them reads
-//! transport evidence, so an admitted mTLS peer never reaches one — mTLS is
-//! not an alternate operator login.
+//! Organization-scoped handlers (issuing a certificate for the caller's
+//! organization, revoking one of its certificates by id, reading trust,
+//! facts and the renewal queue) are configurator-gated exactly like
+//! `taskbus_config` (`resolve_caller` → `can_configure_integrations`).
+//! Deployment-scoped writes are the deployment operator's alone: replacing
+//! the trust profiles every listener verifies peers against, and revoking an
+//! arbitrary leaf *by thumbprint* (which denies it process-wide and in every
+//! organization's bindings), require `Caller::Operator`; an owner or admin of
+//! one organization gets `403`. None of them reads transport evidence, so an
+//! admitted mTLS peer never reaches one — mTLS is not an alternate operator
+//! login.
 //!
 //! **No response here can carry private key material.** The issuance view is
 //! public PEM (leaf + issuer) and metadata; the revocation view is a
@@ -29,6 +36,7 @@ use serde_json::json;
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, Caller};
+use crate::transport::routes::require_deployment_operator;
 use crate::transport_lifecycle::{crl, facts, issuance, revocation, trust};
 
 /// The routes this module contributes, merged by the coordinator in
@@ -135,6 +143,16 @@ pub async fn revoke_certificate(
     let Ok(Json(request)) = body else {
         return refuse(400, "invalid_request", "body is not a revocation request");
     };
+    // A thumbprint names no organization: it denies that leaf in this whole
+    // process and in every organization's bindings. Only the deployment
+    // operator may do that; a tenant revokes its own certificates by id.
+    if request.thumbprint.is_some() && !matches!(who, Caller::Operator) {
+        return refuse(
+            403,
+            "forbidden",
+            "revoking by thumbprint is deployment-scoped; revoke your organization's certificate by certificate_id",
+        );
+    }
     let organization = who.organization(state.connection_organization);
     match revocation::revoke_transport(&state, &organization, request).await {
         Ok(outcome) => (StatusCode::OK, Json(json!({ "revocation": outcome }))).into_response(),
@@ -194,15 +212,15 @@ pub async fn put_trust(
     headers: HeaderMap,
     body: Result<Json<PutTrustBody>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    let who = match require_configurator(&state, &headers) {
-        Ok(who) => who,
-        Err(response) => return response,
-    };
+    // Trust profiles are deployment-wide: every listener verifies every
+    // organization's peers against them. Not an organization admin's call.
+    if let Err(response) = require_deployment_operator(&state, &headers) {
+        return response;
+    }
     let Ok(Json(body)) = body else {
         return refuse(400, "invalid_request", "body is not a trust profile set");
     };
-    let actor = who.actor_subject().to_owned();
-    match trust::put_cas(&state, body.set, &actor, body.force).await {
+    match trust::put_cas(&state, body.set, "operator", body.force).await {
         Ok(set) => (StatusCode::OK, Json(json!({ "trust": set }))).into_response(),
         Err(error) => refuse(error.http_status(), error.code(), &error.to_string()),
     }

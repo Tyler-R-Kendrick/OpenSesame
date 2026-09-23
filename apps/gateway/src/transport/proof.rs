@@ -14,6 +14,11 @@
 //!   behind a trusted ingress, never the ingress's own leaf (the ingress is
 //!   a different identity, and binding to it would let any client of that
 //!   ingress spend any bound token);
+//! - a bound certificate the listener's revoked-leaf hook names (the
+//!   lifecycle denylist or a binding's `denied_thumbprints`) is
+//!   [`TransportError::EvidenceRevoked`] — for the originating client as
+//!   much as for a direct peer, whose own leaf the per-request guard
+//!   already checks;
 //! - anything else is [`TransportError::ProofMismatch`], including a token
 //!   presented on the plain listener.
 
@@ -22,7 +27,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use opensesame_domain::transport::{TransportError, VerifiedPeer};
 use opensesame_ingress_evidence::OriginatingPeerExtension;
-use opensesame_transport_security::PeerExtension;
+use opensesame_transport_security::{PeerDenyHook, PeerExtension};
 use serde::{Deserialize, Serialize};
 
 /// An access token's confirmation claim. Both members are optional and they
@@ -44,7 +49,9 @@ pub struct Confirmation {
 /// # Errors
 ///
 /// [`TransportError::ProofMismatch`] when the claim is present and the
-/// connection's peer is absent, malformed, or a different certificate.
+/// connection's peer is absent, malformed, or a different certificate;
+/// [`TransportError::EvidenceRevoked`] when it is that certificate but the
+/// certificate is revoked.
 pub fn require_certificate_binding(
     confirmation: Option<&Confirmation>,
     extensions: &Extensions,
@@ -54,11 +61,18 @@ pub fn require_certificate_binding(
     };
     let peer = bound_peer(extensions).ok_or(TransportError::ProofMismatch)?;
     let expected = thumbprint_hex(claimed).ok_or(TransportError::ProofMismatch)?;
-    if expected == peer.leaf_thumbprint_sha256() {
-        Ok(())
-    } else {
-        Err(TransportError::ProofMismatch)
+    if expected != peer.leaf_thumbprint_sha256() {
+        return Err(TransportError::ProofMismatch);
     }
+    // The ingress layer already refuses a revoked originating leaf; this is
+    // the enforcement point's own check, so a bound token is never honoured
+    // for a revoked certificate whichever way the evidence arrived.
+    if let Some(PeerDenyHook(deny)) = extensions.get::<PeerDenyHook>() {
+        if deny(peer.leaf_thumbprint_sha256()) {
+            return Err(TransportError::EvidenceRevoked);
+        }
+    }
+    Ok(())
 }
 
 /// The certificate a bound token must have been issued to: the originating

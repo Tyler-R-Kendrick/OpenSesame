@@ -27,9 +27,9 @@ use opensesame_ingress_evidence::{
 };
 use opensesame_transport_security::testkit::{DisposableCa, IssuedLeaf, LeafSpec, SanEntry};
 use opensesame_transport_security::{
-    client_config, dial_name, reqwest_builder, ClientProfile, Generation, ListenerCounters,
-    ListenerProvenance, PeerExtension, SecureListener, ServerNamePolicy, ServerProfile,
-    TransportGenerations, TrustBundle,
+    client_config, dial_name, reqwest_builder, ClientProfile, DenyThumbprint, Generation,
+    ListenerCounters, ListenerProvenance, PeerExtension, SecureListener, ServerNamePolicy,
+    ServerProfile, TransportGenerations, TrustBundle,
 };
 use rustls_pki_types::pem::PemObject as _;
 use rustls_pki_types::CertificateDer;
@@ -198,15 +198,30 @@ pub fn router(pki: &Pki, handled: Handled) -> Router {
 }
 
 pub fn router_with_trust(pki: &Pki, handled: Handled, originating_trust: TrustBundle) -> Router {
+    router_with(pki, handled, originating_trust, None)
+}
+
+/// The echo router, optionally with a revoked-leaf hook on the layer.
+pub fn router_with(
+    pki: &Pki,
+    handled: Handled,
+    originating_trust: TrustBundle,
+    deny: Option<DenyThumbprint>,
+) -> Router {
     let admission = Arc::new(BindingSetAdmission::new(pki.bindings()));
+    let layer = originating_peer_layer(
+        admission,
+        Arc::new(originating_trust),
+        IngressLimits::DEFAULT,
+    );
+    let layer = match deny {
+        Some(deny) => layer.with_deny_thumbprint(deny),
+        None => layer,
+    };
     Router::new()
         .route("/whoami", get(whoami))
         .with_state(handled)
-        .layer(originating_peer_layer(
-            admission,
-            Arc::new(originating_trust),
-            IngressLimits::DEFAULT,
-        ))
+        .layer(layer)
 }
 
 pub struct Origin {
@@ -233,6 +248,17 @@ pub async fn spawn_origin_with(
     listener_id: &str,
     originating_trust: TrustBundle,
 ) -> Origin {
+    spawn_origin_denying(pki, policy, listener_id, originating_trust, None).await
+}
+
+/// As [`spawn_origin_with`], with the layer's revoked-leaf hook set.
+pub async fn spawn_origin_denying(
+    pki: &Pki,
+    policy: TransportPolicy,
+    listener_id: &str,
+    originating_trust: TrustBundle,
+    deny: Option<DenyThumbprint>,
+) -> Origin {
     let mut peer_trust = BTreeMap::new();
     peer_trust.insert(Pki::ingress_profile(), pki.ingress_trust());
     let generations = TransportGenerations::new(Generation {
@@ -258,7 +284,7 @@ pub async fn spawn_origin_with(
     let addr = listener.local_addr();
     let counters = listener.counters();
     let handled = Handled(Arc::new(AtomicUsize::new(0)));
-    let app = router_with_trust(pki, handled.clone(), originating_trust);
+    let app = router_with(pki, handled.clone(), originating_trust, deny);
     let task = tokio::spawn(async move {
         if let Err(error) = listener.serve(app).await {
             eprintln!("origin stopped: {error:?}");

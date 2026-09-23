@@ -114,13 +114,21 @@ pub fn deny_hook(state: &AppState, runtime: &TransportRuntime) -> DenyThumbprint
 /// The trusted-ingress layer goes on the shared router, inside the
 /// provenance layer, so forwarded evidence is verified once for whichever
 /// listener carried it — and stripped everywhere it is not admissible.
+///
+/// The layer gets the listener's own revoked-leaf hook ([`deny_hook`]): the
+/// per-request guard only sees the ingress's leaf, so a revoked
+/// *originating* client is refused here instead, on the same evidence.
 fn with_ingress(state: &AppState, app: Router) -> Router {
     match state
         .transport
         .as_ref()
         .filter(|runtime| runtime.policy == TransportPolicy::TrustedIngress)
-        .and_then(|runtime| runtime.ingress_layer.clone())
-    {
+        .and_then(|runtime| {
+            runtime
+                .ingress_layer
+                .clone()
+                .map(|layer| layer.with_deny_thumbprint(deny_hook(state, runtime)))
+        }) {
         Some(layer) => app.layer(layer),
         None => app,
     }
