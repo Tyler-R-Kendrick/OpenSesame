@@ -41,7 +41,6 @@
   padding: 0.25rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
   border-width: 1px 0 0;
   border-radius: 0;
-  animation: ctxmenu-rise 160ms var(--ease);
 }
 
 .ctxmenu__title {
@@ -53,19 +52,6 @@
   color: var(--ink-3);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-@keyframes ctxmenu-rise {
-  from {
-    transform: translateY(1rem);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ctxmenu--sheet {
-    animation: none;
-  }
 }
 
 .ctxmenu__sep {
@@ -87,16 +73,11 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
 }
 
+/* The focused entry is the menu's cursor: inverse video, like every other. */
 .ctxmenu__item:focus {
   outline: none;
-}
-
-.ctxmenu__item:focus-visible,
-.ctxmenu__item:focus {
   background: var(--ink);
   color: var(--canvas);
 }
