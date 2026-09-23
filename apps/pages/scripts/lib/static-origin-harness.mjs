@@ -8,6 +8,7 @@
  * smaller. The checks are the interesting half; this is the machinery.
  */
 
+import { generateKeyPairSync, sign } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
@@ -31,7 +32,20 @@ const b64url = (value) =>
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 
-/** An unsigned stand-in for Shoo's ES256 id_token; the page checks claims, not the signature. */
+/**
+ * The mock Shoo's signing key. Its id_tokens are real ES256 JWTs and its
+ * JWKS answers, because ambient SSO (always on, ADR 0134) re-validates a
+ * saved session against the issuer's keys on boot, exactly as the real
+ * shoo.dev lets it.
+ */
+const SHOO_KEY = generateKeyPairSync("ec", { namedCurve: "P-256" });
+const SHOO_JWK = {
+  ...SHOO_KEY.publicKey.export({ format: "jwk" }),
+  kid: "k1",
+  alg: "ES256",
+  use: "sig",
+};
+
 function idToken(origin) {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
@@ -44,7 +58,12 @@ function idToken(origin) {
     iat: now,
     exp: now + 3600,
   };
-  return `${b64url(JSON.stringify({ alg: "ES256", typ: "JWT", kid: "k1" }))}.${b64url(JSON.stringify(payload))}.${b64url("sig")}`;
+  const input = `${b64url(JSON.stringify({ alg: "ES256", typ: "JWT", kid: "k1" }))}.${b64url(JSON.stringify(payload))}`;
+  const signature = sign("sha256", Buffer.from(input), {
+    key: SHOO_KEY.privateKey,
+    dsaEncoding: "ieee-p1363",
+  });
+  return `${input}.${b64url(signature)}`;
 }
 
 /**
@@ -100,7 +119,7 @@ function answerShoo(route, url, { request, origin }) {
   const cors = {
     "access-control-allow-origin": origin,
     "access-control-allow-headers": "authorization, content-type",
-    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
   };
   if (request.method() === "OPTIONS") {
     return route.fulfill({ status: 204, headers: cors });
@@ -119,6 +138,8 @@ function answerShoo(route, url, { request, origin }) {
     });
   }
   if (url.pathname === "/session/check") return json({ status: "active" });
+  if (url.pathname === "/.well-known/jwks.json")
+    return json({ keys: [SHOO_JWK] });
   return null;
 }
 

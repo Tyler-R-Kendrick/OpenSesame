@@ -52,7 +52,11 @@ describe("Allow guests", () => {
   it("withdraws both sign-in placements and the first-run Skip", async () => {
     await setGuestsAllowed(false);
     render(
-      <SignInPanel placement="primary" providers={[]} onUseLocalOnly={vi.fn()} />,
+      <SignInPanel
+        placement="primary"
+        providers={[]}
+        onUseLocalOnly={vi.fn()}
+      />,
     );
     expect(
       screen.queryByRole("button", { name: /Continue as guest/ }),

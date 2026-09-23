@@ -7,9 +7,16 @@
 // optional capability, and the moment a person adds one through Settings ›
 // Capabilities it is there. An absence alone proves nothing — a section can
 // vanish because it crashed — so each capability is checked both ways.
+// Always-on capabilities (ADR 0134) are the opposite claim: present with
+// nothing chosen, and never offered as a row.
+
+import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
 
 /** Rail rows an installation that has approved nothing must not have. */
-const GATED_RAIL_ROWS = ["connections/", "access/", "identity/", "wallet/"];
+const GATED_RAIL_ROWS = ["identity/", "wallet/"];
+
+/** Rail rows of always-on capabilities (ADR 0134): there before any choice. */
+const ALWAYS_ON_RAIL_ROWS = ["connections/", "access/", "activity/"];
 
 /** A. Nothing optional is on the rail before anything is chosen. */
 export async function checkGatedSectionsAbsent(page, check) {
@@ -22,17 +29,22 @@ export async function checkGatedSectionsAbsent(page, check) {
       `${row} is absent until its capability is approved`,
     );
   }
+  for (const row of ALWAYS_ON_RAIL_ROWS) {
+    check(
+      rows.some((text) => text.startsWith(row)),
+      `${row} is there with nothing chosen: it is always on`,
+    );
+  }
   check(
     rows.some((text) => text.startsWith("vault/")) &&
       rows.some((text) => text.startsWith("settings/")),
     "the core sections are there regardless",
   );
-  // A capability that adds a control rather than a section is gated the same
-  // way: the statusline's Support key belongs to guided help, and an
-  // installation without it has no key at all, not a disabled one.
+  // Guided help is always on, so the statusline's Support key is there
+  // before anything is chosen.
   check(
-    (await page.locator('button[aria-label="Support"]').count()) === 0,
-    "the Support key is absent until guided help is approved",
+    (await page.locator('button[aria-label="Support"]').count()) > 0,
+    "the Support key is there: guided help is always on",
   );
 }
 
@@ -53,7 +65,18 @@ async function openCapabilities(page) {
  */
 export async function addCapability(page, check, snap, title, rail = null) {
   await openCapabilities(page);
+  await openAdvanced(page);
   const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+  if (ALWAYS_ON_TITLES.has(title)) {
+    // Always on: there is nothing to add, and no row offers to.
+    check((await add.count()) === 0, `${title} is always on, not an Add row`);
+    if (rail === null) return;
+    const present = (
+      await page.locator(".railtree__row").allTextContents()
+    ).some((text) => text.trim().startsWith(rail));
+    check(present, `${rail} is there: ${title} is always on`);
+    return;
+  }
   check((await add.count()) === 1, `Settings offers a way to add ${title}`);
   await add.click();
   await page.waitForTimeout(700);
@@ -107,6 +130,8 @@ export async function chooseInSetup(page, titles) {
   await page.getByRole("button", { name: /^Custom/ }).click();
   await page.waitForTimeout(900);
   for (const title of titles) {
+    // An always-on capability has no card: it is in every plan already.
+    if (ALWAYS_ON_TITLES.has(title)) continue;
     const pick = page.locator(".capcard__pick", { hasText: title }).first();
     if ((await pick.count()) === 0) {
       throw new Error(`chooseInSetup: no capability card titled ${title}`);

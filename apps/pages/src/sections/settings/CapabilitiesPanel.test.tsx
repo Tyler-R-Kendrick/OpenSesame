@@ -338,6 +338,27 @@ describe("features — one switch per way of using the app", () => {
   });
 });
 
+describe("Advanced", () => {
+  it("stays open across a review, so the row just changed is still in view", async () => {
+    renderPanel();
+    const details = () =>
+      screen.getByTestId("capabilities-advanced") as HTMLDetailsElement;
+    expect(details().open).toBe(false);
+    details().open = true;
+    fireEvent(details(), new Event("toggle"));
+    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    await waitFor(() => expect(double.commits).toHaveLength(1));
+    expect(details().open).toBe(true);
+    // And when the plan change remounts the panel.
+    cleanup();
+    renderPanel();
+    expect(details().open).toBe(true);
+    details().open = false;
+    fireEvent(details(), new Event("toggle"));
+  });
+});
+
 describe("Allow guests", () => {
   it("is on by default and turns off durably", async () => {
     renderPanel();

@@ -38,6 +38,7 @@ describe("identity.ambient-sso runtime", () => {
   });
 
   it("does not evaluate the boot until the job is started", async () => {
+    runtime.resetAmbientBootForTest();
     const run = vi.fn();
     const original = runtime.ambientRuntimeSeams.runAmbientAuthBoot;
     runtime.ambientRuntimeSeams.runAmbientAuthBoot = run;
@@ -59,6 +60,24 @@ describe("identity.ambient-sso runtime", () => {
       job?.start(aborted.signal);
       expect(run).not.toHaveBeenCalled();
       await handle.dispose();
+    } finally {
+      runtime.ambientRuntimeSeams.runAmbientAuthBoot = original;
+    }
+  });
+
+  it("boots once per document, however often the plan re-activates it", async () => {
+    runtime.resetAmbientBootForTest();
+    const run = vi.fn();
+    const original = runtime.ambientRuntimeSeams.runAmbientAuthBoot;
+    runtime.ambientRuntimeSeams.runAmbientAuthBoot = run;
+    try {
+      for (let generation = 0; generation < 3; generation += 1) {
+        const t = createTestContext();
+        const handle = await runtime.capabilityRuntime.activate(t.ctx);
+        t.entries("background-job")[0]?.start(new AbortController().signal);
+        await handle.dispose();
+      }
+      expect(run).toHaveBeenCalledTimes(1);
     } finally {
       runtime.ambientRuntimeSeams.runAmbientAuthBoot = original;
     }

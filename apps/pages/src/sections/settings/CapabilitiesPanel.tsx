@@ -41,6 +41,14 @@ import "./capabilities.css";
 
 export { capabilitiesPanelSeams } from "./useCapabilityChange.js";
 
+/**
+ * Whether Advanced is open, for this document. Applying a change bumps the
+ * plan generation, the shell re-registers its routes and this panel mounts
+ * afresh — component state would close Advanced on the very row a person
+ * just changed.
+ */
+const advancedMemory = { open: false };
+
 function RestartNotice({ change }: { change: CapabilityChange }) {
   const pending = Object.values(change.snapshot.plan?.capabilities ?? {}).some(
     (state) => state.restartRequired,
@@ -63,7 +71,16 @@ function RestartNotice({ change }: { change: CapabilityChange }) {
   );
 }
 
-function Visual({ change }: { change: CapabilityChange }) {
+function Visual({
+  change,
+  advanced,
+  onAdvanced,
+}: {
+  change: CapabilityChange;
+  /** Advanced stays open across a review, so a row changed there is still in view. */
+  advanced: boolean;
+  onAdvanced: (open: boolean) => void;
+}) {
   if (change.review) {
     return (
       <CapabilityReview
@@ -83,7 +100,12 @@ function Visual({ change }: { change: CapabilityChange }) {
     <>
       <CapabilityFeatures current={change.current} onPropose={change.propose} />
       <CapabilityProviders />
-      <details className="capadvanced" data-testid="capabilities-advanced">
+      <details
+        className="capadvanced"
+        data-testid="capabilities-advanced"
+        open={advanced}
+        onToggle={(event) => onAdvanced(event.currentTarget.open)}
+      >
         <summary>Advanced</summary>
         <CapabilityRows current={change.current} onPropose={change.propose} />
         <InstanceCapabilitiesPanel />
@@ -96,6 +118,11 @@ export function CapabilitiesPanel() {
   const change = useCapabilityChange();
   const { tomb } = useVault();
   const [view, setView] = useState<CapabilityView>("visual");
+  const [advanced, setAdvanced] = useState(advancedMemory.open);
+  const onAdvanced = (open: boolean) => {
+    advancedMemory.open = open;
+    setAdvanced(open);
+  };
   return (
     <section className="panel" data-testid="capabilities-panel">
       <div className="panel__head capspanel__head">
@@ -110,7 +137,9 @@ export function CapabilitiesPanel() {
             <span>{change.notice}</span>
           </p>
         ) : null}
-        {view === "visual" ? <Visual change={change} /> : null}
+        {view === "visual" ? (
+          <Visual change={change} advanced={advanced} onAdvanced={onAdvanced} />
+        ) : null}
         {view === "source" ? (
           <CapabilitySourceView kind="installation-selection" tomb={tomb} />
         ) : null}

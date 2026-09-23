@@ -69,6 +69,7 @@ function Switch({
       className="toggle"
       role="switch"
       aria-checked={on}
+      aria-pressed={on}
       aria-label={label}
       title={label}
       disabled={disabled}
@@ -118,7 +119,10 @@ function FeatureRow({ feature, current, onPropose, rowRef }: RowProps) {
           <span>{standing.label}</span>
         </span>
         <span className="capspanel__side">
-          <StatusMark tone={standing.tone} label={standing.label} />
+          {/* The switch says on or off; a mark only says what it cannot. */}
+          {!switchable || (state.on && !state.complete) ? (
+            <StatusMark tone={standing.tone} label={standing.label} />
+          ) : null}
           {switchable ? (
             <Switch
               label={feature.title}
@@ -170,7 +174,6 @@ function GuestRow() {
           <span>{label}</span>
         </span>
         <span className="capspanel__side">
-          <StatusMark tone={allowed ? "ok" : "idle"} label={label} />
           <Switch
             label="Allow guests"
             on={allowed}

@@ -178,6 +178,17 @@ const STEPS = {
       console.log(`  count ${selector}: ${n}`);
     }
   },
+  /** `scrollTo`, for a heading only one of the two builds has. */
+  async scrollToOptional(page, name) {
+    const heading = page
+      .getByRole("heading", { name: new RegExp(name, "i") })
+      .first();
+    if (!(await heading.count())) return;
+    await heading.evaluate((node) => {
+      node.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    await page.waitForTimeout(600);
+  },
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);

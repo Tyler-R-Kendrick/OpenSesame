@@ -5,16 +5,36 @@
       "width": 390,
       "height": 844,
       "steps": [
-        { "guest": null },
-        { "tab": "Settings" },
-        { "open": "Capabilities" },
-        { "count": [".capspanel__row", "[role=switch]", ".capfeature"] },
-        { "shot": "390-capabilities" },
-        { "switchOptional": "Backups" },
-        { "pressOptional": "Apply configuration" },
-        { "scrollTo": "Capabilities" },
-        { "count": ["[aria-label='Backups providers'] li"] },
-        { "shot": "390-backups-on" }
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [".capspanel__row", "[role=switch]", ".capfeature"]
+        },
+        {
+          "shot": "390-capabilities"
+        },
+        {
+          "switchOptional": "Backups"
+        },
+        {
+          "pressOptional": "Apply configuration"
+        },
+        {
+          "scrollTo": "Capabilities"
+        },
+        {
+          "count": ["[aria-label='Backups providers'] li"]
+        },
+        {
+          "shot": "390-backups-on"
+        }
       ]
     },
     {
@@ -22,17 +42,85 @@
       "height": 900,
       "desktop": true,
       "steps": [
-        { "guest": null },
-        { "tab": "Settings" },
-        { "open": "Capabilities" },
-        { "count": [".capspanel__row", "[role=switch]", ".capfeature"] },
-        { "shot": "1280-capabilities" },
-        { "switchOptional": "Backups" },
-        { "pressOptional": "Apply configuration" },
-        { "scrollTo": "Capabilities" },
-        { "shot": "1280-backups-on" }
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [".capspanel__row", "[role=switch]", ".capfeature"]
+        },
+        {
+          "shot": "1280-capabilities"
+        },
+        {
+          "switchOptional": "Backups"
+        },
+        {
+          "pressOptional": "Apply configuration"
+        },
+        {
+          "scrollTo": "Capabilities"
+        },
+        {
+          "shot": "1280-backups-on"
+        },
+        {
+          "scrollToOptional": "Identity providers"
+        },
+        {
+          "count": ["#settings-connections .conn-group"]
+        },
+        {
+          "shot": "1280-providers"
+        }
       ]
     }
   ],
-  "sheets": []
+  "sheets": [
+    {
+      "shot": "390-capabilities",
+      "width": 390,
+      "title": "Settings \u203a Capabilities \u2014 390 \u00d7 844",
+      "caption": "The page was a list of catalog ids, always-on ones included. It is now one switch per way of using the app, with Allow guests first.",
+      "before": "31 catalog rows (7 core 'always on', 24 optional), 0 switches",
+      "after": "Guests + 8 feature rows, 1 switch each; 15 optional rows under Advanced"
+    },
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities and the rail \u2014 1280 \u00d7 900",
+      "caption": "Always-on functions are back for a fresh guest: the rail carries connections, access and activity again, and none of them appears as a switch.",
+      "before": "rail sections: vault, settings; 31 catalog rows",
+      "after": "rail sections: vault, connections, access, activity, settings; 9 row switches"
+    },
+    {
+      "shot": "390-backups-on",
+      "width": 390,
+      "title": "Backups switched on \u2014 390 \u00d7 844",
+      "caption": "One switch, one review, one Apply: the git providers are configured right under Backups. Before, the only road was Add Git remote backup in the catalog list, and the tiles lived on another tab.",
+      "before": "no Backups switch; 0 git provider tiles on this page",
+      "after": "Backups on \u2192 6 git providers (Git, GitHub, GitLab, Bitbucket, Codeberg, Cursor Origin)"
+    },
+    {
+      "shot": "1280-backups-on",
+      "width": 1280,
+      "title": "Backups switched on \u2014 1280 \u00d7 900",
+      "caption": "The same, at desktop width.",
+      "before": "no Backups switch",
+      "after": "Backups on, 6 provider tiles in a 3-column grid"
+    },
+    {
+      "shot": "1280-providers",
+      "width": 1280,
+      "title": "Providers of always-on functions \u2014 1280 \u00d7 900",
+      "caption": "Identity providers, encryption, password managers, cloud secret storage and local storage are configured on the same page, with no switch \u2014 they belong to functions that are always on.",
+      "before": "0 provider groups on Capabilities (they sat on a Connections tab only present with connectors enabled)",
+      "after": "5 provider groups, no group switch"
+    }
+  ]
 }

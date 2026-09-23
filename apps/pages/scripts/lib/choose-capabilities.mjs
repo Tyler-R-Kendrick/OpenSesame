@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
 
 const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
 
@@ -28,9 +29,12 @@ export async function chooseCapabilities(context, width, titles, base = BASE) {
   const page = await context.newPage();
   await page.setViewportSize({ width, height: 900 });
   for (const title of titles) {
+    // Always on (ADR 0134): in every plan, with no row to add it from.
+    if (ALWAYS_ON_TITLES.has(title)) continue;
     await page.goto(`${base}/settings/capabilities`);
     await unlockVault(page);
     await expect(page.getByTestId("capabilities-panel")).toBeVisible();
+    await openAdvanced(page);
     const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
     if ((await add.count()) > 0) {
       await add.click();

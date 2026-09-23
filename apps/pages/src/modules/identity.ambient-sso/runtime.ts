@@ -48,13 +48,27 @@ export const CAPABILITY = "identity.ambient-sso";
 /** Test seam: the boot evaluation, swappable without a module mock. */
 export const ambientRuntimeSeams = { runAmbientAuthBoot };
 
+/** Test-only: forget that this document already booted. */
+export function resetAmbientBootForTest(): void {
+  boot.ran = false;
+}
+
 /**
  * One boot attempt, read from the document at job start rather than at
  * import: an already-aborted lease (a disable landing in the same tick)
  * reaches no provider at all.
  */
+/**
+ * A boot evaluation is once per document. Always on (ADR 0134), this module
+ * is disposed and activated again on every plan generation — a feature
+ * switched on elsewhere — and re-running the boot then would revalidate the
+ * saved session and consider a silent attempt again for no reason.
+ */
+const boot = { ran: false };
+
 export function startAmbientBoot(signal: AbortSignal): void {
-  if (signal.aborted) return;
+  if (signal.aborted || boot.ran) return;
+  boot.ran = true;
   const { search, pathname } = window.location;
   ambientRuntimeSeams.runAmbientAuthBoot({
     hasAuthCallback: isAuthCallbackSearch(search),
