@@ -5,6 +5,7 @@ import {
   OAuthClientSectorClaimedError,
   type SectorKeyBlock,
   type SectorKeyRelease,
+  claimForSuccessor,
   claimSectorKey,
   releaseSectorClaim,
   sectorGenerationOf,
@@ -63,8 +64,15 @@ export interface OAuthClientRecord {
 export interface ClientRecordStore {
   findById(id: string): Promise<OAuthClientRecord | undefined>;
   findByOrigin(canonicalOrigin: string): Promise<OAuthClientRecord | undefined>;
-  /** Insert if absent; return existing on unique conflict. */
-  insertAtomic(client: OAuthClientRecord): Promise<OAuthClientRecord>;
+  /**
+   * Insert if absent; return existing on unique conflict. `successorOf`
+   * marks a rotation: the row may only join a key its owner still holds,
+   * beside a live, unblocked predecessor.
+   */
+  insertAtomic(
+    client: OAuthClientRecord,
+    options?: InsertOptions,
+  ): Promise<OAuthClientRecord>;
   touchLastUsed?(id: string, at: Date): Promise<void>;
   /** All clients owned by a principal (registration API listing + quota). */
   listByOwner(ownerPrincipalId: string): Promise<OAuthClientRecord[]>;
@@ -81,6 +89,12 @@ export interface ClientRecordStore {
     sectorKey: string,
     nextOwnerKey?: string,
   ): Promise<SectorKeyRelease | undefined>;
+}
+
+/** How a row joins its sector key (`insertAtomic`). */
+export interface InsertOptions {
+  /** The client this row succeeds (rotation). */
+  successorOf?: string | undefined;
 }
 
 type OAuthClientRow = typeof schema.oauthClients.$inferSelect;
@@ -175,15 +189,14 @@ function updateValues(client: OAuthClientRecord, now: Date) {
 function insertClaimed(
   db: Database,
   client: OAuthClientRecord,
+  successorOf: string | undefined,
 ): Promise<OAuthClientRecord> {
   const values = insertValues(client, new Date());
+  const owner = sectorOwnerKey(client);
   return db.transaction(async (tx) => {
-    const sectorGeneration = await claimSectorKey(
-      tx,
-      values.sectorKey,
-      sectorOwnerKey(client),
-      client.id,
-    );
+    const sectorGeneration = successorOf
+      ? await claimForSuccessor(tx, values.sectorKey, owner, successorOf)
+      : await claimSectorKey(tx, values.sectorKey, owner, client.id);
     const [row] = await tx
       .insert(schema.oauthClients)
       .values({ ...values, sectorGeneration })
@@ -280,9 +293,9 @@ export function createPostgresClientRecordStore(
     findById,
     findByOrigin,
 
-    async insertAtomic(client) {
+    async insertAtomic(client, options) {
       try {
-        return await insertClaimed(db, client);
+        return await insertClaimed(db, client, options?.successorOf);
       } catch (err) {
         const boundaryError: BoundaryValue = overlapCast(err);
         if (err instanceof OAuthClientSectorClaimedError) {

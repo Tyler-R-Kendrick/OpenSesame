@@ -96,6 +96,41 @@ export async function claimSectorKey(
   return claim.generation;
 }
 
+/**
+ * The claim a rotation successor may write under: only a key its owner still
+ * holds, whose predecessor is still on it and unblocked — decided under the
+ * claim row's lock, so an operator release (which takes the same lock first)
+ * either lands before and refuses the successor, or after and blocks it too.
+ */
+export async function claimForSuccessor(
+  tx: ClaimTx,
+  sectorKey: string,
+  ownerKey: string,
+  predecessorId: string,
+): Promise<number> {
+  const [claim] = await tx
+    .select()
+    .from(schema.oauthClientSectorClaims)
+    .where(eq(schema.oauthClientSectorClaims.sectorKey, sectorKey))
+    .for("update");
+  const [predecessor] = await tx
+    .select({ id: schema.oauthClients.id })
+    .from(schema.oauthClients)
+    .where(
+      and(
+        eq(schema.oauthClients.id, predecessorId),
+        eq(schema.oauthClients.sectorKey, sectorKey),
+        isNull(schema.oauthClients.sectorKeyBlocked),
+        sql`${rowOwnerKey} = ${ownerKey}`,
+      ),
+    )
+    .limit(1);
+  if (!claim || claim.ownerKey !== ownerKey || !predecessor) {
+    throw new OAuthClientSectorClaimedError(sectorKey);
+  }
+  return claim.generation;
+}
+
 async function assertLoneClientMove(
   tx: ClaimTx,
   sectorKey: string,

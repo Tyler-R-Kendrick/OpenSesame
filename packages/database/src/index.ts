@@ -105,6 +105,7 @@ export {
   type ClientAdmissionMode,
   type ClientRecordStore,
   type ClientState,
+  type InsertOptions,
   type OAuthClientRecord,
   type OwnershipStatus,
 } from "./client-store.js";

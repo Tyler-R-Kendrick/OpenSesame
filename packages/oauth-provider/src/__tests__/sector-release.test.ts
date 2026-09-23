@@ -144,4 +144,40 @@ describe("pairwise subject sectors across a sector release", () => {
     );
     expect(owner.sectorGeneration).toBe(1);
   });
+
+  it("refuses a successor whose predecessor lost the key mid-rotation", async () => {
+    const clients = new MemoryClientRecordStore();
+    const squat = await clients.insertAtomic(
+      registration("squat", "prn_squatter", "https://victim.example"),
+    );
+    // The route's pre-check passed (squat was live); then an open release
+    // lands before the successor is written.
+    await clients.releaseSectorKey("victim.example");
+    const { sectorKeyBlocked: _b, sectorGeneration: _g, ...plain } = squat;
+    await expect(
+      clients.insertAtomic(
+        { ...plain, id: "squat-next" },
+        { successorOf: squat.id },
+      ),
+    ).rejects.toBeInstanceOf(SectorKeyClaimedError);
+    expect(await clients.findById("squat-next")).toBeUndefined();
+    const owner = await clients.insertAtomic(
+      registration("owner", "prn_owner", "https://victim.example"),
+    );
+    expect(owner.sectorGeneration).toBe(1);
+  });
+
+  it("lets a live holder's rotation through, and a later release blocks both", async () => {
+    const clients = new MemoryClientRecordStore();
+    const held = await clients.insertAtomic(
+      registration("held", "prn_owner", "https://victim.example"),
+    );
+    const next = await clients.insertAtomic(
+      { ...held, id: "held-next" },
+      { successorOf: held.id },
+    );
+    expect(next.sectorGeneration).toBeUndefined();
+    const released = await clients.releaseSectorKey("victim.example");
+    expect(released?.blockedClientIds.sort()).toEqual(["held", "held-next"]);
+  });
 });

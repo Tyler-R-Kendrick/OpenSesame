@@ -314,9 +314,12 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     updatedAt: now,
   };
   // The successor claims the sector before the old id retires, so a rotation
-  // the claim refuses changes nothing.
+  // the claim refuses changes nothing. `successorOf` re-decides the pre-check
+  // under the claim lock: a release that lands in between refuses it.
   try {
-    await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated));
+    await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated), {
+      successorOf: client.id,
+    });
   } catch (err) {
     return sectorTakenOrThrow(overlapCast(err));
   }

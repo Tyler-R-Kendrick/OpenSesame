@@ -256,4 +256,34 @@ describe("operator release of a squatted sector", () => {
       (await plane.ctx.stores.oauthClients.findById(ownerId))?.sectorGeneration,
     ).toBe(1);
   });
+
+  it("refuses a rotation whose key is released after its pre-check", async () => {
+    const [squatter, owner] = [await verified(), await verified()];
+    const h = host();
+    const squat = await register(squatter.accessToken, h);
+    const squatId: string = overlapCast(await squat.json()).id;
+    // The release lands between the route's pre-check and the insert.
+    const store = plane.ctx.stores.oauthClients;
+    const insert = store.insertAtomic.bind(store);
+    store.insertAtomic = async (client, options) => {
+      store.insertAtomic = insert;
+      await store.releaseSectorKey(h);
+      return insert(client, options);
+    };
+    try {
+      const rotated = await post(
+        `/v1/oauth/clients/${squatId}/rotate`,
+        squatter.accessToken,
+        {},
+      );
+      expect(rotated.status).toBe(409);
+    } finally {
+      store.insertAtomic = insert;
+    }
+    const rows = await store.findBySectorKey(h);
+    expect(rows.map((c) => [c.id, c.sectorKeyBlocked])).toEqual([
+      [squatId, "sector_released"],
+    ]);
+    expect((await register(owner.accessToken, h)).status).toBe(201);
+  });
 });

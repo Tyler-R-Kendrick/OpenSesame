@@ -1,11 +1,24 @@
 import { pairwiseSectorKey } from "../pairwise/sector.js";
 import type { OAuthClientRecord, SectorKeyRelease } from "../types.js";
 
+/** How a row joins its sector key (`insertAtomic`). */
+export interface InsertOptions {
+  /** The client this row succeeds (rotation). */
+  successorOf?: string | undefined;
+}
+
 export interface ClientRecordStore {
   findById(id: string): Promise<OAuthClientRecord | undefined>;
   findByOrigin(canonicalOrigin: string): Promise<OAuthClientRecord | undefined>;
-  /** Insert if absent; return existing on unique conflict. */
-  insertAtomic(client: OAuthClientRecord): Promise<OAuthClientRecord>;
+  /**
+   * Insert if absent; return existing on unique conflict. `successorOf`
+   * marks a rotation: the row may only join a key its owner still holds,
+   * beside a live, unblocked predecessor.
+   */
+  insertAtomic(
+    client: OAuthClientRecord,
+    options?: InsertOptions,
+  ): Promise<OAuthClientRecord>;
   touchLastUsed?(id: string, at: Date): Promise<void>;
   /** All clients owned by a principal (registration API listing + quota). */
   listByOwner(ownerPrincipalId: string): Promise<OAuthClientRecord[]>;
@@ -108,7 +121,10 @@ export class MemoryClientRecordStore implements ClientRecordStore {
     return id ? this.byId.get(id) : undefined;
   }
 
-  async insertAtomic(client: OAuthClientRecord): Promise<OAuthClientRecord> {
+  async insertAtomic(
+    client: OAuthClientRecord,
+    options?: InsertOptions,
+  ): Promise<OAuthClientRecord> {
     // No awaits between check and set: run-to-completion makes the
     // check-then-insert atomic, simulating a unique-violation reload —
     // concurrent first-seen admissions resolve to a single winner.
@@ -121,11 +137,35 @@ export class MemoryClientRecordStore implements ClientRecordStore {
         if (byOrigin) return byOrigin;
       }
     }
-    this.claim(keyOf(client), ownerKeyOf(client), client.id);
+    if (options?.successorOf) {
+      this.assertSuccessor(client, options.successorOf);
+    } else {
+      this.claim(keyOf(client), ownerKeyOf(client), client.id);
+    }
     if (client.origin) this.byOrigin.set(client.origin, client.id);
     const admitted = this.withGeneration(client);
     this.byId.set(client.id, admitted);
     return admitted;
+  }
+
+  /**
+   * A rotation successor joins only a key its owner still holds, beside a
+   * predecessor that is on it and unblocked — so a release that lands after
+   * the route's pre-check still refuses it.
+   */
+  private assertSuccessor(client: OAuthClientRecord, predecessorId: string) {
+    const key = keyOf(client);
+    const owner = ownerKeyOf(client);
+    const predecessor = this.byId.get(predecessorId);
+    if (
+      this.holderOf(key) !== owner ||
+      !predecessor ||
+      keyOf(predecessor) !== key ||
+      ownerKeyOf(predecessor) !== owner ||
+      predecessor.sectorKeyBlocked
+    ) {
+      throw new SectorKeyClaimedError(key);
+    }
   }
 
   /** Who holds `key`: the claim, else the first unblocked client on it. */

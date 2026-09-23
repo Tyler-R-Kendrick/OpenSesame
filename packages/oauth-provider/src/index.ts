@@ -69,6 +69,7 @@ export {
 } from "./clients/admission.js";
 export {
   type ClientRecordStore,
+  type InsertOptions,
   MemoryClientRecordStore,
   SectorKeyClaimedError,
 } from "./clients/store.js";

@@ -221,7 +221,10 @@ fix; the sealed-store root-protection work also has its own record in
     an operator release at once; the in-memory store also let two owners
     share a key and generation. **Fix:** rotate refuses a blocked client and
     runs registration's ownership check; the memory store applies the
-    Postgres claim rule; a release can name the next owner.
+    Postgres claim rule; a release can name the next owner. A later pass
+    found a rotation could still race an open release between its check and
+    its insert; a rotation now keeps only a key its owner holds, from an
+    unblocked predecessor, decided under the claim row lock the release takes.
 45. **Low — protector edits took the shared store lock**, so an `add`
     racing a `remove` could write the removed protector back. **Fix:** key-file
     edits hold the exclusive lock.
@@ -254,8 +257,8 @@ fix; the sealed-store root-protection work also has its own record in
   redirect URI. Loopback redirects are exempt only on dev defaults.
 - `POST /v1/oauth/admin/sectors/release` (operator token) releases a squatted
   sector key; the holder's clients stop working. Pass `nextOwnerPrincipalId`
-  to hand the key to its rightful owner: an open key goes to whoever claims
-  it next.
+  to hand the key to its rightful owner; otherwise the key goes to whoever
+  next registers with proof of the sector.
 - A sealed-store entry written under a name ending in `/` (stored as
   `…/.osseal` or `…/.osattach`) now stops rotation and GC. Rename it with
   git to a real name before rotating.

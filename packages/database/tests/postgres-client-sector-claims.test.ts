@@ -229,4 +229,53 @@ describe("postgres client store sector claims", () => {
     );
     expect(admitted.sectorGeneration).toBe(1);
   });
+
+  it("refuses a rotation successor once its predecessor's key was released", async () => {
+    const [squatter, owner] = [await principal(), await principal()];
+    const h = host();
+    const squat = await clients.insertAtomic(
+      registration(squatter, `https://${h}`),
+    );
+    await clients.releaseSectorKey(h);
+    await expect(
+      clients.insertAtomic(
+        { ...registration(squatter, `https://${h}`) },
+        { successorOf: squat.id },
+      ),
+    ).rejects.toBeInstanceOf(OAuthClientSectorClaimedError);
+    expect(
+      (await clients.findBySectorKey(h)).map((c) => c.sectorKeyBlocked),
+    ).toEqual(["sector_released"]);
+    const admitted = await clients.insertAtomic(
+      registration(owner, `https://${h}`),
+    );
+    expect(admitted.sectorGeneration).toBe(1);
+  });
+
+  it("blocks a successor written before a concurrent release", async () => {
+    const owner = await principal();
+    const h = host();
+    const held = await clients.insertAtomic(
+      registration(owner, `https://${h}`),
+    );
+    const successor = registration(owner, `https://${h}`);
+    // Two stores stand in for two replicas: the rotation and the release race
+    // on the claim row, and whichever commits second sees the first.
+    const replica = createPostgresClientRecordStore(ctx.db);
+    const [rotated, released] = await Promise.allSettled([
+      clients.insertAtomic(successor, { successorOf: held.id }),
+      replica.releaseSectorKey(h),
+    ]);
+    expect(released.status).toBe("fulfilled");
+    const rows = await clients.findBySectorKey(h);
+    // Whatever the order, nothing on the key is left unblocked.
+    expect(rows.filter((c) => !c.sectorKeyBlocked)).toEqual([]);
+    if (rotated.status === "fulfilled") {
+      expect(rows.map((c) => c.id).sort()).toEqual(
+        [held.id, successor.id].sort(),
+      );
+    } else {
+      expect(rotated.reason).toBeInstanceOf(OAuthClientSectorClaimedError);
+    }
+  });
 });
