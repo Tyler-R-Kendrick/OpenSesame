@@ -32,6 +32,12 @@ protector cannot be removed, whatever else is enrolled.
 file is still in git history and any pushed remote, and its wrap still opens
 the unchanged root.
 
+`OPENSESAME_STORE_PASSWORD` answers only the *current* passphrase prompt.
+`rewrap` always reads the new passphrase and its confirmation from the
+terminal (or stdin when piped), and refuses an empty one or one equal to the
+current passphrase — otherwise the variable would answer every prompt and the
+store would be "rewrapped" to the passphrase it already had.
+
 ## Offline recovery
 
 1. Prefer a verified local method you still control.
@@ -52,7 +58,11 @@ of the sole verified method.
 
 `pass protect root-rotate` (and `remove` / `rewrap` unless `--no-rotate`)
 mints a new root key and re-encrypts every `.osseal` entry and every
-attachment — manifest and chunks — under it. The password protector is
+attachment — manifest and chunks — under it, dot-named ones (`Dev/.npmrc`)
+included: the rotation walks the whole tree itself rather than the `ls`
+listing, re-walks it before the key swap, and rolls back if any root-sealed
+file was left behind. Chunk objects no new manifest references (old
+ciphertext and orphans) are removed from the pool after the swap. The password protector is
 rewrapped, age capsules are resealed to their recorded recipients, and a
 recovery key, whose secret is never stored, cannot follow: the rotation
 refuses until you remove it or pass `--reissue-recovery --reveal`, which
@@ -67,13 +77,22 @@ process dies mid-swap, `.opensesame-rotation/` keeps `key.next` (the new key
 file), `old/` (the previous ciphertext) and `plan.json` (which path each
 numbered file belongs to), and the next rotation refuses until it is resolved.
 
+The rotation holds `.opensesame-lock` exclusively from start to finish. Every
+write (`insert`, edit, `rm`, `attach add|rm|gc`, `protect add|remove|rewrap`)
+holds it shared, so a write refuses while a rotation runs — and a rotation
+refuses while a write runs — rather than either one waiting. Writes also
+refuse while `.opensesame-rotation/` exists, and refuse to create anything
+under the reserved top-level names `.git`, `.attachments` and
+`.opensesame-rotation`.
+
 `.gpg` and `.age` entries are not sealed under the root and are left as they
 are. Rotation is not retroactive secrecy: ciphertext and key files already in
 git history still open with the old root, and `pass history` / `pass restore`
 cannot open pre-rotation versions with the new one. A long-running process
 holding the old key in memory (a password-manager bridge, the connector host)
-must be restarted after a rotation, or what it writes is sealed under the
-retired root.
+must be restarted after a rotation: every sealing write first checks its key
+against the current key file's manifest MAC, so its writes are refused until
+it unlocks again.
 
 ## SOPS
 

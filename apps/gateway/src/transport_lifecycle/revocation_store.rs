@@ -8,7 +8,19 @@
 //! store. The denylist is consulted at the handshake, on every guarded
 //! request and by service admission for *every* binding — including one
 //! created after the revocation, which carries no `denied_thumbprints` of
-//! its own. The set only grows; nothing here un-revokes a leaf.
+//! its own. Nothing here un-revokes a leaf that can still be presented.
+//!
+//! **Bounded, and not by whoever fills it first.** Each entry records who
+//! revoked it and, when known, the leaf's `not_after`. Inside every
+//! conditional write, entries whose leaf expired more than
+//! [`PRUNE_GRACE_SECONDS`] ago are dropped (an expired leaf fails the
+//! handshake on its own). An organization holds at most
+//! [`MAX_REVOKED_PER_ORGANIZATION`] live entries, and tenants together never
+//! take the last [`OPERATOR_RESERVED`] of [`MAX_REVOKED`] slots, so a tenant
+//! issuing and revoking its own certificates cannot crowd out the operator.
+//! Entries with no metadata (the operator's by-thumbprint revocations, and
+//! everything an older gateway wrote) stay in `thumbprints`, the original
+//! shape, and count as the operator's.
 //!
 //! **The stored bindings.** The thumbprint is also appended to every stored
 //! binding's `denied_thumbprints` through the bindings store's CAS write.
@@ -19,8 +31,9 @@
 //! Both documents are written with `compare_and_set_host_kv`, so replicas
 //! racing on one store cannot drop each other's entries.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
+use chrono::{DateTime, Duration, Utc};
 use opensesame_domain::transport::{
     validate_thumbprint, ServiceBindingSet, TransportError, MAX_LIST_ENTRIES,
 };
@@ -31,18 +44,97 @@ use crate::transport::bindings::{self, BindingsSource, PutError};
 
 /// The `host_kv` key holding the durable denylist (JSON [`RevokedLeaves`]).
 pub const KV_REVOKED_LEAVES: &str = "transport.revoked_leaves";
-/// Most revoked leaves one deployment keeps.
+/// Most live revoked leaves one deployment keeps.
 pub const MAX_REVOKED: usize = 4_096;
+/// Slots no tenant revocation may take: the operator always has these.
+pub const OPERATOR_RESERVED: usize = 1_024;
+/// Most live revoked leaves one organization may hold.
+pub const MAX_REVOKED_PER_ORGANIZATION: usize = 256;
+/// How long past its `not_after` an entry is kept before it is pruned.
+pub const PRUNE_GRACE_SECONDS: i64 = 24 * 3_600;
 /// Largest denylist document accepted from the store.
-pub const MAX_REVOKED_BYTES: usize = 512 * 1024;
+pub const MAX_REVOKED_BYTES: usize = 2 * 1024 * 1024;
 /// Conditional-write attempts before a lost race is reported as an error.
 pub const CAS_ATTEMPTS: usize = 5;
 
-/// The stored denylist: lowercase hex SHA-256 leaf thumbprints.
+/// The stored denylist, keyed by lowercase hex SHA-256 leaf thumbprint.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RevokedLeaves {
+    /// Entries with no metadata: the operator's, never pruned.
+    #[serde(default)]
     pub thumbprints: BTreeSet<String>,
+    /// Entries that know who revoked them and when the leaf expires.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub leaves: BTreeMap<String, RevokedLeaf>,
+}
+
+/// Who revoked a leaf and until when the entry matters.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct RevokedLeaf {
+    /// The revoking organization; `None` for the deployment operator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub organization: Option<String>,
+    /// The leaf's `not_after`, when known; `None` is never pruned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub not_after: Option<DateTime<Utc>>,
+}
+
+impl RevokedLeaves {
+    /// True when `thumbprint` is denied.
+    #[must_use]
+    pub fn contains(&self, thumbprint: &str) -> bool {
+        self.thumbprints.contains(thumbprint) || self.leaves.contains_key(thumbprint)
+    }
+
+    /// Every denied thumbprint.
+    pub fn all(&self) -> impl Iterator<Item = &String> {
+        self.thumbprints.iter().chain(
+            self.leaves
+                .keys()
+                .filter(|t| !self.thumbprints.contains(*t)),
+        )
+    }
+
+    fn len(&self) -> usize {
+        self.all().count()
+    }
+
+    /// Drop entries whose leaf expired more than the grace ago.
+    fn prune(&mut self, now: DateTime<Utc>) {
+        let cutoff = now - Duration::seconds(PRUNE_GRACE_SECONDS);
+        self.leaves
+            .retain(|_, leaf| leaf.not_after.is_none_or(|not_after| not_after >= cutoff));
+    }
+
+    /// Why one more entry for `organization` does not fit, if it does not.
+    fn refuse(&self, organization: Option<&str>) -> Option<DurableError> {
+        let Some(organization) = organization else {
+            // Tenants never hold more than MAX_REVOKED - OPERATOR_RESERVED,
+            // so only the operator's own entries can fill these slots.
+            return (self.len() >= MAX_REVOKED).then_some(DurableError::Full);
+        };
+        let tenant = self.leaves.values().filter(|l| l.organization.is_some());
+        let (mut tenants, mut own) = (0, 0);
+        for leaf in tenant {
+            tenants += 1;
+            own += usize::from(leaf.organization.as_deref() == Some(organization));
+        }
+        if own >= MAX_REVOKED_PER_ORGANIZATION {
+            return Some(DurableError::Quota);
+        }
+        (tenants >= MAX_REVOKED - OPERATOR_RESERVED).then_some(DurableError::Full)
+    }
+}
+
+/// One leaf to add to the durable denylist.
+#[derive(Clone, Debug)]
+pub struct Revoked<'a> {
+    pub thumbprint: &'a str,
+    /// The revoking organization; `None` for the deployment operator.
+    pub organization: Option<&'a str>,
+    pub not_after: Option<DateTime<Utc>>,
 }
 
 /// Why a durable layer could not be applied.
@@ -53,6 +145,11 @@ pub enum DurableError {
     Contended(&'static str),
     #[error("revoked-leaf denylist is full ({MAX_REVOKED} entries)")]
     Full,
+    #[error(
+        "this organization holds {MAX_REVOKED_PER_ORGANIZATION} revoked leaves that have not \
+         expired; the operator can still revoke"
+    )]
+    Quota,
     #[error("{0}")]
     Invalid(TransportError),
     #[error("store: {0}")]
@@ -65,6 +162,7 @@ impl DurableError {
         match self {
             Self::Contended(_) => "stale_revision",
             Self::Full => "denylist_full",
+            Self::Quota => "denylist_quota",
             Self::Invalid(inner) => inner.code(),
             Self::Storage(_) => "storage_error",
         }
@@ -73,7 +171,7 @@ impl DurableError {
     #[must_use]
     pub const fn http_status(&self) -> u16 {
         match self {
-            Self::Contended(_) | Self::Full => 409,
+            Self::Contended(_) | Self::Full | Self::Quota => 409,
             Self::Invalid(_) | Self::Storage(_) => 500,
         }
     }
@@ -102,25 +200,41 @@ pub async fn load(state: &AppState) -> Result<(Option<String>, RevokedLeaves), T
     }
     let leaves: RevokedLeaves = serde_json::from_str(&raw)
         .map_err(|e| TransportError::malformed(format!("revoked leaves store: {e}")))?;
-    for thumbprint in &leaves.thumbprints {
+    for thumbprint in leaves.thumbprints.iter().chain(leaves.leaves.keys()) {
         validate_thumbprint("revoked_leaves", thumbprint)?;
     }
     Ok((Some(raw), leaves))
 }
 
-/// Add `thumbprint` (already validated, lowercase) to the stored denylist.
+/// Add a leaf (thumbprint already validated, lowercase) to the stored
+/// denylist, pruning expired entries in the same conditional write.
 ///
 /// # Errors
 ///
-/// [`DurableError`].
-pub async fn persist(state: &AppState, thumbprint: &str) -> Result<(), DurableError> {
+/// [`DurableError`]: `Quota` for an organization at its own limit, `Full`
+/// when the tenants' share (or, for the operator, the whole list) is taken.
+pub async fn persist(
+    state: &AppState,
+    revoked: &Revoked<'_>,
+    now: DateTime<Utc>,
+) -> Result<(), DurableError> {
     for _ in 0..CAS_ATTEMPTS {
         let (raw, mut leaves) = load(state).await.map_err(DurableError::Invalid)?;
-        if !leaves.thumbprints.insert(thumbprint.to_owned()) {
+        if leaves.contains(revoked.thumbprint) {
             return Ok(());
         }
-        if leaves.thumbprints.len() > MAX_REVOKED {
-            return Err(DurableError::Full);
+        leaves.prune(now);
+        if let Some(refused) = leaves.refuse(revoked.organization) {
+            return Err(refused);
+        }
+        if revoked.organization.is_none() && revoked.not_after.is_none() {
+            leaves.thumbprints.insert(revoked.thumbprint.to_owned());
+        } else {
+            let leaf = RevokedLeaf {
+                organization: revoked.organization.map(str::to_owned),
+                not_after: revoked.not_after,
+            };
+            leaves.leaves.insert(revoked.thumbprint.to_owned(), leaf);
         }
         let json =
             serde_json::to_string(&leaves).map_err(|e| DurableError::Storage(e.to_string()))?;
@@ -146,7 +260,7 @@ pub async fn refresh(state: &AppState) -> Result<usize, TransportError> {
     let (_, leaves) = load(state).await?;
     let lifecycle = &state.transport_lifecycle;
     let mut added = 0;
-    for thumbprint in &leaves.thumbprints {
+    for thumbprint in leaves.all() {
         if !lifecycle.is_denied(thumbprint) {
             lifecycle.deny(thumbprint);
             added += 1;

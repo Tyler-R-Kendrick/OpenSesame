@@ -19,8 +19,13 @@
 //!
 //! A crash between 2 and 4 leaves both key files and both ciphertext sets on
 //! disk; nothing is deleted before the commit rename. The staging directory is
-//! dot-prefixed, so neither the entry walker nor `auto_commit` picks it up, and
-//! a later rotation refuses to start while it exists.
+//! dot-prefixed, so `auto_commit` never picks it up, a later rotation refuses
+//! to start while it exists, and every ordinary write refuses while it exists.
+//!
+//! What is re-encrypted comes from `rotation_walk`, not the `ls` walker that
+//! hides dot-named entries like `Dev/.npmrc`; before the key swap the tree is
+//! inventoried again, and anything left behind rolls the rotation back. The
+//! run holds the store lock exclusively (`store_lock`) throughout.
 //!
 //! Rotation is not retroactive: ciphertext and key files already in git history
 //! still open with the old root. What it guarantees is that nothing written
@@ -47,6 +52,8 @@ use crate::envelope::{
 };
 use crate::git::auto_commit;
 use crate::path::{confined_read, confined_remove, confined_write};
+use crate::rotation_walk::inventory;
+use crate::store_lock::StoreLock;
 use crate::{StoreError, StoreRoot};
 
 /// Staging directory for an in-flight rotation, relative to the store root.
@@ -85,6 +92,22 @@ pub fn rotate_store_root(
     password: &[u8],
     edit: RotationEdit<'_>,
 ) -> Result<RotationOutcome, StoreError> {
+    rotate_store_root_observed(root, password, edit, &mut |_| {})
+}
+
+/// [`rotate_store_root`], calling `staged` once everything is re-encrypted into
+/// staging and before anything is swapped — the window a concurrent writer
+/// would have to land in.
+pub(crate) fn rotate_store_root_observed(
+    root: &Path,
+    password: &[u8],
+    edit: RotationEdit<'_>,
+    staged: &mut dyn FnMut(&Path),
+) -> Result<RotationOutcome, StoreError> {
+    if !root.join(KEY_FILE_NAME).exists() {
+        return Err(StoreError::NotInitialized(root.to_path_buf()));
+    }
+    let _lock = StoreLock::exclusive(root)?;
     let staging = root.join(ROTATION_STAGING_DIR);
     if fs::symlink_metadata(&staging).is_ok() {
         return Err(StoreError::Other(format!(
@@ -92,9 +115,6 @@ pub fn rotate_store_root(
              previous ciphertext (plan.json maps them); restore or remove it before rotating again",
             staging.display()
         )));
-    }
-    if !root.join(KEY_FILE_NAME).exists() {
-        return Err(StoreError::NotInitialized(root.to_path_buf()));
     }
     let store = StoreRoot::open(root)?;
     let seal_capsule = |vrk: &opensesame_human_vault::VaultRootKey, recipients: &[String]| {
@@ -106,14 +126,20 @@ pub fn rotate_store_root(
     let old_key = ItemDataKey(prepared.old_vrk.0);
     let new_key = ItemDataKey(prepared.new_vrk.0);
     let key_json = encode_key_file(&KeyFileContents::Manifest(prepared.manifest.clone()))?;
+    let sealed = inventory(root)?;
 
     create_private_dir(&staging)?;
-    let mut plan = Plan::default();
+    let mut plan = Plan {
+        foreign_entries: sealed.foreign,
+        ..Plan::default()
+    };
     let mut stranded = false;
-    let staged = stage_entries(&store, &staging, &old_key, &new_key, &mut plan)
-        .and_then(|()| stage_attachments(&store, &staging, &old_key, &new_key, &mut plan))
+    let keys = (&old_key, &new_key);
+    let result = stage_entries(&store, &staging, &sealed.entries, keys, &mut plan)
+        .and_then(|()| stage_attachments(&store, &staging, &sealed.attachments, keys, &mut plan))
+        .map(|()| staged(root))
         .and_then(|()| commit(root, &staging, &plan, key_json.as_bytes(), &mut stranded));
-    if let Err(error) = staged {
+    if let Err(error) = result {
         // A rollback that could not finish keeps the staging directory and the
         // resealed chunks: they are the only copy of what did not make it back.
         if !stranded {
@@ -125,10 +151,12 @@ pub fn rotate_store_root(
         return Err(error);
     }
 
-    // Committed: the new key file is live. What remains is cleanup.
+    // Committed: the new key file is live. What remains is cleanup: every pool
+    // object no new manifest references is old-root ciphertext (or an orphan
+    // no manifest ever will), and the lock rules out an attach in flight.
     let _ = fs::remove_dir_all(&staging);
-    for digest in plan.old_objects.difference(&plan.kept_objects) {
-        if let Ok(rel) = object_relative(digest) {
+    for (digest, rel) in store.object_files().unwrap_or_default() {
+        if !plan.kept_objects.contains(&digest) {
             let _ = confined_remove(root, &rel);
         }
     }
@@ -148,8 +176,6 @@ struct Plan {
     swaps: Vec<PathBuf>,
     /// Chunk objects this rotation wrote (removed again on failure).
     new_objects: Vec<PathBuf>,
-    /// Chunk digests the old manifests referenced.
-    old_objects: BTreeSet<String>,
     /// Chunk digests the new manifests reference.
     kept_objects: BTreeSet<String>,
     entries: usize,
@@ -166,24 +192,21 @@ impl Plan {
     }
 }
 
+type Keys<'a> = (&'a ItemDataKey, &'a ItemDataKey);
+
 fn stage_entries(
     store: &StoreRoot,
     staging: &Path,
-    old_key: &ItemDataKey,
-    new_key: &ItemDataKey,
+    names: &BTreeSet<String>,
+    (old_key, new_key): Keys<'_>,
     plan: &mut Plan,
 ) -> Result<(), StoreError> {
     let revisions = store.revisions()?;
-    let names: BTreeSet<String> = store.ls("")?.into_iter().collect();
     for name in names {
-        let rel = StoreRoot::entry_relative(&name, "osseal")?;
-        if !store.path.join(&rel).exists() {
-            plan.foreign_entries += 1;
-            continue;
-        }
+        let rel = StoreRoot::entry_relative(name, "osseal")?;
         let blob = confined_read(&store.path, &rel)?;
-        let expected = revisions.get(&name).copied();
-        let mut opened = open_osseal(&blob, old_key, &name, expected)?;
+        let expected = revisions.get(name).copied();
+        let mut opened = open_osseal(&blob, old_key, name, expected)?;
         // Keep the revision the reader will expect: the recorded one, or for a
         // legacy blob with no record, the first revision a rebind would give.
         let revision = if opened.legacy {
@@ -191,7 +214,7 @@ fn stage_entries(
         } else {
             opened.revision
         };
-        let sealed = seal_osseal(&opened.plaintext, new_key, &name, revision);
+        let sealed = seal_osseal(&opened.plaintext, new_key, name, revision);
         opened.plaintext.zeroize();
         plan.stage(staging, rel, &sealed?)?;
         plan.entries += 1;
@@ -202,15 +225,15 @@ fn stage_entries(
 fn stage_attachments(
     store: &StoreRoot,
     staging: &Path,
-    old_key: &ItemDataKey,
-    new_key: &ItemDataKey,
+    names: &BTreeSet<String>,
+    (old_key, new_key): Keys<'_>,
     plan: &mut Plan,
 ) -> Result<(), StoreError> {
     let revisions = store.attachment_revisions()?;
-    for name in store.attachment_names()? {
-        let mut manifest = store.open_manifest(&name, old_key)?;
-        let rel = attach_relative(&name)?;
-        let revision = match revisions.get(&name) {
+    for name in names {
+        let mut manifest = store.open_manifest(name, old_key)?;
+        let rel = attach_relative(name)?;
+        let revision = match revisions.get(name) {
             Some(revision) => *revision,
             None => envelope_revision(&confined_read(&store.path, &rel)?)?,
         };
@@ -245,7 +268,6 @@ fn stage_attachments(
                 confined_write(&store.path, &new_object, &resealed)?;
                 plan.new_objects.push(new_object);
             }
-            plan.old_objects.insert(chunk.digest.to_ascii_lowercase());
             plan.kept_objects.insert(digest.clone());
             *chunk = ChunkRef {
                 digest,
@@ -255,7 +277,7 @@ fn stage_attachments(
         }
         let json = serde_json::to_vec(&manifest)
             .map_err(|e| StoreError::Crypto(format!("manifest encode: {e}")))?;
-        let sealed = seal_osseal_in(COLLECTION_ATTACHMENTS, &json, new_key, &name, revision)?;
+        let sealed = seal_osseal_in(COLLECTION_ATTACHMENTS, &json, new_key, name, revision)?;
         plan.stage(staging, rel, &sealed)?;
         plan.attachments += 1;
     }
@@ -281,6 +303,7 @@ fn commit(
     create_private_dir(&staging.join("old"))?;
 
     let result = swap_all(root, staging, plan).and_then(|()| {
+        verify_nothing_left_behind(root, plan)?;
         fs::rename(&key_next, root.join(KEY_FILE_NAME))?;
         sync_dir(root);
         Ok(())
@@ -288,9 +311,9 @@ fn commit(
     let Err(error) = result else {
         return Ok(());
     };
-    // Undo every swap; the old key file is still in place, so putting the old
-    // ciphertext back returns the store to exactly its previous state.
-    for (index, rel) in plan.swaps.iter().enumerate() {
+    // Undo every swap, last first; the old key file is still in place, so
+    // putting the old ciphertext back returns the store to its previous state.
+    for (index, rel) in plan.swaps.iter().enumerate().rev() {
         let backup = staging.join("old").join(index.to_string());
         if backup.exists() && fs::rename(&backup, root.join(rel)).is_err() {
             *stranded = true;
@@ -305,6 +328,24 @@ fn commit(
         )));
     }
     Err(error)
+}
+
+/// Fail closed if any root-sealed file in the tree was not re-encrypted: the
+/// key swap would strand it under the old root.
+fn verify_nothing_left_behind(root: &Path, plan: &Plan) -> Result<(), StoreError> {
+    let swapped: BTreeSet<&PathBuf> = plan.swaps.iter().collect();
+    let missed = inventory(root)?
+        .relative_paths()
+        .into_iter()
+        .filter(|rel| !swapped.contains(rel))
+        .count();
+    if missed > 0 {
+        return Err(StoreError::Crypto(format!(
+            "{missed} sealed file(s) appeared that were not re-encrypted; the rotation was \
+             rolled back so none of them is left under the old root"
+        )));
+    }
+    Ok(())
 }
 
 fn swap_all(root: &Path, staging: &Path, plan: &Plan) -> Result<(), StoreError> {

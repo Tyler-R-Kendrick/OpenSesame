@@ -47,6 +47,7 @@ async fn a_revoked_leaf_is_denied_on_an_already_authenticated_connection() {
     let outcome = revocation::revoke_transport(
         &state,
         &state.connection_organization,
+        revocation::Revoker::Operator,
         RevokeRequest {
             certificate_id: None,
             thumbprint: Some(leaf.thumbprint.clone()),
@@ -89,6 +90,7 @@ async fn the_outcome_names_the_bound_for_every_layer_including_the_ones_it_canno
     let outcome = revocation::revoke_transport(
         &state,
         &state.connection_organization,
+        revocation::Revoker::Operator,
         RevokeRequest {
             certificate_id: None,
             thumbprint: Some("ab".repeat(32)),
@@ -123,6 +125,7 @@ async fn exactly_one_of_certificate_id_or_thumbprint_is_accepted() {
         let error = revocation::revoke_transport(
             &state,
             &state.connection_organization,
+            revocation::Revoker::Operator,
             RevokeRequest {
                 certificate_id,
                 thumbprint,
@@ -143,6 +146,7 @@ async fn a_thumbprint_that_is_not_a_thumbprint_is_refused_rather_than_stored() {
     let error = revocation::revoke_transport(
         &state,
         &state.connection_organization,
+        revocation::Revoker::Operator,
         RevokeRequest {
             certificate_id: None,
             thumbprint: Some("not-hex".into()),
@@ -171,6 +175,7 @@ async fn revoking_a_managed_certificate_denies_it_and_records_the_fact() {
     let outcome = revocation::revoke_transport(
         &state,
         &organization,
+        revocation::Revoker::Tenant,
         RevokeRequest {
             certificate_id: Some(issued.certificate_id.clone()),
             thumbprint: None,

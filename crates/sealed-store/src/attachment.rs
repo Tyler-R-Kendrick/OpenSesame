@@ -272,6 +272,7 @@ impl StoreRoot {
             return Err(StoreError::InvalidPath("filename too long".into()));
         }
         let rel = attach_relative(name)?;
+        let _lock = crate::store_lock::StoreLock::for_sealing(&self.path, name, key)?;
         if !force && self.path.join(&rel).exists() {
             return Err(StoreError::AlreadyExists(name.into()));
         }
@@ -508,6 +509,7 @@ impl StoreRoot {
         if !self.path.join(&rel).exists() {
             return Err(StoreError::NotFound(name.into()));
         }
+        let _lock = crate::store_lock::StoreLock::shared(&self.path)?;
         confined_remove(&self.path, &rel)?;
         // Leave a tombstone revision so the manifest we just dropped cannot be
         // restored from history and still validate.
@@ -530,6 +532,7 @@ impl StoreRoot {
     /// Returns an error when any manifest cannot be authenticated, object
     /// discovery or removal fails, or the Git auto-commit fails.
     pub fn attach_gc(&self, key: &ItemDataKey) -> Result<GcOutcome, StoreError> {
+        let _lock = crate::store_lock::StoreLock::shared(&self.path)?;
         let outcome = self.collect_garbage(key)?;
         if outcome.removed > 0 {
             auto_commit(&self.path, "GC attachments")?;
@@ -612,12 +615,9 @@ impl StoreRoot {
     }
 
     /// `(digest, relative path)` for every chunk object in the pool.
-    fn object_files(&self) -> Result<Vec<(String, PathBuf)>, StoreError> {
+    pub(crate) fn object_files(&self) -> Result<Vec<(String, PathBuf)>, StoreError> {
         let mut out = Vec::new();
         let root = self.path.join(OBJECTS_DIR);
-        if !root.exists() {
-            return Ok(out);
-        }
         let shards = match std::fs::read_dir(&root) {
             Ok(shards) => shards,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),

@@ -18,9 +18,11 @@
 //!    every binding, including one created after the revocation. It is then
 //!    appended to `denied_thumbprints` on every stored service binding
 //!    through the bindings store's CAS write, retried on a lost race. Either
-//!    write failing is an error response, never a `200` with a note. Not
-//!    possible for bindings the deployment plane pins in a file: reported,
-//!    never silently skipped.
+//!    write failing is an error response, never a `200` with a note — but a
+//!    failed denylist write (full, over quota, unreachable) still goes on to
+//!    the bindings, the facts and the notice first, so the leaf is held
+//!    durably wherever it can be. Not possible for bindings the deployment
+//!    plane pins in a file: reported, never silently skipped.
 //! 4. **Facts and notice** — a `revoked` fact on every target the
 //!    certificate served, and a `transport.certificate.revoked` notice on
 //!    the security feed.
@@ -45,7 +47,7 @@ use crate::app_state::AppState;
 use crate::managed_certs::{transport_metadata, CustodyError};
 use crate::transport_lifecycle::facts::{self, Fact};
 use crate::transport_lifecycle::minting::leaf_thumbprint;
-use crate::transport_lifecycle::revocation_store::{self, DurableError};
+use crate::transport_lifecycle::revocation_store::{self, DurableError, Revoked};
 
 /// The notice published on revocation.
 pub const EVENT_REVOKED: &str = "transport.certificate.revoked";
@@ -89,6 +91,16 @@ impl RevokeReason {
             Self::PrivilegeWithdrawn => "privilege_withdrawn",
         }
     }
+}
+
+/// Who is revoking: the durable denylist keeps the operator's room apart
+/// from what tenants may fill.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Revoker {
+    /// The deployment operator (the only caller that may name a thumbprint).
+    Operator,
+    /// An organization's owner or admin, revoking its own certificate.
+    Tenant,
 }
 
 /// The operator's request: a managed certificate by id, or any leaf by
@@ -167,10 +179,12 @@ impl RevokeError {
 pub async fn revoke_transport(
     state: &AppState,
     organization: &OrganizationId,
+    revoker: Revoker,
     request: RevokeRequest,
 ) -> Result<RevocationOutcome, RevokeError> {
     let tenant = organization.to_string();
     let now = Utc::now();
+    let mut not_after = None;
     let (certificate_id, thumbprint) = match (&request.certificate_id, &request.thumbprint) {
         (Some(id), None) => {
             let row = state
@@ -180,6 +194,9 @@ pub async fn revoke_transport(
                 .map_err(CustodyError::Storage)?
                 .ok_or(CustodyError::NotFound)?;
             let thumbprint = recorded_thumbprint(&row).ok_or(CustodyError::LeafNotRetained)?;
+            not_after = DateTime::parse_from_rfc3339(&row.expires_at)
+                .ok()
+                .map(|t| t.with_timezone(&Utc));
             if row.status == "active" {
                 let revocation = StoredCertificateRevocation {
                     id: format!("revocation:{}", uuid::Uuid::new_v4()),
@@ -220,9 +237,14 @@ pub async fn revoke_transport(
     }
     // Layer 3: the durable denylist (every process, every binding — also
     // ones created later — and across restarts), then the stored binding
-    // set. The denylist is written first so a failure there is the one
-    // that stops the revocation.
-    revocation_store::persist(state, &thumbprint).await?;
+    // set. A denylist that refuses the entry does not stop the bindings,
+    // facts or notice: the error is returned only once they have run.
+    let entry = Revoked {
+        thumbprint: &thumbprint,
+        organization: (revoker == Revoker::Tenant).then_some(tenant.as_str()),
+        not_after,
+    };
+    let persisted = revocation_store::persist(state, &entry, now).await;
     let bindings_note = revocation_store::deny_in_bindings(state, &thumbprint).await;
     // Layer 4: facts and the feed.
     let mut targets = certificate_id
@@ -253,7 +275,8 @@ pub async fn revoke_transport(
     )
     .await;
     // Facts and the notice are recorded either way: the leaf *is* revoked
-    // in this process and in the durable denylist.
+    // in this process, and durably in whichever layer took it.
+    persisted?;
     let bindings_note = bindings_note?;
     Ok(RevocationOutcome {
         certificate_id,

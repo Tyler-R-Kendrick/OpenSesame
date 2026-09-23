@@ -24,9 +24,11 @@ mod recipients;
 mod root;
 mod root_protection;
 mod rotation;
+mod rotation_walk;
 mod piv_age;
 mod sops_interop;
 mod store;
+mod store_lock;
 mod tomb_registry;
 mod update;
 

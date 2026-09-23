@@ -155,7 +155,12 @@ pub async fn revoke_certificate(
         );
     }
     let organization = who.organization(state.connection_organization);
-    match revocation::revoke_transport(&state, &organization, request).await {
+    let revoker = if matches!(who, Caller::Operator) {
+        revocation::Revoker::Operator
+    } else {
+        revocation::Revoker::Tenant
+    };
+    match revocation::revoke_transport(&state, &organization, revoker, request).await {
         Ok(outcome) => (StatusCode::OK, Json(json!({ "revocation": outcome }))).into_response(),
         Err(error) => refuse(error.http_status(), error.code(), &error.to_string()),
     }

@@ -16,7 +16,7 @@ use opensesame_sealed_store::{
 };
 
 use super::require_yes;
-use crate::store::{prompt_password, require_reveal, resolve_root};
+use crate::store::{prompt_password, prompt_secret_hidden, require_reveal, resolve_root};
 
 /// Flags shared by every verb that can rotate the root key.
 #[derive(clap::Args, Debug, Default, Clone, Copy)]
@@ -62,11 +62,7 @@ pub fn cmd_protect_rewrap(
     check_rotate_args(args, no_rotate)?;
     let root = resolve_root(path, tomb)?;
     let old = prompt_password("Current store passphrase")?;
-    let new = prompt_password("New store passphrase")?;
-    let confirm = prompt_password("Confirm new store passphrase")?;
-    if new != confirm {
-        anyhow::bail!("passphrases do not match");
-    }
+    let new = read_new_passphrase(&old)?;
     if no_rotate {
         protect_rewrap_store_password(&root, old.as_bytes(), new.as_bytes())?;
         eprintln!("rewrapped the password protector; the root key is unchanged");
@@ -83,6 +79,30 @@ pub fn cmd_protect_rewrap(
         "rewrapped under the new passphrase; the previous passphrase no longer opens the store"
     );
     report(&outcome, args);
+    Ok(())
+}
+
+/// The new passphrase is typed (or piped), never taken from
+/// `OPENSESAME_STORE_PASSWORD`: that variable holds the *current* passphrase,
+/// and answering the new-passphrase prompts with it would "rewrap" the store
+/// to the passphrase it already has while reporting the old one revoked.
+fn read_new_passphrase(old: &str) -> anyhow::Result<String> {
+    let new = prompt_secret_hidden("New store passphrase")?;
+    let confirm = prompt_secret_hidden("Confirm new store passphrase")?;
+    check_new_passphrase(old, &new, &confirm)?;
+    Ok(new)
+}
+
+fn check_new_passphrase(old: &str, new: &str, confirm: &str) -> anyhow::Result<()> {
+    if new != confirm {
+        anyhow::bail!("passphrases do not match");
+    }
+    if new.is_empty() {
+        anyhow::bail!("the new passphrase is empty");
+    }
+    if new == old {
+        anyhow::bail!("the new passphrase is the current one; nothing would be revoked");
+    }
     Ok(())
 }
 
@@ -202,6 +222,14 @@ mod tests {
         };
         assert!(check_rotate_args(shown, true).is_err());
         assert!(check_rotate_args(shown, false).is_ok());
+    }
+
+    #[test]
+    fn a_new_passphrase_must_differ_match_and_be_nonempty() {
+        assert!(check_new_passphrase("old", "old", "old").is_err());
+        assert!(check_new_passphrase("old", "", "").is_err());
+        assert!(check_new_passphrase("old", "new", "typo").is_err());
+        assert!(check_new_passphrase("old", "new", "new").is_ok());
     }
 
     /// A recovery key on argv lands in shell history and `/proc/<pid>/cmdline`.

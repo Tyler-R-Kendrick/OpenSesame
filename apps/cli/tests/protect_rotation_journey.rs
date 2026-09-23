@@ -149,22 +149,82 @@ fn rewrap_revokes_the_old_passphrase_unless_told_not_to() {
     let f = given_a_store_with_an_entry_and_a_document();
     let old_key_file = std::fs::read(f.store.join(".opensesame-key")).unwrap();
 
+    // OPENSESAME_STORE_PASSWORD answers only the current-passphrase prompt; the
+    // new one is typed (here: piped), so it cannot silently be the same string.
     let kept = run_with(
         &f.store,
         PASSPHRASE,
         &["pass", "protect", "rewrap", "--yes", "--no-rotate"],
-        "",
+        "second passphrase\nsecond passphrase\n",
     );
     assert!(kept.status.success(), "{}", text(&kept));
     assert!(text(&kept).contains("NOT rotated"), "{}", text(&kept));
+    assert_eq!(shows(&f.store, PASSPHRASE), None);
 
-    // OPENSESAME_STORE_PASSWORD answers every prompt, so the "new" passphrase
-    // is the same string; what changes is the root under it.
-    let rewrapped = run(&f.store, &["pass", "protect", "rewrap", "--yes"]);
+    let rewrapped = run_with(
+        &f.store,
+        "second passphrase",
+        &["pass", "protect", "rewrap", "--yes"],
+        "third passphrase\nthird passphrase\n",
+    );
     assert!(rewrapped.status.success(), "{}", text(&rewrapped));
-    assert_eq!(shows(&f.store, PASSPHRASE).as_deref(), Some("hunter2\n"));
+    assert_eq!(
+        shows(&f.store, "third passphrase").as_deref(),
+        Some("hunter2\n")
+    );
+    assert_eq!(shows(&f.store, "second passphrase"), None);
     let history = with_old_key_file(&f, &old_key_file);
     assert_eq!(shows(&history, PASSPHRASE), None);
+}
+
+#[test]
+fn rewrap_takes_the_new_passphrase_from_the_prompt_not_the_environment() {
+    let f = given_a_store_with_an_entry_and_a_document();
+
+    // The environment still holds the old passphrase; stdin carries the new.
+    let rewrapped = run_with(
+        &f.store,
+        PASSPHRASE,
+        &["pass", "protect", "rewrap", "--yes"],
+        "a different passphrase\na different passphrase\n",
+    );
+    assert!(rewrapped.status.success(), "{}", text(&rewrapped));
+    assert!(
+        text(&rewrapped).contains("the previous passphrase no longer opens the store"),
+        "{}",
+        text(&rewrapped)
+    );
+    assert_eq!(shows(&f.store, PASSPHRASE), None);
+    assert_eq!(
+        shows(&f.store, "a different passphrase").as_deref(),
+        Some("hunter2\n")
+    );
+}
+
+#[test]
+fn rewrapping_to_the_current_passphrase_is_refused() {
+    let f = given_a_store_with_an_entry_and_a_document();
+    let key_file = std::fs::read(f.store.join(".opensesame-key")).unwrap();
+    for extra in [&[][..], &["--no-rotate"][..]] {
+        let mut args = vec!["pass", "protect", "rewrap", "--yes"];
+        args.extend_from_slice(extra);
+        let same = format!("{PASSPHRASE}\n{PASSPHRASE}\n");
+        let refused = run_with(&f.store, PASSPHRASE, &args, &same);
+        assert!(!refused.status.success(), "{}", text(&refused));
+        assert!(
+            text(&refused).contains("is the current one"),
+            "{}",
+            text(&refused)
+        );
+        // Nothing piped at all is an empty passphrase, never the env var.
+        let empty = run_with(&f.store, PASSPHRASE, &args, "");
+        assert!(!empty.status.success(), "{}", text(&empty));
+    }
+    assert_eq!(
+        std::fs::read(f.store.join(".opensesame-key")).unwrap(),
+        key_file
+    );
+    assert_eq!(shows(&f.store, PASSPHRASE).as_deref(), Some("hunter2\n"));
 }
 
 #[test]
