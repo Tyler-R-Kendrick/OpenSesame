@@ -50,6 +50,16 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/api/v1/session/local", "POST"),
     // NATS authorization callout — server-to-server, not session callers.
     ("/api/v1/nats/auth/callout", "POST"),
+    // ADR 0068 §8 enrollment protocol endpoints — spoken by protocol clients
+    // (EST RFC 7030), never an agent surface; each authenticates with its own
+    // mechanism (sealed passphrase or bootstrap/reenrollment certificate).
+    ("/.well-known/est/{profile_id}/cacerts", "GET"),
+    ("/.well-known/est/{profile_id}/simpleenroll", "POST"),
+    ("/.well-known/est/{profile_id}/simplereenroll", "POST"),
+    // The operator configuration behind those endpoints (session-authenticated
+    // like every certmgr route; secret material is sealed and never returned).
+    ("/api/v1/certmgr/profiles/{id}/est-config", "GET"),
+    ("/api/v1/certmgr/profiles/{id}/est-config", "PUT"),
     // Host operator task-bus configuration surface.
     ("/api/v1/operator/taskbus", "GET"),
     ("/api/v1/operator/taskbus", "PUT"),
