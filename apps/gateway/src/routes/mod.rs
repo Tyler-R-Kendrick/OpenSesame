@@ -20,6 +20,10 @@ mod contract;
 mod credential_connections;
 mod delegations;
 mod device;
+mod est_enrollment;
+mod est_records;
+mod est_server;
+mod est_wire;
 pub(crate) mod github_app;
 mod grant_offers;
 mod health;
@@ -67,6 +71,28 @@ pub fn router(state: AppState) -> Router {
         .merge(crate::transport::routes::routes())
         .merge(crate::transport_lifecycle::routes::routes())
         .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
+        // ADR 0068 §8: EST (RFC 7030) protocol endpoints, profile-scoped,
+        // session-free, contract-allowlisted. The limit is room for a PKCS#10
+        // request with a long chain encoded per RFC 7030 and nothing more.
+        .route(
+            "/.well-known/est/{profile_id}/cacerts",
+            get(est_server::cacerts),
+        )
+        .route(
+            "/.well-known/est/{profile_id}/simpleenroll",
+            post(est_server::simple_enroll).layer(DefaultBodyLimit::max(est_server::MAX_CSR_BODY)),
+        )
+        .route(
+            "/.well-known/est/{profile_id}/simplereenroll",
+            post(est_server::simple_reenroll)
+                .layer(DefaultBodyLimit::max(est_server::MAX_CSR_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/profiles/{id}/est-config",
+            get(est_server::get_config)
+                .put(est_server::put_config)
+                .layer(DefaultBodyLimit::max(est_server::MAX_CSR_BODY)),
+        )
         .route(
             "/api/v1/operator/taskbus",
             get(taskbus_config::get_config)
