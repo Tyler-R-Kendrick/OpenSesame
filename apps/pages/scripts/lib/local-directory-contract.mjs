@@ -1,13 +1,21 @@
 import { expect } from "@playwright/test";
 import { localAgentContract } from "./local-agent-contract.mjs";
 import { localApplicationContract } from "./local-application-contract.mjs";
-import { localMembershipContract } from "./local-membership-contract.mjs";
+import {
+  localMembershipContract,
+  localMembershipSetup,
+} from "./local-membership-contract.mjs";
 import { localPasskeyContract } from "./local-passkey-contract.mjs";
 
+// The journey is a guest's. A guest administers Access only until a claimed
+// (non-guest) owner or admin exists (`resolveCurrentAccessRole`), so the
+// organization and the application are set up first and the owner is
+// assigned last; the membership contract then proves the guest is refused.
 export async function localDirectoryContract(page, tabTo) {
   await directoryRecordsContract(page, tabTo);
-  await localMembershipContract(page, tabTo);
+  await localMembershipSetup(page, tabTo);
   await localApplicationContract(page, tabTo);
+  await localMembershipContract(page, tabTo);
 }
 
 async function createDirectoryRecord(page, panel, tabTo, kind) {
