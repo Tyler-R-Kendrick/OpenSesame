@@ -162,6 +162,28 @@ const STEPS = {
     await page.waitForTimeout(500);
   },
   /**
+   * Type into a labelled field, the way a person pastes a definition. `text`
+   * may be an object, which is written as the JSON it describes.
+   */
+  async fill(page, { label, text }) {
+    const field = page.getByLabel(label, { exact: true }).first();
+    if (!(await field.count()))
+      throw new Error(
+        `capture-evidence fill("${label}"): no field matched — refusing a silent miss`,
+      );
+    await field.fill(typeof text === "string" ? text : JSON.stringify(text));
+    await page.waitForTimeout(300);
+  },
+  /**
+   * Print what the matched elements say, one line each. A sheet's
+   * measurement is then read from the browser, not written from memory.
+   */
+  async report(page, selector) {
+    const texts = await page.locator(selector).allInnerTexts();
+    console.log(`  report ${selector}:`);
+    for (const text of texts) console.log(`    ${text.replaceAll(/\s+/g, " ")}`);
+  },
+  /**
    * Bring a named heading to the top of the viewport. A panel below the
    * fold is still a screen someone looks at, and a full-page screenshot
    * would shrink the thing being evidenced until nobody could read it.

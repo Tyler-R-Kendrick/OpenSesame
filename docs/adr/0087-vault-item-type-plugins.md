@@ -214,6 +214,19 @@ unknown type is a presentation gap, never data loss — `mergeVaultBodies` is
 last-writer-wins per item, so a client that "migrated" unknown items to
 notes would destroy them on every other device.
 
+Every registered type is one directory in the vault rail, named by its
+plural as a path segment (`directoryName`: `Wi-Fi networks` →
+`wi-fi-networks`, ASCII-only so both planes derive the same bytes). An
+installed type's directory exists from the moment it is installed; a type
+the vault holds items of gets one too, so no item is left without a
+directory. Because a directory is a name people navigate by, an install is
+refused (`name`) when its title or directory is already another registered
+type's, compared without case, or when its directory is one the rail keeps
+for itself (`RESERVED_DIRECTORIES`: `all`, `favorites`, `trash`, and the
+short names `certs` and `notes`). This sits beside the extension rule: the
+extension names an item, the directory names where its kind lives.
+Uninstalling frees both.
+
 ### 8. One corpus, two implementations, conformance-tested
 
 `packages/vault-item-types/definitions/*.json` is the single source. The

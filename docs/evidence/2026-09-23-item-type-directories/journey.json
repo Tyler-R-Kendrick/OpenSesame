@@ -1,0 +1,311 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "text": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "event-ticket",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Event ticket",
+                "plural": "Event tickets",
+                "extension": ".ticket",
+                "summary": "Installed at runtime, with no build.",
+                "categories": [
+                  "other"
+                ],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": [
+                  "label"
+                ],
+                "search": [
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "text": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "account",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Account",
+                "plural": "Logins",
+                "extension": ".acct",
+                "summary": "Installed at runtime, with no build.",
+                "categories": [
+                  "other"
+                ],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": [
+                  "label"
+                ],
+                "search": [
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "1280-install"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "report": ".railtree__row"
+        },
+        {
+          "shot": "1280-rail"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "text": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "event-ticket",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Event ticket",
+                "plural": "Event tickets",
+                "extension": ".ticket",
+                "summary": "Installed at runtime, with no build.",
+                "categories": [
+                  "other"
+                ],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": [
+                  "label"
+                ],
+                "search": [
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "fill": {
+            "label": "Add a type",
+            "text": {
+              "apiVersion": "opensesame.dev/v1alpha1",
+              "kind": "VaultItemType",
+              "metadata": {
+                "id": "account",
+                "version": "1.0.0",
+                "publisher": "https://community.test"
+              },
+              "spec": {
+                "title": "Account",
+                "plural": "Logins",
+                "extension": ".acct",
+                "summary": "Installed at runtime, with no build.",
+                "categories": [
+                  "other"
+                ],
+                "sections": [
+                  {
+                    "id": "main",
+                    "title": "Main",
+                    "fields": [
+                      {
+                        "id": "label",
+                        "type": "string",
+                        "label": "Label"
+                      }
+                    ]
+                  }
+                ],
+                "native": {
+                  "secret": null,
+                  "trailer": [
+                    {
+                      "key": "label",
+                      "field": "label"
+                    }
+                  ]
+                },
+                "cxf": {
+                  "credential": "custom-fields"
+                },
+                "subtitle": [
+                  "label"
+                ],
+                "search": [
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "press": "Install type"
+        },
+        {
+          "report": "output[aria-live]"
+        },
+        {
+          "scrollTo": "Item types"
+        },
+        {
+          "shot": "390-install"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "press": "Filter"
+        },
+        {
+          "report": "[role=dialog] a"
+        },
+        {
+          "shot": "390-filter"
+        }
+      ]
+    }
+  ],
+  "sheets": []
+}

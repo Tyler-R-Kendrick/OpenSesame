@@ -23,6 +23,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { FIELD_TYPES, isFieldTypeId } from "./catalogue.js";
+import type { DefinitionError, DefinitionErrorCode } from "./errors.js";
 import {
   CXF_CREDENTIAL_IDS,
   type CxfCredentialId,
@@ -41,36 +42,7 @@ import {
   type TrailerMapping,
 } from "./schema.js";
 
-export type DefinitionErrorCode =
-  | "too-large"
-  | "syntax"
-  | "unknown-field"
-  | "api-version"
-  | "kind"
-  | "id"
-  | "version"
-  | "publisher"
-  | "text"
-  | "extension"
-  | "sections"
-  | "field-id"
-  | "field-type"
-  | "duplicate-field"
-  | "options"
-  | "multiple"
-  | "concealed-default"
-  | "native-secret"
-  | "trailer"
-  | "cxf"
-  | "concealed-preview"
-  | "handler";
-
-export type DefinitionError = {
-  readonly code: DefinitionErrorCode;
-  /** Dotted path into the manifest, e.g. `spec.sections[0].fields[2].type`. */
-  readonly path: string;
-  readonly message: string;
-};
+export type { DefinitionError, DefinitionErrorCode } from "./errors.js";
 
 export type ParsedDefinition =
   | { readonly ok: true; readonly definition: ItemTypeDefinition }

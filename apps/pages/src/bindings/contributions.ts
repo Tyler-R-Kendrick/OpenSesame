@@ -20,8 +20,10 @@ import {
 import {
   type ItemKindRow,
   itemKindsFrom,
+  withTypeDirectories,
 } from "@opensesame/app-core/lib/item-kinds.js";
 import type { ContributionKind } from "@opensesame/capability-composition";
+import { type VaultItem, itemTypeId } from "@opensesame/vault-core";
 import { useMemo, useSyncExternalStore } from "react";
 
 /** The registry's entries of `kind` alone, re-read on every registration. */
@@ -58,4 +60,17 @@ export function useItemKinds(): readonly ItemKindRow[] {
   const entries: readonly ItemKindContribution[] =
     useContributions("item-kind");
   return useMemo(() => itemKindsFrom(entries), [entries]);
+}
+
+/**
+ * The vault's directories: one per item type — the kinds above, every
+ * installed type, and every type the vault holds. Not memoised on purpose:
+ * installing a type changes the registry, which is module state no
+ * contribution or item reference moves with.
+ */
+export function useVaultDirectories(
+  items: readonly VaultItem[],
+): readonly ItemKindRow[] {
+  const kinds = useItemKinds();
+  return withTypeDirectories(kinds, items.map(itemTypeId));
 }
