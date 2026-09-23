@@ -3,6 +3,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   isKnownCapability,
+  modularCapabilityIds,
   optionalCapabilityIds,
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { describe, expect, it } from "vitest";
@@ -52,9 +53,15 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
 
   it("optional rules name a known optional capability; shared rules name none", () => {
     const optional = new Set(optionalCapabilityIds());
+    const modular = new Set(modularCapabilityIds());
     for (const rule of SOURCE_CLASSIFICATION) {
       if (rule.classification === "optional") {
-        expect(optional.has(rule.capability ?? ""), rule.pattern).toBe(true);
+        // An always-on capability's module directory stays optional: it is
+        // loaded, never linked (ADR 0134). Nothing else of it does.
+        const known = rule.pattern.startsWith("src/modules/")
+          ? modular.has(rule.capability ?? "")
+          : optional.has(rule.capability ?? "");
+        expect(known, rule.pattern).toBe(true);
       } else if (rule.classification === "shared") {
         expect(rule.capability, rule.pattern).toBeNull();
       } else if (rule.capability !== null) {
@@ -141,6 +148,16 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       for (const extraction of mixed.extract) {
         expect(isKnownCapability(extraction.capability), mixed.path).toBe(true);
       }
+    }
+  });
+
+  it("keeps an always-on runtime module optional, so the bootstrap may not link it", () => {
+    for (const path of [
+      "src/modules/connectors.external/runtime.ts",
+      "src/modules/identity.ambient-sso/runtime.ts",
+      "src/modules/access.authority/runtime.ts",
+    ]) {
+      expect(classify(path)?.classification, path).toBe("optional");
     }
   });
 

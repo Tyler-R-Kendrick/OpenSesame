@@ -21,7 +21,6 @@ import {
   explainCapability,
   presetToInstancePolicy,
 } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
-import { PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
 import { useState } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -33,6 +32,7 @@ import {
   type CapabilityView,
   capabilitySourceSeams,
 } from "./CapabilitiesPanelViews.js";
+import { useDeviceOperator } from "./useDeviceOperator.js";
 
 import { useComposition } from "../../bindings/capabilities.js";
 export const instancePanelSeams = {
@@ -41,13 +41,10 @@ export const instancePanelSeams = {
 
 export function InstanceCapabilitiesPanel() {
   const snapshot = useComposition();
-  const { tomb, guest } = useVault();
+  const { tomb } = useVault();
   const [view, setView] = useState<CapabilityView>("visual");
   const [notice, setNotice] = useState<string | null>(null);
-  const operator =
-    snapshot.provenance === "personal-local" &&
-    tomb === PERSONAL_TOMB &&
-    !guest;
+  const operator = useDeviceOperator();
   if (!operator) return null;
   const plan = snapshot.plan;
   async function choosePreset(preset: CapabilityPreset) {

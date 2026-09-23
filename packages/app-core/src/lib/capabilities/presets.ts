@@ -80,7 +80,7 @@ export const PRESETS: readonly Preset[] = [
     version: 1,
     title: "Personal",
     summary:
-      "One person's vault on their own devices. Local functions only; nothing external is offered.",
+      "One person's vault on their own devices. Only local features are offered; the always-on functions stay as they are.",
     required: [],
     optional: LOCAL_FUNCTIONS,
     defaultSelected: [],
@@ -91,7 +91,7 @@ export const PRESETS: readonly Preset[] = [
     version: 1,
     title: "Family",
     summary:
-      "A household sharing chosen items with each other. Local functions and drops; external services are refused outright.",
+      "A household sharing chosen items with each other. Local features and drops, and no automatic call to an external service.",
     required: [],
     optional: [...LOCAL_FUNCTIONS, "sharing.household"],
     defaultSelected: ["sharing.household", "sharing.drops"],

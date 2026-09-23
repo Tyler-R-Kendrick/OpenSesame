@@ -35,6 +35,18 @@ export function guestsAllowed(): boolean {
   }
 }
 
+/** The message a refused guest road reports. */
+export const GUESTS_OFF_MESSAGE = "Guests are turned off on this device.";
+
+/**
+ * Refuse a guest session when the operator switched guests off. Called
+ * where every guest road ends (`openGuestVault`), so hiding the buttons is
+ * not the only thing standing between a caller and a guest session.
+ */
+export function assertGuestsAllowed(): void {
+  if (!guestsAllowed()) throw new Error(GUESTS_OFF_MESSAGE);
+}
+
 /** Durable write; listeners hear it once the record is on disk. */
 export async function setGuestsAllowed(allowed: boolean): Promise<void> {
   await kvSetDurable(GUEST_ACCESS_KEY, JSON.stringify({ allowed }));

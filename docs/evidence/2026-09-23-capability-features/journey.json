@@ -6,7 +6,7 @@
       "height": 844,
       "steps": [
         {
-          "guest": null
+          "seal": null
         },
         {
           "tab": "Settings"
@@ -43,7 +43,7 @@
       "desktop": true,
       "steps": [
         {
-          "guest": null
+          "seal": null
         },
         {
           "tab": "Settings"

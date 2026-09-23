@@ -46,6 +46,21 @@ Always-on today (`catalog-always-on.ts`): `vault.passkey-records`,
 `connectors.external`, `access.authority`, `identity.federation`,
 `identity.ambient-sso`, `activity.log`, `support.guided-help`.
 
+Always on does not step outside the operator's network envelope. Ambient
+SSO is the one always-on capability with an automatic external call (its boot
+revalidation and silent attempt); a plan whose network policy denies external
+services — the Family preset, a managed policy — keeps that call off
+(`externalServicesDenied` in its runtime). Its boot runs once per document.
+
+Like every approved module, an always-on one is disposed and activated again
+under each new plan generation: `contributions()` answers only the current
+generation's registrations, which is the fence ADR 0130's authority model
+rests on, and an always-on capability gets no exemption from it.
+
+The build still treats each always-on `src/modules/<id>/` directory as
+optional source, so a static import of one from the bootstrap is reported by
+the capability graph; the capability's other files are classified core.
+
 Documents written before this change may still name one of these ids. The
 resolver ignores a core id in a selection, and a policy that *requires* one
 owes nothing for it (`buildContext` in `resolve-axes.ts`). Presets and the
@@ -102,8 +117,12 @@ sign-in and unlock screens read it before any vault is open. Absent,
 unreadable or malformed reads as **allowed**. Every guest placement — the
 full-size button on both sign-in placements, the first-run Skip, the unlock
 footer, and the Identity ceremony's guest claim — reads it through
-`screens/unlock/GuestRoad.tsx` or `useGuestsAllowed`, so none can drift.
-A guest session cannot switch it off.
+`screens/unlock/GuestRoad.tsx` or `useGuestsAllowed`, so none can drift, and
+`openGuestVault` in `guest-auth.ts`, where both guest roads end, refuses a
+guest session outright while it is off. Only the device's operator sees the
+switch (`useDeviceOperator`: personal-local, the personal tomb, not a guest)
+— the same rule as the instance policy, so neither a guest nor a member of a
+managed instance can shut the guest road.
 
 This is the only thing that may withdraw the guest road. AGENTS.md §5's rule
 stands otherwise unchanged: guest is never gated on an Identity API, the

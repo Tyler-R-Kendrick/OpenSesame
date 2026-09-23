@@ -31,6 +31,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { phoneContext } from "./lib/mobile-contract.mjs";
+import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
@@ -79,6 +80,15 @@ async function press(locator) {
 }
 
 const STEPS = {
+  /**
+   * Seal a password vault on this device: the operator's own installation,
+   * where Settings shows what a guest never sees (Allow guests, the
+   * instance policy).
+   */
+  async seal(page) {
+    await sealWithPassword(page);
+    await page.waitForTimeout(1400);
+  },
   async guest(page) {
     await press(
       page.getByRole("button", { name: "Continue as guest", exact: true }),

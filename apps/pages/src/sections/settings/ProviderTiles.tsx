@@ -29,7 +29,7 @@ export function ProviderTiles({
   const group = featureBindingSections(providers).find(
     (section) => section.id === category,
   );
-  const target = useHostBackupTarget();
+  const target = useHostBackupTarget(category === "backup_recovery");
   useSettingsEpoch();
   const byId = new Map(providers.map((provider) => [provider.id, provider]));
   const hostProviderId = hostTargetProviderId(target);

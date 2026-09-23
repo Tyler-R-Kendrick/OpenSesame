@@ -376,12 +376,21 @@ describe("Allow guests", () => {
     await setGuestsAllowed(true);
   });
 
-  it("cannot be switched off from inside a guest session", () => {
+  it("is the operator's alone: no guest, project tomb or managed member sees it", () => {
     vault = { tomb: "personal", guest: true };
     renderPanel();
-    expect(
-      screen.getByRole<HTMLButtonElement>("switch", { name: "Allow guests" })
-        .disabled,
-    ).toBe(true);
+    expect(screen.queryByRole("switch", { name: "Allow guests" })).toBeNull();
+    cleanup();
+    vault = { tomb: "project-4f2a", guest: false };
+    renderPanel();
+    expect(screen.queryByRole("switch", { name: "Allow guests" })).toBeNull();
+    cleanup();
+    vault = { tomb: "personal", guest: false };
+    resetDouble({
+      policy: FIXTURE_MANAGED_POLICY,
+      provenance: "same-origin-deployment",
+    });
+    renderPanel();
+    expect(screen.queryByRole("switch", { name: "Allow guests" })).toBeNull();
   });
 });

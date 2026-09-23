@@ -62,11 +62,17 @@ const MODULE_RULES: readonly SourceClassification[] =
  * in every build and the rule reads `core`. The owner stays recorded, so a
  * capability that becomes optional again is one catalog edit, not a sweep
  * over every rule.
+ *
+ * The module directory itself stays `optional`, always-on or not: its code
+ * still arrives only through the loader, and the build graph counts an edge
+ * only into an `optional` source — so a static import of an always-on
+ * runtime from the bootstrap is reported, not waved through as core.
  */
 function alwaysOnIsCore(rule: SourceClassification): SourceClassification {
   return rule.classification === "optional" &&
     rule.capability !== null &&
-    CORE_IDS.has(rule.capability)
+    CORE_IDS.has(rule.capability) &&
+    !rule.pattern.startsWith("src/modules/")
     ? { ...rule, classification: "core" }
     : rule;
 }

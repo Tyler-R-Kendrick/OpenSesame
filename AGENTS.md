@@ -402,8 +402,9 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   sign-in and unlock screens — the one exception is the operator's own
   "Allow guests" switch in Settings › Capabilities
   (`packages/app-core/src/lib/guest-access.ts`, default on, fails toward on,
-  cannot be switched off from a guest session; ADR 0134). Every placement
-  reads it through `apps/pages/src/screens/unlock/GuestRoad.tsx`. It lives in three places and all three are
+  shown only to the device's operator; ADR 0134). Every placement reads it
+  through `apps/pages/src/screens/unlock/GuestRoad.tsx`, and `openGuestVault`
+  refuses a guest session while it is off. It lives in three places and all three are
   required: the "Continue as guest" button in
   `apps/pages/src/screens/unlock/SignInPanel.tsx` on **both** placements
   (first run *and* the sign-in panel opened from the user menu beside an

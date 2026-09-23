@@ -83,6 +83,31 @@ describe("identity.ambient-sso runtime", () => {
     }
   });
 
+  it("makes no automatic call when the plan denies external services", async () => {
+    runtime.resetAmbientBootForTest();
+    const run = vi.fn();
+    const original = { ...runtime.ambientRuntimeSeams };
+    Object.assign(runtime.ambientRuntimeSeams, {
+      runAmbientAuthBoot: run,
+      externalServicesDenied: () => true,
+    });
+    try {
+      const t = createTestContext();
+      const handle = await runtime.capabilityRuntime.activate(t.ctx);
+      t.entries("background-job")[0]?.start(new AbortController().signal);
+      expect(run).not.toHaveBeenCalled();
+      await handle.dispose();
+      // The policy relaxing later lets the (still first) boot run.
+      runtime.ambientRuntimeSeams.externalServicesDenied = () => false;
+      const again = await runtime.capabilityRuntime.activate(t.ctx);
+      t.entries("background-job").at(-1)?.start(new AbortController().signal);
+      expect(run).toHaveBeenCalledTimes(1);
+      await again.dispose();
+    } finally {
+      Object.assign(runtime.ambientRuntimeSeams, original);
+    }
+  });
+
   it("applies the deployment policy only while active", async () => {
     expect(deployedAmbientPolicy()).toBeUndefined();
     const t = createTestContext({

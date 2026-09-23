@@ -74,6 +74,27 @@ beforeEach(() => {
   });
 });
 
+describe("ProviderTiles Host reads", () => {
+  it("asks the Host for its backup target only for the backup group", async () => {
+    const status = vi.fn(async () => ({ target: null, pendingEvents: 0 }));
+    Object.assign(backupSeams, { getBackupStatus: status });
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="password_managers" label="Password managers" />
+        <ProviderTiles category="identity" label="Identity providers" />
+      </MemoryRouter>,
+    );
+    expect(status).not.toHaveBeenCalled();
+    cleanup();
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="backup_recovery" label="Backups" />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(status).toHaveBeenCalled());
+  });
+});
+
 describe("ProviderTiles backup toggles", () => {
   it("puts a history switch on unbound backup connectors", async () => {
     render(

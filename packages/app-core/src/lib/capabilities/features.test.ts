@@ -143,6 +143,20 @@ describe("switchFeature", () => {
     expect(next.roots).toEqual(["wallet.spending"]);
   });
 
+  it("forgets the alternative choices a feature made when it is switched off", () => {
+    const next = switchFeature(
+      {
+        roots: ["sharing.drops", "sharing.household"],
+        alternatives: { transport: "sharing.drops", other: "wallet.spending" },
+      },
+      featureById("sharing"),
+      false,
+      planWith(["sharing.drops", "sharing.household"]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.alternatives).toEqual({ other: "wallet.spending" });
+  });
+
   it("drops a root that has since become always-on", () => {
     const next = switchFeature(
       { roots: ["vault.passkey-records", "wallet.spending"], alternatives: {} },

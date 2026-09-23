@@ -168,7 +168,7 @@ export type FeatureProposal = Readonly<{
  * What the installation's selection becomes when a feature is switched.
  *
  * On adds every capability of the feature this plan can run; off removes
- * every one of them. Roots that are not optional in the catalog — an id a
+ * every one of them, and the alternative choices they made. Roots that are not optional in the catalog — an id a
  * selection recorded before it became always-on — are dropped, since a
  * selection never names core. A capability that needs a choice for one of
  * its alternative slots gets one: a peer the same switch adds if there is
@@ -191,7 +191,19 @@ export function switchFeature(
   const kept = current.roots.filter(
     (id) => optional.has(id) && !feature.capabilities.includes(id),
   );
-  if (!on) return { roots: kept, alternatives: { ...current.alternatives } };
+  if (!on) {
+    // Forget the choices this feature's capabilities made, so adding one of
+    // them again later asks the question again instead of reusing an answer.
+    const slots = new Set(
+      catalog.capabilities
+        .filter((entry) => feature.capabilities.includes(entry.id))
+        .flatMap((entry) => entry.alternatives.map((slot) => slot.slot)),
+    );
+    const alternatives = Object.fromEntries(
+      Object.entries(current.alternatives).filter(([slot]) => !slots.has(slot)),
+    );
+    return { roots: kept, alternatives };
+  }
   const added = featureState(feature, plan).available;
   const alternatives: Record<string, CapabilityId> = {
     ...current.alternatives,
