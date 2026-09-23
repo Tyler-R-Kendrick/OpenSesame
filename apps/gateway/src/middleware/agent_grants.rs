@@ -11,6 +11,21 @@ use axum::{
 use chrono::Utc;
 use opensesame_claims::hash_secret;
 
+/// The one spelling an agent capability is presented in. `require_session`
+/// accepts agent claims only under this exact prefix, so every agent request
+/// that reaches a handler has passed [`guard`].
+pub const AGENT_BEARER: &str = "Bearer agent-capability:";
+
+/// True when any scheme carries an `agent-capability:` credential.
+pub fn names_agent_capability(authorization: &str) -> bool {
+    authorization
+        .trim_start()
+        .split_once(char::is_whitespace)
+        .map(|(_, credential)| credential.trim_start())
+        .and_then(|credential| credential.get(..17))
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("agent-capability:"))
+}
+
 pub fn capability(method: &str, path: &str) -> Option<&'static str> {
     match (method, path) {
         ("GET", "/api/v1/whoami" | "/api/v1/session") => Some("agent:self"),
@@ -38,7 +53,13 @@ pub async fn guard(State(st): State<AppState>, request: Request, next: Next) -> 
         .get("authorization")
         .and_then(|h| h.to_str().ok())
         .unwrap_or("");
-    let Some(raw) = authorization.strip_prefix("Bearer agent-capability:") else {
+    let Some(raw) = authorization.strip_prefix(AGENT_BEARER) else {
+        // A non-canonical spelling of an agent credential (`bearer`, `BEARER`,
+        // `DPoP`, padded) must never fall through to a session authenticator
+        // that skips the durable grant and the capability ceiling.
+        if names_agent_capability(authorization) {
+            return refused();
+        }
         return next.run(request).await;
     };
     if request.headers().contains_key("origin")
@@ -117,5 +138,27 @@ mod tests {
             Some("host.tasks.invoke")
         );
         assert!(capability("DELETE", "/api/v1/tasks").is_none());
+    }
+
+    #[test]
+    fn every_spelling_of_an_agent_credential_is_recognized() {
+        for header in [
+            "Bearer agent-capability:ab",
+            "bearer agent-capability:ab",
+            "BEARER AGENT-CAPABILITY:ab",
+            "DPoP agent-capability:ab",
+            "Bearer  agent-capability:ab",
+            "  bearer\tagent-capability:ab",
+        ] {
+            assert!(names_agent_capability(header), "{header}");
+        }
+        for header in [
+            "Bearer opaque-session:ab",
+            "",
+            "agent-capability:ab",
+            "Bearer",
+        ] {
+            assert!(!names_agent_capability(header), "{header}");
+        }
     }
 }

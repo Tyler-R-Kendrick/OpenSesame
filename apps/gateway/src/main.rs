@@ -139,7 +139,8 @@ mod pact_coverage {
             include_str!("routes/rotation.rs"),
             &[
                 "fn authorize(st: &AppState, headers: &axum::http::HeaderMap)",
-                "validate_target(&st",
+                "access::may_request(",
+                "upsert_rotation_policy(",
                 "let job = match request_rotation(",
             ],
         );
