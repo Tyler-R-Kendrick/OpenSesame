@@ -470,23 +470,6 @@ pub async fn create(
         return response;
     }
 
-    // Budgets decrement after authorization and before execution, and deny
-    // when the decrement cannot be performed (ADR 0044 decision 10 + INV-BUDGET).
-    let idempotency_key = body
-        .idempotency_key
-        .clone()
-        .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
-    let authority_hold = match super::intents_budget::spend_invoke_budgets(
-        &st,
-        &boot.org.to_string(),
-        &resolved,
-        &idempotency_key,
-    )
-    .await
-    {
-        Ok(hold) => hold,
-        Err(response) => return response,
-    };
     if let Err(response) = super::intents_projection::authorize_openfga(
         &st,
         &boot.org.to_string(),
@@ -499,8 +482,25 @@ pub async fn create(
     {
         return response;
     }
+    // Budgets decrement after authorization and before execution, and deny
+    // when the decrement cannot be performed (ADR 0044 decision 10 + INV-BUDGET).
+    let idempotency_key = body
+        .idempotency_key
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
     let intent = match build_intent(body, &parameters, &boot, &resolved) {
         Ok(intent) => intent,
+        Err(response) => return response,
+    };
+    let authority_hold = match super::intents_budget::spend_invoke_budgets(
+        &st,
+        &boot.org.to_string(),
+        &resolved,
+        &idempotency_key,
+    )
+    .await
+    {
+        Ok(hold) => hold,
         Err(response) => return response,
     };
 
