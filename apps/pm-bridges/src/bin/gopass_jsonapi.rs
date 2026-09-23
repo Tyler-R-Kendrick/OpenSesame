@@ -97,40 +97,37 @@ fn query(needle: &str) -> Result<Value, BridgeError> {
     Ok(Value::Array(names))
 }
 
-/// `queryHost` walks the host leftwards, dropping one label at a time until
-/// something matches or only the public suffix would be left. With no public
-/// suffix list on hand, the floor is two labels — `example.com` still gets
-/// queried, a bare `com` never does. An entry whose own `url:` trailer names
-/// another host is never offered on its path name alone.
+/// `queryHost` answers with the entries whose path names the host itself or
+/// one of its parents on a dot boundary (`Web/example.com` for
+/// `login.example.com`), or a child of the host (`Web/login.example.com` for
+/// `example.com`). An entry whose own `url:` trailer names another host is
+/// never offered on its path name alone.
+///
+/// gopass-jsonapi walks the host leftwards, re-querying each shorter suffix.
+/// That walk is deliberately absent: every parent it would reach is already a
+/// match here, so the only thing a walk adds is the *children* of a walked
+/// suffix — `attacker.github.io` climbing to `github.io` and collecting
+/// `Web/victim.github.io`, or `attacker.co.uk` collecting `Web/bank.co.uk`.
+/// With no public suffix list on hand, a child of anything above the queried
+/// host is another tenant's credential, so children are only ever children of
+/// the host that asked.
 fn query_host(host: &str) -> Result<Value, BridgeError> {
     let store = store()?;
     let Some(host) = host_of(host) else {
         return Ok(Value::Array(Vec::new()));
     };
-    let names = store.list("")?;
-    let mut labels: Vec<&str> = host.split('.').filter(|l| !l.is_empty()).collect();
-    while labels.len() >= 2 || (labels.len() == 1 && !host.contains('.')) {
-        let candidate = labels.join(".");
-        let hits: Vec<Value> = names
-            .iter()
-            .filter(|name| name_matches(name, &candidate))
-            .filter(|name| {
-                store
-                    .show(name)
-                    .is_ok_and(|entry| name_fallback_admits(&entry, &host))
-            })
-            .cloned()
-            .map(Value::String)
-            .collect();
-        if !hits.is_empty() {
-            return Ok(Value::Array(hits));
-        }
-        if labels.len() == 1 {
-            break;
-        }
-        labels.remove(0);
-    }
-    Ok(Value::Array(Vec::new()))
+    let hits = store
+        .list("")?
+        .into_iter()
+        .filter(|name| name_matches(name, &host))
+        .filter(|name| {
+            store
+                .show(name)
+                .is_ok_and(|entry| name_fallback_admits(&entry, &host))
+        })
+        .map(Value::String)
+        .collect();
+    Ok(Value::Array(hits))
 }
 
 fn get_login(entry: &str) -> Result<Value, BridgeError> {

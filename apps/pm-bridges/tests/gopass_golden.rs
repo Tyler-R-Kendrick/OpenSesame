@@ -8,6 +8,9 @@
 
 mod support;
 
+use opensesame_pm_bridges::store::StoreAccess;
+use opensesame_pm_bridges::testing::FIXTURE_PASSPHRASE;
+use opensesame_sealed_store::Entry;
 use serde_json::json;
 use support::{run_host, Fixture};
 
@@ -45,7 +48,7 @@ fn query_with_no_match_is_an_empty_array_not_an_error() {
 }
 
 #[test]
-fn query_host_walks_subdomains_leftwards() {
+fn query_host_serves_a_parent_entry_to_a_subdomain() {
     let fixture = Fixture::new();
     let run = run_host(
         BIN,
@@ -84,6 +87,62 @@ fn query_host_never_offers_a_bare_label_to_a_lookalike() {
         .collect();
     let run = run_host(BIN, &fixture, &requests);
     assert_eq!(run.responses, vec![json!([]); hosts.len()]);
+}
+
+/// Seal URL-less entries into the fixture store: only their path names them.
+fn add_url_less(fixture: &Fixture, names: &[&str]) {
+    let store = StoreAccess::open(fixture.store_path(), Some(FIXTURE_PASSPHRASE)).expect("open");
+    for name in names {
+        let entry = Entry {
+            secret: "tenant-secret".into(),
+            trailer: String::new(),
+            otp: None,
+        };
+        store.put(name, &entry).expect("put");
+    }
+}
+
+#[test]
+fn query_host_never_hands_a_shared_suffix_tenant_its_neighbour() {
+    let fixture = Fixture::new();
+    add_url_less(&fixture, &["Web/victim.github.io", "Web/bank.co.uk"]);
+    // Walking `attacker.github.io` up to `github.io` would have collected
+    // `Web/victim.github.io` as a child of the walked suffix.
+    let hosts = [
+        "attacker.github.io",
+        "https://attacker.github.io/login",
+        "login.attacker.github.io",
+        "attacker.co.uk",
+        "www.attacker.co.uk",
+    ];
+    let requests: Vec<_> = hosts
+        .iter()
+        .map(|host| json!({ "type": "queryHost", "host": host }))
+        .collect();
+    let run = run_host(BIN, &fixture, &requests);
+    assert!(run.status.success(), "stderr: {}", run.stderr);
+    assert_eq!(run.responses, vec![json!([]); hosts.len()]);
+}
+
+#[test]
+fn query_host_still_finds_a_url_less_entry_for_its_own_host_and_subdomains() {
+    let fixture = Fixture::new();
+    add_url_less(&fixture, &["Web/victim.github.io", "Web/bank.co.uk"]);
+    let run = run_host(
+        BIN,
+        &fixture,
+        &[
+            json!({ "type": "queryHost", "host": "victim.github.io" }),
+            json!({ "type": "queryHost", "host": "login.victim.github.io" }),
+            json!({ "type": "queryHost", "host": "https://www.bank.co.uk/signin" }),
+            json!({ "type": "queryHost", "host": "online.bank.co.uk" }),
+        ],
+    );
+    assert!(run.status.success(), "stderr: {}", run.stderr);
+    assert_eq!(run.responses[0], json!(["Web/victim.github.io"]));
+    assert_eq!(run.responses[1], json!(["Web/victim.github.io"]));
+    assert_eq!(run.responses[2], json!(["Web/bank.co.uk"]));
+    assert_eq!(run.responses[3], json!(["Web/bank.co.uk"]));
 }
 
 #[test]

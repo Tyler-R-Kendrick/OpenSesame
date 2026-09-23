@@ -85,6 +85,29 @@ fn name_matches_walks_every_path_segment() {
 }
 
 #[test]
+fn name_matches_never_crosses_to_a_sibling_under_a_shared_suffix() {
+    // Siblings under a public suffix are different tenants: neither is a
+    // parent nor a child of the other, so no path name crosses between them.
+    for (name, host) in [
+        ("Web/victim.github.io", "attacker.github.io"),
+        ("Web/victim.github.io", "login.attacker.github.io"),
+        ("Web/bank.co.uk", "attacker.co.uk"),
+        ("Web/app.herokuapp.com", "evil.herokuapp.com"),
+        ("Web/app.vercel.app", "evil.vercel.app"),
+        ("Web/site.pages.dev", "evil.pages.dev"),
+    ] {
+        assert!(!name_matches(name, host), "{name} vs {host}");
+    }
+    // The tenant's own host and its subdomains still resolve by name.
+    assert!(name_matches("Web/victim.github.io", "victim.github.io"));
+    assert!(name_matches(
+        "Web/victim.github.io",
+        "login.victim.github.io"
+    ));
+    assert!(name_matches("Web/bank.co.uk", "www.bank.co.uk"));
+}
+
+#[test]
 fn entry_uuid_is_stable_and_path_scoped() {
     assert_eq!(entry_uuid("Web/example.com"), entry_uuid("Web/example.com"));
     assert_ne!(entry_uuid("Web/example.com"), entry_uuid("Web/example.org"));
@@ -172,6 +195,29 @@ fn find_by_url_never_serves_lookalikes_or_overrides_a_url_trailer() {
     let mut names: Vec<_> = found.iter().map(|m| m.name.as_str()).collect();
     names.sort_unstable();
     assert_eq!(names, vec!["Dev/github/token", "Web/github.lol"]);
+}
+
+#[test]
+fn find_by_url_never_serves_a_url_less_entry_to_a_shared_suffix_neighbour() {
+    let (_dir, access) = fixture();
+    put(&access, "Web/victim.github.io", "");
+    put(&access, "Web/bank.co.uk", "");
+    for url in [
+        "https://attacker.github.io/",
+        "https://login.attacker.github.io/",
+        "https://attacker.co.uk/",
+    ] {
+        assert!(access.find_by_url(url).unwrap().is_empty(), "{url}");
+    }
+    for (url, name) in [
+        ("https://victim.github.io/", "Web/victim.github.io"),
+        ("https://login.victim.github.io/", "Web/victim.github.io"),
+        ("https://www.bank.co.uk/", "Web/bank.co.uk"),
+    ] {
+        let found = access.find_by_url(url).unwrap();
+        let names: Vec<_> = found.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(names, vec![name], "{url}");
+    }
 }
 
 #[test]
