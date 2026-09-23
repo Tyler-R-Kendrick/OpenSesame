@@ -39,7 +39,7 @@ Canonical principals live in OpenSesame domain models
 - Turbo `2.9.14` (task orchestration across the workspace)
 - Biome `1.9.4` (lint + format, 2-space indent)
 - Oxlint `1.79.0` with vendored anti-slop (`pnpm lint:anti-slop`)
-- Vitest `4.1.10` (TS unit/integration tests), Playwright `1.55.1` (e2e)
+- Vitest `4.1.11` (TS unit/integration tests), Playwright `1.55.1` (e2e)
 
 ## 3. Command crib sheet
 

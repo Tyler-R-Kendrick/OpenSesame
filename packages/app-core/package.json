@@ -24,7 +24,7 @@
     "fast-check": "4.9.0",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "dependencies": {
     "@ag-ui/client": "0.0.59",
@@ -57,7 +57,7 @@
     "hash-wasm": "4.12.0",
     "kdbxweb": "2.1.1",
     "whatwg-url": "14.2.0",
-    "yaml": "2.8.1",
+    "yaml": "2.8.4",
     "zod": "4.4.3"
   }
 }

@@ -21,7 +21,7 @@
     "promptfoo": "0.122.0",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
