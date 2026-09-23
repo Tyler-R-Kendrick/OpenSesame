@@ -6,9 +6,12 @@
  * so every refusal ADR 0087 §5 names still applies.
  */
 
-import type {
-  ItemTypeDefinition,
-  ItemTypeRegistry,
+import {
+  type ItemTypeDefinition,
+  type ItemTypeRegistry,
+  RESERVED_DIRECTORIES,
+  RESERVED_TYPE_IDS,
+  directoryName,
 } from "@opensesame/vault-item-types";
 import type { MarketplaceOffer } from "../../lib/item-type-marketplace/load.js";
 
@@ -31,18 +34,30 @@ function compareVersions(left: string, right: string): number {
   return 0;
 }
 
-function extensionOwner(
+/**
+ * The refusal the registry would give for how the type is named: another
+ * type's extension, title or vault directory, or a name the rail keeps.
+ */
+function nameClash(
   registry: ItemTypeRegistry,
   definition: ItemTypeDefinition,
 ): string | undefined {
   const own = definition.metadata.id;
-  return registry
-    .list()
-    .find(
-      ({ definition: other }) =>
-        other.metadata.id !== own &&
-        other.spec.extension === definition.spec.extension,
-    )?.definition.spec.title;
+  const directory = directoryName(definition);
+  if (RESERVED_TYPE_IDS.includes(own)) return `${own} is a vault filter`;
+  if (RESERVED_DIRECTORIES.includes(directory))
+    return `${directory}/ is a reserved vault directory`;
+  const title = definition.spec.title.trim().toLowerCase();
+  for (const { definition: other } of registry.list()) {
+    if (other.metadata.id === own) continue;
+    if (other.spec.extension === definition.spec.extension)
+      return `${definition.spec.extension} is already ${other.spec.title}`;
+    if (other.spec.title.trim().toLowerCase() === title)
+      return `${other.spec.title} is already a type`;
+    if (directoryName(other) === directory)
+      return `${directory}/ is already ${other.spec.title}`;
+  }
+  return undefined;
 }
 
 function installedState(
@@ -69,12 +84,8 @@ export function offerState(
   if (registry.isBuiltin(id)) return { kind: "builtin" };
   const current = registry.get(id);
   if (current !== undefined) return installedState(current, definition);
-  const clash = extensionOwner(registry, definition);
-  if (clash !== undefined)
-    return {
-      kind: "conflict",
-      reason: `${definition.spec.extension} is already ${clash}`,
-    };
+  const clash = nameClash(registry, definition);
+  if (clash !== undefined) return { kind: "conflict", reason: clash };
   return { kind: "available" };
 }
 

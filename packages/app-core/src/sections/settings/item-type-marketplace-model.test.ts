@@ -88,6 +88,24 @@ describe("offerState", () => {
     expect(state.kind).toBe("conflict");
   });
 
+  it("predicts the registry's name rules: title, directory and filters", () => {
+    const registry = builtinRegistry();
+    const titled = manifest("m3").replace('"Model test"', '"Wi-Fi network"');
+    expect(offerState(registry, offer(titled))).toEqual({
+      kind: "conflict",
+      reason: "Wi-Fi network is already a type",
+    });
+    const filter = manifest("favorites");
+    expect(offerStateLabel(offerState(registry, offer(filter)))).toBe(
+      "favorites is a vault filter",
+    );
+    const plural = manifest("m4").replace('"Model tests"', '"Notes"');
+    expect(offerState(registry, offer(plural)).kind).toBe("conflict");
+    for (const text of [titled, plural]) {
+      expect(registry.install(text, "vault").ok).toBe(false);
+    }
+  });
+
   it("carries a refused definition's reason", () => {
     const state = offerState(builtinRegistry(), {
       ok: false,
