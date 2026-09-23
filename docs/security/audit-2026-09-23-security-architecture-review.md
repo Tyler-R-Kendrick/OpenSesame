@@ -200,6 +200,21 @@ fix; the sealed-store root-protection work also has its own record in
     prune. **Fix:** names with an empty, `.` or `..` segment are refused
     before any write, and a stemless `.osseal` / `.osattach` found on disk
     makes the walk fail closed.
+42. **High — migration 0029 keyed some legacy sectors wrongly** (*fix
+    review*). Postgres has no `\v` escape, so `btrim(..., E' \t\n\r\f\v')`
+    also stripped the letter `v`: `https://app.dev` was keyed as
+    `https://app.de`. **Fix:** only space, tab, CR and LF are trimmed; any
+    other padding refuses the row. A parity test runs more than 10k generated
+    spellings through the SQL and checks each against `sectorKeyOf`. The
+    backfill also gives a key to its earliest client, revoked or not.
+43. **Medium — a sector could be squatted for good** (*fix review*). The first
+    registrant of someone else's sector held its key permanently, and nothing
+    showed they controlled it. **Fix:** a registrant proves the sector (every
+    redirect URI on its host or a subdomain, or an OIDC
+    `sector_identifier_uri` document on that host listing them), and an
+    operator can release a key: its clients are blocked and the claim
+    generation moves on, so the next owner's users get fresh pairwise
+    subjects.
 
 
 ## Operator-visible changes
@@ -223,11 +238,23 @@ fix; the sealed-store root-protection work also has its own record in
   to boot on it, and a running one stops refreshing it, so it keeps admitting
   leaves revoked after the upgrade until it is replaced. Do not roll back
   past this version once a revocation has been written.
+- OAuth client registration and redirect-URI PATCH now refuse
+  (`400 sector_not_proven`) a redirect URI outside the declared sector's host
+  unless `sectorIdentifierUri` names a document on that host listing every
+  redirect URI. Loopback redirects are exempt only on dev defaults.
+- `POST /v1/oauth/admin/sectors/release` (operator token) releases a squatted
+  sector key; the holder's clients stop working.
 - A sealed-store entry written under a name ending in `/` (stored as
   `…/.osseal` or `…/.osattach`) now stops rotation and GC. Rename it with
   git to a real name before rotating.
 
 ## Not changed
+
+- A sector can still be claimed by naming redirect URIs on the victim's own
+  host. Such a client can never receive codes, so the worst it does is hold
+  the key, which an operator release clears. The subdomain rule trusts every
+  subdomain of the sector host, so a shared parent domain that is not on the
+  Public Suffix List can be claimed by one of its tenants.
 
 - The durable denylist is bounded. Once tenants together hold the tenant
   share (the list less the operator reserve) in unexpired revocations, a
