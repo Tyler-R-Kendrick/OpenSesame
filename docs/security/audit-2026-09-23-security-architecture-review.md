@@ -5,8 +5,8 @@ confirmed nothing new. Each pass split the repository by trust boundary, traced
 every candidate from source to sink, and discarded anything that could not be
 reached. Every confirmed finding was fixed at its enforcement boundary with a
 regression test that fails without the fix. Later passes reviewed the earlier
-fixes themselves, and three of those fixes turned out to be incomplete or to
-open something new (marked *fix review* below).
+fixes themselves; several of those fixes turned out to be incomplete or to
+open something new, and were fixed again (marked *fix review* below).
 
 Severity is the reviewer's, stated for the deployment the code ships in.
 
@@ -150,6 +150,51 @@ Severity is the reviewer's, stated for the deployment the code ships in.
     address path, hono, yaml, ws, sharp, adm-zip, vitest). All are cleared;
     `pnpm audit` reports none.
 
+## Later passes
+
+Passes three and four reviewed the areas the first passes left thin (host-side
+duress and root protection, wallet and OAuth internals, the relay) and the
+earlier fixes themselves. Each item below has a regression test beside the
+fix; the sealed-store root-protection work also has its own record in
+`audit-2026-09-23-sealed-store-root-protection.md`.
+
+31. **Medium — `pass protect root-rotate` destroyed the store**, and
+    rewrap/remove did not revoke (the old key file in git history still
+    opened it). **Fix:** a real rotation that re-encrypts every sealed file,
+    stages, verifies nothing was missed (dot-named entries included — *fix
+    review*), swaps the key file last and rolls back on failure, under a store
+    lock; rewrap and remove rotate by default; the last password protector
+    cannot be removed.
+32. **Medium — recovery keys and TOTP seeds on argv; `pass otp uri` without
+    `--reveal`; rewrap took the "new" passphrase from
+    `OPENSESAME_STORE_PASSWORD`** (*fix review*). **Fix:** hidden prompts or
+    stdin only, and the reveal gate.
+33. **Medium — hook delivery ignored its pinned addresses behind an
+    environment proxy** (*fix review*). **Fix:** `no_proxy()`.
+34. **Medium — trust changes and revocations did not reach other replicas or
+    survive restarts; lifecycle facts were readable across tenants; a single
+    tenant could fill the revoked-leaf list** (*fix review*). **Fix:**
+    conditional writes plus refresh, a durable denylist checked at admission,
+    tenant-scoped reads, expiry pruning, per-org quotas and operator headroom.
+35. **Low — control-plane login/claim `return_to` and SAML relay state could
+    redirect off-site** (`/%09/…`, `/..//…`). **Fix:** one same-origin-path
+    helper.
+36. **Low — the gitea relay re-resolved names after checking them.** **Fix:**
+    connect only to the vetted addresses.
+37. **Low — rotating a compromised browser vault root skipped the password
+    policy and the duress collision check.**
+38. **Medium — pairwise `sub` followed the redirect host, not the registered
+    sector**, and — *fix review* — legacy non-canonical spellings and
+    concurrent registrations could still share one. **Fix:** a stored
+    `sector_key` with a claims table as the arbiter; migration 0029 blocks
+    unprovable legacy rows and cross-owner collisions.
+39. **Latent — digest-bound approvals trusted a caller-supplied key; x402
+    lacked expiry, reservations and hold release; a DPoP replay window;
+    host-side duress supersede and hold overwrite; duress receiver bounds.**
+40. `rustls` 0.23.45 (RUSTSEC-2026-0285) and `chacha20` 0.10.2 (yanked);
+    `cargo audit` reports no vulnerabilities.
+
+
 ## Operator-visible changes
 
 - Relay-managed Connect: create, authorize and revoke now need
@@ -160,6 +205,14 @@ Severity is the reviewer's, stated for the deployment the code ships in.
   admin session calling them from Pages now gets 403.
 - The git credential helper reads `OPENSESAME_GIT_HOSTS` (default
   `github.com`).
+- `pass protect rewrap` and `remove` now rotate the root key (re-encrypting
+  the store); `--no-rotate` opts out with a warning. Sealed-store writes
+  refuse while a rotation holds the store lock.
+- OAuth clients whose declared sector differed from their redirect host, or
+  whose legacy sector spelling cannot be canonicalized with certainty, or
+  that collide with another owner's sector, must re-register (migration 0029).
+- Every gateway replica must run this version before any tenant revokes a
+  leaf: older replicas refuse the new denylist format (fail closed).
 
 ## Not changed
 
