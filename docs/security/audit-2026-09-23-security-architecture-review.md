@@ -1,0 +1,171 @@
+# Audit 2026-09-23 — Security architecture review
+
+A deep review of both planes, run as repeated passes until a pass
+confirmed nothing new. Each pass split the repository by trust boundary, traced
+every candidate from source to sink, and discarded anything that could not be
+reached. Every confirmed finding was fixed at its enforcement boundary with a
+regression test that fails without the fix. Later passes reviewed the earlier
+fixes themselves, and three of those fixes turned out to be incomplete or to
+open something new (marked *fix review* below).
+
+Severity is the reviewer's, stated for the deployment the code ships in.
+
+## Host API (gateway)
+
+1. **High — an agent capability could pass as a human session.** The agent
+   guard engaged only on the exact spelling `Bearer agent-capability:`, while
+   `require_session` also accepted `bearer`. A cached agent token sent with a
+   lowercase scheme skipped its durable grant and capability ceiling and acted
+   with the principal's full session authority (delegations, relay approvals,
+   connection policy). **Fix:** `require_session` accepts agent claims only
+   under the canonical spelling, the guard refuses every other one, and revoking
+   an agent client drops its cached claims.
+   **Test:** `routes/agent_capabilities_tests.rs`.
+2. **Medium — any member could rotate another member's connection and write a
+   durable rotation policy.** **Fix:** a connection target must be the caller's
+   own; an interval (a policy) takes owner/admin; members list only their own
+   jobs. **Test:** `routes/rotation_tests.rs`.
+3. **Medium — an invoke refused by OpenFGA leaked its budget hold.** Budgets
+   were reserved before OpenFGA ran, and a denial returned without releasing
+   them. **Fix:** OpenFGA and intent building run before the hold.
+   **Test:** `pact_coverage::invoke_authorizes_fully_before_holding_budget`.
+4. **Medium — hook delivery SSRF fence parsed hosts differently from the
+   client.** `https://127.0.0.1\hook`, percent-encoded and full-width IPv4
+   spellings passed the string splitter and reached loopback through reqwest,
+   and names were never resolved. **Fix:** one WHATWG parse, resolution at send
+   time with every answer vetted, and a client pinned to the vetted addresses.
+   **Test:** `security/endpoint_fence.rs`.
+
+## Optional mTLS (ADR 0132)
+
+5. **High — an organization admin could rewrite deployment-wide transport
+   admission** (bindings, trust, verify, revocation by thumbprint). **Fix:**
+   those routes are operator-only. **Test:** `transport/routes_tests.rs`,
+   `transport_lifecycle/routes_tests.rs`.
+6. **Medium — a trust write resurrected a withdrawn SPIFFE generation and
+   stale boot-time bundles**, and could overwrite a concurrent rotation.
+   **Fix:** compare-and-set activation that refuses a withdrawn generation;
+   bundles come from the serving generation. **Test:**
+   `trust_generation_tests.rs`, `generations_cas.rs`.
+7. **Medium-low — trust-profile CAS was not serialized.** **Fix:** one lock
+   from load to store. **Test:** `trust_tests.rs`.
+8. **Low — ingress-forwarded leaves skipped revocation.** **Fix:** the
+   originating layer and certificate-bound proof consult the deny lists.
+   **Test:** `ingress-evidence/tests/revocation.rs`, `proof_tests.rs`.
+9. **Low — bindings CAS compared an in-memory revision across replicas.**
+   **Fix:** conditional `host_kv` write and a periodic live-set refresh
+   (bounded at 15 s). **Test:** `bindings_tests.rs`, `host_kv_cas.rs`.
+
+## Identity API
+
+10. **High — unauthenticated blind SSRF through a BYO issuer.** Back-channel
+    logout fetched the discovered `jwks_uri` unchecked, and the other upstream
+    fetches checked only the literal URL. **Fix:** a DNS-resolving, address
+    pinned, no-redirect fetch for BYO/org discovery, registration, JWKS, SAML
+    metadata, org assertions and every openid-client call; LDAP sockets refuse
+    private addresses. **Test:** `ssrf-dns-fence.test.ts`.
+11. **Medium — cross-tenant forced sign-out via SCIM.** An org could name the
+    deployment's issuer and deprovision a non-member by email. **Fix:** SCIM
+    acts only on members, a kept membership revokes nothing, and the deployment
+    issuer cannot be claimed. **Test:** `scim-tenant-scope.test.ts`.
+12. **Medium — unlimited SMS/email code sends.** **Fix:** a durable send budget
+    per principal and per destination hash. **Test:** `mfa-code.test.ts`.
+
+## Pages and the client core
+
+13. **High — the GitHub App private key sat in plaintext localStorage** on a
+    shared `github.io` origin. **Fix:** memory until sealed; legacy copy
+    removed. **Test:** `github-app-manifest.test.ts`, `github-app-secret.test.ts`.
+14. **High — any private key in the vault could be sent to the relay** by a
+    "first secret containing PRIVATE KEY" fallback, including SSH keys and
+    their passphrases. **Fix:** the App secret is bound by item id; the
+    extractor reads one RSA/PKCS#8 block. **Test:** `github-app-secret.test.ts`.
+15. **Medium — WebMCP tools skipped share reach** (TOTP codes, reveal,
+    navigation), and — *fix review* — still answered `item_not_found` before
+    `share_grant_denied`. **Fix:** reach is checked first on every item tool.
+    **Test:** `vault-tools.test.ts`, `navigation.test.ts`.
+16. **Medium-high — a duress code destroyed a sealed guest vault**, and a
+    missing body opened as an empty vault. **Fix:** the decoy runs in a scratch
+    tomb; a missing body with `bodyRev > 0` is corrupt. **Test:**
+    `decoy-scratch.test.ts`, `store-body.test.ts`.
+17. **Medium — a duress code could equal the real PIN or password**, in either
+    order (*fix review* found the reverse). **Fix:** both enrollment and
+    PIN/password creation refuse a collision. **Test:** `unlock-arming.test.ts`,
+    `unlock-secret-collision.test.ts`.
+18. **Low — `prf_and_code` triggers did not require the passkey**, and
+    Settings showed an unsalted digest prefix of the duress code. **Fix:**
+    two-input sealing bound to the credential; the prefix is gone. **Test:**
+    `prf-and-code.test.ts`, `settings.test.ts`. Visual record:
+    `docs/evidence/2026-09-23-duress-code-digest/`.
+19. **Low — local Access capabilities were described but not enforced**, so a
+    demoted guest could rename the claimed owner into a guest and become
+    operator. **Fix:** directory, membership, application and grant
+    administration check their capability. **Test:** `local-rbac.test.ts`,
+    `local-rbac-member.test.ts`.
+
+## Relay (connect-backend)
+
+20. **High — anyone could manage the operator's Vercel Connect connectors**
+    with a forged `Origin`. **Fix:** mutations need
+    `OPENSESAME_CONNECT_MANAGE_KEY` and fail closed without it; `callbackUrl`
+    is confined to the relay's own callback. Pages carries the key sealed.
+    **Test:** `manage.test.mjs`.
+21. **Medium — any RSA key drained any installation's webhook queue.**
+    **Fix:** GitHub must confirm the installation first. **Test:**
+    `github-app.test.mjs`.
+22. **Low — SSRF through the gitea `baseUrl`.** **Fix:** bare public https
+    origin or an operator allowlist; no redirects. **Test:**
+    `relay-hardening.test.mjs`.
+
+## Local host agent and bridges
+
+23. **Medium — password-manager bridges answered lookalike and shared-suffix
+    hosts** (`github.lol`, `attacker.github.io`), and — *fix review* — gopass's
+    suffix walk still matched children of a shared suffix. **Fix:** no bare
+    label rule, no name fallback past a `url:` trailer, no suffix walk.
+    **Test:** `store_tests.rs`, `gopass_golden.rs`.
+24. **Low — KDBX KDF screen failed open** (KDBX3 rounds, duplicate or
+    unwalkable headers). **Test:** `limits_tests.rs`.
+25. **Low — decrypted attachments and private keys written with umask
+    permissions.** **Fix:** 0600 `create_new` partial file. **Test:**
+    `attach_tests.rs`.
+26. **Low — Bitwarden prelogin KDF parameters unbounded.** **Test:**
+    `crypto.rs` tests.
+27. **Latent — the git credential helper answered any host.** **Fix:** https
+    and an allowlisted host only. **Test:** `helpers.rs`.
+
+## SDKs and adapters
+
+28. **Low — open redirect in `assertSafeReturnTo`** via tab/newline, and —
+    *fix review* — via dot segments that resolved to `//evil.com`; the
+    federation callback had the same shape. **Test:** `origin.test.ts`,
+    `federation-callback.test.ts`.
+29. **Latent — Web Push and Teams delivery could reach internal addresses;**
+    introspection accepted any audience; a handoff could skip re-assertion;
+    U+061C was not a display hazard.
+
+## Dependencies
+
+30. `pnpm audit` reported 4 high and 15 moderate advisories (nodemailer on an
+    address path, hono, yaml, ws, sharp, adm-zip, vitest). All are cleared;
+    `pnpm audit` reports none.
+
+## Operator-visible changes
+
+- Relay-managed Connect: create, authorize and revoke now need
+  `OPENSESAME_CONNECT_MANAGE_KEY` on the relay and the same key sealed in the
+  Pages vault. Pages has no entry for that key yet, so these three actions are
+  refused from Pages until one is added; listing still works.
+- Transport verify, bindings and trust writes are operator-only, so an org
+  admin session calling them from Pages now gets 403.
+- The git credential helper reads `OPENSESAME_GIT_HOSTS` (default
+  `github.com`).
+
+## Not changed
+
+- An egress allowlist entry without a port still admits any port on that
+  host. The credential only reaches the allowlisted host, and the broker's own
+  tests rely on it, so this stays a hardening note.
+- The Trigger codes panel in Settings is never mounted in a shipped build
+  (`resolveDuressMode({})` is always `off`), so duress enrollment has no UI.
+  That is a product gap, recorded in the evidence README.
