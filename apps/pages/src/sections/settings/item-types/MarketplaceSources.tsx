@@ -143,7 +143,7 @@ function AddSource({ market }: { market: Marketplaces }) {
         label="Add a marketplace"
         mono
         lead={<IconGitBranch size={17} />}
-        placeholder="owner/repo · https://… · gitea+https://…"
+        placeholder="owner/repo or a git URL"
         value={draft}
         status={refusal ? <StatusMark tone="err" label={refusal} /> : undefined}
         onValueChange={(next) => {
