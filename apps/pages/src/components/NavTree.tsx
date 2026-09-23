@@ -5,7 +5,11 @@ import {
   settingsConfigRoute,
 } from "@opensesame/app-core/lib/crumbs.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
-import type { Folder, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultItem,
+  itemTypeId,
+} from "@opensesame/vault-core";
 /**
  * The rail's section tree, split out of `AppShell` so the shell file stays
  * within the module-size budget (ADR 0093). Nothing about the contract moved:
@@ -33,7 +37,7 @@ import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
-import { useItemKinds } from "../bindings/contributions.js";
+import { useVaultDirectories } from "../bindings/contributions.js";
 type SectionExpand = {
   expanded: boolean;
   here: boolean;
@@ -77,7 +81,8 @@ function useVaultCounts(items: VaultItem[]): VaultCounts {
     const byKind = new Map<string, number>();
     const byFolder = new Map<string, number>();
     for (const item of live) {
-      byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + 1);
+      const type = itemTypeId(item);
+      byKind.set(type, (byKind.get(type) ?? 0) + 1);
       if (item.folderId) {
         byFolder.set(item.folderId, (byFolder.get(item.folderId) ?? 0) + 1);
       }
@@ -204,7 +209,7 @@ export function NavTree() {
   const [params] = useSearchParams();
   const { items, folders } = useVault();
   const sections = useSections();
-  const kinds = useItemKinds();
+  const kinds = useVaultDirectories(items);
   const showHidden = useShowHidden();
   const treeRef = useRef<HTMLElement>(null);
   const navigateRef = useRef(navigate);

@@ -2,7 +2,9 @@
 
 use std::fs;
 
-use opensesame_vault_item_types::{ErrorCode, ItemTypeRegistry, Source};
+use opensesame_vault_item_types::{
+    directory_name, ErrorCode, ItemTypeRegistry, Source, RESERVED_DIRECTORIES, RESERVED_TYPE_IDS,
+};
 
 fn community(id: &str, publisher: &str, version: &str) -> String {
     serde_json::json!({
@@ -194,4 +196,130 @@ fn a_type_keeps_its_own_extension_across_an_upgrade() {
     registry
         .install(&community("same", "https://a.test", "1.1.0"), Source::Vault)
         .expect("an upgrade keeps its own extension");
+}
+
+#[test]
+fn derives_a_directory_from_the_plural() {
+    let registry = ItemTypeRegistry::with_builtins();
+    let directory = |id: &str| registry.get(id).map(directory_name);
+    assert_eq!(directory("login").as_deref(), Some("logins"));
+    assert_eq!(directory("wifi").as_deref(), Some("wi-fi-networks"));
+    assert_eq!(
+        directory("api-credential").as_deref(),
+        Some("api-credentials")
+    );
+
+    let mut registry = ItemTypeRegistry::with_builtins();
+    let unspellable = registry
+        .install(
+            &community("glyphs", "https://community.test", "1.0.0")
+                .replace("Community types", "éé"),
+            Source::Vault,
+        )
+        .expect("a plural with no ASCII letter still installs");
+    assert_eq!(directory_name(&unspellable), "glyphs");
+}
+
+#[test]
+fn every_built_in_has_its_own_title_and_directory() {
+    let registry = ItemTypeRegistry::with_builtins();
+    let mut titles = std::collections::BTreeSet::new();
+    let mut directories = std::collections::BTreeSet::new();
+    for entry in registry.list() {
+        let directory = directory_name(&entry.definition);
+        assert!(!RESERVED_DIRECTORIES.contains(&directory.as_str()));
+        assert!(titles.insert(entry.definition.spec.title.to_lowercase()));
+        assert!(directories.insert(directory));
+    }
+}
+
+#[test]
+fn refuses_an_install_that_claims_another_types_names() {
+    let mut registry = ItemTypeRegistry::with_builtins();
+    // `Logins` is the directory every login already lives in.
+    let errors = registry
+        .install(
+            &community("impostor", "https://community.test", "1.0.0")
+                .replace("Community types", " LOGINS "),
+            Source::Vault,
+        )
+        .expect_err("a built-in directory is taken");
+    assert!(errors.has(ErrorCode::Name));
+
+    let errors = registry
+        .install(
+            &community("impostor", "https://community.test", "1.0.0")
+                .replace("\"Community type\"", "\"secure NOTE\""),
+            Source::Vault,
+        )
+        .expect_err("a built-in title is taken");
+    assert!(errors.has(ErrorCode::Name));
+
+    for reserved in RESERVED_DIRECTORIES {
+        let errors = registry
+            .install(
+                &community("impostor", "https://community.test", "1.0.0")
+                    .replace("Community types", reserved),
+                Source::Vault,
+            )
+            .expect_err("a reserved directory is refused");
+        assert!(errors.has(ErrorCode::Name));
+    }
+
+    registry
+        .install(
+            &community("first", "https://a.test", "1.0.0"),
+            Source::Vault,
+        )
+        .expect("first install");
+    let errors = registry
+        .install(
+            &community("second", "https://b.test", "1.0.0").replace(".ct", ".c2"),
+            Source::Vault,
+        )
+        .expect_err("an installed type's names are taken too");
+    assert!(errors.has(ErrorCode::Name));
+    assert!(registry.uninstall("first"));
+    registry
+        .install(
+            &community("second", "https://b.test", "1.0.0").replace(".ct", ".c2"),
+            Source::Vault,
+        )
+        .expect("uninstalling frees the names");
+}
+
+#[test]
+fn refuses_an_id_that_is_already_a_vault_filter() {
+    let mut registry = ItemTypeRegistry::with_builtins();
+    for reserved in RESERVED_TYPE_IDS {
+        let errors = registry
+            .install(
+                &community(reserved, "https://community.test", "1.0.0"),
+                Source::Vault,
+            )
+            .expect_err("a filter value cannot name a type");
+        assert!(errors.has(ErrorCode::Id));
+    }
+}
+
+#[test]
+fn compares_titles_without_case_or_surrounding_ascii_space() {
+    let mut registry = ItemTypeRegistry::with_builtins();
+    let errors = registry
+        .install(
+            &community("impostor", "https://community.test", "1.0.0")
+                .replace("\"Community type\"", "\"\\t LOGIN \\n\""),
+            Source::Vault,
+        )
+        .expect_err("a padded built-in title is taken");
+    assert!(errors.has(ErrorCode::Name));
+    // A byte-order mark is not space on both planes, so it stays part of the
+    // title on both, and the install is not a clash on either.
+    registry
+        .install(
+            &community("marked", "https://community.test", "1.0.0")
+                .replace("\"Community type\"", "\"\\ufeffLogin\""),
+            Source::Vault,
+        )
+        .expect("a marked title is its own");
 }

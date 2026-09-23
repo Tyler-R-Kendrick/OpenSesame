@@ -2,7 +2,11 @@
  * View-model logic for `VaultRail` (ADR 0133 §8): the pure part of that
  * screen — no React, no DOM — so any shell can drive the same behaviour.
  */
-import type { Folder, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultItem,
+  itemTypeId,
+} from "@opensesame/vault-core";
 import { type ItemKindRow, itemKindsSnapshot } from "../lib/item-kinds.js";
 
 export function foldersForKind(
@@ -14,7 +18,7 @@ export function foldersForKind(
     items
       .filter(
         (item) =>
-          item.deletedAt === null && item.kind === kind && item.folderId,
+          item.deletedAt === null && itemTypeId(item) === kind && item.folderId,
       )
       .map((item) => item.folderId),
   );
@@ -29,7 +33,7 @@ export function uniqueFolderKind(
   const kinds = new Set(
     items
       .filter((item) => item.deletedAt === null && item.folderId === folderId)
-      .map((item) => item.kind),
+      .map(itemTypeId),
   );
   if (kinds.size !== 1) return null;
   const kind = [...kinds][0];
