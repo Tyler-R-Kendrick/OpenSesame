@@ -1,3 +1,4 @@
+import { pairwiseSectorKey } from "../pairwise/sector.js";
 import type { OAuthClientRecord } from "../types.js";
 
 export interface ClientRecordStore {
@@ -12,6 +13,8 @@ export interface ClientRecordStore {
   findBySectorIdentifier(
     sectorIdentifier: string,
   ): Promise<OAuthClientRecord[]>;
+  /** All clients on a pairwise sector key, whatever spelling they registered. */
+  findBySectorKey(sectorKey: string): Promise<OAuthClientRecord[]>;
   /** Full-record replace by `client.id`. */
   update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
 }
@@ -87,6 +90,14 @@ export class MemoryClientRecordStore implements ClientRecordStore {
   ): Promise<OAuthClientRecord[]> {
     return [...this.byId.values()].filter(
       (client) => client.sectorIdentifier === sectorIdentifier,
+    );
+  }
+
+  async findBySectorKey(sectorKey: string): Promise<OAuthClientRecord[]> {
+    return [...this.byId.values()].filter(
+      (client) =>
+        (client.sectorKey ?? pairwiseSectorKey(client.sectorIdentifier)) ===
+        sectorKey,
     );
   }
 

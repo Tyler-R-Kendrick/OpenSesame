@@ -15,6 +15,17 @@ export interface OAuthClientRecord {
   displayName: string;
   redirectUris: string[];
   sectorIdentifier: string;
+  /**
+   * The stored pairwise key (`pairwiseSectorKey(sectorIdentifier)` when the
+   * row was written); durable stores set it, the memory store derives it.
+   */
+  sectorKey?: string;
+  /**
+   * Set on a legacy row that may not mint a pairwise `sub` — another owner
+   * holds its key, or its spelling could not be keyed exactly. The pairwise
+   * callback refuses it; its owner re-registers.
+   */
+  sectorKeyBlocked?: "cross_owner_collision" | "unparsed_legacy_spelling";
   grantTypes: string[];
   responseTypes: string[];
   tokenEndpointAuthMethod: string;

@@ -159,10 +159,28 @@ type PreparedSlot = {
   readonly reservation: X402AllocationReservation;
   readonly settlement: X402SettlementPort;
   readonly expiresAtMs: number;
+  timer?: ReturnType<typeof setTimeout>;
 };
 
 /** How long a prepared payment may wait for execution. */
 export const X402_PREPARED_TTL_MS = 60_000;
+
+/**
+ * Most prepared payments that may wait at once. Each one pins a caller's
+ * reservation, so an unbounded table is both a memory leak and a way to strand
+ * allocation; past this, prepare refuses before it takes ownership of a hold.
+ */
+export const X402_MAX_PREPARED_SLOTS = 1_024;
+
+export class X402PreparedCapacityError extends Error {
+  readonly code = "PREPARED_CAPACITY_EXCEEDED" as const;
+  constructor() {
+    super(
+      "PREPARED_CAPACITY_EXCEEDED: too many prepared x402 payments are awaiting execution",
+    );
+    this.name = "X402PreparedCapacityError";
+  }
+}
 
 type DescribeX402AdapterInput = {
   readonly localExecutionVerified?: boolean;
@@ -200,6 +218,47 @@ type ReconcileX402PaymentInput = {
 
 const preparedSlots = new Map<string, PreparedSlot>();
 
+/**
+ * Remove a slot from the table and hand it to the one caller that removed it.
+ * Every path that settles a hold — execute, the expiry timer, the sweep — goes
+ * through here with no await between the check and the delete, so exactly one
+ * of them ever owns the slot's `commit`/`release`.
+ */
+function takeSlot(ref: string): PreparedSlot | undefined {
+  const slot = preparedSlots.get(ref);
+  if (slot === undefined) return undefined;
+  preparedSlots.delete(ref);
+  if (slot.timer !== undefined) clearTimeout(slot.timer);
+  return slot;
+}
+
+function releaseExpired(ref: string): void {
+  const slot = takeSlot(ref);
+  if (slot === undefined) return;
+  // Nobody awaits a sweep; a failing release is the caller's accounting
+  // authority's to report, and must not fail an unrelated prepare.
+  Promise.resolve()
+    .then(() => slot.reservation.release())
+    .catch(() => undefined);
+}
+
+/** Release every prepared ref whose `expiresAt` has passed and was never run. */
+export function sweepExpiredX402Payments(nowMs: number = Date.now()): number {
+  let swept = 0;
+  for (const [ref, slot] of [...preparedSlots]) {
+    if (nowMs < slot.expiresAtMs) continue;
+    releaseExpired(ref);
+    swept += 1;
+  }
+  return swept;
+}
+
+function assertPreparedCapacity(): void {
+  if (preparedSlots.size >= X402_MAX_PREPARED_SLOTS) {
+    throw new X402PreparedCapacityError();
+  }
+}
+
 export async function prepareX402Payment(
   input?: PrepareX402PaymentInput,
 ): Promise<PreparedX402PaymentRef> {
@@ -211,16 +270,26 @@ export async function prepareX402Payment(
     throw new X402AccountingUnavailableError();
   }
   assertWithinReservation(input.runtime.amount, input.reservation);
+  sweepExpiredX402Payments();
+  assertPreparedCapacity();
   const settlement = input.settlement ?? LOCAL_EXACT_SETTLEMENT;
   const prepared = await settlement.createPayload(input.runtime);
+  // Concurrent prepares may all have passed the first check while awaiting
+  // the payload; the hold is still the caller's until this returns a ref.
+  assertPreparedCapacity();
   const ref = `prepared:x402:${globalThis.crypto.randomUUID()}`;
   const expiresAtMs = Date.now() + X402_PREPARED_TTL_MS;
-  preparedSlots.set(ref, {
+  const slot: PreparedSlot = {
     prepared,
     reservation: input.reservation,
     settlement,
     expiresAtMs,
-  });
+  };
+  preparedSlots.set(ref, slot);
+  // A ref nobody executes still gives its hold back at expiresAt. Unref'd so
+  // a waiting payment never keeps a process alive on its own.
+  slot.timer = setTimeout(() => releaseExpired(ref), X402_PREPARED_TTL_MS);
+  slot.timer.unref?.();
   return { ref, expiresAt: new Date(expiresAtMs).toISOString() };
 }
 
@@ -235,16 +304,16 @@ export async function executeX402Payment(
   input?: ExecuteX402PaymentInput,
 ): Promise<ExecutedX402Payment> {
   if (input === undefined) throw new X402AdapterBlockedError("execute");
-  const slot = preparedSlots.get(input.preparedRef);
+  // Single-use from here on, before any await, so a concurrent execute of the
+  // same ref (or the expiry sweep) finds nothing.
+  const slot = takeSlot(input.preparedRef);
+  sweepExpiredX402Payments();
   if (slot === undefined) {
     return {
       status: "failed",
       detail: "PreparedExecutionRef missing or already used",
     };
   }
-  // Single-use from here on, before any await, so a concurrent execute of the
-  // same ref finds nothing.
-  preparedSlots.delete(input.preparedRef);
   if (Date.now() >= slot.expiresAtMs) {
     await slot.reservation.release();
     return { status: "failed", detail: "PREPARED_REF_EXPIRED" };

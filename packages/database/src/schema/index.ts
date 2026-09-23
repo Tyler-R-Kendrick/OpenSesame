@@ -926,6 +926,8 @@ export const delegations = pgTable(
   ],
 );
 
+const tzDate = { withTimezone: true, mode: "date" } as const;
+
 export const oauthClients = pgTable(
   "oauth_clients",
   {
@@ -941,6 +943,11 @@ export const oauthClients = pgTable(
       .notNull()
       .default([]),
     sectorIdentifier: text("sector_identifier").notNull(),
+    /** `pairwiseSectorKey(sector_identifier)`: what the pairwise `sub` and the
+     *  cross-owner claim (`oauth_client_sector_claims`) are keyed on. */
+    sectorKey: text("sector_key").notNull(),
+    /** Set when this row may not mint a pairwise `sub` (see migration 0029). */
+    sectorKeyBlocked: text("sector_key_blocked"),
     grantTypes: jsonb("grant_types").$type<string[]>().notNull().default([]),
     responseTypes: jsonb("response_types")
       .$type<string[]>()
@@ -964,18 +971,16 @@ export const oauthClients = pgTable(
     origin: text("origin"), // origin_profile canonical origin
     /** Origin-profile clients begin unclaimed until the F5 claim flow runs. */
     ownershipStatus: text("ownership_status").notNull().default("unclaimed"),
-    firstSeenAt: timestamp("first_seen_at", {
-      withTimezone: true,
-      mode: "date",
-    }),
-    lastUsedAt: timestamp("last_used_at", {
-      withTimezone: true,
-      mode: "date",
-    }),
-    claimedAt: timestamp("claimed_at", { withTimezone: true, mode: "date" }),
+    firstSeenAt: timestamp("first_seen_at", tzDate),
+    lastUsedAt: timestamp("last_used_at", tzDate),
+    claimedAt: timestamp("claimed_at", tzDate),
     ...timestamps,
   },
   (t) => [
+    check(
+      "oauth_clients_sector_key_blocked_check",
+      sql`${t.sectorKeyBlocked} in ('cross_owner_collision','unparsed_legacy_spelling')`,
+    ),
     check(
       "oauth_clients_admission_mode_check",
       sql`${t.admissionMode} in ('pre_registered','dynamic_registration','client_metadata_document','origin_profile')`,
@@ -989,6 +994,7 @@ export const oauthClients = pgTable(
       sql`${t.ownershipStatus} in ('unclaimed','claimed')`,
     ),
     index("oauth_clients_owner_principal_id_idx").on(t.ownerPrincipalId),
+    index("oauth_clients_sector_key_idx").on(t.sectorKey),
     uniqueIndex("oauth_clients_origin_uidx")
       .on(t.origin)
       .where(sql`${t.origin} is not null`),
@@ -1032,11 +1038,8 @@ export const clientClaimChallenges = pgTable(
       .notNull()
       .references(() => principals.id),
     challenge: text("challenge").notNull(),
-    expiresAt: timestamp("expires_at", {
-      withTimezone: true,
-      mode: "date",
-    }).notNull(),
-    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    expiresAt: timestamp("expires_at", tzDate).notNull(),
+    consumedAt: timestamp("consumed_at", tzDate),
     ...timestamps,
   },
   (t) => [
@@ -1053,9 +1056,7 @@ export const pairwiseSubjects = pgTable(
       .references(() => principals.id, { onDelete: "cascade" }),
     sectorIdentifier: text("sector_identifier").notNull(),
     subject: text("subject").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", tzDate).notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.principalId, t.sectorIdentifier] }),
@@ -1082,11 +1083,9 @@ export const consents = pgTable(
     claims: jsonb("claims").$type<string[]>().notNull().default([]),
     organizationId: text("organization_id").references(() => organizations.id),
     projectId: text("project_id").references(() => projects.id),
-    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" })
-      .notNull()
-      .defaultNow(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
-    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    grantedAt: timestamp("granted_at", tzDate).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", tzDate),
+    revokedAt: timestamp("revoked_at", tzDate),
     version: integer("version").notNull().default(1),
   },
   (t) => [
@@ -2369,3 +2368,4 @@ export const agentServiceAssertions = pgTable(
   ],
 );
 export { agentProviderAssertionReplays } from "./agent-auth-replay.js";
+export { oauthClientSectorClaims } from "./oauth-client-sectors.js";

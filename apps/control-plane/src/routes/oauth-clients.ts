@@ -4,12 +4,16 @@ import {
   CreateOAuthClientRequestSchema,
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
+import { OAuthClientSectorClaimedError } from "@opensesame/database";
 import {
   canonicalSectorIdentifier,
   pairwiseSectorKey,
-  sectorIdentifierSpellings,
 } from "@opensesame/oauth-provider";
-import type { OAuthClientRecord } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type OAuthClientRecord,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -108,32 +112,42 @@ async function assertRegistrationQuota(
  * person, which is exactly the linkage pairwise subjects exist to prevent.
  * Sharing one between a single owner's clients is a legitimate choice; taking
  * another owner's sector is a way to learn the `sub` they see. The `sub` is
- * keyed on this registered value (`pairwiseSectorKey`), not on the redirect
- * host, so this check is what actually decides who shares a subject. Every
- * spelling that reaches the same key is looked up, and the issuer's own host
- * is reserved for the first-party clients oidc-provider keys on it.
+ * keyed on `pairwiseSectorKey`, not on the redirect host or the spelling, so
+ * the check looks the key up (`findBySectorKey`), revoked clients included —
+ * their owner already saw those subjects. A row blocked by migration 0029
+ * holds nothing. This check answers early; on Postgres the sector claim row
+ * is the arbiter (`OAuthClientSectorClaimedError`), which also decides two
+ * concurrent registrations. The issuer's own host is reserved for the
+ * first-party clients oidc-provider keys on it.
  */
 async function sectorClaimedByAnother(
   ctx: AppContext,
   principalId: string,
   sectorIdentifier: string,
 ): Promise<boolean> {
-  if (
-    pairwiseSectorKey(sectorIdentifier) ===
-    pairwiseSectorKey(new URL(ctx.config.issuer).origin)
-  ) {
+  const key = pairwiseSectorKey(sectorIdentifier);
+  if (key === pairwiseSectorKey(new URL(ctx.config.issuer).origin)) {
     return true;
   }
-  for (const spelling of sectorIdentifierSpellings(sectorIdentifier)) {
-    const claimants =
-      await ctx.stores.oauthClients.findBySectorIdentifier(spelling);
-    const foreign = claimants.some(
-      (client) =>
-        client.state !== "revoked" && client.ownerPrincipalId !== principalId,
-    );
-    if (foreign) return true;
+  const claimants = await ctx.stores.oauthClients.findBySectorKey(key);
+  return claimants.some(
+    (client) =>
+      !client.sectorKeyBlocked && client.ownerPrincipalId !== principalId,
+  );
+}
+
+const SECTOR_TAKEN = {
+  error: "sector_identifier_taken",
+  message:
+    "another principal already registered a client under this sectorIdentifier",
+} as const;
+
+/** The store's sector claim is the last word: a lost race is 409, not 500. */
+function sectorTakenOrThrow(err: BoundaryValue): Response {
+  if (err instanceof OAuthClientSectorClaimedError) {
+    return Response.json(SECTOR_TAKEN, { status: 409 });
   }
-  return false;
+  throw err;
 }
 
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
@@ -186,14 +200,7 @@ oauthClientRoutes.post(
         }
 
         if (await sectorClaimedByAnother(ctx, principalId, sectorIdentifier)) {
-          return c.json(
-            {
-              error: "sector_identifier_taken",
-              message:
-                "another principal already registered a client under this sectorIdentifier",
-            },
-            409,
-          );
+          return c.json(SECTOR_TAKEN, 409);
         }
 
         const now = ctx.clock();
@@ -221,7 +228,11 @@ oauthClientRoutes.post(
             400,
           );
         }
-        await ctx.stores.oauthClients.insertAtomic(toStoreRecord(client));
+        try {
+          await ctx.stores.oauthClients.insertAtomic(toStoreRecord(client));
+        } catch (err) {
+          return sectorTakenOrThrow(overlapCast(err));
+        }
 
         await appendAuditEvent(ctx.repos.auditEvents, {
           eventType: "oauth_client.created",
@@ -323,6 +334,13 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     createdAt: now,
     updatedAt: now,
   };
+  // The successor claims the sector before the old id retires, so a rotation
+  // the claim refuses (a client migration 0029 blocked) changes nothing.
+  try {
+    await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated));
+  } catch (err) {
+    return sectorTakenOrThrow(overlapCast(err));
+  }
   await ctx.stores.oauthClients.update(
     toStoreRecord({
       ...client,
@@ -330,7 +348,6 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
       updatedAt: now,
     }),
   );
-  await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated));
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "oauth_client.rotated",

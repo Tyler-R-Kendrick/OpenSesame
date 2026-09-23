@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 489,
-    "violations": 776,
-    "oversizedLines": 246892
+    "violations": 775,
+    "oversizedLines": 246357
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1344,8 +1344,7 @@
       "max-lines-per-function": 2
     },
     "packages/database/src/client-store.ts": {
-      "complexity": 1,
-      "max-lines": 535
+      "complexity": 1
     },
     "packages/database/src/consent-store.ts": {
       "max-lines-per-function": 1

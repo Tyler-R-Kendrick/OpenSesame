@@ -1,11 +1,16 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { eq } from "drizzle-orm";
+import { isUniqueViolation } from "./client-origin-store.js";
 import {
-  type BoundaryValue,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
-import { and, eq, gt, isNull } from "drizzle-orm";
+  OAuthClientSectorClaimedError,
+  type SectorKeyBlock,
+  claimSectorKey,
+  sectorKeyOf,
+  sectorOwnerKey,
+} from "./client-sector-claims.js";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
+
 /**
  * OAuth client persistence — structural types matching `ClientRecordStore`
  * and `OAuthClientRecord` in `@opensesame/oauth-provider` (ADR 0050 slice 1).
@@ -27,6 +32,10 @@ export interface OAuthClientRecord {
   displayName: string;
   redirectUris: string[];
   sectorIdentifier: string;
+  /** Stored `sector_key`; read-only — derived from `sectorIdentifier` on write. */
+  sectorKey?: string;
+  /** Set when this client may not mint a pairwise `sub` (migration 0029). */
+  sectorKeyBlocked?: SectorKeyBlock;
   grantTypes: string[];
   responseTypes: string[];
   tokenEndpointAuthMethod: string;
@@ -58,92 +67,13 @@ export interface ClientRecordStore {
   findBySectorIdentifier(
     sectorIdentifier: string,
   ): Promise<OAuthClientRecord[]>;
+  /** All clients on a pairwise sector key, whatever spelling they registered. */
+  findBySectorKey(sectorKey: string): Promise<OAuthClientRecord[]>;
   /** Full-record replace by `client.id`. */
   update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
 }
 
-export interface ClientClaimChallengeRecord {
-  id: string;
-  applicationId: string;
-  ownerPrincipalId: string;
-  challenge: string;
-  expiresAt: Date;
-  consumedAt?: Date;
-  createdAt: Date;
-}
-
-export interface ClientClaimChallengeStore {
-  insert(
-    challenge: Omit<ClientClaimChallengeRecord, "consumedAt" | "createdAt">,
-  ): Promise<ClientClaimChallengeRecord>;
-  findByChallenge(
-    challenge: string,
-  ): Promise<ClientClaimChallengeRecord | undefined>;
-  /**
-   * Single-consume: stamps `consumed_at` only when the challenge is
-   * unconsumed and unexpired. Returns the stamped record, or `undefined`
-   * when the challenge was already spent or has lapsed.
-   */
-  consume(
-    challenge: string,
-    at: Date,
-  ): Promise<ClientClaimChallengeRecord | undefined>;
-}
-
-export type ClientOriginStatus = "active" | "revoked" | "pending";
-
-export interface ClientOriginRecord {
-  id: string;
-  applicationId: string;
-  canonicalOrigin: string;
-  publicClientId: string;
-  verificationMethod?: string;
-  status: ClientOriginStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/** The alias origin is already attached to a different application. */
-export class ClientOriginConflictError extends Error {
-  override readonly name = "ClientOriginConflictError";
-  // biome-ignore lint/complexity/noUselessConstructor: Error needs the message passed to super.
-  constructor(message: string) {
-    super(message);
-  }
-}
-
-export interface ClientOriginStore {
-  /**
-   * Attach a verified alias origin to an application. Re-attaching the same
-   * origin to the same application is idempotent (returns the existing row);
-   * an origin already attached to a *different* application is a conflict —
-   * one origin must never fan out to two pairwise sectors.
-   */
-  insert(
-    origin: Omit<ClientOriginRecord, "createdAt" | "updatedAt">,
-  ): Promise<ClientOriginRecord>;
-  findByOrigin(
-    canonicalOrigin: string,
-  ): Promise<ClientOriginRecord | undefined>;
-  listByApplication(applicationId: string): Promise<ClientOriginRecord[]>;
-}
-
 type OAuthClientRow = typeof schema.oauthClients.$inferSelect;
-type ClientClaimChallengeRow = typeof schema.clientClaimChallenges.$inferSelect;
-
-function isUniqueViolation(err: BoundaryValue): boolean {
-  // postgres.js puts `code` on the error itself; drizzle wraps driver
-  // errors (notably PGlite's) in a DrizzleQueryError with a `cause`.
-  if (!isTypeofObject(err) || err === null) return false;
-  const code = overlapCast(err).code;
-  if (code === "23505") return true;
-  const cause = overlapCast(err).cause;
-  return (
-    isTypeofObject(cause) &&
-    cause !== null &&
-    overlapCast(cause).code === "23505"
-  );
-}
 
 function mapRow(row: OAuthClientRow): OAuthClientRecord {
   const record: OAuthClientRecord = {
@@ -152,6 +82,7 @@ function mapRow(row: OAuthClientRow): OAuthClientRecord {
     displayName: row.displayName,
     redirectUris: overlapCast(row.redirectUris ?? []),
     sectorIdentifier: row.sectorIdentifier,
+    sectorKey: row.sectorKey,
     grantTypes: overlapCast(row.grantTypes ?? []),
     responseTypes: overlapCast(row.responseTypes ?? []),
     tokenEndpointAuthMethod: row.tokenEndpointAuthMethod,
@@ -159,6 +90,8 @@ function mapRow(row: OAuthClientRow): OAuthClientRecord {
     allowedResources: overlapCast(row.allowedResources ?? []),
     state: overlapCast(row.state),
   };
+  if (row.sectorKeyBlocked)
+    record.sectorKeyBlocked = overlapCast(row.sectorKeyBlocked);
   if (row.metadataUri) record.metadataUri = row.metadataUri;
   if (row.metadataDigest) record.metadataDigest = row.metadataDigest;
   if (row.tokenEndpointJwks) record.jwks = overlapCast(row.tokenEndpointJwks);
@@ -181,6 +114,7 @@ function insertValues(client: OAuthClientRecord, now: Date) {
     displayName: client.displayName,
     redirectUris: client.redirectUris,
     sectorIdentifier: client.sectorIdentifier,
+    sectorKey: sectorKeyOf(client.sectorIdentifier),
     grantTypes: client.grantTypes,
     responseTypes: client.responseTypes,
     tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
@@ -226,11 +160,76 @@ function updateValues(client: OAuthClientRecord, now: Date) {
   };
 }
 
+/** Claim the row's sector key and insert it, in one transaction. */
+function insertClaimed(
+  db: Database,
+  client: OAuthClientRecord,
+): Promise<OAuthClientRecord> {
+  const values = insertValues(client, new Date());
+  return db.transaction(async (tx) => {
+    await claimSectorKey(
+      tx,
+      values.sectorKey,
+      sectorOwnerKey(client),
+      client.id,
+    );
+    const [row] = await tx
+      .insert(schema.oauthClients)
+      .values(values)
+      .returning();
+    if (!row) {
+      throw new Error("insert oauth client returned no row");
+    }
+    return mapRow(row);
+  });
+}
+
+/**
+ * Full-record replace. The stored key and block survive unless the sector
+ * itself changes: a legacy row keeps the `sub` it has, and a blocked one stays
+ * blocked. A row that stays live re-asserts its claim, so an ownership
+ * transfer cannot carry a key onto a second owner.
+ */
+function updateClaimed(
+  db: Database,
+  client: OAuthClientRecord,
+): Promise<OAuthClientRecord> {
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(schema.oauthClients)
+      .where(eq(schema.oauthClients.id, client.id))
+      .for("update");
+    if (!current) {
+      throw new Error(`Cannot update unknown OAuth client ${client.id}`);
+    }
+    const same = current.sectorIdentifier === client.sectorIdentifier;
+    const sectorKey = same
+      ? current.sectorKey
+      : sectorKeyOf(client.sectorIdentifier);
+    const sectorKeyBlocked = same ? current.sectorKeyBlocked : null;
+    if (!sectorKeyBlocked && client.state !== "revoked") {
+      await claimSectorKey(tx, sectorKey, sectorOwnerKey(client), client.id);
+    }
+    const [row] = await tx
+      .update(schema.oauthClients)
+      .set({ ...updateValues(client, new Date()), sectorKey, sectorKeyBlocked })
+      .where(eq(schema.oauthClients.id, client.id))
+      .returning();
+    if (!row) {
+      throw new Error(`Cannot update unknown OAuth client ${client.id}`);
+    }
+    return mapRow(row);
+  });
+}
+
 /**
  * Postgres OAuth client store. `insertAtomic` resolves first-seen admission
  * races through the primary key and the partial unique index on `origin`:
  * the loser of a concurrent insert re-reads by id, then by origin, and
- * returns the winner's row.
+ * returns the winner's row. Every write holds the row's pairwise sector key
+ * first (`claimSectorKey`); a key another owner holds answers
+ * `OAuthClientSectorClaimedError` instead of a second owner on one `sub`.
  *
  * `owner_principal_id` is a FK to `principals`. Callers must persist the
  * owner principal before inserting an owned client.
@@ -261,18 +260,15 @@ export function createPostgresClientRecordStore(
     findByOrigin,
 
     async insertAtomic(client) {
-      const now = new Date();
       try {
-        const [row] = await db
-          .insert(schema.oauthClients)
-          .values(insertValues(client, now))
-          .returning();
-        if (!row) {
-          throw new Error("insert oauth client returned no row");
-        }
-        return mapRow(row);
+        return await insertClaimed(db, client);
       } catch (err) {
         const boundaryError: BoundaryValue = overlapCast(err);
+        if (err instanceof OAuthClientSectorClaimedError) {
+          const existing = await findById(client.id);
+          if (existing) return existing;
+          throw err;
+        }
         if (!isUniqueViolation(boundaryError)) {
           throw err;
         }
@@ -309,227 +305,14 @@ export function createPostgresClientRecordStore(
       return rows.map(mapRow);
     },
 
-    async update(client) {
-      const now = new Date();
-      const [row] = await db
-        .update(schema.oauthClients)
-        .set(updateValues(client, now))
-        .where(eq(schema.oauthClients.id, client.id))
-        .returning();
-      if (!row) {
-        throw new Error(`Cannot update unknown OAuth client ${client.id}`);
-      }
-      return mapRow(row);
-    },
-  };
-}
-
-function mapChallengeRow(
-  row: ClientClaimChallengeRow,
-): ClientClaimChallengeRecord {
-  const record: ClientClaimChallengeRecord = {
-    id: row.id,
-    applicationId: row.applicationId,
-    ownerPrincipalId: row.ownerPrincipalId,
-    challenge: row.challenge,
-    expiresAt: row.expiresAt,
-    createdAt: row.createdAt,
-  };
-  if (row.consumedAt) record.consumedAt = row.consumedAt;
-  return record;
-}
-
-/**
- * Postgres claim-challenge store (F5 well-known claim document). The
- * conditional update in `consume` is what makes a challenge single-use:
- * two concurrent verifiers race one `UPDATE`, and only the one that lands
- * the stamp gets a row back.
- */
-export function createPostgresClientClaimChallengeStore(
-  db: Database,
-): ClientClaimChallengeStore {
-  return {
-    async insert(challenge) {
-      const [row] = await db
-        .insert(schema.clientClaimChallenges)
-        .values(challenge)
-        .returning();
-      if (!row) {
-        throw new Error("insert client claim challenge returned no row");
-      }
-      return mapChallengeRow(row);
-    },
-
-    async findByChallenge(challenge) {
-      const [row] = await db
-        .select()
-        .from(schema.clientClaimChallenges)
-        .where(eq(schema.clientClaimChallenges.challenge, challenge))
-        .limit(1);
-      return row ? mapChallengeRow(row) : undefined;
-    },
-
-    async consume(challenge, at) {
-      const [row] = await db
-        .update(schema.clientClaimChallenges)
-        .set({ consumedAt: at, updatedAt: at })
-        .where(
-          and(
-            eq(schema.clientClaimChallenges.challenge, challenge),
-            isNull(schema.clientClaimChallenges.consumedAt),
-            gt(schema.clientClaimChallenges.expiresAt, at),
-          ),
-        )
-        .returning();
-      return row ? mapChallengeRow(row) : undefined;
-    },
-  };
-}
-
-type ClientOriginRow = typeof schema.clientOrigins.$inferSelect;
-
-function mapOriginRow(row: ClientOriginRow): ClientOriginRecord {
-  const record: ClientOriginRecord = {
-    id: row.id,
-    applicationId: row.applicationId,
-    canonicalOrigin: row.canonicalOrigin,
-    publicClientId: row.publicClientId,
-    status: overlapCast(row.status),
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-  if (row.verificationMethod) {
-    record.verificationMethod = row.verificationMethod;
-  }
-  return record;
-}
-
-/**
- * Postgres verified-origin-alias store (F5 `client_origins`). Alias attach is
- * idempotent per application and conflicting across applications; the unique
- * index on `canonical_origin` decides races, and the loser is judged by who
- * the persisted row points to.
- */
-export function createPostgresClientOriginStore(
-  db: Database,
-): ClientOriginStore {
-  const findByOrigin = async (canonicalOrigin: string) => {
-    const [row] = await db
-      .select()
-      .from(schema.clientOrigins)
-      .where(eq(schema.clientOrigins.canonicalOrigin, canonicalOrigin))
-      .limit(1);
-    return row ? mapOriginRow(row) : undefined;
-  };
-
-  return {
-    findByOrigin,
-
-    async insert(origin) {
-      const now = new Date();
-      try {
-        const [row] = await db
-          .insert(schema.clientOrigins)
-          .values({
-            id: origin.id,
-            applicationId: origin.applicationId,
-            canonicalOrigin: origin.canonicalOrigin,
-            publicClientId: origin.publicClientId,
-            verificationMethod: origin.verificationMethod ?? null,
-            status: origin.status,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .returning();
-        if (!row) {
-          throw new Error("insert client origin returned no row");
-        }
-        return mapOriginRow(row);
-      } catch (err) {
-        const boundaryError: BoundaryValue = overlapCast(err);
-        if (!isUniqueViolation(boundaryError)) {
-          throw err;
-        }
-        const existing = await findByOrigin(origin.canonicalOrigin);
-        if (existing && existing.applicationId === origin.applicationId) {
-          return existing;
-        }
-        throw new ClientOriginConflictError(
-          `Origin ${origin.canonicalOrigin} is already attached to another application`,
-        );
-      }
-    },
-
-    async listByApplication(applicationId) {
+    async findBySectorKey(sectorKey) {
       const rows = await db
         .select()
-        .from(schema.clientOrigins)
-        .where(eq(schema.clientOrigins.applicationId, applicationId));
-      return rows.map(mapOriginRow);
+        .from(schema.oauthClients)
+        .where(eq(schema.oauthClients.sectorKey, sectorKey));
+      return rows.map(mapRow);
     },
-  };
-}
 
-/**
- * In-memory claim-challenge store — tests/dev counterpart of the Postgres
- * store above. `consume` keeps the same single-use contract: no awaits
- * between the check and the stamp, so run-to-completion makes it atomic.
- */
-export function createMemoryClientClaimChallengeStore(): ClientClaimChallengeStore {
-  const byChallenge = new Map<string, ClientClaimChallengeRecord>();
-  return {
-    async insert(challenge) {
-      const record: ClientClaimChallengeRecord = {
-        ...challenge,
-        createdAt: new Date(),
-      };
-      byChallenge.set(record.challenge, record);
-      return record;
-    },
-    async findByChallenge(challenge) {
-      return byChallenge.get(challenge);
-    },
-    async consume(challenge, at) {
-      const record = byChallenge.get(challenge);
-      if (!record || record.consumedAt || record.expiresAt <= at) {
-        return undefined;
-      }
-      record.consumedAt = at;
-      return record;
-    },
-  };
-}
-
-/** In-memory verified-origin-alias store (tests/dev). */
-export function createMemoryClientOriginStore(): ClientOriginStore {
-  const byOrigin = new Map<string, ClientOriginRecord>();
-  return {
-    async insert(origin) {
-      const existing = byOrigin.get(origin.canonicalOrigin);
-      if (existing) {
-        if (existing.applicationId === origin.applicationId) {
-          return existing;
-        }
-        throw new ClientOriginConflictError(
-          `Origin ${origin.canonicalOrigin} is already attached to another application`,
-        );
-      }
-      const now = new Date();
-      const record: ClientOriginRecord = {
-        ...origin,
-        createdAt: now,
-        updatedAt: now,
-      };
-      byOrigin.set(record.canonicalOrigin, record);
-      return record;
-    },
-    async findByOrigin(canonicalOrigin) {
-      return byOrigin.get(canonicalOrigin);
-    },
-    async listByApplication(applicationId) {
-      return [...byOrigin.values()].filter(
-        (record) => record.applicationId === applicationId,
-      );
-    },
+    update: (client) => updateClaimed(db, client),
   };
 }

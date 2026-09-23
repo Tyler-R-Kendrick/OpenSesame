@@ -100,6 +100,46 @@ describe("pairwise subjects", () => {
     });
     expect(await store.find("principal-1", "static.example")).toBeDefined();
   });
+
+  it("keys on the stored sector key when the store carries one", async () => {
+    const store = new MemoryPairwiseSubjectStore();
+    const pairwise = createPairwiseIdentifierCallback(store, {
+      findById: async () => ({
+        sectorIdentifier: "https://RP.example:443/",
+        sectorKey: "rp.example",
+      }),
+    });
+    const sub = await pairwise({}, "principal-1", { clientId: "rp" });
+    expect((await store.find("principal-1", "rp.example"))?.subject).toBe(sub);
+  });
+
+  it("issues no subject to a client blocked from its sector key", async () => {
+    const store = new MemoryPairwiseSubjectStore();
+    const holder = await createPairwiseIdentifierCallback(store, {
+      findById: async () => ({ sectorIdentifier: "https://rp.example" }),
+    })({}, "principal-1", { clientId: "holder" });
+    for (const sectorKeyBlocked of [
+      "cross_owner_collision",
+      "unparsed_legacy_spelling",
+    ]) {
+      const blocked = createPairwiseIdentifierCallback(store, {
+        findById: async () => ({
+          sectorIdentifier: "https://RP.example:443/",
+          sectorKey: "rp.example",
+          sectorKeyBlocked,
+        }),
+      });
+      await expect(
+        blocked({}, "principal-1", {
+          clientId: "late",
+          sectorIdentifier: "rp.example",
+        }),
+      ).rejects.toMatchObject({ error: "invalid_client" });
+    }
+    expect((await store.find("principal-1", "rp.example"))?.subject).toBe(
+      holder,
+    );
+  });
 });
 
 describe("pairwise sector keys", () => {

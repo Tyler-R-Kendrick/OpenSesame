@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import { errors } from "oidc-provider";
 import type { PairwiseSubject, PairwiseSubjectStore } from "../types.js";
 import { pairwiseSectorKey } from "./sector.js";
 
@@ -43,8 +44,25 @@ export class MemoryPairwiseSubjectStore implements PairwiseSubjectStore {
 
 /** The one client-store lookup the pairwise callback needs. */
 export type PairwiseClientLookup = {
-  findById(id: string): Promise<{ sectorIdentifier?: string } | undefined>;
+  findById(id: string): Promise<
+    | {
+        sectorIdentifier?: string;
+        sectorKey?: string;
+        sectorKeyBlocked?: string;
+      }
+    | undefined
+  >;
 };
+
+/** The key a stored record's subjects live under, or "" when it has none. */
+function registeredSectorKey(record: {
+  sectorIdentifier?: string;
+  sectorKey?: string;
+}): string {
+  if (isString(record.sectorKey) && record.sectorKey) return record.sectorKey;
+  const declared = record.sectorIdentifier;
+  return isString(declared) ? pairwiseSectorKey(declared) : "";
+}
 
 /**
  * Build oidc-provider `pairwiseIdentifier` callback from a PairwiseSubjectStore.
@@ -54,7 +72,13 @@ export type PairwiseClientLookup = {
  * oidc-provider's own `client.sectorIdentifier` — the host of
  * `redirect_uris[0]` when no `sector_identifier_uri` is set — is only the
  * fallback for clients the record store does not hold (static configuration),
- * then `clientId`. See `pairwise/sector.ts` for how a sector becomes a key.
+ * then `clientId`. See `pairwise/sector.ts` for how a sector becomes a key;
+ * a durable store's `sectorKey` is that key as stored, and is what its
+ * cross-owner claim holds, so it is preferred over re-deriving it.
+ *
+ * A record marked `sectorKeyBlocked` (a legacy row on a key another owner
+ * holds, or one whose spelling could not be keyed exactly) gets no subject at
+ * all: issuing one would hand it another owner's `sub`.
  */
 export function createPairwiseIdentifierCallback(
   store: PairwiseSubjectStore,
@@ -68,8 +92,12 @@ export function createPairwiseIdentifierCallback(
     const clientId = isString(client.clientId) ? client.clientId.trim() : "";
     const record =
       clients && clientId ? await clients.findById(clientId) : undefined;
-    const declared = record?.sectorIdentifier;
-    const registered = isString(declared) ? pairwiseSectorKey(declared) : "";
+    if (record?.sectorKeyBlocked) {
+      throw new errors.InvalidClient(
+        "client must re-register: its sector identifier is held by another owner or could not be keyed exactly",
+      );
+    }
+    const registered = record ? registeredSectorKey(record) : "";
     const sector =
       registered ||
       (isString(client.sectorIdentifier) && client.sectorIdentifier.trim()) ||
