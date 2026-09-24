@@ -19,7 +19,12 @@ export type CapabilityStatus = Readonly<{ tone: StatusTone; label: string }>;
 
 /** Nothing this installation cannot run gets past here. */
 function availability(state: CapabilityState): CapabilityStatus | null {
-  if (state.tier === "core") return { tone: "ok", label: "always on" };
+  if (state.tier === "core") {
+    // Always on is the default; an operator may still withdraw it (ADR 0138).
+    return state.approved
+      ? { tone: "ok", label: "always on" }
+      : { tone: "err", label: "withdrawn by operator" };
+  }
   if (!state.distributed) {
     return { tone: "idle", label: "unavailable in this distribution" };
   }

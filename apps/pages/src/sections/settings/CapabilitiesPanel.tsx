@@ -15,9 +15,9 @@
  * each committed through the S04 adapter; Effective is read-only.
  */
 
-import { ignoredProhibitions } from "@opensesame/app-core/lib/capabilities/features.js";
+import { withdrawnAlwaysOn } from "@opensesame/app-core/lib/capabilities/features.js";
 import { effectivePlanToYaml } from "@opensesame/app-core/lib/configuration/capabilities-document.js";
-import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { useState } from "react";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -64,26 +64,24 @@ function RestartNotice({ change }: { change: CapabilityChange }) {
 }
 
 /**
- * A policy that still prohibits a capability ADR 0138 made always on:
- * the prohibition no longer withdraws it, and the page says so rather
- * than letting the policy read as though it held.
+ * Always-on capabilities this plan does not run: an operator withdrew them
+ * (ADR 0138), or they need one that was. Named here, and marked on the
+ * section they back, rather than drawn as though they ran.
  */
-function IgnoredProhibitions({ change }: { change: CapabilityChange }) {
-  const ignored = ignoredProhibitions(
-    change.snapshot.policy?.capabilities.prohibited ?? [],
-    CAPABILITY_CATALOG,
-  );
-  if (ignored.length === 0) return null;
-  const titles = ignored
+function WithdrawnNotice({ change }: { change: CapabilityChange }) {
+  const withdrawn = withdrawnAlwaysOn(change.snapshot.plan);
+  if (withdrawn.length === 0) return null;
+  const titles = withdrawn
     .map(
       (id) =>
-        CAPABILITY_CATALOG.capabilities.find((entry) => entry.id === id)
-          ?.title ?? id,
+        capabilityPorts.CAPABILITY_CATALOG.capabilities.find(
+          (entry) => entry.id === id,
+        )?.title ?? id,
     )
     .join(", ");
-  const label = `always on, so the policy's prohibition does not apply: ${titles}`;
+  const label = `withdrawn by operator: ${titles}`;
   return (
-    <p className="capspanel__notice" data-testid="capabilities-ignored">
+    <p className="capspanel__notice" data-testid="capabilities-withdrawn">
       <StatusMark tone="warn" label={label} />
       <span>{label}</span>
     </p>
@@ -95,9 +93,13 @@ function Visual({ change }: { change: CapabilityChange }) {
     return (
       <CapabilityReview
         review={change.review}
-        catalog={CAPABILITY_CATALOG}
+        catalog={capabilityPorts.CAPABILITY_CATALOG}
         alternativesFor={(root) =>
-          alternativesFor(root, CAPABILITY_CATALOG, change.snapshot.plan)
+          alternativesFor(
+            root,
+            capabilityPorts.CAPABILITY_CATALOG,
+            change.snapshot.plan,
+          )
         }
         busy={change.busy}
         onApply={() => void change.apply()}
@@ -127,7 +129,7 @@ export function CapabilitiesPanel() {
       </div>
       <div className="panel__body capspanel">
         <RestartNotice change={change} />
-        <IgnoredProhibitions change={change} />
+        <WithdrawnNotice change={change} />
         {change.notice ? (
           <p className="capspanel__notice">
             <StatusMark tone="err" label={change.notice} />

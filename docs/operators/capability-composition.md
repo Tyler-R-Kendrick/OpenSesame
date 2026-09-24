@@ -52,14 +52,24 @@ plan, but their code still arrives as a module after boot —
 `support.guided-help`, and the four browser-local functions
 `identity.local-iam`, `identity.siop`, `identity.site-broker` and
 `backup.git-remote`. None of them is ever a switch, and none may be named in a
-policy or a selection; an older document that still names one is read as if
-it did not. A policy that still lists one of them in `prohibited` does not
-withdraw it: Settings › Capabilities says so in a notice ("always on, so the
-policy's prohibition does not apply"). Git backup's automatic calls — the
-observer's start, its webhook poll and the push after a vault mutation — are
-held while the plan denies external services, whichever surface starts them
-(`backup-egress-gate.ts`); a sync a person asks for by hand still runs.
-`allowedServiceOrigins` is not enforced there, as nowhere else yet.
+selection. An older selection that still names one is read as though it did
+not, and so is a policy that *requires* one.
+
+**Withdrawing an always-on capability.** A verified instance policy may list
+an always-on capability in `prohibited`. The capability is then withdrawn: it
+is not approved and its module is not loaded. Every always-on capability that
+depends on it goes with it; withdrawing `identity.local-iam` takes
+`identity.siop` too. An optional capability that depends on it sees a
+prohibited dependency. Statically linked core cannot be withdrawn, because it
+has no module to leave out. Settings › Capabilities says "withdrawn by
+operator" in a notice and on the section the capability backs.
+
+Git backup's automatic calls are held while the plan does not allow external
+services, whichever surface starts them (`backup-egress-gate.ts`). They are
+the observer's start, its webhook poll and the push after a vault mutation. A
+sync a person asks for by hand still runs. A withdrawn git backup makes no
+call at all. A non-empty `allowedServiceOrigins` is an allowlist for every
+backup call.
 
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same

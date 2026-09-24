@@ -581,7 +581,8 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   core tier, never a switch, code still loaded as a module after boot.
   Anything that runs entirely in the browser-local default install
   (browser-local IAM, SIOP, the site broker, git backup) is always on, not an
-  opt-in the page reports as "deselected". Settings › Capabilities is **one
+  opt-in the page reports as "deselected" — and an operator's verified policy
+  may still withdraw an always-on capability that owns a module (ADR 0138). Settings › Capabilities is **one
   list of sections** (`FEATURES` in
   `packages/app-core/src/lib/capabilities/features.ts`), every one drawn as a
   `conn-group` subheader plus its tiles; a section with optional capabilities

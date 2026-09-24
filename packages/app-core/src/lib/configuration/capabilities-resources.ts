@@ -28,11 +28,9 @@ import {
   VAULT_RESTRICTION_SCHEMA_ID,
 } from "./capabilities-keys.js";
 import {
-  CAPABILITY_CATALOG,
   type CommitOutcome,
   type CompositionSnapshot,
-  compositionStore,
-  previewPlan,
+  capabilityPorts,
 } from "./capabilities-ports.js";
 import type { ResourceDescriptor } from "./types.js";
 
@@ -56,12 +54,12 @@ export function defaultCapabilityPorts(
   tomb: () => string | null,
 ): CapabilityConfigPorts {
   return {
-    snapshot: () => compositionStore.getSnapshot(),
-    catalog: () => CAPABILITY_CATALOG,
-    previewPlan,
+    snapshot: () => capabilityPorts.compositionStore.getSnapshot(),
+    catalog: () => capabilityPorts.CAPABILITY_CATALOG,
+    previewPlan: (draft) => capabilityPorts.previewPlan(draft),
     commitSelection: (draft, receipt) =>
-      compositionStore.commit(draft, receipt),
-    invalidate: (reason) => compositionStore.invalidate(reason),
+      capabilityPorts.compositionStore.commit(draft, receipt),
+    invalidate: (reason) => capabilityPorts.compositionStore.invalidate(reason),
     now: () => new Date().toISOString(),
     readKey: kvGet,
     writeKey: kvSetDurable,

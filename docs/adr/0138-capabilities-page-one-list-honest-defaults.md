@@ -64,17 +64,30 @@ Every surface that can start the observer goes through it: the
 capability's background job, a Settings tile reading the backup status,
 and a target being enabled. Under the Family preset the Backups tiles are
 drawn, and nothing is pushed on its own. A sync a person asks for by hand
-still runs. `allowedServiceOrigins` is not enforced there, and no runtime
-consumer reads it yet.
+still runs. A non-empty `allowedServiceOrigins` is an allowlist for every
+backup call, automatic or not (`backupOriginAllowed`).
 
-**What an operator loses.** A policy can no longer prohibit these four,
-because a core capability is in every plan. An existing policy that lists
-one in `prohibited` is kept as written, but the prohibition no longer
-withdraws the capability. Settings › Capabilities says so in a notice
-(`ignoredProhibitions`), rather than letting the policy read as if it still
-held. An operator who needs git backup silent denies external services.
-Withdrawing an always-on capability by policy would be a new resolver axis,
-and is not part of this decision.
+**An operator may withdraw an always-on capability.** Always on is the
+default, not a mandate. The resolver (`withdrawnCore` in
+`resolve-axes.ts`) withdraws an always-on capability that a verified
+instance policy names in `prohibited`:
+- It is not approved, its module is not loaded, and its state reads
+  `PROHIBITED_BY_INSTANCE`.
+- Every always-on capability that depends on it is withdrawn with it. For
+  example, withdrawing browser-local IAM takes SIOP with it.
+- An optional capability that depends on it has a prohibited dependency.
+
+Only core that owns a module can be withdrawn. Statically linked core has
+nothing to leave unloaded, and `CORE_IN_POLICY` still diagnoses it. An
+unverified policy withdraws nothing.
+
+No descriptor field changes, so no exposure digest and no consent receipt
+moves. The page says "withdrawn by operator":
+- in a notice;
+- on the section the capability backs (`Feature.backedBy`);
+- in its status (`capabilityStatus`).
+
+A withdrawn git backup makes no call at all, not even a manual one.
 
 The Identity section is therefore on the rail of a fresh device. Presets
 lose the four ids: the local functions are `sharing.drops` and
@@ -171,5 +184,6 @@ it is drawn.
   optional ones.
 - A selection or policy that still names one of the four ids is tolerated,
   as ADR 0135 already provides for core ids.
-- An operator who wants git backup to make no calls picks a network-deny
-  policy; git backup is no longer something a policy can prohibit.
+- An operator keeps the last word: a policy may withdraw any always-on
+  capability that owns a module, git backup and browser-local IAM included,
+  and the withdrawal cascades to what needs it.

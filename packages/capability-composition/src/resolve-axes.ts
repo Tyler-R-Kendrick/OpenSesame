@@ -12,6 +12,7 @@ import { applicableReceipt } from "./consent.js";
 import { sortIds } from "./ids.js";
 import { sortReasons } from "./reasons.js";
 import type { ResolveInput } from "./resolve-input.js";
+import { withdrawnCore } from "./resolve-withdraw.js";
 import type {
   CapabilityDescriptor,
   CapabilityId,
@@ -67,6 +68,12 @@ export type ResolveContext = Readonly<{
   staleRoots: readonly CapabilityId[];
   requiredNotAccepted: readonly CapabilityId[];
   evaluatedModules: ReadonlySet<ModuleId>;
+  /**
+   * Always-on capabilities a verified instance policy withdrew, and every
+   * always-on one that needs them (ADR 0138). Core that is statically
+   * linked can never be withdrawn: it has no module to leave unloaded.
+   */
+  withdrawn: ReadonlySet<CapabilityId>;
 }>;
 
 type Identity = Readonly<{
@@ -223,6 +230,7 @@ export function buildContext(input: ResolveInput): ResolveContext {
       [...required].filter((id) => !accepted.has(id)),
     ),
     evaluatedModules: new Set(input.facts.evaluatedModuleIds),
+    withdrawn: withdrawnCore(input, index),
   };
 }
 
@@ -328,15 +336,16 @@ function optionalAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
 }
 
 function coreAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
+  const withdrawn = ctx.withdrawn.has(d.id);
   return {
     id: d.id,
     tier: "core",
     distributed: true,
-    permitted: true,
+    permitted: !withdrawn,
     required: false,
-    selected: true,
+    selected: !withdrawn,
     runtimeSupported: runtimeSupports(ctx, d),
-    blocked: [],
+    blocked: withdrawn ? ["PROHIBITED_BY_INSTANCE"] : [],
   };
 }
 

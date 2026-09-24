@@ -37,6 +37,8 @@ function statusKey(): string {
 const AUTOMATIC: ReadonlySet<BackupSyncReason> = new Set(["vault", "webhook"]);
 
 async function runSync(reason: BackupSyncReason): Promise<void> {
+  // Withdrawn by the operator: nothing, not even a sync asked for by hand.
+  if (!backupEgressGate.running()) return;
   if (AUTOMATIC.has(reason) && !backupEgressGate.allowed()) return;
   const enabled = listLocalBackupTargets().filter((row) => row.enabled);
   if (enabled.length === 0) return;

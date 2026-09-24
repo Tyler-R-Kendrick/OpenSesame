@@ -49,11 +49,14 @@ const profiles: Profile[] = readdirSync(profilesDir)
   .map((name) => JSON.parse(readFileSync(join(profilesDir, name), "utf8")));
 const byName = new Map(profiles.map((profile) => [profile.name, profile]));
 
-function load(name: string): {
+/** A profile fixture with its two documents parsed. */
+type LoadedProfile = {
   profile: Profile;
   policy: InstanceCapabilityPolicy | null;
   selection: InstallationCapabilitySelection;
-} {
+};
+
+function load(name: string): LoadedProfile {
   const profile = byName.get(name);
   if (!profile) throw new Error(`no profile ${name}`);
   const policy =
@@ -98,7 +101,7 @@ const approvedOptional = (plan: EffectivePlan): string[] => {
   return plan.approvedCapabilities.filter((id) => !core.has(id)).sort();
 };
 
-const EXPECTED: Record<string, string[]> = {
+const EXPECTED = {
   "minimal-local": [],
   "family-local": [],
   "family-sharing-selected": ["sharing.drops", "sharing.household"],
@@ -110,7 +113,7 @@ const EXPECTED: Record<string, string[]> = {
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
   "managed-prohibited": ["sharing.drops"],
-};
+} satisfies Record<string, readonly string[]>;
 
 describe("capability profiles", () => {
   it("has every mandated fixture with the profile schema and pinned ids", () => {
@@ -142,8 +145,8 @@ describe("capability profiles", () => {
         expect(core.has(id), `${profile.name}: core ${id}`).toBe(false);
         expect(id.includes("*"), `${profile.name}: wildcard ${id}`).toBe(false);
       }
-      expect(typeof selection.revision).toBe("string");
-      if (policy) expect(typeof policy.revision).toBe("string");
+      expect(selection.revision).toEqual(expect.any(String));
+      if (policy) expect(policy.revision).toEqual(expect.any(String));
     }
   });
 

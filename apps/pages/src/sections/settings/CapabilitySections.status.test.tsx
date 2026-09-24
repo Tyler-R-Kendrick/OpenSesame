@@ -4,6 +4,8 @@ import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import type { InstallationCapabilitySelection } from "@opensesame/capability-composition";
 import { cleanup, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -13,23 +15,14 @@ import {
   withReceipt,
 } from "./capabilities-panel.test-support.js";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
+installDoublePorts();
 
 installPanelFixture();
 
 /** Reset to a selection with a receipt that covers exactly its closure. */
-function selecting(
-  selectedOptional: string[],
-  chosenAlternatives: Record<string, string> = {},
-) {
+function selecting(selectedOptional: string[], transport?: string) {
+  const chosenAlternatives: InstallationCapabilitySelection["chosenAlternatives"] =
+    transport === undefined ? {} : { transport };
   const selection = {
     ...PERSONAL_SELECTION,
     selectedOptional,
@@ -46,9 +39,7 @@ function selecting(
 
 describe("what a switch cannot say is said beside it", () => {
   it("a capability another kept root needs offers no switch that cannot take", () => {
-    selecting(["sharing.drops", "sharing.household"], {
-      transport: "sharing.drops",
-    });
+    selecting(["sharing.drops", "sharing.household"], "sharing.drops");
     renderPanel();
     expect(screen.queryByRole("switch", { name: "Shared drops" })).toBeNull();
     expect(
@@ -75,7 +66,7 @@ describe("what a switch cannot say is said beside it", () => {
     ).toContain("Anthropic");
   });
 
-  it("says when a policy's prohibition names a capability that is always on", () => {
+  it("says when an operator withdrew an always-on capability", () => {
     resetDouble({
       policy: {
         ...FIXTURE_MANAGED_POLICY,
@@ -90,13 +81,13 @@ describe("what a switch cannot say is said beside it", () => {
       provenance: "same-origin-deployment",
     });
     renderPanel();
-    expect(screen.getByTestId("capabilities-ignored").textContent).toContain(
-      "Settings",
+    expect(screen.getByTestId("capabilities-withdrawn").textContent).toContain(
+      "withdrawn by operator: Settings",
     );
   });
 
-  it("says nothing when no prohibition is ignored", () => {
+  it("says nothing when nothing is withdrawn", () => {
     renderPanel();
-    expect(screen.queryByTestId("capabilities-ignored")).toBeNull();
+    expect(screen.queryByTestId("capabilities-withdrawn")).toBeNull();
   });
 });

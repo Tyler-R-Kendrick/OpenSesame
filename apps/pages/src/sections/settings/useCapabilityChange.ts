@@ -9,13 +9,7 @@
  */
 
 import type { FeatureProposal } from "@opensesame/app-core/lib/capabilities/features.js";
-import {
-  CAPABILITY_CATALOG,
-  buildConsentReceipt,
-  compositionStore,
-  previewPlan,
-  viewOutcome,
-} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useState } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
@@ -30,17 +24,17 @@ export const capabilitiesPanelSeams = {
   now: () => new Date().toISOString(),
 };
 
-const OPTIONAL = new Set(
-  CAPABILITY_CATALOG.capabilities
-    .filter((entry) => entry.tier === "optional")
-    .map((entry) => entry.id),
-);
-
 /** The optional roots the installation has chosen; always-on ids never count. */
 export function currentRoots(
   selection: { selectedOptional: readonly CapabilityId[] } | null,
 ): CapabilityId[] {
-  return (selection?.selectedOptional ?? []).filter((id) => OPTIONAL.has(id));
+  // Read at call time: the catalog is the seam's, whichever stands behind it.
+  const optional = new Set(
+    capabilityPorts.CAPABILITY_CATALOG.capabilities
+      .filter((entry) => entry.tier === "optional")
+      .map((entry) => entry.id),
+  );
+  return (selection?.selectedOptional ?? []).filter((id) => optional.has(id));
 }
 
 export function useCapabilityChange() {
@@ -52,13 +46,13 @@ export function useCapabilityChange() {
     draftToSelection(
       {
         ...draftFromSelection(snapshot.selection, "customize"),
-        roots: proposal.roots.filter((id) => OPTIONAL.has(id)),
+        roots: currentRoots({ selectedOptional: proposal.roots }),
         alternatives: proposal.alternatives,
       },
       baseFromSnapshot(snapshot, capabilitiesPanelSeams.now()),
     );
   const review = pending
-    ? compositionStore.review(selectionFor(pending))
+    ? capabilityPorts.compositionStore.review(selectionFor(pending))
     : null;
 
   /** Commit the roots the switch proposed — added or removed, one ceremony. */
@@ -67,14 +61,14 @@ export function useCapabilityChange() {
     setBusy(true);
     try {
       const selection = selectionFor(pending);
-      const plan = previewPlan(selection);
-      const receipt = buildConsentReceipt(
+      const plan = capabilityPorts.previewPlan(selection);
+      const receipt = capabilityPorts.buildConsentReceipt(
         plan,
-        CAPABILITY_CATALOG,
+        capabilityPorts.CAPABILITY_CATALOG,
         capabilitiesPanelSeams.now(),
       );
-      const outcome = viewOutcome(
-        await compositionStore.commit(selection, receipt),
+      const outcome = capabilityPorts.viewOutcome(
+        await capabilityPorts.compositionStore.commit(selection, receipt),
         snapshot.durability,
       );
       setNotice(

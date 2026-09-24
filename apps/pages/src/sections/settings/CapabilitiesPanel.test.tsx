@@ -4,6 +4,7 @@ import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { capabilitiesPanelSeams } from "./CapabilitiesPanel.js";
@@ -14,15 +15,7 @@ import {
   renderPanel,
 } from "./capabilities-panel.test-support.js";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
+installDoublePorts();
 
 installPanelFixture();
 

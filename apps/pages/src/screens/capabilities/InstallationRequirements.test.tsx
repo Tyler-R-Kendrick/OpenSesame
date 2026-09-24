@@ -7,18 +7,11 @@ import {
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
-
+import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { CapabilitySetup } from "./CapabilitySetup.js";
 import { RequirementsGate } from "./RequirementsGate.js";
+
+installDoublePorts();
 
 const MANAGED = {
   policy: FIXTURE_MANAGED_POLICY,

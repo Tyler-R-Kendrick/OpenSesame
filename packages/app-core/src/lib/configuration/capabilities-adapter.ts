@@ -35,7 +35,7 @@ import {
   vaultRestrictionKey,
   vaultRestrictionSourceKey,
 } from "./capabilities-keys.js";
-import { buildConsentReceipt, viewOutcome } from "./capabilities-ports.js";
+import { capabilityPorts } from "./capabilities-ports.js";
 import {
   type CapabilityConfigPorts,
   type CapabilityResourceKind,
@@ -207,8 +207,12 @@ export async function commitInstallationSelectionSource(
     return applied(ports, true, "");
   }
   const plan = ports.previewPlan(parsed.value);
-  const receipt = buildConsentReceipt(plan, ports.catalog(), ports.now());
-  const outcome = viewOutcome(
+  const receipt = capabilityPorts.buildConsentReceipt(
+    plan,
+    ports.catalog(),
+    ports.now(),
+  );
+  const outcome = capabilityPorts.viewOutcome(
     await ports.commitSelection(parsed.value, receipt),
     ports.snapshot().durability,
   );

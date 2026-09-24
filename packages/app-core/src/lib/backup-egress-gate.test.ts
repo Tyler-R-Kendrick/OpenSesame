@@ -1,13 +1,12 @@
 /** @vitest-environment jsdom */
-import type { EffectivePlan } from "@opensesame/capability-composition";
+import type { NetworkPolicy } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { backupEgressGate, backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   clearLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
 import { getBackupStatus, setBackupTargetEnabled } from "./backup.js";
-import type { CompositionSnapshot } from "./capabilities/store-types.js";
-import { compositionStore } from "./capabilities/store.js";
 import {
   stopVaultBackupObserver,
   vaultBackupObserverSeams,
@@ -16,17 +15,17 @@ import { vaultBackupSyncSeams } from "./vault-backup-sync.js";
 
 const originalSync = { ...vaultBackupSyncSeams };
 
-/** The composition store's snapshot with only the plan's network set. */
-function planNetwork(externalServices: "allow" | "deny"): void {
-  const real = compositionStore.getSnapshot();
-  vi.spyOn(compositionStore, "getSnapshot").mockReturnValue({
-    ...real,
-    plan: {
-      network: { externalServices, allowedServiceOrigins: [] },
-      // SAFETY: the gate reads `plan.network` alone; the rest of the plan is
-      // not consulted on this path, so a partial plan cannot mislead it.
-    } as unknown as EffectivePlan,
-  } satisfies CompositionSnapshot);
+/** The plan as the gate reads it: git backup running or not, and its network. */
+function plan(
+  running: boolean,
+  externalServices: NetworkPolicy["externalServices"],
+  allowedServiceOrigins: string[] = [],
+): void {
+  vi.spyOn(backupEgressGate, "running").mockReturnValue(running);
+  vi.spyOn(backupEgressGate, "network").mockReturnValue({
+    externalServices,
+    allowedServiceOrigins,
+  });
 }
 
 function enabledGithubTarget(): void {
@@ -49,7 +48,17 @@ function enabledGithubTarget(): void {
   });
 }
 
-describe("git backup's automatic calls hold inside the network envelope (ADR 0138)", () => {
+function stubPush() {
+  const putContents = vi.fn(async () => ({ commitSha: "x" }));
+  Object.assign(vaultBackupSyncSeams, {
+    sealedEnvelopeJson: () => "{}",
+    resolveCredentials: () => ({ appId: "1", pem: "pem" }),
+    putContents,
+  });
+  return putContents;
+}
+
+describe("git backup's calls hold inside the operator's policy (ADR 0138)", () => {
   afterEach(() => {
     stopVaultBackupObserver();
     clearLocalBackupTarget();
@@ -59,7 +68,7 @@ describe("git backup's automatic calls hold inside the network envelope (ADR 013
   });
 
   it("a Settings tile reading the status starts nothing while external services are denied", async () => {
-    planNetwork("deny");
+    plan(true, "deny");
     enabledGithubTarget();
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
@@ -72,13 +81,8 @@ describe("git backup's automatic calls hold inside the network envelope (ADR 013
 
   it("a vault mutation pushes nothing while denied, and a manual sync still does", async () => {
     enabledGithubTarget();
-    const putContents = vi.fn(async () => ({ commitSha: "x" }));
-    Object.assign(vaultBackupSyncSeams, {
-      sealedEnvelopeJson: () => "{}",
-      resolveCredentials: () => ({ appId: "1", pem: "pem" }),
-      putContents,
-    });
-    planNetwork("deny");
+    const putContents = stubPush();
+    plan(true, "deny");
     await vaultBackupObserverSeams.runSync("vault");
     await vaultBackupObserverSeams.runSync("webhook");
     expect(putContents).not.toHaveBeenCalled();
@@ -86,13 +90,23 @@ describe("git backup's automatic calls hold inside the network envelope (ADR 013
     await vaultBackupObserverSeams.runSync("manual");
     expect(putContents).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
-    planNetwork("allow");
+    plan(true, "allow");
     await vaultBackupObserverSeams.runSync("vault");
     expect(putContents).toHaveBeenCalledTimes(2);
   });
 
+  it("withdrawn by the operator, it makes no call at all — a manual one included", async () => {
+    enabledGithubTarget();
+    const putContents = stubPush();
+    plan(false, "allow");
+    await vaultBackupObserverSeams.runSync("manual");
+    await vaultBackupObserverSeams.runSync("vault");
+    expect(putContents).not.toHaveBeenCalled();
+    expect(backupOriginAllowed("https://relay.example")).toBe(false);
+  });
+
   it("starts the observer once the plan allows external services", async () => {
-    planNetwork("allow");
+    plan(true, "allow");
     enabledGithubTarget();
     vi.stubGlobal(
       "fetch",
@@ -101,5 +115,17 @@ describe("git backup's automatic calls hold inside the network envelope (ADR 013
     const interval = vi.spyOn(globalThis, "setInterval");
     await getBackupStatus("github");
     expect(interval).toHaveBeenCalledTimes(1);
+  });
+
+  it("a non-empty allowedServiceOrigins is an allowlist for every backup call", () => {
+    plan(true, "allow", ["https://relay.example"]);
+    expect(
+      backupOriginAllowed("https://relay.example/api/git-backup/put"),
+    ).toBe(true);
+    expect(backupOriginAllowed("https://elsewhere.example/api")).toBe(false);
+    expect(backupOriginAllowed("not a url")).toBe(false);
+    vi.restoreAllMocks();
+    plan(true, "allow", []);
+    expect(backupOriginAllowed("https://elsewhere.example/api")).toBe(true);
   });
 });

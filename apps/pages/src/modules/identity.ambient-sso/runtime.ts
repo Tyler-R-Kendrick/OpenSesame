@@ -22,7 +22,7 @@
  */
 
 import {
-  ambientAuthSeams,
+  installAmbientAuthSeams,
   resetAmbientAuthSeams,
 } from "@opensesame/app-core/lib/ambient-auth-seam.js";
 import { runAmbientAuthBoot } from "@opensesame/app-core/lib/ambient-auth/boot.js";
@@ -90,14 +90,14 @@ export function startAmbientBoot(signal: AbortSignal): void {
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(context) {
-    const ctx = context as ContextWithPorts;
+    const ctx: ContextWithPorts = context;
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
     // Core federation, sign-out and the return screen reach ambient SSO
     // only through this record, so none of them carries the Entra SDK into
     // a build that excluded the capability (ADR 0130 §4).
-    Object.assign(ambientAuthSeams, {
+    installAmbientAuthSeams({
       autoAuthSuppressed: isAutoAuthSuppressed,
       clearAutoAuthSuppression,
       fenceLocalSignOut,

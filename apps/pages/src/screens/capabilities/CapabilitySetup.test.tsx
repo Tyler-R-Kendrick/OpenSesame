@@ -4,7 +4,6 @@ import {
 } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
 import {
   double,
-  moduleTableSpy,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 /** @vitest-environment jsdom */
@@ -17,26 +16,12 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
-vi.mock("../../lib/capabilities/module-table.js", async () => {
-  const { moduleTableSpy } = await import(
-    "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-  );
-  return {
-    MODULE_TABLE: new Proxy({}, { get: (_t, key) => moduleTableSpy(key) }),
-  };
-});
-
+import { loaderSeams } from "@opensesame/app-core/lib/capabilities/loader.js";
+import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { CapabilitySetup } from "./CapabilitySetup.js";
 import { downloadSeams } from "./download.js";
+
+installDoublePorts();
 
 const fetchSpy = vi.fn();
 
@@ -65,6 +50,8 @@ function pick(id: string) {
 
 describe("CONSENT-01 — the cards import nothing and connect to nothing", () => {
   it("renders every card, opens every detail sheet and toggles roots without a single import or request", () => {
+    // The loader's only road to an optional module is the module table.
+    const moduleTable = vi.spyOn(loaderSeams, "moduleTable");
     render(<CapabilitySetup />);
     fireEvent.click(road("Customize this installation"));
     fireEvent.click(screen.getByTestId("purpose-card-custom"));
@@ -83,7 +70,7 @@ describe("CONSENT-01 — the cards import nothing and connect to nothing", () =>
       expect(card(descriptor.id).textContent).toContain("in this distribution");
       fireEvent.click(pick(descriptor.id));
     }
-    expect(moduleTableSpy).not.toHaveBeenCalled();
+    expect(moduleTable).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(double.commits).toHaveLength(0);
   });

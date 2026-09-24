@@ -5,11 +5,6 @@ import {
 } from "./doubles/composition-fixture.js";
 import { double, resetDouble } from "./doubles/test-support.js";
 
-vi.mock("./capabilities-ports.js", async () => {
-  const { mockedPorts } = await import("./doubles/test-support.js");
-  return mockedPorts();
-});
-
 import { PREFS_PATH_ALIASES } from "./aliases.js";
 import {
   commitInstallationSelectionSource,
@@ -36,7 +31,10 @@ import {
   capabilityResource,
   revisionToken,
 } from "./capabilities-resources.js";
+import { installDoublePorts } from "./doubles/test-support.js";
 import { lookupConfigResource } from "./registry.js";
+
+installDoublePorts();
 
 const SELECTION = {
   schemaVersion: 1 as const,

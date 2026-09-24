@@ -25,7 +25,7 @@ import {
   switchCapability,
   switchFeature,
 } from "@opensesame/app-core/lib/capabilities/features.js";
-import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useComposition } from "../../bindings/capabilities.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -44,8 +44,9 @@ type Propose = (proposal: FeatureProposal) => void;
 
 function titleOf(id: CapabilityId): string {
   return (
-    CAPABILITY_CATALOG.capabilities.find((entry) => entry.id === id)?.title ??
-    id
+    capabilityPorts.CAPABILITY_CATALOG.capabilities.find(
+      (entry) => entry.id === id,
+    )?.title ?? id
   );
 }
 
@@ -111,7 +112,7 @@ function SectionSwitch({
               feature,
               !state.on,
               plan,
-              CAPABILITY_CATALOG,
+              capabilityPorts.CAPABILITY_CATALOG,
             ),
           )
         }
@@ -137,7 +138,9 @@ function CapabilityTile({
   const on = state?.approved === true;
   // Household sharing's transport is Shared drops: switching drops off alone
   // would review a change that changes nothing, so its tile says who needs it.
-  const needers = on ? neededBy(current, id, CAPABILITY_CATALOG) : [];
+  const needers = on
+    ? neededBy(current, id, capabilityPorts.CAPABILITY_CATALOG)
+    : [];
   const switchable =
     needers.length === 0 &&
     (on || (state?.distributed === true && state.permitted));
@@ -176,7 +179,7 @@ function CapabilityTile({
                   id,
                   !on,
                   snapshot.plan,
-                  CAPABILITY_CATALOG,
+                  capabilityPorts.CAPABILITY_CATALOG,
                 ),
               )
             }
@@ -185,6 +188,18 @@ function CapabilityTile({
       </div>
     </li>
   );
+}
+
+/** An always-on capability behind this section that an operator withdrew. */
+function WithdrawnMark({ feature }: { feature: Feature }) {
+  const { plan } = useComposition();
+  const withdrawn = (feature.backedBy ?? []).filter((id) => {
+    const state = plan?.capabilities[id];
+    return state?.tier === "core" && !state.approved;
+  });
+  if (withdrawn.length === 0) return null;
+  const label = `withdrawn by operator: ${withdrawn.map(titleOf).join(", ")}`;
+  return <StatusMark tone="err" label={label} />;
 }
 
 type SectionProps = {
@@ -215,6 +230,7 @@ function CapabilitySection({
       ref={sectionRef}
     >
       <SectionHead id={`${id}-title`} title={feature.title}>
+        <WithdrawnMark feature={feature} />
         {isSwitchable(feature) ? (
           <SectionSwitch
             feature={feature}

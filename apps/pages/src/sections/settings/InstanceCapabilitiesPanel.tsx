@@ -14,8 +14,7 @@
 import { saveLocalInstancePolicy } from "@opensesame/app-core/lib/configuration/capabilities-adapter.js";
 import {
   type CapabilityPreset,
-  PRESETS,
-  presetToInstancePolicy,
+  capabilityPorts,
 } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { useState } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
@@ -43,7 +42,7 @@ export function InstanceCapabilitiesPanel() {
     try {
       await saveLocalInstancePolicy(
         ports,
-        presetToInstancePolicy(
+        capabilityPorts.presetToInstancePolicy(
           preset,
           instanceId,
           `preset-${preset.id}-${instancePanelSeams.now()}`,
@@ -69,7 +68,7 @@ export function InstanceCapabilitiesPanel() {
         </p>
       ) : null}
       <PurposeCards
-        presets={PRESETS}
+        presets={capabilityPorts.PRESETS}
         chosen={snapshot.policy?.presetProvenance?.id ?? null}
         onChoose={(preset) => void choosePreset(preset)}
       />

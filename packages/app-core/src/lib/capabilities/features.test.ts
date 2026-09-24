@@ -14,15 +14,21 @@ import {
   featureById,
   featureOf,
   featureState,
-  ignoredProhibitions,
   isSwitchable,
   neededBy,
   switchCapability,
   switchFeature,
+  withdrawnAlwaysOn,
 } from "./features.js";
 
-/** A plan in which the named capabilities run and every optional one may. */
-function planWith(approved: readonly string[]): EffectivePlan {
+/**
+ * A plan in which the named capabilities run and every optional one may;
+ * `overrides` changes single capabilities' states on top of that.
+ */
+function planWith(
+  approved: readonly string[],
+  overrides: ReadonlyMap<string, Partial<CapabilityState>> = new Map(),
+): EffectivePlan {
   const capabilities: Record<string, CapabilityState> = {};
   for (const entry of CAPABILITY_CATALOG.capabilities) {
     capabilities[entry.id] = {
@@ -37,10 +43,39 @@ function planWith(approved: readonly string[]): EffectivePlan {
       approved: entry.tier === "core" || approved.includes(entry.id),
       restartRequired: false,
       reasons: [],
+      ...overrides.get(entry.id),
     };
   }
-  // SAFETY: the tests read `capabilities` only.
-  return { capabilities } as unknown as EffectivePlan;
+  return {
+    identity: {
+      instanceId: "personal-local",
+      installationId: "features-test",
+      vaultId: null,
+      distributionId: "features-test",
+      policyRevision: "personal-local",
+      selectionRevision: "1",
+      planDigest: "sha256:features-test",
+    },
+    provenance: "personal-local",
+    policyValid: true,
+    capabilities,
+    approvedCapabilities: Object.values(capabilities)
+      .filter((state) => state.approved)
+      .map((state) => state.id),
+    approvedModules: [],
+    approvedOperations: [],
+    approvedItemKinds: [],
+    requiredWorkerVariant: null,
+    conflicts: [],
+    consent: {
+      addedRoots: [],
+      removedRoots: [],
+      changedExposure: [],
+      addedDependencies: [],
+      requiredNotAccepted: [],
+    },
+    network: { externalServices: "allow", allowedServiceOrigins: [] },
+  };
 }
 
 describe("FEATURES", () => {
@@ -107,12 +142,10 @@ describe("featureState", () => {
   });
 
   it("offers nothing a plan does not distribute or permit", () => {
-    const plan = planWith([]);
-    const state = plan.capabilities["wallet.spending"];
-    if (!state) throw new Error("missing wallet");
-    // SAFETY: test-only mutation of a fixture plan.
-    (plan.capabilities as Record<string, CapabilityState>)["wallet.spending"] =
-      { ...state, permitted: false };
+    const plan = planWith(
+      [],
+      new Map([["wallet.spending", { permitted: false }]]),
+    );
     expect(featureState(featureById("payments"), plan).available).toEqual([]);
   });
 });
@@ -283,13 +316,23 @@ describe("neededBy", () => {
   });
 });
 
-describe("ignoredProhibitions", () => {
-  it("reports a prohibited id that is now always on, and nothing optional", () => {
-    expect(
-      ignoredProhibitions(
-        ["identity.site-broker", "support.remote-ai", "backup.git-remote"],
-        CAPABILITY_CATALOG,
-      ),
-    ).toEqual(["identity.site-broker", "backup.git-remote"]);
+describe("withdrawnAlwaysOn", () => {
+  it("names the always-on capabilities the plan does not run, and nothing optional", () => {
+    const withdrawn = {
+      approved: false,
+      reasons: ["PROHIBITED_BY_INSTANCE" as const],
+    };
+    const plan = planWith(
+      [],
+      new Map([
+        ["identity.site-broker", withdrawn],
+        ["backup.git-remote", withdrawn],
+      ]),
+    );
+    expect(withdrawnAlwaysOn(plan)).toEqual([
+      "backup.git-remote",
+      "identity.site-broker",
+    ]);
+    expect(withdrawnAlwaysOn(null)).toEqual([]);
   });
 });

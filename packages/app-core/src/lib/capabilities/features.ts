@@ -52,6 +52,11 @@ export type Feature = Readonly<{
   providerCategories: readonly ProviderCategory[];
   /** The model picks (voice and inference) sit in this section. */
   models?: true;
+  /**
+   * The always-on capabilities this section's providers work through. An
+   * operator may withdraw one (ADR 0138); the section then says so.
+   */
+  backedBy?: readonly CapabilityId[];
 }>;
 
 const section = (
@@ -59,7 +64,8 @@ const section = (
   title: string,
   capabilities: readonly CapabilityId[],
   providerCategories: readonly ProviderCategory[],
-): Feature => ({ id, title, capabilities, providerCategories });
+  backedBy: readonly CapabilityId[] = [],
+): Feature => ({ id, title, capabilities, providerCategories, backedBy });
 
 /**
  * In page order, by topic: who signs in, what protects keys, where secrets
@@ -68,24 +74,49 @@ const section = (
  * (ADR 0138), so Identity providers and Backups carry no switch.
  */
 export const FEATURES: readonly Feature[] = [
-  section("identity", "Identity providers", [], ["identity"]),
+  section(
+    "identity",
+    "Identity providers",
+    [],
+    ["identity"],
+    ["identity.federation"],
+  ),
   section("directory", "Directory", ["enterprise.directory-provisioning"], []),
-  section("encryption", "Encryption", [], ["encryption"]),
+  section(
+    "encryption",
+    "Encryption",
+    [],
+    ["encryption"],
+    ["backup.cloud-secrets"],
+  ),
   section(
     "certificates",
     "Certificate authority",
     ["enterprise.ca-administration"],
     ["certificates"],
   ),
-  section("backups", "Backups", [], ["backup_recovery"]),
-  section("password-managers", "Password managers", [], ["password_managers"]),
+  section("backups", "Backups", [], ["backup_recovery"], ["backup.git-remote"]),
+  section(
+    "password-managers",
+    "Password managers",
+    [],
+    ["password_managers"],
+    ["connectors.external"],
+  ),
   section(
     "cloud-secret-storage",
     "Cloud secret storage",
     [],
     ["cloud_secret_storage"],
+    ["connectors.external"],
   ),
-  section("local-storage", "Local storage", [], ["local_storage"]),
+  section(
+    "local-storage",
+    "Local storage",
+    [],
+    ["local_storage"],
+    ["connectors.external"],
+  ),
   section("sharing", "Sharing", ["sharing.drops", "sharing.household"], []),
   section("payments", "Payments", ["wallet.spending"], ["wallet"]),
   {
@@ -202,9 +233,7 @@ export function switchFeature(
     return { roots: kept, alternatives };
   }
   const added = featureState(feature, plan).available;
-  const alternatives: Record<string, CapabilityId> = {
-    ...current.alternatives,
-  };
+  const alternatives = { ...current.alternatives };
   const runnable = (id: CapabilityId) => {
     const state = plan?.capabilities[id];
     return state === undefined || (state.distributed && state.permitted);
@@ -270,17 +299,14 @@ export function neededBy(
 }
 
 /**
- * Core ids an instance policy still names in `prohibited`. A prohibition
- * written before ADR 0138 made browser-local IAM, SIOP, the site broker and
- * git backup always on no longer withdraws them, and the page says so
- * rather than letting the policy read as though it still held.
+ * Always-on capabilities this plan does not run: an operator withdrew them
+ * (ADR 0138), or they need one that was. The page names them rather than
+ * drawing their sections as though they ran.
  */
-export function ignoredProhibitions(
-  prohibited: readonly CapabilityId[],
-  catalog: CapabilityCatalog,
-): CapabilityId[] {
-  return prohibited.filter(
-    (id) =>
-      catalog.capabilities.find((entry) => entry.id === id)?.tier === "core",
-  );
+export function withdrawnAlwaysOn(plan: EffectivePlan | null): CapabilityId[] {
+  if (plan === null) return [];
+  return Object.values(plan.capabilities)
+    .filter((state) => state.tier === "core" && !state.approved)
+    .map((state) => state.id)
+    .sort();
 }
