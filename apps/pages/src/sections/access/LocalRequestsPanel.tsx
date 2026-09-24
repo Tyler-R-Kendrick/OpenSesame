@@ -78,6 +78,20 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
       <div className="panel__head">
         <h2>Local requests</h2>
         <div className="actions">
+          <select
+            className="head-filter"
+            aria-label="Local request status filter"
+            value={statusFilter}
+            onChange={(event) =>
+              // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
+              setStatusFilter(event.target.value as InboxStatusFilter)
+            }
+          >
+            <option value="pending">pending</option>
+            <option value="expired">expired</option>
+            <option value="decided">decided</option>
+            <option value="all">all</option>
+          </select>
           <button
             type="button"
             className="icon-btn"
@@ -105,22 +119,6 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
         </div>
       </div>
       <div className="panel__body">
-        <label>
-          Show{" "}
-          <select
-            aria-label="Local request status filter"
-            value={statusFilter}
-            onChange={(event) =>
-              // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
-              setStatusFilter(event.target.value as InboxStatusFilter)
-            }
-          >
-            <option value="pending">pending</option>
-            <option value="expired">expired</option>
-            <option value="decided">decided</option>
-            <option value="all">all</option>
-          </select>
-        </label>
         {model.error ? (
           <p className="note note--err" role="alert">
             {model.error}

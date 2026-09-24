@@ -184,11 +184,15 @@
   padding: 0.75rem 0;
 }
 
+/* The row's keys stay on the row. They used to wrap under a long name or
+   reference on a phone, which left three glyphs on a line of their own, far
+   from the record they act on; now the name wraps instead, and the keys fold
+   into a block at the row's top end. */
 .identity-row__main {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem 0.75rem;
+  min-width: 0;
 }
 
 .identity-row__mark {
@@ -222,7 +226,8 @@
   display: grid;
   gap: 0.125rem;
   min-width: 0;
-  flex: 1 1 12rem;
+  flex: 1 1 auto;
+  align-self: center;
 }
 
 .identity-row__id h3 {
@@ -245,8 +250,26 @@
 
 .identity-row .actions {
   display: inline-flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.375rem;
+  max-width: 60%;
   margin-left: auto;
+}
+
+/* A phone's 44px keys: three to a line, so a record's usual set stays one
+   row beside its name and only a longer set folds. */
+@media (pointer: coarse), (max-width: 900px) {
+  .identity-row .actions {
+    flex: none;
+    max-width: calc(3 * 2.75rem + 2 * 0.375rem);
+  }
+}
+
+.identity-row__main > :is(.status-mark, .identity-row__mark, .btn) {
+  flex: none;
+  align-self: center;
 }
 
 .identity-row .hint {

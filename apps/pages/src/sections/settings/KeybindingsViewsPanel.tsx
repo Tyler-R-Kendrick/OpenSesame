@@ -64,49 +64,53 @@ export function KeybindingsViewsPanel() {
           Bindings are inert action ids. Imported maps never run immediately.
           Saved views are queries, not grants.
         </p>
-        <label htmlFor="keybindings-source">settings/keybindings.yaml</label>
-        <textarea
-          id="keybindings-source"
-          rows={8}
-          spellCheck={false}
-          value={bindingsText}
-          onChange={(event) => setBindingsText(event.target.value)}
-        />
-        <div className="actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Save keybindings"
-            title="Save keybindings"
-            onClick={saveBindings}
-          >
-            <IconCheck size={16} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Reset keybindings"
-            title="Reset keybindings"
-            onClick={reset}
-          >
-            <IconRefresh size={16} />
-          </button>
+        <div className="keyed-field">
+          <label htmlFor="keybindings-source">settings/keybindings.yaml</label>
+          <textarea
+            id="keybindings-source"
+            rows={8}
+            spellCheck={false}
+            value={bindingsText}
+            onChange={(event) => setBindingsText(event.target.value)}
+          />
+          <div className="actions">
+            <button
+              type="button"
+              className="icon-btn icon-btn--sm"
+              aria-label="Save keybindings"
+              title="Save keybindings"
+              onClick={saveBindings}
+            >
+              <IconCheck size={16} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn icon-btn--sm"
+              aria-label="Reset keybindings"
+              title="Reset keybindings"
+              onClick={reset}
+            >
+              <IconRefresh size={16} />
+            </button>
+          </div>
         </div>
         <label htmlFor="view-name">Pin approvals view</label>
-        <input
-          id="view-name"
-          value={viewName}
-          onChange={(event) => setViewName(event.target.value)}
-        />
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label="Pin view"
-          title="Pin view"
-          onClick={pinView}
-        >
-          <IconStar size={16} />
-        </button>
+        <div className="field-inline">
+          <input
+            id="view-name"
+            value={viewName}
+            onChange={(event) => setViewName(event.target.value)}
+          />
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Pin view"
+            title="Pin view"
+            onClick={pinView}
+          >
+            <IconStar size={16} />
+          </button>
+        </div>
         <p className="hint">
           {loadViews().length} saved view(s). Effective{" "}
           {Object.keys(currentKeybindings()).length} bindings.

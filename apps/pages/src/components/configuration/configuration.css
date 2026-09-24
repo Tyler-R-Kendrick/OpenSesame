@@ -25,6 +25,7 @@
 }
 .cfg-source__input {
   width: 100%;
+  max-width: var(--text-max);
   min-height: 12rem;
   font-family: var(--mono);
   font-size: 1rem;

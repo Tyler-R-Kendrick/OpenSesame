@@ -10,12 +10,8 @@ import {
 } from "@opensesame/app-core/lib/orgs.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import {
-  IconCheck,
-  IconPlus,
-  IconRefresh,
-  IconX,
-} from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 /** Provisioning reserves a directory identity; sign-in must still verify it. */
@@ -255,16 +251,10 @@ function UsersForm({
         Match the verified subject from your organization's sign-in provider;
         this does not set a password or mark an email as verified.
       </p>
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={busy || !online || !draft.userName.trim()}
-          aria-label="Save user"
-          title="Save user"
-        >
-          <IconCheck size={16} />
-        </button>
+      <FormCommit
+        label="Save user"
+        disabled={busy || !online || !draft.userName.trim()}
+      >
         <button
           type="button"
           className="icon-btn"
@@ -275,7 +265,7 @@ function UsersForm({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   );
 }

@@ -347,14 +347,28 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   Clipping a control to avoid an overlay is not a fix.
 - **Scrollers contain their own overscroll** and never hand a flick to the
   page behind them. A strip that scrolls (Access tabs, settings categories,
-  vault chips, the plane glyphs) keeps its selected item in view.
+  vault chips, the plane glyphs) keeps its selected item in view — by
+  scrolling the strip itself (`lib/strip.ts`), never `scrollIntoView`, which
+  also scrolls every ancestor and dragged a whole section sideways.
+- **One tab strip.** Access, Identity, Settings and Wallet draw the same flat
+  underline strip, and on a phone every one of them scrolls in one row to the
+  screen's edge. None wraps onto a second row of underlines.
+- **A long page has an index.** The section drawer names sections and nothing
+  else, so a page whose panels the desktop reaches from the rail (Settings ›
+  Security, Settings › Connections, Connections) draws the same entries from
+  the same page tree as an "On this page" strip under its tabs
+  (`components/PageIndex.tsx`) below 900px. Nothing the rail links to by name
+  is reachable only by scrolling.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
 
 None of this is a screenshot review: `pnpm --filter @opensesame/pages
 verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
-coarse-pointer context and measures every rule above. It refuses to report a
-pass from a context that lost its touch emulation, because a check that
+coarse-pointer context and measures every rule above — and, at every stop and on
+the tablets' Settings, that no key stands alone on a row
+(`KEY-ALONE-ON-A-ROW`) and no field outgrows its measure
+(`FIELD-WIDER-THAN-ITS-MEASURE`, `scripts/lib/layout-contract.mjs`). It
+refuses to report a pass from a context that lost its touch emulation, because a check that
 measures the mouse stylesheet passes for free.
 
 ## Elevation & Depth
@@ -427,6 +441,50 @@ Ink fill for the primary action (inverting to paper-on-ink in dark mode),
 surface fill with a hairline for secondary, ghost for tertiary, and a
 red-tinted variant for anything destructive. One primary per view, sized to
 its content — never block-width.
+
+### Keys have a home
+A key sits on the row of the thing it acts on, at that row's end — never on
+a row of its own. A row of one or two bare glyphs under a field reads as
+belonging to whatever comes next; on a phone it spends a whole screen-width
+on a mark nobody can name without a long press. Each key has one of these
+homes, and `pnpm lint:design` (`commit-key-has-a-home`) rejects a submit key
+outside them:
+
+- **A panel's keys** (new, reload, delete this vault, prove round-trip) ride
+  its head, beside the title, vertically centred on it.
+- **A field's keys** (save these recipients, reset these bindings) ride the
+  field's label row, as wide as the field it heads, so the keys land over the
+  field's own end. A multi-line field uses `.keyed-field`: the keys follow
+  the field in the document, so Tab leaves the field for the key that saves
+  it, and the grid only draws them on the label's row. `.keyed-row` is for a
+  row whose content comes first anyway (a readout, a status).
+- **The commit of a one-field form** ends the field's row: `.field-inline`,
+  or a `FieldShell` `tail`.
+- **The commit of a form of several fields** is `FormCommit` — the `.go`
+  square with its verb beside it — because there is no single row to end,
+  and a bare glyph under the label column is the mystery meat this rule
+  exists for. The form's secondary keys (cancel, prefer) ride the same row.
+- **A record's keys** stay on the record's row. When the name and reference
+  are long they wrap; the keys fold into a block at the row's top end rather
+  than dropping to a line beneath it.
+
+### Fields have a measure
+A field is sized to the value it holds, never to the panel it sits in. A
+single-line field or select stops at `--field-max` (30rem); a code or prose
+editor at `--text-max` (46rem). A phone never reaches either, so there every
+field still fills its row. A filter in a panel head (`.head-filter`) is as
+wide as its options. Readouts that belong to a field (the strength meter)
+share its measure, and a matrix of marks (Formats) sizes its columns to what
+they hold rather than spreading them in fractions of the page. A rule that
+restates `width: 100%` for a field restates a `max-width` too — the token, or
+`none` for an overlay that must span exactly what it covers — and
+`pnpm lint:design` (`field-has-a-measure`) rejects one that does not.
+
+A head's measure belongs to its prose, not to the row: a section or panel
+head spans the document so a key or view switch in it ends the title's row
+instead of floating at the edge of a 62ch box. A list of cards drops the
+browser's list indent, and a list or grid of rows pins its track to
+`minmax(0, 1fr)` so one `nowrap` label cannot widen the page.
 
 ### Forms are records
 A form is a record being filled in, not a wall of boxes: each field is a
@@ -722,4 +780,9 @@ the global notifications panel so they remain visible from every section.
   entered every time — never a remembered device and never a recovery path.
 - **Don't** put a secret, or a hash of one, on the network.
 - **Don't** let prose run the full width of a panel.
+- **Don't** leave a key alone on a row under the field it commits; give it a
+  home (§ Keys have a home).
+- **Don't** let a field, select or filter grow to the width of its panel
+  (§ Fields have a measure).
+- **Don't** make a phone scroll a long page to reach a panel the rail names.
 - **Don't** clone Bitwarden's brand identity.

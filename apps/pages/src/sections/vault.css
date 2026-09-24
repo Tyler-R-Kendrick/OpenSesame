@@ -335,6 +335,7 @@
 .vtree__cmd input {
   flex: 1;
   min-width: 0;
+  max-width: none;
   min-height: 0;
   border: 0;
   padding: 0;
@@ -695,9 +696,8 @@
 
 /* The editor edits a file: name as the title, kind as the extension,
    save/cancel follow the fields in visual and keyboard order. */
-.editor__actions {
-  display: flex;
-  gap: 0.35rem;
+.editor__actions .icon-btn {
+  margin-left: 0.25rem;
 }
 .editor__titlerow {
   display: flex;
@@ -760,20 +760,6 @@ select.editor__ext {
 select.editor__ext:hover {
   border-bottom-color: var(--ink);
   color: var(--ink);
-}
-
-.editor__save {
-  background: var(--ink);
-  color: var(--canvas);
-}
-
-.editor__save:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
-  color: var(--canvas);
-}
-
-.editor__save:disabled {
-  opacity: 0.4;
 }
 
 .editor__seal {
@@ -1029,10 +1015,35 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
-  .editor__row,
+  .editor__row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Two lines, one key: the value on top, its qualifier (match mode, field
+     value, resource) under it, and the row's keys beside both. Collapsed to
+     one column, the remove key fell onto a line of its own under a
+     full-width three-word select, far from the address it removes. */
   .editor__uri,
   .editor__ceiling {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .editor__uri > :nth-child(2),
+  .editor__ceiling > :nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .editor__uri > :last-child,
+  .editor__ceiling > :last-child {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .editor__uri > select {
+    justify-self: start;
+    width: auto;
+    min-width: 9rem;
   }
 
   .vault__rows {

@@ -54,6 +54,15 @@
      the trap cannot be reopened by adding one more field style. */
   --field-min: 0rem;
 
+  /* How wide a field may grow. A field is sized to the value it holds, not to
+     the panel it sits in: a three-option select or a name stretched across a
+     60rem document reads as a rule, not a control, and puts its value a
+     screen-width away from its label. A phone never reaches these, so on a
+     phone a field still fills its row. Code and prose editors get the wider
+     measure; nothing gets the panel's. */
+  --field-max: 30rem;
+  --text-max: 46rem;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.08), 0 1px 4px -1px
     rgba(0, 0, 0, 0.05);
@@ -438,8 +447,10 @@ kbd {
   color: var(--ink-2);
 }
 
-/* A finger is not a pointer — the floor the app keeps everywhere else. */
-@media (pointer: coarse) {
+/* A finger is not a pointer — the floor the app keeps everywhere else, on
+   the width as well as the pointer (DESIGN.md § Touch), so a form's commit is
+   never smaller than the icon key beside it in a narrow window. */
+@media (pointer: coarse), (max-width: 900px) {
   .go {
     width: 2.75rem;
     height: 2.75rem;
@@ -554,6 +565,7 @@ input,
 select,
 textarea {
   width: 100%;
+  max-width: var(--field-max);
   min-height: 2rem;
   padding: 0.25rem 0.1rem;
   border: 0;
@@ -575,6 +587,7 @@ textarea:focus-visible {
 }
 
 textarea {
+  max-width: var(--text-max);
   min-height: 6rem;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--line-strong);
@@ -1373,13 +1386,16 @@ body {
   gap: 1.5rem;
 }
 
+/* The head spans the document so a key or a view switch in it ends the
+   title's row; the measure belongs to the prose under the title, not to the
+   row that carries the title's keys (a 62ch head parked them mid-page). */
 .section__head {
   display: grid;
   gap: 0.35rem;
-  max-width: 62ch;
 }
 
 .section__head p {
+  max-width: 62ch;
   color: var(--ink-2);
   font-size: 0.9375rem;
 }
@@ -1391,9 +1407,11 @@ body {
   box-shadow: none;
 }
 
+/* Keys in a head line up with its title, not with the top of the row: a 44px
+   key beside a 1rem heading otherwise hangs half a line below it. */
 .panel__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0 0 0.7rem;
@@ -1429,6 +1447,88 @@ body {
 
 .actions--end {
   justify-content: flex-end;
+}
+
+/* A row whose keys ride its end: a field's label with the keys that act on
+   that field, or the readout under a field with the key that commits it. A
+   row of keys stranded under a field reads as belonging to whatever comes
+   next, and on a phone it spends a whole screen-width on one glyph. The row
+   is as wide as the field it belongs to, so the keys land over the field's
+   own end rather than at the far edge of the panel. */
+/* A filter in a panel head is a short choice beside the head's keys, sized to
+   its options — never a full-width field under the title. */
+.head-filter {
+  width: auto;
+  max-width: 12rem;
+}
+
+.keyed-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: var(--text-max);
+}
+
+.keyed-row--field {
+  max-width: var(--field-max);
+}
+
+.keyed-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.keyed-row > .actions,
+.keyed-row > .icon-btn {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
+/* A multi-line field with its keys on its label row. The keys follow the
+   field in the document, so Tab leaves the field for the key that saves it
+   (commits come after the fields, in visual and keyboard order alike); the
+   grid only draws them up on the label's row. */
+.keyed-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  min-width: 0;
+  max-width: var(--text-max);
+}
+
+.keyed-field > :is(textarea, .hint) {
+  grid-column: 1 / -1;
+}
+
+.keyed-field > .actions {
+  grid-column: 2;
+  grid-row: 1;
+  flex-wrap: nowrap;
+}
+
+/* A single-line field and the one key that commits it share a row: the key
+   is the end of the field, not a paragraph after it. */
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  max-width: var(--field-max);
+}
+
+.field-inline > input,
+.field-inline > select,
+.field-inline > .f {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.field-inline > .icon-btn,
+.field-inline > .actions {
+  flex: none;
 }
 
 /* Key/value readouts used across Access, Sites, Identity. */
@@ -1701,6 +1801,8 @@ body {
      in what they hold and in nothing else, and each used to carry its own
      copy of this. */
   .set__nav,
+  .access-tabs,
+  .identity-tabs,
   .statusline .cx {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1710,14 +1812,29 @@ body {
   }
 
   .set__nav::-webkit-scrollbar,
+  .access-tabs::-webkit-scrollbar,
+  .identity-tabs::-webkit-scrollbar,
   .statusline .cx::-webkit-scrollbar {
     display: none;
+  }
+
+  /* One tab strip, three sections. Identity's wrapped onto a second row of
+     underlines while Access and Settings scrolled; a phone now meets the same
+     strip wherever it goes. */
+  .access-tab,
+  .identity-tab {
+    flex: none;
+    scroll-snap-align: start;
+    white-space: nowrap;
   }
 
   /* A strip that scrolls runs to the edge of the screen. Cut off at the
      section's gutter it reads as a word that did not fit; running under the
      edge it reads as a row with more in it — which is what it is. */
-  .section :is(.access-tabs, .set__nav) {
+  .section :is(.access-tabs, .identity-tabs, .set__nav) {
+    /* \`.set__nav\` caps itself at 100%, which undid the right-hand bleed and
+       cut the strip — and its selected tab — at the gutter. */
+    max-width: none;
     margin-left: calc(-1rem - env(safe-area-inset-left));
     margin-right: calc(-1rem - env(safe-area-inset-right));
     padding-left: calc(1rem + env(safe-area-inset-left));
@@ -1729,6 +1846,55 @@ body {
   .statusline {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ——— On this page (phone) ————————————————————————————————
+   The rail's children for a long page, as a strip under its tabs. Drawn only
+   where there is no rail; it scrolls like the tab strip above it and runs to
+   the screen's edge the same way. */
+.page-index {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .page-index {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0.75rem calc(-1rem - env(safe-area-inset-right)) 0
+      calc(-1rem - env(safe-area-inset-left));
+    padding: 0 calc(1rem + env(safe-area-inset-right)) 0.25rem
+      calc(1rem + env(safe-area-inset-left));
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .page-index::-webkit-scrollbar {
+    display: none;
+  }
+
+  .page-index__link {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .page-index__link:active {
+    background: var(--surface-3);
+    color: var(--ink);
   }
 }
 
@@ -2390,6 +2556,7 @@ body {
 .f {
   display: grid;
   gap: 0.3rem;
+  max-width: var(--field-max);
 }
 
 .f__labelrow {
@@ -2432,6 +2599,8 @@ body {
 .f__input {
   flex: 1;
   min-width: 0;
+  /* The shell is the field; it carries the cap (\`.f\`). */
+  max-width: none;
   min-height: 2.125rem;
   border: 0;
   border-radius: 0;
@@ -3246,6 +3415,7 @@ body {
 .str {
   display: grid;
   gap: 0.35rem;
+  max-width: var(--field-max);
 }
 
 .str__bars {
@@ -3496,6 +3666,9 @@ body {
    the state chip that says what pressing it will cost. */
 .vault-list {
   display: grid;
+  /* A grid's implicit column is as wide as its widest \`nowrap\` label, which
+     on a phone pushed Settings › Vaults sideways off the screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.25rem;
 }
 
@@ -3503,6 +3676,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .vault-row__body {

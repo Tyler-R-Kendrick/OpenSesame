@@ -13,37 +13,33 @@ export function SettingsDangerPanel() {
         <div>
           <h2>Delete this vault</h2>
         </div>
-      </div>
-      <div className="panel__body">
         {confirmDestroy ? (
-          <>
-            <p className="note note--err">
-              <span>
-                {items.length} {items.length === 1 ? "item" : "items"} will be
-                unrecoverable. Export first if you are not certain.
-              </span>
+          <div className="actions">
+            {/* Ceremony prose beside its keys (DESIGN.md § Actions are
+                symbols) — not buried under the head in panel__body. */}
+            <p className="hint">
+              {items.length} {items.length === 1 ? "item" : "items"} will be
+              unrecoverable. Export first if you are not certain.
             </p>
-            <div className="actions">
-              <button
-                type="button"
-                className="icon-btn icon-btn--danger is-armed"
-                aria-label="Delete permanently"
-                title="Delete permanently"
-                onClick={() => void store.destroy()}
-              >
-                <IconTrash size={16} />
-              </button>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Cancel"
-                title="Cancel"
-                onClick={() => setConfirmDestroy(false)}
-              >
-                <IconX size={16} />
-              </button>
-            </div>
-          </>
+            <button
+              type="button"
+              className="icon-btn icon-btn--danger is-armed"
+              aria-label="Delete permanently"
+              title="Delete permanently"
+              onClick={() => void store.destroy()}
+            >
+              <IconTrash size={16} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Cancel"
+              title="Cancel"
+              onClick={() => setConfirmDestroy(false)}
+            >
+              <IconX size={16} />
+            </button>
+          </div>
         ) : (
           <div className="actions">
             <button

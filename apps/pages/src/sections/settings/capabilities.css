@@ -1,10 +1,15 @@
 /* Settings › Capabilities — the member view and the operator view. Rows
    reuse the capability card geometry from the setup tab. */
 
+/* The member view is a \`<ul>\`: without this its cards sat 40px inside the
+   heading they belong to — the browser's list indent, on a list of cards. */
 .capspanel {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .capspanel__row {

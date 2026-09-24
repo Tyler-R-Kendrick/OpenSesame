@@ -1,3 +1,4 @@
+import { useStripItem } from "../../lib/strip.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { useEnabledIdentityViews } from "./identity-views.js";
 
@@ -38,10 +39,11 @@ function IdentityTabButton({
   active,
   onSelect,
 }: { id: IdentityTab; active: boolean; onSelect: () => void }) {
-  const ref = useGuideTarget<HTMLButtonElement>(`identity.${id}`);
+  const guideRef = useGuideTarget<HTMLButtonElement>(`identity.${id}`);
+  const stripRef = useStripItem<HTMLButtonElement>(active, guideRef);
   return (
     <button
-      ref={ref}
+      ref={stripRef}
       type="button"
       role="tab"
       aria-selected={active}

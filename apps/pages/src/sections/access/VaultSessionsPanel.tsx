@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
@@ -353,10 +354,7 @@ function NewVaultSessionForm({
           ))}
         </select>
       </div>
-      <div className="actions">
-        <button type="submit" className="btn btn--primary" disabled={busy}>
-          Start session
-        </button>
+      <FormCommit label="Start session" disabled={busy}>
         <button
           type="button"
           className="icon-btn"
@@ -367,7 +365,7 @@ function NewVaultSessionForm({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   );
 }

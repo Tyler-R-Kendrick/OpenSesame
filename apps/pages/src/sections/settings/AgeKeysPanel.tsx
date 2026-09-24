@@ -210,20 +210,12 @@ export function AgeKeysPanel() {
         <div>
           <h2>Age keys</h2>
         </div>
-        {active ? (
-          <StatusMark tone="ok" label="File encryption" />
-        ) : (
-          <span>{connectorLabel(binding.providerId)}</span>
-        )}
-      </div>
-      <div className="panel__body">
-        {flash ? <StatusNote message={flash} /> : null}
-        {!tomb ? (
-          <p className="hint">
-            Unlock a vault to configure the age key inventory.
-          </p>
-        ) : null}
         <div className="actions">
+          {active ? (
+            <StatusMark tone="ok" label="File encryption" />
+          ) : (
+            <span>{connectorLabel(binding.providerId)}</span>
+          )}
           {active ? null : (
             <button
               type="button"
@@ -247,51 +239,64 @@ export function AgeKeysPanel() {
             <IconCheck size={16} />
           </button>
         </div>
+      </div>
+      <div className="panel__body">
+        {flash ? <StatusNote message={flash} /> : null}
+        {!tomb ? (
+          <p className="hint">
+            Unlock a vault to configure the age key inventory.
+          </p>
+        ) : null}
 
         <form onSubmit={(event) => void saveRecipients(event)}>
-          <label htmlFor="age-recipients">Recipients</label>
-          <textarea
-            id="age-recipients"
-            className="f__input f__input--mono"
-            rows={3}
-            spellCheck={false}
-            value={recipientsText}
-            disabled={!tomb || busy}
-            onChange={(event) => setRecipientsText(event.target.value)}
-          />
-          <p className="hint">
-            One age1… or ssh-… recipient per line. Public; sealed with the
-            vault.
-          </p>
-          <div className="actions">
-            <button
-              type="submit"
-              className="icon-btn icon-btn--sm"
+          <div className="keyed-field">
+            <label htmlFor="age-recipients">Recipients</label>
+            <textarea
+              id="age-recipients"
+              className="f__input--mono"
+              rows={3}
+              spellCheck={false}
+              value={recipientsText}
               disabled={!tomb || busy}
-              aria-label="Save recipients"
-              title="Save recipients"
-            >
-              <IconCheck size={16} />
-            </button>
+              onChange={(event) => setRecipientsText(event.target.value)}
+            />
+            <p className="hint">
+              One age1… or ssh-… recipient per line. Public; sealed with the
+              vault.
+            </p>
+            <div className="actions">
+              <button
+                type="submit"
+                className="icon-btn icon-btn--sm"
+                disabled={!tomb || busy}
+                aria-label="Save recipients"
+                title="Save recipients"
+              >
+                <IconCheck size={16} />
+              </button>
+            </div>
           </div>
         </form>
 
-        <div className="actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            disabled={!tomb || busy}
-            aria-label="Generate identity"
-            title="Generate identity"
-            onClick={() => void mintIdentity()}
-          >
-            <IconRefresh size={16} />
-          </button>
-          {config.identity ? (
-            <StatusMark tone="ok" label="Identity sealed" />
-          ) : (
-            <StatusMark tone="idle" label="No identity" />
-          )}
+        <div className="keyed-row">
+          <span className="label">Identity</span>
+          <div className="actions">
+            {config.identity ? (
+              <StatusMark tone="ok" label="Identity sealed" />
+            ) : (
+              <StatusMark tone="idle" label="No identity" />
+            )}
+            <button
+              type="button"
+              className="icon-btn icon-btn--sm"
+              disabled={!tomb || busy}
+              aria-label="Generate identity"
+              title="Generate identity"
+              onClick={() => void mintIdentity()}
+            >
+              <IconRefresh size={16} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={(event) => void sealImportedIdentity(event)}>
@@ -306,18 +311,18 @@ export function AgeKeysPanel() {
             disabled={!tomb || busy}
             onValueChange={setImportIdentity}
             hint="Paste AGE-SECRET-KEY-… once. Sealed immediately; never shown again."
+            tail={
+              <button
+                type="submit"
+                className="icon-btn icon-btn--sm"
+                disabled={!tomb || busy || importIdentity.trim().length === 0}
+                aria-label="Seal identity"
+                title="Seal identity"
+              >
+                <IconLock size={16} />
+              </button>
+            }
           />
-          <div className="actions">
-            <button
-              type="submit"
-              className="icon-btn icon-btn--sm"
-              disabled={!tomb || busy || importIdentity.trim().length === 0}
-              aria-label="Seal identity"
-              title="Seal identity"
-            >
-              <IconLock size={16} />
-            </button>
-          </div>
         </form>
       </div>
     </section>

@@ -83,7 +83,7 @@ export function LocalAuthorityTemplates() {
       </div>
       <div className="panel__body">
         <label className="field">
-          <span className="field__label">Template</span>
+          <span className="label">Template</span>
           <select
             className="input"
             value={selected?.id ?? ""}

@@ -24,7 +24,8 @@ import {
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useId, useState } from "react";
-import { IconCheck, IconInfo } from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconInfo } from "../../components/Icons.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 import { OauthConnectBody } from "./OauthConnectBody.js";
 
@@ -280,17 +281,10 @@ export function ConnectForm({
           Secret fields are sealed on arrival and are never returned to this
           browser.
         </p>
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !online}
-            aria-label={busy ? "Saving" : "Save configuration"}
-            title={busy ? "Saving" : "Save configuration"}
-          >
-            <IconCheck size={16} />
-          </button>
-        </div>
+        <FormCommit
+          label={busy ? "Saving" : "Save configuration"}
+          disabled={busy || !online}
+        />
       </form>
     );
   }
@@ -328,17 +322,10 @@ export function ConnectForm({
             </p>
           </div>
         </details>
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !online || apiKey.trim() === ""}
-            aria-label={busy ? "Saving" : `Connect ${provider.displayName}`}
-            title={busy ? "Saving" : `Connect ${provider.displayName}`}
-          >
-            <IconCheck size={16} />
-          </button>
-        </div>
+        <FormCommit
+          label={busy ? "Saving" : `Connect ${provider.displayName}`}
+          disabled={busy || !online || apiKey.trim() === ""}
+        />
       </form>
     );
   }

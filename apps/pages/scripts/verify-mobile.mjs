@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
+import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import {
   AUDIT,
@@ -333,6 +334,7 @@ async function tablet(browser, size) {
     );
   }
   await audit(page, stop("vault"));
+  await auditSettings(page, (label) => audit(page, label), stop);
   await context.close();
 }
 

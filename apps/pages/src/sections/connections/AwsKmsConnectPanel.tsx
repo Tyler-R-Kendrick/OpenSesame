@@ -6,7 +6,8 @@
  */
 
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { AwsKmsConnectFields } from "./AwsKmsConnectFields.js";
 import { useAwsKmsConnect } from "./useAwsKmsConnect.js";
@@ -81,16 +82,10 @@ export function AwsKmsConnectPanel({
           configured={panel.configured}
           onChange={panel.setField}
         />
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            disabled={panel.busy}
-            aria-label={panel.busy ? "Saving AWS KMS" : "Save AWS KMS"}
-            title={panel.busy ? "Saving AWS KMS" : "Save AWS KMS"}
-          >
-            <IconCheck size={16} />
-          </button>
+        <FormCommit
+          label={panel.busy ? "Saving AWS KMS" : "Save AWS KMS"}
+          disabled={panel.busy}
+        >
           <button
             type="button"
             className="icon-btn icon-btn--sm"
@@ -111,7 +106,7 @@ export function AwsKmsConnectPanel({
           >
             <IconTrash size={16} />
           </button>
-        </div>
+        </FormCommit>
       </form>
     </div>
   );

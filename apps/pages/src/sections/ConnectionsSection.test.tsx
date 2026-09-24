@@ -192,7 +192,7 @@ describe("ConnectionsSection gallery", () => {
     expect(screen.getAllByText("Linear").length).toBeGreaterThan(0);
     expect(screen.queryByText("Vaultwarden")).toBeNull();
     expect(screen.queryByText("Better Auth")).toBeNull();
-    expect(screen.getByText("Developer tools")).toBeTruthy();
+    expect(screen.getAllByText("Developer tools")).toHaveLength(2);
     expect(screen.queryByText("Password managers")).toBeNull();
     expect(
       screen.queryByRole("switch", { name: /Enable Plain storage/i }),

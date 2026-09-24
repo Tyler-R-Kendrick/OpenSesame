@@ -5,6 +5,7 @@ import type {
   LocalIdentityKind,
 } from "@opensesame/app-core/lib/local-directory.js";
 import { useEffect, useRef } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import {
   IconCheck,
   IconEdit,
@@ -255,16 +256,7 @@ export function DirectoryForm({
           onChange={(event) => setDraft({ ...draft, name: event.target.value })}
         />
       </div>
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={busy || !draft.name.trim()}
-          aria-label="Save changes"
-          title="Save changes"
-        >
-          <IconCheck size={16} />
-        </button>
+      <FormCommit label="Save changes" disabled={busy || !draft.name.trim()}>
         <button
           type="button"
           className="icon-btn"
@@ -275,7 +267,7 @@ export function DirectoryForm({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   ) : null;
 }

@@ -21,8 +21,8 @@ import {
 import { listPaymentInstruments } from "@opensesame/app-core/lib/wallet-instruments.js";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useCallback, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import {
-  IconCheck,
   IconEdit,
   IconPlus,
   IconTrash,
@@ -233,15 +233,7 @@ export function BudgetsPanel() {
                 })}
               </fieldset>
             ) : null}
-            <div className="actions">
-              <button
-                type="submit"
-                className="icon-btn"
-                aria-label="Save budget"
-                title="Save budget"
-              >
-                <IconCheck size={16} />
-              </button>
+            <FormCommit label="Save budget">
               <button
                 type="button"
                 className="icon-btn"
@@ -251,7 +243,7 @@ export function BudgetsPanel() {
               >
                 <IconX size={16} />
               </button>
-            </div>
+            </FormCommit>
           </form>
         ) : null}
 

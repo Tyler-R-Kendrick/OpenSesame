@@ -27,6 +27,8 @@ const CORE_INFRA = [
   "focus",
   "gestures",
   "modal-focus",
+  "strip",
+  "scroll-panel",
   "pane-escape",
   "tree-motion",
   "page-to-tree",

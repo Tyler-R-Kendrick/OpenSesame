@@ -213,3 +213,64 @@ describe("explainer copy fails design lint", () => {
     expect(result.output).toContain("no-explainer");
   });
 });
+
+describe("keys have a home", () => {
+  // Verbatim the shape Settings shipped: a form's save key alone on the row
+  // under its field, a screen-width from the value it saves.
+  const stranded = `<form>
+  <input id="view-name" />
+  <div className="actions">
+    <button
+      type="submit"
+      className="icon-btn icon-btn--sm"
+      aria-label="Pin view"
+      title="Pin view"
+    >
+      <IconStar size={16} />
+    </button>
+  </div>
+</form>
+`;
+
+  it("rejects a commit key on a row of its own", () => {
+    const result = runLint(...brokenTree("Stranded.tsx", stranded));
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("commit-key-has-a-home");
+  });
+
+  it("accepts the same key ending its field's row", () => {
+    const result = runLint(
+      ...brokenTree(
+        "Inline.tsx",
+        stranded.replace(
+          '<div className="actions">',
+          '<div className="field-inline">',
+        ),
+      ),
+    );
+    expect(result.code).toBe(0);
+  });
+});
+
+describe("fields have a measure", () => {
+  it("rejects a field rule stretched to its panel", () => {
+    const result = runLint(
+      ...brokenTree(
+        "stretched.css",
+        ".transport__form select {\n  width: 100%;\n}\n",
+      ),
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("field-has-a-measure");
+  });
+
+  it("accepts the same rule with a measure", () => {
+    const result = runLint(
+      ...brokenTree(
+        "measured.css",
+        ".transport__form select {\n  width: 100%;\n  max-width: var(--field-max);\n}\n",
+      ),
+    );
+    expect(result.code).toBe(0);
+  });
+});
