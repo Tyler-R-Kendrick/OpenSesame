@@ -118,7 +118,10 @@ used them to model a refusal now use an enterprise capability or remote AI.
 Guests comes first and the operator's Instance policy last. `PROVIDER_GROUPS`
 is gone. Servers is dissolved: its identity-hosting members are always on,
 and its two server-backed members are Directory and Certificate authority.
-`password-store` moves to the backup/recovery family.
+`password-store` is drawn under Backups: the one catalog (ADR 0139) files it
+under local storage, as Fnox does, and the page places every git history road
+(`HISTORY_BACKUP_GROUPS`) beside the forges itself rather than keeping a
+second category list.
 
 A test pins the invariants: every optional capability belongs to exactly one
 section, every connector family has exactly one home, no two sections share
@@ -184,6 +187,12 @@ it is drawn.
   optional ones.
 - A selection or policy that still names one of the four ids is tolerated,
   as ADR 0135 already provides for core ids.
+- Browser-local IAM hosts the Identity section in every build, so the
+  section may import nothing optional. People, Agents and the directory's
+  device approval reach it through a slot the directory's runtime fills in
+  `activate` and empties in `dispose` (`directory-panel-slot.ts`), and the
+  hosted-application calls the Applications tab makes live with the
+  always-on operator identity providers (`oauth-client-admin.ts`).
 - An operator keeps the last word: a policy may withdraw any always-on
   capability that owns a module, git backup and browser-local IAM included,
   and the withdrawal cascades to what needs it.
