@@ -58,12 +58,16 @@ export function InstanceCapabilitiesPanel() {
     <section
       className="conn-group capsection"
       id="instance-policy"
-      aria-label="Instance policy"
+      aria-labelledby="instance-policy-title"
       data-testid="instance-capabilities-panel"
     >
-      <SectionHead title="Instance policy">
-        {notice ? <StatusMark tone="err" label={notice} /> : null}
-      </SectionHead>
+      <SectionHead id="instance-policy-title" title="Instance policy" />
+      {notice ? (
+        <p className="capspanel__notice" role="alert">
+          <StatusMark tone="err" label={notice} />
+          <span>{notice}</span>
+        </p>
+      ) : null}
       <PurposeCards
         presets={PRESETS}
         chosen={snapshot.policy?.presetProvenance?.id ?? null}

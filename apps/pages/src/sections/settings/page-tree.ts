@@ -24,6 +24,11 @@ export type SettingsRailSnapshot = {
    * never shown to a guest); unlisted when not. Defaults to listed.
    */
   guests?: boolean;
+  /**
+   * Capabilities › Instance policy draws (the operator's section,
+   * `useDeviceOperator`); unlisted when not. Defaults to unlisted.
+   */
+  instancePolicy?: boolean;
 };
 
 function panel(
@@ -40,15 +45,22 @@ function panel(
 }
 
 /**
- * Sections on Settings → Capabilities, in document order: Guests, then
- * every feature section. Their providers are configured in place.
+ * Sections on Settings → Capabilities, in document order: Guests, every
+ * feature section, then the operator's Instance policy. Their providers are
+ * configured in place.
  */
-export function capabilitiesSettingsSections(guests = true): PageTreeSource[] {
+export function capabilitiesSettingsSections(
+  guests = true,
+  instancePolicy = false,
+): PageTreeSource[] {
   return [
     ...(guests ? [panel("capabilities", "feature-guests", "Guests")] : []),
     ...FEATURES.map((feature) =>
       panel("capabilities", `feature-${feature.id}`, feature.title),
     ),
+    ...(instancePolicy
+      ? [panel("capabilities", "instance-policy", "Instance policy")]
+      : []),
   ];
 }
 
@@ -76,7 +88,10 @@ function sectionsFor(
         keepEmpty: true,
       }));
     case "capabilities":
-      return capabilitiesSettingsSections(snapshot.guests ?? true);
+      return capabilitiesSettingsSections(
+        snapshot.guests ?? true,
+        snapshot.instancePolicy ?? false,
+      );
     default:
       return [];
   }

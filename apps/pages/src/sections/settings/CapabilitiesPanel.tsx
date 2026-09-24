@@ -15,6 +15,7 @@
  * each committed through the S04 adapter; Effective is read-only.
  */
 
+import { ignoredProhibitions } from "@opensesame/app-core/lib/capabilities/features.js";
 import { effectivePlanToYaml } from "@opensesame/app-core/lib/configuration/capabilities-document.js";
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { useState } from "react";
@@ -62,6 +63,33 @@ function RestartNotice({ change }: { change: CapabilityChange }) {
   );
 }
 
+/**
+ * A policy that still prohibits a capability ADR 0138 made always on:
+ * the prohibition no longer withdraws it, and the page says so rather
+ * than letting the policy read as though it held.
+ */
+function IgnoredProhibitions({ change }: { change: CapabilityChange }) {
+  const ignored = ignoredProhibitions(
+    change.snapshot.policy?.capabilities.prohibited ?? [],
+    CAPABILITY_CATALOG,
+  );
+  if (ignored.length === 0) return null;
+  const titles = ignored
+    .map(
+      (id) =>
+        CAPABILITY_CATALOG.capabilities.find((entry) => entry.id === id)
+          ?.title ?? id,
+    )
+    .join(", ");
+  const label = `always on, so the policy's prohibition does not apply: ${titles}`;
+  return (
+    <p className="capspanel__notice" data-testid="capabilities-ignored">
+      <StatusMark tone="warn" label={label} />
+      <span>{label}</span>
+    </p>
+  );
+}
+
 function Visual({ change }: { change: CapabilityChange }) {
   if (change.review) {
     return (
@@ -99,6 +127,7 @@ export function CapabilitiesPanel() {
       </div>
       <div className="panel__body capspanel">
         <RestartNotice change={change} />
+        <IgnoredProhibitions change={change} />
         {change.notice ? (
           <p className="capspanel__notice">
             <StatusMark tone="err" label={change.notice} />

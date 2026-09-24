@@ -1,7 +1,7 @@
 /**
  * One change to what this installation runs, from switch to commit.
  *
- * A feature switch and an Advanced row both end here: they propose the
+ * A section's switch and a capability tile's switch both end here: they propose the
  * optional roots the installation should have, the store reviews that
  * selection, and only Apply commits it with a consent receipt — the same
  * ceremony whether one capability or a whole feature moves. Nothing is

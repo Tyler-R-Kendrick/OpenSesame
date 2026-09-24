@@ -14,15 +14,20 @@ import { useDeviceOperator } from "./useDeviceOperator.js";
 
 /** The subheader every section wears: its title, and its switch if any. */
 export function SectionHead({
+  id,
   title,
   children,
 }: {
+  /** The heading's id, which names its section (`aria-labelledby`). */
+  id: string;
   title: string;
   children?: ReactNode;
 }) {
   return (
     <div className="conn-group__label capsection__head">
-      <h3 className="capsection__title">{title}</h3>
+      <h3 className="capsection__title" id={id}>
+        {title}
+      </h3>
       {children}
     </div>
   );
@@ -82,9 +87,9 @@ export function GuestSection() {
     <section
       className="conn-group capsection"
       id="feature-guests"
-      aria-label="Guests"
+      aria-labelledby="feature-guests-title"
     >
-      <SectionHead title="Guests">
+      <SectionHead id="feature-guests-title" title="Guests">
         <CapabilitySwitch
           label="Allow guests"
           on={allowed}

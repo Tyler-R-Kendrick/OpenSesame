@@ -53,8 +53,13 @@ plan, but their code still arrives as a module after boot —
 `identity.local-iam`, `identity.siop`, `identity.site-broker` and
 `backup.git-remote`. None of them is ever a switch, and none may be named in a
 policy or a selection; an older document that still names one is read as if
-it did not. Git backup's observer — its one automatic external call — stays
-off while the plan denies external services, as ambient SSO's boot does.
+it did not. A policy that still lists one of them in `prohibited` does not
+withdraw it: Settings › Capabilities says so in a notice ("always on, so the
+policy's prohibition does not apply"). Git backup's automatic calls — the
+observer's start, its webhook poll and the push after a vault mutation — are
+held while the plan denies external services, whichever surface starts them
+(`backup-egress-gate.ts`); a sync a person asks for by hand still runs.
+`allowedServiceOrigins` is not enforced there, as nowhere else yet.
 
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
@@ -366,17 +371,17 @@ Five different facts, five different places. None of them implies another.
 |---|---|
 | What does this release **contain**? | `dist/capability-distribution.json` |
 | Which file carries which capability? | `dist/capability-graph.json` (source module → chunk, static and dynamic edges, CSS/asset edges, workers, public files, classification with rationale) |
-| What does the policy **permit**, and why not? | Settings › Capabilities, operator view — one row per permitted capability with its reason codes from `explainCapability` |
+| What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the Effective view — `capabilities/effective-plan.yaml`. Its Source view carries `capabilities/instance-policy.yaml` for the operator |
 | What did this device **select and accept**? | Settings › Capabilities, Source view of `capabilities/installation-selection.yaml` |
 | What did the resolver **decide**? | Settings › Capabilities, Effective view — `capabilities/effective-plan.yaml`, read-only |
 | What is **cached** and what is the worker doing? | the offline status in Settings (`online-only`, `saving`, `saved`, `partial`, `storage-unavailable`) |
-| What is **loaded and running** right now? | the per-row status glyph: `active`, `starting`, `approved`, `consent required`, `restart required`, `disabled`, `deselected` |
+| What is **loaded and running** right now? | the switch says on or off; beside it a status glyph says what a switch cannot — `starting`, `consent required`, `restart required`, `conflict`, `acceptance required`, `selected · not yet applied`, `needed by …` |
 
 The status vocabulary is deliberately not collapsible. `approved` means the
 plan would load it; `active` means it is running; `restart required` means its
 module already ran in this document and cannot be unloaded — deselecting it
 revokes its registrations and aborts its lease, but the namespace stays until
-the page reloads. A preview never reads as applied: a draft row says
+the page reloads. A preview never reads as applied: a draft says
 "selected · not yet applied".
 
 Reason codes you will see on an unapproved capability: `NOT_DISTRIBUTED`,

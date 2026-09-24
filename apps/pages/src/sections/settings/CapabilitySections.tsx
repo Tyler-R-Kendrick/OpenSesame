@@ -21,6 +21,7 @@ import {
   type FeatureProposal,
   featureState,
   isSwitchable,
+  neededBy,
   switchCapability,
   switchFeature,
 } from "@opensesame/app-core/lib/capabilities/features.js";
@@ -48,6 +49,29 @@ function titleOf(id: CapabilityId): string {
   );
 }
 
+/** What a switch already says — on or off — needs no mark beside it. */
+const SAID_BY_SWITCH: ReadonlySet<string> = new Set([
+  "active",
+  "approved",
+  "deselected",
+]);
+
+/**
+ * The mark a switchable capability wears beside its switch: only what the
+ * switch cannot say (conflict, consent required, restart required, starting,
+ * selected · not yet applied …).
+ */
+function BesideSwitch({ id }: { id: CapabilityId | undefined }) {
+  const snapshot = useComposition();
+  if (id === undefined) return null;
+  const status = capabilityStatus(
+    snapshot.plan?.capabilities[id],
+    snapshot.lifecycle[id],
+  );
+  if (SAID_BY_SWITCH.has(status.label)) return null;
+  return <StatusMark tone={status.tone} label={status.label} />;
+}
+
 /** The section's own switch, or the mark that says why it has none. */
 function SectionSwitch({
   feature,
@@ -71,18 +95,28 @@ function SectionSwitch({
   const only =
     feature.capabilities.length === 1 ? feature.capabilities[0] : undefined;
   return (
-    <CapabilitySwitch
-      label={feature.title}
-      capabilityTitle={only ? titleOf(only) : undefined}
-      on={state.on}
-      // Reads "on" while anything runs, so pressing it turns the section
-      // off; a partly-on section is completed from its tiles.
-      onToggle={() =>
-        onPropose(
-          switchFeature(current, feature, !state.on, plan, CAPABILITY_CATALOG),
-        )
-      }
-    />
+    <span className="capsection__controls">
+      {/* A section with several capabilities marks each on its tile. */}
+      <BesideSwitch id={only} />
+      <CapabilitySwitch
+        label={feature.title}
+        capabilityTitle={only ? titleOf(only) : undefined}
+        on={state.on}
+        // Reads "on" while anything runs, so pressing it turns the section
+        // off; a partly-on section is completed from its tiles.
+        onToggle={() =>
+          onPropose(
+            switchFeature(
+              current,
+              feature,
+              !state.on,
+              plan,
+              CAPABILITY_CATALOG,
+            ),
+          )
+        }
+      />
+    </span>
   );
 }
 
@@ -101,9 +135,20 @@ function CapabilityTile({
   const snapshot = useComposition();
   const state = snapshot.plan?.capabilities[id];
   const on = state?.approved === true;
-  const switchable = on || (state?.distributed === true && state.permitted);
+  // Household sharing's transport is Shared drops: switching drops off alone
+  // would review a change that changes nothing, so its tile says who needs it.
+  const needers = on ? neededBy(current, id, CAPABILITY_CATALOG) : [];
+  const switchable =
+    needers.length === 0 &&
+    (on || (state?.distributed === true && state.permitted));
   const title = titleOf(id);
-  const status = capabilityStatus(state, snapshot.lifecycle[id]);
+  const status =
+    needers.length > 0
+      ? {
+          tone: "ok" as const,
+          label: `needed by ${needers.map(titleOf).join(", ")}`,
+        }
+      : capabilityStatus(state, snapshot.lifecycle[id]);
   return (
     <li className={`conn-tile${on ? " is-on" : ""}`}>
       <div className="conn-tile__row">
@@ -112,7 +157,9 @@ function CapabilityTile({
           <span className="conn-tile__copy">
             <span className="conn-tile__name">{title}</span>
           </span>
-          {switchable ? null : (
+          {switchable ? (
+            <BesideSwitch id={id} />
+          ) : (
             <StatusMark tone={status.tone} label={status.label} />
           )}
         </span>
@@ -153,15 +200,21 @@ function CapabilitySection({
   onPropose,
   sectionRef,
 }: SectionProps) {
+  const { plan } = useComposition();
   const tiles = feature.capabilities.length > 1;
+  const id = `feature-${feature.id}`;
+  // The model picks configure AI and probe the browser and the harnesses on
+  // mount: they are AI's own code, drawn once AI is on — unlike a provider
+  // tile, which is a connector configured by reference.
+  const models = feature.models === true && featureState(feature, plan).on;
   return (
     <section
       className="conn-group capsection"
-      id={`feature-${feature.id}`}
-      aria-label={feature.title}
+      id={id}
+      aria-labelledby={`${id}-title`}
       ref={sectionRef}
     >
-      <SectionHead title={feature.title}>
+      <SectionHead id={`${id}-title`} title={feature.title}>
         {isSwitchable(feature) ? (
           <SectionSwitch
             feature={feature}
@@ -183,7 +236,7 @@ function CapabilitySection({
           ))}
         </ul>
       ) : null}
-      {feature.models ? (
+      {models ? (
         <GuideTarget id="settings.model-provider">
           <ModelProviderPanel embedded />
         </GuideTarget>
@@ -192,7 +245,11 @@ function CapabilitySection({
         <ProviderTiles
           key={category}
           category={category}
-          label={`${feature.title} providers`}
+          label={
+            feature.title.endsWith("providers")
+              ? feature.title
+              : `${feature.title} providers`
+          }
         />
       ))}
     </section>

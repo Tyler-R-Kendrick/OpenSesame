@@ -78,6 +78,13 @@
   margin-left: auto;
 }
 
+/* A mark only when it says what the switch cannot, then the switch. */
+.capsection__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* A capability tile is not a link: it carries its name and its switch. */
 .capsection__cap:hover {
   background: none;

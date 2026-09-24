@@ -53,10 +53,28 @@ this browser on the static front end (ADR 0090), and none makes an automatic
 call until a person binds something.
 
 Always on still keeps the operator's network envelope (ADR 0135 §1). Git
-backup's observer is its one automatic external call, and it does not start
-while the plan denies external services (`gitRemoteRuntimeSeams`, as
-ambient SSO does). Under the Family preset the Backups tiles are still drawn,
-and nothing is pushed.
+backup's automatic calls are held while the plan does not allow external
+services:
+- the observer's start;
+- its webhook poll;
+- the push after a vault mutation.
+
+The hold is in one place, `backup-egress-gate.ts`, inside the observer.
+Every surface that can start the observer goes through it: the
+capability's background job, a Settings tile reading the backup status,
+and a target being enabled. Under the Family preset the Backups tiles are
+drawn, and nothing is pushed on its own. A sync a person asks for by hand
+still runs. `allowedServiceOrigins` is not enforced there, and no runtime
+consumer reads it yet.
+
+**What an operator loses.** A policy can no longer prohibit these four,
+because a core capability is in every plan. An existing policy that lists
+one in `prohibited` is kept as written, but the prohibition no longer
+withdraws the capability. Settings › Capabilities says so in a notice
+(`ignoredProhibitions`), rather than letting the policy read as if it still
+held. An operator who needs git backup silent denies external services.
+Withdrawing an always-on capability by policy would be a new resolver axis,
+and is not part of this decision.
 
 The Identity section is therefore on the rail of a fresh device. Presets
 lose the four ids: the local functions are `sharing.drops` and
@@ -101,6 +119,19 @@ its switch on the subheader. There is no card row, no surface background, no
 change of font, and nothing collapses. A section's providers are drawn whether
 or not its switch is on, because a connector is configured by reference and
 binding one needs nothing the switch adds.
+
+A switch shows only on or off. When a capability's state needs more
+(starting, consent required, restart required, a conflict, or a draft not
+yet applied), a status mark sits beside its switch. A capability that
+cannot be switched here shows its reason in place of a switch. A capability
+another kept root still needs shows "needed by …" in place of a switch: for
+example, Shared drops is Household sharing's transport. Switching it off
+alone would review a change that changes nothing.
+
+AI's model picks configure AI, and they probe the browser and the
+harnesses when they mount, so they are drawn only while AI is on. Its
+harness tiles are connectors configured by reference, so they are always
+drawn.
 
 A section with more than one optional capability (Sharing, AI) also draws
 each one as a tile with its own switch, beside the provider tiles.

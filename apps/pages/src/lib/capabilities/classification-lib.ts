@@ -124,6 +124,7 @@ const GIT_FILES = [
   "history-backup-idb",
   "history-claim-notice",
   "vault-backup-observer",
+  "backup-egress-gate",
   "vault-backup-sync",
   "embedded-git",
 ];

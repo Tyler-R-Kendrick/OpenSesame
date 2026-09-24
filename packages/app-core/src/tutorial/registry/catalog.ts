@@ -50,7 +50,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.connectivity",
     description:
-      "The providers on Settings › Capabilities: identity providers, encryption, password managers, cloud secret storage and local storage — the connectors of always-on functions.",
+      "The sections of Settings › Capabilities: each a subheader with its providers, and a switch on it where the section has something optional to turn on.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",

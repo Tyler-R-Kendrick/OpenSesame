@@ -244,3 +244,43 @@ export function switchCapability(
     catalog,
   );
 }
+
+/**
+ * The kept roots that answer an alternative slot with `id` — Household
+ * sharing's transport is Shared drops. Switching `id` off on its own would
+ * leave a review that changes nothing (the slot keeps it), so its tile says
+ * who needs it instead of offering a switch that cannot take.
+ */
+export function neededBy(
+  current: FeatureProposal,
+  id: CapabilityId,
+  catalog: CapabilityCatalog,
+): CapabilityId[] {
+  const slots = Object.entries(current.alternatives)
+    .filter(([, chosen]) => chosen === id)
+    .map(([slot]) => slot);
+  if (slots.length === 0) return [];
+  return current.roots.filter(
+    (root) =>
+      root !== id &&
+      catalog.capabilities
+        .find((entry) => entry.id === root)
+        ?.alternatives.some((slot) => slots.includes(slot.slot)) === true,
+  );
+}
+
+/**
+ * Core ids an instance policy still names in `prohibited`. A prohibition
+ * written before ADR 0138 made browser-local IAM, SIOP, the site broker and
+ * git backup always on no longer withdraws them, and the page says so
+ * rather than letting the policy read as though it still held.
+ */
+export function ignoredProhibitions(
+  prohibited: readonly CapabilityId[],
+  catalog: CapabilityCatalog,
+): CapabilityId[] {
+  return prohibited.filter(
+    (id) =>
+      catalog.capabilities.find((entry) => entry.id === id)?.tier === "core",
+  );
+}

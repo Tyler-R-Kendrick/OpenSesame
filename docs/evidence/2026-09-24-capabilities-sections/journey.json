@@ -137,9 +137,9 @@
       "shot": "1280-sharing-ai",
       "width": 1280,
       "title": "Sharing and AI — 1280 × 900",
-      "caption": "A section with several optional capabilities has one switch on its subheader, plus a tile with its own switch for each capability. That replaces the Advanced list, which repeated them.",
+      "caption": "A section with several optional capabilities has one switch on its subheader, plus a tile with its own switch for each capability. That replaces the Advanced list, which repeated them. AI's model picks are AI's own code, so they are drawn only once AI is on; its harness tiles are connectors and are always drawn.",
       "before": "Sharing and AI as cards; their capabilities listed again under Advanced",
-      "after": "Sharing: 2 capability tiles; AI: 3 capability tiles, the model picks and 6 harness tiles, with no nested Models heading"
+      "after": "Sharing: 2 capability tiles; AI (off): 3 capability tiles and 6 harness tiles, no model picks"
     },
     {
       "shot": "1280-bottom",

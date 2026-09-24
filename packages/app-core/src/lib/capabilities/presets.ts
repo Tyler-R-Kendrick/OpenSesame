@@ -112,7 +112,7 @@ export const PRESETS: readonly Preset[] = [
     version: 1,
     title: "Organization",
     summary:
-      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise, server and agent tools are offered, not pre-selected.",
+      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise and agent tools are offered, not pre-selected.",
     required: [],
     optional: everyOptional(),
     defaultSelected: [],

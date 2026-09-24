@@ -16,11 +16,11 @@ describe("backup.git-remote runtime", () => {
     vi.restoreAllMocks();
   });
 
-  function allowExternalServices(allowed: boolean) {
-    vi.spyOn(
-      runtime.gitRemoteRuntimeSeams,
-      "externalServicesDenied",
-    ).mockReturnValue(!allowed);
+  async function allowExternalServices(allowed: boolean) {
+    const { backupEgressGate } = await import(
+      "@opensesame/app-core/lib/backup-egress-gate.js"
+    );
+    vi.spyOn(backupEgressGate, "allowed").mockReturnValue(allowed);
   }
 
   it("imports with no fetch, timer, DOM or storage side effect", async () => {
@@ -50,7 +50,7 @@ describe("backup.git-remote runtime", () => {
     const observer = await import(
       "@opensesame/app-core/lib/vault-backup-observer.js"
     );
-    allowExternalServices(true);
+    await allowExternalServices(true);
     const interval = vi.spyOn(globalThis, "setInterval");
     const clear = vi.spyOn(globalThis, "clearInterval");
     const t = createTestContext();
@@ -89,14 +89,17 @@ describe("backup.git-remote runtime", () => {
   });
 
   it("holds the observer off while the plan denies external services", async () => {
-    allowExternalServices(false);
+    await allowExternalServices(false);
     const interval = vi.spyOn(globalThis, "setInterval");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const [job] = t.entries("background-job");
     job?.start(new AbortController().signal);
     expect(interval).not.toHaveBeenCalled();
-    expect(t.egressCalls).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
     await handle.dispose();
   });
 });

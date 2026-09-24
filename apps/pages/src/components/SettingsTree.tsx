@@ -5,6 +5,7 @@ import { useDeviceVaults } from "../bindings/vaults.js";
 import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useGuestRowShown } from "../sections/settings/CapabilitySwitch.js";
 import { useInstallPanelShown } from "../sections/settings/InstallPanel.js";
+import { useDeviceOperator } from "../sections/settings/useDeviceOperator.js";
 /**
  * Settings in the rail: one row per tab the page renders, then the headings
  * on that tab. Hierarchy comes from settingsPageTree — never a parallel list.
@@ -14,9 +15,11 @@ export function SettingsTree({ current }: { current: string }) {
   const showHidden = useShowHidden();
   const install = useInstallPanelShown();
   const guests = useGuestRowShown();
+  const instancePolicy = useDeviceOperator();
   const tabs = settingsPageTree({
     install,
     guests,
+    instancePolicy,
     vaults: vaults.map((vault) => ({ id: vault.id, label: vault.label })),
     showHidden,
     current,

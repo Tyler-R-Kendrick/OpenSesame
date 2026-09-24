@@ -14,7 +14,9 @@ import {
   featureById,
   featureOf,
   featureState,
+  ignoredProhibitions,
   isSwitchable,
+  neededBy,
   switchCapability,
   switchFeature,
 } from "./features.js";
@@ -243,5 +245,51 @@ describe("switchCapability", () => {
       CAPABILITY_CATALOG,
     );
     expect(next.roots).toEqual(["support.local-ai"]);
+  });
+});
+
+describe("neededBy", () => {
+  it("names the kept root whose slot the capability answers", () => {
+    expect(
+      neededBy(
+        {
+          roots: ["sharing.drops", "sharing.household"],
+          alternatives: { transport: "sharing.drops" },
+        },
+        "sharing.drops",
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual(["sharing.household"]);
+  });
+
+  it("names nobody once that root is gone, or for a capability no slot chose", () => {
+    expect(
+      neededBy(
+        {
+          roots: ["sharing.drops"],
+          alternatives: { transport: "sharing.drops" },
+        },
+        "sharing.drops",
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual([]);
+    expect(
+      neededBy(
+        { roots: ["sharing.household"], alternatives: {} },
+        "support.local-ai",
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("ignoredProhibitions", () => {
+  it("reports a prohibited id that is now always on, and nothing optional", () => {
+    expect(
+      ignoredProhibitions(
+        ["identity.site-broker", "support.remote-ai", "backup.git-remote"],
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual(["identity.site-broker", "backup.git-remote"]);
   });
 });

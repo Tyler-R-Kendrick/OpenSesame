@@ -37,8 +37,8 @@
  * forge remote store. No third-party git or GitHub SDK is used.
  */
 
+import { backupEgressGate } from "@opensesame/app-core/lib/backup-egress-gate.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
@@ -63,17 +63,6 @@ export const CAPABILITY = "backup.git-remote";
  */
 export const BACKUP_OBSERVER_JOB = "vault-backup-observer";
 
-/**
- * Always on is not a way round the operator's network envelope (ADR 0135
- * §1): the observer's pushes are this capability's automatic external
- * calls, so a plan that does not allow external services — the Family
- * preset, a managed policy, or no plan yet — keeps it from starting.
- */
-export const gitRemoteRuntimeSeams = {
-  externalServicesDenied: () =>
-    compositionStore.getSnapshot().plan?.network.externalServices !== "allow",
-};
-
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -84,7 +73,9 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {
         if (signal.aborted) return;
-        if (gitRemoteRuntimeSeams.externalServicesDenied()) return;
+        // Always on is not a way round the operator's network envelope
+        // (ADR 0135 §1, 0138): the one gate every caller shares.
+        if (!backupEgressGate.allowed()) return;
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
           once: true,
