@@ -35,7 +35,7 @@
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "hono": "4.13.1",
+    "hono": "4.13.9",
     "typescript": "5.8.3",
     "vitest": "4.1.11"
   }
