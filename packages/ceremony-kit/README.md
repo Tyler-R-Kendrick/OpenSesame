@@ -12,8 +12,8 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 
 - **Used by:** [`apps/ceremonies`](../../apps/ceremonies),
   [`apps/console`](../../apps/console), [`apps/mobile-mfa`](../../apps/mobile-mfa),
-  [`packages/app-core`](../app-core) (Pages' device approval, claims and
-  interaction approval) and
+  [`packages/app-core`](../app-core) (Pages' device approval, claims,
+  interaction approval and authorization-request review) and
   [`packages/qr`](../qr).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (interaction types and
   `FORBIDDEN_URL_PARAMS`).
@@ -42,6 +42,9 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 | Interaction links (`interaction-url.ts`) | `buildInteractionUrl`, `parseInteractionUrl`, `parseLegacyInteractionLink`, `isInteractionRef`, `assertNoForbiddenParams`, `InteractionLinkError` |
 | Interaction client (`interaction-client.ts`, errors in `interaction-error.ts`) | `createInteractionClient` (an optional `resolveFetch` keeps the link's resolve free of a session), `InteractionError` (`.declared` keeps the body's code as a key, never as text) |
 | Interaction approval (`interaction-approval.ts`) — the one ceremony model, from mobile MFA (ADR 0140 plan step 5): load → review → activate → decide → outcome, over an injected client and `InteractionAuthenticator` port | `createInteractionApproval`, `InteractionStepUpError`, `STEP_UP_WORDS` |
+| Authorization-request review (`approval-review.ts`) — from the ceremonies app (ADR 0140 plan step 6): load → review → decide or report → outcome over an injected client and the same `InteractionAuthenticator` port; freezes the digest and the policy digest shown, refuses a challenge minted under another policy before any passkey, settles naming only the activation it began | `createApprovalReview` |
+| Authorization-request client (`authorization-request-client.ts`) — list, read, requirement, activation begin/complete, approve/deny, report; views keep only the fields they name | `createAuthorizationRequestClient`, `readAuthorizationRequest` |
+| Approval words and copy (`approval-words.ts`, `approval-copy.ts`) — refusals worded by the body's error code, then the status; reason codes, risk classes and channels as sentences | `approvalRefusal`, `approvalWords`, `ApprovalError`, `requirementSentences`, `riskSentence`, `channelLabel`, `channelName`, `assuranceSummary`, `needsCeremony`, `describeDetail`, `APPROVAL_WORDS` |
 | Interaction outcomes (`interaction-outcome.ts`) — endings, the approval view, and refusals worded by the body's error code, then the status | `OUTCOME_TEXT`, `OUTCOME_MARK`, `OUTCOME_IS_REFUSAL`, `outcomeOfStatus`, `chooseMechanism`, `viewOf`, `interactionRefusal`, `INTERACTION_WORDS` |
 | Interaction arrival (`interaction-arrival.ts`) — what an address opened on, and the address to put in its place | `readInteractionArrival` |
 | Summary (`interaction-summary.ts`) | `renderInteractionSummary` |
