@@ -7,9 +7,9 @@ import {
   normalizeLoopbackBaseUrl,
 } from "@opensesame/api-client";
 import { createCursor, persistSealedStore } from "@opensesame/client-core";
-import { isString } from "@opensesame/os-domain";
+import { ENDPOINTS, isString } from "@opensesame/os-domain";
 
-const DEFAULT_HOST = "http://127.0.0.1:8787";
+const DEFAULT_HOST = ENDPOINTS.host.default;
 
 /**
  * Stored config is only trusted if it is still a loopback origin — a rewritten

@@ -62,7 +62,7 @@ export OPENSESAME_CONTROL_PLANE_PORT="${OPENSESAME_CONTROL_PLANE_PORT:-18788}"
 # Brokered sign-in runs as origin-profile public clients (ADR 0050) — without
 # this the hosted page refuses every social button with invalid_client.
 export OPENSESAME_ORIGIN_CLIENTS_ENABLED="${OPENSESAME_ORIGIN_CLIENTS_ENABLED:-true}"
-IDENTITY_URL="${OPENSESAME_IDENTITY_URL:-http://127.0.0.1:${OPENSESAME_CONTROL_PLANE_PORT}}"
+IDENTITY_URL="${OPENSESAME_IDENTITY_API:-http://127.0.0.1:${OPENSESAME_CONTROL_PLANE_PORT}}"
 export VITE_IDENTITY_API="${VITE_IDENTITY_API:-$IDENTITY_URL}"
 
 cargo +1.88.0 run --offline -p opensesame-cli -- host run --listen "$OPENSESAME_LISTEN" &
@@ -117,7 +117,7 @@ wait_for_identity() {
     sleep 0.1
   done
   echo "Identity at $url is not OpenSesame control-plane (got: ${body:-empty})." >&2
-  echo "Free that port or set OPENSESAME_IDENTITY_URL / OPENSESAME_CONTROL_PLANE_PORT." >&2
+  echo "Free that port or set OPENSESAME_IDENTITY_API / OPENSESAME_CONTROL_PLANE_PORT." >&2
   exit 1
 }
 

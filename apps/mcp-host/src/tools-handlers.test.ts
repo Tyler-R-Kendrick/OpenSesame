@@ -68,9 +68,9 @@ function jsonResponse(body: BoundaryValue, status = 200): Response {
 }
 
 const ENV_KEYS = [
-  "OPENSESAME_SERVER",
+  "OPENSESAME_HOST_API",
   "OPENSESAME_OPERATOR_TOKEN",
-  "OPENSESAME_DAEMON_URL",
+  "OPENSESAME_DAEMON_API",
 ] as const;
 
 describe("mcp-host tool handlers", () => {
@@ -79,7 +79,7 @@ describe("mcp-host tool handlers", () => {
   beforeEach(() => {
     setTaskContext(null);
     for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
-    process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
+    process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
     mockAgentHeaders();
   });
 

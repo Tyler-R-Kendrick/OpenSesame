@@ -14,9 +14,11 @@ pub mod wit_contract {
     pub const PACKAGE: &str = "opensesame:host@1.0.0";
 }
 
-/// Daemon listen defaults (HTTP loopback) and bind policy helpers.
+/// Daemon bind policy helpers (its addresses are in [`endpoints`]).
 pub mod daemon;
 pub mod deployment_mode;
+/// Service addresses from `spec/config/endpoints.json` (ADR 0139).
+pub mod endpoints;
 
 /// Operator bearer check shared by the local host binaries.
 ///

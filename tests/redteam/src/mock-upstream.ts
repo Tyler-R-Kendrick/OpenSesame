@@ -37,7 +37,7 @@ export interface CapturedRequest {
 }
 
 export interface MockUpstream {
-  /** Base URL of the stub, suitable for OPENSESAME_SERVER / OPENSESAME_DAEMON_URL. */
+  /** Base URL of the stub, suitable for OPENSESAME_HOST_API / OPENSESAME_DAEMON_API. */
   url: string;
   /** Every request the stub received, in order, for assertions to inspect. */
   requests: CapturedRequest[];

@@ -32,7 +32,7 @@ MOCK_AGENT_FLOW=1 pnpm --filter @opensesame/example-agent start
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENSESAME_API_URL` | `http://127.0.0.1:8788` | Identity API base URL |
+| `OPENSESAME_IDENTITY_API` | `http://127.0.0.1:8788` | Identity API base URL |
 | `MOCK_AGENT_FLOW` | unset | `1` swaps `fetch` for the in-process mock |
 
 The package also declares an `opensesame-example-agent` bin pointing at

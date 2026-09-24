@@ -12,7 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 describe("PACT — mcp-host", () => {
   afterEach(() => {
     resetFetchForTests();
-    Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
+    Reflect.deleteProperty(process.env, "OPENSESAME_HOST_API");
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
@@ -39,7 +39,7 @@ describe("PACT — mcp-host", () => {
   });
 
   it("chaos: Host partition maps to host_unavailable, not an open tool", async () => {
-    process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
+    process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
     process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
     setFetchForTests(async () => {
       throw new Error("ECONNREFUSED");

@@ -144,8 +144,8 @@ export default class McpHostStructuralProvider {
         NODE_OPTIONS: [vars.env?.NODE_OPTIONS, "--disable-warning=DEP0205"]
           .filter(Boolean)
           .join(" "),
-        OPENSESAME_SERVER: mock.url,
-        OPENSESAME_DAEMON_URL: mock.url,
+        OPENSESAME_HOST_API: mock.url,
+        OPENSESAME_DAEMON_API: mock.url,
       };
 
       transport = new StdioClientTransport({

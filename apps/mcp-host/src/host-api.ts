@@ -7,6 +7,7 @@
  */
 
 import { AgentClient } from "@opensesame/agent-client";
+import { ENDPOINTS, endpointAddress } from "@opensesame/os-domain";
 
 const LOOPBACK_HOSTS = new Set([
   "localhost",
@@ -57,23 +58,23 @@ export function normalizeBase(raw: string, envName: string): string {
   return base;
 }
 
-/**
- * Host API base URL — OPENSESAME_SERVER preferred, OPENSESAME_HOST_API fallback.
- */
+/** Host API base URL (`spec/config/endpoints.json`). */
 export function hostApiBase(): string {
-  const base =
-    process.env.OPENSESAME_SERVER ??
-    process.env.OPENSESAME_HOST_API ??
-    "http://127.0.0.1:8787";
-  return normalizeBase(base, "OPENSESAME_SERVER");
+  return normalizeBase(
+    endpointAddress("host", process.env),
+    ENDPOINTS.host.env,
+  );
 }
 
 /** The daemon is a process on this machine; nothing else may answer for it. */
 export function daemonBase(): string {
-  const base = process.env.OPENSESAME_DAEMON_URL ?? "http://127.0.0.1:18790";
-  const normalized = normalizeBase(base, "OPENSESAME_DAEMON_URL");
+  const name = ENDPOINTS.daemon.env;
+  const normalized = normalizeBase(
+    endpointAddress("daemon", process.env),
+    name,
+  );
   if (!isLoopbackBase(normalized)) {
-    throw new Error("OPENSESAME_DAEMON_URL must be a loopback address");
+    throw new Error(`${name} must be a loopback address`);
   }
   return normalized;
 }
