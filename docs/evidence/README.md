@@ -49,6 +49,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-09-24-reviewer-findings/`](2026-09-24-reviewer-findings/README.md) | Reviewer findings fixed — before / after |
 | [`2026-09-24-join-a-session/`](2026-09-24-join-a-session/README.md) | Join a session, restored (ADR 0136) |
+| [`2026-09-24-capabilities-sections/`](2026-09-24-capabilities-sections/README.md) | Settings › Capabilities: one list, one style, honest defaults |
 | [`2026-09-23-layout-smells/`](2026-09-23-layout-smells/README.md) | Layout smells — keys with a home, fields with a measure, a phone that can find its way |
 | [`2026-09-23-item-type-marketplace/`](2026-09-23-item-type-marketplace/README.md) | Visual evidence: item-type marketplaces and Settings as files |
 | [`2026-09-23-item-type-directories/`](2026-09-23-item-type-directories/README.md) | Visual evidence — one vault directory per item type |
