@@ -16,6 +16,7 @@ import {
   listSecondSteps,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconEdit,
   IconEye,
@@ -132,13 +133,11 @@ function UnlockMethodsBody() {
         sub={on ? enrolledSub : sub}
         action={
           on ? (
-            <button
-              ref={kind === "password" ? passwordRef : undefined}
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label={kind === "passkey" ? "Remove" : "Change"}
+              small
+              keyRef={kind === "password" ? passwordRef : undefined}
               disabled={busy}
-              aria-label={kind === "passkey" ? "Remove" : "Change"}
-              title={kind === "passkey" ? "Remove" : "Change"}
               onClick={open(kind, kind === "passkey" ? "remove" : "change")}
             >
               {kind === "passkey" ? (
@@ -146,19 +145,17 @@ function UnlockMethodsBody() {
               ) : (
                 <IconEdit size={16} />
               )}
-            </button>
+            </IconKey>
           ) : (
-            <button
-              ref={kind === "password" ? passwordRef : undefined}
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label="Add"
+              small
+              keyRef={kind === "password" ? passwordRef : undefined}
               disabled={busy}
-              aria-label="Add"
-              title="Add"
               onClick={open(kind, "add")}
             >
               <IconPlus size={16} />
-            </button>
+            </IconKey>
           )
         }
       />
@@ -188,16 +185,14 @@ function UnlockMethodsBody() {
               Capabilities
             </a>
           ) : (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label={on ? "Remove" : "Add"}
+              small
               disabled={busy || (!on && enrolled.length === 0)}
-              aria-label={on ? "Remove" : "Add"}
-              title={on ? "Remove" : "Add"}
               onClick={open(channel, on ? "remove" : "add")}
             >
               {on ? <IconTrash size={16} /> : <IconPlus size={16} />}
-            </button>
+            </IconKey>
           )
         }
       />
@@ -274,16 +269,14 @@ function UnlockMethodsBody() {
                   : "Codes from an app on your phone."
             }
             action={
-              <button
-                type="button"
-                className="icon-btn icon-btn--sm"
+              <IconKey
+                label={totpOn ? "Remove" : "Add"}
+                small
                 disabled={busy}
-                aria-label={totpOn ? "Remove" : "Add"}
-                title={totpOn ? "Remove" : "Add"}
                 onClick={open("totp", totpOn ? "remove" : "add")}
               >
                 {totpOn ? <IconTrash size={16} /> : <IconPlus size={16} />}
-              </button>
+              </IconKey>
             }
           />
           {codeRow("email", "Email code")}
@@ -313,16 +306,14 @@ function UnlockMethodsBody() {
             }
             action={
               hasRecovery ? (
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--sm"
+                <IconKey
+                  label="View recovery codes"
+                  small
                   disabled={busy}
-                  aria-label="View recovery codes"
-                  title="View recovery codes"
                   onClick={open("recovery", "add")}
                 >
                   <IconEye size={16} />
-                </button>
+                </IconKey>
               ) : null
             }
           />

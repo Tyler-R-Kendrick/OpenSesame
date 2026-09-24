@@ -11,7 +11,13 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import {
+  IconEdit,
+  IconPlus,
+  IconRefresh,
+  IconX,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 /** Provisioning reserves a directory identity; sign-in must still verify it. */
@@ -111,33 +117,24 @@ export function UsersPanel({ online }: { online: boolean }) {
       <div className="panel__head">
         <h2>Users</h2>
         <fieldset className="vtree__keys" aria-label="User commands">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
+          <IconKey
+            label="New user"
+            small
             disabled={!online || busy || !organization || draft !== null}
-            title="New user"
-            aria-label="New user"
             onClick={() =>
-              setDraft({
-                id: "",
-                userName: "",
-                displayName: "",
-                active: true,
-              })
+              setDraft({ id: "", userName: "", displayName: "", active: true })
             }
           >
             <IconPlus size={15} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
+          </IconKey>
+          <IconKey
+            label="Reload users"
+            small
             disabled={!online || busy}
-            title="Reload users"
-            aria-label="Reload users"
             onClick={() => void load()}
           >
             <IconRefresh size={15} />
-          </button>
+          </IconKey>
         </fieldset>
       </div>
       <div className="panel__body">
@@ -255,16 +252,9 @@ function UsersForm({
         label="Save user"
         disabled={busy || !online || !draft.userName.trim()}
       >
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={busy}
-          onClick={() => setDraft(null)}
-          aria-label="Cancel"
-          title="Cancel"
-        >
+        <IconKey label="Cancel" disabled={busy} onClick={() => setDraft(null)}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </FormCommit>
     </form>
   );
@@ -288,15 +278,14 @@ function UsersRows({
               tone={user.active ? "ok" : "idle"}
               label={user.active ? "Active" : "Inactive"}
             />
-            <button
-              type="button"
-              className="btn btn--sm"
+            <IconKey
+              label={`Edit ${user.userName}`}
+              small
               disabled={busy || !online}
               onClick={() => setDraft(user)}
-              aria-label={`Edit ${user.userName}`}
             >
-              Edit
-            </button>
+              <IconEdit size={16} />
+            </IconKey>
           </div>
         </li>
       ))}

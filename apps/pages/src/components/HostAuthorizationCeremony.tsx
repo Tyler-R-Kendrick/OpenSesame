@@ -5,6 +5,8 @@ import {
 } from "@opensesame/app-core/lib/host-authorization.js";
 import { useEffect, useRef, useState } from "react";
 import { CeremonyShell } from "./CeremonyShell.js";
+import { FormCommit } from "./FormCommit.js";
+import { IconShield } from "./Icons.js";
 export const hostCeremonySeams = { authenticateBrowser, authorizeHost };
 
 type AuthorizationCeremonyProps = {
@@ -119,9 +121,11 @@ export function BrowserIdentityAuthorization() {
           Identity verified for this short-lived browser grant.
         </p>
       ) : null}
-      <button className="btn" type="button" onClick={() => setOpen(true)}>
-        Verify browser identity
-      </button>
+      <FormCommit
+        label="Verify browser identity"
+        icon={<IconShield size={18} />}
+        onClick={() => setOpen(true)}
+      />
     </div>
   );
 }

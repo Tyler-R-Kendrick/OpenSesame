@@ -15,7 +15,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { failureSentence } from "@opensesame/app-core/lib/probe-failure.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { IconLogin, IconVault, IconX } from "./Icons.js";
+import { IconKey } from "./IconKey.js";
+import { IconLogin, IconRefresh, IconVault, IconX } from "./Icons.js";
 import { IdentityCeremony } from "./IdentityCeremony.js";
 import { KeyVaultCeremony } from "./KeyVaultCeremony.js";
 import { StatusMark } from "./StatusMark.js";
@@ -309,14 +310,14 @@ function Freshness({ connector }: { connector: ConnectorStatus }) {
         {!connector.checking && due !== null ? ` · next in ${due}s` : ""}
         {monitor.offline ? " · paused while offline" : ""}
       </output>
-      <button
-        type="button"
-        className="btn btn--sm"
+      <IconKey
+        label="Check now"
+        small
         disabled={connector.checking || monitor.offline}
         onClick={() => connectivityBarDependencies.checkNow()}
       >
-        Check now
-      </button>
+        <IconRefresh size={16} />
+      </IconKey>
     </div>
   );
 }

@@ -52,9 +52,9 @@ describe("the install offer", () => {
 
     expect(screen.getByText("This browser can install it")).toBeDefined();
     const action = screen.getByRole("button", { name: "Install OpenSesame" });
-    // `docs/design/controls.md`: a card acts with `.btn--primary`; the screen's
-    // own terminal commit stays the ceremony's `.go`.
-    expect(action.className).toContain("btn--primary");
+    // `docs/design/controls.md` § 2: a card acts with an icon key; the
+    // screen's own terminal commit stays the ceremony's `.go`.
+    expect(action.className).toContain("icon-btn");
     expect(action.closest(".found")).not.toBeNull();
     expect(document.querySelector(".go")).toBeNull();
   });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./local-authority.css";
+import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconTrash, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { keyboardIsIdle } from "../../lib/focus.js";
@@ -42,17 +43,14 @@ export function LocalAuthorityPanel({
     >
       <div className="panel__head">
         <h2>{grantsOnly ? "Local application grants" : "Local sessions"}</h2>
-        <button
-          ref={reload}
-          type="button"
-          className="icon-btn"
-          aria-label="Reload local access records"
-          title="Reload local access records"
+        <IconKey
+          label="Reload local access records"
+          keyRef={reload}
           disabled={state.busy}
           onClick={() => void state.reload()}
         >
           <IconRefresh />
-        </button>
+        </IconKey>
       </div>
       <div className="panel__body">
         <StatusNote
@@ -111,11 +109,9 @@ function ConfirmRevocation({
         sign-in or approval.
       </p>
       <div className="actions">
-        <button
-          type="button"
-          className="icon-btn icon-btn--danger"
-          aria-label="Confirm revocation"
-          title="Confirm revocation"
+        <IconKey
+          label="Confirm revocation"
+          danger
           onClick={() =>
             void revoke(row).then((done) => {
               if (done) close();
@@ -123,17 +119,10 @@ function ConfirmRevocation({
           }
         >
           <IconTrash size={16} />
-        </button>
-        <button
-          ref={cancel}
-          type="button"
-          className="icon-btn"
-          onClick={close}
-          aria-label="Cancel revocation"
-          title="Cancel revocation"
-        >
+        </IconKey>
+        <IconKey label="Cancel revocation" keyRef={cancel} onClick={close}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </div>
     </fieldset>
   );

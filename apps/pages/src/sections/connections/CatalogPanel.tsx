@@ -13,7 +13,8 @@ import { connectorPath } from "@opensesame/app-core/sections/connections/shared.
 import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
-import { IconInfo } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconInfo, IconX } from "../../components/Icons.js";
 import {
   SlashSearchField,
   SlashSearchKey,
@@ -124,13 +125,9 @@ export function CatalogPanel({
                 <h3>No matching connectors</h3>
                 <p>Try a provider name, category, or connector ID.</p>
                 <EmptyTip>{emptyTips.keymap}</EmptyTip>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  onClick={search.close}
-                >
-                  Clear search
-                </button>
+                <IconKey label="Clear search" small onClick={search.close}>
+                  <IconX size={16} />
+                </IconKey>
               </div>
             ) : null}
           </>

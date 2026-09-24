@@ -9,6 +9,7 @@ import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.j
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
+import { IconKey } from "../components/IconKey.js";
 import { IconAlert, IconRefresh } from "../components/Icons.js";
 import { PageIndex } from "../components/PageIndex.js";
 import { StatusMark } from "../components/StatusMark.js";
@@ -224,9 +225,9 @@ export function ConnectionsSection() {
           <div className="conn-error__copy">
             <strong>Built-in connector catalog unavailable</strong>
             <p>{catalogError.message}</p>
-            <button type="button" className="btn btn--sm" onClick={loadCatalog}>
-              Try catalog again
-            </button>
+            <IconKey label="Try catalog again" small onClick={loadCatalog}>
+              <IconRefresh size={16} />
+            </IconKey>
           </div>
         </div>
       ) : null}

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 488,
-    "violations": 774,
-    "oversizedLines": 246042
+    "files": 487,
+    "violations": 770,
+    "oversizedLines": 245479
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -37,7 +37,7 @@
     },
     "apps/ceremonies/src/pages/ClaimCeremony.tsx": {
       "complexity": 1,
-      "max-lines": 445,
+      "max-lines": 439,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -51,7 +51,7 @@
       "max-lines-per-function": 1
     },
     "apps/ceremonies/src/pages/NotificationSettings.tsx": {
-      "max-lines": 448,
+      "max-lines": 447,
       "max-lines-per-function": 1
     },
     "apps/cli/src/bridge.rs": {
@@ -639,7 +639,7 @@
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 1078,
+      "max-lines": 1058,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -659,8 +659,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/SignInPanel.tsx": {
-      "complexity": 1,
-      "max-lines": 458,
+      "max-lines": 404,
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/UnlockUserMenu.tsx": {
@@ -678,7 +677,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2280,
+      "max-lines": 2229,
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
@@ -762,8 +761,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/security/KeyCeremony.tsx": {
-      "complexity": 1,
-      "max-lines": 419,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/security/MethodSheet.tsx": {
@@ -785,7 +782,7 @@
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
-      "max-lines": 999,
+      "max-lines": 987,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {

@@ -1,3 +1,5 @@
+import { IconKey } from "../../../components/IconKey.js";
+import { IconPlay } from "../../../components/Icons.js";
 import type { DuressEnrollmentViewModel } from "./useDuressEnrollmentPanel.js";
 
 export function DuressEnrollmentRehearsalSection({
@@ -8,9 +10,13 @@ export function DuressEnrollmentRehearsalSection({
   const { rehearsalNote, runRehearsal } = vm;
   return (
     <div className="duress-enroll__rehearsal">
-      <button type="button" id="duress-rehearsal-run" onClick={runRehearsal}>
-        Run isolated rehearsal
-      </button>
+      <IconKey
+        label="Run isolated rehearsal"
+        id="duress-rehearsal-run"
+        onClick={runRehearsal}
+      >
+        <IconPlay size={16} />
+      </IconKey>
       {rehearsalNote ? <p>{rehearsalNote}</p> : null}
     </div>
   );

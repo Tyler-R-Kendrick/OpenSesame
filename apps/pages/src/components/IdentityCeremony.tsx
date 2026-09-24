@@ -13,10 +13,11 @@ import {
 } from "@opensesame/app-core/lib/identity.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { FieldShell } from "./FieldShell.js";
-import { IconTerminal, IconUser } from "./Icons.js";
+import { IconLogin, IconTerminal, IconUser } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";
 
 import { useConnect, useIdentitySession } from "../bindings/identity.js";
+import { FormCommit } from "./FormCommit.js";
 export const identityCeremonyDependencies = {
   useConnect,
   useIdentitySession,
@@ -133,18 +134,14 @@ export function IdentityCeremony({
             icon: <IconUser size={18} />,
             render: () => (
               <>
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => {
-                      identityCeremonyDependencies.clearSession();
-                      void identityCeremonyDependencies.beginSignIn(upstream);
-                    }}
-                  >
-                    Sign in with {upstream.accountKind}
-                  </button>
-                </div>
+                <FormCommit
+                  label={`Sign in with ${upstream.accountKind}`}
+                  icon={<IconLogin size={18} />}
+                  onClick={() => {
+                    identityCeremonyDependencies.clearSession();
+                    void identityCeremonyDependencies.beginSignIn(upstream);
+                  }}
+                />
               </>
             ),
           },
@@ -225,11 +222,10 @@ function AdoptTokenPanel({ onDone }: { onDone: (flash: Flash) => void }) {
         hint="Held in this tab only. No cookie is sent alongside it."
       />
       <div className="actions">
-        <button
-          type="button"
-          className="btn btn--primary"
+        <FormCommit
+          label={busy ? "Adopting…" : "Use this token"}
           disabled={busy || token.trim() === ""}
-          aria-busy={busy}
+          busy={busy}
           onClick={() => {
             setBusy(true);
             void (async () => {
@@ -250,9 +246,7 @@ function AdoptTokenPanel({ onDone }: { onDone: (flash: Flash) => void }) {
               }
             })();
           }}
-        >
-          {busy ? "Adopting…" : "Use this token"}
-        </button>
+        />
       </div>
     </>
   );

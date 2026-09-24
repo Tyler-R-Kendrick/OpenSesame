@@ -33,7 +33,9 @@ import {
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
-import { IconDrop, IconX } from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconDownload, IconDrop, IconX } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { DROP_TTL_OPTIONS, TtlPicker } from "./DropTtl.js";
@@ -153,14 +155,9 @@ export function ShareSecretDrop({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        className="btn btn--sm"
-        onClick={() => setOpen(true)}
-      >
+      <IconKey label="Share once" small onClick={() => setOpen(true)}>
         <IconDrop size={15} />
-        Share once
-      </button>
+      </IconKey>
     );
   }
 
@@ -188,25 +185,21 @@ export function ShareSecretDrop({
         </p>
       ) : null}
       <div className="actions">
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
+        <FormCommit
+          label={busy ? "Sealing…" : "Seal and share"}
           disabled={busy}
-          aria-busy={busy}
+          busy={busy}
           onClick={() => void share()}
-        >
-          {busy ? "Sealing…" : "Seal and share"}
-        </button>
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
+          icon={<IconDrop size={18} />}
+        />
+        <IconKey
+          label="Cancel"
+          small
           disabled={busy}
           onClick={() => setOpen(false)}
-          aria-label="Cancel"
-          title="Cancel"
         >
           <IconX size={16} />
-        </button>
+        </IconKey>
       </div>
     </section>
   );
@@ -319,13 +312,13 @@ export function DropRecordFields({ item }: { item: DropItem }) {
             <FieldRow
               label="File"
               actions={
-                <button
-                  type="button"
-                  className="btn btn--sm"
+                <IconKey
+                  label="Download"
+                  small
                   onClick={() => downloadKeptFile(kept)}
                 >
-                  Download
-                </button>
+                  <IconDownload size={16} />
+                </IconKey>
               }
             >
               <span className="frow__value">{kept.name}</span>

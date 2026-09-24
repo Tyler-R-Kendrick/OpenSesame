@@ -7,6 +7,7 @@ import { pinPolicyProblems } from "@opensesame/app-core/lib/vault/unlock-methods
 import { type FormEvent, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
 import { FieldShell } from "../../../components/FieldShell.js";
+import { IconKey } from "../../../components/IconKey.js";
 import {
   IconEye,
   IconEyeOff,
@@ -25,6 +26,149 @@ function newLabel(isPin: boolean, change: boolean, confirm: boolean): string {
   if (change) return confirm ? `Confirm new ${noun}` : `New ${noun}`;
   if (confirm) return `Confirm ${noun}`;
   return isPin ? "PIN" : "Password";
+}
+
+function verbFor(kind: SecretKind, change: boolean): string {
+  if (change) return `Change ${KEY_NOUN[kind]}`;
+  return kind === "pin" ? "Set PIN" : "Set password";
+}
+
+function doneMessage(kind: SecretKind, change: boolean): string {
+  if (change) {
+    return `${KEY_TITLE[kind]} changed. The vault key is unchanged, so no item was re-encrypted.`;
+  }
+  return kind === "pin"
+    ? "PIN unlock enrolled. You can unlock with this PIN next time."
+    : "Password unlock enrolled.";
+}
+
+/** What the fields say about the secret: strong enough, and confirmed. */
+function checkSecret(
+  isPin: boolean,
+  first: string,
+  second: string,
+  currentOk: boolean,
+) {
+  const problem =
+    isPin && first.length > 0 ? (pinPolicyProblems(first)[0] ?? null) : null;
+  const strength = isPin ? null : estimateStrength(first);
+  const strongEnough = isPin
+    ? first.length > 0 && problem === null
+    : first.length >= 12 && (strength?.score ?? 0) >= 2;
+  const matches = second.length > 0 && first === second;
+  return {
+    problem,
+    strength,
+    strongEnough,
+    mismatch: second.length > 0 && first !== second,
+    ready: strongEnough && matches && currentOk,
+  };
+}
+
+function useSecretForm(kind: SecretKind, view: KeyView) {
+  const store = useVaultStore();
+  const [current, setCurrent] = useState("");
+  const [first, setFirst] = useState("");
+  const [second, setSecond] = useState("");
+  const [shown, setShown] = useState(false);
+  const isPin = kind === "pin";
+  const change = view === "change";
+  const needsCurrent = change && !isPin;
+  const check = checkSecret(
+    isPin,
+    first,
+    second,
+    !needsCurrent || current.length > 0,
+  );
+  async function save() {
+    if (isPin) await store.enrollPin(first);
+    else if (needsCurrent) await store.changeMasterPassword(current, first);
+    else await store.enrollPassword(first);
+    setCurrent("");
+    setFirst("");
+    setSecond("");
+    setShown(false);
+  }
+  function suggest() {
+    const suggestion = generate(defaultPassphraseOptions);
+    setFirst(suggestion);
+    setSecond(suggestion);
+    setShown(true);
+  }
+  return {
+    current,
+    setCurrent,
+    first,
+    setFirst,
+    second,
+    setSecond,
+    shown,
+    setShown,
+    isPin,
+    change,
+    needsCurrent,
+    check,
+    save,
+    suggest,
+  };
+}
+
+type SecretForm = ReturnType<typeof useSecretForm>;
+
+function facts(authenticator: boolean) {
+  return [
+    {
+      key: authenticator ? "Why" : "Guards",
+      value: authenticator
+        ? "a code guards a key, and this vault has none yet"
+        : "the vault key on this device",
+    },
+    {
+      key: "Asked",
+      value: authenticator
+        ? "at unlock, as step 1; the code follows it"
+        : "at unlock, as step 1",
+    },
+  ];
+}
+
+/** The master password's suggest and reveal keys, ending its field. */
+function PasswordKeys({ form, busy }: { form: SecretForm; busy: boolean }) {
+  return (
+    <>
+      <IconKey
+        label="Suggest a strong password"
+        disabled={busy}
+        onClick={form.suggest}
+      >
+        <IconRefresh size={16} />
+      </IconKey>
+      <IconKey
+        label={form.shown ? "Hide password" : "Show password"}
+        aria-pressed={form.shown}
+        onClick={() => form.setShown((value) => !value)}
+      >
+        {form.shown ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+      </IconKey>
+    </>
+  );
+}
+
+function strengthMark(form: SecretForm) {
+  const { problem, strength, strongEnough } = form.check;
+  if (form.first.length === 0) return null;
+  if (problem) return <StatusMark tone="err" label={problem} />;
+  if (!strength) return null;
+  return (
+    <StatusMark tone={strongEnough ? "ok" : "warn"} label={strength.label} />
+  );
+}
+
+function matchMark(form: SecretForm) {
+  if (form.check.mismatch) {
+    return <StatusMark tone="err" label="Does not match" />;
+  }
+  return form.check.ready ? <StatusMark tone="ok" label="Matches" /> : null;
 }
 
 /**
@@ -48,89 +192,42 @@ export function SecretKeyCard({
   onDone: () => void;
   reason?: "authenticator";
 }) {
-  const store = useVaultStore();
-  const [current, setCurrent] = useState("");
-  const [first, setFirst] = useState("");
-  const [second, setSecond] = useState("");
-  const [shown, setShown] = useState(false);
-  const isPin = kind === "pin";
-  const change = view === "change";
-  const needsCurrent = change && !isPin;
-  const problem =
-    isPin && first.length > 0 ? (pinPolicyProblems(first)[0] ?? null) : null;
-  const strength = isPin ? null : estimateStrength(first);
-  const strongEnough = isPin
-    ? first.length > 0 && problem === null
-    : first.length >= 12 && (strength?.score ?? 0) >= 2;
-  const mismatch = second.length > 0 && first !== second;
-  const ready =
-    strongEnough &&
-    second.length > 0 &&
-    first === second &&
-    (!needsCurrent || current.length > 0);
-  const verb = change
-    ? `Change ${KEY_NOUN[kind]}`
-    : isPin
-      ? "Set PIN"
-      : "Set password";
+  const form = useSecretForm(kind, view);
+  const verb = verbFor(kind, form.change);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!ready) return;
+    if (!form.check.ready) return;
     void run(
       async () => {
-        if (isPin) await store.enrollPin(first);
-        else if (needsCurrent) await store.changeMasterPassword(current, first);
-        else await store.enrollPassword(first);
-        setCurrent("");
-        setFirst("");
-        setSecond("");
-        setShown(false);
+        await form.save();
         onDone();
       },
-      change
-        ? `${KEY_TITLE[kind]} changed. The vault key is unchanged, so no item was re-encrypted.`
-        : isPin
-          ? "PIN unlock enrolled. You can unlock with this PIN next time."
-          : "Password unlock enrolled.",
+      doneMessage(kind, form.change),
     );
   }
 
-  const authenticator = reason === "authenticator";
   return (
     <form onSubmit={submit} aria-label={`${verb} form`}>
       <CeremonyShell
         ok
-        top={change ? "Enrolled" : undefined}
-        name={isPin ? "PIN · this device" : "Master password"}
-        facts={[
-          {
-            key: authenticator ? "Why" : "Guards",
-            value: authenticator
-              ? "a code guards a key, and this vault has none yet"
-              : "the vault key on this device",
-          },
-          {
-            key: "Asked",
-            value: authenticator
-              ? "at unlock, as step 1; the code follows it"
-              : "at unlock, as step 1",
-          },
-        ]}
+        top={form.change ? "Enrolled" : undefined}
+        name={form.isPin ? "PIN · this device" : "Master password"}
+        facts={facts(reason === "authenticator")}
         primary={{
           label: verb,
           submit: true,
-          disabled: !ready,
+          disabled: !form.check.ready,
           busy,
           onClick: () => {},
         }}
       >
-        {needsCurrent ? (
+        {form.needsCurrent ? (
           <FieldShell
             label="Current password"
             type="password"
-            value={current}
-            onValueChange={setCurrent}
+            value={form.current}
+            onValueChange={form.setCurrent}
             autoComplete="current-password"
             lead={<IconLock size={16} />}
             mono
@@ -138,72 +235,29 @@ export function SecretKeyCard({
           />
         ) : null}
         <FieldShell
-          label={newLabel(isPin, change, false)}
-          type={shown ? "text" : "password"}
-          value={first}
-          onValueChange={setFirst}
+          label={newLabel(form.isPin, form.change, false)}
+          type={form.shown ? "text" : "password"}
+          value={form.first}
+          onValueChange={form.setFirst}
           autoComplete="new-password"
           lead={keyIcon(kind)}
           mono
           disabled={busy}
           tail={
-            isPin ? undefined : (
-              <>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Suggest a strong password"
-                  title="Suggest a strong password"
-                  disabled={busy}
-                  onClick={() => {
-                    const suggestion = generate(defaultPassphraseOptions);
-                    setFirst(suggestion);
-                    setSecond(suggestion);
-                    setShown(true);
-                  }}
-                >
-                  <IconRefresh size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={shown ? "Hide password" : "Show password"}
-                  title={shown ? "Hide password" : "Show password"}
-                  aria-pressed={shown}
-                  onClick={() => setShown((value) => !value)}
-                >
-                  {shown ? <IconEyeOff size={16} /> : <IconEye size={16} />}
-                </button>
-              </>
-            )
+            form.isPin ? undefined : <PasswordKeys form={form} busy={busy} />
           }
-          status={
-            first.length === 0 ? null : problem ? (
-              <StatusMark tone="err" label={problem} />
-            ) : strength ? (
-              <StatusMark
-                tone={strongEnough ? "ok" : "warn"}
-                label={strength.label}
-              />
-            ) : null
-          }
+          status={strengthMark(form)}
         />
         <FieldShell
-          label={newLabel(isPin, change, true)}
+          label={newLabel(form.isPin, form.change, true)}
           type="password"
-          value={second}
-          onValueChange={setSecond}
+          value={form.second}
+          onValueChange={form.setSecond}
           autoComplete="new-password"
           lead={keyIcon(kind)}
           mono
           disabled={busy}
-          status={
-            mismatch ? (
-              <StatusMark tone="err" label="Does not match" />
-            ) : ready ? (
-              <StatusMark tone="ok" label="Matches" />
-            ) : null
-          }
+          status={matchMark(form)}
         />
       </CeremonyShell>
     </form>

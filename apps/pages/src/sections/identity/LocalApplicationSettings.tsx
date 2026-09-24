@@ -14,7 +14,6 @@ import {
   LocalDirectoryError,
 } from "@opensesame/app-core/lib/local-directory.js";
 import {
-  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -30,6 +29,7 @@ import {
   OrganizationField,
   ScopeRolesField,
 } from "./LocalApplicationFields.js";
+import { RegistrationActions } from "./RegistrationActions.js";
 import { RegistrationExtras } from "./RegistrationExtras.js";
 
 type Props = {
@@ -236,52 +236,6 @@ function RegistrationEditor({
         registration={registration}
         revision={model.state?.revision}
       />
-    </div>
-  );
-}
-
-function RegistrationActions(props: {
-  busy: boolean;
-  registered: boolean;
-  removing: boolean;
-  removeButton: RefObject<HTMLButtonElement | null>;
-  onReload: () => void;
-  onRemove: () => void;
-  onKeep: () => void;
-}) {
-  return (
-    <div className="actions">
-      <button
-        type="button"
-        className="btn btn--sm"
-        disabled={props.busy}
-        onClick={props.onReload}
-      >
-        Reload registration
-      </button>
-      {props.registered ? (
-        <>
-          <button
-            ref={props.removeButton}
-            type="button"
-            className="btn btn--sm btn--danger"
-            disabled={props.busy}
-            onClick={props.onRemove}
-          >
-            {props.removing ? "Confirm removal" : "Remove registration"}
-          </button>
-          {props.removing ? (
-            <button
-              type="button"
-              className="btn btn--sm"
-              disabled={props.busy}
-              onClick={props.onKeep}
-            >
-              Keep registration
-            </button>
-          ) : null}
-        </>
-      ) : null}
     </div>
   );
 }

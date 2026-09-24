@@ -2,6 +2,7 @@ import { approveDevice } from "@opensesame/app-core/lib/directory.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -109,14 +110,11 @@ function ApproveDeviceCard({ online }: { online: boolean }) {
           ) : null}
 
           <div className="actions actions--end">
-            <button
-              type="submit"
-              className="btn btn--primary"
+            <FormCommit
+              label={busy ? "Approving…" : "Approve device"}
               disabled={busy || !online || !code.trim()}
-              aria-busy={busy || undefined}
-            >
-              {busy ? "Approving…" : "Approve device"}
-            </button>
+              busy={busy || undefined}
+            />
           </div>
         </form>
       </div>

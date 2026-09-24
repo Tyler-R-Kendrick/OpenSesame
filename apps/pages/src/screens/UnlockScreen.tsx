@@ -38,6 +38,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
   IconEye,
@@ -47,8 +48,8 @@ import {
   IconMessage,
   IconPasskey,
   IconPhone,
+  IconSettings,
   IconShield,
-  IconX,
 } from "../components/Icons.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
@@ -65,6 +66,7 @@ import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
+import { ResetVault } from "./unlock/ResetVault.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { StrengthMeter } from "./unlock/StrengthMeter.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
@@ -507,14 +509,14 @@ function UnlockForm({
               No way in is configured for this deployment yet, so sign-in has
               nowhere to go.
             </span>
-            <button
-              ref={setupRef}
-              type="button"
-              className="btn btn--sm"
+            <IconKey
+              label="Set it up"
+              small
+              keyRef={setupRef}
               onClick={() => onOpenSetup("identity")}
             >
-              Set it up
-            </button>
+              <IconSettings size={16} />
+            </IconKey>
           </div>
         ) : null}
 
@@ -1034,32 +1036,10 @@ function UnlockForm({
           ) : null}
           {!firstRun && !showSignIn ? (
             showReset ? (
-              <div className="unlock__danger">
-                <p>
-                  Deleting removes the encrypted vault from this browser.
-                  Without an enrolled unlock method its contents are already
-                  unrecoverable — this only clears the file so you can start
-                  again.
-                </p>
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn btn--danger btn--sm"
-                    onClick={() => void store.destroy()}
-                  >
-                    Delete this vault
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--sm"
-                    onClick={() => setShowReset(false)}
-                    aria-label="Keep it"
-                    title="Keep it"
-                  >
-                    <IconX size={16} />
-                  </button>
-                </div>
-              </div>
+              <ResetVault
+                onDelete={() => void store.destroy()}
+                onKeep={() => setShowReset(false)}
+              />
             ) : (
               <button
                 type="button"

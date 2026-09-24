@@ -57,6 +57,8 @@ describe("SecretKeyCard — the master password", () => {
         onDone={onDone}
       />,
     );
+    // The change view says what is already there before asking for more.
+    expect(screen.getByText("Enrolled")).toBeTruthy();
     await userEvent.type(
       screen.getByLabelText("New password"),
       "correct horse battery",

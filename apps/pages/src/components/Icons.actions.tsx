@@ -336,3 +336,29 @@ export function IconMonitor(props: IconProps) {
     </Svg>
   );
 }
+
+export function IconPause(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 6v12M15 6v12" />
+    </Svg>
+  );
+}
+
+export function IconPlay(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 5.5v13l10-6.5z" />
+    </Svg>
+  );
+}
+
+/** The door and the arrow leaving it: end this session. */
+export function IconSignOut(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h4" />
+      <path d="M14.5 8l4 4-4 4M18.5 12H9.5" />
+    </Svg>
+  );
+}

@@ -155,9 +155,22 @@ left-aligned strip; no utility group is pushed to the opposite edge. Static-orig
 browser checks compare actual hit areas, glyph centers, group gaps, and surface styles.
 
 `pnpm lint:design` also rejects a `<button>` whose face carries an executing
-verb (`Revoke`, `Authorize`, `Connect`, `Save`, `Copy`, `Load N more`, and
-the same family) unless the control is `icon-btn` or `.go`. Existing files
-are pinned in `scripts/design-button-baseline.json`. A file may not exceed
-its recorded count, and a file that improves must have that count lowered in
-the same change. New files start at zero. `impeccable detect` runs on the
+verb (`Revoke`, `Rename`, `Review`, `Sync`, `Use`, `Approve`, `Load N more`,
+and the rest of the list in `scripts/design-lint-verbs.mjs`) unless the
+control is `icon-btn` or `.go`. The face is every JSX text run *and* every
+string literal between the tags, so `{busy ? "Syncing…" : "Sync connectors"}`
+is read too, and a tag ends at the first `>` outside braces, so an
+`onClick={() => …}` no longer hides the button behind it.
+
+Words stay on a control only when they are the thing chosen, and the control
+says so: a tab, radio, switch, menu entry or pressed toggle by its role; the
+guest and setup roads (`road`), the unlock screen's mode switch
+(`unlock__switch`), a menu's entries (`account-switcher__*`,
+`signin__menu-item`), and `choice` for any other button whose words name its
+object — a sign-in method, a walkthrough. `choice` is a claim a reviewer
+checks, not an escape hatch: a verb that executes is a key.
+
+The ledger in `scripts/design-button-baseline.json` is empty and stays
+empty. A file may not exceed its recorded count, and a file that improves
+must have that count lowered in the same change. New files start at zero. `impeccable detect` runs on the
 same pre-commit path and fails the commit on a primary finding.

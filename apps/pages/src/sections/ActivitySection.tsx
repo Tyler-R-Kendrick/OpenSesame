@@ -8,6 +8,7 @@ import {
   subscribeActivity,
 } from "@opensesame/app-core/lib/activity-log.js";
 import { useCallback, useEffect, useState } from "react";
+import { IconKey } from "../components/IconKey.js";
 import { IconRefresh } from "../components/Icons.js";
 import { useVault } from "../lib/vault/hooks.js";
 import "./identity.css";
@@ -90,16 +91,14 @@ export function ActivitySection() {
             <h2 id="activity-log">Log</h2>
           </div>
           <fieldset className="vtree__keys" aria-label="Activity commands">
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label="Refresh activity"
+              small
               disabled={busy}
-              aria-label="Refresh activity"
-              title="Refresh activity"
               onClick={() => void refresh()}
             >
               <IconRefresh size={15} />
-            </button>
+            </IconKey>
           </fieldset>
         </div>
         <div className="panel__body">

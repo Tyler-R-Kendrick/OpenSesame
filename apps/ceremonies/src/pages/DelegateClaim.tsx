@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Commit } from "../keys.js";
 import { readFragmentToken } from "../lib/deep-link.js";
 import { gateway } from "../lib/issuer.js";
 
@@ -335,9 +336,10 @@ export function DelegateClaim() {
               {error}
             </output>
           ) : null}
-          <button type="submit" disabled={busy || accepted.size === 0}>
-            Accept selected access
-          </button>
+          <Commit
+            label="Accept selected access"
+            disabled={busy || accepted.size === 0}
+          />
         </form>
       </section>
     );

@@ -20,6 +20,8 @@ import { recoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth
 import { signOut } from "@opensesame/app-core/lib/session-exit.js";
 import { describeOutcome } from "@opensesame/app-core/screens/unlock/pending-link-banner-model.js";
 import { useEffect, useReducer } from "react";
+import { IconKey } from "../../components/IconKey.js";
+import { IconSignOut } from "../../components/Icons.js";
 
 export function PendingLinkBanner() {
   // A reload drops in-memory notices while the assertion lives on in
@@ -46,16 +48,16 @@ export function PendingLinkBanner() {
     >
       <span>{model.text}</span>
       {outcome.kind === "authenticated" ? (
-        <button
-          type="button"
-          className="btn"
+        <IconKey
+          label="Sign out"
+          small
           onClick={() => {
             signOut();
             bump();
           }}
         >
-          Sign out
-        </button>
+          <IconSignOut size={16} />
+        </IconKey>
       ) : null}
       <button
         type="button"

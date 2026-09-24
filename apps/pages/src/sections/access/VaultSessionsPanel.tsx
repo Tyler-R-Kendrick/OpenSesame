@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconArrowRight,
   IconPlus,
@@ -77,21 +78,17 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
       <div className="panel__head">
         <h2>Vault share sessions</h2>
         <fieldset className="vtree__keys" aria-label="Session commands">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Start vault session"
-            title="Start vault session"
+          <IconKey
+            label="Start vault session"
+            small
             disabled={busy}
             onClick={() => setDraft(true)}
           >
             <IconPlus size={15} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Reload sessions"
-            title="Reload sessions"
+          </IconKey>
+          <IconKey
+            label="Reload sessions"
+            small
             disabled={busy}
             onClick={() => {
               setError("");
@@ -99,7 +96,7 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
             }}
           >
             <IconRefresh size={15} />
-          </button>
+          </IconKey>
         </fieldset>
       </div>
       <div className="panel__body">
@@ -177,38 +174,33 @@ function SessionRow({
         ) : null}
         <div className="actions">
           {session.status === "stopped" ? (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label="Start session"
+              small
               disabled={busy}
-              aria-label="Start session"
-              title="Start session"
               onClick={onStart}
             >
               <IconArrowRight size={16} />
-            </button>
+            </IconKey>
           ) : (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm icon-btn--danger"
+            <IconKey
+              label="Stop session"
+              small
+              danger
               disabled={busy}
-              aria-label="Stop session"
-              title="Stop session"
               onClick={onStop}
             >
               <IconX size={16} />
-            </button>
+            </IconKey>
           )}
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
+          <IconKey
+            label="Restart session"
+            small
             disabled={busy}
-            aria-label="Restart session"
-            title="Restart session"
             onClick={onRestart}
           >
             <IconRefresh size={16} />
-          </button>
+          </IconKey>
         </div>
       </div>
     </li>
@@ -366,16 +358,9 @@ function NewVaultSessionForm({
         </select>
       </div>
       <FormCommit label="Start session" disabled={busy}>
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={busy}
-          onClick={onCancel}
-          aria-label="Cancel"
-          title="Cancel"
-        >
+        <IconKey label="Cancel" disabled={busy} onClick={onCancel}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </FormCommit>
     </form>
   );

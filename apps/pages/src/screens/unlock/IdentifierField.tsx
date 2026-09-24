@@ -203,7 +203,7 @@ export function IdentifierField({
             </p>
             <button
               type="button"
-              className="btn btn--primary btn--block"
+              className="btn btn--primary btn--block choice"
               disabled={disabled || busy}
               onClick={() => void sendLink()}
             >
@@ -212,7 +212,7 @@ export function IdentifierField({
             {onContinueWithDomain && fallbackDomain ? (
               <button
                 type="button"
-                className="btn btn--ghost btn--block"
+                className="btn btn--ghost btn--block choice"
                 disabled={disabled || busy}
                 onClick={() => onContinueWithDomain(fallbackDomain)}
               >

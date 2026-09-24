@@ -10,6 +10,9 @@ import {
 } from "@opensesame/app-core/webmcp/registration.js";
 import type { SupportAgentAvailability } from "@opensesame/support-agent";
 import { type ReactElement, useSyncExternalStore } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconDownload, IconPause, IconX } from "../../components/Icons.js";
 import { useSupport } from "../session.js";
 import { UNAVAILABLE_TEXT, webmcpStatusText } from "./messages.js";
 
@@ -74,9 +77,11 @@ export function Availability({
           This browser can answer on the device once its model has been
           downloaded. Nothing is fetched until you ask for it.
         </p>
-        <button type="button" className="btn btn--primary" onClick={onAcquire}>
-          Download the on-device model
-        </button>
+        <FormCommit
+          label="Download the on-device model"
+          icon={<IconDownload size={18} />}
+          onClick={onAcquire}
+        />
       </div>
     );
   }
@@ -111,21 +116,13 @@ export function GuideStatus(): ReactElement | null {
       {guide.message ? <p className="support__text">{guide.message}</p> : null}
       <div className="actions">
         {running ? (
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={() => support.pauseGuide()}
-          >
-            Pause
-          </button>
+          <IconKey label="Pause" small onClick={() => support.pauseGuide()}>
+            <IconPause size={16} />
+          </IconKey>
         ) : null}
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => support.stopGuide()}
-        >
-          Stop
-        </button>
+        <IconKey label="Stop" small onClick={() => support.stopGuide()}>
+          <IconX size={16} />
+        </IconKey>
       </div>
     </section>
   );

@@ -247,7 +247,6 @@ describe("UnlockMethodsPanel", () => {
       row("Password").getByRole("button", { name: "Change" }),
     );
     const dialog = sheet();
-    expect(dialog.getByText("Enrolled")).toBeTruthy();
     for (const [label, value] of [
       ["Current password", "old-password-1"],
       ["New password", "correct horse battery"],

@@ -70,10 +70,12 @@ import {
   useState,
 } from "react";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
+import { IconKey } from "../components/IconKey.js";
 import {
   IconAlert,
   IconCheck,
   IconCopy,
+  IconEdit,
   IconLogin,
   IconPasskey,
   IconPlus,
@@ -111,6 +113,7 @@ import {
   truncateId,
 } from "@opensesame/app-core/sections/identity-section-model.js";
 import { useIdentitySession } from "../bindings/identity.js";
+import { FormCommit } from "../components/FormCommit.js";
 /**
  * Browser-local identity management, with optional hosted Identity
  * surfaces. Provider registration is an explicit ceremony, not an entry gate.
@@ -607,15 +610,12 @@ function ByoClientFields({
           <>
             <div className="byo__uri">
               <code>{redirectUri}</code>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Copy redirect URI"
-                title="Copy redirect URI"
+              <IconKey
+                label="Copy redirect URI"
                 onClick={() => copy(redirectUri, "redirect")}
               >
                 {copied === "redirect" ? <IconCheck /> : <IconCopy />}
-              </button>
+              </IconKey>
             </div>
             <p className="hint">
               {copied === "redirect"
@@ -746,23 +746,22 @@ function IdpPresetForm({
         >
           Back
         </button>
-        <button
-          type="submit"
-          className="btn btn--primary"
+        <FormCommit
+          label={
+            byo.busy
+              ? "Checking issuer…"
+              : byo.needsClient
+                ? "Register with this client"
+                : "Check issuer"
+          }
           disabled={
             disabled ||
             byo.busy ||
             !online ||
             (preset.field !== null && input.trim().length === 0)
           }
-          aria-busy={byo.busy || undefined}
-        >
-          {byo.busy
-            ? "Checking issuer…"
-            : byo.needsClient
-              ? "Register with this client"
-              : "Check issuer"}
-        </button>
+          busy={byo.busy || undefined}
+        />
       </div>
     </form>
   );
@@ -833,20 +832,19 @@ function CustomOidcCard({
       ) : null}
 
       <div className="actions actions--end">
-        <button
-          type="submit"
-          className="btn btn--primary"
+        <FormCommit
+          label={
+            byo.busy
+              ? "Checking issuer…"
+              : byo.needsClient
+                ? "Register with this client"
+                : "Check issuer"
+          }
           disabled={
             disabled || byo.busy || !online || issuer.trim().length === 0
           }
-          aria-busy={byo.busy || undefined}
-        >
-          {byo.busy
-            ? "Checking issuer…"
-            : byo.needsClient
-              ? "Register with this client"
-              : "Check issuer"}
-        </button>
+          busy={byo.busy || undefined}
+        />
       </div>
     </form>
   );
@@ -910,16 +908,9 @@ function MeCard({ online }: { online: boolean }) {
         <div>
           <h2>You</h2>
         </div>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => void load()}
-          disabled={!online}
-          title="Reload"
-          aria-label="Reload"
-        >
+        <IconKey label="Reload" onClick={() => void load()} disabled={!online}>
           <IconRefresh />
-        </button>
+        </IconKey>
       </div>
 
       <div className="panel__body">
@@ -939,15 +930,12 @@ function MeCard({ online }: { online: boolean }) {
               <dt>Principal</dt>
               <dd>
                 <code title={me.id}>{truncateId(me.id)}</code>{" "}
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label="Copy principal id"
                   onClick={() => copy(me.id, "principal")}
-                  title="Copy principal id"
-                  aria-label="Copy principal id"
                 >
                   {copied === "principal" ? <IconCheck /> : <IconCopy />}
-                </button>
+                </IconKey>
               </dd>
             </div>
             <div>
@@ -1027,16 +1015,13 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
         <div>
           <h2>Linked identities</h2>
         </div>
-        <button
-          type="button"
-          className="icon-btn"
+        <IconKey
+          label="Reload identities"
           onClick={() => void load()}
           disabled={!online}
-          title="Reload identities"
-          aria-label="Reload identities"
         >
           <IconRefresh />
-        </button>
+        </IconKey>
       </div>
 
       <div className="panel__body">
@@ -1074,37 +1059,33 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
                     <div className="actions">
                       {confirmId === identity.id ? (
                         <>
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--danger icon-btn--sm"
+                          <IconKey
+                            label="Unlink"
+                            small
+                            danger
                             disabled={busyId !== null || !online}
                             onClick={() => void unlink(identity)}
-                            aria-label="Unlink"
-                            title="Unlink"
                           >
                             <IconTrash size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--sm"
+                          </IconKey>
+                          <IconKey
+                            label="Keep it"
+                            small
                             onClick={() => setConfirmId(null)}
-                            aria-label="Keep it"
-                            title="Keep it"
                           >
                             <IconX size={16} />
-                          </button>
+                          </IconKey>
                         </>
                       ) : (
-                        <button
-                          type="button"
-                          className="icon-btn icon-btn--danger icon-btn--sm"
+                        <IconKey
+                          label="Unlink"
+                          small
+                          danger
                           disabled={busyId !== null || !online}
                           onClick={() => setConfirmId(identity.id)}
-                          aria-label="Unlink"
-                          title="Unlink"
                         >
                           <IconTrash size={16} />
-                        </button>
+                        </IconKey>
                       )}
                     </div>
                   </div>
@@ -1228,16 +1209,13 @@ function OrgMembersCard({ online }: { online: boolean }) {
         <div>
           <h2>Organization members</h2>
         </div>
-        <button
-          type="button"
-          className="icon-btn"
+        <IconKey
+          label="Reload members"
           onClick={() => void load()}
           disabled={!online}
-          title="Reload members"
-          aria-label="Reload members"
         >
           <IconRefresh />
-        </button>
+        </IconKey>
       </div>
 
       <div className="panel__body">
@@ -1271,33 +1249,33 @@ function OrgMembersCard({ online }: { online: boolean }) {
                     <div className="actions">
                       {confirmId === member.principalId ? (
                         <>
-                          <button
-                            type="button"
-                            className="btn btn--sm btn--danger"
+                          <IconKey
+                            label="Remove them"
+                            small
+                            danger
                             disabled={busy || !online}
                             onClick={() => void remove(member)}
                           >
-                            Remove them
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--sm"
+                            <IconTrash size={16} />
+                          </IconKey>
+                          <IconKey
+                            label="Keep them"
+                            small
                             onClick={() => setConfirmId(null)}
-                            aria-label="Keep them"
-                            title="Keep them"
                           >
                             <IconX size={16} />
-                          </button>
+                          </IconKey>
                         </>
                       ) : (
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--danger"
+                        <IconKey
+                          label="Remove"
+                          small
+                          danger
                           disabled={busy || !online}
                           onClick={() => setConfirmId(member.principalId)}
                         >
-                          Remove
-                        </button>
+                          <IconTrash size={16} />
+                        </IconKey>
                       )}
                     </div>
                   ) : null}
@@ -1343,13 +1321,11 @@ function OrgMembersCard({ online }: { online: boolean }) {
               </select>
             </div>
             <div className="actions actions--end">
-              <button
-                type="submit"
-                className="btn btn--sm btn--primary"
+              <FormCommit
+                label={busy ? "Adding…" : "Add member"}
                 disabled={busy || !online || !principalId.trim()}
-              >
-                {busy ? "Adding…" : "Add member"}
-              </button>
+                icon={<IconPlus size={18} />}
+              />
             </div>
           </form>
         ) : members !== null ? (
@@ -1422,16 +1398,14 @@ function ProvidersPanel({
           <h2>Who vouches for them</h2>
         </div>
         <fieldset className="vtree__keys" aria-label="Provider commands">
-          <button
-            ref={registerRef}
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Register an IdP"
-            title="Register an IdP"
+          <IconKey
+            label="Register an IdP"
+            small
+            keyRef={registerRef}
             onClick={onOpenCeremony}
           >
             <IconPlus size={15} />
-          </button>
+          </IconKey>
         </fieldset>
       </div>
 
@@ -1546,41 +1520,36 @@ function ProviderRow({
         ) : null}
         {device ? null : (
           <div className="actions">
-            <button
-              type="button"
-              className="btn btn--sm"
+            <IconKey
+              label={busy ? "Starting sign-in" : "Sign in"}
+              small
               disabled={busy || !online}
               onClick={() => void signIn()}
             >
-              {busy ? "Starting…" : "Sign in"}
-            </button>
+              <IconLogin size={16} />
+            </IconKey>
             {confirming ? (
               <>
-                <button
-                  type="button"
-                  className="btn btn--sm btn--danger"
-                  onClick={remove}
-                >
-                  Remove it
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--sm"
+                <IconKey label="Remove it" small danger onClick={remove}>
+                  <IconTrash size={16} />
+                </IconKey>
+                <IconKey
+                  label="Keep it"
+                  small
                   onClick={() => setConfirming(false)}
-                  aria-label="Keep it"
-                  title="Keep it"
                 >
                   <IconX size={16} />
-                </button>
+                </IconKey>
               </>
             ) : (
-              <button
-                type="button"
-                className="btn btn--sm btn--danger"
+              <IconKey
+                label="Remove"
+                small
+                danger
                 onClick={() => setConfirming(true)}
               >
-                Remove
-              </button>
+                <IconTrash size={16} />
+              </IconKey>
             )}
           </div>
         )}
@@ -1690,16 +1659,13 @@ function ServiceAccountsPanel({
           <div>
             <h2>OIDC applications</h2>
           </div>
-          <button
-            type="button"
-            className="icon-btn"
+          <IconKey
+            label="Reload clients"
             onClick={() => void load()}
             disabled={!online}
-            title="Reload clients"
-            aria-label="Reload clients"
           >
             <IconRefresh />
-          </button>
+          </IconKey>
         </div>
 
         <div className="panel__body">
@@ -1734,9 +1700,9 @@ function ServiceAccountsPanel({
                       created {formatTime(client.createdAt)}
                     </span>
                     <div className="actions">
-                      <button
-                        type="button"
-                        className="btn btn--sm"
+                      <IconKey
+                        label="Edit application"
+                        small
                         disabled={
                           busyId !== null ||
                           !online ||
@@ -1744,51 +1710,49 @@ function ServiceAccountsPanel({
                         }
                         onClick={() => setEditing(client)}
                       >
-                        Edit application
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--sm"
+                        <IconEdit size={16} />
+                      </IconKey>
+                      <IconKey
+                        label={
+                          busyId === client.id
+                            ? "Rotating client ID"
+                            : "Rotate client ID"
+                        }
+                        small
                         disabled={busyId !== null || !online}
                         onClick={() => void rotate(client)}
                       >
-                        {busyId === client.id
-                          ? "Rotating…"
-                          : "Rotate client ID"}
-                      </button>
+                        <IconRefresh size={16} />
+                      </IconKey>
                       {confirmId === client.id ? (
                         <>
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--danger icon-btn--sm"
+                          <IconKey
+                            label="Revoke it"
+                            small
+                            danger
                             disabled={busyId !== null || !online}
                             onClick={() => void revoke(client)}
-                            aria-label="Revoke it"
-                            title="Revoke it"
                           >
                             <IconTrash size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--sm"
+                          </IconKey>
+                          <IconKey
+                            label="Keep it"
+                            small
                             onClick={() => setConfirmId(null)}
-                            aria-label="Keep it"
-                            title="Keep it"
                           >
                             <IconX size={16} />
-                          </button>
+                          </IconKey>
                         </>
                       ) : (
-                        <button
-                          type="button"
-                          className="icon-btn icon-btn--danger icon-btn--sm"
+                        <IconKey
+                          label="Revoke"
+                          small
+                          danger
                           disabled={busyId !== null || !online}
                           onClick={() => setConfirmId(client.id)}
-                          aria-label="Revoke"
-                          title="Revoke"
                         >
                           <IconTrash size={16} />
-                        </button>
+                        </IconKey>
                       )}
                     </div>
                   </div>
@@ -1815,15 +1779,12 @@ function ServiceAccountsPanel({
               <IconCheck />
               <p>
                 Rotated — the new client id: <code>{rotated.id}</code>{" "}
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label="Copy new client id"
                   onClick={() => copy(rotated.id, "rotated")}
-                  title="Copy new client id"
-                  aria-label="Copy new client id"
                 >
                   {copied === "rotated" ? <IconCheck /> : <IconCopy />}
-                </button>{" "}
+                </IconKey>{" "}
                 The previous client id is revoked.
               </p>
             </output>
@@ -1978,14 +1939,11 @@ function CreateClientForm({
             </p>
           </div>
           <div className="actions actions--end">
-            <button
-              type="submit"
-              className="btn btn--primary"
+            <FormCommit
+              label={busy ? "Registering…" : "Register client"}
               disabled={busy || !online}
-              aria-busy={busy}
-            >
-              {busy ? "Registering…" : "Register client"}
-            </button>
+              busy={busy}
+            />
           </div>
         </form>
       </div>
@@ -2047,16 +2005,13 @@ function OrganizationPanel({
           <div>
             <h2>Organizations</h2>
           </div>
-          <button
-            type="button"
-            className="icon-btn"
+          <IconKey
+            label="Reload organizations"
             onClick={() => void load()}
             disabled={!online}
-            title="Reload organizations"
-            aria-label="Reload organizations"
           >
             <IconRefresh />
-          </button>
+          </IconKey>
         </div>
 
         <div className="panel__body">
@@ -2084,13 +2039,9 @@ function OrganizationPanel({
                     </div>
                     <span className="chip">{org.role}</span>
                     <div className="actions">
-                      <button
-                        type="button"
-                        className="btn btn--sm btn--ghost"
-                        onClick={onOpenPeople}
-                      >
-                        View people
-                      </button>
+                      <IconKey label="View people" small onClick={onOpenPeople}>
+                        <IconUser size={16} />
+                      </IconKey>
                     </div>
                   </div>
                   {org.ssoIssuer || org.samlIssuer ? (
@@ -2235,14 +2186,12 @@ function CreateOrgForm({
           ) : null}
 
           <div className="actions actions--end">
-            <button
-              type="submit"
-              className="btn btn--primary"
+            <FormCommit
+              label={busy ? "Creating…" : "Create organization"}
               disabled={busy || !online}
-              aria-busy={busy}
-            >
-              {busy ? "Creating…" : "Create organization"}
-            </button>
+              busy={busy}
+              icon={<IconPlus size={18} />}
+            />
           </div>
         </form>
       </div>

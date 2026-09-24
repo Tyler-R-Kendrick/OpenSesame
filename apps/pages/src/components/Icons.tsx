@@ -50,6 +50,9 @@ export {
   IconSun,
   IconMoon,
   IconMonitor,
+  IconPause,
+  IconPlay,
+  IconSignOut,
 } from "./Icons.actions.js";
 
 /* —— Brand ———————————————————————————————————————————————————
@@ -284,7 +287,7 @@ export type { IconName };
  * (`section.icon`). A module ships no SVG the core has to trust; the shell
  * resolves the key here, and a key this table lacks is a type error.
  */
-export const ICONS_BY_NAME: Record<IconName, ComponentType<IconProps>> = {
+export const ICONS_BY_NAME = {
   vault: IconVault,
   site: IconSite,
   connection: IconConnection,
@@ -306,4 +309,4 @@ export const ICONS_BY_NAME: Record<IconName, ComponentType<IconProps>> = {
   help: IconHelp,
   info: IconInfo,
   alert: IconAlert,
-};
+} satisfies Record<IconName, ComponentType<IconProps>>;

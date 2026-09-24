@@ -10,6 +10,7 @@ import {
   revokeLocalAccessRequest,
 } from "@opensesame/app-core/lib/local-access-requests.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconArrowRight,
   IconPlus,
@@ -98,11 +99,8 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             <option value="decided">decided</option>
             <option value="all">all</option>
           </select>
-          <button
-            type="button"
-            className="icon-btn"
-            title="New local request"
-            aria-label="New local request"
+          <IconKey
+            label="New local request"
             disabled={disabled || !model.data || creating || selected !== null}
             onClick={(event) => {
               trigger.current = event.currentTarget;
@@ -110,18 +108,15 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             }}
           >
             <IconPlus />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            ref={reload}
-            title="Reload local requests"
-            aria-label="Reload local requests"
+          </IconKey>
+          <IconKey
+            label="Reload local requests"
+            keyRef={reload}
             disabled={model.busy}
             onClick={() => void model.reload()}
           >
             <IconRefresh />
-          </button>
+          </IconKey>
         </div>
       </div>
       <div className="panel__body">
@@ -211,16 +206,14 @@ function RequestRows({
             <p>
               <code className="access-ref">{row.id}</code>
             </p>
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label="Review request"
+              small
               disabled={disabled}
-              aria-label="Review request"
-              title="Review request"
               onClick={(event) => select(row, event.currentTarget)}
             >
               <IconArrowRight size={16} />
-            </button>
+            </IconKey>
           </li>
         ))}
       </ul>
@@ -297,24 +290,12 @@ function RequestDecision({
         />
       ) : null}
       <div className="actions">
-        <button
-          type="button"
-          className="icon-btn icon-btn--danger"
-          aria-label={removeLabel}
-          title={removeLabel}
-          onClick={() => void remove()}
-        >
+        <IconKey label={removeLabel} danger onClick={() => void remove()}>
           <IconTrash size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close request"
-          title="Close request"
-          onClick={close}
-        >
+        </IconKey>
+        <IconKey label="Close request" onClick={close}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </div>
     </fieldset>
   );
