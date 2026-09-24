@@ -1,5 +1,5 @@
 ---
-source: apps/pm-bridges/tests/gopass_golden.rs
+source: apps/cli/tests/gopass_golden.rs
 expression: "run.responses[0]"
 ---
 [
