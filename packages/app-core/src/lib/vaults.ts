@@ -18,6 +18,7 @@
  *    The row says which it will be before the person commits.
  */
 
+import { guestsAllowed } from "./guest-access.js";
 import { kvHydrate } from "./kv.js";
 import { guestVaultLabel } from "./local-guest.js";
 
@@ -124,17 +125,25 @@ function describeVault(project: PagesProject): DeviceVault {
 
 /**
  * Every vault on this device, the personal one first, then the projects in
- * the order they were made, then the guest row. A guest session that is open
- * right now reports as open on the guest row and nowhere else.
+ * the order they were made, then the guest row while guests are allowed. A
+ * guest session that is open right now reports as open on the guest row and
+ * nowhere else.
  */
 function listDeviceVaultsDefault(): DeviceVault[] {
   const snapshot = vaultStore.getSnapshot();
   const guestOpen = snapshot.status === "unlocked" && snapshot.guest;
+  // With guests switched off there is no guest row to open (ADR 0135 §4),
+  // unless a guest session is the one open right now.
+  const guestRow = guestOpen
+    ? [guestVault("open")]
+    : guestsAllowed()
+      ? [guestVault()]
+      : [];
   return [
     ...listProjects()
       .filter((project) => project.id !== GUEST_TOMB)
       .map(describeVault),
-    guestOpen ? guestVault("open") : guestVault(),
+    ...guestRow,
   ];
 }
 

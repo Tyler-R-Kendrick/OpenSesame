@@ -30,7 +30,6 @@ const KINDS = [
   "keymap-jump",
   "route",
   "section",
-  "settings-category",
   "setup-panel",
   "tutorial-goal",
   "tutorial-route",
@@ -38,13 +37,12 @@ const KINDS = [
   "unlock-effect",
   "webmcp-tool",
 ];
-// 1 section + 2 routes + 1 settings + 1 setup + 1 command + 1 jump
+// 1 section + 2 routes + 1 setup + 1 command + 1 jump
 // + the authored connections targets, goals and route + 2 webmcp tools
 // + 2 unlock effects
 const COUNT =
   1 +
   2 +
-  1 +
   1 +
   1 +
   1 +
@@ -90,9 +88,8 @@ describe("connectors.external runtime", () => {
         true,
       ],
     ]);
-    expect(
-      t.entries("settings-category").map((c) => [c.id, c.guideId]),
-    ).toEqual([["connections", "settings.connections"]]);
+    // Its provider tiles are drawn on Settings › Capabilities, per feature.
+    expect(t.entries("settings-category")).toEqual([]);
     expect(
       t.entries("setup-panel").map((p) => [p.id, p.tab, p.rail, p.order]),
     ).toEqual([["connectors", "connectors", "Connectors", 10]]);
@@ -105,8 +102,8 @@ describe("connectors.external runtime", () => {
     const targetIds = t.entries("tutorial-target").map((d) => d.id);
     expect(targetIds).toEqual(CONNECTIONS_TARGETS.map((d) => d.id));
     expect(targetIds).toContain("nav.connections");
-    expect(targetIds).toContain("settings.connections");
-    expect(targetIds).toContain("settings.backup");
+    // The Settings › Capabilities targets are core now, not contributed.
+    expect(targetIds).not.toContain("settings.backup");
     const goalIds = t.entries("tutorial-goal").map((d) => d.id);
     expect(goalIds).toEqual(CONNECTIONS_GOALS.map((d) => d.id));
     expect(goalIds).toContain("connection.create");

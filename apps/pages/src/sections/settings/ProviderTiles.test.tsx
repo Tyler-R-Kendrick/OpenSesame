@@ -7,7 +7,6 @@ import {
   loadSettings,
   saveSettings,
 } from "@opensesame/app-core/lib/settings.js";
-import { CONNECTIONS_TARGETS } from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -18,25 +17,12 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { declareTutorialForTest } from "../../modules/tutorial-test-realm.js";
-import { FeatureBindingsPanel } from "./FeatureBindingsPanel.js";
+import { ProviderTiles } from "./ProviderTiles.js";
 
 const originalBackup = { ...backupSeams };
 
-// The panel mounts guide targets `connectors.external` contributes
-// (`settings.connectivity`, `settings.model-provider`); declare them the way
-// the loader would.
-let undeclare: (() => void) | null = null;
-beforeEach(async () => {
-  undeclare = await declareTutorialForTest("connectors.external", {
-    targets: CONNECTIONS_TARGETS,
-  });
-});
-
 afterEach(() => {
   cleanup();
-  undeclare?.();
-  undeclare = null;
   Object.assign(backupSeams, originalBackup);
   const settings = loadSettings();
   saveSettings({
@@ -88,11 +74,32 @@ beforeEach(() => {
   });
 });
 
-describe("FeatureBindingsPanel backup toggles", () => {
+describe("ProviderTiles Host reads", () => {
+  it("asks the Host for its backup target only for the backup group", async () => {
+    const status = vi.fn(async () => ({ target: null, pendingEvents: 0 }));
+    Object.assign(backupSeams, { getBackupStatus: status });
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="password_managers" label="Password managers" />
+        <ProviderTiles category="identity" label="Identity providers" />
+      </MemoryRouter>,
+    );
+    expect(status).not.toHaveBeenCalled();
+    cleanup();
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="backup_recovery" label="Backups" />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(status).toHaveBeenCalled());
+  });
+});
+
+describe("ProviderTiles backup toggles", () => {
   it("puts a history switch on unbound backup connectors", async () => {
     render(
       <MemoryRouter>
-        <FeatureBindingsPanel />
+        <ProviderTiles category="backup_recovery" label="Backups" />
       </MemoryRouter>,
     );
     await waitFor(() =>
@@ -111,7 +118,7 @@ describe("FeatureBindingsPanel backup toggles", () => {
   it("toggles vault history when no Host backup target is bound", async () => {
     render(
       <MemoryRouter>
-        <FeatureBindingsPanel />
+        <ProviderTiles category="backup_recovery" label="Backups" />
       </MemoryRouter>,
     );
     await waitFor(() =>
@@ -145,7 +152,7 @@ describe("FeatureBindingsPanel backup toggles", () => {
     });
     render(
       <MemoryRouter>
-        <FeatureBindingsPanel />
+        <ProviderTiles category="backup_recovery" label="Backups" />
       </MemoryRouter>,
     );
     const github = await waitFor(() =>
@@ -188,7 +195,7 @@ describe("FeatureBindingsPanel backup toggles", () => {
     });
     render(
       <MemoryRouter>
-        <FeatureBindingsPanel />
+        <ProviderTiles category="backup_recovery" label="Backups" />
       </MemoryRouter>,
     );
     const github = await waitFor(() =>

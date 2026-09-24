@@ -4,6 +4,7 @@ import {
   decodeSettings,
   encodeSettings,
   isSettingsConfigSearch,
+  legacySettingsFilePath,
   settingsConfigRoute,
   settingsFilePath,
   suggestSettings,
@@ -36,6 +37,14 @@ it("names one config.yaml per directory, and routes to it", () => {
   expect(settingsConfigRoute("security")).toBe(
     "/settings/security?file=config.yaml",
   );
+  // Connections folded into Capabilities: one directory, one file, which
+  // starts from the text the endpoints were kept in.
+  expect(settingsFilePath("capabilities")).toBe(
+    "settings/capabilities/config.yaml",
+  );
+  expect(legacySettingsFilePath("capabilities")).toBe(
+    "settings/connections.yaml",
+  );
   expect(isSettingsConfigSearch("?file=config.yaml")).toBe(true);
   expect(isSettingsConfigSearch("?file=other.yaml")).toBe(false);
 });
@@ -64,6 +73,22 @@ it("reports read-only state and refuses a file that rewrites it", () => {
     ok: false,
     message: "unlockMethods is read-only here; change it on its page.",
   });
+});
+
+it("writes Capabilities' endpoints beside what the plan approved", () => {
+  const current = {
+    values: { approved: ["ai.webllm"], hostApi: "", identityApi: "" },
+    keybindings: {},
+  };
+  const endpoint = decodeSettings(
+    "capabilities",
+    'hostApi: "https://host.example"\n',
+    current,
+  );
+  expect(endpoint.ok).toBe(true);
+  expect(
+    decodeSettings("capabilities", "approved: [ai.webllm, sync]\n", current).ok,
+  ).toBe(false);
 });
 
 it("gives a directory with no settings a file that says so", () => {

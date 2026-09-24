@@ -22,11 +22,15 @@ afterAll(() => revoke());
 
 describe("settings rest paths", () => {
   it("reads a category from the path, then the hash", () => {
+    // Connections and Backups became Settings › Capabilities (ADR 0135).
     expect(settingsCategoryFromLocation("/settings/connections", "")).toBe(
-      "connections",
+      "capabilities",
     );
     expect(settingsCategoryFromLocation("/settings/connectivity", "")).toBe(
-      "connections",
+      "capabilities",
+    );
+    expect(settingsCategoryFromLocation("/settings/backups", "")).toBe(
+      "capabilities",
     );
     expect(settingsCategoryFromLocation("/settings", "#security")).toBe(
       "security",
@@ -37,9 +41,10 @@ describe("settings rest paths", () => {
 
   it("maps legacy hashes onto rest paths", () => {
     expect(settingsCategoryFromHash("#github-backup")).toBeNull();
-    expect(settingsCategoryFromHash("#taskbus")).toBe("connections");
-    expect(settingsCategoryFromHash("#connectivity")).toBe("connections");
-    expect(settingsPath("connections")).toBe("/settings/connections");
+    expect(settingsCategoryFromHash("#taskbus")).toBe("capabilities");
+    expect(settingsCategoryFromHash("#connectivity")).toBe("capabilities");
+    expect(settingsCategoryFromHash("#connections")).toBe("capabilities");
+    expect(settingsPath("capabilities")).toBe("/settings/capabilities");
     expect(settingsPath("general")).toBe("/settings");
   });
 });
@@ -135,16 +140,17 @@ describe("crumbsFor", () => {
   it("links settings rest paths", () => {
     expect(crumbsFor("/settings/connections")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Connections" },
+      { label: "Capabilities" },
     ]);
+    // A connector page's parent is the page that configures it.
     expect(crumbsFor("/settings/connections/github")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Connections", to: "/settings/connections" },
+      { label: "Capabilities", to: "/settings/capabilities" },
       { label: "github" },
     ]);
     expect(crumbsFor("/settings/connections/github/conn_1")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Connections", to: "/settings/connections" },
+      { label: "Capabilities", to: "/settings/capabilities" },
       { label: "github", to: "/settings/connections/github" },
       { label: "conn_1" },
     ]);
@@ -158,9 +164,15 @@ describe("a settings directory's config.yaml", () => {
       { label: "General", to: "/settings" },
       { label: "config.yaml" },
     ]);
+    expect(crumbsFor("/settings/capabilities", "?file=config.yaml")).toEqual([
+      { label: "Settings", to: "/settings" },
+      { label: "Capabilities", to: "/settings/capabilities" },
+      { label: "config.yaml" },
+    ]);
+    // An older Connections link reads as the directory it folded into.
     expect(crumbsFor("/settings/connections", "?file=config.yaml")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Connections", to: "/settings/connections" },
+      { label: "Capabilities", to: "/settings/capabilities" },
       { label: "config.yaml" },
     ]);
   });

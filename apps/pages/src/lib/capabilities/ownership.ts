@@ -1,8 +1,8 @@
 /**
  * Module, HTML-entry and public-file ownership (ownership.md §2, §4.3, §4.6).
  *
- * Every optional capability's document runtime is
- * `src/modules/<capability-id>/runtime.ts`; the push capability also owns the
+ * Every modular capability's document runtime — each optional one and each
+ * always-on core one (`alwaysOn`) — is `src/modules/<capability-id>/runtime.ts`; the push capability also owns the
  * worker variant source `src/sw-push.ts`. The build plugin (S07) reads this
  * map to generate the module table and to decide, in a hardened build, which
  * entries, files and worker variants are not emitted at all. The test asserts
@@ -12,7 +12,7 @@
 
 import {
   CAPABILITY_CATALOG,
-  optionalCapabilityIds,
+  modularCapabilityIds,
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import {
   runtimeModule,
@@ -47,10 +47,7 @@ const PUSH = "notifications.web-push";
 export const MODULE_OWNERSHIP: Readonly<Record<ModuleId, ModuleOwnership>> =
   Object.freeze({
     ...Object.fromEntries(
-      optionalCapabilityIds().map((id) => [
-        runtimeModule(id),
-        runtimeEntry(id),
-      ]),
+      modularCapabilityIds().map((id) => [runtimeModule(id), runtimeEntry(id)]),
     ),
     [workerModule(PUSH)]: {
       entry: "src/sw-push.ts",

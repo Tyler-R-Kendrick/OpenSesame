@@ -40,13 +40,25 @@ Two more identifiers you will see in emitted files and never have to author:
   may fetch. Only compile-time-known modules exist.
 - **asset id** — a path in `dist/`. The build writes the mapping.
 
-The catalog has **7 core** capabilities and **24 optional** ones. Core is
-always present and cannot be prohibited: `shell.navigation`, `vault.passwords`,
-`vault.local-unlock`, `backup.local-encrypted`, `identity.brokered-signin`,
-`settings.core`, `install.pwa`. They are listed in the catalog so their
-exposure is declared, not so they can be switched off — and because they are
-core, opening a vault and exporting an encrypted backup never depend on a
-selection, a policy or a network.
+The catalog has **17 core** capabilities and **15 optional** ones. Core is
+always present and cannot be prohibited. Seven are statically linked:
+`shell.navigation`, `vault.passwords`, `vault.local-unlock`,
+`backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
+`install.pwa`. Ten are **always-on** (ADR 0135): core in every plan, but their
+code still arrives as a module after boot — `vault.passkey-records`,
+`vault.certificate-records`, `vault.interop-formats`, `backup.cloud-secrets`,
+`connectors.external`, `access.authority`, `identity.federation`,
+`identity.ambient-sso`, `activity.log`, `support.guided-help`. None of them is
+ever a switch, and none may be named in a policy or a selection; an older
+document that still names one is read as if it did not.
+
+The fifteen optional capabilities are grouped into **features**
+(`packages/app-core/src/lib/capabilities/features.ts`): AI, Backups, Payments,
+Servers, Sharing, Networking, Notifications and Telemetry. Settings ›
+Capabilities shows one switch per feature, with that feature's providers
+configured under it while it is on, the providers of always-on functions
+below them, and the individual capabilities only under **Advanced**. The same
+page carries **Allow guests**, which is on unless an operator turns it off.
 
 ## 2. The five scopes, and which one wins
 
@@ -105,22 +117,20 @@ A preset is a starting point, authored as data in
 `presetToInstancePolicy()` projects a preset onto an instance policy and records
 every optional capability the preset does **not** offer in `prohibited`.
 
-The eleven "local functions" — capabilities that run on this device with no
-connector, enterprise, agent, remote-AI or telemetry surface — are
-`vault.passkey-records`, `vault.certificate-records`, `vault.interop-formats`,
-`sharing.drops`, `access.authority`, `identity.local-iam`, `identity.siop`,
-`identity.site-broker`, `activity.log`, `support.guided-help`,
-`support.local-ai`.
+The five "local functions" — optional capabilities that run on this device
+with no connector, enterprise, agent, remote-AI or telemetry surface — are
+`sharing.drops`, `identity.local-iam`, `identity.siop`,
+`identity.site-broker` and `support.local-ai`.
 
 | Preset | Required | Offered | Pre-ticked | External services |
 |---|---|---|---|---|
-| **Personal** | none | the 11 local functions | `vault.passkey-records`, `support.guided-help` | allow |
-| **Family** | none | the 11 local functions + `sharing.household` | `vault.passkey-records`, `sharing.household`, `sharing.drops`, `support.guided-help` | **deny** |
-| **Homelab** | none | all 24 optional | `vault.passkey-records`, `access.authority`, `identity.local-iam`, `activity.log`, `support.guided-help` | allow |
-| **Organization** | `identity.federation`, `access.authority` | the other 22 | `vault.passkey-records`, `activity.log`, `support.guided-help` | allow |
-| **Custom** | none | all 24 optional | nothing | allow |
+| **Personal** | none | the 5 local functions | nothing | allow |
+| **Family** | none | the 5 local functions + `sharing.household` | `sharing.household`, `sharing.drops` | **deny** |
+| **Homelab** | none | all 15 optional | `identity.local-iam` | allow |
+| **Organization** | none (sign-in providers and access are always on) | all 15 optional | nothing | allow |
+| **Custom** | none | all 15 optional | nothing | allow |
 
-Personal and Family never offer and never pre-select the `connectors.*`,
+Personal and Family never offer and never pre-select the
 `enterprise.*`, `agents.*` or `telemetry.*` families, nor `support.remote-ai`.
 Homelab and Organization *offer* those families but never pre-select them.
 `presets.test.ts` pins both rules.
@@ -249,7 +259,7 @@ its own policy. That is the default, and it is not an error.
 A profile file under `apps/pages/capability-profiles/` is the same two
 documents in one JSON object (`{ "instancePolicy": …, "installationSelection": … }`),
 which is what makes an operator configuration testable and buildable. Eleven
-are checked in, from `minimal-local` (core only) to `rich-explicit` (all 24
+are checked in, from `minimal-local` (core only) to `rich-explicit` (all 15
 optional) and the four `managed-invalid-*` rejection cases.
 
 ## 5. Selective or hardened: when a change needs a new artifact

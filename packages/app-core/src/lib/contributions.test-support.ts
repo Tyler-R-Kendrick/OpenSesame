@@ -131,25 +131,6 @@ export function registerLegacySectionRows(
   );
 }
 
-function EmptySettingsPanel(): null {
-  return null;
-}
-
-/** The one contributed Settings category: Connections, from the connectors capability. */
-export function registerLegacySettingsCategories(
-  Panel: ComponentType = EmptySettingsPanel,
-): () => void {
-  return registerContributionForTest("settings-category", {
-    id: "connections",
-    label: "Connections",
-    guideId: "settings.connections",
-    Panel,
-    // Between Vaults (200) and Capabilities (400), where Connections sat
-    // when the tab list was still static.
-    order: 300,
-  });
-}
-
 export function registerLegacyJumps(): () => void {
   return revokeAll(
     LEGACY_JUMPS.flatMap((jump) => [
@@ -197,14 +178,9 @@ export function registerLegacySections(): () => void {
 
 /**
  * Everything but the components: jumps, command paths, item kinds, the five
- * rail directories as leaves, and the Connections settings category with an
- * empty panel. What a non-React test (crumbs, keymap, WebMCP) needs to see
+ * rail directories as leaves. What a non-React test (crumbs, keymap, WebMCP) needs to see
  * the shell a full plan draws.
  */
 export function registerLegacyShellData(): () => void {
-  return revokeAll([
-    registerLegacySections(),
-    registerLegacySectionRows(),
-    registerLegacySettingsCategories(),
-  ]);
+  return revokeAll([registerLegacySections(), registerLegacySectionRows()]);
 }

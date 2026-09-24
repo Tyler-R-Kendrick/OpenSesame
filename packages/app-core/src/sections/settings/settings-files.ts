@@ -85,16 +85,22 @@ const CONNECTIVITY = [
   { key: "mfaAppUrl", kind: "string" },
 ] as const satisfies readonly SettingsField[];
 
-/** Adding or retiring one is a reviewed plan with a consent receipt. */
+/**
+ * Settings › Capabilities: the endpoints its providers are configured with
+ * (Connections folded in, ADR 0135), and what the plan approved — adding or
+ * retiring one is a reviewed plan with a consent receipt.
+ */
 const CAPABILITIES = [
   { key: "approved", kind: "list", readonly: true },
+  ...CONNECTIVITY,
 ] as const satisfies readonly SettingsField[];
 
 const FIELDS = new Map<string, readonly SettingsField[]>([
   ["general", GENERAL],
   ["security", SECURITY],
   ["vaults", VAULTS],
-  ["connections", CONNECTIVITY],
+  // An older link to Connections reads as Capabilities.
+  ["connections", CAPABILITIES],
   ["capabilities", CAPABILITIES],
 ]);
 
@@ -108,7 +114,9 @@ export function settingsFields(category: string): readonly SettingsField[] {
  * so a person's comments survive the move; never written again.
  */
 export function legacySettingsFilePath(category: string): string {
-  return `settings/${category}.yaml`;
+  // The endpoints were kept as Connections' file before the fold.
+  const file = category === "capabilities" ? "connections" : category;
+  return `settings/${file}.yaml`;
 }
 
 /** `settings/general/config.yaml` — the file's name in the rail and editor. */

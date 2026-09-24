@@ -40,12 +40,6 @@ export function readDoc(category: string, state: SettingsState): SettingsDoc {
       keybindings: {},
     };
   }
-  if (category === "capabilities") {
-    return {
-      values: { approved: [...state.approvedCapabilities] },
-      keybindings: {},
-    };
-  }
   const pages = loadSettings();
   if (category === "vaults") {
     return {
@@ -53,9 +47,12 @@ export function readDoc(category: string, state: SettingsState): SettingsDoc {
       keybindings: {},
     };
   }
-  if (category === "connections") {
+  // Connections folded into Capabilities (ADR 0135); its old link still
+  // opens the same file.
+  if (category === "capabilities" || category === "connections") {
     return {
       values: {
+        approved: [...state.approvedCapabilities],
         hostApi: pages.hostApi,
         identityApi: pages.identityApi,
         daemonApi: pages.daemonApi,

@@ -1,31 +1,20 @@
-import { registerLegacySettingsCategories } from "@opensesame/app-core/lib/contributions.test-support.js";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import { describe, expect, it } from "vitest";
 import {
-  connectionsSettingsSections,
+  capabilitiesSettingsSections,
   settingsPageSources,
   settingsPageTree,
 } from "./page-tree.js";
 
 describe("settingsPageTree", () => {
-  // Connections is the connectors capability's settings category, so it is
-  // on the tree only where that capability is approved. These cases describe
-  // such a deployment and register the contribution the module makes.
-  let revokeCategories: (() => void) | null = null;
-  beforeEach(() => {
-    revokeCategories = registerLegacySettingsCategories();
-  });
-  afterEach(() => {
-    revokeCategories?.();
-    revokeCategories = null;
-  });
-
   it("lists each settings tab as a first-level child, never nested under another tab", () => {
     const tabs = settingsPageTree();
+    // Connections is gone as a tab: every provider is configured on
+    // Capabilities, under the feature (or always-on group) that uses it.
     expect(tabs.map((node) => node.label)).toEqual([
       "General",
       "Security",
       "Vaults",
-      "Connections",
       "Capabilities",
       "Danger",
     ]);
@@ -33,7 +22,6 @@ describe("settingsPageTree", () => {
       "/settings",
       "/settings/security",
       "/settings/vaults",
-      "/settings/connections",
       "/settings/capabilities",
       "/settings/danger",
     ]);
@@ -42,23 +30,23 @@ describe("settingsPageTree", () => {
       if (tab.id === "vaults") continue;
       for (const child of tab.children) {
         expect(child.href.startsWith("/settings/vaults")).toBe(false);
-        expect(child.label).not.toBe("Connections");
       }
     }
-    const connections = tabs.find((node) => node.id === "connections");
-    expect(connections?.children.map((node) => node.label)).toEqual(
-      connectionsSettingsSections().map((section) => section.label),
+    const capabilities = tabs.find((node) => node.id === "capabilities");
+    expect(capabilities?.children.map((node) => node.label)).toEqual(
+      capabilitiesSettingsSections().map((section) => section.label),
     );
-    expect(connections?.children.some((node) => node.label === "Core")).toBe(
-      false,
+  });
+
+  it("names the Capabilities rows: guests, every feature, then providers", () => {
+    expect(capabilitiesSettingsSections().map((s) => s.label)).toEqual([
+      "Guests",
+      ...FEATURES.map((feature) => feature.title),
+      "Providers",
+    ]);
+    expect(capabilitiesSettingsSections()[2]?.href).toBe(
+      "/settings/capabilities#feature-backups",
     );
-    expect(connections?.children.some((node) => node.label === "Project")).toBe(
-      false,
-    );
-    const github = connections?.children
-      .flatMap((node) => node.children)
-      .find((node) => node.id === "github");
-    expect(github?.href).toBe("/settings/connections/github");
   });
 
   it("mirrors vaults on this device under the Vaults tab only", () => {
@@ -73,8 +61,8 @@ describe("settingsPageTree", () => {
       "personal",
       "project · 4f2a",
     ]);
-    const connections = tabs.find((node) => node.id === "connections");
-    expect(connections?.children.map((node) => node.label)).not.toContain(
+    const capabilities = tabs.find((node) => node.id === "capabilities");
+    expect(capabilities?.children.map((node) => node.label)).not.toContain(
       "personal",
     );
   });
@@ -84,7 +72,6 @@ describe("settingsPageTree", () => {
       "general",
       "security",
       "vaults",
-      "connections",
       "capabilities",
       "danger",
     ]);

@@ -1,15 +1,14 @@
+import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
 import {
   type SettingsCategory,
   settingsPath,
 } from "@opensesame/app-core/lib/crumbs.js";
-import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { settingsTabsSnapshot } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import {
   SETTINGS_CONFIG_FILE,
   settingsConfigRoute,
 } from "@opensesame/app-core/sections/settings/settings-files.js";
 import { type PageTreeSource, pageTabTree } from "../../lib/page-to-tree.js";
-import { featureBindingSections } from "../connections/page-tree.js";
 
 /** Live lists a Settings tab may mirror (Vaults on this device). */
 export type SettingsRailSnapshot = {
@@ -34,13 +33,16 @@ function panel(
 }
 
 /**
- * Headings on Settings → Connections (FeatureBindingsPanel), in document
- * order — Models, then capability families.
+ * Rows on Settings → Capabilities, in document order: the features, then
+ * the always-on provider groups. Their providers are configured in place.
  */
-export function connectionsSettingsSections(): PageTreeSource[] {
+export function capabilitiesSettingsSections(): PageTreeSource[] {
   return [
-    panel("connections", "model-provider", "Models"),
-    ...featureBindingSections(getBundledProviders()),
+    panel("capabilities", "feature-guests", "Guests"),
+    ...FEATURES.map((feature) =>
+      panel("capabilities", `feature-${feature.id}`, feature.title),
+    ),
+    panel("capabilities", "settings-connections", "Providers"),
   ];
 }
 
@@ -65,8 +67,8 @@ function sectionsFor(
         href: settingsPath("vaults"),
         keepEmpty: true,
       }));
-    case "connections":
-      return connectionsSettingsSections();
+    case "capabilities":
+      return capabilitiesSettingsSections();
     default:
       return [];
   }

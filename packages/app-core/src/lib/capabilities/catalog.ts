@@ -14,6 +14,7 @@ import {
   type CapabilityId,
   buildCatalog,
 } from "@opensesame/capability-composition";
+import { ALWAYS_ON_DESCRIPTORS } from "./catalog-always-on.js";
 import { CORE_DESCRIPTORS } from "./catalog-core.js";
 import { IDENTITY_FAMILY_DESCRIPTORS } from "./catalog-optional-identity.js";
 import { SERVICE_FAMILY_DESCRIPTORS } from "./catalog-optional-services.js";
@@ -24,6 +25,7 @@ export const CATALOG_VERSION = 1;
 export const CAPABILITY_CATALOG: CapabilityCatalog = buildCatalog(
   [
     ...CORE_DESCRIPTORS,
+    ...ALWAYS_ON_DESCRIPTORS,
     ...VAULT_FAMILY_DESCRIPTORS,
     ...IDENTITY_FAMILY_DESCRIPTORS,
     ...SERVICE_FAMILY_DESCRIPTORS,
@@ -59,6 +61,17 @@ export function describeCapability(
 export function coreCapabilityIds(): CapabilityId[] {
   return CAPABILITY_CATALOG.capabilities
     .filter((entry) => entry.tier === "core")
+    .map((entry) => entry.id);
+}
+
+/**
+ * Capabilities whose code arrives as a loadable module: every optional one
+ * and every always-on core one. The change controller activates exactly
+ * these, and the ownership map owns exactly their modules.
+ */
+export function modularCapabilityIds(): CapabilityId[] {
+  return CAPABILITY_CATALOG.capabilities
+    .filter((entry) => entry.moduleIds.length > 0)
     .map((entry) => entry.id);
 }
 

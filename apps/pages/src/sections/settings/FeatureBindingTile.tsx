@@ -37,10 +37,15 @@ function hostRemote(target: BackupTargetView): string | null {
   return null;
 }
 
-/** The Host's GitHub backup target, or null with no Host / no target. */
-export function useHostBackupTarget(): BackupTargetView | null {
+/**
+ * The Host's GitHub backup target, or null with no Host / no target. Only a
+ * group that can hold the backup road asks (`enabled`); the others would
+ * each send the Host the same question for a tile they do not draw.
+ */
+export function useHostBackupTarget(enabled = true): BackupTargetView | null {
   const [target, setTarget] = useState<BackupTargetView | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     void getBackupStatus("github")
       .then((status) => {
@@ -52,7 +57,7 @@ export function useHostBackupTarget(): BackupTargetView | null {
     return () => {
       live = false;
     };
-  }, []);
+  }, [enabled]);
   return target;
 }
 

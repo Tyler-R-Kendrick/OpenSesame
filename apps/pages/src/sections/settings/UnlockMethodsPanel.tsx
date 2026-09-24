@@ -177,8 +177,8 @@ function UnlockMethodsBody() {
         }
         action={
           !hasIdentity ? (
-            <a className="btn btn--sm" href="/settings/connections">
-              Connections
+            <a className="btn btn--sm" href="/settings/capabilities">
+              Capabilities
             </a>
           ) : (
             <button

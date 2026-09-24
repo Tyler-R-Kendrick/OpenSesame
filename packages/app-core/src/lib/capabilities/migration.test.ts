@@ -53,14 +53,10 @@ describe("reviewLegacyConfiguration", () => {
 
     const review = reviewLegacyConfiguration();
 
+    // Operator providers and the connector directory are always-on now:
+    // their records are evidence for capabilities every plan already has.
     const capabilities = new Set(review.suggestions.map((s) => s.capability));
-    expect(capabilities).toEqual(
-      new Set([
-        "identity.federation",
-        "support.remote-ai",
-        "connectors.external",
-      ]),
-    );
+    expect(capabilities).toEqual(new Set(["support.remote-ai"]));
     expect(review.enabled).toEqual([]);
     for (const s of review.suggestions) {
       expect(s.evidence).not.toMatch(/example\.test|okta|abc/i);

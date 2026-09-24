@@ -38,9 +38,12 @@ describe("identity.ambient-sso runtime", () => {
   });
 
   it("does not evaluate the boot until the job is started", async () => {
+    runtime.resetAmbientBootForTest();
     const run = vi.fn();
     const original = runtime.ambientRuntimeSeams.runAmbientAuthBoot;
+    const denied = runtime.ambientRuntimeSeams.externalServicesDenied;
     runtime.ambientRuntimeSeams.runAmbientAuthBoot = run;
+    runtime.ambientRuntimeSeams.externalServicesDenied = () => false;
     try {
       const t = createTestContext();
       const handle = await runtime.capabilityRuntime.activate(t.ctx);
@@ -61,6 +64,53 @@ describe("identity.ambient-sso runtime", () => {
       await handle.dispose();
     } finally {
       runtime.ambientRuntimeSeams.runAmbientAuthBoot = original;
+      runtime.ambientRuntimeSeams.externalServicesDenied = denied;
+    }
+  });
+
+  it("boots once per document, however often the plan re-activates it", async () => {
+    runtime.resetAmbientBootForTest();
+    const run = vi.fn();
+    const original = runtime.ambientRuntimeSeams.runAmbientAuthBoot;
+    const denied = runtime.ambientRuntimeSeams.externalServicesDenied;
+    runtime.ambientRuntimeSeams.runAmbientAuthBoot = run;
+    runtime.ambientRuntimeSeams.externalServicesDenied = () => false;
+    try {
+      for (let generation = 0; generation < 3; generation += 1) {
+        const t = createTestContext();
+        const handle = await runtime.capabilityRuntime.activate(t.ctx);
+        t.entries("background-job")[0]?.start(new AbortController().signal);
+        await handle.dispose();
+      }
+      expect(run).toHaveBeenCalledTimes(1);
+    } finally {
+      runtime.ambientRuntimeSeams.runAmbientAuthBoot = original;
+      runtime.ambientRuntimeSeams.externalServicesDenied = denied;
+    }
+  });
+
+  it("makes no automatic call when the plan does not allow external services, and does not retry later", async () => {
+    runtime.resetAmbientBootForTest();
+    const run = vi.fn();
+    const original = { ...runtime.ambientRuntimeSeams };
+    Object.assign(runtime.ambientRuntimeSeams, {
+      runAmbientAuthBoot: run,
+      externalServicesDenied: () => true,
+    });
+    try {
+      const t = createTestContext();
+      const handle = await runtime.capabilityRuntime.activate(t.ctx);
+      t.entries("background-job")[0]?.start(new AbortController().signal);
+      expect(run).not.toHaveBeenCalled();
+      await handle.dispose();
+      // A policy that relaxes later does not start a boot mid-session.
+      runtime.ambientRuntimeSeams.externalServicesDenied = () => false;
+      const again = await runtime.capabilityRuntime.activate(t.ctx);
+      t.entries("background-job").at(-1)?.start(new AbortController().signal);
+      expect(run).not.toHaveBeenCalled();
+      await again.dispose();
+    } finally {
+      Object.assign(runtime.ambientRuntimeSeams, original);
     }
   });
 

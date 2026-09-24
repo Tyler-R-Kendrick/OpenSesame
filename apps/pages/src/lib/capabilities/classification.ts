@@ -20,7 +20,10 @@
  * and fails on a file no rule matches.
  */
 
-import { optionalCapabilityIds } from "@opensesame/app-core/lib/capabilities/catalog.js";
+import {
+  CAPABILITY_CATALOG,
+  modularCapabilityIds,
+} from "@opensesame/app-core/lib/capabilities/catalog.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { LIB_RULES } from "./classification-lib.js";
 import { PACKAGE_RULES } from "./classification-packages.js";
@@ -38,14 +41,35 @@ export type SourceClassification = Readonly<{
   rationale: string;
 }>;
 
+const CORE_IDS = new Set(
+  CAPABILITY_CATALOG.capabilities
+    .filter((entry) => entry.tier === "core")
+    .map((entry) => entry.id),
+);
+
 /** `src/modules/<id>/` is owned by `<id>` verbatim (ownership.md §4.3). */
 const MODULE_RULES: readonly SourceClassification[] =
-  optionalCapabilityIds().map((id) => ({
+  modularCapabilityIds().map((id) => ({
     pattern: `src/modules/${id}/`,
     classification: "optional",
     capability: id,
     rationale: "capability runtime module directory",
   }));
+
+/**
+ * A rule authored while its capability was optional keeps naming it; once
+ * the catalog makes that capability always-on (`alwaysOn`), its code ships
+ * in every build and the rule reads `core`. The owner stays recorded, so a
+ * capability that becomes optional again is one catalog edit, not a sweep
+ * over every rule.
+ */
+function alwaysOnIsCore(rule: SourceClassification): SourceClassification {
+  return rule.classification === "optional" &&
+    rule.capability !== null &&
+    CORE_IDS.has(rule.capability)
+    ? { ...rule, classification: "core" }
+    : rule;
+}
 
 export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...MODULE_RULES,
@@ -55,7 +79,7 @@ export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...VAULT_LIB_RULES,
   ...TUTORIAL_RULES,
   ...PACKAGE_RULES,
-];
+].map(alwaysOnIsCore);
 
 /**
  * A prefix ending in `/` or `-` matches anything under it; any other prefix

@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "enterprise-selected",
-  "notes": "Organization instance: access.authority and identity.local-iam plus directory provisioning and CA administration. The closure pulls identity.federation (dependency of directory provisioning) and vault.certificate-records (dependency of CA administration), both permitted by the policy.",
+  "notes": "Organization instance: identity.local-iam plus directory provisioning and CA administration. Their dependencies (identity.federation, access.authority, vault.certificate-records) are always on.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -15,31 +15,22 @@
       "default": "deny",
       "required": [],
       "optional": [
-        "access.authority",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
-        "identity.federation",
-        "identity.local-iam",
-        "vault.certificate-records"
+        "identity.local-iam"
       ],
       "prohibited": [
-        "activity.log",
         "agents.webmcp",
-        "backup.cloud-secrets",
         "backup.git-remote",
-        "connectors.external",
-        "identity.ambient-sso",
         "identity.siop",
         "identity.site-broker",
+        "networking.tailnet",
         "notifications.web-push",
         "sharing.drops",
         "sharing.household",
-        "support.guided-help",
         "support.local-ai",
         "support.remote-ai",
         "telemetry.external",
-        "vault.interop-formats",
-        "vault.passkey-records",
         "wallet.spending"
       ]
     },
@@ -61,7 +52,6 @@
     "revision": "1",
     "acceptedRequired": [],
     "selectedOptional": [
-      "access.authority",
       "enterprise.ca-administration",
       "enterprise.directory-provisioning",
       "identity.local-iam"

@@ -1,5 +1,6 @@
 import { createVault } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setGuestsAllowed } from "./guest-access.js";
 import { guestAuthSeams } from "./guest-auth.js";
 import { kvDelete, kvSet } from "./kv.js";
 import {
@@ -131,6 +132,18 @@ describe("listDeviceVaults", () => {
     const guests = vaults.filter((vault) => vault.id === GUEST_TOMB);
     expect(guests).toHaveLength(1);
     expect(guests[0]?.kind).toBe("guest");
+  });
+
+  it("offers no guest row while the operator has guests switched off", async () => {
+    await setGuestsAllowed(false);
+    try {
+      expect(listDeviceVaults().some((vault) => vault.id === GUEST_TOMB)).toBe(
+        false,
+      );
+    } finally {
+      await setGuestsAllowed(true);
+    }
+    expect(listDeviceVaults().at(-1)?.id).toBe(GUEST_TOMB);
   });
 
   it("marks the guest row open while a guest session runs — never the tomb it borrows", async () => {

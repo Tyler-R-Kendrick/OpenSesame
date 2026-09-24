@@ -1,5 +1,5 @@
 /**
- * Optional descriptors — connectors, agents, support, wallet, activity,
+ * Optional descriptors — AI (agents and models), payments, networking,
  * notifications and telemetry.
  */
 
@@ -11,55 +11,11 @@ import {
 
 export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
-    "connectors.external",
-    "External connectors",
-    "The Connections section and Access › Connectors: the embedded catalogue, Vercel Connect sessions, the GitHub App, and a Nango-compatible directory read by reference.",
-    {
-      operationIds: [
-        "connections.bindings",
-        "connections.create",
-        "connections.credential.set",
-        "connections.inspect",
-        "connections.list",
-        "connections.remove",
-        "connectors.bind",
-        "connectors.directory.sync",
-        "integrations.read",
-        "providers.list",
-      ],
-      egress: [
-        {
-          class: "external-service",
-          purpose:
-            "the Vercel Connect relay, the GitHub App relay and a Nango-compatible connector directory",
-          automatic: false,
-        },
-        {
-          class: "user-mediated-navigation",
-          purpose: "OAuth authorization at the provider a person chose",
-          automatic: false,
-        },
-      ],
-      keyAccess: "provider-bearer",
-      requiresService: true,
-      offlineLimits:
-        "The embedded catalogue stays browsable; live connections and the directory need their relays.",
-    },
-  ),
-  optional(
     "agents.webmcp",
     "WebMCP tools",
     "Register this page's fenced tools with the browser's model context so an in-browser agent can read and navigate it.",
     {
       requiresDocumentReload: true,
-    },
-  ),
-  optional(
-    "support.guided-help",
-    "Guided help",
-    "The support panel, help topics and Driver.js guides that point at authored targets and never act.",
-    {
-      operationIds: ["client.support", "client.tutorial"],
     },
   ),
   optional(
@@ -118,14 +74,6 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
-    "activity.log",
-    "Activity log",
-    "The durable, sealed trail of consequential events and the Activity section that lists it.",
-    {
-      keyAccess: "item-plaintext",
-    },
-  ),
-  optional(
     "notifications.web-push",
     "Push notifications",
     "Enrol this installation for Web Push and let the push worker variant show a review doorbell.",
@@ -160,6 +108,24 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       ],
       requiresService: true,
       offlineLimits: "Nothing is sent offline; nothing is queued either.",
+    },
+  ),
+  optional(
+    "networking.tailnet",
+    "Tailnet networking",
+    "Bind this installation to a Tailscale tailnet: the networking connectors and the tailnet a Host or daemon is reached over.",
+    {
+      egress: [
+        {
+          class: "peer-or-local-network",
+          purpose:
+            "a Host or daemon reached over the tailnet a person configured",
+          automatic: false,
+        },
+      ],
+      requiresService: true,
+      offlineLimits:
+        "A tailnet peer is reachable only while the tailnet is up.",
     },
   ),
 ];

@@ -51,16 +51,22 @@ export async function checkFrontDoor(page, check, text, base) {
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onSetup = await snap(page, "A2-setup");
+  // Connectors and operator identity providers are always on (ADR 0135),
+  // so their tabs are here with nothing chosen; the AI and backup tabs still
+  // wait for their features.
+  const tabs = (await page.getByRole("tab").allTextContents())
+    .map((text) => text.trim().toLowerCase())
+    .sort();
   check(
-    (await page.getByRole("tab").count()) === 1 &&
-      (await page
-        .getByRole("tab", { name: "capabilities", selected: true })
-        .count()) === 1,
-    "setup opens on the capabilities tab, and a device that approved nothing has no other (ADR 0130)",
+    (await page
+      .getByRole("tab", { name: "capabilities", selected: true })
+      .count()) === 1 &&
+      tabs.join(",") === "capabilities,connectors,identity,mfa",
+    `setup opens on the capabilities tab, beside only the always-on tabs (${tabs.join(", ")})`,
   );
   check(
     (await page.getByLabel("Directory endpoint").count()) === 0,
-    "no directory endpoint is asked for before external connectors are chosen",
+    "no directory endpoint is asked for on the capabilities tab",
   );
   check(
     !/Where do backups live\?|Should a code follow the key\?|Who runs the model\?|How do people sign in\?|Which connectors are already authorized\?|What should this vault sync with\?/.test(
@@ -98,8 +104,8 @@ export async function walkSetupCeremony(page, check, snap) {
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
   check(
-    rows === 31,
-    `choosing a purpose draws one card per catalog capability (${rows})`,
+    rows === 15,
+    `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(
     (await count(page, "button", "Save on this device")) === 1 &&

@@ -154,23 +154,22 @@ async function configureBadRemote(page) {
   setStep("badremote-configure");
   await guest(page, ORIGIN, BASE);
   await openSection(page, "settings/");
-  // Connections is the external-connectors capability's own settings
-  // category (ADR 0130), so a device that has approved nothing does not have
-  // it. Add it the way a person does, then carry on into the file.
+  // Connections is always on and folded into Settings › Capabilities
+  // (ADR 0135): the endpoints are in that directory's config.yaml now.
   await addCapability(page, check, snap, "External connectors", "connections/");
-  await openConfigFile(page, "connections");
+  await openConfigFile(page, "capabilities");
   await page
-    .getByLabel("settings/connections/config.yaml", { exact: true })
+    .getByLabel("settings/capabilities/config.yaml", { exact: true })
     .fill(`hostApi: "${BAD_REMOTE}"\n`);
   await page
-    .getByRole("button", { name: "Write settings/connections/config.yaml" })
+    .getByRole("button", { name: "Write settings/capabilities/config.yaml" })
     .click();
   await page.waitForTimeout(400);
   check(
     (await page.locator(".set-raw__status .status-mark--err").count()) === 0,
     "the endpoint was accepted by the settings file",
   );
-  await openConfigForm(page, "Connections");
+  await openConfigForm(page, "Capabilities");
   check(
     externalDuring("badremote-configure").length === 0,
     "setting an endpoint asks it nothing",

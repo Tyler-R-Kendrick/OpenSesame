@@ -30,7 +30,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { menuSteps } from "./lib/capture-menu-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
+import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
@@ -92,6 +94,15 @@ async function press(locator) {
 }
 
 const STEPS = {
+  /**
+   * Seal a password vault on this device: the operator's own installation,
+   * where Settings shows what a guest never sees (Allow guests, the
+   * instance policy).
+   */
+  async seal(page) {
+    await sealWithPassword(page);
+    await page.waitForTimeout(1400);
+  },
   async guest(page) {
     await press(
       page.getByRole("button", { name: "Continue as guest", exact: true }),
@@ -176,117 +187,38 @@ const STEPS = {
       await page.waitForTimeout(800);
     }
   },
-  /** Right-click a rail row, the way a person asks a row what it can do. */
-  async rightClick(page, text) {
-    const row = page.locator(".railtree__row", { hasText: text }).first();
-    if ((await row.count()) === 0)
-      throw new Error(
-        `capture-evidence rightClick("${text}"): no rail row matched — refusing a silent miss`,
-      );
-    await row.click({ button: "right" });
-    await page.waitForTimeout(500);
+  ...menuSteps({ press }),
+  /**
+   * Flip a named switch (`role="switch"`) when this build has it. A base
+   * build that has no such switch is a legitimate difference, not a miss.
+   */
+  async switchOptional(page, name) {
+    const target = page.getByRole("switch", { name, exact: true }).first();
+    if ((await target.count()) && (await target.isEnabled())) {
+      await press(target);
+      await page.waitForTimeout(1000);
+    }
   },
   /**
-   * Hold a finger still on the first element matching `selector` — real CDP
-   * touch events, the same the touch gate uses — then lift it.
+   * Print how many elements match each selector, so a sheet's before/after
+   * numbers are read from the browser rather than from the diff.
    */
-  async hold(page, selector) {
-    const target = page.locator(selector).first();
-    const box = await target.boundingBox();
-    if (!box)
-      throw new Error(
-        `capture-evidence hold("${selector}"): nothing to hold — refusing a silent miss`,
-      );
-    const point = {
-      x: Math.round(box.x + Math.min(box.width / 2, 48)),
-      y: Math.round(box.y + box.height / 2),
-    };
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [point],
-    });
-    await page.waitForTimeout(900);
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-    await cdp.detach();
-    await page.waitForTimeout(700);
+  async count(page, selectors) {
+    for (const selector of [selectors].flat()) {
+      const n = await page.locator(selector).count();
+      console.log(`  count ${selector}: ${n}`);
+    }
   },
-  /** Pick a context-menu entry when this build has one (a base may not). */
-  async menuOptional(page, name) {
-    const entry = page
-      .locator('[role="menu"] [role^="menuitem"]')
-      .filter({ hasText: name })
+  /** `scrollTo`, for a heading only one of the two builds has. */
+  async scrollToOptional(page, name) {
+    const heading = page
+      .getByRole("heading", { name: new RegExp(name, "i") })
       .first();
-    if (await entry.count()) {
-      await entry.click();
-      await page.waitForTimeout(900);
-    }
-  },
-  /**
-   * Open the General settings file by whichever road this build has: the
-   * base's YAML key on the section head, or the branch's command-bar path.
-   */
-  async openSettingsFile(page, category) {
-    if (await page.locator(".set-raw").count()) return;
-    const yaml = page.getByRole("button", { name: "YAML", exact: true });
-    if (await yaml.count()) {
-      await press(yaml);
-    } else {
-      await page
-        .locator("#command-bar-input")
-        .fill(`settings/${category}/config.yaml`);
-      await page.keyboard.press("Enter");
-    }
-    await page.locator(".set-raw").waitFor({ timeout: 8000 });
-    await page.waitForTimeout(700);
-  },
-  /** Log what the browser measures, so each caption quotes a number. */
-  async measure(page, name) {
-    const facts = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll(".railtree__row")];
-      const items = [...document.querySelectorAll(".ctxmenu__item")];
-      return {
-        railRows: rows.length,
-        trashRow: rows.some((row) =>
-          row.getAttribute("href")?.endsWith("?f=trash"),
-        ),
-        configRows: rows.filter((row) =>
-          row.textContent?.includes("config.yaml"),
-        ).length,
-        viewToggleKeys: document.querySelectorAll(
-          ".section__head .set__view-btn",
-        ).length,
-        menuEntries: items.length,
-        menuMode: document.querySelector(".ctxmenu--sheet")
-          ? "sheet"
-          : document.querySelector(".ctxmenu")
-            ? "popover"
-            : "none",
-        menuCoversRow: (() => {
-          const menu = document
-            .querySelector(".ctxmenu")
-            ?.getBoundingClientRect();
-          const row = document
-            .querySelector(".vtree__row")
-            ?.getBoundingClientRect();
-          if (!menu || !row) return null;
-          return !(menu.bottom <= row.top || menu.top >= row.bottom);
-        })(),
-        url: location.pathname + location.search,
-        menuEntryHeights: [
-          ...new Set(
-            items.map((item) =>
-              Math.round(item.getBoundingClientRect().height),
-            ),
-          ),
-        ],
-        file: document.querySelector(".set-raw__path")?.textContent ?? null,
-      };
+    if (!(await heading.count())) return;
+    await heading.evaluate((node) => {
+      node.scrollIntoView({ block: "start", behavior: "instant" });
     });
-    console.log(`  measure ${name}: ${JSON.stringify(facts)}`);
+    await page.waitForTimeout(600);
   },
   async escape(page) {
     await page.keyboard.press("Escape");

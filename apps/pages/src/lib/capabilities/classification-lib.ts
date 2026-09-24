@@ -68,6 +68,7 @@ const SHELL_FILES = [
   "use-show-hidden",
 ];
 const SIGNIN_FILES = [
+  "guest-access",
   "guest-auth",
   "guest-isolation",
   "local-guest",
