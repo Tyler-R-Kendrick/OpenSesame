@@ -18,14 +18,14 @@
   "totals": {
     "files": 476,
     "violations": 752,
-    "oversizedLines": 240064
+    "oversizedLines": 239910
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
     },
     "apps/ceremonies/src/lib/approvals.ts": {
-      "max-lines": 556
+      "max-lines": 402
     },
     "apps/ceremonies/src/pages/ApprovalReview.tsx": {
       "complexity": 1,
