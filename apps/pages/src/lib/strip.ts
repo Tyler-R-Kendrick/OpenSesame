@@ -21,9 +21,16 @@ export function revealInStrip(item: HTMLElement, gutter = 16): void {
   }
 }
 
-/** A ref for one tab: while it is current, its strip keeps it in view. */
+/**
+ * A ref for one tab: while it is current, its strip keeps it in view. `also`
+ * is another callback ref on the same element (a guide target); the merged
+ * ref is stable while it is, so React never detaches and re-attaches the tab
+ * on a re-render — an inline merge did, and re-mounted the guide target each
+ * time.
+ */
 export function useStripItem<T extends HTMLElement>(
   current: boolean,
+  also?: (element: T | null) => void,
 ): RefCallback<T> {
   const node = useRef<T | null>(null);
   useEffect(() => {
@@ -47,7 +54,11 @@ export function useStripItem<T extends HTMLElement>(
       resized?.disconnect();
     };
   }, [current]);
-  return useCallback((element: T | null) => {
-    node.current = element;
-  }, []);
+  return useCallback(
+    (element: T | null) => {
+      node.current = element;
+      also?.(element);
+    },
+    [also],
+  );
 }

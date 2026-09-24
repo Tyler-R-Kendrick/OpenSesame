@@ -7,7 +7,7 @@
 
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
+import { IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { AwsKmsConnectFields } from "./AwsKmsConnectFields.js";
 import { useAwsKmsConnect } from "./useAwsKmsConnect.js";

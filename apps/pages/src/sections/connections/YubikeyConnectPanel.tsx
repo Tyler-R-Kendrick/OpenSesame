@@ -22,7 +22,7 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconLock, IconTrash } from "../../components/Icons.js";
+import { IconLock, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 

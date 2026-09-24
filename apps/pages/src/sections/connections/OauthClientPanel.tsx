@@ -25,7 +25,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconCopy, IconExternal } from "../../components/Icons.js";
+import { IconCopy, IconExternal } from "../../components/Icons.js";
 import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 
 function usableFor(provider: Provider) {

@@ -7,7 +7,6 @@ import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import {
-  IconCheck,
   IconPlus,
   IconRefresh,
   IconTrash,

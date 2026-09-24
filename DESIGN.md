@@ -453,8 +453,11 @@ outside them:
 - **A panel's keys** (new, reload, delete this vault, prove round-trip) ride
   its head, beside the title, vertically centred on it.
 - **A field's keys** (save these recipients, reset these bindings) ride the
-  field's label row: `.keyed-row`, as wide as the field it heads, so the
-  keys land over the field's own end.
+  field's label row, as wide as the field it heads, so the keys land over the
+  field's own end. A multi-line field uses `.keyed-field`: the keys follow
+  the field in the document, so Tab leaves the field for the key that saves
+  it, and the grid only draws them on the label's row. `.keyed-row` is for a
+  row whose content comes first anyway (a readout, a status).
 - **The commit of a one-field form** ends the field's row: `.field-inline`,
   or a `FieldShell` `tail`.
 - **The commit of a form of several fields** is `FormCommit` — the `.go`

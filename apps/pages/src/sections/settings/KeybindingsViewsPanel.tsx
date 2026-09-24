@@ -64,8 +64,15 @@ export function KeybindingsViewsPanel() {
           Bindings are inert action ids. Imported maps never run immediately.
           Saved views are queries, not grants.
         </p>
-        <div className="keyed-row">
+        <div className="keyed-field">
           <label htmlFor="keybindings-source">settings/keybindings.yaml</label>
+          <textarea
+            id="keybindings-source"
+            rows={8}
+            spellCheck={false}
+            value={bindingsText}
+            onChange={(event) => setBindingsText(event.target.value)}
+          />
           <div className="actions">
             <button
               type="button"
@@ -87,13 +94,6 @@ export function KeybindingsViewsPanel() {
             </button>
           </div>
         </div>
-        <textarea
-          id="keybindings-source"
-          rows={8}
-          spellCheck={false}
-          value={bindingsText}
-          onChange={(event) => setBindingsText(event.target.value)}
-        />
         <label htmlFor="view-name">Pin approvals view</label>
         <div className="field-inline">
           <input

@@ -50,11 +50,11 @@ export function SettingsDangerPanel() {
       </div>
       {confirmDestroy ? (
         <div className="panel__body">
-          <p className="note note--err">
-            <span>
-              {items.length} {items.length === 1 ? "item" : "items"} will be
-              unrecoverable. Export first if you are not certain.
-            </span>
+          {/* The ceremony spelled out beside its keys (DESIGN.md § Actions
+              are symbols), in prose — not an in-page error box. */}
+          <p className="hint">
+            {items.length} {items.length === 1 ? "item" : "items"} will be
+            unrecoverable. Export first if you are not certain.
           </p>
         </div>
       ) : null}

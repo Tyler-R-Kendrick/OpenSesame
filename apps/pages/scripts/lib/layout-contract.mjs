@@ -33,14 +33,22 @@ export const LAYOUT_AUDIT =
     || el.tagName).trim().slice(0, 44);
   // Drawn at all: a label hidden from assistive technology still sits on the
   // row — the verb beside a .go square is aria-hidden on purpose.
+  // Each element's style is read once and its ancestors' answers are reused,
+  // so a stop with a thousand rows stays linear.
+  const shown = new Map();
+  const visibleUp = (el) => {
+    if (!el) return true;
+    if (shown.has(el)) return shown.get(el);
+    const s = getComputedStyle(el);
+    const ok = s.display !== "none" && s.visibility !== "hidden"
+      && !el.hasAttribute("hidden") && !el.classList.contains("visually-hidden")
+      && visibleUp(el.parentElement);
+    shown.set(el, ok);
+    return ok;
+  };
   const drawn = (el) => {
     const r = el.getBoundingClientRect();
-    if (r.width < 2 || r.height < 2) return false;
-    for (let n = el; n; n = n.parentElement) {
-      const s = getComputedStyle(n);
-      if (s.display === "none" || s.visibility === "hidden") return false;
-    }
-    return !el.closest("[hidden], .visually-hidden");
+    return r.width >= 2 && r.height >= 2 && visibleUp(el);
   };
   const iconOnly = (el) => !el.textContent.trim() && el.querySelector("svg");
 
@@ -51,19 +59,21 @@ export const LAYOUT_AUDIT =
     + ".vault-pathbar, .access-pathbar, .sheet__head, .keymap, nav";
   const keys = [...document.querySelectorAll("main button, main a")]
     .filter((el) => drawn(el) && iconOnly(el) && !el.closest(CHROME));
-  const mates = [...document.querySelectorAll("main *")].filter((el) => {
-    if (!drawn(el)) return false;
-    if (/^(INPUT|SELECT|TEXTAREA|IMG|OUTPUT|SUMMARY)$/.test(el.tagName)) return true;
-    if (el.matches("button, a") && !iconOnly(el)) return true;
-    return [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-  });
+  // Only a stop with a key pays for the row-mates, and each is measured once.
+  const mates = keys.length === 0 ? [] : [...document.querySelectorAll("main *")]
+    .filter((el) => {
+      if (!drawn(el)) return false;
+      if (/^(INPUT|SELECT|TEXTAREA|IMG|OUTPUT|SUMMARY)$/.test(el.tagName)) return true;
+      if (el.matches("button, a") && !iconOnly(el)) return true;
+      return [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    })
+    .map((el) => ({ el, rect: el.getBoundingClientRect() }));
   for (const key of keys) {
     const box = key.getBoundingClientRect();
     const scope = key.closest("li, form, section, .panel, .card, main") || document.body;
-    const shared = mates.some((el) => {
-      if (key.contains(el) || !scope.contains(el)) return false;
-      const r = el.getBoundingClientRect();
-      return r.bottom > box.top + 4 && r.top < box.bottom - 4;
+    const shared = mates.some(({ el, rect }) => {
+      if (rect.bottom <= box.top + 4 || rect.top >= box.bottom - 4) return false;
+      return !key.contains(el) && scope.contains(el);
     });
     if (!shared) {
       faults.push({ kind: "KEY-ALONE-ON-A-ROW", what: label(key), where: where(key) });

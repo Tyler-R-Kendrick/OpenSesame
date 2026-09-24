@@ -93,7 +93,7 @@ its own. See DESIGN.md § Keys have a home.
 | The key acts on | Its home |
 | --- | --- |
 | the panel | the panel head, beside the title |
-| one field | that field's label row, `.keyed-row` |
+| one field | that field's label row, `.keyed-field` (keys after the field in Tab order) |
 | a one-field form | the end of the field, `.field-inline` or `FieldShell` `tail` |
 | a form of several fields | `FormCommit` |
 | a record | the record's row, folding into a block at its top end |
@@ -130,7 +130,7 @@ and a Claude Code `PostToolUse` hook:
 4. **Every `.go` has a `.go-verb` beside it.** An unlabelled ink square is a
    mystery-meat control.
 5. **A commit key has a home** (`commit-key-has-a-home`). An icon-key
-   submit sits in `.keyed-row`, `.field-inline`, a `FieldShell` `tail`, or an
+   submit sits in `.keyed-field`, `.keyed-row`, `.field-inline`, a `FieldShell` `tail`, or an
    inline one-field form. Anywhere else it is a glyph on a row of its own;
    use `FormCommit`.
 6. **A field has a measure** (`field-has-a-measure`). A CSS rule that gives

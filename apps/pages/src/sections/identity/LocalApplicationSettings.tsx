@@ -23,7 +23,6 @@ import {
   useState,
 } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck } from "../../components/Icons.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
 import { ApplicationSourceEditor } from "./ApplicationSourceEditor.js";

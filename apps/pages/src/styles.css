@@ -447,8 +447,10 @@ kbd {
   color: var(--ink-2);
 }
 
-/* A finger is not a pointer — the floor the app keeps everywhere else. */
-@media (pointer: coarse) {
+/* A finger is not a pointer — the floor the app keeps everywhere else, on
+   the width as well as the pointer (DESIGN.md § Touch), so a form's commit is
+   never smaller than the icon key beside it in a narrow window. */
+@media (pointer: coarse), (max-width: 900px) {
   .go {
     width: 2.75rem;
     height: 2.75rem;
@@ -1458,7 +1460,6 @@ body {
 .head-filter {
   width: auto;
   max-width: 12rem;
-  min-height: 2rem;
 }
 
 .keyed-row {
@@ -1481,6 +1482,29 @@ body {
 .keyed-row > .actions,
 .keyed-row > .icon-btn {
   flex: none;
+  flex-wrap: nowrap;
+}
+
+/* A multi-line field with its keys on its label row. The keys follow the
+   field in the document, so Tab leaves the field for the key that saves it
+   (commits come after the fields, in visual and keyboard order alike); the
+   grid only draws them up on the label's row. */
+.keyed-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  min-width: 0;
+  max-width: var(--text-max);
+}
+
+.keyed-field > :is(textarea, .hint) {
+  grid-column: 1 / -1;
+}
+
+.keyed-field > .actions {
+  grid-column: 2;
+  grid-row: 1;
   flex-wrap: nowrap;
 }
 

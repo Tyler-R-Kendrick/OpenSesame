@@ -15,7 +15,7 @@
  * fields commits with `FormCommit` (the `.go` square and its verb).
  */
 const KEY_HOMES =
-  /\b(keyed-row|field-inline|identifier__row|set__inline)\b|<FieldShell\b|\btail=\{/;
+  /\b(keyed-row|keyed-field|field-inline|identifier__row|set__inline)\b|<FieldShell\b|\btail=\{/;
 
 /** The open tag of the element starting at `from`, braces balanced. */
 function openTag(source, from) {

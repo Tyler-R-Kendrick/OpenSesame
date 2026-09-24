@@ -7,7 +7,7 @@ import {
 } from "@opensesame/app-core/lib/local-devices.js";
 import { useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { IconX } from "../../components/Icons.js";
 
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   const [devices, setDevices] = useState<LocalDevice[] | null>(null);

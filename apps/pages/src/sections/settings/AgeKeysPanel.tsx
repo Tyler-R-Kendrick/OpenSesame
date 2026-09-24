@@ -249,8 +249,21 @@ export function AgeKeysPanel() {
         ) : null}
 
         <form onSubmit={(event) => void saveRecipients(event)}>
-          <div className="keyed-row">
+          <div className="keyed-field">
             <label htmlFor="age-recipients">Recipients</label>
+            <textarea
+              id="age-recipients"
+              className="f__input--mono"
+              rows={3}
+              spellCheck={false}
+              value={recipientsText}
+              disabled={!tomb || busy}
+              onChange={(event) => setRecipientsText(event.target.value)}
+            />
+            <p className="hint">
+              One age1… or ssh-… recipient per line. Public; sealed with the
+              vault.
+            </p>
             <div className="actions">
               <button
                 type="submit"
@@ -263,19 +276,6 @@ export function AgeKeysPanel() {
               </button>
             </div>
           </div>
-          <textarea
-            id="age-recipients"
-            className="f__input--mono"
-            rows={3}
-            spellCheck={false}
-            value={recipientsText}
-            disabled={!tomb || busy}
-            onChange={(event) => setRecipientsText(event.target.value)}
-          />
-          <p className="hint">
-            One age1… or ssh-… recipient per line. Public; sealed with the
-            vault.
-          </p>
         </form>
 
         <div className="keyed-row">

@@ -40,13 +40,10 @@ function IdentityTabButton({
   onSelect,
 }: { id: IdentityTab; active: boolean; onSelect: () => void }) {
   const guideRef = useGuideTarget<HTMLButtonElement>(`identity.${id}`);
-  const stripRef = useStripItem<HTMLButtonElement>(active);
+  const stripRef = useStripItem<HTMLButtonElement>(active, guideRef);
   return (
     <button
-      ref={(element) => {
-        stripRef(element);
-        guideRef(element);
-      }}
+      ref={stripRef}
       type="button"
       role="tab"
       aria-selected={active}

@@ -25,7 +25,7 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useId, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconInfo } from "../../components/Icons.js";
+import { IconInfo } from "../../components/Icons.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 import { OauthConnectBody } from "./OauthConnectBody.js";
 

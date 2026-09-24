@@ -6,7 +6,7 @@ import {
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { IconX } from "../../components/Icons.js";
 
 type SaveInput = {
   principalId: string;

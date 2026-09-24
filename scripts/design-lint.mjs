@@ -277,9 +277,13 @@ function checkStatusPills(file, source) {
 
 function checkCss(file, source) {
   checkDropdowns(file, source);
+  // Comments blanked to the same number of lines, so a reported line
+  // number still points at the rule.
   checkFieldWidths(
     file,
-    source.replace(/\/\*[\s\S]*?\*\//g, ""),
+    source.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+      comment.replace(/[^\n]/g, ""),
+    ),
     report,
     lineOf,
   );

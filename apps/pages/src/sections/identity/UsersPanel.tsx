@@ -11,12 +11,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { FormCommit } from "../../components/FormCommit.js";
-import {
-  IconCheck,
-  IconPlus,
-  IconRefresh,
-  IconX,
-} from "../../components/Icons.js";
+import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 /** Provisioning reserves a directory identity; sign-in must still verify it. */

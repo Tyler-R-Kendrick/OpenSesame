@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { IconX } from "../../components/Icons.js";
 import type { BindInput, ConnectorIdentity } from "./useConnectorDirectory.js";
 
 type Choice = { id: string | number; label: string };

@@ -1,7 +1,7 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { useEffect, useId, useRef, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 export function LocalAgentEnrollment({

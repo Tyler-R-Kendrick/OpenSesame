@@ -6,7 +6,7 @@ import {
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconCheck, IconExternal } from "../../components/Icons.js";
+import { IconExternal } from "../../components/Icons.js";
 import { PasskeyCeremonyNote } from "../../components/PasskeyCeremonyNote.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { OauthClientPanel } from "./OauthClientPanel.js";

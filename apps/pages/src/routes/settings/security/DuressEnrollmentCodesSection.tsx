@@ -1,5 +1,4 @@
 import { FormCommit } from "../../../components/FormCommit.js";
-import { IconCheck } from "../../../components/Icons.js";
 import type { DuressEnrollmentViewModel } from "./useDuressEnrollmentPanel.js";
 
 export function DuressEnrollmentCodesSection({

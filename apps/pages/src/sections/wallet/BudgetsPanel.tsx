@@ -23,7 +23,6 @@ import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useCallback, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import {
-  IconCheck,
   IconEdit,
   IconPlus,
   IconTrash,

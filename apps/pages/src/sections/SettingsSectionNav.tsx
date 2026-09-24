@@ -35,13 +35,10 @@ export function CategoryLink({
   const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
   // Capabilities sits far enough along the strip that at 320px it opened
   // partly off the right edge; the strip scrolls itself, never the page.
-  const stripRef = useStripItem<HTMLAnchorElement>(current);
+  const stripRef = useStripItem<HTMLAnchorElement>(current, guideRef);
   return (
     <Link
-      ref={(element) => {
-        stripRef(element);
-        guideRef(element);
-      }}
+      ref={stripRef}
       to={to}
       className={`set__nav-link${danger ? " set__nav-link--danger" : ""}`}
       aria-current={current ? "page" : undefined}

@@ -55,13 +55,10 @@ export function AccessTabLink({
   current: boolean;
 }) {
   const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
-  const stripRef = useStripItem<HTMLAnchorElement>(current);
+  const stripRef = useStripItem<HTMLAnchorElement>(current, guideRef);
   return (
     <Link
-      ref={(element) => {
-        stripRef(element);
-        guideRef(element);
-      }}
+      ref={stripRef}
       to={to}
       role="tab"
       aria-selected={current}

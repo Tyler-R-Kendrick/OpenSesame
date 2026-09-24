@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from "react";
+import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { settingsPageSources } from "./settings/page-tree.js";
@@ -22,7 +22,6 @@ import {
 } from "./SettingsSectionNav.js";
 import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
-import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperabilityPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
@@ -139,13 +138,14 @@ export function SettingsSection({
         {form && category === "security" ? (
           <SecurityPanels
             UnlockMethodsPanel={resolvedPanels.UnlockMethodsPanel}
+            contributed={contributedPanels}
           />
         ) : null}
 
         {form && category === "vaults" && (
           <VaultsAndTypes {...resolvedPanels} />
         )}
-        {form
+        {form && category !== "security"
           ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
           : null}
         {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
@@ -155,12 +155,6 @@ export function SettingsSection({
   );
 }
 
-/**
- * Panels a capability draws inside a category the core already has, so
- * Security can carry the ambient opt-in without this file importing it. A
- * contribution for a panel Security already draws is skipped: Formats
- * rendered twice on one page (and twice under one element id).
- */
 /** The rail's entries for one category, for the phone's page index. */
 function pageEntries(category: string) {
   return (
@@ -168,33 +162,38 @@ function pageEntries(category: string) {
   );
 }
 
+/**
+ * Panels a capability draws inside a category the core already has, so
+ * Security can carry Formats and the ambient opt-in without this file
+ * importing them.
+ */
 function useCategoryPanels(category: string) {
   return [...useContributions("settings-panel")]
     .filter((panel) => panel.category === category)
-    .filter(
-      (panel) =>
-        !(category === "security" && SECURITY_OWN_PANELS.has(panel.id)),
-    )
     .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
 }
 
-/** Panel ids `SecurityPanels` draws itself, by the ids their sections carry. */
-const SECURITY_OWN_PANELS: ReadonlySet<string> = new Set([
-  "formats-interoperability",
-]);
-
-/** The Security category's own panels, in the order the screen draws them. */
+/**
+ * The Security category's own panels, in the order the screen draws them.
+ * A capability's panels take the slot after the unlock methods — where
+ * Formats sat when this file drew it itself, and drew it a second time
+ * beside the capability's own copy.
+ */
 function SecurityPanels({
   UnlockMethodsPanel,
+  contributed,
 }: {
   UnlockMethodsPanel: SettingsPanels["UnlockMethodsPanel"];
+  contributed: readonly { id: string; Panel: ComponentType }[];
 }) {
   return (
     <>
       <VaultKeyProtectionPanel />
       {resolveDuressMode({}) !== "off" ? <DuressEnrollmentPanel /> : null}
       <UnlockMethodsPanel />
-      <FormatsInteroperabilityPanel />
+      {contributed.map(({ id, Panel }) => (
+        <Panel key={id} />
+      ))}
       <AgeKeysPanel />
       <Suspense fallback={null}>
         <TransportPanel />
