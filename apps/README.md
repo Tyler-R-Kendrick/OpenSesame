@@ -43,11 +43,6 @@ servers such as the mock IdP are in [`tools/`](../tools/README.md).
 Neither MCP server exposes `getSecret()` or materializes a credential
 ([ADR 0005](../docs/adr/0005-authority-handle-connectionref.md)).
 
-`apps/example-siop-rp` is not an app: it is a symlink to
-[`examples/siop-rp`](../examples/siop-rp), kept because the `open-sesame`
-Vercel project still names that path as its Root Directory. Once the project
-setting points at `examples/siop-rp`, delete the symlink.
-
 ## Running
 
 ```bash
