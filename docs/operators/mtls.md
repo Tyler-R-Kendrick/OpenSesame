@@ -532,10 +532,12 @@ pnpm test:mtls               # scripts/mtls-test.sh — fast native + TS suites,
 pnpm test:mtls:integration   # scripts/mtls-integration-test.sh — real nats-server, OpenBao,
                              #   SPIRE and the Caddy ingress from pinned fixtures
 pnpm test:mtls:browser       # scripts/mtls-browser-test.mjs — Playwright clientCertificates
-                             #   against the ingress reference, plus the static app with none
+                             #   against the ingress reference, plus the static app with none;
+                             #   PLAYWRIGHT_CHROMIUM must point at a real Chromium binary
+                             #   (a missing browser is red, never skipped)
 pnpm test:mtls:fixtures      # scripts/mtls-fixtures.sh fetch all && verify — pinned binaries to
                              #   .cache/mtls-fixtures/<tool>-<version>/, archive and binary sha256
-                             #   checked before use; linux-amd64 only (exit 3 elsewhere)
+                             #   checked before use; linux-amd64 and linux-arm64 (exit 3 elsewhere)
 bash scripts/mtls-fixtures.sh path <tool>   # nats-server | nats-server-2.10 | openbao | spire-server
                                             #   | spire-agent | caddy — prints the verified binary path
 ```

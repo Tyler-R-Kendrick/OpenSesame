@@ -10,7 +10,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import { IconAlert, IconRefresh } from "../components/Icons.js";
+import { PageIndex } from "../components/PageIndex.js";
 import { StatusMark } from "../components/StatusMark.js";
+import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
+import { connectionsPageSources } from "./connections/page-tree.js";
 
 import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { useOnline } from "../lib/use-online.js";
@@ -52,9 +55,10 @@ export function ConnectionsSection() {
       !providerId &&
       /^#(?:attention|connected|catalog)(?:-|$)/.test(hash)
     ) {
-      document
-        .getElementById(hash === "#catalog-more" ? "catalog" : hash.slice(1))
-        ?.scrollIntoView?.({ block: "start" });
+      const target = panelFromHash(
+        hash === "#catalog-more" ? "#catalog" : hash,
+      );
+      if (target) scrollToPanel(target);
     }
   }, [hash, providerId, providers, connections]);
   usePublishConnections(providers, connections);
@@ -189,6 +193,14 @@ export function ConnectionsSection() {
           </button>
         </div>
       </header>
+      <PageIndex
+        entries={connectionsPageSources(providers, connections).flatMap(
+          (source) =>
+            source.id === "catalog"
+              ? [source, ...(source.sections ?? [])]
+              : [source],
+        )}
+      />
 
       {flash ? (
         <StatusMark

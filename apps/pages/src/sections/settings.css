@@ -422,6 +422,9 @@
 .set-raw__input {
   margin: 0;
   width: 100%;
+  /* The textarea is a transparent overlay on the painted source; capped
+     alone, the caret would stop matching the text drawn under it. */
+  max-width: none;
   min-height: 16rem;
   padding: 0.75rem 0;
   border: 0;

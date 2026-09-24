@@ -701,9 +701,6 @@
     "apps/pages/src/sections/identity/ApplicationDiagnostics.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/identity/LocalApplicationSettings.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/identity/LocalDirectoryViews.tsx": {
       "max-lines-per-function": 1
     },

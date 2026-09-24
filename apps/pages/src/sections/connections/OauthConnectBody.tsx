@@ -5,7 +5,8 @@ import {
 } from "@opensesame/app-core/lib/github-app-manifest.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
-import { IconCheck, IconExternal } from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconExternal } from "../../components/Icons.js";
 import { PasskeyCeremonyNote } from "../../components/PasskeyCeremonyNote.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { OauthClientPanel } from "./OauthClientPanel.js";
@@ -84,19 +85,10 @@ function PatForm({
           onChange={(event) => onApiKey(event.target.value)}
         />
       </div>
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn icon-btn--sm"
-          disabled={busy || !online || apiKey.trim() === ""}
-          aria-label={
-            busy ? "Saving" : `Connect ${provider.displayName} with token`
-          }
-          title={busy ? "Saving" : `Connect ${provider.displayName} with token`}
-        >
-          <IconCheck size={16} />
-        </button>
-      </div>
+      <FormCommit
+        label={busy ? "Saving" : `Connect ${provider.displayName} with token`}
+        disabled={busy || !online || apiKey.trim() === ""}
+      />
     </form>
   );
 }
@@ -149,25 +141,15 @@ function AuthorizeForm({
         scopes={scopes}
         onToggleScope={onToggleScope}
       />
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn icon-btn--sm"
-          disabled={busy || !online || missingScope || !oauthReady}
-          aria-label={
-            busy
-              ? "Waiting for consent"
-              : `Authorize with ${provider.displayName}`
-          }
-          title={
-            busy
-              ? "Waiting for consent"
-              : `Authorize with ${provider.displayName}`
-          }
-        >
-          <IconExternal size={16} />
-        </button>
-      </div>
+      <FormCommit
+        label={
+          busy
+            ? "Waiting for consent"
+            : `Authorize with ${provider.displayName}`
+        }
+        disabled={busy || !online || missingScope || !oauthReady}
+        icon={<IconExternal size={18} />}
+      />
     </form>
   );
 }

@@ -1,4 +1,4 @@
-import { IconCheck } from "../../../components/Icons.js";
+import { FormCommit } from "../../../components/FormCommit.js";
 import type { DuressEnrollmentViewModel } from "./useDuressEnrollmentPanel.js";
 
 export function DuressEnrollmentCodesSection({
@@ -54,14 +54,7 @@ export function DuressEnrollmentCodesSection({
         />
       </label>
       {codeError ? <p className="duress-enroll__error">{codeError}</p> : null}
-      <button
-        type="submit"
-        className="icon-btn"
-        aria-label="Enroll or replace code"
-        title="Enroll or replace code"
-      >
-        <IconCheck size={18} />
-      </button>
+      <FormCommit label="Enroll or replace code" />
     </form>
   );
 }

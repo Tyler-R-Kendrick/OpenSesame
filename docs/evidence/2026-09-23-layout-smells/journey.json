@@ -1,0 +1,260 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "scrollTo": "Keybindings and views"
+        },
+        {
+          "measure": "#keybindings-source, [aria-label='Save keybindings'], #view-name, [aria-label='Pin view']"
+        },
+        {
+          "shot": "1280-keybindings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Age keys"
+        },
+        {
+          "measure": "#age-recipients, [aria-label='Save recipients'], [aria-label='Prove round-trip']"
+        },
+        {
+          "shot": "1280-age-keys"
+        },
+        {
+          "scrollTo": "Transport"
+        },
+        {
+          "measure": ".transport__form select"
+        },
+        {
+          "shot": "1280-transport"
+        },
+        {
+          "scrollTo": "Formats"
+        },
+        {
+          "measure": ".fmt__row"
+        },
+        {
+          "shot": "1280-formats"
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Access authority"
+        },
+        {
+          "enable": "Browser-local IAM"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "settings/connections/better-auth"
+        },
+        {
+          "measure": ".conn-tile__body input, [aria-label='Save configuration']"
+        },
+        {
+          "shot": "1280-connector-form"
+        },
+        {
+          "visit": "access/requests"
+        },
+        {
+          "measure": "[aria-label='Local request status filter'], .access-tab.is-active"
+        },
+        {
+          "shot": "1280-access-requests"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "measure": ".section__head h1, .set__nav"
+        },
+        {
+          "shot": "390-settings-vaults"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "measure": ".set__nav [aria-current='page'], .page-index"
+        },
+        {
+          "shot": "390-settings-security"
+        },
+        {
+          "scrollTo": "Master password"
+        },
+        {
+          "measure": "[aria-label='Change master password']"
+        },
+        {
+          "shot": "390-master-password"
+        },
+        {
+          "enable": "Access authority"
+        },
+        {
+          "enable": "Browser-local IAM"
+        },
+        {
+          "reload": null
+        },
+        {
+          "tab": "identity"
+        },
+        {
+          "measure": ".identity-tabs, .identity-row .actions"
+        },
+        {
+          "shot": "390-identity-devices"
+        },
+        {
+          "visit": "access/resources"
+        },
+        {
+          "measure": ".access-resource, .access-tabs"
+        },
+        {
+          "shot": "390-access-resources"
+        },
+        {
+          "visit": "vault/new/login"
+        },
+        {
+          "measure": ".editor__uri, [aria-label='Remove address 1']"
+        },
+        {
+          "shot": "390-vault-editor"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-keybindings",
+      "width": 1280,
+      "title": "Settings › General › Keybindings — 1280 × 900",
+      "caption": "The save and reset keys sat on a row of their own under a 960px textarea, and the Pin view star sat alone under a 960px input. Now the keys ride the file's label row at the editor's end, the star ends its field's row, and neither field is wider than its measure.",
+      "before": "textarea 960px · save key alone @y605 · input 960px · star alone @y726",
+      "after": "textarea 736px · keys on label row · input 450px · star beside it"
+    },
+    {
+      "shot": "1280-age-keys",
+      "width": 1280,
+      "title": "Settings › Security › Age keys — 1280 × 900",
+      "caption": "Four keys used to stand on three rows of their own with nothing beside them. The panel's keys now sit in its head, Save recipients rides the Recipients label, Generate identity rides the Identity row, and Seal identity ends the import field.",
+      "before": "recipients 960px · 5 keys on lone rows",
+      "after": "recipients 736px · 0 keys on lone rows"
+    },
+    {
+      "shot": "1280-transport",
+      "width": 1280,
+      "title": "Settings › Security › Transport — 1280 × 900",
+      "caption": "Three-option selects stretched to the panel. A field now stops at --field-max (30rem).",
+      "before": "4 selects 798px wide",
+      "after": "4 selects 480px wide"
+    },
+    {
+      "shot": "1280-formats",
+      "width": 1280,
+      "title": "Settings › Security › Formats — 1280 × 900",
+      "caption": "The R/W/Runtime marks were spread in fractions of the page, ~225px apart and far from each format's name. Columns now size to what they hold.",
+      "before": "mark columns at x≈560 / 786 / 1012",
+      "after": "marks beside the name, content-width columns"
+    },
+    {
+      "shot": "1280-connector-form",
+      "width": 1280,
+      "title": "Settings › Connections › Better Auth — 1280 × 900",
+      "caption": "The form's only commit was a 24px check under the label column with nothing beside it. A form of several fields now commits with FormCommit: the shared .go square with its verb. Inputs stop at their measure.",
+      "before": "inputs 770px · commit 24×24, unlabelled",
+      "after": "inputs 480px · commit 40×40 + \"Save configuration\""
+    },
+    {
+      "shot": "1280-access-requests",
+      "width": 1280,
+      "title": "Access › Requests — 1280 × 900",
+      "caption": "A four-option status filter was a 960px field under the panel title, and the tabs carried link underlines beside their own. The filter now sits with the head's keys at the width of its options, and the tabs read like every other strip.",
+      "before": "filter 960px under the title · tabs underlined twice",
+      "after": "filter 82px in the head · one underline"
+    },
+    {
+      "shot": "390-settings-vaults",
+      "width": 390,
+      "title": "Settings › Vaults — 390 × 844",
+      "caption": "A nowrap vault label widened the list's implicit grid column past the phone, so the whole section ran off the right edge: the view toggle and notes are cut, and each vault's status mark, open key and the Create vault key were off-screen with nothing to scroll them back. The column is pinned to minmax(0, 1fr).",
+      "before": "tab strip 446px on a 390px phone · row keys off-screen",
+      "after": "tab strip 390px · every key on screen"
+    },
+    {
+      "shot": "390-settings-security",
+      "width": 390,
+      "title": "Settings › Security — 390 × 844",
+      "caption": "Security is thousands of pixels long on a phone, and its panels were reachable by name only from the desktop rail. An \"On this page\" strip now draws the rail's entries under the tabs below 900px; the Settings tab strip bleeds to the edge like the others.",
+      "before": "no page index",
+      "after": "page index strip 390×48 · selected tab in view"
+    },
+    {
+      "shot": "390-master-password",
+      "width": 390,
+      "title": "Settings › Security › Master password — 390 × 844",
+      "caption": "The change-password key sat alone at the left under the strength meter. It now ends the meter's row, over the field it commits.",
+      "before": "key alone @x16",
+      "after": "key on the strength row @x330"
+    },
+    {
+      "shot": "390-identity-devices",
+      "width": 390,
+      "title": "Identity › Devices — 390 × 844",
+      "caption": "A record's key dropped to a line of its own under the record once its name and badge filled the row. The name now wraps instead, and the record's keys stay at the row's top end.",
+      "before": "Rename on its own line @y409",
+      "after": "Rename beside the record @y359"
+    },
+    {
+      "shot": "390-access-resources",
+      "width": 390,
+      "title": "Access › Resources — 390 × 844",
+      "caption": "A nowrap list of holders made the resource card 463px wide, pushing the path strip's keys and the card off a 390px phone. The holders wrap, and the reference chip is only as wide as the reference.",
+      "before": "card 463px · strip 495px — past the edge",
+      "after": "card 358px · strip 390px"
+    },
+    {
+      "shot": "390-vault-editor",
+      "width": 390,
+      "title": "Vault › New login — 390 × 844",
+      "caption": "On a phone the website row collapsed to three stacked rows: the pattern, a full-width three-word select, and the remove key alone at the left. Now the pattern and its match mode share two lines with the remove key beside both.",
+      "before": "row 143px tall · remove key alone @x16",
+      "after": "row 94px tall · remove key beside the address @x330"
+    }
+  ]
+}

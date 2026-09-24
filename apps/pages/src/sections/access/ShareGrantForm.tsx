@@ -5,7 +5,8 @@ import {
   listShareTargets,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconX } from "../../components/Icons.js";
 
 type SaveInput = {
   principalId: string;
@@ -72,16 +73,7 @@ export function ShareGrantForm({
         onPolicy={setPolicy}
         onDuration={setDuration}
       />
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={busy}
-          aria-label="Grant"
-          title="Grant"
-        >
-          <IconCheck size={16} />
-        </button>
+      <FormCommit label="Grant" disabled={busy}>
         <button
           type="button"
           className="icon-btn"
@@ -92,7 +84,7 @@ export function ShareGrantForm({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   );
 }

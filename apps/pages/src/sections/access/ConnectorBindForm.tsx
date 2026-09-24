@@ -9,7 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconX } from "../../components/Icons.js";
 import type { BindInput, ConnectorIdentity } from "./useConnectorDirectory.js";
 
 type Choice = { id: string | number; label: string };
@@ -148,15 +149,7 @@ export function ConnectorBindForm({
             onChange={(value) => setDuration(Number(value))}
           />
         </div>
-        <div className="actions">
-          <button
-            type="submit"
-            className="icon-btn icon-btn--sm"
-            aria-label="Bind"
-            title="Bind"
-          >
-            <IconCheck size={16} />
-          </button>
+        <FormCommit label="Bind">
           <button
             type="button"
             className="icon-btn icon-btn--sm"
@@ -166,7 +159,7 @@ export function ConnectorBindForm({
           >
             <IconX size={16} />
           </button>
-        </div>
+        </FormCommit>
       </fieldset>
     </form>
   );

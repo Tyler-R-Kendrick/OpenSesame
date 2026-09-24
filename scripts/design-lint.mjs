@@ -18,6 +18,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
 
 /**
  * `--root <dir>` re-points the lint at another tree. Only the contract test
@@ -155,6 +156,7 @@ function checkTsx(file, source) {
     }
   }
   checkExplainers(file, source);
+  checkCommitKeys(file, source, report, lineOf);
   checkWordVerbs(file, source);
   checkStatusPills(file, source);
 }
@@ -278,6 +280,16 @@ function checkStatusPills(file, source) {
 
 function checkCss(file, source) {
   checkDropdowns(file, source);
+  // Comments blanked to the same number of lines, so a reported line
+  // number still points at the rule.
+  checkFieldWidths(
+    file,
+    source.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+      comment.replace(/[^\n]/g, ""),
+    ),
+    report,
+    lineOf,
+  );
   // 2. `.go` is defined once, in styles.css.
   if (relative(root, file) === CONTROL_HOME) return;
   for (const match of source.matchAll(/^\.go(-row|-verb)?\b[^{]*\{/gm)) {

@@ -38,7 +38,9 @@ pub struct NatsServer {
     pub server_public_key: String,
 }
 
-/// Render the config-mode auth-callout configuration.
+/// Render the config-mode auth-callout configuration. With `xkey` set, the
+/// server seals every request to that curve key (`xkv1`) and refuses an
+/// unsealed reply — the mode `crates/nats-callout/src/xkey.rs` implements.
 #[must_use]
 pub fn config_text(
     pki: &Pki,
@@ -46,9 +48,13 @@ pub fn config_text(
     monitor_port: u16,
     issuer_account: &str,
     bridge_user: &str,
+    xkey: Option<&str>,
 ) -> String {
     let cert = pki.nats_cert.display();
     let key = pki.nats_key.display();
+    let xkey_line = xkey
+        .map(|k| format!("    xkey: \"{k}\"\n"))
+        .unwrap_or_default();
     format!(
         "listen: 127.0.0.1:{client_port}\n\
          http: 127.0.0.1:{monitor_port}\n\
@@ -57,7 +63,7 @@ pub fn config_text(
          {APP_ACCOUNT}: {{ }}\n}}\n\
          authorization {{\n  timeout: 5\n  auth_callout {{\n    \
          issuer: \"{issuer_account}\"\n    account: {AUTH_ACCOUNT}\n    \
-         auth_users: [ {bridge_user} ]\n  }}\n}}\n"
+         auth_users: [ {bridge_user} ]\n{xkey_line}  }}\n}}\n"
     )
 }
 
@@ -69,7 +75,13 @@ impl NatsServer {
     /// When `OPENSESAME_MTLS_BIN_NATS_SERVER` is unset, the process will not
     /// start, or it does not report a server key within ten seconds.
     #[must_use]
-    pub fn start(dir: &Path, pki: &Pki, issuer_account: &str, bridge_user: &str) -> Self {
+    pub fn start(
+        dir: &Path,
+        pki: &Pki,
+        issuer_account: &str,
+        bridge_user: &str,
+        xkey: Option<&str>,
+    ) -> Self {
         let binary = PathBuf::from(
             std::env::var("OPENSESAME_MTLS_BIN_NATS_SERVER")
                 .expect("OPENSESAME_MTLS_BIN_NATS_SERVER"),
@@ -79,7 +91,14 @@ impl NatsServer {
         let config = dir.join("nats.conf");
         std::fs::write(
             &config,
-            config_text(pki, client_port, monitor_port, issuer_account, bridge_user),
+            config_text(
+                pki,
+                client_port,
+                monitor_port,
+                issuer_account,
+                bridge_user,
+                xkey,
+            ),
         )
         .expect("write nats.conf");
         let child = Command::new(&binary)
@@ -119,9 +138,11 @@ impl Drop for NatsServer {
 }
 
 /// Poll `/varz` until the server reports its public nkey (`server_id`, which
-/// nats-server sets to the server key pair's public key).
+/// nats-server sets to the server key pair's public key). The deadline is
+/// generous: the live tests spawn one server per test and run in parallel, so
+/// a loaded machine can take a while to report.
 fn wait_for_key(monitor_port: u16) -> String {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     let url = format!("http://127.0.0.1:{monitor_port}/varz");
     while Instant::now() < deadline {
         if let Some(id) = server_key(&url) {
