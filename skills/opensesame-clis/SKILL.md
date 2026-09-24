@@ -35,7 +35,7 @@ export OPENSESAME_ENV=development                       # or set OPENSESAME_CLAI
 ./target/debug/opensesame daemon start
 ./target/debug/opensesame daemon status
 pnpm --filter @opensesame/control-plane start   # :8788
-./target/debug/opensesame-gateway --listen 127.0.0.1:8787
+./target/debug/opensesame host run --listen 127.0.0.1:8787
 ```
 
 ## Use
@@ -48,8 +48,8 @@ pnpm --filter @opensesame/control-plane start   # :8788
 ./target/debug/opensesame daemon stop
 ./target/debug/opensesame dev check --schema tests/fixtures/demo.env.schema
 ./target/debug/opensesame dev resolve --mode agent --schema tests/fixtures/demo.env.schema
-./target/debug/opensesame-toolbar approve-device --user-code ABCD-EFGH
-./target/debug/opensesame-toolbar approve-claim --claim-id clm_…
+./target/debug/opensesame daemon approve-device --user-code ABCD-EFGH
+./target/debug/opensesame daemon approve-claim --claim-id clm_…
 
 # Connectors (Vercel-shaped: service/name). `connect token` prints a ConnectionRef, never a provider secret.
 ./target/debug/opensesame connect create github --help

@@ -43,7 +43,7 @@ opensesame-kdbx-bridge = { path = "../../../crates/kdbx-bridge" }
 opensesame-sealed-store = { path = "../../../crates/sealed-store" }
 opensesame-vault-item-types = { path = "../../../crates/vault-item-types" }
 opensesame-storage = { path = "../../../crates/storage" }
-opensesame-gateway = { path = "../../../apps/gateway" }
+opensesame-gateway = { path = "../../../crates/gateway" }
 opensesame-pki-core = { path = "../../../crates/pki-core" }
 opensesame-transport-security = { path = "../../../crates/transport-security" }
 opensesame-ingress-evidence = { path = "../../../crates/ingress-evidence" }

@@ -47,5 +47,5 @@ With ~34.6 bits of user-code entropy (8 chars over a 20-symbol alphabet) and
 10 guesses/minute, a 15-minute authorization window admits ~150 attempts —
 brute force remains infeasible while legitimate approvals survive an attack.
 
-Unit tests in `apps/gateway/src/routes/device.rs` assert that repeated failures
+Unit tests in `crates/gateway/src/routes/device.rs` assert that repeated failures
 leave the pending set intact and that the failure window prunes and caps.

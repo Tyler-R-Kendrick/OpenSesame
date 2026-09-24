@@ -10,8 +10,8 @@ for each alert standard. It does no I/O.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`security::dispatch` and
-  the sinks in [`src/security`](../../apps/gateway/src/security)),
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`security::dispatch` and
+  the sinks in [`src/security`](../../crates/gateway/src/security)),
   [`opensesame-lifecycle`](../lifecycle), [`opensesame-breach-intel`](../breach-intel)
   and [`opensesame-agent-events`](../agent-events).
 - **Builds on:** no workspace crates (`chrono`, `serde`, `serde_json`, `sha2`).

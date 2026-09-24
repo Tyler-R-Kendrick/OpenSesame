@@ -11,7 +11,7 @@ and sync targets, and the connector transport.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (connection, provider,
+- **Used by:** [`crates/gateway`](../../crates/gateway) (connection, provider,
   integration, sync, backup and certificate routes) and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`broker_seal`,
   `github_webhook_hmac`, and `connector_manifest` for `Catalog::parse`).

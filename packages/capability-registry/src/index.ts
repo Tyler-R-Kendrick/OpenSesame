@@ -31,6 +31,7 @@ import {
 import { generalAuthorityCapabilities } from "./general-authority.js";
 import { identityManagementCapabilities } from "./identity-management.js";
 import { itemTypeCapabilities } from "./item-types.js";
+import { nativeHostCapabilities } from "./native-host.js";
 import { sharedSessionCapabilities } from "./shared-sessions.js";
 /**
  * Agent-surface capability registry (ADR 0065).
@@ -172,34 +173,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: AUTH_CEREMONY,
     },
   },
-  {
-    id: "daemon.status",
-    title: "Local host agent status",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame daemon status",
-      pwa: null,
-      mcp_host: "daemon_health",
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: { pwa: PAGES_HAS_NO_HOST, webmcp: PAGES_HAS_NO_HOST },
-  },
-  {
-    id: "daemon.lifecycle",
-    title: "Install/start/stop the local host agent",
-    plane: "host",
-    kind: "admin",
-    surfaces: {
-      cli: "opensesame daemon install",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
-  },
+  ...nativeHostCapabilities,
 
   // ── Host plane: intents, tasks, receipts ──────────────────────────────
   {

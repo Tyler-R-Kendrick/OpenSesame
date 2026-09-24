@@ -97,7 +97,7 @@ Each machine runs one OpenSesame process, `opensesame daemon run`. It serves:
 - the **MCP** endpoint (§5) and, for the desktop app, the Pages build on a
   loopback origin.
 
-`apps/gateway` and `apps/daemon` become library crates this process links;
+`crates/gateway` and `crates/daemon` become library crates this process links;
 the gateway binary remains as `opensesame daemon run --shared` for a team
 host.
 

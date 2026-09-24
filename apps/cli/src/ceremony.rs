@@ -12,7 +12,7 @@
 //!   bootstrap loop. `opensesame ceremony list` works on a laptop with nothing
 //!   configured, which is exactly where it is read.
 //!
-//! `apps/gateway/src/routes/ceremonies.rs` serves the same data to clients that
+//! `crates/gateway/src/routes/ceremonies.rs` serves the same data to clients that
 //! cannot compile the crate in. Both read `crates/ceremony/catalog.json`, so
 //! they cannot drift.
 

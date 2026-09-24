@@ -30,7 +30,7 @@ fn fenced_crates_never_depend_on_transport_security() {
     for fenced in [
         "crates/core",
         "crates/client-core",
-        "apps/daemon",
+        "crates/daemon",
         "crates/domain",
         "crates/uds-authn",
     ] {

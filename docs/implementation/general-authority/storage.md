@@ -53,7 +53,7 @@ interleave with the first — its first write fails.
 
 | Table | Sole writer | Readers |
 |---|---|---|
-| `access_domains`, `authority_generations` | Host API (`apps/gateway`) | host-core evaluation, projections |
+| `access_domains`, `authority_generations` | Host API (`crates/gateway`) | host-core evaluation, projections |
 | `grant_authority`, `grant_permission_entries` | Host API, at issuance | evaluation, receipts |
 | `grant_lineage`, `grant_invalidations` (0033) | the invalidation fence | `fenced_authority` |
 | `authority_budgets`, `authority_budget_reservations` | Host API, in the invoke transaction | budget verdicts |

@@ -17,7 +17,7 @@ with a digest.
   fuzz target and is not in the authority-fabric gate. The storage step queue
   ([`0025_runner_steps.sql`](../storage/migrations/0025_runner_steps.sql))
   stores its `StepRequest` as JSON, and the gateway's agent-run routes
-  (`apps/gateway/src/routes/agent_runs.rs`) hand that JSON to a driver without
+  (`crates/gateway/src/routes/agent_runs.rs`) hand that JSON to a driver without
   linking this crate.
 - **Builds on:** [`opensesame-ceremony`](../ceremony) (capture slots and
   refusals) and [`opensesame-session-observe`](../session-observe) (frame

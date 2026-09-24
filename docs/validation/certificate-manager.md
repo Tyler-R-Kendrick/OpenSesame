@@ -32,7 +32,7 @@ profile → application → enrollment config → certificate. Policies are pure
 constraint documents with three-state field rules; profiles bind a CA, a policy
 and defaults; applications are service workspaces whose members hold
 `admin`/`operator`/`auditor` roles layered over the existing caller model in
-`apps/gateway/src/middleware/auth.rs`. Inventory rows carry a `source` of
+`crates/gateway/src/middleware/auth.rs`. Inventory rows carry a `source` of
 `issued`, `imported` or `discovered`, and renewal is a bidirectional link
 (`renewed_from_id` / `renewed_by_id`), one renewal per certificate, with custom
 metadata carried across. Every mutating `/api/v1/certmgr/*` route appends a
@@ -76,7 +76,7 @@ Client side: upstream HTTP-01 and TLS-ALPN-01 remain refused (ADR 0052-cert's
 rationale restated — DNS-01 is a strict superset). Organization administrators
 may register private ACME directories, which receive trust class
 `private_local` assigned in code; `public_web` remains pinned to the code-owned
-registry in `apps/gateway/src/cert_issuers/registry.rs`.
+registry in `crates/gateway/src/cert_issuers/registry.rs`.
 
 ### Lifecycle, discovery, alerting, approvals
 
@@ -154,7 +154,7 @@ Seal scopes, one per secret purpose, alongside the existing
 `signer_key`, `hsm_pin`, `external_ca_credential`, `crl_der`,
 `acme_account_key`.
 
-New configuration knobs are `pub fn`s in `apps/gateway/src/config.rs` and are
+New configuration knobs are `pub fn`s in `crates/gateway/src/config.rs` and are
 documented in `.env.schema` with `@type` / `@required` / `@sensitive` /
 `@public` annotations. No live secret is committed.
 
@@ -200,8 +200,8 @@ Enforcement boundaries and their intended anchors:
 | Boundary | Anchor |
 |---|---|
 | Sealed custody, redacting `Debug`, no `Clone`/`Serialize` on secret carriers | `crates/storage` sealed-carrier tests |
-| Cross-organization isolation on every new table | storage isolation tests, modeled on `adversarial_ephemeral_history_isolated_between_organizations` in `apps/gateway/src/routes/certs.rs` |
-| Application/signer role gates before any `st.db` access | forthcoming `apps/gateway/src/routes/certmgr_roles.rs` tests |
+| Cross-organization isolation on every new table | storage isolation tests, modeled on `adversarial_ephemeral_history_isolated_between_organizations` in `crates/gateway/src/routes/certs.rs` |
+| Application/signer role gates before any `st.db` access | forthcoming `crates/gateway/src/routes/certmgr_roles.rs` tests |
 | Non-member sees 404, not 403 | `certmgr_app.rs` inline tests |
 | ACME nonce single-use; account-bound order lookup | `acme_server.rs` hermetic e2e |
 | EAB mandatory on `new-account` | `acme_server.rs` inline tests |

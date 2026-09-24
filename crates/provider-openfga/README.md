@@ -7,7 +7,7 @@ back to the in-process PEP. A projected tuple is never itself authority.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`src/openfga_project.rs`
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`src/openfga_project.rs`
   projects each grant under the authority writer lease; app state and intent
   projection) and the fuzz crate [`tests/fuzz/cargo`](../../tests/fuzz/cargo)
   (`openfga_response`).

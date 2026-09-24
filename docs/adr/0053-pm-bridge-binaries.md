@@ -40,20 +40,20 @@ is deliberately small.
 
 ADR 0049 §4 already solved a structurally identical problem for the git,
 docker, AWS, and kubectl credential helpers: separate thin binaries,
-`apps/credential-helpers`, one crate with several `[[bin]]`s, that are
+`crates/credential-helpers`, one crate with several `[[bin]]`s, that are
 clients of the daemon rather than code inside it. That crate's whole
 dependency list today is `serde`, `serde_json`, `zeroize`, plus `tempfile`
 for tests. It is the shape to copy.
 
 ## Decision
 
-### 1. `apps/pm-bridges` — one crate, one `[[bin]]` per serving surface
+### 1. `crates/pm-bridges` — one crate, one `[[bin]]` per serving surface
 
 Local-IPC serving surfaces live in a new workspace member modelled on
-`apps/credential-helpers`:
+`crates/credential-helpers`:
 
 ```
-apps/pm-bridges/
+crates/pm-bridges/
   Cargo.toml            # one [[bin]] per surface; one cargo feature per surface:
                         #   keepassxc, browserpass, gopass, secret-service, webdav
   src/lib.rs            # shared helpers only (see decision 4)
@@ -72,7 +72,7 @@ crates (`crates/kdbx-bridge`, `crates/provider-bitwarden`, and the stretch
 
 ### 2. The daemon gains zero dependencies, and the gate proves it
 
-**`apps/daemon` does not depend on `apps/pm-bridges`, on
+**`crates/daemon` does not depend on `crates/pm-bridges`, on
 `crates/kdbx-bridge`, or on any provider crate.** The dependency arrow
 points the other way or nowhere at all.
 
@@ -247,7 +247,7 @@ The daemon's own `reqwest` call sites are unchanged by this work, and
 - **The trade accepted:** several small binaries instead of one process,
   which means several install paths, several manifests, and a slightly
   larger `target/` — paid deliberately in exchange for the daemon's
-  dependency surface staying fixed. `apps/credential-helpers` already made
+  dependency surface staying fixed. `crates/credential-helpers` already made
   this trade and it has held.
 - **A bridge is as trusted as the user's own shell, and no more.** Reading
   the sealed store in-process is the same authority as

@@ -9,8 +9,8 @@ as pure functions. It does no I/O.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (the scanner, dispatch and
-  responders in [`src/lifecycle`](../../apps/gateway/src/lifecycle)) and
+- **Used by:** [`crates/gateway`](../../crates/gateway) (the scanner, dispatch and
+  responders in [`src/lifecycle`](../../crates/gateway/src/lifecycle)) and
   [`opensesame-storage`](../storage) (watermarks and the authority fence tables).
 - **Builds on:** [`opensesame-security-events`](../security-events):
   `LifecycleEvent::notice` projects an event onto the shared `SecurityNotice`,

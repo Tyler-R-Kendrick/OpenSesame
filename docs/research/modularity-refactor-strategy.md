@@ -379,7 +379,7 @@ boundary and is not one.
 **A correction worth recording, because it reverses the reasoning.** A first
 pass counted 15 files outside the crate referencing `Db` and concluded the blast
 radius was small. That measured the wrong thing. `AppState` holds `pub db: Db`
-(`apps/gateway/src/app_state.rs:64`), so consumers reach storage through the
+(`crates/gateway/src/app_state.rs:64`), so consumers reach storage through the
 state handle: **134 call sites across 32 files in the gateway alone**. The
 coupling is wide, not narrow, and this is a genuine modularity problem rather
 than only a readability one.

@@ -131,7 +131,7 @@ For one person using this browser, the PWA is complete: it holds the vault, runs
 sign-in, and talks to connectors itself. The Host earns its place in exactly
 three places, all of which are outside the tab:
 
-1. **Callers that are not this browser.** `apps/cli`, `apps/daemon`,
+1. **Callers that are not this browser.** `apps/cli`, `crates/daemon`,
    `apps/mcp-host` and the git/docker/AWS/kubectl credential helpers all obtain
    authority from the Host. A PWA cannot serve them: it has no address, no
    lifetime they can depend on, and no way to be running when they run.

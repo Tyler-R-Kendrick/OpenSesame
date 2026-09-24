@@ -7,7 +7,7 @@ Accepted
 OpenSesame is a dual-plane system (ADR 0007): TypeScript Identity API and Rust Host/Authority API. Product surfaces (daemon, toolbar, extension, PWA, MCP, CLIs) need a clear host vs client split with a polyglot core.
 
 ## Decision
-1. **Identity API** (`apps/control-plane`, :8788) and **Host API** (`apps/gateway`, :8787) remain **separate**. No BFF merge.
+1. **Identity API** (`apps/control-plane`, :8788) and **Host API** (`crates/gateway`, :8787) remain **separate**. No BFF merge.
 2. **Polyglot boundary = WIT/Wasm.** Shared IR lives in `wit/` + `crates/core`.
 3. **host-core** (`crates/host-core`) is Rust: authorize → invoke → receipt, connectors, daemon capabilities.
 4. **client-core** (`crates/client-core` + `packages/client-core`) is Rust native + `wasm32` with JS bindings: E2EE vault, local encrypted replication/sync.

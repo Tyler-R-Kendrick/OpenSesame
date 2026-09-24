@@ -27,7 +27,7 @@ pub enum BindingPurpose {
     TrustedIngress,
     UpstreamConnector,
     // There is deliberately no probe purpose. The enforcement probe
-    // (`apps/gateway/src/transport/probe.rs`) is an outbound client only: it
+    // (`crates/gateway/src/transport/probe.rs`) is an outbound client only: it
     // dials one of three fixed target words and asks the *unauthenticated*
     // `/health/live`, because its negative half is precisely "connect with no
     // certificate and observe the refusal". Nothing ever receives a request

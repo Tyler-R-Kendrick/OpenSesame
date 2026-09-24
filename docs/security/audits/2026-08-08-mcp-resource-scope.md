@@ -35,7 +35,7 @@ settle.
 
 - `crates/authn`: device-flow polling, PKCE S256, and the verification-URI origin
   check are all sound; `validate_audience` is an exact match, which is right.
-- `apps/gateway/src/routes/aauth.rs` `scope_check` takes the ceiling from the
+- `crates/gateway/src/routes/aauth.rs` `scope_check` takes the ceiling from the
   request body, but it is advisory (behind the experimental flag and a session or
   operator bearer) and grants nothing.
 - Interpolated Host API paths in `apps/mcp-host` are percent-encoded.

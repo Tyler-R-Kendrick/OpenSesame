@@ -80,12 +80,12 @@ Do not add a suite that only documents the happy path.
 | Browser-native SIOP / hosted SIOP bridge (ADR 0117) | `packages/siop-v2/src/request.property.test.ts` (fast-check); thumbprint binding | `packages/siop-v2/src/security.adversarial.test.ts`; `checkThenSetAdmitsDoubleClaim` in `siop-bridge.pact.test.ts` | exclusive `/v1/siop/link` claim on one `challengeId` (`assertExclusiveClaim`) | `siop-bridge.pact.test.ts` source-order oracles; link JSON has no secret fields / no raw `id_token`; Pages `pnpm --filter @opensesame/pages verify:siop`; Identity `pnpm --filter @opensesame/control-plane verify:siop` |
 | Connection env sync | vercel/railway only | doppler/infisical/craft-bar ids refused | interleaved checks stay fail-closed | https host pin before `send()` |
 
-Reference call sites: `apps/gateway/src/github_webhook.rs`,
-`apps/gateway/src/main.rs` (`pact_coverage`),
+Reference call sites: `crates/gateway/src/github_webhook.rs`,
+`crates/gateway/src/lib.rs` (`pact_coverage`),
 `apps/control-plane/src/__tests__/pact-chaos.test.ts`,
 `apps/worker/src/__tests__/pact.test.ts`,
-`apps/callback-edge/src/main.rs`,
-`apps/daemon/src/main.rs`,
+`crates/gateway/src/callback_ingress/mod.rs`,
+`crates/daemon/src/lib.rs`,
 `packages/app-core/src/lib/pact.test.ts`,
 `packages/audit/src/__tests__/pact.test.ts`,
 `packages/contracts/src/__tests__/pact-contract.test.ts`,

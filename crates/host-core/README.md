@@ -8,9 +8,9 @@ the PACT test oracles. It corresponds to the `opensesame:host@1.0.0` WIT world.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway),
-  [`apps/daemon`](../../apps/daemon), [`apps/toolbar`](../../apps/toolbar) and
-  [`apps/callback-edge`](../../apps/callback-edge). They use the modules below;
+- **Used by:** [`crates/gateway`](../../crates/gateway),
+  [`crates/daemon`](../../crates/daemon), and
+  [`apps/cli`](../../apps/cli) (the `opensesame daemon` verbs). They use the modules below;
   none of them reaches the re-exported crates through this facade today — each
   depends on those crates directly.
 - **Builds on:** [`opensesame-core`](../core), [`opensesame-broker`](../broker),

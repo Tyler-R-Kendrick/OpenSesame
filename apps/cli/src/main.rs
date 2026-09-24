@@ -5,6 +5,9 @@ mod ceremony;
 mod certs;
 mod configs;
 mod connect;
+mod daemon_cmd;
+mod daemon_toolbar;
+mod entry;
 mod github;
 mod init_schema;
 mod lifecycle;
@@ -13,6 +16,7 @@ mod pass_otp;
 mod pass_protect;
 mod providers_native;
 mod security;
+mod serve;
 mod store;
 mod sync_commands;
 mod sync_export;
@@ -213,16 +217,22 @@ enum Commands {
         #[command(subcommand)]
         cmd: DevCmd,
     },
-    /// Install/control the local host daemon (ADR 0017).
-    Daemon {
-        #[arg(
-            long,
-            env = "OPENSESAME_DAEMON_URL",
-            default_value = "http://127.0.0.1:18790"
-        )]
-        url: String,
+    /// Run or control the local agent daemon (ADR 0017).
+    Daemon(daemon_cmd::DaemonArgs),
+    /// Run the Host API (ADR 0138).
+    Host {
         #[command(subcommand)]
-        cmd: DaemonCmd,
+        cmd: serve::HostCmd,
+    },
+    /// Run the workload connector host (ADR 0132).
+    Worker {
+        #[command(subcommand)]
+        cmd: serve::WorkerCmd,
+    },
+    /// Link or run the helper programs this binary also answers as.
+    Helpers {
+        #[command(subcommand)]
+        cmd: entry::HelpersCmd,
     },
     /// Task-scoped authority (immutable ceiling + trust ratchet).
     Task {
@@ -391,20 +401,6 @@ enum CertCmd {
         #[arg(long)]
         out: Option<PathBuf>,
     },
-}
-
-#[derive(Subcommand, Debug)]
-enum DaemonCmd {
-    /// Print how to install/start the daemon binary.
-    Install,
-    /// Spawn `opensesame-daemon` in the background (best-effort).
-    Start,
-    /// Probe daemon /health.
-    Status,
-    /// Tail daemon logfile (`~/.opensesame/daemon.log`).
-    Logs,
-    /// SIGTERM via pidfile.
-    Stop,
 }
 
 #[derive(Subcommand, Debug)]
@@ -996,11 +992,11 @@ enum CompletionShell {
     reason = "this match is the stable declarative top-level Clap command dispatch catalog"
 )]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter("warn")
-        .with_writer(std::io::stderr)
-        .init();
+    if let Some(code) = entry::by_program_name() {
+        std::process::exit(code);
+    }
     let cli = Cli::parse();
+    serve::init_tracing(&cli.command);
     match cli.command {
         Commands::VaultInspect { input } => vault_migration::inspect(&input)?,
         Commands::VaultMigrate {
@@ -1311,7 +1307,10 @@ async fn main() -> anyhow::Result<()> {
             };
             dev_cmd(cmd, agent, &schema)?;
         }
-        Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
+        Commands::Daemon(args) => daemon_cmd::run(args).await?,
+        Commands::Host { cmd } => serve::host(cmd).await?,
+        Commands::Worker { cmd } => serve::worker(cmd).await?,
+        Commands::Helpers { cmd } => entry::helpers(cmd)?,
         Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Rotate { cmd } => match cmd {
@@ -1403,171 +1402,6 @@ async fn main() -> anyhow::Result<()> {
         },
     }
     Ok(())
-}
-
-async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
-    let base = url.trim_end_matches('/');
-    let home = env::var("HOME").unwrap_or_else(|_| ".".into());
-    let pidfile = env::var("OPENSESAME_DAEMON_PIDFILE")
-        .unwrap_or_else(|_| format!("{home}/.opensesame/daemon.pid"));
-    let logfile = env::var("OPENSESAME_DAEMON_LOGFILE")
-        .unwrap_or_else(|_| format!("{home}/.opensesame/daemon.log"));
-    match cmd {
-        DaemonCmd::Install => {
-            let dest = format!("{home}/.local/bin/opensesame-daemon");
-            let installed = install_daemon_binary(&home, &dest);
-            println!(
-                "{}",
-                json!({
-                    "status": if installed { "installed" } else { "ok" },
-                    "path": dest,
-                    "hint": "cargo build -p opensesame-daemon && opensesame daemon install",
-                    "listen_default": "127.0.0.1:18790",
-                    "env": ["OPENSESAME_DAEMON_LISTEN", "OPENSESAME_AGENT_LISTEN", "OPENSESAME_DAEMON_PIDFILE"]
-                })
-            );
-        }
-        DaemonCmd::Start => start_daemon(&home, &pidfile, &logfile),
-        DaemonCmd::Status => {
-            let client = reqwest::Client::new();
-            match client.get(format!("{base}/health")).send().await {
-                Ok(resp) => {
-                    let body: serde_json::Value = resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                    println!(
-                        "{}",
-                        json!({"status":"up","health": body, "pidfile": pidfile})
-                    );
-                }
-                Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
-            }
-        }
-        DaemonCmd::Logs => {
-            if let Ok(content) = std::fs::read_to_string(&logfile) {
-                let lines: Vec<&str> = content.lines().rev().take(40).collect();
-                let out: Vec<&str> = lines.into_iter().rev().collect();
-                println!("{}", out.join("\n"));
-                if out.is_empty() {
-                    println!(
-                        "{}",
-                        json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
-                    );
-                }
-            } else {
-                let client = reqwest::Client::new();
-                match client.get(format!("{base}/health")).send().await {
-                    Ok(resp) => {
-                        let body: serde_json::Value =
-                            resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                        println!(
-                            "{}",
-                            json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
-                        );
-                    }
-                    Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
-                }
-            }
-        }
-        DaemonCmd::Stop => match std::fs::read_to_string(&pidfile) {
-            Ok(raw) => {
-                let pid: u32 = raw.trim().parse().unwrap_or(0);
-                if pid == 0 {
-                    println!("{}", json!({"status":"error","error":"invalid pidfile"}));
-                } else {
-                    #[cfg(unix)]
-                    {
-                        let status = StdCommand::new("kill")
-                            .args(["-TERM", &pid.to_string()])
-                            .status();
-                        let _ = std::fs::remove_file(&pidfile);
-                        println!(
-                            "{}",
-                            json!({
-                                "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
-                                "pid": pid
-                            })
-                        );
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        println!(
-                            "{}",
-                            json!({"status":"error","error":"stop requires unix SIGTERM"})
-                        );
-                    }
-                }
-            }
-            Err(_) => println!(
-                "{}",
-                json!({"status":"not_running","hint":"no pidfile; kill opensesame-daemon manually"})
-            ),
-        },
-    }
-    Ok(())
-}
-
-fn install_daemon_binary(home: &str, dest: &str) -> bool {
-    let source = [
-        "target/debug/opensesame-daemon",
-        "target/release/opensesame-daemon",
-    ]
-    .into_iter()
-    .find(|candidate| PathBuf::from(candidate).exists());
-    let Some(source) = source else {
-        return false;
-    };
-    let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
-    if std::fs::copy(source, dest).is_err() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(dest, std::fs::Permissions::from_mode(0o755));
-    }
-    true
-}
-
-fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
-    let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
-    // The daemon's own output lands here; it is not for other accounts.
-    let mut log_opts = std::fs::OpenOptions::new();
-    log_opts.create(true).append(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        log_opts.mode(0o600);
-    }
-    let (stdout, stderr) = match log_opts.open(logfile) {
-        Ok(file) => {
-            let stderr = file.try_clone().ok();
-            (Stdio::from(file), stderr.map_or(Stdio::null(), Stdio::from))
-        }
-        Err(_) => (Stdio::null(), Stdio::null()),
-    };
-    match StdCommand::new("opensesame-daemon")
-        .stdout(stdout)
-        .stderr(stderr)
-        .spawn()
-    {
-        Ok(child) => {
-            let pid = child.id();
-            let _ = std::fs::write(pidfile, format!("{pid}\n"));
-            // Detach: forget Child so Drop doesn't kill it.
-            std::mem::forget(child);
-            println!(
-                "{}",
-                json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile})
-            );
-        }
-        Err(error) => println!(
-            "{}",
-            json!({
-                "status": "error",
-                "error": error.to_string(),
-                "hint": "build with: cargo build -p opensesame-daemon"
-            })
-        ),
-    }
 }
 
 fn dev_cmd(cmd: DevCmd, agent: bool, schema: &std::path::Path) -> anyhow::Result<()> {

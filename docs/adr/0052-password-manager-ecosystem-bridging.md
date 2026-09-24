@@ -210,7 +210,7 @@ dependencies.** Serving Bitwarden's own clients means:
   `encrypted_item_revisions` is read only by
   `Db::list_encrypted_item_revisions` (`crates/storage/src/lib.rs:925`),
   which serves the ADR 0039 backup snapshotter
-  (`apps/gateway/src/backup.rs:299`). Any future compat server stores
+  (`crates/gateway/src/backup.rs:299`). Any future compat server stores
   opaque client ciphertext there and adds no schema.
 
 **Passbolt server API compat — 2–4 engineer-months, with a structural

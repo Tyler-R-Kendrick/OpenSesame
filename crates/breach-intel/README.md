@@ -17,7 +17,7 @@ domain  →  catalogue::matches (fetched whole, matched locally)
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) — `src/breach/`
+- **Used by:** [`crates/gateway`](../../crates/gateway) — `src/breach/`
   (scanner, sources, subjects) and the `security` and `lifecycle` routes.
 - **Builds on:** [`opensesame-security-events`](../security-events) —
   `BreachEvent` converts into a `SecurityNotice` and inherits that feed's

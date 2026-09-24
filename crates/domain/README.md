@@ -13,7 +13,7 @@ provider ids.
   [`authz`](../authz), [`broker`](../broker), [`storage`](../storage),
   [`connection-broker`](../connection-broker), [`audit`](../audit),
   [`transport-security`](../transport-security) — plus
-  [`apps/gateway`](../../apps/gateway), [`apps/worker`](../../apps/worker),
+  [`crates/gateway`](../../crates/gateway), [`apps/worker`](../../apps/worker),
   [`apps/cli`](../../apps/cli), [`tests/mtls-interop`](../../tests/mtls-interop)
   and the fuzz harness in [`tests/fuzz/cargo`](../../tests/fuzz/cargo). New
   dependents should prefer the [`opensesame-core`](../core) facade, which

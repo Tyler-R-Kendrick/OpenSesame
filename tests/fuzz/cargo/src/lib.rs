@@ -1142,8 +1142,8 @@ pub fn fuzz_attachment_chunk(input: AttachmentChunkInput) {
 /// The gateway KV v2 facade's mount/path grammar, compiled straight from the
 /// gateway source so this target fuzzes the shipped parser rather than a copy
 /// that could drift from it. The file it points at is dependency-free by
-/// contract; see `apps/gateway/src/routes/kv_facade_path.rs`.
-#[path = "../../../../apps/gateway/src/routes/kv_facade_path.rs"]
+/// contract; see `crates/gateway/src/routes/kv_facade_path.rs`.
+#[path = "../../../../crates/gateway/src/routes/kv_facade_path.rs"]
 pub mod kv_v2_path;
 
 /// Vault KV v2 mount/path routing for the gateway read facade.

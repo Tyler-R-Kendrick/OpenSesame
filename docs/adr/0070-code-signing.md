@@ -61,7 +61,7 @@ have one answer for the activity ledger (§6) to be worth reading.
 
 Signer membership is its own role set — `administrator`, `operator`,
 `auditor` — resolved by the same helper that resolves application roles
-(ADR 0066 §3, forthcoming `apps/gateway/src/routes/certmgr_roles.rs`), because a
+(ADR 0066 §3, forthcoming `crates/gateway/src/routes/certmgr_roles.rs`), because a
 signer is not owned by an application: the people who may sign a release are
 usually not the people who manage that service's TLS.
 

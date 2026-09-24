@@ -85,7 +85,7 @@ hits = sorted(
 print("\n".join(hits))
 ' "${BANNED[@]}")"
 if [[ -n "$manifest_banned" ]]; then
-  echo "daemon-deps gate: FAIL — banned direct dependency in apps/daemon/Cargo.toml:" >&2
+  echo "daemon-deps gate: FAIL — banned direct dependency in crates/daemon/Cargo.toml:" >&2
   echo "$manifest_banned" >&2
   fail=1
 fi

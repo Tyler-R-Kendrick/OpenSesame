@@ -13,9 +13,9 @@ Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.m
 
 ## Context
 
-Today OpenSesame is only an ACME *client*: `apps/gateway/src/cert_issuers/acme.rs`
+Today OpenSesame is only an ACME *client*: `crates/gateway/src/cert_issuers/acme.rs`
 drives `instant-acme` against a code-pinned registry of public directories
-(`apps/gateway/src/cert_issuers/registry.rs`), and the only way to get a
+(`crates/gateway/src/cert_issuers/registry.rs`), and the only way to get a
 certificate out of OpenSesame is to ask its own API for one. Everything that
 already speaks a standard enrollment protocol — Certbot, cert-manager, win-acme,
 an EST-capable router, a SCEP-enrolling MDM fleet — has no way in.
@@ -34,7 +34,7 @@ HTTP-01. It is not. §6 and §7 pull them apart explicitly.
 
 ### 1. OpenSesame terminates ACME (RFC 8555) per profile
 
-`/acme/{profileId}/*` (forthcoming `apps/gateway/src/routes/acme_server.rs`)
+`/acme/{profileId}/*` (forthcoming `crates/gateway/src/routes/acme_server.rs`)
 implements an RFC 8555 server: `directory`, `new-nonce`, `new-account`,
 `new-order`, `authz/{authzId}`, `challenge/{challengeId}`, `finalize/{orderId}`,
 `cert/{certId}`, `revoke-cert`.
@@ -116,7 +116,7 @@ Gate: `cargo +1.88.0 test -p opensesame-gateway`
 ### 4. EST (RFC 7030) and SCEP (RFC 8894), also profile-scoped
 
 **EST** at `/.well-known/est/{profileId}/*` (forthcoming
-`apps/gateway/src/routes/est_server.rs`):
+`crates/gateway/src/routes/est_server.rs`):
 
 - `GET /cacerts` returns the profile CA's chain as a PKCS#7.
 - `POST /simpleenroll` and `POST /simplereenroll` take a PKCS#10 CSR and return
@@ -126,7 +126,7 @@ Gate: `cargo +1.88.0 test -p opensesame-gateway`
   certificate being replaced.
 
 **SCEP** at `/scep/{profileId}/pkiclient.exe` (forthcoming
-`apps/gateway/src/routes/scep_server.rs`, CMS codec in the forthcoming
+`crates/gateway/src/routes/scep_server.rs`, CMS codec in the forthcoming
 `crates/scep`):
 
 - `GetCACaps`, `GetCACert` (RA certificate and chain as PKCS#7), and
@@ -171,7 +171,7 @@ Gate: `cargo +1.88.0 test -p opensesame-gateway`
 > Every such directory is assigned the trust class `private_local` in
 > OpenSesame code, never a class supplied by the registrant. The `public_web`
 > trust class remains pinned to the code-owned registry in
-> `apps/gateway/src/cert_issuers/registry.rs` and is unreachable from
+> `crates/gateway/src/cert_issuers/registry.rs` and is unreachable from
 > configuration. ADR 0052-cert's refusals of upstream HTTP-01 and TLS-ALPN-01
 > are **not** superseded; they are restated and kept in §6. Its refusal of
 > automatic certificate deployment is superseded separately and on its own
@@ -184,7 +184,7 @@ The refusal protected the *trust class*, and it protected it by refusing the
 whole feature because there was no other mechanism at the time.
 
 There is one now. `TrustClass` is assigned in code from `IssuerKind`
-(`apps/gateway/src/cert_issuers/model.rs`), and ADR 0065's connector rules
+(`crates/gateway/src/cert_issuers/model.rs`), and ADR 0065's connector rules
 already state that "trust semantics are platform-owned … a community connector
 may propose an issuer row; trust classification is assigned in platform code
 review." A registered private directory therefore cannot claim to be
@@ -223,7 +223,7 @@ As an ACME **client**, OpenSesame continues to support DNS-01 only. ADR
   a gateway requesting certificates on behalf of services that run elsewhere;
   it has no way to place a token on a machine it does not run on. DNS-01 needs
   only a scoped DNS connection, which the broker already fences
-  (`BrokeredDns01` in `apps/gateway/src/cert_issuers/registry.rs`).
+  (`BrokeredDns01` in `crates/gateway/src/cert_issuers/registry.rs`).
 
 This is also not a competitive loss: the compared product is likewise DNS-01-only
 on its upstream client path. We are declining a capability nobody in this
@@ -266,7 +266,7 @@ None of `/acme/*`, `/.well-known/est/*`, `/scep/*` use `resolve_caller`. Each
 authenticates with its own protocol's mechanism — JWS + EAB, EST passphrase or
 bootstrap certificate, SCEP challenge — and each is scoped to exactly one
 profile by its path. They carry explicit `DefaultBodyLimit`s, `deny_unknown_fields`
-on every parsed body, and are listed in `apps/gateway/src/routes/contract.rs`'s
+on every parsed body, and are listed in `crates/gateway/src/routes/contract.rs`'s
 allowlist with a protocol-endpoint category comment, so a reviewer sees that the
 session exemption is deliberate. Each is also excluded from every agent surface:
 an enrollment endpoint is spoken by a protocol client, not by an agent.

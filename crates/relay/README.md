@@ -9,7 +9,7 @@ the gateway and the holder cannot disagree.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`src/routes/relay.rs`,
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`src/routes/relay.rs`,
   which runs `admit` at both submission and result) and
   [`opensesame-connection-broker`](../connection-broker) (`ExecutionMode` on a
   delegation).

@@ -14,8 +14,8 @@ built and tested:
 |---|---|
 | Verify-before-revoke state machine (Kani + Shuttle + fuzz) | `crates/rotation/src/lib.rs` |
 | Durable policies, jobs, orchestration | `crates/connection-broker/src/rotation.rs` |
-| HTTP surface | `apps/gateway/src/routes/rotation.rs` |
-| Expiry detection and dispatch | `apps/gateway/src/lifecycle/` (ADR 0074) |
+| HTTP surface | `crates/gateway/src/routes/rotation.rs` |
+| Expiry detection and dispatch | `crates/gateway/src/lifecycle/` (ADR 0074) |
 | Sealed-store value update | `crates/sealed-store/src/update.rs` |
 | Agent surface | `rotations.read`, `rotations.trigger`, `connections.rotate` |
 
@@ -188,7 +188,7 @@ placeholder.
 
 This ordering is a good candidate for a `pact::assert_source_order` test
 alongside the existing `rotation_authorizes_then_loads_connection_then_enqueues`
-in `apps/gateway/src/main.rs`.
+in `crates/gateway/src/lib.rs`.
 
 ## Runner contract
 
@@ -229,9 +229,9 @@ For the implementation pass. Nothing below is built yet.
 | `RotationTarget::WebLogin` + `from_parts` + DDL `CHECK` | `crates/connection-broker/src/rotation.rs`, `store.rs` |
 | Tier resolution, recipe evaluation, step IR, runner trait | new crate, e.g. `crates/rotation-web` |
 | Web-login executor dispatch | `execute_rotation` in `crates/connection-broker/src/rotation.rs` |
-| Routes for policies, teaching sessions, recordings | `apps/gateway/src/routes/rotation.rs` |
+| Routes for policies, teaching sessions, recordings | `crates/gateway/src/routes/rotation.rs` |
 | Live observation lanes, frame admission, control lease | `crates/session-observe` (exists; ADR 0081) |
-| Sealed observation log, attach ceremony, WSS relay | `crates/storage`, `apps/gateway/src/routes/rotation.rs` |
+| Sealed observation log, attach ceremony, WSS relay | `crates/storage`, `crates/gateway/src/routes/rotation.rs` |
 | Registry entries | `packages/capability-registry/src/index.ts`, then regenerate `capabilities.json` |
 
 The new crate must **not** become a daemon dependency —
@@ -297,7 +297,7 @@ The broker now calls the provider's own read-only identity endpoint through the
 `invoke-through` fences before activating a candidate. Three properties matter:
 
 - **The daemon's egress allowlist is untouched.** `EGRESS_RULES` is a static
-  that `apps/daemon` links and serves from `POST /v1/invoke_through`; adding
+  that `crates/daemon` links and serves from `POST /v1/invoke_through`; adding
   providers to it would widen that surface for callers who never asked. The
   broker passes its own `ROTATION_EGRESS_RULES` through `Invoker::with_rules`,
   and a test pins the daemon's table to `github` only.

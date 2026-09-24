@@ -1,7 +1,7 @@
 # Audit tick 61 — the operator token stays on this machine
 
 Scanners (cve-lite, semgrep, ast-grep, gitleaks, cargo-audit, cargo-deny, clippy,
-task-security-battle-test) were clean. The reading was `apps/daemon` and
+task-security-battle-test) were clean. The reading was `crates/daemon` and
 `crates/audit`.
 
 ## The daemon handed its operator token to whoever `OPENSESAME_SERVER` named (fixed)

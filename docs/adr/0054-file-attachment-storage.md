@@ -13,7 +13,7 @@ nowhere to put them. Nothing in the repository modelled a file — no attachment
 type, no chunking, no streaming encryption — and the one place bytes could
 plausibly have gone refuses the job on purpose: the Host sync plane caps a blob
 at 2 MiB, with the comment "still bounded so sync is not a file dump"
-(`apps/gateway/src/routes/sync.rs`). Raising that cap would turn an
+(`crates/gateway/src/routes/sync.rs`). Raising that cap would turn an
 authorization plane into a file server.
 
 The 1Password importer already shows the cost of the gap. `.1pux` archives

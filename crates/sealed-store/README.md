@@ -9,7 +9,7 @@ use; reveal is a human CLI concern.
 ## Where it fits
 
 - **Used by:** [`apps/cli`](../../apps/cli) (the `pass` verbs, attachments,
-  root protection, OTP), [`apps/pm-bridges`](../../apps/pm-bridges),
+  root protection, OTP), [`crates/pm-bridges`](../../crates/pm-bridges),
   [`opensesame-connector-host`](../connector-host),
   [`opensesame-kdbx-bridge`](../kdbx-bridge),
   [`opensesame-vault-item-types`](../vault-item-types), and the fuzz crate

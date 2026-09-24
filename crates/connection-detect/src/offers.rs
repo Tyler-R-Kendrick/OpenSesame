@@ -355,7 +355,7 @@ fn dotfile_path(label: &str, home: &Path, env: &BTreeMap<String, String>) -> Pat
 // ——— MCP configuration probe ——————————————————————————————————————
 
 /// MCP client configurations, relative to the home directory unless already
-/// absolute. Mirrors `apps/daemon/src/discovery.rs`.
+/// absolute. Mirrors `crates/daemon/src/discovery.rs`.
 pub const MCP_CONFIG_PATHS: &[&str] = &[
     ".mcp.json",
     ".cursor/mcp.json",

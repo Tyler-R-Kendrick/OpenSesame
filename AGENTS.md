@@ -9,13 +9,17 @@ OpenSesame is a private **authorization fabric for the agentic era**: a
 dual-plane system with a **host/client** product topology (see
 [ADR 0017](docs/adr/0017-host-client-product-topology.md)).
 
-- **Host / authority plane (Rust)** — `host-core` + Host API `apps/gateway`
-  (`:8787`): ConnectionRef → authorize → invoke → receipt. Local host agent
-  `apps/daemon` (`:18790`). Host CLI `apps/cli` (binary `opensesame`).
-  Password-manager ecosystem bridging (KDBX, keepassxc-protocol,
+- **Host / authority plane (Rust)** — one native binary, `opensesame`
+  (`apps/cli`), whose roles are subcommands ([ADR 0138](docs/adr/0138-self-issued-identity-one-native-host.md)):
+  `opensesame host run` serves the Host API (`crates/gateway`, `:8787`:
+  ConnectionRef → authorize → invoke → receipt), `opensesame daemon run` the
+  local host agent (`crates/daemon`, `:18790`), `opensesame worker run` the
+  workload connector host (`crates/worker`); linked under a helper's name it
+  answers as that credential helper or browser bridge. Password-manager
+  ecosystem bridging (KDBX, keepassxc-protocol,
   browserpass/gopass hosts, Bitwarden/Passbolt consume-clients) lives in
   `crates/kdbx-bridge`, `crates/provider-bitwarden` and the default-off
-  `apps/pm-bridges` binaries — human/device/ops plane only, never
+  `crates/pm-bridges` features — human/device/ops plane only, never
   agent-facing ([ADR 0052](docs/adr/0052-password-manager-ecosystem-bridging.md),
   [ADR 0053](docs/adr/0053-pm-bridge-binaries.md)).
 - **Client plane (Rust → Wasm + TS)** — `client-core` E2EE sync +
@@ -131,9 +135,9 @@ curl -s http://127.0.0.1:8788/v1/health/live
 
 **Host plane:**
 ```bash
-cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
-./target/debug/opensesame-gateway --listen 127.0.0.1:8787
-./target/debug/opensesame-daemon --listen 127.0.0.1:18790
+cargo build -p opensesame-cli
+./target/debug/opensesame host run --listen 127.0.0.1:8787
+./target/debug/opensesame daemon run --listen 127.0.0.1:18790
 ./target/debug/opensesame daemon status
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
 
@@ -229,9 +233,10 @@ Do not add new top-level directories or loose root files — find the group.
 | Path | Role |
 |------|------|
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
-| `apps/gateway` | Host API, `:8787` (`opensesame-gateway`) |
-| `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
-| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
+| `apps/cli` | **The native binary**, `opensesame` (`opensesame-cli`): every CLI verb incl. `pass`, and the roles `host run`, `daemon run`, `worker run`; `src/entry.rs` answers as each helper under its link name (`opensesame helpers link`) |
+| `crates/gateway` | Host API library, `:8787` (`opensesame host run`); signed provider callbacks at `/webhooks/{connection}/{route}` (`src/callback_ingress`) |
+| `crates/daemon` | Local host agent library, `:18790` (`opensesame daemon run`); its dependency budget is `pnpm audit:daemon-deps` |
+| `crates/worker` | Workload connector host library (`opensesame worker run`, ADR 0132) |
 | `crates/storage` | SQLite-backed host store; `impl Db` is split one module per responsibility (ADR 0093) |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0074) |
@@ -253,15 +258,13 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/spiffe-source` | SPIFFE Workload API X.509-SVID source → `TransportGenerations`; exact configured SPIFFE ID, per-domain bundles, snapshot replacement; SPIRE is an optional issuer (ADR 0132 §2) |
 | `crates/ingress-evidence`, `packages/ingress-evidence` | RFC 9440 `Client-Cert` / `Client-Cert-Chain` bounded parsing; accepted only from a bound ingress on a `trusted_ingress` listener (ADR 0132 §8) |
 | `crates/nats-callout` | Native `$SYS.REQ.USER.AUTH` bridge (`opensesame-nats-auth-bridge`) — NKey/JWT verification, request/response binding; a high-trust component, narrowly bound to the Host (ADR 0132 §8) |
-| `apps/gateway/src/transport` | Host transport runtime — config, admission (`ServiceCallerExtractor`), bindings CAS, status, verify probe, trust/lifecycle routes under `/api/v1/operator/transport/*` (ADR 0132) |
+| `crates/gateway/src/transport` | Host transport runtime — config, admission (`ServiceCallerExtractor`), bindings CAS, status, verify probe, trust/lifecycle routes under `/api/v1/operator/transport/*` (ADR 0132) |
 | `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
-| `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
+| `crates/credential-helpers` | git/docker/AWS/kubectl helpers — thin mint-path clients of the daemon, run as entry points of `opensesame` (ADR 0049) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
-| `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no binary yet) — per-surface cargo features, all default off (ADR 0052/0053) |
-| `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
-| `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
+| `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
 | `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/mobile-mfa` | Step-up MFA UX (against `:8788`) |
@@ -271,7 +274,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
-| `apps/worker` | Background worker |
+| `apps/worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
 | `apps/browser-extension` | WXT browser extension |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |

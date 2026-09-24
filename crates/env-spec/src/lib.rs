@@ -424,7 +424,8 @@ mod tests {
 
     #[test]
     fn bridge_roundtrip_fixture() {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/demo.env.schema");
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/demo.env.schema");
         assert!(path.exists(), "fixture missing at {}", path.display());
         let node_ok = Command::new("node").arg("--version").output().is_ok();
         if !node_ok {

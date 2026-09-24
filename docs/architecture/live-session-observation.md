@@ -245,7 +245,7 @@ For the implementation pass. Only `crates/session-observe` exists today.
 | Lease machine, frame admission, attach entitlement | `crates/session-observe` (done) |
 | Sealed observation log: append, range, tail | `crates/storage`, new migration |
 | Capture pipeline, mask solver, screencast admission | the T4 runner, alongside `crates/rotation-web` (ADR 0076) |
-| Attach ceremony, lease routes, WSS relay | `apps/gateway/src/routes/rotation.rs` |
+| Attach ceremony, lease routes, WSS relay | `crates/gateway/src/routes/rotation.rs` |
 | Park / notify events | the existing per-principal NATS inbox (`crates/authz/src/callout.rs`) |
 | Viewer: tail, seek, lane rendering, take-control | `apps/pages` — it holds the viewer key |
 | Registry entries | `packages/capability-registry`, with the routes |

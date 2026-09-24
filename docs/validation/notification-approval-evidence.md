@@ -71,7 +71,7 @@ Each was reproduced at the untouched base commit `2b7727b` in a separate
    tasks pass.
 
 2. **`pnpm audit:gitleaks` — 12 findings.** Test fixtures and PKI sample
-   material under `crates/pki-core`, `apps/gateway`, `apps/pages`,
+   material under `crates/pki-core`, `crates/gateway`, `apps/pages`,
    `packages/contracts`, `packages/webmcp`, `apps/ceremonies` and
    `docs/design`. **Identical 12 findings at base**; this work contributes
    none.

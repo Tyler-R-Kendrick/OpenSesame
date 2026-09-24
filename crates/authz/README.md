@@ -13,7 +13,7 @@ admission helpers and the Host duress deny ceilings.
 - **Used by:** [`opensesame-broker`](../broker) (authorizes every invoke),
   [`opensesame-host-core`](../host-core) (re-exported as `host_core::authz`),
   [`opensesame-nats-callout`](../nats-callout) (`CalloutPermissions`),
-  [`apps/gateway`](../../apps/gateway) (intents, relay, NATS callout, issuance
+  [`crates/gateway`](../../crates/gateway) (intents, relay, NATS callout, issuance
   preflight routes), and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`nats_callout_eval`).
 - **Builds on:** [`opensesame-domain`](../domain) (grants, validated grant

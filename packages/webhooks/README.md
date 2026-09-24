@@ -12,7 +12,7 @@ subpath.
 
 - **Used by:** [`apps/worker`](../../apps/worker) (`src/webhooks.ts` signs and posts deliveries), [`apps/control-plane`](../../apps/control-plane) (`routes/webhooks.ts` mints and masks secrets), [`packages/notification-adapters`](../notification-adapters) (generic webhook, SMS bridge and Teams adapters).
 - **Builds on:** [`@opensesame/oauth-provider`](../oauth-provider) — `./delivery` reuses its metadata safe-fetcher to refuse private destinations.
-- The Host plane speaks the same convention in Rust: [`apps/gateway/src/security/delivery.rs`](../../apps/gateway/src/security/delivery.rs) mirrors this package's constants and refusals.
+- The Host plane speaks the same convention in Rust: [`crates/gateway/src/security/delivery.rs`](../../crates/gateway/src/security/delivery.rs) mirrors this package's constants and refusals.
 - `verifyWebhook` refuses a timestamp outside five minutes and does not say which check failed, so a refusal is not a signature oracle. MACs are compared in constant time.
 - `postWebhook` sends only over HTTPS with no userinfo, to a public address resolved once and pinned, with redirects refused and a 10-second timeout.
 
@@ -35,7 +35,7 @@ pnpm --filter @opensesame/webhooks typecheck
 ```
 
 A change to the signed content or header names must land in the Rust mirror
-in `apps/gateway` at the same time.
+in `crates/gateway` at the same time.
 
 ## Related
 

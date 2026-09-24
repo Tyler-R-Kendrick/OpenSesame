@@ -39,7 +39,7 @@ as contracts and enforcement:
   connector manifest: OCI component digest, WIT world, `signaturesRequired`,
   `outbound.hosts`, per-operation `risk`/`sideEffect`/`approvalRecommended`.
 - The **outbox → claim-lease → deliver → compensate → dead-letter** saga
-  (ADR 0039, implemented twice: `apps/gateway/src/backup.rs` and
+  (ADR 0039, implemented twice: `crates/gateway/src/backup.rs` and
   `apps/worker`), and **signed digest-only webhooks** (ADR 0046 D12,
   `packages/webhooks`, Standard Webhooks HMAC): "the event is a doorbell,
   not the door."
@@ -320,7 +320,7 @@ migration order:
 
 | Family | Today | Seam | Tier | Exposure at seam |
 |---|---|---|---|---|
-| Backup / file storage | GitHub-hardcoded saga (`apps/gateway/src/backup.rs`); Dropbox-hardcoded attachment replication (`routes/attachments.rs`) | `SnapshotFile` values; `attach_replication_units()` | 1–2 now, 3 later (`backup.commit` op) | Ciphertext only, by construction |
+| Backup / file storage | GitHub-hardcoded saga (`crates/gateway/src/backup.rs`); Dropbox-hardcoded attachment replication (`routes/attachments.rs`) | `SnapshotFile` values; `attach_replication_units()` | 1–2 now, 3 later (`backup.commit` op) | Ciphertext only, by construction |
 | Certificates | Three issuers hardcoded in closed matches; not even a catalog category | `Dns01Provisioner` trait; issuer descriptor rows | 1–2 (issuer rows, brokered DNS-01) | ACME creds/keys stay host-side |
 | Identity | Flat-env descriptors + BYO rows behind `resolveTrustedIssuer` | `ProviderDescriptor` | 1 only — descriptors, never code | Descriptors carry client secrets → files carry env *references*, never values |
 | Cloud secret storage | Catalog rows are `configuration`-mode (not server-executable); human-plane argv table | `trait Connector` + WIT world | 2, then 3 after catalog promotion | Metadata at the seam; credentials host-injected |
