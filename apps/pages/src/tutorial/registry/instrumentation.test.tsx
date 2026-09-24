@@ -191,9 +191,11 @@ describe("instrumented screens", () => {
     expect(resolveGuideTargetElement("connections.provider-picker")).toBe(
       container.querySelector('button[title="Search (/)"]'),
     );
-    expect(resolveGuideTargetElement("connections.custom")?.textContent).toBe(
-      "Custom connector",
-    );
+    expect(
+      resolveGuideTargetElement("connections.custom")?.getAttribute(
+        "aria-label",
+      ),
+    ).toBe("Custom connector");
   });
 
   it("binds the connected panel", () => {

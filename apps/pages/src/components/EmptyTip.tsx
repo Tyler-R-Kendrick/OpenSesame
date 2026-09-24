@@ -15,6 +15,18 @@ export function EmptyTip({
   /** When true (default), hide on coarse pointers where a keyboard is unlikely. */
   keys?: boolean;
 }) {
+  // A keyboard tip with a touch counterpart says that one on a phone; hidden
+  // outright, it left a phone's empty state a bare "Nothing here".
+  const touch = keys && typeof children === "string" ? TOUCH[children] : null;
+  if (touch) {
+    return (
+      <p className="empty__tip" role="note">
+        <IconInfo size={14} aria-hidden="true" />
+        <span className="empty__tip-keys">{children}</span>
+        <span className="empty__tip-touch">{touch}</span>
+      </p>
+    );
+  }
   return (
     <p
       className={keys ? "empty__tip empty__tip--keys" : "empty__tip"}
@@ -35,3 +47,11 @@ export const emptyTips = {
   keymap: "Press ? to see every shortcut.",
   escBack: "Esc returns focus to the listing.",
 } as const;
+
+/** What a keyboard tip says where the pointer is a finger. */
+const TOUCH: Readonly<Record<string, string>> = {
+  [emptyTips.navigate]: "Tap a row to open it.",
+  [emptyTips.vaultMove]: "Tap an item to open it.",
+  [emptyTips.vaultEmpty]: "The + above adds the first item.",
+  [emptyTips.rail]: "The menu key at the top opens every section.",
+};

@@ -514,7 +514,9 @@
 }
 
 /* A select at the end of a switch row: as wide as its longest choice. */
+/* One width for every select in a column of rows, so their edges and
+   chevrons line up instead of each sizing to its longest option. */
 .sw__select {
-  width: auto;
+  width: 12rem;
   max-width: 100%;
 }

@@ -18,6 +18,7 @@ import {
 } from "@opensesame/app-core/lib/history-backups.js";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { IconChevronRight } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { BackupEnableSwitch } from "../connections/BackupEnableSwitch.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
@@ -112,6 +113,7 @@ export function FeatureBindingTile({
               label="No repository yet — nothing is backed up"
             />
           ) : null}
+          <IconChevronRight className="conn-tile__go" size={14} />
         </Link>
         {showSwitch ? (
           <BackupEnableSwitch

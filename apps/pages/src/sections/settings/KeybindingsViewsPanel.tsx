@@ -1,3 +1,7 @@
+import {
+  keybindingsToYaml,
+  readKeybindingsYaml,
+} from "@opensesame/app-core/lib/configuration/keybindings-yaml.js";
 import { resetKeybindings } from "@opensesame/app-core/lib/configuration/keybindings.js";
 import {
   currentKeybindings,
@@ -12,30 +16,31 @@ import { IconCheck, IconRefresh, IconStar } from "../../components/Icons.js";
 
 export function KeybindingsViewsPanel() {
   const [bindingsText, setBindingsText] = useState(() =>
-    JSON.stringify(loadKeybindings(), null, 2),
+    keybindingsToYaml(loadKeybindings()),
   );
   const [notice, setNotice] = useState("");
   const [viewName, setViewName] = useState("pending approvals");
 
   function saveBindings() {
-    try {
-      // SAFETY: JSON.parse of the textarea is decoded at this prefs boundary.
-      const result = persistKeybindings(overlapCast(JSON.parse(bindingsText)));
-      setNotice(
-        result.ok
-          ? "Keybindings saved. They do not run until the next key."
-          : result.message,
-      );
-      if (result.ok) setBindingsText(JSON.stringify(result.bindings, null, 2));
-    } catch {
-      setNotice("Keybindings must be JSON.");
+    const parsed = readKeybindingsYaml(bindingsText);
+    if (parsed === null) {
+      setNotice("Keybindings must be YAML: one key and its command per line.");
+      return;
     }
+    // SAFETY: the parsed file is decoded at this prefs boundary.
+    const result = persistKeybindings(overlapCast(parsed));
+    setNotice(
+      result.ok
+        ? "Keybindings saved. They do not run until the next key."
+        : result.message,
+    );
+    if (result.ok) setBindingsText(keybindingsToYaml(result.bindings));
   }
 
   function reset() {
     const next = resetKeybindings();
     persistKeybindings(next);
-    setBindingsText(JSON.stringify(next, null, 2));
+    setBindingsText(keybindingsToYaml(next));
     setNotice(
       "Keybindings restored to defaults. Security prefs were not changed.",
     );

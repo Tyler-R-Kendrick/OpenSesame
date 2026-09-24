@@ -1634,10 +1634,26 @@ body {
   min-width: 0;
 }
 
-/* Keyboard tips stay off touch-primary surfaces (DESIGN.md § Touch). */
+/* Keyboard tips stay off touch-primary surfaces (DESIGN.md § Touch); one
+   with a touch counterpart swaps to it there. */
+.empty__tip-touch {
+  display: none;
+}
+
 @media (pointer: coarse) {
-  .empty__tip--keys {
+  .empty__tip--keys,
+  .empty__tip-keys {
     display: none;
+  }
+
+  .empty__tip-touch {
+    display: inline;
+  }
+
+  /* A phone's empty state is one screen tall already; 3rem above and below
+     its line left the rest of the page a scroll away. */
+  .empty {
+    padding: 1.5rem 1rem;
   }
 }
 
@@ -1876,13 +1892,19 @@ body {
 }
 
 @media (max-width: 900px) {
+  /* It stays under the pane's top edge while the page scrolls, so the next
+     jump is where the last one was instead of a scroll back up. */
   .page-index {
     display: flex;
     gap: 0.4rem;
+    position: sticky;
+    top: 0;
+    z-index: 2;
     margin: 0.75rem calc(-1rem - env(safe-area-inset-right)) 0
       calc(-1rem - env(safe-area-inset-left));
-    padding: 0 calc(1rem + env(safe-area-inset-right)) 0.25rem
+    padding: 0.25rem calc(1rem + env(safe-area-inset-right)) 0.25rem
       calc(1rem + env(safe-area-inset-left));
+    background: var(--canvas);
     overflow-x: auto;
     scrollbar-width: none;
     overscroll-behavior-x: contain;

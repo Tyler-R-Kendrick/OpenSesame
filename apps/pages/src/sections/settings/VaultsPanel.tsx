@@ -11,7 +11,6 @@
  * switcher forked the key silently.
  */
 
-import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import {
   type DeviceVault,
   removeVault,
@@ -128,7 +127,7 @@ export function VaultsPanel() {
           }}
         >
           <label htmlFor="vaults-new-name">Seal a new vault</label>
-          <div className="identifier__row">
+          <div className="field-inline">
             <input
               id="vaults-new-name"
               type="text"
@@ -175,10 +174,6 @@ export function VaultsPanel() {
             <span>{error}</span>
           </p>
         ) : null}
-        <p className="hint">
-          The {PERSONAL_PROJECT_ID} vault is this device's default and cannot be
-          deleted.
-        </p>
       </div>
     </section>
   );
