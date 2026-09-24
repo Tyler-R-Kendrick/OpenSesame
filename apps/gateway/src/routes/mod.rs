@@ -38,7 +38,6 @@ mod nats_callout;
 mod protected_resource;
 mod receipts;
 mod relay;
-mod wire_connections;
 mod rotation;
 mod secret_config_policy;
 #[cfg(test)]
@@ -54,6 +53,7 @@ mod sync_page;
 mod sync_targets;
 mod taskbus_config;
 mod tasks;
+mod wire_connections;
 use crate::app_state::AppState;
 use crate::config;
 use crate::github_webhook;

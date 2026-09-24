@@ -97,7 +97,7 @@ pub fn candidate(
         signature_algorithm: None,
         key_usages: defaults.key_usages.clone(),
         ext_key_usages: defaults.ext_key_usages.clone(),
-        basic_constraints: defaults.basic_constraints.clone(),
+        basic_constraints: defaults.basic_constraints,
         ttl_seconds: Some(ttl_seconds(defaults, requested_ttl)),
     }
 }
@@ -137,7 +137,7 @@ pub fn issue(
         not_after: now + Duration::seconds(i64::try_from(ttl).unwrap_or_default()),
         key_usages: req.key_usages.clone(),
         ext_key_usages: req.ext_key_usages.clone(),
-        basic_constraints: req.basic_constraints.clone(),
+        basic_constraints: req.basic_constraints,
         crl_distribution_points: Vec::new(),
         ocsp_urls: Vec::new(),
         serial: None,
