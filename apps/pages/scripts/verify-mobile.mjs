@@ -19,7 +19,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ALWAYS_ON_TITLES, openAdvanced } from "./lib/always-on.mjs";
+import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
+import { auditSettings } from "./lib/layout-contract.mjs";
+import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import {
   AUDIT,
   PHONES,
@@ -217,48 +219,6 @@ async function vaultItem(page, stop) {
   await audit(page, stop("list"));
 }
 
-/**
- * Choose capabilities from Settings › Capabilities, at whatever width this
- * walk is running: a phone reaches sections through the drawer, a tablet
- * through the rail. Every control is tapped, because this is the touch gate.
- */
-async function chooseCapabilitiesHere(page, titles) {
-  const openSettings = async () => {
-    const drawerKey = page.getByRole("button", { name: "Sections" }).first();
-    if (await drawerKey.count()) {
-      await openTab(page, "Settings");
-      return;
-    }
-    await page.locator(".railtree__row", { hasText: "settings" }).first().tap();
-    await page.waitForTimeout(700);
-  };
-  for (const title of titles) {
-    // Always on (ADR 0135): in every plan, with no row to add it from.
-    if (ALWAYS_ON_TITLES.has(title)) continue;
-    await openSettings();
-    await page.waitForTimeout(500);
-    const tab = page.getByRole("link", { name: "Capabilities", exact: true });
-    if ((await tab.count()) === 0) {
-      harness.check(false, "settings has no Capabilities tab");
-      return;
-    }
-    await tab.tap();
-    await page.waitForTimeout(700);
-    await openAdvanced(page);
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
-    if ((await add.count()) === 0) continue;
-    await add.tap();
-    await page.waitForTimeout(600);
-    const apply = page.getByTestId("capability-apply");
-    if ((await apply.count()) === 0 || (await apply.isDisabled())) {
-      harness.check(false, `${title}: Apply was not offered`);
-      return;
-    }
-    await apply.tap();
-    await page.waitForTimeout(2200);
-  }
-}
-
 async function walk(browser, phone) {
   const { page, context } = await harness.newPage(browser, {
     device: phoneContext(phone),
@@ -281,7 +241,10 @@ async function walk(browser, phone) {
   // and a device that has chosen none has no overflow key at all
   // (ADR 0130) — so this installation chooses them, the way a person does,
   // before the walk measures what they draw.
-  await chooseCapabilitiesHere(page, ["Guided help", "Push notifications"]);
+  await chooseCapabilitiesHere(page, ["Guided help", "Push notifications"], {
+    harness,
+    openTab,
+  });
   await audit(page, stop("chosen"));
 
   await openTab(page, "Vault");
@@ -291,6 +254,7 @@ async function walk(browser, phone) {
   await openOverflowRow(page, /^Help$/, stop("more-support"));
 
   await vaultItem(page, stop);
+  await contextMenuTouchContract(page, stop, { harness, openTab, audit });
 
   // A locked reload is the screen most phone sessions actually start on.
   await openTab(page, "Vault");
@@ -326,7 +290,7 @@ async function tablet(browser, size) {
   await page.waitForTimeout(1100);
   // The strip's Support key is guided help's, so this installation chooses
   // it before the walk asks whether the key is reachable (ADR 0130).
-  await chooseCapabilitiesHere(page, ["Guided help"]);
+  await chooseCapabilitiesHere(page, ["Guided help"], { harness, openTab });
   await page.locator(".railtree__row", { hasText: "vault/" }).first().tap();
   await page.waitForTimeout(900);
   // Name the stop before any check runs, or each failure is filed under the
@@ -370,6 +334,7 @@ async function tablet(browser, size) {
     );
   }
   await audit(page, stop("vault"));
+  await auditSettings(page, (label) => audit(page, label), stop);
   await context.close();
 }
 

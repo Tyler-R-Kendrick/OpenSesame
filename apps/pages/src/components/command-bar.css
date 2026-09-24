@@ -23,6 +23,7 @@
 .command-bar__input {
   flex: 1;
   min-width: 0;
+  max-width: none;
   margin: 0;
   padding: 0.35rem 0;
   border: 0;
@@ -32,6 +33,8 @@
   /* The iOS zoom floor rides the shared token (DESIGN.md § Touch). */
   font-size: max(0.8125rem, var(--field-min));
   line-height: 1.3;
+  /* A hint that does not fit ends in an ellipsis, not mid-word at a key. */
+  text-overflow: ellipsis;
 }
 
 .command-bar__input::placeholder {
@@ -111,6 +114,14 @@
 
 .statusline__command .command-bar__form {
   min-height: 2.75rem;
+}
+
+/* The strip runs edge to edge; the field inside it does not. Its border ran
+   off the right edge of a phone, so the box read as cut rather than ended. */
+@media (max-width: 900px) {
+  .statusline__command {
+    margin-right: calc(0.5rem + env(safe-area-inset-right));
+  }
 }
 
 .statusline__command .command-bar__status {

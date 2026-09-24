@@ -35,6 +35,7 @@
 .vtree__cmd input {
   flex: 1;
   min-width: 0;
+  max-width: none;
   min-height: 0;
   border: 0;
   padding: 0;

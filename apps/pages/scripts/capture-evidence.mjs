@@ -30,6 +30,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { menuSteps } from "./lib/capture-menu-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -189,6 +190,7 @@ const STEPS = {
       await page.waitForTimeout(800);
     }
   },
+  ...menuSteps({ press }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -222,11 +224,53 @@ const STEPS = {
     await page.waitForTimeout(600);
   },
   /**
-   * Arrive at an address under the base, the way a person opens a link —
-   * an invite's fragment included.
+   * Switch an optional capability on, through Settings › Capabilities' own
+   * Add and Apply — Access, Identity and Connections are capabilities, and a
+   * guest device has none of them until it chooses (ADR 0130).
    */
-  async visit(page, address) {
-    // A cold load: a fragment-only change is a same-document navigation.
+  async enable(page, title) {
+    await STEPS.tab(page, "settings");
+    await STEPS.open(page, "Capabilities");
+    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    if (!(await add.count())) return;
+    await press(add.first());
+    await page.waitForTimeout(400);
+    await press(page.getByTestId("capability-apply"));
+    await page
+      .getByTestId("capability-review")
+      .waitFor({ state: "detached", timeout: 20_000 });
+    await page.waitForTimeout(600);
+  },
+  /** A new section loads with the app root, so a chosen one needs a reload. */
+  async reload(page) {
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(5200);
+    await STEPS.guest(page);
+  },
+  /** Follow a link to a path in the app, the way a shared deep link lands. */
+  async visit(page, route) {
+    await page.evaluate((href) => {
+      history.pushState(null, "", href);
+      dispatchEvent(new PopStateEvent("popstate"));
+    }, `${base}${route}`);
+    await page.waitForTimeout(1200);
+  },
+  /** Print each match's box, so a sheet's numbers come from the browser. */
+  async measure(page, selector) {
+    const boxes = await page.locator(selector).evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return `${Math.round(box.width)}x${Math.round(box.height)} @${Math.round(box.left)},${Math.round(box.top)}`;
+      }),
+    );
+    console.log(`  measure ${selector}: ${boxes.join(" | ") || "none"}`);
+  },
+  /**
+   * Arrive at an address under the base, the way a person opens a link —
+   * an invite's fragment included. A cold load: a fragment-only change is a
+   * same-document navigation, which `visit` is for.
+   */
+  async arrive(page, address) {
     await page.goto("about:blank");
     await page.goto(`${origin}${base}${address}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(5200);

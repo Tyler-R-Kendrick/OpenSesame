@@ -247,6 +247,44 @@ Pointer access remains complete: rows click, directories toggle, a `⋯` menu
 on the cursor or hovered row carries the verbs, and the `/` and `?` key
 chips in the path strip are buttons.
 
+The page owns its right-click (`components/context-menu/`). A right button,
+a long press (a finger or a stylus held still — recognised by the page, since
+iOS sends no event for it; the lift that ends it never also taps), `Shift+F10`,
+the Menu key, or `Shift+Enter` on a listing (for a keyboard with neither) opens
+the app's menu for whatever it landed on — the focused row, for a key — and
+every entry is a verb the page
+already has, with its key beside it, so the menu teaches the keymap rather
+than adding a second road. The `⋯` menu is the same list. A rail row offers
+open, expand/collapse, its directory's `config.yaml`, new item, copy link and
+**Show hidden items**; a Settings tab its directory's `config.yaml` too (the
+touch road, where the rail is a drawer of sections); a vault row its item verbs (`Enter e y u . s x`), or
+restore and delete in the trash; anywhere else the link, the selected text and
+the page (back, forward, reload, command bar, keys, lock). A destructive entry
+asks twice, re-labelled in place, like the detail pane's delete key. While a
+menu is open it owns every key; Escape and Tab close it and hand focus back.
+With a mouse the menu is a popover at the pointer; on a phone (coarse pointer
+or ≤900px) it is an action sheet on the bottom edge — over a scrim, in reach of
+the thumb, titled with what it is for, 44px entries — because a popover under
+a finger would cover the very row it is about and rest on the controls around
+it. The scrim's tap only dismisses; it never reaches what lies beneath.
+Two things keep the browser's own menu: a text field (paste and spelling are
+the browser's) and a right-click with Shift held.
+
+Hidden items are hidden the way a file manager hides them: the vault's
+`trash/` and every settings directory's `config.yaml` are left out of the rail
+until its menu's **Show hidden items** is checked (per device), and are drawn
+dim when they are. Hiding never closes a road — a hidden path still opens by
+link, key and command bar, and the trash row is drawn while you stand in it.
+
+Each settings directory is also a file. `settings/<category>/config.yaml`
+(route `/settings/<category>?file=config.yaml` — never a `.yaml` path, which a
+static host answers as a missing file) is that page spelled as YAML: the
+form and the file are one set of values, so a write of the file changes the
+page and a change on the page rewrites the file in place, keeping the
+person's comments. State a ceremony owns (unlock methods, approved
+capabilities) is listed read-only and a file that rewrites it is refused.
+There is no Form/YAML/TOML switch.
+
 The keyboard lands on arrival, every time. A page load, an unlock, a route
 change, a browser Back, a switched tab — each leaves focus on `<body>` unless
 the screen claims it, and from `<body>` the first Tab starts at the top of the
@@ -309,14 +347,28 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   Clipping a control to avoid an overlay is not a fix.
 - **Scrollers contain their own overscroll** and never hand a flick to the
   page behind them. A strip that scrolls (Access tabs, settings categories,
-  vault chips, the plane glyphs) keeps its selected item in view.
+  vault chips, the plane glyphs) keeps its selected item in view — by
+  scrolling the strip itself (`lib/strip.ts`), never `scrollIntoView`, which
+  also scrolls every ancestor and dragged a whole section sideways.
+- **One tab strip.** Access, Identity, Settings and Wallet draw the same flat
+  underline strip, and on a phone every one of them scrolls in one row to the
+  screen's edge. None wraps onto a second row of underlines.
+- **A long page has an index.** The section drawer names sections and nothing
+  else, so a page whose panels the desktop reaches from the rail (Settings ›
+  Security, Settings › Connections, Connections) draws the same entries from
+  the same page tree as an "On this page" strip under its tabs
+  (`components/PageIndex.tsx`) below 900px. Nothing the rail links to by name
+  is reachable only by scrolling.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
 
 None of this is a screenshot review: `pnpm --filter @opensesame/pages
 verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
-coarse-pointer context and measures every rule above. It refuses to report a
-pass from a context that lost its touch emulation, because a check that
+coarse-pointer context and measures every rule above — and, at every stop and on
+the tablets' Settings, that no key stands alone on a row
+(`KEY-ALONE-ON-A-ROW`) and no field outgrows its measure
+(`FIELD-WIDER-THAN-ITS-MEASURE`, `scripts/lib/layout-contract.mjs`). It
+refuses to report a pass from a context that lost its touch emulation, because a check that
 measures the mouse stylesheet passes for free.
 
 ## Elevation & Depth
@@ -349,7 +401,9 @@ import, save, cancel, lock, authorize, revoke, retry, load more — renders
 as an icon key: a square icon button (`icon-btn`, or `.go` for the action
 that ends the screen) whose `aria-label` and tooltip carry the sentence.
 The verb is never painted on the button. A destructive ceremony is spelled
-out in the prose beside the keys, not as a word on the key.
+out in the prose beside the keys, not as a word on the key. A menu is the
+exception by nature: a menu entry is a named choice in a list (with its key
+beside it), and an icon-only menu would be mystery meat.
 
 Text on a control is only the object of a choice: a provider, a mode, a
 navigation target, or the guest road. Never a text verb stretched across a
@@ -388,6 +442,50 @@ surface fill with a hairline for secondary, ghost for tertiary, and a
 red-tinted variant for anything destructive. One primary per view, sized to
 its content — never block-width.
 
+### Keys have a home
+A key sits on the row of the thing it acts on, at that row's end — never on
+a row of its own. A row of one or two bare glyphs under a field reads as
+belonging to whatever comes next; on a phone it spends a whole screen-width
+on a mark nobody can name without a long press. Each key has one of these
+homes, and `pnpm lint:design` (`commit-key-has-a-home`) rejects a submit key
+outside them:
+
+- **A panel's keys** (new, reload, delete this vault, prove round-trip) ride
+  its head, beside the title, vertically centred on it.
+- **A field's keys** (save these recipients, reset these bindings) ride the
+  field's label row, as wide as the field it heads, so the keys land over the
+  field's own end. A multi-line field uses `.keyed-field`: the keys follow
+  the field in the document, so Tab leaves the field for the key that saves
+  it, and the grid only draws them on the label's row. `.keyed-row` is for a
+  row whose content comes first anyway (a readout, a status).
+- **The commit of a one-field form** ends the field's row: `.field-inline`,
+  or a `FieldShell` `tail`.
+- **The commit of a form of several fields** is `FormCommit` — the `.go`
+  square with its verb beside it — because there is no single row to end,
+  and a bare glyph under the label column is the mystery meat this rule
+  exists for. The form's secondary keys (cancel, prefer) ride the same row.
+- **A record's keys** stay on the record's row. When the name and reference
+  are long they wrap; the keys fold into a block at the row's top end rather
+  than dropping to a line beneath it.
+
+### Fields have a measure
+A field is sized to the value it holds, never to the panel it sits in. A
+single-line field or select stops at `--field-max` (30rem); a code or prose
+editor at `--text-max` (46rem). A phone never reaches either, so there every
+field still fills its row. A filter in a panel head (`.head-filter`) is as
+wide as its options. Readouts that belong to a field (the strength meter)
+share its measure, and a matrix of marks (Formats) sizes its columns to what
+they hold rather than spreading them in fractions of the page. A rule that
+restates `width: 100%` for a field restates a `max-width` too — the token, or
+`none` for an overlay that must span exactly what it covers — and
+`pnpm lint:design` (`field-has-a-measure`) rejects one that does not.
+
+A head's measure belongs to its prose, not to the row: a section or panel
+head spans the document so a key or view switch in it ends the title's row
+instead of floating at the edge of a 62ch box. A list of cards drops the
+browser's list indent, and a list or grid of rows pins its track to
+`minmax(0, 1fr)` so one `nowrap` label cannot widen the page.
+
 ### Forms are records
 A form is a record being filled in, not a wall of boxes: each field is a
 row — mono label column on the left, value on the right — and inputs are
@@ -423,8 +521,11 @@ with Save and Cancel after the fields. Drop retention stays an explicit,
 unchecked custody choice; payload and expiry remain visible.
 
 ### Settings is files
-Settings' source view is a file viewer, not a second form. A category is its
-document (`settings/<category>.yaml`) plus the virtual files its providers
+Settings' files are a file viewer, not a second form, and there is no
+Form/source switch: a file is addressed like a page, `?file=<path>` on its
+directory's route, reached from the rail, the command bar or a row's open key,
+and Back returns to the form. A category is its document
+(`settings/<category>/config.yaml`) plus the virtual files its providers
 keep. For Vaults those are `settings/item-types/marketplaces.json`,
 `installed/<id>.json` and read-only `builtin/<id>.json`. The files sit as a mono
 tree, indented a step per directory, beside the open file. Selection is inverse
@@ -679,4 +780,9 @@ the global notifications panel so they remain visible from every section.
   entered every time — never a remembered device and never a recovery path.
 - **Don't** put a secret, or a hash of one, on the network.
 - **Don't** let prose run the full width of a panel.
+- **Don't** leave a key alone on a row under the field it commits; give it a
+  home (§ Keys have a home).
+- **Don't** let a field, select or filter grow to the width of its panel
+  (§ Fields have a measure).
+- **Don't** make a phone scroll a long page to reach a panel the rail names.
 - **Don't** clone Bitwarden's brand identity.

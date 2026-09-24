@@ -65,7 +65,6 @@ function Viewer({ category = "vaults" as const }) {
   return (
     <SettingsFiles
       category={category}
-      format="yaml"
       selected={selected}
       onSelect={setSelected}
     />
@@ -107,11 +106,11 @@ describe("Settings' file viewer", () => {
     installItemType(manifest("vtest"));
     render(<Viewer />);
     const list = screen.getByRole("navigation", { name: "Files" });
-    expect(list.textContent).toContain("vaults.yaml");
+    expect(list.textContent).toContain("config.yaml");
     expect(list.textContent).toContain("marketplaces.json");
     expect(list.textContent).toContain("vtest.json");
     expect(list.textContent).toContain("wifi.json");
-    expect(screen.getByLabelText("settings/vaults.yaml")).toBeTruthy();
+    expect(screen.getByLabelText("settings/vaults/config.yaml")).toBeTruthy();
   });
 
   it("shows a category with no files as its document alone", () => {

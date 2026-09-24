@@ -30,6 +30,8 @@ const REQUIRED_IN_DESIGN = [
   "Backspace",
   "Tab",
   "g v/c/a/i/w/s",
+  "Shift+F10",
+  "Shift+Enter",
 ];
 
 describe("listing keymap contract", () => {
@@ -55,6 +57,7 @@ describe("listing keymap contract", () => {
       "e / x",
       "n / .",
       "s",
+      "Shift-F10 / Shift-Enter",
       "g v/c/a/i/w/y/s",
     ]);
   });

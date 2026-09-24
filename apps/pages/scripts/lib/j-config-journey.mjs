@@ -1,11 +1,14 @@
 /**
- * J-CONFIG against the built Pages dist: Form → YAML → a comment and
- * clipboardClearSeconds 30 → Form → Save → lock → unlock → reload.
+ * J-CONFIG against the built Pages dist: the form → settings/general/
+ * config.yaml → a comment and clipboardClearSeconds 30 → write → the form →
+ * lock → unlock → reload.
  * Uses a password-sealed vault so lock/unlock is the same tomb (guest
  * isolation would open a different store).
  */
 import {
   lockVault,
+  openConfigFile,
+  openConfigForm,
   openGeneral,
   sealWithPassword,
   unlockWithPassword,
@@ -16,7 +19,7 @@ const GENERAL_SOURCE = `${COMMENT}
 theme: dark
 clipboardClearSeconds: 30
 `;
-const RAW = 'textarea[aria-label="settings/general.yaml"]';
+const RAW = 'textarea[aria-label="settings/general/config.yaml"]';
 
 async function setSource(page, yaml) {
   const source = page.locator(RAW);
@@ -33,7 +36,7 @@ async function setSource(page, yaml) {
 }
 
 async function assertDraft(page, check, label) {
-  await page.getByRole("button", { name: "YAML", exact: true }).click();
+  await openConfigFile(page, "general");
   const source = page.locator(RAW);
   await source.waitFor({ timeout: 8000 });
   await page.waitForFunction(
@@ -48,7 +51,7 @@ async function assertDraft(page, check, label) {
     `${label}: source clipboard is 30`,
   );
   check(yaml.includes("theme: dark"), `${label}: source theme is dark`);
-  await page.getByRole("button", { name: "Form", exact: true }).click();
+  await openConfigForm(page, "General");
   const clipboard = page.getByLabel("Clear copied secrets after");
   await clipboard.waitFor({ timeout: 8000 });
   check(
@@ -63,17 +66,21 @@ export async function walkJConfig({ page, origin, base, check, snap }) {
   await openGeneral(page);
   await snap(page, "J-CONFIG-form");
   await page.getByRole("button", { name: "Night" }).click();
-  await page.getByRole("button", { name: "YAML", exact: true }).click();
+  await openConfigFile(page, "general");
   await setSource(page, GENERAL_SOURCE);
   const source = page.locator(RAW);
   check(
     (await source.inputValue()).includes(COMMENT),
     "Source holds the comment before Form",
   );
-  await page.getByRole("button", { name: "Save settings" }).click();
-  await page.getByText("Saved.").waitFor({ timeout: 10000 });
-  check(true, "Save reported Saved");
-  await page.getByRole("button", { name: "Form", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Write settings/general/config.yaml" })
+    .click();
+  await page
+    .locator(".set-raw__status", { hasText: "written" })
+    .waitFor({ timeout: 10000 });
+  check(true, "the write reported written");
+  await openConfigForm(page, "General");
   const clipboard = page.getByLabel("Clear copied secrets after");
   await clipboard.waitFor({ timeout: 8000 });
   check((await clipboard.inputValue()) === "30", "Form shows clipboard 30");

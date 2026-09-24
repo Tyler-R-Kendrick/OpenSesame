@@ -1,7 +1,13 @@
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import type { JsonObject } from "@opensesame/os-domain";
 import type { Folder } from "@opensesame/vault-core";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
@@ -207,18 +213,22 @@ describe("SettingsSection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Open wifi.json" }),
     );
-    expect(
-      screen.getByRole("button", { name: "YAML" }).getAttribute("aria-pressed"),
-    ).toBe("true");
+    // No representation switch: the file is addressed like a page.
+    expect(screen.queryByRole("button", { name: "YAML" })).toBeNull();
     const files = screen.getByRole("navigation", { name: "Files" });
-    expect(files.textContent).toContain("vaults.yaml");
+    expect(files.textContent).toContain("config.yaml");
     expect(files.textContent).toContain("marketplaces.json");
     expect(
       screen.getByRole("textbox", {
         name: "settings/item-types/builtin/wifi.json",
       }),
     ).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Form" }));
+    // The directory's own tab is the road back to the form.
+    await userEvent.click(
+      within(
+        screen.getByRole("navigation", { name: "Settings sections" }),
+      ).getByRole("link", { name: "Vaults" }),
+    );
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
   });
 

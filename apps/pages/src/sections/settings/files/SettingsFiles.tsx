@@ -1,14 +1,14 @@
 /**
- * Settings' source view is a file viewer. A category is its document
- * (`settings/<category>.yaml` or `.toml`) plus whatever files its providers
- * keep — for Vaults, the item types. The list is the files as paths; the
- * pane beside it is the one that is open. A category with only its document
- * shows the document alone, as it always has.
+ * A settings directory's files. A directory is its own document
+ * (`settings/<category>/config.yaml`) plus whatever files its providers keep
+ * — for Vaults, the item types. The list is the files as paths; the pane
+ * beside it is the one that is open. A directory with only its document
+ * shows the document alone.
  */
 
 import type { SettingsCategory } from "@opensesame/app-core/lib/crumbs.js";
 import {
-  type RawFormat,
+  SETTINGS_CONFIG_FILE,
   settingsFilePath,
 } from "@opensesame/app-core/sections/settings/settings-files.js";
 import {
@@ -165,23 +165,26 @@ function FileList({
 
 export function SettingsFiles({
   category,
-  format,
-  selected,
-  onSelect,
+  selected: asked,
+  onSelect: select,
 }: {
   category: SettingsCategory;
-  format: RawFormat;
+  /** The `?file=` value: `config.yaml` is the directory's own document. */
   selected: string | null;
-  onSelect: (path: string | null) => void;
+  onSelect: (file: string | null) => void;
 }) {
   const provider = useCategoryFiles(category);
-  const document = settingsFilePath(category, format);
-  if (provider === null)
-    return <SettingsRawEditor category={category} format={format} />;
+  const document = settingsFilePath(category);
+  if (provider === null) return <SettingsRawEditor category={category} />;
 
+  // The list names the document by its full path; the address calls it by
+  // its file name, the same way the rail and the command bar do.
+  const selected = asked === SETTINGS_CONFIG_FILE ? document : asked;
+  const onSelect = (path: string | null) =>
+    select(path === document ? SETTINGS_CONFIG_FILE : path);
   const own: VirtualFile = {
     path: document,
-    language: format,
+    language: "yaml",
     readOnly: false,
     removable: false,
   };
@@ -208,7 +211,7 @@ export function SettingsFiles({
       />
       <div className="vfiles__open">
         {open.path === document ? (
-          <SettingsRawEditor category={category} format={format} />
+          <SettingsRawEditor category={category} />
         ) : (
           <VirtualFileEditor
             key={open.path}

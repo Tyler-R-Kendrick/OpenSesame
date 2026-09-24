@@ -190,9 +190,8 @@ export function SettingsMasterPasswordPanel() {
             setShowNext(true);
           }}
         />
-        <StrengthReadout next={next} nextStrength={nextStrength} />
-        <StatusNote message={rekey} />
-        <div className="actions">
+        <div className="keyed-row keyed-row--field">
+          <StrengthReadout next={next} nextStrength={nextStrength} />
           <button
             ref={rekeyRef}
             type="submit"
@@ -205,6 +204,7 @@ export function SettingsMasterPasswordPanel() {
             <IconLock size={16} />
           </button>
         </div>
+        <StatusNote message={rekey} />
       </form>
     </section>
   );

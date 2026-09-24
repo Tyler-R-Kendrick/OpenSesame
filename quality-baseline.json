@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 489,
-    "violations": 775,
-    "oversizedLines": 246098
+    "files": 488,
+    "violations": 774,
+    "oversizedLines": 246042
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -732,9 +732,6 @@
     "apps/pages/src/sections/identity/ApplicationDiagnostics.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/identity/LocalApplicationSettings.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/identity/LocalDirectoryViews.tsx": {
       "max-lines-per-function": 1
     },
@@ -800,7 +797,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines": 488,
+      "max-lines": 432,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
@@ -1264,9 +1261,6 @@
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470
-    },
-    "packages/app-core/src/sections/settings/settings-files.ts": {
-      "complexity": 1
     },
     "packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
       "max-lines": 678

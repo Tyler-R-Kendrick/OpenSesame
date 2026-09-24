@@ -29,7 +29,7 @@
       "height": 844,
       "steps": [
         {
-          "visit": "#token=osc_dlg_dlgo_0190a1b2c3d47e5f8a9b0c1d2e3f4a5b.QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ&endpoint=https%3A%2F%2Felsewhere.example"
+          "arrive": "#token=osc_dlg_dlgo_0190a1b2c3d47e5f8a9b0c1d2e3f4a5b.QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ&endpoint=https%3A%2F%2Felsewhere.example"
         },
         { "address": null },
         { "count": [".status-mark--warn"] },
@@ -42,7 +42,7 @@
       "desktop": true,
       "steps": [
         {
-          "visit": "#token=osc_dlg_dlgo_0190a1b2c3d47e5f8a9b0c1d2e3f4a5b.QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ&endpoint=https%3A%2F%2Felsewhere.example"
+          "arrive": "#token=osc_dlg_dlgo_0190a1b2c3d47e5f8a9b0c1d2e3f4a5b.QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ&endpoint=https%3A%2F%2Felsewhere.example"
         },
         { "address": null },
         { "shot": "1280-invite-link" }

@@ -1,0 +1,77 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "tab": "Vault"
+        },
+        {
+          "hold": ".vtree__row"
+        },
+        {
+          "measure": "390-hold-row"
+        },
+        {
+          "shot": "390-hold-row"
+        }
+      ]
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "tab": "Vault"
+        },
+        {
+          "hold": ".vtree__row"
+        },
+        {
+          "measure": "844-hold-row"
+        },
+        {
+          "shot": "844-hold-row"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-hold-row",
+      "width": 390,
+      "title": "A finger held on a vault row \u2014 390 \u00d7 844",
+      "caption": "Before: the lift that ends the hold also taps the row, so the phone opens the item pane and the menu is left behind in the hidden list. After: the hold is recognised by the page, the lift taps nothing, and the menu is an action sheet over a scrim.",
+      "before": "URL \u2192 /vault/<id>; menu entries measured 0px (hidden)",
+      "after": "URL stays /vault; sheet, 6 entries \u00d7 44px"
+    },
+    {
+      "shot": "844-hold-row",
+      "width": 844,
+      "title": "The same hold, landscape \u2014 844 \u00d7 390",
+      "caption": "The sheet keeps the phone arrangement in landscape: a long menu scrolls inside itself rather than running off the 390px screen.",
+      "before": "URL \u2192 /vault/<id>; menu entries 0px",
+      "after": "URL stays /vault; sheet, 44px entries, scrolls within itself"
+    }
+  ]
+}

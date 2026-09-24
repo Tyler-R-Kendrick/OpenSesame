@@ -71,6 +71,8 @@ export function PageTreeLeafRow({
       selectTo={node.selectTo}
       selected={selected}
       isActive={selected}
+      kind={node.kind}
+      hidden={node.hidden}
     >
       <span className="railtree__name">
         {node.label}
@@ -99,7 +101,10 @@ export function PageTreeBranch({
 }) {
   const navigate = useNavigate();
   const { expanded, toggle } = useBranchExpand();
-  const selected = rowSelected(current, node);
+  // A closed directory stands in for its own `config.yaml` while you are
+  // in it, so the rail still marks where you are.
+  const selected =
+    rowSelected(current, node) || (!expanded && current === node.config);
   const shown = pageTreeItemCount(node) || "-";
   return (
     <>
@@ -111,6 +116,7 @@ export function PageTreeBranch({
         expanded={expanded}
         selected={selected}
         isActive={selected}
+        config={node.config}
         onToggle={() => {
           toggle();
           navigate(node.href);

@@ -80,7 +80,8 @@
         "2026-09-17: javascript 4300->4330 because product-experience Visual/Source prefs add a lazy yaml-patch chunk (~101 KiB / ~32 KiB gzip) for comment-preserving prefs edits. Measured CI 4316 KiB javascript (gzip still under 1240). Keep ~0.3% headroom.",
         "2026-09-20: css 139->147 because verify:mobile needed LED wordmark board",
         "scaling on the door/unlock brand, plus 44px floors for Settings Form/YAML/",
-        "TOML and the unlock guest chip. Measured CI 140 KiB; budget keeps ~5% headroom."
+        "TOML and the unlock guest chip. Measured CI 140 KiB; budget keeps ~5% headroom.",
+        "2026-09-23: css 160->165 because Settings/Connections PageIndex + field-measure and key-home styling (#486) measured 161 KiB; keep ~2% headroom."
       ],
       "budgets": {
         "total": 17900,
@@ -99,7 +100,7 @@
           "KiB of the old item-type rules removed. Measured 156.9 KiB; the",
           "budget keeps ~2% headroom."
         ],
-        "css": 160,
+        "css": 165,
         "largestAsset": 12800
       }
     },

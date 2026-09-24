@@ -5,8 +5,8 @@ import {
 } from "@opensesame/app-core/lib/identity-management.js";
 import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import {
-  IconCheck,
   IconPlus,
   IconRefresh,
   IconTrash,
@@ -196,16 +196,10 @@ function AgentsForm({
           </p>
         </div>
       ) : null}
-      <div className="actions">
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={busy || !online || !draft.name.trim()}
-          aria-label="Save agent"
-          title="Save agent"
-        >
-          <IconCheck size={16} />
-        </button>
+      <FormCommit
+        label="Save agent"
+        disabled={busy || !online || !draft.name.trim()}
+      >
         <button
           type="button"
           className="icon-btn"
@@ -216,7 +210,7 @@ function AgentsForm({
         >
           <IconX size={16} />
         </button>
-      </div>
+      </FormCommit>
     </form>
   );
 }

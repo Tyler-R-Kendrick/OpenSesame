@@ -1,34 +1,45 @@
 /**
- * Which representation Settings shows — the Form, or the file viewer in a
- * spelling — and which file the viewer has open. The open file is kept per
- * category, so moving to another category opens that one's own document.
+ * Which file Settings has open, if any. There is no Form / source switch: a
+ * settings directory's files are addressed like pages, `?file=<path>` on the
+ * directory's own route — `config.yaml` for the directory's own document,
+ * a provider's path (an item type's JSON) for the rest. The rail, the
+ * command bar and a Form row's open key all arrive the same way, and Back
+ * returns to the form.
+ *
  * `fileNav` is what a Form row calls to open the file it is drawn from.
  */
-import type { RawFormat } from "@opensesame/app-core/sections/settings/settings-files.js";
-import { useMemo, useState } from "react";
+import {
+  settingsFileFromSearch,
+  settingsFileRoute,
+  settingsPath,
+} from "@opensesame/app-core/lib/crumbs.js";
+import { useMemo } from "react";
+import { useNavigate } from "react-router";
+import { scrollToPanel } from "../../../lib/scroll-panel.js";
 import type { SettingsFileNav } from "./context.js";
 
-export function useSettingsFileNav(category: string) {
-  const [representation, setRepresentation] = useState<"form" | RawFormat>(
-    "form",
-  );
-  const [opened, setOpened] = useState<{
-    category: string;
-    path: string | null;
-  }>();
-  const openPath = opened?.category === category ? opened.path : null;
-  const setOpenPath = (path: string | null) => setOpened({ category, path });
+export function useSettingsFileNav(category: string, search: string) {
+  const navigate = useNavigate();
+  const openPath = settingsFileFromSearch(search);
   const fileNav = useMemo<SettingsFileNav>(
     () => ({
       openFile: (path: string) => {
-        setOpened({ category, path });
-        setRepresentation((current) => (current === "form" ? "yaml" : current));
-        document
-          .querySelector(".section__inner")
-          ?.scrollIntoView?.({ block: "start" });
+        navigate(settingsFileRoute(category, path));
+        const pane = document.querySelector(".section__inner");
+        if (pane instanceof HTMLElement) scrollToPanel(pane);
       },
     }),
-    [category],
+    [category, navigate],
   );
-  return { representation, setRepresentation, openPath, setOpenPath, fileNav };
+  const setOpenPath = (path: string | null) => {
+    // Moving between a directory's files replaces the entry, so Back still
+    // returns to the form rather than walking every file that was opened.
+    navigate(
+      path === null
+        ? settingsPath(category)
+        : settingsFileRoute(category, path),
+      { replace: true },
+    );
+  };
+  return { openPath, setOpenPath, fileNav };
 }

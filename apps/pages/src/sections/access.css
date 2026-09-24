@@ -64,19 +64,6 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* Six tabs do not fit a phone in one row; the hairline stays one line and
-   the strip scrolls, as the setup tabs do. */
-@media (max-width: 480px) {
-  .access-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
-
-  .access-tab {
-    white-space: nowrap;
-  }
-}
-
 .access-tab {
   display: inline-flex;
   align-items: center;
@@ -89,6 +76,8 @@
   color: var(--ink-2);
   font: inherit;
   font-size: 0.875rem;
+  /* A route link, drawn as a tab: no link underline beside the tab's own. */
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -134,7 +123,11 @@
   color: var(--ink-2);
 }
 
+/* A reference chip is as wide as the reference; in a grid cell it used to
+   stretch into a grey bar across the card. */
 .access-ref {
+  justify-self: start;
+  max-width: 100%;
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--ink-3);
@@ -450,6 +443,7 @@
   margin: 0 0 1rem;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
 }
 
@@ -470,7 +464,7 @@
 }
 
 .access-resource__id {
-  flex: 1 1 14rem;
+  flex: 1 1 auto;
   min-width: 0;
   display: grid;
   gap: 0.125rem;
@@ -482,10 +476,14 @@
   line-height: 1.35;
 }
 
+/* Who holds the resource is a list of names, and a list wraps: kept on one
+   line it made the card, then the page, wider than a phone. */
 .access-resource__meta {
+  flex: 1 1 100%;
+  min-width: 0;
   color: var(--ink-2);
   font-size: 0.8125rem;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* --- task runs ------------------------------------------------------------ */

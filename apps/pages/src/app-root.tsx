@@ -18,6 +18,7 @@ import {
   useLocation,
 } from "react-router";
 import { Wrapped } from "./components/ShellWrappers.js";
+import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
 
 import type {
   RouteContribution,
@@ -377,6 +378,9 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   );
 
   return (
-    <AppSlotsContext.Provider value={resolved}>{body}</AppSlotsContext.Provider>
+    <AppSlotsContext.Provider value={resolved}>
+      {body}
+      <ContextMenuLayer />
+    </AppSlotsContext.Provider>
   );
 }

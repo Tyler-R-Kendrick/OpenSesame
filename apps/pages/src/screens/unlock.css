@@ -363,6 +363,8 @@
   position: absolute;
   inset: 0;
   width: 100%;
+  /* An overlay on the painted code: it spans exactly what it covers. */
+  max-width: none;
   padding: 0;
   border: 0;
   background: transparent;

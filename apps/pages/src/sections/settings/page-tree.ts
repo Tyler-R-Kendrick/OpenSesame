@@ -4,11 +4,19 @@ import {
   settingsPath,
 } from "@opensesame/app-core/lib/crumbs.js";
 import { settingsTabsSnapshot } from "@opensesame/app-core/sections/settings-section-nav-model.js";
+import {
+  SETTINGS_CONFIG_FILE,
+  settingsConfigRoute,
+} from "@opensesame/app-core/sections/settings/settings-files.js";
 import { type PageTreeSource, pageTabTree } from "../../lib/page-to-tree.js";
 
 /** Live lists a Settings tab may mirror (Vaults on this device). */
 export type SettingsRailSnapshot = {
   vaults?: readonly { id: string; label: string }[];
+  /** List each directory's `config.yaml` (the rail's "show hidden items"). */
+  showHidden?: boolean;
+  /** The rail's current path: a hidden file is drawn while you stand in it. */
+  current?: string;
 };
 
 function panel(
@@ -78,7 +86,20 @@ export function settingsPageSources(
     label: tab.label,
     href: settingsPath(tab.id),
     keepEmpty: true,
+    config: settingsConfigRoute(tab.id),
     sections: sectionsFor(tab.id, snapshot),
+    items:
+      snapshot.showHidden || snapshot.current === settingsConfigRoute(tab.id)
+        ? [
+            {
+              id: `${tab.id}-config`,
+              label: SETTINGS_CONFIG_FILE,
+              href: settingsConfigRoute(tab.id),
+              hidden: true,
+              kind: "file",
+            },
+          ]
+        : undefined,
   }));
 }
 

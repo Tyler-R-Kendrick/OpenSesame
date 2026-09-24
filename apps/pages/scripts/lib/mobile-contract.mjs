@@ -12,6 +12,8 @@
  * journey that drives it lives in `verify-mobile.mjs`.
  */
 
+import { LAYOUT_AUDIT } from "./layout-contract.mjs";
+
 /** The product floor. A finger is ~9mm; 44 CSS px is the smallest honest key. */
 export const TOUCH_FLOOR = 44;
 
@@ -321,6 +323,11 @@ export const AUDIT =
       spans.length > 0 ? document.querySelector(".topbar") : null,
     );
   }
+
+  // 9-10. Where keys sit and how wide fields grow (lib/layout-contract.mjs).
+  for (const fault of (` +
+  LAYOUT_AUDIT +
+  String.raw`)()) faults.push(fault);
 
   // Reported so the journey can refuse to trust a run that lost its
   // emulation: a check that measures the mouse stylesheet passes for free.

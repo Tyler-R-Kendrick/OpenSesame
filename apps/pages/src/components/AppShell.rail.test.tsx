@@ -69,8 +69,8 @@ describe("AppShell rail navigation", () => {
     expect(logins.textContent).toContain("2");
     const cards = filterLink(container, "/vault?f=card", "cards");
     expect(cards.textContent).toContain("-");
-    const trash = filterLink(container, "/vault?f=trash", "trash");
-    expect(trash.textContent).toContain("1");
+    // `trash/` is a hidden entry: listed once the rail shows hidden items.
+    expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
   });
   it("lists folders with their live item counts", () => {
     const { container } = renderShell("/vault");

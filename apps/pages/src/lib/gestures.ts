@@ -8,8 +8,9 @@
  * - `swipeBack` — dragging a pane rightwards goes back, the same move as the
  *   ← key in the pathbar. It is the platform's own back idiom on both iOS
  *   and Android, so it needs no teaching.
- * - `longPress` — holding a row opens its `⋯` menu, because a finger has no
- *   hover to reveal one with and no right button to ask for it.
+ * - `longPress` — holding anything opens its context menu (the page's
+ *   recogniser in `components/context-menu/context-menu-input.ts`), because
+ *   a finger has no hover to reveal a `⋯` with and no right button to ask.
  *
  * Both are written against Pointer Events, so a stylus and a touch laptop
  * behave like a finger and a mouse keeps its own paths untouched.

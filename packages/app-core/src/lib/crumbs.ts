@@ -166,6 +166,39 @@ export function settingsCategoryFromLocation(
   return settingsCategoryFromHash(hash) ?? "general";
 }
 
+/** The file name every settings directory carries. */
+export const SETTINGS_CONFIG_FILE = "config.yaml";
+
+/**
+ * A settings directory's `config.yaml`: the directory's own route with the
+ * file named in the query. Not a path segment — a static host answers a
+ * missing path that ends in `.yaml` as a missing file, so a reload or a
+ * shared link would never reach the app.
+ */
+export function settingsConfigRoute(category: string): string {
+  return settingsFileRoute(category, SETTINGS_CONFIG_FILE);
+}
+
+/**
+ * Any file a settings directory keeps, by its path (`config.yaml` is the
+ * directory's own; the rest are its providers', such as an item type's
+ * `settings/item-types/installed/<id>.json`).
+ */
+export function settingsFileRoute(category: string, file: string): string {
+  return `${settingsPath(category)}?file=${encodeURIComponent(file)}`;
+}
+
+/** The file a settings location has open, or null for the form. */
+export function settingsFileFromSearch(search: string): string | null {
+  const file = new URLSearchParams(search).get("file");
+  return file === null || file === "" ? null : file;
+}
+
+/** Whether a settings location is showing its directory's `config.yaml`. */
+export function isSettingsConfigSearch(search: string): boolean {
+  return new URLSearchParams(search).get("file") === SETTINGS_CONFIG_FILE;
+}
+
 export function settingsPath(category: string, hash = ""): string {
   const base = category === "general" ? "/settings" : `/settings/${category}`;
   const fragment = hash.replace(/^#/, "");
@@ -193,7 +226,7 @@ export function crumbsFor(
   const segment = parts[0];
   if (segment === undefined) return [];
   if (segment === "vault") return vaultCrumbs(parts, params, ctx);
-  if (segment === "settings") return settingsCrumbs(parts);
+  if (segment === "settings") return settingsCrumbs(parts, params);
   const section = contributionsSnapshot("section").find(
     (entry) => entry.segment === segment,
   );
@@ -321,8 +354,19 @@ function walletCrumbs(parts: string[]): Crumb[] {
   ];
 }
 
-function settingsCrumbs(parts: string[]): Crumb[] {
+function settingsCrumbs(parts: string[], params: URLSearchParams): Crumb[] {
   const category = parts[1];
+  const aliased = category ? SETTINGS_HASH_ALIAS.get(category) : undefined;
+  const named = aliased ?? category ?? "general";
+  const file = params.get("file");
+  if (isSettingsCategory(named) && file) {
+    // A directory's file: the directory is a link, the file is where you are.
+    return [
+      { label: "Settings", to: "/settings" },
+      { label: settingsCategoryLabel(named), to: settingsPath(named) },
+      { label: file.slice(file.lastIndexOf("/") + 1) },
+    ];
+  }
   if (category === "connections" && parts[2]) {
     const provider = decodeURIComponent(parts[2]);
     const crumbs: Crumb[] = [
@@ -339,9 +383,7 @@ function settingsCrumbs(parts: string[]): Crumb[] {
     }
     return crumbs;
   }
-  const aliased = category ? SETTINGS_HASH_ALIAS.get(category) : undefined;
-  const named = aliased ?? category;
-  if (!named || !isSettingsCategory(named) || named === "general") {
+  if (!isSettingsCategory(named) || named === "general") {
     return [{ label: "Settings" }];
   }
   return [

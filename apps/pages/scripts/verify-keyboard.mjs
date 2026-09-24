@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 // Real keyboard input only: no click(), focus(), or synthetic keydown setup.
 import { expect } from "@playwright/test";
 import { approveByKeyboard } from "./lib/capability-keyboard-contract.mjs";
+import { contextMenuKeyboardContract } from "./lib/context-menu-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -200,12 +201,20 @@ try {
       await expect(items).toBeFocused();
       await tabTo(page, rail, "Shift+Tab");
       const before = page.url();
-      // The section arrives open: the first stop is its own listing (the page
-      // already shown), the second previews the favorites filter.
+      // A directory starts open only when the shell mounted on it, and the
+      // capability walk above remounted it on Settings: open vault/ the way a
+      // person does, with the cursor on it.
+      const vaultRow = rail.locator('[aria-expanded="false"]', {
+        hasText: /^vault\//,
+      });
+      if (await vaultRow.count()) await page.keyboard.press("ArrowRight");
+      // The first stop is the section's own listing (the page already shown),
+      // the second previews the favorites filter.
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("ArrowDown");
       await expect(page).not.toHaveURL(before);
       await expect(rail).toBeFocused();
+      await contextMenuKeyboardContract(page);
       await page.keyboard.press("Tab");
       await expect(rail).not.toBeFocused();
     }

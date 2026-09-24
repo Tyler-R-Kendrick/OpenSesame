@@ -10,6 +10,7 @@ import {
   walletPath,
 } from "@opensesame/app-core/lib/crumbs.js";
 import { Link, useLocation } from "react-router";
+import { useStripItem } from "../lib/strip.js";
 import "./identity.css";
 import "./settings.css";
 import { BudgetsPanel } from "./wallet/BudgetsPanel.js";
@@ -23,8 +24,10 @@ function CategoryLink({
   category: WalletCategory;
   current: boolean;
 }) {
+  const stripRef = useStripItem<HTMLAnchorElement>(current);
   return (
     <Link
+      ref={stripRef}
       to={walletPath(category)}
       className="set__nav-link"
       aria-current={current ? "page" : undefined}

@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { setShowHidden } from "./pages-journey.mjs";
 
 /**
  * Verify the actual New link and keyboard command agree with the active view.
@@ -24,6 +25,15 @@ export async function checkEditorRoutes(page, check) {
       `${gated}: the listing is absent until its capability is approved`,
     );
   }
+  // `trash/` is a hidden entry: the rail lists it once its context menu's
+  // "Show hidden items" is checked, and not before.
+  check(
+    (await page
+      .locator('.railtree__kids a[href$="/vault?f=trash"]')
+      .count()) === 0,
+    "trash: hidden from the rail by default",
+  );
+  await setShowHidden(page, true);
   for (const filter of ["all", "favorites", "trash", "login"]) {
     const query = filter === "all" ? "" : `?f=${filter}`;
     const expected = filter === "login" ? `/vault/new/${filter}` : "/vault/new";
@@ -55,4 +65,5 @@ export async function checkEditorRoutes(page, check) {
       await page.getByRole("link", { name: "Cancel", exact: true }).click();
     }
   }
+  await setShowHidden(page, false);
 }
