@@ -1,6 +1,6 @@
 # Travel mode
 
-Design: [ADR 0140](../adr/0140-travel-mode.md). Research:
+Design: [ADR 0143](../adr/0143-travel-mode.md). Research:
 [`docs/research/travel-mode.md`](../research/travel-mode.md).
 
 Travel mode lets you cross a border carrying only the vaults that are safe

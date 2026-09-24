@@ -1,5 +1,5 @@
 /**
- * The pieces of Settings › Vaults › Travel (ADR 0140), drawn from state the
+ * The pieces of Settings › Vaults › Travel (ADR 0143), drawn from state the
  * panel holds. Nothing here reads storage or a secret beyond what it is
  * handed: the return code is shown once, as text to write down — never put
  * on the clipboard, which keeps its own history.

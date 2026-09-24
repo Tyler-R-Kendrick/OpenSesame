@@ -1,5 +1,5 @@
 /**
- * Settings › Vaults › Travel (ADR 0140).
+ * Settings › Vaults › Travel (ADR 0143).
  *
  * Mark the vaults that are safe to carry; the rest leave this device in a
  * bundle sealed under a return code, and come back from both. The panel

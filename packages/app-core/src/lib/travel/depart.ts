@@ -1,6 +1,6 @@
 /**
  * Departure: pack the vaults that are not safe for travel, then take them
- * off this device (ADR 0140).
+ * off this device (ADR 0143).
  *
  * Two steps, on purpose. `packDeparture` writes nothing: it reads every file
  * of every departing vault, seals them into a bundle under a fresh return

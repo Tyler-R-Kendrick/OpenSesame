@@ -48,7 +48,7 @@ async function sealedView(tomb: string): Promise<string> {
   return new TextDecoder().decode(await readFile(tomb, PROJECTS_CONFIG_PATH));
 }
 
-describe("a vault that left is not listed by its siblings (ADR 0140)", () => {
+describe("a vault that left is not listed by its siblings (ADR 0143)", () => {
   it("scrubs the name from a sibling's sealed view on its next unlock", async () => {
     const { store, work, trip } = await personalWithTwoProjects();
     // Personal's own view still names Work: it was written while open.

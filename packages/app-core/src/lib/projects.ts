@@ -171,7 +171,7 @@ export function rehydrateProjects(): void {
   emit();
 }
 
-/** Re-read the list after tombs arrived or left underneath it (ADR 0140). */
+/** Re-read the list after tombs arrived or left underneath it (ADR 0143). */
 export async function refreshProjectsView(): Promise<void> {
   if (activeTomb && tombUnlocked(activeTomb)) {
     await hydrateProjectsFromVfs(activeTomb);
@@ -193,7 +193,7 @@ export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
     // The vaults are the ones on this device (the boot view's set, plus any
     // still under pre-tomb keys), named from the sealed view. A sibling that
     // left while this tomb was locked (deleted, or departed for travel, ADR
-    // 0140) is scrubbed from the view.
+    // 0143) is scrubbed from the view.
     cached = withKnownNames(bootView(await legacyVaults(sealed)), sealed);
     const present = new Set(cached.projects.map((project) => project.id));
     if (sealed.projects.some((project) => !present.has(project.id))) {
@@ -432,7 +432,7 @@ async function deleteProjectDefault(id: string): Promise<void> {
 }
 
 /**
- * Forget vaults that just left this device for travel (ADR 0140): their
+ * Forget vaults that just left this device for travel (ADR 0143): their
  * tombs are already gone, so only the list and the active pointer change.
  * The open tomb's sealed view is rewritten without them; any other tomb's
  * view is scrubbed the next time it is unlocked (`hydrateProjectsFromVfs`).

@@ -1,5 +1,5 @@
 /**
- * The return code: the one secret that opens a travel bundle (ADR 0140).
+ * The return code: the one secret that opens a travel bundle (ADR 0143).
  *
  * 18 random bytes and a 2-byte check, written as 32 base32 characters in
  * groups of four. It is shown once, at departure, and never stored on this

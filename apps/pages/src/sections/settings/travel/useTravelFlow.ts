@@ -1,5 +1,5 @@
 /**
- * The state behind Settings › Vaults › Travel (ADR 0140): which vaults are
+ * The state behind Settings › Vaults › Travel (ADR 0143): which vaults are
  * marked safe, the packed bundle while it waits for both acknowledgements,
  * and the bundle and code on the way home.
  */

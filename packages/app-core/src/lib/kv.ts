@@ -48,7 +48,7 @@ function fileName(key: string): string {
 }
 
 /**
- * The origin file a key is stored in. Travel mode (ADR 0140) moves a vault
+ * The origin file a key is stored in. Travel mode (ADR 0143) moves a vault
  * at this layer — every file of a tomb, including ones no module hydrated —
  * so it needs the storage layer's own name for a key.
  */

@@ -4256,15 +4256,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
-        "adr": "0140-travel-mode.md"
+        "adr": "0143-travel-mode.md"
       },
       "mcp_client": {
         "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
-        "adr": "0140-travel-mode.md"
+        "adr": "0143-travel-mode.md"
       },
       "webmcp": {
         "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
-        "adr": "0140-travel-mode.md"
+        "adr": "0143-travel-mode.md"
       }
     }
   },

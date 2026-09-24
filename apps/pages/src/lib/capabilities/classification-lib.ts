@@ -287,7 +287,7 @@ export const LIB_RULES = [
     "vault.local-unlock",
     "duress slots, fence, compartments and alerting",
   ),
-  // Travel mode (ADR 0140) moves whole vaults off the device and back; it
+  // Travel mode (ADR 0143) moves whole vaults off the device and back; it
   // belongs with the device's vault list, under the core unlock capability.
   core(
     `${L}travel/`,

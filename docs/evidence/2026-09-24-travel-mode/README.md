@@ -1,7 +1,7 @@
 # Travel mode — visual evidence
 
 Change: Settings › Vaults gains a **Travel** panel
-([ADR 0140](../../adr/0140-travel-mode.md)). You mark the vaults that are
+([ADR 0143](../../adr/0143-travel-mode.md)). You mark the vaults that are
 safe for travel. The rest are packed into a bundle under a return code, then
 taken off the device once you confirm both are stored somewhere else.
 

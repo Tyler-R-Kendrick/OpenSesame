@@ -1,5 +1,5 @@
 /**
- * The Vaults category of Settings: the vault switcher, travel (ADR 0140),
+ * The Vaults category of Settings: the vault switcher, travel (ADR 0143),
  * then the item types those vaults can hold (`item-types/`, ADR 0087 §7 and
  * ADR 0134).
  */

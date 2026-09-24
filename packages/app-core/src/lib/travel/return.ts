@@ -1,6 +1,6 @@
 /**
  * Return: put departed vaults back from their bundle and return code
- * (ADR 0140).
+ * (ADR 0143).
  *
  * `openReturn` reads the bundle and says, vault by vault, what would happen;
  * `completeReturn` does it. A vault comes home exactly as it left — every

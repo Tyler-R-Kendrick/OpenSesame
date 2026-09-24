@@ -1,6 +1,6 @@
 # Travel mode — 1Password's design and the state of the art
 
-> Research behind [ADR 0140](../adr/0140-travel-mode.md). Checked
+> Research behind [ADR 0143](../adr/0143-travel-mode.md). Checked
 > 2026-09-24. Sources are linked inline. Where a point is an inference and
 > not a documented fact, it says so.
 
@@ -103,4 +103,4 @@ OpenSesame Pages has no server to hold the vaults that stay home
 ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md)). So the
 place they go is the answer to lesson 1: a **bundle** sealed under a
 **return code**, both kept off the carried device. The design is in
-[ADR 0140](../adr/0140-travel-mode.md).
+[ADR 0143](../adr/0143-travel-mode.md).

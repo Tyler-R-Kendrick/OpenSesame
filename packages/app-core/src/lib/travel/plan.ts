@@ -1,5 +1,5 @@
 /**
- * Which vaults travel and which stay home (ADR 0140). Pure.
+ * Which vaults travel and which stay home (ADR 0143). Pure.
  *
  * The person names the vaults that are safe to carry; every other sealed
  * vault on the device departs. That is 1Password's "safe for travel" rule

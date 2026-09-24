@@ -67,7 +67,7 @@ afterEach(() => {
   Object.assign(vaultHooksSeams, originalHooks);
 });
 
-describe("Settings › Vaults › Travel (ADR 0140)", () => {
+describe("Settings › Vaults › Travel (ADR 0143)", () => {
   it("offers nothing to a guest", () => {
     guest = true;
     render(<TravelPanel />);

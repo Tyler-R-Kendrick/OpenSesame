@@ -1,6 +1,6 @@
 /**
  * The travel bundle: every stored file of the vaults that left this device,
- * sealed once more under the return code's key (ADR 0140).
+ * sealed once more under the return code's key (ADR 0143).
  *
  * The files inside are what the origin held — a vault's ciphertext, its
  * plaintext header, its lockout counter — byte for byte, so a vault comes

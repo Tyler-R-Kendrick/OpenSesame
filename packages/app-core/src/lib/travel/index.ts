@@ -1,5 +1,5 @@
 /**
- * Travel mode (ADR 0140): cross a border carrying only the vaults that are
+ * Travel mode (ADR 0143): cross a border carrying only the vaults that are
  * safe to carry. The rest leave this device whole, sealed in a bundle under
  * a return code the traveller does not carry, and come back from both.
  */

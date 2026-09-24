@@ -1,5 +1,5 @@
 /**
- * Where a vault lives in this origin's storage, file by file (ADR 0140).
+ * Where a vault lives in this origin's storage, file by file (ADR 0143).
  *
  * A vault is more than its body: its tomb holds the header, the sealed index
  * and a config file per module, and a few plaintext records (the lockout

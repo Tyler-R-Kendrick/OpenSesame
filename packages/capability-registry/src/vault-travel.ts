@@ -1,7 +1,7 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
- * Travel mode (ADR 0140): the vaults not safe to carry leave the device in a
+ * Travel mode (ADR 0143): the vaults not safe to carry leave the device in a
  * bundle under a return code the traveller does not carry, and come back
  * from both. Which vaults leave, and bringing them home, is the person's
  * decision before and after a border; an agent that could do either could
@@ -10,7 +10,7 @@ import type { Capability, CapabilityExclusion } from "./index.js";
 const TRAVELLER_ONLY: CapabilityExclusion = {
   reason:
     "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
-  adr: "0140-travel-mode.md",
+  adr: "0143-travel-mode.md",
 };
 
 export const vaultTravelCapabilities: readonly Capability[] = [

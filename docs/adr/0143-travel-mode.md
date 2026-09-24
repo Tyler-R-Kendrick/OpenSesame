@@ -1,4 +1,4 @@
-# ADR 0140 — Travel mode
+# ADR 0143 — Travel mode
 
 - Status: Accepted
 - Date: 2026-09-24
