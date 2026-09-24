@@ -9,7 +9,7 @@ into versioned, SRI-pinned artifacts under
 
 ## Where it fits
 
-- **Used by:** [`apps/pages`](../../apps/pages) (`screens/LocalAuthorize.tsx`, the `identity.site-broker` module, local agent keys), [`packages/app-core`](../app-core), [`apps/control-plane`](../../apps/control-plane) (interoperability test and browser fixture), [`examples/static-rp`](../../examples/static-rp).
+- **Used by:** [`apps/pages`](../../apps/pages) (`screens/LocalAuthorize.tsx`, the `identity.site-broker` module, local agent keys), [`packages/app-core`](../app-core), [`packages/control-plane`](../../packages/control-plane) (interoperability test and browser fixture), [`examples/static-rp`](../../examples/static-rp).
 - **Builds on:** [`@opensesame/sdk-browser`](../sdk-browser) (PKCE, origin canonicalization, JWT envelope), [`@opensesame/os-domain`](../os-domain), `jose`.
 - `hosted_identity` is the recommended remote-RP profile: authorization code with PKCE S256, an issuer, client, redirect and endpoints fixed by the RP (no discovery or callback metadata may replace them), and an ID token verified against the configured JWKS. No client secret reaches the browser.
 - `pages_passthrough_loopback` is a local-development compatibility profile. It refuses a non-loopback relying-party origin and has no fragment fallback.

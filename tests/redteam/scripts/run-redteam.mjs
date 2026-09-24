@@ -46,10 +46,10 @@ async function main() {
       stdio: "inherit",
       env: {
         ...process.env,
-        OPENSESAME_SERVER:
-          process.env.OPENSESAME_SERVER ?? `http://127.0.0.1:${hostPort}`,
-        OPENSESAME_DAEMON_URL:
-          process.env.OPENSESAME_DAEMON_URL ?? `http://127.0.0.1:${daemonPort}`,
+        OPENSESAME_HOST_API:
+          process.env.OPENSESAME_HOST_API ?? `http://127.0.0.1:${hostPort}`,
+        OPENSESAME_DAEMON_API:
+          process.env.OPENSESAME_DAEMON_API ?? `http://127.0.0.1:${daemonPort}`,
       },
     },
   );

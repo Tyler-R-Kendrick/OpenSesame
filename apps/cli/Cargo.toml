@@ -20,6 +20,7 @@ opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-human-vault = { path = "../../crates/human-vault" }
+opensesame-vault-item-types = { path = "../../crates/vault-item-types" }
 opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
 opensesame-credential-helpers = { path = "../../crates/credential-helpers" }
 opensesame-daemon = { path = "../../crates/daemon" }

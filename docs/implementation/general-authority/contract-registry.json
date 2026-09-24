@@ -231,7 +231,7 @@
       "title": "Identity API authority routes",
       "invariants": ["INV-GA-09", "INV-GA-12"],
       "status": "verified",
-      "evidence": "apps/control-plane/src/routes/authority.ts"
+      "evidence": "packages/control-plane/src/routes/authority.ts"
     },
     {
       "id": "GA-I-02",

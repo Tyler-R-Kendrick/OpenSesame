@@ -1,4 +1,4 @@
-//! Storage for the Bitwarden-compatible server (ADR 0140): accounts, devices,
+//! Storage for the Bitwarden-compatible server (ADR 0141): accounts, devices,
 //! folders and ciphers, each client-encrypted value held as an opaque
 //! `EncString`.
 

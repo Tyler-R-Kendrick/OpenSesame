@@ -115,7 +115,7 @@ them.
   delegation functions (My access + claim — same seams Access uses).
 - New: `approveDevice(userCode)` in `lib/directory.ts` →
   `POST /v1/device/approve` — exact shape from
-  `apps/control-plane/src/routes/device.ts` (read it before binding).
+  `packages/control-plane/src/routes/device.ts` (read it before binding).
 - Guests/no-session → connect notes, not errors. All lists fail soft.
 
 ## Test plan

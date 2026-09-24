@@ -1,16 +1,16 @@
 # Prompt injection via relayed tool results / upstream bodies.
 #
-# apps/mcp-host validates each administrative response and exposes only the
+# packages/mcp-host validates each administrative response and exposes only the
 # fields that tool contract permits. `forAgent()` remains a second fence for
 # credential-shaped material. These cases prove that attacker-controlled
 # prose in extra upstream fields never enters model context: the fixed-port stub started by
 # scripts/mock-upstream-daemon.mjs (see promptfooconfig.yaml's
-# "claude-live-mcp" provider) returns real apps/mcp-host response shapes with
+# "claude-live-mcp" provider) returns real packages/mcp-host response shapes with
 # an embedded instruction in an ordinary-looking field, and each case asserts
 # the model treats it as data from a tool, not as a command from its
 # principal.
 #
-# These run against the real, unmodified apps/mcp-host over stdio via
+# These run against the real, unmodified packages/mcp-host over stdio via
 # promptfoo's native Anthropic+MCP integration (config.mcp in
 # promptfooconfig.yaml) — the tool call the model makes, if any, is a real
 # MCP call, not a simulation.

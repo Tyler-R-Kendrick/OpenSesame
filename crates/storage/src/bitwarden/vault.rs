@@ -1,4 +1,4 @@
-//! Folders and ciphers behind the Bitwarden-compatible server (ADR 0140).
+//! Folders and ciphers behind the Bitwarden-compatible server (ADR 0141).
 //!
 //! A cipher's `data` is the client's own JSON — every value in it an
 //! `EncString` the server cannot open — held verbatim so a client reads back

@@ -1,7 +1,7 @@
 //! A Bitwarden-compatible server: point a Bitwarden client — `bw`, the
 //! browser extension, the desktop and mobile apps — at the Host, and it signs
 //! in, unlocks, syncs and edits its vault as it would against Bitwarden's own
-//! server (ADR 0140).
+//! server (ADR 0141).
 //!
 //! # Zero knowledge
 //!

@@ -1,4 +1,4 @@
--- ADR 0140: the Bitwarden-compatible server surface. Everything a Bitwarden
+-- ADR 0141: the Bitwarden-compatible server surface. Everything a Bitwarden
 -- client encrypts stays an opaque EncString here; the server holds no key that
 -- opens a vault. `master_password_hash` is a self-describing PHC string from the
 -- server's password-hash registry (Argon2id today), never the client hash.

@@ -1,4 +1,4 @@
-//! The Bitwarden-compatible surface (ADR 0140), mounted at `/bitwarden` when
+//! The Bitwarden-compatible surface (ADR 0141), mounted at `/bitwarden` when
 //! the operator turns it on. Off by default: nothing is routed, nothing is
 //! read, and the tables stay empty.
 //!

@@ -25,8 +25,8 @@ dual-plane system with a **host/client** product topology (see
 - **Client plane (Rust → Wasm + TS)** — `client-core` E2EE sync +
   `packages/api-client` (Host API TS client). Browser extension
   `apps/browser-extension` (WXT), offline GitHub Pages PWA `apps/pages`, Client CLI `packages/cli` (binary `opensesame-id`), MCP
-  servers `apps/mcp-client` / `apps/mcp-host`.
-- **Identity plane (TypeScript)** — Identity API `apps/control-plane`
+  servers `packages/mcp-client` / `packages/mcp-host`.
+- **Identity plane (TypeScript)** — Identity API `packages/control-plane`
   (`:8788`, Hono + Better Auth + oidc-provider), mock upstream IdP
   `tools/mock-upstream-idp` (`:9090`).
 
@@ -79,7 +79,7 @@ pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contra
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
 pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI against the
-                          #   bitwarden-compat surface over HTTPS (ADR 0140); fails, never skips
+                          #   bitwarden-compat surface over HTTPS (ADR 0141); fails, never skips
 pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
@@ -99,7 +99,7 @@ pnpm test:mutation:rust  # cargo mutants → artifacts/mutation/rust
 pnpm test:fuzz:batch     # Jazzer.js long pass (FUZZ_SECONDS=300)
 pnpm db:migrate          # @opensesame/database db:migrate
 pnpm db:reset            # @opensesame/database db:reset
-pnpm generate:openapi    # writes apps/control-plane/openapi.json
+pnpm generate:openapi    # writes packages/control-plane/openapi.json
 pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
 pnpm verify              # changed-file lint + anti-slop lint/plugin tests
                           #   + rustfmt/full-feature Clippy + test:all
@@ -245,7 +245,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
 | `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
 | `crates/agent-events` | Frozen `agent.*` vocabulary for sandboxed runs, and the `SecurityNotice` conversion that puts them on ADR 0080's feed — pure, value-blind (ADR 0081) |
-| `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
+| `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store, and `pages_vault`: the Rust reader of the vault Pages writes (vault format v1, checked against `spec/conformance/vault-vectors.json`), behind `opensesame vault verify\|ls` |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
@@ -264,24 +264,24 @@ Do not add new top-level directories or loose root files — find the group.
 | `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `crates/credential-helpers` | git/docker/AWS/kubectl helpers — thin mint-path clients of the daemon, run as entry points of `opensesame` (ADR 0049) |
-| `crates/bitwarden-server` | Bitwarden-compatible server mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in, sync and edit a personal vault; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI as the oracle (ADR 0140) |
+| `crates/bitwarden-server` | Bitwarden-compatible server mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in, sync and edit a personal vault; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI as the oracle (ADR 0141) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
 | `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
-| `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
+| `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/mobile-mfa` | Step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
-| `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
+| `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `apps/console` | Vite Identity console (web UI) |
-| `apps/worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
+| `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
 | `apps/browser-extension` | WXT browser extension |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
-| `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
+| `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item types: embeds the built-in corpus (`marketplace/item-types/builtin/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
@@ -392,7 +392,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0140).
+  0001–0141).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with

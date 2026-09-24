@@ -62,7 +62,7 @@ describe("generic webhook stays byte-identical to the worker dispatcher", () => 
   });
 
   /**
-   * `apps/worker/src/webhooks.ts` builds the body as
+   * `packages/identity-worker/src/webhooks.ts` builds the body as
    * `JSON.stringify({ eventType, ...payload })` and signs that exact string.
    * Reproduced here rather than referenced, so a change on either side shows
    * up as a failing comparison instead of as a receiver whose signature

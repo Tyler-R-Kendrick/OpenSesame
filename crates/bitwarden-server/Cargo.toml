@@ -3,7 +3,7 @@ name = "opensesame-bitwarden-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Bitwarden-compatible server surface: point a Bitwarden client at the Host (ADR 0140)"
+description = "Bitwarden-compatible server surface: point a Bitwarden client at the Host (ADR 0141)"
 
 [dependencies]
 opensesame-storage = { path = "../storage" }

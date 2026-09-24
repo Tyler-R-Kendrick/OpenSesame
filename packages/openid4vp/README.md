@@ -9,7 +9,7 @@ tokens.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) (a durable
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) (a durable
   request-session store in `src/repos/durable-openid4vp-session-store.ts`) and,
   in tests, [`packages/openid4vci`](../openid4vci).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) and `jose`.

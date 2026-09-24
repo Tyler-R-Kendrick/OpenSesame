@@ -4,5 +4,5 @@ expression: body
 ---
 {
   "error": "host_api_unreachable",
-  "hint": "is Host API up on OPENSESAME_SERVER?"
+  "hint": "is Host API up on OPENSESAME_HOST_API?"
 }

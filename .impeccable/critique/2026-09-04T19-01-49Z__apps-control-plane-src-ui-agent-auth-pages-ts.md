@@ -1,5 +1,5 @@
 ---
-target: apps/control-plane/src/ui/agent-auth-pages.ts
+target: packages/control-plane/src/ui/agent-auth-pages.ts
 total_score: 13
 max_score: 40
 na_heuristics: 

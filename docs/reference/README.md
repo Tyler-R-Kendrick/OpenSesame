@@ -21,7 +21,7 @@ what goes over each wire, and what it is built on.
 | [Daemon socket](daemon-socket.md) | The daemon's TCP and Unix-socket contract, environment variables and routes. |
 | [WIT task contracts](wit-task-contracts.md) | Versioned task-scoped WIT packages and their compatibility rules. |
 | [Host OpenAPI](../../spec/openapi/host-api.yaml) | The Host API, route by route. |
-| Identity OpenAPI | Generated to `apps/control-plane/openapi.json` by `pnpm generate:openapi`. |
+| Identity OpenAPI | Generated to `packages/control-plane/openapi.json` by `pnpm generate:openapi`. |
 | [Vault format v1](../architecture/vault-format-v1.md) | The vault file format and its golden vectors. |
 
 ## Dependencies and licensing

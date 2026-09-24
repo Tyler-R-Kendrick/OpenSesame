@@ -23,6 +23,8 @@
   "dependencies": {
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
+    "@opensesame/mcp-client": "workspace:*",
+    "@opensesame/mcp-host": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*",
     "@opensesame/vault-core": "workspace:*",

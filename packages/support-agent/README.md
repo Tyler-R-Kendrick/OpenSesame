@@ -9,7 +9,7 @@ renderer; this package decides what may be said and what may be sent.
 
 ## Where it fits
 
-- **Used by:** [`packages/app-core`](../app-core) (`src/tutorial/agents/` — the on-device and AG-UI transports), [`apps/pages`](../../apps/pages), [`apps/control-plane`](../../apps/control-plane) (`routes/support.ts` uses `redactSupportQuestion`), [`tests/fuzz/jazzer`](../../tests/fuzz/jazzer) (`support_payload.ts`).
+- **Used by:** [`packages/app-core`](../app-core) (`src/tutorial/agents/` — the on-device and AG-UI transports), [`apps/pages`](../../apps/pages), [`packages/control-plane`](../../packages/control-plane) (`routes/support.ts` uses `redactSupportQuestion`), [`tests/fuzz/jazzer`](../../tests/fuzz/jazzer) (`support_payload.ts`).
 - **Builds on:** [`@opensesame/guide-lang`](../guide-lang) (the only thing a model may emit besides prose), [`@opensesame/os-domain`](../os-domain).
 - No React, no tour renderer, no vendor model SDK.
 - A `SupportTurn` carries prose and at most one GuideLang program. There is no field for a tool call, URL, selector or authority mutation.

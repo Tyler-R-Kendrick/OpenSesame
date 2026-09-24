@@ -2,7 +2,7 @@
 /**
  * Anonymous agent registration + claim poll demo.
  *
- *   OPENSESAME_API_URL=http://127.0.0.1:8788 pnpm --filter @opensesame/example-agent start
+ *   OPENSESAME_IDENTITY_API=http://127.0.0.1:8788 pnpm --filter @opensesame/example-agent start
  *   MOCK_AGENT_FLOW=1 pnpm --filter @opensesame/example-agent start
  */
 import { createHash, randomBytes } from "node:crypto";
@@ -14,7 +14,7 @@ import {
 import { overlapCast } from "@opensesame/os-domain";
 import { createControlPlaneClient, redactSecrets } from "@opensesame/sdk-cli";
 
-const api = process.env.OPENSESAME_API_URL ?? "http://127.0.0.1:8788";
+const api = process.env.OPENSESAME_IDENTITY_API ?? "http://127.0.0.1:8788";
 
 function jkt(): string {
   return createHash("sha256")

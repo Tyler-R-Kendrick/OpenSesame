@@ -16,6 +16,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 #[cfg(test)]
 mod chunk_tests;
 pub mod kdf_policy;
+pub mod pages_vault;
 mod password_wrap;
 pub mod root_protection;
 #[cfg(not(target_arch = "wasm32"))]
@@ -229,7 +230,6 @@ pub fn kek_from_webauthn_prf(
 // a raw binary frame; its associated data binds the attachment, the store
 // path, and the chunk's position in the run, so a chunk cannot be reordered,
 // dropped, appended to, or spliced in from another attachment.
-// ---------------------------------------------------------------------------
 
 /// Magic prefix of a sealed chunk frame.
 pub const OSCHUNK_MAGIC: &[u8; 8] = b"OSCHNK1\n";

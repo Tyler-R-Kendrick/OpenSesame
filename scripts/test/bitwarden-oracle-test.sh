@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bitwarden parity oracle (ADR 0140): the official Bitwarden CLI, pinned, is
+# Bitwarden parity oracle (ADR 0141): the official Bitwarden CLI, pinned, is
 # pointed at the bitwarden-compat surface over HTTPS and must behave as it does
 # against Bitwarden's own server. Runs the deterministic protocol suite and the
 # `#[ignore]`d oracle suites together. Fails, never skips, when `bw` is absent.

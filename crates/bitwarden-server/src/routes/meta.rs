@@ -17,7 +17,7 @@ use crate::wire::cipher::{cipher_json, folder_json};
 use crate::BitwardenServer;
 
 /// The Bitwarden server release whose client protocol this surface speaks,
-/// validated against the official `bw` CLI of the same version (ADR 0140).
+/// validated against the official `bw` CLI of the same version (ADR 0141).
 pub const COMPATIBLE_SERVER_VERSION: &str = "2026.9.0";
 
 /// `GET /api/config`: unauthenticated, read before sign-in.

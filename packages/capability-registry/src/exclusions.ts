@@ -87,7 +87,7 @@ export const PM_PLANE: CapabilityExclusion = {
   adr: ADR_PM_BRIDGING,
 };
 
-export const ADR_BITWARDEN_COMPAT = "0140-bitwarden-compatible-server.md";
+export const ADR_BITWARDEN_COMPAT = "0141-bitwarden-compatible-server.md";
 
 /**
  * The Bitwarden-compatible surface speaks Bitwarden's own client protocol to

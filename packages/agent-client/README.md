@@ -8,8 +8,8 @@ approved launch.
 
 ## Where it fits
 
-- **Used by:** [`apps/mcp-host`](../../apps/mcp-host) and
-  [`apps/mcp-client`](../../apps/mcp-client).
+- **Used by:** [`packages/mcp-host`](../../packages/mcp-host) and
+  [`packages/mcp-client`](../../packages/mcp-client).
 - **Builds on:** [`@opensesame/observability`](../observability)
   (`registerAgentSecret`, so the handle and the token are redacted from logs)
   and `zod` for the grant shape.

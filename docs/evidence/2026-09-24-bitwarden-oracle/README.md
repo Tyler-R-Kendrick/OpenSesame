@@ -1,4 +1,4 @@
-# Bitwarden parity: the official CLI as oracle (ADR 0140)
+# Bitwarden parity: the official CLI as oracle (ADR 0141)
 
 No screen changed. What changed is a protocol surface, so the evidence is what
 Bitwarden's own client did against it.

@@ -1,4 +1,4 @@
-//! Accounts behind the Bitwarden-compatible server (ADR 0140).
+//! Accounts behind the Bitwarden-compatible server (ADR 0141).
 //!
 //! The server stores what a Bitwarden server stores and nothing more: the
 //! client-wrapped user key, the client-encrypted private key, the KDF settings

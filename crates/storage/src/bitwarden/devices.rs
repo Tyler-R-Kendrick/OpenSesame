@@ -1,4 +1,4 @@
-//! Signed-in devices and the refresh tokens they hold (ADR 0140). A refresh
+//! Signed-in devices and the refresh tokens they hold (ADR 0141). A refresh
 //! token is stored only as its SHA-256 digest.
 
 use chrono::Utc;

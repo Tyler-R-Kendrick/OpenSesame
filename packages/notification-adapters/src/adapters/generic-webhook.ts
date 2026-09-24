@@ -1,7 +1,7 @@
 /**
  * The generic signed webhook — a compatibility surface, not a new one.
  *
- * Receivers already exist. `apps/worker/src/webhooks.ts` has been posting
+ * Receivers already exist. `packages/identity-worker/src/webhooks.ts` has been posting
  * `{"eventType": …, …payload}` under Standard Webhooks signatures since ADR
  * 0046 decision 12, and somebody has a verifier pointed at it. So this
  * adapter reproduces that request byte for byte — same body construction,

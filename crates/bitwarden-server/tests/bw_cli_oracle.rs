@@ -1,4 +1,4 @@
-//! The official Bitwarden CLI, pointed at this server, is the oracle (ADR 0140).
+//! The official Bitwarden CLI, pointed at this server, is the oracle (ADR 0141).
 //!
 //! Every assertion below is about what `bw` itself reports — the same commands
 //! a person runs against Bitwarden's own server — and then cross-checked from

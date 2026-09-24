@@ -40,13 +40,20 @@ and Android ([ADR 0133](../docs/adr/0133-shared-app-core.md)).
 | [`api-client`](api-client) | Typed client for the Host API. |
 | [`webmcp`](webmcp) | WebMCP (`document.modelContext`) detection and a fenced tool registrar for the PWAs. |
 | [`qr`](qr) | QR encoding to SVG and terminal. |
+| [`mcp-host`](mcp-host) | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. Served by `opensesame-id mcp host` (stdio, or HTTP with `OPENSESAME_MCP_TRANSPORT=http`). |
+| [`mcp-client`](mcp-client) | Agent MCP server over a narrowly scoped, short-lived Host capability. Served by `opensesame-id mcp client`. |
 
 ## Identity plane
 
-Building blocks of the Identity API in [`apps/control-plane`](../apps/control-plane).
+The optional hosted identity deployment ([ADR 0138](../docs/adr/0138-self-issued-identity-one-native-host.md)):
+an operator's choice, never a prerequisite of the products. Run it with
+`pnpm --filter @opensesame/control-plane start` (`:8788`) and
+`pnpm --filter @opensesame/identity-worker start`.
 
 | Package | Purpose |
 |---|---|
+| [`control-plane`](control-plane) | **Identity API.** OIDC issuer (oidc-provider), Better Auth upstream sign-in, principals, passkeys, claims, device authorization, SCIM, notifications. Writes `openapi.json`. |
+| [`identity-worker`](identity-worker) | Identity-plane background loop: drains the outbox onto the TaskBus, fans out webhooks and notifications, prunes expired issuer rows. |
 | [`oauth-provider`](oauth-provider) | OIDC provider configuration on oidc-provider: clients, consent, grants, replay cache. |
 | [`auth-upstream`](auth-upstream) | Upstream authentication: Better Auth adapter, OIDC registry, passkey challenges, email-link policy. |
 | [`database`](database) | Drizzle schema, repositories and migrations for the Identity database. |

@@ -3,7 +3,7 @@
 A Bitwarden-compatible server. Point a Bitwarden client — `bw`, the browser
 extension, the desktop or mobile app — at the Host's `/bitwarden` URL and it
 signs in, unlocks, syncs and edits a personal vault as it would against
-Bitwarden's own server ([ADR 0140](../../docs/adr/0140-bitwarden-compatible-server.md)).
+Bitwarden's own server ([ADR 0141](../../docs/adr/0141-bitwarden-compatible-server.md)).
 
 ## Where it fits
 

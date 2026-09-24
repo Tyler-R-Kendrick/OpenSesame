@@ -7,6 +7,7 @@ export * from "./canonical-origin.js";
 export * from "./types.js";
 export * from "./errors.js";
 export * from "./endpoint-display.js";
+export * from "./endpoints.js";
 export * from "./invariants.js";
 export * from "./machines/authorization-request.js";
 export * as interactionMachine from "./machines/interaction.js";

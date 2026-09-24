@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "promptfoo red-team corpus for the apps/mcp-host MCP surfaces (prompt injection, confused deputy, credential exfiltration, malformed input).",
+  "description": "promptfoo red-team corpus for the packages/mcp-host MCP surfaces (prompt injection, confused deputy, credential exfiltration, malformed input).",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

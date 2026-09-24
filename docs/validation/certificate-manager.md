@@ -240,8 +240,8 @@ Parity suites that must stay green — _pending: fill from the run of
 `pnpm test`_:
 
 `packages/capability-registry/src/registry.test.ts`,
-`apps/mcp-host/src/registry-parity.test.ts`,
-`apps/mcp-client/src/registry-parity.test.ts`,
+`packages/mcp-host/src/registry-parity.test.ts`,
+`packages/mcp-client/src/registry-parity.test.ts`,
 `packages/app-core/src/webmcp/registry-parity.test.ts`,
 `apps/cli/tests/capability_parity.rs`,
 `packages/cli/src/capability-parity.test.ts`,

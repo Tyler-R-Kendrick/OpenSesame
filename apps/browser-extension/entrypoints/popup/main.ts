@@ -1,5 +1,5 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
-import { isString, overlapCast } from "@opensesame/os-domain";
+import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -9,7 +9,7 @@ type HealthResponse = {
   error?: string;
 };
 
-const DEFAULT_HOST = "http://127.0.0.1:8787";
+const DEFAULT_HOST = ENDPOINTS.host.default;
 
 async function loadHostInput() {
   const input = overlapCast(document.getElementById("host"));
@@ -34,8 +34,7 @@ async function saveHost() {
   if (!value) {
     if (hint) {
       hint.hidden = false;
-      hint.textContent =
-        "Host API must be a loopback URL (http://127.0.0.1:8787 or http://localhost:8787).";
+      hint.textContent = `Host API must be a loopback URL (${DEFAULT_HOST}).`;
     }
     return;
   }

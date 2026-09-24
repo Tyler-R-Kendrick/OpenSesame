@@ -56,7 +56,7 @@ and tenant isolation. Open-source self-host path plus cloud.
 | `nango.auth` | Host authorize / Pages consent |
 | Action / Function | Host invoke op + MCP tools |
 | Sync/cache | Out of core scope (not a sync platform) |
-| MCP tools | `apps/mcp-host` / `apps/mcp-client` |
+| MCP tools | `packages/mcp-host` / `packages/mcp-client` |
 
 Related: [oomol-open-connector.md](oomol-open-connector.md),
 [vercel-connect.md](vercel-connect.md), [docs/reference/reuse.md](../../reference/reuse.md).

@@ -4,7 +4,7 @@ The Host can stand in for a Bitwarden server. Bitwarden's own apps — the `bw`
 CLI, the browser extension, the desktop and mobile apps — sign in, unlock, sync
 and edit a personal vault against it, and never learn the difference beyond a
 "not Bitwarden's server" notice. Decision and scope:
-[ADR 0140](../adr/0140-bitwarden-compatible-server.md).
+[ADR 0141](../adr/0141-bitwarden-compatible-server.md).
 
 ## Turn it on
 

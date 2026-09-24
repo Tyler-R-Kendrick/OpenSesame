@@ -17,17 +17,16 @@ this file against the registry.
 
 ```bash
 pnpm install
-# Both servers run from source (no build step):
-#   apps/mcp-client — bin opensesame-mcp-client (node --import tsx src/server.ts)
-#   apps/mcp-host   — bin opensesame-mcp-host   (node --import tsx src/server.ts)
+# Both servers are packages served by the client CLI (no build step):
+#   opensesame-id mcp client   — packages/mcp-client
+#   opensesame-id mcp host     — packages/mcp-host
 ```
 
 ## Configure
 
 ```bash
-export OPENSESAME_HOST_API=http://127.0.0.1:8787     # client server
-export OPENSESAME_SERVER=http://127.0.0.1:8787       # host server (preferred)
-export OPENSESAME_DAEMON_URL=http://127.0.0.1:18790
+export OPENSESAME_HOST_API=http://127.0.0.1:8787     # both servers (spec/config/endpoints.json)
+export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
 export OPENSESAME_ACCESS_TOKEN=...                    # per-call, fail-closed
 export OPENSESAME_ISSUER=http://127.0.0.1:8788        # identity claims (client)
 export OPENSESAME_IDENTITY_TOKEN=...                  # present_claim only
@@ -48,8 +47,8 @@ export OPENSESAME_MCP_HTTP_TOKEN=<16+ char token>   # Bearer, transport-only
 
 Register stdio servers in your MCP client config pointing at:
 
-- `apps/mcp-client` — client-plane tools via `@opensesame/api-client`
-- `apps/mcp-host` — operator tools against Host API / daemon (policy-gated)
+- `packages/mcp-client` — client-plane tools via `@opensesame/api-client`
+- `packages/mcp-host` — operator tools against Host API / daemon (policy-gated)
 
 ## Use
 
