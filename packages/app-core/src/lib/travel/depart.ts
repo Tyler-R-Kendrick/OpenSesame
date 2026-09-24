@@ -25,7 +25,12 @@ import {
   mintReturnSecret,
   parseReturnCode,
 } from "./return-code.js";
-import { type TravelStorage, filesOfVault, vaultNamespace } from "./storage.js";
+import {
+  type TravelStorage,
+  filesOfVault,
+  tombStem,
+  vaultNamespace,
+} from "./storage.js";
 
 export type TravelVaultInfo = PlannableVault &
   Readonly<{ label: string; name: string | null }>;
@@ -255,8 +260,15 @@ export async function completeDeparture(
     return { ok: false, code: "changed_since_packed" };
   }
   const removed = new Set<string>();
-  for (const files of current.values()) {
-    for (const entry of files) {
+  for (const [id, files] of current) {
+    // The header goes first: a departure cut short leaves a vault with no
+    // header, which the bundle's return restores whole rather than refusing.
+    const header = `${tombStem(id)}header.json`;
+    const ordered = [
+      ...files.filter((entry) => entry.file === header),
+      ...files.filter((entry) => entry.file !== header),
+    ];
+    for (const entry of ordered) {
       await deps.storage.remove(entry.file);
       removed.add(entry.file);
     }

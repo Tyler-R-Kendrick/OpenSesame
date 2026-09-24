@@ -208,7 +208,14 @@ export async function completeReturn(
       await deps.storage.remove(stray);
       touched.add(stray);
     }
-    for (const entry of vault.files) {
+    // The header goes last: a return cut short leaves no header, so the
+    // next attempt still sees the vault as coming home and finishes it.
+    const header = headerOf(vault.id);
+    const ordered = [
+      ...vault.files.filter((entry) => entry.file !== header),
+      ...vault.files.filter((entry) => entry.file === header),
+    ];
+    for (const entry of ordered) {
       await deps.storage.write(entry.file, entry.text);
       touched.add(entry.file);
       writtenFiles += 1;

@@ -86,6 +86,38 @@ describe("return", () => {
     expect(origin.files.get(tombFile(PRJ_WORK, "body"))).toBe(edited);
   });
 
+  it("finishes a return that was cut short", async () => {
+    const origin = packedDevice();
+    const before = new Map(origin.files);
+    const { pkg } = await depart(origin, [PRJ_TRIP]);
+    const opened = await openReturn(origin.deps, {
+      bundleJson: pkg.bundleJson,
+      returnCode: pkg.returnCode,
+    });
+    if (!opened.ok) throw new Error(opened.code);
+    let writes = 0;
+    const flaky = {
+      ...origin.deps,
+      storage: {
+        ...origin.deps.storage,
+        write: async (file: string, text: string) => {
+          writes += 1;
+          if (writes === 5) throw new Error("quota exceeded");
+          await origin.deps.storage.write(file, text);
+        },
+      },
+    };
+    await expect(completeReturn(flaky, opened.opened)).rejects.toThrow(
+      "quota exceeded",
+    );
+    const retry = await completeReturn(origin.deps, opened.opened);
+    expect(retry).toMatchObject({
+      ok: true,
+      receipt: { restored: ["personal", PRJ_WORK], occupied: [] },
+    });
+    expect(new Map(origin.files)).toEqual(before);
+  });
+
   it("reads the device again at completion, not the preview", async () => {
     const origin = packedDevice();
     const { pkg } = await depart(origin, [PRJ_TRIP]);

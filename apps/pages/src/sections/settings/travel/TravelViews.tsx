@@ -25,39 +25,35 @@ import {
 import { StatusMark, type StatusTone } from "../../../components/StatusMark.js";
 
 /** What a refusal code means, in the panel's words. */
+const REFUSAL_TEXT = new Map<string, string>([
+  ["owner_not_present", "Open one of your own vaults first"],
+  [
+    "open_vault_departs",
+    "The open vault travels — mark it safe, or open another",
+  ],
+  ["nothing_departs", "Every vault is marked safe; nothing would leave"],
+  ["unknown_vault", "That vault is no longer on this device"],
+  ["duress_active", "Not while a duress response holds this device"],
+  ["storage_not_durable", "This browser is not keeping files for this site"],
+  ["vault_has_no_files", "A vault marked to leave has nothing stored"],
+  [
+    "vault_needs_opening",
+    "A vault is in the old format; open it once, then pack again",
+  ],
+  [
+    "self_check_failed",
+    "The bundle did not open with its own code; nothing was removed",
+  ],
+  ["changed_since_packed", "A vault changed after packing; pack again"],
+  ["not_acknowledged", "Confirm where the bundle and the code are"],
+  ["code_malformed", "That return code has a typo in it"],
+  ["code_mismatch", "That return code does not open this bundle"],
+  ["foreign_file", "This bundle carries files that are not a vault's; refused"],
+  ["unsupported_version", "This bundle was written by a newer version"],
+]);
+
 export function travelRefusalText(code: string): string {
-  switch (code) {
-    case "owner_not_present":
-      return "Open one of your own vaults first";
-    case "open_vault_departs":
-      return "The open vault travels — mark it safe, or open another";
-    case "nothing_departs":
-      return "Every vault is marked safe; nothing would leave";
-    case "unknown_vault":
-      return "That vault is no longer on this device";
-    case "duress_active":
-      return "Not while a duress response holds this device";
-    case "storage_not_durable":
-      return "This browser is not keeping files for this site";
-    case "vault_has_no_files":
-      return "A vault marked to leave has nothing stored";
-    case "self_check_failed":
-      return "The bundle did not open with its own code; nothing was removed";
-    case "changed_since_packed":
-      return "A vault changed after packing; pack again";
-    case "not_acknowledged":
-      return "Confirm where the bundle and the code are";
-    case "code_malformed":
-      return "That return code has a typo in it";
-    case "code_mismatch":
-      return "That return code does not open this bundle";
-    case "foreign_file":
-      return "This bundle carries files that are not a vault's; refused";
-    case "unsupported_version":
-      return "This bundle was written by a newer version";
-    default:
-      return "That is not a travel bundle";
-  }
+  return REFUSAL_TEXT.get(code) ?? "That is not a travel bundle";
 }
 
 /** Something the panel has to say: a refusal, or what just happened. */
