@@ -102,7 +102,7 @@ const VAULT_FILTER_LABEL = new Map([
  * A vault filter is a type id (ADR 0087), so its crumb comes from the type's
  * own definition. The two non-type filters above keep their fixed labels.
  */
-function vaultFilterLabel(filter: string): string | undefined {
+export function vaultFilterLabel(filter: string): string | undefined {
   const fixed = VAULT_FILTER_LABEL.get(filter);
   if (fixed !== undefined) return fixed;
   return itemTypeRegistry().has(filter) ? typePlural(filter) : undefined;

@@ -1,4 +1,9 @@
 import { activeProject } from "@opensesame/app-core/lib/projects.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  guestVaultLabel,
+  vaultLabel,
+} from "@opensesame/app-core/lib/vaults.js";
 import {
   loadCollapsedDefault,
   rowId,
@@ -47,7 +52,15 @@ type VaultTreeProps = {
 };
 
 export const vaultTreeSeams = {
-  activeTomb: () => activeProject().id,
+  /**
+   * The name the status line opens with — the prompt's own name for the
+   * open vault (ProjectSwitcher), so a guest reads `guest-2:/` in both
+   * places instead of `guest-2` above and `personal:/` below.
+   */
+  activeTomb: () =>
+    vaultStore.getSnapshot().guest
+      ? guestVaultLabel()
+      : vaultLabel(activeProject()),
   loadCollapsed: loadCollapsedDefault,
   saveCollapsed: saveCollapsedDefault,
 };
