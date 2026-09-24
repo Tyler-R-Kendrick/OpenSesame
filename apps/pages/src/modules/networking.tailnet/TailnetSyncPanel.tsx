@@ -27,6 +27,29 @@ import { GuideTarget } from "../../tutorial/registry/react.jsx";
 
 const LINK_KEY = "pair-drive=";
 
+/**
+ * The observer this panel reads and drives. A seam, so a test can stand in
+ * for the drive without replacing the module.
+ */
+export type TailnetPanelSeams = {
+  state: () => TailnetSyncState;
+  subscribe: (listener: () => void) => () => void;
+  pair: (code: string) => Promise<"paired" | "adopted">;
+  sync: () => Promise<void>;
+  forget: () => Promise<void>;
+};
+
+export const tailnetPanelSeams: TailnetPanelSeams = {
+  state: tailnetSyncState,
+  subscribe: subscribeTailnetSync,
+  pair: pairTailnetDrive,
+  sync: syncTailnetNow,
+  forget: forgetTailnetDrive,
+};
+
+/** The panel head's glyph: a tone and the sentence it stands for. */
+type Standing = { tone: StatusTone; label: string };
+
 /** Take a pairing code out of the address bar, once, and leave no trace of it. */
 function takeLinkedCode(): string {
   const { hash, pathname, search } = window.location;
@@ -36,7 +59,7 @@ function takeLinkedCode(): string {
   return decodeURIComponent(hash.slice(at + LINK_KEY.length));
 }
 
-function mark(state: TailnetSyncState): { tone: StatusTone; label: string } {
+function mark(state: TailnetSyncState): Standing {
   if (state.phase === "syncing") return { tone: "idle", label: "Syncing" };
   if (state.phase === "error") {
     return { tone: "err", label: state.error ?? "Sync failed" };
@@ -56,7 +79,7 @@ function hostOf(url: string): string {
   }
 }
 
-type Run = (task: () => Promise<unknown>) => void;
+type Run = (task: () => Promise<void>) => void;
 
 function DriveRow({
   state,
@@ -87,7 +110,7 @@ function DriveRow({
         aria-label="Sync now"
         title="Sync now"
         disabled={busy || state.phase === "syncing"}
-        onClick={() => run(syncTailnetNow)}
+        onClick={() => run(tailnetPanelSeams.sync)}
       >
         <IconRefresh size={16} />
       </button>
@@ -97,7 +120,7 @@ function DriveRow({
         aria-label="Stop syncing this vault"
         title="Stop syncing this vault"
         disabled={busy}
-        onClick={() => run(forgetTailnetDrive)}
+        onClick={() => run(tailnetPanelSeams.forget)}
       >
         <IconX size={16} />
       </button>
@@ -132,7 +155,7 @@ function PairForm({
         event.preventDefault();
         const pasted = code;
         run(async () => {
-          await pairTailnetDrive(pasted);
+          await tailnetPanelSeams.pair(pasted);
           setCode("");
         });
       }}
@@ -168,7 +191,10 @@ function PairForm({
 }
 
 export function TailnetSyncPanel() {
-  const state = useSyncExternalStore(subscribeTailnetSync, tailnetSyncState);
+  const state = useSyncExternalStore(
+    tailnetPanelSeams.subscribe,
+    tailnetPanelSeams.state,
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<StatusMessage | null>(null);
 

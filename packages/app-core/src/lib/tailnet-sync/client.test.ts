@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DriveError,
@@ -11,7 +12,7 @@ import { DRIVE_SNAPSHOT_FORMAT, type DriveSnapshot } from "./snapshot.js";
 const original = driveClientSeams.fetch;
 const calls: { url: string; init: RequestInit }[] = [];
 
-function answer(status: number, body: object | null): void {
+function answer(status: number, body: JsonObject | null): void {
   driveClientSeams.fetch = async (url, init) => {
     calls.push({ url, init });
     return new Response(body === null ? null : JSON.stringify(body), {

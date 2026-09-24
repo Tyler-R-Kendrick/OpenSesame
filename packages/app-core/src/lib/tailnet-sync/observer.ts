@@ -32,12 +32,15 @@ const OFF: TailnetSyncState = {
   error: null,
 };
 
-export const tailnetSyncSeams: {
+/** What tests replace: the drive transport, the timings and the clock. */
+export type TailnetSyncSeams = {
   transport: DriveTransport;
   debounceMs: number;
   intervalMs: number;
   now: () => string;
-} = {
+};
+
+export const tailnetSyncSeams: TailnetSyncSeams = {
   transport: defaultTransport,
   debounceMs: 1_500,
   intervalMs: 60_000,

@@ -9,41 +9,42 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const observer = vi.hoisted(() => {
+import type { TailnetSyncState } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { TailnetSyncPanel, tailnetPanelSeams } from "./TailnetSyncPanel.js";
+
+const OFF: TailnetSyncState = {
+  phase: "off",
+  drive: null,
+  lastSyncedAt: null,
+  error: null,
+};
+
+/** A stand-in observer: the panel's state, and a record of what it asked. */
+const observer = (() => {
   const listeners = new Set<() => void>();
-  const off = {
-    phase: "off",
-    drive: null,
-    lastSyncedAt: null,
-    error: null,
-  } as const;
-  let state: Record<string, unknown> = { ...off };
+  let state = OFF;
   return {
-    off,
-    set(next: Record<string, unknown>) {
+    set(next: Partial<TailnetSyncState>) {
       state = { ...state, ...next };
       for (const listener of listeners) listener();
     },
     reset() {
-      state = { ...off };
+      state = OFF;
     },
-    tailnetSyncState: () => state,
-    subscribeTailnetSync: (listener: () => void) => {
+    state: () => state,
+    subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    pairTailnetDrive: vi.fn(),
-    syncTailnetNow: vi.fn(),
-    forgetTailnetDrive: vi.fn(),
+    pairTailnetDrive: vi.fn<(code: string) => Promise<"paired" | "adopted">>(),
+    syncTailnetNow: vi.fn<() => Promise<void>>(),
+    forgetTailnetDrive: vi.fn<() => Promise<void>>(),
   };
-});
+})();
 
-vi.mock("@opensesame/app-core/lib/tailnet-sync/observer.js", () => observer);
-
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { TailnetSyncPanel } from "./TailnetSyncPanel.js";
-
+const originalPanelSeams = { ...tailnetPanelSeams };
 const originalHooks = { ...vaultHooksSeams };
 const session = { status: "unlocked" as const, guest: false };
 
@@ -56,12 +57,20 @@ beforeEach(() => {
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ ...vaultStore.getSnapshot(), ...session }),
   });
+  Object.assign(tailnetPanelSeams, {
+    state: observer.state,
+    subscribe: observer.subscribe,
+    pair: observer.pairTailnetDrive,
+    sync: observer.syncTailnetNow,
+    forget: observer.forgetTailnetDrive,
+  });
   window.history.replaceState(null, "", "/settings/vaults");
 });
 
 afterEach(() => {
   cleanup();
   Object.assign(vaultHooksSeams, originalHooks);
+  Object.assign(tailnetPanelSeams, originalPanelSeams);
 });
 
 describe("TailnetSyncPanel", () => {

@@ -115,12 +115,12 @@ function mergeTombstones(
   const merged: { -readonly [K in keyof VaultTombstones]: VaultTombstones[K] } =
     {};
   for (const kind of ["items", "folders"] as const) {
-    const out: Record<string, string> = { ...left?.[kind] };
+    const out = new Map(Object.entries(left?.[kind] ?? {}));
     for (const [id, at] of Object.entries(right?.[kind] ?? {})) {
-      const seen = out[id];
-      if (seen === undefined || at > seen) out[id] = at;
+      const seen = out.get(id);
+      if (seen === undefined || at > seen) out.set(id, at);
     }
-    if (Object.keys(out).length > 0) merged[kind] = out;
+    if (out.size > 0) merged[kind] = Object.fromEntries(out);
   }
   return cap(merged);
 }
