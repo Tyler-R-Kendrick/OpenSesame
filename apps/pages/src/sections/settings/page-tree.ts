@@ -19,6 +19,11 @@ export type SettingsRailSnapshot = {
   current?: string;
   /** General › Install draws (InstallPanel's own rule); unlisted when not. */
   install?: boolean;
+  /**
+   * Capabilities › Guests draws (GuestRow's rule: the operator's switch,
+   * never shown to a guest); unlisted when not. Defaults to listed.
+   */
+  guests?: boolean;
 };
 
 function panel(
@@ -38,9 +43,9 @@ function panel(
  * Rows on Settings → Capabilities, in document order: the features, then
  * the always-on provider groups. Their providers are configured in place.
  */
-export function capabilitiesSettingsSections(): PageTreeSource[] {
+export function capabilitiesSettingsSections(guests = true): PageTreeSource[] {
   return [
-    panel("capabilities", "feature-guests", "Guests"),
+    ...(guests ? [panel("capabilities", "feature-guests", "Guests")] : []),
     ...FEATURES.map((feature) =>
       panel("capabilities", `feature-${feature.id}`, feature.title),
     ),
@@ -72,7 +77,7 @@ function sectionsFor(
         keepEmpty: true,
       }));
     case "capabilities":
-      return capabilitiesSettingsSections();
+      return capabilitiesSettingsSections(snapshot.guests ?? true);
     default:
       return [];
   }

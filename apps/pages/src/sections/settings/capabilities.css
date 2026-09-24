@@ -106,6 +106,12 @@
   min-width: 0;
 }
 
+/* A feature whose categories hold no bundled provider drew its rule over
+   nothing — a 4px stub between Servers and Sharing. */
+.capfeature__providers:empty {
+  display: none;
+}
+
 .capproviders {
   display: grid;
   gap: 0.25rem;

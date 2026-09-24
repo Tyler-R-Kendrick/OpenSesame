@@ -16,11 +16,13 @@ import {
   listSecondSteps,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import {
   IconEdit,
   IconEye,
   IconPlus,
+  IconSettings,
   IconTrash,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -181,9 +183,17 @@ function UnlockMethodsBody() {
         }
         action={
           !hasIdentity ? (
-            <a className="btn btn--sm" href="/settings/capabilities">
-              Capabilities
-            </a>
+            // A route link, not an href: `/settings/capabilities` without the
+            // deployment's base path was a full reload onto a 404 on Pages.
+            // Drawn as the row's one key, in the column every row's key is.
+            <Link
+              className="icon-btn icon-btn--sm"
+              to="/settings/capabilities"
+              aria-label="Set up a sign-in service under Capabilities"
+              title="Set up a sign-in service under Capabilities"
+            >
+              <IconSettings size={16} />
+            </Link>
           ) : (
             <IconKey
               label={on ? "Remove" : "Add"}
