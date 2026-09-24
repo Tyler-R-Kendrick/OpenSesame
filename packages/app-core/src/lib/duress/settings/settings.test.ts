@@ -206,7 +206,7 @@ describe("SETTINGS-C codes / disarm / import", () => {
         ...scope,
         compartmentRefs: ["comp-normal"],
       }).profiles,
-    } satisfies import("@opensesame/contracts").PolicyDocument;
+    } satisfies import("@opensesame/contracts/duress").PolicyDocument;
     const preview = previewImportDocument(doc, catalog);
     expect(preview.wouldArm).toBe(false);
     expect(preview.enabledFlag).toBe(true);

@@ -4,8 +4,11 @@
  * re-implement compiler rules.
  */
 
-import type { PolicyDocument, PolicyProfile } from "@opensesame/contracts";
-import { SCENARIO_IDS, type ScenarioId } from "@opensesame/contracts";
+import type {
+  PolicyDocument,
+  PolicyProfile,
+} from "@opensesame/contracts/duress";
+import { SCENARIO_IDS, type ScenarioId } from "@opensesame/contracts/duress";
 import { includesStringLiteral } from "../json-boundary.js";
 
 /** Preset IDs are the CONTRACT scenario catalog — do not mirror locally. */

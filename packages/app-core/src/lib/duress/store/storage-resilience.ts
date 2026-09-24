@@ -7,7 +7,7 @@ import {
   EnrollmentManifestSchema,
   type IncidentRecord,
   IncidentRecordSchema,
-} from "@opensesame/contracts";
+} from "@opensesame/contracts/duress";
 import { kvDurability } from "../../kv.js";
 import type { BoundaryValue } from "../json-boundary.js";
 

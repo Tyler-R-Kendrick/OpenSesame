@@ -26,6 +26,7 @@ import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/ru
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { IDENTITY_READ_TOOL } from "@opensesame/app-core/webmcp/identity-tools.js";
+import { installOrgDirectory } from "../../lib/orgs-directory.js";
 import { IdentityStep } from "../../screens/setup/steps/IdentityStep.js";
 import { MfaStep } from "../../screens/setup/steps/MfaStep.js";
 import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
@@ -61,6 +62,10 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
+    // The Identity API's organization directory: `lib/orgs.ts` declares the
+    // four calls as seams and refuses them by default, so tenant discovery
+    // and join exist exactly while this capability does.
+    activation.onDispose(installOrgDirectory());
 
     // The Providers tab this capability puts on the page is a destination
     // the command bar and the browser tool may name, and only while it is.
