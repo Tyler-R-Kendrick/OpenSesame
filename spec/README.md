@@ -17,6 +17,8 @@ reads it rather than keeping a copy ([ADR 0139](../docs/adr/0139-one-definition-
 | [`connectors/fnox-parity.json`](connectors/fnox-parity.json) | The provider parity table shared by the Host connector host and the client connector directory. | `crates/connector-host`, `packages/app-core` |
 | [`connectors/mock/`](connectors/mock) | A reference connector manifest, used to test manifest parsing. | `crates/connector-host` |
 | [`conformance/deployment-mode-cases.json`](conformance/deployment-mode-cases.json) | Deployment-mode cases both planes must classify identically. | `crates/host-core`, `apps/control-plane` |
+| [`conformance/otp-cases.json`](conformance/otp-cases.json) | RFC 4226 / RFC 6238 codes and the Key URI parsing rules. An invalid parameter is refused, never defaulted. | `crates/authenticator-core`, `packages/vault-core`, the Pages verify harness, the Identity API's dev factor |
+| [`conformance/password-policy.json`](conformance/password-policy.json) | **The password generator**: character classes, the ambiguous set, defaults (length 20) and the rules, with cases. Both generators load it at runtime. | `crates/sealed-store` (`opensesame pass generate`, the KeePassXC bridge), `packages/app-core` (Pages, the client CLI, Android) |
 
 The domain model itself is mirrored in code rather than generated from here:
 `crates/domain` (Rust) and `packages/os-domain` (TypeScript). WIT task
