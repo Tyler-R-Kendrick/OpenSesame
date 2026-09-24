@@ -10,7 +10,7 @@ package compare their implemented catalogs against the views derived here.
 
 - **Used by:** the parity tests and catalogs of
   [`apps/mcp-host`](../../apps/mcp-host), [`apps/mcp-client`](../../apps/mcp-client),
-  [`apps/pages`](../../apps/pages), [`apps/pwa`](../../apps/pwa),
+  [`apps/pages`](../../apps/pages),
   [`packages/cli`](../cli), [`packages/webmcp`](../webmcp),
   [`packages/app-core`](../app-core) and [`tests/redteam`](../../tests/redteam).
   The Host CLI's Rust test
@@ -29,7 +29,7 @@ package compare their implemented catalogs against the views derived here.
 | Export | What it is |
 |---|---|
 | `CAPABILITIES` | Every `Capability`: `id`, `title`, `plane` (`host` / `identity` / `client_local`), `kind` (`read` / `act` / `admin` / `ceremony`), `surfaces` and `excluded` |
-| `mcpHostCatalog`, `mcpClientCatalog`, `webmcpCatalog`, `webmcpPagesCatalog`, `webmcpPwaCatalog` | The tool names each agent surface must implement |
+| `mcpHostCatalog`, `mcpClientCatalog`, `webmcpCatalog`, `webmcpPagesCatalog` | The tool names each agent surface must implement |
 | `exclusionsFor(surface)` | Capabilities withheld from an agent surface, with reason and ADR |
 | `OPERATION_CAPABILITY`, `operationsForCapabilities`, `capabilitiesWithOperations` | Operation to product capability |
 | `AGENT_SECRET_NAME_PATTERN`, `assertsNoSecretNames` | Refuses an agent tool name that reads as secret retrieval (`secret`, `materialize`, `pass_show` …) |

@@ -49,7 +49,7 @@ const CONTROL_HOME = "apps/pages/src/styles.css";
 const GO_HOMES = [CONTROL_HOME, "apps/ceremonies/src/keys.css"];
 
 /** UI trees this lint owns. */
-const ROOTS = ["apps/pages/src", "apps/pwa/src", "apps/ceremonies/src"];
+const ROOTS = ["apps/pages/src", "apps/ceremonies/src"];
 
 const DOC = "docs/design/controls.md";
 

@@ -104,16 +104,6 @@
         "largestAsset": 12800
       }
     },
-    "apps/pwa": {
-      "dist": "apps/pwa/dist",
-      "budgets": {
-        "total": 360,
-        "javascript": 350,
-        "javascriptGzip": 105,
-        "css": 16,
-        "largestAsset": 350
-      }
-    },
     "apps/console": {
       "dist": "apps/console/dist",
       "budgets": {

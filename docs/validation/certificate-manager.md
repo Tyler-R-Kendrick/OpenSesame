@@ -243,7 +243,6 @@ Parity suites that must stay green — _pending: fill from the run of
 `apps/mcp-host/src/registry-parity.test.ts`,
 `apps/mcp-client/src/registry-parity.test.ts`,
 `packages/app-core/src/webmcp/registry-parity.test.ts`,
-`apps/pwa/src/webmcp.test.ts`,
 `apps/cli/tests/capability_parity.rs`,
 `packages/cli/src/capability-parity.test.ts`,
 `tests/redteam/src/structural.pact.test.ts`.

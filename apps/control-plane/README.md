@@ -10,8 +10,8 @@ no BFF merge.
 
 ## Where it fits
 
-- **Used by:** [`apps/console`](../console), [`apps/ceremonies`](../ceremonies),
-  [`apps/pwa`](../pwa) and [`apps/mobile-mfa`](../mobile-mfa) over HTTP; the
+- **Used by:** [`apps/console`](../console), [`apps/ceremonies`](../ceremonies)
+  and [`apps/mobile-mfa`](../mobile-mfa) over HTTP; the
   example relying parties under [`examples/`](../../examples). The package
   also exports `createControlPlane`, `createHonoApp`, `loadConfig`,
   `startServer` and `buildOpenApiDocument` from `src/index.ts`.

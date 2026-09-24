@@ -34,7 +34,7 @@ true. "Producer" is what puts the value there; "Verifier" is the exact code
 that decides whether to believe it; "Freshness" is the bound after which the
 value is no longer accepted.
 
-### 1.1 Browser (`apps/pages`, `apps/pwa`)
+### 1.1 Browser (`apps/pages`)
 
 | Trusted field | Producer | Verifier (file → function) | Scope | Freshness | If the producer is compromised |
 |---|---|---|---|---|---|

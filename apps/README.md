@@ -33,7 +33,6 @@ servers such as the mock IdP are in [`tools/`](../tools/README.md).
 | App | Package | Port | Purpose |
 |---|---|---|---|
 | [`pages`](pages) | `@opensesame/pages` | 5180 | **The OpenSesame app.** Installable offline PWA published to GitHub Pages: vault, connections, agents, access, identity, sites, settings. Complete with no backend. |
-| [`pwa`](pwa) | `@opensesame/pwa` | — | Minimal client PWA against the Host API and client-core sync. |
 | [`browser-extension`](browser-extension) | `@opensesame/browser-extension` | — | WXT browser extension: Host API, sync cursor, optional daemon. Never exposes a secret to a web page. |
 | [`mcp-host`](mcp-host) | `@opensesame/mcp-host` | stdio / HTTP | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. |
 | [`mcp-client`](mcp-client) | `@opensesame/mcp-client` | stdio | Agent MCP server over a narrowly scoped, short-lived Host capability. |

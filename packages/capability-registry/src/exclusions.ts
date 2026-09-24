@@ -22,6 +22,7 @@ export const ADR_NOTIFICATION_CEREMONIES =
 export const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
 export const ADR_INTERACTION_LAYER = "0086-wallet-native-interaction-layer.md";
 export const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
+export const ADR_PAGES_WITHOUT_HOST = "0128-pages-without-host.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -47,6 +48,16 @@ export const INTERACTION_REQUESTER_CHANNEL: CapabilityExclusion = {
   adr: ADR_INTERACTION_LAYER,
 };
 
+/**
+ * Pages speaks to no Host and no daemon (ADR 0128); its own connectivity
+ * posture is `host.health.pages`. Host and daemon status therefore have no
+ * Pages surface and no WebMCP tool.
+ */
+export const PAGES_HAS_NO_HOST: CapabilityExclusion = {
+  reason:
+    "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+  adr: ADR_PAGES_WITHOUT_HOST,
+};
 export const HUMAN_CEREMONY: CapabilityExclusion = {
   reason:
     "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",

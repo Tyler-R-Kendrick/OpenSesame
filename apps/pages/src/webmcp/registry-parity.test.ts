@@ -150,7 +150,7 @@ describe("WebMCP registry parity (ADR 0065)", () => {
     const byName = new Map(WEBMCP_TOOLS.map((tool) => [tool.name, tool]));
     for (const capability of CAPABILITIES) {
       const name = capability.surfaces.webmcp;
-      if (!name || capability.surfaces.pwa?.startsWith("pwa-app:")) continue;
+      if (!name) continue;
       const tool = byName.get(name);
       expect(tool, `no tool implements ${name}`).toBeDefined();
       expect(

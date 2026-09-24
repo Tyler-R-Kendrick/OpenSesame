@@ -11,8 +11,7 @@ Agent-facing routes deal in `ConnectionRef` and intents, never raw secrets.
 
 - **Used by:** [`apps/cli`](../cli), [`apps/daemon`](../daemon) (proxy, mint
   passthrough), [`apps/mcp-host`](../mcp-host), [`apps/mcp-client`](../mcp-client),
-  [`apps/browser-extension`](../browser-extension) and [`apps/pwa`](../pwa) over
-  HTTP; [`tests/mtls-interop`](../../tests/mtls-interop) runs it as a process.
+  and [`apps/browser-extension`](../browser-extension) over HTTP; [`tests/mtls-interop`](../../tests/mtls-interop) runs it as a process.
   The library target exports only `cert_issuers`.
 - **Builds on:** [`opensesame-host-core`](../../crates/host-core),
   [`opensesame-storage`](../../crates/storage) (SQLite),

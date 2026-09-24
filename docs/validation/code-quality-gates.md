@@ -171,7 +171,7 @@ context against the golden vault vectors.
 
 ## 4. Bundle budgets — `pnpm quality:bundle`
 
-Builds `apps/pages`, `apps/pwa` and `apps/console`, then measures `total`,
+Builds `apps/pages` and `apps/console`, then measures `total`,
 `javascript`, `javascriptGzip`, `css` and `largestAsset` against
 `tools/quality/bundle-budgets.json`.
 

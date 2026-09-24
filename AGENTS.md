@@ -20,8 +20,7 @@ dual-plane system with a **host/client** product topology (see
   [ADR 0053](docs/adr/0053-pm-bridge-binaries.md)).
 - **Client plane (Rust → Wasm + TS)** — `client-core` E2EE sync +
   `packages/api-client` (Host API TS client). Browser extension
-  `apps/browser-extension` (WXT), PWA `apps/pwa`, offline GitHub Pages PWA
-  `apps/pages`, Client CLI `packages/cli` (binary `opensesame-id`), MCP
+  `apps/browser-extension` (WXT), offline GitHub Pages PWA `apps/pages`, Client CLI `packages/cli` (binary `opensesame-id`), MCP
   servers `apps/mcp-client` / `apps/mcp-host`.
 - **Identity plane (TypeScript)** — Identity API `apps/control-plane`
   (`:8788`, Hono + Better Auth + oidc-provider), mock upstream IdP
@@ -265,7 +264,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
 | `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
-| `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
+| `apps/mobile-mfa` | Step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
@@ -295,7 +294,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/observability` | Structured logging + deep redaction |
 | `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
-| `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
+| `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages` tools |
 | `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
 | `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |

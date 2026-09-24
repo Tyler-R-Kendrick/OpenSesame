@@ -10,7 +10,7 @@ page works as before.
 
 ## Where it fits
 
-- **Used by:** [`apps/pages`](../../apps/pages) (the `agents.webmcp` capability module, `src/webmcp/lifecycle.ts`), [`apps/pwa`](../../apps/pwa) (`src/webmcp.ts`), [`packages/app-core`](../app-core) (`src/webmcp/` boot and login tools).
+- **Used by:** [`apps/pages`](../../apps/pages) (the `agents.webmcp` capability module, `src/webmcp/lifecycle.ts`), [`packages/app-core`](../app-core) (`src/webmcp/` boot and login tools).
 - **Builds on:** [`@opensesame/capability-registry`](../capability-registry) (`assertsNoSecretNames`), [`@opensesame/os-domain`](../os-domain).
 - Every tool name must start with `opensesame_` and must not look like a secret; names are checked even when the browser has no WebMCP, so a misdeclared tool fails everywhere.
 - A result is scrubbed and refused (`AgentPayloadRefused`) if it still looks like a credential. The fence is a browser-safe port of `@opensesame/observability`'s agent-payload fence; `fence.characterization.test.ts` runs both against the same fixtures.

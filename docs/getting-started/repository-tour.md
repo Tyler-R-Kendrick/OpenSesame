@@ -33,7 +33,7 @@ agent/editor directories `.agents/`, `.claude/`, `.codex/`, `.cursor/`,
 |---|---|---|---|
 | **Host / authority** — authorize, invoke, receipt | Rust | Host API `apps/gateway`, daemon `apps/daemon`, host CLI `apps/cli`, helpers `apps/credential-helpers`, bridges `apps/pm-bridges` | `crates/*` (54 libraries), facade `crates/host-core` |
 | **Identity** — who someone is | TypeScript | Identity API `apps/control-plane`, console `apps/console`, ceremonies `apps/ceremonies` | `packages/os-domain`, `oauth-provider`, `auth-upstream`, `claims`, `database`, `policy` |
-| **Client** — a person's device | TypeScript (+ Rust→Wasm) | Pages PWA `apps/pages`, PWA `apps/pwa`, extension `apps/browser-extension`, client CLI `packages/cli`, MCP servers `apps/mcp-*` | `packages/app-core`, `packages/vault-core`, `packages/api-client`, `crates/client-core` |
+| **Client** — a person's device | TypeScript (+ Rust→Wasm) | Pages PWA `apps/pages`, extension `apps/browser-extension`, client CLI `packages/cli`, MCP servers `apps/mcp-*` | `packages/app-core`, `packages/vault-core`, `packages/api-client`, `crates/client-core` |
 
 The contracts all three share live in [`spec/`](../../spec/README.md) (WIT
 worlds, the Host OpenAPI, the OpenFGA model) and in `packages/os-domain` /

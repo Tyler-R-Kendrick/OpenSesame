@@ -10,7 +10,7 @@ itself belongs to the Rust crate
 ## Where it fits
 
 - **Used by:** [`packages/api-client`](../api-client) (`SyncBlob` and
-  `SyncCursor` for sync push and pull), [`apps/pwa`](../../apps/pwa) and
+  `SyncCursor` for sync push and pull) and
   [`apps/browser-extension`](../../apps/browser-extension).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (JSON guards).
 - `persistSealedStore` refuses a document that is not exactly a cursor plus

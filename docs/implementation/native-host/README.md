@@ -179,9 +179,8 @@ host.
 
 ### Phase 6 — The web apps collapse into Pages
 
-- Delete `apps/pwa`, with its four `pwa-app:*` registry entries,
-  `webmcpPwaCatalog`, its row in `tools/quality/bundle-budgets.json` and the
-  `quality:bundle` filter.
+- ~~Delete `apps/pwa`~~ — done: its registry entries now map to Pages or are
+  excluded under ADR 0128, and its build, budget and lint wiring is gone.
 - Move the console's task-access page into Access and its organization
   settings into Identity; sign-in and device approval already exist in
   Pages. Delete `apps/console`.
