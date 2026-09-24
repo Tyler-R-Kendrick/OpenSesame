@@ -1,7 +1,7 @@
 import {
   handleGitBackupPut,
   handleGitBackupPutOptions,
-} from "../../git-backup-put.mjs";
+} from "../../src/git-backup-put.mjs";
 
 export default async function handler(req, res) {
   const origin = req.headers.origin ?? "";

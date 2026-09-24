@@ -3,7 +3,7 @@
 // This is deliberately a SECOND Oxlint config, separate from oxlint.config.ts:
 //   - oxlint.config.ts is the anti-slop gate. It is clean and must stay clean.
 //   - this config measures a debt the repo already carries, so it is consumed
-//     through scripts/quality-gate.mjs, which ratchets it down instead of
+//     through scripts/quality/quality-gate.mjs, which ratchets it down instead of
 //     failing the whole tree on day one.
 //
 // Thresholds mirror clippy.toml so one complexity contract covers both planes:

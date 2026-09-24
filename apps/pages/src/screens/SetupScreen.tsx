@@ -17,7 +17,7 @@
  * passed" stays distinct from "never looked"; it is never consent. The foot
  * is icon keys for previous / skip / next, and the shared `.go` Finish.
  *
- * Designed in `docs/design/first-run-setup/`.
+ * Designed in `docs/design/canvases/first-run-setup/`.
  */
 
 import type { ComponentType } from "react";

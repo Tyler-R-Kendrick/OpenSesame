@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Browser SDK for Identity API relying parties: sign-in with PKCE, callbacks, ID-token validation, claims and passkeys",
   "exports": {
     ".": {
       "types": "./src/index.ts",

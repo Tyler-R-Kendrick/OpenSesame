@@ -1,6 +1,7 @@
 {
   "name": "@opensesame/example-rp-alpha",
   "version": "0.1.0",
+  "description": "Example React relying party (client rp-alpha) that signs in through @opensesame/sdk-browser and shows its pairwise subject",
   "private": true,
   "type": "module",
   "scripts": {

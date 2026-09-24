@@ -1,6 +1,7 @@
 {
   "name": "@opensesame/fuzz",
   "version": "0.1.0",
+  "description": "Jazzer.js fuzz targets and security oracles for the TypeScript planes",
   "private": true,
   "type": "module",
   "scripts": {

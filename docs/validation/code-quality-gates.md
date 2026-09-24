@@ -162,7 +162,7 @@ is a hard failure except the lazy-cycle ledger, which only shrinks.
 - **Layering.** No cycle of static imports. A lazy `import()` that closes a
   loop is recorded in `packages/app-core/layering-baseline.json`; a new one
   fails, and one that disappears fails until it is struck
-  (`node scripts/app-core-boundary.mjs --update`).
+  (`node scripts/quality/app-core-boundary.mjs --update`).
 
 Two tests hold the runtime side: `packages/app-core/src/no-host-import.test.ts`
 imports every module with no host installed (a port read at import fails),

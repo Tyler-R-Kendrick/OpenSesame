@@ -25,5 +25,5 @@ credential the attempt cap protects.
 ```bash
 cargo +1.88.0 clippy -p opensesame-gateway --all-targets -- -D warnings
 cargo +1.88.0 test -p opensesame-gateway --bins
-./scripts/battle-test.sh
+./scripts/test/battle-test.sh
 ```

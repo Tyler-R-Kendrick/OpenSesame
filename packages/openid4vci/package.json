@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "OpenID4VCI 1.0 issuer for the minimal OpenSesame SD-JWT VC credential",
   "exports": {
     ".": {
       "types": "./src/index.ts",

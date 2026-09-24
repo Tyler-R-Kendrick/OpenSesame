@@ -263,7 +263,7 @@ render a disabled control, and it does not fail after the fact.
 
 Implementation. No transport is built, no schema is migrated, and no OpenFGA
 tuple is written by this document. The companion design canvas
-(`docs/design/shared-sessions/`) draws the ceremonies and pages this argues
+(`docs/design/canvases/shared-sessions/`) draws the ceremonies and pages this argues
 for, so the shape and its security story can be reviewed before code exists.
 
 ## Rejected

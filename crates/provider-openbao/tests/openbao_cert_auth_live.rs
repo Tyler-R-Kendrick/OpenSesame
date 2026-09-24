@@ -3,7 +3,7 @@
 //!
 //! `#[ignore]` by default and additionally gated on `OPENSESAME_MTLS_FIXTURES=1`,
 //! because it downloads nothing at test time but does need the pinned `bao`
-//! binary `scripts/mtls-fixtures.sh` fetches:
+//! binary `scripts/mtls/mtls-fixtures.sh` fetches:
 //!
 //! ```text
 //! OPENSESAME_MTLS_FIXTURES=1 cargo +1.88.0 test -p opensesame-provider-openbao -- --ignored

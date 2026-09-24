@@ -2,7 +2,7 @@
 /**
  * mTLS evidence manifest writer — artifacts/mtls/manifest.json + manifest.md.
  *
- * The shell runners (scripts/mtls-test.sh, mtls-integration-test.sh) drive it:
+ * The shell runners (scripts/mtls/mtls-test.sh, mtls-integration-test.sh) drive it:
  *
  *   begin     --run <dir> --suite <name>              start a run (versions, commit, tree)
  *   run-step  --run <dir> --id <step> --claim <id> [--scenarios A,B] [--runner cargo|vitest|marker|shell]

@@ -110,9 +110,9 @@ pass-through feature. Rules, each load-bearing:
   set unexpected, fuel exhausted, deadline passed — every one is a typed
   refusal, never a fallback.
 
-Gates: `scripts/daemon-deps-gate.sh` bans `wasmtime`/`cranelift-codegen`
+Gates: `scripts/audit/daemon-deps-gate.sh` bans `wasmtime`/`cranelift-codegen`
 from every daemon-adjacent tree (the runtime is a gateway concern;
-ADR 0048 §5 stands); `scripts/battle-test.sh` runs the feature-gated test
+ADR 0048 §5 stands); `scripts/test/battle-test.sh` runs the feature-gated test
 suite; the connector-sdk WIT structural tests continue to refuse
 `secrets.get`.
 
@@ -214,7 +214,7 @@ Recorded so each item's status is a decision, not an oversight.
   GET; the registry is untrusted transport and the local sha256 (plus the
   operator pin re-verified in `WasmConnector::load`) is the integrity
   boundary. Anonymous token flow only; SSRF-fenced; size-capped; fail
-  closed. Gate: `oci_component` unit tests + `scripts/clippy-gate.sh`.
+  closed. Gate: `oci_component` unit tests + `scripts/audit/clippy-gate.sh`.
 - **First cloud-secrets promotion** — `doppler` is off
   `AuthMethod::Configuration`: real API-key auth with egress path prefixes
   carved so L2 reaches only metadata endpoints (`/v3/projects`,

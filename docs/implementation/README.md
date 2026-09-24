@@ -13,4 +13,3 @@ directory moves to [`archive/`](../archive/README.md).
 | [Capability composition](capability-composition) ([ADR 0130](../adr/0130-operator-controlled-capability-composition.md)) | [Ownership and interface contract](capability-composition/ownership.md) |
 | [Product experience](product-experience) | [Baseline](product-experience/baseline.md) · [contracts](product-experience/contracts.md) · `ownership.json` · `traceability.json` |
 | Wallet consent | [Consent baseline](wallet-consent-baseline.md) ([ADR 0123](../adr/0123-wallet-spending-authority.md)) |
-| Claimable connection delegation | [Design analysis](claimable-connection-delegation.md) |

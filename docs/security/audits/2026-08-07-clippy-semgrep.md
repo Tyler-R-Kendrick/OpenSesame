@@ -10,7 +10,7 @@ Branch: `chore/audit-clippy-semgrep`
 | `pnpm audit:semgrep` | CLEAN |
 | `pnpm audit:cve-lite` | CLEAN |
 | `pnpm test:task-access` | OK |
-| `./scripts/battle-test.sh` | ALL PASSED |
+| `./scripts/test/battle-test.sh` | ALL PASSED |
 | `pnpm audit:ast-grep` (pre-fix) | FAIL — `ts-eval` on `new Function` in api-client |
 | `pnpm audit:ast-grep` (post-fix) | CLEAN |
 

@@ -15,7 +15,7 @@ marketplace/   vault item-type definitions (built-in + installable)
 spec/          language-neutral contracts both planes compile against
 tests/         cross-cutting test suites and shared fixtures
 tools/         development tooling: lint plugins, quality baselines, dev servers
-scripts/       the scripts behind `pnpm <task>` — gates, audits, release checks
+scripts/       the scripts behind `pnpm <task>`: quality/, audit/, fuzz/, test/, mtls/, release/, dev/
 ops/           deployment references, repo governance, scheduled routines
 skills/        agent skills (also exposed through .agents/skills)
 docs/          documentation
@@ -55,7 +55,7 @@ worlds, the Host OpenAPI, the OpenFGA model) and in `packages/os-domain` /
 | Authorization policy | `crates/authz`, `packages/policy`, model in `spec/openfga/model.fga` |
 | A capability (optional feature) | `packages/app-core/src/lib/capabilities/`, module in `apps/pages/src/modules/<id>/` |
 | MCP / WebMCP tools | `apps/mcp-host`, `apps/mcp-client`, `packages/webmcp`; parity in `packages/capability-registry` |
-| A `pnpm` command's implementation | `package.json` → `scripts/` |
+| A `pnpm` command's implementation | `package.json` → `scripts/<purpose>/` ([index](../../scripts/README.md)) |
 | A CI job | `.github/workflows/ci.yml` |
 
 ## Rules that follow from the layout

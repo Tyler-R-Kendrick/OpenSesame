@@ -235,7 +235,7 @@ For the implementation pass. Nothing below is built yet.
 | Registry entries | `packages/capability-registry/src/index.ts`, then regenerate `capabilities.json` |
 
 The new crate must **not** become a daemon dependency —
-`scripts/daemon-deps-gate.sh` audits `invoke-through`, `tailscale-authn` and
+`scripts/audit/daemon-deps-gate.sh` audits `invoke-through`, `tailscale-authn` and
 `uds-authn` trees, and ADR 0053 §2's rule is that the daemon depends on none of
 this. A browser driver in the daemon's tree would be a large regression.
 

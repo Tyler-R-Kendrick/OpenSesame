@@ -15,5 +15,5 @@ Covers both the Rust authority plane and TypeScript identity plane in this repos
 ```bash
 pnpm -r --filter '@opensesame/*' test
 pnpm test:security
-./scripts/battle-test.sh
+./scripts/test/battle-test.sh
 ```

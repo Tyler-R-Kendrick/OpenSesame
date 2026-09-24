@@ -53,10 +53,10 @@ gate scripts install what they need):
 git status
 git log -3 --oneline
 
-pnpm run audit:cve-lite       # bash ./scripts/cve-lite-gate.sh
-pnpm run audit:osv            # bash ./scripts/osv-scanner-gate.sh (osv-scanner.toml)
-pnpm run audit:cargo-audit    # bash ./scripts/cargo-audit-gate.sh (.cargo/audit.toml)
-pnpm run audit:gitleaks       # bash ./scripts/gitleaks-gate.sh (.gitleaks.toml)
+pnpm run audit:cve-lite       # bash ./scripts/audit/cve-lite-gate.sh
+pnpm run audit:osv            # bash ./scripts/audit/osv-scanner-gate.sh (osv-scanner.toml)
+pnpm run audit:cargo-audit    # bash ./scripts/audit/cargo-audit-gate.sh (.cargo/audit.toml)
+pnpm run audit:gitleaks       # bash ./scripts/audit/gitleaks-gate.sh (.gitleaks.toml)
 pnpm audit                    # native pnpm advisory scan (no wrapper script)
 cargo deny check              # deny.toml — licenses, bans, RustSec advisories
 ```

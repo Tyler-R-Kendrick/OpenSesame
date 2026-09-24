@@ -46,7 +46,7 @@ server is involved. This is the same build GitHub Pages serves
 pnpm --filter @opensesame/pages dev
 ```
 
-`scripts/pages-dev.sh` starts the Host API (`:18787`), the Identity API
+`scripts/dev/pages-dev.sh` starts the Host API (`:18787`), the Identity API
 (`:18788`), the mock upstream IdP (`:9090`) and Vite (`:5180`) together, and
 keeps development keys in `~/.local/state/opensesame/development` so they
 survive restarts without landing in git.

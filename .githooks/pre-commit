@@ -1,6 +1,6 @@
 #!/bin/sh
 # pre-commit — staged source linting plus an optional gitleaks scan.
-# Installed via `pnpm setup:hooks` (see scripts/setup-hooks.sh).
+# Installed via `pnpm setup:hooks` (see scripts/dev/setup-hooks.sh).
 set -e
 
 # Some shells/environments inherit a NODE_OPTIONS value with flags (e.g.
@@ -45,7 +45,7 @@ design_files=$(printf '%s\n' "$staged_files" | grep -E '\.(tsx|css)$' || true)
 if [ -n "$design_files" ]; then
   echo "==> design lint (control contract, staged UI files only)"
   # shellcheck disable=SC2086
-  if ! node scripts/design-lint.mjs $design_files; then
+  if ! node scripts/quality/design-lint.mjs $design_files; then
     echo "pre-commit: design lint failed." >&2
     echo "  -> see DESIGN.md and docs/design/controls.md. Executing actions are icon keys." >&2
     exit 1
@@ -70,7 +70,7 @@ fi
 
 if command -v gitleaks >/dev/null 2>&1; then
   echo "==> gitleaks secret scan"
-  if ! bash scripts/gitleaks-gate.sh; then
+  if ! bash scripts/audit/gitleaks-gate.sh; then
     echo "pre-commit: gitleaks gate failed." >&2
     echo "  -> remove the flagged secret from staged changes (see artifacts/security/gitleaks-dir.json)." >&2
     exit 1

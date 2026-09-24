@@ -12,7 +12,7 @@ These tools are opt-in gates.
 | cargo-fuzz / libFuzzer | nightly rustc + `cargo-fuzz` | Install the CLI with a new-enough rustc (`cargo +1.94.0 install cargo-fuzz`). Builds themselves need nightly because cargo-fuzz passes `-Zsanitizer=address`. `rustup toolchain install nightly && rustup default` is **not** required — keep `rust-toolchain.toml` on 1.88 and invoke `cargo +nightly fuzz …`. |
 | Kani | Kani’s own toolchain | `cargo install --locked kani-verifier && cargo kani setup` |
 | Miri | nightly + `miri` component | `rustup toolchain install nightly && rustup component add miri --toolchain nightly` |
-| Jazzer.js | Node ≥ 22; native `@jazzer.js/core` when the addon builds | `pnpm install`. `scripts/jazzer-gate.sh` falls back to the local `tsx` runner that calls the same `fuzz(Buffer)` exports. |
+| Jazzer.js | Node ≥ 22; native `@jazzer.js/core` when the addon builds | `pnpm install`. `scripts/fuzz/jazzer-gate.sh` falls back to the local `tsx` runner that calls the same `fuzz(Buffer)` exports. |
 | Shuttle | same 1.88, feature `concurrency-test` | pulled as an optional dev-dep |
 
 Do not change `rust-toolchain.toml` to nightly.

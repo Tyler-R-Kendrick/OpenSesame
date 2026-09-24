@@ -5,7 +5,7 @@
   "type": "module",
   "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
   "scripts": {
-    "dev": "bash ../../scripts/pages-dev.sh",
+    "dev": "bash ../../scripts/dev/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
     "build": "node scripts/security-profile.mjs && tsc --noEmit && vite build && node scripts/build-workers.mjs",
     "preview": "vite preview --port 5180",

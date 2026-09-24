@@ -102,7 +102,6 @@ Possessing a handle never implies permission to resolve it
 | [Host/client topology](host-client-topology.md) | Surfaces, ports, the crate/package dependency graph, the two CLIs, the WIT worlds. |
 | [Identity plane](identity-plane.md) | The Identity API's parts and how principals relate to upstream accounts. |
 | [Transport topology](transport-topology.md) | The hop profiles between planes and what a certificate does and does not prove. |
-| [Modularity and refactoring](modularity-refactor-strategy.md) | Where the codebase's complexity actually comes from, and the refactoring strategy that follows. |
 
 ### Identity and sign-in
 

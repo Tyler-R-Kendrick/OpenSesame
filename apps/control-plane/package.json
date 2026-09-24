@@ -1,6 +1,7 @@
 {
   "name": "@opensesame/control-plane",
   "version": "0.1.0",
+  "description": "Identity API on :8788: oidc-provider issuer, upstream and federated sign-in, principals, claims, device authorization, organizations and approvals",
   "private": true,
   "type": "module",
   "exports": {

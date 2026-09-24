@@ -1,5 +1,5 @@
-import { handleGithubAppWebhookPending } from "../../github-app-contents.mjs";
-import { handleGithubAppConvertOptions } from "../../github-app.mjs";
+import { handleGithubAppWebhookPending } from "../../src/github-app-contents.mjs";
+import { handleGithubAppConvertOptions } from "../../src/github-app.mjs";
 
 export default async function handler(req, res) {
   const origin = req.headers.origin ?? "";

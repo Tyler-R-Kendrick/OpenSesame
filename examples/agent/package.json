@@ -1,6 +1,7 @@
 {
   "name": "@opensesame/example-agent",
   "version": "0.1.0",
+  "description": "Example agent that registers anonymously with the Identity API and polls until a person claims it",
   "private": true,
   "type": "module",
   "bin": {

@@ -26,7 +26,7 @@ it measures the shape of the code. On 2026-09-03 that showed:
 - Nothing checked the component graph. `clippy.toml` already carried sensible
   per-function thresholds (`too-many-lines 100`, `too-many-arguments 7`,
   `excessive-nesting 4`), but Clippy has no per-file lint and
-  `scripts/clippy-gate.sh` was not in CI.
+  `scripts/audit/clippy-gate.sh` was not in CI.
 - Nothing measured what the shipped bundles weigh, on a product whose flagship
   surface is an **installable offline PWA that precaches its whole dist**.
 
@@ -57,9 +57,9 @@ single complexity contract covers both planes:
 | cyclomatic | `complexity` 15 | `cognitive-complexity` 25 |
 | **lines per file** | `max-lines` 400 | 400, counted by the gate |
 
-Clippy has no per-file lint, so `scripts/quality-gate.mjs` applies the 400-line
+Clippy has no per-file lint, so `scripts/quality/quality-gate.mjs` applies the 400-line
 file budget to `.rs` files itself. Rust *function* complexity is not
-duplicated — `scripts/clippy-gate.sh` already owns it.
+duplicated — `scripts/audit/clippy-gate.sh` already owns it.
 
 `max-lines-per-function` and `max-statements` are off for test files: a
 `describe()` body legitimately spans a suite, and leaving them on buried 212
@@ -101,7 +101,7 @@ the count at 1 and reported no improvement.
 
 ### 3. Enforce Martin's component principles on both planes
 
-`scripts/package-metrics-gate.mjs` scores all 115 components — 60 pnpm
+`scripts/quality/package-metrics-gate.mjs` scores all 115 components — 60 pnpm
 workspace packages and 55 Cargo crates — computing Ca, Ce, I = Ce/(Ca+Ce),
 A (abstractness) and D = |A + I − 1|.
 
@@ -131,7 +131,7 @@ otherwise score every isolated leaf a maximally-distant 1.00.
 ### 4. Budget the shipped bundles
 
 `tools/quality/bundle-budgets.json` holds explicit per-app KiB budgets, checked by
-`scripts/bundle-budget-gate.mjs`. These are deliberately **not** auto-recorded:
+`scripts/quality/bundle-budget-gate.mjs`. These are deliberately **not** auto-recorded:
 a bundle legitimately grows when a feature lands, so raising a number must be a
 reviewable line in a diff, not a regenerated file.
 
