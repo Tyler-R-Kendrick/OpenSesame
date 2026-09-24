@@ -179,6 +179,15 @@ button:hover:not(:disabled) {
   border-color: var(--ink-3);
 }
 
+/* An action that executes is a square key (DESIGN.md § Actions are
+   symbols); its sentence is the aria-label and the tooltip. */
+button.icon-btn {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+}
+
 button.primary {
   background: var(--accent);
   border-color: transparent;

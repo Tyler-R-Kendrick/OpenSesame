@@ -1,0 +1,252 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/login"
+        },
+        {
+          "measure": ".vtree__pathbar, .crumbs, #username, #password, .editor__inline--adorned, [aria-label='Add address'], [aria-label='Address 1']"
+        },
+        {
+          "report": "[aria-label='Vault path'], .crumbs"
+        },
+        {
+          "shot": "1280-vault-editor"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "measure": "#settings-auto-lock, #settings-clipboard"
+        },
+        {
+          "shot": "1280-general"
+        },
+        {
+          "scrollTo": "Keybindings and views"
+        },
+        {
+          "report": "#keybindings-source"
+        },
+        {
+          "shot": "1280-keybindings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "measure": "#vaults-new-name, [aria-label='Create vault']"
+        },
+        {
+          "report": ".panel .hint"
+        },
+        {
+          "shot": "1280-settings-vaults"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Formats"
+        },
+        {
+          "measure": ".fmt__table th, .fmt__row"
+        },
+        {
+          "shot": "1280-formats"
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Access authority"
+        },
+        {
+          "enable": "Browser-local IAM"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "connections"
+        },
+        {
+          "report": ".conn-tile__kind"
+        },
+        {
+          "measure": ".conn-tile__go"
+        },
+        {
+          "shot": "1280-connections"
+        },
+        {
+          "visit": "access"
+        },
+        {
+          "measure": ".section__head h1, .access-tabs, .panel__head .icon-btn"
+        },
+        {
+          "shot": "1280-access"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Access authority"
+        },
+        {
+          "enable": "Browser-local IAM"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "vault/new/login"
+        },
+        {
+          "measure": ".editor__actions, [aria-label='Remove address 1'], [aria-label='Address 1']"
+        },
+        {
+          "shot": "390-vault-editor"
+        },
+        {
+          "visit": "connections"
+        },
+        {
+          "measure": ".conn-catalog__head h2, .statusline .support-launch"
+        },
+        {
+          "scrollTo": "Add a connection"
+        },
+        {
+          "shot": "390-connections"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "shot": "390-vault-empty"
+        },
+        {
+          "visit": "access"
+        },
+        {
+          "scrollTo": "Identity shares"
+        },
+        {
+          "measure": ".identity-row__id h3"
+        },
+        {
+          "shot": "390-access-shares"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-vault-editor",
+      "width": 1280,
+      "title": "Vault › New login — 1280 × 900",
+      "caption": "A new login drafted its website as a * wildcard — offered on every site if saved as drafted — with three lines of wildcard help and a tester under a pattern nobody wrote. It starts with one empty address. The path is the list strip's label instead of a shell row over both panes, the password's rule ends where the username's does, extras are chips on one row, and pin is a star on the title row.",
+      "before": "address \"*\" wildcard · path row 1032px over both panes · password 403px vs username 478px · 4 stacked + buttons",
+      "after": "address empty · path in the list strip @y0 · password rule 478px = username · chips on 2 rows"
+    },
+    {
+      "shot": "1280-general",
+      "width": 1280,
+      "title": "Settings › General — 1280 × 900",
+      "caption": "Locking was one sentence with two selects inside it. It is two named rows whose selects share one width, like the switches under them.",
+      "before": "one sentence, two inline selects",
+      "after": "2 rows · selects 192px each @x1048"
+    },
+    {
+      "shot": "1280-keybindings",
+      "width": 1280,
+      "title": "Settings › General › Keybindings — 1280 × 900",
+      "caption": "settings/keybindings.yaml showed and demanded JSON. It is written and read as YAML; JSON still reads, because JSON is YAML.",
+      "before": "JSON under a .yaml name",
+      "after": "YAML, one binding per line"
+    },
+    {
+      "shot": "1280-settings-vaults",
+      "width": 1280,
+      "title": "Settings › Vaults — 1280 × 900",
+      "caption": "The new-vault + stood 24px past its field, under an explainer caption about the personal vault. The + ends its field (the shared field-inline row) and the caption is gone; the missing delete key says it. A vault never sealed no longer claims Locked.",
+      "before": "field 480px, key @x768",
+      "after": "field 442px, key @x728 · no caption"
+    },
+    {
+      "shot": "1280-formats",
+      "width": 1280,
+      "title": "Settings › Security › Formats — 1280 × 900",
+      "caption": "Each format was a 960px row whose read/write marks sat in fractions of the panel, a screen away from its name, with no header. It is a table: Format / Read / Write / Runtime, columns as wide as what they hold.",
+      "before": "rows 960px, no header",
+      "after": "header row · columns 266/193/222/279px"
+    },
+    {
+      "shot": "1280-connections",
+      "width": 1280,
+      "title": "Connections — 1280 × 900",
+      "caption": "Under Managed every tile said Managed; API Key said API key. A kind is drawn only where heading and name do not say it, names take the brand's spelling (OpenAI, OpenRouter, OpenBao), and each tile ends in the chevron that says it opens a page. Custom connector is a + key.",
+      "before": "kind repeated on every Managed tile · no chevron",
+      "after": "kind only where it adds · chevron on every tile"
+    },
+    {
+      "shot": "1280-access",
+      "width": 1280,
+      "title": "Access › Grants — 1280 × 900",
+      "caption": "Access had a path strip of its own whose + opened nothing (its Host ceremony was removed) and pushed its tabs 75px below Identity's. The book's import and export keys end the title row; the Grants tab's + is Identity shares'. \"No grants on this device yet\" above twelve grants and \"Application grants: -\" are gone, head keys are one size, and a share's role is on its meta line.",
+      "before": "tabs @y160 · dead + · 32px and 24px head keys",
+      "after": "tabs @y99 · import/export in title row · 24px head keys"
+    },
+    {
+      "shot": "390-vault-editor",
+      "width": 390,
+      "title": "Vault › New login — 390 × 844",
+      "caption": "A new login drafted a * wildcard address with its help and tester, and its × was centred across the address and its rule. The address starts empty, the × ends the address's row, the group's + stands over it, and the save row stays at the pane's foot while the fields scroll.",
+      "before": "\"*\" wildcard · × @y381 beside address @y356 row",
+      "after": "× @y319 on the address row · save row sticky"
+    },
+    {
+      "shot": "390-connections",
+      "width": 390,
+      "title": "Connections — 390 × 844",
+      "caption": "\"Add a connection\" wrapped onto two lines beside a / key and a Custom connector word button, and the status line's Support key sat against the glass. The heading is one line, Custom connector is a + key, and the strip keeps its 8px gutter.",
+      "before": "heading 140×51 (2 lines) · Support @x0",
+      "after": "heading 158×26 (1 line) · Support @x8"
+    },
+    {
+      "shot": "390-vault-empty",
+      "width": 390,
+      "title": "Vault, empty — 390 × 844",
+      "caption": "A phone hid the keyboard tip and left a bare \"Nothing here\". A keyboard tip with a touch counterpart says that one on a phone.",
+      "before": "\"Nothing here\" alone",
+      "after": "\"The + above adds the first item.\""
+    },
+    {
+      "shot": "390-access-shares",
+      "width": 390,
+      "title": "Access › Identity shares — 390 × 844",
+      "caption": "Each share's title had 163px beside a role chip, a boxed lock and the trash, so names broke over three lines. The role is on the meta line and the status glyph is unframed.",
+      "before": "titles 163px wide, up to 68px tall",
+      "after": "titles 236px wide, 23px (one line) for most"
+    }
+  ]
+}

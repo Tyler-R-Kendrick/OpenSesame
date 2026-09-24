@@ -13,7 +13,13 @@ import { connectorPath } from "@opensesame/app-core/sections/connections/shared.
 import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
-import { IconInfo } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import {
+  IconChevronRight,
+  IconInfo,
+  IconPlus,
+  IconX,
+} from "../../components/Icons.js";
 import {
   SlashSearchField,
   SlashSearchKey,
@@ -72,8 +78,14 @@ export function CatalogPanel({
               label="Search connectors"
             />
           </div>
-          <Link ref={customRef} className="btn btn--sm" to="/connections/new">
-            Custom connector
+          <Link
+            ref={customRef}
+            className="icon-btn"
+            to="/connections/new"
+            aria-label="Custom connector"
+            title="Custom connector"
+          >
+            <IconPlus size={16} />
           </Link>
         </div>
       </div>
@@ -106,6 +118,7 @@ export function CatalogPanel({
                       <ProviderTile
                         key={provider.id}
                         provider={provider}
+                        groupLabel={group.label}
                         connection={
                           connections.find(
                             (row) =>
@@ -124,13 +137,9 @@ export function CatalogPanel({
                 <h3>No matching connectors</h3>
                 <p>Try a provider name, category, or connector ID.</p>
                 <EmptyTip>{emptyTips.keymap}</EmptyTip>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  onClick={search.close}
-                >
-                  Clear search
-                </button>
+                <IconKey label="Clear search" small onClick={search.close}>
+                  <IconX size={16} />
+                </IconKey>
               </div>
             ) : null}
           </>
@@ -151,12 +160,21 @@ export function CatalogPanel({
 
 function ProviderTile({
   provider,
+  groupLabel,
   connection,
 }: {
   provider: Provider;
+  /** The heading the tile sits under, which its kind may only repeat. */
+  groupLabel: string;
   connection: Connection | null;
 }) {
   const note = catalogTileNote(provider, connection);
+  // Under "Managed" every tile said "Managed", and "API Key" said "API key":
+  // a kind is drawn only where it says something its heading and name do not.
+  const kind = authKindLabel(provider);
+  const repeats = [groupLabel, provider.displayName].some(
+    (text) => text.toLowerCase() === kind.toLowerCase(),
+  );
   const { hash } = useLocation();
   return (
     <li
@@ -176,7 +194,7 @@ function ProviderTile({
         />
         <span className="conn-tile__copy">
           <span className="conn-tile__name">{provider.displayName}</span>
-          <span className="conn-tile__kind">{authKindLabel(provider)}</span>
+          {repeats ? null : <span className="conn-tile__kind">{kind}</span>}
         </span>
         {note ? (
           <StatusMark tone={statusTone(note.tone)} label={note.label} />
@@ -203,6 +221,7 @@ function TileBody({
       to={connectorPath(provider.id)}
     >
       {children}
+      <IconChevronRight className="conn-tile__go" size={14} />
     </Link>
   );
 }

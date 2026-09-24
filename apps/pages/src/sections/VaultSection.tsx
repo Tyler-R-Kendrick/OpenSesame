@@ -1,3 +1,4 @@
+import { vaultFilterLabel } from "@opensesame/app-core/lib/crumbs.js";
 import { useEffect, useMemo, useRef } from "react";
 import {
   Link,
@@ -31,18 +32,6 @@ import {
   concealedValue,
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
-
-const FILTER_TITLE = new Map([
-  ["all", "All items"],
-  ["favorites", "Favorites"],
-  ["trash", "Trash"],
-  ["login", "Logins"],
-  ["passkey", "Passkeys"],
-  ["card", "Cards"],
-  ["secret", "Secrets"],
-  ["drop", "Drops"],
-  ["note", "Secure notes"],
-]);
 
 export function VaultSection() {
   const [params] = useSearchParams();
@@ -86,7 +75,13 @@ export function VaultSection() {
   }, [items, filter, folderId]);
 
   const detailOpen = location.pathname !== "/vault";
-  const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
+  // The crumb's own label (a type's plural from its definition), so the
+  // status line under a filter says what the crumb above it says — it used
+  // to say "All items" under "Certificates".
+  const title = folderId
+    ? "Folder"
+    : ((filter === "all" ? undefined : vaultFilterLabel(filter)) ??
+      "All items");
   // A filtered "+ new" creates the filter's kind only when that kind may be
   // created on this installation (SURFACE-08); otherwise the default kind.
   const createPath = itemCreatePath(
@@ -260,21 +255,41 @@ export function VaultSection() {
 
 /**
  * The buffer before the cursor lands on a file. No dashboard: moving the
- * cursor previews items, so this pane only states what is sealed and hands
- * over the keys.
+ * cursor previews items, so this pane only states what the list beside it
+ * holds and hands over the keys — for the filter the list is showing. It
+ * used to say "nothing sealed yet" inside Trash and every empty filter
+ * alike. The keys stay the same everywhere, as the path strip's do
+ * (DESIGN.md: empty, filtered and trash views keep the same group).
  */
 export function VaultWelcome() {
   const { items } = useVault();
-  const live = items.filter((item) => item.deletedAt === null);
+  const [params] = useSearchParams();
+  const filter = params.get("f") ?? "all";
+  const inTrash = filter === "trash";
+  const shown = items.filter((item) => {
+    if (inTrash) return item.deletedAt !== null;
+    if (item.deletedAt !== null) return false;
+    if (filter === "favorites") return item.favorite;
+    return filter === "all" || itemTypeId(item) === filter;
+  });
+  const what =
+    filter === "all"
+      ? null
+      : (vaultFilterLabel(filter) ?? filter).toLowerCase();
 
-  if (live.length === 0) {
-    // The list pane states the empty vault and carries the actions that fill
-    // it. The buffer says what is sealed and hands over the keys — the same
-    // two mono lines it shows a full vault (DESIGN.md § Empty states), not a
-    // second copy of the list pane's tip beside the first.
+  if (shown.length === 0) {
+    // The list pane states the empty list and carries the actions that fill
+    // it. The buffer says what is there and hands over the keys — the same
+    // two mono lines it shows a full vault (DESIGN.md § Empty states).
     return (
       <div className="buffer">
-        <p className="buffer__line">nothing sealed yet</p>
+        <p className="buffer__line">
+          {inTrash
+            ? "trash is empty"
+            : what
+              ? `no ${what} yet`
+              : "nothing sealed yet"}
+        </p>
         <p className="buffer__keys">n new · import · ? keys</p>
       </div>
     );
@@ -283,7 +298,8 @@ export function VaultWelcome() {
   return (
     <div className="buffer">
       <p className="buffer__line">
-        {live.length} {live.length === 1 ? "item" : "items"}
+        {shown.length} {shown.length === 1 ? "item" : "items"}
+        {what ? ` · ${what}` : ""}
       </p>
       <EmptyTip>{emptyTips.vaultMove}</EmptyTip>
       <p className="buffer__keys">enter open · n new · / search · ? keys</p>

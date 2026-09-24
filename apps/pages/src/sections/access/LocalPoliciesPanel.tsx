@@ -60,12 +60,12 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
         <h2>Local application policies</h2>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn icon-btn--sm"
           title="Reload local policies"
           aria-label="Reload local policies"
           onClick={() => void reload()}
         >
-          <IconRefresh />
+          <IconRefresh size={15} />
         </button>
       </div>
       <div className="panel__body">
@@ -77,10 +77,9 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
         {!directory && !error ? <output>Loading local policies…</output> : null}
         {directory && applications ? (
           <>
-            <p className="hint">Applications: {applications.length || "-"}</p>
             {applications.length ? (
               applications.map((application) => (
-                <div key={application.id}>
+                <div key={application.id} className="access-policy">
                   <h3>{application.name}</h3>
                   <p>
                     <code className="access-ref">{application.id}</code>
@@ -100,11 +99,7 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
                 </div>
               ))
             ) : (
-              <p>
-                No local applications. Create an application and its
-                organization in Identity → Applications, then configure its
-                scope policy here.
-              </p>
+              <p className="hint">No local applications.</p>
             )}
           </>
         ) : null}

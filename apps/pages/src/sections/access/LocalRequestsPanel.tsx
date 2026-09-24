@@ -10,7 +10,14 @@ import {
   revokeLocalAccessRequest,
 } from "@opensesame/app-core/lib/local-access-requests.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import {
+  IconArrowRight,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
 import { RequestApproval } from "./RequestApproval.js";
@@ -92,30 +99,26 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             <option value="decided">decided</option>
             <option value="all">all</option>
           </select>
-          <button
-            type="button"
-            className="icon-btn"
-            title="New local request"
-            aria-label="New local request"
+          <IconKey
+            small
+            label="New local request"
             disabled={disabled || !model.data || creating || selected !== null}
             onClick={(event) => {
               trigger.current = event.currentTarget;
               setCreating(true);
             }}
           >
-            <IconPlus />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            ref={reload}
-            title="Reload local requests"
-            aria-label="Reload local requests"
+            <IconPlus size={15} />
+          </IconKey>
+          <IconKey
+            small
+            label="Reload local requests"
+            keyRef={reload}
             disabled={model.busy}
             onClick={() => void model.reload()}
           >
-            <IconRefresh />
-          </button>
+            <IconRefresh size={15} />
+          </IconKey>
         </div>
       </div>
       <div className="panel__body">
@@ -189,7 +192,6 @@ function RequestRows({
   const rows = data.requests.filter((row) => visibleIds.has(row.id));
   return (
     <>
-      <p className="hint">Requests: {rows.length || "-"}</p>
       <ul className="access-local-records">
         {rows.map((row) => (
           <li key={row.id}>
@@ -206,20 +208,18 @@ function RequestRows({
             <p>
               <code className="access-ref">{row.id}</code>
             </p>
-            <button
-              type="button"
-              className="btn btn--sm"
+            <IconKey
+              label="Review request"
+              small
               disabled={disabled}
               onClick={(event) => select(row, event.currentTarget)}
             >
-              Review request
-            </button>
+              <IconArrowRight size={16} />
+            </IconKey>
           </li>
         ))}
       </ul>
-      {!rows.length ? (
-        <p>No local requests. Create one for a registered application.</p>
-      ) : null}
+      {!rows.length ? <p className="hint">No local requests.</p> : null}
     </>
   );
 }
@@ -246,6 +246,13 @@ function RequestDecision({
   const name = (value: string) =>
     directory.entries.find((entry) => entry.id === value)?.name ?? value;
   const active = row.status === "pending" || row.status === "approved";
+  const removeLabel = removing
+    ? active
+      ? "Confirm withdrawal"
+      : "Confirm history removal"
+    : active
+      ? "Withdraw request"
+      : "Remove request history";
   async function remove() {
     if (!removing) {
       setRemoving(true);
@@ -285,18 +292,12 @@ function RequestDecision({
         />
       ) : null}
       <div className="actions">
-        <button type="button" className="btn" onClick={() => void remove()}>
-          {removing
-            ? active
-              ? "Confirm withdrawal"
-              : "Confirm history removal"
-            : active
-              ? "Withdraw request"
-              : "Remove request history"}
-        </button>
-        <button type="button" className="btn" onClick={close}>
-          Close request
-        </button>
+        <IconKey label={removeLabel} danger onClick={() => void remove()}>
+          <IconTrash size={16} />
+        </IconKey>
+        <IconKey label="Close request" onClick={close}>
+          <IconX size={16} />
+        </IconKey>
       </div>
     </fieldset>
   );

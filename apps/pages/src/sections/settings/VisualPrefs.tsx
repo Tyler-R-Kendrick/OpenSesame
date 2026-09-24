@@ -1,4 +1,5 @@
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
+import type { Ref } from "react";
 import { IconMonitor, IconMoon, IconSun } from "../../components/Icons.js";
 import { setTheme } from "../../lib/theme.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -69,6 +70,47 @@ function AppearancePrefs(props: VisualPrefsProps) {
   );
 }
 
+/** A setting's name, then its choice at the row's end. */
+function SelectRow({
+  id,
+  name,
+  label,
+  value,
+  options,
+  onChange,
+  selectRef,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  value: number;
+  options: readonly { value: number; label: string }[];
+  onChange: (value: number) => void;
+  selectRef?: Ref<HTMLSelectElement>;
+}) {
+  return (
+    <div className="sw">
+      <label className="sw__name" htmlFor={id}>
+        {name}
+      </label>
+      <select
+        id={id}
+        ref={selectRef}
+        className="sw__select"
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function LockingPrefs(props: VisualPrefsProps) {
   const autoLockRef = useGuideTarget<HTMLSelectElement>("settings.auto-lock");
   const { prefs } = props;
@@ -91,41 +133,26 @@ function LockingPrefs(props: VisualPrefsProps) {
         </div>
       </div>
       <div className="panel__body">
-        <p className="sent">
-          Lock the vault{" "}
-          <select
-            ref={autoLockRef}
-            aria-label="Lock after inactivity"
-            value={prefs.autoLockMinutes}
-            onChange={(event) =>
-              props.onNumber("autoLockMinutes", Number(event.target.value))
-            }
-          >
-            {lockOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          . Copied secrets stay in the clipboard{" "}
-          <select
-            aria-label="Clear copied secrets after"
-            value={prefs.clipboardClearSeconds}
-            onChange={(event) =>
-              props.onNumber(
-                "clipboardClearSeconds",
-                Number(event.target.value),
-              )
-            }
-          >
-            {CLIPBOARD.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          .
-        </p>
+        {/* Rows like the switches under them — a name, then its control at
+            the row's end. As one sentence with two selects in it, a phone
+            broke it into boxed pills on lines of their own. */}
+        <SelectRow
+          id="settings-auto-lock"
+          name="Lock the vault"
+          label="Lock after inactivity"
+          selectRef={autoLockRef}
+          value={prefs.autoLockMinutes}
+          options={lockOptions}
+          onChange={(value) => props.onNumber("autoLockMinutes", value)}
+        />
+        <SelectRow
+          id="settings-clipboard"
+          name="Keep copied secrets"
+          label="Clear copied secrets after"
+          value={prefs.clipboardClearSeconds}
+          options={CLIPBOARD}
+          onChange={(value) => props.onNumber("clipboardClearSeconds", value)}
+        />
         <div className="sw">
           <span className="sw__name">
             Lock when this tab goes to the background
@@ -145,8 +172,8 @@ function LockingPrefs(props: VisualPrefsProps) {
             <span className="sw__name">Sign out of Identity too</span>
             <span className="sw__sub">
               {" "}
-              — strict. Auto-lock otherwise only drops the vault key and leaves
-              you signed in to Host and Identity.
+              — otherwise auto-lock drops only the vault key and you stay signed
+              in.
             </span>
           </span>
           <button

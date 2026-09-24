@@ -122,7 +122,7 @@ it("distinguishes applications with the same name using public references", asyn
 
 it("shows a true empty state and a dash count", async () => {
   render(<LocalPolicyEditor tomb={tomb} />);
-  await screen.findByText("Applications: -");
+  await screen.findByText("No local applications.");
   expect(screen.getByText(/No local applications\./)).toBeTruthy();
   expect(screen.queryByRole("alert")).toBeNull();
 });

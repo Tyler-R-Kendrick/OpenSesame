@@ -56,13 +56,17 @@ export function DirectoryRows({
           <li key={entry.id} className="identity-row" id={entry.id}>
             <div className="identity-row__main">
               <div className="identity-row__id">
-                <h3>{entry.name}</h3>
+                {/* The state rides the name: in a column of its own it
+                    pressed a phone card's id into three lines. */}
+                <div className="identity-row__title">
+                  <h3>{entry.name}</h3>
+                  <StatusMark
+                    tone={entry.enabled ? "ok" : "warn"}
+                    label={entry.enabled ? "Enabled" : "Disabled"}
+                  />
+                </div>
                 <code className="identity-ref">{entry.id}</code>
               </div>
-              <StatusMark
-                tone={entry.enabled ? "ok" : "warn"}
-                label={entry.enabled ? "Enabled" : "Disabled"}
-              />
               <div className="actions">
                 <button
                   type="button"

@@ -19,6 +19,7 @@ import {
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconCheck,
   IconChevronLeft,
@@ -125,15 +126,12 @@ export function ItemDetail() {
         <div className="detail__tools">
           {inTrash ? (
             <>
-              <button
-                type="button"
-                className="icon-btn"
+              <IconKey
+                label="Restore"
                 onClick={() => void store.restoreItem(item.id)}
-                aria-label="Restore"
-                title="Restore"
               >
                 <IconRefresh size={17} />
-              </button>
+              </IconKey>
               <button
                 type="button"
                 className={`icon-btn icon-btn--danger${confirmPurge ? " is-armed" : ""}`}
@@ -159,15 +157,12 @@ export function ItemDetail() {
                 <IconTrash size={17} />
               </button>
               {confirmPurge ? (
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label="Keep this item"
                   onClick={() => setConfirmPurge(false)}
-                  aria-label="Keep this item"
-                  title="Keep this item"
                 >
                   <IconX size={17} />
-                </button>
+                </IconKey>
               ) : null}
             </>
           ) : (
@@ -357,15 +352,9 @@ function UpdateSecretPanel({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        className="icon-btn"
-        onClick={() => setOpen(true)}
-        aria-label={`Update ${label}`}
-        title={`Update ${label}`}
-      >
+      <IconKey label={`Update ${label}`} onClick={() => setOpen(true)}>
         <IconRefresh size={17} />
-      </button>
+      </IconKey>
     );
   }
 
@@ -377,6 +366,7 @@ function UpdateSecretPanel({
           className={
             mode === "generate" ? "sites-effect is-on is-allow" : "sites-effect"
           }
+          aria-pressed={mode === "generate"}
           onClick={() => setMode("generate")}
         >
           Generate
@@ -386,6 +376,7 @@ function UpdateSecretPanel({
           className={
             mode === "provide" ? "sites-effect is-on is-allow" : "sites-effect"
           }
+          aria-pressed={mode === "provide"}
           onClick={() => setMode("provide")}
         >
           Enter
@@ -419,18 +410,15 @@ function UpdateSecretPanel({
         >
           <IconCheck size={17} />
         </button>
-        <button
-          type="button"
-          className="icon-btn"
+        <IconKey
+          label="Cancel"
           onClick={() => {
             setOpen(false);
             setError(null);
           }}
-          aria-label="Cancel"
-          title="Cancel"
         >
           <IconX size={17} />
-        </button>
+        </IconKey>
       </div>
     </div>
   );

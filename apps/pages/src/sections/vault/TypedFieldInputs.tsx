@@ -75,7 +75,7 @@ export function ScalarInput({
   );
   if (!spec.concealed) return input;
   return (
-    <div className="editor__inline">
+    <div className="editor__inline editor__inline--adorned">
       {input}
       <RevealButton
         revealed={revealed}
@@ -165,7 +165,7 @@ export function RecordInput({
           <div className="field" key={key}>
             <label htmlFor={key}>{part.label}</label>
             {part.concealed ? (
-              <div className="editor__inline">
+              <div className="editor__inline editor__inline--adorned">
                 <input
                   id={key}
                   type={revealed ? "text" : "password"}

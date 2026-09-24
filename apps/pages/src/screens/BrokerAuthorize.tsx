@@ -31,6 +31,9 @@ import { useSearchParams } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
+import { FormCommit } from "../components/FormCommit.js";
+import { IconKey } from "../components/IconKey.js";
+import { IconX } from "../components/Icons.js";
 
 type Phase =
   | { kind: "invalid"; error: string; detail: string; state?: string }
@@ -252,22 +255,14 @@ export function BrokerAuthorize() {
             <p>
               Scopes: <code>{phase.request.scope}</code>
             </p>
-            <div className="broker__actions">
-              <button
-                type="button"
-                className="broker__btn"
-                onClick={() => release(phase.request, phase.identity, true)}
-              >
-                Allow once and remember
-              </button>
-              <button
-                type="button"
-                className="broker__btn broker__btn--ghost"
-                onClick={() => deny(phase.request)}
-              >
-                Deny
-              </button>
-            </div>
+            <FormCommit
+              label="Allow once and remember"
+              onClick={() => release(phase.request, phase.identity, true)}
+            >
+              <IconKey label="Deny" danger onClick={() => deny(phase.request)}>
+                <IconX size={16} />
+              </IconKey>
+            </FormCommit>
             <button
               type="button"
               className="broker__link"

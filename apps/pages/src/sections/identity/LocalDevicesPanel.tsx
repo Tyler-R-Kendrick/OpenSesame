@@ -7,7 +7,8 @@ import {
 } from "@opensesame/app-core/lib/local-devices.js";
 import { useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconX } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
 
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   const [devices, setDevices] = useState<LocalDevice[] | null>(null);
@@ -57,9 +58,6 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
         <h2>Devices</h2>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Browsers and installs that have unlocked this vault, not passkeys.
-        </p>
         {error ? (
           <p className="note note--err" role="alert">
             {error}
@@ -125,25 +123,24 @@ function DeviceRow({
           <span className="chip">{device.platform}</span>
         )}
         <div className="actions">
-          <button
-            type="button"
-            className="btn btn--sm"
+          <IconKey
+            label={`Rename ${device.name}`}
+            small
             disabled={busy || editing}
-            aria-label={`Rename ${device.name}`}
             onClick={onRename}
           >
-            Rename
-          </button>
+            <IconEdit size={16} />
+          </IconKey>
           {device.id === mine ? null : (
-            <button
-              type="button"
-              className="btn btn--sm btn--danger"
+            <IconKey
+              label={`Remove ${device.name}`}
+              small
+              danger
               disabled={busy || editing}
-              aria-label={`Remove ${device.name}`}
               onClick={onRemove}
             >
-              Remove
-            </button>
+              <IconTrash size={16} />
+            </IconKey>
           )}
         </div>
       </div>
@@ -185,16 +182,9 @@ function RenameForm({
         />
       </div>
       <FormCommit label="Save name" disabled={busy || !draft.name.trim()}>
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={busy}
-          onClick={onCancel}
-          aria-label="Cancel"
-          title="Cancel"
-        >
+        <IconKey label="Cancel" disabled={busy} onClick={onCancel}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </FormCommit>
     </form>
   );

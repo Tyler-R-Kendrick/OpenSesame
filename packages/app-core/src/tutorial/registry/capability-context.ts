@@ -19,7 +19,6 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "identity.agents.manage": ["/identity"],
     "access.sessions.review": ["/access"],
     "access.grant": ["/access"],
-    "access.claim": ["/access"],
     "access.relay": ["/access"],
     "connection.create": ["/connections"],
     "connection.repair": ["/connections"],

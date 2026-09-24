@@ -119,7 +119,12 @@ function FeatureRow({ feature, current, onPropose, rowRef }: RowProps) {
       <div className="capspanel__row">
         <span className="capspanel__name">
           <strong>{feature.title}</strong>
-          <span>{standing.label}</span>
+          {/* "on" or "off" under the name only repeated the switch beside
+              it; the line stays for what the switch cannot say — how much
+              of the feature runs, or why none of it can. */}
+          {standing.label === "on" || standing.label === "off" ? null : (
+            <span>{standing.label}</span>
+          )}
         </span>
         <span className="capspanel__side">
           {/* The switch says on or off; a mark only says what it cannot. */}
@@ -170,18 +175,22 @@ function BackupsRow(props: RowProps) {
  * here may turn them back on: the default is on, and a device whose operator
  * is gone must still be able to get the road back.
  */
-function GuestRow() {
+/** Whether the Guests row draws — the rail asks before it lists it. */
+export function useGuestRowShown(): boolean {
   const allowed = useGuestsAllowed();
   const operator = useDeviceOperator();
   const { guest } = useVault();
-  if (!operator && (allowed || guest)) return null;
-  const label = allowed ? "on" : "off";
+  return operator || (!allowed && !guest);
+}
+
+function GuestRow() {
+  const allowed = useGuestsAllowed();
+  if (!useGuestRowShown()) return null;
   return (
     <li className="capfeature" id="feature-guests">
       <div className="capspanel__row">
         <span className="capspanel__name">
           <strong>Guests</strong>
-          <span>{label}</span>
         </span>
         <span className="capspanel__side">
           <Switch

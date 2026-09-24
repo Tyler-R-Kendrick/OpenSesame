@@ -4,6 +4,7 @@ import {
   createOpenSesame,
 } from "@opensesame/sdk-browser";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Commit, IconRefresh } from "../keys.js";
 import {
   clearClaimStash,
   readClaimStash,
@@ -341,9 +342,7 @@ export function ClaimCeremony() {
             />
           </div>
           <div className="actions">
-            <button type="submit" className="primary" disabled={!typed.trim()}>
-              Review claim
-            </button>
+            <Commit label="Review claim" disabled={!typed.trim()} />
           </div>
         </form>
       ) : null}
@@ -383,13 +382,11 @@ export function ClaimCeremony() {
       ) : null}
       {phase.kind === "paused" && phase.reason === "retry" ? (
         <div className="actions">
-          <button
-            type="button"
-            className="primary"
+          <Commit
+            label="Try again"
+            icon={<IconRefresh size={18} />}
             onClick={() => void load(phase.token, phase.presented)}
-          >
-            Try again
-          </button>
+          />
         </div>
       ) : null}
       {phase.kind === "open" ? (
@@ -417,15 +414,12 @@ export function ClaimCeremony() {
             </p>
           </div>
           <div className="actions">
-            <button
-              type="button"
-              className="primary"
+            <Commit
+              label={completing ? "Completing…" : "Accept claim"}
               disabled={completing || !userCode.trim()}
-              aria-busy={completing}
+              busy={completing}
               onClick={() => void complete()}
-            >
-              {completing ? "Completing…" : "Accept claim"}
-            </button>
+            />
           </div>
         </div>
       ) : null}

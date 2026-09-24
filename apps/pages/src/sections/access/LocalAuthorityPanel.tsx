@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import "./local-authority.css";
+import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconTrash, IconX } from "../../components/Icons.js";
+import { StatusNote } from "../../components/StatusNote.js";
 import { keyboardIsIdle } from "../../lib/focus.js";
 import {
   type LocalAuthorityRow,
   useLocalAuthority,
 } from "./useLocalAuthority.js";
 
+/**
+ * One kind of local access record per panel: Access › Grants lists the
+ * application grants and Access › Sessions the sign-in sessions, so neither
+ * tab repeats the other's list or its empty line.
+ */
 export function LocalAuthorityPanel({
   tomb,
-  grantsOnly = false,
-}: { tomb: string; grantsOnly?: boolean }) {
+  records,
+}: { tomb: string; records: LocalAuthorityRow["kind"] }) {
   const state = useLocalAuthority(tomb);
-  const rows = grantsOnly
-    ? state.rows?.filter((row) => row.kind === "grant")
-    : state.rows;
+  const grantsOnly = records === "grant";
+  const rows = state.rows?.filter((row) => row.kind === records);
   const [pending, setPending] = useState<LocalAuthorityRow | null>(null);
   const reload = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
@@ -36,27 +42,21 @@ export function LocalAuthorityPanel({
       aria-busy={state.busy}
     >
       <div className="panel__head">
-        <h2>
-          {grantsOnly ? "Local application grants" : "Local sessions & grants"}
-        </h2>
-        <button
-          ref={reload}
-          type="button"
-          className="icon-btn"
-          aria-label="Reload local access records"
-          title="Reload local access records"
+        <h2>{grantsOnly ? "Local application grants" : "Local sessions"}</h2>
+        <IconKey
+          label="Reload local access records"
+          small
+          keyRef={reload}
           disabled={state.busy}
           onClick={() => void state.reload()}
         >
-          <IconRefresh />
-        </button>
+          <IconRefresh size={15} />
+        </IconKey>
       </div>
       <div className="panel__body">
-        {state.error ? (
-          <p className="note note--err" role="alert">
-            {state.error}
-          </p>
-        ) : null}
+        <StatusNote
+          message={state.error ? { tone: "err", text: state.error } : null}
+        />
         <output>{state.message}</output>
         {pending ? (
           <ConfirmRevocation
@@ -67,24 +67,15 @@ export function LocalAuthorityPanel({
           />
         ) : null}
         {rows ? (
-          <>
-            <p className="hint">
-              {!grantsOnly
-                ? `Recorded sessions: ${rows.filter((row) => row.kind === "session").length || "-"} · `
-                : null}
-              Application grants:{" "}
-              {rows.filter((row) => row.kind === "grant").length || "-"}
-            </p>
-            <AuthorityRows
-              rows={rows}
-              grantsOnly={grantsOnly}
-              disabled={state.busy || pending !== null}
-              select={(row, button) => {
-                trigger.current = button;
-                setPending(row);
-              }}
-            />
-          </>
+          <AuthorityRows
+            rows={rows}
+            grantsOnly={grantsOnly}
+            disabled={state.busy || pending !== null}
+            select={(row, button) => {
+              trigger.current = button;
+              setPending(row);
+            }}
+          />
         ) : !state.error ? (
           <output>Loading local access records…</output>
         ) : null}
@@ -119,27 +110,20 @@ function ConfirmRevocation({
         sign-in or approval.
       </p>
       <div className="actions">
-        <button
-          type="button"
-          className="btn btn--primary"
+        <IconKey
+          label="Confirm revocation"
+          danger
           onClick={() =>
             void revoke(row).then((done) => {
               if (done) close();
             })
           }
         >
-          Confirm revocation
-        </button>
-        <button
-          ref={cancel}
-          type="button"
-          className="icon-btn"
-          onClick={close}
-          aria-label="Cancel revocation"
-          title="Cancel revocation"
-        >
+          <IconTrash size={16} />
+        </IconKey>
+        <IconKey label="Cancel revocation" keyRef={cancel} onClick={close}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </div>
     </fieldset>
   );
@@ -158,10 +142,10 @@ function AuthorityRows({
 }) {
   if (!rows.length)
     return (
-      <p>
+      <p className="hint">
         {grantsOnly
           ? "No unexpired local application grants."
-          : "No unexpired local sessions or application grants."}
+          : "No unexpired local sessions."}
       </p>
     );
   return (

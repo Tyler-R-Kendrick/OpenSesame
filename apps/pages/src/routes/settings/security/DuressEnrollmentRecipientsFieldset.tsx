@@ -1,4 +1,6 @@
 import { planRecipient } from "@opensesame/app-core/lib/duress/settings/index.js";
+import { IconKey } from "../../../components/IconKey.js";
+import { IconPlus } from "../../../components/Icons.js";
 import type { DuressEnrollmentViewModel } from "./useDuressEnrollmentPanel.js";
 
 export function DuressEnrollmentRecipientsFieldset({
@@ -19,8 +21,8 @@ export function DuressEnrollmentRecipientsFieldset({
   return (
     <fieldset className="duress-enroll__recipients">
       <legend>Recipients / custodians</legend>
-      <button
-        type="button"
+      <IconKey
+        label={`Add ${preset.requiresRecipient ? "alert recipient" : "custodian"}`}
         onClick={() =>
           setRecipients((r) => [
             ...r,
@@ -32,8 +34,8 @@ export function DuressEnrollmentRecipientsFieldset({
           ])
         }
       >
-        Add {preset.requiresRecipient ? "alert recipient" : "custodian"}
-      </button>
+        <IconPlus size={16} />
+      </IconKey>
       <ul>
         {recipients.map((r) => (
           <li key={`${r.role}:${r.ref}`}>

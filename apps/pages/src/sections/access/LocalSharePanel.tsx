@@ -10,6 +10,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { IconPlus, IconRefresh, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ShareGrantForm } from "./ShareGrantForm.js";
 
 export function useLocalShares(tomb: string) {
@@ -36,9 +37,12 @@ function ShareCommands({
   onGrant: () => void;
   onReload: () => void;
 }) {
+  // The Grants tab's one +: the tutorial's "grant access" points here.
+  const grantRef = useGuideTarget<HTMLButtonElement>("access.grant-access");
   return (
     <fieldset className="vtree__keys" aria-label="Share commands">
       <button
+        ref={grantRef}
         type="button"
         className="icon-btn icon-btn--sm"
         aria-label="Grant identity share"
@@ -158,12 +162,14 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
           </p>
         ) : null}
         {draft && canGrant ? (
-          <ShareGrantForm
-            identities={identities}
-            busy={busy}
-            onCancel={() => setDraft(false)}
-            onSave={(input) => void run(() => createLocalShare(tomb, input))}
-          />
+          <GuideTarget id="access.grant-ceremony">
+            <ShareGrantForm
+              identities={identities}
+              busy={busy}
+              onCancel={() => setDraft(false)}
+              onSave={(input) => void run(() => createLocalShare(tomb, input))}
+            />
+          </GuideTarget>
         ) : null}
         <ul className="identity-rows">
           {shares.map((share) => (
@@ -207,12 +213,14 @@ function ShareRow({
           <h3>
             {name} → {share.resourceLabel}
           </h3>
+          {/* The role is the record's, so it is on its line: a boxed chip
+              beside the title left a phone's title a third of the card. */}
           <code className="identity-ref">
             {share.resourceKind} ·{" "}
             {policyLabel(share.resourceKind, share.policy)}
+            {role ? ` · ${role}` : ""}
           </code>
         </div>
-        {role ? <span className="chip">{role}</span> : null}
         <StatusMark
           tone="idle"
           label={`Until ${new Date(share.expiresAt).toLocaleString()}`}

@@ -240,6 +240,9 @@ export function IconSupport(props: IconProps) {
 export function IconHelp(props: IconProps) {
   return (
     <Svg {...props}>
+      {/* Circled, so the mark reads as help at 15px; bare, it was a 4px
+          question mark beside full-size glyphs. */}
+      <circle cx="12" cy="12" r="9" />
       <path d="M9.05 9.1a3 3 0 1 1 4.15 2.8c-.7.4-1.15.95-1.15 1.75" />
       <path d="M12 17.15h.01" />
     </Svg>
@@ -333,6 +336,32 @@ export function IconMonitor(props: IconProps) {
     <Svg {...props}>
       <rect x="3" y="4.5" width="18" height="12" rx="2" />
       <path d="M8.5 20h7M12 16.5V20" />
+    </Svg>
+  );
+}
+
+export function IconPause(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 6v12M15 6v12" />
+    </Svg>
+  );
+}
+
+export function IconPlay(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 5.5v13l10-6.5z" />
+    </Svg>
+  );
+}
+
+/** The door and the arrow leaving it: end this session. */
+export function IconSignOut(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h4" />
+      <path d="M14.5 8l4 4-4 4M18.5 12H9.5" />
     </Svg>
   );
 }

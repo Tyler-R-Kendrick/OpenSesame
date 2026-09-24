@@ -31,18 +31,22 @@ export function OptionalField({
         ?.querySelector<HTMLElement>("input, textarea, select")
         ?.focus();
   }, [added]);
+  // The + is the action and the word is the field it adds (a choice, not a
+  // verb); absent fields flow onto one row instead of one row each.
   if (!initiallyPresent.current && !present && !added)
     return (
       <button
         type="button"
-        className="btn btn--sm editor__optional"
+        className="btn btn--sm editor__optional choice"
+        aria-label={command}
+        title={command}
         onClick={() => {
           onAdd?.();
           setAdded(true);
         }}
       >
         <IconPlus size={15} />
-        {command}
+        {command.replace(/^Add /, "")}
       </button>
     );
   return <div ref={field}>{children}</div>;
@@ -179,25 +183,6 @@ export function EditorExtras({
       </OptionalField>
 
       <CustomFields draft={draft} onChange={patch} />
-
-      <OptionalField
-        present={draft.favorite}
-        command="Pin item"
-        onAdd={() => patch({ favorite: true })}
-      >
-        <div className="editor__row">
-          <div className="field">
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={draft.favorite}
-                onChange={(event) => patch({ favorite: event.target.checked })}
-              />
-              <span>Pin to the top of the list</span>
-            </label>
-          </div>
-        </div>
-      </OptionalField>
     </>
   );
 }

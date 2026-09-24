@@ -29,5 +29,5 @@ export const IDENTITY_LABELS = {
   providers: "Providers",
   devices: "Devices",
   "service-accounts": "Applications",
-  organization: "Organization",
+  organization: "Organizations",
 } satisfies Record<(typeof IDENTITY_VIEWS)[number], string>;

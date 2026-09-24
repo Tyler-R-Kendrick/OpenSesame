@@ -14,19 +14,17 @@ it("lists audience templates and shows honest support statuses", async () => {
   expect(
     screen.getByRole("heading", { name: "Audience templates" }),
   ).toBeTruthy();
-  const select = screen.getByLabelText("Template");
+  const select = screen.getByLabelText<HTMLSelectElement>("Template");
   await user.selectOptions(select, "raid");
+  // Choosing a template is the whole action: no second button re-selects it.
+  expect(screen.queryByRole("button", { name: /defaults/i })).toBeNull();
+  expect(select.value).toBe("raid");
+  // Support is a status glyph whose name is the sentence, not a word pill.
   expect(
-    screen.getByRole("button", { name: /Use Gaming raid defaults/i }),
-  ).toBeTruthy();
-  expect(
-    screen.getAllByText(/unsupported|configuration required/i).length,
+    screen.getAllByRole("img", { name: /unsupported|configuration required/i })
+      .length,
   ).toBeGreaterThan(0);
   expect(screen.queryByText(/\benforced\b/i)).toBeNull();
-  await user.click(
-    screen.getByRole("button", { name: /Use Gaming raid defaults/i }),
-  );
-  expect(screen.getByText(/Selected: raid/i)).toBeTruthy();
 });
 
 it("includes family, contractor, and data-only extended audiences", () => {

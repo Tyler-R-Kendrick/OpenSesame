@@ -5,8 +5,8 @@ import {
   useIdentityConfigured,
 } from "../lib/use-configured.js";
 import { useVault } from "../lib/vault/hooks.js";
-import { useLocalShares } from "../sections/access/LocalSharePanel.js";
 import { accessPageTree } from "../sections/access/page-tree.js";
+import { useShareLeaves } from "../sections/access/share-leaves.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 import { SectionRow, type SectionTreeProps } from "./RailRows.js";
 
@@ -24,10 +24,7 @@ export function AccessTree({
   const view = ACCESS_VIEWS.find((id) => id === params.get("view")) ?? "grants";
   const current = `/access?view=${view}${hash}`;
   const { tomb } = useVault();
-  const shares = useLocalShares(tomb).shares.map((share) => ({
-    id: share.id,
-    label: `${share.resourceKind}: ${share.resourceLabel}`,
-  }));
+  const shares = useShareLeaves(tomb);
   return (
     <>
       <SectionRow

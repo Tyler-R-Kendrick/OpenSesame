@@ -23,6 +23,7 @@ const store = vi.hoisted(() => ({
   enrollPin: vi.fn(),
   removePin: vi.fn(),
   enrollPassword: vi.fn(),
+  changeMasterPassword: vi.fn(),
   removePassword: vi.fn(),
   beginTotpEnrollment: vi.fn(),
   confirmTotpEnrollment: vi.fn(),
@@ -240,26 +241,25 @@ describe("UnlockMethodsPanel", () => {
     ).toBeNull();
   });
 
-  it("changes a password from its row and closes when it lands", async () => {
+  it("changes a password from its row, asking for the current one", async () => {
     render(<UnlockMethodsPanel />);
     await userEvent.click(
       row("Password").getByRole("button", { name: "Change" }),
     );
     const dialog = sheet();
-    expect(dialog.getByText("Enrolled")).toBeTruthy();
-    await userEvent.type(
-      dialog.getByLabelText("New password"),
-      "correct horse battery",
-    );
-    await userEvent.type(
-      dialog.getByLabelText("Confirm new password"),
-      "correct horse battery",
-    );
+    for (const [label, value] of [
+      ["Current password", "old-password-1"],
+      ["New password", "correct horse battery"],
+      ["Confirm new password", "correct horse battery"],
+    ] as const) {
+      await userEvent.type(dialog.getByLabelText(label), value);
+    }
     await userEvent.click(
       dialog.getByRole("button", { name: "Change password" }),
     );
     await waitFor(() =>
-      expect(store.enrollPassword).toHaveBeenCalledWith(
+      expect(store.changeMasterPassword).toHaveBeenCalledWith(
+        "old-password-1",
         "correct horse battery",
       ),
     );

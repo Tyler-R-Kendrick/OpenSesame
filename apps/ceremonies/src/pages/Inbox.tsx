@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { Commit, IconX, Key } from "../keys.js";
 import {
   type ApprovalDecision,
   ApprovalError,
@@ -123,22 +124,21 @@ export function Inbox() {
             </div>
           ) : (
             <div className="actions">
-              <button
-                type="button"
-                className="primary"
+              <Commit
+                label="Approve"
                 disabled={busyId === item.authReqId}
-                aria-busy={busyId === item.authReqId}
+                busy={busyId === item.authReqId}
                 onClick={() => void decide(item, "approve")}
               >
-                Approve
-              </button>
-              <button
-                type="button"
-                disabled={busyId === item.authReqId}
-                onClick={() => void decide(item, "deny")}
-              >
-                Deny
-              </button>
+                <Key
+                  label="Deny"
+                  danger
+                  disabled={busyId === item.authReqId}
+                  onClick={() => void decide(item, "deny")}
+                >
+                  <IconX />
+                </Key>
+              </Commit>
             </div>
           )}
         </div>

@@ -85,7 +85,9 @@ export async function localRequestJourney({
     .click();
   await panel.getByRole("button", { name: "Remove request history" }).click();
   await panel.getByRole("button", { name: "Confirm history removal" }).click();
-  await expect(panel.getByText("Requests: -", { exact: true })).toBeVisible();
+  await expect(
+    panel.getByText("No local requests.", { exact: true }),
+  ).toBeVisible();
   await denyRequest(panel, create);
   await expireOpenRequest(page, panel, create);
   await capture(page, width, captures, "expired");

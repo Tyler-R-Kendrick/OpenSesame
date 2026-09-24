@@ -5,6 +5,7 @@ import {
 import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
 import { applyImportedRecipe } from "@opensesame/app-core/sections/identity/application-recipe-panel-model.js";
 import { useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 
 export function ApplicationRecipePanel(props: {
   registration: LocalApplicationRegistration | undefined;
@@ -71,9 +72,8 @@ export function ApplicationRecipePanel(props: {
           value={imported}
           onChange={(event) => setImported(event.target.value)}
         />
-        <button
-          type="button"
-          className="btn btn--sm"
+        <FormCommit
+          label="Apply import"
           onClick={() => {
             if (!recipe) return;
             void applyImportedRecipe({
@@ -84,9 +84,7 @@ export function ApplicationRecipePanel(props: {
               fallback: recipe,
             }).then(setResult);
           }}
-        >
-          Apply import
-        </button>
+        />
         {result ? <p className="hint">{result}</p> : null}
       </div>
     </section>

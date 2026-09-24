@@ -90,9 +90,13 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
           <div className="found__do">
             <button
               type="button"
-              className="btn btn--primary"
+              className="icon-btn"
               disabled={busy}
               aria-busy={busy}
+              aria-label={
+                busy ? "Waiting for the browser…" : "Install OpenSesame"
+              }
+              title={busy ? "Waiting for the browser…" : "Install OpenSesame"}
               onClick={() => {
                 // The dialog must open inside this gesture; `promptInstall`
                 // awaits the reader's answer, not a round trip, so nothing
@@ -121,7 +125,7 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
                   .finally(() => setBusy(false));
               }}
             >
-              {busy ? "Waiting for the browser…" : "Install OpenSesame"}
+              <IconDownload size={16} />
             </button>
           </div>
         </div>

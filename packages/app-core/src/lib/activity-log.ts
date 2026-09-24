@@ -61,7 +61,7 @@ type WireFile = { version: 1; events: ActivityEvent[] };
 const listeners = new Set<() => void>();
 
 export const activitySeams = {
-  /** Active unlocked tomb, or null when locked / guest. */
+  /** Active unlocked tomb (a guest's included), or null when locked. */
   activeTomb: (): string | null => null,
 };
 
@@ -149,6 +149,26 @@ export async function listActivityEvents(
   return readAll(tomb);
 }
 
+/** How close together two identical events fold into the first. */
+const REPEAT_WINDOW_MS = 60_000;
+
+function repeats(
+  last: ActivityEvent | undefined,
+  next: ActivityEvent,
+): boolean {
+  if (!last) return false;
+  if (
+    last.type !== next.type ||
+    last.summary !== next.summary ||
+    last.outcome !== next.outcome ||
+    last.targetId !== next.targetId
+  ) {
+    return false;
+  }
+  const gap = Date.parse(next.occurredAt) - Date.parse(last.occurredAt);
+  return gap >= 0 && gap < REPEAT_WINDOW_MS;
+}
+
 export async function recordActivityEvent(
   tomb: string,
   input: RecordActivityInput,
@@ -166,6 +186,9 @@ export async function recordActivityEvent(
     metadata,
   };
   const current = await readAll(tomb);
+  // A burst of the same event (an invalidation fired once per store it
+  // touched, a ledger written on every render) is one line, not fifteen.
+  if (repeats(current[0], event)) return current;
   const next = [event, ...current].slice(0, MAX_EVENTS);
   await writeAll(tomb, next);
   notify();
@@ -173,8 +196,8 @@ export async function recordActivityEvent(
 }
 
 /**
- * Fire-and-forget append against the unlocked vault. No-ops when locked,
- * guest, or the write fails — activity must never block a primary action.
+ * Fire-and-forget append against the unlocked vault. No-ops when locked
+ * or the write fails — activity must never block a primary action.
  */
 
 export function noteConnectionCreated(connectionId: string): void {

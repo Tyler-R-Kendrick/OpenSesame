@@ -52,7 +52,7 @@ async function directoryRecordsContract(page, tabTo) {
     ["People", "person", "people"],
     ["Agents", "agent", "agents"],
     ["Applications", "application", "applications"],
-    ["Organization", "organization", "organizations"],
+    ["Organizations", "organization", "organizations"],
   ]) {
     await tabTo(page, page.getByRole("tab", { name: tab, exact: true }));
     await page.keyboard.press("Enter");

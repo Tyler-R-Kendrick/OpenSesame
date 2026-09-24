@@ -6,7 +6,9 @@ import {
 import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
+  IconEdit,
   IconPlus,
   IconRefresh,
   IconTrash,
@@ -105,26 +107,22 @@ export function AgentsPanel({ online }: { online: boolean }) {
       <div className="panel__head">
         <h2>Agents</h2>
         <fieldset className="vtree__keys" aria-label="Agent commands">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
+          <IconKey
+            label="New agent"
+            small
             disabled={!online || busy}
-            title="New agent"
-            aria-label="New agent"
             onClick={() => setDraft({ id: "", name: "", jkt: "" })}
           >
             <IconPlus size={15} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
+          </IconKey>
+          <IconKey
+            label="Reload agents"
+            small
             disabled={!online || busy}
-            title="Reload agents"
-            aria-label="Reload agents"
             onClick={() => void load()}
           >
             <IconRefresh size={15} />
-          </button>
+          </IconKey>
         </fieldset>
       </div>
       <div className="panel__body">
@@ -200,16 +198,9 @@ function AgentsForm({
         label="Save agent"
         disabled={busy || !online || !draft.name.trim()}
       >
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={busy}
-          onClick={() => setDraft(null)}
-          aria-label="Cancel"
-          title="Cancel"
-        >
+        <IconKey label="Cancel" disabled={busy} onClick={() => setDraft(null)}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </FormCommit>
     </form>
   );
@@ -243,51 +234,46 @@ function AgentsRows({
             />
             {agent.state !== "revoked" ? (
               <div className="actions">
-                <button
-                  type="button"
-                  className="btn btn--sm"
+                <IconKey
+                  label={`Edit ${agent.displayName}`}
+                  small
                   disabled={busy || !online}
                   onClick={() =>
-                    setDraft({
-                      id: agent.id,
-                      name: agent.displayName,
-                      jkt: "",
-                    })
+                    setDraft({ id: agent.id, name: agent.displayName, jkt: "" })
                   }
-                  aria-label={`Edit ${agent.displayName}`}
                 >
-                  Edit
-                </button>
+                  <IconEdit size={16} />
+                </IconKey>
                 {revoke === agent.id ? (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--danger"
+                    <IconKey
+                      label="Confirm revocation"
+                      small
+                      danger
                       disabled={busy || !online}
                       onClick={() => void revokeAgent(agent.id)}
                     >
-                      Confirm revocation
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--sm"
+                      <IconTrash size={16} />
+                    </IconKey>
+                    <IconKey
+                      label="Keep agent"
+                      small
                       disabled={busy}
                       onClick={() => setRevoke(null)}
                     >
-                      Keep agent
-                    </button>
+                      <IconX size={16} />
+                    </IconKey>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--danger icon-btn--sm"
+                  <IconKey
+                    label="Revoke"
+                    small
+                    danger
                     disabled={busy || !online}
                     onClick={() => setRevoke(agent.id)}
-                    aria-label="Revoke"
-                    title="Revoke"
                   >
                     <IconTrash size={16} />
-                  </button>
+                  </IconKey>
                 )}
               </div>
             ) : null}

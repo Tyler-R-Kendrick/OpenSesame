@@ -635,6 +635,17 @@ button.conn-tile__link {
   margin-left: auto;
 }
 
+/* A tile opens its connector's page: the rail's and the vault list's
+   chevron says so, where the tile read as a label with nothing behind it. */
+.conn-tile__go {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.conn-tile__link:hover > .conn-tile__go {
+  color: var(--ink);
+}
+
 .conn-tile__row {
   display: flex;
   align-items: center;

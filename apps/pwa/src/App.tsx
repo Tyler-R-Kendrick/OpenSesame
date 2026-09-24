@@ -252,12 +252,27 @@ export function App() {
       <div className="actions">
         <button
           type="button"
-          className="primary"
+          className="primary icon-btn"
           disabled={busy}
           aria-busy={busy}
+          aria-label={busy ? "Checking health" : "Retry health check"}
+          title={busy ? "Checking health" : "Retry health check"}
           onClick={() => void refresh()}
         >
-          {busy ? "Checking…" : "Retry health check"}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5V9h-4.5" />
+          </svg>
         </button>
       </div>
     </main>

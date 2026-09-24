@@ -72,13 +72,15 @@ describe("VaultKeyProtectionPanel", () => {
     expect(screen.getByText("Password")).toBeTruthy();
     expect(screen.getByLabelText("Verified")).toBeTruthy();
     expect(screen.queryByText(/WebCrypto/i)).toBeNull();
-    expect(
-      screen.getByLabelText("Any enrolled method can unlock alone"),
-    ).toBeTruthy();
-    expect(screen.getByLabelText("Remove does not erase backups")).toBeTruthy();
-    expect(
-      screen.getByLabelText("Cloud adds independent authority"),
-    ).toBeTruthy();
+    // The policy is said, not hidden in three glyphs' tooltips.
+    const policy = screen.getByRole("list", { name: "Protection policy" });
+    expect(policy.textContent).toContain(
+      "Any enrolled method can unlock alone",
+    );
+    expect(policy.textContent).toContain("Removing one does not erase backups");
+    expect(policy.textContent).toContain(
+      "A cloud method adds an independent authority",
+    );
   });
 
   it("shows encryption preference without enrollment as setup intent (KP-04)", () => {

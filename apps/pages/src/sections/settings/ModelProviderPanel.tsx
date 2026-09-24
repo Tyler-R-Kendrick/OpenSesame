@@ -115,10 +115,11 @@ export function ModelProviderPanel() {
     <div className="conn-group" id="model-provider">
       <h3 className="conn-group__label">
         Models
-        <StatusMark
-          tone={plane ? (plane.kind === "none" ? "err" : "ok") : "idle"}
-          label={plane ? planeSentence(plane) : "Checking"}
-        />
+        {/* No model is a choice the Inference select already shows, not an
+            error: a red × by the heading read as a key that closed it. */}
+        {plane && plane.kind !== "none" ? (
+          <StatusMark tone="ok" label={planeSentence(plane)} />
+        ) : null}
       </h3>
       <div className="conn-tile">
         <div className="conn-tile__body">

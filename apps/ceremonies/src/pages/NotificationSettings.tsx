@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconDown, IconPlus, IconUp, IconX, Key } from "../keys.js";
 import { ApprovalError, type ChannelKind } from "../lib/approvals.js";
 import {
   ASSURANCE_NOTE,
@@ -256,14 +257,15 @@ export function NotificationSettings() {
                   {bindingStateSentence(binding.state)}
                 </span>
               </span>
-              <button
-                type="button"
+              <Key
+                label={`Disconnect from ${channelName(binding.kind)}`}
+                danger
                 disabled={busy !== null}
                 aria-busy={busy === `unbind:${binding.id}`}
                 onClick={() => void unbind(binding)}
               >
-                Disconnect
-              </button>
+                <IconX />
+              </Key>
             </li>
           ))}
         </ul>
@@ -271,15 +273,15 @@ export function NotificationSettings() {
           {BINDABLE.filter((kind) =>
             channels?.some((c) => c.kind === kind && c.configured),
           ).map((kind) => (
-            <button
+            <Key
               key={kind}
-              type="button"
+              label={`Connect ${channelName(kind)}`}
               disabled={busy !== null}
               aria-busy={busy === `bind:${kind}`}
               onClick={() => void bind(kind)}
             >
-              Connect {channelName(kind)}
-            </button>
+              <IconPlus />
+            </Key>
           ))}
         </div>
         {pending ? <output className="ok">{pending}</output> : null}
@@ -303,34 +305,32 @@ export function NotificationSettings() {
                     {index + 1}. {channelName(kind)}
                   </span>
                   <span className="actions">
-                    <button
-                      type="button"
-                      aria-label={`Move ${channelName(kind)} earlier for ${classLabel(cls)}`}
+                    <Key
+                      label={`Move ${channelName(kind)} earlier for ${classLabel(cls)}`}
                       disabled={index === 0 || busy !== null}
                       onClick={() => void move(cls, index, -1)}
                     >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Move ${channelName(kind)} later for ${classLabel(cls)}`}
+                      <IconUp />
+                    </Key>
+                    <Key
+                      label={`Move ${channelName(kind)} later for ${classLabel(cls)}`}
                       disabled={
                         index === preference.channels.length - 1 ||
                         busy !== null
                       }
                       onClick={() => void move(cls, index, 1)}
                     >
-                      Down
-                    </button>
+                      <IconDown />
+                    </Key>
                     {kind === "in_app" ? null : (
-                      <button
-                        type="button"
-                        aria-label={`Remove ${channelName(kind)} from ${classLabel(cls)}`}
+                      <Key
+                        label={`Remove ${channelName(kind)} from ${classLabel(cls)}`}
+                        danger
                         disabled={busy !== null}
                         onClick={() => void toggleChannel(cls, kind)}
                       >
-                        Remove
-                      </button>
+                        <IconX />
+                      </Key>
                     )}
                   </span>
                 </li>
@@ -344,15 +344,14 @@ export function NotificationSettings() {
                     !preference.channels.includes(channel.kind),
                 )
                 .map((channel) => (
-                  <button
+                  <Key
                     key={`${cls}-add-${channel.kind}`}
-                    type="button"
-                    aria-label={`Add ${channelName(channel.kind)} to ${classLabel(cls)}`}
+                    label={`Add ${channelName(channel.kind)} to ${classLabel(cls)}`}
                     disabled={busy !== null}
                     onClick={() => void toggleChannel(cls, channel.kind)}
                   >
-                    Add {channelName(channel.kind)}
-                  </button>
+                    <IconPlus />
+                  </Key>
                 ))}
             </div>
             {cls === "security_event" ? (

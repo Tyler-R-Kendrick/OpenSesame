@@ -1,8 +1,17 @@
-import type {
-  Connection,
-  Provider,
+import { mergeLocalGitConnections } from "@opensesame/app-core/lib/connections-local-git.js";
+import {
+  type Connection,
+  type Provider,
+  listConnections,
 } from "@opensesame/app-core/lib/connections.js";
-import { type ReactNode, useEffect, useSyncExternalStore } from "react";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import {
+  type ReactNode,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 type Snapshot = {
   providers: Provider[] | null;
@@ -66,4 +75,32 @@ export function usePublishConnections(
     publishConnections({ providers, connections });
   }, [providers, connections]);
   useEffect(() => () => publishConnections(EMPTY), []);
+}
+
+/**
+ * What the rail's connections/ entries draw from: the page's snapshot while
+ * the page is open, and otherwise a read of its own — the same bundled
+ * catalog and the same connection list. Before, the rail had only what the
+ * page published, so everywhere but /connections it said "Loading
+ * connectors…" forever and "No connected services" beside a page that had
+ * some.
+ */
+export function useRailConnections(): Snapshot {
+  const published = useConnectionsNavigation();
+  const [own, setOwn] = useState<Snapshot>(EMPTY);
+  useEffect(() => {
+    if (published.providers !== null) return;
+    let live = true;
+    const providers = vercelCatalogSeams.providers(getBundledProviders());
+    setOwn({ providers, connections: null });
+    void listConnections()
+      .catch(() => mergeLocalGitConnections([]))
+      .then((connections) => {
+        if (live) setOwn({ providers, connections });
+      });
+    return () => {
+      live = false;
+    };
+  }, [published.providers]);
+  return published.providers !== null ? published : own;
 }

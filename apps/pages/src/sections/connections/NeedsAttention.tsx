@@ -21,6 +21,8 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { useState } from "react";
 import { Link } from "react-router";
+import { IconKey } from "../../components/IconKey.js";
+import { IconArrowRight } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
@@ -112,17 +114,19 @@ export function NeedsAttention({
                   tone={statusTone(VERB_CHIP[verb])}
                   label={VERB_LABEL[verb]}
                 />
-                <button
-                  type="button"
-                  className="btn btn--sm btn--primary"
+                <IconKey
+                  label={
+                    busy === connection.connectionId
+                      ? "Authorizing"
+                      : "Finish authorization"
+                  }
+                  small
                   disabled={busy !== null}
                   aria-busy={busy === connection.connectionId}
                   onClick={() => void finish(connection)}
                 >
-                  {busy === connection.connectionId
-                    ? "Authorizing…"
-                    : "Finish authorization"}
-                </button>
+                  <IconArrowRight size={16} />
+                </IconKey>
                 <Link
                   className="btn btn--sm btn--ghost"
                   to={connectorPath(

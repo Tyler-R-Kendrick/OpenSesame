@@ -12,11 +12,35 @@ export function scrollToPanel(target: HTMLElement): void {
       node.scrollHeight > node.clientHeight
     ) {
       node.scrollTop +=
-        target.getBoundingClientRect().top - node.getBoundingClientRect().top;
+        target.getBoundingClientRect().top -
+        node.getBoundingClientRect().top -
+        headroom(target, node);
       return;
     }
   }
-  window.scrollBy(0, target.getBoundingClientRect().top);
+  window.scrollBy(
+    0,
+    target.getBoundingClientRect().top - headroom(target, document.body),
+  );
+}
+
+/** The gap a heading keeps under the pane's top edge. */
+const BREATHING_PX = 16;
+
+/**
+ * How far below the pane's top a panel lands: its own scroll margin (or a
+ * line's breathing room — flush against the edge, a heading read as cut off),
+ * plus the page's jump strip where that strip sticks and would cover it.
+ */
+function headroom(target: HTMLElement, pane: HTMLElement): number {
+  const margin =
+    Number.parseFloat(getComputedStyle(target).scrollMarginTop) || BREATHING_PX;
+  const strip = pane.querySelector<HTMLElement>(".page-index");
+  const covered =
+    strip && getComputedStyle(strip).position === "sticky"
+      ? strip.getBoundingClientRect().height
+      : 0;
+  return margin + covered;
 }
 
 /** Resolve a `#fragment` to an element, decoding URI escapes in the id. */

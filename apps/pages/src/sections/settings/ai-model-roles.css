@@ -1,15 +1,10 @@
+/* A role's name, then its model, on one line: stacked above full-width
+   selects, two choices took a tall card that was mostly empty. */
 .ai-roles {
   display: grid;
-  gap: 0.5rem;
-  grid-template-columns: 1fr;
-}
-
-.ai-roles .label {
-  margin-top: 0.35rem;
-}
-
-.ai-roles .label:first-child {
-  margin-top: 0;
+  gap: 0.5rem 1.1rem;
+  grid-template-columns: max-content minmax(0, var(--field-max));
+  align-items: center;
 }
 
 .ai-roles select {
@@ -17,4 +12,11 @@
   max-width: var(--field-max);
   min-height: 2.75rem;
   font-size: 1rem;
+}
+
+@media (max-width: 560px) {
+  .ai-roles {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.35rem;
+  }
 }

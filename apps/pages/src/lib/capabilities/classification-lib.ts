@@ -29,6 +29,7 @@ const CORE_INFRA = [
   "modal-focus",
   "strip",
   "scroll-panel",
+  "hash-target",
   "pane-escape",
   "tree-motion",
   "page-to-tree",

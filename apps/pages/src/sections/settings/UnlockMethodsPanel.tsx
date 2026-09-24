@@ -16,10 +16,13 @@ import {
   listSecondSteps,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconEdit,
   IconEye,
   IconPlus,
+  IconSettings,
   IconTrash,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -73,6 +76,11 @@ function UnlockMethodsBody() {
   );
   const secondStepRef = useGuideTarget<HTMLElement>("settings.second-step");
   const recoveryRef = useGuideTarget<HTMLElement>("settings.recovery");
+  // The one place a master password is set or changed (AGENTS.md: never a
+  // second password form).
+  const passwordRef = useGuideTarget<HTMLButtonElement>(
+    "settings.master-password",
+  );
 
   useEffect(() => {
     setWebauthnHost(checkWebauthnHost());
@@ -127,12 +135,11 @@ function UnlockMethodsBody() {
         sub={on ? enrolledSub : sub}
         action={
           on ? (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label={kind === "passkey" ? "Remove" : "Change"}
+              small
+              keyRef={kind === "password" ? passwordRef : undefined}
               disabled={busy}
-              aria-label={kind === "passkey" ? "Remove" : "Change"}
-              title={kind === "passkey" ? "Remove" : "Change"}
               onClick={open(kind, kind === "passkey" ? "remove" : "change")}
             >
               {kind === "passkey" ? (
@@ -140,18 +147,17 @@ function UnlockMethodsBody() {
               ) : (
                 <IconEdit size={16} />
               )}
-            </button>
+            </IconKey>
           ) : (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
+            <IconKey
+              label="Add"
+              small
+              keyRef={kind === "password" ? passwordRef : undefined}
               disabled={busy}
-              aria-label="Add"
-              title="Add"
               onClick={open(kind, "add")}
             >
               <IconPlus size={16} />
-            </button>
+            </IconKey>
           )
         }
       />
@@ -177,20 +183,26 @@ function UnlockMethodsBody() {
         }
         action={
           !hasIdentity ? (
-            <a className="btn btn--sm" href="/settings/capabilities">
-              Capabilities
-            </a>
-          ) : (
-            <button
-              type="button"
+            // A route link, not an href: `/settings/capabilities` without the
+            // deployment's base path was a full reload onto a 404 on Pages.
+            // Drawn as the row's one key, in the column every row's key is.
+            <Link
               className="icon-btn icon-btn--sm"
+              to="/settings/capabilities"
+              aria-label="Set up a sign-in service under Capabilities"
+              title="Set up a sign-in service under Capabilities"
+            >
+              <IconSettings size={16} />
+            </Link>
+          ) : (
+            <IconKey
+              label={on ? "Remove" : "Add"}
+              small
               disabled={busy || (!on && enrolled.length === 0)}
-              aria-label={on ? "Remove" : "Add"}
-              title={on ? "Remove" : "Add"}
               onClick={open(channel, on ? "remove" : "add")}
             >
               {on ? <IconTrash size={16} /> : <IconPlus size={16} />}
-            </button>
+            </IconKey>
           )
         }
       />
@@ -216,12 +228,12 @@ function UnlockMethodsBody() {
               puts the header on disk like any other vault, and the note would
               then be claiming something that is no longer so. */}
           {guest && enrolled.length === 0 ? (
-            <output className="note">
-              <span>
-                You are a guest. Until this vault has a key it is not kept on
-                this device. Start with a {webauthnHost.ok ? "passkey" : "PIN"}.
-              </span>
-            </output>
+            // A line in the list's own voice, not a boxed note pressed
+            // against the first row (DESIGN.md: no in-page note box).
+            <p className="hint">
+              You are a guest. Until this vault has a key it is not kept on this
+              device. Start with a {webauthnHost.ok ? "passkey" : "PIN"}.
+            </p>
           ) : null}
           {keyRow(
             "passkey",
@@ -267,16 +279,14 @@ function UnlockMethodsBody() {
                   : "Codes from an app on your phone."
             }
             action={
-              <button
-                type="button"
-                className="icon-btn icon-btn--sm"
+              <IconKey
+                label={totpOn ? "Remove" : "Add"}
+                small
                 disabled={busy}
-                aria-label={totpOn ? "Remove" : "Add"}
-                title={totpOn ? "Remove" : "Add"}
                 onClick={open("totp", totpOn ? "remove" : "add")}
               >
                 {totpOn ? <IconTrash size={16} /> : <IconPlus size={16} />}
-              </button>
+              </IconKey>
             }
           />
           {codeRow("email", "Email code")}
@@ -306,16 +316,14 @@ function UnlockMethodsBody() {
             }
             action={
               hasRecovery ? (
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--sm"
+                <IconKey
+                  label="View recovery codes"
+                  small
                   disabled={busy}
-                  aria-label="View recovery codes"
-                  title="View recovery codes"
                   onClick={open("recovery", "add")}
                 >
                   <IconEye size={16} />
-                </button>
+                </IconKey>
               ) : null
             }
           />
@@ -359,7 +367,12 @@ function MethodRow({
         <div className="sw__name">
           {methodIcon(kind)}
           {label}
-          <StatusMark tone={on ? "ok" : "idle"} label={state} />
+          {/* A mark for what is set or what cannot be; "off" is the row's
+              + key already. The idle glyph is a lock, so an off PIN drew a
+              lock badge beside its own lock icon. */}
+          {on || state !== "Off" ? (
+            <StatusMark tone={on ? "ok" : "idle"} label={state} />
+          ) : null}
         </div>
         <p className="sw__sub">{sub}</p>
       </div>

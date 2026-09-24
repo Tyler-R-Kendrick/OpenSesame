@@ -19,6 +19,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
+import { wordVerbHits } from "./design-lint-verbs.mjs";
 
 /**
  * `--root <dir>` re-points the lint at another tree. Only the contract test
@@ -39,6 +40,13 @@ const fileArgs =
 
 /** Where the shared control is defined — the one file allowed to define it. */
 const CONTROL_HOME = "apps/pages/src/styles.css";
+
+/**
+ * The one file per app that may define `.go`. An app is its own bundle and
+ * cannot load another's stylesheet, so each has exactly one home — and a
+ * second copy inside an app is still how two screens drift apart.
+ */
+const GO_HOMES = [CONTROL_HOME, "apps/ceremonies/src/keys.css"];
 
 /** UI trees this lint owns. */
 const ROOTS = ["apps/pages/src", "apps/pwa/src", "apps/ceremonies/src"];
@@ -191,13 +199,6 @@ function checkExplainers(file, source) {
   }
 }
 
-/**
- * Executing verbs. Choice labels (provider names, guest, navigation) are not
- * in this list. Matched against the button source, then waived for icon keys.
- */
-const WORD_VERB =
-  /\b(Retry|Revoke|Authorize|Re-authorize|Connect |Save|Cancel|Copy|Keep it|Keep them|Load \d+ more|Unlink|Dismiss)\b/;
-
 const BUTTON_BASELINE = join(
   dirname(fileURLToPath(import.meta.url)),
   "design-button-baseline.json",
@@ -225,13 +226,7 @@ const buttonBaseline = readButtonBaseline();
 
 function checkWordVerbs(file, source) {
   const path = relative(root, file).replaceAll("\\", "/");
-  const hits = [];
-  for (const match of source.matchAll(/<button\b([^>]*)>[\s\S]*?<\/button>/g)) {
-    const attrs = match[1] ?? "";
-    if (/\bicon-btn\b/.test(attrs) || /\bclassName="go"/.test(attrs)) continue;
-    if (!WORD_VERB.test(match[0])) continue;
-    hits.push(match.index ?? 0);
-  }
+  const hits = wordVerbHits(source);
   const recorded = Object.hasOwn(buttonBaseline, path)
     ? buttonBaseline[path]
     : 0;
@@ -287,14 +282,14 @@ function checkCss(file, source) {
     report,
     lineOf,
   );
-  // 2. `.go` is defined once, in styles.css.
-  if (relative(root, file) === CONTROL_HOME) return;
+  // 2. `.go` is defined once per app, in that app's control home.
+  if (GO_HOMES.includes(relative(root, file))) return;
   for (const match of source.matchAll(/^\.go(-row|-verb)?\b[^{]*\{/gm)) {
     report(
       file,
       lineOf(source, match.index ?? 0),
       "go-defined-once",
-      `The commit control is defined in ${CONTROL_HOME}. A second copy here is how two screens drift into two different squares.`,
+      `The commit control is defined once per app (${GO_HOMES.join(", ")}). A second copy here is how two screens drift into two different squares.`,
     );
   }
 }

@@ -8,6 +8,7 @@ import { useState } from "react";
  * renders "This drop was already opened."
  */
 
+import { Commit, IconCheck, IconCopy, IconDownload, Key } from "../keys.js";
 import { type DropPayload, openDrop, presentDrop } from "../lib/drop.js";
 
 function downloadFile(payload: {
@@ -81,24 +82,21 @@ export function DropAcceptance({
           <>
             <pre className="drop-reveal">{payload.text}</pre>
             <div className="actions">
-              <button
-                type="button"
-                className="primary"
+              <Key
+                label={copied ? "Copied" : "Copy"}
                 onClick={() => void copyText(payload.text)}
               >
-                {copied ? "Copied" : "Copy"}
-              </button>
+                {copied ? <IconCheck /> : <IconCopy />}
+              </Key>
             </div>
           </>
         ) : (
           <div className="actions">
-            <button
-              type="button"
-              className="primary"
+            <Commit
+              label={`Download ${payload.name || "file"}`}
+              icon={<IconDownload size={18} />}
               onClick={() => downloadFile(payload)}
-            >
-              Download {payload.name || "file"}
-            </button>
+            />
           </div>
         )}
       </section>

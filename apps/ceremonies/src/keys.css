@@ -1,0 +1,53 @@
+/* The ceremony pages' keys — the same objects as Pages' `.icon-btn` and `.go`
+   (docs/design/controls.md), sized for a coarse pointer everywhere, since a
+   ceremony is as often a phone as a desk. */
+
+button.icon-btn {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+.row button.icon-btn {
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+button.icon-btn--danger {
+  color: var(--err);
+}
+
+.go-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-top: 1rem;
+}
+
+.actions .go-row {
+  margin-top: 0;
+}
+
+button.go {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+button.go:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: transparent;
+}
+
+.go-verb {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}

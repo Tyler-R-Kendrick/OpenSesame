@@ -126,14 +126,19 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
     >
       <div className="panel__head">
         <h2>Connectors</h2>
-        <ConnectorCommands
-          busy={state.busy}
-          canSync={Boolean(state.directory)}
-          editing={editing}
-          onSync={() => void state.sync()}
-          onEdit={() => setEditing((value) => !value)}
-          onReload={() => void state.reload()}
-        />
+        {/* Sync, edit and reload act on a directory. Before one is saved the
+            form below is the only thing to do, and three dead keys above it
+            read as a second, broken way to do it. */}
+        {state.directory ? (
+          <ConnectorCommands
+            busy={state.busy}
+            canSync={Boolean(state.directory)}
+            editing={editing}
+            onSync={() => void state.sync()}
+            onEdit={() => setEditing((value) => !value)}
+            onReload={() => void state.reload()}
+          />
+        ) : null}
       </div>
       <div className="panel__body">
         {state.error ? (

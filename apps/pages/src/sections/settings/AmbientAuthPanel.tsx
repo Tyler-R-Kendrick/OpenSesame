@@ -45,13 +45,15 @@ export function AmbientAuthPanel() {
   }
 
   return (
-    <section className="card" aria-labelledby={id}>
-      <div className="keyed-row">
+    // A panel like its neighbours on Security: its key ends the head at the
+    // panel's edge. As a card with a text-width row, the × floated mid-row.
+    <section className="panel" aria-labelledby={id}>
+      <div className="panel__head">
         <h2 id={id}>Automatic sign-in</h2>
         {deployed ? null : (
           <button
             type="button"
-            className="icon-btn"
+            className="icon-btn icon-btn--sm"
             aria-label="Don't sign me in automatically"
             title="Don't sign me in automatically"
             onClick={() => {
@@ -59,43 +61,47 @@ export function AmbientAuthPanel() {
               bump();
             }}
           >
-            <IconX size={16} />
+            <IconX size={15} />
           </button>
         )}
       </div>
-      {deployed ? (
-        <p>
-          This deployment is configured to sign you in with{" "}
-          {decision.connection?.displayName ?? "your organization"} when the
-          provider can complete silently. That is operator configuration, not
-          proof that this device is managed.
-        </p>
-      ) : (
-        <p>
-          OpenSesame can retry the provider you choose when you return. This
-          never unlocks a vault and never attaches a guest account.
-        </p>
-      )}
-      {deployed ? null : providers.length === 0 ? (
-        <p className="hint">Add an organization provider to enable this.</p>
-      ) : (
-        <ul className="stack">
-          {providers.map((idp) => (
-            <li key={idp.issuer} className="keyed-row keyed-row--field">
-              <span>{idp.label}</span>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Use ${idp.label} automatically next time`}
-                title={`Use ${idp.label} automatically next time`}
-                onClick={() => optIn(idp.issuer, idp.clientId, idp.providerId)}
-              >
-                <IconCheck size={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="panel__body">
+        {deployed ? (
+          <p className="hint">
+            This deployment is configured to sign you in with{" "}
+            {decision.connection?.displayName ?? "your organization"} when the
+            provider can complete silently. That is operator configuration, not
+            proof that this device is managed.
+          </p>
+        ) : (
+          <p className="hint">
+            OpenSesame can retry the provider you choose when you return. This
+            never unlocks a vault and never attaches a guest account.
+          </p>
+        )}
+        {deployed ? null : providers.length === 0 ? (
+          <p className="hint">Add an organization provider to enable this.</p>
+        ) : (
+          <ul className="stack">
+            {providers.map((idp) => (
+              <li key={idp.issuer} className="keyed-row keyed-row--field">
+                <span>{idp.label}</span>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Use ${idp.label} automatically next time`}
+                  title={`Use ${idp.label} automatically next time`}
+                  onClick={() =>
+                    optIn(idp.issuer, idp.clientId, idp.providerId)
+                  }
+                >
+                  <IconCheck size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

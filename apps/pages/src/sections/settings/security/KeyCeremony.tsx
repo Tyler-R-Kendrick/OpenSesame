@@ -1,57 +1,32 @@
-import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
-import {
-  MAX_PIN_LENGTH,
-  type UnlockMethodId,
-  type WebauthnHostCheck,
-  pinPolicyProblems,
+import type {
+  UnlockMethodId,
+  WebauthnHostCheck,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { type FormEvent, type ReactNode, useState } from "react";
 import {
   type CeremonyAlt,
   CeremonyAlts,
   CeremonyShell,
 } from "../../../components/CeremonyShell.js";
-import { FieldShell } from "../../../components/FieldShell.js";
-import {
-  IconLock,
-  IconPasskey,
-  IconShield,
-  IconTrash,
-} from "../../../components/Icons.js";
-import { StatusMark } from "../../../components/StatusMark.js";
+import { IconTrash } from "../../../components/Icons.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
+import { SecretKeyCard } from "./SecretKeyCard.js";
+import {
+  KEY_NOUN,
+  KEY_TITLE,
+  type KeyKind,
+  type KeyView,
+  keyIcon,
+} from "./key-kinds.js";
 import type { Run } from "./run.js";
 
-export type KeyKind = UnlockMethodId;
-export type KeyView = "add" | "change" | "remove";
-
-export const KEY_NOUN = {
-  passkey: "passkey",
-  pin: "PIN",
-  password: "password",
-} satisfies Record<KeyKind, string>;
-
-export const KEY_TITLE = {
-  passkey: "Passkey",
-  pin: "PIN",
-  password: "Password",
-} satisfies Record<KeyKind, string>;
-
-export const KEY_SUBTITLE = {
-  passkey: "Face, fingerprint or the device PIN, through this browser.",
-  pin: "Four to twelve digits, held on this device.",
-  password: "Twelve characters or more. The reminder you save shows at unlock.",
-} satisfies Record<KeyKind, string>;
-
-export function keyIcon(kind: KeyKind, size = 16): ReactNode {
-  return kind === "passkey" ? (
-    <IconPasskey size={size} />
-  ) : kind === "pin" ? (
-    <IconLock size={size} />
-  ) : (
-    <IconShield size={size} />
-  );
-}
+export {
+  KEY_NOUN,
+  KEY_SUBTITLE,
+  KEY_TITLE,
+  type KeyKind,
+  type KeyView,
+  keyIcon,
+} from "./key-kinds.js";
 
 const ENROLL_PASSKEY_PARAM = "enroll-passkey";
 
@@ -83,8 +58,6 @@ export function KeyCard({
   reason?: "authenticator";
 }) {
   const store = useVaultStore();
-  const [first, setFirst] = useState("");
-  const [second, setSecond] = useState("");
   const lastKey = view === "remove" && enrolled.length < 2;
   const others = enrolled.filter((id) => id !== kind);
   const noun = KEY_NOUN[kind];
@@ -198,125 +171,15 @@ export function KeyCard({
     );
   }
 
-  const isPin = kind === "pin";
-  const problem = isPin
-    ? first.length > 0
-      ? (pinPolicyProblems(first)[0] ?? null)
-      : null
-    : null;
-  const strength = isPin ? null : estimateStrength(first);
-  const strongEnough = isPin
-    ? first.length > 0 && problem === null
-    : first.length >= 12 && (strength?.score ?? 0) >= 2;
-  const mismatch = second.length > 0 && first !== second;
-  const ready = strongEnough && second.length > 0 && first === second;
-  const verb =
-    view === "change" ? `Change ${noun}` : isPin ? "Set PIN" : "Set password";
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!ready) return;
-    void run(
-      async () => {
-        if (isPin) await store.enrollPin(first);
-        else await store.enrollPassword(first);
-        setFirst("");
-        setSecond("");
-        onDone();
-      },
-      view === "change"
-        ? `${KEY_TITLE[kind]} changed.`
-        : isPin
-          ? "PIN unlock enrolled. You can unlock with this PIN next time."
-          : "Password unlock enrolled.",
-    );
-  }
-
   return (
-    <form onSubmit={submit} aria-label={`${verb} form`}>
-      <CeremonyShell
-        ok
-        top={view === "change" ? "Enrolled" : undefined}
-        name={isPin ? "PIN · this device" : "Master password"}
-        facts={[
-          {
-            key: reason === "authenticator" ? "Why" : "Guards",
-            value:
-              reason === "authenticator"
-                ? "a code guards a key, and this vault has none yet"
-                : "the vault key on this device",
-          },
-          {
-            key: "Asked",
-            value:
-              reason === "authenticator"
-                ? "at unlock, as step 1; the code follows it"
-                : "at unlock, as step 1",
-          },
-        ]}
-        primary={{
-          label: verb,
-          submit: true,
-          disabled: !ready,
-          busy,
-          onClick: () => {},
-        }}
-      >
-        <FieldShell
-          label={
-            view === "change"
-              ? isPin
-                ? "New PIN"
-                : "New password"
-              : isPin
-                ? "PIN"
-                : "Password"
-          }
-          type="password"
-          value={first}
-          onValueChange={setFirst}
-          autoComplete="new-password"
-          lead={keyIcon(kind)}
-          mono
-          disabled={busy}
-          status={
-            first.length === 0 ? null : problem ? (
-              <StatusMark tone="err" label={problem} />
-            ) : strength ? (
-              <StatusMark
-                tone={strongEnough ? "ok" : "warn"}
-                label={strength.label}
-              />
-            ) : null
-          }
-        />
-        <FieldShell
-          label={
-            view === "change"
-              ? isPin
-                ? "Confirm new PIN"
-                : "Confirm new password"
-              : isPin
-                ? "Confirm PIN"
-                : "Confirm password"
-          }
-          type="password"
-          value={second}
-          onValueChange={setSecond}
-          autoComplete="new-password"
-          lead={keyIcon(kind)}
-          mono
-          disabled={busy}
-          status={
-            mismatch ? (
-              <StatusMark tone="err" label="Does not match" />
-            ) : ready ? (
-              <StatusMark tone="ok" label="Matches" />
-            ) : null
-          }
-        />
-      </CeremonyShell>
-    </form>
+    <SecretKeyCard
+      kind={kind}
+      view={view}
+      busy={busy}
+      run={run}
+      onDone={onDone}
+      reason={reason}
+    />
   );
 }
 

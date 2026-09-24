@@ -10,7 +10,7 @@ export function SessionsPanel({ online }: { online: boolean }) {
   const { tomb } = useVault();
   return (
     <>
-      <LocalAuthorityPanel key={tomb} tomb={tomb} />
+      <LocalAuthorityPanel key={tomb} tomb={tomb} records="session" />
       <LocalAuthorityTemplates />
       <VaultSessionsPanel key={`${tomb}-vault-sessions`} tomb={tomb} />
       {session ? (

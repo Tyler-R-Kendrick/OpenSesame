@@ -146,30 +146,47 @@ export function FormatsInteroperabilityPanel() {
             onAge={() => setAgeSheet(true)}
           />
         </div>
-        <div className="panel__body fmt__grid">
-          {formats.map((format) => (
-            <div className="fmt__row" key={format.id} data-format={format.id}>
-              <span className="fmt__name">{format.name}</span>
-              <span className="fmt__cell">
-                <span className="fmt__cell-label">R</span>
-                <StatusMark tone={format.read.tone} label={format.read.label} />
-              </span>
-              <span className="fmt__cell">
-                <span className="fmt__cell-label">W</span>
-                <StatusMark
-                  tone={format.write.tone}
-                  label={format.write.label}
-                />
-              </span>
-              <span className="fmt__cell">
-                <span className="fmt__cell-label">Runtime</span>
-                <StatusMark
-                  tone={format.runtime.tone}
-                  label={format.runtime.label}
-                />
-              </span>
-            </div>
-          ))}
+        {/* A table with its column heads said once, not "R", "W",
+            "RUNTIME" repeated in every row beside marks that read as
+            checkboxes. */}
+        <div className="panel__body">
+          <table className="fmt__table">
+            <thead>
+              <tr>
+                <th scope="col">Format</th>
+                <th scope="col">Read</th>
+                <th scope="col">Write</th>
+                <th scope="col">Runtime</th>
+              </tr>
+            </thead>
+            <tbody>
+              {formats.map((format) => (
+                <tr key={format.id} data-format={format.id}>
+                  <th scope="row" className="fmt__name">
+                    {format.name}
+                  </th>
+                  <td>
+                    <StatusMark
+                      tone={format.read.tone}
+                      label={format.read.label}
+                    />
+                  </td>
+                  <td>
+                    <StatusMark
+                      tone={format.write.tone}
+                      label={format.write.label}
+                    />
+                  </td>
+                  <td>
+                    <StatusMark
+                      tone={format.runtime.tone}
+                      label={format.runtime.label}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
       {ageSheet ? <AgeInteropSheet onClose={() => setAgeSheet(false)} /> : null}

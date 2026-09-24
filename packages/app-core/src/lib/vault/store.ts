@@ -1701,11 +1701,11 @@ export class VaultStore {
 
 export const vaultStore = new VaultStore();
 
+// A guest's tomb is sealed and isolated like any other, so a guest's
+// actions are logged in it (PRODUCT.md: guests are first-class).
 activitySeams.activeTomb = () => {
   const snap = vaultStore.getSnapshot();
-  return snap.status === "unlocked" && !snap.guest && snap.tomb
-    ? snap.tomb
-    : null;
+  return snap.status === "unlocked" && snap.tomb ? snap.tomb : null;
 };
 
 export { WrongPasswordError, VaultCorruptError };

@@ -1,10 +1,27 @@
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { LocalSharePanel } from "./LocalSharePanel.js";
+
+// The share + and its form are the Access walkthrough's targets, which the
+// access capability declares when it activates.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);

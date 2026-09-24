@@ -1,7 +1,8 @@
 import { testWebsitePattern } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { type LoginUri, type UriMatch, newUri } from "@opensesame/vault-core";
 import { useState } from "react";
-import { IconPlus, IconX } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconCheck, IconPlus, IconX } from "../../components/Icons.js";
 
 const MATCHES: UriMatch[] = [
   "domain",
@@ -35,9 +36,8 @@ function PatternTest({ uri }: { uri: LoginUri }) {
           }}
           disabled={busy}
         />
-        <button
-          type="button"
-          className="btn"
+        <IconKey
+          label="Test match"
           disabled={busy || !website.trim()}
           onClick={async () => {
             setBusy(true);
@@ -45,8 +45,8 @@ function PatternTest({ uri }: { uri: LoginUri }) {
             setBusy(false);
           }}
         >
-          Test match
-        </button>
+          <IconCheck size={16} />
+        </IconKey>
       </div>
       <output aria-live="polite">{result}</output>
     </div>
@@ -64,15 +64,13 @@ export function LoginWebsites({
     <div className="field">
       <span className="label editor__grouplabel">
         Websites
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label="Add address"
-          title="Add address"
+        <IconKey
+          label="Add address"
+          small
           onClick={() => onChange([...uris, newUri()])}
         >
           <IconPlus size={15} />
-        </button>
+        </IconKey>
       </span>
       {uris.map((uri, index) => (
         <div key={uri.id}>

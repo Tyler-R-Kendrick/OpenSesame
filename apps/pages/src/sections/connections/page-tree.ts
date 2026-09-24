@@ -2,10 +2,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
-import {
-  canConfigureAutomatically,
-  isConnectionCatalogProvider,
-} from "@opensesame/app-core/lib/connector-guidance.js";
+import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { unfinishedConnections } from "@opensesame/app-core/lib/identity-graph.js";
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
 import {
@@ -129,37 +126,27 @@ export function featureBindingSections(
   return groups;
 }
 
+/**
+ * The rail's Connected entries are the page's Connected rows: live
+ * connection records, nothing else. Built-in keys that configure
+ * themselves (WebCrypto, sealed local, plain) are Settings encryption keys
+ * (connector-guidance: not catalog rows), and listing them here made the
+ * rail say "Connected 3" beside a page that said "Nothing connected".
+ */
 export function connectedPageItems(
-  providers: readonly Provider[],
+  _providers: readonly Provider[],
   connections: readonly Connection[],
 ): PageTreeLeaf[] {
-  const live = connections.filter(
-    (connection) => connection.status !== "revoked",
-  );
-  const automatic = providers.filter(canConfigureAutomatically);
-  const automaticIds = new Set(automatic.map((provider) => provider.id));
-  const managed = live.filter(
-    (connection) => !automaticIds.has(connection.providerId),
-  );
-  return [
-    ...automatic.map((provider) => {
-      const connection = live.find((item) => item.providerId === provider.id);
-      return leaf(
-        connection?.connectionId ?? provider.id,
-        provider.displayName,
-        connectorPath(provider.id, connection?.connectionId),
-        "connected",
-      );
-    }),
-    ...managed.map((connection) =>
+  return connections
+    .filter((connection) => connection.status !== "revoked")
+    .map((connection) =>
       leaf(
         connection.connectionId,
         connection.displayName,
         connectorPath(connection.providerId, connection.connectionId),
         "connected",
       ),
-    ),
-  ];
+    );
 }
 
 /** Connections page: Needs attention, Connected, then catalog subheaders. */
