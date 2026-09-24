@@ -33,16 +33,22 @@ function panel(
   };
 }
 
+/**
+ * A tab whose one panel has nothing under it is that panel: listing it
+ * drew "Connectors › Connectors" and "Policies › Local application
+ * policies", a row that only said its parent again.
+ */
 function tab(
   id: (typeof ACCESS_VIEWS)[number],
   sections: PageTreeSource[],
 ): PageTreeSource {
+  const only = sections.length === 1 && !sections[0]?.items?.length;
   return {
     id,
     label: ACCESS_LABELS[id],
     href: `/access?view=${id}`,
     keepEmpty: true,
-    sections,
+    sections: only ? [] : sections,
   };
 }
 

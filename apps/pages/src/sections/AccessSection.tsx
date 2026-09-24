@@ -35,13 +35,10 @@ export function AccessSection() {
 
   return (
     <div className="section__inner">
-      <header className="section__head">
+      <header className="section__head access-head">
         <h1>Access</h1>
+        <AccessPathbar onImported={() => setBookEpoch((value) => value + 1)} />
       </header>
-      <AccessPathbar
-        tab={tab}
-        onImported={() => setBookEpoch((value) => value + 1)}
-      />
 
       <nav className="access-tabs" role="tablist" aria-label="Access views">
         {ACCESS_TABS.map(({ id, label, guideId }) => (

@@ -480,9 +480,13 @@ kbd {
   display: block;
 }
 
-.icon-btn:hover:not(:disabled) {
-  background: var(--surface-3);
-  color: var(--ink);
+/* Only where something hovers: a tap leaves a phone's key in :hover until
+   the next tap elsewhere, so a reload stayed filled grey after it ran. */
+@media (hover: hover) {
+  .icon-btn:hover:not(:disabled) {
+    background: var(--surface-3);
+    color: var(--ink);
+  }
 }
 
 .icon-btn:disabled {
@@ -1432,6 +1436,14 @@ body {
   gap: 0.9rem;
 }
 
+/* An empty status line or key row still took a gap, so a panel's first
+   card sat 16px under its rule on one panel and 30px on the next. Out of
+   the flow, not hidden: an empty <output> is a live region waiting for
+   its sentence. */
+.panel__body > :is(output, .actions, p, div):empty {
+  position: absolute;
+}
+
 .panel__body--tight {
   padding: 0.5rem 0 0;
 }
@@ -1602,6 +1614,22 @@ body {
 .empty h2,
 .empty h3 {
   color: var(--ink);
+}
+
+/* Inside a panel an empty state is the panel's first line, under its head
+   and flush with it; centred in bold it read as a second heading adrift in
+   the panel ("No budgets yet" a screen's width from "Budgets"). A pane's own
+   empty state — the vault list, a detail pane — keeps the centre. */
+.panel__body .empty {
+  justify-items: start;
+  text-align: start;
+  padding: 0 0 0.5rem;
+}
+
+.panel__body .empty :is(h2, h3) {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
 }
 
 .empty p {

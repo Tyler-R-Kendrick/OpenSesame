@@ -213,12 +213,14 @@ function ShareRow({
           <h3>
             {name} → {share.resourceLabel}
           </h3>
+          {/* The role is the record's, so it is on its line: a boxed chip
+              beside the title left a phone's title a third of the card. */}
           <code className="identity-ref">
             {share.resourceKind} ·{" "}
             {policyLabel(share.resourceKind, share.policy)}
+            {role ? ` · ${role}` : ""}
           </code>
         </div>
-        {role ? <span className="chip">{role}</span> : null}
         <StatusMark
           tone="idle"
           label={`Until ${new Date(share.expiresAt).toLocaleString()}`}

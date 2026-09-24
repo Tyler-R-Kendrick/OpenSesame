@@ -102,7 +102,7 @@ it("updates every identity subtree when directory or providers change", async ()
     .mockResolvedValue([]);
   renderTree();
   await waitFor(() => expect(countOf("People")).toBe("1"));
-  expect(countOf("Organization")).toBe("1");
+  expect(countOf("Organizations")).toBe("1");
   expect(countOf("Agents")).toBe("1");
   expect(countOf("Providers")).toBe("-");
   expect(countOf("Devices")).toBe("-");
@@ -150,7 +150,7 @@ it("updates every identity subtree when directory or providers change", async ()
   await waitFor(() => expect(countOf("People")).toBe("1"));
   expect(countOf("Agents")).toBe("2");
   expect(countOf("Applications")).toBe("1");
-  expect(countOf("Organization")).toBe("1");
+  expect(countOf("Organizations")).toBe("1");
   expect(countOf("Providers")).toBe("1");
   expect(countOf("Devices")).toBe("1");
 });

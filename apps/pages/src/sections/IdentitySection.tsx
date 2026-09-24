@@ -1395,7 +1395,7 @@ function ProvidersPanel({
     <section className="panel">
       <div className="panel__head">
         <div>
-          <h2>Who vouches for them</h2>
+          <h2>Providers</h2>
         </div>
         <fieldset className="vtree__keys" aria-label="Provider commands">
           <IconKey
@@ -1512,7 +1512,7 @@ function ProviderRow({
           <h3>{record.label}</h3>
           <code className="identity-ref">{record.issuer}</code>
         </div>
-        <span className="chip">{chipLabel}</span>
+        {device ? null : <span className="chip">{chipLabel}</span>}
         {record.kind === "byo" ? (
           <span className="identity-row__when">
             registered {formatTime(record.registeredAt)}

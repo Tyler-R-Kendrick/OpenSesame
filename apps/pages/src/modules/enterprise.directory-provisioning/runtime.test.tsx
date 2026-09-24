@@ -57,7 +57,10 @@ describe("enterprise.directory-provisioning runtime", () => {
       { path: "/identity?view=people", label: "Identity · People" },
       { path: "/identity?view=agents", label: "Identity · Agents" },
       { path: "/identity?view=devices", label: "Identity · Devices" },
-      { path: "/identity?view=organization", label: "Identity · Organization" },
+      {
+        path: "/identity?view=organization",
+        label: "Identity · Organizations",
+      },
     ]);
     // Devices is drawn by the section host too, and a target is declared
     // once: the button's id comes from `identity.local-iam`.

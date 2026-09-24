@@ -13,14 +13,18 @@ describe("access page tree", () => {
     expect(tree.map((node) => node.label)).toEqual(
       ACCESS_VIEWS.map((id) => ACCESS_LABELS[id]),
     );
-    expect(tree.every((node) => node.branch)).toBe(true);
+    // A tab whose one panel lists nothing is that panel, not its parent.
+    expect(
+      tree.filter((node) => node.children.length > 0).map((node) => node.id),
+    ).toEqual(["grants", "sessions"]);
     const headings = (id: string) =>
       tree.find((node) => node.id === id)?.children.map((node) => node.label);
     expect(headings("grants")).toEqual([
       "Local application grants",
       "Identity shares",
     ]);
-    expect(headings("resources")).toEqual(["Local resources"]);
+    expect(headings("resources")).toEqual([]);
+    expect(headings("connectors")).toEqual([]);
     expect(
       tree
         .find((node) => node.id === "grants")
@@ -50,7 +54,6 @@ describe("access page tree", () => {
       "Vault share sessions",
       "Host shared sessions",
       "Host task sessions",
-      "Connectors",
       "Local resources",
       "Sites",
       "Local application policies",
