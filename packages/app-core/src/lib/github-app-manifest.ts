@@ -3,7 +3,7 @@ import type { JsonObject } from "@opensesame/os-domain";
  * GitHub App Manifest flow for every Pages origin.
  *
  * Conversion and installation listing go through the Connect relay
- * (`apps/connect-backend`) — one shape for localhost, GitHub Pages, and Vercel.
+ * (`apps/pages/server`) — one shape for localhost, GitHub Pages, and Vercel.
  */
 import { maybePage, sessionStore } from "../ports.js";
 import {

@@ -64,26 +64,7 @@ jobs:
           PAGES_HOST_API: ${{ vars.PAGES_HOST_API }}
           PAGES_DAEMON_API: ${{ vars.PAGES_DAEMON_API }}
           PAGES_MFA_APP_URL: ${{ vars.PAGES_MFA_APP_URL }}
-        run: |
-          if [ -z "$PAGES_IDENTITY_API$PAGES_HOST_API$PAGES_DAEMON_API$PAGES_MFA_APP_URL" ]; then
-            echo "no PAGES_* variables set — keeping the empty os-runtime-config.json from the build"
-            exit 0
-          fi
-          node -e '
-            const keys = {
-              identityApi: process.env.PAGES_IDENTITY_API,
-              hostApi: process.env.PAGES_HOST_API,
-              daemonApi: process.env.PAGES_DAEMON_API,
-              mfaAppUrl: process.env.PAGES_MFA_APP_URL,
-            };
-            const config = Object.fromEntries(
-              Object.entries(keys).filter(([, value]) => value),
-            );
-            require("node:fs").writeFileSync(
-              "apps/pages/dist/os-runtime-config.json",
-              JSON.stringify(config, null, 2) + "\n",
-            );
-          '
+        run: node apps/pages/scripts/write-runtime-config.mjs
       - name: Stamp exact release and served-file digests
         run: node scripts/release/pages-release.mjs stamp apps/pages/dist "$GITHUB_SHA"
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3

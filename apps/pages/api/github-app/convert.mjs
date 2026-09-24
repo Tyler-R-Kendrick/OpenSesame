@@ -1,5 +1,7 @@
-import { handleGithubAppPutContents } from "../../src/github-app-contents.mjs";
-import { handleGithubAppConvertOptions } from "../../src/github-app.mjs";
+import {
+  handleGithubAppConvert,
+  handleGithubAppConvertOptions,
+} from "../../server/github-app.mjs";
 
 export default async function handler(req, res) {
   const origin = req.headers.origin ?? "";
@@ -17,7 +19,7 @@ export default async function handler(req, res) {
   }
   const body =
     typeof req.body === "object" && req.body !== null ? req.body : {};
-  const outcome = await handleGithubAppPutContents(body, origin);
+  const outcome = await handleGithubAppConvert(body, origin);
   for (const [key, value] of Object.entries(outcome.headers)) {
     res.setHeader(key, value);
   }

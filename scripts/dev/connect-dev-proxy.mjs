@@ -7,7 +7,7 @@
  * that resolves to this machine, no account needed) with a throwaway
  * self-signed certificate, and forwards:
  *
- *   /api/connect/*  → the relay (`apps/connect-backend`, plain http)
+ *   /api/connect/*  → the relay (`apps/pages/server`, plain http)
  *   everything else  → Vite (`apps/pages`, plain http, HMR upgrade kept)
  *
  * Trust is a manual step, once per certificate: open the https URL in the

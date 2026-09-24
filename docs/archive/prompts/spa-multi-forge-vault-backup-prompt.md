@@ -103,8 +103,8 @@ your job is to **finish, correct, and prove** it — not to rubber-stamp it.
 | `packages/app-core/src/lib/backup.ts`, `backup-target-local.ts` | Target CRUD API |
 | `packages/app-core/src/lib/vault-backup-sync.ts`, `vault-backup-observer.ts` | Sync + events |
 | `packages/app-core/src/lib/git-backup-forges.ts` | Forge id / URL parse |
-| `apps/connect-backend/src/github-app.mjs`, `github-app-contents.mjs` | App JWT + Contents |
-| `apps/connect-backend/src/git-backup-put.mjs` | Forge put proxy |
+| `apps/pages/server/github-app.mjs`, `github-app-contents.mjs` | App JWT + Contents |
+| `apps/pages/server/git-backup-put.mjs` | Forge put proxy |
 | `apps/pages/scripts/github-app-relay-plugin.mjs` | Loopback relay |
 | `crates/connection-broker/src/catalog.json` | Provider authorities/scopes |
 | `packages/app-core/src/lib/embedded-catalog.ts`, `vercel-connect-catalog.ts` | Pages catalog |
@@ -194,10 +194,10 @@ are the definition of done.
 
 ### Swarm A — Forge API truth + Connect relay (`connect-backend`)
 
-**Owner files:** `apps/connect-backend/src/git-backup-put.mjs`,
-`apps/connect-backend/src/github-app-contents.mjs` (if touching shared helpers),
-`apps/connect-backend/src/server.mjs`, `apps/pages/scripts/github-app-relay-plugin.mjs`,
-`apps/connect-backend/api/git-backup/**`, `apps/connect-backend/test/*.mjs`.
+**Owner files:** `apps/pages/server/git-backup-put.mjs`,
+`apps/pages/server/github-app-contents.mjs` (if touching shared helpers),
+`apps/pages/server/server.mjs`, `apps/pages/scripts/github-app-relay-plugin.mjs`,
+`apps/pages/api/git-backup/**`, `apps/pages/server/test/*.mjs`.
 
 **Atomic problems (solve all):**
 

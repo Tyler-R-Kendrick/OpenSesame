@@ -44,7 +44,6 @@ binary; the name a process starts under picks the program
 | [`mcp-host`](mcp-host) | `@opensesame/mcp-host` | stdio / HTTP | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. |
 | [`mcp-client`](mcp-client) | `@opensesame/mcp-client` | stdio | Agent MCP server over a narrowly scoped, short-lived Host capability. |
 | [`authenticator-native`](authenticator-native) | `@opensesame/authenticator-native-contract` | — | Android authenticator: OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. |
-| [`connect-backend`](connect-backend) | `@opensesame/connect-backend` | — | Relay for Connect OAuth callbacks and GitHub App manifests, for deployments that host one. |
 
 Neither MCP server exposes `getSecret()` or materializes a credential
 ([ADR 0005](../docs/adr/0005-authority-handle-connectionref.md)).

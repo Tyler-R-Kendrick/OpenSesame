@@ -93,7 +93,7 @@ behaviour) and `shuttle` (concurrency). Each writes its report under
 | `setup-hooks.sh` | `pnpm setup:hooks`: points git at [`.githooks/`](../.githooks). |
 | `pages-dev.sh` | `pnpm --filter @opensesame/pages dev`: the app with Host, Identity and mock IdP behind it. |
 | `start-native-deps.sh` | User-space OpenFGA and OpenBao for `test:live-stack`, no root. |
-| `connect-dev-proxy.mjs` | Local HTTPS front door for Connect OAuth callbacks ([connect-backend](../apps/connect-backend/README.md)). |
+| `connect-dev-proxy.mjs` | Local HTTPS front door for Connect OAuth callbacks ([the app's relay](../apps/pages/server/README.md)). |
 | `validate-tailscale-pairing.sh` | Checks a running daemon's health report for Tailscale Serve pairing prerequisites. |
 
 ## Adding a script

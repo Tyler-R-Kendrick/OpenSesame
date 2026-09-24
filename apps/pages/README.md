@@ -1,6 +1,10 @@
 # @opensesame/pages
 
-The OpenSesame authority console — an installable PWA served from GitHub Pages.
+The OpenSesame app — an installable PWA. One build, one deployment shape: GitHub
+Pages serves the static app; Vercel serves the same build plus its relay
+functions (`api/`, from `server/`) on the same origin ([`vercel.json`](vercel.json),
+[relay README](server/README.md)). Both hosts write the deployment's endpoints
+with the same script, `scripts/write-runtime-config.mjs`.
 
 GitHub Pages cannot host the Host or Identity APIs. This page is the console: a sealed
 **Vault** for human items, plus Connections, Agents, Authority, and Sites. Agents never
@@ -102,7 +106,8 @@ items the vault already has, and where each item will land.
 
 ```bash
 pnpm --filter @opensesame/pages dev        # Pages :5180 + built-in Host :18787
-pnpm --filter @opensesame/pages test       # crypto, TOTP, generator, health, importers
+pnpm --filter @opensesame/pages test       # vitest, then the relay's node --test suites
+pnpm --filter @opensesame/pages relay      # the relay alone on :8789
 pnpm --filter @opensesame/pages typecheck
 pnpm --filter @opensesame/pages build
 ```

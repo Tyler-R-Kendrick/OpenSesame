@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { configDefaults } from "vitest/config";
 import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
@@ -94,6 +95,8 @@ function handlePagesDevRequest(
 
 export default defineConfig({
   test: {
+    // The relay's suites under `server/` are `node --test` (`test:relay`).
+    exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
     setupFiles: ["./src/host/test-setup.ts"],

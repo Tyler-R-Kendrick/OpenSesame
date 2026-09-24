@@ -1,4 +1,4 @@
-import { handleGithubAppWebhook } from "../../src/github-app-contents.mjs";
+import { handleGithubAppWebhook } from "../../server/github-app-contents.mjs";
 
 export const config = {
   api: {

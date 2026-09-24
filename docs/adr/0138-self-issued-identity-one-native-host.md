@@ -154,7 +154,7 @@ The agent audience collapses to one value, `urn:opensesame:agent:mcp`. ADR
 | `android` (was `authenticator-native`) | The mobile app; later embeds app-core through the sandbox host. |
 | `browser-extension` | Runs in the browser's process; rebuilt on app-core. |
 | `cli` | The `opensesame` binary: every CLI verb, `daemon run`, `mcp serve`, and argv[0] entry points for `docker-credential-opensesame`, `git-credential-opensesame` and the password-manager native-messaging hosts. |
-| `connect-backend` | Serverless functions for OAuth and GitHub App callbacks a static page cannot receive. |
+| `pages` `api/` + `server/` | The app's own serverless functions for OAuth and GitHub App callbacks a static page cannot receive; one deployment with the app (was `apps/connect-backend`). |
 
 Everything else becomes a library or disappears:
 
