@@ -1,18 +1,18 @@
 /**
  * A tiny, per-call stub HTTP server standing in for the Host API / daemon that
- * `apps/mcp-host` talks to (`hostFetch/daemonFetch` in `apps/mcp-host/src/host-api.ts`).
+ * `packages/mcp-host` talks to (`hostFetch/daemonFetch` in `packages/mcp-host/src/host-api.ts`).
  *
  * Each red-team test case that needs one gets its own instance on an
  * OS-assigned free port (`listen(0, ...)`), started and torn down inside a
  * single `callApi()` invocation — no fixed ports, no cross-test interference,
  * safe to run tests in parallel. This is what lets the confused-deputy,
  * credential-exfiltration, and malformed-input test classes hand the real,
- * unmodified `apps/mcp-host` server whatever upstream body a case wants to
+ * unmodified `packages/mcp-host` server whatever upstream body a case wants to
  * probe it with.
  *
  * (The prompt-injection class needs something different — a single stub the
  * *model* interacts with across a whole eval run, on the fixed default ports
- * `apps/mcp-host` assumes when no override is configured — see
+ * `packages/mcp-host` assumes when no override is configured — see
  * `scripts/mock-upstream-daemon.mjs`.)
  */
 import http from "node:http";
@@ -37,7 +37,7 @@ export interface CapturedRequest {
 }
 
 export interface MockUpstream {
-  /** Base URL of the stub, suitable for OPENSESAME_SERVER / OPENSESAME_DAEMON_URL. */
+  /** Base URL of the stub, suitable for OPENSESAME_HOST_API / OPENSESAME_DAEMON_API. */
   url: string;
   /** Every request the stub received, in order, for assertions to inspect. */
   requests: CapturedRequest[];

@@ -65,7 +65,7 @@ Create an OpenSesame team in Linear; move the "Residual" lists (`docs/archive/20
 The connected project carries QuickDeployAI events. Create a dedicated OpenSesame project, then:
 
 - **Client surfaces** (`apps/pages` PWA, console, extension): pageviews, web vitals, error tracking, funnels on the unlock → search → item ceremony path. The PWA's privacy posture is compatible with self-limiting capture (no autocapture of vault content; capture ceremony outcomes, not payloads).
-- **MCP servers** (`apps/mcp-host`, `apps/mcp-client`): PostHog now has first-class MCP analytics (`$mcp_tool_call`, `$mcp_initialize`, tool failure/latency breakdowns). Instrumenting our own MCP servers tells us which tools agents actually call, failure rates per harness, and where agents report missing capabilities — direct product feedback from agent users, which **is** our target market.
+- **MCP servers** (`packages/mcp-host`, `packages/mcp-client`): PostHog now has first-class MCP analytics (`$mcp_tool_call`, `$mcp_initialize`, tool failure/latency breakdowns). Instrumenting our own MCP servers tells us which tools agents actually call, failure rates per harness, and where agents report missing capabilities — direct product feedback from agent users, which **is** our target market.
 - **LLM analytics** (`$ai_generation`/`$ai_trace`) if/when the credential-agent or example agents call models.
 - **Telemetry contract (decide before creating the project):** an explicit property **allowlist** — tool name, client/harness name+version, duration, outcome, coarse error class, and coarse geo at most. Explicitly prohibited from ever reaching PostHog: MCP tool arguments and results, authorization headers or tokens, vault/ceremony content, prompts, and user identifiers (pairwise-pseudonymous IDs only, consistent with ADR 0011). Align the instrumentation with the connector SDK and `skills/opensesame-mcps` guidance so the allowlist is enforced at the capture call site, not by convention. Fix retention, hosting region, project access, and a no-session-replay-on-vault-surfaces rule up front. <!-- gitleaks:allow -- prose -->
 
@@ -81,7 +81,7 @@ The connected project carries QuickDeployAI events. Create a dedicated OpenSesam
 
 ### P3 — Docs & DX retrieval
 
-- Publish the generated OpenAPI (`apps/control-plane/openapi.json`) and WIT contracts to a docs site; submit the TS SDK to Context7 indexing so external agents integrating against OpenSesame get correct usage — dogfooding the "agents as users" positioning.
+- Publish the generated OpenAPI (`packages/control-plane/openapi.json`) and WIT contracts to a docs site; submit the TS SDK to Context7 indexing so external agents integrating against OpenSesame get correct usage — dogfooding the "agents as users" positioning.
 - Keep Context7/Microsoft Docs MCPs in the default toolset for sessions touching Better Auth, oidc-provider, or WebAuthn — they change faster than model training data.
 
 ## 3. Sequenced plan

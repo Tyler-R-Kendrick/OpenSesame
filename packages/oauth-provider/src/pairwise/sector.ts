@@ -3,7 +3,7 @@
  * the string pairwise subjects are keyed on.
  *
  * The registry's `sectorIdentifier` is what ownership is checked against
- * (`apps/control-plane` refuses a sector another owner holds), so it — not the
+ * (`packages/control-plane` refuses a sector another owner holds), so it — not the
  * host of `redirect_uris[0]`, which oidc-provider falls back to without a
  * `sector_identifier_uri` — has to be what decides the `sub`. Otherwise two
  * owners whose redirect URIs share a host (`localhost:3000`, a multi-tenant

@@ -10,7 +10,7 @@ an adapter produced.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane).
+- **Used by:** [`packages/control-plane`](../../packages/control-plane).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (channel kinds,
   capability records, confidentiality levels),
   [`@opensesame/webhooks`](../webhooks) (Standard Webhooks signing and

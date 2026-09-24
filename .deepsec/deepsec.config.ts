@@ -12,10 +12,10 @@ export default defineConfig({
       root: "..",
       priorityPaths: [
         "crates/gateway/",
-        "apps/control-plane/",
+        "packages/control-plane/",
         "crates/daemon/",
         "apps/pages/src/",
-        "apps/worker/",
+        "packages/identity-worker/",
         "crates/authz/",
         "crates/authn/",
         "crates/connection-broker/",

@@ -3,7 +3,7 @@
 How OpenSesame publishes durable Host/Identity events on a message bus without
 collapsing dual-plane boundaries or faking E2EE. Decisions live in
 [ADR 0042](../adr/0042-nats-taskbus-auth-callout-and-xkeys.md) and
-[ADR 0140](../adr/0140-nats-feature-usage.md) (delivery semantics, the
+[ADR 0141](../adr/0141-nats-feature-usage.md) (delivery semantics, the
 callout bridge as a micro service, the sealed mixed-mode callout profile);
 foundations in
 [ADR 0002](../adr/0002-foundations.md); outbox authority in

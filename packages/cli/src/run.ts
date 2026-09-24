@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import {
   type BoundaryValue,
   type JsonValue,
+  configuredEndpoint,
   isNumber,
   isString,
   overlapCast,
@@ -36,10 +37,6 @@ import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
-}
-
-function defaultApi(issuer: string): string {
-  return process.env.OPENSESAME_API_URL ?? issuer;
 }
 
 function sessionPath(): string {
@@ -231,7 +228,8 @@ export async function runCli(
   }
 
   const issuer = command.flags.issuer ?? defaultIssuer();
-  const api = command.flags.api ?? defaultApi(issuer);
+  const api =
+    command.flags.api ?? configuredEndpoint("identity", process.env) ?? issuer;
   const clientId = command.flags.clientId ?? "opensesame-cli";
   const fetchImpl = deps?.fetchImpl ?? fetch;
 

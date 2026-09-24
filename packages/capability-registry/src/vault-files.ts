@@ -23,6 +23,25 @@ const PERSON_AT_TERMINAL: Capability["excluded"] = {
   },
 };
 
+/**
+ * The native binary opens the same files with the Rust reader checked against
+ * the same vectors (`crates/human-vault` `pages_vault`, ADR 0139). Its rows
+ * are the TypeScript rows on another binary: the PWA, extension and Android
+ * gaps are recorded once, against `vault.file.verify` and `vault.file.list`.
+ */
+const SAME_CAPABILITY_ON_ANOTHER_BINARY = {
+  reason:
+    "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+  adr: "0139-one-definition-every-target.md",
+};
+
+const NATIVE: Capability["excluded"] = {
+  ...PERSON_AT_TERMINAL,
+  pwa: SAME_CAPABILITY_ON_ANOTHER_BINARY,
+  extension: SAME_CAPABILITY_ON_ANOTHER_BINARY,
+  android: SAME_CAPABILITY_ON_ANOTHER_BINARY,
+};
+
 export const vaultFileCapabilities: readonly Capability[] = [
   {
     id: "vault.file.verify",
@@ -51,5 +70,35 @@ export const vaultFileCapabilities: readonly Capability[] = [
       webmcp: null,
     },
     excluded: PERSON_AT_TERMINAL,
+  },
+  {
+    id: "vault.file.native.verify",
+    title:
+      "Verify a Pages vault export or offline backup with the native binary",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame vault verify",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: NATIVE,
+  },
+  {
+    id: "vault.file.native.list",
+    title:
+      "List a Pages vault file's items by path and kind with the native binary",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame vault ls",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: NATIVE,
   },
 ];

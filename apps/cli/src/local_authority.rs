@@ -1,6 +1,7 @@
 //! Native ceremonies: operator authority remains in this process, never the browser/child.
 use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
+use opensesame_host_core::endpoints;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
@@ -187,9 +188,11 @@ fn child_command(args: &LaunchArgs, base: &str, handle: &str, client: &str) -> C
     child
         .env("OPENSESAME_AGENT_LAUNCH_HANDLE", handle)
         .env("OPENSESAME_AGENT_CLIENT_ID", client)
-        .env("OPENSESAME_AGENT_SOCK", &args.socket)
-        .env("OPENSESAME_SERVER", base)
-        .env("OPENSESAME_HOST_API", base);
+        .env("OPENSESAME_AGENT_SOCK", &args.socket);
+    // Every name the Host API is read under, so an older agent finds it too.
+    for name in endpoints::endpoint(endpoints::HOST).address.names() {
+        child.env(name, base);
+    }
     child
 }
 

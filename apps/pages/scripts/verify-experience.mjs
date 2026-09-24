@@ -91,7 +91,7 @@ const scimArgs = [
   "src/__tests__/replica-cc-scim.test.ts",
   "src/__tests__/oauth2-proxy-contract.test.ts",
   "src/__tests__/oauth2-proxy-live.test.ts",
-].filter((path) => existsSync(join(root, "apps/control-plane", path)));
+].filter((path) => existsSync(join(root, "packages/control-plane", path)));
 if (scimArgs.length > 0) {
   run("@opensesame/control-plane", scimArgs);
 }

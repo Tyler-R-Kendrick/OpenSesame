@@ -8,7 +8,7 @@ types; nothing here does I/O.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) — `ProvisionalPolicy` in `create-app.ts`, the AgentAuth services, and the interaction activation and settlement routes.
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) — `ProvisionalPolicy` in `create-app.ts`, the AgentAuth services, and the interaction activation and settlement routes.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (`Principal`, `AssuranceLevel`, `ApprovalMechanism`, `AuthorityGrant`).
 - High-risk actions (`organization.delete`, `principal.merge`, `grant.export_raw_credential`, `admin.impersonate`, …) are denied for every subject; a provisional principal may only take the actions in its allowlist, within quota.
 - Only a WebAuthn assertion or a holder-key-bound OpenID4VP presentation may carry phishing-resistant assurance. A route consults this table before sealing an `ApprovalProof`, so an incoherent pairing is refused rather than written.

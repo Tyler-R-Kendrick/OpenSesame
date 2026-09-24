@@ -1,6 +1,6 @@
-# Malformed / oversized inputs against the zod schemas in apps/mcp-host/src/tools.ts.
+# Malformed / oversized inputs against the zod schemas in packages/mcp-host/src/tools.ts.
 #
-# These call the real, unmodified apps/mcp-host over stdio via
+# These call the real, unmodified packages/mcp-host over stdio via
 # src/mcp-provider.ts — no upstream mock needed, since a malformed call never
 # reaches hostFetch/daemonFetch: the MCP SDK validates arguments against the
 # tool's zod schema before the handler runs at all, and returns a normal

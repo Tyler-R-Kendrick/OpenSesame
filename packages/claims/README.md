@@ -9,9 +9,9 @@ transition persisted by compare-and-swap on the session version.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) (the claim
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) (the claim
   routes and a database-backed `ClaimStore` in `src/repos/claim-store.ts`) and
-  [`apps/worker`](../../apps/worker) (expiry cleanup).
+  [`packages/identity-worker`](../../packages/identity-worker) (expiry cleanup).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), which owns the claim
   state machine, the manifest digest, token and user-code generation and
   verification.

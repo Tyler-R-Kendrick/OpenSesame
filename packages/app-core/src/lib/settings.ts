@@ -1,5 +1,6 @@
 import {
   type BoundaryValue,
+  ENDPOINTS,
   type JsonValue,
   isJsonObject,
   isString,
@@ -74,26 +75,25 @@ type PersistedSettings = {
 };
 
 /**
- * The loopback addresses `pages-dev.sh` runs the planes on (`:187xx` avoids
- * the classic `:8787`/`:8788` collisions). These are *suggestions* a loopback
- * tab may offer in a pairing field — never defaults the app assumes (ADR 0090).
+ * Default service addresses (`spec/config/endpoints.json`): suggestions a
+ * loopback tab may offer in a pairing field, never assumed (ADR 0090).
  */
-export const shippedHostApi = "http://127.0.0.1:18787";
-export const shippedIdentityApi = "http://127.0.0.1:18788";
-export const shippedDaemonApi = "http://127.0.0.1:18790";
+export const shippedHostApi = ENDPOINTS.host.default;
+export const shippedIdentityApi = ENDPOINTS.identity.default;
+export const shippedDaemonApi = ENDPOINTS.daemon.default;
 export const shippedMfaAppUrl = "http://127.0.0.1:5177";
 
 /** Legacy loopback endpoints we replace when VITE_* is set at runtime. */
 const LEGACY_HOST_APIS = [
   shippedHostApi,
-  "http://127.0.0.1:8787",
   "http://localhost:8787",
+  "http://127.0.0.1:18787",
   "http://localhost:18787",
 ] as const;
 const LEGACY_IDENTITY_APIS = [
   shippedIdentityApi,
-  "http://127.0.0.1:8788",
   "http://localhost:8788",
+  "http://127.0.0.1:18788",
   "http://localhost:18788",
 ] as const;
 

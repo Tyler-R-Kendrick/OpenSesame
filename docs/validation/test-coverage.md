@@ -57,7 +57,7 @@ the two mutants between them are simply source that changed in between.
 1 timeout, 0 survived) under a scoped `--mutate` of those two files. The score
 was re-run before the mutate-list entry landed.
 
-**Measured 2026-09-02:** `apps/control-plane/src/ui/agent-auth-pages.ts` joined
+**Measured 2026-09-02:** `packages/control-plane/src/ui/agent-auth-pages.ts` joined
 the slice at **100.00%** (31 killed, 0 timeout, 0 survived) under a scoped
 `--mutate` of that file. Adjacent AgentAuth files (`agent-auth-tokens.ts`,
 `agent-registration.ts`, `agent-auth-scopes.ts`) stay out of the list: they
@@ -109,7 +109,7 @@ in it that the existing suites did not catch.
 (`assertSourceOrder`) reads it. Stryker instruments what it mutates, so the
 literal source no longer matches and the dry run fails with an opaque
 "failed tests in the initial test run" naming no test. See the guard in
-`apps/control-plane/src/__tests__/federated-leg.pact.test.ts`.
+`packages/control-plane/src/__tests__/federated-leg.pact.test.ts`.
 
 Snapshot updates are always explicit. Use Vitest's `-u` or
 `VISUAL_UPDATE=1 pnpm test:visual`, inspect the diff, and commit only intended
@@ -136,7 +136,7 @@ Well above the 50% per-package lines floor. Property coverage lives in
 `request.property.test.ts` (fast-check); adversarial coverage in
 `security.adversarial.test.ts` and `token.adversarial.test.ts`; fragment
 contract coverage in `response.test.ts`. Identity hosted bridge PACT lives in
-`apps/control-plane/src/__tests__/siop-bridge.pact.test.ts`
+`packages/control-plane/src/__tests__/siop-bridge.pact.test.ts`
 (`pnpm --filter @opensesame/control-plane verify:siop`).
 
 Approximate CRAP (branch-outcome complexity × uncovered³) after the response
@@ -161,7 +161,7 @@ single `--mutate` path per invocation:
 | `packages/siop-v2/src/link-profile.ts` | 43 | 0 | 0 | 0 | **100%** | **Yes** — challenge profile + email-join refuse for ADR 0117 |
 | `packages/siop-v2/src/id-token.ts` | — | — | — | — | — | **No** — mint/verify/JOSE orchestration; decision branches live in the modules above |
 | `packages/app-core/src/lib/siop-authority.ts` | 48 | 27 | 0 | 9 | 57.14% | **No** — jsdom ceremony path; optional-chaining / string-copy survivors |
-| `apps/control-plane/src/services/siop-verify.ts` | — | — | — | — | — | **No** — take/restore/audit orchestration held by PACT; profile decisions in `link-profile.ts` |
+| `packages/control-plane/src/services/siop-verify.ts` | — | — | — | — | — | **No** — take/restore/audit orchestration held by PACT; profile decisions in `link-profile.ts` |
 
 Scoped runs (2026-09-15):
 

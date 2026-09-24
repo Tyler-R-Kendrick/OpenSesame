@@ -1,8 +1,8 @@
 //! Starting the shipped Identity-plane TLS listener out of process.
 //!
-//! `harness/identity-listener.mts` boots `apps/control-plane`'s real
+//! `harness/identity-listener.mts` boots `packages/control-plane`'s real
 //! `createTransportListener` under `tsx`, with exactly the deployment-plane
-//! environment `apps/control-plane/src/transport/config.ts` documents. The
+//! environment `packages/control-plane/src/transport/config.ts` documents. The
 //! listener prints its bound port and then serves until it is killed; a
 //! process that cannot start is an error with its stderr attached, never a
 //! skipped test.
@@ -43,7 +43,7 @@ impl IdentityListener {
     /// time.
     pub fn start(spec: &IdentitySpec<'_>) -> Result<Self> {
         let root = repo_root();
-        let tsx = root.join("apps/control-plane/node_modules/.bin/tsx");
+        let tsx = root.join("packages/control-plane/node_modules/.bin/tsx");
         if !tsx.is_file() {
             bail!(
                 "tsx is not installed at {} — the Identity harness cannot run",
