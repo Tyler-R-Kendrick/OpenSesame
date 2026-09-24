@@ -18,7 +18,7 @@ describe("tests/redteam duress integration gaps", () => {
   it("GAP-PEER-CRYPTO: receiver verify must call WebCrypto-equivalent ECDSA check", () => {
     const verify = join(
       root,
-      "apps",
+      "crates",
       "daemon",
       "src",
       "duress_receiver",
