@@ -197,5 +197,5 @@ const server = createServer((req, res) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`connect-backend on http://${host}:${port}`);
+  console.log(`relay on http://${host}:${port}`);
 });
