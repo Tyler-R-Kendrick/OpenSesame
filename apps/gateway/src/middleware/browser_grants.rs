@@ -27,6 +27,8 @@ fn required_capability(method: &str, path: &str) -> Option<&'static str> {
         ) => Some("host.sync.read"),
         ("POST", "/api/v1/sync/push" | "/api/v1/sync/blobs/push") => Some("host.sync.write"),
         ("GET", "/api/v1/session" | "/api/v1/whoami" | "/api/v1/browser-clients") => Some(""),
+        // Only a join grant renews (ADR 0136 §2); the route re-checks it.
+        ("POST", "/api/v1/browser-pairings/renew") => Some("host.join"),
         ("DELETE", path)
             if path
                 .strip_prefix("/api/v1/browser-clients/")

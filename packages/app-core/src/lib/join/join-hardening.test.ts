@@ -11,11 +11,19 @@ import {
   browserPairingSeams,
   clearBrowserPairing,
   currentBrowserGrant,
+  pairedHostFetch,
   pollBrowserPairing,
+  renewBrowserGrant,
 } from "../browser-pairing.js";
 import { localNetworkFetchSeams } from "../local-network-fetch.js";
 import { listNotices } from "../notices.js";
-import { JoinError, askToJoin, joinSeams, verifyAt } from "./client.js";
+import {
+  JoinError,
+  askToJoin,
+  joinSeams,
+  keepJoinAuthority,
+  verifyAt,
+} from "./client.js";
 import {
   captureInviteFromPage,
   noteLength,
@@ -133,6 +141,103 @@ describe("a join pairing asks for the join and nothing else", () => {
     const { beginApproval } = await import("./client.js");
     await beginApproval(HOST);
     expect(begin).toHaveBeenCalledWith(HOST, "join");
+  });
+});
+
+describe("a join grant is kept alive while the ceremony is on screen", () => {
+  beforeEach(() => {
+    browserPairingSeams.eligible = () => true;
+    localNetworkFetchSeams.eligible = () => true;
+    browserPairingSeams.createKey = async () => ({
+      createDpopProof: async () => "proof",
+      jwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+    });
+  });
+
+  const token = (access: string, scope = "host.join") => ({
+    access_token: access.repeat(40),
+    token_type: "DPoP",
+    expires_in: 300,
+    client_id: "client-1",
+    scope,
+  });
+
+  async function paired(fetcher: ReturnType<typeof vi.fn>) {
+    fetcher
+      .mockResolvedValueOnce(
+        Response.json({
+          pairing_id: "p",
+          device_code: "d".repeat(40),
+          user_code: "ABCD-1234",
+          verification_uri: `${HOST}/pair`,
+          expires_in: 300,
+          interval: 5,
+        }),
+      )
+      .mockResolvedValueOnce(Response.json(token("a")));
+    vi.stubGlobal("fetch", fetcher);
+    await beginBrowserPairing(HOST, "join");
+    await pollBrowserPairing();
+  }
+
+  it("renews under the old token, then speaks with the new one", async () => {
+    const fetcher = vi.fn();
+    await paired(fetcher);
+    fetcher.mockResolvedValueOnce(Response.json(token("b")));
+    expect(await renewBrowserGrant(HOST)).toBe(true);
+    const renewal = fetcher.mock.calls[2];
+    expect(renewal?.[0]).toBe(`${HOST}/api/v1/browser-pairings/renew`);
+    expect(renewal?.[1].headers.get("Authorization")).toBe(
+      `DPoP ${"a".repeat(40)}`,
+    );
+    fetcher.mockResolvedValueOnce(Response.json({ sessions: [] }));
+    await pairedHostFetch(HOST, "/api/v1/shared-sessions?visibility=public");
+    expect(fetcher.mock.calls[3]?.[1].headers.get("Authorization")).toBe(
+      `DPoP ${"b".repeat(40)}`,
+    );
+  });
+
+  it("keeps the grant in hand when the sitting is over", async () => {
+    const fetcher = vi.fn();
+    await paired(fetcher);
+    fetcher.mockResolvedValueOnce(
+      Response.json({ error: "join_sitting_over" }, { status: 403 }),
+    );
+    expect(await renewBrowserGrant(HOST)).toBe(false);
+    expect(currentBrowserGrant(HOST)?.capabilities).toEqual(["host.join"]);
+  });
+
+  it("refuses a renewal wider than the grant it renews", async () => {
+    const fetcher = vi.fn();
+    await paired(fetcher);
+    fetcher.mockResolvedValueOnce(Response.json(token("b", "host.sync.read")));
+    await expect(renewBrowserGrant(HOST)).rejects.toMatchObject({
+      code: "pairing_failed",
+    });
+    expect(currentBrowserGrant(HOST)?.capabilities).toEqual(["host.join"]);
+  });
+
+  it("renews only near the end, and a failure changes nothing", async () => {
+    const renew = vi.fn<typeof joinSeams.renew>(async () => {
+      throw new Error("offline");
+    });
+    joinSeams.renew = renew;
+    const expiring = (inMs: number) => () => ({
+      clientId: "c",
+      hostApi: HOST,
+      expiresAt: Date.now() + inMs,
+      capabilities: ["host.join"],
+    });
+    joinSeams.grant = expiring(4 * 60_000);
+    await keepJoinAuthority(HOST);
+    expect(renew).not.toHaveBeenCalled();
+    joinSeams.grant = expiring(60_000);
+    await expect(keepJoinAuthority(HOST)).resolves.toBeUndefined();
+    expect(renew).toHaveBeenCalledWith(HOST);
+    joinSeams.grant = () => null;
+    renew.mockClear();
+    await keepJoinAuthority(HOST);
+    expect(renew).not.toHaveBeenCalled();
   });
 });
 

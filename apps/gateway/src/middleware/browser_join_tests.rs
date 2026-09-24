@@ -19,8 +19,8 @@ use tower::ServiceExt;
 
 const ORIGIN: &str = "https://join.example";
 
-struct Browser {
-    token: String,
+pub(crate) struct Browser {
+    pub(crate) token: String,
     jwk: opensesame_proof::DpopPublicJwk,
     key: opensesame_proof::ProofSigningKey,
 }
@@ -146,8 +146,8 @@ async fn preflight(router: &axum::Router, method: &str, path: &str) -> Response 
 }
 
 /// One organization with a public and a private session, and a joiner.
-struct Room {
-    state: AppState,
+pub(crate) struct Room {
+    pub(crate) state: AppState,
     router: axum::Router,
     open: String,
     private: String,
@@ -157,7 +157,7 @@ struct Room {
 }
 
 impl Room {
-    async fn new() -> Self {
+    pub(crate) async fn new() -> Self {
         let state = Box::pin(state()).await;
         let lock = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_BROWSER_PAIRABLE_ORIGINS", ORIGIN);
@@ -181,11 +181,11 @@ impl Room {
         format!("/api/v1/shared-sessions/{}/join-requests", self.open)
     }
 
-    async fn browser(&self, verified: bool) -> Browser {
+    pub(crate) async fn browser(&self, verified: bool) -> Browser {
         browser(&self.state, &self.joiner, &self.org, verified).await
     }
 
-    async fn send(
+    pub(crate) async fn send(
         &self,
         who: &Browser,
         method: &str,
@@ -357,4 +357,31 @@ async fn a_verified_browser_may_ask_in_but_never_let_itself_in() {
     let decide = format!("{asks}/{request_id}/decide");
     let response = preflight(&room.router, "POST", &decide).await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn a_verified_join_grant_is_seated_where_the_session_admits_on_ask() {
+    use opensesame_domain::{SessionAdmission, SessionId, SessionVisibility};
+    let room = Room::new().await;
+    let lobby = opensesame_storage::StoredSession {
+        id: SessionId::new(),
+        organization_id: room.org.clone(),
+        operator_principal_id: opensesame_domain::PrincipalId::new(),
+        display_name: "Lobby".into(),
+        visibility: SessionVisibility::Public,
+        created_at: chrono::Utc::now(),
+        closed_at: None,
+    };
+    let db = &room.state.db;
+    db.create_session_admitting(&lobby, SessionAdmission::ObserverOnAsk)
+        .await
+        .unwrap();
+    let verified = room.browser(true).await;
+    let asks = format!("/api/v1/shared-sessions/{}/join-requests", lobby.id);
+    let (status, body) = room.send(&verified, "POST", &asks, Some(json!({}))).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert_eq!(
+        (&body["decision"], &body["mode"]),
+        (&json!("admitted"), &json!("observer"))
+    );
 }

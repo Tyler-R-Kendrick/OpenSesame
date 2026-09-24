@@ -28,6 +28,7 @@ import {
   currentBrowserGrant,
   pairedHostFetch,
   pollBrowserPairing,
+  renewBrowserGrant,
 } from "../browser-pairing.js";
 import { mayPairLocalAuthority } from "../deployment-profile.js";
 import { authorizeHost } from "../host-authorization.js";
@@ -92,6 +93,7 @@ export const joinSeams = {
   pollPairing: pollBrowserPairing,
   clearPairing: clearBrowserPairing,
   grant: currentBrowserGrant,
+  renew: renewBrowserGrant,
   authorize: authorizeHost,
   identityApi: remoteIdentityApi,
   configuredEndpoint: (): string => loadSettings().hostApi,
@@ -353,6 +355,26 @@ export async function askToJoin(
   if (code === "join_request_pending") throw new JoinError("already_asked");
   if (code === "already_in_session") throw new JoinError("already_member");
   throw new JoinError("claim_refused");
+}
+
+/** How long before the grant lapses the ceremony renews it. */
+export const RENEW_AHEAD_MS = 90_000;
+
+/**
+ * Keep the join's grant alive while the ceremony is on screen (ADR 0136 §2),
+ * renewing it once it is within {@link RENEW_AHEAD_MS} of lapsing. A refusal
+ * — the sitting is over, the endpoint is gone — changes nothing: the grant
+ * lapses as it would have, and the next press says approval lapsed.
+ */
+export async function keepJoinAuthority(endpoint: string): Promise<void> {
+  const base = normalizeApiBase(endpoint);
+  const grant = base ? joinSeams.grant(base) : null;
+  if (!base || !grant || grant.expiresAt - Date.now() > RENEW_AHEAD_MS) return;
+  try {
+    await joinSeams.renew(base);
+  } catch {
+    // Left to lapse; see above.
+  }
 }
 
 /** Drop the join's authority. Every exit from the ceremony calls this. */

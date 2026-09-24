@@ -226,6 +226,11 @@ function Ask({ join }: { join: JoinCeremony }) {
                   ? "preset__opt is-on"
                   : "preset__opt"
               }
+              title={
+                session.admitsOnAsk
+                  ? "Lets anyone in who asks, as an observer"
+                  : undefined
+              }
               disabled={join.busy}
               onClick={() => join.setSessionId(session.id)}
             >
@@ -260,6 +265,14 @@ function Ask({ join }: { join: JoinCeremony }) {
   );
 }
 
+function answerText(
+  decision: "pending" | "admitted" | "refused",
+  mode: "observer" | "participant" | null,
+): string {
+  if (decision === "pending") return "waiting on the operator";
+  return decision === "admitted" && mode ? `admitted, as ${mode}` : decision;
+}
+
 function Done({ join }: { join: JoinCeremony }) {
   if (join.road === "open") {
     const decision = join.receipt?.decision ?? "pending";
@@ -268,10 +281,7 @@ function Done({ join }: { join: JoinCeremony }) {
         rows={[
           ["Endpoint", join.endpoint],
           ["Session", join.sessionId],
-          [
-            "Answer",
-            decision === "pending" ? "waiting on the operator" : decision,
-          ],
+          ["Answer", answerText(decision, join.receipt?.mode ?? null)],
         ]}
       />
     );
@@ -292,7 +302,9 @@ export function JoinStepBody(props: Props) {
     <>
       <div className="setup__head">
         <h1>
-          {join.step === "done" && join.road === "open"
+          {join.step === "done" &&
+          join.road === "open" &&
+          join.receipt?.decision !== "admitted"
             ? "Asked"
             : JOIN_TITLE[join.step]}
         </h1>

@@ -8,6 +8,8 @@
 
 /// The ceiling a join ceremony pairs under. It reaches nothing by itself.
 const JOIN_CEILING: &str = "host.join";
+/// The same ceiling as a pairing stores it.
+pub(super) const JOIN_CEILING_JSON: &str = r#"["host.join"]"#;
 
 /// What a verified join grant may do: look up and accept an invite, list
 /// open sessions and ask into one.
@@ -22,6 +24,14 @@ pub(super) fn allowed_capabilities(capabilities: &[String]) -> bool {
         && capabilities
             .iter()
             .all(|cap| matches!(cap.as_str(), "host.sync.read" | "host.sync.write"))
+}
+
+/// Whether approving a pairing that asked for `requested` makes its person a
+/// member of the Host's organization. A join pairing never does: accepting
+/// one invite or asking into one session is not joining the organization,
+/// and the join routes read no organization role.
+pub(super) fn provisions_membership(requested: &[String]) -> bool {
+    !(requested.len() == 1 && requested[0] == JOIN_CEILING)
 }
 
 /// What a passkey check adds to a grant that asked for `requested`.
@@ -69,6 +79,12 @@ mod tests {
         ] {
             assert!(!allowed_capabilities(&owned(refused)), "{refused:?}");
         }
+    }
+
+    #[test]
+    fn only_a_sync_pairing_makes_a_member() {
+        assert!(!provisions_membership(&owned(&["host.join"])));
+        assert!(provisions_membership(&owned(&["host.sync.read"])));
     }
 
     #[test]

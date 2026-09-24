@@ -78,6 +78,23 @@ function useOpenSessions(f: Fields) {
     };
   }, [step, sessions, endpoint, setSessions, setError]);
 }
+/** Rungs that spend the approval: keep it alive while one is on screen. */
+const HOLDS_APPROVAL: readonly string[] = ["verify", "review", "ask"];
+
+/** Renew the grant while the person reads (ADR 0136 §2); never past its sitting. */
+function useGrantRenewal(f: Fields) {
+  const step = f.step.value;
+  const endpoint = f.endpoint.value;
+  useEffect(() => {
+    if (!HOLDS_APPROVAL.includes(step)) return;
+    const timer = setInterval(
+      () => void deps.keepJoinAuthority(endpoint),
+      15_000,
+    );
+    return () => clearInterval(timer);
+  }, [step, endpoint]);
+}
+
 export function useJoinCeremony(captured: CapturedInvite | null) {
   const f = useJoinFields(captured);
   const { lifetime } = f;
@@ -92,6 +109,7 @@ export function useJoinCeremony(captured: CapturedInvite | null) {
   }, [lifetime]);
   useApprovalPoll(f);
   useOpenSessions(f);
+  useGrantRenewal(f);
   return {
     available: deps.joinAvailable(),
     road: f.road.value,

@@ -2,7 +2,7 @@
 /** The join ceremony's open road (ADR 0136): ask, and nothing is retired. */
 import { JoinError } from "@opensesame/app-core/lib/join/client.js";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JoinScreen } from "./JoinScreen.js";
 import {
   ENDPOINT,
@@ -53,13 +53,50 @@ describe("the open road", () => {
   });
 
   it("retires the front door only when the endpoint admits", async () => {
-    fakes.askToJoin.mockResolvedValueOnce({ id: "r1", decision: "admitted" });
+    fakes.askToJoin.mockResolvedValueOnce({
+      id: "r1",
+      decision: "admitted",
+      mode: "observer",
+    });
     await toSessions();
     fireEvent.click(screen.getByRole("button", { name: "Ask to join" }));
-    await screen.findByRole("heading", { name: "Asked" });
+    await screen.findByRole("heading", { name: "Joined" });
+    expect(screen.getByText("admitted, as observer")).toBeTruthy();
     expect(fakes.completeSetup).toHaveBeenCalledWith(
       expect.objectContaining({ joined: true }),
     );
+  });
+
+  it("says Join where the session lets anyone in (ADR 0137)", async () => {
+    fakes.askToJoin.mockResolvedValueOnce({
+      id: "r1",
+      decision: "admitted",
+      mode: "observer",
+    });
+    await toSessions();
+    // The operator decides this one: an ask, not a join.
+    expect(screen.getByRole("button", { name: "Ask to join" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Lobby/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Join" }));
+    await screen.findByRole("heading", { name: "Joined" });
+    expect(fakes.askToJoin).toHaveBeenCalledWith(ENDPOINT, "session:2", "");
+  });
+
+  it("keeps the approval alive while the person chooses, and not after", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await toSessions();
+      fakes.keepJoinAuthority.mockClear();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(fakes.keepJoinAuthority).toHaveBeenCalledWith(ENDPOINT);
+      fireEvent.click(screen.getByRole("button", { name: "Ask to join" }));
+      await screen.findByRole("heading", { name: "Asked" });
+      fakes.keepJoinAuthority.mockClear();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(fakes.keepJoinAuthority).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks a failure beside the field it belongs to", async () => {

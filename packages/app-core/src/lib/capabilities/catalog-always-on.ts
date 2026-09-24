@@ -112,6 +112,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "authority.portal.templates.manage",
         "authority.portal.templates.read",
         "browser.client.revoke",
+        "browser.grant.renew",
         "browser.identity.authenticate",
         "browser.pairing.begin",
         "changelog.read",

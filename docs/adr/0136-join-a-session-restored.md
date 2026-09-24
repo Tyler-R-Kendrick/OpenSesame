@@ -95,13 +95,27 @@ Because the Host answers a browser nothing before both, the invite is looked
 up — and its one presentation spent — only once this browser can go on to
 accept it. That trades ADR 0044's "see the manifest before an account" for
 "never spend an invite you cannot accept"; the manifest is still shown, and
-still chosen from, before anything is accepted. The approved grant lasts
-five minutes (the Host's bound), so the code is asked up front: nothing
-after approval waits on the person fetching it.
+still chosen from, before anything is accepted. The code is asked up front,
+so nothing after approval waits on the person fetching it.
 
-"Open" means *anyone may ask*. Admission stays the operator's decision
-(ADR 0079 §7); the ceremony reports whatever the endpoint answers, so an
-endpoint that ever admits on ask needs no change here.
+A browser grant lasts five minutes (the Host's bound). Reading an offer and
+choosing from it can take longer, and a second operator approval of the same
+browser would be friction with no security in it, so **a join grant renews**
+(`POST /api/v1/browser-pairings/renew`): through the guard, so the token and
+its DPoP proof are already checked; to the same key and client, spending the
+old token; five minutes at a time; and never past **thirty minutes after the
+operator's approval** (the *sitting*). Only a client that paired as exactly
+`host.join` renews — a sync browser's grant does not. The page renews a
+minute and a half before the grant lapses, and only while a rung that spends
+the approval (verify, the offer, the session) is on screen; a refused
+renewal changes nothing, and the next press says approval lapsed.
+
+"Open" means *anyone may ask*. By default admission stays the operator's
+decision (ADR 0079 §7). An operator may instead open a public session that
+**admits on ask** — whoever asks is seated at once as an observer holding
+nothing ([ADR 0137](0137-open-sessions-admit-on-ask.md)). The listing says
+which a session does, the ceremony's verb follows it ("Join" or "Ask to
+join"), and it reports whatever the endpoint answers.
 
 ### 3. The rules the ceremony keeps
 
@@ -146,8 +160,8 @@ endpoint that ever admits on ask needs no change here.
   length makes a (spent) offer unreadable. Each item says how long its
   delegation lasts. Text reaches the page as text only; the invite field is
   masked like any secret.
-- **Authority is short and dropped.** The grant lives in memory (≤ 5 minutes
-  by the Host's own bound). Finishing, closing, starting over, the screen
+- **Authority is short and dropped.** The grant lives in memory, five
+  minutes at a time and never past the thirty-minute sitting (§2). Finishing, closing, starting over, the screen
   unmounting and signing out all end it; signing out also forgets a pending
   offer. Joining leaves no standing grant.
 - **The setup record is written only after a join completes** — a claim,
@@ -177,6 +191,11 @@ and gains `host.sessions.join` for exactly two shapes: `GET shared-sessions`
 Deciding, granting, the roster, events and opening a session stay off the
 map — a browser may ask in, never let itself in.
 
+**Approving a join provisions no role**, and **a join grant renews** to
+its sitting (`routes/browser_pairings/renew.rs`; the guard admits the renew
+route only for a grant holding `host.join`). Both are in §2 and the
+Consequences.
+
 **Refusals are readable.** The browser guard now answers a refusal with the
 CORS headers of the (already validated, pairable) origin, so the page can
 tell "verify again" from "offline" instead of seeing a network failure.
@@ -188,8 +207,10 @@ to `/pair/decision`, which the gateway never routed; it now posts to
 ### 5. Parity
 
 `delegations.claim` and `shared_sessions.join_request` gain PWA surfaces
-(`lib/join/client.ts:claimInvite`, `:askToJoin`) under `access.authority`;
-both are mapped to the `setup.join-session` support goal.
+(`lib/join/client.ts:claimInvite`, `:askToJoin`) under `access.authority`,
+and `browser.grant.renew` is registered beside the other pairing
+capabilities (`lib/browser-pairing.ts:renewBrowserGrant`). The first two
+are mapped to the `setup.join-session` support goal.
 
 ## Consequences
 
@@ -200,15 +221,15 @@ both are mapped to the `setup.join-session` support goal.
   passkey step, and an operator who knows the joiner's principal (shown on
   the Approval rung when the joiner is signed in). Without them the ladder
   stops at the rung that needs them and says so.
-- **Approving a browser is not temporary on the Host.** The pairing decision
-  provisions the approved principal into the organization as a Member
-  (`provision_native_role`). The browser's own grant is short and dropped
-  by the ceremony, but the membership is the operator's to manage like any
-  other; on the open road the asker is a Member before they ask.
+- **Approving a join makes nobody a member.** Approving a *sync* pairing
+  provisions its principal into the organization as a Member
+  (`provision_native_role`); approving a `host.join` pairing provisions
+  nothing. The join routes read no organization role, and accepting one
+  invite or asking into one session is not joining the organization — so
+  nothing outlives the sitting but what the person actually accepted.
 - A returning device (front door retired) reaches join through an invite
   link; there is no quiet foot link (AGENTS.md §5).
-- The five-minute grant is the Host's; a person who pauses longer between
-  approval and joining is sent back to approval.
-- Follow-up, not decided here: whether an open session should admit on ask
-  (as an observer, holding nothing) is a Host policy change and needs its own
-  ADR.
+- A person who stays on the ceremony longer than the thirty-minute sitting
+  is sent back to approval; that is the bound, deliberately.
+- Whether an open session admits on ask is the operator's choice, per
+  session: [ADR 0137](0137-open-sessions-admit-on-ask.md).

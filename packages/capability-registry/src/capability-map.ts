@@ -84,6 +84,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "daemon.status": "access.authority",
     "browser.pairing.begin": "access.authority",
     "browser.identity.authenticate": "access.authority",
+    "browser.grant.renew": "access.authority",
     "browser.client.revoke": "access.authority",
     "configs.browse": "access.authority",
     "configs.set": "access.authority",

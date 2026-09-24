@@ -78,6 +78,7 @@ export const CAPABILITY_TUTORIALS = {
   "setup.first_run": "setup.first-run",
   "delegations.claim": "setup.join-session",
   "shared_sessions.join_request": "setup.join-session",
+  "browser.grant.renew": "setup.join-session",
   "connectors.directory.sync": "access.connectors",
   "connectors.bind": "access.connectors",
 } satisfies Readonly<Record<string, GuideGoalId>>;

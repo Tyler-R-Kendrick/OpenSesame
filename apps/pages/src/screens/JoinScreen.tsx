@@ -111,6 +111,9 @@ function JoinFoot({
     waiting: join.waiting,
     asked: join.receipt !== null,
     offered: join.offer !== null,
+    admits: join.sessions?.some(
+      (session) => session.id === join.sessionId && session.admitsOnAsk,
+    ),
   });
   return (
     <div className="setup__foot">

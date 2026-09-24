@@ -72,13 +72,18 @@ export const fakes = {
   verifyAt: vi.fn<typeof original.verifyAt>(async () => undefined),
   claimInvite: vi.fn<typeof original.claimInvite>(async () => 1),
   listOpenSessions: vi.fn<typeof original.listOpenSessions>(async () => [
-    { id: "session:1", displayName: "Design review" },
+    { id: "session:1", displayName: "Design review", admitsOnAsk: false },
+    { id: "session:2", displayName: "Lobby", admitsOnAsk: true },
   ]),
   askToJoin: vi.fn<typeof original.askToJoin>(async () => ({
     id: "r1",
     decision: "pending" as const,
+    mode: null,
   })),
   endJoinAuthority: vi.fn(),
+  keepJoinAuthority: vi.fn<typeof original.keepJoinAuthority>(
+    async () => undefined,
+  ),
   completeSetup: vi.fn<typeof original.completeSetup>(async () => undefined),
 };
 

@@ -26,7 +26,12 @@ pub struct CreateRequest {
 
 #[path = "browser_pairings/ceiling.rs"]
 mod ceiling;
-use ceiling::{allowed_capabilities, verified_ceiling};
+use ceiling::{allowed_capabilities, provisions_membership, verified_ceiling};
+#[cfg(test)]
+#[path = "browser_pairings/decision_tests.rs"]
+mod decision_tests;
+#[path = "browser_pairings/renew.rs"]
+mod renew;
 
 pub async fn create(
     State(st): State<AppState>,
@@ -145,6 +150,12 @@ pub async fn decision(
             .into_response();
     }
     let digest = hash_low_entropy(&st.claim_pepper, "browser-pairing-v1", &req.user_code);
+    // A pairing's capabilities are fixed when it is created; read them first.
+    let Ok(Some(pending)) = st.db.inspect_browser_pairing(&digest, now).await else {
+        return refusal("invalid_pairing_decision");
+    };
+    let requested: Vec<String> =
+        serde_json::from_value(pending["capabilities"].clone()).unwrap_or_default();
     let changed = st
         .db
         .decide_browser_pairing(
@@ -160,6 +171,7 @@ pub async fn decision(
         return refusal("invalid_pairing_decision");
     }
     if matches!(req.decision, Decision::Approve)
+        && provisions_membership(&requested)
         && opensesame_connection_broker::config_access::provision_native_role(
             st.db.pool(),
             &org,
@@ -368,6 +380,7 @@ pub fn routes() -> axum::Router<AppState> {
         .route("/api/v1/browser-pairings/token", post(token))
         .route("/api/v1/browser-pairings/inspect", post(inspect))
         .route("/api/v1/browser-pairings/decision", post(decision))
+        .route("/api/v1/browser-pairings/renew", post(renew::renew))
         .route("/api/v1/browser-clients", get(list))
         .route("/api/v1/browser-clients/{id}", delete(revoke))
         .route("/pair", get(instructions))

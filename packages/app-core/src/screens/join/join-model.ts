@@ -73,6 +73,8 @@ export function joinVerb(
     waiting: boolean;
     asked: boolean;
     offered: boolean;
+    /** The chosen session admits whoever asks (ADR 0137). */
+    admits?: boolean;
   }>,
 ): string {
   if (state.waiting) return "Waiting for approval…";
@@ -87,7 +89,7 @@ export function joinVerb(
     case "verify":
       return "Verify with a passkey";
     case "ask":
-      return "Ask to join";
+      return state.admits ? "Join" : "Ask to join";
     case "done":
       return state.asked ? "Close" : "Finish";
   }

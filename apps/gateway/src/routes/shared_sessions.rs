@@ -20,7 +20,7 @@
 //! roster, that a colleague was granted the other four hundred.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::{sse, IntoResponse, Response, Sse},
     Json,
@@ -49,7 +49,10 @@ pub fn routes() -> axum::Router<AppState> {
     use axum::Router;
 
     Router::new()
-        .route("/api/v1/shared-sessions", get(discover).post(open))
+        .route(
+            "/api/v1/shared-sessions",
+            get(lobby::discover).post(lobby::open),
+        )
         .route("/api/v1/shared-sessions/{id}", get(detail))
         .route(
             "/api/v1/shared-sessions/{id}/activity",
@@ -117,7 +120,7 @@ pub(crate) fn unavailable(error: &anyhow::Error) -> Response {
 /// fence does not have. It is refused with its own code so the reason is
 /// legible rather than looking like a missing session.
 #[allow(clippy::result_large_err)]
-fn caller_principal(
+pub(crate) fn caller_principal(
     caller: &Caller,
 ) -> Result<(PrincipalId, opensesame_domain::OrganizationId), Response> {
     let Caller::Session {
@@ -182,7 +185,7 @@ fn role_from(raw: &str) -> Option<SessionRole> {
     }
 }
 
-fn visibility_str(visibility: SessionVisibility) -> &'static str {
+pub(crate) fn visibility_str(visibility: SessionVisibility) -> &'static str {
     match visibility {
         SessionVisibility::Private => "private",
         SessionVisibility::Public => "public",
@@ -225,109 +228,6 @@ pub(crate) fn operator_entry(grant: &SessionGrant) -> Value {
         object.insert("scope".into(), scope);
     }
     entry
-}
-
-#[derive(Deserialize)]
-pub struct OpenSessionRequest {
-    display_name: String,
-    /// `private` (default) or `public`. A public session accepts join
-    /// requests from strangers; a private one is not discoverable at all.
-    visibility: Option<String>,
-}
-
-/// `POST /api/v1/shared-sessions` — open one. The caller becomes its operator.
-pub async fn open(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Json(body): Json<OpenSessionRequest>,
-) -> Response {
-    let caller = match resolve_caller(&st, &headers) {
-        Ok(caller) => caller,
-        Err(resp) => return resp,
-    };
-    let (principal, organization) = match caller_principal(&caller) {
-        Ok(pair) => pair,
-        Err(resp) => return resp,
-    };
-
-    let display_name = body.display_name.trim().to_string();
-    if display_name.is_empty() || display_name.chars().count() > 120 {
-        return bad_request("session_display_name", "1 to 120 characters");
-    }
-    let visibility = match body.visibility.as_deref() {
-        None | Some("private") => SessionVisibility::Private,
-        Some("public") => SessionVisibility::Public,
-        Some(_) => return bad_request("session_visibility", "private or public"),
-    };
-
-    let session = StoredSession {
-        id: SessionId::new(),
-        organization_id: organization.to_string(),
-        operator_principal_id: principal,
-        display_name,
-        visibility,
-        created_at: Utc::now(),
-        closed_at: None,
-    };
-    match st.db.create_session(&session).await {
-        Ok(()) => (
-            StatusCode::CREATED,
-            Json(json!({
-                "id": session.id.to_string(),
-                "display_name": session.display_name,
-                "visibility": visibility_str(session.visibility),
-                "operator_principal_id": principal.to_string(),
-                "created_at": session.created_at.to_rfc3339(),
-            })),
-        )
-            .into_response(),
-        Err(error) => unavailable(&error),
-    }
-}
-
-#[derive(Deserialize)]
-pub struct DiscoverQuery {
-    visibility: Option<String>,
-}
-
-/// `GET /api/v1/shared-sessions?visibility=public` — the discovery record.
-///
-/// A name and an id. Not the vault, not the items, not the roster, not who
-/// runs it (ADR 0079 §7). Private sessions are never listed here under any
-/// query — the parameter is validated rather than defaulted, so a caller who
-/// omits it gets a refusal instead of a listing they did not ask for.
-pub async fn discover(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Query(query): Query<DiscoverQuery>,
-) -> Response {
-    let caller = match resolve_caller(&st, &headers) {
-        Ok(caller) => caller,
-        Err(resp) => return resp,
-    };
-    let (_, organization) = match caller_principal(&caller) {
-        Ok(pair) => pair,
-        Err(resp) => return resp,
-    };
-    if query.visibility.as_deref() != Some("public") {
-        return bad_request(
-            "session_visibility",
-            "only public sessions are discoverable",
-        );
-    }
-    match st.db.public_sessions(&organization.to_string()).await {
-        Ok(sessions) => Json(json!({
-            "sessions": sessions
-                .iter()
-                .map(|session| json!({
-                    "id": session.id.to_string(),
-                    "display_name": session.display_name,
-                }))
-                .collect::<Vec<_>>(),
-        }))
-        .into_response(),
-        Err(error) => unavailable(&error),
-    }
 }
 
 /// `GET /api/v1/shared-sessions/{id}` — the session and its roster.
@@ -842,6 +742,8 @@ pub async fn events(
 
 #[path = "shared_sessions/join.rs"]
 pub mod join;
+#[path = "shared_sessions/lobby.rs"]
+pub mod lobby;
 
 #[cfg(test)]
 #[path = "shared_sessions/tests.rs"]

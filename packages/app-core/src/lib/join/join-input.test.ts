@@ -186,9 +186,27 @@ describe("reading an offer", () => {
         sessions: [
           { id: "session:x", display_name: "Team" },
           { id: "bad id", display_name: "x" },
+          {
+            id: "session:y",
+            display_name: "Lobby",
+            admission: "observer_on_ask",
+          },
+          // Only the exact spelling promises an admission.
+          { id: "session:z", display_name: "Desk", admission: "on_ask" },
         ],
       }),
-    ).toEqual([{ id: "session:x", displayName: "Team" }]);
+    ).toEqual([
+      { id: "session:x", displayName: "Team", admitsOnAsk: false },
+      { id: "session:y", displayName: "Lobby", admitsOnAsk: true },
+      { id: "session:z", displayName: "Desk", admitsOnAsk: false },
+    ]);
+    expect(
+      readReceipt({ id: "r1", decision: "admitted", mode: "observer" }).mode,
+    ).toBe("observer");
+    // A mode beside anything but an admission is not a seat.
+    expect(
+      readReceipt({ id: "r1", decision: "pending", mode: "observer" }).mode,
+    ).toBeNull();
   });
 });
 

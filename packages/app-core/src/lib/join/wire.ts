@@ -63,11 +63,23 @@ export type JoinOffer = Readonly<{
   items: readonly JoinOfferItem[];
 }>;
 
-export type OpenSession = Readonly<{ id: string; displayName: string }>;
+/**
+ * A public session. `admitsOnAsk` is the session's own policy (ADR 0137):
+ * whoever asks is seated at once, as an observer holding nothing. Anything
+ * the endpoint did not spell exactly that way reads as the operator deciding
+ * — the page never promises an admission the endpoint did not state.
+ */
+export type OpenSession = Readonly<{
+  id: string;
+  displayName: string;
+  admitsOnAsk: boolean;
+}>;
 
 export type JoinReceipt = Readonly<{
   id: string;
   decision: "pending" | "admitted" | "refused";
+  /** The seat an admission gave, when the endpoint said. */
+  mode: "observer" | "participant" | null;
 }>;
 
 export class JoinWireError extends Error {
@@ -182,6 +194,7 @@ export function readOpenSessions(body: JsonObject): OpenSession[] {
       {
         id: entry.id,
         displayName: safeText(entry.display_name, 80) || entry.id,
+        admitsOnAsk: entry.admission === "observer_on_ask",
       },
     ];
   });
@@ -196,7 +209,12 @@ export function readReceipt(body: JsonObject): JoinReceipt {
     decision !== "refused"
   )
     throw new JoinWireError();
-  return { id: id(body.id), decision };
+  const mode =
+    decision === "admitted" &&
+    (body.mode === "observer" || body.mode === "participant")
+      ? body.mode
+      : null;
+  return { id: id(body.id), decision, mode };
 }
 
 /** How many delegations a claim minted — the page never needs more. */

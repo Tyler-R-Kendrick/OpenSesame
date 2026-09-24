@@ -22,12 +22,13 @@ use axum::{
 };
 use chrono::Utc;
 use opensesame_domain::{
-    Admission, JoinDecision, JoinRequest, JoinRequestId, SessionMembership, SessionMode,
-    SessionVisibility,
+    Admission, JoinDecision, JoinRequest, JoinRequestId, SessionAdmission, SessionMembership,
+    SessionMode, SessionVisibility,
 };
 use serde::Deserialize;
 use serde_json::json;
 
+use super::lobby::admit_on_ask;
 use super::{
     announce, bad_request, grant_from, not_found, operator_entry, standing, unavailable,
     GrantRequest,
@@ -65,6 +66,14 @@ pub async fn ask_to_join(
         return bad_request("already_in_session", "you are already in this session");
     }
 
+    let admission = match st
+        .db
+        .session_admission(&session.organization_id, session.id)
+        .await
+    {
+        Ok(admission) => admission,
+        Err(error) => return unavailable(&error),
+    };
     let request = match JoinRequest::new(
         JoinRequestId::new(),
         session.id,
@@ -80,6 +89,10 @@ pub async fn ask_to_join(
         .insert_join_request(&session.organization_id, &request)
         .await
     {
+        // A session that admits on ask seats the asker now (ADR 0137).
+        Ok(()) if admission == SessionAdmission::ObserverOnAsk => {
+            admit_on_ask(&st, &session, &request).await
+        }
         // The requester learns their request is pending and nothing else: no
         // roster, no channel, no peer (ADR 0079 §7).
         Ok(()) => {
