@@ -8,7 +8,7 @@ taken off the device once you confirm both are stored somewhere else.
 Two real builds, walked the same way by
 `apps/pages/scripts/capture-evidence.mjs` with [`journey.json`](journey.json):
 
-- **before**: merge base `521cb9c0` (`git merge-base HEAD origin/main`), with `apps/pages/src` reverted
+- **before**: merge base `a7506d68` (`git merge-base HEAD origin/main`), with `apps/pages/src` reverted
 - **after**: branch `claude/great-albattani-9wnj75`
 
 Device state is the same in both builds. A password vault is sealed, then a
@@ -34,9 +34,17 @@ acknowledgements are ticked. Nothing has been removed at this point.
 
 ![390 departed](390-travel-departed.png)
 
-The receipt reads `1 vault left this device · 6 files removed`, measured on
-the device after removal. The one vault list now shows personal as
+The receipt is a record row reading `1 vault left this device`, with
+`6 files removed` under it. It is measured on the device after removal. The one vault list now shows personal as
 `not sealed yet`, the same as a fresh device.
+
+## Bringing vaults home — 390 × 844
+
+![390 return](390-travel-return.png)
+
+`.travel__file` is 44×44, and the native file input sits invisibly over it,
+also 44×44. `Open the bundle` stays disabled until a bundle and a code are
+given.
 
 ## Desktop — 1280 × 800
 
@@ -48,9 +56,15 @@ the device after removal. The one vault list now shows personal as
 
 ## Not captured
 
-The return road (choosing the bundle file, typing the code, the per-vault
-preview, bringing vaults home) needs a file picker upload, which this harness
-has no verb for. `TravelPanel.test.tsx` and `lib/travel/travel.test.ts`
-cover it instead: a byte-for-byte restore, `already_home` on a second
-return, `occupied` left untouched, and wrong-code, typo and hostile-bundle
-refusals.
+The return road past the form (reading a chosen file, the per-vault preview,
+bringing vaults home) needs a file upload, which this harness has no verb
+for. `TravelPanel.test.tsx`, `lib/travel/travel.test.ts` and
+`lib/travel/travel-return.test.ts` cover it instead:
+
+- a byte-for-byte restore;
+- `already_home` on a second return;
+- `occupied`, which is never written over, even after the vault came home
+  and was edited;
+- a headerless bundle refused;
+- a completion that reads the device again;
+- wrong-code, typo and hostile-bundle refusals.

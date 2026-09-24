@@ -66,13 +66,28 @@
           "scrollToOptional": "Vaults on this device"
         },
         {
-          "report": ".travel__notice"
+          "report": "[aria-label=\"What just happened\"] .travel__row"
         },
         {
           "count": [".vault-row"]
         },
         {
           "shot": "390-travel-departed"
+        },
+        {
+          "pressOptional": "Bring vaults home"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "measure": ".travel__file"
+        },
+        {
+          "measure": ".travel__file input[type=file]"
+        },
+        {
+          "shot": "390-travel-return"
         }
       ]
     },
@@ -147,9 +162,17 @@
       "shot": "390-travel-departed",
       "width": 390,
       "title": "Departed: the receipt, and the vault list \u2014 390 \u00d7 844",
-      "caption": "Both boxes ticked, then 'Take them off this device'. The receipt is read back from the device. The personal tomb's files are gone, so the one vault list (ADR 0089) now shows personal as 'not sealed yet', the same as a fresh device. Only Work is left to mark. In the base, the same steps leave the device unchanged.",
+      "caption": "Both boxes ticked, then 'Take them off this device'. The receipt is a record row at the top of the Travel list, not a banner. It is read back from the device after removal. The personal tomb's files are gone, so the one vault list (ADR 0089) now shows personal as 'not sealed yet', the same as a fresh device. In the base build the same steps leave the device unchanged.",
       "before": ".vault-row 3 (personal sealed, Work, guest); no receipt",
-      "after": "'1 vault left this device \u00b7 6 files removed'; .vault-row 3 (personal not sealed yet, Work open, guest)"
+      "after": "receipt row '1 vault left this device' / '6 files removed' with an ok mark; .vault-row 3 (personal not sealed yet, Work open, guest)"
+    },
+    {
+      "shot": "390-travel-return",
+      "width": 390,
+      "title": "Bringing vaults home: the return form \u2014 390 \u00d7 844",
+      "caption": "After 'Bring vaults home' in the Travel panel head. The bundle is chosen with a 44px icon key. The native file input sits invisibly over that key, so the browser's own 'Choose File' button never draws over the row. The return code is typed into a mono field. The base build has no such form.",
+      "before": ".travel__file: none",
+      "after": ".travel__file 44\u00d744; its file input 44\u00d744 over it, invisible; 'Open the bundle' disabled until a bundle and a code are given"
     },
     {
       "shot": "1280-travel-plan",
