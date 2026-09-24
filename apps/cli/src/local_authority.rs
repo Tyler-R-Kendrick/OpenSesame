@@ -161,7 +161,7 @@ async fn pair(client: &reqwest::Client, base: &str, operator: &str, args: PairAr
     confirm(&serde_json::to_string_pretty(
         &json!({"origin":view.origin,"audience":view.audience,"dpop_jkt":view.dpop_jkt,"capabilities":view.capabilities,"principal_id":args.principal_id,"organization_id":args.organization_id,"decision":if args.deny{"deny"}else{"approve"}}),
     )?)?;
-    post(client,base,operator,"/pair/decision",json!({"user_code":args.user_code,"principal_id":args.principal_id,"organization_id":args.organization_id,"decision":if args.deny{"deny"}else{"approve"}})).await?;
+    post(client,base,operator,"/api/v1/browser-pairings/decision",json!({"user_code":args.user_code,"principal_id":args.principal_id,"organization_id":args.organization_id,"decision":if args.deny{"deny"}else{"approve"}})).await?;
     eprintln!("Pairing decision recorded; no operator credential was sent to the browser.");
     Ok(())
 }

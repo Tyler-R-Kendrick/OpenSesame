@@ -18,7 +18,6 @@
   color: var(--ink-2);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 550;
   padding: 0.3rem 0 0.55rem;
   text-decoration: none;
   cursor: pointer;
@@ -29,10 +28,13 @@
   color: var(--ink);
 }
 
+/* The same tab as Access and Identity: regular at rest, 550 selected. Every
+   Wallet and Settings tab used to be bold, so the selected one stood out by
+   its underline alone. */
 .set__nav-link[aria-current="page"] {
   color: var(--ink);
   border-bottom-color: var(--ink);
-  font-weight: 600;
+  font-weight: 550;
 }
 
 .set__nav-link--danger:hover {
@@ -120,6 +122,17 @@
 
 .set__danger .panel__head {
   border-bottom-color: color-mix(in srgb, var(--err) 22%, var(--line));
+}
+
+.set__danger-target {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.set__danger-target strong {
+  color: var(--ink);
 }
 
 .cap-list {
@@ -283,13 +296,6 @@
    layout with layout: a coarse pointer wider than a phone has the room to wrap
    like a desktop, and should. */
 @media (max-width: 900px) {
-  .set__nav {
-    /* The scroller itself is shared (styles.css). This one property stays
-       here: the unconditional `.set__nav { flex-wrap: wrap }` above loads
-       after that shared rule, and a media query adds no specificity. */
-    flex-wrap: nowrap;
-  }
-
   .set__nav-link {
     flex: none;
     scroll-snap-align: start;
@@ -495,4 +501,22 @@
 .set-raw__option:focus-visible {
   color: var(--ink);
   border-bottom-color: var(--ink);
+}
+
+/* Age keys › Encryption: the key that seals files here, then its key. */
+.age-keys__using {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* A select at the end of a switch row: as wide as its longest choice. */
+/* One width for every select in a column of rows, so their edges and
+   chevrons line up instead of each sizing to its longest option. */
+.sw__select {
+  width: 12rem;
+  max-width: 100%;
 }

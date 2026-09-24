@@ -26,6 +26,7 @@ use std::collections::BTreeSet;
 use crate::Db;
 use session_links::{admission_from, link_from, link_str};
 
+mod session_admission;
 mod session_links;
 mod session_memberships;
 
@@ -158,22 +159,8 @@ impl Db {
     ///
     /// Returns an error when the insert fails.
     pub async fn create_session(&self, session: &StoredSession) -> anyhow::Result<()> {
-        sqlx::query(
-            "INSERT INTO sessions (id, organization_id, project_id, \
-             operator_principal_id, display_name, visibility, created_at, closed_at) \
-             VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7)",
-        )
-        .bind(session.id.to_string())
-        .bind(&session.organization_id)
-        .bind(session.operator_principal_id.to_string())
-        .bind(&session.display_name)
-        .bind(visibility_str(session.visibility))
-        .bind(session.created_at.to_rfc3339())
-        .bind(session.closed_at.map(|at| at.to_rfc3339()))
-        .execute(&self.pool)
-        .await
-        .context("insert session")?;
-        Ok(())
+        self.create_session_admitting(session, opensesame_domain::SessionAdmission::Operator)
+            .await
     }
 
     /// One session by id, scoped to its organization.

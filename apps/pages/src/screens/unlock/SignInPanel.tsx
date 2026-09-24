@@ -58,7 +58,6 @@ import {
   brokeredOrgUpstream,
   brokeredRealmUpstream,
   providerUpstream,
-  requestEmailMagicLink,
 } from "@opensesame/app-core/lib/providers.js";
 import { signInMethods } from "@opensesame/app-core/lib/settings.js";
 import {
@@ -72,6 +71,7 @@ import { landFocus } from "../../lib/focus.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { GuestButton, GuestSkip } from "./GuestRoad.js";
 import { IdentifierField } from "./IdentifierField.js";
+import { MagicLinkStage } from "./MagicLinkStage.js";
 import { brandFor } from "./ProviderBrand.js";
 import { SignInSocialBar } from "./SignInSocialBar.js";
 
@@ -101,9 +101,6 @@ export function SignInPanel(props: Props) {
   const [stage, setStage] = useState<Stage>("hub");
   /** True while the identifier field is showing a result step of its own. */
   const [identifierEngaged, setIdentifierEngaged] = useState(false);
-  const [linkEmail, setLinkEmail] = useState("");
-  const [linkSent, setLinkSent] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<HTMLDivElement>(null);
@@ -251,25 +248,6 @@ export function SignInPanel(props: Props) {
     );
   }
 
-  async function sendMagicLink(): Promise<void> {
-    setLinkError(null);
-    setBusy(true);
-    try {
-      // This address IS the identifier: the link proves it, and the proven
-      // address becomes an identity on the principal (D18).
-      await requestEmailMagicLink(linkEmail.trim());
-      setLinkSent(true);
-    } catch (caught) {
-      setLinkError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not send the sign-in link.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function startByo(registration: ByoRegistration): void {
     // The BYO leg always runs server-side: sign in against the Identity API
     // with the registered issuer as the hint, which the hosted page renders
@@ -318,43 +296,11 @@ export function SignInPanel(props: Props) {
 
   if (stage === "magic-link") {
     return (
-      <div className="signin">
-        {backButton("Back to sign-in", "hub")}
-        <div className="field">
-          <label htmlFor="signin-link-email">Email me a sign-in link</label>
-          <div className="identifier__row">
-            <input
-              id="signin-link-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              value={linkEmail}
-              placeholder="you@example.com"
-              disabled={busy || linkSent}
-              onChange={(e) => {
-                setLinkEmail(e.target.value);
-                setLinkError(null);
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              disabled={busy || linkSent || linkEmail.trim().length === 0}
-              onClick={() => void sendMagicLink()}
-            >
-              {linkSent ? "Sent" : "Send link"}
-            </button>
-          </div>
-          {linkSent ? (
-            <p className="hint">Check your email for a sign-in link.</p>
-          ) : null}
-          {linkError ? (
-            <p className="hint identifier__error" role="alert">
-              {linkError}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      <MagicLinkStage
+        busy={busy}
+        setBusy={setBusy}
+        back={backButton("Back to sign-in", "hub")}
+      />
     );
   }
 

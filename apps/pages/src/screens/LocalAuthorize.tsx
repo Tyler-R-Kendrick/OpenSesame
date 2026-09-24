@@ -4,6 +4,9 @@ import {
 } from "@opensesame/static-auth";
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router";
+import { FormCommit } from "../components/FormCommit.js";
+import { IconKey } from "../components/IconKey.js";
+import { IconPasskey, IconX } from "../components/Icons.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { useLocalConsent } from "./useLocalConsent.js";
@@ -173,35 +176,28 @@ function ConsentForm({ model }: { model: ReturnType<typeof useLocalConsent> }) {
             : "No enabled people belong to this application's organization. Assign membership in Identity before signing in."}
         </p>
       ) : null}
-      <div className="actions">
-        {session ? (
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={busy || status !== "connected"}
-            onClick={() => void model.run(true)}
-          >
-            {model.agent ? "Allow agent access" : "Allow application"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn"
-            disabled={busy || !model.person || status !== "connected"}
-            onClick={() => void model.run(false)}
-          >
-            {busy ? "Verifying passkey…" : "Verify with passkey"}
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={model.close}
-        >
-          Deny
-        </button>
-      </div>
+      <FormCommit
+        label={
+          session
+            ? model.agent
+              ? "Allow agent access"
+              : "Allow application"
+            : busy
+              ? "Verifying passkey…"
+              : "Verify with passkey"
+        }
+        icon={session ? undefined : <IconPasskey size={18} />}
+        disabled={
+          session
+            ? busy || status !== "connected"
+            : busy || !model.person || status !== "connected"
+        }
+        onClick={() => void model.run(Boolean(session))}
+      >
+        <IconKey label="Deny" danger disabled={busy} onClick={model.close}>
+          <IconX size={16} />
+        </IconKey>
+      </FormCommit>
     </>
   );
 }

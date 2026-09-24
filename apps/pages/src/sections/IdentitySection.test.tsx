@@ -411,7 +411,7 @@ describe("IdentitySection", () => {
       "Providers",
       "Devices",
       "Applications",
-      "Organization",
+      "Organizations",
     ]) {
       expect(screen.getByRole("tab", { name })).toBeTruthy();
     }
@@ -424,10 +424,10 @@ describe("IdentitySection", () => {
         .getAttribute("aria-selected"),
     ).toBe("false");
     expect(await screen.findByText("You")).toBeTruthy();
-    expect(screen.queryByText("Who vouches for them")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Providers" })).toBeNull();
 
     await openTab("Providers");
-    expect(await screen.findByText("Who vouches for them")).toBeTruthy();
+    await screen.findByRole("heading", { name: "Providers" });
     expect(screen.queryByText("Linked identities")).toBeNull();
     expect(
       screen
@@ -647,7 +647,7 @@ describe("IdentitySection", () => {
   it("validates the org slug client-side before calling the API", async () => {
     registerIdp(makeRecord());
     renderIdentity();
-    await openTab("Organization");
+    await openTab("Organizations");
 
     await userEvent.type(screen.getByLabelText(/^Slug$/i), "Bad Slug!");
     await userEvent.type(screen.getByLabelText(/Display name/i), "Acme Corp");
@@ -831,7 +831,7 @@ describe("IdentitySection", () => {
     expectProseBudget(container);
 
     await openTab("Providers");
-    await screen.findByText("Who vouches for them");
+    await screen.findByRole("heading", { name: "Providers" });
     await screen.findByText("OpenSesame (this device)");
     expectProseBudget(container);
 
@@ -843,7 +843,7 @@ describe("IdentitySection", () => {
     await screen.findByText("No applications registered.");
     expectProseBudget(container);
 
-    await openTab("Organization");
+    await openTab("Organizations");
     await screen.findByText("No organizations yet");
     expectProseBudget(container);
   });

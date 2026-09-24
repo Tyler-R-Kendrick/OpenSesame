@@ -10,7 +10,8 @@
  * nobody is signed in.
  */
 
-import { IconUser } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconRefresh, IconSignOut, IconUser } from "../../components/Icons.js";
 
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { brandFor } from "./ProviderBrand.js";
@@ -37,22 +38,17 @@ export function AccountRow({ disabled, onSwitch, onSignOut }: Props) {
         <span className="who__sub">{account.detail}</span>
       </span>
       <span className="who__acts">
-        <button
-          type="button"
-          className="unlock__switch"
+        <IconKey
+          label="Switch account"
+          small
           disabled={disabled}
           onClick={onSwitch}
         >
-          Switch
-        </button>
-        <button
-          type="button"
-          className="unlock__switch"
-          disabled={disabled}
-          onClick={onSignOut}
-        >
-          Sign out
-        </button>
+          <IconRefresh size={16} />
+        </IconKey>
+        <IconKey label="Sign out" small disabled={disabled} onClick={onSignOut}>
+          <IconSignOut size={16} />
+        </IconKey>
       </span>
     </div>
   );

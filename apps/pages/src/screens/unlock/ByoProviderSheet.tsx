@@ -15,6 +15,7 @@ import {
   registerByoProvider,
 } from "@opensesame/app-core/lib/byo.js";
 import { type FormEvent, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 
 export const byoSheetDependencies = {
   registerByoProvider,
@@ -131,18 +132,17 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
             </div>
           </>
         ) : null}
-        <button
-          type="submit"
-          className="btn btn--block"
+        <FormCommit
+          label={
+            busy
+              ? "Checking provider…"
+              : needsClient
+                ? "Register with this client"
+                : "Check provider"
+          }
           disabled={disabled || busy || issuer.trim().length === 0}
-          aria-busy={busy || undefined}
-        >
-          {busy
-            ? "Checking provider…"
-            : needsClient
-              ? "Register with this client"
-              : "Check provider"}
-        </button>
+          busy={busy || undefined}
+        />
       </form>
 
       {error ? (

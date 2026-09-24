@@ -22,6 +22,12 @@ export type PageTreeNode = PageTreeLeaf & {
   children: PageTreeNode[];
   /** True for page subheaders, even when the region currently has no items. */
   branch: boolean;
+  /**
+   * True when the region lists records (an `items` source), so an empty one
+   * is still a directory with "-" in it; a region of fixed panels with none
+   * to name is just a place.
+   */
+  collection?: boolean;
 };
 
 /** One page region: a subheader, optional nested subheaders, then its items. */
@@ -71,6 +77,7 @@ export function pageToTree(
       config: section.config,
       children,
       branch: true,
+      collection: section.items !== undefined,
     });
   }
   return tree;

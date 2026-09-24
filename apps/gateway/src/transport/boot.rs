@@ -40,43 +40,7 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
     let app = with_ingress(&state, app);
     if let Some(runtime) = state.transport.clone() {
         if let Some(listen) = runtime.listen {
-            let policy = runtime.policy;
-            let client_profile = runtime.client_trust_profile.clone();
-            let deny_thumbprint = deny_hook(&state, &runtime);
-            let listener = SecureListener::bind(
-                listen,
-                Arc::clone(&runtime.generations),
-                move |generation| {
-                    let identity = generation
-                        .identity
-                        .clone()
-                        .ok_or(TransportError::IdentityMissing)?;
-                    let mut profile =
-                        ServerProfile::new(policy, identity, super::HOST_TLS_LISTENER);
-                    profile.deny_thumbprint = Arc::clone(&deny_thumbprint);
-                    if policy.authenticates_client() {
-                        profile.client_trust = Some(generation.trust(&client_profile)?.clone());
-                    }
-                    Ok(profile)
-                },
-            )
-            .await
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "secure listener refused to start: {error} [{}]",
-                    error.code()
-                )
-            })?;
-            let secure_app = app.clone().layer(axum::middleware::from_fn_with_state(
-                Arc::clone(&runtime.generations),
-                enforce_current_generation,
-            ));
-            tracing::info!(listen = %listen, policy = ?policy, "opensesame gateway secure listener");
-            tokio::spawn(async move {
-                if let Err(error) = listener.serve(secure_app).await {
-                    tracing::error!(code = error.code(), "secure listener stopped");
-                }
-            });
+            spawn_secure_listener(&state, &runtime, listen, &app).await?;
         }
     }
     let plain = app.layer(plain_provenance_layer(HOST_PLAIN_LISTENER));
@@ -87,6 +51,57 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
         .await
         .with_context(|| format!("bind {listen}"))?;
     axum::serve(listener, plain).await?;
+    Ok(())
+}
+
+/// Bind the secure listener for `runtime` and serve `app` on it in the
+/// background, stamped with the TLS provenance and the generation fence.
+///
+/// # Errors
+///
+/// The listener cannot be bound with the configured material.
+async fn spawn_secure_listener(
+    state: &AppState,
+    runtime: &TransportRuntime,
+    listen: std::net::SocketAddr,
+    app: &Router,
+) -> anyhow::Result<()> {
+    let policy = runtime.policy;
+    let client_profile = runtime.client_trust_profile.clone();
+    let deny_thumbprint = deny_hook(state, runtime);
+    let listener = SecureListener::bind(
+        listen,
+        Arc::clone(&runtime.generations),
+        move |generation| {
+            let identity = generation
+                .identity
+                .clone()
+                .ok_or(TransportError::IdentityMissing)?;
+            let mut profile = ServerProfile::new(policy, identity, super::HOST_TLS_LISTENER);
+            profile.deny_thumbprint = Arc::clone(&deny_thumbprint);
+            if policy.authenticates_client() {
+                profile.client_trust = Some(generation.trust(&client_profile)?.clone());
+            }
+            Ok(profile)
+        },
+    )
+    .await
+    .map_err(|error| {
+        anyhow::anyhow!(
+            "secure listener refused to start: {error} [{}]",
+            error.code()
+        )
+    })?;
+    let secure_app = app.clone().layer(axum::middleware::from_fn_with_state(
+        Arc::clone(&runtime.generations),
+        enforce_current_generation,
+    ));
+    tracing::info!(listen = %listen, policy = ?policy, "opensesame gateway secure listener");
+    tokio::spawn(async move {
+        if let Err(error) = listener.serve(secure_app).await {
+            tracing::error!(code = error.code(), "secure listener stopped");
+        }
+    });
     Ok(())
 }
 

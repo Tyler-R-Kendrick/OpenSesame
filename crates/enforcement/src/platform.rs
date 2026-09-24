@@ -260,7 +260,7 @@ fn discord_live() -> Built {
 /// Remote Blocky-as-a-service is not a catalogued guarantee.
 ///
 /// `crates/dns-enforcement` talks to a local disposable Blocky and refuses with
-/// `CapabilityUnavailable` when none is present. A remote SaaS endpoint is a
+/// `CapabilityUnavailable` when none is present. A remote `SaaS` endpoint is a
 /// different trust boundary and must not inherit the local adapter's claims.
 fn blocky_live_saas() -> Built {
     foreign_platform_without_adapter(

@@ -10,6 +10,8 @@ import {
   guideGoal,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import type { ReactElement } from "react";
+import { IconKey } from "../../components/IconKey.js";
+import { IconArrowRight } from "../../components/Icons.js";
 import type { SupportController } from "../session.js";
 
 export type SupportQuestion = {
@@ -116,13 +118,9 @@ export function SupportQuestions({
           >
             {question.title}
           </button>
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={question.showMe}
-          >
-            Show me
-          </button>
+          <IconKey label="Show me" small onClick={question.showMe}>
+            <IconArrowRight size={16} />
+          </IconKey>
         </article>
       ))}
     </section>

@@ -23,12 +23,14 @@ import { storeAuthOutcome } from "./auth-outcome.js";
 import { clearSession as clearFederationSession } from "./federation.js";
 import { forgetPendingLink } from "./guest-auth.js";
 import { endSession } from "./identity.js";
+import { endJoinAuthority } from "./join/client.js";
+import { clearPendingJoin } from "./join/stash.js";
 import { vaultStore } from "./vault/store.js";
 
 /**
  * Sign out of this device: forget the upstream assertion, revoke the Identity
- * session (bearer and HttpOnly cookie), drop any link waiting on an unlock,
- * and lock the vault.
+ * session (bearer and HttpOnly cookie), drop any link waiting on an unlock
+ * and any join waiting on a code, and lock the vault.
  *
  * Order matters. The vault locks last so that lock handlers — which may
  * themselves call `endSession` under the strict preference — find nothing
@@ -43,6 +45,9 @@ function signOutDefault(intent: SignOutIntent = "leave"): void {
   ambientAuthSeams.cancelAllTransactions();
   clearFederationSession();
   forgetPendingLink();
+  // A join half-done under this account is not the next person's to finish.
+  clearPendingJoin();
+  endJoinAuthority();
   storeAuthOutcome(
     intent === "switch"
       ? { kind: "signed_out", switching: true }

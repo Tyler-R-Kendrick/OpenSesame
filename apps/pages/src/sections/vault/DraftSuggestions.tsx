@@ -5,7 +5,8 @@ import {
   draftWebsite,
 } from "@opensesame/app-core/lib/vault/new-draft.js";
 import { useEffect, useRef, useState } from "react";
-import { IconRefresh } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconCheck, IconRefresh } from "../../components/Icons.js";
 
 type Props = {
   typeId: string;
@@ -68,19 +69,23 @@ export function DraftSuggestions({ typeId, website, onApply }: Props) {
   }
   return (
     <div>
-      <button
-        type="button"
-        className="btn btn--sm editor__optional"
-        disabled={busy}
-        onClick={() => void suggest()}
-      >
-        <IconRefresh size={15} />
-        {busy ? "Suggesting…" : "Suggest names on device"}
-      </button>
-      <p className="hint">
-        Uses only the item type{origin ? ` and ${origin}` : ""}. No vault
-        contents. Your browser may download its model.
-      </p>
+      {/* What the model is given, then the key that asks it: one row, so
+          the key ends the sentence it acts on (DESIGN.md § Keys have a
+          home). */}
+      <div className="keyed-row">
+        <p className="hint editor__suggest-note">
+          Uses only the item type{origin ? ` and ${origin}` : ""}. No vault
+          contents. Your browser may download its model.
+        </p>
+        <IconKey
+          label={busy ? "Suggesting names" : "Suggest names on device"}
+          small
+          disabled={busy}
+          onClick={() => void suggest()}
+        >
+          <IconRefresh size={15} />
+        </IconKey>
+      </div>
       {message ? <output className="hint">{message}</output> : null}
       {labels ? (
         <div className="editor__inline">
@@ -88,16 +93,16 @@ export function DraftSuggestions({ typeId, website, onApply }: Props) {
             {labels.name}
             {acceptsDraftUsername(typeId) ? ` · ${labels.username}` : ""}
           </span>
-          <button
-            type="button"
-            className="btn btn--sm"
+          <IconKey
+            label="Use names"
+            small
             onClick={() => {
               onApply(labels);
               setLabels(null);
             }}
           >
-            Use names
-          </button>
+            <IconCheck size={16} />
+          </IconKey>
         </div>
       ) : null}
     </div>

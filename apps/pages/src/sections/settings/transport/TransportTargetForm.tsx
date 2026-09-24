@@ -11,19 +11,19 @@ import {
 import { useEffect, useState } from "react";
 import { StatusMark } from "../../../components/StatusMark.js";
 
-const EXECUTION_LABEL: Record<TransportExecutionTarget, string> = {
+const EXECUTION_LABEL = {
   browser: "This browser",
   host: "Authority service",
   worker: "Worker",
-};
+} satisfies Record<TransportExecutionTarget, string>;
 
-const REFUSAL: Record<LocatorKind, string> = {
+const REFUSAL = {
   path: "A path is not a reference",
   socket: "A socket is not a reference",
   url: "An address is not a reference",
   pem: "A certificate is not a reference",
   key: "A key is not a reference",
-};
+} satisfies Record<LocatorKind, string>;
 
 /** Why a typed value is not a reference name, as the glyph's sentence. */
 export function refRefusal(value: string): string | null {
@@ -38,11 +38,14 @@ function RefField({
   id,
   label,
   value,
+  placeholder,
   onCommit,
 }: {
   id: string;
   label: string;
   value: string;
+  /** Said inside an empty field, which otherwise drew as a bare underline. */
+  placeholder: string;
   onCommit: (next: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
@@ -61,6 +64,7 @@ function RefField({
           type="text"
           autoComplete="off"
           spellCheck={false}
+          placeholder={placeholder}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={commit}
@@ -140,6 +144,7 @@ function TargetField({
         <RefField
           id="transport-target-name"
           label="Target name"
+          placeholder="e.g. office-gateway"
           value=""
           onCommit={(name) => {
             if (!name) return;
@@ -214,6 +219,7 @@ export function TransportTargetForm({
       <RefField
         id="transport-identity"
         label="Identity"
+        placeholder="A certificate's name — none"
         value={settings.identityRef?.name ?? ""}
         onCommit={(name) =>
           update({ identityRef: name ? { name } : undefined })
@@ -222,6 +228,7 @@ export function TransportTargetForm({
       <RefField
         id="transport-trust"
         label="Trust"
+        placeholder="A trust bundle's name — none"
         value={settings.trustRef?.name ?? ""}
         onCommit={(name) => update({ trustRef: name ? { name } : undefined })}
       />

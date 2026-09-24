@@ -37,9 +37,9 @@ impl BoundaryOp {
         match op {
             AuthorityOperation::Authorize => Some(Self::Authorize),
             AuthorityOperation::Mint => Some(Self::Mint),
-            AuthorityOperation::Lease | AuthorityOperation::Exchange | AuthorityOperation::Rotate => {
-                Some(Self::Renew)
-            }
+            AuthorityOperation::Lease
+            | AuthorityOperation::Exchange
+            | AuthorityOperation::Rotate => Some(Self::Renew),
             AuthorityOperation::Invoke => Some(Self::Invoke),
             AuthorityOperation::Sign => Some(Self::Sign),
             AuthorityOperation::Resolve => Some(Self::KeyRelease),
@@ -50,7 +50,7 @@ impl BoundaryOp {
     }
 }
 
-/// Epoch triple frozen into an incident / AccessContext (INV-09, INV-13).
+/// Epoch triple frozen into an incident / `AccessContext` (INV-09, INV-13).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EpochTriple {
     pub policy_epoch: u64,

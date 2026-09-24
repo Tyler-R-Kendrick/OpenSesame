@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { type RefObject, useEffect, useSyncExternalStore } from "react";
 
 /**
  * Keyboard cursor in the rail, independent of the route.
@@ -29,4 +29,22 @@ export function useRailCursor(): string | null {
     () => cursorId,
     () => null,
   );
+}
+
+/**
+ * Drop the cursor when the page moves without the rail: a jump key, a link
+ * in the page, the browser's back button. The cursor is the rail's own
+ * keyboard position; left on the row it last touched, it drew that row as
+ * the selected one (Settings › Danger, black) over whatever page came next.
+ */
+export function useRailCursorFollowsRoute(
+  treeRef: RefObject<HTMLElement | null>,
+  route: string,
+): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `route` is the trigger; the effect reads focus, not the route
+  useEffect(() => {
+    const tree = treeRef.current;
+    if (tree?.contains(document.activeElement)) return;
+    setRailCursor(null);
+  }, [route, treeRef]);
 }

@@ -43,7 +43,7 @@ export async function localMembershipSetup(page, tabTo) {
   });
   await create(people, "person", "Membership owner");
   await create(people, "person", "Membership member");
-  await selectTab(page, tabTo, "Organization");
+  await selectTab(page, tabTo, "Organizations");
   await create(
     organizationsPanel(page),
     "organization",
@@ -58,7 +58,7 @@ export async function localMembershipSetup(page, tabTo) {
  * is left as it was.
  */
 export async function localMembershipContract(page, tabTo) {
-  await selectTab(page, tabTo, "Organization");
+  await selectTab(page, tabTo, "Organizations");
   const panel = organizationsPanel(page);
   const org = panel
     .getByRole("listitem")

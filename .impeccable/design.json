@@ -142,6 +142,11 @@
         "section": "layout"
       },
       {
+        "name": "The Words Are Choices Rule",
+        "body": "An action that executes is an icon key; a form or ceremony ends in the .go square with its verb beside it. Words stay on a control only when they name the thing chosen — a provider, a mode, a road, a walkthrough — and the control says so by its role or by the road, unlock__switch or choice class.",
+        "section": "components"
+      },
+      {
         "name": "The Long Page Index Rule",
         "body": "On a phone, a page whose panels the desktop rail links to by name draws the same entries as an On this page strip under its tabs. One tab strip everywhere; it scrolls, never wraps, and keeps its selected tab in view by scrolling itself.",
         "section": "layout"
@@ -157,6 +162,7 @@
       "Don't add a shortcut around the master password.",
       "Don't put a secret, or a hash of one, on the network.",
       "Don't let prose run the full width of a panel.",
+      "Don't paint an executing verb on a button, in its text or in a string beside it — not Rename, Sync, Review, Use or Approve.",
       "Don't clone Bitwarden's brand identity.",
       "Don't leave a key alone on a row under the field it commits.",
       "Don't let a field, select or filter grow to the width of its panel.",

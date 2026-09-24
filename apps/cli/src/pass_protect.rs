@@ -3,8 +3,8 @@
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 
-use clap::Subcommand;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use clap::Subcommand;
 use opensesame_sealed_store::{
     discover_piv_age, protect_add_store_age_recipient, protect_add_store_recovery,
     protect_list_store, protect_test_store_password, protect_test_store_recovery,
@@ -87,7 +87,7 @@ pub enum PassProtectCmd {
     },
     /// Non-destructive PIV / age-plugin-yubikey discovery (KP-29).
     PivDiscover {},
-    /// Optional SOPS encrypt/decrypt (OPENSESAME_SOPS_BIN absolute path).
+    /// Optional SOPS encrypt/decrypt (`OPENSESAME_SOPS_BIN` absolute path).
     Sops {
         #[command(subcommand)]
         cmd: PassProtectSopsCmd,
@@ -156,33 +156,64 @@ pub fn run(cmd: PassProtectCmd) -> anyhow::Result<()> {
     match cmd {
         PassProtectCmd::List { path, tomb } => cmd_protect_list(path.as_deref(), tomb.as_deref()),
         PassProtectCmd::Add { cmd } => match cmd {
-            PassProtectAddCmd::Age { recipients, yes, path, tomb } => {
-                cmd_protect_add_age(&recipients, path.as_deref(), tomb.as_deref(), yes)
-            }
+            PassProtectAddCmd::Age {
+                recipients,
+                yes,
+                path,
+                tomb,
+            } => cmd_protect_add_age(&recipients, path.as_deref(), tomb.as_deref(), yes),
         },
         PassProtectCmd::Test { path, tomb } => cmd_protect_test(path.as_deref(), tomb.as_deref()),
-        PassProtectCmd::Remove { protector_id, yes, no_rotate, rotate, path, tomb } => {
-            cmd_protect_remove(&protector_id, path.as_deref(), tomb.as_deref(), yes, no_rotate, rotate)
-        }
-        PassProtectCmd::Rewrap { yes, no_rotate, rotate, path, tomb } => {
-            cmd_protect_rewrap(path.as_deref(), tomb.as_deref(), yes, no_rotate, rotate)
-        }
+        PassProtectCmd::Remove {
+            protector_id,
+            yes,
+            no_rotate,
+            rotate,
+            path,
+            tomb,
+        } => cmd_protect_remove(
+            &protector_id,
+            path.as_deref(),
+            tomb.as_deref(),
+            yes,
+            no_rotate,
+            rotate,
+        ),
+        PassProtectCmd::Rewrap {
+            yes,
+            no_rotate,
+            rotate,
+            path,
+            tomb,
+        } => cmd_protect_rewrap(path.as_deref(), tomb.as_deref(), yes, no_rotate, rotate),
         PassProtectCmd::Recovery { cmd } => match cmd {
-            PassProtectRecoveryCmd::Add { yes, reveal, path, tomb } => {
-                cmd_protect_add_recovery(path.as_deref(), tomb.as_deref(), yes, reveal)
-            }
+            PassProtectRecoveryCmd::Add {
+                yes,
+                reveal,
+                path,
+                tomb,
+            } => cmd_protect_add_recovery(path.as_deref(), tomb.as_deref(), yes, reveal),
             PassProtectRecoveryCmd::Test { path, tomb } => {
                 cmd_protect_recovery_test(path.as_deref(), tomb.as_deref())
             }
         },
-        PassProtectCmd::RootRotate { yes, rotate, path, tomb, .. } => {
-            cmd_protect_root_rotate(path.as_deref(), tomb.as_deref(), yes, rotate)
+        PassProtectCmd::RootRotate {
+            yes,
+            rotate,
+            path,
+            tomb,
+            ..
+        } => cmd_protect_root_rotate(path.as_deref(), tomb.as_deref(), yes, rotate),
+        PassProtectCmd::PivDiscover {} => {
+            cmd_protect_piv_discover();
+            Ok(())
         }
-        PassProtectCmd::PivDiscover {} => cmd_protect_piv_discover(),
         PassProtectCmd::Sops { cmd } => match cmd {
-            PassProtectSopsCmd::Encrypt { format, recipients, reveal } => {
-                cmd_sops_encrypt(&format, &recipients, reveal)
-            }
+            PassProtectSopsCmd::Encrypt {
+                format,
+                recipients,
+                reveal,
+            } => cmd_sops_encrypt(&format, &recipients, reveal),
             PassProtectSopsCmd::Decrypt { format, reveal } => cmd_sops_decrypt(&format, reveal),
         },
     }
@@ -199,10 +230,7 @@ pub fn cmd_protect_list(path: Option<&Path>, tomb: Option<&str>) -> anyhow::Resu
     let root = resolve_root(path, tomb)?;
     let rows = protect_list_store(&root)?;
     for row in rows {
-        println!(
-            "{}\t{}\t{:?}",
-            row.protector_id, row.kind, row.proof_status
-        );
+        println!("{}\t{}\t{:?}", row.protector_id, row.kind, row.proof_status);
     }
     Ok(())
 }
@@ -268,7 +296,7 @@ pub fn cmd_protect_recovery_test(path: Option<&Path>, tomb: Option<&str>) -> any
     Ok(())
 }
 
-pub fn cmd_protect_piv_discover() -> anyhow::Result<()> {
+pub fn cmd_protect_piv_discover() {
     let d = discover_piv_age();
     println!(
         "runtime={:?} requires_hardware={} plugin={}",
@@ -281,14 +309,9 @@ pub fn cmd_protect_piv_discover() -> anyhow::Result<()> {
     }
     // Touch the refuse path so operators see KP-29 policy in --help journeys.
     let _ = refuse_destructive_ykman(&["piv", "keys", "generate"]);
-    Ok(())
 }
 
-pub fn cmd_sops_encrypt(
-    format: &str,
-    recipients: &[String],
-    reveal: bool,
-) -> anyhow::Result<()> {
+pub fn cmd_sops_encrypt(format: &str, recipients: &[String], reveal: bool) -> anyhow::Result<()> {
     let _ = resolve_sops_bin()?;
     let fmt = parse_format(format)?;
     let mut input = Vec::new();
@@ -321,4 +344,3 @@ fn parse_format(format: &str) -> anyhow::Result<SopsFormat> {
         other => anyhow::bail!("unsupported sops format: {other}"),
     }
 }
-

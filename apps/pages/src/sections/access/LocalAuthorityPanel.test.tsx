@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 it("lists local records without a backend and cancels with keyboard focus restored", async () => {
-  render(<LocalAuthorityPanel tomb="vault-a" />);
+  render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
   await screen.findByText("Test person → Test application");
   const button = screen.getByRole("button", { name: "Revoke grant" });
   button.focus();
@@ -90,19 +90,17 @@ it("lists local records without a backend and cancels with keyboard focus restor
 });
 
 it("shows only application grants and revokes through the same encrypted-store operation", async () => {
-  render(<LocalAuthorityPanel tomb="vault-a" grantsOnly />);
+  render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
   await screen.findByText("Test person → Test application");
   expect(
     screen.getByRole("heading", { name: "Local application grants" }),
   ).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Revoke session" })).toBeNull();
-  expect(screen.queryByText(/Recorded sessions:/)).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Revoke grant" }));
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm revocation" }),
   );
   await screen.findByText("No unexpired local application grants.");
-  expect(screen.getByText("Application grants: -")).toBeTruthy();
   expect(revokeRecordedLocalGrant).toHaveBeenCalledExactlyOnceWith(
     "vault-a",
     "grant-record",
@@ -113,7 +111,7 @@ it("shows only application grants and revokes through the same encrypted-store o
 it.each(["session", "grant"] as const)(
   "confirms only the selected %s and recovers focus",
   async (kind) => {
-    render(<LocalAuthorityPanel tomb="vault-a" />);
+    render(<LocalAuthorityPanel tomb="vault-a" records={kind} />);
     await userEvent.click(
       await screen.findByRole("button", { name: `Revoke ${kind}` }),
     );
@@ -150,10 +148,10 @@ it("does not turn a failed read into an empty list", async () => {
   vi.mocked(listRecordedLocalGrants).mockRejectedValueOnce(
     new Error("private diagnostic"),
   );
-  render(<LocalAuthorityPanel tomb="vault-a" />);
+  render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
   await screen.findByRole("alert");
   expect(
-    screen.queryByText("No unexpired local sessions or application grants."),
+    screen.queryByText("No unexpired local application grants."),
   ).toBeNull();
   expect(document.body.textContent).not.toContain("private diagnostic");
   await userEvent.click(
@@ -167,7 +165,7 @@ it("retains confirmation on failed writes and never claims revocation succeeded"
   vi.mocked(revokeRecordedLocalGrant).mockRejectedValueOnce(
     new Error("private storage error"),
   );
-  render(<LocalAuthorityPanel tomb="vault-a" />);
+  render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
   await userEvent.click(
     await screen.findByRole("button", { name: "Revoke grant" }),
   );
@@ -181,16 +179,15 @@ it("retains confirmation on failed writes and never claims revocation succeeded"
   expect(screen.queryByText("Application grant revoked.")).toBeNull();
 });
 
-it("refreshes external changes and shows a dash for no records", async () => {
-  render(<LocalAuthorityPanel tomb="vault-a" />);
-  await screen.findByText("Test person → Test application");
+it("refreshes external changes to one empty line, never a dash counter", async () => {
+  render(<LocalAuthorityPanel tomb="vault-a" records="session" />);
+  await screen.findByRole("button", { name: "Revoke session" });
   vi.mocked(listLocalIdentitySessions).mockResolvedValue([]);
-  vi.mocked(listRecordedLocalGrants).mockResolvedValue([]);
   act(() => notifyLocalIamChange());
-  await screen.findByText("No unexpired local sessions or application grants.");
-  expect(
-    screen.getByText("Recorded sessions: - · Application grants: -"),
-  ).toBeTruthy();
+  await screen.findByText("No unexpired local sessions.");
+  expect(screen.queryByText(/: -/)).toBeNull();
+  // Sessions never lists the Grants tab's records.
+  expect(screen.queryByText("Test person → Test application")).toBeNull();
 });
 
 it("does not steal focus moved away during a pending revocation", async () => {
@@ -205,7 +202,7 @@ it("does not steal focus moved away during a pending revocation", async () => {
   });
   render(
     <>
-      <LocalAuthorityPanel tomb="vault-a" />
+      <LocalAuthorityPanel tomb="vault-a" records="grant" />
       <button type="button">Another control</button>
     </>,
   );

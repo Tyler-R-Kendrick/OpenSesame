@@ -30,7 +30,15 @@ import { useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CeremonyLink } from "./CeremonyLauncher.js";
 import { CeremonyShell } from "./CeremonyShell.js";
-import { IconAlert, IconBell, IconInfo, IconShield, IconX } from "./Icons.js";
+import { IconKey } from "./IconKey.js";
+import {
+  IconAlert,
+  IconBell,
+  IconInfo,
+  IconRefresh,
+  IconShield,
+  IconX,
+} from "./Icons.js";
 
 export const notificationsBarDependencies = {
   beginSignIn,
@@ -248,13 +256,13 @@ function StatusNoticeCard({ notice }: { notice: Notice }) {
       <p>{notice.body}</p>
       <div className="actions">
         {notice.retry ? (
-          <button
-            type="button"
-            className="btn btn--sm btn--primary"
+          <IconKey
+            label={notice.retryLabel ?? "Try again"}
+            small
             onClick={() => notice.retry?.()}
           >
-            {notice.retryLabel ?? "Try again"}
-          </button>
+            <IconRefresh size={16} />
+          </IconKey>
         ) : null}
         {notice.ceremony ? (
           // Repair opens as a ceremony sheet in place — never a route change.
@@ -262,15 +270,9 @@ function StatusNoticeCard({ notice }: { notice: Notice }) {
             {notice.ceremonyLabel ?? "Repair the connection"}
           </CeremonyLink>
         ) : null}
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          onClick={() => dismissNotice(notice.id)}
-          aria-label="Dismiss"
-          title="Dismiss"
-        >
+        <IconKey label="Dismiss" small onClick={() => dismissNotice(notice.id)}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </div>
     </article>
   );

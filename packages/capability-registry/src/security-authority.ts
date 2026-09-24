@@ -82,6 +82,20 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     excluded: { mcp_host: BROWSER, mcp_client: BROWSER, webmcp: BROWSER },
   },
   {
+    id: "browser.grant.renew",
+    title: "Renew a join sitting's browser grant to the same proof key",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/browser-pairing.ts:renewBrowserGrant",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: BROWSER, mcp_client: BROWSER, webmcp: BROWSER },
+  },
+  {
     id: "browser.client.revoke",
     title: "Revoke a paired browser and its active grants",
     plane: "host",

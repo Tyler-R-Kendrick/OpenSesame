@@ -82,6 +82,12 @@ export const CATEGORY = new Map<ProviderCategory, readonly string[]>([
 export const NAMES = new Map(
   Object.entries({
     "1password": "1Password",
+    // A brand's own spelling: the title-case fallback wrote "Openai",
+    // "Openrouter" and "Openbao".
+    openai: "OpenAI",
+    openbao: "OpenBao",
+    openrouter: "OpenRouter",
+    privacy: "Privacy.com",
     "aws-bedrock": "AWS Bedrock",
     "aws-kms": "AWS KMS",
     "aws-parameter-store": "AWS Parameter Store",

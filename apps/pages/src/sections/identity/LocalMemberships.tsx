@@ -10,6 +10,8 @@ import {
 } from "@opensesame/app-core/lib/local-rbac.js";
 import type { OrganizationRole } from "@opensesame/os-domain";
 import { useId, useRef, useState } from "react";
+import { IconKey } from "../../components/IconKey.js";
+import { IconTrash, IconX } from "../../components/Icons.js";
 
 type MembershipProps = {
   directory: LocalDirectory;
@@ -54,9 +56,14 @@ export function LocalMemberships(props: MembershipProps) {
                   resolveAccessRole(directory, member.principalId) ?? "member",
                 )}
               </span>
-              <button
-                type="button"
-                className="btn btn--sm btn--danger"
+              <IconKey
+                label={
+                  removing === member.principalId
+                    ? "Confirm removal"
+                    : "Remove member"
+                }
+                small
+                danger
                 disabled={disabled}
                 onClick={() => {
                   if (removing !== member.principalId) {
@@ -73,14 +80,12 @@ export function LocalMemberships(props: MembershipProps) {
                   });
                 }}
               >
-                {removing === member.principalId
-                  ? "Confirm removal"
-                  : "Remove member"}
-              </button>
+                <IconTrash size={16} />
+              </IconKey>
               {removing === member.principalId ? (
-                <button
-                  type="button"
-                  className="btn btn--sm"
+                <IconKey
+                  label="Keep member"
+                  small
                   disabled={disabled}
                   onClick={(event) => {
                     const previous = event.currentTarget.previousElementSibling;
@@ -88,8 +93,8 @@ export function LocalMemberships(props: MembershipProps) {
                     setRemoving(null);
                   }}
                 >
-                  Keep member
-                </button>
+                  <IconX size={16} />
+                </IconKey>
               ) : null}
             </div>
           </li>

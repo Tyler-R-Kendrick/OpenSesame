@@ -202,8 +202,7 @@ fn a_key_set_carrying_private_material_or_too_many_keys_is_refused() {
         EvidenceError::Invalid
     );
     let one: serde_json::Value = serde_json::from_str(&s.jwks).unwrap();
-    let many =
-        json!({"keys": (0..MAX_KEYS + 1).map(|_| one["keys"][0].clone()).collect::<Vec<_>>()});
+    let many = json!({"keys": (0..=MAX_KEYS).map(|_| one["keys"][0].clone()).collect::<Vec<_>>()});
     assert_eq!(
         v.preload(ISSUER, &many.to_string()).unwrap_err(),
         EvidenceError::Invalid

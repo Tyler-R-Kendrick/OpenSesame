@@ -7,7 +7,7 @@
 //! old token. This module is the verifier, and it is deliberately narrow:
 //!
 //! - a token with no `cnf` is unchanged; binding is opt-in per token;
-//! - a `cnf` carrying only `jkt` is DPoP's profile and is left to DPoP —
+//! - a `cnf` carrying only `jkt` is `DPoP`'s profile and is left to `DPoP` —
 //!   a certificate thumbprint is not a JWK thumbprint;
 //! - a token with `x5t#S256` must be presented on a connection whose peer
 //!   really authenticated, and the digest must be the *originating* client's
@@ -38,7 +38,7 @@ pub struct Confirmation {
     /// RFC 8705 certificate thumbprint.
     #[serde(rename = "x5t#S256", default, skip_serializing_if = "Option::is_none")]
     pub x5t_s256: Option<String>,
-    /// RFC 9449 DPoP JWK thumbprint. Untouched by this module.
+    /// RFC 9449 `DPoP` JWK thumbprint. Untouched by this module.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jkt: Option<String>,
 }

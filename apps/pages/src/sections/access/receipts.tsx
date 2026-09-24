@@ -102,13 +102,13 @@ export function Receipts({
         </div>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn icon-btn--sm"
           onClick={() => void load()}
           disabled={busy || !online}
           title="Reload receipts"
           aria-label="Reload receipts"
         >
-          <IconRefresh />
+          <IconRefresh size={15} />
         </button>
       </div>
 

@@ -194,6 +194,62 @@ impl Db {
         Ok(Some(grant))
     }
 
+    /// Renew a join grant: spend `token_digest`, issue `renewed_digest` to the
+    /// same client for five more minutes, never past `sitting` seconds after
+    /// the operator approved it (ADR 0136 §2). Only a live, unrevoked grant
+    /// of a client that asked for exactly `capabilities_json` renews.
+    /// Returns the client and the new expiry, or `None` when nothing renews.
+    /// # Errors
+    /// Storage failure rolls back: the old token stays live, none is minted.
+    pub async fn renew_browser_grant(
+        &self,
+        token_digest: &str,
+        renewed_digest: &str,
+        capabilities_json: &str,
+        sitting: i64,
+        now: i64,
+    ) -> anyhow::Result<Option<(String, i64)>> {
+        let mut tx = self.pool.begin().await?;
+        let Some(row) = sqlx::query(
+            "SELECT g.client_id,c.approved_at FROM browser_grants g JOIN browser_clients c
+            ON c.id=g.client_id WHERE g.token_digest=? AND g.expires_at>?
+            AND c.revoked_at IS NULL AND c.capabilities_json=?",
+        )
+        .bind(token_digest)
+        .bind(now)
+        .bind(capabilities_json)
+        .fetch_optional(&mut *tx)
+        .await?
+        else {
+            return Ok(None);
+        };
+        let client: String = row.try_get("client_id")?;
+        let approved_at: i64 = row.try_get("approved_at")?;
+        let overflow = || anyhow::anyhow!("clock overflow");
+        let expires_at = now
+            .checked_add(300)
+            .ok_or_else(overflow)?
+            .min(approved_at.checked_add(sitting).ok_or_else(overflow)?);
+        if expires_at <= now {
+            return Ok(None);
+        }
+        sqlx::query("DELETE FROM browser_grants WHERE token_digest=?")
+            .bind(token_digest)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "INSERT INTO browser_grants (token_digest,client_id,issued_at,expires_at) VALUES (?,?,?,?)",
+        )
+        .bind(renewed_digest)
+        .bind(&client)
+        .bind(now)
+        .bind(expires_at)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(Some((client, expires_at)))
+    }
+
     /// # Errors
     /// Every request checks live revocation and expiry, including after restart.
     pub async fn browser_grant(

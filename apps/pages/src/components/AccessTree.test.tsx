@@ -71,11 +71,12 @@ it("lists every Access tab as a subtree of that tab's page panels", () => {
   const grants = screen.getByRole("treeitem", { name: "Grants" });
   expect(grants.getAttribute("aria-expanded")).toBe("false");
   expect(document.getElementById("grants-tree")).toBeNull();
+  // Requests shows one panel, so it is a place, not a directory of one.
   expect(
     screen
       .getByRole("treeitem", { name: "Requests" })
       .getAttribute("aria-expanded"),
-  ).toBe("false");
+  ).toBeNull();
   fireEvent.click(grants);
   expect(document.getElementById("grants-tree")).toBeTruthy();
   expect(

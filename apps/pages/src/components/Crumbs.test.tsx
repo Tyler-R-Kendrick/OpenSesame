@@ -19,7 +19,7 @@ Object.assign(vaultHooksSeams, {
   useVault: () => vault,
 });
 
-import { Crumbs } from "./Crumbs.js";
+import { CrumbTrail, Crumbs, useCrumbs } from "./Crumbs.js";
 
 import { registerLegacyShellData } from "@opensesame/app-core/lib/contributions.test-support.js";
 
@@ -58,12 +58,11 @@ describe("Crumbs", () => {
     expect(screen.queryByRole("link", { name: "Work SSH" })).toBeNull();
   });
 
-  it("navigates settings and connection rest paths", () => {
+  it("leaves a settings tab to its tab strip, and paths a connection", () => {
+    // "Settings › Capabilities" only repeated the selected tab, and drawing
+    // it on sub-tabs alone moved the title between siblings.
     const { unmount } = renderAt("/settings/connections");
-    expect(
-      screen.getByRole("link", { name: "Settings" }).getAttribute("href"),
-    ).toBe("/settings");
-    expect(screen.getAllByText("Capabilities").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
     unmount();
 
     renderAt("/connections/github/conn_1");
@@ -73,5 +72,32 @@ describe("Crumbs", () => {
     expect(
       screen.getByRole("link", { name: "github" }).getAttribute("href"),
     ).toBe("/connections/github");
+  });
+
+  it("marks a vault path as the phone's row, and hands the list strip the same trail", () => {
+    // Beside the list the path is the strip's label (VaultPathbar); the
+    // shell's row over both panes came and went with the route.
+    const { container, unmount } = renderAt("/vault/itm_1");
+    expect(container.querySelector("nav.crumbs")?.className).toBe(
+      "crumbs crumbs--vault",
+    );
+    unmount();
+
+    function Strip() {
+      return (
+        <CrumbTrail
+          crumbs={useCrumbs()}
+          className="vtree__crumbs"
+          label="Vault path"
+        />
+      );
+    }
+    render(
+      <MemoryRouter initialEntries={["/vault/new/login"]}>
+        <Strip />
+      </MemoryRouter>,
+    );
+    const strip = screen.getByRole("navigation", { name: "Vault path" });
+    expect(strip.textContent).toBe("VaultNew login");
   });
 });

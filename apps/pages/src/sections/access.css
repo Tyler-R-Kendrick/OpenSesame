@@ -1,25 +1,10 @@
 /* Access section — prefixed .access-*; primitives and tokens do the rest. */
 
-.access-pathbar {
+.access-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: 0 0 1rem;
-  padding: 0.3rem 0.75rem;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-}
-
-.access-pathbar__seg {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.access-pathbar__sep {
-  color: var(--ink-3);
 }
 
 .access-pathbar__keys {
@@ -28,30 +13,23 @@
   gap: 0.25rem;
 }
 
-.access-pathbar__key {
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.25rem;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: var(--surface);
-  color: var(--ink-3);
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
+/* Import is the file chooser: the input fills the key and takes the
+   click, the glyph shows through. */
+.access-pathbar__file {
+  position: relative;
+  overflow: hidden;
   cursor: pointer;
 }
 
-.access-pathbar__key:hover {
-  color: var(--accent);
-  border-color: var(--accent-line);
-}
-
-.access-add-kinds {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.85rem;
+.access-pathbar__file input[type="file"] {
+  position: absolute;
+  /* Over the key's border too: inside it the target was 42px, 2px short
+     of the touch floor. */
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  opacity: 0;
+  cursor: pointer;
 }
 
 /* --- tabs ----------------------------------------------------------------- */
@@ -1083,4 +1061,20 @@
 .access-bind p {
   margin: 0 0 0.6rem;
   max-width: 62ch;
+}
+
+/* One application's policy: its name, its id, then its settings — spaced as
+   a record, so the settings' disclosure does not butt against the id chip. */
+.access-policy {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+}
+
+.access-policy + .access-policy {
+  border-top: 1px solid var(--line);
+}
+
+.access-policy > :is(h3, p) {
+  margin: 0;
 }

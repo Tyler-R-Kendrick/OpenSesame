@@ -1,14 +1,11 @@
-import { exportAccessBook } from "@opensesame/app-core/lib/access-book.js";
 import {
-  type AccessView,
-  accessImportPath,
-  accessIsImportCeremony,
-  accessIsNewCeremony,
-  accessNewPath,
-} from "@opensesame/app-core/lib/access-routes.js";
-import { Link } from "react-router";
-import { IconDownload, IconPlus, IconUpload } from "../../components/Icons.js";
-import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+  exportAccessBook,
+  importAccessBook,
+} from "@opensesame/app-core/lib/access-book.js";
+import { isString } from "@opensesame/os-domain";
+import { useState } from "react";
+import { IconDownload, IconUpload } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 
 function exportBook() {
   const url = URL.createObjectURL(
@@ -21,64 +18,87 @@ function exportBook() {
   URL.revokeObjectURL(url);
 }
 
-export function AccessPathbar({
-  pathname,
-  tab,
-}: {
-  pathname: string;
-  tab: AccessView;
-}) {
-  const adding = accessIsNewCeremony(pathname);
-  const importing = accessIsImportCeremony(pathname);
-  // Pathbar plus is always present (guest / no Host); Host GrantsPanel keeps
-  // its own button without a second guide id.
-  const grantRef = useGuideTarget<HTMLAnchorElement>("access.grant-access");
+type Outcome = { tone: "ok" | "err"; label: string };
 
+function readBook(file: File, done: (outcome: Outcome) => void) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const { added } = importAccessBook(
+        isString(reader.result) ? reader.result : "",
+      );
+      done(
+        added === 0
+          ? { tone: "err", label: "No new grants in that file" }
+          : {
+              tone: "ok",
+              label: `Imported ${added} grant${added === 1 ? "" : "s"}`,
+            },
+      );
+    } catch (caught) {
+      done({
+        tone: "err",
+        label:
+          caught instanceof Error
+            ? caught.message
+            : "That file is not an access book",
+      });
+    }
+  };
+  reader.onerror = () =>
+    done({ tone: "err", label: "Could not read that file" });
+  reader.readAsText(file);
+}
+
+/**
+ * The access book's two keys, at the end of Access's title row: import and
+ * export move the portable grants listed on Grants. They sat in a path strip
+ * of their own (`access:/`, which the tab and the rail already say) that put
+ * Access's tabs 75px below Identity's and Wallet's. It had a + too, for a
+ * Host grant ceremony that no longer exists — it changed the path to
+ * `access:/new` and opened nothing. Each panel's own + adds its kind (a
+ * share, a request). Import is the file chooser itself.
+ */
+export function AccessPathbar({ onImported }: { onImported: () => void }) {
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   return (
-    <div className="access-pathbar">
-      <span className="access-pathbar__root">
-        <span className="access-pathbar__seg">access</span>
-        <span className="access-pathbar__sep">:/</span>
-        {importing ? (
-          <span className="access-pathbar__seg">import</span>
-        ) : adding ? (
-          <span className="access-pathbar__seg">new</span>
-        ) : tab !== "grants" ? (
-          <span className="access-pathbar__seg">{tab}</span>
-        ) : null}
-      </span>
-      <div
-        className="access-pathbar__keys"
-        role="toolbar"
-        aria-label="Access actions"
+    <div
+      className="access-pathbar__keys"
+      role="toolbar"
+      aria-label="Access actions"
+    >
+      {outcome ? (
+        <StatusMark tone={outcome.tone} label={outcome.label} />
+      ) : null}
+      <label
+        className="icon-btn icon-btn--sm access-pathbar__file"
+        title="Import grants"
       >
-        <Link
-          ref={grantRef}
-          className="icon-btn icon-btn--sm"
-          to={accessNewPath(tab)}
-          aria-label="Grant access"
-          title="Grant access"
-        >
-          <IconPlus size={15} />
-        </Link>
-        <Link
-          className="icon-btn icon-btn--sm"
-          to={accessImportPath()}
+        <IconUpload size={15} />
+        <input
+          type="file"
+          accept="application/json,.json"
           aria-label="Import grants"
-          title="Import grants"
-        >
-          <IconUpload size={15} />
-        </Link>
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label="Export grants"
-          title="Export grants"
-          onClick={exportBook}
-        >
-          <IconDownload size={15} />
-        </button>
-      </div>
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (!file) return;
+            readBook(file, (next) => {
+              setOutcome(next);
+              if (next.tone === "ok") onImported();
+            });
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="Export grants"
+        title="Export grants"
+        onClick={exportBook}
+      >
+        <IconDownload size={15} />
+      </button>
     </div>
   );
 }

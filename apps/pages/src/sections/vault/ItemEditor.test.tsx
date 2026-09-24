@@ -241,12 +241,12 @@ describe("ItemEditor", () => {
       ),
     }).toEqual({
       actions: [
+        "Pin item",
         "Suggest names on device",
         "Add DNS names",
         "Add IP addresses",
         "Add notes",
         "Add custom field",
-        "Pin item",
         "Create certificate",
       ],
       guidance: [
@@ -400,9 +400,9 @@ describe("ItemEditor", () => {
     });
   });
 
-  it("starts with an explicit all-domains rule and saves its removal without restoring it", async () => {
+  it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
     renderNew();
-    expect(inputByLabel("Address 1").value).toBe("*");
+    expect(inputByLabel("Address 1").value).toBe("");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
@@ -633,7 +633,7 @@ describe("ItemEditor", () => {
     renderNew();
     await userEvent.selectOptions(screen.getByLabelText(/^Folder$/i), "fld_1");
     await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
-    expect(inputByLabel(/Pin to the top/).checked).toBe(true);
+    screen.getByRole("button", { name: "Unpin item", pressed: true });
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Filed");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());

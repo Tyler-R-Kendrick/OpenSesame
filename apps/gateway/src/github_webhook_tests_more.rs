@@ -25,15 +25,6 @@ impl opensesame_task_bus::TaskBus for PartitionedBus {
     }
 }
 
-async fn post_shared_webhook(
-    state: Arc<AppState>,
-    secret: &'static str,
-    delivery: &'static str,
-    body: &'static [u8],
-) -> StatusCode {
-    post_webhook(&state, secret, delivery, body, true).await
-}
-
 async fn state_with_webhook_secret(secret: &str) -> AppState {
     let _guard = crate::app_state::test_env::lock();
     std::env::set_var("OPENSESAME_TASKBUS", "memory");

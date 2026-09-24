@@ -22,6 +22,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconEye,
   IconEyeOff,
@@ -281,6 +282,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           typeId={draftTypeId}
           onTypeChange={onTypeChange}
           focusName
+          onPin={(favorite) => patch({ favorite })}
         />
         {mode === "new" ? (
           <DraftSuggestions
@@ -314,7 +316,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
             <div className="field">
               <label htmlFor="password">Password</label>
-              <div className="editor__inline">
+              <div className="editor__inline editor__inline--adorned">
                 <input
                   id="password"
                   type={reveal ? "text" : "password"}
@@ -322,14 +324,12 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                   value={draft.password}
                   onChange={(event) => patch({ password: event.target.value })}
                 />
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label={reveal ? "Hide password" : "Show password"}
                   onClick={() => setReveal((value) => !value)}
-                  aria-label={reveal ? "Hide password" : "Show password"}
                 >
                   {reveal ? <IconEyeOff size={17} /> : <IconEye size={17} />}
-                </button>
+                </IconKey>
                 <button
                   type="button"
                   className={`icon-btn${showGenerator ? " is-on" : ""}`}
@@ -378,7 +378,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           <div className="editor__grid">
             <div className="field">
               <label htmlFor="secret-value">Secret value</label>
-              <div className="editor__inline">
+              <div className="editor__inline editor__inline--adorned">
                 <input
                   id="secret-value"
                   type={reveal ? "text" : "password"}
@@ -387,14 +387,12 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                   value={draft.value}
                   onChange={(event) => patch({ value: event.target.value })}
                 />
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label={reveal ? "Hide secret" : "Show secret"}
                   onClick={() => setReveal((value) => !value)}
-                  aria-label={reveal ? "Hide secret" : "Show secret"}
                 >
                   {reveal ? <IconEyeOff size={17} /> : <IconEye size={17} />}
-                </button>
+                </IconKey>
               </div>
             </div>
             <OptionalField

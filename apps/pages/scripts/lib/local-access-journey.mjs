@@ -24,14 +24,36 @@ export async function localAccessJourney({
     name: "Local access records",
   });
   await expect(records).toBeVisible();
-  if (view === "grants") {
+  if (view === "sessions") {
+    // Sessions lists sessions and Grants lists grants: the grant this
+    // journey revokes is on Grants, and Sessions shows the passkey session
+    // the consent opened, with no grant rows repeated under it.
     await expect(
-      records.getByRole("heading", { name: "Local application grants" }),
+      records.getByRole("heading", { name: "Local sessions" }),
     ).toBeVisible();
     await expect(
-      records.getByRole("button", { name: "Revoke session" }),
+      records.getByText("Local test person", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      records.getByRole("button", { name: "Revoke grant" }),
     ).toHaveCount(0);
+    expect(
+      await management.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await context.close();
+    console.log(
+      `PASS ${width}px local sessions: the consent's passkey session is listed on its own, with no grant repeated under it`,
+    );
+    return;
   }
+  await expect(
+    records.getByRole("heading", { name: "Local application grants" }),
+  ).toBeVisible();
+  await expect(
+    records.getByRole("button", { name: "Revoke session" }),
+  ).toHaveCount(0);
   await expect(
     records.getByText("Local test person → Test application", { exact: true }),
   ).toBeVisible();

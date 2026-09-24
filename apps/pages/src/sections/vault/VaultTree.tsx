@@ -1,4 +1,4 @@
-import { activeProject } from "@opensesame/app-core/lib/projects.js";
+import { openVaultLabel } from "@opensesame/app-core/lib/vaults.js";
 import {
   loadCollapsedDefault,
   rowId,
@@ -47,7 +47,7 @@ type VaultTreeProps = {
 };
 
 export const vaultTreeSeams = {
-  activeTomb: () => activeProject().id,
+  activeTomb: openVaultLabel,
   loadCollapsed: loadCollapsedDefault,
   saveCollapsed: saveCollapsedDefault,
 };

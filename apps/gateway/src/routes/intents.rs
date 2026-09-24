@@ -281,6 +281,19 @@ async fn delegated_invocation(
             broker_connection: true,
         });
     }
+    delegate_invocation(st, &row, subject, level, connection_id, connection_ref).await
+}
+
+/// A delegate's invocation: only through a live delegation, only at L1, and
+/// only when the parent → child chain still validates.
+async fn delegate_invocation(
+    st: &AppState,
+    row: &broker_store::ConnectionRow,
+    subject: &str,
+    level: u8,
+    connection_id: ConnectionId,
+    connection_ref: ConnectionRef,
+) -> Result<ResolvedInvocation, Response> {
     let Ok(Some(delegation)) = st
         .connection_broker
         .find_live_delegation(subject, &row.id)
@@ -400,13 +413,26 @@ pub(super) async fn execute_invocation(
 pub async fn create(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
-    Json(mut body): Json<InvokeBody>,
+    Json(body): Json<InvokeBody>,
 ) -> Response {
+    // Boxed: the invoke path's state machine is ~19 KiB and would otherwise be
+    // copied onto every caller's stack (clippy::large_futures).
+    Box::pin(create_checked(st, headers, body))
+        .await
+        .unwrap_or_else(|response| response)
+}
+
+/// The invoke route's body; every early refusal is an `Err` response.
+async fn create_checked(
+    st: AppState,
+    headers: axum::http::HeaderMap,
+    mut body: InvokeBody,
+) -> Result<Response, Response> {
     // This route builds an intent from the request body, so it cannot honour a
     // task ceiling or a frozen digest. Accepting those fields anyway would let a
     // task-bound agent execute outside what it froze while looking fenced.
     if claims_task_authority(&body, &headers) {
-        return (
+        return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
                 "error": "task_authority_requires_frozen_invoke",
@@ -414,22 +440,13 @@ pub async fn create(
                 "type": "about:blank"
             })),
         )
-            .into_response();
+            .into_response());
     }
-    let subject = match resolve_caller_subject(&st, &headers) {
-        Ok(s) => s,
-        Err(resp) => return resp,
-    };
-    let boot = match require_demo_bootstrap(&st) {
-        Ok(b) => b,
-        Err(resp) => return resp,
-    };
-    let caller = match resolve_caller(&st, &headers) {
-        Ok(caller) => caller,
-        Err(resp) => return resp,
-    };
+    let subject = resolve_caller_subject(&st, &headers)?;
+    let boot = require_demo_bootstrap(&st)?;
+    let caller = resolve_caller(&st, &headers)?;
     if !caller.in_organization(&boot.org) {
-        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
+        return Err((StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response());
     }
     let parameters = body.parameters.take().unwrap_or_else(|| json!({}));
     let level = body.invoke_level.unwrap_or(1);
@@ -438,7 +455,7 @@ pub async fn create(
         || body.operation.eq_ignore_ascii_case("credential.resolve")
         || body.operation.to_ascii_lowercase().contains("secret")
     {
-        return (
+        return Err((
             StatusCode::FORBIDDEN,
             Json(json!({
                 "error": "materialize_denied",
@@ -446,18 +463,12 @@ pub async fn create(
                 "type": "about:blank"
             })),
         )
-            .into_response();
+            .into_response());
     }
 
-    let resolved = match resolve_invocation(&st, &boot, &subject, &body, level).await {
-        Ok(resolved) => resolved,
-        Err(response) => return response,
-    };
+    let resolved = resolve_invocation(&st, &boot, &subject, &body, level).await?;
     let constrained_http = if level == 2 && resolved.broker_connection {
-        match constrained_http_input(&parameters) {
-            Ok(input) => Some(input),
-            Err(response) => return response,
-        }
+        Some(constrained_http_input(&parameters)?)
     } else {
         None
     };
@@ -465,12 +476,8 @@ pub async fn create(
     // The ADR 0005 fence, on the invoke path at last: reference is not
     // capability, level ceilings hold, egress fences L2, and the action must
     // be inside the grant that will be exercised.
-    if let Err(response) = authorize_invocation(&st, &subject, &body, &parameters, &resolved, level)
-    {
-        return response;
-    }
-
-    if let Err(response) = super::intents_projection::authorize_openfga(
+    authorize_invocation(&st, &subject, &body, &parameters, &resolved, level)?;
+    super::intents_projection::authorize_openfga(
         &st,
         &boot.org.to_string(),
         &subject,
@@ -478,31 +485,21 @@ pub async fn create(
         &body.operation,
         &body.resource,
     )
-    .await
-    {
-        return response;
-    }
+    .await?;
     // Budgets decrement after authorization and before execution, and deny
     // when the decrement cannot be performed (ADR 0044 decision 10 + INV-BUDGET).
     let idempotency_key = body
         .idempotency_key
         .clone()
         .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
-    let intent = match build_intent(body, &parameters, &boot, &resolved) {
-        Ok(intent) => intent,
-        Err(response) => return response,
-    };
-    let authority_hold = match super::intents_budget::spend_invoke_budgets(
+    let intent = build_intent(body, &parameters, &boot, &resolved)?;
+    let authority_hold = super::intents_budget::spend_invoke_budgets(
         &st,
         &boot.org.to_string(),
         &resolved,
         &idempotency_key,
     )
-    .await
-    {
-        Ok(hold) => hold,
-        Err(response) => return response,
-    };
+    .await?;
 
     let invoke_input = InvokeInput {
         intent,
@@ -512,7 +509,7 @@ pub async fn create(
         parameters: parameters.clone(),
         lineage: resolved.lineage.clone(),
     };
-    intents_queue::dispatch_or_hold(
+    Ok(intents_queue::dispatch_or_hold(
         &st,
         boot.org,
         resolved,
@@ -521,7 +518,7 @@ pub async fn create(
         authority_hold,
         level,
     )
-    .await
+    .await)
 }
 
 #[cfg(test)]

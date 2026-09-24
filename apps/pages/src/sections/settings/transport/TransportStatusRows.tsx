@@ -22,7 +22,9 @@ export function TransportStatusRows({ view }: { view: TransportViewState }) {
               {row.label}
               <StatusMark tone={row.tone} label={row.state} />
             </div>
-            {row.facts ? <p className="sw__sub">{row.facts}</p> : null}
+            {/* With no facts, the state itself is the row's value — a row of
+                bare lock glyphs said nothing without a pointer to hover. */}
+            <p className="sw__sub">{row.facts || row.state}</p>
           </div>
         </div>
       ))}

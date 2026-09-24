@@ -4,6 +4,9 @@ import {
   subscribeRemotePreview,
 } from "@opensesame/app-core/tutorial/agents/ag-ui/consent.js";
 import { useEffect, useSyncExternalStore } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconUpload, IconX } from "../../components/Icons.js";
 
 export function RemoteSupportPreview({ warning }: { warning: string | null }) {
   const preview = useSyncExternalStore(
@@ -34,22 +37,18 @@ export function RemoteSupportPreview({ warning }: { warning: string | null }) {
       <pre className="support__text">
         {JSON.stringify(preview.payload, null, 2)}
       </pre>
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--primary"
-          onClick={() => decideRemotePreview(preview.id, true)}
-        >
-          Send once
-        </button>
-        <button
-          type="button"
-          className="btn"
+      <FormCommit
+        label="Send once"
+        icon={<IconUpload size={18} />}
+        onClick={() => decideRemotePreview(preview.id, true)}
+      >
+        <IconKey
+          label="Keep on device"
           onClick={() => decideRemotePreview(preview.id, false)}
         >
-          Keep on device
-        </button>
-      </div>
+          <IconX size={16} />
+        </IconKey>
+      </FormCommit>
     </section>
   );
 }

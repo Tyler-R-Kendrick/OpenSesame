@@ -59,7 +59,7 @@ async fn fixture() -> Fixture {
         .create_organization(&organization, "realm-issue")
         .await
         .unwrap();
-    let domain_id = format!("adom:{}", organization);
+    let domain_id = format!("adom:{organization}");
     assert!(state
         .db
         .create_access_domain(&opensesame_storage::authority::NewAccessDomain {
@@ -139,7 +139,7 @@ async fn issue_writes_authority_and_members_are_forbidden() {
         .create_organization(&organization, "realm-issue-2")
         .await
         .unwrap();
-    let domain_id = format!("adom:{}", organization);
+    let domain_id = format!("adom:{organization}");
     assert!(state
         .db
         .create_access_domain(&opensesame_storage::authority::NewAccessDomain {

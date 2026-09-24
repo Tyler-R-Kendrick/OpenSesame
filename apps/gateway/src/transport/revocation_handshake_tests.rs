@@ -272,7 +272,7 @@ fn the_listener_hook_is_composed_from_both_denylists() {
     assert!(src.contains("state.transport_lifecycle.deny_hook()"));
     assert!(src.contains("bindings_deny(thumbprint) || lifecycle_deny(thumbprint)"));
     assert!(
-        src.contains("let deny_thumbprint = deny_hook(&state, &runtime);"),
+        src.contains("let deny_thumbprint = deny_hook(state, runtime);"),
         "the secure listener must take the composed hook, not one half of it",
     );
 }

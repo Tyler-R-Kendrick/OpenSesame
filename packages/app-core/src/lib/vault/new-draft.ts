@@ -81,7 +81,10 @@ export function newItemDraft(typeId: string, name?: string): VaultItem {
 function newNativeDraft(kind: LegacyItemKind, labels: DraftLabels): VaultItem {
   const item = createItem(kind, labels.name);
   if (item.kind === "login") {
-    item.uris = [newUri("*", "wildcard")];
+    // One empty address to fill in. A `*` wildcard here matched every site,
+    // so a login saved as drafted was offered on every page (and drew the
+    // wildcard's help and tester under a pattern nobody had written).
+    item.uris = [newUri()];
     item.username = labels.username;
     item.password = generateCharacters(defaultCharOptions);
   }

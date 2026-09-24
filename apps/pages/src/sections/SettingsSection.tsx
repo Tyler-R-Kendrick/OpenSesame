@@ -13,7 +13,6 @@ import { categoryFromHash } from "@opensesame/app-core/sections/settings-section
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
-import { SettingsMasterPasswordPanel } from "./SettingsMasterPasswordPanel.js";
 import {
   CategoryLink,
   SECURITY_FRAGMENT_REDIRECT,
@@ -33,6 +32,8 @@ import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
+import { useGuestRowShown } from "./settings/CapabilityFeatures.js";
+import { useInstallPanelShown } from "./settings/InstallPanel.js";
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>
   import("./settings/transport/TransportPanel.js").then((module) => ({
@@ -121,7 +122,7 @@ export function SettingsSection({
             onSelect={setOpenPath}
           />
         )}
-        {form ? <PageIndex entries={pageEntries(category)} /> : null}
+        {form ? <SettingsPageIndex category={category} /> : null}
         {form && ContributedPanel ? <ContributedPanel /> : null}
         {form && category === "general" ? (
           <>
@@ -154,10 +155,13 @@ export function SettingsSection({
 }
 
 /** The rail's entries for one category, for the phone's page index. */
-function pageEntries(category: string) {
-  return (
-    settingsPageSources().find((tab) => tab.id === category)?.sections ?? []
-  );
+function SettingsPageIndex({ category }: { category: string }) {
+  const install = useInstallPanelShown();
+  const guests = useGuestRowShown();
+  const entries =
+    settingsPageSources({ install, guests }).find((tab) => tab.id === category)
+      ?.sections ?? [];
+  return <PageIndex entries={entries} />;
 }
 
 /**
@@ -196,7 +200,6 @@ function SecurityPanels({
       <Suspense fallback={null}>
         <TransportPanel />
       </Suspense>
-      <SettingsMasterPasswordPanel />
     </>
   );
 }

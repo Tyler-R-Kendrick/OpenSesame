@@ -16,6 +16,9 @@ import {
 import type { NormalizedAuthorizationRequest } from "@opensesame/siop-v2";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
+import { FormCommit } from "../components/FormCommit.js";
+import { IconKey } from "../components/IconKey.js";
+import { IconPasskey, IconX } from "../components/Icons.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { useVault } from "../lib/vault/hooks.js";
 
@@ -233,35 +236,14 @@ function SiopConsent({
                   organization. Assign membership in Identity before signing in.
                 </p>
               ) : null}
-              <div className="actions">
-                {session ? (
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    disabled={busy}
-                    onClick={() => void allow()}
-                  >
-                    Allow Self-Issued sign-in
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={busy || !person}
-                    onClick={() => void verifyPasskey()}
-                  >
-                    {busy ? "Verifying passkey…" : "Verify with passkey"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={deny}
-                >
-                  Deny
-                </button>
-              </div>
+              <SiopCommit
+                signedIn={Boolean(session)}
+                busy={busy}
+                canVerify={Boolean(person)}
+                onAllow={() => void allow()}
+                onVerify={() => void verifyPasskey()}
+                onDeny={deny}
+              />
             </>
           ) : null}
           <p className="hint">
@@ -276,5 +258,33 @@ function SiopConsent({
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * The consent's commit: allow once a person has proven themselves, verify
+ * with a passkey before that — and deny beside either, on the same row.
+ */
+function SiopCommit(props: {
+  signedIn: boolean;
+  busy: boolean;
+  canVerify: boolean;
+  onAllow: () => void;
+  onVerify: () => void;
+  onDeny: () => void;
+}) {
+  const { signedIn, busy } = props;
+  const verify = busy ? "Verifying passkey…" : "Verify with passkey";
+  return (
+    <FormCommit
+      label={signedIn ? "Allow Self-Issued sign-in" : verify}
+      icon={signedIn ? undefined : <IconPasskey size={18} />}
+      disabled={busy || !(signedIn || props.canVerify)}
+      onClick={signedIn ? props.onAllow : props.onVerify}
+    >
+      <IconKey label="Deny" danger disabled={busy} onClick={props.onDeny}>
+        <IconX size={16} />
+      </IconKey>
+    </FormCommit>
   );
 }

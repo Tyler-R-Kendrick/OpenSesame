@@ -175,3 +175,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0133](0133-shared-app-core.md) | One shared application core for the PWA, the CLIs and Android | Accepted |
 | [0134](0134-item-type-marketplaces-and-settings-files.md) | Item-type marketplaces are git repositories, and Settings is files | Accepted |
 | [0135](0135-always-on-capabilities-and-feature-rollups.md) | Always-on capabilities and feature rollups | Accepted |
+| [0136](0136-join-a-session-restored.md) | Join a session, restored and hardened | Accepted |
+| [0137](0137-open-sessions-admit-on-ask.md) | Open sessions may admit on ask, as observers | Accepted |

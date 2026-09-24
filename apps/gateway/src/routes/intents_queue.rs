@@ -21,6 +21,8 @@ use super::super::intents_budget::{
 use super::{execute_invocation, not_found, ConstrainedHttpInput, ResolvedInvocation};
 use crate::app_state::AppState;
 
+/// A permitted invoke parked by the test hold, replayed by [`drain`].
+#[cfg(test)]
 struct QueuedInvoke {
     org: OrganizationId,
     resolved: ResolvedInvocation,
@@ -28,44 +30,6 @@ struct QueuedInvoke {
     constrained_http: Option<ConstrainedHttpInput>,
     authority_hold: Option<AuthorityBudgetHold>,
     level: u8,
-}
-
-#[cfg(test)]
-mod hold {
-    use super::QueuedInvoke;
-    use std::cell::{Cell, RefCell};
-
-    thread_local! {
-        static HOLD: Cell<bool> = const { Cell::new(false) };
-        static QUEUE: RefCell<Vec<QueuedInvoke>> = const { RefCell::new(Vec::new()) };
-        static FIXTURE_WORK: Cell<u64> = const { Cell::new(0) };
-    }
-
-    pub fn arm() {
-        HOLD.with(|flag| flag.set(true));
-        QUEUE.with(|queue| queue.borrow_mut().clear());
-        FIXTURE_WORK.with(|count| count.set(0));
-    }
-
-    pub fn take() -> bool {
-        HOLD.with(|flag| flag.replace(false))
-    }
-
-    pub fn push(job: QueuedInvoke) {
-        QUEUE.with(|queue| queue.borrow_mut().push(job));
-    }
-
-    pub fn pop() -> Option<QueuedInvoke> {
-        QUEUE.with(|queue| queue.borrow_mut().pop())
-    }
-
-    pub fn record_side_effect() {
-        FIXTURE_WORK.with(|count| count.set(count.get() + 1));
-    }
-
-    pub fn fixture_work() -> u64 {
-        FIXTURE_WORK.with(Cell::get)
-    }
 }
 
 #[cfg(test)]
@@ -200,5 +164,43 @@ async fn finish_dispatch(
             )
                 .into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod hold {
+    use super::QueuedInvoke;
+    use std::cell::{Cell, RefCell};
+
+    thread_local! {
+        static HOLD: Cell<bool> = const { Cell::new(false) };
+        static QUEUE: RefCell<Vec<QueuedInvoke>> = const { RefCell::new(Vec::new()) };
+        static FIXTURE_WORK: Cell<u64> = const { Cell::new(0) };
+    }
+
+    pub fn arm() {
+        HOLD.with(|flag| flag.set(true));
+        QUEUE.with(|queue| queue.borrow_mut().clear());
+        FIXTURE_WORK.with(|count| count.set(0));
+    }
+
+    pub fn take() -> bool {
+        HOLD.with(|flag| flag.replace(false))
+    }
+
+    pub fn push(job: QueuedInvoke) {
+        QUEUE.with(|queue| queue.borrow_mut().push(job));
+    }
+
+    pub fn pop() -> Option<QueuedInvoke> {
+        QUEUE.with(|queue| queue.borrow_mut().pop())
+    }
+
+    pub fn record_side_effect() {
+        FIXTURE_WORK.with(|count| count.set(count.get() + 1));
+    }
+
+    pub fn fixture_work() -> u64 {
+        FIXTURE_WORK.with(Cell::get)
     }
 }

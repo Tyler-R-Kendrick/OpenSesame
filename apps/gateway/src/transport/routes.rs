@@ -36,7 +36,6 @@ use super::status;
 const VERIFY_BODY_BYTES: usize = 1024;
 
 /// The operator transport surface.
-#[must_use]
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/v1/operator/transport/status", get(get_status))

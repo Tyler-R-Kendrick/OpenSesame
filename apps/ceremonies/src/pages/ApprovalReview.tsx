@@ -6,6 +6,7 @@ import {
 } from "@opensesame/sdk-browser";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
+import { Commit, IconAlert, IconRefresh, IconX, Key } from "../keys.js";
 import {
   type ApprovalDecision,
   ApprovalError,
@@ -250,9 +251,9 @@ export function ApprovalReview() {
           </p>
         ) : null}
         <div className="actions">
-          <button type="button" onClick={() => void load()}>
-            Try again
-          </button>
+          <Key label="Try again" onClick={() => void load()}>
+            <IconRefresh />
+          </Key>
         </div>
       </section>
     );
@@ -352,35 +353,34 @@ export function ApprovalReview() {
       ) : null}
 
       {!settled ? (
-        <div className="actions">
-          <button
-            type="button"
-            className="primary"
-            disabled={!confirmed || busy !== null}
-            aria-busy={busy === "approve"}
-            onClick={() => void decide("approve")}
-          >
-            {requirement.requireTransactionBoundActivation
+        <Commit
+          label={
+            requirement.requireTransactionBoundActivation
               ? "Touch your passkey to approve"
-              : "Approve"}
-          </button>
-          <button
-            type="button"
+              : "Approve"
+          }
+          disabled={!confirmed || busy !== null}
+          busy={busy === "approve"}
+          onClick={() => void decide("approve")}
+        >
+          <Key
+            label="Deny"
+            danger
             disabled={busy !== null}
             aria-busy={busy === "deny"}
             onClick={() => void decide("deny")}
           >
-            Deny
-          </button>
-          <button
-            type="button"
+            <IconX />
+          </Key>
+          <Key
+            label="I don't recognize this request"
             disabled={busy !== null}
             aria-busy={busy === "report"}
             onClick={() => void report()}
           >
-            I don't recognize this request
-          </button>
-        </div>
+            <IconAlert />
+          </Key>
+        </Commit>
       ) : null}
 
       {done ? <output className="ok">{done}</output> : null}

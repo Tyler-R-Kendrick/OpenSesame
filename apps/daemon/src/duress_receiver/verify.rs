@@ -1,5 +1,5 @@
 //! Structural + ECDSA P-256 SHA-256 envelope checks matching Pages
-//! `peer/envelope.ts` signing input and WebCrypto verify semantics.
+//! `peer/envelope.ts` signing input and `WebCrypto` verify semantics.
 
 use std::collections::HashMap;
 
@@ -139,8 +139,7 @@ fn verify_ecdsa_p256_sha256(
         .decode(env.signature_b64.trim())
         .map_err(|_| "unavailable_authority")?;
     // WebCrypto ECDSA P-256 signatures are IEEE P1363 (r||s, 64 bytes).
-    let signature =
-        Signature::from_slice(&sig_raw).map_err(|_| "unavailable_authority")?;
+    let signature = Signature::from_slice(&sig_raw).map_err(|_| "unavailable_authority")?;
     let msg = signing_input_bytes(env);
     verifying_key
         .verify(&msg, &signature)

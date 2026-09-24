@@ -312,6 +312,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn contract_a_missed_code_says_so_through_redaction() {
+        // The Pages join ceremony (ADR 0136) tells a missed code — a few more
+        // cancel the invite — from any other refusal by this detail alone.
+        let response = broker_error(&BrokerError::Invalid("user code mismatch".into()));
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let bytes = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["error"], "invalid_request");
+        assert!(
+            body["detail"]
+                .as_str()
+                .is_some_and(|detail| detail.to_lowercase().contains("user code")),
+            "{body}"
+        );
+        for (error, status) in [
+            (BrokerError::ConnectionNotFound, StatusCode::NOT_FOUND),
+            (BrokerError::StateExpired, StatusCode::GONE),
+            (BrokerError::InvalidState, StatusCode::CONFLICT),
+        ] {
+            assert_eq!(broker_error(&error).status(), status);
+        }
+    }
+
+    #[tokio::test]
     async fn contract_presenting_an_unknown_token_is_not_found() {
         // Reached by URL alone: the answer must not say whether anything exists.
         let state = crate::app_state::test_demo_state().await;

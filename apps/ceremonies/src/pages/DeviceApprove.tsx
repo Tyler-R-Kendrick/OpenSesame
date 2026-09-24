@@ -1,5 +1,6 @@
 import { approveDevice } from "@opensesame/ceremony-kit";
 import { useEffect, useState } from "react";
+import { Commit } from "../keys.js";
 import { parseUserCode } from "../lib/deep-link.js";
 import { issuer } from "../lib/issuer.js";
 
@@ -65,15 +66,12 @@ export function DeviceApprove() {
         />
       </div>
       <div className="actions">
-        <button
-          type="button"
-          className="primary"
+        <Commit
+          label={busy ? "Approving…" : "Approve device"}
           disabled={busy}
-          aria-busy={busy}
+          busy={busy}
           onClick={() => void approve()}
-        >
-          {busy ? "Approving…" : "Approve device"}
-        </button>
+        />
       </div>
       {status ? <output className="ok">{status}</output> : null}
       {error ? (

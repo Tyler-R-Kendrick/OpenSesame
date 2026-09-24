@@ -177,11 +177,12 @@ export function VaultsScreen({ providers, onPicked }: Props) {
                   />
                   <button
                     type="submit"
-                    className="btn"
+                    className="icon-btn"
+                    aria-label="Create vault"
+                    title="Create vault"
                     disabled={busy || name.trim().length === 0}
                   >
                     <IconPlus size={16} />
-                    Create
                   </button>
                 </div>
                 <p className="hint">

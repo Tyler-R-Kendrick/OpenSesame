@@ -515,6 +515,36 @@ paths:
                   scope: {type: string, description: Space-delimited capability ceiling}
         "400": {$ref: "#/components/responses/Error"}
         "401": {$ref: "#/components/responses/Error"}
+  /browser-pairings/renew:
+    post:
+      summary: Renew a join grant to the same proof key (ADR 0136 §2)
+      description: >-
+        Reached through the browser guard with the current grant's DPoP token
+        and proof. Only a client that paired as exactly `host.join` renews:
+        the old token is spent and a new one issued to the same client for
+        five minutes, never past thirty minutes after the operator approved
+        it. A refusal is 403, not 401 — the token in hand still works until
+        it lapses.
+      parameters:
+        - {in: header, name: Origin, required: true, schema: {type: string, format: uri}}
+        - {in: header, name: Authorization, required: true, schema: {type: string, pattern: "^DPoP "}}
+        - {in: header, name: DPoP, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: A renewed DPoP credential for the same client
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, client_id, scope]
+                properties:
+                  access_token: {type: string, writeOnly: true}
+                  token_type: {type: string, const: DPoP}
+                  expires_in: {type: integer, minimum: 1, maximum: 300}
+                  client_id: {type: string}
+                  scope: {type: string, const: host.join}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
   /browser-pairings/inspect:
     post:
       summary: Inspect the exact origin and capabilities before native approval
@@ -1885,8 +1915,8 @@ paths:
     get:
       summary: Discover public shared sessions (ADR 0079)
       description: >-
-        A name and an id, never a session's contents, its operator or its
-        roster. `visibility=public` is required rather than defaulted: a caller
+        A name, an id and how an ask is answered (ADR 0137), never a
+        session's contents, its operator or its roster. `visibility=public` is required rather than defaulted: a caller
         who omits it is refused rather than handed a listing they did not ask
         for, and private sessions are never listed under any query.
       security: [{ HostBearer: [] }]
@@ -1908,11 +1938,12 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, display_name]
+                      required: [id, display_name, admission]
                       additionalProperties: false
                       properties:
                         id: { type: string }
                         display_name: { type: string }
+                        admission: { $ref: "#/components/schemas/SessionAdmission" }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
@@ -1929,6 +1960,12 @@ paths:
               properties:
                 display_name: { type: string, minLength: 1, maxLength: 120 }
                 visibility: { type: string, enum: [private, public], default: private }
+                admission:
+                  allOf: [{ $ref: "#/components/schemas/SessionAdmission" }]
+                  default: operator
+                  description: >-
+                    `observer_on_ask` is refused (422 session_admission) on a
+                    private session: nobody can ask into one.
       responses:
         "201":
           description: The opened session
@@ -2116,7 +2153,9 @@ paths:
         exactly as it does elsewhere, so this route cannot be used to probe for
         private sessions by id. Admission precedes connection — a pending
         requester learns their request is pending and nothing else: no roster,
-        no channel, no peer. Asking twice is the same ask.
+        no channel, no peer. Asking twice is the same ask. A session opened
+        with `admission: observer_on_ask` seats the asker at once as an
+        observer holding nothing, decided in its operator's name (ADR 0137).
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -2129,6 +2168,17 @@ paths:
               properties:
                 note: { type: string, maxLength: 280 }
       responses:
+        "201":
+          description: Admitted by the session's policy, as an observer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision, mode]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, const: admitted }
+                  mode: { type: string, const: observer }
         "202":
           description: Recorded, pending an operator's decision
           content:
@@ -3197,6 +3247,13 @@ components:
         item_id: { type: string }
         role: { type: string, enum: [read, write] }
         expires_at: { type: string, format: date-time }
+    SessionAdmission:
+      type: string
+      enum: [operator, observer_on_ask]
+      description: >-
+        How a public session answers an ask (ADR 0137): the operator decides
+        each one, or whoever asks is seated at once as an observer holding
+        nothing. There is no participant-on-ask.
     SharedSession:
       type: object
       required: [id, display_name, visibility, operator_principal_id, created_at]
@@ -3204,6 +3261,7 @@ components:
         id: { type: string }
         display_name: { type: string }
         visibility: { type: string, enum: [private, public] }
+        admission: { $ref: "#/components/schemas/SessionAdmission" }
         operator_principal_id: { type: string }
         created_at: { type: string, format: date-time }
     SharedSessionDetail:

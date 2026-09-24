@@ -29,6 +29,7 @@ const CORE_INFRA = [
   "modal-focus",
   "strip",
   "scroll-panel",
+  "hash-target",
   "pane-escape",
   "tree-motion",
   "page-to-tree",
@@ -258,6 +259,11 @@ export const LIB_RULES = [
   ),
   ...each(L, ACCESS_FILES, (p) =>
     optional(p, ACCESS, "local PAM records and Host plane"),
+  ),
+  core(
+    `${L}join/`,
+    SIGNIN,
+    "join a session: invite or open endpoint, before sign-in (ADR 0136)",
   ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),

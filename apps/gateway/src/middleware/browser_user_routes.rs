@@ -21,6 +21,8 @@ pub const CAPABILITIES: &[&str] = &[
     "host.ceremonies.read",
     "host.delegations.read",
     "host.delegations.write",
+    "host.delegations.claim",
+    "host.sessions.join",
     "host.relay.read",
     "host.relay.decide",
     "host.tasks.read",
@@ -34,8 +36,9 @@ const ROUTES: &[(&str, &str, &str)] = &[
     ("GET", "delegations", "host.delegations.read"),
     ("GET", "delegations/offers", "host.delegations.read"),
     ("POST", "delegations", "host.delegations.write"),
-    ("POST", "delegations/present", "host.delegations.write"),
-    ("POST", "delegations/claim", "host.delegations.write"),
+    // Looking up and accepting an invite: what a join grant may do (ADR 0136).
+    ("POST", "delegations/present", "host.delegations.claim"),
+    ("POST", "delegations/claim", "host.delegations.claim"),
     ("DELETE", "delegations/{id}", "host.delegations.write"),
     (
         "DELETE",
@@ -43,6 +46,15 @@ const ROUTES: &[(&str, &str, &str)] = &[
         "host.delegations.write",
     ),
     ("POST", "delegations/{id}/narrow", "host.delegations.write"),
+    // Joining an open shared session (ADR 0079 §7, ADR 0136): the public
+    // listing and the ask. Deciding, granting and the roster stay off this
+    // map — a browser may ask in, never let itself in.
+    ("GET", "shared-sessions", "host.sessions.join"),
+    (
+        "POST",
+        "shared-sessions/{id}/join-requests",
+        "host.sessions.join",
+    ),
     ("GET", "relay/requests/pending", "host.relay.read"),
     ("POST", "relay/requests/{id}/approve", "host.relay.decide"),
     ("POST", "relay/requests/{id}/deny", "host.relay.decide"),
@@ -242,6 +254,35 @@ mod tests {
     }
 
     #[test]
+    fn a_browser_may_ask_into_a_session_but_never_decide_or_grant() {
+        assert_eq!(
+            required_capability("GET", "/api/v1/shared-sessions"),
+            Some("host.sessions.join")
+        );
+        assert_eq!(
+            required_capability(
+                "POST",
+                "/api/v1/shared-sessions/session:0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/join-requests"
+            ),
+            Some("host.sessions.join")
+        );
+        for (method, path) in [
+            ("POST", "/api/v1/shared-sessions"),
+            ("GET", "/api/v1/shared-sessions/id_1"),
+            ("GET", "/api/v1/shared-sessions/id_1/join-requests"),
+            (
+                "POST",
+                "/api/v1/shared-sessions/id_1/join-requests/id_2/decide",
+            ),
+            ("POST", "/api/v1/shared-sessions/id_1/grants"),
+            ("GET", "/api/v1/shared-sessions/id_1/events"),
+            ("DELETE", "/api/v1/shared-sessions/id_1/grants/id_2"),
+        ] {
+            assert_eq!(required_capability(method, path), None, "{method} {path}");
+        }
+    }
+
+    #[test]
     fn encoded_ambiguous_and_noncanonical_identifiers_are_refused() {
         for id in [
             "%69d",
@@ -277,3 +318,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "browser_join_tests.rs"]
+pub(crate) mod browser_join_tests;

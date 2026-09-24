@@ -29,8 +29,10 @@ mod agent_capability;
 mod cli_probe;
 mod discovery;
 mod duress_receiver;
+mod duress_routes;
+use duress_routes::{duress_peer_envelope, duress_peer_health};
 mod proxy_path;
-use proxy_path::{decoded_path_segment, is_local_session_path};
+use proxy_path::is_local_session_path;
 mod invoke_through;
 mod keychain;
 mod mint;
@@ -626,22 +628,6 @@ fn router(state: App) -> Router {
         .route("/v1/duress/peer/health", get(duress_peer_health))
         .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
         .with_state(state)
-}
-
-async fn duress_peer_health(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
-    require_operator(&st, &headers, &uds).err().unwrap_or_else(|| {
-        duress_receiver::peer_health_response(st.duress_peer.as_ref())
-    })
-}
-
-async fn duress_peer_envelope(
-    State(st): State<App>, uds: UdsPeer, headers: HeaderMap, body: Bytes,
-) -> Response {
-    if let Err(resp) = require_operator(&st, &headers, &uds) { return resp; }
-    match st.duress_peer.clone() {
-        Some(peer) => duress_receiver::receive_envelope_response(peer, headers, body).await,
-        None => StatusCode::NOT_FOUND.into_response(),
-    }
 }
 
 fn skip_hop_header(name: &HeaderName) -> bool {

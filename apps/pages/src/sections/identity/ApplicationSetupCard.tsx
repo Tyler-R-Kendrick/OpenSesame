@@ -4,6 +4,8 @@ import {
 } from "@opensesame/app-core/lib/configuration/claim-preview.js";
 import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
 import { useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconLogin } from "../../components/Icons.js";
 
 export function ApplicationSetupCard(props: {
   registration: LocalApplicationRegistration | undefined;
@@ -58,14 +60,12 @@ export function ApplicationSetupCard(props: {
           <dt>Scopes</dt>
           <dd>{registration?.scopes.join(" ") || "openid"}</dd>
         </dl>
-        <button
-          type="button"
-          className="btn btn--sm"
+        <FormCommit
+          label="Test sign-in"
+          icon={<IconLogin size={18} />}
           disabled={!callback}
           onClick={testSignIn}
-        >
-          Test sign-in
-        </button>
+        />
         {test ? <p className="hint">{test}</p> : null}
         <h4>Claim preview (unsigned, synthetic)</h4>
         <pre className="cfg-source__input">

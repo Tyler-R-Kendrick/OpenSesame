@@ -40,6 +40,12 @@ listing, and backup authorize run through the Connect callback relay
 (ADR 0126). Pages does not call a Host GitHub App API. Other Connect
 providers remain Host-free under this ADR.
 
+**Exception (2026-09-24, [ADR 0136](0136-join-a-session-restored.md)):**
+the join ceremony speaks to the one endpoint it names — delegation present
+and claim, public-session listing and join requests, under a browser grant
+the endpoint's operator approved and a passkey verified. It never configures
+the app's Host, and nothing else in Pages speaks Host.
+
 ## Consequences
 
 - A Host API URL in Endpoints is optional advanced wiring for deployments

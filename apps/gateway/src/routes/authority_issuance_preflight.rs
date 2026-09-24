@@ -21,18 +21,15 @@ pub(super) fn preflight(
     raw_credential_export: Option<bool>,
 ) -> Result<(), Response> {
     let platform = platform.unwrap_or("host-brokered-invocation");
-    let offline_use = match parse_offline_use(offline_use) {
-        Ok(value) => value,
-        Err(_) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "error": "bad_request",
-                    "hint": "offline_use must be forbidden, read_only, or pre_authorized"
-                })),
-            )
-                .into_response());
-        }
+    let Ok(offline_use) = parse_offline_use(offline_use) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "bad_request",
+                "hint": "offline_use must be forbidden, read_only, or pre_authorized"
+            })),
+        )
+            .into_response());
     };
     admit_issuance(
         platform,

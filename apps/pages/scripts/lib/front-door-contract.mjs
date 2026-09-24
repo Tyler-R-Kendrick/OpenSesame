@@ -18,7 +18,7 @@ export async function checkFrontDoor(page, check, text, base) {
   check(!/This device is empty/.test(text), "no setup wall");
   check(
     (await count(page, "button", "Join a session")) === 0,
-    "join is invite-link only, not a front-door road",
+    "no join road on a shared-origin demo, which cannot finish a join (ADR 0136)",
   );
   for (const [name, label] of [
     ["Set up your own", "setup road on the front door"],

@@ -38,6 +38,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
   IconEye,
@@ -47,8 +48,8 @@ import {
   IconMessage,
   IconPasskey,
   IconPhone,
+  IconSettings,
   IconShield,
-  IconX,
 } from "../components/Icons.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
@@ -60,11 +61,13 @@ import { FrontDoor } from "./FrontDoor.js";
 import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
+import { useJoinRoad } from "./join/JoinRoad.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
+import { ResetVault } from "./unlock/ResetVault.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { StrengthMeter } from "./unlock/StrengthMeter.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
@@ -89,12 +92,9 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * Sign-in is the first screen, and nothing gates it (ADR 0090): the broker
- * runs in the browser, guest seals a local vault, a local-only seal needs
- * nothing. Setup lives behind unlock; the front door's "Set up your own" is
- * the only pre-unlock setup path, and an invite link opens join directly. A
- * managed instance's required roots (`RequirementsGate`) sit beside sign-in,
- * never in front of it. The split keeps the early return above the hooks.
+ * Sign-in is the first screen, and nothing gates it (ADR 0090). The front
+ * door offers setup and joining beside it, an invite link opens join itself
+ * (ADR 0136), and a managed instance's required roots sit beside sign-in.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
@@ -107,14 +107,14 @@ export function UnlockScreen() {
     unlockScreenDependencies.deviceHasSeveralVaults(),
   );
   const providers = useFederatedProviders();
+  const join = useJoinRoad();
   // A locked screen is idle time: ask the service worker for a newer shell.
   useEffect(() => {
     void checkForAppUpdate();
   }, []);
-  // The front door (ADR 0115): no vault and no setup record opens on the
-  // roads made large, sign-in whole beneath them; the local-only seal and an
-  // answered or skipped ceremony retire it. Guest prepare leaves status
-  // empty (no wrap on disk) — that is Unlock, not the front door.
+  // The front door (ADR 0115): no vault and no setup record. The local-only
+  // seal, a join, and an answered or skipped ceremony retire it; guest
+  // prepare leaves status empty (no wrap on disk), which is Unlock.
   const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
   const frontDoor =
     status === "empty" &&
@@ -122,6 +122,7 @@ export function UnlockScreen() {
     !localOnlyPicked &&
     unlockScreenDependencies.loadSetup() === null;
 
+  if (join.screen) return join.screen;
   if (ceremony) {
     return (
       <SetupScreen
@@ -144,6 +145,7 @@ export function UnlockScreen() {
       <FrontDoor
         providers={providers}
         onOpenSetup={(join) => setCeremony({ step: undefined, join })}
+        onOpenJoin={join.open}
         onUseLocalOnly={() => setLocalOnlyPicked(true)}
       />
     );
@@ -507,14 +509,14 @@ function UnlockForm({
               No way in is configured for this deployment yet, so sign-in has
               nowhere to go.
             </span>
-            <button
-              ref={setupRef}
-              type="button"
-              className="btn btn--sm"
+            <IconKey
+              label="Set it up"
+              small
+              keyRef={setupRef}
               onClick={() => onOpenSetup("identity")}
             >
-              Set it up
-            </button>
+              <IconSettings size={16} />
+            </IconKey>
           </div>
         ) : null}
 
@@ -1034,32 +1036,10 @@ function UnlockForm({
           ) : null}
           {!firstRun && !showSignIn ? (
             showReset ? (
-              <div className="unlock__danger">
-                <p>
-                  Deleting removes the encrypted vault from this browser.
-                  Without an enrolled unlock method its contents are already
-                  unrecoverable — this only clears the file so you can start
-                  again.
-                </p>
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn btn--danger btn--sm"
-                    onClick={() => void store.destroy()}
-                  >
-                    Delete this vault
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--sm"
-                    onClick={() => setShowReset(false)}
-                    aria-label="Keep it"
-                    title="Keep it"
-                  >
-                    <IconX size={16} />
-                  </button>
-                </div>
-              </div>
+              <ResetVault
+                onDelete={() => void store.destroy()}
+                onKeep={() => setShowReset(false)}
+              />
             ) : (
               <button
                 type="button"

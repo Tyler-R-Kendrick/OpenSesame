@@ -34,10 +34,8 @@ fn canonicalize_value(value: &Value) -> Result<Value, ProtectionError> {
             keys.sort();
             let mut out = Map::new();
             for key in keys {
+                // Explicit nulls are kept; only absent keys are skipped.
                 if let Some(entry) = map.get(key) {
-                    if entry.is_null() {
-                        // Keep explicit nulls; skip only absent keys (already).
-                    }
                     out.insert(key.clone(), canonicalize_value(entry)?);
                 }
             }
@@ -53,6 +51,5 @@ fn canonicalize_value(value: &Value) -> Result<Value, ProtectionError> {
 /// Returns `MalformedEncoding` when the value cannot be canonicalized.
 pub fn canonicalize_to_bytes(value: &Value) -> Result<Vec<u8>, ProtectionError> {
     let canonical = canonicalize_value(value)?;
-    serde_json::to_vec(&canonical)
-        .map_err(|e| ProtectionError::MalformedEncoding(e.to_string()))
+    serde_json::to_vec(&canonical).map_err(|e| ProtectionError::MalformedEncoding(e.to_string()))
 }

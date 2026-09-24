@@ -1,7 +1,6 @@
 use super::*;
 use crate::app_state::{self, AppState};
 use crate::config::Args;
-use async_trait::async_trait;
 use axum::body::{to_bytes, Body};
 use axum::http::Request;
 use opensesame_connection_broker::github_app::GithubAppCredentials;
@@ -11,19 +10,6 @@ use opensesame_task_bus::InMemoryTaskBus;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
-
-struct PartitionedBus;
-
-#[async_trait]
-impl opensesame_task_bus::TaskBus for PartitionedBus {
-    async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
-        anyhow::bail!("simulated JetStream partition");
-    }
-
-    async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
-        Ok(vec![])
-    }
-}
 
 async fn post_shared_webhook(
     state: Arc<AppState>,

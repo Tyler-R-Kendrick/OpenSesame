@@ -1,9 +1,7 @@
 //! Purpose-bound Host operations for incident / quarantine / hold / recovery.
 
 use crate::duress::epochs::{ceiling_for_hold, DurableEpochs};
-use crate::duress::hold::{
-    admits_recovery_attempt, HoldDuration, HoldPhase, IndependentHold,
-};
+use crate::duress::hold::{admits_recovery_attempt, HoldDuration, HoldPhase, IndependentHold};
 use crate::duress::store::DuressAuthorityStore;
 use opensesame_authz::duress::{
     evaluate_deny_ceiling, BoundaryOp, CeilingVerdict, DenyCeiling, DispatchState,
@@ -172,6 +170,13 @@ pub fn accept_independent_hold(
 }
 
 /// Quarantine a peer under the active incident epochs.
+///
+/// # Errors
+///
+/// [`DuressOpError::PurposeMismatch`] for any purpose but `duress.quarantine_peer`;
+/// [`DuressOpError::UnknownIncident`] when no hold exists for `incident_id`;
+/// [`DuressOpError::EpochMismatch`] when `epochs` are not the hold's; and
+/// [`DuressOpError::HoldNotActive`] once the hold no longer holds capabilities.
 pub fn quarantine_peer(
     store: &mut DuressAuthorityStore,
     purpose: &str,
@@ -202,6 +207,13 @@ pub fn quarantine_peer(
 }
 
 /// File a recovery request. Never clears the hold.
+///
+/// # Errors
+///
+/// [`DuressOpError::PurposeMismatch`] for any purpose but `duress.request_recovery`;
+/// [`DuressOpError::UnknownIncident`] when no hold exists for `incident_id`;
+/// and [`DuressOpError::RecoveryNotAdmitted`] while the hold's delay has not
+/// elapsed (or the hold is already resolved or superseded).
 pub fn request_recovery(
     store: &mut DuressAuthorityStore,
     purpose: &str,
@@ -222,6 +234,15 @@ pub fn request_recovery(
 }
 
 /// Explicit authority resolution. Alert ACK / clock expiry cannot call this.
+///
+/// # Errors
+///
+/// [`DuressOpError::PurposeMismatch`] for any purpose but `duress.resolve_recovery`;
+/// [`DuressOpError::UnknownIncident`] when no hold exists for `incident_id`;
+/// [`DuressOpError::AuthorityMismatch`] when `authority_ref` is not the
+/// hold's authority; [`DuressOpError::EpochMismatch`] when the presented
+/// epochs are stale; and [`DuressOpError::InvalidTransition`] from a hold
+/// that is already resolved or superseded.
 pub fn resolve_recovery(
     store: &mut DuressAuthorityStore,
     purpose: &str,

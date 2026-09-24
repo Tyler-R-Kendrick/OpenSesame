@@ -11,7 +11,8 @@ use crate::{ItemDataKey, VaultRootKey};
 use super::auth::{seal_manifest_auth, verify_manifest_auth};
 use super::error::ProtectionError;
 use super::legacy::{
-    looks_like_legacy_password_wrapper, parse_legacy_password_wrapper, unlock_legacy_password_wrapper,
+    looks_like_legacy_password_wrapper, parse_legacy_password_wrapper,
+    unlock_legacy_password_wrapper,
 };
 use super::limits::{
     KEY_FILE_NAME, MANIFEST_SCHEMA_VERSION, MAX_MANIFEST_ENCODED_BYTES, MAX_PROTECTION_RECORDS,
@@ -36,10 +37,7 @@ pub enum KeyFileContents {
 pub fn load_key_file(root: &Path) -> Result<KeyFileContents, ProtectionError> {
     let path = root.join(KEY_FILE_NAME);
     if !path.exists() {
-        return Err(ProtectionError::Io(format!(
-            "missing {}",
-            path.display()
-        )));
+        return Err(ProtectionError::Io(format!("missing {}", path.display())));
     }
     let json = fs::read_to_string(&path)?;
     if json.len() > MAX_MANIFEST_ENCODED_BYTES {
@@ -57,7 +55,9 @@ pub fn parse_key_file_json(json: &str) -> Result<KeyFileContents, ProtectionErro
     let value: Value = serde_json::from_str(json)
         .map_err(|e| ProtectionError::MalformedEncoding(format!("json: {e}")))?;
     if looks_like_legacy_password_wrapper(&value) {
-        return Ok(KeyFileContents::Legacy(parse_legacy_password_wrapper(json)?));
+        return Ok(KeyFileContents::Legacy(parse_legacy_password_wrapper(
+            json,
+        )?));
     }
     let manifest: RootProtectionManifest = serde_json::from_value(value)
         .map_err(|e| ProtectionError::MalformedEncoding(format!("manifest: {e}")))?;

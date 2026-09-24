@@ -480,9 +480,13 @@ kbd {
   display: block;
 }
 
-.icon-btn:hover:not(:disabled) {
-  background: var(--surface-3);
-  color: var(--ink);
+/* Only where something hovers: a tap leaves a phone's key in :hover until
+   the next tap elsewhere, so a reload stayed filled grey after it ran. */
+@media (hover: hover) {
+  .icon-btn:hover:not(:disabled) {
+    background: var(--surface-3);
+    color: var(--ink);
+  }
 }
 
 .icon-btn:disabled {
@@ -803,32 +807,30 @@ input[type="radio"] {
   border-color: var(--accent-line);
 }
 
-/* Labels demonstration data without competing with the item's own name. */
+/* A status is a glyph (DESIGN.md § Status is a symbol) — unframed. In a
+   bordered square a ✓ read as a ticked checkbox, a lock as a button, and a
+   red × beside a heading as a key that deletes it; a key is the only thing
+   drawn in a square. */
 .status-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1.25rem;
   height: 1.25rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
   color: var(--ink-3);
   flex: none;
 }
 
 .status-mark--ok {
   color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 30%, var(--line));
 }
 
 .status-mark--warn {
   color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 30%, var(--line));
 }
 
 .status-mark--err {
   color: var(--err);
-  border-color: color-mix(in srgb, var(--err) 30%, var(--line));
 }
 
 .chip--sample {
@@ -1434,6 +1436,14 @@ body {
   gap: 0.9rem;
 }
 
+/* An empty status line or key row still took a gap, so a panel's first
+   card sat 16px under its rule on one panel and 30px on the next. Out of
+   the flow, not hidden: an empty <output> is a live region waiting for
+   its sentence. */
+.panel__body > :is(output, .actions):empty {
+  position: absolute;
+}
+
 .panel__body--tight {
   padding: 0.5rem 0 0;
 }
@@ -1606,6 +1616,22 @@ body {
   color: var(--ink);
 }
 
+/* Inside a panel an empty state is the panel's first line, under its head
+   and flush with it; centred in bold it read as a second heading adrift in
+   the panel ("No budgets yet" a screen's width from "Budgets"). A pane's own
+   empty state — the vault list, a detail pane — keeps the centre. */
+.panel__body .empty {
+  justify-items: start;
+  text-align: start;
+  padding: 0 0 0.5rem;
+}
+
+.panel__body .empty :is(h2, h3) {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
 .empty p {
   font-size: 0.9rem;
   max-width: 48ch;
@@ -1636,10 +1662,26 @@ body {
   min-width: 0;
 }
 
-/* Keyboard tips stay off touch-primary surfaces (DESIGN.md § Touch). */
+/* Keyboard tips stay off touch-primary surfaces (DESIGN.md § Touch); one
+   with a touch counterpart swaps to it there. */
+.empty__tip-touch {
+  display: none;
+}
+
 @media (pointer: coarse) {
-  .empty__tip--keys {
+  .empty__tip--keys,
+  .empty__tip-keys {
     display: none;
+  }
+
+  .empty__tip-touch {
+    display: inline;
+  }
+
+  /* A phone's empty state is one screen tall already; 3rem above and below
+     its line left the rest of the page a scroll away. */
+  .empty {
+    padding: 1.5rem 1rem;
   }
 }
 
@@ -1723,8 +1765,8 @@ body {
   }
 
   /* A disclosure is a control: its target is the whole row, not the 19px line
-     box the text happens to occupy. Padding rather than flex, so the browser
-     keeps drawing the marker that says the row opens. */
+     box the text happens to occupy. Padding rather than flex, so the row keeps
+     its own line box and the chevron (below) sits on it. */
   summary {
     min-height: 2.75rem;
     padding-block: 0.75rem;
@@ -1789,12 +1831,22 @@ body {
     display: none;
   }
 
+  /* The top space is content, not padding: a sticky strip sticks inside its
+     scroller's padding, so with 18px of it the jump strip stopped 18px down
+     and the cards scrolled past visibly above it. */
   .section {
-    padding: 1.15rem 1rem 2rem;
+    --section-top: 1.15rem;
+    padding: 0 1rem 2rem;
     padding-left: calc(1rem + env(safe-area-inset-left));
     padding-right: calc(1rem + env(safe-area-inset-right));
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .section::before {
+    content: "";
+    display: block;
+    height: var(--section-top);
   }
 
   /* Every strip that scrolls sideways on a phone, in one place. They differ
@@ -1832,6 +1884,12 @@ body {
      section's gutter it reads as a word that did not fit; running under the
      edge it reads as a row with more in it — which is what it is. */
   .section :is(.access-tabs, .identity-tabs, .set__nav) {
+    /* Restated at this specificity: each section's sheet loads after this
+       one and sets \`flex-wrap: wrap\` on its own strip, which beat the
+       shared rule above — Access wrapped onto two rows on a phone while
+       Identity scrolled. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
     /* \`.set__nav\` caps itself at 100%, which undid the right-hand bleed and
        cut the strip — and its selected tab — at the gutter. */
     max-width: none;
@@ -1842,10 +1900,18 @@ body {
     scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
   }
 
-  /* CommandBar keeps the strip drawn; gutters follow the safe area. */
-  .statusline {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+  /* A strip with more past its edge fades there, so a cut tab reads as a
+     row that scrolls rather than a word that did not fit. The fade lies
+     over the strip's own gutter, so a strip that fits shows none of it. */
+  .section :is(.access-tabs, .identity-tabs, .set__nav),
+  .page-index {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 1rem,
+      #000 calc(100% - 1rem),
+      transparent
+    );
   }
 }
 
@@ -1858,13 +1924,19 @@ body {
 }
 
 @media (max-width: 900px) {
+  /* It stays under the pane's top edge while the page scrolls, so the next
+     jump is where the last one was instead of a scroll back up. */
   .page-index {
     display: flex;
     gap: 0.4rem;
+    position: sticky;
+    top: 0;
+    z-index: 2;
     margin: 0.75rem calc(-1rem - env(safe-area-inset-right)) 0
       calc(-1rem - env(safe-area-inset-left));
-    padding: 0 calc(1rem + env(safe-area-inset-right)) 0.25rem
+    padding: 0.25rem calc(1rem + env(safe-area-inset-right)) 0.25rem
       calc(1rem + env(safe-area-inset-left));
+    background: var(--canvas);
     overflow-x: auto;
     scrollbar-width: none;
     overscroll-behavior-x: contain;
@@ -2082,7 +2154,8 @@ body {
   }
 
   .section {
-    padding-block: 0.75rem 1.25rem;
+    --section-top: 0.75rem;
+    padding-block: 0 1.25rem;
   }
 }
 
@@ -3566,7 +3639,9 @@ body {
   /* The type suffix is the same choice one level up — `.login` after a name —
      so it takes the same shape. Left as a dashed rule it would have detached
      from its own word the moment the box grew to a key. */
-  .editor__ext {
+  /* Only the picker becomes a chip: a type the route or the item fixed is a
+     label, and boxed like the picker it read as a key that did nothing. */
+  select.editor__ext {
     min-height: 2.75rem;
     /* The sentence chips draw their own caret and pay for the room; this one
        keeps the platform's, so it only owes it a hair of clearance. */
@@ -3574,11 +3649,6 @@ body {
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background-color: var(--surface-2);
-  }
-
-  select.editor__ext {
-    border-bottom-style: solid;
-    border-bottom-color: var(--line);
   }
 
   select.editor__ext:hover {
@@ -3746,13 +3816,14 @@ button.vault-row__body:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+/* The line a person reads before pressing the row ("no key · this tab
+   only · nothing here is touched") wraps rather than ending in "nothing
+   h…" on a phone; it is the row's whole warning. */
 .vault-row__meta {
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--ink-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .vault-row__chevron {
@@ -3891,4 +3962,43 @@ button.vault-row__body:hover:not(:disabled) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The row a deep link names (lib/hash-target.ts): marked where it sits,
+   in the accent's wash and line, so a rail entry or a shared link shows
+   which of the rows it meant. */
+[data-hash-target] {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  scroll-margin-top: 1rem;
+}
+
+/* ——— Disclosures ——————————————————————————————————————————
+   The app's chevron in place of the browser's black triangle, which was the
+   one glyph on the page in another weight and size ("▶ Passkeys", "▶
+   Members"). It turns down when the disclosure opens, as the rail's does. */
+summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin: 0 0.55rem 0.1rem 0.1rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 140ms var(--ease);
+  opacity: 0.7;
+}
+
+details[open] > summary::before {
+  transform: rotate(45deg);
 }

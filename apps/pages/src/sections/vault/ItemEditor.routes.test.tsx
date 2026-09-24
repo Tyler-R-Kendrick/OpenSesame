@@ -89,10 +89,10 @@ describe("vault editor route types", () => {
       expect(document.activeElement).toBe(screen.getByLabelText("Field name"));
       await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
       expect(
-        screen.getByRole<HTMLInputElement>("checkbox", {
-          name: "Pin to the top of the list",
-        }).checked,
-      ).toBe(true);
+        screen
+          .getByRole("button", { name: "Unpin item" })
+          .getAttribute("aria-pressed"),
+      ).toBe("true");
     },
   );
 
@@ -101,7 +101,11 @@ describe("vault editor route types", () => {
     expect(screen.queryByLabelText("Authenticator secret")).toBeNull();
     expect(screen.queryByLabelText("Notes")).toBeNull();
     expect(screen.queryByLabelText("Field name")).toBeNull();
-    expect(screen.queryByLabelText("Pin to the top of the list")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Pin item" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
     await userEvent.click(
       screen.getByRole("button", { name: "Add authenticator secret" }),
     );

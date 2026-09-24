@@ -55,13 +55,10 @@ function StateChip({ vault }: { vault: DeviceVault }) {
   if (vault.state === "open") {
     return <StatusMark tone="ok" label="Open" />;
   }
-  if (vault.kind === "guest") return null;
-  return (
-    <StatusMark
-      tone="idle"
-      label={vault.state === "empty" ? "New" : "Locked"}
-    />
-  );
+  // A vault never sealed is not locked: its line says "not sealed yet",
+  // and the idle glyph is a lock — which read as "locked" beside it.
+  if (vault.kind === "guest" || vault.state === "empty") return null;
+  return <StatusMark tone="idle" label="Locked" />;
 }
 
 export function VaultList({

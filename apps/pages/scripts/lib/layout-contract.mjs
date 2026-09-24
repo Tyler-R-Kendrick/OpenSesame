@@ -56,7 +56,7 @@ export const LAYOUT_AUDIT =
   //    strips are rows of keys by design (statusline, top bar, drawer, the
   //    vault's path strip and tree keys, the rail).
   const CHROME = ".statusline, .topbar, .drawer, .railtree, .vtree__keys, "
-    + ".vault-pathbar, .access-pathbar, .sheet__head, .keymap, nav";
+    + ".vault-pathbar, .sheet__head, .keymap, nav";
   const keys = [...document.querySelectorAll("main button, main a")]
     .filter((el) => drawn(el) && iconOnly(el) && !el.closest(CHROME));
   // Only a stop with a key pays for the row-mates, and each is measured once.

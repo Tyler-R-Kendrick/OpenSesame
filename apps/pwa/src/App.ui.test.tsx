@@ -59,9 +59,10 @@ async function click(el: HTMLElement): Promise<void> {
   });
 }
 
+/** A button by its words, or by a key's accessible name. */
 function findButton(text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find(
-    (b) => b.textContent === text,
+    (b) => b.textContent === text || b.getAttribute("aria-label") === text,
   );
   if (!button) throw new Error(`button not found: ${text}`);
   return button;
@@ -366,7 +367,7 @@ describe("App health and sealed store", () => {
     const pending = deferred<{ ok: boolean; body: string }>();
     mocks.health.mockReturnValue(pending.promise);
     await renderApp();
-    const busy = findButton("Checking…");
+    const busy = findButton("Checking health");
     expect(busy.hasAttribute("disabled")).toBe(true);
     expect(statusItem("Host API").textContent).toContain("Checking…");
     await act(async () => {

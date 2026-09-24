@@ -26,7 +26,7 @@ pub fn derive_local_kek(wrapping_secret: &[u8]) -> Result<[u8; 32], ProtectionEr
     Ok(hkdf_expand(wrapping_secret, DOMAIN_CLOUD_WRAP)?)
 }
 
-/// Create a cloud local envelope (caller encrypts wrapping_secret with KMS).
+/// Create a cloud local envelope (caller encrypts `wrapping_secret` with KMS).
 ///
 /// # Errors
 ///

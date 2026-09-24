@@ -9,7 +9,9 @@ import {
 } from "@opensesame/app-core/lib/vault/password.js";
 import { useCallback, useEffect, useState } from "react";
 import { useCopyFeedback } from "./FieldRow.js";
-import { IconCheck, IconCopy, IconRefresh } from "./Icons.js";
+import { FormCommit } from "./FormCommit.js";
+import { IconKey } from "./IconKey.js";
+import { IconCheck, IconCopy, IconRefresh, IconX } from "./Icons.js";
 
 function Check({
   label,
@@ -79,15 +81,9 @@ export function PasswordGenerator({
     <div className="gen">
       <div className="gen__out">
         <span className="gen__value">{value || "—"}</span>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => roll(options)}
-          aria-label="Generate another"
-          title="Generate another"
-        >
+        <IconKey label="Generate another" onClick={() => roll(options)}>
           <IconRefresh size={17} />
-        </button>
+        </IconKey>
         <button
           type="button"
           className={`icon-btn${copied === "gen" ? " is-on" : ""}`}
@@ -242,25 +238,17 @@ export function PasswordGenerator({
         </p>
       )}
 
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
-          disabled={!value}
-          onClick={() => onUse(value)}
-        >
-          Use this password
-        </button>
+      <FormCommit
+        label="Use this password"
+        disabled={!value}
+        onClick={() => onUse(value)}
+      >
         {onDismiss ? (
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={onDismiss}
-          >
-            Close generator
-          </button>
+          <IconKey label="Close generator" onClick={onDismiss}>
+            <IconX size={16} />
+          </IconKey>
         ) : null}
-      </div>
+      </FormCommit>
     </div>
   );
 }

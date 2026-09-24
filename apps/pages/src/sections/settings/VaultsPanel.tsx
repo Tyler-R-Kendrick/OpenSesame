@@ -11,7 +11,6 @@
  * switcher forked the key silently.
  */
 
-import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import {
   type DeviceVault,
   removeVault,
@@ -54,11 +53,6 @@ export function VaultsPanel() {
       <div className="panel__head">
         <div>
           <h2>Vaults on this device</h2>
-          <p className="hint">
-            {status === "unlocked"
-              ? "Names are read from the open vault; a locked one keeps its own. Switching locks this one unless the vault shares its key."
-              : "Names are sealed inside each vault until it is opened."}
-          </p>
         </div>
       </div>
       <div className="panel__body">
@@ -133,7 +127,7 @@ export function VaultsPanel() {
           }}
         >
           <label htmlFor="vaults-new-name">Seal a new vault</label>
-          <div className="identifier__row">
+          <div className="field-inline">
             <input
               id="vaults-new-name"
               type="text"
@@ -180,10 +174,6 @@ export function VaultsPanel() {
             <span>{error}</span>
           </p>
         ) : null}
-        <p className="hint">
-          The {PERSONAL_PROJECT_ID} vault is this device's default and cannot be
-          deleted.
-        </p>
       </div>
     </section>
   );

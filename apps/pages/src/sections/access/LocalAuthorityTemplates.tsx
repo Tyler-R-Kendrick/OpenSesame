@@ -5,6 +5,7 @@ import {
   listAudienceTemplates,
 } from "@opensesame/os-domain/authority-templates";
 import { useId, useState } from "react";
+import { StatusMark } from "../../components/StatusMark.js";
 
 function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return "—";
@@ -13,9 +14,13 @@ function formatDuration(ms: number | undefined): string {
   return `${Math.round(hours / 24)}d`;
 }
 
+/** A claim's support is a status: a glyph whose sentence is its name. */
 function SupportStatus({ status }: { status: string }) {
   return (
-    <span className="access-policy-badge">{status.replaceAll("_", " ")}</span>
+    <StatusMark
+      tone={status === "unsupported" ? "idle" : "warn"}
+      label={status.replaceAll("_", " ")}
+    />
   );
 }
 
@@ -104,25 +109,7 @@ export function LocalAuthorityTemplates() {
             ))}
           </select>
         </label>
-        {selected ? (
-          <>
-            <TemplateDetail template={selected} />
-            <div className="found__do">
-              <button
-                type="button"
-                className="btn btn--primary"
-                aria-live="polite"
-                onClick={() => setSelectedId(selected.id)}
-              >
-                Use {selected.label} defaults
-              </button>
-            </div>
-            <output className="hint">
-              Selected: {selected.id} — defaults only; enforcement follows wired
-              adapters, not this label.
-            </output>
-          </>
-        ) : null}
+        {selected ? <TemplateDetail template={selected} /> : null}
       </div>
     </section>
   );

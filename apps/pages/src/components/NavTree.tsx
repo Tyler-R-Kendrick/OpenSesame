@@ -33,7 +33,7 @@ import { SettingsTree } from "./SettingsTree.js";
 import { type VaultCounts, VaultRail } from "./VaultRail.js";
 import { openContextMenu } from "./context-menu/menu-model.js";
 import { railMenu, railRowAt } from "./context-menu/rail-menu.js";
-import { useRailCursor } from "./rail-cursor.js";
+import { useRailCursor, useRailCursorFollowsRoute } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
@@ -244,6 +244,10 @@ export function NavTree() {
   const counts = useVaultCounts(items);
 
   useRailKeyboard(treeRef, navigateRef, currentToRef);
+  useRailCursorFollowsRoute(
+    treeRef,
+    location.pathname + location.search + location.hash,
+  );
   const cursorId = useRailCursor();
 
   return (

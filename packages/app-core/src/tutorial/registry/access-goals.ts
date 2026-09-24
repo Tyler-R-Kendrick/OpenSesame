@@ -13,26 +13,12 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "access.grant"',
-      'say "A grant is a delegation. The agent receives a handle, never the credential behind it."',
+      'say "A share is a grant. The person or agent it is for gets use of it under a policy, never the credential behind it."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/access"',
       'wait route "/access" timeout=15000',
-      'focus "access.grant-access" "This starts the ceremony: what is shared, how narrowly, and who it is for." side=bottom',
+      'focus "access.grant-access" "This opens a share: who it is for, what it opens, how narrowly, and for how long." side=bottom',
       'wait target "access.grant-ceremony" event=appear timeout=60000',
-    ].join("\n"),
-  },
-  {
-    id: "access.claim",
-    title: "Claim a grant",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "access.claim"',
-      'say "In Access → Grants, choose Claim access. Enter the token and code, review the offered scope, then accept. Presentation is single-use."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
-      "end",
     ].join("\n"),
   },
   {
@@ -85,7 +71,7 @@ export const ACCESS_HELP: readonly HelpTopic[] = [
     id: "help.access.grant",
     title: "How do I give an agent access to something?",
     answer:
-      "Access → Grants → Grant access. You choose what is being shared, narrow what may be done with it, decide who it is for, and mint a claim code. The agent receives a delegation, never the credential behind it.",
+      "Access → Grants → the add key on Identity shares. You choose who it is for, what is shared, the policy it runs under and how long it lasts. The person or agent gets use of it, never the credential behind it.",
     routes: [],
     goal: "access.grant",
     keywords: [

@@ -14,7 +14,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { IconSupport, IconX } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconSupport, IconTrash, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
@@ -200,7 +201,7 @@ export function SupportPanel(): ReactElement {
                         <button
                           key={walkthrough.goal}
                           type="button"
-                          className="btn btn--sm"
+                          className="btn btn--sm choice"
                           onClick={() =>
                             void support.startGuide(named.guide, "authored")
                           }
@@ -232,28 +233,22 @@ export function SupportPanel(): ReactElement {
 
           {view.transcript.length > 0 ? (
             <div className="actions">
-              <button
-                type="button"
-                className="btn btn--sm btn--ghost"
+              <IconKey
+                label="Clear conversation"
+                small
                 onClick={() => support.clear()}
               >
-                Clear conversation
-              </button>
+                <IconTrash size={16} />
+              </IconKey>
             </div>
           ) : null}
 
           {view.thinking ? (
             <div className="support__pending">
               <output className="support__pending-read">Thinking…</output>
-              <button
-                type="button"
-                className="icon-btn icon-btn--sm"
-                onClick={() => support.cancel()}
-                aria-label="Cancel"
-                title="Cancel"
-              >
+              <IconKey label="Cancel" small onClick={() => support.cancel()}>
                 <IconX size={16} />
-              </button>
+              </IconKey>
             </div>
           ) : null}
 
