@@ -69,9 +69,7 @@
           "report": ".travel__notice"
         },
         {
-          "count": [
-            ".vault-row"
-          ]
+          "count": [".vault-row"]
         },
         {
           "shot": "390-travel-departed"
