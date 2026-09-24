@@ -1,4 +1,11 @@
-import { HUMAN_CEREMONY, OPS_PLANE, PAGES_HAS_NO_HOST } from "./exclusions.js";
+import {
+  AUTH_CEREMONY,
+  HUMAN_CEREMONY,
+  NEVER_AGENT_SECRET,
+  OPS_PLANE,
+  PAGES_HAS_NO_HOST,
+  PM_PLANE,
+} from "./exclusions.js";
 import type { Capability } from "./index.js";
 
 /**
@@ -104,5 +111,132 @@ export const nativeHostCapabilities: readonly Capability[] = [
       webmcp: null,
     },
     excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+
+  {
+    id: "host.auth.doctor",
+    title: "Diagnose the local sign-in state",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame auth doctor",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+  {
+    id: "leases.acquire",
+    title: "Acquire or revoke a short-lived credential lease",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame lease",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+      webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "connections.import",
+    title: "Import non-secret connection configuration",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame import",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+  {
+    id: "files.crypto",
+    title: "Encrypt or decrypt a file without plaintext in argv or stdout",
+    plane: "client_local",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame crypto",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "config_files.print",
+    title: "Print the native project configuration files",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame config-files",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "env_spec.init",
+    title: "Start a project's .env.schema",
+    plane: "client_local",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame init",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "env_spec.dev",
+    title: "Resolve and run a project's environment",
+    plane: "client_local",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame dev",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "pm_bridges.install",
+    title: "Install a password-manager bridge for a browser",
+    plane: "client_local",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame bridge install",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: PM_PLANE },
+  },
+  {
+    id: "sync.cursor.read",
+    title: "Read this device's sync cursor",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+      extension: "message:opensesame.sync_cursor",
+    },
   },
 ];
