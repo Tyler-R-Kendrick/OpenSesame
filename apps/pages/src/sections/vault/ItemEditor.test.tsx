@@ -400,9 +400,10 @@ describe("ItemEditor", () => {
     });
   });
 
-  it("starts with an explicit all-domains rule and saves its removal without restoring it", async () => {
+  it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
     renderNew();
-    expect(inputByLabel("Address 1").value).toBe("*");
+    // A drafted `*` wildcard offered the login on every site it was saved for.
+    expect(inputByLabel("Address 1").value).toBe("");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));

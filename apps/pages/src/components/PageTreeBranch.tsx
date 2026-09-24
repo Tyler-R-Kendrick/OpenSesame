@@ -106,6 +106,11 @@ export function PageTreeBranch({
   const selected =
     rowSelected(current, node) || (!expanded && current === node.config);
   const shown = pageTreeItemCount(node) || "-";
+  // Nothing to open: a row with no entries and no empty line of its own is
+  // a place, not a directory — no caret, no "-" count (Settings › Danger).
+  if (!children && !empty && !node.collection && node.children.length === 0) {
+    return <PageTreeLeafRow node={node} level={level} current={current} />;
+  }
   return (
     <>
       <TreeRow
