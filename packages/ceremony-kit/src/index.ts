@@ -17,6 +17,27 @@
  */
 
 export {
+  type AuthenticatorInvocation,
+  AuthenticatorInvocationError,
+  parseAuthenticatorInvocation,
+} from "./authenticator-invocation.js";
+export {
+  AUTHENTICATOR_INVOCATION_KINDS,
+  type AuthenticatorInvocationKind,
+  CEREMONY_ROUTES,
+  type CeremonyRoute,
+  type CeremonyRouteId,
+  ceremonyPath,
+  ceremonyRoutePrefix,
+  type InvokeKind,
+  invokeKind,
+  isAuthenticatorInvocationKind,
+  LEGACY_LINKS,
+  type LegacyLinks,
+  type LegacyLinkShape,
+  matchCeremonyPath,
+} from "./ceremony-routes.js";
+export {
   parseUserCode,
   readFragmentToken,
   scrubFragment,
@@ -30,6 +51,8 @@ export {
   approveDevice,
   type ApproveDeviceInput,
   CeremonyRequestError,
+  type DeviceApproval,
+  deviceApprovalWords,
 } from "./device.js";
 export {
   assertNoForbiddenParams,

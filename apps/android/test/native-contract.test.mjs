@@ -80,3 +80,28 @@ test("issuance refuses redirects and requires a remote HTTPS attestation service
   assert.match(runtime, /WALLET_BACKEND_URL\.startsWith\("https:\/\/"\)/u);
   assert.doesNotMatch(runtime, /OpenID4VCILocalBackend/u);
 });
+
+test("app links and OID4VC schemes follow spec/config/ceremony-routes.json", async () => {
+  const manifest = await read("android/app/src/main/AndroidManifest.xml");
+  const { routes } = JSON.parse(
+    await read("../../spec/config/ceremony-routes.json"),
+  );
+  const prefixOf = (path) => {
+    const open = path.indexOf("{");
+    return open === -1 ? path : path.slice(0, open);
+  };
+  const prefixes = Object.values(routes).map(({ path }) => prefixOf(path));
+  const registered = [
+    ...manifest.matchAll(/android:pathPrefix="([^"]*)"/gu),
+  ].map(([, prefix]) => prefix);
+  assert.ok(registered.length > 0, "the manifest registers an app link");
+  for (const prefix of registered) {
+    assert.ok(prefixes.includes(prefix), `${prefix} is not a ceremony route`);
+  }
+  const invoke = prefixOf(routes.invoke.path);
+  assert.ok(registered.includes(invoke), `${invoke} is not an app link`);
+  for (const kind of ["oid4vp", "oid4vci"]) {
+    const scheme = routes.invoke.kinds[kind].app.split(":")[0];
+    assert.match(manifest, new RegExp(`android:scheme="${scheme}"`, "u"));
+  }
+});

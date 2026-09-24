@@ -3,6 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import type { AppContext } from "./context.js";
+import { INTERACTION_ROUTE } from "./interactions/rendezvous.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
 import { publicAuthenticationCors } from "./middleware/public-auth-cors.js";
@@ -198,7 +199,7 @@ export function createHonoApp(
   // (ADR 0086 §2): `https://<host>/i/<ref>`. Unauthenticated because a
   // camera, a wallet pass and a pasted link all arrive here with nothing;
   // it answers with an InteractionSummary, which authorizes nothing.
-  app.route("/i", createInteractionLinkRoutes());
+  app.route(INTERACTION_ROUTE, createInteractionLinkRoutes());
   app.route("/", agentAuthRoutes);
   app.route("/", discoveryRoutes);
   app.route("/v1/support", supportRoutes);
