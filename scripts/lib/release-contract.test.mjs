@@ -145,7 +145,7 @@ describe("release workflow wiring", () => {
       new URL("../../.github/workflows/ci.yml", import.meta.url),
       "utf8",
     );
-    expect(ci).toContain("node scripts/check-pr-signatures.mjs");
+    expect(ci).toContain("node scripts/release/check-pr-signatures.mjs");
     expect(ci).toContain("pull-requests: read");
     expect(ci.indexOf("check-pr-signatures.mjs")).toBeLessThan(
       ci.indexOf("- name: Install"),

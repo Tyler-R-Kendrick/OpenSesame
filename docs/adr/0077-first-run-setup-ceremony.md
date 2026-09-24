@@ -16,7 +16,7 @@ ADR 0065 ([agent-surface parity](0065-agent-surface-parity.md))
 
 `apps/pages` ships to GitHub Pages as a static bundle. A static deploy bakes no
 `VITE_*` endpoints, and `os-runtime-config.json` is written by
-`scripts/deploy-pages.sh` only where an operator ran it — so the common case for
+`scripts/release/deploy-pages.sh` only where an operator ran it — so the common case for
 a fresh deployment is: **no Identity API, no Host API, no daemon.**
 
 The screen that met that case reported it. `UnconfiguredIdentityNotice` rendered
@@ -134,7 +134,7 @@ what it does, its sentence beside it in the margin voice — not a wide text
 button. The first cut used a full-width `.btn--primary`, which is the *other*
 primary pattern (the one for actions inside a card) and read as a banner. Both
 patterns are now named in [`docs/design/controls.md`](../design/controls.md),
-`.go` is defined once in `styles.css`, and `scripts/design-lint.mjs` holds new
+`.go` is defined once in `styles.css`, and `scripts/quality/design-lint.mjs` holds new
 code to the contract from the `pre-commit` hook and a Claude Code `PostToolUse`
 hook.
 
@@ -142,7 +142,7 @@ The alternative — one scrolling checklist of expand-in-place rows, which is th
 connectivity bar's existing vocabulary — was drawn and rejected: on a phone an
 expanded row pushes the finishing action off screen, so the one control that
 ends setup moves whenever something opens. Both are on the canvas at
-`docs/design/first-run-setup/`.
+`docs/design/canvases/first-run-setup/`.
 
 ### 7. The ceremony is never agent-reachable
 

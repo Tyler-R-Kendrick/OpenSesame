@@ -6,7 +6,7 @@
  * already holds; the Host is authoritative for grants, budgets, revocation state
  * and provider actuation. So the generalized grant, its permission entries and
  * its budgets are **not** here — they live in the Host store
- * (`migrations/0034_general_authority.sql`). What is here is the membership
+ * (`crates/storage/migrations/0034_general_authority.sql`). What is here is the membership
  * provenance Identity owns, and one row per projected Host fact recording how far
  * this side has caught up.
  *

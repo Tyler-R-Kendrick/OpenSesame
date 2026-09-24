@@ -32,7 +32,7 @@
       "title": "The OpenFGA model delta is additive",
       "statement": "New types and relations may only add reachable tuples. No check that returned true against the baseline model may return false against the delta.",
       "owner": "GA-F",
-      "enforcementPoint": "policy/openfga/model.fga + an additivity test harness",
+      "enforcementPoint": "spec/openfga/model.fga + an additivity test harness",
       "status": "ratified",
       "evidence": null,
       "notes": "authority-fabric evidence 2026-09-15"

@@ -1,5 +1,5 @@
 //! The realm boundary and the correlated-entry shape, as the database enforces
-//! them (`migrations/0034_general_authority.sql`).
+//! them (`crates/storage/migrations/0034_general_authority.sql`).
 //!
 //! Each test here is one of the adversarial cases the storage swarm was asked to
 //! answer: a parent in another realm, a domain that outlives its own termination,

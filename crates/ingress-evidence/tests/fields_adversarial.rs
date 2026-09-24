@@ -1,5 +1,5 @@
 //! SEC-FUZZ — the RFC 9440 field decoder, driven the way
-//! `fuzz/fuzz_targets/transport_ingress_fields.rs` drives it, but in the
+//! `tests/fuzz/cargo/fuzz_targets/transport_ingress_fields.rs` drives it, but in the
 //! ordinary test suite so the oracle runs on every build rather than only
 //! under a nightly sanitizer.
 //!

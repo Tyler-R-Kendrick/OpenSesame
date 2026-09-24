@@ -12,7 +12,7 @@ Supersedes in part:
 [ADR 0052 — automatic certificate authority selection](0052-automatic-certificate-authority-selection.md)
 § "ACME profile", **only** its refusal of automatic certificate deployment, and
 only under the constraints of §2 below.
-Plan: [docs/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 

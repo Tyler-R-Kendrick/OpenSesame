@@ -6,7 +6,7 @@ pub fn policy_version_digest() -> String {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
     h.update(OPENFGA_MODEL_ID.as_bytes());
-    h.update(include_str!("../../../policy/openfga/model.fga").as_bytes());
+    h.update(include_str!("../../../spec/openfga/model.fga").as_bytes());
     format!("sha256:{:x}", h.finalize())
 }
 
@@ -16,7 +16,7 @@ mod tests {
 
     /// The deployed policy text, as `policy_version_digest` reads it.
     fn model() -> &'static str {
-        include_str!("../../../policy/openfga/model.fga")
+        include_str!("../../../spec/openfga/model.fga")
     }
 
     #[test]

@@ -5,7 +5,7 @@ import { safeAgentAuthReturnTo } from "../ui/agent-auth-pages.js";
 
 /**
  * Seeded parser fuzz for AgentAuth request discriminators and return_to.
- * Lives next to the routes rather than packages/fuzz so it can drive Hono
+ * Lives next to the routes rather than tests/fuzz/jazzer so it can drive Hono
  * without inverting the package dependency graph. The Jazzer targets cover
  * the token and contract parsers.
  */

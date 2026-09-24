@@ -1,8 +1,8 @@
 # Threat model — Wallet spending authority (stub)
 
 Companion to [ADR 0123](../adr/0123-wallet-spending-authority.md).
-Product overview: [wallet spending](../wallet-spending.md).
-Compatibility evidence: [protocol compatibility](../wallet-protocol-compatibility.md).
+Product overview: [wallet spending](../operators/wallet-spending.md).
+Compatibility evidence: [protocol compatibility](../reference/wallet-protocol-compatibility.md).
 
 This is an **initial stub**: enough structure to extend as adapters land.
 Do not treat rows below as completed reviews or as proof that a profile is

@@ -307,7 +307,7 @@
    A row per unlock method or second step, in the switch row the rest of
    Settings uses: a name with its glyph and state chip, one line under it,
    and exactly one action. A row never holds an input; every form lives in
-   the sheet the action opens (docs/design/auth-flow). */
+   the sheet the action opens (docs/design/canvases/auth-flow). */
 .sw--method {
   align-items: center;
   padding: 0.7rem 0;

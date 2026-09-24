@@ -25,6 +25,7 @@ import {
   MODEL_PLANE_REDIRECT,
   NEVER_AGENT_SECRET,
   OPS_PLANE,
+  PAGES_HAS_NO_HOST,
   PM_PLANE,
 } from "./exclusions.js";
 import { generalAuthorityCapabilities } from "./general-authority.js";
@@ -43,10 +44,10 @@ import { sharedSessionCapabilities } from "./shared-sessions.js";
  *           "opensesame-id claim poll"); apps/cli and packages/cli parity
  *           tests assert the tokens exist in the clap/arg-parser sources.
  * - pwa:    "lib|vault-core/<file>.ts:<export>" for an app core, shell or
- *           kernel seam the pages sweep import-checks, "route:/section[/sub]"
- *           for a pages route, or "pwa-app:<surface>" for the apps/pwa shell.
+ *           kernel seam the pages sweep import-checks, or "route:/section[/sub]"
+ *           for a pages route.
  * - mcp_host / mcp_client: the MCP tool name on that server.
- * - webmcp: the document.modelContext tool name (pwa unless "pwa-app:*").
+ * - webmcp: the document.modelContext tool name the Pages PWA registers.
  */
 
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
@@ -107,11 +108,12 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame status",
-      pwa: "pwa-app:health",
+      pwa: null,
       mcp_host: "host_ready",
       mcp_client: "host_health",
-      webmcp: "opensesame_pwa_health",
+      webmcp: null,
     },
+    excluded: { pwa: PAGES_HAS_NO_HOST, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "host.health.pages",
@@ -177,11 +179,12 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame daemon status",
-      pwa: "pwa-app:daemon-probe",
+      pwa: null,
       mcp_host: "daemon_health",
       mcp_client: null,
-      webmcp: "opensesame_pwa_health",
+      webmcp: null,
     },
+    excluded: { pwa: PAGES_HAS_NO_HOST, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "daemon.lifecycle",
@@ -1350,12 +1353,16 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: "opensesame-id login",
-      pwa: "pwa-app:sign-in",
+      pwa: "lib/federation.ts:beginSignIn",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_open_sign_in",
+      webmcp: null,
     },
-    excluded: { mcp_host: AUTH_CEREMONY, mcp_client: AUTH_CEREMONY },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
   },
   {
     id: "identity.signout",
@@ -1833,19 +1840,6 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   {
-    id: "pwa.status",
-    title: "Thin PWA session status",
-    plane: "client_local",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: "pwa-app:status",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: "opensesame_pwa_status",
-    },
-  },
-  {
     id: "app.install",
     title: "Install the PWA on this device",
     plane: "client_local",
@@ -1896,37 +1890,14 @@ export function mcpClientCatalog(): readonly string[] {
   return surfaceNames("mcp_client");
 }
 
-/** Every WebMCP tool name the registry demands, across both PWAs. */
+/** Every WebMCP tool name the registry demands. */
 export function webmcpCatalog(): readonly string[] {
   return surfaceNames("webmcp");
 }
 
-function isPwaAppSurface(capability: Capability): boolean {
-  return capability.surfaces.pwa?.startsWith("pwa-app:") ?? false;
-}
-
-/** WebMCP tool names owned by apps/pages (the authority vault). */
+/** WebMCP tool names the Pages PWA registers: the whole WebMCP catalog. */
 export function webmcpPagesCatalog(): readonly string[] {
-  const names = new Set<string>();
-  for (const capability of CAPABILITIES) {
-    const name = capability.surfaces.webmcp;
-    if (name && !isPwaAppSurface(capability)) {
-      names.add(name);
-    }
-  }
-  return [...names].sort();
-}
-
-/** WebMCP tool names owned by apps/pwa (the thin shell). */
-export function webmcpPwaCatalog(): readonly string[] {
-  const names = new Set<string>();
-  for (const capability of CAPABILITIES) {
-    const name = capability.surfaces.webmcp;
-    if (name && isPwaAppSurface(capability)) {
-      names.add(name);
-    }
-  }
-  return [...names].sort();
+  return webmcpCatalog();
 }
 
 /** Capabilities deliberately withheld from a surface, for docs and audits. */

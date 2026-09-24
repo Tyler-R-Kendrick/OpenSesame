@@ -7,7 +7,7 @@
 // optional capability, and the moment a person adds one through Settings ›
 // Capabilities it is there. An absence alone proves nothing — a section can
 // vanish because it crashed — so each capability is checked both ways.
-// Always-on capabilities (ADR 0135, 0138) are the opposite claim: present
+// Always-on capabilities (ADR 0135, 0139) are the opposite claim: present
 // with nothing chosen, and never offered a switch.
 
 import {
@@ -22,7 +22,7 @@ const GATED_RAIL_ROWS = ["wallet/"];
 
 /**
  * Rail rows of always-on capabilities (ADR 0135): there before any choice.
- * Identity is browser-local IAM's, always on since ADR 0138.
+ * Identity is browser-local IAM's, always on since ADR 0139.
  */
 const ALWAYS_ON_RAIL_ROWS = [
   "identity/",

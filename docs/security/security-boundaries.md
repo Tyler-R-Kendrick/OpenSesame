@@ -29,5 +29,5 @@
     malicious JavaScript already executing at an approved origin.
 
 Implementation and checkpoint evidence:
-[Host authority review](audit-2026-09-08-host-authority.md). Pending verification
+[Host authority review](audits/2026-09-08-host-authority.md). Pending verification
 in that record is not implied complete by this boundary summary.

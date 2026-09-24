@@ -20,12 +20,11 @@ dual-plane system with a **host/client** product topology (see
   [ADR 0053](docs/adr/0053-pm-bridge-binaries.md)).
 - **Client plane (Rust → Wasm + TS)** — `client-core` E2EE sync +
   `packages/api-client` (Host API TS client). Browser extension
-  `apps/browser-extension` (WXT), PWA `apps/pwa`, offline GitHub Pages PWA
-  `apps/pages`, Client CLI `packages/cli` (binary `opensesame-id`), MCP
+  `apps/browser-extension` (WXT), offline GitHub Pages PWA `apps/pages`, Client CLI `packages/cli` (binary `opensesame-id`), MCP
   servers `apps/mcp-client` / `apps/mcp-host`.
 - **Identity plane (TypeScript)** — Identity API `apps/control-plane`
   (`:8788`, Hono + Better Auth + oidc-provider), mock upstream IdP
-  `apps/mock-upstream-idp` (`:9090`).
+  `tools/mock-upstream-idp` (`:9090`).
 
 Identity and Host APIs are kept **deliberately separate** — no BFF merge.
 Canonical principals live in OpenSesame domain models
@@ -56,12 +55,12 @@ pnpm lint:design         # control contract (docs/design/controls.md)
 pnpm lint:all            # full-repository Biome + anti-slop audit
 pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail
 pnpm quality             # structural + component-coupling gates (both ratchets)
-pnpm quality:gate        # module size (400) + TS complexity; ratchets quality-baseline.json
+pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
-pnpm quality:bundle      # build apps/pages|pwa|console, check bundle-budgets.json
+pnpm quality:bundle      # build apps/pages|pwa|console, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
 pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
@@ -70,23 +69,23 @@ pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
 pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
 pnpm test:security       # @opensesame/testing test:security
-pnpm test:task-access    # scripts/task-security-battle-test.sh
+pnpm test:task-access    # scripts/test/task-security-battle-test.sh
 pnpm test:redteam        # @opensesame/redteam structural pact suite
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
-pnpm test:nats-dogfood   # scripts/nats-dogfood-test.sh (spins up real nats-server)
-pnpm test:live-stack     # scripts/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
-pnpm test:mtls           # scripts/mtls-test.sh — native transport-security + TS contract suites, no fixtures
-pnpm test:mtls:integration # scripts/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
-                          #   fixtures (scripts/mtls-fixtures.sh); fails, never skips, when a fixture is absent
-pnpm test:mtls:browser   # scripts/mtls-browser-test.mjs — Playwright clientCertificates against the
+pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
+pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
+pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
+pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
+                          #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
+pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates against the
                           #   ingress reference, plus the static app with no certificate
-pnpm test:mtls:fixtures  # scripts/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
+pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:all            # typecheck + test + test:integration
 
 # Test-depth suites (none of these are in `pnpm verify`)
 pnpm test:coverage       # TS (v8, 94/88/94/95 floors + 50% per-pkg lines) + Rust (llvm-cov) — docs/validation/test-coverage.md
-pnpm test:coverage:ts    # scripts/ts-coverage-gate.mjs; floors ratchet, never lower
+pnpm test:coverage:ts    # scripts/quality/ts-coverage-gate.mjs; floors ratchet, never lower
 pnpm test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
 pnpm test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files
 pnpm test:mutation:ts    # stryker run → artifacts/mutation/typescript.json
@@ -99,9 +98,9 @@ pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
 pnpm verify              # changed-file lint + anti-slop lint/plugin tests
                           #   + rustfmt/full-feature Clippy + test:all
                           #   + cargo +1.88.0 test --workspace --all-targets
-                          #   + ./scripts/battle-test.sh — full local gate
+                          #   + ./scripts/test/battle-test.sh — full local gate
 
-# Security/audit gates (each backed by scripts/*-gate.sh)
+# Security/audit gates (each backed by scripts/audit/*-gate.sh)
 pnpm audit:cve-lite
 pnpm audit:ast-grep
 pnpm audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
@@ -112,9 +111,9 @@ pnpm audit:semgrep
 pnpm audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
 pnpm audit:fuzz             # cargo-fuzz short pass (not in verify)
 pnpm audit:fuzz:batch       # cargo-fuzz long batch over all targets (not in verify)
-pnpm audit:kani             # bounded proofs (scripts/kani-gate.sh)
-pnpm audit:miri             # UB checks (scripts/miri-gate.sh)
-pnpm audit:shuttle          # concurrency model checks (scripts/shuttle-gate.sh)
+pnpm audit:kani             # bounded proofs (scripts/audit/kani-gate.sh)
+pnpm audit:miri             # UB checks (scripts/audit/miri-gate.sh)
+pnpm audit:shuttle          # concurrency model checks (scripts/audit/shuttle-gate.sh)
 pnpm test:fuzz              # Jazzer.js short pass (not in verify)
 ```
 
@@ -213,6 +212,20 @@ mutation broadcasts an outbox event; the gateway's backup actor persists a
 full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 4. Layout map
 
+Top level: `apps/` (deployables), `crates/` (Rust libraries), `packages/`
+(TypeScript libraries), `examples/` (runnable integrations on public SDKs
+only), `marketplace/` (vault item-type definitions: `item-types/builtin/` is
+embedded by both planes, `item-types/optional/` is indexed by
+`.opensesame/marketplace.json`), `spec/` (WIT, Host OpenAPI, OpenFGA model,
+connector manifests), `tests/` (cross-cutting suites and shared fixtures),
+`tools/` (lint plugins, quality ledgers in `tools/quality/`, mutation configs,
+scanner rules, the mock IdP), `scripts/` (what `pnpm` tasks run, one folder
+per purpose: `quality/`, `audit/`, `fuzz/`, `test/`, `mtls/`, `release/`,
+`dev/`, `wallet/`, shared logic in `lib/`), `ops/`
+(compose, ingress, NATS, governance, routines), `skills/`, `docs/`. Each has a
+`README.md`; `docs/getting-started/repository-tour.md` says where things go.
+Do not add new top-level directories or loose root files — find the group.
+
 | Path | Role |
 |------|------|
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
@@ -246,13 +259,12 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
-| `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass, Secret Service) — per-surface cargo features, all default off (ADR 0052/0053) |
+| `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no binary yet) — per-surface cargo features, all default off (ADR 0052/0053) |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
-| `apps/credential-agent` | Legacy credential agent (`opensesame-credential-agent`) |
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
 | `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
-| `apps/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
-| `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
+| `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
+| `apps/mobile-mfa` | Step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
@@ -261,12 +273,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Background worker |
 | `apps/browser-extension` | WXT browser extension |
-| `apps/example-rp-alpha` / `apps/example-rp-beta` | Example relying-party apps |
-| `apps/example-agent` / `apps/example-headless` | Example agent / headless client |
+| `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
-| `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
-| `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
+| `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
+| `packages/vault-item-types` | Vault item types: embeds the built-in corpus (`marketplace/item-types/builtin/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |
 | `packages/api-client` | Host API TS client |
@@ -280,19 +291,21 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/sdk-browser` / `sdk-server` / `sdk-cli` | Client SDKs |
 | `packages/agent-protocols` | Agent-facing protocol adapters |
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
-| `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
 | `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
-| `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
+| `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages` tools |
 | `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
 | `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
-| `packages/config` | Shared tsconfig |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
-| `wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
-| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs; competitor references under `docs/competitors/`; ecosystem research under `docs/research/` |
+| `spec/wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
+| `spec/openapi/host-api.yaml`, `spec/openfga/`, `spec/connectors/` | Host OpenAPI, OpenFGA model + baseline tuples, connector parity table and reference manifest |
+| `crates/storage/migrations/` | Host SQL migrations, embedded by `crates/storage` |
+| `tests/fuzz/{cargo,jazzer,clusterfuzzlite}`, `tests/redteam`, `tests/visual-contract`, `tests/fixtures` | Fuzzing, MCP red team, visual regression, shared fixtures |
+| `tools/quality/`, `tools/mutation/`, `tools/security/` | Ratchet ledgers and budgets, Stryker configs, ast-grep rules and negative controls |
+| `docs/` | Start at `docs/README.md`. `getting-started/`, `architecture/`, `adr/` (index generated by `pnpm docs:index`), `operators/`, `reference/`, `design/`, `security/` (audits in `security/audits/`), `validation/`, `evidence/`, `implementation/`, `research/` (competitors in `research/competitors/`), `contributing/`, `archive/` |
 
 ## 5. Design rules that gate merges
 
@@ -373,7 +386,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0138).
+  0001–0139).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -532,7 +545,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   definition it offers meets ADR 0087's parser and registry — and it is read
   only when a person opens it.
 - A vault item type is a manifest, never a code path. Adding one is a JSON
-  file in `packages/vault-item-types/definitions/` (embedded by both planes),
+  file in `marketplace/item-types/builtin/` (embedded by both planes),
   and a user can install one at runtime with no build. Fields name types from
   the closed catalogue; a concealed field may never reach `subtitle`, `search`,
   or a VFS filename; only a platform-published definition may name a ceremony
@@ -577,12 +590,12 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
   Most functions are **always-on** (`alwaysOn` in
-  `catalog-always-on.ts` and `catalog-always-on-local.ts`, ADR 0135/0138):
+  `catalog-always-on.ts` and `catalog-always-on-local.ts`, ADR 0135/0139):
   core tier, never a switch, code still loaded as a module after boot.
   Anything that runs entirely in the browser-local default install
   (browser-local IAM, SIOP, the site broker, git backup) is always on, not an
   opt-in the page reports as "deselected" — and an operator's verified policy
-  may still withdraw an always-on capability that owns a module (ADR 0138). Settings › Capabilities is **one
+  may still withdraw an always-on capability that owns a module (ADR 0139). Settings › Capabilities is **one
   list of sections** (`FEATURES` in
   `packages/app-core/src/lib/capabilities/features.ts`), every one drawn as a
   `conn-group` subheader plus its tiles; a section with optional capabilities
@@ -619,7 +632,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `clippy.toml`, and scores every pnpm package and Cargo crate against Robert
   C. Martin's component principles. A dependency cycle (ADP) and an import of
   an undeclared workspace package are hard failures. Everything else ratchets
-  against `quality-baseline.json` and `package-metrics-baseline.json`: a file
+  against `tools/quality/quality-baseline.json` and `tools/quality/package-metrics-baseline.json`: a file
   may not exceed its recorded number, **and a file that improves must have its
   baseline tightened in the same commit** (`pnpm quality:gate --update`). Never
   raise a recorded number to make the gate pass — split the file. New files get
@@ -634,10 +647,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   pill. Do not render an in-page error box (`note`, `conn-flash`, or a
   paragraph banner). Do not add explainer or caption prose. Pages copy never
   names a Host, and a browser-local connector action never asks the person to
-  pair one. `pnpm lint:design` (`scripts/design-lint.mjs`) rejects word-verb
+  pair one. `pnpm lint:design` (`scripts/quality/design-lint.mjs`) rejects word-verb
   buttons, status pills, and explainer captions; `impeccable detect`
   enforces the same design file. Both run in `.githooks/pre-commit`. The
-  word-verb ledger is `scripts/design-button-baseline.json` and only falls.
+  word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live
@@ -652,16 +665,17 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,
   `docs/security/identity-threat-model.md`,
   `docs/security/key-hierarchy.md` — architecture-level security docs.
-- `docs/security/audit-YYYY-MM-DD-<topic>.md` — a running series of
+- `docs/security/audits/YYYY-MM-DD-<topic>.md` — a running series of
   point-in-time audit docs, each documenting a specific vulnerability that
-  was found and fixed. Add a new dated file rather than editing history.
+  was found and fixed. Add a new dated file rather than editing history, then
+  `pnpm docs:index` (the index is checked by `pnpm quality`).
 - `docs/security/tooling-evaluation.md` — evaluation of the audit gate
   tooling.
 - Gate scripts (invoked via the `pnpm audit:*` scripts in §3):
-  `scripts/cve-lite-gate.sh`, `scripts/ast-grep-security-gate.sh`,
-  `scripts/clippy-gate.sh`, `scripts/osv-scanner-gate.sh`,
-  `scripts/cargo-audit-gate.sh`, `scripts/gitleaks-gate.sh`,
-  `scripts/semgrep-gate.sh`, `scripts/daemon-deps-gate.sh`.
+  `scripts/audit/cve-lite-gate.sh`, `scripts/audit/ast-grep-security-gate.sh`,
+  `scripts/audit/clippy-gate.sh`, `scripts/audit/osv-scanner-gate.sh`,
+  `scripts/audit/cargo-audit-gate.sh`, `scripts/audit/gitleaks-gate.sh`,
+  `scripts/audit/semgrep-gate.sh`, `scripts/audit/daemon-deps-gate.sh`.
 
 ### Codex Security checker
 
@@ -854,7 +868,7 @@ anything security-sensitive lands):
 ```bash
 pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
               #   + cargo +1.88.0 test --workspace --all-targets
-              #   + ./scripts/battle-test.sh
+              #   + ./scripts/test/battle-test.sh
 ```
 
 CI lives in `.github/workflows/`:
@@ -864,7 +878,7 @@ CI lives in `.github/workflows/`:
   `pnpm test`) and
   Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
   Bundle budgets job that builds `apps/pages`/`pwa`/`console` and checks
-  `bundle-budgets.json`. The default-branch ruleset requires all three checks
+  `tools/quality/bundle-budgets.json`. The default-branch ruleset requires all three checks
   and an up-to-date PR, with squash auto-merge; this personal-account repository
   does not support merge queues. Verify actual settings with
   `node ops/github/governance.mjs --verify`.
@@ -872,12 +886,12 @@ CI lives in `.github/workflows/`:
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check
   prove the live HTML/runtime configuration matches the exact source SHA.
-  `scripts/deploy-pages.sh` remains as the
+  `scripts/release/deploy-pages.sh` remains as the
   manual/local fallback publisher.
 
 CI is the merge gate, not the whole story: the heavier suites
 (`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks
 plus the commands above, supplemented by scheduled Claude Code sessions
-documented in `docs/operations/agent-routines.md`. Run the relevant
+documented in `docs/contributing/agent-routines.md`. Run the relevant
 `pnpm audit:*` gates (§3/§6) for changes touching auth, crypto, or
 dependency surfaces.

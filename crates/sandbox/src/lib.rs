@@ -77,7 +77,7 @@ pub use runtime::{KillSwitch, RunOutcome, Sandbox};
 /// authority it carries is `opensesame:core`'s: opaque handles, brokered
 /// invocation, no materialization.
 pub mod wit_contract {
-    /// The shared IR package (`wit/core/world.wit`).
+    /// The shared IR package (`spec/wit/core/world.wit`).
     pub const PACKAGE: &str = "opensesame:core@1.0.0";
 }
 

@@ -12,7 +12,7 @@ import { hasKdbxMagic, keepassKdbx, sanitiseSegment } from "./kdbx.js";
 const FIXTURE_PASSWORD = "correct horse battery staple";
 
 const FIXTURE_DIR = new URL(
-  "../../../../../../../fixtures/kdbx/",
+  "../../../../../../../tests/fixtures/kdbx/",
   import.meta.url,
 );
 const FIXTURE_KDBX = fileURLToPath(new URL("roundtrip.kdbx", FIXTURE_DIR));
@@ -138,7 +138,7 @@ describe("keepassKdbx.parse before a password is given", () => {
 
 /**
  * The sealed-store `Entry` shape, which is the form
- * `fixtures/kdbx/roundtrip.expected.json` is written in.
+ * `tests/fixtures/kdbx/roundtrip.expected.json` is written in.
  *
  * `crates/kdbx-bridge` maps a KDBX entry to `{ secret, trailer, otp }` keyed
  * by store path; this page maps the same entry to a `DraftItem`. The two
@@ -226,7 +226,7 @@ describe("kdbxweb's own handling of a tab inside a field value", () => {
 
 describe("keepassKdbx against the shared conformance fixture", () => {
   /**
-   * `fixtures/kdbx/roundtrip.kdbx` is written by `crates/kdbx-bridge`, whose
+   * `tests/fixtures/kdbx/roundtrip.kdbx` is written by `crates/kdbx-bridge`, whose
    * KDBX4 **writer is experimental**. This is the cross-implementation guard
    * on it: an independent reader (kdbxweb) opens the same bytes and has to
    * produce the same mapped entries. A round-trip test inside one

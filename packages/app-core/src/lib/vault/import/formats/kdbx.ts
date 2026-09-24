@@ -31,7 +31,7 @@
  *   taken gets ` (2)`, ` (3)`, … appended to its name.
  *
  * `crates/kdbx-bridge/README.md` is the normative statement of that contract;
- * `fixtures/kdbx/roundtrip.kdbx` is the file both sides are tested against.
+ * `tests/fixtures/kdbx/roundtrip.kdbx` is the file both sides are tested against.
  * - KeePassXC `KPEX_PASSKEY_*` attributes → a passkey item, best effort. The
  *   private key KeePassXC stores in the entry is deliberately not imported;
  *   this vault never holds one.

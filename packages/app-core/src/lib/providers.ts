@@ -11,7 +11,7 @@
  *    native SAML, LDAP — cannot be spoken from a browser at all. Those run the
  *    origin-profile code flow against the Identity API itself, which runs the
  *    upstream leg server-side and hands this tab an access token to adopt
- *    (C13). `apps/example-static-rp` is the proof that a site with no server
+ *    (C13). `examples/static-rp` is the proof that a site with no server
  *    can do exactly this.
  *
  * Nothing here is trusted on the strength of being in the list: the catalog

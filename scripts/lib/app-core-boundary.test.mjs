@@ -91,8 +91,8 @@ describe("findViolations", () => {
       [
         "src/lib/catalog.ts",
         [
-          'import parity from "../../../../connectors/fnox-parity.json";',
-          'const vault = "../../../../fixtures/kdbx/x.kdbx";',
+          'import parity from "../../../../spec/connectors/fnox-parity.json";',
+          'const vault = "../../../../tests/fixtures/kdbx/x.kdbx";',
           'import { oracle } from "../../scripts/sops-oracle/oracle.mjs";',
           'import { host } from "../host.js";',
         ].join("\n"),

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "The one evaluator for whether an approval stands: assurance, channel settlement and activation binding",
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
   },

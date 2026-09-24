@@ -1,6 +1,7 @@
 {
   "name": "@opensesame/console",
   "version": "0.1.0",
+  "description": "Identity console for the Identity API: sign-in, device approval, claims, task access and organization sign-in settings",
   "private": true,
   "type": "module",
   "scripts": {

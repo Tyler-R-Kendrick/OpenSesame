@@ -5,7 +5,7 @@
  * generic git / password-store, ADR 0090), and the repository picker on a
  * connector's settings page.
  *
- * Always on (ADR 0138): it runs entirely in the browser, and a git history
+ * Always on (ADR 0139): it runs entirely in the browser, and a git history
  * remote already defaults to GitHub, so the default installation has it.
  * Settings › Capabilities draws its tiles (the git providers) under Backups,
  * each with its own enable switch. Contributed: the backup observer as a
@@ -74,7 +74,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       start: (signal) => {
         if (signal.aborted) return;
         // Always on is not a way round the operator's network envelope
-        // (ADR 0135 §1, 0138): the one gate every caller shares.
+        // (ADR 0135 §1, 0139): the one gate every caller shares.
         if (!backupEgressGate.allowed()) return;
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {

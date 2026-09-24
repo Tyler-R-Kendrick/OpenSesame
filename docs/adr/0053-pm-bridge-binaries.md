@@ -77,7 +77,7 @@ crates (`crates/kdbx-bridge`, `crates/provider-bitwarden`, and the stretch
 points the other way or nowhere at all.
 
 The argument that this preserves the ADR 0048 §5 budget rests on what
-`scripts/daemon-deps-gate.sh` actually audits. Its scope, read from the
+`scripts/audit/daemon-deps-gate.sh` actually audits. Its scope, read from the
 script rather than remembered:
 
 1. **`opensesame-connection-detect`'s entire resolved tree** must be a

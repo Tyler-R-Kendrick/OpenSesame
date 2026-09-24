@@ -1,4 +1,4 @@
-import { handleCallback } from "../../callback.mjs";
+import { handleCallback } from "../../src/callback.mjs";
 
 export default async function handler(req, res) {
   const proto =

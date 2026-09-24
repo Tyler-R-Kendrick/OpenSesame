@@ -30,7 +30,7 @@ What already exists, and what does not:
 | Projects, memberships (owner/admin/member), optional sharing | ADR 0038, shipped |
 | Claim sessions — bearer link + out-of-band user code + TTL + single-use | `packages/claims`, shipped |
 | E2EE one-time sharing, payload sealed client-side | ADR 0062, shipped |
-| Relationship authorization, `vault_collection` reader/writer off `project` | `policy/openfga/model.fga`, shipped |
+| Relationship authorization, `vault_collection` reader/writer off `project` | `spec/openfga/model.fga`, shipped |
 | Deadline detection and a public `lifecycle.*` hook feed | ADR 0074, `crates/lifecycle`, shipped |
 | Durable webhook delivery with per-endpoint secret and retry | `webhook_endpoints` / `webhook_deliveries`, shipped |
 | **Session participants, invitations, join requests** | **do not exist** |
@@ -263,7 +263,7 @@ render a disabled control, and it does not fail after the fact.
 
 Implementation. No transport is built, no schema is migrated, and no OpenFGA
 tuple is written by this document. The companion design canvas
-(`docs/design/shared-sessions/`) draws the ceremonies and pages this argues
+(`docs/design/canvases/shared-sessions/`) draws the ceremonies and pages this argues
 for, so the shape and its security story can be reviewed before code exists.
 
 ## Rejected

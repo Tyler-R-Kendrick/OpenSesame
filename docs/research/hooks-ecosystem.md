@@ -19,7 +19,7 @@ makes a safe answer more reachable.
 There is no plugin runtime today, but the load-bearing parts of one exist
 as contracts and enforcement:
 
-- `wit/connector/world.wit` — the connector world (`opensesame:connector@1.0.0`)
+- `spec/wit/connector/world.wit` — the connector world (`opensesame:connector@1.0.0`)
   already defines the value-blind guest interface: exports `describe`/`invoke`
   over opaque `connection-handle`/`credential-handle` resources; imports only
   `host-http.authorized-request`, purpose-bound `host-crypto.sign`, and
@@ -35,7 +35,7 @@ as contracts and enforcement:
   was designed as one. The `wasm_guest` module is a stub;
   a wasmtime workspace pin sat unused until this work activated it (on
   the 36 LTS line; the original 33 pin carried RUSTSEC advisories).
-- `connectors/mock/connector.yaml` — a fully specified, unparsed declarative
+- `spec/connectors/mock/connector.yaml` — a fully specified, unparsed declarative
   connector manifest: OCI component digest, WIT world, `signaturesRequired`,
   `outbound.hosts`, per-operation `risk`/`sideEffect`/`approvalRecommended`.
 - The **outbox → claim-lease → deliver → compensate → dead-letter** saga
@@ -50,15 +50,15 @@ as contracts and enforcement:
   authority.
 - **Data-not-code extensibility precedent**: the provider catalog is data
   (ADR 0032 D3), custom providers are org-scoped metadata rows
-  (`migrations/0014_custom_providers.sql`), identity providers are flat-env
+  (`crates/storage/migrations/0014_custom_providers.sql`), identity providers are flat-env
   descriptors behind a single trust fence (ADR 0055).
 - **Default-off surfaces with mechanical gates**: per-surface cargo features
-  and `scripts/daemon-deps-gate.sh` (ADR 0053); MCP servers with static tool
+  and `scripts/audit/daemon-deps-gate.sh` (ADR 0053); MCP servers with static tool
   manifests and negative assertions (`assertsNoSecretTools`,
   `assertsNoMaterializeTool`).
 
 Third-party plugins were explicitly deferred "until allowed" (ADR 0006 §6,
-`REUSE.md`). This research is the homework for allowing them.
+`docs/reference/reuse.md`). This research is the homework for allowing them.
 
 ## 2. Ecosystem survey
 

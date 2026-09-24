@@ -14,14 +14,14 @@
 //! ## Running
 //!
 //! Every test is `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1`, which is
-//! the convention `scripts/mtls-integration-test.sh` drives:
+//! the convention `scripts/mtls/mtls-integration-test.sh` drives:
 //!
 //! ```text
 //! OPENSESAME_MTLS_FIXTURES=1 cargo +1.88.0 test -p opensesame-mtls-interop -- --ignored
 //! ```
 //!
 //! Pinned native binaries (`nats-server`, `bao`, `spire-server`,
-//! `spire-agent`, `caddy`) are resolved through `scripts/mtls-fixtures.sh`,
+//! `spire-agent`, `caddy`) are resolved through `scripts/mtls/mtls-fixtures.sh`,
 //! which verifies a sha256 pin before anything is executed.
 //!
 //! ## What a passing test here does and does not prove
@@ -61,9 +61,9 @@ pub fn repo_root() -> PathBuf {
 
 /// Resolve a pinned fixture binary.
 ///
-/// `scripts/mtls-integration-test.sh` exports `OPENSESAME_MTLS_BIN_*` for
+/// `scripts/mtls/mtls-integration-test.sh` exports `OPENSESAME_MTLS_BIN_*` for
 /// tools it has already fetched and verified; anything else goes through
-/// `scripts/mtls-fixtures.sh path <tool>`, which re-checks the sha256 pin
+/// `scripts/mtls/mtls-fixtures.sh path <tool>`, which re-checks the sha256 pin
 /// before printing a path. A tool that cannot be verified is an error, never
 /// a silent skip.
 ///
@@ -80,7 +80,7 @@ pub fn fixture_binary(tool: &str) -> Result<PathBuf> {
             return Ok(PathBuf::from(path));
         }
     }
-    let script = repo_root().join("scripts/mtls-fixtures.sh");
+    let script = repo_root().join("scripts/mtls/mtls-fixtures.sh");
     let (code, stdout, stderr) = proc::run_bounded(
         Command::new("/usr/bin/env")
             .arg("bash")
@@ -109,7 +109,7 @@ pub fn fixture_binary(tool: &str) -> Result<PathBuf> {
 ///
 /// The fixture script failed.
 pub fn fixture_version(tool: &str) -> Result<String> {
-    let script = repo_root().join("scripts/mtls-fixtures.sh");
+    let script = repo_root().join("scripts/mtls/mtls-fixtures.sh");
     let (code, stdout, stderr) = proc::run_bounded(
         Command::new("/usr/bin/env")
             .arg("bash")

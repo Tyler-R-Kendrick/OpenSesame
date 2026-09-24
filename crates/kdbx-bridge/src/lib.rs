@@ -10,7 +10,7 @@
 //!
 //! [`map_kdbx`] is the pure read-and-map half of the import: it never touches
 //! the store, which makes it the entry point for fuzzing and for the
-//! cross-implementation conformance fixture under `fixtures/kdbx/`.
+//! cross-implementation conformance fixture under `tests/fixtures/kdbx/`.
 //!
 //! ## Plane
 //!

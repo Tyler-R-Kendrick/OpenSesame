@@ -68,7 +68,7 @@ export function methodIcon(kind: MethodKind, size = 16): ReactNode {
  * The one sheet every method is added, changed or removed in — the side
  * sheet the Connectivity bar already opens, with a CeremonyShell card
  * inside. A row's action names what the sheet will do; the sheet's foot
- * says what is and is not written yet (docs/design/auth-flow).
+ * says what is and is not written yet (docs/design/canvases/auth-flow).
  */
 export function MethodSheet({
   request,

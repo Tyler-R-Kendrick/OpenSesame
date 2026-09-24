@@ -145,7 +145,7 @@ Deliberately. `apps/daemon` depends on none of `apps/pm-bridges`,
 `crates/provider-passbolt`, so none of their dependencies —
 `crypto_box`, `zbus`/`oo7`, `rpgp`, `reqwest`, `keepass` — enter its tree.
 
-`scripts/daemon-deps-gate.sh` audits `opensesame-connection-detect`'s full
+`scripts/audit/daemon-deps-gate.sh` audits `opensesame-connection-detect`'s full
 tree against a fixed allowlist, plus banned crates (`sqlx`, `oauth2`,
 `jsonwebtoken`, `chacha20poly1305`, `task-bus`) in the daemon's manifest
 and depth-1 resolved tree and in the `invoke-through` / `tailscale-authn` /
@@ -257,8 +257,8 @@ features on (`cargo +1.88.0 build -p opensesame-pm-bridges --features …`).
 
 Related: [ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md),
 [ADR 0053](../adr/0053-pm-bridge-binaries.md),
-[`docs/competitors/keepass.md`](../competitors/keepass.md),
-[`docs/competitors/passbolt.md`](../competitors/passbolt.md),
-[`docs/competitors/1password.md`](../competitors/1password.md),
-[`docs/competitors/bitwarden.md`](../competitors/bitwarden.md),
+[`docs/research/competitors/keepass.md`](../research/competitors/keepass.md),
+[`docs/research/competitors/passbolt.md`](../research/competitors/passbolt.md),
+[`docs/research/competitors/1password.md`](../research/competitors/1password.md),
+[`docs/research/competitors/bitwarden.md`](../research/competitors/bitwarden.md),
 [connection-broker.md](connection-broker.md).

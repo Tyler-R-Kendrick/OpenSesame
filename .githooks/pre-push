@@ -1,6 +1,6 @@
 #!/bin/sh
 # pre-push — runs local verification before code leaves the machine.
-# Installed via `pnpm setup:hooks` (see scripts/setup-hooks.sh).
+# Installed via `pnpm setup:hooks` (see scripts/dev/setup-hooks.sh).
 #
 # Mode is controlled by OPENSESAME_PREPUSH:
 #   off  -> skip entirely

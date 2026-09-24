@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Claim-session engine for ownership and delegation transfer, persisted by compare-and-swap",
   "exports": {
     ".": {
       "types": "./src/index.ts",

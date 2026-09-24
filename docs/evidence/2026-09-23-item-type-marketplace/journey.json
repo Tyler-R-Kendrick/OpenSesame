@@ -2,11 +2,11 @@
   "out": ".",
   "remote": {
     "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/.opensesame/marketplace.json": ".opensesame/marketplace.json",
-    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/backup-codes.json": "marketplace/item-types/backup-codes.json",
-    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/combination-lock.json": "marketplace/item-types/combination-lock.json",
-    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/email-account.json": "marketplace/item-types/email-account.json",
-    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/gift-card.json": "marketplace/item-types/gift-card.json",
-    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/vehicle.json": "marketplace/item-types/vehicle.json"
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/backup-codes.json": "marketplace/item-types/optional/backup-codes.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/combination-lock.json": "marketplace/item-types/optional/combination-lock.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/email-account.json": "marketplace/item-types/optional/email-account.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/gift-card.json": "marketplace/item-types/optional/gift-card.json",
+    "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/marketplace/item-types/vehicle.json": "marketplace/item-types/optional/vehicle.json"
   },
   "screens": [
     {

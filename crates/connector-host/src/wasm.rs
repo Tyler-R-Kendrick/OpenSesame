@@ -2,7 +2,7 @@
 //!
 //! Shopify-Functions posture, enforced by construction:
 //! - the linker binds exactly `types`, `host-http`, `host-crypto`, and
-//!   `host-oauth` from `wit/connector/world.wit` — no WASI, no filesystem,
+//!   `host-oauth` from `spec/wit/connector/world.wit` — no WASI, no filesystem,
 //!   no clock, no randomness, no ambient anything; a component importing
 //!   more fails instantiation;
 //! - every invocation runs in a **fresh `Store`** (empty linear memory, no
@@ -37,7 +37,7 @@ use crate::{
 mod bindings {
     wasmtime::component::bindgen!({
         world: "connector",
-        path: "../../wit/connector",
+        path: "../../spec/wit/connector",
     });
 }
 

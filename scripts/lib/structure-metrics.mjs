@@ -1,5 +1,5 @@
 /**
- * Structural measurement -- the numbers `scripts/quality-gate.mjs` ratchets.
+ * Structural measurement -- the numbers `scripts/quality/quality-gate.mjs` ratchets.
  *
  * Split out when quality-gate.mjs crossed the very 400-line budget it
  * enforces. Measuring and ratcheting are separate jobs: this module knows how
@@ -76,7 +76,7 @@ function measureTypeScript(root, oxlintConfig) {
         throw new Error(
           [
             `Cannot read a line count from Oxlint's ${FILE_SIZE_RULE} message: ${JSON.stringify(diagnostic.message)}`,
-            "Oxlint's wording probably changed. Fix the parser in scripts/quality-gate.mjs;",
+            "Oxlint's wording probably changed. Fix the parser in scripts/quality/quality-gate.mjs;",
             "do not let this fall back to zero, which would blind the gate.",
           ].join("\n"),
         );

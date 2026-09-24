@@ -95,7 +95,7 @@ envelope as `ConnectorDefinition` (ADR 0065 §4):
 
 This is not a format for *community* types with the seven builtins carved
 out beside it. **The seven builtins are manifests in this format**, in
-`packages/vault-item-types/definitions/`, loaded through the same registry
+`marketplace/item-types/builtin/`, loaded through the same registry
 as an installed one. A builtin's only privilege is §6's handler binding and
 a reserved id. If the generic path is not good enough to render `card` or
 `note`, it is not good enough to offer anyone, and we will find that out
@@ -233,7 +233,7 @@ stays in the body untouched and its items render through the fallback.
 
 ### 8. One corpus, two implementations, conformance-tested
 
-`packages/vault-item-types/definitions/*.json` is the single source. The
+`marketplace/item-types/builtin/*.json` is the single source. The
 TypeScript package embeds it for the PWA, the extension, and the client
 CLI; `crates/vault-item-types` embeds the same files via `include_str!` for
 the gateway, the host CLI, and the bridges. Both parse with the same

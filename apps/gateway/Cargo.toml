@@ -10,7 +10,6 @@ path = "src/main.rs"
 
 [dependencies]
 opensesame-domain = { path = "../../crates/domain" }
-opensesame-authn = { path = "../../crates/authn" }
 opensesame-authz = { path = "../../crates/authz" }
 opensesame-broker = { path = "../../crates/broker" }
 opensesame-connection-broker = { path = "../../crates/connection-broker" }

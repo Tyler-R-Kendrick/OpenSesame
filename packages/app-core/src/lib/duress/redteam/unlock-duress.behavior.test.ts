@@ -1,6 +1,6 @@
 /**
  * Behaviour journey: armed application_code → PIN match → guest continue.
- * Given/When/Then without a second BDD framework (docs/testing/test-strategy.md).
+ * Given/When/Then without a second BDD framework (docs/validation/test-strategy.md).
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";

@@ -1,5 +1,5 @@
 //! Contract tests pinning the route table in `mod.rs` against the committed
-//! `OpenAPI` spec (`api/openapi/openapi.yaml`, `OpenAPI` 3.1, server `/api/v1`).
+//! `OpenAPI` spec (`spec/openapi/host-api.yaml`, `OpenAPI` 3.1, server `/api/v1`).
 //! Both directions are checked statically — a route added to `mod.rs` fails
 //! until it is either documented in the spec or consciously allowlisted
 //! below, and a spec entry with no backing route fails too — plus a dynamic
@@ -16,7 +16,7 @@ use tower::ServiceExt;
 use crate::app_state;
 use crate::config::Args;
 
-const SPEC: &str = include_str!("../../../../api/openapi/openapi.yaml");
+const SPEC: &str = include_str!("../../../../spec/openapi/host-api.yaml");
 const ROUTES: &str = concat!(
     include_str!("mod.rs"),
     include_str!("local_authority_routes.rs"),
@@ -135,7 +135,7 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/experimental/aauth/v1/mission/digest", "POST"),
     // Certificate manager (ADR 0066/0067). Operator-plane administration of
     // authorities, policies and profiles. Allowlisted while the surface is
-    // still being assembled; each path moves into api/openapi/openapi.yaml as
+    // still being assembled; each path moves into spec/openapi/host-api.yaml as
     // its slice lands, and this block should shrink to nothing.
     ("/api/v1/certmgr/cas", "GET"),
     ("/api/v1/certmgr/cas", "POST"),
@@ -285,7 +285,7 @@ fn implementation_routes_are_documented_or_allowlisted() {
     }
     assert!(
         undocumented.is_empty(),
-        "routes missing from api/openapi/openapi.yaml and UNDOCUMENTED_ROUTES:\n{}",
+        "routes missing from spec/openapi/host-api.yaml and UNDOCUMENTED_ROUTES:\n{}",
         undocumented.join("\n")
     );
 }

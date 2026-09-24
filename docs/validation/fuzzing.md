@@ -12,7 +12,7 @@ These tools are opt-in gates.
 | cargo-fuzz / libFuzzer | nightly rustc + `cargo-fuzz` | Install the CLI with a new-enough rustc (`cargo +1.94.0 install cargo-fuzz`). Builds themselves need nightly because cargo-fuzz passes `-Zsanitizer=address`. `rustup toolchain install nightly && rustup default` is **not** required — keep `rust-toolchain.toml` on 1.88 and invoke `cargo +nightly fuzz …`. |
 | Kani | Kani’s own toolchain | `cargo install --locked kani-verifier && cargo kani setup` |
 | Miri | nightly + `miri` component | `rustup toolchain install nightly && rustup component add miri --toolchain nightly` |
-| Jazzer.js | Node ≥ 22; native `@jazzer.js/core` when the addon builds | `pnpm install`. `scripts/jazzer-gate.sh` falls back to the local `tsx` runner that calls the same `fuzz(Buffer)` exports. |
+| Jazzer.js | Node ≥ 22; native `@jazzer.js/core` when the addon builds | `pnpm install`. `scripts/fuzz/jazzer-gate.sh` falls back to the local `tsx` runner that calls the same `fuzz(Buffer)` exports. |
 | Shuttle | same 1.88, feature `concurrency-test` | pulled as an optional dev-dep |
 
 Do not change `rust-toolchain.toml` to nightly.
@@ -34,15 +34,15 @@ Override duration with `FUZZ_SECONDS`. Override the Miri nightly with
 
 ## Layout
 
-- `fuzz/fuzz_targets/` — libFuzzer binaries
-- `fuzz/src/` — shared `Arbitrary` types and security oracles
-- `fuzz/corpus/<target>/` — committed seeds (and locally grown corpus)
-- `fuzz/artifacts/` — gitignored crashes
-- `fuzz/regressions/<target>/` — minimized crashing inputs, committed
-- `infra/clusterfuzzlite/` — Dockerfile / `build.sh` / `project.yaml`
-- `packages/fuzz/` — Jazzer.js targets + oracle unit tests
+- `tests/fuzz/cargo/fuzz_targets/` — libFuzzer binaries
+- `tests/fuzz/cargo/src/` — shared `Arbitrary` types and security oracles
+- `tests/fuzz/cargo/corpus/<target>/` — committed seeds (and locally grown corpus)
+- `tests/fuzz/cargo/artifacts/` — gitignored crashes
+- `tests/fuzz/cargo/regressions/<target>/` — minimized crashing inputs, committed
+- `tests/fuzz/clusterfuzzlite/` — Dockerfile / `build.sh` / `project.yaml`
+- `tests/fuzz/jazzer/` — Jazzer.js targets + oracle unit tests
 
-`fuzz/` is listed in the root workspace `exclude`. It is its own workspace
+`tests/fuzz/cargo/` is listed in the root workspace `exclude`. It is its own workspace
 so libFuzzer rustflags stay off the product crates.
 
 ## Security oracles
@@ -64,19 +64,19 @@ A crash is a panic, sanitizer hit, or failed `assert!`.
 
 ## Crash triage
 
-1. Confirm reproducibility: `cargo +nightly fuzz run <target> fuzz/artifacts/<file>`
+1. Confirm reproducibility: `cargo +nightly fuzz run <target> tests/fuzz/cargo/artifacts/<file>`
 2. Minimize: `cargo +nightly fuzz tmin <target> <crash>`
-3. Copy the minimized input to `fuzz/regressions/<target>/`
+3. Copy the minimized input to `tests/fuzz/cargo/regressions/<target>/`
 4. Fix the product code (not the harness, unless the oracle was wrong)
-5. Write `docs/security/audit-YYYY-MM-DD-fuzz-<target>.md`
+5. Write `docs/security/audits/YYYY-MM-DD-fuzz-<target>.md`
 6. Re-run the target for at least 60s
 
-TypeScript follows the same steps with `packages/fuzz/artifacts/`.
+TypeScript follows the same steps with `tests/fuzz/jazzer/artifacts/`.
 
 ## ClusterFuzzLite and OSS-Fuzz
 
 This repo does **not** add `.github/workflows/cflite_*.yml`. The project
-files under `infra/clusterfuzzlite/` are the CFL/OSS-Fuzz contract:
+files under `tests/fuzz/clusterfuzzlite/` are the CFL/OSS-Fuzz contract:
 
 - `project.yaml` — language rust, libFuzzer, address sanitizer
 - `Dockerfile` — `gcr.io/oss-fuzz-base/base-builder-rust`

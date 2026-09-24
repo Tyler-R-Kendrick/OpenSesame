@@ -1,4 +1,4 @@
-// Always-on capabilities (ADR 0135, 0138), by their catalog title. They are
+// Always-on capabilities (ADR 0135, 0139), by their catalog title. They are
 // in every plan and have no switch and no setup card, so a walk that asks
 // for one has nothing to do. Mirrors `catalog-always-on.ts` and
 // `catalog-always-on-local.ts`; `always-on.test.mjs` holds them equal.
@@ -14,7 +14,7 @@ export const ALWAYS_ON_TITLES = new Set([
   "Ambient single sign-on",
   "Activity log",
   "Guided help",
-  // Browser-local (ADR 0138).
+  // Browser-local (ADR 0139).
   "Browser-local IAM",
   "Self-issued OpenID",
   "Sign-in broker for sites",

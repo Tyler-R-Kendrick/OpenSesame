@@ -47,7 +47,7 @@ type Pass = Readonly<{
   worker: WorkerSelection;
 }>;
 
-/** Core in every plan — less what an operator withdrew (ADR 0138). */
+/** Core in every plan — less what an operator withdrew (ADR 0139). */
 function coreIds(ctx: ResolveContext): CapabilityId[] {
   return ctx.ids.filter(
     (id) => ctx.index.get(id)?.tier === "core" && !ctx.withdrawn.has(id),

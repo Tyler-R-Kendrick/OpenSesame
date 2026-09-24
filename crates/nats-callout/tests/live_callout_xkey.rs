@@ -3,7 +3,7 @@
 //! denies and binds decisions to digests exactly as the bare path does.
 //!
 //! Run with:
-//! `OPENSESAME_MTLS_FIXTURES=1 OPENSESAME_MTLS_BIN_NATS_SERVER=$(bash scripts/mtls-fixtures.sh path nats-server) \
+//! `OPENSESAME_MTLS_FIXTURES=1 OPENSESAME_MTLS_BIN_NATS_SERVER=$(bash scripts/mtls/mtls-fixtures.sh path nats-server) \
 //!  cargo +1.88.0 test -p opensesame-nats-callout --test live_callout_xkey -- --ignored --nocapture`
 
 mod live_support;

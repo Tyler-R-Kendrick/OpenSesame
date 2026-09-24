@@ -139,7 +139,7 @@ export function DelegateClaim() {
         return;
       }
       // Rendering reads only fields the wire contract requires.
-      // SAFETY: the gateway's DelegationOffer contract (api/openapi) fixes this shape.
+      // SAFETY: the gateway's DelegationOffer contract (spec/openapi/host-api.yaml) fixes this shape.
       const { offer } = (await res.json()) as { offer: Offer };
       // Required items are the accepted baseline; optional ones start
       // unchecked so accepting them is a decision, not a default.
@@ -233,7 +233,7 @@ export function DelegateClaim() {
         return;
       }
       // Only contract-required fields are rendered.
-      // SAFETY: the gateway's Delegation contract (api/openapi) fixes this shape.
+      // SAFETY: the gateway's Delegation contract (spec/openapi/host-api.yaml) fixes this shape.
       const { delegations } = (await res.json()) as {
         delegations: Delegation[];
       };

@@ -7,7 +7,7 @@
 //! readable by `opensesame pass`, the password-manager bridges, and
 //! `ConnectionRef` materialisation with no per-type host code.
 //!
-//! The definitions themselves live in `packages/vault-item-types/definitions`
+//! The definitions themselves live in `marketplace/item-types/builtin`
 //! and are embedded here verbatim, so the host plane and the client plane
 //! cannot disagree about what a bank account is (ADR 0087 §8).
 
@@ -39,95 +39,95 @@ pub use validate::{
 pub const BUILTIN_DEFINITIONS: &[(&str, &str)] = &[
     (
         "address",
-        include_str!("../../../packages/vault-item-types/definitions/address.json"),
+        include_str!("../../../marketplace/item-types/builtin/address.json"),
     ),
     (
         "api-credential",
-        include_str!("../../../packages/vault-item-types/definitions/api-credential.json"),
+        include_str!("../../../marketplace/item-types/builtin/api-credential.json"),
     ),
     (
         "bank-account",
-        include_str!("../../../packages/vault-item-types/definitions/bank-account.json"),
+        include_str!("../../../marketplace/item-types/builtin/bank-account.json"),
     ),
     (
         "card",
-        include_str!("../../../packages/vault-item-types/definitions/card.json"),
+        include_str!("../../../marketplace/item-types/builtin/card.json"),
     ),
     (
         "certificate",
-        include_str!("../../../packages/vault-item-types/definitions/certificate.json"),
+        include_str!("../../../marketplace/item-types/builtin/certificate.json"),
     ),
     (
         "contact",
-        include_str!("../../../packages/vault-item-types/definitions/contact.json"),
+        include_str!("../../../marketplace/item-types/builtin/contact.json"),
     ),
     (
         "crypto-wallet",
-        include_str!("../../../packages/vault-item-types/definitions/crypto-wallet.json"),
+        include_str!("../../../marketplace/item-types/builtin/crypto-wallet.json"),
     ),
     (
         "database",
-        include_str!("../../../packages/vault-item-types/definitions/database.json"),
+        include_str!("../../../marketplace/item-types/builtin/database.json"),
     ),
     (
         "document",
-        include_str!("../../../packages/vault-item-types/definitions/document.json"),
+        include_str!("../../../marketplace/item-types/builtin/document.json"),
     ),
     (
         "drivers-license",
-        include_str!("../../../packages/vault-item-types/definitions/drivers-license.json"),
+        include_str!("../../../marketplace/item-types/builtin/drivers-license.json"),
     ),
     (
         "drop",
-        include_str!("../../../packages/vault-item-types/definitions/drop.json"),
+        include_str!("../../../marketplace/item-types/builtin/drop.json"),
     ),
     (
         "health-insurance",
-        include_str!("../../../packages/vault-item-types/definitions/health-insurance.json"),
+        include_str!("../../../marketplace/item-types/builtin/health-insurance.json"),
     ),
     (
         "identity-document",
-        include_str!("../../../packages/vault-item-types/definitions/identity-document.json"),
+        include_str!("../../../marketplace/item-types/builtin/identity-document.json"),
     ),
     (
         "login",
-        include_str!("../../../packages/vault-item-types/definitions/login.json"),
+        include_str!("../../../marketplace/item-types/builtin/login.json"),
     ),
     (
         "membership",
-        include_str!("../../../packages/vault-item-types/definitions/membership.json"),
+        include_str!("../../../marketplace/item-types/builtin/membership.json"),
     ),
     (
         "note",
-        include_str!("../../../packages/vault-item-types/definitions/note.json"),
+        include_str!("../../../marketplace/item-types/builtin/note.json"),
     ),
     (
         "passkey",
-        include_str!("../../../packages/vault-item-types/definitions/passkey.json"),
+        include_str!("../../../marketplace/item-types/builtin/passkey.json"),
     ),
     (
         "passport",
-        include_str!("../../../packages/vault-item-types/definitions/passport.json"),
+        include_str!("../../../marketplace/item-types/builtin/passport.json"),
     ),
     (
         "secret",
-        include_str!("../../../packages/vault-item-types/definitions/secret.json"),
+        include_str!("../../../marketplace/item-types/builtin/secret.json"),
     ),
     (
         "server",
-        include_str!("../../../packages/vault-item-types/definitions/server.json"),
+        include_str!("../../../marketplace/item-types/builtin/server.json"),
     ),
     (
         "software-license",
-        include_str!("../../../packages/vault-item-types/definitions/software-license.json"),
+        include_str!("../../../marketplace/item-types/builtin/software-license.json"),
     ),
     (
         "ssh-key",
-        include_str!("../../../packages/vault-item-types/definitions/ssh-key.json"),
+        include_str!("../../../marketplace/item-types/builtin/ssh-key.json"),
     ),
     (
         "wifi",
-        include_str!("../../../packages/vault-item-types/definitions/wifi.json"),
+        include_str!("../../../marketplace/item-types/builtin/wifi.json"),
     ),
 ];
 

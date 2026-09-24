@@ -26,7 +26,7 @@ loader, registry or vocabulary.
   eager entry chunk `assets/main-*.js` is **1,189,653 bytes**; `sw.js` 8,901
   bytes. `index.html` references only `main-*.js` and the modulepreload
   polyfill. The client-core Wasm is not emitted in this environment, so
-  `bundle-budgets.json`'s 17.9 MiB `total` is not reproduced here.
+  `tools/quality/bundle-budgets.json`'s 17.9 MiB `total` is not reproduced here.
 - Baseline observations that contradict earlier prose (P-TRUTH):
   - `SetupScreen.tsx` has **four** statically imported tabs (connectors, ai,
     identity, mfa); ADR 0114 describes six.
@@ -62,7 +62,7 @@ and are the only definitions.
 | **S04** configuration resources | `packages/app-core/src/lib/configuration/capabilities-*.ts` | instance-policy / installation-selection / vault-restriction resources, Visual/Source/Effective round trips, export |
 | **S05** bootstrap | `apps/pages/src/main.tsx`, `src/bootstrap/**`, `src/lib/runtime-config.ts`, `src/app-root.tsx` (the former `App.tsx` body) | core-only boot, parsed runtime config, core routes, unavailable/denied route |
 | **S06** loader/runtime | `packages/app-core/src/lib/capabilities/{store,loader,registry,authority,lease}.ts` | store, `loadApprovedModule`, `activateApprovedCapability`, registrars, `assertCurrentOperationAuthority`, `admitOperation` |
-| **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `scripts/build-profile.mjs`, `scripts/verify-capability-graph.mjs`, `vite.config.ts` (plugin wiring only), `bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
+| **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `scripts/build-profile.mjs`, `scripts/verify-capability-graph.mjs`, `vite.config.ts` (plugin wiring only), `tools/quality/bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
 | **S08** workers | `apps/pages/src/sw.ts`, `src/sw-push.ts`, `src/sw/**`, `src/lib/capabilities/worker-controller.ts`, `scripts/build-workers.mjs` | core-only worker, push variant, owned caches, asset-plan messages, registration controller |
 | **S09** setup/consent UI | `apps/pages/src/screens/capabilities/**`, `src/screens/SetupScreen.tsx`, `src/screens/FrontDoor.tsx` (requirements panel patch), `src/sections/settings/CapabilitiesPanel*.tsx` | purpose cards, capability cards, draft/review/apply, Settings › Capabilities |
 | **S10** shell | `src/components/AppShell.tsx`, `RailRows.tsx`, `NavDrawer.tsx`, `Crumbs.tsx`, `SettingsTree.tsx`, `KeymapSheet.tsx`, `src/lib/keymap.ts`, `src/lib/command-bar/types.ts`, `src/webmcp/navigation.ts` | contribution-driven navigation, commands, shortcuts, help |

@@ -56,5 +56,5 @@ When Settings `identityApi` is empty, Pages **is** the Identity plane:
 ## Related
 
 - [ADR 0090](0090-static-frontend-complete-without-backend.md)
-- [ADR 0062](0062-e2ee-claim-transfer.md) (drops)
+- [ADR 0062](0062-secret-drop.md) (drops)
 - [ADR 0116](0116-browser-native-siop-v2.md) / local IAM docs

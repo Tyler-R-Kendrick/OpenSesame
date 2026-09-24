@@ -70,7 +70,7 @@ export type ResolveContext = Readonly<{
   evaluatedModules: ReadonlySet<ModuleId>;
   /**
    * Always-on capabilities a verified instance policy withdrew, and every
-   * always-on one that needs them (ADR 0138). Core that is statically
+   * always-on one that needs them (ADR 0139). Core that is statically
    * linked can never be withdrawn: it has no module to leave unloaded.
    */
   withdrawn: ReadonlySet<CapabilityId>;

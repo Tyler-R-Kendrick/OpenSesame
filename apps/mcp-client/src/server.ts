@@ -164,44 +164,6 @@ export function buildServer({ hostUrl }: ClientServerOptions): McpServer {
   return server;
 }
 
-/**
- * Response minimization (docs/security/audit-2026-08-22-mcp-response-minimization.md):
- * config metadata is re-projected through explicit allowlists so an upstream
- * that grows a field can never relay it — identifiers, versions and
- * timestamps only, never values and never free-form text.
- */
-function secretConfigMetadata(view: {
-  id: string;
-  project_id: string;
-  slug: string;
-  environment: string;
-  parent_config_id?: string | null | undefined;
-  created_at: string;
-  updated_at: string;
-}) {
-  return {
-    id: view.id,
-    project_id: view.project_id,
-    slug: view.slug,
-    environment: view.environment,
-    parent_config_id: view.parent_config_id ?? null,
-    created_at: view.created_at,
-    updated_at: view.updated_at,
-  };
-}
-
-function configKeyMetadata(key: {
-  key_name: string;
-  version: number;
-  updated_at: string;
-}) {
-  return {
-    key_name: key.key_name,
-    version: key.version,
-    updated_at: key.updated_at,
-  };
-}
-
 export async function main(): Promise<void> {
   const hostUrl = requireBase(
     process.env.OPENSESAME_HOST_API ?? "http://127.0.0.1:8787",

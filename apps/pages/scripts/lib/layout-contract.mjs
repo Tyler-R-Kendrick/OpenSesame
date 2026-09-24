@@ -2,7 +2,7 @@
  * Where keys sit and how wide fields grow, measured in the page
  * (DESIGN.md § Keys have a home, § Fields have a measure).
  *
- * `scripts/design-lint.mjs` holds the source to the same rules, but a lint
+ * `scripts/quality/design-lint.mjs` holds the source to the same rules, but a lint
  * reads one file and these faults are the product of several: a key that is
  * alone on its row because its field wrapped, a field that is 900px wide
  * because two stylesheets agreed it could be. So `mobile-contract.mjs` runs

@@ -22,7 +22,7 @@ describe("deployment security boundary", () => {
     JSON.parse(
       readFileSync(
         new URL(
-          "../../../../contracts/deployment-mode-cases.json",
+          "../../../../spec/conformance/deployment-mode-cases.json",
           import.meta.url,
         ),
         "utf8",

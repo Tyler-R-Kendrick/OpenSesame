@@ -53,7 +53,7 @@ Boy-scout fixes made while validating the boundary:
 
 ## Schema and configuration
 
-`migrations/0013_certificate_issuance.sql` adds sealed certificate authorities,
+`crates/storage/migrations/0013_certificate_issuance.sql` adds sealed certificate authorities,
 issuance orders, one-time deliveries, replay/idempotency constraints, and
 public issuance metadata. The application migration validates and seals a
 legacy `certs.dev_ca` pair, reloads it, verifies the key/certificate match, and
@@ -166,11 +166,11 @@ Depth gates run against the same implementation:
   `docs/adr/0052-automatic-certificate-authority-selection.md`
 - Threat model: `docs/security/threat-model.md`
 - Custody audit:
-  `docs/security/audit-2026-08-21-certificate-key-custody.md`
+  `docs/security/audits/2026-08-21-certificate-key-custody.md`
 - MCP minimization audit:
-  `docs/security/audit-2026-08-22-mcp-response-minimization.md`
+  `docs/security/audits/2026-08-22-mcp-response-minimization.md`
 - Certificate tenant-isolation audit:
-  `docs/security/audit-2026-08-25-certificate-tenant-isolation.md`
-- Protocol/support matrix: `docs/protocol-conformance.md`
+  `docs/security/audits/2026-08-25-certificate-tenant-isolation.md`
+- Protocol/support matrix: `docs/reference/protocol-conformance.md`
 - This implementation record:
   `docs/validation/trust-broker-implementation-evidence.md`

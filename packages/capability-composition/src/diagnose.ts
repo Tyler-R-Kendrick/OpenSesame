@@ -90,7 +90,7 @@ function checkIds(
         );
       } else if (
         d.tier === "core" &&
-        // An always-on capability may be withdrawn (ADR 0138); only
+        // An always-on capability may be withdrawn (ADR 0139); only
         // statically linked core, which cannot be, is misplaced there.
         !(
           source.path === "instancePolicy.capabilities.prohibited" &&

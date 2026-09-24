@@ -19,7 +19,7 @@ revocation that predates this work still ends the authority, because
 `fenced_authority` joins `grants.revoked_at` in the same predicate.
 
 Ancestry and per-grant revocation are **not** reimplemented here either. They
-belong to the invalidation fence (`migrations/0033_authority_invalidation_fence.sql`,
+belong to the invalidation fence (`crates/storage/migrations/0033_authority_invalidation_fence.sql`,
 `crates/storage/src/authority_fence.rs`): `issue_authority` records the child's
 lineage through `record_lineage`, and `fenced_authority` asks `fence_status` for
 the chain verdict. Two ancestry tables would eventually disagree, and the

@@ -31,7 +31,7 @@ server-blind (ADR 0032).
 
 - Pages/CLI grow project picker, sync-target, and changelog surfaces.
 - Rotation and TaskBus publishers emit the frozen event names in
-  `docs/implementation/one-shot-doppler-nats-prompt.md`.
+  `docs/archive/prompts/one-shot-doppler-nats-prompt.md`.
 - L3 materialize stays craft bar / operator-gated (ADR 0006).
 
 ## Related

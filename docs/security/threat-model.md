@@ -53,7 +53,7 @@ These controls do not make backend availability a condition for opening the
 offline Pages vault or choosing guest access, and Identity sign-in does not
 prove possession of the vault key.
 
-See [Host authority review](audit-2026-09-08-host-authority.md) for implementation
+See [Host authority review](audits/2026-09-08-host-authority.md) for implementation
 anchors, focused results, remaining validation and residual trust. Its
 Host-specific passkey contract does not upgrade unrelated interaction approvals.
 
@@ -79,7 +79,7 @@ Host-specific passkey contract does not upgrade unrelated interaction approvals.
 | Agent knows ConnectionRef → extracts secret | Resolve/Materialize denied without export grant | `authz::authority_use` |
 | Gateway string-replaces SecretRef to attacker URL | Egress binding + typed ops; no generic substitution | `EgressBinding`, connector-host redirect tests |
 | Authenticated 302 to evil.example | Cross-authority redirect denied while credential held | `follow_redirect_with_credential` |
-| WASM `secrets.get` | Not in WIT imports; authorized-http/sign only | `wit/connector/world.wit` |
+| WASM `secrets.get` | Not in WIT imports; authorized-http/sign only | `spec/wit/connector/world.wit` |
 | SecretRef late-binding into agent env | Agent API is ConnectionRef+Intent (ADR 0005) | domain `resolve_secret_for_agent` |
 | Unconstrained placeholder substitution (email token away) | Placement + max occurrences fail-closed | `PlaceholderPlacement` / connector-host |
 | Same-UID agent reads host keychain | Host agent session capability; sandbox egress via broker | credential-agent + ADR 0006 |
@@ -214,7 +214,7 @@ construction, not the scanner:
 - **Dependency profile:** `connection-detect` is serde + serde_json +
   thiserror + std; the daemon must not gain the credential-exchange
   surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) —
-  enforced by `scripts/daemon-deps-gate.sh` (`pnpm audit:daemon-deps`).
+  enforced by `scripts/audit/daemon-deps-gate.sh` (`pnpm audit:daemon-deps`).
 
 Test anchors: `crates/connection-detect` (canary/no-value-escape
 properties), `apps/daemon` promote/invoke-through canary tests, fuzz

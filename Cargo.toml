@@ -57,7 +57,6 @@ members = [
   "crates/dns-enforcement",
   "apps/gateway",
   "apps/worker",
-  "apps/credential-agent",
   "apps/daemon",
   "apps/toolbar",
   "apps/callback-edge",
@@ -67,7 +66,7 @@ members = [
   "tests/mtls-interop",
 ]
 default-members = ["apps/gateway", "apps/cli", "apps/worker"]
-exclude = ["fuzz"]
+exclude = ["tests/fuzz/cargo"]
 
 [workspace.package]
 version = "0.1.0"

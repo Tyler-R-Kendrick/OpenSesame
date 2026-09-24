@@ -3,13 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Vault item type definitions and the runtime registry that loads them (ADR 0087)",
+  "description": "Vault item type parser, registry and the embedded built-in definitions from marketplace/item-types/builtin (ADR 0087)",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./definitions/*": "./definitions/*"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

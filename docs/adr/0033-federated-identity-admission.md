@@ -39,7 +39,7 @@ is allowed to become on its own.
    it asks for a master password. The vault is device encryption rather than an account, so
    it is still created locally and still never leaves the device — it is simply no longer the
    thing that brings a user into existence.
-5. **Canonical identity remains OpenSesame's.** As in ADR 0011 and `docs/identity-linking.md`,
+5. **Canonical identity remains OpenSesame's.** As in ADR 0011 and `docs/architecture/identity-linking.md`,
    `Principal.id` is never the broker's subject, never an email, and does not change when a
    further identity is attached. A broker asserts *who showed up*; it does not name them.
 

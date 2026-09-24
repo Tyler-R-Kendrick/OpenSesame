@@ -2,8 +2,9 @@
  * Typed spending-constraint vocabulary and enforcement assessment shapes.
  *
  * Natural-language instructions are not constraints. Only members of
- * `CONSTRAINT_KINDS` may enter `assess`. DOM (`packages/os-domain/src/wallet/`)
- * has not landed AmountUnits yet, so wire-safe local aliases live here.
+ * `CONSTRAINT_KINDS` may enter `assess`. `AmountUnits` here is the same
+ * wire-safe decimal string as `AmountUnits` in
+ * `packages/os-domain/src/wallet/amount.ts`.
  */
 
 /** Opaque stable identifier. */

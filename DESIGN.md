@@ -414,7 +414,7 @@ whose words are its choice says so by its role (tab, radio, switch, menu
 entry, pressed toggle) or its class (`road`, `unlock__switch`, `choice`).
 `pnpm lint:design` rejects a word-verb `<button>` that is not an icon key —
 reading string literals in its face as well as its text — and the debt
-ledger in `scripts/design-button-baseline.json` is empty.
+ledger in `tools/quality/design-button-baseline.json` is empty.
 
 ### Status is a symbol
 A status — connected, needs you, broken, revoked, saved, locked, authorized,

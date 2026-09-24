@@ -81,9 +81,8 @@ describe("wallet budget activity", () => {
 
   it("logs a budget that was actually created", async () => {
     createBudget({ name: "Groceries", ceiling: 250n });
-    // The sealed activity write is asynchronous and a loaded CI runner can
-    // take longer than the settle above, so wait for the event rather than
-    // for a fixed time (it failed on CI with `[]`).
+    // The activity write is fire-and-forget; wait for it rather than for a
+    // fixed delay, which a loaded runner can outlast.
     await vi.waitFor(
       async () => {
         expect(await walletEvents()).toEqual(["Wallet budget updated"]);

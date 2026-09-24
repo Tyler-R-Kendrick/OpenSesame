@@ -2,7 +2,7 @@
 
 Read [`DESIGN.md`](../../DESIGN.md) before drawing a control. An action that
 executes is an icon key. A word on a button face is a design failure.
-`scripts/design-lint.mjs` (`pnpm lint:design`) and `impeccable detect` hold
+`scripts/quality/design-lint.mjs` (`pnpm lint:design`) and `impeccable detect` hold
 new code to that, and both run in `.githooks/pre-commit`.
 
 ## Native dropdowns
@@ -119,7 +119,7 @@ Locked. Authorized.
 
 ## What is enforced
 
-`scripts/design-lint.mjs`, run by `pnpm lint:design`, the `pre-commit` hook,
+`scripts/quality/design-lint.mjs`, run by `pnpm lint:design`, the `pre-commit` hook,
 and a Claude Code `PostToolUse` hook:
 
 1. **No text-labelled primary in a commit bar.** A `*__foot` element containing
@@ -156,7 +156,7 @@ browser checks compare actual hit areas, glyph centers, group gaps, and surface 
 
 `pnpm lint:design` also rejects a `<button>` whose face carries an executing
 verb (`Revoke`, `Rename`, `Review`, `Sync`, `Use`, `Approve`, `Load N more`,
-and the rest of the list in `scripts/design-lint-verbs.mjs`) unless the
+and the rest of the list in `scripts/quality/design-lint-verbs.mjs`) unless the
 control is `icon-btn` or `.go`. The face is every JSX text run *and* every
 string literal between the tags, so `{busy ? "Syncing…" : "Sync connectors"}`
 is read too, and a tag ends at the first `>` outside braces, so an
@@ -170,7 +170,7 @@ guest and setup roads (`road`), the unlock screen's mode switch
 object — a sign-in method, a walkthrough. `choice` is a claim a reviewer
 checks, not an escape hatch: a verb that executes is a key.
 
-The ledger in `scripts/design-button-baseline.json` is empty and stays
+The ledger in `tools/quality/design-button-baseline.json` is empty and stays
 empty. A file may not exceed its recorded count, and a file that improves
 must have that count lowered in the same change. New files start at zero. `impeccable detect` runs on the
 same pre-commit path and fails the commit on a primary finding.

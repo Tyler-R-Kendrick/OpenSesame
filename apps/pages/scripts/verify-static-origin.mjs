@@ -281,7 +281,7 @@ const browser = await launch();
     "federation session saved on device",
   );
   // This is a fresh device: the identity section (browser-local IAM) and the
-  // provider directory are always on (ADR 0138), so there is nothing to add
+  // provider directory are always on (ADR 0139), so there is nothing to add
   // and the walk only checks they are there.
   setStep("C-add-identity");
   await addCapability(page, check, snap, "Browser-local IAM", "identity/");

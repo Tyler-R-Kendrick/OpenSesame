@@ -28,7 +28,7 @@ Personal safety, undetectability, forensic erasure, UV⇒biometrics, emergency r
 | RT-AUTH-001 | high | Active fence + null AccessContext → operator | `rbac-fence.test.ts` | `REDTEAM-to-AUTH.md` | closed |
 | GAP-UNLOCK-WIRE | high | Missing duress unlock bridge | `gaps.honest.test.ts` | `REDTEAM-to-SETTINGS-unlock-wire.md` | closed |
 | GAP-SETTINGS-NAV | medium | Panel not mounted in security shell | `gaps.honest.test.ts` | `REDTEAM-to-SETTINGS-nav.md` | closed |
-| GAP-PEER-CRYPTO | high | `duress_receiver` verify lacks ECDSA | `packages/redteam/.../gaps.honest.test.ts` | `REDTEAM-to-PEER-crypto.md` | closed |
+| GAP-PEER-CRYPTO | high | `duress_receiver` verify lacks ECDSA | `tests/redteam/.../gaps.honest.test.ts` | `REDTEAM-to-PEER-crypto.md` | closed |
 | RT-CONTRACT-001 | medium | nondurable storage compile edge | `compiler-fuzz.test.ts` | `REDTEAM-to-CONTRACT-durable.md` | closed |
 | RT-CANARY-001 | high | Nested destructive canary parse | `bypasses.test.ts` | `REDTEAM-to-CANARY.md` | closed |
 | RT-CANARY-002 | critical | `isIntegereger` typo | `canary-schema.test.ts` | `REDTEAM-to-CANARY.md` | closed |

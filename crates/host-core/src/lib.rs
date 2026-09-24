@@ -1,6 +1,6 @@
 //! `OpenSesame` **host-core sdk** — host logic facade (ADR 0017).
 //!
-//! WIT: `wit/host/world.wit`.
+//! WIT: `spec/wit/host/world.wit`.
 
 pub use opensesame_audit as audit;
 pub use opensesame_authn as authn;

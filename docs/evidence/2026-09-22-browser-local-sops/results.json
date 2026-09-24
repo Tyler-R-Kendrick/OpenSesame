@@ -1,5 +1,5 @@
 {
-  "$comment": "Merged from the three gates' own outputs by scripts/sops-evidence.mjs. Do not hand-edit: re-run the gates.",
+  "$comment": "Merged from the three gates' own outputs by scripts/test/sops-evidence.mjs. Do not hand-edit: re-run the gates.",
   "generatedAt": "2026-09-22T15:44:32.455Z",
   "sources": [
     {

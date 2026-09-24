@@ -1,8 +1,9 @@
 /**
  * Minimal wallet-budget domain types.
  *
- * DOM (`packages/os-domain/src/wallet/`) is not merged yet, so AmountUnits and
- * refs live here. When DOM lands, these can re-export or narrow against it.
+ * `AmountUnits` here is the same shape as `AmountUnitsExact` in
+ * `packages/os-domain/src/wallet/amount.ts` (a bigint); the refs are local to
+ * the budget tree.
  */
 
 /** Smallest currency subunit as a non-negative integer. Never float. */
