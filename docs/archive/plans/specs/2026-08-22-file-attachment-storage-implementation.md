@@ -47,7 +47,7 @@ OpenSesame. Nothing file-shaped exists in the repo today. Build, in one pass:
 Toolchain: Rust pinned `1.88` (`cargo +1.88.0 …`), Node ≥ 22, pnpm 9.15.0 via
 Corepack, Biome lint, Vitest. Full local gate: `pnpm verify` (changed-file
 lint + typecheck/test/integration + `cargo +1.88.0 test --workspace
---all-targets` + `./scripts/battle-test.sh`). No GitHub Actions — keep it
+--all-targets` + `./scripts/test/battle-test.sh`). No GitHub Actions — keep it
 that way.
 
 ### Sealed store (`crates/sealed-store`)

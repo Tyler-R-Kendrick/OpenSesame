@@ -1,6 +1,6 @@
 {
   "$comment": [
-    "Accepted component-coupling debt -- see scripts/package-metrics-gate.mjs.",
+    "Accepted component-coupling debt -- see scripts/quality/package-metrics-gate.mjs.",
     "These lists may only ever SHRINK. Regenerate with:",
     "  pnpm quality:packages --update",
     "sdp:    edges that depend toward instability (Martin's SDP).",

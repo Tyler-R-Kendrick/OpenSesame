@@ -22,6 +22,7 @@ it.each([0, 1])(
       const pkg = join(root, "tests/fuzz/jazzer");
       const bin = join(root, "bin");
       mkdirSync(join(root, "scripts/lib"), { recursive: true });
+      mkdirSync(join(root, "scripts/fuzz"), { recursive: true });
       copyFileSync(
         fileURLToPath(
           new URL(
@@ -36,9 +37,9 @@ it.each([0, 1])(
       mkdirSync(bin);
       copyFileSync(
         fileURLToPath(
-          new URL("../../../../scripts/jazzer-gate.sh", import.meta.url),
+          new URL("../../../../scripts/fuzz/jazzer-gate.sh", import.meta.url),
         ),
-        join(root, "scripts/jazzer-gate.sh"),
+        join(root, "scripts/fuzz/jazzer-gate.sh"),
       );
       writeFileSync(join(pkg, "package.json"), "{}");
       for (const name of [
@@ -58,18 +59,22 @@ it.each([0, 1])(
         { mode: 0o700 },
       );
       const calls = join(root, "calls");
-      const result = spawnSync("bash", [join(root, "scripts/jazzer-gate.sh")], {
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          PATH: `${bin}:/usr/bin:/bin`,
-          NODE_OPTIONS: "--no-warnings",
-          FUZZ_SECONDS: "3",
-          JAZZER_ALLOW_FALLBACK: "0",
-          GATE_CALLS: calls,
-          GATE_STATUS: String(status),
+      const result = spawnSync(
+        "bash",
+        [join(root, "scripts/fuzz/jazzer-gate.sh")],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: `${bin}:/usr/bin:/bin`,
+            NODE_OPTIONS: "--no-warnings",
+            FUZZ_SECONDS: "3",
+            JAZZER_ALLOW_FALLBACK: "0",
+            GATE_CALLS: calls,
+            GATE_STATUS: String(status),
+          },
         },
-      });
+      );
       expect(result.status, result.stderr).toBe(status);
       const privateDirectory = result.stderr.match(
         /Private audit artifacts: ([^\n]+)/,

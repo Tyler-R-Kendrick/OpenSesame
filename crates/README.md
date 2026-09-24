@@ -65,7 +65,7 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 
 | Crate | Purpose |
 |---|---|
-| [`storage`](storage) | The Host database (SQLite/Postgres via SQLx); one module per responsibility, migrations in [`migrations/`](storage/migrations). |
+| [`storage`](storage) | The Host database (SQLite via SQLx); one module per responsibility, migrations in [`migrations/`](storage/migrations). |
 | [`human-vault`](human-vault) | Server-blind E2EE envelopes shared by the vault and the sealed store. |
 | [`sealed-store`](sealed-store) | Git-native hierarchical sealed store with `pass` parity, attachments and tombs. |
 | [`vault-item-types`](vault-item-types) | Item-type parser and registry; embeds [`marketplace/item-types/builtin`](../marketplace/item-types/builtin). |

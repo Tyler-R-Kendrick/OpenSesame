@@ -1,5 +1,5 @@
 ---
-target: docs/design/auth-flow (auth configuration canvas)
+target: docs/design/canvases/auth-flow (auth configuration canvas)
 total_score: 27
 max_score: 40
 na_heuristics: 
@@ -10,7 +10,7 @@ slug: docs-design-auth-flow-parts-security-html
 ---
 Method: dual-agent (A: design review · B: detector + Playwright evidence)
 
-Target: docs/design/auth-flow (Security settings list, the add-method sheet, unlock step 2) — Operate mode.
+Target: docs/design/canvases/auth-flow (Security settings list, the add-method sheet, unlock step 2) — Operate mode.
 
 | # | Heuristic | Score | Key issue |
 |---|-----------|-------|-----------|

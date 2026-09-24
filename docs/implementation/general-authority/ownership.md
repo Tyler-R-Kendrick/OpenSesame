@@ -15,7 +15,7 @@ Naming: [`compatibility-map.md`](compatibility-map.md).
 ## Swarms
 
 Work IDs follow the repository's existing `<SWARM>-NN` convention (see
-`docs/validation/wallet-interaction-evidence.json`), prefixed `GA-` for this
+`docs/evidence/wallet/interaction-evidence.json`), prefixed `GA-` for this
 programme.
 
 | Swarm | Owns | Primary paths | Work IDs |

@@ -21,10 +21,10 @@ printf private-growth > "$corpus/growth"
 [[ ! -e "$ROOT/tests/fuzz/cargo/corpus/example/growth" && ! -e "$ROOT/tests/fuzz/cargo/artifacts" ]]
 if opensesame_fuzz_corpus ../escape; then exit 1; fi
 for gate in fuzz-pr-gate.sh fuzz-batch.sh jazzer-gate.sh; do
-  bash -n "$HERE/../$gate"
+  bash -n "$HERE/../fuzz/$gate"
 done
 for gate in fuzz-pr-gate.sh fuzz-batch.sh; do
   # CORPUS belongs to cargo-fuzz before '--', or it adds its writable default.
-  grep -F -- 'fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" --' "$HERE/../$gate" >/dev/null
+  grep -F -- 'fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" --' "$HERE/../fuzz/$gate" >/dev/null
 done
 printf 'fuzz-directory contracts passed; private fixtures retained at %s\n' "$fixture"

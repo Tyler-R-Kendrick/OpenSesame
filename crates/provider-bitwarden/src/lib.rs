@@ -27,7 +27,7 @@
 //! # Daemon budget
 //!
 //! `apps/daemon` does not depend on this crate and must not (constitution
-//! C4). `scripts/daemon-deps-gate.sh` is the alarm if that ever changes.
+//! C4). `scripts/audit/daemon-deps-gate.sh` is the alarm if that ever changes.
 //!
 //! # Attribution
 //!

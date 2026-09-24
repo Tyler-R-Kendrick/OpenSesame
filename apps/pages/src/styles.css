@@ -403,7 +403,7 @@ kbd {
    This is deliberately NOT the pattern for an action *inside* a card — those
    stay `.btn--primary` with a text label, beside the facts that justify them
    (`.found__do`). Two patterns, one each for "end this screen" and "do this
-   thing here". `docs/design/controls.md` names both; `scripts/design-lint.mjs`
+   thing here". `docs/design/controls.md` names both; `scripts/quality/design-lint.mjs`
    holds new commit bars to this one. */
 .go-row {
   display: flex;

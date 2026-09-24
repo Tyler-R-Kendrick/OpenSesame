@@ -25,12 +25,12 @@ exploring one flow. Open the HTML files in a browser.
 
 | Canvas | Flow |
 |---|---|
-| [Authentication flow](auth-flow/README.md) | Sign-out, switching accounts, and the unlock ceremony ([ADR 0091](../adr/0091-account-exits-and-unlock-ceremony.md)). |
-| [First-run setup](first-run-setup/README.md) | What a new device shows first. |
-| [Setup next steps](setup-next-steps/README.md) | What an operator can do after first-run setup. |
-| [Settings connectivity](settings-connectivity/README.md) | The Settings pane's connection configuration. |
-| [PWA install](pwa-install/README.md) | Installing the app from inside the app. |
-| [Shared sessions](shared-sessions/README.md) | Making a session shareable: who is in it, what they may do. |
+| [Authentication flow](canvases/auth-flow/README.md) | Sign-out, switching accounts, and the unlock ceremony ([ADR 0091](../adr/0091-account-exits-and-unlock-ceremony.md)). |
+| [First-run setup](canvases/first-run-setup/README.md) | What a new device shows first. |
+| [Setup next steps](canvases/setup-next-steps/README.md) | What an operator can do after first-run setup. |
+| [Settings connectivity](canvases/settings-connectivity/README.md) | The Settings pane's connection configuration. |
+| [PWA install](canvases/pwa-install/README.md) | Installing the app from inside the app. |
+| [Shared sessions](canvases/shared-sessions/README.md) | Making a session shareable: who is in it, what they may do. |
 
 Screenshots of shipped changes, before and after, are in
 [`docs/evidence/`](../evidence/README.md).

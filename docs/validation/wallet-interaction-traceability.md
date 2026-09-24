@@ -10,7 +10,7 @@ layer ([ADR 0086](../adr/0086-wallet-native-interaction-layer.md), with
 This binds the findings (`Fnn`) and their threats (`Tnn`) to the tests that
 actually enforce them, with the exit each test suite produced **in this
 session** at dirty checkout `4358f7fe`. The machine-readable companion is
-[`wallet-interaction-evidence.json`](wallet-interaction-evidence.json).
+[`wallet-interaction-evidence.json`](../evidence/wallet/interaction-evidence.json).
 
 ## How to read this
 

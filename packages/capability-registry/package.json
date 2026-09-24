@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Agent-surface parity source of truth: every capability mapped onto CLI, PWA, MCP and WebMCP or excluded by ADR (ADR 0065)",
   "exports": {
     ".": {
       "types": "./src/index.ts",

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "WebMCP detection, a name-checked tool registrar and the agent secret fence for the client PWAs",
   "exports": {
     ".": {
       "types": "./src/index.ts",

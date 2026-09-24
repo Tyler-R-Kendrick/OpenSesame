@@ -52,12 +52,12 @@ Executed with `OPENSESAME_DEBUG_RUN=live-manual` against **live** OpenFGA + Open
 | `GET /api/v1/connections` | `conn://…` only |
 | L1 invoke via `connection_ref` | `outcome=succeeded`, `credential_bytes_returned=false` |
 | L3 / `credential.resolve` | HTTP 403 `materialize_denied` |
-| `./scripts/battle-test.sh` | **ALL BATTLE TESTS PASSED** |
-| `./scripts/live-stack-test.sh` | native deps + gateway path |
+| `./scripts/test/battle-test.sh` | **ALL BATTLE TESTS PASSED** |
+| `./scripts/test/live-stack-test.sh` | native deps + gateway path |
 
 Prior host bug: L3 returned `InvokeLevelDenied` before `MaterializeDenied`. Fixed by denying materialize/resolve at the host boundary first.
 
-**Note:** Docker Engine install requires elevated privileges (`sudo` askpass was denied in this environment). Equivalent live verification uses downloaded OpenFGA/OpenBao arm64 binaries via `scripts/start-native-deps.sh`.
+**Note:** Docker Engine install requires elevated privileges (`sudo` askpass was denied in this environment). Equivalent live verification uses downloaded OpenFGA/OpenBao arm64 binaries via `scripts/dev/start-native-deps.sh`.
 
 ## Honest availability
 

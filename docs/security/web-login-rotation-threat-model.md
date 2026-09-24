@@ -77,7 +77,7 @@ Numbered to continue the base model's list.
 | Recipe drift silently rotates into the wrong form | Bundle-hash binding, `expires_at`, verification is always a fresh login | drift tests |
 | Recording exfiltrated from the gateway | Sealed at rest, TTL-bound, excluded from every agent surface, human ceremony to fetch | registry parity test |
 | Agent surface gains a recording or value read | `rotations.recording_read` excluded on all agent surfaces citing ADR 0076 §5 | `packages/capability-registry` self-test |
-| Browser driver pulled into the daemon's tree | New crate is not a daemon dependency | `scripts/daemon-deps-gate.sh` |
+| Browser driver pulled into the daemon's tree | New crate is not a daemon dependency | `scripts/audit/daemon-deps-gate.sh` |
 | A live frame ships before its mask is solved, or masked with geometry from a layout the page has left | Frames carry their layout generation; `admit_frame` requires a manifest for that exact generation covering every sensitive node, and drops otherwise | `session-observe` frame-admission tests |
 | A low-latency live path skips a redaction the recorded path applies | Live is a read position on one log, not a second pipeline (ADR 0081 §1) | there is no live-only capture code to test |
 | A hostile page plants text in the model's rationale, which renders inside `OpenSesame`'s chrome | Thoughts are inert quoted data, never in a notification body, never cited by an approval; bidi overrides and controls stripped at capture | `UntrustedText::capture` tests |

@@ -1,4 +1,4 @@
-import { handleManage, manageInput } from "../../manage.mjs";
+import { handleManage, manageInput } from "../../src/manage.mjs";
 
 export default async function handler(req, res) {
   const outcome = await handleManage(

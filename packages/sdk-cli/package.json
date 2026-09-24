@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Node SDK for Identity API command-line clients: device flow, loopback PKCE login and a typed API client",
   "exports": {
     ".": {
       "types": "./src/index.ts",

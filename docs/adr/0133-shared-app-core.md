@@ -7,7 +7,7 @@
   authenticator), ADR 0065 (agent-surface parity), ADR 0088 (in-product
   support), ADR 0090 (static front end), ADR 0093 (structural quality gates),
   [`docs/research/android-native-integration.md`](../research/android-native-integration.md) §11,
-  [`docs/architecture/modularity-refactor-strategy.md`](../architecture/modularity-refactor-strategy.md)
+  [`docs/research/modularity-refactor-strategy.md`](../research/modularity-refactor-strategy.md)
 
 ## Context
 

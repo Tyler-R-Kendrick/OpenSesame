@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..", "..", "..", "..");
-const lint = join(root, "scripts", "design-lint.mjs");
+const lint = join(root, "scripts", "quality", "design-lint.mjs");
 
 /** What one lint run said: its exit code and everything it printed. */
 type LintRun = { code: number; output: string };

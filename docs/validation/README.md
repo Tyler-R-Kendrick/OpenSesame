@@ -32,7 +32,7 @@ What was run for each feature, and what the results do and do not show.
 | [mTLS implementation](mtls-implementation.md) | Optional mTLS and workload identity ([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md)). |
 | [Notification approvals](notification-approval-evidence.md) | External authorization notifications and approval ceremonies. |
 | [Trust broker](trust-broker-implementation-evidence.md) | Assurance evaluation for approvals. |
-| [Wallet interaction traceability](wallet-interaction-traceability.md) | Requirement-to-test traceability for the wallet-native interaction layer, with machine-readable companions (`wallet-*.json`). |
+| [Wallet interaction traceability](wallet-interaction-traceability.md) | Requirement-to-test traceability for the wallet-native interaction layer, with machine-readable companions in [`evidence/wallet/`](../evidence/wallet). |
 | [WebMCP](webmcp.md) | Native Chrome WebMCP support and how to verify it. |
 
 Screenshots for user-visible changes are in [`docs/evidence/`](../evidence/README.md).

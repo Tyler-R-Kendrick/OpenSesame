@@ -27,6 +27,6 @@
     "version": "v3.13.3",
     "platform": "linux/arm64",
     "sha256": "53b0abac…",
-    "role": "conformance oracle only — never shipped, never executed from the app; runs in verify gates under scripts/verify-sops-conformance.mjs"
+    "role": "conformance oracle only — never shipped, never executed from the app; runs in verify gates under scripts/test/verify-sops-conformance.mjs"
   }
 }

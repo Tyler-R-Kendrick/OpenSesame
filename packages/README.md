@@ -22,7 +22,7 @@ The bottom of the dependency graph. Nothing here imports a framework.
 | Package | Purpose |
 |---|---|
 | [`os-domain`](os-domain) | The canonical domain model: principals, grants, access domains, notifications, transport contracts. Must not import Better Auth, oidc-provider, Hono, Drizzle or React. |
-| [`contracts`](contracts) | Zod request/response schemas shared by the Identity API and its clients. |
+| [`contracts`](contracts) | Zod request/response schemas shared across planes: the Identity API and its clients, and Host API shapes (connections, sync targets, TaskBus, transport security). |
 | [`capability-registry`](capability-registry) | Every product capability mapped onto CLI, PWA, MCP and WebMCP — or excluded by ADR ([ADR 0065](../docs/adr/0065-agent-surface-parity.md)). |
 | [`capability-composition`](capability-composition) | Pure capability composition: policy documents, the resolver, consent deltas ([ADR 0130](../docs/adr/0130-operator-controlled-capability-composition.md)). |
 

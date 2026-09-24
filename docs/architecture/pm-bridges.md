@@ -145,7 +145,7 @@ Deliberately. `apps/daemon` depends on none of `apps/pm-bridges`,
 `crates/provider-passbolt`, so none of their dependencies —
 `crypto_box`, `zbus`/`oo7`, `rpgp`, `reqwest`, `keepass` — enter its tree.
 
-`scripts/daemon-deps-gate.sh` audits `opensesame-connection-detect`'s full
+`scripts/audit/daemon-deps-gate.sh` audits `opensesame-connection-detect`'s full
 tree against a fixed allowlist, plus banned crates (`sqlx`, `oauth2`,
 `jsonwebtoken`, `chacha20poly1305`, `task-bus`) in the daemon's manifest
 and depth-1 resolved tree and in the `invoke-through` / `tailscale-authn` /

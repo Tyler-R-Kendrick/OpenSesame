@@ -19,10 +19,10 @@ the specific reason the harness could not settle it.
 ```bash
 pnpm test:authority-fabric          # run and gate (non-zero while anything is blocked)
 pnpm test:authority-fabric:report   # write the report, always exit 0
-node scripts/authority-fabric-gate.mjs --no-run   # resolve statically, build nothing
+node scripts/test/authority-fabric-gate.mjs --no-run   # resolve statically, build nothing
 ```
 
-The harness lives in `scripts/authority-fabric-gate.mjs` (collects facts, runs
+The harness lives in `scripts/test/authority-fabric-gate.mjs` (collects facts, runs
 tests, writes this directory) over three modules under `scripts/lib/`:
 `authority-fabric-scenarios.mjs` (the registry), `authority-fabric.mjs` (pure
 verdict logic), `authority-fabric-facts.mjs` (everything that reads the tree).
