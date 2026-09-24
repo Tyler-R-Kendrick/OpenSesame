@@ -23,6 +23,7 @@ import { IconConnection, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
 import { type StatusMessage, StatusNote } from "../../components/StatusNote.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { GuideTarget } from "../../tutorial/registry/react.jsx";
 
 const LINK_KEY = "pair-drive=";
 
@@ -188,23 +189,25 @@ export function TailnetSyncPanel() {
   const standing = drive ? mark(state) : null;
 
   return (
-    <section className="panel" id="tailnet-sync">
-      <div className="panel__head">
-        <div>
-          <h2>Tailnet sync</h2>
+    <GuideTarget id="settings.tailnet-sync">
+      <section className="panel" id="tailnet-sync">
+        <div className="panel__head">
+          <div>
+            <h2>Tailnet sync</h2>
+          </div>
+          {standing ? (
+            <StatusMark tone={standing.tone} label={standing.label} />
+          ) : null}
         </div>
-        {standing ? (
-          <StatusMark tone={standing.tone} label={standing.label} />
-        ) : null}
-      </div>
-      <div className="panel__body">
-        {drive ? (
-          <DriveRow state={{ ...state, drive }} busy={busy} run={run} />
-        ) : (
-          <PairForm busy={busy} run={run} onEdit={() => setMessage(null)} />
-        )}
-        <StatusNote message={message} onDismiss={() => setMessage(null)} />
-      </div>
-    </section>
+        <div className="panel__body">
+          {drive ? (
+            <DriveRow state={{ ...state, drive }} busy={busy} run={run} />
+          ) : (
+            <PairForm busy={busy} run={run} onEdit={() => setMessage(null)} />
+          )}
+          <StatusNote message={message} onDismiss={() => setMessage(null)} />
+        </div>
+      </section>
+    </GuideTarget>
   );
 }

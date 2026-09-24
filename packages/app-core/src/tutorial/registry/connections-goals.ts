@@ -50,6 +50,20 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "settings.tailnet-sync",
+    title: "Sync the vault with your other devices",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "settings.tailnet-sync"',
+      'say "Tailnet sync keeps this vault in step with your other devices through a drive on your own tailnet. The drive only ever holds the sealed vault. Switch Networking on under Settings, Capabilities first."',
+      'navigate "/settings/vaults"',
+      'wait route "/settings/vaults" timeout=15000',
+      'focus "settings.tailnet-sync" "Paste the pairing code the drive printed, or open its link. On a new device this sets the vault up here, and its master password opens it." side=top',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "settings.model-provider",
     title: "Choose voice and inference models",
     routes: [],
@@ -136,6 +150,24 @@ export const CONNECTIONS_HELP: readonly HelpTopic[] = [
       "fix",
       "repair",
       "not working",
+    ],
+  },
+  {
+    id: "help.tailnet-sync",
+    title: "How do I sync the vault to my phone or another computer?",
+    answer:
+      "Run opensesame daemon drive create on a machine on your tailnet, switch Networking on in Settings → Capabilities, then paste its pairing code in Settings → Vaults on each device. Every device merges on its own side; the drive never holds a key.",
+    routes: [],
+    goal: "settings.tailnet-sync",
+    keywords: [
+      "sync",
+      "tailscale",
+      "tailnet",
+      "phone",
+      "another device",
+      "enpass",
+      "wi-fi sync",
+      "pair",
     ],
   },
   {

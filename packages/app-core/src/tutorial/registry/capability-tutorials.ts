@@ -34,6 +34,7 @@ export const CAPABILITY_TUTORIALS = {
   "changelog.read": "settings.changelog",
   "backup.status": "settings.backup",
   "backup.target.set": "settings.backup",
+  "vault.drive.sync": "settings.tailnet-sync",
   "identity.login": "identity.sign-in",
   "identity.signout": "identity.sign-out",
   "vault.second_step.code": "vault.second-step.code",
