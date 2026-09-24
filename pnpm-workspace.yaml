@@ -1,6 +1,19 @@
 packages:
-  # Product applications and services (Rust-only apps have no package.json and are skipped)
-  - "apps/*"
+  # Product applications and services, listed one by one: apps/example-siop-rp
+  # is a symlink kept only for the Vercel project's root directory and must
+  # not register the example twice.
+  - "apps/authenticator-native"
+  - "apps/browser-extension"
+  - "apps/ceremonies"
+  - "apps/connect-backend"
+  - "apps/console"
+  - "apps/control-plane"
+  - "apps/mcp-client"
+  - "apps/mcp-host"
+  - "apps/mobile-mfa"
+  - "apps/pages"
+  - "apps/pwa"
+  - "apps/worker"
   # Shared TypeScript libraries
   - "packages/*"
   # Runnable integration examples
