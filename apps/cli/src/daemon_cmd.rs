@@ -96,68 +96,73 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
                 Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
             }
         }
-        DaemonCmd::Logs => {
-            if let Ok(content) = std::fs::read_to_string(&logfile) {
-                let lines: Vec<&str> = content.lines().rev().take(40).collect();
-                let out: Vec<&str> = lines.into_iter().rev().collect();
-                println!("{}", out.join("\n"));
-                if out.is_empty() {
+        DaemonCmd::Logs => show_logs(base, &logfile).await,
+        DaemonCmd::Stop => stop_daemon(&pidfile),
+    }
+    Ok(())
+}
+
+async fn show_logs(base: &str, logfile: &str) {
+    if let Ok(content) = std::fs::read_to_string(logfile) {
+        let lines: Vec<&str> = content.lines().rev().take(40).collect();
+        let out: Vec<&str> = lines.into_iter().rev().collect();
+        println!("{}", out.join("\n"));
+        if out.is_empty() {
+            println!(
+                "{}",
+                json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
+            );
+        }
+    } else {
+        let client = reqwest::Client::new();
+        match client.get(format!("{base}/health")).send().await {
+            Ok(resp) => {
+                let body: serde_json::Value = resp.json().await.unwrap_or(json!({"raw":"ok"}));
+                println!(
+                    "{}",
+                    json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
+                );
+            }
+            Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+        }
+    }
+}
+
+fn stop_daemon(pidfile: &str) {
+    match std::fs::read_to_string(pidfile) {
+        Ok(raw) => {
+            let pid: u32 = raw.trim().parse().unwrap_or(0);
+            if pid == 0 {
+                println!("{}", json!({"status":"error","error":"invalid pidfile"}));
+            } else {
+                #[cfg(unix)]
+                {
+                    let status = StdCommand::new("kill")
+                        .args(["-TERM", &pid.to_string()])
+                        .status();
+                    let _ = std::fs::remove_file(pidfile);
                     println!(
                         "{}",
-                        json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
+                        json!({
+                            "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
+                            "pid": pid
+                        })
                     );
                 }
-            } else {
-                let client = reqwest::Client::new();
-                match client.get(format!("{base}/health")).send().await {
-                    Ok(resp) => {
-                        let body: serde_json::Value =
-                            resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                        println!(
-                            "{}",
-                            json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
-                        );
-                    }
-                    Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+                #[cfg(not(unix))]
+                {
+                    println!(
+                        "{}",
+                        json!({"status":"error","error":"stop requires unix SIGTERM"})
+                    );
                 }
             }
         }
-        DaemonCmd::Stop => match std::fs::read_to_string(&pidfile) {
-            Ok(raw) => {
-                let pid: u32 = raw.trim().parse().unwrap_or(0);
-                if pid == 0 {
-                    println!("{}", json!({"status":"error","error":"invalid pidfile"}));
-                } else {
-                    #[cfg(unix)]
-                    {
-                        let status = StdCommand::new("kill")
-                            .args(["-TERM", &pid.to_string()])
-                            .status();
-                        let _ = std::fs::remove_file(&pidfile);
-                        println!(
-                            "{}",
-                            json!({
-                                "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
-                                "pid": pid
-                            })
-                        );
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        println!(
-                            "{}",
-                            json!({"status":"error","error":"stop requires unix SIGTERM"})
-                        );
-                    }
-                }
-            }
-            Err(_) => println!(
-                "{}",
-                json!({"status":"not_running","hint":"no pidfile; stop `opensesame daemon run` manually"})
-            ),
-        },
+        Err(_) => println!(
+            "{}",
+            json!({"status":"not_running","hint":"no pidfile; stop `opensesame daemon run` manually"})
+        ),
     }
-    Ok(())
 }
 
 fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
