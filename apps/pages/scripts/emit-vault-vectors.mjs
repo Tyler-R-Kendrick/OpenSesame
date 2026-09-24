@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Writes packages/vault-core/src/fixtures/vault-vectors.json
+ * Writes spec/conformance/vault-vectors.json
  * (ADR 0133 §7).
  *
  * The vault modules read the runtime env through the app-core host, which
@@ -15,10 +15,7 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const out = join(
-  root,
-  "../../packages/vault-core/src/fixtures/vault-vectors.json",
-);
+const out = join(root, "../../spec/conformance/vault-vectors.json");
 
 if (existsSync(out) && !process.argv.includes("--force")) {
   console.error(
