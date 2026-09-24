@@ -23,6 +23,10 @@ use crate::signer;
 use crate::types::{KeyAlgorithm, SanEntry, SubjectDn};
 use crate::x509;
 
+/// Largest DER certificate signing request this engine will parse (matching
+/// the PEM bound in [`crate::x509`]).
+pub const MAX_CSR_BYTES: usize = 256 * 1024;
+
 /// What a certificate signing request asserts about its subject.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CsrFacts {
@@ -53,6 +57,18 @@ pub struct CsrFacts {
 pub fn parse_csr(csr_pem: &str) -> Result<CsrFacts, PkiError> {
     let blocks = x509::parse_pem_blocks(csr_pem, x509::LABEL_CSR, 1)?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
+    parse_csr_der(der)
+}
+
+/// Parses a DER (binary) certificate signing request and verifies its proof
+/// of possession. This is the shape an EST `simpleenroll` body carries.
+///
+/// # Errors
+/// As [`parse_csr`].
+pub fn parse_csr_der(der: &[u8]) -> Result<CsrFacts, PkiError> {
+    if der.len() > MAX_CSR_BYTES {
+        return Err(PkiError::TooLarge);
+    }
     let (rest, request) =
         X509CertificationRequest::from_der(der).map_err(|_| PkiError::CsrParse)?;
     if !rest.is_empty() {

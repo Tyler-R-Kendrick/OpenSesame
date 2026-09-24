@@ -59,7 +59,7 @@ pre-existing and not caused by this work.
 | Upstream mTLS bound to a ConnectionRef, with OpenBao certificate auth | implemented, executed, passed against real OpenBao 2.3.2 |
 | Managed-certificate custody, renewal, activation facts, revocation, trust administration | implemented, executed, passed |
 | NATS operator mode, gateway, leafnode, websocket, replicated JetStream | **unsupported** — no listener shipped, no test, not advertised |
-| Certificate enrollment servers (EST, ACME, SCEP) | **unsupported** — none exist in this repository; the standards matrix previously claimed an EST server at a path that does not exist, and that claim is corrected |
+| Certificate enrollment servers (EST, ACME, SCEP) | **EST is served** since the 2026-09-23 completion pass: RFC 7030 `cacerts` / `simpleenroll` / `simplereenroll` at `/.well-known/est/{profileId}/*` (ADR 0068 §4), authenticated by sealed passphrase or bootstrap/reenrollment certificate, policy-refusing. ACME (RFC 8555) and SCEP (RFC 8894) servers remain **unsupported** — no route module exists and none is claimed |
 | A browser attaching a vault key to its own TLS handshake | **unsupported** by the platform, and reported as such rather than worked around |
 
 ## 4. Security properties, and their actual bounds
