@@ -382,19 +382,19 @@
     "apps/control-plane/src/ui/interaction-pages.ts": {
       "max-lines": 789
     },
-    "apps/mcp-client/src/server.test.ts": {
+    "packages/mcp-client/src/server.test.ts": {
       "max-lines": 450
     },
-    "apps/mcp-client/src/server.ts": {
+    "packages/mcp-client/src/server.ts": {
       "max-lines-per-function": 1
     },
-    "apps/mcp-host/src/tools-act.ts": {
+    "packages/mcp-host/src/tools-act.ts": {
       "max-lines-per-function": 1
     },
-    "apps/mcp-host/src/tools-handlers.test.ts": {
+    "packages/mcp-host/src/tools-handlers.test.ts": {
       "max-lines": 587
     },
-    "apps/mcp-host/src/tools.ts": {
+    "packages/mcp-host/src/tools.ts": {
       "max-lines": 434,
       "max-lines-per-function": 1
     },

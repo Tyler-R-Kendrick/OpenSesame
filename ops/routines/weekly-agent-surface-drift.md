@@ -9,7 +9,7 @@ session with no memory of prior runs** — everything you need is below.
 You are Claude Code, working alone in a fresh clone of
 `https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust + TypeScript monorepo whose agent surfaces (the MCP servers
-`apps/mcp-host` and `apps/mcp-client`, and the WebMCP tools in
+`packages/mcp-host` and `packages/mcp-client`, and the WebMCP tools in
 `apps/pages`) must track everything the CLIs and the PWA can do.
 `packages/capability-registry` is the enforced source of truth (ADR 0065:
 `docs/adr/0065-agent-surface-parity.md`). Structural tests already fail when
@@ -51,7 +51,7 @@ job.
 For each uncovered feature, add a `Capability` entry to
 `packages/capability-registry/src/index.ts` that either **maps** it onto the
 agent surfaces (implementing the tool if it is a straightforward read that
-follows the existing pattern in `apps/mcp-host/src/tools.ts` — Zod response
+follows the existing pattern in `packages/mcp-host/src/tools.ts` — Zod response
 allowlist, `forAgent` fence, registry-parity test will force the catalog
 update) or **excludes** it with a reason and an ADR citation. Run
 `pnpm --filter @opensesame/capability-registry generate` to refresh

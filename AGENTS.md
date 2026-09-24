@@ -25,7 +25,7 @@ dual-plane system with a **host/client** product topology (see
 - **Client plane (Rust → Wasm + TS)** — `client-core` E2EE sync +
   `packages/api-client` (Host API TS client). Browser extension
   `apps/browser-extension` (WXT), offline GitHub Pages PWA `apps/pages`, Client CLI `packages/cli` (binary `opensesame-id`), MCP
-  servers `apps/mcp-client` / `apps/mcp-host`.
+  servers `packages/mcp-client` / `packages/mcp-host`.
 - **Identity plane (TypeScript)** — Identity API `apps/control-plane`
   (`:8788`, Hono + Better Auth + oidc-provider), mock upstream IdP
   `tools/mock-upstream-idp` (`:9090`).
@@ -272,7 +272,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
-| `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
+| `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
 | `apps/browser-extension` | WXT browser extension |

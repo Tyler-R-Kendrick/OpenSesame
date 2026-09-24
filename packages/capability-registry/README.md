@@ -9,7 +9,7 @@ package compare their implemented catalogs against the views derived here.
 ## Where it fits
 
 - **Used by:** the parity tests and catalogs of
-  [`apps/mcp-host`](../../apps/mcp-host), [`apps/mcp-client`](../../apps/mcp-client),
+  [`packages/mcp-host`](../../packages/mcp-host), [`packages/mcp-client`](../../packages/mcp-client),
   [`apps/pages`](../../apps/pages),
   [`packages/cli`](../cli), [`packages/webmcp`](../webmcp),
   [`packages/app-core`](../app-core) and [`tests/redteam`](../../tests/redteam).

@@ -1,7 +1,7 @@
 # @opensesame/redteam
 
 A [promptfoo](https://www.promptfoo.dev/) red-team corpus for the MCP surfaces
-exposed by [`apps/mcp-host`](../../apps/mcp-host) (`@opensesame/mcp-host`), the
+exposed by [`packages/mcp-host`](../../packages/mcp-host) (`@opensesame/mcp-host`), the
 stdio MCP server that fronts the Host API / daemon with the tools
 `task_start`, `task_status`, `task_invoke`, `task_terminate`, `daemon_health`,
 `host_ready`, and `task_invoke_l1`, plus the current bounded sync/task catalog.
@@ -16,7 +16,7 @@ prompt-injection tests exercise retained task tools. These local fixtures do
 not claim to validate a live deployment or constitute a model-backed scan.
 
 This package is part of the default `pnpm test` run (`vitest` covers the
-corpus PACT plus a live `apps/mcp-host` structural pass of confused-deputy,
+corpus PACT plus a live `packages/mcp-host` structural pass of confused-deputy,
 credential-exfiltration, malformed-input, and prompt-injection-as-data). The
 full promptfoo eval, including the Anthropic prompt-injection class, still
 runs on its own via `pnpm --filter @opensesame/redteam redteam` and the
@@ -32,13 +32,13 @@ documented in this repo's audit history:
 | Prompt injection via relayed tool results | [`tests/prompt-injection.yaml`](tests/prompt-injection.yaml) | [`docs/security/audits/2026-08-08-mcp-agent-boundary.md`](../../docs/security/audits/2026-08-08-mcp-agent-boundary.md) and the commit `f012c71` bug class: an upstream response body used to be relayed to the model verbatim. |
 | Confused-deputy / scope-widening via tool params | [`tests/confused-deputy.yaml`](tests/confused-deputy.yaml) | [`docs/security/audits/2026-08-08-mcp-resource-scope.md`](../../docs/security/audits/2026-08-08-mcp-resource-scope.md) ("a resource is not an origin") and the `operator_invoke_l1` design: the model supplies only `connection_ref` — operation, resource, and the intent digest are whatever the server itself froze earlier, never restated by the caller. |
 | Credential exfiltration via an echoing upstream | [`tests/credential-exfiltration.yaml`](tests/credential-exfiltration.yaml) | [`docs/security/audits/2026-08-08-mcp-agent-boundary.md`](../../docs/security/audits/2026-08-08-mcp-agent-boundary.md) and [`docs/security/audits/2026-08-22-mcp-response-minimization.md`](../../docs/security/audits/2026-08-22-mcp-response-minimization.md): per-tool response allowlists plus `forAgent`/`scrubLocalSecrets`. |
-| Malformed / oversized inputs against the zod schemas | [`tests/malformed-input.yaml`](tests/malformed-input.yaml) | The `capabilities`/`ttl_seconds` bounds declared in [`apps/mcp-host/src/tools.ts`](../../apps/mcp-host/src/tools.ts). |
+| Malformed / oversized inputs against the zod schemas | [`tests/malformed-input.yaml`](tests/malformed-input.yaml) | The `capabilities`/`ttl_seconds` bounds declared in [`packages/mcp-host/src/tools.ts`](../../packages/mcp-host/src/tools.ts). |
 
 See also [`docs/security/audits/2026-08-08-mcp-endpoint-fences.md`](../../docs/security/audits/2026-08-08-mcp-endpoint-fences.md)
 for the loopback/https fencing on `OPENSESAME_HOST_API` / `OPENSESAME_DAEMON_API`
-that all four classes' spawned `apps/mcp-host` processes rely on.
+that all four classes' spawned `packages/mcp-host` processes rely on.
 
-Every test case calls the **real, unmodified** `apps/mcp-host` over stdio —
+Every test case calls the **real, unmodified** `packages/mcp-host` over stdio —
 nothing here mocks or stubs the server itself, only the upstream Host API /
 daemon it talks to.
 
@@ -49,10 +49,10 @@ test pins itself to exactly one provider via a `providers:` field, so there's
 no accidental cross-product):
 
 - **`mcp-host-structural`** (`file://src/mcp-provider.ts`) — our own small
-  TypeScript harness. For each test case it spawns the real `apps/mcp-host`
+  TypeScript harness. For each test case it spawns the real `packages/mcp-host`
   over stdio using `@modelcontextprotocol/sdk`'s `StdioClientTransport` /
   `Client` (the client-side mirror of
-  [`apps/mcp-host/src/transports/stdio.ts`](../../apps/mcp-host/src/transports/stdio.ts),
+  [`packages/mcp-host/src/transports/stdio.ts`](../../packages/mcp-host/src/transports/stdio.ts),
   same SDK version: 1.30.0), optionally starts a private, ephemeral stub Host
   API / daemon on an OS-assigned port ([`src/mock-upstream.ts`](src/mock-upstream.ts))
   primed with the upstream response the test wants to probe, makes the exact
@@ -64,13 +64,13 @@ no accidental cross-product):
 
 - **`claude-live-mcp`** (`anthropic:messages:claude-sonnet-4-6`) — promptfoo's
   built-in Anthropic provider, wired via its native `config.mcp` integration
-  to spawn the same real `apps/mcp-host` and run a genuine multi-turn
+  to spawn the same real `packages/mcp-host` and run a genuine multi-turn
   tool-calling loop against it. Used only by the prompt-injection class, where
   what's actually under test is the *model's* judgment about instructions
   embedded in a tool result — that call has to go through a live model. The
   fixed-port stub Host API / daemon it talks to
   ([`scripts/mock-upstream-daemon.mjs`](scripts/mock-upstream-daemon.mjs))
-  listens on `apps/mcp-host`'s exact default ports (127.0.0.1:8787 and
+  listens on `packages/mcp-host`'s exact default ports (127.0.0.1:8787 and
   127.0.0.1:18790) so no per-test provider config override is needed — each
   of the four injection cases just steers the model, via its prompt, toward
   the one tool whose canned response carries that case's injected
@@ -156,7 +156,7 @@ pnpm --filter @opensesame/redteam redteam:mock-upstream
 
 Each test file's cases follow the same shape: `vars.calls` is a sequence of
 `{ tool, params }` MCP tool calls made against one continuous spawned
-`apps/mcp-host` process (so e.g. a `task_start` then `task_invoke` in the same
+`packages/mcp-host` process (so e.g. a `task_start` then `task_invoke` in the same
 case share task context, exactly like a real multi-turn agent session would).
 `vars.mockRoutes` primes that case's private stub upstream; `vars.env` sets
 extra environment variables (e.g. a fixture `OPENSESAME_OPERATOR_TOKEN`) on
@@ -184,7 +184,7 @@ see that doc for the exact schedule and how failures are surfaced.
 This suite was built and self-reviewed without a completed `pnpm install`
 (per this build's constraints), so `promptfoo eval` itself has not been run
 end-to-end here. What *was* verified directly against the real, unmodified
-`apps/mcp-host` server while writing it:
+`packages/mcp-host` server while writing it:
 
 - Every zod validation error string asserted on in `tests/malformed-input.yaml`
   was captured live from a real `task_start` call via the MCP client SDK.

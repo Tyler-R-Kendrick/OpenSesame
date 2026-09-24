@@ -7,7 +7,7 @@ are written with. It is a dev dependency only; no production code imports it.
 
 ## Where it fits
 
-- **Used by:** the test suites of most apps and packages — among them [`apps/control-plane`](../../apps/control-plane), [`apps/mcp-host`](../../apps/mcp-host), [`apps/mcp-client`](../../apps/mcp-client), [`packages/app-core`](../app-core), [`packages/policy`](../policy), [`packages/sdk-browser`](../sdk-browser), [`tests/redteam`](../../tests/redteam) and [`tests/fuzz/jazzer`](../../tests/fuzz/jazzer).
+- **Used by:** the test suites of most apps and packages — among them [`apps/control-plane`](../../apps/control-plane), [`packages/mcp-host`](../../packages/mcp-host), [`packages/mcp-client`](../../packages/mcp-client), [`packages/app-core`](../app-core), [`packages/policy`](../policy), [`packages/sdk-browser`](../sdk-browser), [`tests/redteam`](../../tests/redteam) and [`tests/fuzz/jazzer`](../../tests/fuzz/jazzer).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (types only).
 - Diagnostic logs are separate from the audit trail; the sentinel scan is how a test proves a secret reached neither ([ADR 0015](../../docs/adr/0015-audit-vs-diagnostic-logging.md)).
 

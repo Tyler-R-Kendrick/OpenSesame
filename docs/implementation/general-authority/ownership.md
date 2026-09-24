@@ -25,7 +25,7 @@ programme.
 | **GA-H** — host plane | Authority evaluation, host storage, lifecycle publication, receipts | `crates/host-core`, `crates/storage`, `crates/gateway`, `crates/lifecycle` | `GA-H-01` … `GA-H-04` |
 | **GA-I** — identity plane | Identity API routes, membership reconciliation, audit events | `apps/control-plane`, `packages/database`, `packages/audit` | `GA-I-01` … `GA-I-03` |
 | **GA-P** — client plane | Local share-grant alignment, Access surfaces, no-backend gating | `packages/app-core/src/lib/local-share-grants.ts`, `apps/pages/src/sections`, `apps/pwa` | `GA-P-01` … `GA-P-04` |
-| **GA-C** — surface parity | Capability-registry entries and the per-surface parity sweeps | `packages/capability-registry`, `apps/mcp-host`, `apps/mcp-client`, `packages/cli`, `apps/cli` | `GA-C-01` … `GA-C-02` |
+| **GA-C** — surface parity | Capability-registry entries and the per-surface parity sweeps | `packages/capability-registry`, `packages/mcp-host`, `packages/mcp-client`, `packages/cli`, `apps/cli` | `GA-C-01` … `GA-C-02` |
 | **GA-O** — operations & docs | This directory, the ADR, the compatibility map, the completion matrix | `docs/implementation/general-authority`, `docs/architecture/general-authority.md`, `docs/adr` | `GA-O-01` … `GA-O-04` |
 | **GA-Q** — quality & evidence | Structural gates, test plan, visual/behavioural evidence | `tools/quality/quality-baseline.json`, `docs/validation`, `docs/evidence` | `GA-Q-01` … `GA-Q-03` |
 

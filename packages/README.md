@@ -40,6 +40,8 @@ and Android ([ADR 0133](../docs/adr/0133-shared-app-core.md)).
 | [`api-client`](api-client) | Typed client for the Host API. |
 | [`webmcp`](webmcp) | WebMCP (`document.modelContext`) detection and a fenced tool registrar for the PWAs. |
 | [`qr`](qr) | QR encoding to SVG and terminal. |
+| [`mcp-host`](mcp-host) | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. Served by `opensesame-id mcp host` (stdio, or HTTP with `OPENSESAME_MCP_TRANSPORT=http`). |
+| [`mcp-client`](mcp-client) | Agent MCP server over a narrowly scoped, short-lived Host capability. Served by `opensesame-id mcp client`. |
 
 ## Identity plane
 

@@ -8,8 +8,8 @@ secrets from a payload and refuses one that still looks like a credential.
 ## Where it fits
 
 - **Used by:** [`apps/control-plane`](../../apps/control-plane),
-  [`apps/worker`](../../apps/worker), [`apps/mcp-host`](../../apps/mcp-host)
-  and [`apps/mcp-client`](../../apps/mcp-client) (`forAgent` on tool output),
+  [`apps/worker`](../../apps/worker), [`packages/mcp-host`](../../packages/mcp-host)
+  and [`packages/mcp-client`](../../packages/mcp-client) (`forAgent` on tool output),
   [`packages/agent-client`](../agent-client) (`registerAgentSecret`),
   [`packages/telemetry`](../telemetry) (reuses `SENSITIVE_KEY_PATTERN`) and
   [`packages/webmcp`](../webmcp).

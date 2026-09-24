@@ -249,7 +249,7 @@ five surfaces (`cli`, `pwa`, `mcp_host`, `mcp_client`, `webmcp`) or carrying an
 ADR-cited exclusion. It is well-designed data. But it only *asserts parity* —
 the parity sweeps check that a token exists in the surface's source.
 
-Meanwhile `apps/mcp-host` hand-writes 2,114 lines across `tools-read.ts`
+Meanwhile `packages/mcp-host` hand-writes 2,114 lines across `tools-read.ts`
 (1,014), `tools-act.ts` (622) and `tools.ts` (478). Every entry has the same
 shape: `server.tool(name, description, paramSchema, async handler)` where the
 handler is `hostFetch(path)` → `agentJson(body, ok, responseSchema)` →

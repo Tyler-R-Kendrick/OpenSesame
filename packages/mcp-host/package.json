@@ -7,6 +7,9 @@
   "bin": {
     "opensesame-mcp-host": "./src/server.ts"
   },
+  "exports": {
+    ".": "./src/server.ts"
+  },
   "scripts": {
     "start": "node --import tsx src/server.ts",
     "typecheck": "tsc --noEmit",

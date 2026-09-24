@@ -4,14 +4,14 @@
  *
  * That class's provider (see promptfooconfig.yaml, provider id
  * "anthropic:messages:..." / label "claude-live-mcp") spawns the real
- * `apps/mcp-host` via promptfoo's native `config.mcp` integration. Provider
+ * `packages/mcp-host` via promptfoo's native `config.mcp` integration. Provider
  * config in promptfooconfig.yaml is static YAML shared by the whole eval run
  * — it can't be re-templated per test case the way our own custom provider's
  * `vars.mockRoutes` can (see src/mock-upstream.ts) — so instead of pointing
  * mcp-host at a per-test override URL, this stub simply listens on the exact
  * default ports mcp-host assumes when OPENSESAME_HOST_API / OPENSESAME_DAEMON_API
  * are unset (127.0.0.1:8787 and 127.0.0.1:18790 — see
- * apps/mcp-host/src/host-api.ts), and each of the four prompt-injection test
+ * packages/mcp-host/src/host-api.ts), and each of the four prompt-injection test
  * cases steers the model toward the one tool whose route carries that case's
  * injected instruction.
  *

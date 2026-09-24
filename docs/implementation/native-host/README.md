@@ -22,7 +22,7 @@ the same tests the original did.
 | Helper minting | The daemon requires the operator token even on the socket; the helpers send none, so `/v1/mint` answers 401. | `crates/daemon/src/lib.rs` (`require_operator`), `crates/credential-helpers/src/lib.rs` |
 | Dependency budget | The gate checks depth one; the full tree reaches `sqlx` and `chacha20poly1305` through `host-core`. | `scripts/audit/daemon-deps-gate.sh`, `cargo tree -p opensesame-daemon` |
 | Rust identity primitives | DPoP, JWK thumbprints, PKCE, device flow, discovery parsing, X.509. No OIDC provider, no ID-token minting, no SIOP, no WebAuthn relying party. | `crates/proof`, `crates/authn`, `crates/pki-core` |
-| MCP | Two stdio servers with duplicated sync tools and two audiences; 13 of 189 capabilities reach MCP. Pages has 24 WebMCP tools on a transport-neutral spec the servers do not use. | `apps/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
+| MCP | Two stdio servers with duplicated sync tools and two audiences; 13 of 189 capabilities reach MCP. Pages has 24 WebMCP tools on a transport-neutral spec the servers do not use. | `packages/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
 | Desktop | None. The toolbar is `opensesame daemon info / approve-device / approve-claim`. | `apps/cli/src/daemon_toolbar.rs` |
 
 ## Target
@@ -172,9 +172,9 @@ host.
   `agent-client`, the CLI's `--audience` parser, the OpenAPI spec and the
   storage tests change together.
 - Registry: one `mcp` surface replaces `mcp_host` and `mcp_client`; parity
-  tests, `tests/redteam` (which spawns `apps/mcp-host` by path) and
-  `apps/cli/tests/capability_parity.rs` follow. Delete `apps/mcp-host` and
-  `apps/mcp-client`.
+  tests, `tests/redteam` (which spawns `packages/mcp-host` by path) and
+  `apps/cli/tests/capability_parity.rs` follow. Delete `packages/mcp-host` and
+  `packages/mcp-client`.
 
 **Exit:** the registry parity suites; `pnpm test:redteam` against
 `opensesame mcp serve`; `pnpm --filter @opensesame/pages verify:webmcp`.
