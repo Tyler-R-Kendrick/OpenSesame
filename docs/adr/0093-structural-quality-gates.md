@@ -110,7 +110,7 @@ Two findings are **hard failures with no baseline**:
 - **ADP — a dependency cycle.** Cyclic components cannot be built, tested,
   versioned or released independently, which dissolves the thing that makes
   them components. Found via Tarjan SCCs (O(V+E)); enumerating paths is
-  exponential on a graph where `apps/gateway` depends on forty crates that also
+  exponential on a graph where `crates/gateway` depends on forty crates that also
   depend on each other.
 - **A phantom dependency** — importing `@opensesame/x` without declaring it.
   It resolves only while pnpm's store happens to hoist it. Rust needs no

@@ -1,7 +1,0 @@
----
-source: apps/daemon/src/main.rs
-expression: body
----
-{
-  "error": "uds_peer_unattested"
-}

@@ -46,5 +46,5 @@ symlink, permission and size refusals.
 
 - [ADR 0099](../../docs/adr/0099-scoped-local-agent-authority.md) — short-lived
   local agent launch capabilities
-- Daemon side: [`apps/daemon`](../../apps/daemon); Host side:
-  [`apps/gateway`](../../apps/gateway)
+- Daemon side: [`crates/daemon`](../../crates/daemon); Host side:
+  [`crates/gateway`](../../crates/gateway)

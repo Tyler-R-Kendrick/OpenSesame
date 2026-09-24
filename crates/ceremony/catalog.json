@@ -27,7 +27,7 @@
     {
       "provider_id": "github",
       "native_registration": true,
-      "native_registration_note": "GitHub App Manifest flow, already implemented in apps/gateway/src/routes/github_app.rs",
+      "native_registration_note": "GitHub App Manifest flow, already implemented in crates/gateway/src/routes/github_app.rs",
       "recipe": false,
       "agentic_allowed": false,
       "declares": [

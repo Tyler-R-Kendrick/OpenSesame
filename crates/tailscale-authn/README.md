@@ -8,7 +8,7 @@ and authorizes the answer against an explicit user and tag allowlist.
 
 ## Where it fits
 
-- **Used by:** [`apps/daemon`](../../apps/daemon), only when built with
+- **Used by:** [`crates/daemon`](../../crates/daemon), only when built with
   `--features tailscale`, for its read-only tailnet listener; and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`whois_response`).
 - **Builds on:** no workspace crates (`serde`, `serde_json`, `thiserror`).
@@ -34,7 +34,7 @@ and authorizes the answer against an explicit user and tag allowlist.
 
 ```bash
 cargo +1.88.0 test -p opensesame-tailscale-authn
-cargo +1.88.0 build -p opensesame-daemon --features tailscale
+cargo +1.88.0 build -p opensesame-cli --features tailscale
 pnpm audit:daemon-deps
 ```
 

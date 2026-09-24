@@ -97,12 +97,12 @@ tree; they are not substitutes for final clean-tree verification:
 - Paired metadata HTTP regression: passed with real paired DPoP requests.
 - Gateway integrated selection: 603 tests passed (one pre-existing ignored test).
 
-Regression anchors include `apps/gateway/src/host_authorization_tests.rs`,
-`apps/gateway/src/routes/agent_runs_tests.rs`,
+Regression anchors include `crates/gateway/src/host_authorization_tests.rs`,
+`crates/gateway/src/routes/agent_runs_tests.rs`,
 `crates/storage/tests/host_authorizations.rs`,
-`apps/gateway/src/middleware/browser_user_routes.rs`,
-`apps/gateway/src/middleware/browser_metadata_tests.rs`, and
-`apps/gateway/src/routes/agent_run_stream_tests.rs`.
+`crates/gateway/src/middleware/browser_user_routes.rs`,
+`crates/gateway/src/middleware/browser_metadata_tests.rs`, and
+`crates/gateway/src/routes/agent_run_stream_tests.rs`.
 
 No fresh full Codex Security, DeepSec AI or Mantis campaign is claimed in this
 record. No full `pnpm verify`, clean dependency scan, production deployment,

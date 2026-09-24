@@ -11,9 +11,9 @@ export default defineConfig({
       id: "opensesame",
       root: "..",
       priorityPaths: [
-        "apps/gateway/",
+        "crates/gateway/",
         "apps/control-plane/",
-        "apps/daemon/",
+        "crates/daemon/",
         "apps/pages/src/",
         "apps/worker/",
         "crates/authz/",

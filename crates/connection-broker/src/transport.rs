@@ -314,7 +314,7 @@ pub struct TrustScope {
 }
 
 /// Resolves an identity reference to a loaded TLS identity. Implemented by the
-/// Host over its managed certificates (`apps/gateway`, SW-LIFECYCLE) and by
+/// Host over its managed certificates (`crates/gateway`, SW-LIFECYCLE) and by
 /// [`crate::transport_memory::MemoryTransportResolver`] for tests. The broker
 /// never resolves a reference any other way.
 #[async_trait]

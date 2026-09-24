@@ -19,11 +19,11 @@ organization external default → the OpenSesame private CA); and every result
 carries a trust class. That decision is intact and this ADR does not disturb it.
 
 What it left unbuilt is everything *around* a certificate. The live surface is a
-single self-signed development root (`apps/gateway/src/dev_pki.rs`), four global
-issuance constants in `apps/gateway/src/cert_issuers/model.rs`, three tables
+single self-signed development root (`crates/gateway/src/dev_pki.rs`), four global
+issuance constants in `crates/gateway/src/cert_issuers/model.rs`, three tables
 (`certificate_authorities`, `certificate_issuance_requests`,
 `issued_certificates` from `crates/storage/migrations/0013_certificate_issuance.sql`), and four
-routes in `apps/gateway/src/routes/certs.rs`. There is no CA hierarchy, no way
+routes in `crates/gateway/src/routes/certs.rs`. There is no CA hierarchy, no way
 to say "certificates for this service must have these constraints", no notion of
 who inside an organization may operate a given certificate population, no
 inventory of certificates OpenSesame did not itself mint, and no linkage between
@@ -104,7 +104,7 @@ list means deny-everything, and a populated list is a whitelist. Profile
 defaults are validated against the policy at **write** time as well as issue
 time, so a profile cannot be saved carrying a default its own policy forbids.
 The evaluator lands in the forthcoming `crates/pki-core` `policy` module; the
-routes in the forthcoming `apps/gateway/src/routes/certmgr_policy.rs` and
+routes in the forthcoming `crates/gateway/src/routes/certmgr_policy.rs` and
 `certmgr_profile.rs`.
 
 Gate: `cargo +1.88.0 test -p opensesame-pki-core`
@@ -123,12 +123,12 @@ machine identities, or group references — carrying one of three roles:
 | `auditor` | read only |
 
 These roles are **layered over**, not a replacement for, the existing caller
-model in `apps/gateway/src/middleware/auth.rs`. `resolve_caller` still
+model in `crates/gateway/src/middleware/auth.rs`. `resolve_caller` still
 establishes who the caller is and which organization they are in
 (`Caller::in_organization`); an organization owner or admin
 (`Caller::can_configure_integrations`) is always treated as product-admin and
 therefore admin of every application in that organization. The new helper
-(forthcoming `apps/gateway/src/routes/certmgr_roles.rs`) exposes
+(forthcoming `crates/gateway/src/routes/certmgr_roles.rs`) exposes
 `require_app_role(state, headers, application_id, minimum)` and its signer
 sibling, and every certmgr handler calls it before touching `st.db`.
 
@@ -136,7 +136,7 @@ Two behaviors are load-bearing. First, a caller who is not a member of an
 application gets **404, not 403** — existence is not disclosed to non-members,
 matching the cross-org isolation posture already asserted by
 `adversarial_ephemeral_history_isolated_between_organizations` in
-`apps/gateway/src/routes/certs.rs`. Second, roles never widen organization
+`crates/gateway/src/routes/certs.rs`. Second, roles never widen organization
 scope: an application member in org A gains nothing in org B, because every
 table carries `organization_id` and every accessor is org-scoped.
 
@@ -151,7 +151,7 @@ OpenSesame knows about, discriminated by `source`:
   additionally carry sealed key material; CSR-mode certificates carry none.
 - `imported` — supplied by a human through the import ceremony as PEM or a
   PKCS#12 keystore. OpenSesame validates and normalizes the chain (generalizing
-  `normalize_external_certificate` in `apps/gateway/src/cert_issuers/model.rs`)
+  `normalize_external_certificate` in `crates/gateway/src/cert_issuers/model.rs`)
   but did not mint it and may hold no private key for it.
 - `discovered` — observed on the network by a TLS discovery scan. A discovered
   row starts as an *installation* record and is promoted into inventory only by
@@ -179,7 +179,7 @@ Gate: `cargo +1.88.0 test -p opensesame-gateway`
 Auditability is a property of the model, not a feature bolted on per route. Each
 mutating `/api/v1/certmgr/*` handler appends a host-plane outbox event in the
 **same transaction** as its state change, using the `append_outbox_tx` pattern
-established in `apps/gateway/src/github_webhook.rs`, with event type
+established in `crates/gateway/src/github_webhook.rs`, with event type
 `certmgr.<object>.<verb>` (`certmgr.ca.created`, `certmgr.certificate.revoked`,
 `certmgr.signer.signed`, …) and a non-secret payload projection. Same
 transaction means there is no window in which state changed and the audit record
@@ -253,8 +253,8 @@ MS-WCCE is DCOM/RPC over an NTLM- or Kerberos-authenticated channel. Reaching it
 requires a Windows RPC stack the gateway does not have and would not gain
 cheaply, and NTLM credential handling inside the authority plane is a custody
 surface we decline. The Azure ADCS **HTTPS web-enrollment** adapter (forthcoming
-`apps/gateway/src/cert_issuers/external/azure_adcs.rs`, a broker-fenced sibling
-of the existing adapters in `apps/gateway/src/cert_issuers/`) covers the
+`crates/gateway/src/cert_issuers/external/azure_adcs.rs`, a broker-fenced sibling
+of the existing adapters in `crates/gateway/src/cert_issuers/`) covers the
 reachable part of the same deployment through an ordinary HTTPS path.
 This is an exclusion, not a roadmap item: the transport, not the feature, is the
 objection.

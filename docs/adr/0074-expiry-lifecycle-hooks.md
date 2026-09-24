@@ -21,7 +21,7 @@ credentials advertise `expires_at` on `ConnectionView`. Sealed-store paths and
 connections under a rotation policy come due on an interval.
 
 Almost none of that was *detected*. The one loop that existed —
-`apps/gateway/src/rotation_scheduler.rs` — asked `policy_due_at` about rotation
+`crates/gateway/src/rotation_scheduler.rs` — asked `policy_due_at` about rotation
 policies and nothing else, and told nobody: it executed a rotation and wrote a
 changelog row. A certificate 24 hours from expiry produced no signal at all.
 `cert_alerts` and `alert_deliveries` (ADR 0066) hold per-application
@@ -50,7 +50,7 @@ metadata), an `ExpiryStage` ladder, a `LifecycleEvent`, and `evaluate` — a pur
 function from (subject, watermarks, clock) to the events it owes. No I/O, so
 every firing decision is exhaustively testable without a database.
 
-`apps/gateway/src/lifecycle/` supplies the rest: `subjects` gathers deadlines
+`crates/gateway/src/lifecycle/` supplies the rest: `subjects` gathers deadlines
 from every source, `scanner` runs the pass, `dispatch` fans out, `responders`
 acts, `delivery` sends. One detector, five sources, one feed.
 

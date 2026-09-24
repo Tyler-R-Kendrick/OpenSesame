@@ -1,13 +1,13 @@
 //! A mock Host for the live stack: an axum router on a `SecureListener` that
 //! requires the bridge's client certificate.
 //!
-//! It stands in for `apps/gateway/src/routes/nats_callout.rs` and repeats the
+//! It stands in for `crates/gateway/src/routes/nats_callout.rs` and repeats the
 //! two Host behaviours the live path is meant to prove — **independent**
 //! re-verification of the server-signed request (never trusting the bridge's
 //! summary of it) and one immutable decision per request digest. It does
 //! *not* re-implement the gateway's JWKS token verification: the upstream
 //! token here is matched against a small table, and the real verification is
-//! unit-tested in `apps/gateway/src/callout_evidence_tests.rs`.
+//! unit-tested in `crates/gateway/src/callout_evidence_tests.rs`.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

@@ -1,6 +1,6 @@
-//! Starting the **real** `opensesame-gateway` binary.
+//! Starting the **real** Host API: `opensesame host run`.
 //!
-//! `apps/gateway/src/transport/boot.rs` is the only place the Host decides
+//! `crates/gateway/src/transport/boot.rs` is the only place the Host decides
 //! whether a secure listener exists, and it is reachable only from `main`.
 //! SW-SERVICE could unit-test the profile it builds; nothing but the process
 //! itself can show that a misconfigured `mtls_required` deployment *refuses
@@ -25,7 +25,7 @@ use opensesame_mtls_interop::repo_root;
 ///
 /// The build failed or produced nothing.
 pub fn binary() -> Result<PathBuf> {
-    let path = repo_root().join("target/debug/opensesame-gateway");
+    let path = repo_root().join("target/debug/opensesame");
     if path.is_file() {
         return Ok(path);
     }
@@ -34,12 +34,12 @@ pub fn binary() -> Result<PathBuf> {
             "+1.88.0",
             "build",
             "-p",
-            "opensesame-gateway",
+            "opensesame-cli",
         ]),
         Duration::from_secs(2400),
     )?;
     if code != Some(0) || !path.is_file() {
-        bail!("could not build opensesame-gateway ({code:?}): {err}");
+        bail!("could not build opensesame ({code:?}): {err}");
     }
     Ok(path)
 }
@@ -90,6 +90,7 @@ impl Gateway {
             tls: free_port()?,
         };
         let mut command = Command::new(binary);
+        command.args(["host", "run"]);
         command
             .current_dir(repo_root())
             // Loopback everywhere: `classify` must see a LocalOnly exposure
@@ -111,7 +112,7 @@ impl Gateway {
             .env("OPENSESAME_TLS_TRUST_KIND", "private_root")
             .env("OPENSESAME_SERVICE_BINDINGS_FILE", spec.bindings);
         let child = Child::spawn(
-            "opensesame-gateway",
+            "opensesame host run",
             &mut command,
             &spec.log_dir.join("gateway.log"),
         )?;

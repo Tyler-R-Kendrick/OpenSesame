@@ -55,17 +55,15 @@ members = [
   "crates/uds-authn",
   "crates/tailscale-authn",
   "crates/dns-enforcement",
-  "apps/gateway",
-  "apps/worker",
-  "apps/daemon",
-  "apps/toolbar",
-  "apps/callback-edge",
+  "crates/gateway",
+  "crates/worker",
+  "crates/daemon",
   "apps/cli",
-  "apps/credential-helpers",
-  "apps/pm-bridges",
+  "crates/credential-helpers",
+  "crates/pm-bridges",
   "tests/mtls-interop",
 ]
-default-members = ["apps/gateway", "apps/cli", "apps/worker"]
+default-members = ["apps/cli"]
 exclude = ["tests/fuzz/cargo"]
 
 [workspace.package]

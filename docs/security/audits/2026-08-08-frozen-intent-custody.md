@@ -1,7 +1,7 @@
 # Audit — frozen intent custody and ceiling storage (2026-08-08)
 
 Tick 56. Scope: `crates/task-access` (engine, SQLite store, Postgres store) and
-the task routes in `apps/gateway/src/routes/tasks.rs`.
+the task routes in `crates/gateway/src/routes/tasks.rs`.
 
 ## Findings
 

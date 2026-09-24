@@ -10,6 +10,10 @@ const CAPABILITIES_JSON: &str =
 
 const CLI_SOURCES: &[&str] = &[
     include_str!("../src/main.rs"),
+    include_str!("../src/daemon_cmd.rs"),
+    include_str!("../src/daemon_toolbar.rs"),
+    include_str!("../src/serve.rs"),
+    include_str!("../src/entry.rs"),
     include_str!("../src/connect.rs"),
     include_str!("../src/configs.rs"),
     include_str!("../src/certs.rs"),

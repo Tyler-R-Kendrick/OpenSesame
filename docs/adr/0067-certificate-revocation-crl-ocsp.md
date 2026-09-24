@@ -10,7 +10,7 @@ Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.m
 ## Context
 
 OpenSesame's private CA already sets the `CrlSign` key usage
-(`apps/gateway/src/dev_pki.rs`) and nothing else about revocation exists: no
+(`crates/gateway/src/dev_pki.rs`) and nothing else about revocation exists: no
 revocation record, no CRL, no distribution point in issued certificates, no
 responder. A certificate issued by the OpenSesame CA today cannot be un-trusted
 except by waiting for it to expire or by removing the root from every relying
@@ -52,7 +52,7 @@ CA that can un-revoke needs an operator story for the window in which relying
 parties saw the hold, and we do not have one worth the complexity.
 
 The route is `POST /api/v1/certmgr/certificates/{id}/revoke` (forthcoming
-`apps/gateway/src/routes/certmgr_inventory.rs`), gated on application `operator`
+`crates/gateway/src/routes/certmgr_inventory.rs`), gated on application `operator`
 or above.
 
 Gate: `cargo +1.88.0 test -p opensesame-gateway`
@@ -88,8 +88,8 @@ A CRL is regenerated:
    are the source of truth) and the lifecycle actor retries; a revocation must
    never be lost because a signing step was unavailable.
 2. **On approaching `next_update`** — the certificate lifecycle actor
-   (forthcoming `apps/gateway/src/cert_lifecycle.rs`, modeled on
-   `apps/gateway/src/rotation_scheduler.rs`) regenerates any CRL whose
+   (forthcoming `crates/gateway/src/cert_lifecycle.rs`, modeled on
+   `crates/gateway/src/rotation_scheduler.rs`) regenerates any CRL whose
    `next_update` is inside its horizon, so a CRL never goes stale merely because
    nothing was revoked.
 
@@ -134,7 +134,7 @@ Gate: `cargo +1.88.0 test -p opensesame-pki-core`
 
 `POST /ocsp/{caId}` (`application/ocsp-request`) and
 `GET /ocsp/{caId}/{base64request}` implement an RFC 6960 responder over the same
-revocation records (forthcoming `apps/gateway/src/routes/revocation.rs`). The
+revocation records (forthcoming `crates/gateway/src/routes/revocation.rs`). The
 responder parses the request, looks up each requested serial against
 `certificate_revocations` scoped to that CA, and returns a signed
 `good` / `revoked` / `unknown` status with `thisUpdate`/`nextUpdate`.
@@ -221,7 +221,7 @@ CA id as their only path parameter, disclose nothing about which organization
 owns that CA, and return the same shape for "no such CA" as for "CA with no
 CRL". They carry explicit body limits, and the OCSP `GET` form caps the encoded
 request length. They are listed in the contract allowlist
-(`apps/gateway/src/routes/contract.rs`) with an unauthenticated-by-design
+(`crates/gateway/src/routes/contract.rs`) with an unauthenticated-by-design
 category comment so the exemption is reviewed rather than assumed.
 
 Gate: `cargo +1.88.0 test -p opensesame-gateway`

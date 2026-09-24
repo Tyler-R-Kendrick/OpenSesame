@@ -110,13 +110,13 @@ pub fn catalog() -> Result<Catalog, Vec<CatalogError>> {
 type Built = Result<EnforcementDescriptor, Vec<ConformanceViolation>>;
 
 /// The subject never holds the value: `crates/invoke-through` brokers the call
-/// and `apps/gateway` decides it.
+/// and `crates/gateway` decides it.
 fn brokered_invocation() -> Built {
     EnforcementDescriptor::builder(
         "host-brokered-invocation",
         SubjectSurface::BrokeredInvocation,
         AdapterStatus::Implemented {
-            module: "apps/gateway + crates/invoke-through",
+            module: "crates/gateway + crates/invoke-through",
         },
     )
     .enforced(

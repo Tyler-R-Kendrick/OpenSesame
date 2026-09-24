@@ -9,7 +9,7 @@ intents, and verifies what the gateway posts back.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`src/routes/a2h.rs`).
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`src/routes/a2h.rs`).
 - **Builds on:** [`opensesame-agent-events`](../agent-events) (the phases it
   maps) and [`opensesame-session-observe`](../session-observe)
   (`UntrustedText`, applied to third-party text before it lands in an SMS,

@@ -9,7 +9,7 @@ value-blind.
 
 ## Where it fits
 
-- **Used by:** [`opensesame-a2h`](../a2h) and [`apps/gateway`](../../apps/gateway)
+- **Used by:** [`opensesame-a2h`](../a2h) and [`crates/gateway`](../../crates/gateway)
   (`security/dispatch.rs`, `security/delivery.rs`, `lifecycle/responders.rs`,
   `routes/a2h.rs`, `routes/lifecycle.rs`).
 - **Builds on:** [`opensesame-security-events`](../security-events) —

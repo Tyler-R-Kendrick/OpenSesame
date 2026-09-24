@@ -165,10 +165,10 @@ rust_step it-provider-openbao opensesame-provider-openbao true "upstream connect
 # by a gateway-bin test at all; it is covered by opensesame-transport-security's
 # own listener tests and by the interop crate below, and the evidence document
 # says so rather than implying a gateway test that does not exist.
-if [[ -d apps/gateway/src/transport ]]; then
-  rust_step it-gateway-live opensesame-gateway true "live task-bus operator route against the pinned nats-server" --bin opensesame-gateway -- --ignored
+if [[ -d crates/gateway/src/transport ]]; then
+  rust_step it-gateway-live opensesame-gateway true "live task-bus operator route against the pinned nats-server" --lib -- --ignored
 else
-  step --id it-gateway-live --claim opensesame-gateway --runner cargo --required false --skip "apps/gateway/src/transport not present"
+  step --id it-gateway-live --claim opensesame-gateway --runner cargo --required false --skip "crates/gateway/src/transport not present"
 fi
 rust_step it-mtls-interop opensesame-mtls-interop false "interop (openssl/curl oracles)" -- --ignored
 

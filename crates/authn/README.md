@@ -12,7 +12,7 @@ parses OIDC discovery fail-closed and checks token audiences.
   device polling, `whoami`), [`opensesame-host-core`](../host-core)
   (re-exported as `host_core::authn`), and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`device_auth`,
-  `oidc_discovery`, `token_audience`). [`apps/gateway`](../../apps/gateway)
+  `oidc_discovery`, `token_audience`). [`crates/gateway`](../../crates/gateway)
   lists it as a dependency.
 - **Builds on:** [`opensesame-domain`](../domain) (`OrganizationRole`).
 - Flow selection is deterministic; environment heuristics affect usability,

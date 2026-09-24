@@ -7,8 +7,8 @@ Related: ADR 0005, 0017, 0032, 0039
 ## Context
 
 The Host already generates an ECDSA P-256 private CA and leaf key in
-`apps/gateway/src/dev_pki.rs`. The issuance request accepts names and lifetime,
-not caller-provided PEM. However, `apps/gateway/src/routes/certs.rs` serializes
+`crates/gateway/src/dev_pki.rs`. The issuance request accepts names and lifetime,
+not caller-provided PEM. However, `crates/gateway/src/routes/certs.rs` serializes
 the CA certificate and private key together in the generic, explicitly
 non-secret `host_kv` table under `certs.dev_ca`. Pages then presents editable
 Certificate, Private key, and Issuing CA fields, so the normal ceremony still

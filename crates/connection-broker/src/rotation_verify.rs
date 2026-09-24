@@ -96,7 +96,7 @@ impl ConnectionBroker {
     ///
     /// The fence runs first and the credential is opened only after it passes,
     /// so a denied request never causes the sealed credential to be opened at
-    /// all. `apps/gateway`'s pact suite pins that order in this source.
+    /// all. `crates/gateway`'s pact suite pins that order in this source.
     async fn verify_credential_with(
         &self,
         invoker: &Invoker,

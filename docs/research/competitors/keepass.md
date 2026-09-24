@@ -177,10 +177,10 @@ None of these needs a server. All of them open a correct KDBX 4.x file, 4.1 incl
 | Export a database | `opensesame pass export-kdbx` — plaintext-equivalent output, so gated by the same TTY/`--reveal` ceremony as `pass show` |
 | Open a `.kdbx` in the browser | Pages KDBX import adapter (kdbxweb + hash-wasm for Argon2, lazily imported) |
 | KeePassXC CSV exports | Already handled — `keepassxcCsv` / `keepassCsv` adapters in the Pages import chain |
-| keepassxc-protocol | `apps/pm-bridges` keepassxc bin: stdio native-messaging mode (recommended) or opt-in UDS mode, both default off |
+| keepassxc-protocol | `crates/pm-bridges` keepassxc bin: stdio native-messaging mode (recommended) or opt-in UDS mode, both default off |
 | `associate` approval in the app | `opensesame bridge keepassxc pair` — a bounded window printing the incoming key fingerprint (ADR 0052 §2 ceremony) |
 | `org.keepassxc.KeePassXC.BrowserServer` singleton | Conflict-detected: a live KeePassXC is named and the bridge refuses; only a verified-dead socket may be taken over |
-| KeePassXC Secret Service provider | `apps/pm-bridges` secret-service bin (Linux, stretch, default off) — the same singleton policy applies against gnome-keyring/kwallet |
+| KeePassXC Secret Service provider | `crates/pm-bridges` secret-service bin (Linux, stretch, default off) — the same singleton policy applies against gnome-keyring/kwallet |
 | KeeShare `.kdbx.share` | Not implemented — signature proves origin, not freshness; the sealed store's git history is the freshness story |
 | `File > Synchronize > With URL` (WebDAV) | Stretch / likely cut — entry-level merge, not GET/PUT, is the real requirement |
 | KeePassXC SSH agent | Not implemented |

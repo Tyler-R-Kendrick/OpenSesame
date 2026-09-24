@@ -29,7 +29,7 @@ whatever it finds silently, returning a count.
 Two things are wrong with that for this use case. The gateway's
 environment is a server's environment, not the developer's machine; and
 silent import is the wrong consent model for credentials a person did not
-ask us to take. The daemon (`apps/daemon`, loopback `:18790`) is the
+ask us to take. The daemon (`crates/daemon`, loopback `:18790`) is the
 process that actually lives on the user's machine.
 
 The security context is unusually sharp here. The daemon's own history

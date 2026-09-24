@@ -320,7 +320,6 @@ export const hostPlaneScenarios = Object.freeze([
       crate: "opensesame-gateway",
       module: "lifecycle::authority_grant_scan",
       test: "lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan",
-      bin: "opensesame-gateway",
     },
   },
 ]);

@@ -10,7 +10,7 @@ or seals a credential.
 
 ## Where it fits
 
-- **Used by:** [`apps/daemon`](../../apps/daemon) (discovery, keychain and CLI
+- **Used by:** [`crates/daemon`](../../crates/daemon) (discovery, keychain and CLI
   probes, the promote handshake), [`opensesame-connection-broker`](../connection-broker)
   (`config.rs` reads provider fields through the same aliases), and the fuzz
   harness in [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`ini_parse`,

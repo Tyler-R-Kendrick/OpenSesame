@@ -11,7 +11,7 @@
 //! Note the boundary this does *not* test: `Expectations::server_public_keys`
 //! being empty means "any well-formed server key" at the crate level. The
 //! fail-closed pin check lives in the Host route
-//! (`apps/gateway/src/routes/nats_callout_verify.rs::verify_request`), which
+//! (`crates/gateway/src/routes/nats_callout_verify.rs::verify_request`), which
 //! refuses outright when the list is empty.
 
 use libfuzzer_sys::fuzz_target;

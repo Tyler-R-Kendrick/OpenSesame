@@ -8,7 +8,7 @@ ever stores ciphertext; persisted state is sealed blobs, never plaintext.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway), for the `SyncBlob` shape in
+- **Used by:** [`crates/gateway`](../../crates/gateway), for the `SyncBlob` shape in
   the sync routes (`routes/sync.rs`, `routes/sync_blobs.rs`). The TypeScript
   package [`@opensesame/client-core`](../../packages/client-core) mirrors its
   sync shapes by hand; it does not load this crate.

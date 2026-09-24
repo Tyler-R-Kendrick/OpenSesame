@@ -9,7 +9,7 @@
 ## Run gateway
 
 ```bash
-cargo run -p opensesame-gateway -- --listen 127.0.0.1:8787
+cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787
 ```
 
 With live providers:
@@ -17,7 +17,7 @@ With live providers:
 ```bash
 ./scripts/dev/start-native-deps.sh
 source .tools/run/env.sh
-cargo run -p opensesame-gateway -- \
+cargo run -p opensesame-cli -- host run \
   --listen 127.0.0.1:18787
 ```
 

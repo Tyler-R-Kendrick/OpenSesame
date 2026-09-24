@@ -21,7 +21,7 @@ operator has to act on, discovered by the platform, about a specific subject.
 Three things were missing:
 
 1. **A second detector had nowhere to publish.** Everything about who receives
-   an event and how lived in `apps/gateway/src/lifecycle/`, keyed to
+   an event and how lived in `crates/gateway/src/lifecycle/`, keyed to
    `LifecycleEvent`. Adding breach detection meant either teaching that module
    about breaches or standing up a parallel copy. The second option is how the
    new detector ends up with no alerting, which is exactly the failure ADR 0074
@@ -43,7 +43,7 @@ shape every security fact becomes: who it is about, how loud it is, whether it
 is firing or resolving, one line a human reads, and the detector's own payload
 carried through.
 
-`apps/gateway/src/security/dispatch.rs` publishes a notice to the `TaskBus`,
+`crates/gateway/src/security/dispatch.rs` publishes a notice to the `TaskBus`,
 to every matching subscription, and to the built-in subscribers. It names no
 event family. Expiry (`crate::lifecycle`) and breach exposure (`crate::breach`)
 both publish through it, and neither knows the other exists.

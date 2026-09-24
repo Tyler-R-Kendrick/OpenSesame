@@ -7,14 +7,14 @@ description: Install, configure, initialize, and use OpenSesame Host and Identit
 
 | API | Port | App |
 |-----|------|-----|
-| Host / Authority | **8787** | `apps/gateway` |
+| Host / Authority | **8787** | `crates/gateway` |
 | Identity | **8788** | `apps/control-plane` |
-| Daemon (local) | **18790** | `apps/daemon` |
+| Daemon (local) | **18790** | `crates/daemon` |
 
 ## Install
 
 ```bash
-cargo build -p opensesame-gateway -p opensesame-daemon
+cargo build -p opensesame-cli
 pnpm install
 pnpm --filter @opensesame/control-plane build
 ```
@@ -30,9 +30,9 @@ export OPENSESAME_ENV=development
 ## Init
 
 ```bash
-./target/debug/opensesame-gateway --listen 127.0.0.1:8787
+./target/debug/opensesame host run --listen 127.0.0.1:8787
 OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
-./target/debug/opensesame-daemon --listen 127.0.0.1:18790
+./target/debug/opensesame daemon run --listen 127.0.0.1:18790
 ```
 
 ## Use

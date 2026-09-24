@@ -22,7 +22,7 @@ programme.
 |---|---|---|---|
 | **GA-A** — domain & model | The authority record, its narrowing algebra, and the executable invariants | `packages/os-domain/src/types.ts`, `packages/os-domain/src/invariants.ts`, `packages/contracts` | `GA-A-01` … `GA-A-04` |
 | **GA-F** — policy & OpenFGA | The authorization-model delta and proof that it is additive | `spec/openfga/model.fga`, `packages/policy` | `GA-F-01` … `GA-F-04` |
-| **GA-H** — host plane | Authority evaluation, host storage, lifecycle publication, receipts | `crates/host-core`, `crates/storage`, `apps/gateway`, `crates/lifecycle` | `GA-H-01` … `GA-H-04` |
+| **GA-H** — host plane | Authority evaluation, host storage, lifecycle publication, receipts | `crates/host-core`, `crates/storage`, `crates/gateway`, `crates/lifecycle` | `GA-H-01` … `GA-H-04` |
 | **GA-I** — identity plane | Identity API routes, membership reconciliation, audit events | `apps/control-plane`, `packages/database`, `packages/audit` | `GA-I-01` … `GA-I-03` |
 | **GA-P** — client plane | Local share-grant alignment, Access surfaces, no-backend gating | `packages/app-core/src/lib/local-share-grants.ts`, `apps/pages/src/sections`, `apps/pwa` | `GA-P-01` … `GA-P-04` |
 | **GA-C** — surface parity | Capability-registry entries and the per-surface parity sweeps | `packages/capability-registry`, `apps/mcp-host`, `apps/mcp-client`, `packages/cli`, `apps/cli` | `GA-C-01` … `GA-C-02` |
@@ -63,7 +63,7 @@ GA-* ownership above; they are not a second programme.
 | IDENTITY | GA-I | control-plane principals/actors (enrollment gaps tracked in matrix) |
 | STORAGE | GA-H | `migrations/0033_*`, `0034_general_authority.sql`, `crates/storage/src/authority/` |
 | BUDGET | GA-H | `crates/storage/src/authority/budget.rs` |
-| LIFECYCLE | GA-H | `crates/lifecycle`, `apps/gateway/src/lifecycle/` |
+| LIFECYCLE | GA-H | `crates/lifecycle`, `crates/gateway/src/lifecycle/` |
 | SESSION | GA-H + GA-P | shared_session + `0035_session_coordination.sql` |
 | ENFORCER / DNS / COLLAB / SANDBOX | GA-H adapters | `crates/{dns-enforcement,collab-adapter,sandbox}` |
 | PORTAL | GA-P | `apps/pages` LocalAuthorityTemplates, Access sections |

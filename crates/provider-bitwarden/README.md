@@ -20,7 +20,7 @@ it. It belongs to the human plane only.
 - Egress mirrors [`opensesame-invoke-through`](../invoke-through) in-crate: the
   configured host is pinned, https is required (loopback http only for tests),
   and redirects are refused rather than followed.
-- [`apps/daemon`](../../apps/daemon) does not and must not depend on it;
+- [`crates/daemon`](../../crates/daemon) does not and must not depend on it;
   `pnpm audit:daemon-deps` is the alarm.
 - The protocol and crypto are implemented from the public format description,
   informed by rbw (MIT); see [`NOTICE`](NOTICE). No AGPL/GPL source is copied.

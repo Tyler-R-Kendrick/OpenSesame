@@ -740,7 +740,7 @@ mod pact {
     /// `insta` is this repo's Verify-equivalent: the expected value lives in a
     /// committed `.snap` file and is reused on every later run, so a change to
     /// what the envelope publishes shows up as a reviewable diff instead of
-    /// passing silently. It was previously wired into `apps/daemon` only,
+    /// passing silently. It was previously wired into `crates/daemon` only,
     /// though this is the format that reaches disk and backup remotes.
     ///
     /// The nonce and ciphertext are random per call and the digest follows

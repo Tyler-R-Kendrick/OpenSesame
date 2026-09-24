@@ -8,7 +8,7 @@ allowlist.
 
 ## Where it fits
 
-- **Used by:** [`apps/daemon`](../../apps/daemon) (operator routes over the
+- **Used by:** [`crates/daemon`](../../crates/daemon) (operator routes over the
   socket, agent capabilities, invoke-through).
 - **Builds on:** no workspace crates (`thiserror`; `nix` on Unix).
 - Fail-closed everywhere: a lookup error, an empty allowlist or a foreign UID

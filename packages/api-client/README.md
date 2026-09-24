@@ -1,6 +1,6 @@
 # @opensesame/api-client
 
-The typed TypeScript client for the Host API (`apps/gateway`, `:8787`). One
+The typed TypeScript client for the Host API (`crates/gateway`, `:8787`). One
 factory, `createApiClient`, returns methods for connections, integrations,
 sync targets, secret configs, invoke, sync, tasks, receipts, delegations,
 relay, certificates, rotations, the project changelog and the backup target.
@@ -44,4 +44,4 @@ The Host API's OpenAPI description is
 
 - [ADR 0017](../../docs/adr/0017-host-client-product-topology.md) — host/client
   topology; the Host and Identity APIs stay separate
-- Server: [`apps/gateway`](../../apps/gateway)
+- Server: [`crates/gateway`](../../crates/gateway)

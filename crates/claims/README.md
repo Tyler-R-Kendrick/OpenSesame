@@ -9,7 +9,7 @@ purpose and a context, so one recovered code says nothing about another.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (device and browser-pairing
+- **Used by:** [`crates/gateway`](../../crates/gateway) (device and browser-pairing
   routes, agent and browser grant middleware, session and agent routes),
   [`opensesame-connection-broker`](../connection-broker) (`delegation.rs`), and
   the fuzz harness in [`tests/fuzz/cargo`](../../tests/fuzz/cargo)

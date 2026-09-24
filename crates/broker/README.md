@@ -10,7 +10,7 @@ none, instead of running twice.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (bootstrap, app state, and
+- **Used by:** [`crates/gateway`](../../crates/gateway) (bootstrap, app state, and
   the intents, intents-queue, tasks, receipts and KV-facade routes) and
   [`opensesame-host-core`](../host-core) (re-exported as `host_core::broker`).
 - **Builds on:** [`opensesame-authz`](../authz) (`PolicyEngine`, AuthZEN

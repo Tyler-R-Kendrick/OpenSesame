@@ -3582,29 +3582,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-callback-edge"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "base64 0.22.1",
- "clap",
- "hex",
- "hkdf",
- "hmac 0.12.1",
- "opensesame-host-core",
- "opensesame-storage",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "zeroize",
-]
-
-[[package]]
 name = "opensesame-ceremony"
 version = "0.1.0"
 dependencies = [
@@ -3639,18 +3616,24 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "insta",
  "jsonwebtoken",
  "opensesame-authn",
  "opensesame-ceremony",
  "opensesame-connector-host",
+ "opensesame-credential-helpers",
+ "opensesame-daemon",
  "opensesame-domain",
  "opensesame-env-spec",
+ "opensesame-gateway",
+ "opensesame-host-core",
  "opensesame-human-vault",
  "opensesame-kdbx-bridge",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
  "opensesame-sealed-store",
  "opensesame-storage",
+ "opensesame-worker",
  "qr2term",
  "ratatui",
  "regex",
@@ -3832,7 +3815,6 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
- "tracing-subscriber",
  "uuid",
  "windows-sys 0.59.0",
  "zeroize",
@@ -3902,6 +3884,7 @@ dependencies = [
  "clap",
  "futures",
  "hex",
+ "hkdf",
  "hmac 0.12.1",
  "http",
  "http-body-util",
@@ -4506,18 +4489,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-toolbar"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "opensesame-host-core",
- "reqwest",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "opensesame-transport-security"
 version = "0.1.0"
 dependencies = [
@@ -4589,7 +4560,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

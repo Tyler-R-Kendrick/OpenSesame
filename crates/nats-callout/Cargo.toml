@@ -12,7 +12,7 @@
 # * `rustls` 0.23 is named only so `async_nats::ConnectOptions::tls_client_config`
 #   receives the `ClientConfig` `opensesame-transport-security` builds; the
 #   crate never builds a config itself.
-# * Never a dependency of `crates/core`, `crates/client-core` or `apps/daemon`.
+# * Never a dependency of `crates/core`, `crates/client-core` or `crates/daemon`.
 
 [package]
 name = "opensesame-nats-callout"

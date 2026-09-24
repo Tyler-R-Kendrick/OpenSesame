@@ -1,0 +1,262 @@
+//! `opensesame daemon info | approve-device | approve-claim`: status and
+//! approvals through the local daemon only (ADR 0017).
+use clap::Subcommand;
+use serde_json::{json, Value};
+
+/// Present the operator token when there is one. Left off, the daemon says so
+/// plainly, which is better than this deciding the call is pointless.
+fn as_operator(req: reqwest::RequestBuilder, token: Option<&str>) -> reqwest::RequestBuilder {
+    match token {
+        Some(t) if !t.is_empty() => req.header("x-opensesame-operator", t),
+        _ => req,
+    }
+}
+
+/// Why a refusal happened, when the reason is one the caller can fix.
+fn operator_hint(status: reqwest::StatusCode, had_token: bool) -> &'static str {
+    if status == reqwest::StatusCode::UNAUTHORIZED && !had_token {
+        return " — set OPENSESAME_OPERATOR_TOKEN to the daemon's operator token";
+    }
+    ""
+}
+
+/// Operator token is for this machine. A remote base would ship it off-box.
+fn assert_daemon_url_allowed(url: &str) -> Result<(), String> {
+    if opensesame_host_core::daemon::base_url_is_local(url) {
+        return Ok(());
+    }
+    Err(format!(
+        "daemon URL `{url}` is not loopback; operator token stays on this machine"
+    ))
+}
+
+/// Daemon verbs that read what is pending or approve it (ADR 0017).
+#[derive(Subcommand, Debug)]
+pub enum ToolbarCmd {
+    /// Show the daemon's session and pending-approval status.
+    Info,
+    /// Authorize CLI: forward device-code approval through the daemon.
+    ApproveDevice {
+        #[arg(long)]
+        user_code: String,
+        #[arg(long, default_value = "user:demo")]
+        principal: String,
+    },
+    /// Complete claim ownership through the daemon to the Identity API.
+    ApproveClaim {
+        #[arg(long)]
+        claim_id: String,
+        /// The `osc_clm_…` claim bearer. Required: a claim id is public, and
+        /// nothing attaches ownership on the strength of one. Prefer the
+        /// environment variable so it stays out of shell history and `ps`.
+        #[arg(long, env = "OPENSESAME_CLAIM_TOKEN", hide_env_values = true)]
+        claim_token: String,
+        #[arg(long, env = "OPENSESAME_ACCESS_TOKEN", hide_env_values = true)]
+        access_token: Option<String>,
+    },
+}
+
+/// Run one toolbar verb against the daemon at `base`. The operator token is
+/// sent only to a loopback daemon.
+pub async fn run(base: &str, operator: Option<&str>, cmd: ToolbarCmd) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let base = base.trim_end_matches('/');
+    assert_daemon_url_allowed(base).map_err(anyhow::Error::msg)?;
+    let had_token = operator.is_some_and(|t| !t.is_empty());
+    match cmd {
+        ToolbarCmd::Info => status(&client, base, operator, had_token).await?,
+        ToolbarCmd::ApproveDevice {
+            user_code,
+            principal,
+        } => approve_device(&client, base, operator, had_token, user_code, principal).await?,
+        ToolbarCmd::ApproveClaim {
+            claim_id,
+            claim_token,
+            access_token,
+        } => {
+            approve_claim(
+                &client,
+                base,
+                operator,
+                had_token,
+                claim_id,
+                claim_token,
+                access_token,
+            )
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+async fn status(
+    client: &reqwest::Client,
+    base: &str,
+    operator: Option<&str>,
+    had_token: bool,
+) -> anyhow::Result<()> {
+    let response = match as_operator(client.get(format!("{base}/v1/toolbar/status")), operator)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            eprintln!("daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    };
+    if response.status().is_success() {
+        let value: Value = response.json().await?;
+        println!("{}", serde_json::to_string_pretty(&value)?);
+        return Ok(());
+    }
+
+    let response_status = response.status();
+    // A refused status says nothing about the daemon's age, so do not call it
+    // legacy: report what it was.
+    if matches!(
+        response_status,
+        reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::SERVICE_UNAVAILABLE
+    ) {
+        let body = response.text().await.unwrap_or_default();
+        eprintln!(
+            "status refused ({response_status}): {body}{}",
+            operator_hint(response_status, had_token)
+        );
+        std::process::exit(1);
+    }
+    let health = client
+        .get(format!("{base}/health"))
+        .send()
+        .await?
+        .text()
+        .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "daemon": "legacy_or_partial",
+            "health": health.trim(),
+        }))?
+    );
+    Ok(())
+}
+
+async fn approve_device(
+    client: &reqwest::Client,
+    base: &str,
+    operator: Option<&str>,
+    had_token: bool,
+    user_code: String,
+    principal: String,
+) -> anyhow::Result<()> {
+    let response = match as_operator(
+        client
+            .post(format!("{base}/v1/toolbar/approve_device"))
+            .json(&json!({ "user_code": user_code, "principal": principal })),
+        operator,
+    )
+    .send()
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            eprintln!("authorize CLI failed — daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    };
+    if !response.status().is_success() {
+        let response_status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        eprintln!(
+            "authorize CLI failed ({response_status}): {body}{}",
+            operator_hint(response_status, had_token)
+        );
+        std::process::exit(1);
+    }
+    let value: Value = response.json().await?;
+    println!("{}", serde_json::to_string_pretty(&value)?);
+    Ok(())
+}
+
+async fn approve_claim(
+    client: &reqwest::Client,
+    base: &str,
+    operator: Option<&str>,
+    had_token: bool,
+    claim_id: String,
+    claim_token: String,
+    access_token: Option<String>,
+) -> anyhow::Result<()> {
+    let mut body = json!({ "claim_id": claim_id, "claim_token": claim_token });
+    if let Some(token) = access_token {
+        body["access_token"] = json!(token);
+    }
+    let response = match as_operator(
+        client
+            .post(format!("{base}/v1/toolbar/approve_claim"))
+            .json(&body),
+        operator,
+    )
+    .send()
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            eprintln!("complete claim failed — daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    };
+    if !response.status().is_success() {
+        let response_status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        eprintln!(
+            "complete claim failed ({response_status}): {text}{}",
+            operator_hint(response_status, had_token)
+        );
+        std::process::exit(1);
+    }
+    let value: Value = response.json().await?;
+    println!("{}", serde_json::to_string_pretty(&value)?);
+    Ok(())
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_loopback_daemon_is_allowed() {
+        assert!(assert_daemon_url_allowed("http://127.0.0.1:18790").is_ok());
+        assert!(assert_daemon_url_allowed("http://localhost:18790/").is_ok());
+        assert!(assert_daemon_url_allowed("https://[::1]:18790").is_ok());
+    }
+
+    #[test]
+    fn adversarial_remote_daemon_is_refused() {
+        for bad in [
+            "https://evil.example",
+            "http://10.0.0.5:18790",
+            "http://127.0.0.1@evil.test/",
+            "ftp://127.0.0.1:18790",
+        ] {
+            assert!(assert_daemon_url_allowed(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn chaos_missing_operator_hint_only_on_401() {
+        assert!(operator_hint(reqwest::StatusCode::UNAUTHORIZED, false)
+            .contains("OPENSESAME_OPERATOR_TOKEN"));
+        assert_eq!(operator_hint(reqwest::StatusCode::UNAUTHORIZED, true), "");
+        assert_eq!(operator_hint(reqwest::StatusCode::BAD_GATEWAY, false), "");
+    }
+
+    #[test]
+    fn contract_source_pins_loopback_before_any_operator_header() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("daemon_toolbar.rs"),
+            &["assert_daemon_url_allowed(base)", "as_operator("],
+        );
+        assert!(include_str!("daemon_toolbar.rs").contains("x-opensesame-operator"));
+    }
+}

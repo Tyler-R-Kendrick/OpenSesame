@@ -27,7 +27,7 @@ no API, no way through but a human — and it invites the same answer. That
 answer is mostly wrong here, and the reason is worth stating before any design.
 
 **The registration form is not the hard part, and for GitHub it is already
-solved.** `apps/gateway/src/routes/github_app.rs` implements GitHub's App
+solved.** `crates/gateway/src/routes/github_app.rs` implements GitHub's App
 Manifest flow: `build_manifest` posts a preconfigured manifest,
 `convert_manifest_code` exchanges the one-time code, and the response carries
 the app id, the private key and the webhook secret. `github_webhook.rs` then

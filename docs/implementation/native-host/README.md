@@ -16,14 +16,14 @@ the same tests the original did.
 | Self-issued sign-in | Pages is a SIOPv2 provider for registered local apps (ES256, thumbprint subject, pairwise keys, passkey-gated consent). Pages' own sign-in is not SIOP. | `packages/siop-v2`, `apps/pages/src/screens/SiopAuthorize.tsx`, ADR 0116 |
 | Principal | The in-tab principal is a random `prn_…`, not key-derived. Promotion to durable needs a broker. | `packages/app-core/src/lib/device-identity-host.ts` (`mintProvisional`), ADR 0033 |
 | Identity without a service | Pages answers its own Identity API when none is set: principals, projects, orgs, agents, OAuth clients, audit. Writes, the approval inbox and MFA codes are unavailable. | `device-identity-local.ts`, ADR 0118 |
-| Host authorization | The gateway accepts only the control-plane's RS256 `host-authorization+jwt`, so Join's verify and agent-run control need the Identity API. | `apps/gateway/src/host_authorization.rs`, `packages/app-core/src/lib/join/client.ts` |
-| Gateway issuer | Defaults to `https://keycloak.local/realms/opensesame`. | `apps/gateway/src/config.rs` |
-| Daemon | Loopback `:18790` and optional Unix socket. The `sessions` map is never filled, so `mint_capability` always answers `no_session`. `main.rs` is 1,608 lines. | `apps/daemon/src/main.rs` |
-| Helper minting | The daemon requires the operator token even on the socket; the helpers send none, so `/v1/mint` answers 401. | `apps/daemon/src/main.rs` (`require_operator`), `apps/credential-helpers/src/lib.rs` |
+| Host authorization | The gateway accepts only the control-plane's RS256 `host-authorization+jwt`, so Join's verify and agent-run control need the Identity API. | `crates/gateway/src/host_authorization.rs`, `packages/app-core/src/lib/join/client.ts` |
+| Gateway issuer | Defaults to `https://keycloak.local/realms/opensesame`. | `crates/gateway/src/config.rs` |
+| Daemon | Loopback `:18790` and optional Unix socket, served by `opensesame daemon run`. The `sessions` map is never filled, so `mint_capability` always answers `no_session`. `lib.rs` is 1,581 lines. | `crates/daemon/src/lib.rs` |
+| Helper minting | The daemon requires the operator token even on the socket; the helpers send none, so `/v1/mint` answers 401. | `crates/daemon/src/lib.rs` (`require_operator`), `crates/credential-helpers/src/lib.rs` |
 | Dependency budget | The gate checks depth one; the full tree reaches `sqlx` and `chacha20poly1305` through `host-core`. | `scripts/audit/daemon-deps-gate.sh`, `cargo tree -p opensesame-daemon` |
 | Rust identity primitives | DPoP, JWK thumbprints, PKCE, device flow, discovery parsing, X.509. No OIDC provider, no ID-token minting, no SIOP, no WebAuthn relying party. | `crates/proof`, `crates/authn`, `crates/pki-core` |
 | MCP | Two stdio servers with duplicated sync tools and two audiences; 13 of 189 capabilities reach MCP. Pages has 24 WebMCP tools on a transport-neutral spec the servers do not use. | `apps/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
-| Desktop | None. `apps/toolbar` is a 306-line CLI. | `apps/toolbar/src/main.rs` |
+| Desktop | None. The toolbar is `opensesame daemon info / approve-device / approve-claim`. | `apps/cli/src/daemon_toolbar.rs` |
 
 ## Target
 
@@ -36,7 +36,7 @@ apps/
   cli/                `opensesame`: verbs, `daemon run`, `mcp serve`, argv[0] entry points
   connect-backend/    serverless callback relay (unchanged)
 crates/
-  host-api/           was apps/gateway (routes, actors) as a library
+  host-api/           was crates/gateway (routes, actors) as a library
   host-agent/         the agent surface: mint, exchange, discover; gate checks its full tree
   host-identity/      SIOP verify, WebAuthn verify, the narrow local OpenID provider
   host-mcp/           the MCP adapter over the registry catalog (rmcp)
@@ -110,7 +110,7 @@ local gateway with no Identity API; a security audit note under
 
 ### Phase 3 — One native process
 
-- Move `apps/gateway/src` into `crates/host-api` and `apps/daemon/src`'s
+- Move `crates/gateway/src` into `crates/host-api` and `crates/daemon/src`'s
   agent routes into `crates/host-agent`. `host-agent` depends only on a
   `HostPort` trait (mint, exchange, discover, invoke-through), never on
   storage, the sealed store or OAuth; `daemon-deps-gate.sh` checks its full
@@ -121,14 +121,17 @@ local gateway with no Identity API; a security audit note under
   when configured). `--shared` adds the mTLS listener (ADR 0132).
 - `opensesame daemon install` writes a systemd user unit or launchd agent;
   Windows uses a named pipe with a peer-SID check.
-- Fold into `opensesame`: the toolbar's four commands, the credential
-  helpers and the password-manager bridges as argv[0] entry points (each
-  still runs as its own short-lived process when spawned).
-- Delete `apps/toolbar`, `apps/worker` (Rust), `apps/callback-edge` (its
-  signature and replay code moves to a crate for the hosted relay), and the
-  separate `apps/daemon`, `apps/gateway`, `apps/credential-helpers`,
-  `apps/pm-bridges` directories once their crates and entry points pass the
-  same tests.
+- ~~Fold into `opensesame`: the toolbar's four commands, the credential
+  helpers and the password-manager bridges as argv[0] entry points~~ — done.
+  `opensesame` is the only native executable: `host run` (the Host API,
+  `crates/gateway`), `daemon run` (`crates/daemon`), `worker run`
+  (`crates/worker`), `daemon info | approve-device | approve-claim` (the
+  toolbar), and `apps/cli/src/entry.rs` answers as each helper and bridge
+  under its link name (`opensesame helpers link`). The callback edge is Host
+  API routes (`crates/gateway/src/callback_ingress`). `apps/toolbar` and
+  `apps/callback-edge` are gone; `crates/*` hold libraries only.
+- Still open: one process per machine (`daemon run` also serving the Host
+  API), the `host-agent` split and its full-tree dependency check.
 
 **Exit:** `cargo +1.88.0 test --workspace --all-targets`; `pnpm test:live-stack`,
 `test:nats-dogfood`, `test:task-access`, `test:mtls`, `test:mtls:integration`

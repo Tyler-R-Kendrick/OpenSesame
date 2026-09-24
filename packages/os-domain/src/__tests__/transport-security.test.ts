@@ -325,7 +325,7 @@ describe("advertised authority", () => {
   // unauthenticated /health/live on a fixed three-word target list, so it
   // authorizes nothing and carries no purpose. Reintroducing either without an
   // admission call site must fail here and in
-  // apps/gateway/src/transport/probe_tests.rs.
+  // crates/gateway/src/transport/probe_tests.rs.
   it("names only purposes a receiver actually admits", () => {
     expect([...BINDING_PURPOSES]).toEqual([
       "nats_auth_bridge",

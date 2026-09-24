@@ -10,7 +10,7 @@ evaluation / mutation. Storage writers and OpenFGA projection stay as named in
 |---|---|
 | `ValidatedGrantChain` + authz decide | `cargo +1.88.0 test -p opensesame-authz --lib` |
 | Broker invoke + receipt binding | `cargo +1.88.0 test -p opensesame-broker --lib` |
-| Intent budget / projection helpers | `apps/gateway/src/routes/intents_*.rs` |
+| Intent budget / projection helpers | `crates/gateway/src/routes/intents_*.rs` |
 
 ## Access-domain & offer HTTP
 
@@ -21,7 +21,7 @@ cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::acc
 cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::grant_offers::tests
 ```
 
-Router merge: `apps/gateway/src/routes/mod.rs` merges `access_domains` and
+Router merge: `crates/gateway/src/routes/mod.rs` merges `access_domains` and
 `grant_offers`; `contract.rs` includes both sources so undocumented routes fail CI.
 
 ## Grant issue HTTP

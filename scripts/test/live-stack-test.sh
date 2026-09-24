@@ -17,10 +17,10 @@ echo "== live OpenFGA/OpenBao rust tests =="
 cargo +1.88.0 test -p opensesame-provider-openfga -p opensesame-provider-openbao -- --ignored --nocapture
 
 echo "== build gateway/cli =="
-cargo +1.88.0 build -p opensesame-gateway -p opensesame-cli
+cargo +1.88.0 build -p opensesame-cli
 
 # Start gateway with live providers
-pkill -f 'opensesame-gateway' 2>/dev/null || true
+pkill -f 'opensesame host run' 2>/dev/null || true
 sleep 0.5
 DB="$ROOT/.tools/run/gateway.db"
 rm -f "$DB"
@@ -33,7 +33,7 @@ export OPENSESAME_ALLOW_DEV_DEFAULTS=1
 export OPENSESAME_OPERATOR_TOKEN="${OPENSESAME_OPERATOR_TOKEN:-$(openssl rand -hex 32)}"
 export OPENSESAME_CLAIM_PEPPER="${OPENSESAME_CLAIM_PEPPER:-$(openssl rand -hex 32)}"
 OP_HDR=(-H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN}")
-nohup "$ROOT/target/debug/opensesame-gateway" >"$ROOT/.tools/logs/gateway.log" 2>&1 &
+nohup "$ROOT/target/debug/opensesame" host run >"$ROOT/.tools/logs/gateway.log" 2>&1 &
 echo $! >"$ROOT/.tools/run/gateway.pid"
 for _ in $(seq 1 40); do
   if curl -sf http://127.0.0.1:18787/health/live >/dev/null; then

@@ -11,7 +11,7 @@ at a key other than the one that checks the signature.
 
 - **Used by:** [`opensesame-broker`](../broker) (signs the receipt at the end of
   an invoke), [`opensesame-host-core`](../host-core) (re-exported as
-  `host_core::audit`), [`apps/gateway`](../../apps/gateway) (`ReceiptSigner` in
+  `host_core::audit`), [`crates/gateway`](../../crates/gateway) (`ReceiptSigner` in
   bootstrap, `ReceiptVerifier` in app state), and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`receipt_verify` target).
 - **Builds on:** [`opensesame-domain`](../domain) (`InvocationReceipt`,

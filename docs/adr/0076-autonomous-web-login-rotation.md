@@ -26,9 +26,9 @@ Rotation already exists in this repository and is not in question.
 `crates/rotation` is a fifteen-state verify-before-revoke machine with Kani
 proofs, a Shuttle concurrency test and a fuzz target;
 `crates/connection-broker/src/rotation.rs` holds durable policies and jobs;
-`apps/gateway/src/routes/rotation.rs` serves `/api/v1/rotations` and
+`crates/gateway/src/routes/rotation.rs` serves `/api/v1/rotations` and
 `/api/v1/rotation/policies`; and since ADR 0074 the lifecycle scanner in
-`apps/gateway/src/lifecycle/` detects what is due and drives rotation as one of
+`crates/gateway/src/lifecycle/` detects what is due and drives rotation as one of
 its responders. What exists rotates two target classes: a connection,
 whose "rotation" is an OAuth refresh, and a sealed-store path, which is
 deferred to the human CLI with the honest detail string

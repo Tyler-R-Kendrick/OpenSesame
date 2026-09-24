@@ -16,24 +16,24 @@ Before this decision, every networked hop between OpenSesame's own services
 authenticated with a shared string, or not at all:
 
 - The Host gateway bound one `tokio::net::TcpListener` and served every route
-  in plaintext (`apps/gateway/src/main.rs`). Nothing in the process configured
+  in plaintext (`crates/gateway/src/lib.rs`). Nothing in the process configured
   client-certificate verification.
 - The NATS auth-callout route (`POST /api/v1/nats/auth/callout`) authenticated
   its bridge with `OPENSESAME_NATS_CALLOUT_SECRET` and then trusted the
   `issuer`/`subject` the bridge wrote into JSON. The bridge was an HTTP client;
   the native `$SYS.REQ.USER.AUTH` protocol was not implemented.
 - Host → Identity mapping resolution carried `OPENSESAME_MAPPING_RESOLVE_TOKEN`
-  as a bearer (`apps/gateway/src/identity_mapping.rs`), and Identity's
+  as a bearer (`crates/gateway/src/identity_mapping.rs`), and Identity's
   `assertSecureConfig` required that token to exist whatever the transport.
 - The task bus dialed `async_nats::connect(url)` with no identity, no required
   TLS, and no server-identity policy (`crates/task-bus/src/nats.rs`).
 - The worker accepted `OPENSESAME_WORKER_TOKEN` and fell back to
-  `OPENSESAME_OPERATOR_TOKEN` (`apps/worker/src/main.rs`).
+  `OPENSESAME_OPERATOR_TOKEN` (`crates/worker/src/lib.rs`).
 - `crates/provider-static-mesh` called itself a "static mTLS mesh adapter". It
   is a service-discovery map behind a mutex, and it has never opened a socket.
 - `docs/reference/standards-matrix.md` listed RFC 8705 as "where supported / mesh/gateway"
   with no implementation, and RFC 7030 EST as served from
-  `apps/gateway/src/routes/est_server.rs`, a file that does not exist.
+  `crates/gateway/src/routes/est_server.rs`, a file that does not exist.
 
 None of that is wrong for a single-host deployment on loopback and Unix
 sockets, which `crates/uds-authn` and the daemon's operator-token fence already
@@ -289,7 +289,7 @@ loop.
 
 ### 13. Dependency boundaries that must not move
 
-- `apps/daemon` stays at serde + serde_json + thiserror + std
+- `crates/daemon` stays at serde + serde_json + thiserror + std
   (`scripts/audit/daemon-deps-gate.sh`, ADR 0048 §5). No TLS, gRPC or SPIFFE
   dependency is added to it for symmetry, and its operator mint/forwarding
   path is not exposed remotely.
@@ -302,7 +302,7 @@ loop.
 
 ### 14. What is deliberately not built or not claimed
 
-- **No EST or ACME enrollment server.** `apps/gateway/src/routes/est_server.rs`
+- **No EST or ACME enrollment server.** `crates/gateway/src/routes/est_server.rs`
   and `acme_server.rs` do not exist at this baseline; RFC 7030 is classified
   absent in the standards matrix and is not a prerequisite of anything here.
   Issuance uses the implemented ADR 0075 managed path or an external SPIFFE
@@ -386,9 +386,9 @@ transport-security schemas + fixture corpus, `packages/capability-registry`
 entries, `packages/oauth-provider/src/mtls`, `apps/control-plane/src/transport`,
 `apps/pages` transport settings + `scripts/verify-transport.mjs`,
 `ops/ingress/Caddyfile`, the four `scripts/mtls-*` runners and the root
-`test:mtls*` scripts. **Absent at that time:** `apps/gateway/src/transport`
+`test:mtls*` scripts. **Absent at that time:** `crates/gateway/src/transport`
 (admission, bindings CAS, status, probe, trust routes), any change to
-`apps/gateway/src/identity_mapping.rs`, `apps/gateway/src/routes/nats_callout.rs`,
+`crates/gateway/src/identity_mapping.rs`, `crates/gateway/src/routes/nats_callout.rs`,
 `apps/worker`, `crates/task-bus/src/nats.rs` or `crates/provider-openbao`,
 `crates/nats-callout`, `ops/nats`, `tests/mtls-interop`, `tests/mtls-adversarial`,
 `docs/security/mtls-threat-model.md`, `docs/validation/mtls-implementation.md`,
@@ -404,25 +404,25 @@ absent is `not_executed` however complete its pure half is.
 | Guarantee | Implementing call site | Enforcing component | Failure behavior | Test path | Status at reconciliation |
 |---|---|---|---|---|---|
 | Verified evidence cannot be deserialized | `crates/domain/src/transport/evidence.rs` (`VerifiedPeer`, no `Deserialize`), `attest.rs`; TS `packages/os-domain/src/transport-security/evidence-view.ts`, `codec.ts` | Rust type system; TS type guards | compile error / `malformed_configuration` on bad selectors, times, thumbprint | `crates/domain/src/transport/evidence_tests.rs`, `source_contract_tests.rs`; `packages/os-domain/src/__tests__/transport-security.test.ts`; `packages/contracts/src/__tests__/transport-security.test.ts`, `transport-security-corpus.test.ts` | implemented; TS suites **passed** (run 2); Rust `opensesame-domain` **failed** to build in run 2 (in-flight unrelated module), not re-run |
-| Bindings default-deny, exact selectors, no wildcard/CN/email | `ServiceBindingSet::resolve` / `validate`, `crates/domain/src/transport/binding.rs`, `selector.rs` | `apps/gateway/src/transport/admission.rs` | `peer_not_bound`, `ambiguous_binding`, `evidence_revoked`, `binding_disabled` | `binding_tests.rs`, `binding_validate_tests.rs`, `selector_tests.rs`; corpus `packages/contracts/fixtures/transport-security/{valid,invalid}` | domain implemented; admission **absent** → not_executed |
+| Bindings default-deny, exact selectors, no wildcard/CN/email | `ServiceBindingSet::resolve` / `validate`, `crates/domain/src/transport/binding.rs`, `selector.rs` | `crates/gateway/src/transport/admission.rs` | `peer_not_bound`, `ambiguous_binding`, `evidence_revoked`, `binding_disabled` | `binding_tests.rs`, `binding_validate_tests.rs`, `selector_tests.rs`; corpus `packages/contracts/fixtures/transport-security/{valid,invalid}` | domain implemented; admission **absent** → not_executed |
 | Real chain/signature/time/usage verification by rustls + webpki | `crates/transport-security/src/{identity,trust,server,client,verify_spiffe}.rs` | rustls 0.23 / rustls-webpki | handshake alert; `key_pair_mismatch` / `trust_unknown` at load | `crates/transport-security/tests/{handshake_valid,handshake_reject,identity,servername,openssl_oracle}.rs` | implemented; crate tests **failed** to compile in run 2 (in-flight `handshake_valid`), not re-run |
 | No client certificate on `mtls_required` → no handler runs | `listener.rs` + `provenance.rs` (`PeerExtension` only after authentication) | `SecureListener` | handshake failure before routing | `tests/handshake_reject.rs`; interop `tests/mtls-interop/` | implemented; interop **absent** → not_executed |
-| Plain listener cannot serve an `mtls_required` purpose | `plain_provenance_layer` (`provenance.rs`) present; `ServiceCallerExtractor` | gateway admission | 403 `listener_policy_mismatch` | `apps/gateway/src/transport/*_tests.rs` | extractor and tests **absent** → not_executed |
+| Plain listener cannot serve an `mtls_required` purpose | `plain_provenance_layer` (`provenance.rs`) present; `ServiceCallerExtractor` | gateway admission | 403 `listener_policy_mismatch` | `crates/gateway/src/transport/*_tests.rs` | extractor and tests **absent** → not_executed |
 | Missing/invalid material refuses to start, never downgrades | Rust `env.rs`; Identity `apps/control-plane/src/transport/config.ts` (`assertTransportSecure`, `loadTransportMaterial`) | process startup | Host `Err` / worker exit / Identity throws `key_pair_mismatch`, `trust_unknown` | `apps/control-plane/src/transport/__tests__/config.test.ts`; Host/worker startup tests | Identity implemented, its transport suite **failed** in run 2 (in flight); Host/worker wiring **absent** → not_executed |
 | Resumption / tickets / 0-RTT off on privileged profiles | `server.rs` `server_config`: `max_early_data_size = 0`; when `policy.authenticates_client()`: `NoServerSessionStorage`, `send_tls13_tickets = 0`, `send_half_rtt_data = false` | rustls config | full handshake forced; early data refused | no dedicated resumption test found at reconciliation (AT-TLS-RESUME: SW-TLS/SW-SECURITY) | implemented (verified in source); not_executed |
 | Existing connection denied after revocation / rotation | `guard.rs::check_peer_freshness` → `generation_stale`, `evidence_expired` past `usable_until`, `evidence_revoked` | per-request guard, wired by gateway admission | denial on the next protected request | `crates/transport-security/tests/generations.rs`; gateway AT-TLS-REVOKEDLIVE | guard implemented; gateway wiring **absent** → not_executed |
 | Atomic generation activation; malformed candidate cannot extend expiry | `generations.rs` (`TransportGenerations::activate` / `withdraw`) | `crates/transport-security` | previous generation kept within its own validity | `tests/generations.rs` | implemented; execution as the crate row above |
 | SPIFFE exact-ID selection, per-domain bundles, snapshot replacement, bounded outage | `crates/spiffe-source/src/{config,svid_profile,bundles,snapshot,outage,sink}.rs` (`spiffe` 0.16.1) | source → `TransportGenerations` | `identity_missing` on withdrawal; `trust_unknown` for a foreign domain | `src/*_tests.rs`; `tests/{synthetic_workload_api,isolation_binding,spire_reference}.rs` | implemented; crate **failed** to build in run 2 (in flight); SPIRE reference run needs fixtures → not_executed |
-| Host → Identity mapping over mTLS keeps egress fences | `apps/gateway/src/identity_mapping.rs` + `OPENSESAME_MAPPING_TLS_*` | mapping client | `Unauthorized`; no secret fallback | `apps/gateway/src/identity_mapping_tests.rs` | file **unchanged** at reconciliation (bearer only) → not_executed |
+| Host → Identity mapping over mTLS keeps egress fences | `crates/gateway/src/identity_mapping.rs` + `OPENSESAME_MAPPING_TLS_*` | mapping client | `Unauthorized`; no secret fallback | `crates/gateway/src/identity_mapping_tests.rs` | file **unchanged** at reconciliation (bearer only) → not_executed |
 | Identity admits the mapping principal for `principals.mapping.resolve` only | `apps/control-plane/src/transport/{mapping-auth,service-admission}.ts`, `listener.ts`; wired in `server.ts` | Identity receiver | 403 `peer_disallowed` | `__tests__/listener.test.ts`, `ingress-listener.test.ts` | implemented; suite **failed** in run 2 (in flight), not re-run |
-| RFC 8705 client auth and `cnf.x5t#S256` binding | `packages/oauth-provider/src/mtls/feature.ts`, `clients/origin-resolve.ts`, `create-provider.ts`; resource check `apps/control-plane/src/transport/resource-binding.ts` (`rejectMismatchedBoundBearer`) | Identity provider + Identity protected routes; Host caller resolution | `proof_mismatch`; DPoP unchanged | `packages/oauth-provider/src/__tests__/metadata-transport.test.ts` (+ whole suite); Host `apps/gateway/src/middleware/auth.rs` tests | Identity side implemented, oauth-provider suite **passed** (run 2); Host-side `cnf` check **absent** → not_executed |
+| RFC 8705 client auth and `cnf.x5t#S256` binding | `packages/oauth-provider/src/mtls/feature.ts`, `clients/origin-resolve.ts`, `create-provider.ts`; resource check `apps/control-plane/src/transport/resource-binding.ts` (`rejectMismatchedBoundBearer`) | Identity provider + Identity protected routes; Host caller resolution | `proof_mismatch`; DPoP unchanged | `packages/oauth-provider/src/__tests__/metadata-transport.test.ts` (+ whole suite); Host `crates/gateway/src/middleware/auth.rs` tests | Identity side implemented, oauth-provider suite **passed** (run 2); Host-side `cnf` check **absent** → not_executed |
 | RFC 9440 fields accepted only from a bound ingress on the `trusted_ingress` listener | `crates/ingress-evidence`, `packages/ingress-evidence`; Identity `ingress.ts`, `ingress-evidence-adapter.ts`; `ops/ingress/Caddyfile` | admission | `forwarded_evidence_unverified`; bounded parse rejects before any handler | `crates/ingress-evidence/src/{parser_tests,corpus_tests}.rs`; `packages/ingress-evidence/src/{corpus,node}.test.ts`; `__tests__/ingress-listener.test.ts`; `crates/ingress-evidence/tests/reference_proxy.rs` | parsers implemented and **passed** (run 2, Rust 10 tests + TS); reference-proxy driver **absent** → not_executed; Host side absent |
 | Originating identity is request-local over a pooled ingress connection | `VerifiedPeer::ingress()`; Identity `request-evidence.ts` | admission | the other request's grant does not apply | `ingress-listener.test.ts`; AT-INGRESS-POOL in `tests/mtls-interop/` | Identity implemented; interop **absent** → not_executed |
 | NATS client requires TLS, verifies server, presents identity, no downgrade on reconnect | `crates/task-bus/src/nats.rs`, `OPENSESAME_NATS_*` | async-nats 0.50 options | connect error; no memory-bus fallback | `crates/task-bus` (`--features jetstream`); `ops/nats/` | file **unchanged** (bare `async_nats::connect`), `ops/nats` **absent** → not_executed |
-| Native `$SYS.REQ.USER.AUTH` callout bound to request, bridge bound to Host | `crates/nats-callout`, `opensesame-nats-auth-bridge`, `apps/gateway/src/routes/nats_callout*.rs` | Host decision + bridge binding | deny on unverified upstream token, wrong bridge cert, tampered response | `crates/nats-callout` tests; AT-CALLOUT-* | crate **absent**, route **unchanged** (shared secret) → not_executed |
+| Native `$SYS.REQ.USER.AUTH` callout bound to request, bridge bound to Host | `crates/nats-callout`, `opensesame-nats-auth-bridge`, `crates/gateway/src/routes/nats_callout*.rs` | Host decision + bridge binding | deny on unverified upstream token, wrong bridge cert, tampered response | `crates/nats-callout` tests; AT-CALLOUT-* | crate **absent**, route **unchanged** (shared secret) → not_executed |
 | OpenBao `auth/cert` with narrow role; token lifetime independent of certificate | `crates/provider-openbao` | OpenBao | login refused; token TTL governs | `tests/mtls-interop/` (AT-OPENBAO-REAL/TOKEN) | crate **unchanged** (token header only) → not_executed |
 | Browser vault-key injection reported `unsupported`; no export | `crates/domain/src/transport/capability.rs`; `packages/os-domain/src/transport-security/capabilities.ts`; `apps/pages/src/lib/transport-status.ts::browserCapabilities`, `transport-capability.ts` | contracts + Pages | typed `unsupported` outcome | `capability_tests.rs`; `apps/pages/src/lib/transport-capability.test.ts` | implemented; Pages transport tests **passed** (run 2) |
-| Enforcement `verified` only by positive + negative probe bound to a generation | `POST /api/v1/operator/transport/verify` (`apps/gateway/src/transport/probe.rs`); consumer `apps/pages/src/lib/transport-status.ts`, `transport-rows.ts` | Host status | `unverified` / `stale` otherwise | gateway `*_tests.rs`; `apps/pages/scripts/verify-transport.mjs` (AT-EVIDENCE-STALE) | browser consumer implemented; Host route **absent** → not_executed |
+| Enforcement `verified` only by positive + negative probe bound to a generation | `POST /api/v1/operator/transport/verify` (`crates/gateway/src/transport/probe.rs`); consumer `apps/pages/src/lib/transport-status.ts`, `transport-rows.ts` | Host status | `unverified` / `stale` otherwise | gateway `*_tests.rs`; `apps/pages/scripts/verify-transport.mjs` (AT-EVIDENCE-STALE) | browser consumer implemented; Host route **absent** → not_executed |
 | Static PWA needs no optional infrastructure; no native TLS in the bundle | `apps/pages`; `scripts/mtls/mtls-static-imports.mjs` | `verify:static`, `verify:transport`, static-imports gate | any loopback request, setup wall, or native token in the bundle fails | `apps/pages/scripts/verify-static-origin.mjs`, `verify-transport.mjs`; `scripts/mtls/mtls-static-imports.mjs` | static-imports **passed** (runs 1 and 2: 69 chunks, four browser packages clean); browser journeys not_executed by TESTOPS (`it-browser`) |
 
 Rows whose test path names a file that is absent from the tree at the time

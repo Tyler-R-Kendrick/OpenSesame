@@ -8,7 +8,7 @@ implementation, one set of bounds and one error taxonomy.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (the `certmgr_*` and `est_*`
+- **Used by:** [`crates/gateway`](../../crates/gateway) (the `certmgr_*` and `est_*`
   routes, and transport-certificate minting, issuance and CRLs in
   `src/transport_lifecycle`) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`pki_crl_parse`, `pki_csr_parse`,

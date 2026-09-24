@@ -1,0 +1,383 @@
+//! Contract tests pinning the route table in `mod.rs` against the committed
+//! `OpenAPI` spec (`spec/openapi/host-api.yaml`, `OpenAPI` 3.1, server `/api/v1`).
+//! Both directions are checked statically — a route added to `mod.rs` fails
+//! until it is either documented in the spec or consciously allowlisted
+//! below, and a spec entry with no backing route fails too — plus a dynamic
+//! probe that every documented (path, method) is registered with the router.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
+use tower::ServiceExt;
+
+use crate::app_state;
+use crate::config::Args;
+
+const SPEC: &str = include_str!("../../../../spec/openapi/host-api.yaml");
+const ROUTES: &str = concat!(
+    include_str!("mod.rs"),
+    include_str!("local_authority_routes.rs"),
+    include_str!("health.rs"),
+    include_str!("sync_page.rs"),
+    include_str!("browser_pairings.rs"),
+    include_str!("host_authorizations.rs"),
+    include_str!("shared_sessions.rs"),
+    include_str!("access_domains.rs"),
+    include_str!("grant_offers.rs"),
+    include_str!("authority_grants.rs"),
+    include_str!("wire_connections.rs"),
+    include_str!("est_server.rs")
+);
+
+/// Routes deliberately absent from the public `OpenAPI` spec, as
+/// (route path, method). A route added to `mod.rs` fails
+/// `implementation_routes_are_documented_or_allowlisted` until it is either
+/// documented in the spec or listed here under its category.
+const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
+    // Orchestrator liveness/readiness probes — operational surface, not API.
+    ("/health/live", "GET"),
+    ("/health/ready", "GET"),
+    ("/health/authority", "GET"),
+    ("/health/degraded", "GET"),
+    ("/health/providers", "GET"),
+    ("/api/v1/health", "GET"),
+    // Public discovery metadata (protected-resource metadata, agent card, auth doc).
+    ("/.well-known/oauth-protected-resource", "GET"),
+    ("/.well-known/agent-card.json", "GET"),
+    ("/auth.md", "GET"),
+    // Loopback-only local session mint for the device CLI, not the remote contract.
+    ("/api/v1/session/local", "POST"),
+    // NATS authorization callout — server-to-server, not session callers.
+    ("/api/v1/nats/auth/callout", "POST"),
+    // ADR 0068 §8 enrollment protocol endpoints — spoken by protocol clients
+    // (EST RFC 7030), never an agent surface; each authenticates with its own
+    // mechanism (sealed passphrase or bootstrap/reenrollment certificate).
+    ("/.well-known/est/{profile_id}/cacerts", "GET"),
+    ("/.well-known/est/{profile_id}/simpleenroll", "POST"),
+    ("/.well-known/est/{profile_id}/simplereenroll", "POST"),
+    // The operator configuration behind those endpoints (session-authenticated
+    // like every certmgr route; secret material is sealed and never returned).
+    ("/api/v1/certmgr/profiles/{id}/est-config", "GET"),
+    ("/api/v1/certmgr/profiles/{id}/est-config", "PUT"),
+    // Host operator task-bus configuration surface.
+    ("/api/v1/operator/taskbus", "GET"),
+    ("/api/v1/operator/taskbus", "PUT"),
+    ("/api/v1/operator/taskbus/ping", "POST"),
+    // Infisical-style private CA / dev-certificate issuance (session or operator).
+    ("/api/v1/certs", "GET"),
+    ("/api/v1/certs/ca", "GET"),
+    ("/api/v1/certs/issue", "POST"),
+    ("/api/v1/certs/deliveries/{request_id}/ack", "POST"),
+    // ADR 0075 host-custody key reveal — human/operator only, deliberately not
+    // part of the published contract and never on an agent surface.
+    ("/api/v1/certs/{id}/key", "GET"),
+    // GitHub App manifest registration flow, its callback, and the provider webhook.
+    ("/api/v1/providers/github/app", "POST"),
+    ("/api/v1/oauth/github-app/callback", "GET"),
+    ("/api/v1/webhooks/github", "GET"),
+    ("/api/v1/webhooks/github", "POST"),
+    // ADR 0039 server-side backup target configuration and resync.
+    ("/api/v1/backup/target", "GET"),
+    ("/api/v1/backup/target", "PUT"),
+    ("/api/v1/backup/target", "DELETE"),
+    ("/api/v1/backup/resync", "POST"),
+    // GitHub App installation listing behind the backup/integration UX.
+    ("/api/v1/integrations/{id}/github/installations", "GET"),
+    // GitHub repo provisioning behind a connection.
+    ("/api/v1/connections/{id}/github/repos", "GET"),
+    ("/api/v1/connections/{id}/github/repos", "POST"),
+    // Agent claim ceremony polling/completion (agent- and operator-facing).
+    ("/api/v1/agent-claims/{id}/poll", "POST"),
+    ("/api/v1/agent-claims/{id}/complete", "POST"),
+    // Operator break-glass authority registration.
+    ("/api/v1/admin/authority", "POST"),
+    // E2EE client sync — opaque ciphertext; the contract lives in client-core.
+    ("/api/v1/sync/push", "POST"),
+    ("/api/v1/sync/pull", "POST"),
+    ("/api/v1/sync/blobs/snapshot", "POST"),
+    ("/api/v1/sync/blobs/push", "POST"),
+    // WP-D: project changelog metadata.
+    ("/api/v1/projects/{project_id}/changelog", "GET"),
+    ("/api/v1/changelog", "POST"),
+    // WP-C: sync targets — ConnectionRef fan-out.
+    ("/api/v1/sync-targets", "GET"),
+    ("/api/v1/sync-targets", "POST"),
+    ("/api/v1/sync-targets/sync-all", "POST"),
+    ("/api/v1/sync-targets/{id}", "GET"),
+    ("/api/v1/sync-targets/{id}", "DELETE"),
+    ("/api/v1/sync-targets/{id}/sync", "POST"),
+    // ADR 0052: project-config secret store — value-blind responses.
+    ("/api/v1/projects/{project_id}/configs", "GET"),
+    ("/api/v1/projects/{project_id}/configs", "POST"),
+    ("/api/v1/configs/{id}", "GET"),
+    ("/api/v1/configs/{id}", "DELETE"),
+    ("/api/v1/configs/{id}/secrets", "GET"),
+    ("/api/v1/configs/{id}/secrets", "PUT"),
+    ("/api/v1/configs/{id}/secrets/{key}", "DELETE"),
+    ("/api/v1/configs/{id}/secrets/{key}/versions", "GET"),
+    ("/api/v1/configs/{id}/secrets/{key}/rollback", "POST"),
+    ("/api/v1/configs/{a}/compare/{b}", "GET"),
+    ("/api/v1/configs/{id}/branch", "POST"),
+    // WP-E: credential rotation requests.
+    ("/api/v1/rotations", "GET"),
+    ("/api/v1/rotations", "POST"),
+    ("/api/v1/rotations/{id}", "GET"),
+    // WP-9: durable rotation policies (owner/admin configuration surface).
+    ("/api/v1/rotation/policies", "GET"),
+    ("/api/v1/rotation/policies", "PUT"),
+    // Experimental AAUTH protocol surface — deliberately unpublished.
+    ("/experimental/aauth/v1/status", "GET"),
+    ("/experimental/aauth/v1/map/person", "POST"),
+    ("/experimental/aauth/v1/map/agent", "POST"),
+    ("/experimental/aauth/v1/mission/digest", "POST"),
+    // Certificate manager (ADR 0066/0067). Operator-plane administration of
+    // authorities, policies and profiles. Allowlisted while the surface is
+    // still being assembled; each path moves into spec/openapi/host-api.yaml as
+    // its slice lands, and this block should shrink to nothing.
+    ("/api/v1/certmgr/cas", "GET"),
+    ("/api/v1/certmgr/cas", "POST"),
+    ("/api/v1/certmgr/cas/{id}", "GET"),
+    ("/api/v1/certmgr/cas/{id}", "PATCH"),
+    ("/api/v1/certmgr/cas/{id}/csr", "GET"),
+    ("/api/v1/certmgr/cas/{id}/import-chain", "POST"),
+    ("/api/v1/certmgr/cas/{id}/renew", "POST"),
+    ("/api/v1/certmgr/cas/{id}/signing-config", "GET"),
+    ("/api/v1/certmgr/cas/{id}/signing-config", "PATCH"),
+    ("/api/v1/certmgr/policies", "GET"),
+    ("/api/v1/certmgr/policies", "POST"),
+    ("/api/v1/certmgr/policies/{id}", "GET"),
+    ("/api/v1/certmgr/policies/{id}", "PATCH"),
+    ("/api/v1/certmgr/policies/{id}", "DELETE"),
+    ("/api/v1/certmgr/profiles", "GET"),
+    ("/api/v1/certmgr/profiles", "POST"),
+    ("/api/v1/certmgr/profiles/{id}", "GET"),
+    ("/api/v1/certmgr/profiles/{id}", "PATCH"),
+    ("/api/v1/certmgr/profiles/{id}", "DELETE"),
+];
+
+type RouteMap = BTreeMap<String, BTreeSet<String>>;
+
+const METHODS: [&str; 5] = ["get", "post", "put", "delete", "patch"];
+
+fn documented_method(line: &str) -> Option<&'static str> {
+    METHODS
+        .iter()
+        .copied()
+        .find(|method| line == ["    ", method, ":"].concat())
+}
+
+fn route_call_close(open: usize) -> usize {
+    let mut depth = 0usize;
+    for (index, character) in ROUTES[open..].char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' if depth == 1 => return open + index,
+            ')' => depth -= 1,
+            _ => {}
+        }
+    }
+    ROUTES.len()
+}
+
+fn contains_method_helper(args: &str, method: &str) -> bool {
+    let token = [method, "("].concat();
+    let mut search = 0;
+    while let Some(position) = args[search..].find(&token) {
+        let at = search + position;
+        let helper = at == 0
+            || !matches!(
+                args.as_bytes()[at - 1],
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b':'
+            );
+        if helper {
+            return true;
+        }
+        search = at + token.len();
+    }
+    false
+}
+
+/// (path, method) pairs documented by the spec, with the `/api/v1` server
+/// prefix applied so they compare directly against route-table paths. The
+/// YAML is parsed line-wise on its stable indentation: path keys are
+/// two-space-indented `/...:` lines under `paths:`, operations are
+/// four-space-indented `get:`/`post:`/… lines beneath them.
+fn documented_routes() -> RouteMap {
+    let mut routes = RouteMap::new();
+    let mut in_paths = false;
+    let mut current: Option<String> = None;
+    let mut prefix = "/api/v1";
+    for line in SPEC.lines() {
+        if !line.is_empty() && !line.starts_with(' ') {
+            in_paths = line == "paths:";
+            current = None;
+            continue;
+        }
+        if !in_paths {
+            continue;
+        }
+        if line.starts_with("  /") && line.ends_with(':') {
+            current = Some(line.trim_end_matches(':').trim().to_string());
+            prefix = "/api/v1";
+        } else if line == "    servers: [{url: /}]" {
+            prefix = "";
+        } else if let (Some(path), Some(method)) = (&current, documented_method(line)) {
+            routes
+                .entry(format!("{prefix}{path}"))
+                .or_default()
+                .insert(method.to_uppercase());
+        }
+    }
+    routes
+}
+
+/// (path, method) pairs registered in `mod.rs`, parsed from the `.route(...)`
+/// calls so the table is pinned without a new dependency. Each call is
+/// scanned from its opening paren to the matching close at depth zero; the
+/// HTTP method helpers (`get(`, `.put(`, …) inside that span are the routed
+/// methods.
+fn implemented_routes() -> RouteMap {
+    let mut routes = RouteMap::new();
+    let mut offset = 0;
+    while let Some(found) = ROUTES[offset..].find(".route(") {
+        let open = offset + found + ".route".len(); // index of the call's '('
+        let close = route_call_close(open);
+        let args = &ROUTES[open + 1..close];
+        let path = args
+            .trim_start()
+            .strip_prefix('"')
+            .and_then(|rest| rest.split('"').next())
+            .expect("route path literal")
+            .to_string();
+        let mut methods = BTreeSet::new();
+        for method in METHODS {
+            // A routing helper is preceded by `(`, `.`, or whitespace — never
+            // by an identifier character or `::` (a handler path).
+            if contains_method_helper(args, method) {
+                methods.insert(method.to_uppercase());
+            }
+        }
+        assert!(
+            !methods.is_empty(),
+            "no HTTP method helper parsed for route {path}"
+        );
+        routes.entry(path).or_default().extend(methods);
+        offset = close;
+    }
+    routes
+}
+
+#[test]
+fn implementation_routes_are_documented_or_allowlisted() {
+    let documented = documented_routes();
+    let allowlist: BTreeSet<(&str, &str)> = UNDOCUMENTED_ROUTES.iter().copied().collect();
+    let mut undocumented = Vec::new();
+    for (path, methods) in implemented_routes() {
+        for method in methods {
+            let in_spec = documented.get(&path).is_some_and(|m| m.contains(&method));
+            if !in_spec && !allowlist.contains(&(path.as_str(), method.as_str())) {
+                undocumented.push(format!("{method} {path}"));
+            }
+        }
+    }
+    assert!(
+        undocumented.is_empty(),
+        "routes missing from spec/openapi/host-api.yaml and UNDOCUMENTED_ROUTES:\n{}",
+        undocumented.join("\n")
+    );
+}
+
+#[test]
+fn allowlist_has_no_stale_entries() {
+    let implemented = implemented_routes();
+    let stale: Vec<String> = UNDOCUMENTED_ROUTES
+        .iter()
+        .filter(|(path, method)| {
+            !implemented
+                .get(*path)
+                .is_some_and(|methods| methods.contains(*method))
+        })
+        .map(|(path, method)| format!("{method} {path}"))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "UNDOCUMENTED_ROUTES entries with no matching route in mod.rs:\n{}",
+        stale.join("\n")
+    );
+}
+
+#[test]
+fn documented_routes_are_implemented() {
+    let implemented = implemented_routes();
+    let mut missing = Vec::new();
+    for (path, methods) in documented_routes() {
+        for method in methods {
+            if !implemented.get(&path).is_some_and(|m| m.contains(&method)) {
+                missing.push(format!("{method} {path}"));
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "spec entries with no route in crates/gateway/src/routes/mod.rs:\n{}",
+        missing.join("\n")
+    );
+}
+
+/// Every documented (path, method) must be registered with the router: any
+/// status other than 404/405 (auth failure, validation error, even a broker
+/// error) proves the route exists. Only the documented methods are probed —
+/// a bare path match would answer the others with 405.
+#[tokio::test]
+async fn documented_routes_respond_on_the_router() {
+    let _guard = app_state::test_env::lock();
+    // Force the in-memory bus so an ambient NATS_URL cannot open sockets.
+    std::env::set_var("OPENSESAME_TASKBUS", "memory");
+    let state = app_state::build_test(Args {
+        listen: "127.0.0.1:0".parse().expect("listen"),
+        resource: "https://opensesame.test".into(),
+        issuer: "https://identity.test".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .expect("app state");
+    for (path, methods) in documented_routes() {
+        // Substitute a dummy value for every `{param}` segment.
+        let mut uri = String::new();
+        let mut rest = path.as_str();
+        while let Some(start) = rest.find('{') {
+            let end = rest[start..].find('}').expect("path param close") + start;
+            uri.push_str(&rest[..start]);
+            uri.push_str("contract-probe");
+            rest = &rest[end + 1..];
+        }
+        uri.push_str(rest);
+        for method in methods {
+            let request = Request::builder()
+                .method(method.as_str())
+                .uri(&uri)
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .expect("request");
+            let status = super::router(state.clone())
+                .oneshot(request)
+                .await
+                .expect("router")
+                .status();
+            assert_ne!(
+                status,
+                StatusCode::NOT_FOUND,
+                "{method} {uri} is documented but not routed"
+            );
+            assert_ne!(
+                status,
+                StatusCode::METHOD_NOT_ALLOWED,
+                "{method} {uri} is documented but routed for other methods only"
+            );
+        }
+    }
+}

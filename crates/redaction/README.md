@@ -8,7 +8,7 @@ through it before they reach a log, a receipt or an HTTP response.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (intents, delegations,
+- **Used by:** [`crates/gateway`](../../crates/gateway) (intents, delegations,
   receipts, tasks, health, the KV facade, shared sessions),
   [`opensesame-audit`](../audit), [`opensesame-authn`](../authn),
   [`opensesame-broker`](../broker), and the fuzz crate

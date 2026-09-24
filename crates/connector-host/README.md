@@ -13,7 +13,7 @@ a feature — runs Wasm component connectors.
 
 - **Used by:** [`opensesame-broker`](../broker) (`HostRuntime::invoke`),
   [`opensesame-host-core`](../host-core) (re-exported as
-  `host_core::connector_host`), [`apps/gateway`](../../apps/gateway),
+  `host_core::connector_host`), [`crates/gateway`](../../crates/gateway),
   [`apps/worker`](../../apps/worker) and [`apps/cli`](../../apps/cli) (the
   `providers` catalogue and plans), and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`connector_yaml`).

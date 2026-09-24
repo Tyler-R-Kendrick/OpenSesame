@@ -5,7 +5,7 @@ Status: Remediated locally; live provider conformance remains unclaimed
 ## Scope
 
 This review traced and repaired the certificate flow through
-`apps/gateway/src/dev_pki.rs`, `apps/gateway/src/routes/certs.rs`,
+`crates/gateway/src/dev_pki.rs`, `crates/gateway/src/routes/certs.rs`,
 `crates/storage/migrations/0009_host_kv.sql`, `crates/connection-broker/src/crypto.rs`, and
 the Pages certificate editor/model/client.
 

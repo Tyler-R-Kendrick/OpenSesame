@@ -615,6 +615,121 @@
     }
   },
   {
+    "id": "daemon.serve",
+    "title": "Run the local host agent in this process",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame daemon run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "daemon.approvals",
+    "title": "Approve a device code or claim through the local host agent",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame daemon approve-device",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "host.serve",
+    "title": "Run the Host API",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame host run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "worker.serve",
+    "title": "Run the workload connector host",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame worker run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "helpers.link",
+    "title": "Link the credential helpers and browser bridges to this binary",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame helpers link",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
     "id": "intents.invoke",
     "title": "Capability invoke through a ConnectionRef",
     "plane": "host",

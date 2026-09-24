@@ -102,9 +102,9 @@ pnpm --filter @opensesame/mock-upstream-idp dev &
 OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
 
 # Host plane (Host API on :8787, daemon on :18790)
-cargo build -p opensesame-gateway -p opensesame-daemon -p opensesame-cli
-./target/debug/opensesame-gateway --listen 127.0.0.1:8787
-./target/debug/opensesame-daemon  --listen 127.0.0.1:18790
+cargo build -p opensesame-cli
+./target/debug/opensesame host run --listen 127.0.0.1:8787
+./target/debug/opensesame daemon run --listen 127.0.0.1:18790
 ./target/debug/opensesame login --flow device --server http://127.0.0.1:8787
 ```
 

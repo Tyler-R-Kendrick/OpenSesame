@@ -1,0 +1,14 @@
+---
+source: apps/cli/tests/browserpass_golden.rs
+expression: "run.responses[0]"
+---
+{
+  "code": 24,
+  "params": {
+    "action": "fetch",
+    "file": "Web/nope.gpg",
+    "message": "Unable to decrypt the password file"
+  },
+  "status": "error",
+  "version": 3001002
+}

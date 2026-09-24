@@ -16,7 +16,7 @@ reading a secret is an explicit, human-only verb.
   [`storage`](../../crates/storage), [`ceremony`](../../crates/ceremony),
   [`env-spec`](../../crates/env-spec), [`kdbx-bridge`](../../crates/kdbx-bridge),
   [`provider-bitwarden`](../../crates/provider-bitwarden) and
-  [`pm-bridges`](../pm-bridges) (all `opensesame-*` crates).
+  [`pm-bridges`](../../crates/pm-bridges) (all `opensesame-*` crates).
 - `invoke` takes a `ConnectionRef` (`conn://…`) or logical name, never a
   `SecretRef` ([ADR 0005](../../docs/adr/0005-authority-handle-connectionref.md)).
   `secret` and `lease` are human-only and never exposed through MCP or agent

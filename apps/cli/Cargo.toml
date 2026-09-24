@@ -20,7 +20,12 @@ opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-human-vault = { path = "../../crates/human-vault" }
-opensesame-pm-bridges = { path = "../pm-bridges" }
+opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
+opensesame-credential-helpers = { path = "../../crates/credential-helpers" }
+opensesame-daemon = { path = "../../crates/daemon" }
+opensesame-gateway = { path = "../../crates/gateway" }
+opensesame-host-core = { path = "../../crates/host-core" }
+opensesame-worker = { path = "../../crates/worker" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 jsonwebtoken = { workspace = true }
@@ -41,6 +46,16 @@ regex = "1.11.1"
 tempfile = "3.20.0"
 
 [dev-dependencies]
+insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+
+[features]
+default = []
+# Password-manager bridges stay out of a default build (ADR 0053).
+browserpass = ["opensesame-pm-bridges/browserpass"]
+gopass = ["opensesame-pm-bridges/gopass"]
+keepassxc = ["opensesame-pm-bridges/keepassxc"]
+tailscale = ["opensesame-daemon/tailscale"]
+wasm-connectors = ["opensesame-gateway/wasm-connectors"]

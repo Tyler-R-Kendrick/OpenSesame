@@ -1,7 +1,7 @@
 # Audit tick 33 — authenticated ≠ authorized on task and receipt routes
 
 Date: 2026-08-08
-Scope: `apps/gateway/src/routes/{tasks,receipts}.rs`, `apps/gateway/src/middleware/auth.rs`
+Scope: `crates/gateway/src/routes/{tasks,receipts}.rs`, `crates/gateway/src/middleware/auth.rs`
 
 ## Scanners
 

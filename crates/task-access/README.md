@@ -10,7 +10,7 @@ implementations.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`src/task_engine.rs`,
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`src/task_engine.rs`,
   `src/routes/tasks.rs`) and [`opensesame-broker`](../broker)
   (`src/frozen.rs`).
 - **Builds on:** [`opensesame-domain`](../domain) (task and capability types);
