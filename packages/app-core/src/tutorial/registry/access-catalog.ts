@@ -64,7 +64,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.grant-access",
     description:
-      "The + on Identity shares: opens a share — who it is for, what it opens, the policy and how long it lasts.",
+      "The add key on Identity shares: opens a share — who it is for, what it opens, the policy and how long it lasts.",
     role: "ceremony",
     routes: ["/access"],
     capabilityId: "connectors.bind",

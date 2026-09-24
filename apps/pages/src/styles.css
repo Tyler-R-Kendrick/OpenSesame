@@ -1440,7 +1440,7 @@ body {
    card sat 16px under its rule on one panel and 30px on the next. Out of
    the flow, not hidden: an empty <output> is a live region waiting for
    its sentence. */
-.panel__body > :is(output, .actions, p, div):empty {
+.panel__body > :is(output, .actions):empty {
   position: absolute;
 }
 

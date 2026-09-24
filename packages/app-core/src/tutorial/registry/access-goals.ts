@@ -71,7 +71,7 @@ export const ACCESS_HELP: readonly HelpTopic[] = [
     id: "help.access.grant",
     title: "How do I give an agent access to something?",
     answer:
-      "Access → Grants → the + on Identity shares. You choose who it is for, what is shared, the policy it runs under and how long it lasts. The person or agent gets use of it, never the credential behind it.",
+      "Access → Grants → the add key on Identity shares. You choose who it is for, what is shared, the policy it runs under and how long it lasts. The person or agent gets use of it, never the credential behind it.",
     routes: [],
     goal: "access.grant",
     keywords: [
