@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 481,
-    "violations": 758,
-    "oversizedLines": 242541
+    "files": 480,
+    "violations": 757,
+    "oversizedLines": 242078
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -820,9 +820,6 @@
     "crates/enforcement/src/conformance.rs": {
       "max-lines": 413
     },
-    "crates/env-spec/src/lib.rs": {
-      "max-lines": 458
-    },
     "crates/gateway/src/backup.rs": {
       "max-lines": 754
     },
@@ -1016,7 +1013,7 @@
       "max-lines": 661
     },
     "crates/storage/src/tests.rs": {
-      "max-lines": 3001
+      "max-lines": 2996
     },
     "crates/storage/tests/session_coordination_store.rs": {
       "max-lines": 530

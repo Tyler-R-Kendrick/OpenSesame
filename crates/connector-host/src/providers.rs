@@ -1466,8 +1466,7 @@ mod tests {
             .all(|p| p.support != ProviderSupport::Supported));
 
         let manifest: serde_json::Value =
-            serde_json::from_str(include_str!("../../../spec/connectors/fnox-parity.json"))
-                .unwrap();
+            serde_json::from_str(include_str!("../../../spec/connectors/fnox-parity.json")).unwrap();
         let required: HashSet<_> = manifest["providers"]
             .as_array()
             .unwrap()
