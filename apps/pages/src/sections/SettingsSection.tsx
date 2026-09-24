@@ -24,7 +24,6 @@ import { FormatsInteroperabilityPanel } from "./settings/FormatsInteroperability
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
-import { SettingsViewToggle } from "./settings/SettingsViewToggle.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
@@ -76,7 +75,7 @@ export function SettingsSection({
   panels?: Partial<SettingsPanels>;
 } = {}) {
   const resolvedPanels = { ...defaultPanels, ...panels };
-  const { hash, pathname } = useLocation();
+  const { hash, pathname, search } = useLocation();
   const tabs = useSettingsTabs();
   const category = settingsCategoryFromLocation(pathname, hash);
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
@@ -85,22 +84,23 @@ export function SettingsSection({
   const contributedPanels = [...useContributions("settings-panel")]
     .filter((panel) => panel.category === category)
     .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
-  const { representation, setRepresentation, openPath, setOpenPath, fileNav } =
-    useSettingsFileNav(category);
+  // A directory's files are the same page spelled as files: its
+  // `config.yaml` and whatever else it keeps, opened by `?file=` (the rail,
+  // the command bar, a row's open key) and drawn here in place of the form.
+  const { openPath, setOpenPath, fileNav } = useSettingsFileNav(
+    category,
+    search,
+  );
 
   useSettingsLocation(category, hash, pathname);
 
-  const form = representation === "form";
+  const form = openPath === null;
 
   return (
     <SettingsFileContext.Provider value={fileNav}>
       <div className="section__inner">
         <div className="section__head">
           <h1>Settings</h1>
-          <SettingsViewToggle
-            representation={representation}
-            onChange={setRepresentation}
-          />
         </div>
 
         <nav className="set__nav" aria-label="Settings sections">
@@ -115,14 +115,13 @@ export function SettingsSection({
             />
           ))}
         </nav>
-        {representation === "yaml" || representation === "toml" ? (
+        {form ? null : (
           <SettingsFiles
             category={category}
-            format={representation}
             selected={openPath}
             onSelect={setOpenPath}
           />
-        ) : null}
+        )}
         {form && ContributedPanel ? <ContributedPanel /> : null}
         {form && category === "general" ? (
           <>

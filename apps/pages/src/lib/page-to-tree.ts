@@ -7,6 +7,15 @@ export type PageTreeLeaf = {
   selectTo?: string;
   count?: number;
   dir?: boolean;
+  /**
+   * A hidden entry (a `config.yaml`, the vault's `trash/`): listed only while
+   * the rail shows hidden items, and dimmed when it is.
+   */
+  hidden?: boolean;
+  /** What the rail's context menu treats this row as, beyond its href. */
+  kind?: "file" | "trash" | "folder" | "filter";
+  /** A directory's own `config.yaml`, which its context menu can open. */
+  config?: string;
 };
 
 export type PageTreeNode = PageTreeLeaf & {
@@ -59,6 +68,7 @@ export function pageToTree(
       selectTo: section.selectTo,
       dir: section.dir,
       count: section.count,
+      config: section.config,
       children,
       branch: true,
     });

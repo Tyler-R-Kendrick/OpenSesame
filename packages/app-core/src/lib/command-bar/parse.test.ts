@@ -34,6 +34,17 @@ describe("parseCommand", () => {
     });
   });
 
+  it("opens a settings directory's config.yaml by its path", () => {
+    expect(parseCommand("settings/security/config.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings/security?file=config.yaml",
+      label: "settings/security/config.yaml",
+    });
+    expect(parseCommand("settings/nowhere/config.yaml")?.action).not.toBe(
+      "open_path",
+    );
+  });
+
   it("opens prefs aliases and refuses ledger path guesses", () => {
     expect(parseCommand("settings/prefs.yaml")).toEqual({
       action: "open_path",

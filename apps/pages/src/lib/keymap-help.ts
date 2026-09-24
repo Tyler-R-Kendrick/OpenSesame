@@ -18,6 +18,7 @@ export const KEYMAP_HELP_CORE = [
   ["e / x", "Edit or trash"],
   ["n / .", "New or favorite"],
   ["s", "Share once"],
+  ["Shift-F10 / Shift-Enter", "Actions for the focused row"],
 ] as const;
 
 export type KeymapHelpRow = readonly [keys: string, action: string];

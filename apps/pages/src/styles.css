@@ -1048,6 +1048,13 @@ input[type="radio"] {
   color: var(--rail-muted);
 }
 
+/* A hidden entry (a `config.yaml`, `trash/`) listed because the rail shows
+   hidden items — dim, the way `ls -a` greys a dotfile. The cursor's inverse
+   video still wins on it. */
+.railtree__row--hidden:not(.is-active) .railtree__name {
+  color: var(--rail-muted);
+}
+
 .railtree__count {
   margin-left: auto;
   font-size: 0.75rem;

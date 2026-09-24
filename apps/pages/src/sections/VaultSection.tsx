@@ -138,6 +138,8 @@ export function VaultSection() {
       },
       edit: (item: VaultItem) => navigate(`/vault/${item.id}/edit`),
       trash: (item: VaultItem) => void store.trashItem(item.id),
+      restore: (item: VaultItem) => void store.restoreItem(item.id),
+      purge: (item: VaultItem) => void store.purgeItem(item.id),
       favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
       share: (item: VaultItem) => {
         if (item.kind === "secret") navigate(`/vault/${item.id}?share=drop`);

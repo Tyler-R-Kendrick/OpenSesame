@@ -158,6 +158,12 @@ directory new files may be created in. `itemTypeFiles`
   vault's list is never written into another's.
 - **The Visual/Source sub-toggle and the paste field are gone.** There is
   one source view for the page, and it shows files.
+- **2026-09-23 note — no page toggle either.** The page's Form/YAML/TOML
+  toggle went with it (PR #483): each directory's own document is
+  `settings/<category>/config.yaml` (YAML), and every file here is opened
+  by `?file=<path>` on its directory's route — from the rail, the command
+  bar, or a Form row's open key — rather than by switching representation.
+  The file viewer, the providers and the contract above are unchanged.
 
 ### 5. Consent and egress
 

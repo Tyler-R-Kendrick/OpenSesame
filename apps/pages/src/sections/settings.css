@@ -263,8 +263,8 @@
     justify-content: center;
   }
 
-  /* Form / YAML / TOML are real targets on this section head — 42×26 fails
-     the 44px mobile floor. */
+  /* The Capabilities view toggle's keys are real targets — 42×26 fails the
+     44px mobile floor. */
   .set__view-btn {
     box-sizing: border-box;
     min-width: 44px;
@@ -359,13 +359,6 @@
   color: var(--ink-2);
 }
 
-.section__head:has(.set__view) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
 .set__view {
   display: flex;
   gap: 0.25rem;
@@ -387,6 +380,30 @@
 .set__view-btn[aria-pressed="true"] {
   color: var(--ink);
   border-bottom-color: var(--ink);
+}
+
+.set-raw__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.set-raw__status-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.set-raw__status-meta {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
 }
 
 .set-raw__path {

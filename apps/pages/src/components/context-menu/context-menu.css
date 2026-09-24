@@ -1,0 +1,154 @@
+/* The page's context menu and every row `⋯` menu — one list, one look.
+   A menu is elevated (the one place a shadow communicates behaviour), sharp
+   at the documented 2px, and its current entry is inverse video like every
+   other cursor in the app. Keys ride on the right, the way the keymap sheet
+   shows them. */
+.ctxmenu {
+  z-index: 60;
+  display: grid;
+  min-width: 13rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.ctxmenu--floating {
+  position: fixed;
+  /* Its own width wherever it opens: near the right edge a shrink-to-fit
+     box would be measured squeezed, flipped at that width, and clip. */
+  width: max-content;
+}
+
+/* The phone arrangement: an action sheet on the bottom edge, full width,
+   above a scrim (`.sheet-layer` and `.scrim` are the app's own). It clears
+   the home indicator, and a long menu scrolls inside itself without handing
+   the flick to the page. */
+.ctxmenu--sheet {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  min-width: 0;
+  max-width: none;
+  max-height: min(75vh, 32rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  border-width: 1px 0 0;
+  border-radius: 0;
+}
+
+.ctxmenu__title {
+  margin: 0;
+  font-family: inherit;
+  padding: 0.6rem 0.5rem 0.4rem;
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctxmenu__sep {
+  margin: 0.25rem 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.ctxmenu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0.35rem 0.5rem 0.35rem 0.25rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The focused entry is the menu's cursor: inverse video, like every other. */
+.ctxmenu__item:focus {
+  outline: none;
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.ctxmenu__item[aria-disabled="true"] {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.ctxmenu__item[aria-disabled="true"]:focus {
+  background: var(--surface-3);
+  color: var(--ink-3);
+}
+
+.ctxmenu__item.is-danger {
+  color: var(--err);
+}
+
+.ctxmenu__item.is-danger:focus,
+.ctxmenu__item.is-armed {
+  background: var(--err);
+  color: var(--err-ink);
+}
+
+.ctxmenu__check {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 0.875rem;
+}
+
+.ctxmenu__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctxmenu__hint {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.ctxmenu__item:focus .ctxmenu__hint,
+.ctxmenu__item.is-armed .ctxmenu__hint {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* A finger needs the floor (DESIGN.md § Touch); the mono density survives,
+   the row grows. Keys a touch device does not have stand down. */
+@media (pointer: coarse), (max-width: 900px) {
+  .ctxmenu__item {
+    min-height: 2.75rem;
+  }
+
+  .ctxmenu__hint {
+    display: none;
+  }
+
+  /* Holding a row asks for its menu, so the platform must not answer the
+     hold first: no iOS link preview, no text-selection magnifier. */
+  .railtree__row,
+  .vtree__row,
+  .drawer__row,
+  .set__nav a {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

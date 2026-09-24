@@ -30,6 +30,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { menuSteps } from "./lib/capture-menu-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -186,6 +187,7 @@ const STEPS = {
       await page.waitForTimeout(800);
     }
   },
+  ...menuSteps({ press }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.

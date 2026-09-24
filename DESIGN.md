@@ -247,6 +247,44 @@ Pointer access remains complete: rows click, directories toggle, a `⋯` menu
 on the cursor or hovered row carries the verbs, and the `/` and `?` key
 chips in the path strip are buttons.
 
+The page owns its right-click (`components/context-menu/`). A right button,
+a long press (a finger or a stylus held still — recognised by the page, since
+iOS sends no event for it; the lift that ends it never also taps), `Shift+F10`,
+the Menu key, or `Shift+Enter` on a listing (for a keyboard with neither) opens
+the app's menu for whatever it landed on — the focused row, for a key — and
+every entry is a verb the page
+already has, with its key beside it, so the menu teaches the keymap rather
+than adding a second road. The `⋯` menu is the same list. A rail row offers
+open, expand/collapse, its directory's `config.yaml`, new item, copy link and
+**Show hidden items**; a Settings tab its directory's `config.yaml` too (the
+touch road, where the rail is a drawer of sections); a vault row its item verbs (`Enter e y u . s x`), or
+restore and delete in the trash; anywhere else the link, the selected text and
+the page (back, forward, reload, command bar, keys, lock). A destructive entry
+asks twice, re-labelled in place, like the detail pane's delete key. While a
+menu is open it owns every key; Escape and Tab close it and hand focus back.
+With a mouse the menu is a popover at the pointer; on a phone (coarse pointer
+or ≤900px) it is an action sheet on the bottom edge — over a scrim, in reach of
+the thumb, titled with what it is for, 44px entries — because a popover under
+a finger would cover the very row it is about and rest on the controls around
+it. The scrim's tap only dismisses; it never reaches what lies beneath.
+Two things keep the browser's own menu: a text field (paste and spelling are
+the browser's) and a right-click with Shift held.
+
+Hidden items are hidden the way a file manager hides them: the vault's
+`trash/` and every settings directory's `config.yaml` are left out of the rail
+until its menu's **Show hidden items** is checked (per device), and are drawn
+dim when they are. Hiding never closes a road — a hidden path still opens by
+link, key and command bar, and the trash row is drawn while you stand in it.
+
+Each settings directory is also a file. `settings/<category>/config.yaml`
+(route `/settings/<category>?file=config.yaml` — never a `.yaml` path, which a
+static host answers as a missing file) is that page spelled as YAML: the
+form and the file are one set of values, so a write of the file changes the
+page and a change on the page rewrites the file in place, keeping the
+person's comments. State a ceremony owns (unlock methods, approved
+capabilities) is listed read-only and a file that rewrites it is refused.
+There is no Form/YAML/TOML switch.
+
 The keyboard lands on arrival, every time. A page load, an unlock, a route
 change, a browser Back, a switched tab — each leaves focus on `<body>` unless
 the screen claims it, and from `<body>` the first Tab starts at the top of the
@@ -349,7 +387,9 @@ import, save, cancel, lock, authorize, revoke, retry, load more — renders
 as an icon key: a square icon button (`icon-btn`, or `.go` for the action
 that ends the screen) whose `aria-label` and tooltip carry the sentence.
 The verb is never painted on the button. A destructive ceremony is spelled
-out in the prose beside the keys, not as a word on the key.
+out in the prose beside the keys, not as a word on the key. A menu is the
+exception by nature: a menu entry is a named choice in a list (with its key
+beside it), and an icon-only menu would be mystery meat.
 
 Text on a control is only the object of a choice: a provider, a mode, a
 navigation target, or the guest road. Never a text verb stretched across a
@@ -423,8 +463,11 @@ with Save and Cancel after the fields. Drop retention stays an explicit,
 unchecked custody choice; payload and expiry remain visible.
 
 ### Settings is files
-Settings' source view is a file viewer, not a second form. A category is its
-document (`settings/<category>.yaml`) plus the virtual files its providers
+Settings' files are a file viewer, not a second form, and there is no
+Form/source switch: a file is addressed like a page, `?file=<path>` on its
+directory's route, reached from the rail, the command bar or a row's open key,
+and Back returns to the form. A category is its document
+(`settings/<category>/config.yaml`) plus the virtual files its providers
 keep. For Vaults those are `settings/item-types/marketplaces.json`,
 `installed/<id>.json` and read-only `builtin/<id>.json`. The files sit as a mono
 tree, indented a step per directory, beside the open file. Selection is inverse

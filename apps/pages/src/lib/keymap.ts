@@ -11,6 +11,7 @@ import { handlePaneEscape } from "./pane-escape.js";
 
 import {
   type ListingMotion,
+  contextMenuOpen,
   currentRailTarget,
   currentSearchTarget,
   currentVaultTarget,
@@ -293,12 +294,14 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       clearGo();
       return;
     }
-    if (handleCommandBarChord(event)) {
+    // An open context menu owns every key until it closes.
+    if (!contextMenuOpen() && handleCommandBarChord(event)) {
       count = 0;
       clearGo();
       return;
     }
     if (
+      contextMenuOpen() ||
       event.defaultPrevented ||
       event.metaKey ||
       event.altKey ||

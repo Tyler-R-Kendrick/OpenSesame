@@ -112,6 +112,15 @@ export function focusVaultListing(): void {
   vaultTarget?.focus?.();
 }
 
+/**
+ * A context menu is open. It owns every key until it closes — the page's
+ * keymap and its Escape ladder both stand down, whichever listener the
+ * browser happens to run first.
+ */
+export function contextMenuOpen(): boolean {
+  return document.querySelector('.ctxmenu[role="menu"]') !== null;
+}
+
 export function typing(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.closest("[data-config-source]")) return true;

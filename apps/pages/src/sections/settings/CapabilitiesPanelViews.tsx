@@ -4,7 +4,7 @@
  * Visual is drawn by the panel that owns it; Source is the authored YAML
  * committed through the S04 adapter (a stale base revision is a conflict, a
  * comments-only edit touches nothing semantic); Effective is read-only. The
- * toggle wears `SettingsViewToggle`'s classes so it reads as the same
+ * toggle wears the `set__view` classes so it reads as the same
  * control, with the three words a document has views of.
  */
 

@@ -1,5 +1,9 @@
 import { uniqueFolderKind } from "@opensesame/app-core/components/vault-rail-model.js";
-import { settingsCategoryFromLocation } from "@opensesame/app-core/lib/crumbs.js";
+import {
+  isSettingsConfigSearch,
+  settingsCategoryFromLocation,
+  settingsConfigRoute,
+} from "@opensesame/app-core/lib/crumbs.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
 import {
   type Folder,
@@ -15,6 +19,7 @@ import {
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
@@ -26,6 +31,8 @@ import {
 } from "./RailRows.js";
 import { SettingsTree } from "./SettingsTree.js";
 import { type VaultCounts, VaultRail } from "./VaultRail.js";
+import { openContextMenu } from "./context-menu/menu-model.js";
+import { railMenu, railRowAt } from "./context-menu/rail-menu.js";
 import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
@@ -114,6 +121,7 @@ function SectionBranch({
   items,
   folders,
   kinds,
+  showHidden,
 }: {
   section: SectionRowModel;
   expand: SectionExpand;
@@ -123,6 +131,7 @@ function SectionBranch({
   items: VaultItem[];
   folders: Folder[];
   kinds: readonly ItemKindRow[];
+  showHidden: boolean;
 }) {
   const { expanded, here, onToggle } = expand;
   if (section.to === "/vault") {
@@ -143,6 +152,7 @@ function SectionBranch({
             counts={counts}
             selectedTo={selectedTo}
             kinds={kinds}
+            showHidden={showHidden}
           />
         ) : null}
       </>
@@ -200,6 +210,7 @@ export function NavTree() {
   const { items, folders } = useVault();
   const sections = useSections();
   const kinds = useVaultDirectories(items);
+  const showHidden = useShowHidden();
   const treeRef = useRef<HTMLElement>(null);
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
@@ -211,15 +222,20 @@ export function NavTree() {
     location.pathname,
     location.hash,
   );
-  const selectedTo = selectedRailPath(
-    location.pathname,
-    location.hash,
-    params.get("view"),
-    activeFilter,
-    activeFolder,
-    settingsCategory,
-    activeFolder ? uniqueFolderKind(items, activeFolder, kinds) : null,
-  );
+  // A settings directory's `config.yaml` is its own rail entry.
+  const selectedTo =
+    location.pathname.startsWith("/settings") &&
+    isSettingsConfigSearch(location.search)
+      ? settingsConfigRoute(settingsCategory)
+      : selectedRailPath(
+          location.pathname,
+          location.hash,
+          params.get("view"),
+          activeFilter,
+          activeFolder,
+          settingsCategory,
+          activeFolder ? uniqueFolderKind(items, activeFolder, kinds) : null,
+        );
   const section = sectionForPath(location.pathname, sections);
   const sectionOpen = Boolean(
     section && isBranch(section) && expandFor(section.to).expanded,
@@ -241,6 +257,15 @@ export function NavTree() {
       aria-activedescendant={
         cursorId ?? railRowId(currentToRef.current, sectionOpen)
       }
+      onContextMenu={(event) => {
+        const row = railRowAt(event.target);
+        openContextMenu(
+          event,
+          row ?? event.currentTarget,
+          row ? `${row.getAttribute("aria-label") ?? "Entry"} actions` : "Rail",
+          railMenu(row, showHidden, navigate),
+        );
+      }}
     >
       {sections.map((entry) => (
         <SectionBranch
@@ -253,6 +278,7 @@ export function NavTree() {
           items={items}
           folders={folders}
           kinds={kinds}
+          showHidden={showHidden}
         />
       ))}
     </nav>
