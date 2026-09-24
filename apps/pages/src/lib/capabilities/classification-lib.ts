@@ -279,6 +279,13 @@ export const LIB_RULES = [
     SIGNIN,
     "interaction approval: /i/<ref> link, resolve/read, activation, decide (ADR 0140)",
   ),
+  // Moves with `claims/` to `identity.ceremonies` (ADR 0140 plan step 7); the
+  // hosted inbox rows it builds are Access › Requests' (plan step 9).
+  core(
+    `${L}approvals`,
+    SIGNIN,
+    "authorization-request review and hosted inbox rows (ADR 0084, ADR 0140)",
+  ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),
   ),

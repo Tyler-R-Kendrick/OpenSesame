@@ -15,8 +15,8 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | ceremonies `/guest` | provisional principal | `guest-auth.ts` `continueAsGuest` | covered (D12) |
 | ceremonies `/device?user_code=`, console `/device` | `POST /v1/device/approve` | `DevicesPanel` via `app-core/lib/directory.ts` | partial: no deep link, optional enterprise capability, three implementations |
 | ceremonies `/delegate#token=osc_dlg_` | Host delegations present/claim | Join (`lib/join/invite.ts`) | covered by Join (D5) |
-| ceremonies `/inbox` | `GET /v1/authorization-requests?status=pending`, approve/deny | Access › Requests (local only) | missing |
-| ceremonies `/approve/:ref` | request, requirement, activation, decision, report | none | missing |
+| ceremonies `/inbox` | `GET /v1/authorization-requests?status=pending`, approve/deny | Access › Requests (local only); model: app-core `lib/approvals.ts` hosted rows (step 6) | partial: no rows rendered (step 9) |
+| ceremonies `/approve/:ref` | request, requirement, activation, decision, report | model: ceremony-kit `approval-review.ts`, app-core `lib/approvals.ts` (step 6) | partial: no route (step 9); refusals worded by code (step 6) |
 | ceremonies `/notifications` | channels, bindings, preferences | none | missing |
 | ceremonies `/invoke/:kind` + `.well-known` | — (parser) | none | missing |
 | mobile-mfa `/i/<ref>` | interaction resolve/read/activation/approve/deny, WebAuthn | model: ceremony-kit `interaction-approval.ts`, app-core `lib/interactions.ts` (step 5) | partial: no route (step 9); refusals worded by code (step 5) |
@@ -36,7 +36,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | Device approval | `/device?user_code=` | ceremony-kit `approveDevice`; `directory.ts` delegates | `identity.ceremonies` |
 | Interaction approval | `/i/:ref` | ceremony-kit `interaction-approval.ts`; app-core `lib/interactions.ts` | `identity.ceremonies` |
 | Legacy links | → `/device` or refusal | ceremony-kit | `identity.ceremonies` |
-| Approval review | `/approve/:ref` | ceremony-kit `authorization-request-client.ts`, `approval-copy.ts`; app-core `lib/approvals.ts` | `identity.ceremonies` |
+| Approval review | `/approve/:ref` | ceremony-kit `authorization-request-client.ts`, `approval-review.ts`, `approval-copy.ts`, `approval-words.ts`; app-core `lib/approvals.ts` | `identity.ceremonies` |
 | Inbox | Access › Requests rows (`plane: "hosted"`) | as above | `access.authority` |
 | Authenticator hand-off | `/invoke/:kind` | ceremony-kit `authenticator-invocation.ts` | `identity.ceremonies` |
 | Notification routing | Settings › Notifications | app-core `lib/notification-routing.ts` + a `VirtualFileProvider` | `notifications.routing` (optional) |
