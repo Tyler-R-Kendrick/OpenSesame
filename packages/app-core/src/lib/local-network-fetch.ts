@@ -71,6 +71,12 @@ export type LocalNetworkFetchInit = RequestInit & {
   timeoutMs?: number;
   /** Skip targetAddressSpace annotation. */
   skipAddressSpace?: boolean;
+  /**
+   * The request reads or writes ciphertext on a tailnet drive and carries no
+   * operator authority (ADR 0140), so the deployment fence — which exists to
+   * keep local authority off a shared origin — does not apply to it.
+   */
+  ciphertextDrive?: boolean;
 };
 
 /**
@@ -86,12 +92,13 @@ export async function localNetworkFetch(
   const {
     timeoutMs = DEFAULT_MS,
     skipAddressSpace,
+    ciphertextDrive,
     signal: outer,
     ...rest
   } = init;
   const targetSpace = targetAddressSpaceFor(input);
   if (
-    (targetSpace && !localNetworkFetchSeams.eligible()) ||
+    (targetSpace && !ciphertextDrive && !localNetworkFetchSeams.eligible()) ||
     new Headers(init.headers).has("X-OpenSesame-Operator")
   ) {
     throw new DOMException(

@@ -77,12 +77,12 @@ describe("VaultStore.mergeSnapshot", () => {
 
   it("is a no-op against its own latest snapshot", async () => {
     const { store } = await unlockedWith("a");
-    const rev = store.getSnapshot().rev;
+    const { rev } = await store.sealedSnapshot();
     const merge = await store.mergeSnapshot(
       input(await store.sealedSnapshot()),
     );
     expect(merge).toEqual({ localChanged: false, remoteBehind: false });
-    expect(store.getSnapshot().rev).toBe(rev);
+    expect((await store.sealedSnapshot()).rev).toBe(rev);
   });
 
   it("refuses a snapshot of another vault", async () => {
