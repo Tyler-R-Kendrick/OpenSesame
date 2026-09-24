@@ -19,7 +19,7 @@ the command that produced it. Anything that could not run says why.
 | Size of the change | 635 files, about 76 900 insertions, measured against the merged base |
 | Toolchain | rustc/cargo 1.88.0, Node 22.22.2, pnpm 9.15.0 |
 | Relevant resolved libraries | rustls 0.23.43 (ring provider), tokio-rustls 0.26.4, rustls-webpki 0.103.13, async-nats 0.50.0, nkeys 0.4.5, spiffe 0.16.1, sfv 0.15.0, oidc-provider 9.11.2, structured-headers 2.1.0 |
-| Pinned disposable servers | nats-server 2.11.17, OpenBao 2.3.2, SPIRE 1.12.6, Caddy 2.11.4 — all fetched and sha256-verified by `scripts/mtls-fixtures.sh` |
+| Pinned disposable servers | nats-server 2.11.17, OpenBao 2.3.2, SPIRE 1.12.6, Caddy 2.11.4 — all fetched and sha256-verified by `scripts/mtls-fixtures.sh`; pinned for linux-amd64 and linux-arm64 (the arm64 set added 2026-09-23, cross-checked against the same upstream checksum files except OpenBao's, which publishes only a cosign signature) |
 
 Every fixture binary is pinned by version and by hash of both the archive and
 the extracted binary. One exception is recorded honestly: OpenBao publishes no
@@ -55,7 +55,7 @@ pre-existing and not caused by this work.
 | RFC 9440 originating-client evidence behind an authenticated ingress | implemented, executed, passed against real Caddy 2.11.4 |
 | RFC 8705 client authentication and certificate-bound access tokens | implemented, executed, passed (first-party provider) |
 | NATS client mTLS, certificate mapping, TLS-first, route cluster | implemented, executed, passed against real nats-server 2.11.17 |
-| Native NATS authorization callout with independent Host verification | implemented, executed, passed in configuration mode only |
+| Native NATS authorization callout with independent Host verification | implemented, executed, passed in configuration mode only — bare and `xkey`-sealed envelopes, the sealed mode live-tested against the pinned server on 2026-09-23 (§8) |
 | Upstream mTLS bound to a ConnectionRef, with OpenBao certificate auth | implemented, executed, passed against real OpenBao 2.3.2 |
 | Managed-certificate custody, renewal, activation facts, revocation, trust administration | implemented, executed, passed |
 | NATS operator mode, gateway, leafnode, websocket, replicated JetStream | **unsupported** — no listener shipped, no test, not advertised |
@@ -111,9 +111,9 @@ rejected every genuine callout.
 
 | Item | Why |
 |---|---|
-| The four libFuzzer entry points | require a nightly toolchain and a sanitizer build of a separate workspace; the container had under 4 GiB free. Each target's body is mirrored by a property test that does run, so only the fuzzing harness is unproven |
+| The four libFuzzer entry points | **closed 2026-09-23 (§8).** At this record they had not run: they require a nightly toolchain and a sanitizer build of a separate workspace, and the container had under 4 GiB free. Each target's body is mirrored by a property test that did run, so only the fuzzing harness was unproven |
 | NATS operator mode | not exercised; its issuer, audience and account rules differ from configuration mode and no claim is made about it |
-| The callout xkey envelope | unit-tested, not live-tested; the live server was not configured with it |
+| The callout xkey envelope | **closed 2026-09-23 (§8).** At this record it was unit-tested but not live-tested; the live server had not been configured with it |
 | Real certificate provisioning in a browser | the browser fixture proves harness-provisioned TLS only, and says nothing about how a person obtains or selects a certificate |
 | `pnpm verify` and the whole-repository clippy gate | both stop on pre-existing debt, measured rather than assumed — see below |
 | A Host secure-listener test in the gateway binary | none exists. The listener's real-handshake behaviour is covered by `opensesame-transport-security`'s own listener tests and by the interop crate's 21 scenarios, including the gateway process refusing to start rather than downgrade. The integration suite no longer implies a gateway test that was never written |
@@ -204,3 +204,54 @@ pnpm test:mtls:browser         # Playwright client-certificate fixtures
 Sanitized machine-readable results are written under `artifacts/mtls/`, with
 every credential, token, key and session secret redacted before a log is stored
 or hashed.
+
+## 8. The 2026-09-23 completion pass
+
+Two rows of §6 were gaps in opportunity rather than design. Both are closed,
+and everything below actually ran (the callout `xkey` live tests and the
+linux-arm64 fixture pins being the only code changes in this pass).
+
+| Previously not run | What ran | Result |
+|---|---|---|
+| The callout xkey envelope | The pinned nats-server 2.11.17 configured with `auth_callout.xkey`, and the in-process bridge holding the matching callout xkey, with every callout envelope recorded by a passive subscriber (`crates/nats-callout/tests/live_callout.rs`): `cargo +1.88.0 test -p opensesame-nats-callout --all-features -- --ignored` | **passed**, 7 of 7 live tests. The sealed path admits and denies exactly as the bare path does; the reply is an `xkv1` box back to the server's key; a real sealed envelope is refused (`xkey_required`, `xkey_open_failed`) under no, wrong, missing-header and lying-header xkey and reaches no Host; a sealing server never serves a bare bridge (no message is ever delivered, `authorization violation`, zero Host decisions); an xkey bridge still serves a bare server unsealed |
+| The four libFuzzer entry points | `cargo +nightly fuzz run <target> -- -max_total_time=45` per target (cargo-fuzz 0.13.2 on the nightly toolchain — both present in this environment, and the earlier 4 GiB constraint gone) | **passed**, no crashes, leaks, timeouts or artifacts: `transport_bindings_config` 3 324 116 runs, `transport_callout_envelope` 903 904, `transport_ingress_fields` 1 167 621, `transport_leaf_parse` 1 315 326 |
+
+The pinned fixtures gained a **linux-arm64** asset set, recorded and hashed
+here and cross-checked the same way as amd64: both nats-server releases against
+their upstream `SHA256SUMS`, SPIRE against
+`spire-1.12.6-linux-arm64-musl_sha256sum.txt`, Caddy against the sha512 in
+`caddy_2.11.4_checksums.txt` — all match. OpenBao again publishes only a cosign
+`.sig`, so its arm64 hashes are our own of a single download. `uname -m`
+selects the set; any other platform still exits 3.
+
+On linux-arm64 the whole real-protocol suite ran twice (AT-EVIDENCE-REPEAT),
+each with its own run directory. The first run was 15 of 17: one pre-existing
+callout test hit its nats-server startup deadline while the machine was still
+compiling other work (the deadline is now 30 s rather than 10 s), and the
+browser step went red because `PLAYWRIGHT_CHROMIUM` named a path this machine
+does not have — a missing browser is red, not skipped. With those two fixed the
+second run is **17 of 17, 0 failed, 0 not_executed**: fixtures, SPIRE 1.12.6,
+Caddy 2.11.4, task-bus 10, callout 7 (the sealed suite included), OpenBao cert
+auth 3, the real `opensesame-gateway` process (1 + the interop crate's 21,
+including refuse-to-start rather than downgrade), Identity real-TLS 55, and the
+Chromium client-certificate journeys 10 (`AT-STATIC-EMPTY`,
+`AT-BROWSER-EXTERNAL`, `AT-BROWSER-UX`, `AT-EVIDENCE-STALE`,
+`AT-BROWSER-CACHE`, `AT-STATIC-BADREMOTE`). Notably the browser step's
+static-origin journey — published as `failed_non_blocking` in §6's
+"three steps" record against the earlier base — now passes every check on this
+tree, the experience-journeys fixes having landed between the two records.
+
+One behavioural finding worth carrying forward: `async-nats`'s `connect()`
+resolves — and `flush()` can complete — before the server has registered the
+session. A test asserting "this client was not admitted" must probe **message
+delivery** (and observe the server's close), not the shape of one client-library
+call; `a_sealing_server_never_serves_a_bridge_without_the_xkey` does exactly
+that.
+
+Still not run, unchanged from §6: NATS operator mode (unsupported and not
+claimed), real certificate provisioning in a browser, `pnpm verify` and the
+whole-repository clippy gate (pre-existing debt — the scoped clippy in this pass
+stops at the same `doc_markdown` finding in `crates/enforcement` unless scoped
+with `--no-deps`, where the gate's exact deny set reports `opensesame-nats-callout`
+clean), and a Host secure-listener test inside the gateway binary (covered by
+the interop crate's process tests).

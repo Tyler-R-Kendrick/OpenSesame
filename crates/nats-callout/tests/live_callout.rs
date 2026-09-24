@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::StreamExt as _;
+use live_support::tokens::SHORT_TOKEN;
 use live_support::*;
 use opensesame_nats_callout::bridge::{BridgeCore, Outcome};
 use opensesame_nats_callout::fixtures::Parties;
