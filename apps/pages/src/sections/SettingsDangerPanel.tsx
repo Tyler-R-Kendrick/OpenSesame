@@ -15,6 +15,12 @@ export function SettingsDangerPanel() {
         </div>
         {confirmDestroy ? (
           <div className="actions">
+            {/* Ceremony prose beside its keys (DESIGN.md § Actions are
+                symbols) — not buried under the head in panel__body. */}
+            <p className="hint">
+              {items.length} {items.length === 1 ? "item" : "items"} will be
+              unrecoverable. Export first if you are not certain.
+            </p>
             <button
               type="button"
               className="icon-btn icon-btn--danger is-armed"
@@ -48,16 +54,6 @@ export function SettingsDangerPanel() {
           </div>
         )}
       </div>
-      {confirmDestroy ? (
-        <div className="panel__body">
-          {/* The ceremony spelled out beside its keys (DESIGN.md § Actions
-              are symbols), in prose — not an in-page error box. */}
-          <p className="hint">
-            {items.length} {items.length === 1 ? "item" : "items"} will be
-            unrecoverable. Export first if you are not certain.
-          </p>
-        </div>
-      ) : null}
     </section>
   );
 }

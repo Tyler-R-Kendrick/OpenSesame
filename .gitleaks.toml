@@ -73,3 +73,32 @@ paths = [
   '''(^|/)crates/provider-bitwarden/tests/fixtures/vaultwarden/sync\.json$''',
   '''(^|/)Cargo\.lock$''',
 ]
+
+# Known synthetic fixtures / test doubles that gitleaks 8.x flags under
+# generic-api-key / age-secret-key / private-key. Prefer // gitleaks:allow
+# on TS lines when adding new hits; these whole-file paths are the ones
+# currently breaking every local pre-commit on an otherwise clean tree.
+[[allowlists]]
+description = "Synthetic fixtures currently flagged by default rules"
+paths = [
+  '''(^|/)apps/cli/src/certs\.rs$''',
+  '''(^|/)apps/control-plane/src/__tests__/oauth2-proxy-live\.test\.ts$''',
+  '''(^|/)apps/pages/index\.html$''',
+  '''(^|/)crates/human-vault/tests/fixtures/root_protection_shared_vectors\.json$''',
+  '''(^|/)docs/evidence/2026-09-21-duress/browser/capabilities\.json$''',
+  '''(^|/)docs/evidence/2026-09-21-duress/browser/journeys\.json$''',
+  '''(^|/)packages/app-core/src/lib/age-keys\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/capabilities/keys\.ts$''',
+  '''(^|/)packages/app-core/src/lib/capabilities/trust/accepted-revision\.ts$''',
+  '''(^|/)packages/app-core/src/lib/duress/incident/intent-journal\.ts$''',
+  '''(^|/)packages/app-core/src/lib/duress/settings/unlock-secret-collision\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/duress/store/store\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/github-app-secret\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/git-auth-modes\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/sops/fixtures/upstream/identities\.json$''',
+  '''(^|/)packages/app-core/src/lib/transport-browser\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/transport-settings\.test\.ts$''',
+  '''(^|/)packages/app-core/src/lib/vault/protection/fixtures/shared-vectors\.json$''',
+  '''(^|/)packages/app-core/src/lib/vault/protection/browser-enroll\.ts$''',
+  '''(^|/)scripts/lib/mtls-manifest\.test\.mjs$''',
+]

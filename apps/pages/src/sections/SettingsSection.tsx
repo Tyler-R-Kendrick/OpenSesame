@@ -1,6 +1,7 @@
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
+import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 
 import {
@@ -66,7 +67,8 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
     if (category !== "security") return;
     const id = hash.replace(/^#/, "");
     if (!id || SECURITY_FRAGMENT_REDIRECT.has(id)) return;
-    document.getElementById(id)?.scrollIntoView({ block: "start" });
+    const target = panelFromHash(hash);
+    if (target) scrollToPanel(target);
   }, [category, hash]);
 }
 

@@ -15,6 +15,7 @@ import {
 } from "@opensesame/app-core/lib/crumbs.js";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
+import { scrollToPanel } from "../../../lib/scroll-panel.js";
 import type { SettingsFileNav } from "./context.js";
 
 export function useSettingsFileNav(category: string, search: string) {
@@ -24,9 +25,8 @@ export function useSettingsFileNav(category: string, search: string) {
     () => ({
       openFile: (path: string) => {
         navigate(settingsFileRoute(category, path));
-        document
-          .querySelector(".section__inner")
-          ?.scrollIntoView?.({ block: "start" });
+        const pane = document.querySelector(".section__inner");
+        if (pane instanceof HTMLElement) scrollToPanel(pane);
       },
     }),
     [category, navigate],
