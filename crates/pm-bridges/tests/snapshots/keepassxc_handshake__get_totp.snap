@@ -1,5 +1,5 @@
 ---
-source: apps/pm-bridges/tests/keepassxc_handshake.rs
+source: apps/cli/tests/keepassxc_handshake.rs
 expression: totp
 ---
 {

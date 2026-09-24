@@ -1,5 +1,5 @@
 ---
-source: apps/pm-bridges/tests/browserpass_golden.rs
+source: apps/cli/tests/browserpass_golden.rs
 expression: "run.responses[0]"
 ---
 {
