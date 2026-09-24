@@ -9,6 +9,7 @@ directory moves to [`archive/`](../archive/README.md).
 
 | Programme | Documents |
 |---|---|
+| [Native host and self-issued identity](native-host/README.md) ([ADR 0138](../adr/0138-self-issued-identity-one-native-host.md), proposed) | [Plan](native-host/README.md): one native process per machine, identity self-issued by default, MCP in every app, `apps/` reduced to products |
 | [General authority](general-authority) ([ADR 0120](../adr/0120-generalized-hierarchical-authority.md)) | [Ownership](general-authority/ownership.md) · [repository baseline](general-authority/repository-baseline.md) · [API surface](general-authority/api-surface.md) · [storage](general-authority/storage.md) · [compatibility map](general-authority/compatibility-map.md) · [Host route inventory](general-authority/host-authority-route-inventory.md) · [panel gating](general-authority/panel-gating.md) · [OpenFGA tuple backfill](general-authority/openfga-tuple-backfill.md) · [cross-plane test plan](general-authority/cross-plane-test-plan.md) · [adversarial matrix](general-authority/adversarial-matrix.md) |
 | [Capability composition](capability-composition) ([ADR 0130](../adr/0130-operator-controlled-capability-composition.md)) | [Ownership and interface contract](capability-composition/ownership.md) |
 | [Product experience](product-experience) | [Baseline](product-experience/baseline.md) · [contracts](product-experience/contracts.md) · `ownership.json` · `traceability.json` |

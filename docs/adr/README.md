@@ -177,3 +177,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0135](0135-always-on-capabilities-and-feature-rollups.md) | Always-on capabilities and feature rollups | Accepted |
 | [0136](0136-join-a-session-restored.md) | Join a session, restored and hardened | Accepted |
 | [0137](0137-open-sessions-admit-on-ask.md) | Open sessions may admit on ask, as observers | Accepted |
+| [0138](0138-self-issued-identity-one-native-host.md) | Self-issued identity by default, one native host, apps are packages | Proposed |
