@@ -72,13 +72,13 @@
     "apps/cli/src/store.rs": {
       "max-lines": 950
     },
-    "apps/connect-backend/src/github-app.mjs": {
+    "apps/pages/server/github-app.mjs": {
       "complexity": 3,
       "max-depth": 2,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/connect-backend/src/server.mjs": {
+    "apps/pages/server/server.mjs": {
       "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1

@@ -1,11 +1,11 @@
-import { handleCallback } from "../../src/callback.mjs";
+import { handleGithubAppCallback } from "../../server/github-app.mjs";
 
 export default async function handler(req, res) {
   const proto =
     req.headers["x-forwarded-proto"] ??
     (req.headers.host?.includes("localhost") ? "http" : "https");
   const requestHost = `${proto}://${req.headers.host}`;
-  const outcome = handleCallback(req.url ?? "/", requestHost);
+  const outcome = handleGithubAppCallback(req.url ?? "/", requestHost);
   for (const [key, value] of Object.entries(outcome.headers)) {
     res.setHeader(key, value);
   }

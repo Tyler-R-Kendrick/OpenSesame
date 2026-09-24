@@ -1,11 +1,11 @@
 import {
   handleGitBackupPut,
   handleGitBackupPutOptions,
-} from "../../connect-backend/src/git-backup-put.mjs";
+} from "../server/git-backup-put.mjs";
 /**
  * Dev-only GitHub App relay on the Vite origin.
  *
- * Same handlers as `apps/connect-backend` so localhost needs no separate
+ * Same handlers as `apps/pages/api` (from `server/`) so localhost needs no separate
  * `VITE_CONNECT_CALLBACK_BASE` — production GitHub Pages / Vercel set that
  * base to the deployed relay instead.
  */
@@ -13,18 +13,18 @@ import {
   handleGithubAppPutContents,
   handleGithubAppWebhook,
   handleGithubAppWebhookPending,
-} from "../../connect-backend/src/github-app-contents.mjs";
+} from "../server/github-app-contents.mjs";
 import {
   handleGithubAppCreateRepo,
   handleGithubAppInstallationRepos,
-} from "../../connect-backend/src/github-app-repos.mjs";
+} from "../server/github-app-repos.mjs";
 import {
   handleGithubAppCallback,
   handleGithubAppConvert,
   handleGithubAppConvertOptions,
   handleGithubAppInstallations,
   handleGithubAppLookup,
-} from "../../connect-backend/src/github-app.mjs";
+} from "../server/github-app.mjs";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

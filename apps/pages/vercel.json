@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && VITE_BASE=/ pnpm exec turbo run build --filter=@opensesame/pages && PAGES_CONNECT_CALLBACK_BASE=/ node apps/pages/scripts/write-runtime-config.mjs",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+}

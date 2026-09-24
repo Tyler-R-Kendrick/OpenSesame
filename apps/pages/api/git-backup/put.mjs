@@ -1,12 +1,12 @@
 import {
-  handleGithubAppConvertOptions,
-  handleGithubAppLookup,
-} from "../../src/github-app.mjs";
+  handleGitBackupPut,
+  handleGitBackupPutOptions,
+} from "../../server/git-backup-put.mjs";
 
 export default async function handler(req, res) {
   const origin = req.headers.origin ?? "";
   if (req.method === "OPTIONS") {
-    const outcome = handleGithubAppConvertOptions(origin);
+    const outcome = handleGitBackupPutOptions(origin);
     for (const [key, value] of Object.entries(outcome.headers)) {
       res.setHeader(key, value);
     }
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
   const body =
     typeof req.body === "object" && req.body !== null ? req.body : {};
-  const outcome = await handleGithubAppLookup(body, origin);
+  const outcome = await handleGitBackupPut(body, origin);
   for (const [key, value] of Object.entries(outcome.headers)) {
     res.setHeader(key, value);
   }

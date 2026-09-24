@@ -1,8 +1,8 @@
-import { handleManage, manageInput } from "../../src/manage.mjs";
+import { handleManage, manageInput } from "../../server/manage.mjs";
 
 export default async function handler(req, res) {
   const outcome = await handleManage(
-    manageInput(req, "/api/connect/connectors"),
+    manageInput(req, "/api/connect/authorize"),
   );
   for (const [key, value] of Object.entries(outcome.headers)) {
     res.setHeader(key, value);

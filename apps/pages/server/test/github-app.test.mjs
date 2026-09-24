@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
-import { handleGitBackupPut } from "../src/git-backup-put.mjs";
+import { handleGitBackupPut } from "../git-backup-put.mjs";
 import {
   clearGithubAppWebhookPending,
   handleGithubAppPutContents,
   handleGithubAppWebhook,
   handleGithubAppWebhookPending,
-} from "../src/github-app-contents.mjs";
+} from "../github-app-contents.mjs";
 import {
   handleGithubAppCallback,
   handleGithubAppConvert,
   handleGithubAppConvertOptions,
   handleGithubAppInstallations,
-} from "../src/github-app.mjs";
+} from "../github-app.mjs";
 
 describe("github app callback relay", () => {
   it("forwards code and state to a loopback return address", () => {

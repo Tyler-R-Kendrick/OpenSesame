@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { handleCallback } from "../src/callback.mjs";
+import { handleCallback } from "../callback.mjs";
 
 describe("connect callback relay", () => {
   it("forwards params to a loopback return address", () => {

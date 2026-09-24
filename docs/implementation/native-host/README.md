@@ -34,7 +34,6 @@ apps/
   android/            renamed from authenticator-native
   browser-extension/  rebuilt on app-core
   cli/                `opensesame`: verbs, `daemon run`, `mcp serve`, argv[0] entry points
-  connect-backend/    serverless callback relay (unchanged)
 crates/
   host-api/           was crates/gateway (routes, actors) as a library
   host-agent/         the agent surface: mint, exchange, discover; gate checks its full tree

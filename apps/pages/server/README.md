@@ -1,6 +1,9 @@
-# connect-backend
+# The app's relay (`apps/pages/server`, `apps/pages/api`)
 
-Connect callback relay and management proxy for Vercel Connect. The
+The server half of the one web deployment: a Connect callback relay and
+management proxy for Vercel Connect, and the GitHub App manifest relay. It
+ships with the app, so a Vercel deployment of `apps/pages` serves the relay
+on the app's own origin; GitHub Pages serves the app without it (ADR 0090). The
 callback path holds no provider tokens or sessions. Management routes hold
 the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
@@ -8,9 +11,9 @@ the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
 | Path | What it holds |
 |------|---------------|
-| `src/` | The relay itself: the callback, management and GitHub App handlers, the `return_to` allowlist, the forge host guard and the pinned fetch. `src/server.mjs` serves all of them on `:8789` for local use. |
-| `api/` | Vercel serverless routes, one file per route. Each is a thin adapter over a handler in `src/`. |
-| `test/` | `node --test` suites (`pnpm --filter @opensesame/connect-backend test`). |
+| `server/` | The relay itself: the callback, management and GitHub App handlers, the `return_to` allowlist, the forge host guard and the pinned fetch. `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App handlers directly (`scripts/github-app-relay-plugin.mjs`). |
+| `api/` | Vercel serverless routes, one file per route. Each is a thin adapter over a handler in `server/`. |
+| `server/test/` | `node --test` suites (`pnpm --filter @opensesame/pages test:relay`, also part of `test`). |
 
 ## What it does
 
@@ -70,7 +73,7 @@ must be a bare `https://host[:port]` origin — no userinfo, path, query or
 fragment — whose name is neither an IP literal nor a DNS answer in a
 loopback, private, link-local, CGNAT, metadata or other non-public range.
 The request then connects only to the addresses that check vetted
-(`src/pinned-fetch.mjs` answers the socket's lookup from that list, while SNI,
+(`server/pinned-fetch.mjs` answers the socket's lookup from that list, while SNI,
 certificate verification and `Host` keep the name), so a resolver that
 answers differently the second time (DNS rebinding) cannot steer it to a
 private address. Forge requests never follow redirects. An operator can pin
@@ -86,7 +89,7 @@ export OPENSESAME_CONNECT_MANAGE_KEY=… # ≥ 32 chars; unset → mutations ref
 export VERCEL_TEAM_ID=…               # optional
 export VERCEL_PROJECT_ID=…            # optional
 export OPENSESAME_CONNECT_APP_ORIGINS=http://localhost:5180
-node apps/connect-backend/src/server.mjs        # :8789
+node apps/pages/server/server.mjs        # :8789
 ```
 
 Pages talks to this relay for managed connectors (GitHub included). Set
@@ -95,8 +98,10 @@ There is no browser arm-token form — the relay holds the Vercel token.
 
 ## Deploy it
 
-Vercel project rooted at `apps/connect-backend` — `api/connect/callback.mjs`
-is the same handler as a serverless function. Set
+The Vercel project is rooted at `apps/pages` ([`vercel.json`](../vercel.json)):
+it builds the app with `VITE_BASE=/`, serves `api/` as functions beside it, and
+writes `connectCallbackBase: "/"` into `os-runtime-config.json`, so the app
+uses the relay on its own origin. Set
 `OPENSESAME_CONNECT_APP_ORIGINS` to the app origin, and
 `OPENSESAME_CONNECT_MANAGE_KEY` (a Sensitive environment variable) if the
 deployment should create, authorize or revoke connectors at all.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { handleManage } from "../src/manage.mjs";
+import { handleManage } from "../manage.mjs";
 
 const KEY = `${"k".repeat(24)}-operator-manage-key`;
 const ORIGIN = "http://localhost:1";

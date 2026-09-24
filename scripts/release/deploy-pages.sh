@@ -128,35 +128,8 @@ cp "$PAGES_DIST/index.html" "$PAGES_DIST/404.html"
 # app reads it at boot (src/lib/runtime-config.ts). VITE_* is build-time only,
 # and a deploy that bakes nothing must not ship a vault whose sign-in silently
 # dead-ends. Only the provided keys are written.
-if [ -n "${PAGES_IDENTITY_API:-}" ] || [ -n "${PAGES_HOST_API:-}" ] \
-  || [ -n "${PAGES_DAEMON_API:-}" ] || [ -n "${PAGES_MFA_APP_URL:-}" ] \
-  || [ -n "${PAGES_SUPPORT_AGENT_URL:-}" ]; then
-  log "writing os-runtime-config.json (deployment endpoints)"
-  {
-    printf '{'
-    sep=""
-    if [ -n "${PAGES_IDENTITY_API:-}" ]; then
-      printf '%s\n  "identityApi": "%s"' "$sep" "$PAGES_IDENTITY_API"; sep=","
-    fi
-    if [ -n "${PAGES_HOST_API:-}" ]; then
-      printf '%s\n  "hostApi": "%s"' "$sep" "$PAGES_HOST_API"; sep=","
-    fi
-    if [ -n "${PAGES_DAEMON_API:-}" ]; then
-      printf '%s\n  "daemonApi": "%s"' "$sep" "$PAGES_DAEMON_API"; sep=","
-    fi
-    if [ -n "${PAGES_MFA_APP_URL:-}" ]; then
-      printf '%s\n  "mfaAppUrl": "%s"' "$sep" "$PAGES_MFA_APP_URL"; sep=","
-    fi
-    if [ -n "${PAGES_SUPPORT_AGENT_URL:-}" ]; then
-      printf '%s\n  "supportAgentUrl": "%s"' "$sep" "$PAGES_SUPPORT_AGENT_URL"
-      sep=","
-    fi
-    printf '\n}\n'
-  } > "$PAGES_DIST/os-runtime-config.json"
-else
-  log "no PAGES_* endpoints set — keeping the empty os-runtime-config.json from the build"
-  log "the app will show its 'not connected to an identity service' notice"
-fi
+# The same writer the GitHub Pages workflow and Vercel run.
+node "$REPO_ROOT/apps/pages/scripts/write-runtime-config.mjs"
 
 # --- 3. Prepare a temporary worktree checked out onto gh-pages -------------
 
