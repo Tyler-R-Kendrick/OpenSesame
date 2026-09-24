@@ -15,7 +15,7 @@
 //! carries is public material — RFC 7030 moves it in `certs-only` PKCS#7
 //! precisely because it is public.
 //!
-//! Routes (mounted in `mod.rs`, allowlisted in `contract.rs`):
+//! Routes (via [`routes`], allowlisted in `contract.rs`):
 //!
 //! - `GET /{profileId}/cacerts` — the profile CA's chain as `certs-only`.
 //! - `POST /{profileId}/simpleenroll` — PKCS#10 in, issued chain out.
@@ -26,10 +26,11 @@
 //! `GET|PUT /api/v1/certmgr/profiles/{id}/est-config`, session-authenticated
 //! like every certmgr route (the one place `resolve_caller` runs).
 
-use axum::extract::{Path, State};
+use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::{body::Bytes, Json};
+use axum::routing::{get, post};
+use axum::{body::Bytes, Json, Router};
 use opensesame_connection_broker::crypto::seal_scoped;
 use opensesame_pki_core::types::ProfileDefaults;
 use opensesame_pki_core::PolicyRules;
@@ -49,6 +50,26 @@ use crate::middleware::auth::{resolve_caller, resolve_caller_organization};
 pub const MAX_CSR_BODY: usize = 384 * 1024;
 /// The sealing key id every EST secret is sealed under.
 pub(super) const KEY_ID: &str = "opensesame-connection-key:v1";
+
+/// EST protocol + operator config routes. Profile-scoped, session-free on the
+/// `.well-known` surface; the body limit is room for a PKCS#10 request with a
+/// long chain encoded per RFC 7030 and nothing more.
+pub fn routes() -> Router<AppState> {
+    Router::new()
+        .route("/.well-known/est/{profile_id}/cacerts", get(cacerts))
+        .route(
+            "/.well-known/est/{profile_id}/simpleenroll",
+            post(simple_enroll).layer(DefaultBodyLimit::max(MAX_CSR_BODY)),
+        )
+        .route(
+            "/.well-known/est/{profile_id}/simplereenroll",
+            post(simple_reenroll).layer(DefaultBodyLimit::max(MAX_CSR_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/profiles/{id}/est-config",
+            get(get_config).put(put_config).layer(DefaultBodyLimit::max(MAX_CSR_BODY)),
+        )
+}
 
 // —— shared gates and error shapes ————————————————————————————————————
 

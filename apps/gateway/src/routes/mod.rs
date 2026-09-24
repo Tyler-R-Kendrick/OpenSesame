@@ -38,6 +38,7 @@ mod nats_callout;
 mod protected_resource;
 mod receipts;
 mod relay;
+mod wire_connections;
 mod rotation;
 mod secret_config_policy;
 #[cfg(test)]
@@ -57,7 +58,7 @@ use crate::app_state::AppState;
 use crate::config;
 use crate::github_webhook;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, get, post, put};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use tower_http::trace::TraceLayer;
 #[expect(
@@ -71,28 +72,7 @@ pub fn router(state: AppState) -> Router {
         .merge(crate::transport::routes::routes())
         .merge(crate::transport_lifecycle::routes::routes())
         .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
-        // ADR 0068 §8: EST (RFC 7030) protocol endpoints, profile-scoped,
-        // session-free, contract-allowlisted. The limit is room for a PKCS#10
-        // request with a long chain encoded per RFC 7030 and nothing more.
-        .route(
-            "/.well-known/est/{profile_id}/cacerts",
-            get(est_server::cacerts),
-        )
-        .route(
-            "/.well-known/est/{profile_id}/simpleenroll",
-            post(est_server::simple_enroll).layer(DefaultBodyLimit::max(est_server::MAX_CSR_BODY)),
-        )
-        .route(
-            "/.well-known/est/{profile_id}/simplereenroll",
-            post(est_server::simple_reenroll)
-                .layer(DefaultBodyLimit::max(est_server::MAX_CSR_BODY)),
-        )
-        .route(
-            "/api/v1/certmgr/profiles/{id}/est-config",
-            get(est_server::get_config)
-                .put(est_server::put_config)
-                .layer(DefaultBodyLimit::max(est_server::MAX_CSR_BODY)),
-        )
+        .merge(est_server::routes())
         .route(
             "/api/v1/operator/taskbus",
             get(taskbus_config::get_config)
@@ -208,104 +188,7 @@ pub fn router(state: AppState) -> Router {
             post(attachments::replicate_chunk)
                 .layer(DefaultBodyLimit::max(attachments::MAX_CHUNK_BODY)),
         )
-        .route(
-            "/api/v1/attachments/replicate/manifest",
-            post(attachments::replicate_manifest)
-                .layer(DefaultBodyLimit::max(attachments::MAX_MANIFEST_BODY)),
-        )
-        .route(
-            "/api/v1/backup/target",
-            get(backup::get_target)
-                .put(backup::put_target)
-                .delete(backup::delete_target)
-                .layer(DefaultBodyLimit::max(8 * 1024)),
-        )
-        .route("/api/v1/backup/resync", post(backup::resync))
-        .route(
-            "/api/v1/integrations/{id}/github/installations",
-            get(backup::list_installations),
-        )
-        .route(
-            "/api/v1/credential-providers",
-            get(credential_connections::catalog),
-        )
-        .route(
-            "/api/v1/credential-providers/{id}/test",
-            post(credential_connections::test_provider),
-        )
-        .route(
-            "/api/v1/credential-connections",
-            get(credential_connections::list)
-                .post(credential_connections::create)
-                .layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/credential-connections/{id}",
-            put(credential_connections::update)
-                .delete(credential_connections::delete)
-                .layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/integrations",
-            get(connections::list_integrations)
-                .post(connections::create_integration)
-                .layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/integrations/{id}",
-            get(connections::get_integration)
-                .patch(connections::update_integration)
-                .delete(connections::delete_integration)
-                .layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/connections",
-            get(connections::list)
-                .post(connections::create)
-                .layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route("/api/v1/connections/discover", post(connections::discover))
-        .route(
-            "/api/v1/connections/{id}",
-            get(connections::get)
-                .patch(connections::update_policy)
-                .delete(connections::delete),
-        )
-        .route(
-            "/api/v1/connections/{id}/authorize",
-            post(connections::start_authorization).layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/connections/{id}/refresh",
-            post(connections::refresh).layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/connections/{id}/credential",
-            post(connections::set_credential).layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/connections/{id}/mint",
-            post(connections::mint).layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/connections/{id}/bindings",
-            post(connections::create_binding).layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/connections/{id}/bindings/{binding_id}",
-            delete(connections::delete_binding),
-        )
-        .route("/api/v1/connections/{id}/events", get(connections::events))
-        .route(
-            "/api/v1/connections/{id}/github/repos",
-            get(connections::list_github_repos)
-                .post(connections::create_github_repo)
-                .layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/oauth/callback/{provider_id}",
-            get(connections::oauth_callback),
-        )
+        .merge(wire_connections::routes())
         .route("/api/v1/intents", post(intents::create))
         // ADR 0044: delegation offer lifecycle. Mint/list/revoke are
         // owner surfaces; present and claim are the shareable ceremony's.
