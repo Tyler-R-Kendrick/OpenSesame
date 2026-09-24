@@ -1,5 +1,7 @@
 import {
+  type BoundaryValue,
   isBoolean,
+  isNumber,
   isString,
   isTypeofObject,
   overlapCast,
@@ -11,12 +13,12 @@ import {
  * detour through sign-in must not lose it — that would strand a claim in
  * `presented` with no way to accept it.
  *
- * Where it may be kept is the caller's decision, and the surfaces disagree for
- * good reason: the standalone ceremonies app uses tab-scoped session storage,
- * while the Pages vault app keeps claim bearers in memory only, because
- * anything it persists lands beside vault material and must survive a lock
- * (see `packages/app-core/src/lib/queue.ts`). The storage is therefore injected, and
- * this module never reaches for a global.
+ * Where it may be kept is the caller's decision, so the storage is injected
+ * and this module never reaches for a global. The standalone apps bind
+ * tab-scoped session storage; Pages (`app-core/lib/claims/stash.ts`) binds the
+ * same tab scope through its host port and reads stricter — a claim-shaped
+ * token only, and nothing older than the server's longest claim — because a
+ * sign-in redirect is the one detour a bearer must survive, and nothing else.
  *
  * Only the bearer, the claim id, and who is accepting are kept. Claim state is
  * re-read from the server on resume: a snapshot cannot say whether the claim
@@ -46,6 +48,18 @@ export interface StashStorage {
 
 const DEFAULT_KEY = "opensesame.claim";
 
+/** Stricter reading a surface may ask for; the default reads as before. */
+export interface ClaimStashOptions {
+  /**
+   * Forget a stash older than this. The write is stamped, and a read past the
+   * horizon — or of an unstamped record — removes it and comes back empty.
+   */
+  maxAgeMs?: number;
+  /** Whether a stored token has an acceptable shape; a mismatch is removed. */
+  acceptToken?: (token: string) => boolean;
+  now?: () => number;
+}
+
 /**
  * Bind a stash to one storage and key.
  *
@@ -56,9 +70,18 @@ const DEFAULT_KEY = "opensesame.claim";
 export function createClaimStash(
   storage: () => StashStorage | null,
   key: string = DEFAULT_KEY,
+  options: ClaimStashOptions = {},
 ) {
+  const { maxAgeMs, acceptToken, now = Date.now } = options;
+  /** A record past its horizon, or holding a token of the wrong shape. */
+  const stale = (token: string, savedAt: BoundaryValue): boolean =>
+    (acceptToken !== undefined && !acceptToken(token)) ||
+    (maxAgeMs !== undefined &&
+      (!isNumber(savedAt) || now() - savedAt > maxAgeMs || savedAt > now()));
   return {
-    write(next: ClaimStash): void {
+    write(input: ClaimStash): void {
+      const next =
+        maxAgeMs === undefined ? input : { ...input, savedAt: now() };
       try {
         storage()?.setItem(key, JSON.stringify(next));
       } catch {
@@ -81,8 +104,13 @@ export function createClaimStash(
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!isTypeofObject(parsed) || parsed === null) return null;
-        const { token, presented, claimId, principalId } = overlapCast(parsed);
+        const { token, presented, claimId, principalId, savedAt } =
+          overlapCast(parsed);
         if (!isString(token) || !isBoolean(presented)) {
+          return null;
+        }
+        if (stale(token, savedAt)) {
+          storage()?.removeItem(key);
           return null;
         }
         return {
