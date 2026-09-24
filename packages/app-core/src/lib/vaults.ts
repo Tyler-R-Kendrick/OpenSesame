@@ -90,6 +90,17 @@ export function vaultLabel(project: Pick<PagesProject, "id" | "name">): string {
   return `project · ${project.id.replace(/^prj_/, "").slice(-4)}`;
 }
 
+/**
+ * What the open vault is called — the prompt's name for it, so the list's
+ * status line and the prompt never disagree (`guest-2` above, `personal:/`
+ * below was one vault under two names).
+ */
+export function openVaultLabel(): string {
+  return vaultStore.getSnapshot().guest
+    ? guestVaultLabel()
+    : vaultLabel(activeProject());
+}
+
 /** `sealed 14 Aug 2026`, or nothing for a tomb that was never sealed. */
 export function describeSealedAt(sealedAt: string | null): string | null {
   if (!sealedAt) return null;

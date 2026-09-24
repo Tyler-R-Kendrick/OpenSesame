@@ -28,6 +28,23 @@
   gap: 0.25rem;
 }
 
+/* Import is the file chooser: the input fills the key and takes the
+   click, the glyph shows through. */
+.access-pathbar__file {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.access-pathbar__file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .access-pathbar__key {
   min-width: 1.15rem;
   height: 1.15rem;

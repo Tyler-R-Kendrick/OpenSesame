@@ -60,12 +60,12 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
         <h2>Local application policies</h2>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn icon-btn--sm"
           title="Reload local policies"
           aria-label="Reload local policies"
           onClick={() => void reload()}
         >
-          <IconRefresh />
+          <IconRefresh size={15} />
         </button>
       </div>
       <div className="panel__body">

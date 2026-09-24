@@ -100,6 +100,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             <option value="all">all</option>
           </select>
           <IconKey
+            small
             label="New local request"
             disabled={disabled || !model.data || creating || selected !== null}
             onClick={(event) => {
@@ -107,15 +108,16 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
               setCreating(true);
             }}
           >
-            <IconPlus />
+            <IconPlus size={15} />
           </IconKey>
           <IconKey
+            small
             label="Reload local requests"
             keyRef={reload}
             disabled={model.busy}
             onClick={() => void model.reload()}
           >
-            <IconRefresh />
+            <IconRefresh size={15} />
           </IconKey>
         </div>
       </div>

@@ -53,7 +53,7 @@ export function AmbientAuthPanel() {
         {deployed ? null : (
           <button
             type="button"
-            className="icon-btn"
+            className="icon-btn icon-btn--sm"
             aria-label="Don't sign me in automatically"
             title="Don't sign me in automatically"
             onClick={() => {
@@ -61,7 +61,7 @@ export function AmbientAuthPanel() {
               bump();
             }}
           >
-            <IconX size={16} />
+            <IconX size={15} />
           </button>
         )}
       </div>

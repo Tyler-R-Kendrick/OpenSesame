@@ -45,11 +45,12 @@ export function LocalAuthorityPanel({
         <h2>{grantsOnly ? "Local application grants" : "Local sessions"}</h2>
         <IconKey
           label="Reload local access records"
+          small
           keyRef={reload}
           disabled={state.busy}
           onClick={() => void state.reload()}
         >
-          <IconRefresh />
+          <IconRefresh size={15} />
         </IconKey>
       </div>
       <div className="panel__body">

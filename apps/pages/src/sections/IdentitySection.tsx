@@ -70,7 +70,7 @@ import {
   useState,
 } from "react";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
-import { IconKey } from "../components/IconKey.js";
+import { IconKey, ReloadKey } from "../components/IconKey.js";
 import {
   IconAlert,
   IconCheck,
@@ -910,9 +910,11 @@ function MeCard({ online }: { online: boolean }) {
         <div>
           <h2>You</h2>
         </div>
-        <IconKey label="Reload" onClick={() => void load()} disabled={!online}>
-          <IconRefresh />
-        </IconKey>
+        <ReloadKey
+          label="Reload"
+          onReload={() => void load()}
+          disabled={!online}
+        />
       </div>
 
       <div className="panel__body">
@@ -1017,13 +1019,11 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
         <div>
           <h2>Linked identities</h2>
         </div>
-        <IconKey
+        <ReloadKey
           label="Reload identities"
-          onClick={() => void load()}
+          onReload={() => void load()}
           disabled={!online}
-        >
-          <IconRefresh />
-        </IconKey>
+        />
       </div>
 
       <div className="panel__body">
@@ -1211,13 +1211,11 @@ function OrgMembersCard({ online }: { online: boolean }) {
         <div>
           <h2>Organization members</h2>
         </div>
-        <IconKey
+        <ReloadKey
           label="Reload members"
-          onClick={() => void load()}
+          onReload={() => void load()}
           disabled={!online}
-        >
-          <IconRefresh />
-        </IconKey>
+        />
       </div>
 
       <div className="panel__body">
@@ -1661,13 +1659,11 @@ function ServiceAccountsPanel({
           <div>
             <h2>OIDC applications</h2>
           </div>
-          <IconKey
+          <ReloadKey
             label="Reload clients"
-            onClick={() => void load()}
+            onReload={() => void load()}
             disabled={!online}
-          >
-            <IconRefresh />
-          </IconKey>
+          />
         </div>
 
         <div className="panel__body">
@@ -2007,13 +2003,11 @@ function OrganizationPanel({
           <div>
             <h2>Organizations</h2>
           </div>
-          <IconKey
+          <ReloadKey
             label="Reload organizations"
-            onClick={() => void load()}
+            onReload={() => void load()}
             disabled={!online}
-          >
-            <IconRefresh />
-          </IconKey>
+          />
         </div>
 
         <div className="panel__body">

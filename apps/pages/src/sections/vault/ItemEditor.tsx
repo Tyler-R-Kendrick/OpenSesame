@@ -22,6 +22,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconEye,
   IconEyeOff,
@@ -323,14 +324,12 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                   value={draft.password}
                   onChange={(event) => patch({ password: event.target.value })}
                 />
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label={reveal ? "Hide password" : "Show password"}
                   onClick={() => setReveal((value) => !value)}
-                  aria-label={reveal ? "Hide password" : "Show password"}
                 >
                   {reveal ? <IconEyeOff size={17} /> : <IconEye size={17} />}
-                </button>
+                </IconKey>
                 <button
                   type="button"
                   className={`icon-btn${showGenerator ? " is-on" : ""}`}
@@ -388,14 +387,12 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                   value={draft.value}
                   onChange={(event) => patch({ value: event.target.value })}
                 />
-                <button
-                  type="button"
-                  className="icon-btn"
+                <IconKey
+                  label={reveal ? "Hide secret" : "Show secret"}
                   onClick={() => setReveal((value) => !value)}
-                  aria-label={reveal ? "Hide secret" : "Show secret"}
                 >
                   {reveal ? <IconEyeOff size={17} /> : <IconEye size={17} />}
-                </button>
+                </IconKey>
               </div>
             </div>
             <OptionalField

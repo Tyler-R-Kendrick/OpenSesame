@@ -402,7 +402,6 @@ describe("ItemEditor", () => {
 
   it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
     renderNew();
-    // A drafted `*` wildcard offered the login on every site it was saved for.
     expect(inputByLabel("Address 1").value).toBe("");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
@@ -634,11 +633,7 @@ describe("ItemEditor", () => {
     renderNew();
     await userEvent.selectOptions(screen.getByLabelText(/^Folder$/i), "fld_1");
     await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
-    expect(
-      screen
-        .getByRole("button", { name: "Unpin item" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
+    screen.getByRole("button", { name: "Unpin item", pressed: true });
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Filed");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());

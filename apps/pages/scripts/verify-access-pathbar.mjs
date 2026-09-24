@@ -1,4 +1,4 @@
-// Prove Access pathbar add / import / export works as a guest with no Host.
+// Prove the Access path bar's import and export work as a guest with no Host.
 //
 //   pnpm --filter @opensesame/pages dev:web   # :5180
 //   PLAYWRIGHT_CHROMIUM=/path/to/chrome \
@@ -61,35 +61,21 @@ await page
 await page.screenshot({ path: path.join(OUT, "01-access.png") });
 
 const toolbar = page.getByRole("toolbar", { name: "Access actions" });
+// The path bar holds the access book's two keys. Its + opened a Host grant
+// ceremony that no longer exists; each panel's own + adds its kind.
 check(
-  await toolbar.getByRole("link", { name: "Grant access" }).isVisible(),
-  "plus key",
+  (await toolbar.getByRole("link").count()) === 0,
+  "no key that only changes the path",
 );
-check(
-  await toolbar.getByRole("link", { name: "Import grants" }).isVisible(),
-  "import key",
-);
+check((await toolbar.getByLabel("Import grants").count()) === 1, "import key");
 check(
   await toolbar.getByRole("button", { name: "Export grants" }).isVisible(),
   "export key",
 );
-
-await toolbar.getByRole("link", { name: "Grant access" }).click();
-await page
-  .getByRole("heading", { name: "Grant access" })
-  .waitFor({ timeout: 5000 });
-await page.locator(".access-target").filter({ hasText: "this device" }).click();
-await page.getByRole("button", { name: "Continue" }).click();
-await page.getByRole("button", { name: "1h" }).click();
-await page.getByRole("button", { name: "Continue" }).click();
-await page.getByRole("button", { name: "Mint offer" }).click();
-await page.getByRole("button", { name: "Done" }).waitFor({ timeout: 5000 });
-await page.screenshot({ path: path.join(OUT, "02-minted.png") });
-await page.getByRole("button", { name: "Done" }).click();
-await page
-  .getByRole("heading", { name: "this device" })
-  .waitFor({ timeout: 5000 });
-check(true, "local grant minted from plus and listed");
+check(
+  await page.getByRole("button", { name: "Grant identity share" }).isVisible(),
+  "the grants tab's + is the identity share's",
+);
 
 const book = JSON.stringify({
   version: 1,
@@ -107,15 +93,15 @@ const book = JSON.stringify({
 });
 const bookPath = path.join(os.tmpdir(), "access-book.json");
 fs.writeFileSync(bookPath, book);
-await toolbar.getByRole("link", { name: "Import grants" }).click();
-await page
-  .getByRole("heading", { name: "Import grants" })
-  .waitFor({ timeout: 5000 });
-await page.locator('input[type="file"]').setInputFiles(bookPath);
+await toolbar.getByLabel("Import grants").setInputFiles(bookPath);
 await page
   .getByRole("heading", { name: "Imported grant" })
   .waitFor({ timeout: 5000 });
 check(true, "imported grant listed");
+check(
+  (await toolbar.getByRole("img", { name: "Imported 1 grant" }).count()) === 1,
+  "import says what it did",
+);
 await page.screenshot({ path: path.join(OUT, "03-imported.png") });
 
 const downloadPromise = page.waitForEvent("download", { timeout: 5000 });
@@ -123,7 +109,6 @@ await toolbar.getByRole("button", { name: "Export grants" }).click();
 const download = await downloadPromise;
 const exported = await download.path();
 const raw = fs.readFileSync(exported, "utf8");
-check(raw.includes("this device"), "export contains minted grant");
 check(raw.includes("Imported grant"), "export contains imported grant");
 await page.screenshot({ path: path.join(OUT, "04-exported.png") });
 

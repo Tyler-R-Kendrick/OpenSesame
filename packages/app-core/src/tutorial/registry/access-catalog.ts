@@ -64,18 +64,18 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.grant-access",
     description:
-      "Starts the grant ceremony: pick what is being shared, narrow the scope, decide who it is for, then mint a claim code.",
+      "The + on Identity shares: opens a share — who it is for, what it opens, the policy and how long it lasts.",
     role: "ceremony",
     routes: ["/access"],
-    capabilityId: "delegations.offers.mint",
+    capabilityId: "connectors.bind",
   },
   {
     id: "access.grant-ceremony",
     description:
-      "The grant ceremony itself: pick what is shared, narrow the scope, decide who it is for, mint a claim code.",
+      "The share form itself: who it is for, what is shared, the policy and how long it lasts.",
     role: "ceremony",
     routes: ["/access"],
-    capabilityId: "delegations.offers.mint",
+    capabilityId: "connectors.bind",
   },
   {
     id: "access.relay",

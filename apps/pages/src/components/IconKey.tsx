@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
+import { IconRefresh } from "./Icons.js";
 
 /**
  * An icon key (docs/design/controls.md § 2): an action that executes, drawn
@@ -40,5 +41,33 @@ export function IconKey({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * A panel head's reload: one size on every head. They were drawn at two —
+ * a 20px glyph in a full key beside another panel's 15px small one.
+ */
+export function ReloadKey({
+  label,
+  onReload,
+  disabled,
+  keyRef,
+}: {
+  label: string;
+  onReload: () => void;
+  disabled?: boolean;
+  keyRef?: Ref<HTMLButtonElement>;
+}) {
+  return (
+    <IconKey
+      small
+      label={label}
+      keyRef={keyRef}
+      disabled={disabled}
+      onClick={onReload}
+    >
+      <IconRefresh size={15} />
+    </IconKey>
   );
 }

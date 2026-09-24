@@ -2,6 +2,7 @@ import {
   accessPath,
   accessViewFromLocation,
 } from "@opensesame/app-core/lib/access-routes.js";
+import { useState } from "react";
 import { useLocation } from "react-router";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
@@ -29,6 +30,7 @@ export function AccessSection() {
   const { tomb } = useVault();
   const location = useLocation();
   const tab = accessViewFromLocation(location.pathname, location.search);
+  const [bookEpoch, setBookEpoch] = useState(0);
   useHashTarget();
 
   return (
@@ -36,7 +38,10 @@ export function AccessSection() {
       <header className="section__head">
         <h1>Access</h1>
       </header>
-      <AccessPathbar pathname={location.pathname} tab={tab} />
+      <AccessPathbar
+        tab={tab}
+        onImported={() => setBookEpoch((value) => value + 1)}
+      />
 
       <nav className="access-tabs" role="tablist" aria-label="Access views">
         {ACCESS_TABS.map(({ id, label, guideId }) => (
@@ -52,7 +57,7 @@ export function AccessSection() {
 
       {tab === "grants" ? (
         <>
-          <AccessBookPanel key={tomb} epoch={0} />
+          <AccessBookPanel key={`${tomb}:${bookEpoch}`} epoch={bookEpoch} />
           <LocalAuthorityPanel key={tomb} tomb={tomb} records="grant" />
           <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
         </>
