@@ -261,6 +261,11 @@ export const LIB_RULES = [
   ...each(L, ACCESS_FILES, (p) =>
     optional(p, ACCESS, "local PAM records and Host plane"),
   ),
+  optional(
+    `${L}tailnet-sync/`,
+    "networking.tailnet",
+    "tailnet vault sync: drive client, merge pass, adoption (ADR 0140)",
+  ),
   core(
     `${L}join/`,
     SIGNIN,

@@ -23,11 +23,11 @@ describe("networking.tailnet runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("networking.tailnet");
   });
 
-  it("registers nothing: the Capabilities page draws its tiles", async () => {
+  it("registers only the tailnet sync job", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "networking.tailnet",
-      kinds: [],
-      count: 0,
+      kinds: ["background-job"],
+      count: 1,
     });
   });
 
@@ -37,6 +37,47 @@ describe("networking.tailnet runtime", () => {
     expect(t.egressCalls).toEqual([]);
     expect(t.hydrated).toEqual([]);
     await handle.dispose();
+    await handle.dispose();
+  });
+
+  it("runs the sync observer only while its job runs", async () => {
+    const observer = await import(
+      "@opensesame/app-core/lib/tailnet-sync/observer.js"
+    );
+    const interval = vi.spyOn(globalThis, "setInterval");
+    const clear = vi.spyOn(globalThis, "clearInterval");
+    const fetcher = vi.spyOn(globalThis, "fetch");
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+
+    const [job] = t.entries("background-job");
+    expect(job?.id).toBe("tailnet-vault-sync");
+    expect(interval).not.toHaveBeenCalled();
+
+    const jobs = new AbortController();
+    job?.start(jobs.signal);
+    expect(interval).toHaveBeenCalledTimes(1);
+    // No vault is paired, so the job has nobody to talk to.
+    expect(fetcher).not.toHaveBeenCalled();
+
+    jobs.abort("plan change");
+    expect(clear).toHaveBeenCalledTimes(1);
+    expect(observer.tailnetSyncState().phase).toBe("off");
+
+    await handle.dispose();
+    await handle.dispose();
+    expect(interval).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts nothing when the job signal is already aborted", async () => {
+    const interval = vi.spyOn(globalThis, "setInterval");
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const [job] = t.entries("background-job");
+    const stale = new AbortController();
+    stale.abort("superseded");
+    job?.start(stale.signal);
+    expect(interval).not.toHaveBeenCalled();
     await handle.dispose();
   });
 });

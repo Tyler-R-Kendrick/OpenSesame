@@ -3159,6 +3159,64 @@
     }
   },
   {
+    "id": "vault.drive.slots",
+    "title": "Open, list and close tailnet vault drive slots",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame daemon drive create",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
+        "adr": "0140-tailnet-vault-sync.md"
+      },
+      "webmcp": {
+        "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
+        "adr": "0140-tailnet-vault-sync.md"
+      },
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "vault.drive.sync",
+    "title": "Pair the vault with a tailnet drive and keep it in step",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/tailnet-sync/observer.ts:pairTailnetDrive",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
+        "adr": "0140-tailnet-vault-sync.md"
+      },
+      "mcp_host": {
+        "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
+        "adr": "0140-tailnet-vault-sync.md"
+      },
+      "mcp_client": {
+        "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
+        "adr": "0140-tailnet-vault-sync.md"
+      }
+    }
+  },
+  {
     "id": "secrets.materialize",
     "title": "Reveal secrets, acquire leases, run crypto plans",
     "plane": "host",
