@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/scripts/lib/audit-directory.sh"
 opensesame_audit_directory
-RULES="$ROOT/security/ast-grep-rules.yml"
+RULES="$ROOT/tools/security/ast-grep-rules.yml"
 
 if ! command -v ast-grep >/dev/null 2>&1; then
   echo "ast-grep not installed" >&2

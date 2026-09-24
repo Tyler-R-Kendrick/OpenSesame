@@ -2,7 +2,7 @@
  * Characterization snapshots for duress unlock fail-closed surfaces.
  *
  * Vitest file snapshots are this repo's Verify equivalent (see
- * docs/testing/test-strategy.md). Update only with `vitest -u` after reading
+ * docs/validation/test-strategy.md). Update only with `vitest -u` after reading
  * the diff — these pin what a coerced unlock attempt is allowed to observe.
  */
 

@@ -8,12 +8,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/lib/audit-directory.sh"
 opensesame_audit_directory
-cd "$ROOT/packages/fuzz"
+cd "$ROOT/tests/fuzz/jazzer"
 
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-30}"
 
 if [[ ! -f package.json ]]; then
-  echo "jazzer-gate: packages/fuzz is missing" >&2
+  echo "jazzer-gate: tests/fuzz/jazzer is missing" >&2
   exit 1
 fi
 

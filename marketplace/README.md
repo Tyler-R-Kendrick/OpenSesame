@@ -13,7 +13,7 @@ type (ADR 0087 §7).
 ## Publishing a type
 
 1. Add a `VaultItemType` definition to `item-types/`. It uses the same format
-   as `packages/vault-item-types/definitions/` and meets the same rules: no
+   as `marketplace/item-types/builtin/` and meets the same rules: no
    handler, no built-in id, no extension another type already uses.
 2. List its path in `.opensesame/marketplace.json`.
 3. Run `node scripts/pin-marketplace.mjs` to write its SHA-256 pin.

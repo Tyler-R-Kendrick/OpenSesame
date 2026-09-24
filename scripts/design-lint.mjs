@@ -5,7 +5,7 @@
  * An action that executes is an icon key (`icon-btn`, or `.go` for the action
  * that ends a screen). A verb painted on a button face is a failure. Choice
  * objects (a provider, a mode, a navigation target, the guest road) stay text.
- * Existing word-verb buttons are pinned in `scripts/design-button-baseline.json`
+ * Existing word-verb buttons are pinned in `tools/quality/design-button-baseline.json`
  * and that ledger only falls.
  *
  *   node scripts/design-lint.mjs [files...]
@@ -240,7 +240,7 @@ function checkWordVerbs(file, source) {
       file,
       1,
       "word-verb-button",
-      `Word-verb buttons fell from ${recorded} to ${hits.length}. Lower ${path} in scripts/design-button-baseline.json.`,
+      `Word-verb buttons fell from ${recorded} to ${hits.length}. Lower ${path} in tools/quality/design-button-baseline.json.`,
     );
     return;
   }

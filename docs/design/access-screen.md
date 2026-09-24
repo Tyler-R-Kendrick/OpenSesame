@@ -3,7 +3,7 @@
 Design contract for the Pages **Access** section. Decision record:
 [ADR 0061](../adr/0061-access-pam-plane-ceremonies.md) (supersedes the tab
 structure of [ADR 0054](../adr/0054-access-screen-pam.md)). Parity target:
-[`docs/competitors/border0-tailscale-pam.md`](../competitors/border0-tailscale-pam.md).
+[`docs/research/competitors/border0-tailscale-pam.md`](../research/competitors/border0-tailscale-pam.md).
 
 Access is the grantor's PAM plane. It **does** privileged access management —
 grant, revoke, narrow, approve, terminate — it never *describes* connectors,

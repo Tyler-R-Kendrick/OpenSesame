@@ -81,7 +81,7 @@ The tenant component is not decoration. Provider subject ids are unique
 *within* a tenant, so an attacker who controls their own Slack workspace can
 mint a user id that collides with somebody else's binding; matching on the
 subject alone hands them that person's authority. This is the rule
-`docs/identity-linking.md` already draws for identity, applied to delivery.
+`docs/architecture/identity-linking.md` already draws for identity, applied to delivery.
 
 Adding or replacing a binding changes *where authorization prompts appear*, so
 it is itself a security-sensitive ceremony: challenged, attempt-bounded,

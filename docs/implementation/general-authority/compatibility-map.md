@@ -4,7 +4,7 @@ Two questions get conflated whenever a hierarchical authority model is
 proposed. This document separates them and records where each one stands.
 
 1. **Product view** — do users see a *Grant* or an *AccessLease*?
-2. **Authorization model** — what happens to `policy/openfga/model.fga`?
+2. **Authorization model** — what happens to `spec/openfga/model.fga`?
 
 Neither is decided. This map states the constraints both answers must satisfy.
 
@@ -61,7 +61,7 @@ point.
 
 ### Why additive and not a rewrite
 
-`policy/openfga/model.fga` (schema 1.1) already hangs `environment`,
+`spec/openfga/model.fga` (schema 1.1) already hangs `environment`,
 `connection`, `vault_collection` and `certificate_role` off `project`, and
 `vault_item` inherits its reader/writer from `vault_collection`. The file's own
 comments describe that row-level grain as "purely additive": a direct reader on

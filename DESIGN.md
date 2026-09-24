@@ -395,7 +395,7 @@ Text on a control is only the object of a choice: a provider, a mode, a
 navigation target, or the guest road. Never a text verb stretched across a
 row, a card foot, or an empty state. `pnpm lint:design` rejects a word-verb
 `<button>` that is not an icon key, and the debt ledger in
-`scripts/design-button-baseline.json` only falls.
+`tools/quality/design-button-baseline.json` only falls.
 
 ### Status is a symbol
 A status — connected, needs you, broken, revoked, saved, locked, authorized,

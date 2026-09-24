@@ -83,4 +83,4 @@ the final integrated security gates or a claim that an external AI scanner ran.
 - `docs/architecture/federated-signin.md` — current wire contract.
 - `packages/static-auth/src/` — canonical profiles and validators.
 - `apps/pages/scripts/build-static-auth.mjs` — immutable distribution build.
-- `docs/security/audit-2026-09-08-browser-sdk-verification.md` — SDK evidence.
+- `docs/security/audits/2026-09-08-browser-sdk-verification.md` — SDK evidence.

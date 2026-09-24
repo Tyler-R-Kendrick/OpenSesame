@@ -8,7 +8,7 @@ ADR 0039 (outbox and the backup actor),
 ADR 0052-cert ([automatic certificate authority selection](0052-automatic-certificate-authority-selection.md)),
 ADR 0065 ([agent-surface parity](0065-agent-surface-parity.md),
 [connector/hook architecture](0065-connector-hook-architecture.md))
-Plan: [docs/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 
@@ -22,12 +22,12 @@ What it left unbuilt is everything *around* a certificate. The live surface is a
 single self-signed development root (`apps/gateway/src/dev_pki.rs`), four global
 issuance constants in `apps/gateway/src/cert_issuers/model.rs`, three tables
 (`certificate_authorities`, `certificate_issuance_requests`,
-`issued_certificates` from `migrations/0013_certificate_issuance.sql`), and four
+`issued_certificates` from `crates/storage/migrations/0013_certificate_issuance.sql`), and four
 routes in `apps/gateway/src/routes/certs.rs`. There is no CA hierarchy, no way
 to say "certificates for this service must have these constraints", no notion of
 who inside an organization may operate a given certificate population, no
 inventory of certificates OpenSesame did not itself mint, and no linkage between
-a certificate and its successor. `docs/competitors/infisical.md` records that
+a certificate and its successor. `docs/research/competitors/infisical.md` records that
 honestly today as "(dev TLS)".
 
 The gap is not a missing feature; it is a missing **domain model**. Each absent
@@ -64,7 +64,7 @@ application through an enrollment config. The existing `/api/v1/certs/*` routes
 keep their current profile-free behavior for backward compatibility; the new
 `/api/v1/certmgr/*` namespace is the one that requires the chain.
 
-The row shapes land in the forthcoming `migrations/0016_certificate_manager.sql`
+The row shapes land in the forthcoming `crates/storage/migrations/0016_certificate_manager.sql`
 and the accessors in `crates/storage/src/lib.rs`; the serde documents for the
 `*_json` columns land in the forthcoming `crates/pki-core` `types` module.
 
@@ -214,7 +214,7 @@ Gate: `pnpm --filter @opensesame/capability-registry test`
 
 ### 7. Positioning: the "(dev TLS)" qualifier is retired
 
-`docs/competitors/infisical.md` currently describes OpenSesame's certificate
+`docs/research/competitors/infisical.md` currently describes OpenSesame's certificate
 capability as `/api/v1/certs` + `opensesame cert` + Pages certificate items
 **(dev TLS)**. With the chain in §1 and ADRs 0067–0072 built, that qualifier is
 wrong: OpenSesame manages a CA hierarchy, policy-constrained issuance, four

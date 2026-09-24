@@ -3798,24 +3798,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-credential-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "clap",
- "opensesame-host-core",
- "serde",
- "serde_json",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "opensesame-credential-helpers"
 version = "0.1.0"
 dependencies = [

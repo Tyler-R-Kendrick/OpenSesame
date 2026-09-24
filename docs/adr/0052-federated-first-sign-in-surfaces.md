@@ -52,7 +52,7 @@ server.
 4. **The relying party is a public origin-profile client and sends an explicit `Origin`
    header on the token request.** `client_id` is `origin:<origin>`, derived not registered,
    per ADR 0034 and ADR 0012's origin profile. The broker contract enforces origin equality
-   on `POST /token` — see `apps/mock-upstream-idp/src/server.ts`, which answers
+   on `POST /token` — see `tools/mock-upstream-idp/src/server.ts`, which answers
    `unauthorized_client` / `origin_cors_denied` when the header disagrees with the client id.
    A browser sets that header for itself; a server-side exchange must set it deliberately, so
    the RP does. When `OPENSESAME_UPSTREAM_ISSUER`, `OPENSESAME_UPSTREAM_CLIENT_ID` and

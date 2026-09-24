@@ -1,6 +1,6 @@
 //! Pure mount/path grammar for the Vault KV v2 read facade.
 //!
-//! Split out of `kv_facade.rs` for one reason: `fuzz/src/lib.rs` declares this
+//! Split out of `kv_facade.rs` for one reason: `tests/fuzz/cargo/src/lib.rs` declares this
 //! same file as a module of its own (`#[path = …] pub mod kv_v2_path`), so the
 //! `kv_v2_path` fuzz target exercises *this* parser rather than a copy that
 //! could drift from it. That means the file must stay free of every dependency

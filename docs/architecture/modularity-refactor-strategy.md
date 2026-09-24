@@ -59,7 +59,7 @@ And its Decision §1 did not hedge:
 
 > This is not a format for *community* types with the seven builtins carved
 > out beside it. **The seven builtins are manifests in this format**, in
-> `packages/vault-item-types/definitions/`, loaded through the same registry
+> `marketplace/item-types/builtin/`, loaded through the same registry
 > as an installed one. [...] If the generic path is not good enough to render
 > `card` or `note`, it is not good enough to offer anyone, and we will find
 > that out first.
@@ -88,7 +88,7 @@ still switch by hand:
 The decisive detail is that **all seven legacy kinds already have manifest
 definitions on disk** — `login.json`, `passkey.json`, `card.json`,
 `secret.json`, `note.json`, `drop.json`, `certificate.json` are all present in
-`packages/vault-item-types/definitions/`. The data exists. The engine exists.
+`marketplace/item-types/builtin/`. The data exists. The engine exists.
 The consumers were simply never moved.
 
 This is the cheapest large win available and it should be done first, because
@@ -295,14 +295,14 @@ derivation lands later.
 ### 2.5 WIT — an IDL used as documentation
 
 **Now:** `wit/` holds seven worlds, 324 lines. Exactly one —
-`wit/connector` — is used for binding generation, via
+`spec/wit/connector` — is used for binding generation, via
 `wasmtime::component::bindgen!` in `crates/connector-host/src/wasm.rs:40`.
 
 The other six are read as *text* and substring-asserted in tests. From
 `crates/host-core/src/lib.rs:660`:
 
 ```rust
-let src = read_wit("wit/task/world.wit");
+let src = read_wit("spec/wit/task/world.wit");
 assert!(src.contains("authorize-and-invoke"));
 assert!(src.contains("restrict"));
 ```

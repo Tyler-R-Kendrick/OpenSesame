@@ -1,0 +1,56 @@
+{
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": [
+    "packages/observability/src/agent-payload.ts",
+    "packages/os-domain/src/endpoint-display.ts",
+    "packages/sdk-cli/src/secure-url.ts",
+    "packages/app-core/src/lib/probe-failure.ts",
+    "packages/app-core/src/lib/guest-auth.ts",
+    "packages/app-core/src/lib/notices.ts",
+    "packages/policy/src/provisional.ts",
+    "apps/control-plane/src/services/identity-link.ts",
+    "packages/audit/src/redact.ts",
+    "packages/app-core/src/lib/certs.ts",
+    "apps/pages/src/lib/keymap.ts",
+    "apps/pages/src/lib/tree-motion.ts",
+    "packages/app-core/src/screens/unlock/unlock-duress-continue.ts",
+    "packages/app-core/src/screens/unlock/unlock-pin-duress.ts",
+    "packages/app-core/src/screens/unlock/unlock-duress-refuse.ts",
+    "packages/audit/src/chain.ts",
+    "apps/control-plane/src/ui/agent-auth-pages.ts",
+    "packages/siop-v2/src/issuer.ts",
+    "packages/siop-v2/src/audience.ts",
+    "packages/siop-v2/src/validity.ts",
+    "packages/siop-v2/src/link-profile.ts"
+  ],
+  "ignorePatterns": [
+    ".agents/**",
+    ".codex/**",
+    ".deepsec/**",
+    ".tools/**",
+    ".turbo/**",
+    "tools/eve-deepsec/**",
+    "artifacts/**",
+    "coverage/**",
+    "tests/visual-contract/output/**",
+    "test-results/**",
+    "target/**"
+  ],
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": {
+    "configFile": "tools/mutation/vitest.mutation.config.ts",
+    "related": true
+  },
+  "concurrency": 2,
+  "timeoutMS": 10000,
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "artifacts/mutation/typescript.json"
+  },
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  }
+}

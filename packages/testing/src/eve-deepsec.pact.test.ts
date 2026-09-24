@@ -5,7 +5,7 @@ import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const eveRoot = join(here, "../../../apps/eve-deepsec");
+const eveRoot = join(here, "../../../tools/eve-deepsec");
 
 describe("PACT — eve-deepsec stay-off paid Gateway", () => {
   it("property: GLM 5.2 is pinned to blackbox", () => {

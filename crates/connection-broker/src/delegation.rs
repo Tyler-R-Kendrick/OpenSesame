@@ -59,7 +59,7 @@ const OWNER_BUDGET_CEILING: i64 = 1_000_000;
 pub const BUDGET_INVOCATIONS: &str = "invocations";
 
 /// Purpose separator: a delegation token hash can never collide with any
-/// other token purpose, even for identical bytes (docs/claims.md rule).
+/// other token purpose, even for identical bytes (docs/architecture/claims.md rule).
 const TOKEN_PURPOSE: &str = "opensesame:delegation-token:v1";
 
 fn token_hash(token: &str) -> Result<String> {

@@ -324,7 +324,7 @@ async fn migration_preserves_legacy_certificate_host_kv() {
     .unwrap();
     apply_migration(
         &pool,
-        include_str!("../../../migrations/0013_certificate_issuance.sql"),
+        include_str!("../migrations/0013_certificate_issuance.sql"),
     )
     .await;
     assert_eq!(
@@ -600,7 +600,7 @@ async fn legacy_connection_rows_survive_the_broker_migration() {
         .connect("sqlite::memory:")
         .await
         .unwrap();
-    for statement in split_statements(include_str!("../../../migrations/0001_init.sql")) {
+    for statement in split_statements(include_str!("../migrations/0001_init.sql")) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
     sqlx::query("INSERT INTO organizations (id, name, created_at) VALUES ('org:1', 'Legacy', 't')")
@@ -643,7 +643,7 @@ async fn credential_generation_migration_backfills_baseline_rows() {
         .await
         .unwrap();
     for statement in split_statements(include_str!(
-        "../../../migrations/0005_credential_generation.sql"
+        "../migrations/0005_credential_generation.sql"
     )) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
@@ -677,7 +677,7 @@ async fn provider_configuration_migration_indexes_legacy_fields_without_rewritin
         .unwrap();
 
     for statement in split_statements(include_str!(
-        "../../../migrations/0006_provider_configuration.sql"
+        "../migrations/0006_provider_configuration.sql"
     )) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
@@ -712,7 +712,7 @@ async fn provider_connections_are_added_to_an_already_migrated_database() {
         .await
         .is_err());
     for statement in split_statements(include_str!(
-        "../../../migrations/0007_provider_connections.sql"
+        "../migrations/0007_provider_connections.sql"
     )) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
@@ -933,11 +933,11 @@ async fn backup_outbox_migration_applies_to_an_already_migrated_database() {
         .execute(&pool)
         .await
         .is_err());
-    for statement in split_statements(include_str!("../../../migrations/0008_backup_outbox.sql")) {
+    for statement in split_statements(include_str!("../migrations/0008_backup_outbox.sql")) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
     for statement in split_statements(include_str!(
-        "../../../migrations/0015_backup_target_kinds.sql"
+        "../migrations/0015_backup_target_kinds.sql"
     )) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }

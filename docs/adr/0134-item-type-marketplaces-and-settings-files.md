@@ -45,7 +45,7 @@ everything else (ADR 0065 §4):
   "metadata": { "name": "OpenSesame", "description": "…" },
   "spec": {
     "itemTypes": [
-      { "path": "marketplace/item-types/vehicle.json", "sha256": "…" }
+      { "path": "marketplace/item-types/optional/vehicle.json", "sha256": "…" }
     ]
   }
 }

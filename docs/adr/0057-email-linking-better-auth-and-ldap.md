@@ -8,7 +8,7 @@ previous one, and each reversal is a decision rather than a discovery:
   in a complementary role.
 - **Supersedes ADR 0016's LDAP half.** OpenSesame speaks LDAP natively. (Its SAML half is
   superseded in ADR 0056; the Keycloak-brokered path remains supported in both cases.)
-- **Changes the long-standing rule in `docs/identity-linking.md`** that email is never a join
+- **Changes the long-standing rule in `docs/architecture/identity-linking.md`** that email is never a join
   key. A *verified* email is now a secondary join at admission. That file has been rewritten
   to match; this ADR is the reason.
 
@@ -16,7 +16,7 @@ previous one, and each reversal is a decision rather than a discovery:
 Three constraints held simultaneously in the old design, and the third stopped being worth
 its price.
 
-ADR 0033 and `docs/identity-linking.md` said the external-identity tuple
+ADR 0033 and `docs/architecture/identity-linking.md` said the external-identity tuple
 `(kind, issuer, tenant, subject)` is the only key and email links nothing. That rule exists
 because an IdP that lets a human type any address into a profile field would otherwise be an
 account-takeover path — a completely sound reason to distrust *unverified* email, which was
@@ -296,7 +296,7 @@ descriptor therefore requests `user:email`, which is read-only and grants nothin
 - Three new runtime dependencies, all MIT and exact-pinned: `ldapts` (bind and sync),
   `nodemailer` (magic-link delivery), and `better-auth` (already pinned, now actually mounted).
   The reference LDAP *server* used by tests is `ldapjs`, a devDependency of
-  `apps/mock-upstream-idp` only — upstream is sunset but protocol-complete, and the pin moves
+  `tools/mock-upstream-idp` only — upstream is sunset but protocol-complete, and the pin moves
   forward if `pnpm audit:osv` ever objects.
 - The identity `kind` union widens to `oidc | oauth2 | saml | ldap | email`, which is free in
   the database (`kind` is free text with no CHECK) and load-bearing everywhere a lookup spans
@@ -314,5 +314,5 @@ descriptor therefore requests `user:email`, which is read-only and grants nothin
 - ADR 0052 §6 — the Better Auth rejection, superseded here
 - ADR 0055 — provider registry, BYO, org sign-in, the trust fence
 - ADR 0056 — native SAML SP, SCIM, home-realm discovery, back-channel logout
-- `docs/identity-linking.md` — the linking rules, rewritten for this decision
+- `docs/architecture/identity-linking.md` — the linking rules, rewritten for this decision
 - `docs/architecture/federated-signin.md` §14 — the wire contract

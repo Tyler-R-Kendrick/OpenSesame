@@ -1,7 +1,7 @@
 /**
  * Relocation for the structural-complexity ledger (ADR 0133 §6).
  *
- * `quality-baseline.json` is keyed by path, so a file that moves looks like a
+ * `tools/quality/quality-baseline.json` is keyed by path, so a file that moves looks like a
  * brand-new file with debt (allowed 0) plus an unrecorded improvement at the
  * old path. `--accept-new-debt` gets past that by letting numbers rise, which
  * is broader than a move needs. Relocation instead carries each recorded

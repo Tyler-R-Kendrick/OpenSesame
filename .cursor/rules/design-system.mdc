@@ -10,4 +10,4 @@ alwaysApply: true
 - A status is a `StatusMark` glyph (check, alert, dismiss, lock) with `aria-label` and `title`. Do not paint Connected, Needs you, Broken, or any other status word on a pill.
 - Text on a control is only a choice object or a name: a provider, a mode, a navigation target, the guest road, a role, a person.
 - Do not add explainer captions. A panel head is a title. Show the account, grant, or repository.
-- `pnpm lint:design` and impeccable detect enforce this in `.githooks/pre-commit`. Do not add a word-verb button to get past them, and do not raise `scripts/design-button-baseline.json`.
+- `pnpm lint:design` and impeccable detect enforce this in `.githooks/pre-commit`. Do not add a word-verb button to get past them, and do not raise `tools/quality/design-button-baseline.json`.

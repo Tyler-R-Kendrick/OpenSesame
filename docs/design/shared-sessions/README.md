@@ -27,7 +27,7 @@ Published canvas:
 The key hierarchy (`docs/security/key-hierarchy.md`) for what a grant actually
 wraps and why revocation is re-keying; `crates/lifecycle` for the expiry ladder
 and its value-blind payload; `packages/claims` for the invite's shape (bearer
-link, out-of-band user code, TTL, single use); `policy/openfga/model.fga` for
+link, out-of-band user code, TTL, single use); `spec/openfga/model.fga` for
 where row-level authorization has to go. Tokens and components are lifted
 verbatim from `apps/pages/src/styles.css`, so these screens sit in the same
 vocabulary as the first-run ceremony.

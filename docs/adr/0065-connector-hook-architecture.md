@@ -21,7 +21,7 @@ refuses to execute. A user who wants a provider we did not ship has no path
 but a patch to this repository.
 
 Meanwhile the connector *contract* has existed since the WIT worlds landed:
-`wit/connector/world.wit` gives guests `describe`/`invoke` over opaque
+`spec/wit/connector/world.wit` gives guests `describe`/`invoke` over opaque
 handles, imports exactly `host-http.authorized-request`, purpose-bound
 `host-crypto.sign`, and `host-oauth.acquire`, and structurally cannot
 express `secrets.get`. `crates/connector-host` has the `Connector` trait,
@@ -29,7 +29,7 @@ express `secrets.get`. `crates/connector-host` has the `Connector` trait,
 and a stubbed `wasm_guest` module; a wasmtime workspace pin sat unused
 (activated by this ADR on the 36 LTS line — the 33 line it originally
 named carries RUSTSEC advisories including a critical sandbox escape,
-which `pnpm audit:cargo-audit` now guards); `connectors/mock/connector.yaml` specifies a manifest nobody
+which `pnpm audit:cargo-audit` now guards); `spec/connectors/mock/connector.yaml` specifies a manifest nobody
 parses; and `apps/gateway/src/routes/intents.rs` carries the literal
 comment "When per-provider components land, this becomes the lookup."
 
@@ -128,7 +128,7 @@ material (a unit test asserts the schema's field-name set against the
 secret-shaped denylist, mirroring `assert_wit_forbids_secrets_get`).
 Parsing a manifest never causes execution; registration happens only via
 `HostRuntime` under §3's digest rules. Gate:
-`fuzz/fuzz_targets/connector_yaml.rs` (repo rule: a fuzz target per
+`tests/fuzz/cargo/fuzz_targets/connector_yaml.rs` (repo rule: a fuzz target per
 parser) plus the manifest rejection-table unit tests.
 
 ### 5. Provider→connector binding replaces the hardcoded lookup

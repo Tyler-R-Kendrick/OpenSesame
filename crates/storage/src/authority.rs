@@ -1,6 +1,6 @@
 //! Persistence for generalized, hierarchical authority.
 //!
-//! The tables are described in `migrations/0033_general_authority.sql`; this
+//! The tables are described in `crates/storage/migrations/0033_general_authority.sql`; this
 //! module is the only writer of them. Four rules hold across every submodule:
 //!
 //! * a realm (`organization_id`) is part of every key and every predicate, so a

@@ -1,6 +1,6 @@
 //! The cross-implementation conformance guard.
 //!
-//! `fixtures/kdbx/roundtrip.kdbx` and `roundtrip.expected.json` are committed
+//! `tests/fixtures/kdbx/roundtrip.kdbx` and `roundtrip.expected.json` are committed
 //! artifacts. This crate produces them (`cargo test -p opensesame-kdbx-bridge
 //! --test conformance -- --ignored regenerate_fixture`) and asserts on every
 //! run that the committed pair still agree. The pages `kdbxweb` adapter reads
@@ -32,7 +32,7 @@ fn committed_fixture_maps_to_committed_expectation() {
     assert_eq!(
         expected_json(),
         fixture_expected(),
-        "fixtures/kdbx/roundtrip.expected.json is stale — regenerate it with \
+        "tests/fixtures/kdbx/roundtrip.expected.json is stale — regenerate it with \
          `cargo +1.88.0 test -p opensesame-kdbx-bridge --test conformance -- \
          --ignored regenerate_fixture`"
     );
@@ -112,7 +112,7 @@ fn committed_fixture_covers_every_mapped_field_type() {
 /// files in the working tree and the KDBX bytes differ every run (fresh
 /// seeds, IVs and UUIDs), so it is a deliberate act, not a test.
 #[test]
-#[ignore = "rewrites fixtures/kdbx/; run deliberately"]
+#[ignore = "rewrites tests/fixtures/kdbx/; run deliberately"]
 fn regenerate_fixture() {
     let dir = fixture_dir();
     std::fs::create_dir_all(&dir).expect("fixture dir");

@@ -1,23 +1,14 @@
 packages:
+  # Product applications and services (Rust-only apps have no package.json and are skipped)
+  - "apps/*"
+  # Shared TypeScript libraries
   - "packages/*"
-  - "apps/browser-extension"
-  - "apps/control-plane"
-  - "apps/console"
-  - "apps/ceremonies"
-  - "apps/worker"
-  - "apps/example-rp-alpha"
-  - "apps/example-rp-beta"
-  - "apps/example-static-rp"
-  - "apps/example-siop-rp"
-  - "apps/example-static-agent"
-  - "apps/example-headless"
-  - "apps/example-agent"
-  - "apps/mock-upstream-idp"
-  - "apps/pwa"
-  - "apps/pages"
-  - "apps/mobile-mfa"
-  - "apps/authenticator-native"
-  - "apps/connect-backend"
-  - "apps/mcp-client"
-  - "apps/mcp-host"
+  # Runnable integration examples
+  - "examples/*"
+  # Cross-cutting test suites
+  - "tests/redteam"
+  - "tests/visual-contract"
+  - "tests/fuzz/jazzer"
+  # Development tooling
+  - "tools/mock-upstream-idp"
   - "tools/oxlint/anti-slop"

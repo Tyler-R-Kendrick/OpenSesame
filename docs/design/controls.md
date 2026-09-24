@@ -117,7 +117,7 @@ browser checks compare actual hit areas, glyph centers, group gaps, and surface 
 `pnpm lint:design` also rejects a `<button>` whose face carries an executing
 verb (`Revoke`, `Authorize`, `Connect`, `Save`, `Copy`, `Load N more`, and
 the same family) unless the control is `icon-btn` or `.go`. Existing files
-are pinned in `scripts/design-button-baseline.json`. A file may not exceed
+are pinned in `tools/quality/design-button-baseline.json`. A file may not exceed
 its recorded count, and a file that improves must have that count lowered in
 the same change. New files start at zero. `impeccable detect` runs on the
 same pre-commit path and fails the commit on a primary finding.

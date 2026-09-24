@@ -4,7 +4,7 @@ pub const ENV_LISTEN_ALIAS: &str = "OPENSESAME_DAEMON_LISTEN";
 /// When `1`, skip TCP and serve Unix socket only (`OPENSESAME_AGENT_SOCK` required).
 pub const ENV_UDS_ONLY: &str = "OPENSESAME_DAEMON_UDS_ONLY";
 /// When `1`, allow non-loopback TCP binds (explicit operator override).
-/// Shared by daemon, credential-agent, and gateway.
+/// Shared by daemon and gateway.
 pub const ENV_ALLOW_NONLOCAL: &str = "OPENSESAME_ALLOW_NONLOCAL";
 /// Legacy alias kept for daemon/operator docs.
 pub const ENV_ALLOW_NONLOCAL_DAEMON: &str = "OPENSESAME_DAEMON_ALLOW_NONLOCAL";

@@ -65,7 +65,7 @@ ensure_live_nats() {
   local bin
   if ! bin="$(find_nats_server)"; then
     echo "==> nats-dogfood: FATAL — no nats-server and NATS_URL unset" >&2
-    echo "    Install nats-server or set NATS_URL / run deploy/compose NATS" >&2
+    echo "    Install nats-server or set NATS_URL / run ops/compose NATS" >&2
     exit 1
   fi
   NATS_PORT="$(pick_free_port)"
@@ -104,7 +104,7 @@ cargo +1.88.0 test -p opensesame-authz --lib callout
 cargo +1.88.0 test -p opensesame-connection-broker --lib github_webhook_hmac
 cargo +1.88.0 test -p opensesame-storage --lib host_kv
 cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway
-cargo +1.88.0 test --manifest-path fuzz/Cargo.toml --lib oracle_smoke
+cargo +1.88.0 test --manifest-path tests/fuzz/cargo/Cargo.toml --lib oracle_smoke
 
 echo "==> nats-dogfood: TypeScript contracts + pages + worker"
 pnpm --filter @opensesame/contracts test
@@ -117,9 +117,9 @@ pnpm --filter @opensesame/worker test
 if command -v cargo-fuzz >/dev/null 2>&1; then
   echo "==> nats-dogfood: libFuzzer short pass (dogfood targets)"
   for target in github_webhook_hmac nats_callout_eval taskbus_url xkeys_envelope; do
-    mkdir -p "fuzz/corpus/$target"
-    cargo +nightly fuzz run "$target" --fuzz-dir fuzz -- \
-      -max_total_time=10 -timeout=5 "fuzz/corpus/$target" || exit 1
+    mkdir -p "tests/fuzz/cargo/corpus/$target"
+    cargo +nightly fuzz run "$target" --fuzz-dir tests/fuzz/cargo -- \
+      -max_total_time=10 -timeout=5 "tests/fuzz/cargo/corpus/$target" || exit 1
   done
 else
   echo "==> nats-dogfood: skipping libFuzzer (cargo-fuzz not installed)"

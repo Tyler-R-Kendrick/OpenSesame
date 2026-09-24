@@ -222,7 +222,7 @@ application admission, exact redirects, passkey consent gate, and pairwise
 ES256 vault keys. WebAuthn authenticates the human and gates consent; it is
 not the JOSE signing key. RPs that want self-issued trust verify the
 `id_token` from `sub_jwk` themselves — see `@opensesame/siop-v2`
-`SUPPORT_MATRIX` and `apps/example-siop-rp`.
+`SUPPORT_MATRIX` and `examples/siop-rp`.
 
 An optional hosted bridge can bind a verified SIOP `sub` / JWK thumbprint to a
 canonical principal ([ADR 0117](../adr/0117-hosted-siop-oidc-bridge.md)). The

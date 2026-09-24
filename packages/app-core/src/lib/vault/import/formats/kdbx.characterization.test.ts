@@ -23,7 +23,7 @@ import { keepassKdbx } from "./kdbx.js";
  *
  * The databases are built here rather than committed, so the fixtures are
  * readable as code and cannot rot into "some bytes someone made once".
- * `fixtures/kdbx/roundtrip.kdbx` — the cross-implementation fixture written by
+ * `tests/fixtures/kdbx/roundtrip.kdbx` — the cross-implementation fixture written by
  * `crates/kdbx-bridge` — is snapshotted too, at the end.
  *
  * If one of these fails, read the diff before updating it.
@@ -352,7 +352,7 @@ describe("the shared cross-implementation fixture", () => {
   it("maps the Rust-written database to a stable result", async () => {
     const path = fileURLToPath(
       new URL(
-        "../../../../../../../fixtures/kdbx/roundtrip.kdbx",
+        "../../../../../../../tests/fixtures/kdbx/roundtrip.kdbx",
         import.meta.url,
       ),
     );

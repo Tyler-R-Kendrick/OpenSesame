@@ -1,0 +1,127 @@
+{
+  "$comment": [
+    "Shipped-bundle budgets in KiB -- see scripts/bundle-budget-gate.mjs.",
+    "Unlike tools/quality/quality-baseline.json these are NOT auto-recorded: a bundle may",
+    "legitimately grow when a feature lands, so raising a number must be a",
+    "deliberate line in a diff with a reason, not a regenerated file.",
+    "Seeded from the 2026-09-03 build with roughly 5% headroom."
+  ],
+  "profiles": {
+    "$comment": [
+      "Per-capability-profile budgets for the hardened composition builds",
+      "(ownership.md 4.6). Unlike `apps`, these are measured against",
+      "`apps/pages/dist-profiles/<name>`, which only exists after",
+      "`pnpm --filter @opensesame/pages build:profile --profile",
+      "capability-profiles/<name>.json --mode hardened`. The gate measures a",
+      "profile when its directory is there and prints a skip notice when it is",
+      "not, so a checkout that never ran a profile build still passes.",
+      "2026-09-22: seeded from the first real hardened builds of minimal-local",
+      "and family-local at /OpenSesame/, plus ~5% headroom. The two measure",
+      "identically today (total 2290.5 KiB, javascript 1855.1, javascriptGzip",
+      "569.0, css 103.3, largestAsset 386.0) because the core entry still",
+      "statically reaches every optional capability, so hardened exclusion has",
+      "nothing it can drop yet -- the forbidden-reachability gate reports those",
+      "leaks. These numbers are therefore a ceiling, not a target: as the",
+      "bootstrap cut lands, minimal-local must fall well below family-local and",
+      "both must fall. Never raise one to make a build pass."
+    ],
+    "builds": {
+      "minimal-local-hardened": {
+        "dist": "apps/pages/dist-profiles/minimal-local-hardened",
+        "budgets": {
+          "total": 2404,
+          "javascript": 1947,
+          "javascriptGzip": 598,
+          "css": 109,
+          "largestAsset": 406
+        }
+      },
+      "family-local-hardened": {
+        "dist": "apps/pages/dist-profiles/family-local-hardened",
+        "budgets": {
+          "total": 2404,
+          "javascript": 1947,
+          "javascriptGzip": 598,
+          "css": 109,
+          "largestAsset": 406
+        }
+      }
+    }
+  },
+  "apps": {
+    "apps/pages": {
+      "dist": "apps/pages/dist",
+      "note": [
+        "The installable offline PWA (ADR 0090). Its service worker precaches",
+        "every byte counted in `total`, so this is what a device downloads on",
+        "install, once, over whatever connection it has.",
+        "83% of that total is one file: the client-core Wasm sync engine at",
+        "~12.5 MiB. It dominates `total` and `largestAsset` while contributing",
+        "nothing to `javascriptGzip`, which is why both are budgeted -- a JS",
+        "regression would be invisible inside a 15 MiB total.",
+        "2026-09-10: javascript 2500->2750 and javascriptGzip 725->790 because",
+        "browser-local IAM precaches passkey/WebAuthn and the local issuer. The",
+        "PWA still precaches every JS byte; measured 2616/748 KiB plus ~5% headroom.",
+        "2026-09-13: css 130->139 because the phone layout and touch contract",
+        "landed (DESIGN.md Touch, verify:mobile): the 44px floor gained a",
+        "width-based fallback, every field gained a 16px floor so iOS stops",
+        "zooming and never zooming back, and the statusline, tab bar, front door",
+        "and scrolling strips gained phone and landscape arrangements. Measured",
+        "132.1 KiB plus ~5% headroom. Uncompressed is what is budgeted; on the",
+        "wire the whole of it gzips to 26 KiB.",
+        "2026-09-15: javascript 2750->2800 and javascriptGzip 790->810 because",
+        "browser-native SIOPv2 (ADR 0116) adds a lazy /identity/siop ceremony",
+        "chunk (~19 KiB) plus @opensesame/siop-v2 ES256 mint helpers. Measured",
+        "2764/794 KiB after the SIOP build; budgets keep ~1\u20132% headroom.",
+        "2026-09-16: javascript 2800->3450, javascriptGzip 810->980, total 15500->16700 because ADR 0123 spending Wallet lands Pages /wallet panels, conserved ledger/leases/consent, and wallet-* packages in the offline PWA. Measured CI 3252/926/15901 KiB; budgets keep ~5% headroom.",
+        "2026-09-17: javascript 3450->3960 and javascriptGzip 980->1140 because Wallet residuals (fee/CORS/canary/wrap/activation) ride the same lazy /wallet and WebMCP session tools. Measured 3762/1082 KiB plus ~5% headroom. productionEnabled stays false.",
+        "2026-09-17: javascript 3450->3770 and javascriptGzip 980->1070 because ADR 0125 ambient SSO adds a lazy @azure/msal-browser 5.22 chunk (only loaded for a selected Entra connection) plus the ambient-auth controller/transaction/admission modules. Measured 3584/1016 KiB; budgets keep ~5% headroom. MSAL is not on the default personal startup path.",
+        "2026-09-17: javascript 3450->4300, javascriptGzip 980->1240, total 16700->17900 because this merge carries both ADR 0123 Wallet residuals (measured 3762/1082 on the pre-ambient tree) and ADR 0125 ambient SSO's lazy MSAL 5.22.0 chunk (measured 3584/1016 on the pre-wallet-residual tree). Combined estimate ~4094/1172 KiB plus ~5% headroom. productionEnabled stays false. MSAL is not on the default personal startup path.",
+        "2026-09-17: javascript 4300->4330 because product-experience Visual/Source prefs add a lazy yaml-patch chunk (~101 KiB / ~32 KiB gzip) for comment-preserving prefs edits. Measured CI 4316 KiB javascript (gzip still under 1240). Keep ~0.3% headroom.",
+        "2026-09-20: css 139->147 because verify:mobile needed LED wordmark board",
+        "scaling on the door/unlock brand, plus 44px floors for Settings Form/YAML/",
+        "TOML and the unlock guest chip. Measured CI 140 KiB; budget keeps ~5% headroom."
+      ],
+      "budgets": {
+        "total": 17900,
+        "javascript": 4330,
+        "javascriptGzip": 1240,
+        "_cssReason": [
+          "Raised 147 -> 153 for the capability selection surface: the setup",
+          "tab and the Settings panel a person chooses capabilities in add",
+          "318 authored lines across two stylesheets (measured 150 KiB).",
+          "The number is a ceiling, not a target; it falls again when the",
+          "optional capabilities stop reaching the core entry and their CSS",
+          "leaves the always-loaded graph.",
+          "2026-09-23: 153 -> 160 for ADR 0134: the Item types panel (tabs,",
+          "type rows, marketplace sources and offers) and Settings' file",
+          "viewer add two stylesheets, 4.0 + 1.7 KiB minified, against 0.4",
+          "KiB of the old item-type rules removed. Measured 156.9 KiB; the",
+          "budget keeps ~2% headroom."
+        ],
+        "css": 160,
+        "largestAsset": 12800
+      }
+    },
+    "apps/pwa": {
+      "dist": "apps/pwa/dist",
+      "budgets": {
+        "total": 360,
+        "javascript": 350,
+        "javascriptGzip": 105,
+        "css": 16,
+        "largestAsset": 350
+      }
+    },
+    "apps/console": {
+      "dist": "apps/console/dist",
+      "budgets": {
+        "total": 410,
+        "javascript": 400,
+        "javascriptGzip": 120,
+        "css": 16,
+        "largestAsset": 400
+      }
+    }
+  }
+}

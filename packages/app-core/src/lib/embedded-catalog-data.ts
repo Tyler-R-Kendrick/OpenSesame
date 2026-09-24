@@ -4,7 +4,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import parity from "../../../../connectors/fnox-parity.json";
+import parity from "../../../../spec/connectors/fnox-parity.json";
 import type {
   ConfigurationField,
   Provider,

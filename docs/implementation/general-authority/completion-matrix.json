@@ -180,7 +180,7 @@
       "title": "Host storage schema for authority records",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "cargo +1.88.0 test -p opensesame-storage --test authority_schema (8 ok); cargo +1.88.0 test -p opensesame-storage authority --lib (5 ok); migrations/0034_general_authority.sql in migrations.rs",
+      "evidence": "cargo +1.88.0 test -p opensesame-storage --test authority_schema (8 ok); cargo +1.88.0 test -p opensesame-storage authority --lib (5 ok); crates/storage/migrations/0034_general_authority.sql in migrations.rs",
       "blockedBy": ["GA-A-01"],
       "notes": "AccessDomain forest, grant sidecar, budget CHECK, ancestor fence; Host HTTP routes still separate"
     },

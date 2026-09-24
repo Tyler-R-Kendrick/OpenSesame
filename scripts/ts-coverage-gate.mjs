@@ -15,7 +15,7 @@ const packageLinesFloor = Number(process.env.TS_COVERAGE_PACKAGE_LINES ?? 50);
 
 rmSync(outputRoot, { recursive: true, force: true });
 
-const candidates = ["apps", "packages"]
+const candidates = ["apps", "packages", "examples", "tests", "tools"]
   .flatMap((group) =>
     readdirSync(join(root, group), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())

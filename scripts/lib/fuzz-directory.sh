@@ -9,7 +9,7 @@ opensesame_fuzz_corpus() {
   [[ "$target" =~ ^[a-zA-Z0-9_-]+$ ]] || return 1
   corpus="$OPENSESAME_AUDIT_DIR/corpus/$target"
   mkdir -p "$corpus"
-  git -C "$ROOT" ls-files -z -- "fuzz/corpus/$target/" "fuzz/regressions/$target/" +    > "$OPENSESAME_AUDIT_DIR/$target-seeds"
+  git -C "$ROOT" ls-files -z -- "tests/fuzz/cargo/corpus/$target/" "tests/fuzz/cargo/regressions/$target/" > "$OPENSESAME_AUDIT_DIR/$target-seeds"
   while IFS= read -r -d '' seed; do
     [[ -f "$ROOT/$seed" && ! -L "$ROOT/$seed" ]] || continue
     destination="$corpus/$seed"

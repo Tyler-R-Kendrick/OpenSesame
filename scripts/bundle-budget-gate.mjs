@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
  *
  * The other two quality gates ratchet: their recorded numbers may only shrink.
  * Bundles are different. A bundle legitimately grows when a feature lands, so
- * the budgets here are explicit reviewable numbers in bundle-budgets.json
+ * the budgets here are explicit reviewable numbers in tools/quality/bundle-budgets.json
  * rather than an auto-recorded baseline -- raising one should cost a line in a
  * diff that a reviewer sees and has to agree with.
  *
@@ -31,7 +31,7 @@ import { gzipSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const budgets = JSON.parse(
-  readFileSync(join(root, "bundle-budgets.json"), "utf8"),
+  readFileSync(join(root, "tools/quality/bundle-budgets.json"), "utf8"),
 );
 const args = new Set(process.argv.slice(2));
 const reportOnly = args.has("--report");

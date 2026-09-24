@@ -35,7 +35,7 @@ pub fn assert_wit_forbids_secrets_get(wit_source: &str) -> Result<()> {
 /// Returns an error if the connector WIT cannot be read or violates the
 /// secret-retrieval boundary.
 pub fn assert_repo_wit_forbids_secrets_get(repo_root: &Path) -> Result<()> {
-    let path = repo_root.join("wit/connector/world.wit");
+    let path = repo_root.join("spec/wit/connector/world.wit");
     let src = std::fs::read_to_string(&path)
         .map_err(|e| DomainError::Canonicalization(format!("cannot read WIT: {e}")))?;
     assert_wit_forbids_secrets_get(&src)

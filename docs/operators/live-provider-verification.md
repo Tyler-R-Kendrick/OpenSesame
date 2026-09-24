@@ -4,7 +4,7 @@ Google, Microsoft Entra ID, GitHub and Apple are **implemented, not stubbed**. E
 OIDC discovery, PKCE S256, the server-side code exchange, JWKS verification, the generic
 OAuth2 leg for providers that issue no `id_token`, and Apple's `form_post` → 303 → GET
 re-materialization — runs against the reference IdP
-(`apps/mock-upstream-idp`), which is a real HTTP server speaking the real wire protocols with
+(`tools/mock-upstream-idp`), which is a real HTTP server speaking the real wire protocols with
 real cryptography, including GitHub's actual quirks (form-encoded token responses, errors
 returned with HTTP 200) and a genuine auto-submitting `form_post` authorize response.
 

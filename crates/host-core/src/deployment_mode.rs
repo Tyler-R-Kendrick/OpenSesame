@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn shared_truth_table() {
         let cases: Vec<Case> = serde_json::from_str(include_str!(
-            "../../../contracts/deployment-mode-cases.json"
+            "../../../spec/conformance/deployment-mode-cases.json"
         ))
         .unwrap();
         for case in cases {

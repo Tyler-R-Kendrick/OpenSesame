@@ -13,7 +13,7 @@ they explicitly require a live service.
 | Fuzz / property | Rust libFuzzer targets (including the connector-discovery parsers: `mcp_config`, `ini_parse`, `whois_response`, `promote_request`), Jazzer.js targets, proptest, and bounded proof gates | `pnpm audit:fuzz`; `pnpm test:fuzz`; `pnpm audit:kani`; `pnpm audit:shuttle` |
 | Dependency budget | Daemon/discovery dependency closure pinned against the ADR 0048 §5 allowlist; credential-exchange surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) kept off the daemon and the invoke-through/authn crates | `pnpm audit:daemon-deps` |
 | Behavior / functional | `*.behavior.test.ts` Given/When/Then journeys (control-plane ceremonies, Pages guest login); Playwright and live battle tests | `pnpm test`; `pnpm test:e2e`; `pnpm verify` |
-| Mutation | Stryker/Vitest over credential redaction, URL trust boundaries, and the audit metadata redaction + tamper-evidence chain (`packages/audit`); cargo-mutants over Rust redaction and task validation. Duress unlock gates are covered by unit/PACT/behaviour suites first — add to `stryker.config.json` only after a scoped `pnpm test:mutation:ts` proves 100% kill. | `pnpm test:mutation` |
+| Mutation | Stryker/Vitest over credential redaction, URL trust boundaries, and the audit metadata redaction + tamper-evidence chain (`packages/audit`); cargo-mutants over Rust redaction and task validation. Duress unlock gates are covered by unit/PACT/behaviour suites first — add to `tools/mutation/stryker.config.json` only after a scoped `pnpm test:mutation:ts` proves 100% kill. | `pnpm test:mutation` |
 
 ## Measured non-regression gates
 
@@ -65,16 +65,16 @@ still have equivalent mutants in typed status tables and constant-to-constant
 assertions, and a mutate-list entry whose gate is not 100% is a false green.
 
 Worth recording is what happened in between rather than the two numbers. Files
-joined `stryker.config.json` without the gate being re-run, and when it next
+joined `tools/mutation/stryker.config.json` without the gate being re-run, and when it next
 was, on 2026-08-22, it stood at **90.77%** — 31 surviving and 11 uncovered
 mutants against a `break: 100` threshold. One file was at 70.59% only because
-its test file could not execute under `vitest.mutation.config.ts`'s `node`
+its test file could not execute under `tools/mutation/vitest.mutation.config.ts`'s `node`
 environment at all, so its mutants were never really being measured. A
 mutate-list entry whose gate has not run reads as covered while measuring
 nothing, which is the one failure mode this gate exists to prevent.
 
 So: **re-run `pnpm test:mutation:ts` whenever you add a file to
-`stryker.config.json`, and update the figure above.** The gate is cheap
+`tools/mutation/stryker.config.json`, and update the figure above.** The gate is cheap
 relative to what a stale entry costs.
 
 The Rust half of both `test:coverage` and `test:mutation` was not re-measured
@@ -84,7 +84,7 @@ The August 19 Rust figures stand until someone re-runs them.
 
 ## What belongs in the mutation slice
 
-The `mutate` list in `stryker.config.json` is deliberately small: files where a
+The `mutate` list in `tools/mutation/stryker.config.json` is deliberately small: files where a
 surviving mutant means a security decision stopped being made and nothing
 noticed. `services/identity-link.ts` joined it on 2026-08-22 (82/82) — it is the
 single place both federated surfaces decide whether an upstream identity may
@@ -153,7 +153,7 @@ complexity floor because coverage is 100%:
 Scoped Stryker (`break: 100`) was run one file at a time — the CLI applies a
 single `--mutate` path per invocation:
 
-| File | Killed | Survived | Timeout | No cov | Score | In `stryker.config.json`? |
+| File | Killed | Survived | Timeout | No cov | Score | In `tools/mutation/stryker.config.json`? |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | `packages/siop-v2/src/issuer.ts` | 82 | 0 | 0 | 0 | **100%** | **Yes** |
 | `packages/siop-v2/src/audience.ts` | 29 | 0 | 0 | 0 | **100%** | **Yes** |
@@ -174,6 +174,6 @@ pnpm exec stryker run --mutate packages/siop-v2/src/link-profile.ts
 
 `packages/siop-v2` unit tests: **88** cases across issuer, audience, validity,
 link-profile, token, token.adversarial, response, matrix, property, and
-adversarial suites. `vitest.mutation.config.ts` sets
+adversarial suites. `tools/mutation/vitest.mutation.config.ts` sets
 `OPENSESAME_ALLOW_DEV_DEFAULTS=1` so related Identity suites can boot under
 Stryker.

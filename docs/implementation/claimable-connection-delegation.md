@@ -19,7 +19,7 @@ receipted, and without any underlying token ever moving.**
 
 | Capability | Where | State |
 |---|---|---|
-| Sealed connector credentials, AAD-bound to `(connection_id, organization_id)` | `crates/connection-broker/src/crypto.rs` (XChaCha20-Poly1305, AAD `opensesame:connection:v1:{cid}:{oid}`), `migrations/0002_connections.sql` | Built |
+| Sealed connector credentials, AAD-bound to `(connection_id, organization_id)` | `crates/connection-broker/src/crypto.rs` (XChaCha20-Poly1305, AAD `opensesame:connection:v1:{cid}:{oid}`), `crates/storage/migrations/0002_connections.sql` | Built |
 | ConnectionRef agent surface, "no token crosses the API boundary" | `crates/domain/src/authority.rs:97` (`ConnectionRef`), `crates/connection-broker/src/model.rs:227` (`ConnectionView.connection_ref`), ADR 0005/0032 | Built |
 | Grant attenuation + delegation chains | `crates/domain/src/grant.rs:78` (`validate_attenuation`: refuses cross-org, depth ≠ parent+1, lifetime/action/resource/audience/budget/export widening), `crates/domain/src/delegation_chain.rs` (contiguity, cycle, `beneficiary[i] == issuer[i+1]`), `crates/grants/src/lib.rs:3` (`delegate()`) | Built, Rust domain only |
 | Claim-session ceremony (peppered tokens, user codes, CAS state machine, idempotent complete) | `packages/claims/src/engine.ts`, `packages/os-domain/src/crypto/claim-token.ts`, `apps/control-plane/src/routes/claims.ts`; Rust twin `crates/claims/src/lib.rs` | Built |
@@ -42,7 +42,7 @@ receipted, and without any underlying token ever moving.**
 | Identity-plane `delegations` table + `Delegation` type | `packages/database/src/schema/index.ts:345`, `packages/os-domain/src/types.ts:258` | Dead schema: no repo, no route, no writer; `grant_id` is untyped text |
 | `connection.delegated` audit event | `packages/os-domain/src/types.ts:538` (`FutureDomainEventType`) | Reserved, unemitted |
 | `AuthorityOperation::{Exchange, Lease}` | `crates/domain/src/authority.rs:130` | Enum placeholders for a token-exchange path |
-| RFC 8693 token exchange | `docs/protocol-profiles.md:12` — "Semantic mapping only; no token-exchange server in this slice"; grant type explicitly refused by client registration (`packages/contracts/src/oauth-clients.ts:83`) | Slug only |
+| RFC 8693 token exchange | `docs/reference/protocol-profiles.md:12` — "Semantic mapping only; no token-exchange server in this slice"; grant type explicitly refused by client registration (`packages/contracts/src/oauth-clients.ts:83`) | Slug only |
 | `ClaimEngine.revoke` | `packages/claims/src/engine.ts:313` | No caller anywhere |
 
 ### 1.3 Gaps that are prerequisites, not part of the feature itself
@@ -65,7 +65,7 @@ receipted, and without any underlying token ever moving.**
 4. **Audit allowlist would silently drop delegation metadata**
    (`packages/audit/src/redact.ts:5-46` has none of `delegationId`,
    `connectionId`, `granteePrincipalId`).
-5. **`docs/claims.md` overstates completion atomicity** — completion is
+5. **`docs/architecture/claims.md` overstates completion atomicity** — completion is
    documented as "applies ownership, writes audit + outbox atomically"
    but the route performs separate non-transactional writes and emits no
    outbox event (`apps/control-plane/src/routes/claims.ts:388-441`).
@@ -78,7 +78,7 @@ receipted, and without any underlying token ever moving.**
 
 | Primitive | Source | What we take |
 |---|---|---|
-| Delegation vs impersonation; `act` chains; `may_act` pre-authorization | RFC 8693 | Semantics only: subject = owner, actor = claimant, recorded in grant lineage + receipts. No wire endpoint (matches `docs/protocol-profiles.md` and the one-shot broker prompt: "Do not add `POST /connections/{id}/token` for agents") |
+| Delegation vs impersonation; `act` chains; `may_act` pre-authorization | RFC 8693 | Semantics only: subject = owner, actor = claimant, recorded in grant lineage + receipts. No wire endpoint (matches `docs/reference/protocol-profiles.md` and the one-shot broker prompt: "Do not add `POST /connections/{id}/token` for agents") |
 | Approver ≠ claimant as a first-class flow; grant-as-stateful-resource with continuation; structured access descriptors | GNAP (RFC 9635) | The offer/claim shape: an offer is a stateful resource the claimant polls, the owner (a different person) approves |
 | Claim codes: low-entropy human channel + high-entropy machine channel, `authorization_pending`/`slow_down`, single-grant expiry | RFC 8628 | Inverted: the *owner* mints, the *claimant* redeems. We already run this state machine in `packages/device-auth` and `apps/gateway/src/routes/device.rs` |
 | Single-use wrapped delivery; first-redeemer-wins; failed redemption = interception alarm ("malfeasance detection") | Vault cubbyhole response wrapping | Claim-spend semantics: a second `present` revokes the offer and notifies the owner |
@@ -218,7 +218,7 @@ respects each `ConnectionPolicy.maximum_delegation_depth`; claimant kind
 sibling items and are cycle-free. The canonical item set is digested
 into `manifest_digest`, immutable thereafter (the
 `targetManifestDigest` pattern). The claim token uses a new purpose
-separator (`opensesame:delegation-token:v1`) per the `docs/claims.md`
+separator (`opensesame:delegation-token:v1`) per the `docs/architecture/claims.md`
 rule that token purposes never mix; prefix `osc_dlg_` so log-scrubbers
 and `assertSafeText` can deny-list it alongside `osc_clm_`. A user code
 is always minted — consent to authority, like claim completion in
@@ -438,7 +438,7 @@ the child grant (authority, server-side).
 
 | Threat | Mitigation | Anchor |
 |---|---|---|
-| Claim link intercepted in transit / logs | Fragment transport; hash-at-rest (`hash_secret`), never logged (`DENY_KEY` matches `token`); single-use spend; short offer TTL | `docs/claims.md`, `packages/observability/src/logger.ts` |
+| Claim link intercepted in transit / logs | Fragment transport; hash-at-rest (`hash_secret`), never logged (`DENY_KEY` matches `token`); single-use spend; short offer TTL | `docs/architecture/claims.md`, `packages/observability/src/logger.ts` |
 | Link intercepted *and used* before the intended claimant | First-claimer-wins CAS; any later present flips the offer to `burned` and revokes every delegation minted from it — interception becomes detectable and fail-closed, not silent (Vault malfeasance-detection property). The resulting DoS-by-token-holder is accepted: whoever holds the token proves the link leaked | §3.1–3.2 |
 | Wrong person claims (phishing the owner into minting, or the claimant into a look-alike page) | User code as second channel (5 attempts, per-offer fence, mirroring `MAX_CLAIM_APPROVAL_ATTEMPTS`); optional `intended_claimant` pin (`may_act` analogue); state-blind landing page | `routes/claims.ts:38,312` |
 | Claimant impersonation at the gateway | Claimant identity from a control-plane-signed assertion or agent instance key, never a body field; optional proof-of-possession on a fresh key, verified (first consumer of the `proof_key_jkt` slot) | `model.rs:64`, §3.2 |
@@ -546,7 +546,7 @@ exhaustion; assertion replay refused; manifest-digest mismatch refused.
 Agent-instance claim binding (jkt-verified); `list_connections` includes
 held delegations; frozen-intent path with delegated grants
 (`assert_grant_covers_frozen_intent` already narrows on `connection_id`);
-agent-card capability advertisement; `apps/example-agent` demo: owner
+agent-card capability advertisement; `examples/agent` demo: owner
 mints, agent claims, agent invokes `repository.read`, owner revokes,
 agent's next invoke fails with a typed denial.
 

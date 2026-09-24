@@ -346,7 +346,7 @@ importers:
         version: 0.2.17
       '@opensesame/mock-upstream-idp':
         specifier: workspace:*
-        version: link:../mock-upstream-idp
+        version: link:../../tools/mock-upstream-idp
       '@opensesame/static-auth':
         specifier: workspace:*
         version: link:../../packages/static-auth
@@ -371,204 +371,6 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
-
-  apps/example-agent:
-    dependencies:
-      '@opensesame/agent-protocols':
-        specifier: workspace:*
-        version: link:../../packages/agent-protocols
-      '@opensesame/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../../packages/os-domain
-      '@opensesame/sdk-cli':
-        specifier: workspace:*
-        version: link:../../packages/sdk-cli
-    devDependencies:
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      tsx:
-        specifier: 4.19.4
-        version: 4.19.4
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
-
-  apps/example-headless:
-    dependencies:
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../../packages/os-domain
-      '@opensesame/sdk-cli':
-        specifier: workspace:*
-        version: link:../../packages/sdk-cli
-    devDependencies:
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      tsx:
-        specifier: 4.19.4
-        version: 4.19.4
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
-
-  apps/example-rp-alpha:
-    dependencies:
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../../packages/os-domain
-      '@opensesame/sdk-browser':
-        specifier: workspace:*
-        version: link:../../packages/sdk-browser
-      react:
-        specifier: 19.1.0
-        version: 19.1.0
-      react-dom:
-        specifier: 19.1.0
-        version: 19.1.0(react@19.1.0)
-    devDependencies:
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      '@types/react':
-        specifier: 19.1.6
-        version: 19.1.6
-      '@types/react-dom':
-        specifier: 19.1.5
-        version: 19.1.5(@types/react@19.1.6)
-      '@vitejs/plugin-react':
-        specifier: 4.5.0
-        version: 4.5.0(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vite:
-        specifier: 6.4.3
-        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-
-  apps/example-rp-beta:
-    dependencies:
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../../packages/os-domain
-      '@opensesame/sdk-browser':
-        specifier: workspace:*
-        version: link:../../packages/sdk-browser
-      react:
-        specifier: 19.1.0
-        version: 19.1.0
-      react-dom:
-        specifier: 19.1.0
-        version: 19.1.0(react@19.1.0)
-    devDependencies:
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      '@types/react':
-        specifier: 19.1.6
-        version: 19.1.6
-      '@types/react-dom':
-        specifier: 19.1.5
-        version: 19.1.5(@types/react@19.1.6)
-      '@vitejs/plugin-react':
-        specifier: 4.5.0
-        version: 4.5.0(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vite:
-        specifier: 6.4.3
-        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-
-  apps/example-siop-rp:
-    dependencies:
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../../packages/os-domain
-      '@opensesame/siop-v2':
-        specifier: workspace:*
-        version: link:../../packages/siop-v2
-    devDependencies:
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      jose:
-        specifier: 6.2.8
-        version: 6.2.8
-      tsx:
-        specifier: 4.19.4
-        version: 4.19.4
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
-
-  apps/example-static-agent:
-    devDependencies:
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vite:
-        specifier: 6.4.3
-        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-
-  apps/example-static-rp:
-    dependencies:
-      '@opensesame/sdk-browser':
-        specifier: workspace:*
-        version: link:../../packages/sdk-browser
-      '@opensesame/static-auth':
-        specifier: workspace:*
-        version: link:../../packages/static-auth
-    devDependencies:
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vite:
-        specifier: 6.4.3
-        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
 
   apps/mcp-client:
     dependencies:
@@ -701,46 +503,6 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-
-  apps/mock-upstream-idp:
-    dependencies:
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../../packages/os-domain
-      '@xmldom/xmldom':
-        specifier: 0.8.15
-        version: 0.8.15
-      jose:
-        specifier: 6.2.8
-        version: 6.2.8
-      selfsigned:
-        specifier: 5.5.0
-        version: 5.5.0
-      xml-crypto:
-        specifier: 6.1.2
-        version: 6.1.2
-    devDependencies:
-      '@node-saml/node-saml':
-        specifier: 5.1.0
-        version: 5.1.0
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      ldapjs:
-        specifier: 3.0.7
-        version: 3.0.7
-      tsx:
-        specifier: 4.19.4
-        version: 4.19.4
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
 
   apps/pages:
     dependencies:
@@ -948,6 +710,204 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
+
+  examples/agent:
+    dependencies:
+      '@opensesame/agent-protocols':
+        specifier: workspace:*
+        version: link:../../packages/agent-protocols
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+      '@opensesame/sdk-cli':
+        specifier: workspace:*
+        version: link:../../packages/sdk-cli
+    devDependencies:
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      tsx:
+        specifier: 4.19.4
+        version: 4.19.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
+
+  examples/headless:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+      '@opensesame/sdk-cli':
+        specifier: workspace:*
+        version: link:../../packages/sdk-cli
+    devDependencies:
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      tsx:
+        specifier: 4.19.4
+        version: 4.19.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
+
+  examples/rp-alpha:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+      '@opensesame/sdk-browser':
+        specifier: workspace:*
+        version: link:../../packages/sdk-browser
+      react:
+        specifier: 19.1.0
+        version: 19.1.0
+      react-dom:
+        specifier: 19.1.0
+        version: 19.1.0(react@19.1.0)
+    devDependencies:
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      '@types/react':
+        specifier: 19.1.6
+        version: 19.1.6
+      '@types/react-dom':
+        specifier: 19.1.5
+        version: 19.1.5(@types/react@19.1.6)
+      '@vitejs/plugin-react':
+        specifier: 4.5.0
+        version: 4.5.0(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vite:
+        specifier: 6.4.3
+        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+
+  examples/rp-beta:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+      '@opensesame/sdk-browser':
+        specifier: workspace:*
+        version: link:../../packages/sdk-browser
+      react:
+        specifier: 19.1.0
+        version: 19.1.0
+      react-dom:
+        specifier: 19.1.0
+        version: 19.1.0(react@19.1.0)
+    devDependencies:
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      '@types/react':
+        specifier: 19.1.6
+        version: 19.1.6
+      '@types/react-dom':
+        specifier: 19.1.5
+        version: 19.1.5(@types/react@19.1.6)
+      '@vitejs/plugin-react':
+        specifier: 4.5.0
+        version: 4.5.0(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vite:
+        specifier: 6.4.3
+        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+
+  examples/siop-rp:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+      '@opensesame/siop-v2':
+        specifier: workspace:*
+        version: link:../../packages/siop-v2
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      jose:
+        specifier: 6.2.8
+        version: 6.2.8
+      tsx:
+        specifier: 4.19.4
+        version: 4.19.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
+
+  examples/static-agent:
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vite:
+        specifier: 6.4.3
+        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+
+  examples/static-rp:
+    dependencies:
+      '@opensesame/sdk-browser':
+        specifier: workspace:*
+        version: link:../../packages/sdk-browser
+      '@opensesame/static-auth':
+        specifier: workspace:*
+        version: link:../../packages/static-auth
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vite:
+        specifier: 6.4.3
+        version: 6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4)
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
 
   packages/agent-client:
     dependencies:
@@ -1320,8 +1280,6 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
 
-  packages/config: {}
-
   packages/contracts:
     dependencies:
       '@opensesame/os-domain':
@@ -1408,49 +1366,6 @@ importers:
       '@env-spec/parser':
         specifier: 0.4.1
         version: 0.4.1
-
-  packages/fuzz:
-    dependencies:
-      '@env-spec/parser':
-        specifier: 0.4.1
-        version: 0.4.1
-      '@opensesame/audit':
-        specifier: workspace:*
-        version: link:../audit
-      '@opensesame/auth-upstream':
-        specifier: workspace:*
-        version: link:../auth-upstream
-      '@opensesame/contracts':
-        specifier: workspace:*
-        version: link:../contracts
-      '@opensesame/oauth-provider':
-        specifier: workspace:*
-        version: link:../oauth-provider
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../os-domain
-      '@opensesame/support-agent':
-        specifier: workspace:*
-        version: link:../support-agent
-    devDependencies:
-      '@jazzer.js/core':
-        specifier: 4.0.0
-        version: 4.0.0
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      tsx:
-        specifier: 4.20.3
-        version: 4.20.3
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.20.3)(yaml@2.8.4))
 
   packages/guide-lang:
     devDependencies:
@@ -1719,40 +1634,6 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
 
-  packages/redteam:
-    dependencies:
-      '@opensesame/contracts':
-        specifier: workspace:*
-        version: link:../contracts
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../os-domain
-    devDependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0(zod@4.4.3)
-      '@opensesame/capability-registry':
-        specifier: workspace:*
-        version: link:../capability-registry
-      '@opensesame/testing':
-        specifier: workspace:*
-        version: link:../testing
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      promptfoo:
-        specifier: 0.122.0
-        version: 0.122.0(@aws-sdk/credential-provider-node@3.972.78)(@electric-sql/pglite@0.2.17)(@smithy/signature-v4@5.6.12)(@types/json-schema@7.0.15)(@types/node@22.15.29)(kysely@0.29.4)(pg@8.23.0)(playwright-core@1.62.1)(postgres@3.4.7)(socks@2.8.9)
-      tsx:
-        specifier: 4.19.4
-        version: 4.19.4
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
-
   packages/sdk-browser:
     dependencies:
       '@opensesame/os-domain':
@@ -1977,34 +1858,6 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
 
-  packages/visual-contract:
-    dependencies:
-      '@opensesame/os-domain':
-        specifier: workspace:*
-        version: link:../os-domain
-    devDependencies:
-      '@playwright/test':
-        specifier: 1.55.1
-        version: 1.55.1
-      '@types/node':
-        specifier: 22.15.29
-        version: 22.15.29
-      '@types/pngjs':
-        specifier: 6.0.5
-        version: 6.0.5
-      pixelmatch:
-        specifier: 7.2.0
-        version: 7.2.0
-      pngjs:
-        specifier: 7.0.0
-        version: 7.0.0
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
-
   packages/wallet:
     dependencies:
       '@opensesame/os-domain':
@@ -2163,6 +2016,151 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+
+  tests/fuzz/jazzer:
+    dependencies:
+      '@env-spec/parser':
+        specifier: 0.4.1
+        version: 0.4.1
+      '@opensesame/audit':
+        specifier: workspace:*
+        version: link:../../../packages/audit
+      '@opensesame/auth-upstream':
+        specifier: workspace:*
+        version: link:../../../packages/auth-upstream
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../../../packages/contracts
+      '@opensesame/oauth-provider':
+        specifier: workspace:*
+        version: link:../../../packages/oauth-provider
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../../packages/os-domain
+      '@opensesame/support-agent':
+        specifier: workspace:*
+        version: link:../../../packages/support-agent
+    devDependencies:
+      '@jazzer.js/core':
+        specifier: 4.0.0
+        version: 4.0.0
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      tsx:
+        specifier: 4.20.3
+        version: 4.20.3
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.20.3)(yaml@2.8.4))
+
+  tests/redteam:
+    dependencies:
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+    devDependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.30.0
+        version: 1.30.0(zod@4.4.3)
+      '@opensesame/capability-registry':
+        specifier: workspace:*
+        version: link:../../packages/capability-registry
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      promptfoo:
+        specifier: 0.122.0
+        version: 0.122.0(@aws-sdk/credential-provider-node@3.972.78)(@electric-sql/pglite@0.2.17)(@smithy/signature-v4@5.6.12)(@types/json-schema@7.0.15)(@types/node@22.15.29)(kysely@0.29.4)(pg@8.23.0)(playwright-core@1.62.1)(postgres@3.4.7)(socks@2.8.9)
+      tsx:
+        specifier: 4.19.4
+        version: 4.19.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
+
+  tests/visual-contract:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+    devDependencies:
+      '@playwright/test':
+        specifier: 1.55.1
+        version: 1.55.1
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      '@types/pngjs':
+        specifier: 6.0.5
+        version: 6.0.5
+      pixelmatch:
+        specifier: 7.2.0
+        version: 7.2.0
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11)(yaml@2.8.4))
+
+  tools/mock-upstream-idp:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+      '@xmldom/xmldom':
+        specifier: 0.8.15
+        version: 0.8.15
+      jose:
+        specifier: 6.2.8
+        version: 6.2.8
+      selfsigned:
+        specifier: 5.5.0
+        version: 5.5.0
+      xml-crypto:
+        specifier: 6.1.2
+        version: 6.1.2
+    devDependencies:
+      '@node-saml/node-saml':
+        specifier: 5.1.0
+        version: 5.1.0
+      '@opensesame/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      ldapjs:
+        specifier: 3.0.7
+        version: 3.0.7
+      tsx:
+        specifier: 4.19.4
+        version: 4.19.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.19.4)(yaml@2.8.4))
 
   tools/oxlint/anti-slop:
     devDependencies:
@@ -7645,6 +7643,7 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
+    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -14449,7 +14448,7 @@ snapshots:
 
   ecdsa-sig-formatter@1.0.11:
     dependencies:
-      safe-buffer: 5.1.2
+      safe-buffer: 5.2.1
     optional: true
 
   editions@6.22.0:
@@ -15170,7 +15169,7 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
-      gaxios: 7.1.3
+      gaxios: 7.3.0
       gcp-metadata: 8.1.4
       google-logging-utils: 1.1.3
       gtoken: 8.0.0
@@ -15217,7 +15216,7 @@ snapshots:
 
   gtoken@8.0.0:
     dependencies:
-      gaxios: 7.1.3
+      gaxios: 7.3.0
       jws: 4.0.1
     transitivePeerDependencies:
       - supports-color
@@ -15355,7 +15354,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.18.0)
+      retry-axios: 2.6.0(axios@1.18.0(debug@4.3.4))
       tough-cookie: 4.1.3
     transitivePeerDependencies:
       - supports-color
@@ -15770,13 +15769,13 @@ snapshots:
     dependencies:
       buffer-equal-constant-time: 1.0.1
       ecdsa-sig-formatter: 1.0.11
-      safe-buffer: 5.1.2
+      safe-buffer: 5.2.1
     optional: true
 
   jws@4.0.1:
     dependencies:
       jwa: 2.0.1
-      safe-buffer: 5.1.2
+      safe-buffer: 5.2.1
     optional: true
 
   kareem@3.3.0:
@@ -17187,7 +17186,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.18.0):
+  retry-axios@2.6.0(axios@1.18.0(debug@4.3.4)):
     dependencies:
       axios: 1.18.0(debug@4.3.4)
     optional: true

@@ -463,7 +463,7 @@ export type ChannelBindingVerification =
  * `displayLabel` and is explicitly *not* authority: an email address, a
  * @username and a display name are all things another person can come to own
  * without anyone's involvement, and a system that resolves approvers by them
- * hands the binding over with them. See `docs/identity-linking.md`, which
+ * hands the binding over with them. See `docs/architecture/identity-linking.md`, which
  * already draws this line for identity; this is the same line for delivery.
  */
 export interface ExternalChannelBinding {

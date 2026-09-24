@@ -33,7 +33,7 @@ ask us to take. The daemon (`apps/daemon`, loopback `:18790`) is the
 process that actually lives on the user's machine.
 
 The security context is unusually sharp here. The daemon's own history
-includes `docs/security/audit-2026-08-08-legacy-credential-agent.md`,
+includes `docs/security/audits/2026-08-08-legacy-credential-agent.md`,
 where an unauthenticated local route that enumerated sessions and minted
 capabilities was rated Critical, with the finding stated as: "Loopback is
 not a boundary in this threat model — it is why the daemon has an operator

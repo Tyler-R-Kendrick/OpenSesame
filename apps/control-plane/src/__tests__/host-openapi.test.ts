@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const hostOpenApi = readFileSync(
-  new URL("../../../../api/openapi/openapi.yaml", import.meta.url),
+  new URL("../../../../spec/openapi/host-api.yaml", import.meta.url),
   "utf8",
 );
 

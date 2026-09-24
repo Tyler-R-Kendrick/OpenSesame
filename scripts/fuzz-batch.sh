@@ -15,11 +15,11 @@ if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
   exit 1
 fi
 
-cargo +nightly metadata --format-version 1 --manifest-path fuzz/Cargo.toml --locked --no-deps >/dev/null
+cargo +nightly metadata --format-version 1 --manifest-path tests/fuzz/cargo/Cargo.toml --locked --no-deps >/dev/null
 
 start=$(date +%s)
 fail=0
-for f in fuzz/fuzz_targets/*.rs; do
+for f in tests/fuzz/cargo/fuzz_targets/*.rs; do
   target="$(basename "$f" .rs)"
   if [[ -n "$BUDGET" ]]; then
     now=$(date +%s)
@@ -30,7 +30,7 @@ for f in fuzz/fuzz_targets/*.rs; do
   fi
   opensesame_fuzz_corpus "$target"
   echo "==> $target (${SECONDS_PER_TARGET}s)"
-  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz "$corpus" -- \
+  if ! cargo +nightly fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
       -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/" \

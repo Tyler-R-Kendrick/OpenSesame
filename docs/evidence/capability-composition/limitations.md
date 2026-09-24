@@ -137,7 +137,7 @@ deliberate weakness in the flag layer, compensated for by not trusting it.
   pinned browser at `/opt/pw-browsers/chromium` are all Chromium's. Firefox and
   WebKit behaviour is not measured here.
 - The client-core Wasm is not emitted in this environment, so
-  `bundle-budgets.json`'s 17.9 MiB `total` is not reproduced locally
+  `tools/quality/bundle-budgets.json`'s 17.9 MiB `total` is not reproduced locally
   (`baseline.md`).
 - "No network request was made" is evidence about a recorded run in one
   browser, not a proof about all runs.

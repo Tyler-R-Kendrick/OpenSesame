@@ -17,7 +17,7 @@ are running the next pass in that same series.
 
 Read first, for orientation: `docs/security/security-boundaries.md`,
 `docs/security/threat-model.md`, `docs/security/identity-threat-model.md`,
-and `security/claude-review-checklist.md` (the distilled checklist of
+and `tools/security/claude-review-checklist.md` (the distilled checklist of
 concrete bug classes this series has already found — auth bypass, SSRF,
 injection, token/secret handling, boundary/fence violations, quota bounds, <!-- gitleaks:allow -- prose -->
 audit-chain integrity, and more, each item citing the audit doc it came
@@ -79,13 +79,13 @@ Before writing anything, read at least three existing audit docs in full to
 match tone, structure, and rigor. Good starting points, spread across styles
 already in the tree:
 
-- `docs/security/audit-2026-08-08-vault-kdf-params.md` — tight
+- `docs/security/audits/2026-08-08-vault-kdf-params.md` — tight
   finding-severity-fix table format.
-- `docs/security/audit-2026-08-08-ssrf-host-parsing.md` — a "Findings" table
+- `docs/security/audits/2026-08-08-ssrf-host-parsing.md` — a "Findings" table
   plus an explicit "Not findings" section (what you checked and ruled out —
   include this section in your own doc; it is part of what makes the series
   useful).
-- `docs/security/audit-2026-08-08-browser-followups.md` — a numbered
+- `docs/security/audits/2026-08-08-browser-followups.md` — a numbered
   narrative format for multiple smaller findings tied to specific ticks.
 
 All three end with a "Verification" or "Gates" section listing the exact
@@ -94,7 +94,7 @@ commands run and their result — do the same.
 ## Step 3 — attack the surface
 
 Read the chosen surface's source. Hold it against
-`security/claude-review-checklist.md` item by item, plus the general bug
+`tools/security/claude-review-checklist.md` item by item, plus the general bug
 classes the series has repeatedly found: auth bypass (a route or check that
 defaults to allow), SSRF (any outbound fetch/connect that takes a
 caller-influenced host), injection (string-built queries/commands/HTML),

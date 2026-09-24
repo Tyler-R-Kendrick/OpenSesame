@@ -52,7 +52,7 @@ Everything heavier stays local:
   `pnpm audit:kani`, `pnpm audit:miri`, `pnpm audit:shuttle`. See
   `docs/validation/fuzzing.md`.
 - Scheduled Claude Code cloud sessions that run audits and report findings on a
-  cadence — see `docs/operations/agent-routines.md` for the configured routines.
+  cadence — see `docs/contributing/agent-routines.md` for the configured routines.
 - [CodeRabbit](https://coderabbit.ai), already installed as a GitHub App, which
   reviews pull requests on its own infrastructure (not billed against Actions minutes).
 

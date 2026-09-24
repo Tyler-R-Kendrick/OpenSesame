@@ -26,7 +26,7 @@ About 96k lines of `.ts` sit in `apps/pages/src` beside about 34k lines of
 - Some logic has already been copied instead of shared:
   - `apps/ceremonies/src/lib/drop.ts` mirrors `lib/vault/drop.ts`;
   - `packages/ceremony-kit/src/claim-stash.ts` mirrors `lib/queue.ts`;
-  - `packages/redteam` and `packages/contracts` hold copies of duress
+  - `tests/redteam` and `packages/contracts` hold copies of duress
     modules;
   - about twelve private base64 helpers exist.
 
@@ -50,7 +50,7 @@ What stands in the way was measured on 2026-09-22:
   breaking every cycle before anything could be reused.
 - **Paths are written by hand elsewhere:** 26 capability-registry `pwa:`
   strings, build configs, `verify:*` fixtures and AGENTS.md. The structural
-  baseline in `quality-baseline.json` is keyed by path.
+  baseline in `tools/quality/quality-baseline.json` is keyed by path.
 
 ## Decision
 
@@ -109,7 +109,7 @@ What stands in the way was measured on 2026-09-22:
 4. **Backing stores do not change.** A port preserves bytes and keys: in a
    browser, `legacyKv` is still `localStorage`. Consolidating stores would
    migrate user data and needs its own decision.
-5. **Two new ratchets.** They work like `quality-baseline.json`: they can
+5. **Two new ratchets.** They work like `tools/quality/quality-baseline.json`: they can
    only fall.
    - **Portability ledger:** per-file uses of browser-only globals outside
      `src/browser/**`.

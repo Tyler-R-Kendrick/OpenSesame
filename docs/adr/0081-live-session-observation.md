@@ -130,7 +130,7 @@ credential value: ADR 0076 §1 gives it no `read_field_value`, `fill_credential`
 returns `{ok}`, and DOM reads are redacted before serialization. A model cannot
 narrate a value it never received. This — not a filter over the text — is what
 makes a reasoning stream shippable inside a credential product, and it is the
-same structural argument as `wit/connector/world.wit` having no `secrets.get`.
+same structural argument as `spec/wit/connector/world.wit` having no `secrets.get`.
 
 **Untrusted anyway.** The thought lane's *input* is a third party's page.
 Hostile text reaches the model through the redacted DOM read and can come back

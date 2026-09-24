@@ -8,7 +8,7 @@ proves, and — the part that matters more — what it does not.
 This document is the test inventory. The threat-by-threat review of the same
 subsystem — what was attacked, what held, and which properties are structural
 rather than conventional — is
-[`audit-2026-08-31-ai-contextual-support.md`](../security/audit-2026-08-31-ai-contextual-support.md).
+[`audit-2026-08-31-ai-contextual-support.md`](../security/audits/2026-08-31-ai-contextual-support.md).
 
 The design's whole claim is that a compromised model cannot do damage because
 the grammar has no way to express damage. That claim is structural, so it is
@@ -58,9 +58,9 @@ failure, while an unusable route is a *parse* failure caught before the
 vocabulary is consulted at all.
 
 **Residual gap.** The parser has no coverage-guided fuzz target in `fuzz/` or
-`packages/fuzz/`; fast-check is property testing with generators we wrote.
+`tests/fuzz/jazzer/`; fast-check is property testing with generators we wrote.
 Unicode is asserted at the specific hazards, not exhaustively. Nothing here is
-in the `stryker.config.json` mutation slice, so a surviving mutant in the
+in the `tools/mutation/stryker.config.json` mutation slice, so a surviving mutant in the
 parser would not currently fail a gate.
 
 ## `pnpm --filter @opensesame/guide-runtime test`
@@ -583,14 +583,14 @@ not the likelihood.
 
 The corpus is also ours. A hand-written set of hostile programs plus
 fast-check generators is not an adversary; a payload class nobody thought of is
-a payload class nobody tested. Folding these cases into `packages/redteam`
+a payload class nobody tested. Folding these cases into `tests/redteam`
 alongside the existing structural pact suite would put them under the same
 sweep as the other agent surfaces, and that has not been done.
 
 **The Playwright visual and e2e suites were not run.** `pnpm test:visual` and
 `pnpm test:e2e` need a served build and a browser. No pixel baseline exists for
 the support panel or for a highlighted control, so a visual regression in the
-overlay would not be caught — and `packages/visual-contract` is where the
+overlay would not be caught — and `tests/visual-contract` is where the
 browser-driven half that `reflow.test.tsx` cannot cover would go: legibility at
 320 CSS pixels, behaviour at 400% zoom, and whether the popover actually lands
 beside the control it names.
@@ -598,14 +598,14 @@ beside the control it names.
 **No coverage or mutation figure is claimed for the new packages.**
 `pnpm test:coverage` and `pnpm test:mutation` were not re-run, and none of
 `guide-lang`, `guide-runtime` or `support-agent` is in the
-`stryker.config.json` mutate list. Per [`test-coverage.md`](test-coverage.md)
+`tools/mutation/stryker.config.json` mutate list. Per [`test-coverage.md`](test-coverage.md)
 the per-package 50% lines floor applies to any measured package, so these will
 be measured the next time that gate runs; the figures in that document were not
 updated here because the gate was not run.
 
 **No fuzz target exists for the GuideLang parser.** It is the obvious
 candidate — a small, dependency-free, all-or-nothing parser sitting directly on
-untrusted input — and `packages/fuzz` is where a Jazzer.js target would go.
+untrusted input — and `tests/fuzz/jazzer` is where a Jazzer.js target would go.
 
 **jsdom is not a browser.** It computes no layout, so geometry, focus-ring
 rendering and whether a highlight is actually visible where the popover claims

@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo build -q -p opensesame-cli
 BIN=./target/debug/opensesame
-SCHEMA=fixtures/demo.env.schema
+SCHEMA=tests/fixtures/demo.env.schema
 OUT=$("$BIN" dev check --schema "$SCHEMA")
 echo "$OUT" | grep -q STRIPE_SECRET_KEY
 if echo "$OUT" | grep -E 'sk_live_|rk_live_|password=.+[^"]' >/dev/null; then

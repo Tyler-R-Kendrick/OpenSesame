@@ -195,7 +195,7 @@ cargo +1.88.0 test -p opensesame-vault-item-types
 ```
 
 To ship a type as a first-party one, drop the file in
-`packages/vault-item-types/definitions/`, run
+`marketplace/item-types/builtin/`, run
 `pnpm --filter @opensesame/vault-item-types generate`, and the corpus tests
 pick it up in both languages. That is the same file you would have pasted into
 Settings — there is no first-party path a community author cannot take.

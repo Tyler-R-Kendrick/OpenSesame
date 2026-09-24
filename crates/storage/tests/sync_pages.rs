@@ -15,7 +15,7 @@ async fn migrate(db: &Db) {
             .unwrap();
     if !columns.iter().any(|column| column.1 == "organization_id") {
         sqlx::raw_sql(include_str!(
-            "../../../migrations/0028_sync_organization_scope.sql"
+            "../migrations/0028_sync_organization_scope.sql"
         ))
         .execute(db.pool())
         .await

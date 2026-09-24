@@ -33,13 +33,13 @@ planes:
 | `max-nested-callbacks` | 4 | TypeScript |
 | `max-statements` | 40 | TypeScript (off in test files) |
 
-TypeScript is measured by Oxlint through `oxlint.complexity.jsonc`. Rust file
+TypeScript is measured by Oxlint through `tools/quality/oxlint.complexity.jsonc`. Rust file
 size is counted by the gate — Clippy has no per-file lint. Rust *function*
 complexity is `pnpm audit:clippy`'s job and is not duplicated here.
 
 ### The ratchet
 
-`quality-baseline.json` is a debt ledger, not a suppression list. The gate
+`tools/quality/quality-baseline.json` is a debt ledger, not a suppression list. The gate
 fails two ways:
 
 ```
@@ -128,7 +128,7 @@ for the definitions.
 - **A phantom dependency** — source imports `@opensesame/x` but the manifest
   does not declare it. It works only while pnpm's store hoists it.
 
-**Ratcheted against `package-metrics-baseline.json`** (same tighten-or-fail
+**Ratcheted against `tools/quality/package-metrics-baseline.json`** (same tighten-or-fail
 rule as above, via `pnpm quality:packages --update`):
 
 - **SDP violations** — an edge from a more stable component to a less stable
@@ -173,7 +173,7 @@ context against the golden vault vectors.
 
 Builds `apps/pages`, `apps/pwa` and `apps/console`, then measures `total`,
 `javascript`, `javascriptGzip`, `css` and `largestAsset` against
-`bundle-budgets.json`.
+`tools/quality/bundle-budgets.json`.
 
 Unlike the two ratchets these budgets are **not** auto-recorded. A bundle
 legitimately grows when a feature lands, so raising one is a reviewable line

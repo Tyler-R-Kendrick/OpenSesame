@@ -16,7 +16,7 @@
  *        store happens to hoist it, and it breaks the moment the graph shifts.
  *
  * SDP violations and unused declared dependencies are real but negotiable, so
- * they ratchet against package-metrics-baseline.json exactly the way
+ * they ratchet against tools/quality/package-metrics-baseline.json exactly the way
  * scripts/quality-gate.mjs ratchets structural debt: the recorded set may
  * shrink, never grow.
  *
@@ -45,7 +45,7 @@ import {
 } from "./lib/workspace-graph.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const baselinePath = join(root, "package-metrics-baseline.json");
+const baselinePath = join(root, "tools/quality/package-metrics-baseline.json");
 const args = new Set(process.argv.slice(2));
 const update = args.has("--update");
 const report = args.has("--report");

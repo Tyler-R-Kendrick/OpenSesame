@@ -31,7 +31,7 @@ authenticated with a shared string, or not at all:
   `OPENSESAME_OPERATOR_TOKEN` (`apps/worker/src/main.rs`).
 - `crates/provider-static-mesh` called itself a "static mTLS mesh adapter". It
   is a service-discovery map behind a mutex, and it has never opened a socket.
-- `docs/standards-matrix.md` listed RFC 8705 as "where supported / mesh/gateway"
+- `docs/reference/standards-matrix.md` listed RFC 8705 as "where supported / mesh/gateway"
   with no implementation, and RFC 7030 EST as served from
   `apps/gateway/src/routes/est_server.rs`, a file that does not exist.
 
@@ -437,7 +437,7 @@ Rows whose test path names a file that is absent from the tree at the time
   trust-boundary matrix and attack corpus
 - [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
   — executed commands and results
-- [docs/standards-matrix.md](../standards-matrix.md) — RFC 8705, 9440, 9525,
+- [docs/reference/standards-matrix.md](../reference/standards-matrix.md) — RFC 8705, 9440, 9525,
   9325, 7030 and SPIFFE rows
 - ADR 0005, 0017, 0042, 0048, 0068, 0075, 0090, 0128
 - RFC 8705, RFC 9440, RFC 9525, RFC 9325, RFC 9449, RFC 7030; SPIFFE

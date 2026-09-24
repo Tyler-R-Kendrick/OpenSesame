@@ -10,8 +10,8 @@ source "$ROOT/scripts/lib/fuzz-directory.sh"
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-60}"
 BASE="${FUZZ_DIFF_BASE:-origin/main}"
 
-if [[ ! -d fuzz/fuzz_targets ]]; then
-  echo "fuzz-pr-gate: fuzz/ is missing" >&2
+if [[ ! -d tests/fuzz/cargo/fuzz_targets ]]; then
+  echo "fuzz-pr-gate: tests/fuzz/cargo/ is missing" >&2
   exit 1
 fi
 
@@ -27,8 +27,8 @@ if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! cargo +nightly metadata --format-version 1 --manifest-path fuzz/Cargo.toml --locked --no-deps >/dev/null; then
-  echo "fuzz-pr-gate: fuzz/Cargo.lock is stale; refresh and commit it before fuzzing" >&2
+if ! cargo +nightly metadata --format-version 1 --manifest-path tests/fuzz/cargo/Cargo.toml --locked --no-deps >/dev/null; then
+  echo "fuzz-pr-gate: tests/fuzz/cargo/Cargo.lock is stale; refresh and commit it before fuzzing" >&2
   exit 1
 fi
 
@@ -57,7 +57,7 @@ map_targets() {
     crates/kdbx-bridge/*) echo kdbx_parse ;;
     apps/daemon/*) echo promote_request mcp_config ;;
     apps/gateway/*) echo kv_v2_path certificate_request ;;
-    fuzz/*) echo ALL ;;
+    tests/fuzz/cargo/*) echo ALL ;;
     *) ;;
   esac
 }
@@ -83,7 +83,7 @@ fi
 
 if [[ "$targets" == *ALL* ]]; then
   targets=""
-  for f in fuzz/fuzz_targets/*.rs; do
+  for f in tests/fuzz/cargo/fuzz_targets/*.rs; do
     targets="$targets $(basename "$f" .rs)"
   done
 fi
@@ -96,7 +96,7 @@ fail=0
 for target in $targets; do
   opensesame_fuzz_corpus "$target"
   echo "--> cargo +nightly fuzz run $target -max_total_time=$SECONDS_PER_TARGET"
-  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz "$corpus" -- \
+  if ! cargo +nightly fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
       -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/" \

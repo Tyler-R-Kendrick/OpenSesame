@@ -6,7 +6,7 @@ References: ADR 0005 (ConnectionRef), ADR 0018 (standing grants vs task
 authority), ADR 0019 (immutable ceiling), ADR 0021 (frozen intent), ADR 0044
 (claimable connection delegation), ADR 0046 (relayed execution and the
 authorization inbox), ADR 0048 (daemon invoke-through), competitor reference
-[`docs/competitors/border0-tailscale-pam.md`](../competitors/border0-tailscale-pam.md),
+[`docs/research/competitors/border0-tailscale-pam.md`](../research/competitors/border0-tailscale-pam.md),
 design spec [`docs/design/access-screen.md`](../design/access-screen.md)
 
 ## Context
@@ -30,7 +30,7 @@ plane (resource inventory, policies, session logs, access requests) and an
 end-user plane (a searchable card dashboard of resources with one-click
 connect and a just-in-time access-request flow), all under a Zero Standing
 Privileges posture. The parity target and its terminology are captured in
-[`docs/competitors/border0-tailscale-pam.md`](../competitors/border0-tailscale-pam.md).
+[`docs/research/competitors/border0-tailscale-pam.md`](../research/competitors/border0-tailscale-pam.md).
 
 ## Decision
 

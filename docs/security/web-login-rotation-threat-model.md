@@ -113,7 +113,7 @@ than merely deprioritised: it bought protection for the password while the
 session — the more valuable asset — remained exposed, and it did so at the cost
 of becoming the generic string replacer ADR 0005 forbids. The full argument is
 ADR 0076 §6; the precedent is
-[audit-2026-08-08-placeholder-substitution](audit-2026-08-08-placeholder-substitution.md).
+[audit-2026-08-08-placeholder-substitution](audits/2026-08-08-placeholder-substitution.md).
 
 Controls are operational rather than cryptographic:
 

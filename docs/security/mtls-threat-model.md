@@ -176,7 +176,7 @@ choice for these profiles, not a claim that TLS resumption is unsafe.
 | Malformed, duplicated, non-canonical or oversized RFC 9440 fields | `crates/ingress-evidence/tests/fields_adversarial.rs`, `src/corpus_tests.rs` |
 | A correctly signed request from an unpinned server; a tampered genuine request; an unknown field in the bridge envelope | `crates/nats-callout/tests/envelope_adversarial.rs` |
 | Concurrent activation, failed activation, revocation on an open connection, rotation + bounded recovery, binding replacement under concurrent admission | `crates/transport-security/tests/races_adversarial.rs` |
-| Mutated certificates, mutated binding documents, arbitrary bytes into the real parsers | `crates/transport-security/tests/parse_adversarial.rs`; libFuzzer entry points in `fuzz/fuzz_targets/transport_*.rs` |
+| Mutated certificates, mutated binding documents, arbitrary bytes into the real parsers | `crates/transport-security/tests/parse_adversarial.rs`; libFuzzer entry points in `tests/fuzz/cargo/fuzz_targets/transport_*.rs` |
 | Public construction of verified evidence | `crates/domain/src/transport/source_contract_tests.rs`; `peer-evidence_security.test.ts` |
 
 ---

@@ -1,7 +1,7 @@
 //! Persistence of a connection's transport record (ADR 0132, CONN-MODEL).
 //!
 //! Additive: one nullable `transport_json` column on `connections`
-//! (`migrations/0040_connection_transport.sql`). A connection with no record
+//! (`crates/storage/migrations/0040_connection_transport.sql`). A connection with no record
 //! reads as `None` and behaves exactly as it did before mTLS existed.
 //!
 //! Every statement here is scoped by `organization_id` as well as `id`. A

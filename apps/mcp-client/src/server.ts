@@ -165,7 +165,7 @@ export function buildServer({ hostUrl }: ClientServerOptions): McpServer {
 }
 
 /**
- * Response minimization (docs/security/audit-2026-08-22-mcp-response-minimization.md):
+ * Response minimization (docs/security/audits/2026-08-22-mcp-response-minimization.md):
  * config metadata is re-projected through explicit allowlists so an upstream
  * that grows a field can never relay it — identifiers, versions and
  * timestamps only, never values and never free-form text.

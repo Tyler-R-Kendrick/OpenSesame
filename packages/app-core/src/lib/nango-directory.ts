@@ -9,7 +9,7 @@
  *
  * It never calls `GET /connection/{id}`: that is the endpoint that returns
  * credentials, and a token has no business in this page (ADR 0005). Nothing
- * here is vendored from Nango (REUSE.md) — the wire shapes are read
+ * here is vendored from Nango (docs/reference/reuse.md) — the wire shapes are read
  * tolerantly from the public API, in both the current and the older form, so
  * anything that speaks the same two routes is a directory too.
  */

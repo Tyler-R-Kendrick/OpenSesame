@@ -6,7 +6,7 @@
  * several hundred, `impl` blocks with 200+ methods. Turning a 400-line budget
  * on as a hard error would fail the whole tree, so nobody would turn it on.
  * This gate takes the other road: it records today's debt in
- * `quality-baseline.json` and then refuses to let it grow.
+ * `tools/quality/quality-baseline.json` and then refuses to let it grow.
  *
  *   - a NEW file must satisfy the budget outright (its baseline is zero)
  *   - an EXISTING oversized file may not get worse than its recorded number
@@ -18,7 +18,7 @@
  *
  * What is measured:
  *   - TypeScript/TSX/JS -- Oxlint (already a devDependency and already a gate)
- *     via oxlint.complexity.jsonc: max-lines, max-lines-per-function,
+ *     via tools/quality/oxlint.complexity.jsonc: max-lines, max-lines-per-function,
  *     complexity (cyclomatic), max-params, max-depth, max-nested-callbacks,
  *     max-statements.
  *   - Rust -- module size only, counted here. Clippy has no per-file lint, so
@@ -55,8 +55,8 @@ import {
 } from "./lib/structure-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const baselinePath = join(root, "quality-baseline.json");
-const oxlintConfig = join(root, "oxlint.complexity.jsonc");
+const baselinePath = join(root, "tools/quality/quality-baseline.json");
+const oxlintConfig = join(root, "tools/quality/oxlint.complexity.jsonc");
 
 const argv = process.argv.slice(2);
 const args = new Set(argv);
@@ -236,7 +236,7 @@ if (regressions.length > 0) {
     `\nquality gate: FAIL -- ${regressions.length} structural regression(s)\n`,
   );
   console.error(
-    "A file grew past what quality-baseline.json allows. Split it, or reduce the",
+    "A file grew past what tools/quality/quality-baseline.json allows. Split it, or reduce the",
     "\nfunction, rather than raising the recorded number.\n",
   );
   for (const { file, rule, allowed, count } of regressions

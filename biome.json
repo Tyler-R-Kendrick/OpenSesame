@@ -28,7 +28,7 @@
       ".claude/skills/**",
       "skills-lock.json",
       "**/sbom/**",
-      "fixtures/kdbx/roundtrip.expected.json",
+      "tests/fixtures/kdbx/roundtrip.expected.json",
       "packages/app-core/src/lib/sops/fixtures/upstream/**",
       "docs/design/**"
     ]

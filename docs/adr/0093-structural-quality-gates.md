@@ -46,7 +46,7 @@ every metric wanted: `max-lines`, `max-lines-per-function`, `complexity`
 redundant against the above plus `cargo metadata`, and this repo runs a
 dependency budget (ADR 0048).
 
-Thresholds live in `oxlint.complexity.jsonc` and **mirror `clippy.toml`** so a
+Thresholds live in `tools/quality/oxlint.complexity.jsonc` and **mirror `clippy.toml`** so a
 single complexity contract covers both planes:
 
 | budget | TypeScript | Rust |
@@ -68,7 +68,7 @@ still applies to tests.
 
 ### 2. Ratchet the debt rather than snapshot it
 
-`quality-baseline.json` records today's numbers. The gate fails when:
+`tools/quality/quality-baseline.json` records today's numbers. The gate fails when:
 
 - a file exceeds its recorded number (**regression**), including a new file,
   whose recorded number is zero — so new code meets the budget outright; or
@@ -117,7 +117,7 @@ Two findings are **hard failures with no baseline**:
   equivalent; rustc already refuses it.
 
 Two are real but negotiable, so they ratchet against
-`package-metrics-baseline.json`: **SDP violations** (an edge pointing from a
+`tools/quality/package-metrics-baseline.json`: **SDP violations** (an edge pointing from a
 more stable component to a less stable one) and **unused declared workspace
 dependencies** (CRP/REP).
 
@@ -130,7 +130,7 @@ otherwise score every isolated leaf a maximally-distant 1.00.
 
 ### 4. Budget the shipped bundles
 
-`bundle-budgets.json` holds explicit per-app KiB budgets, checked by
+`tools/quality/bundle-budgets.json` holds explicit per-app KiB budgets, checked by
 `scripts/bundle-budget-gate.mjs`. These are deliberately **not** auto-recorded:
 a bundle legitimately grows when a feature lands, so raising a number must be a
 reviewable line in a diff, not a regenerated file.
@@ -187,7 +187,7 @@ lint or type-error count and drive it down. It was rejected for three reasons.
 It is JavaScript-only, so the 470 Rust files — where the worst offender lived —
 would stay unmeasured. Its baseline is a serialized snapshot rather than a
 per-file ledger a reviewer can read in a diff, and the readability of
-`quality-baseline.json` is much of the point. And it would not have refused to
+`tools/quality/quality-baseline.json` is much of the point. And it would not have refused to
 launder a regression, which is the property that makes this gate a ratchet. The
 cost of building instead is ~340 lines to maintain; that is the trade accepted.
 

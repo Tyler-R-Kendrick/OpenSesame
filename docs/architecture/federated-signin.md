@@ -107,7 +107,7 @@ provider still gets the full page, because then there is a real choice to make.
 
 ### What a static site needs
 
-An explicit hosted trust profile. `apps/example-static-rp` is the worked example:
+An explicit hosted trust profile. `examples/static-rp` is the worked example:
 two HTML files and a bundled canonical SDK, with no RP server or client secret.
 
 ```js
@@ -315,7 +315,7 @@ protects the exchange.
 The request **must** carry an explicit `Origin` header equal to the deployment origin
 whenever `client_id` is `origin:<origin>`. The broker enforces origin equality on `POST
 /token` and answers `403 unauthorized_client` / `origin_cors_denied` when the header is
-absent or disagrees (see `apps/mock-upstream-idp/src/server.ts`). A browser sets that header
+absent or disagrees (see `tools/mock-upstream-idp/src/server.ts`). A browser sets that header
 for itself; a server-side HTTP client does not, so the RP sets it deliberately. `Origin` and
 the origin embedded in `client_id` are the same string, and the exchange fails closed rather
 than retrying without it.
@@ -373,7 +373,7 @@ Any failure ends the interaction with an error. There is no partial admission.
 Keyed on the external-identity tuple `(kind, issuer, tenant?, subject)`. Since ADR 0057 a
 *verified* email is a secondary join consulted only after that tuple misses — see §14.3 for
 the exact policy and for the callsite obligation it creates. An **unverified** email still
-links nothing (ADR 0033, `docs/identity-linking.md`).
+links nothing (ADR 0033, `docs/architecture/identity-linking.md`).
 
 | Case | Outcome |
 | --- | --- |

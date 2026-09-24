@@ -80,7 +80,7 @@ fn provider(
 }
 
 /// Native `OpenSesame` provider catalog pinned to the fnox documentation snapshot
-/// recorded in `connectors/fnox-parity.json`.
+/// recorded in `spec/connectors/fnox-parity.json`.
 #[must_use]
 #[expect(
     clippy::too_many_lines,
@@ -1466,7 +1466,7 @@ mod tests {
             .all(|p| p.support != ProviderSupport::Supported));
 
         let manifest: serde_json::Value =
-            serde_json::from_str(include_str!("../../../connectors/fnox-parity.json")).unwrap();
+            serde_json::from_str(include_str!("../../../spec/connectors/fnox-parity.json")).unwrap();
         let required: HashSet<_> = manifest["providers"]
             .as_array()
             .unwrap()

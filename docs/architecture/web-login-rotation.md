@@ -75,7 +75,7 @@ Tools available in the sandbox:
 | `screenshot_redacted()` | image with credential fields masked |
 
 There is no `read_field_value` and no `get_secret`. Not denied — absent, the
-way `wit/connector/world.wit` has no `secrets.get`.
+way `spec/wit/connector/world.wit` has no `secrets.get`.
 
 **Redaction is at capture, never at render.** `read_dom_redacted` strips
 `input[type=password]` values and live candidate handles before the string is
@@ -98,7 +98,7 @@ The short version, because it is the first idea everyone has:
 - It is the "generic string replacer" ADR 0005 forbids. The untrusted page
   generates the request, so the placeholder text becomes the authorization.
   This repo already found and fixed that exact bug in a safer setting:
-  [audit-2026-08-08-placeholder-substitution](../security/audit-2026-08-08-placeholder-substitution.md).
+  [audit-2026-08-08-placeholder-substitution](../security/audits/2026-08-08-placeholder-substitution.md).
 - Any page that hashes or encrypts the field before the wire — SRP, an in-page
   KDF, RSA-OAEP against a session key — transforms the *placeholder*. A
   replace-if-found-else-forward rewriter then sets the user's password to a

@@ -8,8 +8,8 @@ References: ADR 0005 (ConnectionRef), ADR 0018 (standing grants vs task
 authority), ADR 0019 (immutable ceiling), ADR 0044 (claimable connection
 delegation), ADR 0046 (relayed execution and the authorization inbox),
 ADR 0054, ADR 0055, ADR 0060, competitor references
-[`docs/competitors/border0-tailscale-pam.md`](../competitors/border0-tailscale-pam.md),
-[`docs/competitors/tailscale-identity.md`](../competitors/tailscale-identity.md)
+[`docs/research/competitors/border0-tailscale-pam.md`](../research/competitors/border0-tailscale-pam.md),
+[`docs/research/competitors/tailscale-identity.md`](../research/competitors/tailscale-identity.md)
 
 ## Context
 

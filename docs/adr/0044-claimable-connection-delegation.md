@@ -67,7 +67,7 @@ attenuation (repo + permission subset, ≤ 1 h) that
    refuses it).
 3. **Offers are claimable, disposable, and spend-once.** An offer carries
    a peppered claim token (`osc_dlg_` purpose-separated per
-   `docs/claims.md`), a mandatory user code, a TTL (default 10 min,
+   `docs/architecture/claims.md`), a mandatory user code, a TTL (default 10 min,
    ceiling 24 h), and one or more **items**, each naming a connection and
    its proposed attenuation (actions ⊆, resources ⊆, audiences ⊆,
    expiry ≤, budgets ≤ that connection's owner grant). Present is the
@@ -164,7 +164,7 @@ attenuation (repo + permission subset, ≤ 1 h) that
   exchange" happens inside the broker (subject = owner, actor = claimant,
   recorded in grant lineage and receipts), which is consistent with the
   MCP spec's ban on token passthrough and with
-  `docs/implementation/one-shot-connector-auth-broker-prompt.md` ("do not
+  `docs/archive/prompts/one-shot-connector-auth-broker-prompt.md` ("do not
   add `/connections/{id}/token` for agents").
 - Full analysis, API sketches, schema, threat table, and phasing:
   `docs/implementation/claimable-connection-delegation.md`.

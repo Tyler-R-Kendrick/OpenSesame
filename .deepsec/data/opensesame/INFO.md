@@ -41,7 +41,7 @@ effects, or escalate Member→Operator. Highest impact is authority bypass
 
 ## Known false-positives
 
-- `apps/mock-upstream-idp` and example RPs — intentional insecure fixtures
+- `tools/mock-upstream-idp` and example RPs — intentional insecure fixtures
 - `OPENSESAME_ALLOW_DEV_DEFAULTS` / demo bootstrap — gated to development
 - In-memory TaskBus and sqlite::memory test harnesses
 - Fuzz targets that plant secrets only to assert redaction oracles

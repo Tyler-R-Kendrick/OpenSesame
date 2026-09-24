@@ -155,7 +155,7 @@ pub enum StepError {
 /// of this trait is the shape of what a driving agent can ask for, and no
 /// signature in it can carry a secret back. `fill_credential` takes a reference
 /// and answers whether it landed; there is no `read_field_value`, in the same
-/// structural sense as `wit/connector/world.wit` having no `secrets.get`.
+/// structural sense as `spec/wit/connector/world.wit` having no `secrets.get`.
 ///
 /// Implementations are swappable by design (ADR 0076 §8): the contract is
 /// transport-level, so a remote CDP sandbox and a local browser extension are

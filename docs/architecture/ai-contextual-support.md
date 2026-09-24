@@ -7,7 +7,7 @@ map of what is where and why the pieces are separated the way they are. The
 test inventory is
 [`docs/validation/ai-contextual-support.md`](../validation/ai-contextual-support.md)
 and the threat review is
-[`docs/security/audit-2026-08-31-ai-contextual-support.md`](../security/audit-2026-08-31-ai-contextual-support.md).
+[`docs/security/audits/2026-08-31-ai-contextual-support.md`](../security/audits/2026-08-31-ai-contextual-support.md).
 
 ## 1. The dual boundary
 

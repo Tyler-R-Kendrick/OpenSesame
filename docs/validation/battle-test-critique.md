@@ -24,7 +24,7 @@ Run: `./scripts/battle-test.sh`
 - No Playwright extension suite
 - No Wasmtime guest component load tests (host mock only)
 - cargo-fuzz + ClusterFuzzLite project files now live in-tree (`fuzz/`,
-  `infra/clusterfuzzlite/`); runs are local / agent-routine, not GitHub Actions.
+  `tests/fuzz/clusterfuzzlite/`); runs are local / agent-routine, not GitHub Actions.
   Hosted OSS-Fuzz is not submitted yet.
 - Gateway HTTP surface not fully covered by hyper test server suite
 - Property tests exist only lightly (proptest available; expand next)

@@ -9,7 +9,7 @@ Supersedes in part:
 § "ACME profile", **only** its refusal of arbitrary ACME directory URLs, and
 only under the constraints of §5 below. Its refusals of upstream HTTP-01 and
 TLS-ALPN-01 are restated and **kept** (§6).
-Plan: [docs/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 
@@ -284,7 +284,7 @@ Gate: `pnpm --filter @opensesame/capability-registry test`
   in the certificate work and the one where a bug is a trust bug. It is
   validated hermetically — the ACME server against the in-tree `instant-acme`
   client, EST and SCEP against recorded fixture requests — and the ACME JWS and
-  SCEP CMS parsers get fuzz targets in `fuzz/Cargo.toml`.
+  SCEP CMS parsers get fuzz targets in `tests/fuzz/cargo/Cargo.toml`.
 - Skip-validation profiles are a foot-gun by construction. They are audited,
   admin-gated, per-profile, and named honestly rather than hidden behind a
   friendlier word.

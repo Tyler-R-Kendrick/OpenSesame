@@ -1,6 +1,6 @@
 /target/
-fuzz/target/
-fuzz/artifacts/
+tests/fuzz/cargo/target/
+tests/fuzz/cargo/artifacts/
 node_modules/
 /.pnpm-store/
 /.tools/
@@ -17,7 +17,7 @@ dist/
 coverage/
 .stryker-tmp/
 # Keep curated seeds; ignore libFuzzer's local coverage discoveries.
-fuzz/corpus/*/[0-9a-f]*
+tests/fuzz/cargo/corpus/*/[0-9a-f]*
 *.tsbuildinfo
 .turbo/
 .headroom-cache/

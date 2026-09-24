@@ -2,7 +2,7 @@
 //!
 //! `cargo fuzz` needs a nightly toolchain and a sanitizer build; the
 //! libFuzzer entry points for these same functions live in
-//! `fuzz/fuzz_targets/transport_*.rs`. This file drives the *production*
+//! `tests/fuzz/cargo/fuzz_targets/transport_*.rs`. This file drives the *production*
 //! parsers — `ParsedLeaf::parse`, the selector validator and
 //! `ServiceBindingSet::parse_json`, never a substitute — over deterministic
 //! mutations of real inputs, so the oracles are exercised on every run of

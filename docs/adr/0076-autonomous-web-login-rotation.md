@@ -17,7 +17,7 @@ Extended by: ADR 0081
 ([live session observation](0081-live-session-observation.md)) — §4's replay
 overlay and interactive attach, made live and given a transport, an entitlement
 rule and a control-handoff protocol.
-References: [placeholder-substitution audit](../security/audit-2026-08-08-placeholder-substitution.md),
+References: [placeholder-substitution audit](../security/audits/2026-08-08-placeholder-substitution.md),
 RFC 8615 (well-known URIs), W3C Change Password URL
 
 ## Context
@@ -84,7 +84,7 @@ The sandbox tool surface is:
 - `navigate`, `submit`, `read_dom_redacted`, `screenshot_redacted`.
 
 There is no `read_field_value` and no `get_secret`, in the same structural
-sense as `wit/connector/world.wit` having no `secrets.get`: the tool does not
+sense as `spec/wit/connector/world.wit` having no `secrets.get`: the tool does not
 exist, so no check has to deny it.
 
 Redaction is **at capture, never at render**. `read_dom_redacted` strips the
@@ -197,7 +197,7 @@ connector path OpenSesame declares the request shape, so the binding is real.
 In a browser rendering a third party's JavaScript, the *untrusted page*
 generates the request, which makes the placeholder text itself the
 authorization — precisely the High finding already recorded in
-[the placeholder-substitution audit](../security/audit-2026-08-08-placeholder-substitution.md):
+[the placeholder-substitution audit](../security/audits/2026-08-08-placeholder-substitution.md):
 "The swap keys off the placeholder's text, which makes the text itself the
 authorization: whatever string is named gets a secret written behind it." That
 audit covers a *sandboxed WASM guest inside the host's trust boundary*. A
