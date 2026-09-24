@@ -3997,6 +3997,7 @@ dependencies = [
  "hmac 0.12.1",
  "insta",
  "opensesame-domain",
+ "pbkdf2 0.12.2",
  "proptest",
  "rand 0.8.7",
  "serde",
@@ -4004,6 +4005,7 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.19",
+ "unicode-normalization",
  "uuid",
  "zeroize",
 ]
