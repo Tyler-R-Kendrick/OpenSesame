@@ -23,9 +23,11 @@
 
 .access-pathbar__file input[type="file"] {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  /* Over the key's border too: inside it the target was 42px, 2px short
+     of the touch floor. */
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
   opacity: 0;
   cursor: pointer;
 }
