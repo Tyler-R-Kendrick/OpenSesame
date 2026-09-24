@@ -12,7 +12,7 @@ API was `POST /v1/projects/temporary`, there was no membership model, and the
 client plane (`apps/pages`, sync, sealed stores) had no project concept at
 all — one vault, one consent list, all under fixed global keys. Meanwhile
 `crates/human-vault` already binds a `project_id` into every envelope's AEAD
-associated data and `policy/openfga/model.fga` already hangs
+associated data and `spec/openfga/model.fga` already hangs
 `vault_collection`, `connection`, and `environment` off `project`.
 
 Users need a top-level grouping: vaults, agents, sites and other resources

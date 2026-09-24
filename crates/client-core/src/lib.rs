@@ -1,6 +1,6 @@
 //! `OpenSesame` **client-core sdk** — local E2EE + sync cursors (ADR 0017).
 //!
-//! WIT: `wit/client/world.wit`. Server must only ever store ciphertext blobs.
+//! WIT: `spec/wit/client/world.wit`. Server must only ever store ciphertext blobs.
 //! Persist sealed blobs only (native path / JSON); never plaintext on disk.
 
 use blake3::Hasher;

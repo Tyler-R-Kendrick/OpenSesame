@@ -25,7 +25,7 @@ esac
 [ -f "$file" ] || exit 0
 
 cd "$ROOT"
-node scripts/design-lint.mjs "$file" >/dev/null 2>/tmp/design-lint.$$ && exit 0
+node scripts/quality/design-lint.mjs "$file" >/dev/null 2>/tmp/design-lint.$$ && exit 0
 
 echo "Design lint — the control contract (docs/design/controls.md):" >&2
 cat /tmp/design-lint.$$ >&2

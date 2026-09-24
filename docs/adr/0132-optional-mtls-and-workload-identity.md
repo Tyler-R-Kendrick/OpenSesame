@@ -31,7 +31,7 @@ authenticated with a shared string, or not at all:
   `OPENSESAME_OPERATOR_TOKEN` (`apps/worker/src/main.rs`).
 - `crates/provider-static-mesh` called itself a "static mTLS mesh adapter". It
   is a service-discovery map behind a mutex, and it has never opened a socket.
-- `docs/standards-matrix.md` listed RFC 8705 as "where supported / mesh/gateway"
+- `docs/reference/standards-matrix.md` listed RFC 8705 as "where supported / mesh/gateway"
   with no implementation, and RFC 7030 EST as served from
   `apps/gateway/src/routes/est_server.rs`, a file that does not exist.
 
@@ -290,7 +290,7 @@ loop.
 ### 13. Dependency boundaries that must not move
 
 - `apps/daemon` stays at serde + serde_json + thiserror + std
-  (`scripts/daemon-deps-gate.sh`, ADR 0048 §5). No TLS, gRPC or SPIFFE
+  (`scripts/audit/daemon-deps-gate.sh`, ADR 0048 §5). No TLS, gRPC or SPIFFE
   dependency is added to it for symmetry, and its operator mint/forwarding
   path is not exposed remotely.
 - Browser packages (`apps/pages`, `packages/os-domain`, `packages/contracts`,
@@ -423,7 +423,7 @@ absent is `not_executed` however complete its pure half is.
 | OpenBao `auth/cert` with narrow role; token lifetime independent of certificate | `crates/provider-openbao` | OpenBao | login refused; token TTL governs | `tests/mtls-interop/` (AT-OPENBAO-REAL/TOKEN) | crate **unchanged** (token header only) → not_executed |
 | Browser vault-key injection reported `unsupported`; no export | `crates/domain/src/transport/capability.rs`; `packages/os-domain/src/transport-security/capabilities.ts`; `apps/pages/src/lib/transport-status.ts::browserCapabilities`, `transport-capability.ts` | contracts + Pages | typed `unsupported` outcome | `capability_tests.rs`; `apps/pages/src/lib/transport-capability.test.ts` | implemented; Pages transport tests **passed** (run 2) |
 | Enforcement `verified` only by positive + negative probe bound to a generation | `POST /api/v1/operator/transport/verify` (`apps/gateway/src/transport/probe.rs`); consumer `apps/pages/src/lib/transport-status.ts`, `transport-rows.ts` | Host status | `unverified` / `stale` otherwise | gateway `*_tests.rs`; `apps/pages/scripts/verify-transport.mjs` (AT-EVIDENCE-STALE) | browser consumer implemented; Host route **absent** → not_executed |
-| Static PWA needs no optional infrastructure; no native TLS in the bundle | `apps/pages`; `scripts/mtls-static-imports.mjs` | `verify:static`, `verify:transport`, static-imports gate | any loopback request, setup wall, or native token in the bundle fails | `apps/pages/scripts/verify-static-origin.mjs`, `verify-transport.mjs`; `scripts/mtls-static-imports.mjs` | static-imports **passed** (runs 1 and 2: 69 chunks, four browser packages clean); browser journeys not_executed by TESTOPS (`it-browser`) |
+| Static PWA needs no optional infrastructure; no native TLS in the bundle | `apps/pages`; `scripts/mtls/mtls-static-imports.mjs` | `verify:static`, `verify:transport`, static-imports gate | any loopback request, setup wall, or native token in the bundle fails | `apps/pages/scripts/verify-static-origin.mjs`, `verify-transport.mjs`; `scripts/mtls/mtls-static-imports.mjs` | static-imports **passed** (runs 1 and 2: 69 chunks, four browser packages clean); browser journeys not_executed by TESTOPS (`it-browser`) |
 
 Rows whose test path names a file that is absent from the tree at the time
 `docs/validation/mtls-implementation.md` is written are recorded there as
@@ -437,7 +437,7 @@ Rows whose test path names a file that is absent from the tree at the time
   trust-boundary matrix and attack corpus
 - [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
   — executed commands and results
-- [docs/standards-matrix.md](../standards-matrix.md) — RFC 8705, 9440, 9525,
+- [docs/reference/standards-matrix.md](../reference/standards-matrix.md) — RFC 8705, 9440, 9525,
   9325, 7030 and SPIFFE rows
 - ADR 0005, 0017, 0042, 0048, 0068, 0075, 0090, 0128
 - RFC 8705, RFC 9440, RFC 9525, RFC 9325, RFC 9449, RFC 7030; SPIFFE

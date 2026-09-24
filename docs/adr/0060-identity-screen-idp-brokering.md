@@ -7,7 +7,7 @@ identity admission), ADR 0054 (Access screen), ADR 0055 (provider registry,
 BYO and org sign-in), ADR 0056 (SAML/SCIM/directory federation), ADR 0057
 (email linking), ADR 0059 (passwordless authentication service), competitor
 reference
-[`docs/competitors/tailscale-identity.md`](../competitors/tailscale-identity.md),
+[`docs/research/competitors/tailscale-identity.md`](../research/competitors/tailscale-identity.md),
 design spec
 [`docs/design/identity-screen.md`](../design/identity-screen.md)
 
@@ -24,7 +24,7 @@ registered during sign-in can never be seen again; the provider registry has
 no UI; the people an IdP vouches for have no UI; OAuth clients are API-only.
 
 Tailscale's identity model is the craft bar ([competitor
-reference](../competitors/tailscale-identity.md)): a tailnet **cannot exist
+reference](../research/competitors/tailscale-identity.md)): a tailnet **cannot exist
 without an IdP** — the "Sign up with your identity provider" ceremony is
 front-loaded and mandatory, the binding is sticky, and the admin console then
 manages users, roles, service identities, and groups under that binding.

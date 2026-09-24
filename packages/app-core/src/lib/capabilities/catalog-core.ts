@@ -134,7 +134,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Install offer",
     "The install card and mark, persistent storage, update checks and the core-only service worker that keeps the shell offline.",
     {
-      operationIds: ["app.install", "pwa.status"],
+      operationIds: ["app.install"],
       environments: ["document", "service-worker"],
       egress: [
         {

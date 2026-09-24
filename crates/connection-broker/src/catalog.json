@@ -804,7 +804,7 @@
       },
       "category": "testing",
       "display_name": "Mock provider (testing)",
-      "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
+      "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/tools/mock-upstream-idp",
       "egress": {
         "authorities": ["127.0.0.1"],
         "path_prefixes": [],
@@ -812,7 +812,7 @@
       },
       "id": "mock",
       "operations": ["fixture.read", "fixture.write"],
-      "provenance_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
+      "provenance_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/tools/mock-upstream-idp",
       "scopes": [
         {
           "default": true,

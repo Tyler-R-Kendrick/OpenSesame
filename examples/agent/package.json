@@ -1,0 +1,28 @@
+{
+  "name": "@opensesame/example-agent",
+  "version": "0.1.0",
+  "description": "Example agent that registers anonymously with the Identity API and polls until a person claims it",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "opensesame-example-agent": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "node --import tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/agent-protocols": "workspace:*",
+    "@opensesame/contracts": "workspace:*",
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/sdk-cli": "workspace:*"
+  },
+  "devDependencies": {
+    "@opensesame/testing": "workspace:*",
+    "@types/node": "22.15.29",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11"
+  }
+}

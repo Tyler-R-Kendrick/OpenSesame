@@ -5,8 +5,8 @@ Date: 2026-08-29
 References: ADR 0038 (personal project binding), ADR 0039 (server-side
 backup), ADR 0041 (projects, sync targets, changelog), ADR 0054
 (file-attachment storage), competitor references
-[`docs/competitors/tomb.md`](../competitors/tomb.md),
-[`docs/competitors/pass.md`](../competitors/pass.md)
+[`docs/research/competitors/tomb.md`](../research/competitors/tomb.md),
+[`docs/research/competitors/pass.md`](../research/competitors/pass.md)
 
 ## Context
 

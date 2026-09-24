@@ -30,7 +30,7 @@ same handler):
   person to paste one. Provider tokens stay in Connect.
 
 Local HTTPS for providers that demand it comes from
-`scripts/connect-dev-proxy.mjs`: a self-signed certificate for
+`scripts/dev/connect-dev-proxy.mjs`: a self-signed certificate for
 `<lan-ip>.nip.io` (plain DNS, no account) terminating TLS in front of Vite
 and the relay, with HMR upgrades forwarded. One manual trust click per
 certificate in the approving browser; the approval itself stays on the

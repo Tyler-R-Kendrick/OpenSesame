@@ -9,7 +9,7 @@ ADR 0046 ([relayed execution and the authorization inbox](0046-relayed-execution
 ADR 0058 ([native authenticator and OpenID4VC wallet](0058-native-authenticator-and-openid4vc-wallet.md)),
 ADR 0061 ([Access/PAM plane ceremonies](0061-access-pam-plane-ceremonies.md)),
 ADR 0065 ([agent surface parity](0065-agent-surface-parity.md)),
-[protocol conformance](../protocol-conformance.md),
+[protocol conformance](../reference/protocol-conformance.md),
 [threat model](../security/threat-model.md)
 
 ## Context
@@ -226,5 +226,5 @@ across MCP/WebMCP (ADR 0065).
 (ADR 0017 stands). It does not replace the ADR 0046 inbox — it gives it a link.
 It does not make OpenSesame an issuer of anything it was not already.
 mdoc/CBOR verification, Apple Wallet, and live OpenID Foundation conformance
-are named as unsupported in `docs/protocol-conformance.md` rather than stubbed,
+are named as unsupported in `docs/reference/protocol-conformance.md` rather than stubbed,
 because a typed refusal is worth more than a happy path that cannot run.

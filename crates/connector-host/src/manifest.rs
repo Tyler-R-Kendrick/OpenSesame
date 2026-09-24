@@ -300,7 +300,7 @@ fn is_exact_public_host(host: &str) -> bool {
 mod tests {
     use super::*;
 
-    const GOLDEN: &str = include_str!("../../../connectors/mock/connector.yaml");
+    const GOLDEN: &str = include_str!("../../../spec/connectors/mock/connector.yaml");
 
     #[test]
     fn golden_mock_manifest_parses() {

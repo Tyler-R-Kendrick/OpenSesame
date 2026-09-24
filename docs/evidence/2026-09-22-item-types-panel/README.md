@@ -20,7 +20,7 @@ live page, the rows of `aria-label="Installed types"` counted from the live
 list, and the per-row Remove keys counted by accessible name. The measuring
 run reported `panels=2 itemTypeRows=23 removeKeys=23` on the branch build,
 matching the 23 built-in manifests in
-`packages/vault-item-types/definitions/` that a fresh vault carries.
+`marketplace/item-types/builtin/` that a fresh vault carries.
 
 ## The sheets
 

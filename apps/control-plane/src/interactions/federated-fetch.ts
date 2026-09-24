@@ -14,7 +14,7 @@ export type UpstreamFetchMode = { originProfile: boolean; fenced?: true };
 /**
  * A broker validating an origin-profile client checks the `Origin` header
  * byte-equals the origin encoded in the client id (see
- * `apps/mock-upstream-idp/src/server.ts`, which answers `origin_cors_denied`
+ * `tools/mock-upstream-idp/src/server.ts`, which answers `origin_cors_denied`
  * otherwise). A browser sets that header itself; a server-side exchange must
  * set it explicitly, and it must be our real public origin — the same value
  * already baked into the client id, so this asserts nothing new.

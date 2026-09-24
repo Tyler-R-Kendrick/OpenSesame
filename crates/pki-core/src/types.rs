@@ -742,7 +742,7 @@ mod pact {
     //! Wire contract for the storage layer.
     //!
     //! Every enum below is persisted as `TEXT` guarded by a `CHECK`
-    //! constraint in `migrations/0016_certificate_manager.sql` (plan §4.1). A
+    //! constraint in `crates/storage/migrations/0016_certificate_manager.sql` (plan §4.1). A
     //! rename on this side silently breaks that constraint at runtime rather
     //! than at compile time, so the exact strings are asserted here.
 

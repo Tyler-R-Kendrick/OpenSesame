@@ -21,7 +21,7 @@ empty actions/resources) is **quarantined** for the pass — never approximated.
 1. `record_backfill_backup` (or equivalent) has a verified snapshot for the
    store / OpenFGA store id being touched.
 2. The authorization **model id** pinned in `authority_projections` matches the
-   model the mapper was built against (`policy/openfga/model.fga`).
+   model the mapper was built against (`spec/openfga/model.fga`).
 3. The caller holds a current `authority_writer_lease` fence token.
 4. Dry-run has been reviewed for the realm (see §4).
 

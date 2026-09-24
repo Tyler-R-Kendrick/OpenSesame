@@ -14,7 +14,7 @@ import type { Variables } from "../middleware/context.js";
 /**
  * Brokered session adoption (C13, D8).
  *
- * A static page — Pages, or any `apps/example-static-rp`-shaped site — that
+ * A static page — Pages, or any `examples/static-rp`-shaped site — that
  * wants a provider this deployment brokers cannot run the upstream leg itself:
  * Google and friends serve no CORS on their token endpoints. It instead runs
  * the origin-profile code flow against THIS server, and the hosted login page

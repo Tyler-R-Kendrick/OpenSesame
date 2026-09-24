@@ -49,7 +49,7 @@ gets to use it in the meantime.
 **Invert the direction of the work. A revoke writes one row; authorization
 pulls the answer up.**
 
-Two tables, added by `migrations/0033_authority_invalidation_fence.sql`:
+Two tables, added by `crates/storage/migrations/0033_authority_invalidation_fence.sql`:
 
 - `grant_lineage` — one row per grant, written **in the transaction that
   writes the grant**. It holds the materialized ancestor path, root first and

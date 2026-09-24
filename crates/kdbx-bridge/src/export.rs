@@ -106,7 +106,7 @@ impl ExportOptions {
 /// Output is constrained on purpose — the `keepass` crate's KDBX4 writer is
 /// experimental, so this emits only the configuration mainstream clients read
 /// without argument: `KDBX 4.1`, `AES-256` or `ChaCha20` outer, `ChaCha20`
-/// inner, `GZip`, `Argon2id`. `fixtures/kdbx/roundtrip.kdbx` is the
+/// inner, `GZip`, `Argon2id`. `tests/fixtures/kdbx/roundtrip.kdbx` is the
 /// cross-implementation guard on that claim.
 ///
 /// The returned bytes are plaintext-equivalent: every store secret under

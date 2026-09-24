@@ -16,7 +16,7 @@ import {
  * throwing and without ever handing back a half-built leg. A `PendingFederatedAuth`
  * missing its verifier or nonce would mean an exchange with nothing bound to it.
  *
- * This lives here rather than in `packages/fuzz` on purpose. Every target in
+ * This lives here rather than in `tests/fuzz/jazzer` on purpose. Every target in
  * that package imports from `packages/*`; wiring it to an app would invert the
  * dependency direction for one parser. The trade-off is real and worth naming:
  * these cases do not run under `pnpm test:fuzz`'s coverage-guided Jazzer gate,

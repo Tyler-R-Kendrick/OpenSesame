@@ -3,11 +3,11 @@
 - Status: Accepted
 - Date: 2026-09-11
 - Supplements: [ADR 0090](0090-static-frontend-complete-without-backend.md)
-  (setup is optional, never a gate), [ADR 0078](0078-external-idp-as-identity-service.md)
+  (setup is optional, never a gate), [ADR 0078](0078-external-idp-is-the-identity-service.md)
   (the ways-in allowlist), [ADR 0113](0113-vault-self-authenticator-second-step.md)
   (the mfa tab's authenticator road)
 - Supersedes: the "one screen, one question, no stepper" note in
-  `docs/design/first-run-setup/`
+  `docs/design/canvases/first-run-setup/`
 - Supplemented by: [ADR 0115](0115-front-door-and-connector-directory.md)
   (the `connectors` tab, first of four, and the front door that opens the
   ceremony)

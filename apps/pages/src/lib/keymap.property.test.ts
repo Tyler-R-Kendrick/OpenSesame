@@ -12,7 +12,7 @@ import {
  * count that fires is a bounded positive integer.
  *
  * Pages uses fast-check for this (the tutorial adversarial suites already
- * do). Jazzer.js in `packages/fuzz` is for parsers and redaction, not a
+ * do). Jazzer.js in `tests/fuzz/jazzer` is for parsers and redaction, not a
  * DOM keymap.
  */
 

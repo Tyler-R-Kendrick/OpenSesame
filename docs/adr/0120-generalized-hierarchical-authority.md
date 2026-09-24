@@ -46,7 +46,7 @@ expression is reasonable on its own:
 |---|---|---|
 | Identity plane | `ProjectMembership` — `owner \| admin \| member` (ADR 0038) | A whole project |
 | Client plane | `LocalShare` / `ShareKind` in `apps/pages/src/lib/local-share-grants.ts`, including `connection` bindings (ADR 0115) | A vault or a connection |
-| Policy | `policy/openfga/model.fga` relations hanging off `project`; `vault_item` reader/writer inheriting from `vault_collection` | A collection or one row |
+| Policy | `spec/openfga/model.fga` relations hanging off `project`; `vault_item` reader/writer inheriting from `vault_collection` | A collection or one row |
 | Connections | `connection.user`, `connector_operation.executor` | A connection or an operation |
 
 The inspected baseline already contained a general `Grant` / `GrantConstraints`

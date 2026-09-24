@@ -7,20 +7,22 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 describe("Rust fuzz tooling", () => {
   it.each([
-    "scripts/fuzz-pr-gate.sh",
-    "scripts/fuzz-batch.sh",
-    "infra/clusterfuzzlite/build.sh",
+    "scripts/fuzz/fuzz-pr-gate.sh",
+    "scripts/fuzz/fuzz-batch.sh",
+    "tests/fuzz/clusterfuzzlite/build.sh",
   ])("pins nightly in %s", (path) => {
     const source = readFileSync(join(root, path), "utf8");
     expect(source).toContain("cargo +nightly fuzz");
     expect(source).not.toMatch(/cargo fuzz (?:run|build|--version)/u);
   });
 
-  it.each(["scripts/fuzz-pr-gate.sh", "scripts/fuzz-batch.sh"])(
+  it.each(["scripts/fuzz/fuzz-pr-gate.sh", "scripts/fuzz/fuzz-batch.sh"])(
     "requires a current fuzz lockfile in %s",
     (path) => {
       const source = readFileSync(join(root, path), "utf8");
-      expect(source).toContain("--manifest-path fuzz/Cargo.toml --locked");
+      expect(source).toContain(
+        "--manifest-path tests/fuzz/cargo/Cargo.toml --locked",
+      );
     },
   );
 });

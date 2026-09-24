@@ -6,7 +6,7 @@ Accepted
 ## Context
 The authority plane already has unit tests, battle tests, `proptest` on
 capability algebra, and a local static-analysis gate suite. The remaining
-honest gap (`docs/validation/battle-test-critique.md`) was persistent
+honest gap (`docs/archive/2026-08-07-baseline/battle-test-critique.md`) was persistent
 coverage-guided fuzzing, bounded model checks, UB detection, and
 schedule/network exploration.
 
@@ -19,16 +19,16 @@ adoption or a critical-infrastructure argument the project cannot yet make.
 1. **cargo-fuzz** lives in `fuzz/`, excluded from the product workspace so
    libFuzzer profiles cannot leak into Rust 1.88 crates. Structured inputs
    implement `Arbitrary`; parsers may take bounded bytes.
-2. **ClusterFuzzLite’s project contract** (`infra/clusterfuzzlite/` Dockerfile,
+2. **ClusterFuzzLite’s project contract** (`tests/fuzz/clusterfuzzlite/` Dockerfile,
    `build.sh`, `project.yaml`) is in-tree. PR-style and batch runs are
-   `scripts/fuzz-pr-gate.sh` and `scripts/fuzz-batch.sh` plus
+   `scripts/fuzz/fuzz-pr-gate.sh` and `scripts/fuzz/fuzz-batch.sh` plus
    `ops/routines/nightly-fuzz-batch.md`. No GitHub Actions workflows.
-3. **Jazzer.js** targets live in `packages/fuzz` and run via
-   `scripts/jazzer-gate.sh` / `pnpm test:fuzz`. Same crash-triage convention
+3. **Jazzer.js** targets live in `tests/fuzz/jazzer` and run via
+   `scripts/fuzz/jazzer-gate.sh` / `pnpm test:fuzz`. Same crash-triage convention
    as Rust. No Actions job.
 4. **Kani** proofs sit next to the functions they check (`#[cfg(kani)]`).
    They are not part of `pnpm verify`.
-5. **Miri** runs periodically (`scripts/miri-gate.sh`) on crates without
+5. **Miri** runs periodically (`scripts/audit/miri-gate.sh`) on crates without
    Wasmtime/sqlx/reqwest FFI.
 6. **Shuttle** explores grant/idempotency/replay/rotation schedules behind
    the `concurrency-test` feature. Turmoil is deferred until a host graph
@@ -41,6 +41,6 @@ adoption or a critical-infrastructure argument the project cannot yet make.
 - Security oracles (attenuation, intersection, replay, bindings,
   canonicalization, fail-closed parse, round-trip, key generation,
   redaction) are shared code, not comments in individual harnesses.
-- A crash is minimized into `fuzz/regressions/<target>/` (Rust) or
-  `packages/fuzz/artifacts/` (TS) and fixed like any other bug.
+- A crash is minimized into `tests/fuzz/cargo/regressions/<target>/` (Rust) or
+  `tests/fuzz/jazzer/artifacts/` (TS) and fixed like any other bug.
 - Agents and humans opt into `pnpm audit:fuzz` on authority-plane PRs.

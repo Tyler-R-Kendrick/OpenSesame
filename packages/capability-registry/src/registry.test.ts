@@ -14,7 +14,6 @@ import {
   mcpHostCatalog,
   webmcpCatalog,
   webmcpPagesCatalog,
-  webmcpPwaCatalog,
 } from "./index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -109,13 +108,8 @@ describe("agent-surface parity rules", () => {
     expect(AGENT_SECRET_NAME_PATTERN.test("pass_show")).toBe(true);
   });
 
-  it("webmcp catalog splits cleanly between pages and the thin pwa", () => {
-    const pages = webmcpPagesCatalog();
-    const pwa = webmcpPwaCatalog();
-    expect([...pages, ...pwa].sort()).toEqual([...webmcpCatalog()].sort());
-    for (const name of pwa) {
-      expect(name).toMatch(/^opensesame_(pwa_|open_sign_in)/);
-    }
+  it("the pages webmcp catalog is the whole webmcp catalog", () => {
+    expect([...webmcpPagesCatalog()]).toEqual([...webmcpCatalog()]);
   });
 
   it("reveal-gated surfaces stay excluded everywhere agents run", () => {
@@ -224,7 +218,7 @@ describe("agent-surface parity rules", () => {
 });
 
 const PWA_SURFACE =
-  /^((?:lib|vault-core)\/[\w/.-]+\.ts:\w+|route:\/(?:[\w-]+(?:\/[\w-]+)*)?|pwa-app:[\w-]+)$/;
+  /^((?:lib|vault-core)\/[\w/.-]+\.ts:\w+|route:\/(?:[\w-]+(?:\/[\w-]+)*)?)$/;
 it("admits exact nested routes without URL or path ambiguity", () => {
   for (const route of [
     "route:/",

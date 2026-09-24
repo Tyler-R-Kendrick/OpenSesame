@@ -31,8 +31,8 @@ pub(crate) fn ops_conf(name: &str) -> PathBuf {
     repo_root().join("ops/nats").join(name)
 }
 
-/// The pinned nats-server (env from `scripts/mtls-integration-test.sh`, or
-/// fetched + sha256-verified through `scripts/mtls-fixtures.sh`).
+/// The pinned nats-server (env from `scripts/mtls/mtls-integration-test.sh`, or
+/// fetched + sha256-verified through `scripts/mtls/mtls-fixtures.sh`).
 pub(crate) fn server_bin() -> PathBuf {
     if let Ok(path) = std::env::var("OPENSESAME_MTLS_BIN_NATS_SERVER") {
         if !path.trim().is_empty() {
@@ -40,10 +40,10 @@ pub(crate) fn server_bin() -> PathBuf {
         }
     }
     let out = Command::new("bash")
-        .arg(repo_root().join("scripts/mtls-fixtures.sh"))
+        .arg(repo_root().join("scripts/mtls/mtls-fixtures.sh"))
         .args(["path", "nats-server"])
         .output()
-        .expect("scripts/mtls-fixtures.sh path nats-server");
+        .expect("scripts/mtls/mtls-fixtures.sh path nats-server");
     assert!(
         out.status.success(),
         "fixture fetch failed: {}",

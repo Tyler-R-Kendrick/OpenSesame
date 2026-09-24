@@ -7,9 +7,9 @@ Accepted
 ADR 0005 defined `ConnectionRef` and the invariant that a handle is not a capability, and
 ADR 0006 defined how a connection is projected into a workload. Both assumed a connection
 already existed. Nothing acquired one: there was no provider catalog, no third-party
-authorization-code flow, no credential storage, and no refresh. `wit/connector/world.wit`
+authorization-code flow, no credential storage, and no refresh. `spec/wit/connector/world.wit`
 declared `host-oauth.acquire` with no implementation, and the `connections` table in
-`migrations/0001_init.sql` was never written to.
+`crates/storage/migrations/0001_init.sql` was never written to.
 
 Nango, Paragon and Merge solve acquisition with a hosted broker that holds provider
 credentials and refreshes them. That model conflicts with the client-side vault, where

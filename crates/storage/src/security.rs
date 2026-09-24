@@ -884,7 +884,7 @@ mod tests {
     /// A migrated database with `ORG` present in `organizations`.
     ///
     /// The lifecycle tables carry no organizations foreign key — see the note
-    /// in `migrations/0017_lifecycle_hooks.sql` — so this is not required to
+    /// in `crates/storage/migrations/0017_lifecycle_hooks.sql` — so this is not required to
     /// make the writes succeed. It is here so the tests exercise the shape a
     /// real tenant has rather than an id belonging to nothing.
     async fn seeded_db() -> Db {

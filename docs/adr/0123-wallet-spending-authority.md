@@ -11,10 +11,10 @@ ADR 0090 ([static frontend complete without a backend](0090-static-frontend-comp
 ADR 0119 ([wallet-native control-plane composition](0119-wallet-native-control-plane-composition.md)),
 ADR 0120 ([generalized hierarchical authority](0120-generalized-hierarchical-authority.md)),
 ADR 0121 ([durable authority invalidation fencing](0121-durable-authority-invalidation-fencing.md)),
-[wallet spending (product overview)](../wallet-spending.md),
+[wallet spending (product overview)](../operators/wallet-spending.md),
 [wallet threat model](../security/wallet-threat-model.md),
-[protocol compatibility](../wallet-protocol-compatibility.md),
-[swarm coordination](../wallet-swarm-coordination.md)
+[protocol compatibility](../reference/wallet-protocol-compatibility.md),
+[swarm coordination](../archive/wallet-swarm-coordination.md)
 
 **Implementation is in progress on a dirty tree at baseline `4358f7fe`.**
 This ADR records binding product decisions for the Wallet spending programme.
@@ -137,7 +137,7 @@ cards) plug through one broker-shaped boundary. Each advertises evidence
 status (`specified` → `source_inspected` → `fixture_verified` →
 `local_execution_verified` → `target_deployment_verified`, or `blocked`) and
 `productionEnabled`. Initial compatibility rows are documented in
-[`docs/wallet-protocol-compatibility.md`](../wallet-protocol-compatibility.md)
+[`docs/reference/wallet-protocol-compatibility.md`](../reference/wallet-protocol-compatibility.md)
 with **`productionEnabled: false`**. An activation flag cannot manufacture
 deployment evidence or issuer capabilities.
 
@@ -185,8 +185,8 @@ boundary, not claimed as governed.
 
 ## Related
 
-- [wallet spending overview](../wallet-spending.md)
+- [wallet spending overview](../operators/wallet-spending.md)
 - [wallet threat model](../security/wallet-threat-model.md)
-- [wallet protocol compatibility](../wallet-protocol-compatibility.md)
-- [wallet swarm coordination](../wallet-swarm-coordination.md)
-- [wallet interaction layer](../wallet-interaction-layer.md)
+- [wallet protocol compatibility](../reference/wallet-protocol-compatibility.md)
+- [wallet swarm coordination](../archive/wallet-swarm-coordination.md)
+- [wallet interaction layer](../architecture/wallet-interaction-layer.md)

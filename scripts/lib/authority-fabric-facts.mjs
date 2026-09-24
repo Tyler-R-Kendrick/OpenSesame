@@ -276,7 +276,7 @@ export function cargoDiagnostics(printed) {
 /** Workspace package name to directory, for the vitest-backed scenarios. */
 export function packageFacts(root) {
   const facts = {};
-  for (const group of ["apps", "packages"]) {
+  for (const group of ["apps", "packages", "examples", "tests", "tools"]) {
     const groupPath = join(root, group);
     if (!existsSync(groupPath)) continue;
     for (const entry of readdirSync(groupPath, { withFileTypes: true })) {

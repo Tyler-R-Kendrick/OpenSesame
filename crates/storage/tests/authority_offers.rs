@@ -1,4 +1,4 @@
-//! Grant-offer activation fences (`migrations/0034` + `0038` + `0039`).
+//! Grant-offer activation fences (`crates/storage/migrations/0034` + `0038` + `0039`).
 //!
 //! Snapshot offers require a reviewed roster digest and freeze that revision.
 //! Live offers require a trusted writer, admit later revisions from that writer,

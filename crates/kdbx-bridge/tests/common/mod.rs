@@ -95,18 +95,18 @@ pub fn repo_root() -> PathBuf {
 
 /// Directory holding the committed conformance fixtures.
 pub fn fixture_dir() -> PathBuf {
-    repo_root().join("fixtures/kdbx")
+    repo_root().join("tests/fixtures/kdbx")
 }
 
 /// The committed conformance database.
 pub fn fixture_bytes() -> Vec<u8> {
-    std::fs::read(fixture_dir().join("roundtrip.kdbx")).expect("fixtures/kdbx/roundtrip.kdbx")
+    std::fs::read(fixture_dir().join("roundtrip.kdbx")).expect("tests/fixtures/kdbx/roundtrip.kdbx")
 }
 
 /// The committed expected mapping.
 pub fn fixture_expected() -> String {
     std::fs::read_to_string(fixture_dir().join("roundtrip.expected.json"))
-        .expect("fixtures/kdbx/roundtrip.expected.json")
+        .expect("tests/fixtures/kdbx/roundtrip.expected.json")
 }
 
 /// Argon2id work factors used for the committed fixture.

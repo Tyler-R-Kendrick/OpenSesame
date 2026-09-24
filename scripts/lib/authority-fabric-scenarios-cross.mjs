@@ -139,7 +139,7 @@ export const crossPlaneScenarios = Object.freeze([
       "No check true against the baseline OpenFGA model returns false against the delta",
     target: {
       kind: "fga-additivity",
-      model: "policy/openfga/model.fga",
+      model: "spec/openfga/model.fga",
       harness: "packages/policy/src/__tests__/authority-additivity.test.ts",
       test: "No check true against the baseline OpenFGA model returns false against the delta",
     },

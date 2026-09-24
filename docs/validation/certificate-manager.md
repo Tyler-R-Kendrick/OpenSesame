@@ -15,7 +15,7 @@ number, or a number carried over from
   [`docs/validation/automatic-certificate-issuance.md`](automatic-certificate-issuance.md)
   (ADR 0052-cert issuance stack), which remains valid for everything it covers.
 - Implementation plan:
-  [`docs/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md`](../superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md).
+  [`docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md`](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md).
 - Integration base commit: _pending: fill from `git rev-parse origin/main` at
   integration time._
 - Implementation head: _pending: fill from `git rev-parse HEAD` at integration
@@ -132,8 +132,8 @@ remains the zero-install path for the stock cert-manager ACME issuer.
 
 ## Schema and configuration
 
-`migrations/0016_certificate_manager.sql` follows the conventions of the applied
-`migrations/0013_certificate_issuance.sql`: `TEXT` primary keys, RFC3339 `TEXT`
+`crates/storage/migrations/0016_certificate_manager.sql` follows the conventions of the applied
+`crates/storage/migrations/0013_certificate_issuance.sql`: `TEXT` primary keys, RFC3339 `TEXT`
 timestamps, `organization_id TEXT NOT NULL REFERENCES organizations(id)`,
 composite `UNIQUE(organization_id, id)`, optimistic `version` on mutable rows,
 partial unique indexes for one-default-per-organization, and all-or-nothing
@@ -178,7 +178,7 @@ documented in `.env.schema` with `@type` / `@required` / `@sensitive` /
 | CloudEvents 1.0 | Webhook alert payload envelope |
 
 These are the **profiles OpenSesame implements**, not conformance claims.
-Per `docs/protocol-conformance.md`, passing the repository's suites establishes
+Per `docs/reference/protocol-conformance.md`, passing the repository's suites establishes
 this implementation profile only; it is not certification, and no certification
 is claimed from repository evidence.
 
@@ -243,10 +243,9 @@ Parity suites that must stay green — _pending: fill from the run of
 `apps/mcp-host/src/registry-parity.test.ts`,
 `apps/mcp-client/src/registry-parity.test.ts`,
 `packages/app-core/src/webmcp/registry-parity.test.ts`,
-`apps/pwa/src/webmcp.test.ts`,
 `apps/cli/tests/capability_parity.rs`,
 `packages/cli/src/capability-parity.test.ts`,
-`packages/redteam/src/structural.pact.test.ts`.
+`tests/redteam/src/structural.pact.test.ts`.
 
 ### Measured results — foundation crates
 
@@ -339,7 +338,7 @@ Depth gates:
 - Rust coverage: _pending: fill from the run of `pnpm test:coverage:rust`._
 - TypeScript mutation: _pending: fill from the run of `pnpm test:mutation:ts`._
 - Rust mutation: _pending: fill from the run of `pnpm test:mutation:rust`._
-- Fuzz — new targets registered in `fuzz/Cargo.toml`: CSR parser, PKCS#12
+- Fuzz — new targets registered in `tests/fuzz/cargo/Cargo.toml`: CSR parser, PKCS#12
   parser, SCEP CMS parser, ACME JWS parser. Executions and duration:
   _pending: fill from the run of `pnpm audit:fuzz` (short pass) and
   `pnpm audit:fuzz:batch`._
@@ -446,5 +445,5 @@ Which Windows KSP variant applied in this run: _pending: state whether the
   [`docs/validation/automatic-certificate-issuance.md`](automatic-certificate-issuance.md)
 - Threat model: [`docs/security/threat-model.md`](../security/threat-model.md)
 - Key hierarchy: [`docs/security/key-hierarchy.md`](../security/key-hierarchy.md)
-- Standards matrix: [`docs/standards-matrix.md`](../standards-matrix.md)
-- Conformance stance: [`docs/protocol-conformance.md`](../protocol-conformance.md)
+- Standards matrix: [`docs/reference/standards-matrix.md`](../reference/standards-matrix.md)
+- Conformance stance: [`docs/reference/protocol-conformance.md`](../reference/protocol-conformance.md)

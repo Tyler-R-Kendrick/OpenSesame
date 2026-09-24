@@ -33,13 +33,13 @@ planes:
 | `max-nested-callbacks` | 4 | TypeScript |
 | `max-statements` | 40 | TypeScript (off in test files) |
 
-TypeScript is measured by Oxlint through `oxlint.complexity.jsonc`. Rust file
+TypeScript is measured by Oxlint through `tools/quality/oxlint.complexity.jsonc`. Rust file
 size is counted by the gate — Clippy has no per-file lint. Rust *function*
 complexity is `pnpm audit:clippy`'s job and is not duplicated here.
 
 ### The ratchet
 
-`quality-baseline.json` is a debt ledger, not a suppression list. The gate
+`tools/quality/quality-baseline.json` is a debt ledger, not a suppression list. The gate
 fails two ways:
 
 ```
@@ -128,7 +128,7 @@ for the definitions.
 - **A phantom dependency** — source imports `@opensesame/x` but the manifest
   does not declare it. It works only while pnpm's store hoists it.
 
-**Ratcheted against `package-metrics-baseline.json`** (same tighten-or-fail
+**Ratcheted against `tools/quality/package-metrics-baseline.json`** (same tighten-or-fail
 rule as above, via `pnpm quality:packages --update`):
 
 - **SDP violations** — an edge from a more stable component to a less stable
@@ -147,7 +147,7 @@ Checks `packages/app-core` and `packages/vault-core` (ADR 0133). Every rule
 is a hard failure except the lazy-cycle ledger, which only shrinks.
 
 - **Boundary.** No relative import leaves the package (the repository's
-  `connectors/` and `fixtures/` excepted), no React value import (a
+  `spec/` and `tests/fixtures/` excepted), no React value import (a
   type-only one is allowed and counted), no `import.meta.env` (read
   `env()`), no Vite `virtual:` module, no self-import by package name, and
   `node:*` only under `src/node/**` and in tests.
@@ -162,7 +162,7 @@ is a hard failure except the lazy-cycle ledger, which only shrinks.
 - **Layering.** No cycle of static imports. A lazy `import()` that closes a
   loop is recorded in `packages/app-core/layering-baseline.json`; a new one
   fails, and one that disappears fails until it is struck
-  (`node scripts/app-core-boundary.mjs --update`).
+  (`node scripts/quality/app-core-boundary.mjs --update`).
 
 Two tests hold the runtime side: `packages/app-core/src/no-host-import.test.ts`
 imports every module with no host installed (a port read at import fails),
@@ -171,9 +171,9 @@ context against the golden vault vectors.
 
 ## 4. Bundle budgets — `pnpm quality:bundle`
 
-Builds `apps/pages`, `apps/pwa` and `apps/console`, then measures `total`,
+Builds `apps/pages` and `apps/console`, then measures `total`,
 `javascript`, `javascriptGzip`, `css` and `largestAsset` against
-`bundle-budgets.json`.
+`tools/quality/bundle-budgets.json`.
 
 Unlike the two ratchets these budgets are **not** auto-recorded. A bundle
 legitimately grows when a feature lands, so raising one is a reviewable line

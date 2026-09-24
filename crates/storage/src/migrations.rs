@@ -3,166 +3,166 @@
 pub(super) const MIGRATIONS: &[(&str, &str)] = &[
     (
         "0001_init",
-        include_str!("../../../migrations/0001_init.sql"),
+        include_str!("../migrations/0001_init.sql"),
     ),
     (
         "0002_connections",
-        include_str!("../../../migrations/0002_connections.sql"),
+        include_str!("../migrations/0002_connections.sql"),
     ),
     (
         "0003_connection_owner",
-        include_str!("../../../migrations/0003_connection_owner.sql"),
+        include_str!("../migrations/0003_connection_owner.sql"),
     ),
     (
         "0004_integrations",
-        include_str!("../../../migrations/0004_integrations.sql"),
+        include_str!("../migrations/0004_integrations.sql"),
     ),
     (
         "0005_credential_generation",
-        include_str!("../../../migrations/0005_credential_generation.sql"),
+        include_str!("../migrations/0005_credential_generation.sql"),
     ),
     (
         "0006_provider_configuration",
-        include_str!("../../../migrations/0006_provider_configuration.sql"),
+        include_str!("../migrations/0006_provider_configuration.sql"),
     ),
     (
         "0007_provider_connections",
-        include_str!("../../../migrations/0007_provider_connections.sql"),
+        include_str!("../migrations/0007_provider_connections.sql"),
     ),
     (
         "0008_backup_outbox",
-        include_str!("../../../migrations/0008_backup_outbox.sql"),
+        include_str!("../migrations/0008_backup_outbox.sql"),
     ),
     (
         "0009_host_kv",
-        include_str!("../../../migrations/0009_host_kv.sql"),
+        include_str!("../migrations/0009_host_kv.sql"),
     ),
     (
         "0010_connection_materialization",
-        include_str!("../../../migrations/0010_connection_materialization.sql"),
+        include_str!("../migrations/0010_connection_materialization.sql"),
     ),
     (
         "0011_attachment_targets",
-        include_str!("../../../migrations/0011_attachment_targets.sql"),
+        include_str!("../migrations/0011_attachment_targets.sql"),
     ),
     (
         "0012_connection_delegations",
-        include_str!("../../../migrations/0012_connection_delegations.sql"),
+        include_str!("../migrations/0012_connection_delegations.sql"),
     ),
     (
         "0013_certificate_issuance",
-        include_str!("../../../migrations/0013_certificate_issuance.sql"),
+        include_str!("../migrations/0013_certificate_issuance.sql"),
     ),
     (
         "0014_custom_providers",
-        include_str!("../../../migrations/0014_custom_providers.sql"),
+        include_str!("../migrations/0014_custom_providers.sql"),
     ),
     (
         "0015_backup_target_kinds",
-        include_str!("../../../migrations/0015_backup_target_kinds.sql"),
+        include_str!("../migrations/0015_backup_target_kinds.sql"),
     ),
     (
         "0016_certificate_manager",
-        include_str!("../../../migrations/0016_certificate_manager.sql"),
+        include_str!("../migrations/0016_certificate_manager.sql"),
     ),
     (
         "0017_lifecycle_hooks",
-        include_str!("../../../migrations/0017_lifecycle_hooks.sql"),
+        include_str!("../migrations/0017_lifecycle_hooks.sql"),
     ),
     (
         "0018_rotation_leases",
-        include_str!("../../../migrations/0018_rotation_leases.sql"),
+        include_str!("../migrations/0018_rotation_leases.sql"),
     ),
     (
         "0019_shared_sessions",
-        include_str!("../../../migrations/0019_shared_sessions.sql"),
+        include_str!("../migrations/0019_shared_sessions.sql"),
     ),
     (
         "0020_security_events",
-        include_str!("../../../migrations/0020_security_events.sql"),
+        include_str!("../migrations/0020_security_events.sql"),
     ),
     (
         "0021_web_login_observation",
-        include_str!("../../../migrations/0021_web_login_observation.sql"),
+        include_str!("../migrations/0021_web_login_observation.sql"),
     ),
     (
         "0022_rotation_policy_owner",
-        include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
+        include_str!("../migrations/0022_rotation_policy_owner.sql"),
     ),
     (
         "0023_a2h_delivery_and_web_login_watermarks",
-        include_str!("../../../migrations/0023_a2h_delivery_and_web_login_watermarks.sql"),
+        include_str!("../migrations/0023_a2h_delivery_and_web_login_watermarks.sql"),
     ),
     (
         "0024_session_grant_watermarks",
-        include_str!("../../../migrations/0024_session_grant_watermarks.sql"),
+        include_str!("../migrations/0024_session_grant_watermarks.sql"),
     ),
     (
         "0025_runner_steps",
-        include_str!("../../../migrations/0025_runner_steps.sql"),
+        include_str!("../migrations/0025_runner_steps.sql"),
     ),
     (
         "0026_browser_pairing",
-        include_str!("../../../migrations/0026_browser_pairing.sql"),
+        include_str!("../migrations/0026_browser_pairing.sql"),
     ),
     (
         "0027_a2h_reply_claims",
-        include_str!("../../../migrations/0027_a2h_reply_claims.sql"),
+        include_str!("../migrations/0027_a2h_reply_claims.sql"),
     ),
     (
         "0028_sync_organization_scope",
-        include_str!("../../../migrations/0028_sync_organization_scope.sql"),
+        include_str!("../migrations/0028_sync_organization_scope.sql"),
     ),
     (
         "0029_callback_replay",
-        include_str!("../../../migrations/0029_callback_replay.sql"),
+        include_str!("../migrations/0029_callback_replay.sql"),
     ),
     (
         "0030_agent_capabilities",
-        include_str!("../../../migrations/0030_agent_capabilities.sql"),
+        include_str!("../migrations/0030_agent_capabilities.sql"),
     ),
     (
         "0031_host_authorizations",
-        include_str!("../../../migrations/0031_host_authorizations.sql"),
+        include_str!("../migrations/0031_host_authorizations.sql"),
     ),
     (
         "0032_config_authorization",
-        include_str!("../../../migrations/0032_config_authorization.sql"),
+        include_str!("../migrations/0032_config_authorization.sql"),
     ),
     (
         "0033_authority_invalidation_fence",
-        include_str!("../../../migrations/0033_authority_invalidation_fence.sql"),
+        include_str!("../migrations/0033_authority_invalidation_fence.sql"),
     ),
     (
         "0034_general_authority",
-        include_str!("../../../migrations/0034_general_authority.sql"),
+        include_str!("../migrations/0034_general_authority.sql"),
     ),
     (
         "0035_session_coordination",
-        include_str!("../../../migrations/0035_session_coordination.sql"),
+        include_str!("../migrations/0035_session_coordination.sql"),
     ),
     (
         "0036_authority_grant_watermarks",
-        include_str!("../../../migrations/0036_authority_grant_watermarks.sql"),
+        include_str!("../migrations/0036_authority_grant_watermarks.sql"),
     ),
     (
         "0037_session_join_refusal_grant_check",
-        include_str!("../../../migrations/0037_session_join_refusal_grant_check.sql"),
+        include_str!("../migrations/0037_session_join_refusal_grant_check.sql"),
     ),
     (
         "0038_authority_offer_roster_digest",
-        include_str!("../../../migrations/0038_authority_offer_roster_digest.sql"),
+        include_str!("../migrations/0038_authority_offer_roster_digest.sql"),
     ),
     (
         "0039_authority_offer_live_writer",
-        include_str!("../../../migrations/0039_authority_offer_live_writer.sql"),
+        include_str!("../migrations/0039_authority_offer_live_writer.sql"),
     ),
     (
         "0040_connection_transport",
-        include_str!("../../../migrations/0040_connection_transport.sql"),
+        include_str!("../migrations/0040_connection_transport.sql"),
     ),
     (
         "0041_session_admission",
-        include_str!("../../../migrations/0041_session_admission.sql"),
+        include_str!("../migrations/0041_session_admission.sql"),
     ),
 ];

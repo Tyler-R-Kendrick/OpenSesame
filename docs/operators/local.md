@@ -4,7 +4,7 @@
 
 - Rust 1.88 (`rust-toolchain.toml`)
 - Optional: Docker/Podman for Compose profile
-- Or user-space OpenFGA/OpenBao via `./scripts/start-native-deps.sh` (no root)
+- Or user-space OpenFGA/OpenBao via `./scripts/dev/start-native-deps.sh` (no root)
 
 ## Run gateway
 
@@ -15,13 +15,13 @@ cargo run -p opensesame-gateway -- --listen 127.0.0.1:8787
 With live providers:
 
 ```bash
-./scripts/start-native-deps.sh
+./scripts/dev/start-native-deps.sh
 source .tools/run/env.sh
 cargo run -p opensesame-gateway -- \
   --listen 127.0.0.1:18787
 ```
 
-Full live drill: `./scripts/live-stack-test.sh`
+Full live drill: `./scripts/test/live-stack-test.sh`
 
 Health:
 
@@ -122,7 +122,7 @@ const sesame = createOpenSesame({ issuer: "https://<broker>" });
 await sesame.signIn({ returnTo: "/" });   // provider: sesame.signIn({ provider: "google" })
 ```
 
-`apps/example-static-rp` is that page, ready to run:
+`examples/static-rp` is that page, ready to run:
 
 ```bash
 pnpm --filter @opensesame/example-static-rp dev:4101
@@ -132,7 +132,7 @@ For the OpenSesame PWA the broker URL arrives at deploy time rather than build
 time, so a static deploy is repointed without a rebuild:
 
 ```bash
-PAGES_IDENTITY_API=https://<broker> scripts/deploy-pages.sh
+PAGES_IDENTITY_API=https://<broker> scripts/release/deploy-pages.sh
 ```
 
 Without it the deploy ships an empty `os-runtime-config.json` and the vault says it is
@@ -186,7 +186,7 @@ check one without taking the gateway's word for it.
 
 ## Compose (when Docker available)
 
-See `deploy/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.
+See `ops/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.
 
 If Docker Engine cannot be installed (no elevated privileges), use the native binary path above — it exercises the same OpenFGA/OpenBao HTTP adapters.
 
@@ -195,7 +195,7 @@ If Docker Engine cannot be installed (no elevated privileges), use the native bi
 Compose already starts JetStream:
 
 ```bash
-# from deploy/compose — nats:2.11.4 with -js
+# from ops/compose — nats:2.11.4 with -js
 # client port 4222 (monitoring 8222 inside the container network)
 ```
 
@@ -222,30 +222,24 @@ operator seeds or xkey private keys in committed env files.
 Preferred project contract is committed `.env.schema` (not a custom vault env YAML).
 
 ```bash
-# Install bridge once
-cd packages/env-spec-bridge && npm install && npm run build
+# Install the bridge's dependency once (it is a pnpm workspace member)
+pnpm install
 
 # Schema check — metadata only, never secret plaintext
-cargo run -p opensesame-cli -- dev check --schema fixtures/demo.env.schema
+cargo run -p opensesame-cli -- dev check --schema tests/fixtures/demo.env.schema
 
 # Resolve under agent policy (placeholders / handles; no materialize)
-cargo run -p opensesame-cli -- dev --agent resolve --schema fixtures/demo.env.schema
+cargo run -p opensesame-cli -- dev --agent resolve --schema tests/fixtures/demo.env.schema
 
 # Run a child with projected env
-cargo run -p opensesame-cli -- dev --agent run --schema fixtures/demo.env.schema -- env
+cargo run -p opensesame-cli -- dev --agent run --schema tests/fixtures/demo.env.schema -- env
 ```
 
 OpenSesame is a **resolver/broker**, not exclusive shell magic — mise/direnv/devcontainers can activate the same schema by calling `opensesame dev resolve` or the env-spec bridge.
 
-Host credential-agent (`OPENSESAME_AGENT_URL`, default `127.0.0.1:18790`) issues short-lived session capabilities into WSL/devcontainers; containers do not receive refresh tokens or WebAuthn material.
-
-It is superseded by `opensesame-daemon`: it refuses to start without
-`OPENSESAME_LEGACY_CREDENTIAL_AGENT=1`, and every `/v1/*` route requires the
-operator bearer, since any co-resident process can reach loopback.
-
-```bash
-OPENSESAME_LEGACY_CREDENTIAL_AGENT=1 cargo run -p opensesame-credential-agent
-curl -s -X POST http://127.0.0.1:18790/v1/mint_capability \
-  -H "authorization: Bearer operator:${OPENSESAME_OPERATOR_TOKEN}" \
-  -H 'content-type: application/json' -d '{"audience":"devcontainer"}'
-```
+The host daemon (`opensesame-daemon`, `OPENSESAME_DAEMON_URL`, default
+`127.0.0.1:18790`) issues short-lived session capabilities into
+WSL/devcontainers; containers never receive refresh tokens or WebAuthn
+material. The legacy `opensesame-credential-agent` binary that used to do this
+has been removed; `OPENSESAME_AGENT_LISTEN` remains an alias for
+`OPENSESAME_DAEMON_LISTEN`.

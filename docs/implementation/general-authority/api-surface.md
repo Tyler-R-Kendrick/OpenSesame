@@ -38,7 +38,7 @@ are unwritable at the schema FK and return `422 refused`.
 
 ## OpenAPI / client gaps
 
-- Documented in `api/openapi/openapi.yaml` (Host OpenAPI).
+- Documented in `spec/openapi/host-api.yaml` (Host OpenAPI).
 - `packages/api-client` does **not** yet generate typed methods for these
   paths — add when a consumer needs them.
 - Offer **create** / list / get are storage-ready (`create_grant_offer`) but

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "RFC 8628 device-authorization poll evaluation and a UI/audit-safe projection",
   "exports": {
     ".": {
       "types": "./src/index.ts",

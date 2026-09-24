@@ -252,7 +252,7 @@ describe("tier separation", () => {
       title: "t",
       target: {
         kind: "live-stack",
-        script: "scripts/live-stack-test.sh",
+        script: "scripts/test/live-stack-test.sh",
         requires: ["OPENSESAME_GATEWAY_URL"],
       },
     };

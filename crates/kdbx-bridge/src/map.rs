@@ -682,7 +682,7 @@ pub fn item_json(entry: &Entry) -> ItemJson {
     }
 }
 
-/// Version tag written into `fixtures/kdbx/roundtrip.expected.json`.
+/// Version tag written into `tests/fixtures/kdbx/roundtrip.expected.json`.
 pub const CONFORMANCE_FORMAT: &str = "opensesame-kdbx-conformance/1";
 
 /// The conformance document for a mapped item set: `{ format, items }` with

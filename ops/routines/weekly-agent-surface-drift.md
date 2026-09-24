@@ -10,7 +10,7 @@ You are Claude Code, working alone in a fresh clone of
 `https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust + TypeScript monorepo whose agent surfaces (the MCP servers
 `apps/mcp-host` and `apps/mcp-client`, and the WebMCP tools in
-`apps/pages`/`apps/pwa`) must track everything the CLIs and PWAs can do.
+`apps/pages`) must track everything the CLIs and the PWA can do.
 `packages/capability-registry` is the enforced source of truth (ADR 0065:
 `docs/adr/0065-agent-surface-parity.md`). Structural tests already fail when
 an implemented tool list drifts from the registry — what they *cannot* see is
@@ -39,8 +39,7 @@ job.
    string?
 3. **New PWA surfaces**: `SECTIONS` in `apps/pages/src/components/AppShell.tsx`,
    new files under `apps/pages/src/sections/`, `apps/pages/src/lib/` or
-   `packages/app-core/src/lib/`,
-   new actions in `apps/pwa/src/App.tsx`. Anything a user can now do that no
+   `packages/app-core/src/lib/`. Anything a user can now do that no
    capability's `pwa` surface names?
 4. **New Identity API mounts**: `apps/control-plane/src/app.ts` mount table.
 5. **Doc honesty**: `skills/opensesame-mcps/SKILL.md` tool lists still match

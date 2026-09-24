@@ -1,6 +1,6 @@
 /target/
-fuzz/target/
-fuzz/artifacts/
+tests/fuzz/cargo/target/
+tests/fuzz/cargo/artifacts/
 node_modules/
 /.pnpm-store/
 /.tools/
@@ -17,7 +17,7 @@ dist/
 coverage/
 .stryker-tmp/
 # Keep curated seeds; ignore libFuzzer's local coverage discoveries.
-fuzz/corpus/*/[0-9a-f]*
+tests/fuzz/cargo/corpus/*/[0-9a-f]*
 *.tsbuildinfo
 .turbo/
 .headroom-cache/
@@ -86,7 +86,7 @@ mutants.out.old/
 *.pending-snap
 
 # Seeded Claude Design canvases — ~2.3 MB of editor code each, regenerated
-# from the .dc.html artboards beside them (docs/design/*/README.md).
+# from the .dc.html artboards beside them (docs/design/canvases/*/README.md).
 docs/design/**/opensesame-*.html
 
 # Wallet EVM local-chain vendor (cloned at pin by contracts-harness)
@@ -111,6 +111,6 @@ apps/pages/scripts/duress/.ui-artifacts/
 # Duress swarm workspace (local coordination; never ship)
 .duress-swarm/
 
-# mTLS fixture downloads (scripts/mtls-fixtures.sh) and suite artifacts
+# mTLS fixture downloads (scripts/mtls/mtls-fixtures.sh) and suite artifacts
 .cache/mtls-fixtures/
 artifacts/mtls/

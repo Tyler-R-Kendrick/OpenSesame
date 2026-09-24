@@ -1,6 +1,6 @@
 # Deploy Pages — publish apps/pages to GitHub Pages on every push to main.
 #
-# Replaces the manual scripts/deploy-pages.sh gh-pages-branch flow: with the
+# Replaces the manual scripts/release/deploy-pages.sh gh-pages-branch flow: with the
 # up-to-date PR checks gating main, every squash-merged PR ships automatically.
 # Requires the repository's Pages source to be set to "GitHub Actions"
 # (Settings → Pages → Build and deployment → Source).
@@ -85,7 +85,7 @@ jobs:
             );
           '
       - name: Stamp exact release and served-file digests
-        run: node scripts/pages-release.mjs stamp apps/pages/dist "$GITHUB_SHA"
+        run: node scripts/release/pages-release.mjs stamp apps/pages/dist "$GITHUB_SHA"
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: apps/pages/dist
@@ -111,4 +111,4 @@ jobs:
       - name: Verify the live site serves this release
         env:
           PAGES_URL: ${{ steps.deployment.outputs.page_url }}
-        run: node scripts/pages-release.mjs verify "$PAGES_URL" "$GITHUB_SHA"
+        run: node scripts/release/pages-release.mjs verify "$PAGES_URL" "$GITHUB_SHA"

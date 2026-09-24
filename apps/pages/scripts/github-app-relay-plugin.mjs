@@ -1,7 +1,7 @@
 import {
   handleGitBackupPut,
   handleGitBackupPutOptions,
-} from "../../connect-backend/git-backup-put.mjs";
+} from "../../connect-backend/src/git-backup-put.mjs";
 /**
  * Dev-only GitHub App relay on the Vite origin.
  *
@@ -13,18 +13,18 @@ import {
   handleGithubAppPutContents,
   handleGithubAppWebhook,
   handleGithubAppWebhookPending,
-} from "../../connect-backend/github-app-contents.mjs";
+} from "../../connect-backend/src/github-app-contents.mjs";
 import {
   handleGithubAppCreateRepo,
   handleGithubAppInstallationRepos,
-} from "../../connect-backend/github-app-repos.mjs";
+} from "../../connect-backend/src/github-app-repos.mjs";
 import {
   handleGithubAppCallback,
   handleGithubAppConvert,
   handleGithubAppConvertOptions,
   handleGithubAppInstallations,
   handleGithubAppLookup,
-} from "../../connect-backend/github-app.mjs";
+} from "../../connect-backend/src/github-app.mjs";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

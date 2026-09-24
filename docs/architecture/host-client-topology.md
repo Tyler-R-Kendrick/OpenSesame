@@ -32,9 +32,9 @@ PWA optionally discovers daemon; degrades if absent
 
 ## WIT
 
-- `wit/connector/world.wit` — connector guest (no secrets.get)
-- `wit/core/world.wit` — shared IR handles
-- `wit/host/world.wit` — host capability world
-- `wit/client/world.wit` — client vault/sync world
+- `spec/wit/connector/world.wit` — connector guest (no secrets.get)
+- `spec/wit/core/world.wit` — shared IR handles
+- `spec/wit/host/world.wit` — host capability world
+- `spec/wit/client/world.wit` — client vault/sync world
 
 See ADR 0017.

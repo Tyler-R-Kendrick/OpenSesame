@@ -5,7 +5,7 @@ Date: 2026-08-30
 Supplements: ADR 0052-cert
 ([automatic certificate authority selection](0052-automatic-certificate-authority-selection.md)),
 ADR 0066 (Certificate Manager domain model), ADR 0071 (HSM connectors)
-Plan: [docs/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 

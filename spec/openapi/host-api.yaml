@@ -1,0 +1,4124 @@
+openapi: 3.1.0
+info:
+  title: OpenSesame Host API
+  version: 0.1.0
+  license:
+    name: MIT
+servers:
+  - url: /api/v1
+paths:
+  /host-authorizations:
+    post:
+      summary: Freeze an origin and proof-key bound human authorization request
+      security: [{HostDPoP: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation, target_id]
+              properties:
+                operation: {type: string, enum: [browser.authenticate, agent.browser.control]}
+                target_id: {type: string, maxLength: 128}
+                transition: {type: [string, 'null'], enum: [handoff, take, release, null]}
+      responses:
+        "200":
+          description: Immutable challenge for the configured Identity passkey ceremony
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HostAuthorizationChallenge'}
+        "401": {$ref: '#/components/responses/Error'}
+  /host-authorizations/verify:
+    post:
+      summary: Redeem verified Identity evidence for exactly the frozen request
+      description: Requires the same paired client, principal, organization, origin and DPoP key. Browser control additionally consumes the returned elevation atomically with the requested run transition.
+      security: [{HostDPoP: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [challenge_id, assertion]
+              properties:
+                challenge_id: {type: string, format: uuid}
+                assertion: {type: string, maxLength: 16384, writeOnly: true}
+      responses:
+        "200":
+          description: Authenticated client or one-use purpose-bound elevation; never operator authority
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, elevation, expires_at]
+                properties:
+                  status: {const: authorized}
+                  elevation: {type: [string, 'null'], writeOnly: true}
+                  expires_at: {type: integer}
+        "401": {$ref: '#/components/responses/Error'}
+  /agent-launches:
+    post:
+      summary: Native operator approves a one-use scoped agent launch
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_id, organization_id, client_id, audience, capabilities]
+              properties:
+                principal_id: {type: string}
+                organization_id: {type: string}
+                client_id: {type: string, format: uuid}
+                audience: {$ref: '#/components/schemas/AgentAudience'}
+                capabilities:
+                  type: array
+                  minItems: 1
+                  maxItems: 6
+                  items: {type: string, enum: [host.tasks.read, host.tasks.create, host.tasks.invoke, host.tasks.terminate, host.sync.read, host.sync.write]}
+      responses:
+        "201": {description: One-use launch_handle, client_id, audience, scope and expires_in=300; Cache-Control no-store}
+        "401": {$ref: '#/components/responses/Error'}
+  /agent-launches/token:
+    post:
+      summary: Exchange one launch handle for its fixed audience and capability ceiling
+      description: Native transport only; any Origin header is refused. The result cannot authenticate as an operator, native session or browser grant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [launch_handle, client_id, audience]
+              properties:
+                launch_handle: {type: string, pattern: '^[0-9a-f]{64}$', writeOnly: true}
+                client_id: {type: string, format: uuid}
+                audience: {$ref: '#/components/schemas/AgentAudience'}
+      responses:
+        "200": {description: access_token returned once, token_type Bearer, expires_in=300, client_id, audience and scope; Cache-Control no-store}
+        "401": {$ref: '#/components/responses/Error'}
+  /agent-clients/{id}:
+    delete:
+      summary: Native operator revokes the exact principal's agent client
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_id, organization_id]
+              properties:
+                principal_id: {type: string}
+                organization_id: {type: string}
+      responses:
+        "204": {description: Client launches and capabilities revoked}
+        "401": {$ref: '#/components/responses/Error'}
+  /sync/pull-page:
+    post:
+      summary: Read one owner and organization scoped encrypted sync page
+      description: Keyset order is server ingestion sequence and opaque id; ciphertext_epoch retains the original AEAD epoch. At most 64 items and 8 MiB serialized JSON. Continue next_after while has_more is true.
+      security: [{HostBearer: []}, {HostDPoP: []}, {AgentBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                after: {$ref: '#/components/schemas/SyncCursor'}
+                limit: {type: integer, minimum: 1, maximum: 64, default: 32}
+                device_id: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        "200":
+          description: Bounded ciphertext page, never plaintext
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [format, version, blobs, next_after, has_more, serialized_bytes, plaintext]
+                properties:
+                  format: {const: opensesame-sync-page}
+                  version: {const: 2}
+                  blobs:
+                    type: array
+                    maxItems: 64
+                    items:
+                      type: object
+                      required: [id, epoch, ciphertext_epoch, ciphertext_b64]
+                      properties:
+                        id: {type: string, maxLength: 128}
+                        epoch: {type: integer, minimum: 0}
+                        ciphertext_epoch: {type: integer, minimum: 0}
+                        ciphertext_b64: {type: string, contentEncoding: base64}
+                  next_after:
+                    oneOf: [{$ref: '#/components/schemas/SyncCursor'}, {type: 'null'}]
+                  has_more: {type: boolean}
+                  serialized_bytes: {type: integer, maximum: 8388608}
+                  plaintext: {type: 'null'}
+        "400": {$ref: '#/components/responses/Error'}
+        "401": {$ref: '#/components/responses/Error'}
+        "409": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/config-members/{principal}:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: principal, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, required: true, schema: {type: string}}
+    get:
+      summary: Inspect a durable Host metadata role ceiling and revision
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "200": {description: Nullable role, revision and monotonic evidence_after fence}
+        "404": {$ref: '#/components/responses/Error'}
+    put:
+      summary: Explicitly provision, narrow or revoke a Host metadata role ceiling
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role, expected_revision]
+              properties:
+                role: {type: [string, 'null'], enum: [owner, admin, member, null]}
+                expected_revision: {type: integer, minimum: 0}
+      responses:
+        "200": {description: Updated policy revision; zero only creates an absent policy}
+        "404": {$ref: '#/components/responses/Error'}
+        "409": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}, description: Required for operator callers}
+    get:
+      summary: List access domains in a realm
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "200":
+          description: Realm-scoped access-domain forest
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+    post:
+      summary: Create an access domain in a realm
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                id: {type: string, maxLength: 128}
+                parent_id: {type: [string, 'null'], maxLength: 128}
+                project_id: {type: [string, 'null'], maxLength: 128}
+      responses:
+        "201":
+          description: Created domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains/{id}:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    get:
+      summary: Read one access domain
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "200":
+          description: Domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains/{id}/reparent:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Move an access domain within its realm
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_revision]
+              properties:
+                parent_id: {type: [string, 'null'], maxLength: 128}
+                expected_revision: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Reparented domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains/{id}/terminate:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Terminate an access domain and fence its subtree
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_revision]
+              properties:
+                expected_revision: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Terminated domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/grants/{grant_id}/authority:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: grant_id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Issue generalized hierarchical authority onto an existing grant
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [domain_id, issuance_basis, lineage_digest, policy_digest, delegation_depth_remaining, not_before, expires_at, entries]
+              properties:
+                domain_id: {type: string, maxLength: 128}
+                parent_grant_id: {type: string, maxLength: 128}
+                issuance_basis: {type: string, maxLength: 64}
+                lineage_digest: {type: string, maxLength: 128}
+                policy_digest: {type: string, maxLength: 128}
+                role_revision: {type: integer, minimum: 0}
+                offer_id: {type: string, maxLength: 128}
+                delegation_depth_remaining: {type: integer, minimum: 0, maximum: 2}
+                not_before: {type: string, format: date-time}
+                expires_at: {type: string, format: date-time}
+                evidence_id: {type: string, maxLength: 128}
+                entries:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [resource_selector, provider_operation_id, action_set, parameter_constraints, audience_set, manifest_digest]
+                    properties:
+                      resource_selector: {type: string, maxLength: 512}
+                      provider_operation_id: {type: string, maxLength: 256}
+                      action_set:
+                        type: array
+                        minItems: 1
+                        items: {type: string, maxLength: 128}
+                      parameter_constraints: {type: object, additionalProperties: true}
+                      audience_set:
+                        type: array
+                        items: {type: string, maxLength: 512}
+                      manifest_digest: {type: string, maxLength: 128}
+      responses:
+        "201": {description: Authority issued}
+        "400": {$ref: '#/components/responses/Error'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+        "503": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/grant-offers/{id}/activate:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Activate a grant offer for one beneficiary
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [beneficiary_principal_id, grant_id, cohort_revision, membership_source, membership_issuer, idempotency_key]
+              properties:
+                beneficiary_principal_id: {type: string, maxLength: 128}
+                grant_id: {type: string, maxLength: 128}
+                cohort_revision: {type: integer, minimum: 1}
+                membership_source: {type: string, maxLength: 256}
+                membership_issuer: {type: string, maxLength: 256}
+                idempotency_key: {type: string, maxLength: 128}
+      responses:
+        "200": {description: Activation bound}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "409": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/grant-offers/{id}/revoke:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Revoke a grant offer (existing activations keep their grants)
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "204": {description: Offer revoked}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+  /projects/{project}/config-access:
+    get:
+      summary: Read the caller's current project metadata capabilities
+      security: [{HostBearer: []}, {HostDPoP: []}]
+      parameters:
+        - {in: path, name: project, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Allowed config.metadata.read, config.keys.read and config.manage capabilities}
+        "404": {$ref: '#/components/responses/Error'}
+  /projects/{project}/config-access/{principal}:
+    put:
+      summary: Current owner or admin grants independent project metadata and key-name access
+      security: [{HostBearer: []}, {HostDPoP: []}]
+      parameters:
+        - {in: path, name: project, required: true, schema: {type: string}}
+        - {in: path, name: principal, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [metadata_read, keys_read]
+              properties:
+                metadata_read: {type: boolean}
+                keys_read: {type: boolean, description: Requires metadata_read; never grants secret values}
+      responses:
+        "204": {description: Current project policy recorded and audited}
+        "404": {$ref: '#/components/responses/Error'}
+  /browser-pairings:
+    post:
+      summary: Request an exact-origin, sender-bound ciphertext-sync pairing
+      description: Requires an eligible Origin and ES256 DPoP proof. Grants no authority before native operator approval. Browser operator credentials are refused.
+      parameters:
+        - {in: header, name: Origin, required: true, schema: {type: string, format: uri}}
+        - {in: header, name: DPoP, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [capabilities]
+              properties:
+                capabilities:
+                  type: array
+                  minItems: 1
+                  maxItems: 2
+                  items: {type: string, enum: [host.sync.read, host.sync.write]}
+      responses:
+        "200":
+          description: One-use device code and human verification code; expires after five minutes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pairing_id, device_code, user_code, verification_uri, expires_in, interval]
+                properties:
+                  pairing_id: {type: string}
+                  device_code: {type: string, writeOnly: true}
+                  user_code: {type: string, writeOnly: true}
+                  verification_uri: {type: string, format: uri}
+                  expires_in: {type: integer, const: 300}
+                  interval: {type: integer, const: 5}
+        "401": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /browser-pairings/token:
+    post:
+      summary: Consume an approved pairing bound to the original origin and proof key
+      parameters:
+        - {in: header, name: Origin, required: true, schema: {type: string, format: uri}}
+        - {in: header, name: DPoP, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_code]
+              properties:
+                device_code: {type: string, minLength: 64, maxLength: 64, writeOnly: true}
+      responses:
+        "200":
+          description: A five-minute DPoP credential, returned exactly once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, client_id, scope]
+                properties:
+                  access_token: {type: string, writeOnly: true}
+                  token_type: {type: string, const: DPoP}
+                  expires_in: {type: integer, const: 300}
+                  client_id: {type: string}
+                  scope: {type: string, description: Space-delimited capability ceiling}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+  /browser-pairings/renew:
+    post:
+      summary: Renew a join grant to the same proof key (ADR 0136 §2)
+      description: >-
+        Reached through the browser guard with the current grant's DPoP token
+        and proof. Only a client that paired as exactly `host.join` renews:
+        the old token is spent and a new one issued to the same client for
+        five minutes, never past thirty minutes after the operator approved
+        it. A refusal is 403, not 401 — the token in hand still works until
+        it lapses.
+      parameters:
+        - {in: header, name: Origin, required: true, schema: {type: string, format: uri}}
+        - {in: header, name: Authorization, required: true, schema: {type: string, pattern: "^DPoP "}}
+        - {in: header, name: DPoP, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: A renewed DPoP credential for the same client
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, client_id, scope]
+                properties:
+                  access_token: {type: string, writeOnly: true}
+                  token_type: {type: string, const: DPoP}
+                  expires_in: {type: integer, minimum: 1, maximum: 300}
+                  client_id: {type: string}
+                  scope: {type: string, const: host.join}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+  /browser-pairings/inspect:
+    post:
+      summary: Inspect the exact origin and capabilities before native approval
+      description: Operator-only, with no browser Origin header.
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_code]
+              properties:
+                user_code: {type: string, maxLength: 32, writeOnly: true}
+      responses:
+        "200": {description: Pending pairing public binding, without device code or token}
+        "401": {$ref: "#/components/responses/Error"}
+  /browser-pairings/decision:
+    post:
+      summary: Atomically approve or deny an inspected pairing
+      description: Native operator selects the canonical principal and organization. Approval establishes local_unverified assurance, not MFA.
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_code, decision, principal_id, organization_id]
+              properties:
+                user_code: {type: string, maxLength: 32, writeOnly: true}
+                decision: {type: string, enum: [approve, deny]}
+                principal_id: {type: string}
+                organization_id: {type: string}
+      responses:
+        "204": {description: Decision recorded}
+        "401": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /browser-clients:
+    get:
+      summary: List only the authenticated principal's paired clients in its organization
+      security: [{HostBearer: []}]
+      responses:
+        "200": {description: Public client bindings; never tokens or proofs}
+        "401": {$ref: "#/components/responses/Error"}
+  /browser-clients/{id}:
+    delete:
+      summary: Revoke an owned browser client and every grant bound to it
+      security: [{HostBearer: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        "204": {description: Revoked}
+        "401": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /pair:
+    servers: [{url: /}]
+    get:
+      summary: Display native pairing approval instructions
+      responses:
+        "200":
+          description: Inert instructions; this page cannot approve or acquire operator authority
+          content:
+            text/html:
+              schema: {type: string}
+  /device/authorize:
+    post:
+      summary: Start a Host device authorization
+      description: OpenSesame Host JSON protocol profile; this is not the form-encoded RFC 8628 wire endpoint exposed by the Identity provider.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceAuthorizeRequest" }
+      responses:
+        "200":
+          description: Device codes; bearer values are returned once
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceAuthorizeResponse" }
+  /device/token:
+    post:
+      summary: Poll a device authorization and mint an organization-bound session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceTokenRequest" }
+      responses:
+        "200":
+          description: Opaque session with signed Identity organization and role claims
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceTokenResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+  /device/approve:
+    post:
+      summary: Approve a device code with Identity-derived organization authority
+      description: Internal Identity-to-Host operation; principal, organization, and role must come from Identity state.
+      security: [{ HostOperatorBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceApproveRequest" }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceApproveResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /session:
+    get:
+      summary: Count active Host sessions
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Active session count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [active_sessions]
+                properties:
+                  active_sessions: { type: integer, minimum: 0 }
+  /sessions/revoke:
+    post:
+      summary: Revoke live and approved sessions for one principal in one organization
+      description: Internal Identity-to-Host operation used before a membership mutation completes.
+      security: [{ HostOperatorBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevokeSessionsRequest" }
+      responses:
+        "200":
+          description: Live sessions revoked; matching pending approvals are also cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevokeSessionsResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+  /whoami:
+    get:
+      summary: Resolve the current principal, organization, and organization role
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Current Host authority context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhoAmI" }
+  /attachments/target:
+    get:
+      summary: Read the organization's attachment replication target
+      description: >-
+        Configuration and status only. The Host never holds attachment chunks —
+        clients push sealed bytes through the replicate endpoints — so there is
+        nothing here but a connection reference and a folder name.
+      responses:
+        "200":
+          description: The configured target, or null when none is set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target:
+                    oneOf:
+                      - type: "null"
+                      - $ref: "#/components/schemas/AttachmentTargetView"
+    put:
+      summary: Point the organization's attachments at a storage connection
+      description: >-
+        Rejects a connection whose provider has no uploader implemented, so a
+        misconfiguration surfaces here rather than on the first replicate call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PutAttachmentTargetBody" }
+      responses:
+        "200":
+          description: The stored target
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target: { $ref: "#/components/schemas/AttachmentTargetView" }
+        "422":
+          description: >-
+            invalid_folder_path, connection_not_found, or
+            provider_unsupported_for_attachments
+    delete:
+      summary: Stop replicating attachments for the organization
+      responses:
+        "200":
+          description: Deleted
+  /attachments/replicate/chunk:
+    post:
+      summary: Forward one sealed chunk to the configured target
+      description: >-
+        Body is a raw `.oschunk` frame. The Host recomputes BLAKE3 over the body
+        and refuses a mismatch: it cannot read the ciphertext either way, but an
+        object filed under a digest that does not describe it would never
+        reassemble. Upload is idempotent by construction.
+      parameters:
+        - in: query
+          name: digest
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{64}$" }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Stored on the provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stored: { type: boolean }
+        "400":
+          description: digest_mismatch — the body does not hash to the claimed digest
+        "422":
+          description: invalid_digest, empty_body, no_attachment_target, or attachment_target_disabled
+        "502":
+          description: upstream_upload_failed
+  /attachments/replicate/manifest:
+    post:
+      summary: Forward one sealed attachment manifest to the configured target
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Store-logical attachment path, e.g. Taxes/2025
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Stored on the provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stored: { type: boolean }
+        "422":
+          description: invalid_path, empty_body, no_attachment_target, or attachment_target_disabled
+        "502":
+          description: upstream_upload_failed
+  /credential-providers:
+    get:
+      summary: List native credential, storage, encryption, and lease providers
+      description: >-
+        Public metadata only. A supported label requires both contract and live-test
+        evidence; experimental adapters are never presented as supported.
+      responses:
+        "200":
+          description: Provider catalog and support policy
+  /credential-providers/{id}/test:
+    post:
+      summary: Probe a credential provider adapter as the connected principal
+      security: [{ HostBearer: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Local readiness or provider-specific live health
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Unknown provider
+  /credential-connections:
+    get:
+      summary: List the connected principal's credential-provider connections
+      description: Credential references and credential material are never returned.
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Secret-safe connection views
+        "401":
+          description: Opaque user session required
+    post:
+      summary: Create a credential-provider connection
+      security: [{ HostBearer: [] }]
+      description: >-
+        public_config accepts coordinates such as region, vault, mount, or project.
+        Secret-like fields are rejected; provider authentication remains in the
+        personal daemon or configured workload worker.
+      responses:
+        "201":
+          description: Created connection view
+        "401":
+          description: Opaque user session required
+        "403":
+          description: Organization owner or admin role required
+        "422":
+          description: Unknown provider or unsafe public configuration
+  /credential-connections/{id}:
+    put:
+      summary: Replace a credential connection's display name or public configuration
+      security: [{ HostBearer: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated connection view
+        "401":
+          description: Opaque user session required
+        "403":
+          description: Organization owner or admin role required
+        "404":
+          description: Connection not found in the caller's organization
+        "422":
+          description: Unsafe public configuration
+    delete:
+      summary: Remove a credential-provider connection
+      security: [{ HostBearer: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Opaque user session required
+        "403":
+          description: Organization owner or admin role required
+        "404":
+          description: Connection not found in the caller's organization
+  /intents:
+    post:
+      summary: Invoke under the caller's organization-bound bootstrap authority
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InvokeRequest" }
+      responses:
+        "200":
+          description: Signed organization-bound invocation receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvocationReceipt" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /tasks:
+    get:
+      summary: List task runs owned by the caller in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Visible task runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListTasksResponse" }
+    post:
+      summary: Start task authority for the calling principal and organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StartTaskRequest" }
+      responses:
+        "201":
+          description: Task started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StartTaskResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /tasks/intents:
+    post:
+      summary: Freeze an intent under an owned task in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FreezeTaskIntentRequest" }
+      responses:
+        "201":
+          description: Frozen intent handle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FreezeTaskIntentResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /tasks/invoke:
+    post:
+      summary: Execute a caller-owned frozen intent in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InvokeTaskRequest" }
+      responses:
+        "200":
+          description: Signed organization-bound invocation receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvocationReceipt" }
+        "404": { $ref: "#/components/responses/Error" }
+  /tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      summary: Get a caller-owned task in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/Error" }
+  /tasks/{id}/terminate:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      summary: Terminate a caller-owned task in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TerminateTaskRequest" }
+      responses:
+        "200":
+          description: Terminated task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TerminateTaskResponse" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /providers:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List provider templates plus the organization's custom connectors
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: Includes safe OAuth callback URLs and catalog-derived egress policy.
+      responses:
+        "200":
+          description: Provider catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers: { type: array, items: { $ref: "#/components/schemas/Provider" } }
+  /custom-providers:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Register an organization-scoped custom connector
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        Owner/admin only. The definition carries no secrets; egress is derived
+        from the base URL and never stated by the caller. OAuth clients for a
+        custom connector are sealed through integrations; API keys through
+        connection credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCustomProvider" }
+      responses:
+        "201":
+          description: The derived provider view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /custom-providers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/OperatorOrganization"
+    delete:
+      summary: Delete a custom connector definition with no live connections
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /integrations:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List organization and read-only deployment integrations
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Safe integration metadata; never client secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [integrations]
+                properties:
+                  integrations: { type: array, items: { $ref: "#/components/schemas/Integration" } }
+    post:
+      summary: Create an organization integration
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: Owner/admin only. Provider endpoints and egress remain catalog-controlled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateIntegration" }
+      responses:
+        "201":
+          description: Integration metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /integrations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: Get safe organization-scoped integration metadata
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Integration metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    patch:
+      summary: Update an organization integration
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        Owner/admin only; provider_id is immutable. Omitted client_secret preserves it and
+        empty clears it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateIntegration" }
+      responses:
+        "200":
+          description: Integration metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Delete an unused organization integration
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List connections visible to the caller
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Reference-only connections with integration_id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connections]
+                properties:
+                  connections: { type: array, items: { $ref: "#/components/schemas/Connection" } }
+    post:
+      summary: Create a member-owned connection pinned to integration_id
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: Provider-only omission is accepted only for an unambiguous legacy integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateConnection" }
+      responses:
+        "201":
+          description: Pending connection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections/discover:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Import complete credentials already configured on the Host
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        In local development, the first owner/admin organization claims detected credentials
+        for that Host process. Production import requires the Host operator to select the one
+        target organization. Credential values are never returned.
+      responses:
+        "200":
+          description: Number of newly configured connections
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [configured]
+                properties:
+                  configured: { type: integer, minimum: 0 }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: Get a caller-visible connection
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Connection metadata; never credential material
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    patch:
+      summary: Update connection sharing and invocation policy
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateConnectionPolicy" }
+      responses:
+        "200":
+          description: Updated safe connection metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Revoke a connection locally and attempt upstream revocation
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Revocation outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevokeOutcome" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/authorize:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Start OAuth authorization with PKCE and single-use state
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorizeRequest" }
+      responses:
+        "200":
+          description: Authorization redirect metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthorizeResponse" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/refresh:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Refresh a caller-visible OAuth connection
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Refreshed safe connection metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/credential:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Store an API-key credential without returning it
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetCredentialRequest" }
+      responses:
+        "200":
+          description: Active safe connection metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/mint:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Mint a short-lived provider-derived credential (ADR 0049)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        The one route that returns token bytes, and only provider-minted derived
+        ones: short-lived, attenuated, and revocable at the provider. The sealed
+        stored credential never moves. Only the connection owner or an operator
+        may mint, and the connection's materialization policy must be
+        derived_short_lived (default deny).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MintRequest" }
+      responses:
+        "200":
+          description: Derived provider-minted credential; returned once, never stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DerivedMaterialization" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/bindings:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Bind a connection to an organization, project, agent, group, device, or identity
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBinding" }
+      responses:
+        "200":
+          description: Connection metadata including the new binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/bindings/{binding_id}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - name: binding_id
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/OperatorOrganization"
+    delete:
+      summary: Remove a connection binding
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Connection metadata without the removed binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List safe lifecycle events for a caller-visible connection
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Connection event history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events: { type: array, items: { $ref: "#/components/schemas/ConnectionEvent" } }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /oauth/callback/{provider_id}:
+    parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Complete or reject an OAuth authorization
+      description: Public provider redirect target authenticated by single-use state.
+      parameters:
+        - { name: code, in: query, required: false, schema: { type: string } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: error, in: query, required: false, schema: { type: string } }
+        - { name: error_description, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Escaped HTML completion page; no credential material
+          content:
+            text/html: { schema: { type: string } }
+        "400":
+          description: Escaped HTML failure page
+          content:
+            text/html: { schema: { type: string } }
+  /receipts/keys:
+    get:
+      summary: Public keys that may have signed a receipt
+      description: Public Ed25519 keys include retired keys so held evidence remains independently verifiable.
+      responses:
+        "200":
+          description: Receipt verification keys
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptKeysResponse" }
+  /receipts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ReceiptId"
+    get:
+      summary: Get a receipt owned by the caller in the caller's organization
+      description: Legacy receipts derive their authoritative organization from the invocation intent without rewriting signed evidence.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Signed receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvocationReceipt" }
+        "404": { $ref: "#/components/responses/Error" }
+  /receipts/{id}/verify:
+    parameters:
+      - $ref: "#/components/parameters/ReceiptId"
+    post:
+      summary: Verify a receipt owned by the caller in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Signature validity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VerifyReceiptResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /agent-identities:
+    post:
+      summary: Register agent instance and start claim ceremony
+      responses:
+        "200":
+          description: Claim session; bearer token returned once
+  /delegations:
+    get:
+      summary: Delegations where the caller is owner or claimant (ADR 0044)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Delegation views — grant ids and scopes, never token bytes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delegations]
+                properties:
+                  delegations: { type: array, items: { $ref: "#/components/schemas/Delegation" } }
+        "401": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Mint a claimable delegation offer over the caller's connections
+      description: Every fence runs per item and any failure fails the whole mint. The claim token and consent code are returned once and stored only as hashes.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [connection_id]
+                    properties:
+                      connection_id: { type: string }
+                      actions: { type: array, items: { type: string } }
+                      resources: { type: array, items: { type: string } }
+                      expires_in_seconds: { type: integer }
+                      budgets: { type: object, additionalProperties: { type: integer } }
+                      execution_mode: { type: string, enum: [broker, relay] }
+                      required: { type: boolean }
+                      dependencies: { type: array, items: { type: integer } }
+                ttl_seconds: { type: integer }
+      responses:
+        "201":
+          description: The offer, its single-use claim token, and its consent code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offer, claim_token, user_code]
+                properties:
+                  offer: { $ref: "#/components/schemas/DelegationOffer" }
+                  claim_token: { type: string }
+                  user_code: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /delegations/present:
+    post:
+      summary: Spend an offer's single presentation and read its manifest
+      description: Token-authenticated; no session. A token seen again after spend burns the offer and revokes every delegation minted from it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [claim_token]
+              properties:
+                claim_token: { type: string }
+      responses:
+        "200":
+          description: The offer manifest to review before claiming
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offer]
+                properties:
+                  offer: { $ref: "#/components/schemas/DelegationOffer" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "410": { $ref: "#/components/responses/ContractError" }
+  /delegations/claim:
+    post:
+      summary: Complete a presented offer with the out-of-band consent code
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [claim_token, user_code, accepted_item_ids]
+              properties:
+                claim_token: { type: string }
+                user_code: { type: string }
+                accepted_item_ids: { type: array, items: { type: string } }
+      responses:
+        "201":
+          description: One delegation per accepted item, minted atomically
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delegations]
+                properties:
+                  delegations: { type: array, items: { $ref: "#/components/schemas/Delegation" } }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "410": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /delegations/offers:
+    get:
+      summary: Offers the caller minted, burned ones surfaced distinctly
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Offer views
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offers]
+                properties:
+                  offers: { type: array, items: { $ref: "#/components/schemas/DelegationOffer" } }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /delegations/offers/{id}:
+    delete:
+      summary: Revoke an offer and, if claimed, every delegation in its set
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Revoked }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /delegations/{id}:
+    delete:
+      summary: Revoke one delegation (owner) or drop one held (claimant)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Revoked }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /delegations/{id}/narrow:
+    post:
+      summary: Attenuation-only edit — revoke-and-replace with a narrower grant
+      description: Validated against the parent AND the grant it replaces; widening is refused. Widening is a new offer and a new ceremony (ADR 0046 decision 10).
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actions: { type: array, items: { type: string } }
+                resources: { type: array, items: { type: string } }
+                expires_in_seconds: { type: integer }
+      responses:
+        "200":
+          description: The delegation with its replacement grant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delegation]
+                properties:
+                  delegation: { $ref: "#/components/schemas/Delegation" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /relay/heartbeat:
+    post:
+      summary: A credential holder's runtime announcing liveness (ADR 0046)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Acknowledged, with the freshness window
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, fresh_for_seconds]
+                properties:
+                  ok: { type: boolean }
+                  fresh_for_seconds: { type: integer }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /relay/requests:
+    post:
+      summary: Submit a relayed request against a relay-mode delegation
+      description: Refused unless the delegation is relay-mode and the holder has a fresh heartbeat — an absent holder is the end of the request, never a queue.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delegation_id, operation, resource]
+              properties:
+                delegation_id: { type: string }
+                operation: { type: string }
+                resource: { type: string }
+                parameters: { type: object }
+      responses:
+        "202":
+          description: Parked in the holder's inbox, digest-bound
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, state, request_digest, expires_in]
+                properties:
+                  id: { type: string }
+                  state: { type: string }
+                  request_digest: { type: string }
+                  expires_in: { type: integer }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/pending:
+    get:
+      summary: The holder drains its relay inbox (draining proves liveness)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Undecided and approved requests awaiting this holder
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requests]
+                properties:
+                  requests: { type: array, items: { type: object } }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}:
+    get:
+      summary: Delegate or holder polls one relayed request
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: State, digest, and (when completed) the safe result
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}/approve:
+    post:
+      summary: The holder consents, echoing the digest it reviewed
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_digest]
+              properties:
+                request_digest: { type: string }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}/deny:
+    post:
+      summary: The holder refuses, echoing the digest it reviewed
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_digest]
+              properties:
+                request_digest: { type: string }
+      responses:
+        "200":
+          description: Denied
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}/result:
+    post:
+      summary: The holder reports the executed outcome, digest-bound
+      description: The full admission runs here — approval required and executed digest must equal the approved one. Summaries are leak-checked before they land.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [executed_digest, outcome]
+              properties:
+                executed_digest: { type: string }
+                outcome: { type: string, enum: [succeeded, failed] }
+                safe_summary: { type: object }
+      responses:
+        "200":
+          description: Completed
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "410": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/expiring:
+    get:
+      summary: Every tracked deadline and where it sits on the expiry ladder
+      description: >-
+        Metadata only. Answers "what would I be notified about, and when?"
+        before a hook is registered. Each subject carries both ladders: the
+        informational alert track (notice/warning/urgent/expired, fixed
+        thresholds) and the actionable renewal track (the subject's own
+        renew_before_seconds). No credential material appears on this path.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Tracked subjects, plus the frozen vocabulary a hook filters on
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleInventory" }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/hooks:
+    get:
+      summary: List registered lifecycle subscriptions
+      description: Signing secrets are never returned; they are shown once at registration.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Subscriptions, without their signing secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hooks, secrets_returned]
+                properties:
+                  hooks:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleHook" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Register or edit a lifecycle subscription
+      description: >-
+        Owner/admin or operator only. A new registration mints a `whsec_`
+        Standard Webhooks signing secret and returns it once, in
+        `signing_secret`; it is sealed at rest and no route reads it back, so
+        a lost secret is replaced by re-registering. Editing keeps the
+        existing secret, so a rename cannot silently invalidate every
+        receiver's verification. Endpoints must be absolute https and are
+        refused if they resolve to a loopback, private, link-local, or
+        metadata address.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LifecycleHookRequest" }
+      responses:
+        "200":
+          description: The stored subscription; `signing_secret` present only on first registration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleHook" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/hooks/{id}:
+    delete:
+      summary: Remove a lifecycle subscription and its queued deliveries
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/deliveries:
+    get:
+      summary: The outbound delivery ledger
+      description: >-
+        Delivery state per subscription, so a failing endpoint is visible
+        without reading gateway logs. Errors are truncated operator hints,
+        never response bodies.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Recent deliveries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries, secrets_returned]
+                properties:
+                  deliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleDelivery" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/scan:
+    post:
+      summary: Run one expiry scan now
+      description: >-
+        The same pass the gateway's tick runs, so a tool can drive the feed
+        rather than waiting for it. Idempotent: ladder watermarks mean a
+        second scan with nothing newly crossed publishes nothing.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: How many events the pass published
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [published, secrets_returned]
+                properties:
+                  published: { type: integer }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions:
+    get:
+      summary: Discover public shared sessions (ADR 0079)
+      description: >-
+        A name, an id and how an ask is answered (ADR 0137), never a
+        session's contents, its operator or its roster. `visibility=public` is required rather than defaulted: a caller
+        who omits it is refused rather than handed a listing they did not ask
+        for, and private sessions are never listed under any query.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - name: visibility
+          in: query
+          required: true
+          schema: { type: string, enum: [public] }
+      responses:
+        "200":
+          description: The discovery record for each open public session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, display_name, admission]
+                      additionalProperties: false
+                      properties:
+                        id: { type: string }
+                        display_name: { type: string }
+                        admission: { $ref: "#/components/schemas/SessionAdmission" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Open a shared session; the caller becomes its operator
+      security: [{ HostBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name]
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 120 }
+                visibility: { type: string, enum: [private, public], default: private }
+                admission:
+                  allOf: [{ $ref: "#/components/schemas/SessionAdmission" }]
+                  default: operator
+                  description: >-
+                    `observer_on_ask` is refused (422 session_admission) on a
+                    private session: nobody can ask into one.
+      responses:
+        "201":
+          description: The opened session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedSession" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}:
+    get:
+      summary: A shared session and its roster
+      description: >-
+        Participants only. A caller with no standing — including one whose join
+        request is pending — receives 404 rather than 403, so the surface is not
+        an oracle for which private sessions exist. A participant sees who else
+        is here and in what role; only the operator sees each grant's scope.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The session, with a roster whose detail depends on the caller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedSessionDetail" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/activity:
+    post:
+      summary: Tell the session what you are working on (ADR 0079)
+      description: >-
+        The one thing a participant sends, and it is a request like any other —
+        the announcer's own reach is checked before anything is broadcast, so a
+        participant cannot manufacture activity for an item they were never
+        granted. Refusal is the module's usual 404, because distinguishing "no
+        such item" from "not yours" would make this an oracle for what the vault
+        holds. The resulting event carries ids and reaches only the participants
+        who can reach that item.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, vault_id, item_id]
+              properties:
+                kind: { type: string, enum: [opened, changed] }
+                vault_id: { type: string }
+                item_id: { type: string }
+      responses:
+        "202": { description: Announced to whoever may hear it }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/events:
+    get:
+      summary: The session's live channel (ADR 0079)
+      description: >-
+        Server-sent events, one direction only — deliberately. ADR 0079 section
+        6 holds that an inbound message is a request like any other and never
+        evidence its sender is allowed, and the cheapest way to keep that rule
+        is to have no inbound frame path at all: everything a participant does
+        goes through the authenticated routes. Every event carries references
+        (ids) and never labels, values or text a human wrote. Standing is
+        re-read from the store on every event, so a participant whose grant is
+        withdrawn or lapses mid-stream stops receiving on the next event rather
+        than at their next reconnect. An `event: lagged` frame tells one slow
+        reader how many events it missed; it never grows the buffer for others.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: An `text/event-stream` of SessionEvent frames
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/SessionEvent" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/grants:
+    post:
+      summary: Grant a participant scoped reach into a vault
+      description: >-
+        Operator only. The lifetime is bounded between one minute and seven days
+        and an out-of-bounds request is refused rather than clamped; `granted_at`
+        is the server's clock, never the body's. A row scope must name at least
+        one item.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_principal_id, scope, role, expires_at]
+              properties:
+                subject_principal_id: { type: string }
+                scope: { $ref: "#/components/schemas/SessionGrantScope" }
+                role: { type: string, enum: [read, write] }
+                expires_at: { type: string, format: date-time }
+      responses:
+        "201":
+          description: The minted grant, in the operator's view
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [grant]
+                properties:
+                  grant: { $ref: "#/components/schemas/SessionGrantView" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/grants/{grant_id}:
+    delete:
+      summary: Withdraw a participant's grant
+      description: >-
+        Operator only, and idempotent — revoking an already-revoked grant is the
+        same answer. New authorizations stop immediately; a former participant who
+        kept ciphertext keeps the ability to read the versions they already had,
+        so the response states that re-keying is what makes future versions
+        unreadable (ADR 0079 section 3).
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: grant_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Withdrawn, with what withdrawal does not undo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revoked, note]
+                properties:
+                  revoked: { type: boolean, const: true }
+                  note: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/join-requests:
+    get:
+      summary: Requests nobody has decided yet
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: >-
+            Operator only. Each note is untrusted text written by somebody with
+            no standing in the session; whatever renders it escapes it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requests]
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, requester_principal_id, requested_at]
+                      properties:
+                        id: { type: string }
+                        requester_principal_id: { type: string }
+                        note: { type: string, nullable: true, maxLength: 280 }
+                        requested_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Ask to join a public shared session
+      description: >-
+        Only a public session accepts one; a private session answers 404 here
+        exactly as it does elsewhere, so this route cannot be used to probe for
+        private sessions by id. Admission precedes connection — a pending
+        requester learns their request is pending and nothing else: no roster,
+        no channel, no peer. Asking twice is the same ask. A session opened
+        with `admission: observer_on_ask` seats the asker at once as an
+        observer holding nothing, decided in its operator's name (ADR 0137).
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 280 }
+      responses:
+        "201":
+          description: Admitted by the session's policy, as an observer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision, mode]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, const: admitted }
+                  mode: { type: string, const: observer }
+        "202":
+          description: Recorded, pending an operator's decision
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, const: pending }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/join-requests/{request_id}/decide:
+    post:
+      summary: Admit or refuse a join request
+      description: >-
+        Operator only, and once — a decided request is 409, so a refusal cannot
+        be turned into an admission after the fact. Admission is a named seat:
+        `mode` says whether the requester is let in as an observer, who holds
+        nothing and needs no vault key, or as a participant, whose grant lands
+        in the same transaction as the decision. A participant admission
+        without a grant, and an observer admission with one, are both refused.
+        The grant's subject is always the requester; a body that names another
+        is refused rather than ignored.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: request_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [admitted, refused] }
+                mode:
+                  description: >-
+                    Required for admitted, refused for refused. No default: an
+                    operator letting somebody in says whether that person may be
+                    given keys, and a missing field must never decide it.
+                  type: string
+                  enum: [observer, participant]
+                grant:
+                  description: >-
+                    Required for a participant admission and refused for every
+                    other shape. Carries no subject.
+                  type: object
+                  required: [scope, role, expires_at]
+                  properties:
+                    scope: { $ref: "#/components/schemas/SessionGrantScope" }
+                    role: { type: string, enum: [read, write] }
+                    expires_at: { type: string, format: date-time }
+      responses:
+        "200":
+          description: The decision, and the grant an admission minted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, enum: [admitted, refused] }
+                  mode: { type: string, enum: [observer, participant], nullable: true }
+                  grant: { $ref: "#/components/schemas/SessionGrantView" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/members:
+    get:
+      summary: Who is in the room
+      description: >-
+        Participants and observers alike, because knowing who else is present is
+        the point of being present. A seat is a mode and a timestamp, never a
+        scope: an observer learns from this list who is here and nothing
+        whatever about the vault.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The roster of seats
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operator_principal_id, members]
+                properties:
+                  operator_principal_id: { type: string }
+                  closed_at: { type: string, format: date-time, nullable: true }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      required: [principal_id, mode, admitted_at]
+                      properties:
+                        principal_id: { type: string }
+                        mode: { type: string, enum: [observer, participant] }
+                        admitted_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Seat, raise, lower or remove a member
+      description: >-
+        Operator only. One route for all four because they are one statement —
+        this principal's standing in this session is now *this*. `observer` is
+        in the room holding nothing and is never the subject of a grant;
+        `participant` may be given reach, which is a separate decision on
+        `/grants` with its own scope and expiry. `none` ends the seat.
+        Lowering somebody who still holds live grants is refused rather than
+        silently revoking on their behalf: revocation is re-keying (ADR 0079
+        §3), and the operator should see that they are asking for it. The
+        operator cannot be seated — running a session is a role, not a seat.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal_id, mode]
+              properties:
+                principal_id: { type: string }
+                mode: { type: string, enum: [observer, participant, none] }
+      responses:
+        "200":
+          description: The seat as it now stands
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [principal_id, mode]
+                properties:
+                  principal_id: { type: string }
+                  mode: { type: string, enum: [observer, participant, none] }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/close:
+    post:
+      summary: End the session
+      description: >-
+        Operator only, and idempotent. Three things happen in one transaction:
+        the session shuts, every seat is given up, and every grant the session
+        *minted* is revoked. Reach the session only *referenced* — a narrowed
+        pointer at something the holder already had by another road — is left
+        exactly as it was, because ending a meeting must not withdraw somebody's
+        project access. Revocation is still re-keying rather than a switch, and
+        the response says so.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The session is closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [closed, closed_at]
+                properties:
+                  closed: { type: boolean }
+                  closed_at: { type: string, format: date-time }
+                  already_closed: { type: boolean }
+                  note: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /security/hooks:
+    get:
+      summary: List registered security-event subscriptions
+      description: >-
+        The same subscriptions as `/lifecycle/hooks`, under the name that
+        describes what the feed now carries: expiry, breach exposure, and any
+        family added later. Both paths serve one table; the `/lifecycle` ones
+        are kept because subscribers are registered against them.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Subscriptions, without their sealed material
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hooks, secrets_returned]
+                properties:
+                  hooks:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleHook" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Register or edit a security-event subscription
+      description: >-
+        Owner/admin or operator only. `delivery` selects the wire format:
+        `webhook` (Standard Webhooks, mints a `whsec_` secret returned once),
+        `alertmanager` (Prometheus Alertmanager v2), or `pagerduty` (Events
+        API v2, whose routing key is supplied as the secret). `severity_min`
+        sets a floor so a paging integration can take everything loud without
+        also taking every 30-day expiry notice.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LifecycleHookRequest" }
+      responses:
+        "200":
+          description: The stored subscription; `signing_secret` present only on first registration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleHook" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /security/hooks/{id}:
+    delete:
+      summary: Remove a security-event subscription and its queued deliveries
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /security/deliveries:
+    get:
+      summary: The outbound delivery ledger
+      description: >-
+        The same ledger as `/lifecycle/deliveries`, covering every sink.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Recent deliveries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries, secrets_returned]
+                properties:
+                  deliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleDelivery" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /security/findings:
+    get:
+      summary: Breach findings for this organization
+      description: >-
+        Metadata only. Each row names what was checked, which corpus reported
+        it, and whether the finding still reproduces. Cleared findings are
+        included: an operator needs to see that something was exposed and has
+        since been rotated, not only what is exposed right now. No column can
+        carry a value, and none carries a hash of one either.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Findings, most recently seen first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [findings, secrets_returned]
+                properties:
+                  findings:
+                    type: array
+                    items: { $ref: "#/components/schemas/BreachFinding" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /security/breach-scan:
+    post:
+      summary: Run one breach scan now
+      description: >-
+        Fetches the published breach catalogue and matches it against every
+        host this organization's connections are bound to reach. Nothing about
+        the organization leaves the host: the catalogue is public and the
+        matching is local. A source that cannot be reached publishes
+        `breach.scan.failed` and answers 502, rather than reporting a clean
+        result it did not obtain.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: How many events the pass published
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [published, secrets_returned]
+                properties:
+                  published: { type: integer }
+                  catalogue_entries: { type: integer }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
+  /security/breach-check:
+    post:
+      summary: Check a candidate secret against the breached-password corpus
+      description: >-
+        Owner/admin or operator only, and the one route that accepts a secret
+        value. It exists because NIST SP 800-63B asks that a chosen password be
+        checked against known-breached corpora at the moment it is set, which
+        is the check that prevents the exposure rather than reporting it later.
+        The value is hashed with SHA-1; five hexadecimal characters of that
+        hash are sent to the corpus, which is asked to pad its response, and
+        the match is performed on the host. The value is never stored, never
+        logged, and never returned. A match publishes
+        `breach.password.compromised` against the named subject; a clean result
+        clears any open finding for it, which resolves the alert an earlier
+        check opened.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BreachCheckRequest" }
+      responses:
+        "200":
+          description: Whether the candidate appears in the corpus
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BreachCheckResult" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
+  /a2h/callback:
+    post:
+      summary: Receive a human's A2H reply
+      description: >-
+        Callback for an A2H gateway (ADR 0081). Unauthenticated by design: the
+        gateway holds no session, and the request's HMAC over
+        `{timestamp}.{body}` under the subscription's `whsec_` secret is its
+        authentication. Every failed check answers 401 identically, so the shape
+        of a refusal cannot tell an unsigned caller whether an interaction
+        exists.
+
+
+        A verified reply may only *narrow* what is happening: acknowledge, or
+        cancel the run. It can never grant the control lease or resume autonomy
+        — taking the page needs the viewer key the log is sealed to, and
+        resuming needs the run's preconditions re-asserted against the page.
+        Neither is reachable from a phone, at any assurance level.
+      security: []
+      parameters:
+        - name: X-A2H-Signature
+          in: header
+          required: true
+          description: "`t=<unix>,v1=<base64 HMAC-SHA256>`"
+          schema: { type: string }
+        - name: X-A2H-Delivery-ID
+          in: header
+          required: false
+          description: >-
+            The gateway's per-attempt id, logged for correlation. Not the
+            idempotency key: that is the interaction, which is stable across
+            retries.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, interaction_id, responds_to]
+              properties:
+                type: { type: string, const: RESPONSE }
+                interaction_id: { type: string }
+                responds_to: { type: string }
+                decision: { type: string, enum: [APPROVE, DECLINE] }
+                decided_at: { type: string, format: date-time }
+                evidence:
+                  type: object
+                  properties:
+                    factor: { type: string }
+                    proof: { type: object }
+                signature: { type: string }
+      responses:
+        "200":
+          description: The reply was applied, acknowledged, or already applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string }
+        "401":
+          description: >-
+            The request did not verify. Returned identically for a bad
+            signature, a stale timestamp, and an unknown interaction.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, const: invalid_request }
+  /ceremonies:
+    get:
+      summary: Which connector registrations this build can automate
+      description: >-
+        The ceremony catalog, whole. Deliberately not a per-provider lookup:
+        asking a server which ceremony covers `provider-x` tells it which
+        provider is being onboarded, and the catalog is checked in precisely so
+        nobody has to answer that (ADR 0052 §12 — a lookup is a disclosure). The
+        caller takes the list and matches locally, as ADR 0080 §5 does for the
+        public breach catalogue.
+
+
+        Checked-in data, not tenant data: compiled from
+        `crates/ceremony/catalog.json`, identical for every caller on the Host,
+        and scoped to no organization. `declares` names the capture slots a
+        ceremony is *permitted* to seal — never a value, and never a record of
+        one that was.
+
+
+        A provider absent from the list is not a gap: every phase resolves to
+        `c3_blocked` and it keeps the setup instructions it has today (ADR
+        0082).
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Every provider the catalog covers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ceremonies, secrets_returned]
+                properties:
+                  ceremonies:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ceremony" }
+                  phases:
+                    type: array
+                    description: Every ceremony phase, in the order they run.
+                    items: { type: string }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /agent/runs:
+    get:
+      summary: List the caller's own sandboxed runs
+      description: >-
+        Metadata only (ADR 0076 §5): a run row never carries a frame, a
+        rationale, or page content. Filtered by entitlement rather than by
+        tenant — an organization is not a person, and a run belongs to whoever's
+        credential it rotates (ADR 0081 §8).
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Runs, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runs, secrets_returned]
+                properties:
+                  runs: { type: array, items: { $ref: "#/components/schemas/AgentRun" } }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}:
+    get:
+      summary: Read one run's state
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404":
+          description: >-
+            No such run, or not the caller's. Deliberately the same answer:
+            whether a run exists is itself account information.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/observe:
+    get:
+      summary: Tail the sealed observation log
+      description: >-
+        Server-sent events. Live and replay are the same read at different
+        cursors (ADR 0081 §1) — pass the last sequence you hold for a tail, or
+        omit `after` for the whole log, which is what the replay overlay does.
+
+
+        Every entry is relayed as the ciphertext it was sealed as. The gateway
+        cannot read what it forwards; the owner's viewer key is what opens it,
+        so a client with a locked vault sees the stream and can make nothing of
+        it.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          description: Last sequence already held. Omit to read from the start.
+          schema: { type: integer, default: -1 }
+      responses:
+        "200":
+          description: An SSE stream of sealed log entries
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/log:
+    get:
+      summary: Read one page of the sealed observation log
+      description: >-
+        The same read as `observe`, without holding a connection open — for the
+        replay overlay, which seeks and pages rather than follows, and for
+        anything scripted, where a stream that stays open until it times out is
+        a hang rather than a result.
+
+
+        Entries are relayed as the ciphertext they were sealed as. `sealed` says
+        so rather than leaving a caller to discover it.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          schema: { type: integer, default: -1 }
+      responses:
+        "200":
+          description: A page of sealed entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, entries, next_after, sealed, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required: [seq, lane, sealed_payload, recorded_at]
+                      properties:
+                        seq: { type: integer }
+                        lane: { type: string, enum: [action, thought, frame] }
+                        of_step: { type: integer, nullable: true }
+                        layout_epoch: { type: integer, nullable: true }
+                        sealed_payload: { type: string, description: Base64 ciphertext. }
+                        recorded_at: { type: string }
+                  next_after: { type: integer }
+                  run_next_seq: { type: integer }
+                  sealed: { type: boolean, const: true }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/handoff:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrowserControlRequest'}
+      summary: Ask the agent for the page
+      description: >-
+        Accepted at a quiescent point and **queued** inside the critical section
+        between the candidate assertion and the submit, where the answer says so
+        rather than dropping the request (ADR 0081 §6). A request that vanishes
+        teaches people to press the button again; that span is the one place a
+        second actor would void the check standing between a rotation and a
+        lockout. Requires a purpose-bound single-use passkey elevation.
+      security: [{ HostDPoP: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "202":
+          description: The request was accepted or queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [accepted, queued] }
+                  hint: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: The transition is not available from the run's current state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/control:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrowserControlRequest'}
+      summary: Take the page
+      description: >-
+        Only from a parked run: there is no path that takes the page out from
+        under the agent mid-step, which is what lets the receipt say who did
+        what. Requires a fresh step-up, because decrypting frames and issuing
+        input events are different capabilities (ADR 0081 §8).
+      security: [{ HostDPoP: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The lease is held by the caller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: >-
+            Another viewer holds the lease, the run is not parked, or the
+            version moved while the caller was deciding.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/release:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrowserControlRequest'}
+      summary: Hand the page back
+      description: >-
+        Autonomy does not resume here. The run lands in `resume_requested`, and
+        the runner re-asserts the run's preconditions against the page before
+        driving again — what the assertion established was true of a page the
+        agent controlled, and a person has been in it since (ADR 0081 §6).
+      security: [{ HostDPoP: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The lease is released
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: The caller does not hold the lease
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/steps/claim:
+    post:
+      summary: Claim the run's outstanding step
+      description: >-
+        The driver's half of the step channel (ADR 0079 §4). The driver is the
+        owner's own browser, so the entitlement is the one that gates watching:
+        a run belongs to whoever's credential it rotates, and nobody else may
+        drive it.
+
+
+        One step is outstanding per run by design — a browser has one DOM, and a
+        queue that could hold two steps for one page could reorder them. A claim
+        is held under a lease, so a driver that crashed releases its work by the
+        clock rather than by anybody deciding it is dead.
+
+
+        The returned request names a credential *reference* and a selector. It
+        has no field able to carry a value: the driver resolves the reference
+        itself, because in the local model the driver holds the vault.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The claimed step
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, seq, request, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  seq: { type: integer }
+                  request:
+                    type: object
+                    description: The StepRequest, verbatim.
+                  claim_expires_at: { type: string, nullable: true }
+                  secrets_returned: { type: boolean, const: false }
+        "204":
+          description: >-
+            Nothing to do, or another driver holds a live claim. A cheap answer
+            for a polling driver rather than an error to interpret.
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/steps/{seq}/outcome:
+    post:
+      summary: Report what a step did
+      description: >-
+        Only the claimant may, and a claim that lapsed is not a claim. A driver
+        that went away and came back finds its step taken and is told so, rather
+        than settling a step somebody else is now executing.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: seq, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome]
+              properties:
+                outcome:
+                  type: object
+                  description: >-
+                    The StepOutcome. No variant carries a credential value.
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: settled }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: The caller does not hold this step's claim
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+components:
+  securitySchemes:
+    HostDPoP:
+      type: http
+      scheme: DPoP
+      description: Five-minute sender-constrained browser credential. Every request also requires its exact Origin and a fresh ES256 DPoP proof binding method, canonical URL and token hash. Bearer presentation is refused.
+    AgentBearer:
+      type: http
+      scheme: bearer
+      description: Five-minute agent-capability credential with X-OpenSesame-Agent-Client and X-OpenSesame-Agent-Audience bindings. Only explicitly approved task and ciphertext sync operations are admitted.
+    HostBearer:
+      type: http
+      scheme: bearer
+      description: Opaque session bearer or `operator:<token>` break-glass bearer.
+    HostOperatorBearer:
+      type: http
+      scheme: bearer
+      description: Operator bearer in the form `operator:<token>`.
+    HostOperatorHeader:
+      type: apiKey
+      in: header
+      name: X-OpenSesame-Operator
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    ReceiptId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    ConnectionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    OperatorOrganization:
+      name: X-OpenSesame-Organization
+      in: header
+      required: false
+      description: >-
+        Canonical org:<uuid> organization selection for authenticated operators. Operators
+        default to the bootstrap organization when omitted. Session callers are always bound
+        to their signed organization and must not send this header.
+      schema:
+        type: string
+        pattern: '^org:[0-9a-fA-F-]{36}$'
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ContractError:
+      description: Stable broker error code and safe human hint
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ContractError" }
+  schemas:
+    AgentAudience:
+      type: string
+      enum: ['urn:opensesame:agent:mcp-host', 'urn:opensesame:agent:mcp-client']
+    AccessDomain:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, lifecycle, revision, depth]
+      properties:
+        id: {type: string}
+        organization_id: {type: string}
+        parent_id: {type: [string, 'null']}
+        project_id: {type: [string, 'null']}
+        lifecycle: {type: string, enum: [active, archived, terminated]}
+        revision: {type: integer, minimum: 1}
+        depth: {type: integer, minimum: 0, maximum: 32}
+    SyncCursor:
+      type: object
+      additionalProperties: false
+      required: [epoch, id]
+      properties:
+        epoch: {type: integer, minimum: 0, maximum: 9223372036854775807}
+        id: {type: string, maxLength: 128}
+    HostAuthorizationChallenge:
+      type: object
+      required: [challenge_id, challenge_digest, host_audience, organization_id, operation, target_id, transition, origin, dpop_jkt, expires_at]
+      properties:
+        challenge_id: {type: string, format: uuid}
+        challenge_digest: {type: string}
+        host_audience: {type: string}
+        organization_id: {type: string}
+        operation: {type: string, enum: [browser.authenticate, agent.browser.control]}
+        target_id: {type: string}
+        transition: {type: [string, 'null'], enum: [handoff, take, release, null]}
+        origin: {type: string, format: uri}
+        dpop_jkt: {type: string}
+        expires_at: {type: integer}
+    BrowserControlRequest:
+      type: object
+      additionalProperties: false
+      required: [elevation]
+      properties:
+        elevation: {type: string, pattern: '^[0-9a-f]{64}$', writeOnly: true, description: One-use grant bound to this run version and transition after recent phishing-resistant verification}
+    LifecycleEventType:
+      type: string
+      description: Frozen lifecycle event names. Additive only; never renamed.
+      enum:
+        - lifecycle.expiry.notice
+        - lifecycle.expiry.warning
+        - lifecycle.expiry.urgent
+        - lifecycle.renewal.due
+        - lifecycle.expiry.expired
+        - lifecycle.renewal.succeeded
+        - lifecycle.renewal.failed
+    LifecycleSubjectKind:
+      type: string
+      description: >-
+        The closed set of things whose expiry the platform tracks. Closed on
+        purpose: each kind implies a platform-owned responder with real
+        authority, so a subscription selects kinds but never adds one.
+      enum: [certificate, certificate_authority, connection_credential, store_path, signer]
+    LifecycleStage:
+      type: string
+      description: >-
+        A rung of the expiry ladder. notice/warning/urgent/expired advance the
+        alert watermark; renewal advances its own, so a per-subject renewal
+        lead can never alias and suppress a fixed alert rung.
+      enum: [notice, warning, urgent, expired, renewal]
+    LifecycleRung:
+      type: object
+      required: [stage, track, event_type, fires_at, crossed]
+      properties:
+        stage: { $ref: "#/components/schemas/LifecycleStage" }
+        track: { type: string, enum: [alert, renewal] }
+        event_type: { $ref: "#/components/schemas/LifecycleEventType" }
+        fires_at:
+          type: [string, "null"]
+          description: >-
+            When this rung is reached. Null when the deadline sits too close to
+            the start of the representable range to date the rung — a
+            never-run rotation schedule, which is due now regardless.
+        crossed: { type: boolean, description: Whether the deadline is already past it }
+    LifecycleSubject:
+      type: object
+      required: [subject_kind, subject_id, organization_id, expires_at, remaining_seconds, renew_before_seconds, auto_respond, alerting, ladder, secrets_returned]
+      properties:
+        subject_kind: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        subject_id: { type: string }
+        organization_id: { type: string }
+        label:
+          type: [string, "null"]
+          description: Operator-facing name — a common name, a store path, a provider. Never a credential.
+        expires_at: { type: string }
+        remaining_seconds: { type: integer, description: Negative once expired }
+        renew_before_seconds: { type: integer }
+        auto_respond:
+          type: boolean
+          description: Whether a platform responder may act. False still emits every event.
+        responder:
+          type: [string, "null"]
+          description: The platform responder for this kind, or null when renewal is the subscriber's to perform.
+        alerting:
+          type: boolean
+          description: >-
+            False for recurring schedules such as rotation policies, whose
+            deadline moves on every run; they use the renewal track only.
+        ladder:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleRung" }
+        secrets_returned: { type: boolean, const: false }
+    LifecycleInventory:
+      type: object
+      required: [subjects, event_types, subject_kinds, stages, secrets_returned]
+      properties:
+        subjects:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleSubject" }
+        event_types:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleEventType" }
+        subject_kinds:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        stages:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleStage" }
+        secrets_returned: { type: boolean, const: false }
+    LifecycleHookRequest:
+      type: object
+      required: [name, event_types, endpoint_url]
+      properties:
+        id:
+          type: string
+          description: Omit to register; supply to edit in place.
+        name: { type: string, minLength: 1, maxLength: 120 }
+        event_types:
+          type: array
+          minItems: 1
+          description: Event names, or the single wildcard `lifecycle.*`. An empty list is refused rather than read as "everything".
+          items: { type: string }
+        endpoint_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Absolute https endpoint. Private, loopback, link-local and metadata addresses are refused, as are embedded credentials.
+        subject_kinds:
+          type: [array, "null"]
+          description: Optional narrowing. Null or absent means every kind.
+          items: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        enabled: { type: boolean, default: true }
+    LifecycleHook:
+      type: object
+      required: [id, name, organization_id, event_types, delivery, enabled, version, secrets_returned]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        organization_id: { type: string }
+        event_types:
+          type: array
+          items: { type: string }
+        delivery:
+          type: string
+          enum: [webhook, internal, alertmanager, pagerduty]
+          description: >-
+            `webhook` is the community surface — an observer, delivered
+            asynchronously, unable to influence any decision. `internal` names
+            a platform subscriber that runs in process and cannot be registered
+            over this API; the built-in notifier and alerter are two such rows.
+            `alertmanager` and `pagerduty` are the same observer surface
+            rendered into the formats an on-call rotation already reads. There
+            is deliberately no `syslog` delivery: RFC 5424 is a line format, and
+            those lines go to the host's own log stream rather than over
+            plaintext egress to a remote collector.
+        severity_min:
+          type: string
+          enum: [info, warning, error, critical]
+          description: >-
+            Severity floor. `info` admits everything, which is what a
+            subscription registered before floors existed carries.
+        endpoint_url: { type: [string, "null"] }
+        responder: { type: [string, "null"] }
+        subject_kinds: { type: [array, "null"], items: { type: string } }
+        enabled: { type: boolean }
+        last_delivered_at: { type: [string, "null"] }
+        last_error: { type: [string, "null"] }
+        version: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+        signing_secret:
+          type: string
+          description: >-
+            The `whsec_` Standard Webhooks secret. Present only in the response
+            to a first registration; sealed at rest and never returned again.
+        signing_secret_hint: { type: string }
+        secrets_returned: { type: boolean, const: false }
+    LifecycleDelivery:
+      type: object
+      required: [id, hook_id, event_type, subject_kind, subject_id, state, attempts, created_at]
+      properties:
+        id:
+          type: string
+          description: Sent as the `webhook-id` header; doubles as the receiver's idempotency key.
+        hook_id: { type: string }
+        event_type: { $ref: "#/components/schemas/LifecycleEventType" }
+        subject_kind: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        subject_id: { type: string }
+        state: { type: string, enum: [pending, delivered, dead_lettered] }
+        attempts: { type: integer }
+        available_at: { type: [string, "null"], description: Backoff gate; claimable once past }
+        last_error: { type: [string, "null"], description: Truncated operator hint, never a response body }
+        delivered_at: { type: [string, "null"] }
+        created_at: { type: string }
+    SessionEvent:
+      description: >-
+        References only. Every field is an id, a closed enum or a timestamp;
+        the type has no field able to carry an item label, a vault name, a note
+        somebody typed, a token or a value. Each client renders the labels it
+        can already decrypt.
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum:
+            [
+              participant_joined,
+              participant_left,
+              grant_added,
+              grant_withdrawn,
+              item_opened,
+              item_changed,
+              join_requested,
+            ]
+        principal_id: { type: string }
+        subject_principal_id: { type: string }
+        by_principal_id: { type: string }
+        grant_id: { type: string }
+        request_id: { type: string }
+        vault_id: { type: string }
+        item_id: { type: string }
+        role: { type: string, enum: [read, write] }
+        expires_at: { type: string, format: date-time }
+    SessionAdmission:
+      type: string
+      enum: [operator, observer_on_ask]
+      description: >-
+        How a public session answers an ask (ADR 0137): the operator decides
+        each one, or whoever asks is seated at once as an observer holding
+        nothing. There is no participant-on-ask.
+    SharedSession:
+      type: object
+      required: [id, display_name, visibility, operator_principal_id, created_at]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        visibility: { type: string, enum: [private, public] }
+        admission: { $ref: "#/components/schemas/SessionAdmission" }
+        operator_principal_id: { type: string }
+        created_at: { type: string, format: date-time }
+    SharedSessionDetail:
+      allOf:
+        - $ref: "#/components/schemas/SharedSession"
+        - type: object
+          required: [participants]
+          properties:
+            closed_at: { type: string, format: date-time, nullable: true }
+            participants:
+              description: >-
+                Roster entries. A participant receives who and in what role; the
+                operator additionally receives each grant's id and scope. Which
+                rows a colleague holds is never published to a participant.
+              type: array
+              items: { $ref: "#/components/schemas/SessionRosterEntry" }
+    SessionRosterEntry:
+      type: object
+      required: [principal_id, role, expires_at]
+      properties:
+        principal_id: { type: string }
+        role: { type: string, enum: [read, write] }
+        expires_at: { type: string, format: date-time }
+    SessionGrantView:
+      allOf:
+        - $ref: "#/components/schemas/SessionRosterEntry"
+        - type: object
+          required: [grant_id, granted_by, scope]
+          properties:
+            grant_id: { type: string }
+            granted_by: { type: string }
+            scope: { $ref: "#/components/schemas/SessionGrantScope" }
+    SessionGrantScope:
+      description: >-
+        The whole vault, or named rows within it. A row scope must name at least
+        one item; an empty one is refused rather than read as "everything".
+      type: object
+      required: [kind, vault_id]
+      properties:
+        kind: { type: string, enum: [collection, rows] }
+        vault_id: { type: string }
+        items:
+          type: array
+          minItems: 1
+          items: { type: string }
+    BreachFinding:
+      type: object
+      required: [subject_kind, subject_id, source, severity, state, first_seen_at, last_seen_at]
+      properties:
+        subject_kind:
+          type: string
+          enum: [store_path, connection_credential, domain, breach_source]
+        subject_id: { type: string }
+        source:
+          type: string
+          enum: [hibp_passwords, hibp_breaches]
+        reference:
+          type: string
+          description: >-
+            The published breach name for a provider disclosure; empty for a
+            password-corpus match, of which there is one per subject.
+        severity: { type: string, enum: [info, warning, error, critical] }
+        occurrences:
+          type: [integer, "null"]
+          description: >-
+            How many times the corpus has seen this password. A property of the
+            corpus; it says nothing about the value.
+        state: { type: string, enum: [open, cleared] }
+        first_seen_at: { type: string }
+        last_seen_at: { type: string }
+        cleared_at: { type: [string, "null"] }
+    BreachCheckRequest:
+      type: object
+      required: [secret, subject_id]
+      properties:
+        secret:
+          type: string
+          maxLength: 4096
+          description: >-
+            The candidate value. Hashed on the host; never stored, logged, or
+            returned. Only five hexadecimal characters of its SHA-1 leave the
+            host.
+        subject_id:
+          type: string
+          maxLength: 256
+          description: What the secret belongs to — a store path or connection id.
+        subject_kind:
+          type: string
+          enum: [store_path, connection_credential]
+          default: store_path
+    BreachCheckResult:
+      type: object
+      required: [compromised, occurrences, secrets_returned]
+      properties:
+        compromised: { type: boolean }
+        occurrences:
+          type: integer
+          description: Times the corpus has seen this password; 0 when not found.
+        published:
+          type: boolean
+          description: >-
+            Whether this call opened the finding, and therefore published
+            `breach.password.compromised`. False when it was already open.
+        cleared:
+          type: boolean
+          description: >-
+            Whether a clean result closed a previously open finding, publishing
+            `breach.finding.cleared`.
+        secrets_returned: { type: boolean, const: false }
+    DelegationOffer:
+      type: object
+      required: [id, state, manifest_digest, expires_at, items]
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [pending, presented, claimed, revoked, expired, burned] }
+        manifest_digest: { type: string }
+        expires_at: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, connection_id, provider_id, actions, execution_mode, required]
+            properties:
+              id: { type: string }
+              connection_id: { type: string }
+              provider_id: { type: string }
+              display_name: { type: string }
+              actions: { type: array, items: { type: string } }
+              resources: { type: array, items: { type: string } }
+              expires_in_seconds: { type: integer }
+              execution_mode: { type: string, enum: [broker, relay] }
+              required: { type: boolean }
+              dependencies: { type: array, items: { type: string } }
+    Delegation:
+      type: object
+      required: [id, offer_id, connection_id, claimant_subject, grant_id, execution_mode, expires_at]
+      properties:
+        id: { type: string }
+        offer_id: { type: string }
+        connection_id: { type: string }
+        claimant_subject: { type: string }
+        grant_id: { type: string }
+        execution_mode: { type: string, enum: [broker, relay] }
+        actions: { type: array, items: { type: string } }
+        resources: { type: array, items: { type: string } }
+        expires_at: { type: string }
+        revoked_at: { type: string, nullable: true }
+    AttachmentTargetView:
+      type: object
+      description: Where sealed attachment ciphertext is replicated. Carries no token material.
+      properties:
+        connection_id: { type: string }
+        provider_id: { type: string }
+        folder_path: { type: string }
+        enabled: { type: boolean }
+        status: { type: string }
+        last_error:
+          oneOf:
+            - type: "null"
+            - type: string
+        updated_at_unix_ms: { type: integer }
+    PutAttachmentTargetBody:
+      type: object
+      additionalProperties: false
+      required: [connection_id, folder_path]
+      properties:
+        connection_id: { type: string }
+        folder_path:
+          type: string
+          description: Absolute provider path such as /OpenSesame/attachments; no '../../api' or empty segments.
+        enabled: { type: boolean }
+    OrganizationRole:
+      type: string
+      enum: [owner, admin, member]
+    CallerRole:
+      type: string
+      enum: [owner, admin, member, operator]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        detail: { type: string }
+        hint: { type: string }
+    DeviceAuthorizeRequest:
+      type: object
+      required: [client_id]
+      properties:
+        client_id: { type: string }
+        scope: { type: string }
+    DeviceAuthorizeResponse:
+      type: object
+      required: [device_code, user_code, verification_uri, verification_uri_complete, expires_in, interval, client_id, scope]
+      properties:
+        device_code: { type: string }
+        user_code: { type: string }
+        verification_uri: { type: string, format: uri }
+        verification_uri_complete: { type: string, format: uri }
+        expires_in: { type: integer, minimum: 1 }
+        interval: { type: integer, minimum: 1 }
+        client_id: { type: string }
+        scope: { type: string }
+    DeviceTokenRequest:
+      type: object
+      required: [device_code, client_id, grant_type]
+      properties:
+        device_code: { type: string }
+        client_id: { type: string, enum: [opensesame-cli, opensesame-pages] }
+        grant_type: { type: string, const: "urn:ietf:params:oauth:grant-type:device_code" }
+    HostSession:
+      type: object
+      required: [session_id, principal_id, actor_id, issuer, assurance, organization_id, organization_role, project_id, credential_handle, approved_as, expires_at]
+      properties:
+        session_id: { type: string }
+        principal_id: { type: string }
+        actor_id: { type: [string, "null"] }
+        issuer: { type: string, format: uri }
+        assurance: { type: string }
+        organization_id: { type: string }
+        organization_role: { $ref: "#/components/schemas/OrganizationRole" }
+        project_id: { type: [string, "null"] }
+        credential_handle: { type: [string, "null"] }
+        approved_as: { type: string }
+        expires_at: { type: string, format: date-time }
+    DeviceTokenResponse:
+      type: object
+      required: [token_type, expires_in, session, access_token]
+      properties:
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, minimum: 1 }
+        session: { $ref: "#/components/schemas/HostSession" }
+        access_token: { type: string }
+    DeviceApproveRequest:
+      type: object
+      required: [user_code]
+      properties:
+        user_code: { type: string }
+        principal: { type: string }
+        organization_id: { type: string }
+        organization_role: { $ref: "#/components/schemas/OrganizationRole" }
+    DeviceApproveResponse:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: approved }
+    RevokeSessionsRequest:
+      type: object
+      required: [principal_id, organization_id]
+      properties:
+        principal_id: { type: string }
+        organization_id: { type: string }
+    RevokeSessionsResponse:
+      type: object
+      required: [revoked]
+      properties:
+        revoked: { type: integer, minimum: 0 }
+    WhoAmI:
+      type: object
+      required: [principal_id, actor_id, client_id, issuer, assurance, organization_id, organization_role, context]
+      properties:
+        principal_id: { type: string }
+        actor_id: { type: [string, "null"] }
+        client_id: { type: string }
+        issuer: { type: string, format: uri }
+        assurance: { type: string }
+        organization_id: { type: string }
+        organization_role: { $ref: "#/components/schemas/CallerRole" }
+        context: { type: [string, "null"] }
+    InvokeRequest:
+      type: object
+      required: [operation, resource]
+      properties:
+        connection_ref: { type: string }
+        connection: { type: string }
+        operation: { type: string }
+        resource: { type: string }
+        audience: { type: string, format: uri }
+        parameters: {}
+        idempotency_key: { type: string }
+        invoke_level: { type: integer, minimum: 1, maximum: 3 }
+        task_run_id: { type: string, deprecated: true }
+        intent_digest: { type: string, deprecated: true }
+    CapabilityRequest:
+      type: object
+      required: [action, resource]
+      properties:
+        action: { type: string }
+        resource: { type: string }
+    ResourceSelector:
+      oneOf:
+        - type: object
+          required: [kind, value]
+          properties:
+            kind: { type: string, const: exact }
+            value: { type: string }
+        - type: object
+          required: [kind, values]
+          properties:
+            kind: { type: string, const: enumerated }
+            values: { type: array, items: { type: string } }
+    Capability:
+      type: object
+      required: [action, resource]
+      properties:
+        action: { type: string }
+        resource: { $ref: "#/components/schemas/ResourceSelector" }
+    CapabilitySet:
+      type: object
+      required: [capabilities]
+      properties:
+        capabilities:
+          type: array
+          items: { $ref: "#/components/schemas/Capability" }
+    StartTaskRequest:
+      type: object
+      required: [principal_id, organization_id, capabilities]
+      properties:
+        principal_id:
+          type: string
+          description: Canonical `principal:<uuid>`, bare UUID, or Identity `prn_<uuid>`.
+        organization_id: { type: string }
+        capabilities:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items: { $ref: "#/components/schemas/CapabilityRequest" }
+        ttl_seconds: { type: integer, minimum: 1, maximum: 86400, default: 3600 }
+    StartTaskResponse:
+      type: object
+      required: [task_run_id, state_version, state_digest, ceiling_digest, status, capabilities]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        state_digest: { type: string }
+        ceiling_digest: { type: string }
+        status: { type: string, const: active }
+        capabilities: { $ref: "#/components/schemas/CapabilitySet" }
+    TaskSummary:
+      type: object
+      required: [task_run_id, state_version, status, principal_id]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        status: { type: string }
+        principal_id: { type: string }
+    ListTasksResponse:
+      type: object
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          items: { $ref: "#/components/schemas/TaskSummary" }
+    Task:
+      type: object
+      required: [task_run_id, state_version, state_digest, status, capability_ceiling, current_capabilities, authority_context_id, maximum_expires_at]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        state_digest: { type: string }
+        status: { type: string }
+        capability_ceiling: { $ref: "#/components/schemas/CapabilitySet" }
+        current_capabilities: { $ref: "#/components/schemas/CapabilitySet" }
+        authority_context_id: { type: string }
+        maximum_expires_at: { type: string, format: date-time }
+    FreezeTaskIntentRequest:
+      type: object
+      required: [task_run_id, expected_state_version, operation, resource, audience, arguments, idempotency_key]
+      properties:
+        task_run_id: { type: string }
+        expected_state_version: { type: integer, minimum: 0 }
+        operation: { type: string }
+        resource: { type: string }
+        audience: { type: string, format: uri }
+        arguments: {}
+        idempotency_key: { type: string }
+    FreezeTaskIntentResponse:
+      type: object
+      required: [intent_id, intent_digest, task_run_id, task_state_version, canonical_arguments]
+      properties:
+        intent_id: { type: string }
+        intent_digest: { type: string }
+        task_run_id: { type: string }
+        task_state_version: { type: integer, minimum: 0 }
+        canonical_arguments: {}
+    InvokeTaskRequest:
+      type: object
+      required: [intent_digest]
+      properties:
+        intent_digest: { type: string }
+    TerminateTaskRequest:
+      type: object
+      properties:
+        expected_state_version: { type: integer, minimum: 0 }
+    TerminateTaskResponse:
+      type: object
+      required: [task_run_id, state_version, status]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        status: { type: string, const: cancelled }
+    InvocationReceipt:
+      type: object
+      required: [id, invocation_id, intent_digest, principal_id, actor_id, delegation_chain, operation, resource, policy_decision_id, policy_version_digest, started_at, completed_at, outcome, authority_key_id, signature, receipt_schema_version]
+      properties:
+        id: { type: string }
+        invocation_id: { type: string }
+        intent_digest: { type: string }
+        principal_id: { type: string }
+        organization_id:
+          type: string
+          description: Present on schema 3 receipts; legacy receipts are authorized through their stored invocation intent.
+        actor_id: { type: string }
+        actor_instance_id: { type: [string, "null"] }
+        client_id: { type: [string, "null"] }
+        operator_id: { type: [string, "null"] }
+        delegation_chain: { type: array, items: { type: string } }
+        connection_id: { type: [string, "null"] }
+        operation: { type: string }
+        resource: { type: string }
+        policy_decision_id: { type: string }
+        policy_version_digest: { type: string }
+        approval_id: { type: [string, "null"] }
+        credential_handle_id: { type: [string, "null"] }
+        connector_component_digest: { type: [string, "null"] }
+        external_request_digest: { type: [string, "null"] }
+        external_response_digest: { type: [string, "null"] }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        outcome: { type: string, enum: [succeeded, failed, denied, cancelled] }
+        safe_result_summary: {}
+        authority_key_id: { type: string }
+        signature: { type: string }
+        receipt_schema_version: { type: integer, minimum: 1 }
+        task_run_id: { type: string }
+        task_state_version: { type: integer, minimum: 0 }
+        task_state_digest: { type: string }
+    ReceiptKey:
+      type: object
+      required: [key_id, algorithm, public_key_b64]
+      properties:
+        key_id: { type: string }
+        algorithm: { type: string, const: ed25519 }
+        public_key_b64: { type: string }
+    ReceiptKeysResponse:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items: { $ref: "#/components/schemas/ReceiptKey" }
+    VerifyReceiptResponse:
+      type: object
+      required: [valid]
+      properties:
+        valid: { type: boolean }
+        error: { type: string }
+    ContractError:
+      type: object
+      additionalProperties: false
+      required: [error, hint]
+      properties:
+        error:
+          type: string
+          enum:
+            - catalog_unavailable
+            - provider_unknown
+            - provider_unconfigured
+            - connection_not_found
+            - integration_not_found
+            - integration_required
+            - integration_conflict
+            - integration_read_only
+            - integration_in_use
+            - invalid_state
+            - state_expired
+            - exchange_failed
+            - not_refreshable
+            - needs_reauth
+            - redirect_not_allowed
+            - binding_exists
+            - binding_not_found
+            - unsupported_credential
+            - materialization_denied
+            - unmintable
+            - invalid_request
+            - internal_error
+            - unauthorized
+            - forbidden
+        hint: { type: string }
+    Integration:
+      type: object
+      additionalProperties: false
+      required: [id, key, provider_id, display_name, source, enabled, configured, callback_url, scopes, client_id_hint, has_client_secret, configured_fields, connection_count, created_by, created_at, updated_at]
+      properties:
+        id: { type: string }
+        key: { type: string }
+        provider_id: { type: string }
+        display_name: { type: string }
+        source: { type: string, enum: [organization, shared_dev, deployment] }
+        enabled: { type: boolean }
+        configured: { type: boolean }
+        callback_url: { type: [string, "null"], format: uri }
+        scopes: { type: array, items: { type: string } }
+        client_id_hint: { type: [string, "null"] }
+        has_client_secret: { type: boolean }
+        configured_fields:
+          type: array
+          items: { $ref: "#/components/schemas/ConfiguredField" }
+        connection_count: { type: integer, minimum: 0 }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateIntegration:
+      type: object
+      additionalProperties: false
+      required: [key, provider_id, display_name]
+      properties:
+        key: { type: string, minLength: 1 }
+        provider_id: { type: string, minLength: 1 }
+        display_name: { type: string, minLength: 1 }
+        scopes: { type: array, items: { type: string } }
+        client_id: { type: string, minLength: 1 }
+        client_secret: { type: string, minLength: 1 }
+        configuration: { $ref: "#/components/schemas/Configuration" }
+    UpdateIntegration:
+      type: object
+      additionalProperties: false
+      properties:
+        key: { type: string, minLength: 1 }
+        display_name: { type: string, minLength: 1 }
+        enabled: { type: boolean }
+        scopes: { type: array, items: { type: string } }
+        client_id: { type: string }
+        client_secret: { type: string }
+        configuration_set: { $ref: "#/components/schemas/Configuration" }
+        configuration_clear:
+          type: array
+          maxItems: 64
+          items: { type: string, minLength: 1 }
+    Configuration:
+      type: object
+      maxProperties: 64
+      propertyNames: { pattern: "^[A-Za-z0-9_.-]{1,64}$" }
+      additionalProperties: { type: string, minLength: 1, maxLength: 8192 }
+    ConfigurationFieldDef:
+      type: object
+      additionalProperties: false
+      required: [name, secret, required]
+      properties:
+        name: { type: string, minLength: 1 }
+        secret: { type: boolean }
+        required: { type: boolean }
+    ConfiguredField:
+      type: object
+      additionalProperties: false
+      required: [name, hint]
+      properties:
+        name: { type: string, minLength: 1 }
+        hint: { type: [string, "null"] }
+    Egress:
+      type: object
+      additionalProperties: false
+      required: [scheme, authorities, path_prefixes]
+      properties:
+        scheme: { type: string }
+        authorities: { type: array, items: { type: string } }
+        path_prefixes: { type: array, items: { type: string } }
+    Scope:
+      type: object
+      additionalProperties: false
+      required: [name, description, sensitive, default]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        sensitive: { type: boolean }
+        default: { type: boolean }
+    Provider:
+      type: object
+      additionalProperties: false
+      required: [id, display_name, category, docs_url, provenance_url, catalog_revision, auth_kind, supports_refresh, configured, auto_configurable, callback_url, missing_config, scopes, egress, operations, integration_configuration_fields, connection_configuration_fields]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        category: { type: string, enum: [encryption, cloud_secret_storage, password_managers, local_storage, developer, productivity, communication, storage, crm, payments, identity, testing, custom] }
+        docs_url: { type: string, format: uri }
+        provenance_url: { type: string, format: uri }
+        catalog_revision: { type: string, minLength: 1 }
+        auth_kind: { type: string, enum: [oauth2_authorization_code, api_key, configuration] }
+        supports_refresh: { type: boolean }
+        configured: { type: boolean }
+        auto_configurable: { type: boolean }
+        callback_url: { type: [string, "null"], format: uri }
+        missing_config: { type: array, items: { type: string } }
+        scopes: { type: array, items: { $ref: "#/components/schemas/Scope" } }
+        egress: { $ref: "#/components/schemas/Egress" }
+        operations: { type: array, items: { type: string } }
+        integration_configuration_fields:
+          type: array
+          items: { $ref: "#/components/schemas/ConfigurationFieldDef" }
+        connection_configuration_fields:
+          type: array
+          items: { $ref: "#/components/schemas/ConfigurationFieldDef" }
+    CreateCustomProvider:
+      type: object
+      additionalProperties: false
+      required: [id, display_name, base_url, auth]
+      properties:
+        id: { type: string, pattern: "^custom-[a-z0-9][a-z0-9-]*$", maxLength: 64 }
+        display_name: { type: string, minLength: 1, maxLength: 80 }
+        base_url: { type: string, format: uri, maxLength: 512 }
+        docs_url: { type: [string, "null"], format: uri, maxLength: 512 }
+        auth: { $ref: "#/components/schemas/CustomProviderAuth" }
+    CustomProviderAuth:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, authorize_url, token_url]
+          properties:
+            kind: { type: string, enum: [oauth2_authorization_code] }
+            authorize_url: { type: string, format: uri, maxLength: 512 }
+            token_url: { type: string, format: uri, maxLength: 512 }
+            supports_refresh: { type: boolean }
+            scopes: { type: array, maxItems: 32, items: { type: string, maxLength: 64 } }
+        - type: object
+          additionalProperties: false
+          required: [kind, header]
+          properties:
+            kind: { type: string, enum: [api_key] }
+            header: { type: string, maxLength: 64 }
+            value_prefix: { type: string, maxLength: 32 }
+    Binding:
+      type: object
+      additionalProperties: false
+      required: [id, target_kind, target_id, target_label, created_at]
+      properties:
+        id: { type: string }
+        target_kind: { type: string, enum: [organization, project, agent, group, device, identity] }
+        target_id: { type: string }
+        target_label: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    CreateBinding:
+      type: object
+      additionalProperties: false
+      required: [target_kind, target_id]
+      properties:
+        target_kind: { type: string, enum: [organization, project, agent, group, device, identity] }
+        target_id: { type: string, minLength: 1 }
+        target_label: { type: string, minLength: 1 }
+    ConnectionEvent:
+      type: object
+      additionalProperties: false
+      required: [id, kind, at, detail]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [created, authorize_started, authorized, refreshed, refresh_failed, bound, unbound, policy_updated, revoked, error] }
+        at: { type: string, format: date-time }
+        detail: { type: [string, "null"] }
+    UpdateConnectionPolicy:
+      type: object
+      additionalProperties: false
+      required: [shareability, max_invoke_level]
+      properties:
+        shareability: { type: string, enum: [private, delegable, organization_wide] }
+        max_invoke_level: { type: integer, minimum: 1, maximum: 2 }
+    Connection:
+      type: object
+      additionalProperties: false
+      required: [connection_id, integration_id, connection_ref, logical_name, display_name, provider_id, status, status_detail, organization_id, project_id, owner_kind, shareability, requested_scopes, granted_scopes, account_label, expires_at, refreshable, configured_fields, last_refreshed_at, max_invoke_level, egress, bindings, created_at, updated_at]
+      properties:
+        connection_id: { type: string }
+        integration_id: { type: [string, "null"] }
+        connection_ref: { type: string }
+        logical_name: { type: string }
+        display_name: { type: string }
+        provider_id: { type: string }
+        status: { type: string, enum: [pending, active, needs_reauth, expired, revoked, error] }
+        status_detail: { type: [string, "null"] }
+        organization_id: { type: string }
+        project_id: { type: [string, "null"] }
+        owner_kind: { type: string }
+        shareability: { type: string, enum: [private, delegable, organization_wide] }
+        requested_scopes: { type: array, items: { type: string } }
+        granted_scopes: { type: array, items: { type: string } }
+        account_label: { type: [string, "null"] }
+        expires_at: { type: [string, "null"], format: date-time }
+        refreshable: { type: boolean }
+        configured_fields:
+          type: array
+          items: { $ref: "#/components/schemas/ConfiguredField" }
+        last_refreshed_at: { type: [string, "null"], format: date-time }
+        max_invoke_level: { type: integer }
+        egress: { $ref: "#/components/schemas/Egress" }
+        bindings: { type: array, items: { $ref: "#/components/schemas/Binding" } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateConnection:
+      type: object
+      additionalProperties: false
+      anyOf:
+        - required: [integration_id]
+        - required: [provider_id]
+      properties:
+        integration_id: { type: string, minLength: 1 }
+        provider_id: { type: string, minLength: 1 }
+        display_name: { type: string, minLength: 1 }
+        logical_name: { type: string, minLength: 1 }
+        project_id: { type: string, minLength: 1 }
+        scopes: { type: array, items: { type: string } }
+        shareability: { type: string, enum: [private, delegable, organization_wide] }
+    AuthorizeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        redirect_uri: { type: string, format: uri }
+        scopes: { type: array, items: { type: string } }
+    AuthorizeResponse:
+      type: object
+      additionalProperties: false
+      required: [authorization_url, state, expires_at]
+      properties:
+        authorization_url: { type: string, format: uri }
+        state: { type: string }
+        expires_at: { type: string, format: date-time }
+    SetCredentialRequest:
+      type: object
+      additionalProperties: false
+      anyOf:
+        - required: [value]
+        - required: [configuration_set]
+        - required: [configuration_clear]
+      properties:
+        value: { type: string, minLength: 1, maxLength: 8192 }
+        configuration_set:
+          allOf:
+            - $ref: "#/components/schemas/Configuration"
+          minProperties: 1
+        configuration_clear:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items: { type: string, minLength: 1 }
+    RevokeOutcome:
+      type: object
+      additionalProperties: false
+      required: [revoked, provider_revocation]
+      properties:
+        revoked: { type: boolean }
+        provider_revocation: { type: string, enum: [ok, unsupported, failed] }
+    MintRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        installation_id:
+          type: string
+          description: Numeric GitHub App installation id; required for github connections.
+    DerivedMaterialization:
+      type: object
+      additionalProperties: false
+      required: [connection_id, provider_id, kind, derived_token, expires_at, subject, actor, issued_at]
+      properties:
+        connection_id: { type: string }
+        provider_id: { type: string }
+        kind:
+          type: string
+          description: Provider-native token kind, e.g. github_app_installation.
+        derived_token:
+          type: string
+          description: Provider-minted derived token; short-lived, attenuated, revocable.
+        expires_at: { type: string, format: date-time }
+        subject:
+          type: string
+          description: RFC 8693 subject — the connection's owning principal acted upon.
+        actor:
+          type: string
+          description: RFC 8693 actor — the caller that requested the mint.
+        issued_at: { type: string, format: date-time }
+
+    Ceremony:
+      type: object
+      description: >-
+        One provider's ceremony coverage. Capabilities and the tiers they
+        resolve to, never a captured value: a ceremony describes what it may
+        seal, and the sealing happens somewhere this route cannot see.
+      required: [provider_id]
+      properties:
+        provider_id: { type: string }
+        native_registration:
+          type: boolean
+          description: >-
+            The provider publishes an endpoint that creates the app or client.
+            It covers registration and nothing else — it cannot make somebody
+            signed in, install on an org, or prove the result works.
+        native_registration_note: { type: string, nullable: true }
+        recipe:
+          type: boolean
+          description: A signed, checked-in step IR covering this provider exists.
+        agentic_allowed:
+          type: boolean
+          description: This deployment permits a model to drive the provider's UI.
+        declares:
+          type: array
+          description: >-
+            Capture slot names this ceremony may seal. A slot the recipe did not
+            declare cannot be captured at all, whatever the page offers.
+          items: { type: string }
+        verifies_by:
+          type: string
+          nullable: true
+          description: The round trip that proves the credential works (ADR 0082 §6).
+        note: { type: string, nullable: true }
+        runnable:
+          type: boolean
+          description: False when every phase is blocked — a provider still set up by hand.
+        plan:
+          type: array
+          items:
+            type: object
+            required: [phase, tier]
+            properties:
+              phase: { type: string }
+              tier:
+                type: string
+                enum: [c0_provider_native, c1_deterministic, c2_agentic, c3_blocked]
+              uses_a_model: { type: boolean }
+              requires_a_present_user: { type: boolean }
+        secrets_returned: { type: boolean, const: false }
+    AgentRun:
+      type: object
+      description: >-
+        A sandboxed run, as metadata. Carries no frame, no rationale and no page
+        content — `observation_included` says so explicitly rather than leaving
+        a reader to infer it.
+      required: [id, origin, control_state, secrets_returned, observation_included]
+      properties:
+        id: { type: string }
+        job_id: { type: string }
+        origin: { type: string, description: The relying party. An origin, never an account. }
+        tier: { type: string, enum: [t3, t4] }
+        control_state:
+          type: string
+          enum: [agent_driving, handoff_requested, awaiting_human, human_driving, resume_requested, suspended]
+        quiescence: { type: string, enum: [quiescent, critical] }
+        handoff_queued: { type: boolean }
+        driver: { type: string, enum: [agent, human] }
+        lease_expires_at: { type: string, nullable: true }
+        blocked_reason: { type: string, nullable: true }
+        next_seq: { type: integer }
+        expires_at: { type: string }
+        closed_at: { type: string, nullable: true }
+        version: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+        secrets_returned: { type: boolean, const: false }
+        observation_included: { type: boolean, const: false }
+    AgentRunError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        hint: { type: string }

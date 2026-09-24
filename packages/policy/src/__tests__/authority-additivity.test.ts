@@ -27,8 +27,8 @@ import { describe, expect, it } from "vitest";
  */
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const baselinePath = resolve(root, "policy/openfga/baseline.fga");
-const deltaPath = resolve(root, "policy/openfga/model.fga");
+const baselinePath = resolve(root, "spec/openfga/baseline.fga");
+const deltaPath = resolve(root, "spec/openfga/model.fga");
 
 const FROZEN_BASELINE_TYPES = [
   "user",

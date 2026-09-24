@@ -15,7 +15,7 @@ surface used here (`/identity/accounts/prelogin`, `/identity/connect/token`,
 The design of this client is informed by **rbw** — an unofficial Bitwarden CLI
 by Jesse Luehrs, MIT licensed, <https://github.com/doy/rbw>. rbw is a clean
 derivation reference under this repository's licensing policy
-(`docs/competitors/REUSE.md`, constitution C3): permissively licensed, so
+(`docs/reference/reuse.md`, constitution C3): permissively licensed, so
 deriving from it with attribution is allowed. This crate does not depend on
 rbw and does not vendor its code; the debt is architectural — which endpoints
 matter, how the key ladder is sequenced, and which envelope types a consume

@@ -1,11 +1,11 @@
 //! `OpenSesame` **core sdk** — shared IR with no I/O.
 //!
-//! WIT contracts: `wit/core/world.wit`.
+//! WIT contracts: `spec/wit/core/world.wit`.
 //! Prefer this facade for new host/client dependents (ADR 0017).
 
 pub use opensesame_domain::*;
 
-/// Product-facing alias for the shared core surface (see `wit/core/world.wit`).
+/// Product-facing alias for the shared core surface (see `spec/wit/core/world.wit`).
 pub mod wit_contract {
     pub const PACKAGE: &str = "opensesame:core@1.0.0";
 }

@@ -5,7 +5,7 @@
 - Supplements: [ADR 0033](0033-federated-identity-admission.md) (identity before
   sealing; federation never decrypts the vault), [ADR 0034](0034-origin-brokered-static-site-signin.md)
   and [ADR 0052](0052-federated-first-sign-in-surfaces.md) (the shoo.dev leg),
-  [ADR 0078](0078-external-idp-as-identity-service.md) (setup's allowlist is the
+  [ADR 0078](0078-external-idp-is-the-identity-service.md) (setup's allowlist is the
   sign-in screen), [ADR 0089](0089-device-vault-switching.md) (several vaults on
   one device)
 
@@ -43,7 +43,7 @@ Three things were broken in the flow, none of them in the crypto:
   profiles and nothing else.
 
 shoo.dev's own shape constrains the answer ([research summary in
-`docs/design/auth-flow/README.md`](../design/auth-flow/README.md)): sign-out is
+`docs/design/canvases/auth-flow/README.md`](../design/canvases/auth-flow/README.md)): sign-out is
 local only (`clearIdentity`; there is no `end_session_endpoint`, no revocation
 endpoint), the broker keeps its own Google session and ends it only at
 `shoo.dev/me`, and `/authorize` ignores `prompt`, `login_hint` and `max_age`.
@@ -123,7 +123,7 @@ Every OIDC issuer, by contrast, must honour `prompt=login` (Core §3.1.2.1).
    confirmed in that card, with what stops named as a fact, and the last key
    cannot be removed; the alternatives beside the refusal offer the other
    keys. The first draft drew a form under every row and a second PIN form
-   under the MFA row; the design record under `docs/design/auth-flow` is the
+   under the MFA row; the design record under `docs/design/canvases/auth-flow` is the
    second draft, and the reference products it was read against (Bitwarden,
    1Password, Google, GitHub, Microsoft, Apple) agree on the shape: the list
    is state, the form is the ceremony, one at a time.
@@ -192,6 +192,6 @@ Every OIDC issuer, by contrast, must honour `prompt=login` (Core §3.1.2.1).
 
 ## Design record
 
-The canvas at [`docs/design/auth-flow/`](../design/auth-flow/README.md) draws
+The canvas at [`docs/design/canvases/auth-flow/`](../design/canvases/auth-flow/README.md) draws
 the unlock screen with both ledgers, the account menu, the enrollment
 ceremony, the flow map, and today's screen beside the redraw.

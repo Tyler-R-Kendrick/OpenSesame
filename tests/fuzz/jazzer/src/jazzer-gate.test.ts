@@ -1,0 +1,103 @@
+import { spawnSync } from "node:child_process";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { expect, it } from "vitest";
+
+it.each([0, 1])(
+  "runs only native targets and propagates status %i",
+  (status) => {
+    const root = mkdtempSync(join(tmpdir(), "opensesame-jazzer-gate-"));
+    try {
+      const pkg = join(root, "tests/fuzz/jazzer");
+      const bin = join(root, "bin");
+      mkdirSync(join(root, "scripts/lib"), { recursive: true });
+      mkdirSync(join(root, "scripts/fuzz"), { recursive: true });
+      copyFileSync(
+        fileURLToPath(
+          new URL(
+            "../../../../scripts/lib/audit-directory.sh",
+            import.meta.url,
+          ),
+        ),
+        join(root, "scripts/lib/audit-directory.sh"),
+      );
+      mkdirSync(join(pkg, "src"), { recursive: true });
+      mkdirSync(join(pkg, "node_modules/.bin"), { recursive: true });
+      mkdirSync(bin);
+      copyFileSync(
+        fileURLToPath(
+          new URL("../../../../scripts/fuzz/jazzer-gate.sh", import.meta.url),
+        ),
+        join(root, "scripts/fuzz/jazzer-gate.sh"),
+      );
+      writeFileSync(join(pkg, "package.json"), "{}");
+      for (const name of [
+        "alpha",
+        "beta",
+        "alpha.test",
+        "oracles",
+        "provider",
+        "run",
+      ]) {
+        writeFileSync(join(pkg, `src/${name}.ts`), "");
+      }
+      writeFileSync(join(bin, "node"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+      writeFileSync(
+        join(pkg, "node_modules/.bin/jazzer"),
+        '#!/bin/sh\nprintf "%s\\n" "$NODE_OPTIONS" "$@" >> "$GATE_CALLS"\nexit "$GATE_STATUS"\n',
+        { mode: 0o700 },
+      );
+      const calls = join(root, "calls");
+      const result = spawnSync(
+        "bash",
+        [join(root, "scripts/fuzz/jazzer-gate.sh")],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: `${bin}:/usr/bin:/bin`,
+            NODE_OPTIONS: "--no-warnings",
+            FUZZ_SECONDS: "3",
+            JAZZER_ALLOW_FALLBACK: "0",
+            GATE_CALLS: calls,
+            GATE_STATUS: String(status),
+          },
+        },
+      );
+      expect(result.status, result.stderr).toBe(status);
+      const privateDirectory = result.stderr.match(
+        /Private audit artifacts: ([^\n]+)/,
+      )?.[1];
+      expect(privateDirectory).toBeTruthy();
+      if (!privateDirectory)
+        throw new Error("Missing private artifact location");
+      expect(privateDirectory.startsWith(root)).toBe(false);
+      expect(statSync(privateDirectory).mode & 0o777).toBe(0o700);
+      expect(existsSync(join(pkg, "artifacts"))).toBe(false);
+      expect(readFileSync(calls, "utf8").trim().split("\n")).toEqual(
+        ["alpha", "beta"].flatMap((name) => [
+          "--no-warnings --import=tsx",
+          `src/${name}`,
+          "--",
+          "-max_total_time=3",
+          `-artifact_prefix=${privateDirectory}/artifacts/${name}-`,
+          `${privateDirectory}/corpus/${name}`,
+        ]),
+      );
+      expect(result.stdout.includes("jazzer-gate: CLEAN")).toBe(status === 0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);

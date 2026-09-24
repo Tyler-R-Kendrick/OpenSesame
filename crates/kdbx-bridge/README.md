@@ -48,7 +48,7 @@ or a credential.
 ## The mapping contract (normative)
 
 This is the statement of ADR 0052 §4.5. The Rust implementation here and the
-TypeScript pages adapter must agree on every rule; `fixtures/kdbx/` is the
+TypeScript pages adapter must agree on every rule; `tests/fixtures/kdbx/` is the
 cross-implementation guard.
 
 ### Fields
@@ -246,7 +246,7 @@ cargo +1.88.0 clippy -p opensesame-kdbx-bridge --all-targets -- -D warnings
 - `tests/snapshots.rs` — `insta` characterization of the mapping, the trailer
   rendering, the exported field layout and the import summary. Review with
   `cargo insta review`; `.snap` files are committed.
-- `tests/conformance.rs` — the committed `fixtures/kdbx/` pair. Regenerate
+- `tests/conformance.rs` — the committed `tests/fixtures/kdbx/` pair. Regenerate
   with:
 
   ```bash
@@ -254,4 +254,4 @@ cargo +1.88.0 clippy -p opensesame-kdbx-bridge --all-targets -- -D warnings
     --ignored regenerate_fixture
   ```
 
-- `fuzz/fuzz_targets/kdbx_parse.rs` — `map_kdbx` over arbitrary bytes.
+- `tests/fuzz/cargo/fuzz_targets/kdbx_parse.rs` — `map_kdbx` over arbitrary bytes.

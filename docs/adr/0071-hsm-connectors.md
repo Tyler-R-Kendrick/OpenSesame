@@ -7,7 +7,7 @@ ADR 0048 §5 (dependency budget and daemon quarantine),
 ADR 0052-cert ([key custody](0052-automatic-certificate-authority-selection.md)),
 ADR 0066 (Certificate Manager domain model), ADR 0067 (CRL/OCSP signing),
 ADR 0070 (code signing)
-Plan: [docs/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 
@@ -47,7 +47,7 @@ memory-unsafe rather than merely wrong.
 
 The client lives in the **gateway** and nowhere near the daemon. `cryptoki`
 loads a vendor shared object and is a substantial native surface; ADR 0048 §5's
-daemon dependency budget stands, and `scripts/daemon-deps-gate.sh` keeps it out
+daemon dependency budget stands, and `scripts/audit/daemon-deps-gate.sh` keeps it out
 of every daemon-adjacent tree.
 
 Gate: `cargo +1.88.0 build -p opensesame-hsm-client`

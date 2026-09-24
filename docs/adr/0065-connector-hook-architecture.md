@@ -21,7 +21,7 @@ refuses to execute. A user who wants a provider we did not ship has no path
 but a patch to this repository.
 
 Meanwhile the connector *contract* has existed since the WIT worlds landed:
-`wit/connector/world.wit` gives guests `describe`/`invoke` over opaque
+`spec/wit/connector/world.wit` gives guests `describe`/`invoke` over opaque
 handles, imports exactly `host-http.authorized-request`, purpose-bound
 `host-crypto.sign`, and `host-oauth.acquire`, and structurally cannot
 express `secrets.get`. `crates/connector-host` has the `Connector` trait,
@@ -29,7 +29,7 @@ express `secrets.get`. `crates/connector-host` has the `Connector` trait,
 and a stubbed `wasm_guest` module; a wasmtime workspace pin sat unused
 (activated by this ADR on the 36 LTS line — the 33 line it originally
 named carries RUSTSEC advisories including a critical sandbox escape,
-which `pnpm audit:cargo-audit` now guards); `connectors/mock/connector.yaml` specifies a manifest nobody
+which `pnpm audit:cargo-audit` now guards); `spec/connectors/mock/connector.yaml` specifies a manifest nobody
 parses; and `apps/gateway/src/routes/intents.rs` carries the literal
 comment "When per-provider components land, this becomes the lookup."
 
@@ -110,9 +110,9 @@ pass-through feature. Rules, each load-bearing:
   set unexpected, fuel exhausted, deadline passed — every one is a typed
   refusal, never a fallback.
 
-Gates: `scripts/daemon-deps-gate.sh` bans `wasmtime`/`cranelift-codegen`
+Gates: `scripts/audit/daemon-deps-gate.sh` bans `wasmtime`/`cranelift-codegen`
 from every daemon-adjacent tree (the runtime is a gateway concern;
-ADR 0048 §5 stands); `scripts/battle-test.sh` runs the feature-gated test
+ADR 0048 §5 stands); `scripts/test/battle-test.sh` runs the feature-gated test
 suite; the connector-sdk WIT structural tests continue to refuse
 `secrets.get`.
 
@@ -128,7 +128,7 @@ material (a unit test asserts the schema's field-name set against the
 secret-shaped denylist, mirroring `assert_wit_forbids_secrets_get`).
 Parsing a manifest never causes execution; registration happens only via
 `HostRuntime` under §3's digest rules. Gate:
-`fuzz/fuzz_targets/connector_yaml.rs` (repo rule: a fuzz target per
+`tests/fuzz/cargo/fuzz_targets/connector_yaml.rs` (repo rule: a fuzz target per
 parser) plus the manifest rejection-table unit tests.
 
 ### 5. Provider→connector binding replaces the hardcoded lookup
@@ -214,7 +214,7 @@ Recorded so each item's status is a decision, not an oversight.
   GET; the registry is untrusted transport and the local sha256 (plus the
   operator pin re-verified in `WasmConnector::load`) is the integrity
   boundary. Anonymous token flow only; SSRF-fenced; size-capped; fail
-  closed. Gate: `oci_component` unit tests + `scripts/clippy-gate.sh`.
+  closed. Gate: `oci_component` unit tests + `scripts/audit/clippy-gate.sh`.
 - **First cloud-secrets promotion** — `doppler` is off
   `AuthMethod::Configuration`: real API-key auth with egress path prefixes
   carved so L2 reaches only metadata endpoints (`/v3/projects`,

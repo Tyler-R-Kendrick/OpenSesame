@@ -106,7 +106,7 @@ Three notes on the anchor:
 - **ADR 0005 and ADR 0017 are unaffected.** No bridge adds a `getSecret`,
   `materialize`, `reveal`, `show`, `pass_show`, or `password_store_read`
   affordance to any MCP tool list or WIT world. The structural guards stay
-  as they are: the `secrets.get` ban in `wit/connector/world.wit`, the
+  as they are: the `secrets.get` ban in `spec/wit/connector/world.wit`, the
   tool-name denylists in `apps/mcp-host` / `apps/mcp-client`, and
   `assert_opaque_sync_json`. The agent plane's answer is unchanged —
   ConnectionRef → authorize → invoke → receipt.
@@ -203,8 +203,8 @@ dependencies.** Serving Bitwarden's own clients means:
   compatibility the foundation of the strategy.
 - **Landing zone, when it is built.** The server-side E2EE item store is
   already migrated but unwired: `vaults`
-  (`migrations/0001_init.sql:140`) and `encrypted_item_revisions`
-  (`migrations/0001_init.sql:147`), with
+  (`crates/storage/migrations/0001_init.sql:140`) and `encrypted_item_revisions`
+  (`crates/storage/migrations/0001_init.sql:147`), with
   `Db::insert_encrypted_item` (`crates/storage/src/lib.rs:471`). Verified
   today: `insert_encrypted_item` has **no callers at all**, and
   `encrypted_item_revisions` is read only by

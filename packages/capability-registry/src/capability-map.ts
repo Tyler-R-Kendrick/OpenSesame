@@ -49,7 +49,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- core: settings and install -------------------------------------
     "setup.first_run": "settings.core",
     "app.install": "install.pwa",
-    "pwa.status": "install.pwa",
 
     // --- optional: access authority (local PAM + Host plane) -------------
     "authority.portal.templates.manage": "access.authority",
@@ -78,10 +77,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.local.requests.manage": "access.authority",
     "identity.local.policy.manage": "access.authority",
     "identity.local.access.manage": "access.authority",
-    "host.health": "access.authority",
     "host.health.pages": "access.authority",
     "host.whoami": "access.authority",
-    "daemon.status": "access.authority",
     "browser.pairing.begin": "access.authority",
     "browser.identity.authenticate": "access.authority",
     "browser.grant.renew": "access.authority",

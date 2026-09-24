@@ -9,7 +9,7 @@ to invoke it:
   a line naming the PR: `PR number: 123` (repo defaults to
   `Tyler-R-Kendrick/OpenSesame` unless told otherwise).
 - If this file is registered as a Routine bound to a persistent session (not
-  a fresh-session-per-fire one — see `docs/operations/agent-routines.md` for
+  a fresh-session-per-fire one — see `docs/contributing/agent-routines.md` for
   why this one is registered differently, if at all), fire it with
   `fire_trigger` and pass the PR number as the `text` parameter, e.g.
   `text: "PR number: 123"`.
@@ -48,7 +48,7 @@ repo's accumulated security checklist line by line against the actual diff.
 ## Mission
 
 Fetch the PR's diff, hold every changed line against
-`security/claude-review-checklist.md`, and post one structured review
+`tools/security/claude-review-checklist.md`, and post one structured review
 comment — not one comment per checklist item.
 
 ## Exact commands
@@ -65,7 +65,7 @@ surrounding code that matters for a security read):
 gh pr checkout <PR-NUMBER> --repo Tyler-R-Kendrick/OpenSesame
 ```
 
-Read `security/claude-review-checklist.md` in full — it is the artifact this
+Read `tools/security/claude-review-checklist.md` in full — it is the artifact this
 review applies. It has ~30 numbered items grouped under nine themes (listen/
 bind fences and CORS, production fail-closed paths, token/DPoP custody, CSRF
 fences, sealed-store/vault integrity, log redaction and error disclosure,

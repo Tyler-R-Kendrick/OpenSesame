@@ -31,7 +31,7 @@ paths = [
   '''(^|/)\.wxt(?:/|$)''',
   '''(^|/)sbom(?:/|$)''',
   '''(^|/)test-results(?:/|$)''',
-  '''(^|/)packages/visual-contract/output(?:/|$)''',
+  '''(^|/)tests/visual-contract/output(?:/|$)''',
   '''(^|/)\.headroom-cache(?:/|$)''',
   '''(^|/)\.superpowers(?:/|$)''',
   '''(?i)\.(?:log|sqlite|sqlite-.*)$''',

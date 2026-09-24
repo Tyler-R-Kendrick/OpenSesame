@@ -1,6 +1,6 @@
 /**
  * The app-core boundary (ADR 0133). Pure functions over a file map so they
- * can be tested without a checkout; scripts/app-core-boundary.mjs walks
+ * can be tested without a checkout; scripts/quality/app-core-boundary.mjs walks
  * packages/app-core/src and prints the report.
  *
  * The shared core runs in a browser tab, a CLI and a bare isolate, so it may
@@ -54,11 +54,11 @@ const REACT =
   /^(react|react-dom|react-router|react-router-dom|preact|@testing-library\/react|use-sync-external-store)(\/|$)/;
 
 /**
- * Repo-level data the core may read by relative path: shared fixtures and
- * the connector parity table. Anything else outside the package — above all
- * an app — is a violation.
+ * Repo-level data the core may read by relative path: shared test fixtures and
+ * the language-neutral contracts under spec/ (the connector parity table).
+ * Anything else outside the package — above all an app — is a violation.
  */
-const SHARED_DATA = ["connectors/", "fixtures/"];
+const SHARED_DATA = ["spec/", "tests/fixtures/"];
 
 /**
  * `from` is a path inside the package (`src/lib/x.ts`); returns the target's

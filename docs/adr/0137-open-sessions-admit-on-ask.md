@@ -38,7 +38,7 @@ and a grant is the operator's decision about one person; no policy makes it.
 A policy that cannot apply is refused, not stored: `observer_on_ask` on a
 private session (nobody can ask into one) answers `422 session_admission`,
 as does any other spelling. The column carries a CHECK of the two values
-(`migrations/0041_session_admission.sql`), defaulting to `operator`.
+(`crates/storage/migrations/0041_session_admission.sql`), defaulting to `operator`.
 
 ### 2. An ask under the policy is decided in the operator's name
 

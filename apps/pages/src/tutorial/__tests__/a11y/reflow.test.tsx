@@ -6,7 +6,7 @@
  * jsdom performs no layout: every box is zero by zero, no media query is
  * evaluated, and nothing can overflow. So none of these tests can show that
  * the panel is *legible* at 320 CSS pixels or at 400% zoom; that is what a
- * browser-driven suite is for, and `packages/visual-contract` is where it
+ * browser-driven suite is for, and `tests/visual-contract` is where it
  * would go. What is provable here is the structural half, and it is the half
  * that actually breaks: that no control is dropped or hidden at a narrow
  * width, that the panel's commit controls never live in the region that

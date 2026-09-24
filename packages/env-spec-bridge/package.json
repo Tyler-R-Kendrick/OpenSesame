@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Parses .env.schema with @env-spec/parser and emits JSON for the Rust env-spec crate",
   "bin": {
     "opensesame-env-parse": "./bin/opensesame-env-parse.mjs"
   },

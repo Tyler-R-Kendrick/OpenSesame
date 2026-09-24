@@ -57,7 +57,7 @@ async fn store() -> Db {
     let exists: i64 = sqlx::query_scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='config_authorization_roles'").fetch_one(db.pool()).await.unwrap();
     if exists == 0 {
         sqlx::raw_sql(include_str!(
-            "../../../migrations/0032_config_authorization.sql"
+            "../../storage/migrations/0032_config_authorization.sql"
         ))
         .execute(db.pool())
         .await

@@ -47,7 +47,7 @@ section beneath the ways-in allowlist, in the same `ways__head` voice as "Add a
 provider" and "Or an OpenSesame identity service", above the same terminal
 `.go`.
 
-Two alternatives were drawn in `docs/design/pwa-install/` and rejected:
+Two alternatives were drawn in `docs/design/canvases/pwa-install/` and rejected:
 
 - **A dismissible strip above the ceremony** is the amber notice ADR 0077
   deleted, wearing a friendlier hat: a block of colour above the question the

@@ -73,5 +73,5 @@ The AG-UI client remains a lazy dynamic import. Unit tests use explicit
 transport and consent seams, never module mocks. Regression tests cover
 unauthenticated HEAD refusal, exact-origin POST, immutable single-use preview,
 cancellation, payload minimization, sentinel redaction and inert model output.
-The existing Jazzer harness discovers `packages/fuzz/src/support_payload.ts`
+The existing Jazzer harness discovers `tests/fuzz/jazzer/src/support_payload.ts`
 for coverage-guided parser/redaction testing.

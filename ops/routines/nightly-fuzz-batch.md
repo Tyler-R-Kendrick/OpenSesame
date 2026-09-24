@@ -37,11 +37,11 @@ first.
 
 3. If a target crashes:
    - Minimize the input (`cargo fuzz tmin <target> <crash>`).
-   - Copy it to `fuzz/regressions/<target>/`.
+   - Copy it to `tests/fuzz/cargo/regressions/<target>/`.
    - Fix the product code if the oracle is right.
-   - Write `docs/security/audit-YYYY-MM-DD-fuzz-<target>.md`.
+   - Write `docs/security/audits/YYYY-MM-DD-fuzz-<target>.md`.
    - Open a PR (`fix(fuzz): …`).
-4. Optionally grow `fuzz/corpus/` and include only small, reviewable new
+4. Optionally grow `tests/fuzz/cargo/corpus/` and include only small, reviewable new
    seeds in that PR. Do not commit megabytes of unreviewed corpus.
 5. If everything is CLEAN, do not open an empty PR.
 
@@ -53,4 +53,4 @@ If time remains inside the budget:
 FUZZ_SECONDS=60 pnpm test:fuzz
 ```
 
-Triage Jazzer crashes the same way under `packages/fuzz/artifacts/`.
+Triage Jazzer crashes the same way under `tests/fuzz/jazzer/artifacts/`.

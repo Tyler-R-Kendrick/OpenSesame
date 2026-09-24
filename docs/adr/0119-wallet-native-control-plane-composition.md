@@ -11,8 +11,8 @@ ADR 0065 ([agent surface parity](0065-agent-surface-parity.md)),
 ADR 0086 ([one interaction primitive](0086-wallet-native-interaction-layer.md)),
 ADR 0090 ([static frontend complete without a backend](0090-static-frontend-complete-without-backend.md)),
 ADR 0117 ([hosted SIOP ↔ OIDC bridge](0117-hosted-siop-oidc-bridge.md)),
-[wallet interaction layer](../wallet-interaction-layer.md),
-[protocol conformance](../protocol-conformance.md)
+[wallet interaction layer](../architecture/wallet-interaction-layer.md),
+[protocol conformance](../reference/protocol-conformance.md)
 
 ## Context
 
@@ -91,7 +91,7 @@ under the prefix, with a machine-readable body:
 The wildcard is the point: there is no corner of an unmounted surface that
 answers anything but the refusal, so a partially-wired surface cannot leave a
 working hole, and "not built yet" and "you have the path wrong" are one answer
-at one shape. This mirrors `docs/protocol-conformance.md`'s house style — a
+at one shape. This mirrors `docs/reference/protocol-conformance.md`'s house style — a
 typed refusal is worth more than a happy path that cannot run.
 
 ### 3. The runtime support matrix is served, not only documented

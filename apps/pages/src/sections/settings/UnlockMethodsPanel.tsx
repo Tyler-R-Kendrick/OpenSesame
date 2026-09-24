@@ -46,7 +46,7 @@ const ENROLL_PASSKEY_PARAM = "enroll-passkey";
  * read-only state with exactly one action. No row holds an input: every
  * form lives in the one sheet a row's action opens, so the PIN form exists
  * once, and the authenticator ceremony on a keyless vault reuses it as its
- * step 1 rather than drawing a second one (docs/design/auth-flow, ADR 0091).
+ * step 1 rather than drawing a second one (docs/design/canvases/auth-flow, ADR 0091).
  */
 export function UnlockMethodsPanel() {
   return (

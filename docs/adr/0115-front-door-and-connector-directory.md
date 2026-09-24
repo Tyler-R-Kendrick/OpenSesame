@@ -9,7 +9,7 @@
   [ADR 0079](0079-shared-sessions-and-scoped-grants.md) (joining a session)
 - Does not change: [ADR 0005](0005-authority-handle-connectionref.md) (no
   agent ever holds a credential), [ADR 0032](0032-connection-broker-service-integrations.md)
-  (the Host broker), REUSE.md (Nango is study only, never vendored)
+  (the Host broker), docs/reference/reuse.md (Nango is study only, never vendored)
 
 ## Context
 
@@ -74,7 +74,7 @@ Rules that keep it honest:
 - **Nothing is vendored.** `lib/nango-directory.ts` reads the public wire
   shapes tolerantly, current and older forms alike, so anything that answers
   the same two routes is a directory too. No Nango package, no copied source
-  (REUSE.md).
+  (docs/reference/reuse.md).
 - **Three homes, by sensitivity.** The endpoint is configuration and sits in
   plaintext beside `setup.v1` (`connector-directory.v1`), because the
   ceremony runs before any vault exists and an address is not a secret. The
@@ -139,5 +139,5 @@ the words; the gate targets moved to `setup-catalog.ts` and their goals to
   (`StrengthMeter`, `useCountdown`); `AccessSection` lost its tab strip to
   `AccessTabs`. Both files are shorter than they were, and their baselines
   are tightened.
-- The Nango stance in `docs/competitors/nango.md` is unchanged: adjacent,
+- The Nango stance in `docs/research/competitors/nango.md` is unchanged: adjacent,
   studied, and now read from — never depended on.

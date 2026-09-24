@@ -1,5 +1,5 @@
 //! SEC-FUZZ / SEC-CONFUSION — the callout boundary decoder, driven the way
-//! `fuzz/fuzz_targets/transport_callout_envelope.rs` drives it, in the
+//! `tests/fuzz/cargo/fuzz_targets/transport_callout_envelope.rs` drives it, in the
 //! ordinary test suite.
 //!
 //! Two different things arrive at this boundary and must not be confused:

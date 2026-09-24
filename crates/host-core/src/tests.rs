@@ -152,7 +152,7 @@ fn assert_no_secrets_or_arbitrary_sign(src: &str) {
 
 #[test]
 fn wit_task_contract() {
-    let src = read_wit("wit/task/world.wit");
+    let src = read_wit("spec/wit/task/world.wit");
     assert_no_secrets_or_arbitrary_sign(&src);
     assert!(src.contains("authorize-and-invoke"));
     assert!(src.contains("restrict"));
@@ -163,7 +163,7 @@ fn wit_task_contract() {
 
 #[test]
 fn wit_proof_contract() {
-    let src = read_wit("wit/proof/world.wit");
+    let src = read_wit("spec/wit/proof/world.wit");
     assert_no_secrets_or_arbitrary_sign(&src);
     assert!(src.contains("execute-authorized-proof"));
     assert!(src.contains("task-run-id"));
@@ -172,7 +172,7 @@ fn wit_proof_contract() {
 
 #[test]
 fn wit_mediation_contract() {
-    let src = read_wit("wit/mediation/world.wit");
+    let src = read_wit("spec/wit/mediation/world.wit");
     assert_no_secrets_or_arbitrary_sign(&src);
     assert!(src.contains("classify-result"));
     assert!(src.contains("acknowledge-transition"));
@@ -180,7 +180,7 @@ fn wit_mediation_contract() {
 
 #[test]
 fn host_wit_unchanged_exports() {
-    let src = read_wit("wit/host/world.wit");
+    let src = read_wit("spec/wit/host/world.wit");
     assert!(src.contains("export session"));
     assert!(src.contains("export invoke"));
     assert!(src.contains("opensesame:host@1.0.0"));

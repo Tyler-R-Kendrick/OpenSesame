@@ -42,5 +42,5 @@ agents. The Host CLI previously shelled out to the external `pass` binary for
   Pages must not be committed.
 - ADR 0005 invariants are preserved: no agent `getSecret()` / `show`.
 - Competitive positioning vs Unix `pass` is recorded under
-  [docs/competitors/pass.md](../competitors/pass.md) (direct competitor for
+  [docs/research/competitors/pass.md](../research/competitors/pass.md) (direct competitor for
   the human CLI sealed-store slot).

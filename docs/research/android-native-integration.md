@@ -65,7 +65,7 @@ design.
 - There is no Signal API use and no `/.well-known/webauthn`.
 
 **Vault data model.**
-- The `login` type (`packages/vault-item-types/definitions/login.json`) has
+- The `login` type (`marketplace/item-types/builtin/login.json`) has
   `uris`, `username`, `password` and `totp`. URIs carry a Bitwarden-style
   match mode (`lib/vault/website-pattern.ts`).
 - No `androidapp://` URI form exists.
@@ -611,7 +611,7 @@ follows:
 | Converges with `crates/human-vault` / `opensesame pass` | No | Can |
 | Assurance tooling | Vitest, property tests, Stryker, Jazzer.js | Adds Kani, Miri, cargo-fuzz, cargo-mutants (already wired) |
 | Android runtime dependency | WebView-provided sandbox | None beyond the APK |
-| Pages bundle | Unchanged | Adds Wasm, counted by `bundle-budgets.json` |
+| Pages bundle | Unchanged | Adds Wasm, counted by `tools/quality/bundle-budgets.json` |
 | Parity risk | None: same code | Regex semantics, two implementations during migration |
 
 Recommendation: **start with the TypeScript route.**
@@ -648,7 +648,7 @@ outline:
    first.
 
 Moved files do **not** keep their recorded numbers automatically:
-`quality-baseline.json` is keyed by path. The relocation step adds a
+`tools/quality/quality-baseline.json` is keyed by path. The relocation step adds a
 `quality:gate --relocate` mode that re-keys entries and refuses any
 increase. Nothing here changes a design rule in AGENTS.md §5. In
 particular, guest entry and unlock behavior stay in Pages' shell.

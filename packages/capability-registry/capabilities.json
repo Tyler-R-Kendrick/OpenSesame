@@ -486,10 +486,20 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame status",
-      "pwa": "pwa-app:health",
+      "pwa": null,
       "mcp_host": "host_ready",
       "mcp_client": "host_health",
-      "webmcp": "opensesame_pwa_health"
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      }
     }
   },
   {
@@ -565,10 +575,20 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame daemon status",
-      "pwa": "pwa-app:daemon-probe",
+      "pwa": null,
       "mcp_host": "daemon_health",
       "mcp_client": null,
-      "webmcp": "opensesame_pwa_health"
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      }
     }
   },
   {
@@ -3003,10 +3023,10 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame-id login",
-      "pwa": "pwa-app:sign-in",
+      "pwa": "lib/federation.ts:beginSignIn",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_open_sign_in"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
@@ -3014,6 +3034,10 @@
         "adr": "0023-mcp-bearer-vs-dpop.md"
       },
       "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
         "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
         "adr": "0023-mcp-bearer-vs-dpop.md"
       }
@@ -4315,19 +4339,6 @@
         "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
         "adr": "0088-ai-native-contextual-support.md"
       }
-    }
-  },
-  {
-    "id": "pwa.status",
-    "title": "Thin PWA session status",
-    "plane": "client_local",
-    "kind": "read",
-    "surfaces": {
-      "cli": null,
-      "pwa": "pwa-app:status",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": "opensesame_pwa_status"
     }
   },
   {

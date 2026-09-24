@@ -1,6 +1,6 @@
 //! Malformed input must produce a classified error and never a panic.
 //!
-//! The same entry point is fuzzed by `fuzz/fuzz_targets/kdbx_parse.rs`; these
+//! The same entry point is fuzzed by `tests/fuzz/cargo/fuzz_targets/kdbx_parse.rs`; these
 //! are the named, table-driven cases that pin the classification.
 
 mod common;

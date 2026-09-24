@@ -7,4 +7,3 @@ license.workspace = true
 [dependencies]
 regex = "1.11.1"
 serde_json = { workspace = true }
-once_cell = { workspace = true }

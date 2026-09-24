@@ -4,7 +4,7 @@ Design contract for the Pages **Identity** section. Decision records:
 [ADR 0060](../adr/0060-identity-screen-idp-brokering.md) (screen, ceremony),
 [ADR 0061](../adr/0061-access-pam-plane-ceremonies.md) (Devices tab, My
 access, prose purge). Parity target and terminology:
-[`docs/competitors/tailscale-identity.md`](../competitors/tailscale-identity.md).
+[`docs/research/competitors/tailscale-identity.md`](../research/competitors/tailscale-identity.md).
 Sibling contract (shared hard rules):
 [`docs/design/access-screen.md`](access-screen.md).
 

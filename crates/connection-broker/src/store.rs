@@ -1151,7 +1151,7 @@ pub async fn update_sync_target_status(
 // plaintext.
 //
 // DDL lives here as idempotent `ensure_*` schema, following the sync_targets
-// precedent above, so this module does not own root `migrations/` numbering.
+// precedent above, so this module does not own `crates/storage/migrations/` numbering.
 
 #[derive(Clone, Debug)]
 pub struct SecretConfigRow {
