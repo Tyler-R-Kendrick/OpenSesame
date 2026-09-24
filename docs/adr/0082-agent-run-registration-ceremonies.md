@@ -177,7 +177,7 @@ ADR 0052 §11's silent failure with a longer fuse.
 ### 7. Ceremony recipes are catalog data
 
 Unlike rotation's long tail of consumer sites, there are dozens of providers and
-`crates/connection-broker/src/catalog.json` already enumerates them. A ceremony
+`spec/connectors/catalog.json` already enumerates them. A ceremony
 recipe is therefore catalog data: checked in, reviewed, signed, versioned
 alongside the provider it belongs to.
 

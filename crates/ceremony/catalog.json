@@ -16,7 +16,7 @@
     "user has not named, and it cannot prove the result works.",
     "",
     "Every id here must name a provider in",
-    "crates/connection-broker/src/catalog.json \u2014 enforced by a test, so a",
+    "spec/connectors/catalog.json \u2014 enforced by a test, so a",
     "ceremony entry cannot outlive the provider it is for.",
     "",
     "Absence is meaningful: a provider with no entry resolves to C3 and gets the",

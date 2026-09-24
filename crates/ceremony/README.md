@@ -47,7 +47,7 @@ cargo +1.88.0 test -p opensesame-ceremony
 ```
 
 `tests/catalog_pact.rs` fails if `catalog.json` names a provider missing from
-[`crates/connection-broker/src/catalog.json`](../connection-broker/src/catalog.json).
+[`spec/connectors/catalog.json`](../../spec/connectors/catalog.json).
 `tests/github_ceremony.rs` walks the GitHub ceremony end to end.
 
 ## Related

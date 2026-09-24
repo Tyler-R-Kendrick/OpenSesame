@@ -86,7 +86,8 @@ mod tests {
     use super::*;
 
     fn catalog() -> serde_json::Value {
-        serde_json::from_str(include_str!("catalog.json")).expect("catalog parses")
+        serde_json::from_str(include_str!("../../../spec/connectors/catalog.json"))
+            .expect("catalog parses")
     }
 
     /// Every rule must name exactly the hosts its provider's catalog egress

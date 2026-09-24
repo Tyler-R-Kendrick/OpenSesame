@@ -29,7 +29,7 @@ const CATALOG_JSON: &str = include_str!("../catalog.json");
 /// One provider's ceremony coverage, as the catalog records it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CatalogEntry {
-    /// Must name a provider in `crates/connection-broker/src/catalog.json`.
+    /// Must name a provider in `spec/connectors/catalog.json`.
     pub provider_id: String,
     #[serde(default)]
     pub native_registration: bool,

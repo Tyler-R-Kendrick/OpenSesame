@@ -1,129 +1,58 @@
-import {
-  type BoundaryValue,
-  isBoolean,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
-import parity from "../../../../spec/connectors/fnox-parity.json";
-import type {
-  ConfigurationField,
-  Provider,
-  ProviderCategory,
-} from "./connections.js";
-import { bundledGitProvider } from "./embedded-git.js";
-import { walletHostProviders } from "./wallet-issuers.js";
-export const CATEGORY = new Map<ProviderCategory, readonly string[]>([
-  ["identity", ["better-auth", "workos", "auth0"]],
-  [
-    "backup_recovery",
-    ["github", "gitlab", "bitbucket", "codeberg", "origin", "git"],
-  ],
-  [
-    "encryption",
-    [
-      "webcrypto",
-      "age",
-      "yubikey",
-      "aws-kms",
-      "azure-key-vault-keys",
-      "gcp-kms",
-      "sealed-local",
-    ],
-  ],
-  [
-    "password_managers",
-    [
-      "1password",
-      "bitwarden",
-      "vaultwarden",
-      "infisical",
-      "proton-pass",
-      "passwordstate",
-    ],
-  ],
-  [
-    "agent_harnesses",
-    [
-      "anthropic",
-      "openai",
-      "azure-openai",
-      "aws-bedrock",
-      "openrouter",
-      "huggingface",
-    ],
-  ],
-  ["networking", ["tailscale"]],
-  [
-    "wallet",
-    ["cloudflare-wallet", "google-wallet", "apple-wallet", "samsung-wallet"],
-  ],
-  [
-    "cloud_secret_storage",
-    [
-      "aws-parameter-store",
-      "aws-secrets-manager",
-      "azure-app-configuration",
-      "azure-key-vault-secrets",
-      "gcp-secret-manager",
-      "doppler",
-      "foks",
-      "bitwarden-secrets-manager",
-      "vault",
-      "openbao",
-      "encrypted-remote",
-    ],
-  ],
-  ["local_storage", ["keychain", "keepass", "password-store", "plain"]],
-  ["certificates", ["letsencrypt", "zerossl", "cloudflare-origin-ca"]],
-  ["developer", ["vercel"]],
-  ["productivity", ["linear"]],
-]);
+import type { ConfigurationField } from "./connections.js";
 
-export const NAMES = new Map(
-  Object.entries({
-    "1password": "1Password",
-    // A brand's own spelling: the title-case fallback wrote "Openai",
-    // "Openrouter" and "Openbao".
-    openai: "OpenAI",
-    openbao: "OpenBao",
-    openrouter: "OpenRouter",
-    privacy: "Privacy.com",
-    "aws-bedrock": "AWS Bedrock",
-    "aws-kms": "AWS KMS",
-    "aws-parameter-store": "AWS Parameter Store",
-    "aws-secrets-manager": "AWS Secrets Manager",
-    "azure-app-configuration": "Azure App Configuration",
-    "azure-key-vault-keys": "Azure Key Vault Keys",
-    "azure-key-vault-secrets": "Azure Key Vault Secrets",
-    "azure-openai": "Azure OpenAI",
-    "bitwarden-secrets-manager": "Bitwarden Secrets Manager",
-    "better-auth": "Better Auth",
-    bitbucket: "Bitbucket",
-    codeberg: "Codeberg",
-    origin: "Cursor Origin",
-    github: "GitHub",
-    gitlab: "GitLab",
-    linear: "Linear",
-    vercel: "Vercel",
-    foks: "FOKS",
-    "gcp-kms": "Google Cloud KMS",
-    "gcp-secret-manager": "Google Cloud Secret Manager",
-    huggingface: "Hugging Face",
-    keepass: "KeePass",
-    letsencrypt: "Let's Encrypt",
-    zerossl: "ZeroSSL",
-    "cloudflare-origin-ca": "Cloudflare Origin CA",
-    "password-store": "password-store",
-    "proton-pass": "Proton Pass",
-    "sealed-local": "Sealed local",
-    webcrypto: "WebCrypto",
-    "encrypted-remote": "Encrypted remote",
-    vault: "HashiCorp Vault",
-    workos: "WorkOS",
-    yubikey: "YubiKey",
-  }),
-);
+/**
+ * The catalog rows this app shows without a Host, in display order. Each is
+ * a row of `spec/connectors/catalog.json` (by id or alias) and takes its data
+ * from there; this list only chooses and orders. `connector-catalog.test.ts`
+ * fails on an id the catalog does not have.
+ */
+export const DEVICE_KEY_PROTECTORS = [
+  "webcrypto",
+  "yubikey",
+  "aws-kms",
+  "azure-key-vault-keys",
+  "gcp-kms",
+] as const;
 
+export const HOST_PROVIDER_IDS = [
+  "github",
+  "gitlab",
+  "bitbucket",
+  "codeberg",
+  "origin",
+  "vercel",
+  "linear",
+] as const;
+
+export const LLM_PROVIDER_IDS = [
+  "anthropic",
+  "openai",
+  "azure-openai",
+  "aws-bedrock",
+  "openrouter",
+  "huggingface",
+] as const;
+
+export const IDENTITY_PROVIDER_IDS = [
+  "better-auth",
+  "workos",
+  "auth0",
+] as const;
+
+export const NETWORKING_PROVIDER_IDS = ["tailscale"] as const;
+
+export const WALLET_PROVIDER_IDS = [
+  "cloudflare-wallet",
+  "google-wallet",
+  "apple-wallet",
+  "samsung-wallet",
+] as const;
+
+/**
+ * Field sets this app collects that differ from the catalog row's. Each is a
+ * known divergence from the one definition: `connector-catalog.test.ts` pins
+ * the ids, so the list can shrink but never grow.
+ */
 export function field(
   name: string,
   label: string,
@@ -218,118 +147,3 @@ export const FIELDS = new Map<string, ConfigurationField[]>(
     plain: [field("namespace", "Namespace")],
   }),
 );
-
-export const LLM = [
-  ["anthropic", "https://docs.anthropic.com/en/api/getting-started", "api_key"],
-  [
-    "openai",
-    "https://platform.openai.com/docs/api-reference/authentication",
-    "api_key",
-  ],
-  [
-    "azure-openai",
-    "https://learn.microsoft.com/azure/ai-services/openai/reference",
-    "configuration",
-  ],
-  [
-    "aws-bedrock",
-    "https://docs.aws.amazon.com/bedrock/latest/userguide/api-setup.html",
-    "configuration",
-  ],
-  [
-    "openrouter",
-    "https://openrouter.ai/docs/guides/overview/auth/oauth",
-    "oauth2_authorization_code",
-  ],
-  ["huggingface", "https://huggingface.co/docs/inference-providers", "api_key"],
-] as const;
-
-export const HOST = [
-  {
-    id: "github",
-    docs: "https://docs.github.com/apps/oauth-apps",
-    auth: "oauth2_authorization_code",
-    refresh: false,
-    authorities: ["api.github.com", "github.com"],
-    operations: [
-      "repository.read",
-      "contents.write",
-      "git.push",
-      "pull_request.create",
-      "issue.create",
-    ],
-  },
-  {
-    id: "gitlab",
-    docs: "https://docs.gitlab.com/ee/api/oauth2.html",
-    auth: "oauth2_authorization_code",
-    refresh: true,
-    authorities: ["gitlab.com"],
-    operations: ["project.read", "repository.write", "merge_request.create"],
-  },
-  {
-    id: "bitbucket",
-    docs: "https://support.atlassian.com/bitbucket-cloud/docs/use-oauth-on-bitbucket-cloud/",
-    auth: "oauth2_authorization_code",
-    refresh: true,
-    authorities: ["api.bitbucket.org", "bitbucket.org"],
-    operations: ["repository.read", "repository.write", "pullrequest.create"],
-  },
-  {
-    id: "codeberg",
-    docs: "https://docs.codeberg.org/advanced/access-token/",
-    auth: "oauth2_authorization_code",
-    refresh: true,
-    authorities: ["codeberg.org"],
-    operations: ["repository.read", "repository.write", "pullrequest.create"],
-  },
-  {
-    id: "origin",
-    docs: "https://cursor.com/docs/api/origin",
-    auth: "oauth2_authorization_code",
-    refresh: false,
-    authorities: ["api.cursor.com", "origin.cursor.com", "cursor.com"],
-    operations: ["repository.read", "repository.write", "pullrequest.create"],
-  },
-  {
-    id: "vercel",
-    docs: "https://vercel.com/docs/rest-api/reference/sdk",
-    auth: "api_key",
-    refresh: false,
-    authorities: ["api.vercel.com", "vercel.com"],
-    operations: ["deployment.read", "project.write", "domain.read"],
-  },
-  {
-    id: "linear",
-    docs: "https://linear.app/developers/oauth-2-0-authentication",
-    auth: "oauth2_authorization_code",
-    refresh: true,
-    authorities: ["api.linear.app", "linear.app"],
-    operations: ["issue.read", "issue.create", "project.read"],
-  },
-] as const;
-
-export const IDENTITY = [
-  [
-    "better-auth",
-    "https://better-auth.com/docs/plugins/api-key",
-    "configuration",
-  ],
-  ["workos", "https://workos.com/docs/reference/api-authentication", "api_key"],
-  [
-    "auth0",
-    "https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens",
-    "configuration",
-  ],
-] as const;
-
-export const NETWORKING = [
-  ["tailscale", "https://tailscale.com/kb/1085/auth-keys", "configuration"],
-] as const;
-export const WALLET = [
-  ["cloudflare-wallet", "https://developers.cloudflare.com/", "configuration"],
-  ["google-wallet", "https://developers.google.com/wallet", "configuration"],
-  ["apple-wallet", "https://developer.apple.com/wallet/", "configuration"],
-  ["samsung-wallet", "https://developer.samsung.com/wallet", "configuration"],
-] as const;
-export const BUNDLED_REVISION = "2026-09-21.3";

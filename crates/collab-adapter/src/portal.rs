@@ -34,7 +34,7 @@ use crate::refusal::Refusal;
 use crate::verbs::{permissions_for, Verb};
 
 /// Discord's authorization endpoint. Matches the `discord` entry in
-/// `crates/connection-broker/src/catalog.json`, which is the same origin under
+/// `spec/connectors/catalog.json`, which is the same origin under
 /// a different flow.
 pub const DISCORD_AUTHORIZE_URL: &str = "https://discord.com/oauth2/authorize";
 

@@ -389,7 +389,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0138).
+  0001–0139).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -553,6 +553,17 @@ Do not add new top-level directories or loose root files — find the group.
   the closed catalogue; a concealed field may never reach `subtitle`, `search`,
   or a VFS filename; only a platform-published definition may name a ceremony
   handler ([ADR 0087](docs/adr/0087-vault-item-type-plugins.md)).
+- **One definition, every target**
+  ([ADR 0139](docs/adr/0139-one-definition-every-target.md)). Anything more
+  than one target needs — an integration, a capability, a config key, a
+  behaviour's test vectors — is written once under `spec/` and consumed by
+  every target (embedded, or generated with a freshness test), with a drift
+  test in each consumer. Never add a provider id, list or rule to one target:
+  add the row to `spec/connectors/catalog.json` (aliases for other names),
+  regenerate the view (`UPDATE_CATALOG_VIEW=1 cargo +1.88.0 test -p
+  opensesame-connection-broker --test catalog_view`) and the client module
+  (`pnpm --filter @opensesame/app-core generate:catalog`). A target shows a
+  subset only as an ordered selection of catalog ids.
 - A connector arrives by reference, never by credential. The connectors tab
   of setup and Access › Connectors read a Nango-compatible directory's two
   listing routes and nothing else; `GET /connection/{id}` — the route that

@@ -5,184 +5,58 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import parity from "../../../../spec/connectors/fnox-parity.json";
-import type {
-  ConfigurationField,
-  Provider,
-  ProviderCategory,
-} from "./connections.js";
+import type { Provider } from "./connections.js";
+import { CATALOG_REVISION, catalogProvider } from "./connector-catalog.js";
 import {
-  BUNDLED_REVISION,
-  CATEGORY,
+  DEVICE_KEY_PROTECTORS,
   FIELDS,
-  HOST,
-  IDENTITY,
-  LLM,
-  NAMES,
-  NETWORKING,
-  WALLET,
+  HOST_PROVIDER_IDS,
+  IDENTITY_PROVIDER_IDS,
+  LLM_PROVIDER_IDS,
+  NETWORKING_PROVIDER_IDS,
+  WALLET_PROVIDER_IDS,
 } from "./embedded-catalog-data.js";
 import { bundledGitProvider } from "./embedded-git.js";
-import { walletHostProviders } from "./wallet-issuers.js";
+import { WALLET_ISSUER_IDS } from "./wallet-issuers.js";
 
-function title(id: string): string {
-  return (
-    NAMES.get(id) ??
-    id.replace(
-      /(^|-)([a-z])/g,
-      (_, separator: string, letter: string) =>
-        `${separator ? " " : ""}${letter.toUpperCase()}`,
-    )
-  );
-}
+/** A cached catalog from another revision is discarded, never merged. */
+export const BUNDLED_REVISION = CATALOG_REVISION;
 
-function categoryOf(id: string): ProviderCategory {
-  for (const [category, providerIds] of CATEGORY) {
-    if (providerIds.includes(id)) return category;
+const AUTO_CONFIGURABLE = new Set(["plain", "sealed-local", "webcrypto"]);
+
+/**
+ * The catalog row for `id`, as this app shows it before a Host answers. The
+ * row's data is the catalog's; the app keeps the id it asked for (an alias
+ * such as `aws-secrets-manager` stays the id stored connections use), whether
+ * the row is ready without setup, and its own field labels.
+ */
+function bundled(id: string, configured = false): Provider {
+  const provider = catalogProvider(id);
+  if (!provider) {
+    throw new Error(`${id} is not a row of spec/connectors/catalog.json`);
   }
-  return "developer";
+  provider.id = id;
+  provider.configured = configured || AUTO_CONFIGURABLE.has(id);
+  provider.autoConfigurable = AUTO_CONFIGURABLE.has(id);
+  provider.configurationFields = FIELDS.get(id) ?? provider.configurationFields;
+  return provider;
 }
 
-function preview(
-  id: string,
-  docsUrl: string,
-  authKind: Provider["authKind"],
-  category = categoryOf(id),
-): Provider {
-  return {
-    id,
-    displayName: title(id),
-    category,
-    docsUrl,
-    authKind,
-    supportsRefresh: false,
-    configured: false,
-    autoConfigurable:
-      id === "plain" || id === "sealed-local" || id === "webcrypto",
-    missingConfig: [],
-    callbackUrl: null,
-    scopes: [],
-    egress: { scheme: "none", authorities: [], pathPrefixes: [] },
-    operations: [
-      authKind === "configuration" ? "secret.configure" : "model.invoke",
-    ],
-    configurationFields: FIELDS.get(id) ?? [],
-  };
-}
+const DEVICE: ReadonlySet<string> = new Set(DEVICE_KEY_PROTECTORS);
 
 export const bundledProviders: Provider[] = [
-  (() => {
-    const provider = preview(
-      "webcrypto",
-      "https://developer.mozilla.org/docs/Web/API/Web_Crypto_API",
-      "configuration",
-      "encryption",
-    );
-    provider.displayName = "WebCrypto (this device)";
-    provider.autoConfigurable = true;
-    provider.configured = true;
-    provider.operations = ["key.wrap", "key.unwrap", "aead.seal"];
-    return provider;
-  })(),
-  (() => {
-    const provider = preview(
-      "yubikey",
-      "https://github.com/str4d/age-plugin-yubikey",
-      "configuration",
-      "encryption",
-    );
-    provider.displayName = "YubiKey";
-    provider.configured = true;
-    provider.operations = ["key.wrap", "key.unwrap"];
-    return provider;
-  })(),
-  (() => {
-    const provider = preview(
-      "aws-kms",
-      "https://docs.aws.amazon.com/kms/latest/developerguide/",
-      "configuration",
-      "encryption",
-    );
-    provider.displayName = "AWS KMS";
-    provider.configured = true;
-    provider.operations = ["key.wrap", "key.unwrap"];
-    return provider;
-  })(),
-  (() => {
-    const provider = preview(
-      "azure-key-vault-keys",
-      "https://learn.microsoft.com/azure/key-vault/keys/",
-      "configuration",
-      "encryption",
-    );
-    provider.displayName = "Azure Key Vault Keys";
-    provider.configured = true;
-    provider.operations = ["key.wrap", "key.unwrap"];
-    return provider;
-  })(),
-  (() => {
-    const provider = preview(
-      "gcp-kms",
-      "https://cloud.google.com/kms/docs",
-      "configuration",
-      "encryption",
-    );
-    provider.displayName = "Google Cloud KMS";
-    provider.configured = true;
-    provider.operations = ["key.wrap", "key.unwrap"];
-    return provider;
-  })(),
+  ...DEVICE_KEY_PROTECTORS.map((id) => bundled(id, true)),
   // fido2 is not a connector — WebAuthn PRF passkeys live under Unlock methods /
   // Vault key protection. Keep the fnox parity list intact; omit the row here.
   ...parity.providers
-    .filter(
-      (id) =>
-        id !== "fido2" &&
-        id !== "yubikey" &&
-        id !== "aws-kms" &&
-        id !== "azure-key-vault-keys" &&
-        id !== "gcp-kms",
-    )
-    .map((id) =>
-      preview(id, `https://fnox.jdx.dev/providers/${id}.html`, "configuration"),
-    ),
-  ...HOST.map((entry) => {
-    const provider = preview(entry.id, entry.docs, entry.auth);
-    provider.supportsRefresh = entry.refresh;
-    provider.operations = [...entry.operations];
-    provider.egress = {
-      scheme: "https",
-      authorities: [...entry.authorities],
-      pathPrefixes: [],
-    };
-    return provider;
-  }),
-  ...LLM.map(([id, docs, auth]) => preview(id, docs, auth, "agent_harnesses")),
-  ...IDENTITY.map(([id, docs, auth]) => {
-    const provider = preview(id, docs, auth, "identity");
-    provider.operations =
-      id === "workos"
-        ? ["user.read", "organization.read", "directory.read"]
-        : ["identity.configure"];
-    if (id === "workos") {
-      provider.egress = {
-        scheme: "https",
-        authorities: ["api.workos.com"],
-        pathPrefixes: [],
-      };
-    }
-    return provider;
-  }),
-  ...NETWORKING.map(([id, docs, auth]) =>
-    Object.assign(preview(id, docs, auth, "networking"), {
-      operations: ["network.configure"],
-    }),
-  ),
-  ...WALLET.map(([id, docs, auth]) =>
-    Object.assign(preview(id, docs, auth, "wallet"), {
-      operations: ["wallet.configure"],
-    }),
-  ),
-  ...walletHostProviders((id, docs, auth) => preview(id, docs, auth, "wallet")),
+    .filter((id) => id !== "fido2" && !DEVICE.has(id))
+    .map((id) => bundled(id)),
+  ...HOST_PROVIDER_IDS.map((id) => bundled(id)),
+  ...LLM_PROVIDER_IDS.map((id) => bundled(id)),
+  ...IDENTITY_PROVIDER_IDS.map((id) => bundled(id)),
+  ...NETWORKING_PROVIDER_IDS.map((id) => bundled(id)),
+  ...WALLET_PROVIDER_IDS.map((id) => bundled(id)),
+  ...WALLET_ISSUER_IDS.map((id) => bundled(id)),
 ];
 
 function validProvider(value: BoundaryValue): value is Provider {

@@ -18,6 +18,7 @@
         "path_prefixes": [],
         "scheme": "https"
       },
+      "aliases": ["github-oauth"],
       "id": "github",
       "operations": [
         "repository.read",
@@ -1082,6 +1083,7 @@
       "operations": ["chat.create", "embedding.create", "model.list"]
     },
     {
+      "aliases": ["cloudflare-api-token"],
       "id": "cloudflare",
       "display_name": "Cloudflare",
       "category": "developer",
@@ -1827,6 +1829,7 @@
       "operations": ["secret.configure"]
     },
     {
+      "aliases": ["aws-secrets-manager"],
       "id": "aws",
       "display_name": "AWS Secrets Manager",
       "category": "cloud_secret_storage",
@@ -1912,9 +1915,10 @@
         "authorities": [],
         "path_prefixes": []
       },
-      "operations": ["secret.configure"]
+      "operations": ["secret.configure", "key.wrap", "key.unwrap"]
     },
     {
+      "aliases": ["aws-parameter-store"],
       "id": "aws-ps",
       "display_name": "AWS Parameter Store",
       "category": "cloud_secret_storage",
@@ -1959,6 +1963,7 @@
       "operations": ["secret.configure"]
     },
     {
+      "aliases": ["azure-key-vault-keys"],
       "id": "azure-kms",
       "display_name": "Azure Key Vault Keys",
       "category": "encryption",
@@ -2000,9 +2005,10 @@
         "authorities": [],
         "path_prefixes": []
       },
-      "operations": ["secret.configure"]
+      "operations": ["secret.configure", "key.wrap", "key.unwrap"]
     },
     {
+      "aliases": ["azure-key-vault-secrets"],
       "id": "azure-sm",
       "display_name": "Azure Key Vault Secrets",
       "category": "cloud_secret_storage",
@@ -2047,6 +2053,7 @@
       "operations": ["secret.configure"]
     },
     {
+      "aliases": ["azure-app-configuration"],
       "id": "azure-ac",
       "display_name": "Azure App Configuration",
       "category": "cloud_secret_storage",
@@ -2091,6 +2098,7 @@
       "operations": ["secret.configure"]
     },
     {
+      "aliases": ["gcp-secret-manager"],
       "id": "gcp",
       "display_name": "Google Cloud Secret Manager",
       "category": "cloud_secret_storage",
@@ -2166,7 +2174,7 @@
         "authorities": [],
         "path_prefixes": []
       },
-      "operations": ["secret.configure"]
+      "operations": ["secret.configure", "key.wrap", "key.unwrap"]
     },
     {
       "id": "fido2",
@@ -2307,6 +2315,7 @@
       "operations": ["secret.configure"]
     },
     {
+      "aliases": ["bitwarden-secrets-manager"],
       "id": "bitwarden-sm",
       "display_name": "Bitwarden Secrets Manager",
       "category": "cloud_secret_storage",
@@ -2906,7 +2915,7 @@
         "authorities": [],
         "path_prefixes": []
       },
-      "operations": ["secret.configure"]
+      "operations": ["secret.configure", "key.wrap", "key.unwrap"]
     },
     {
       "id": "tailscale",
@@ -3158,8 +3167,304 @@
       "operations": [],
       "provenance_url": "https://docs.stripe.com/issuing",
       "scopes": []
+    },
+    {
+      "id": "aws-sts",
+      "display_name": "AWS STS",
+      "category": "cloud_secret_storage",
+      "docs_url": "https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html",
+      "provenance_url": "https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "role_arn",
+          "secret": false,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["credential.lease"]
+    },
+    {
+      "id": "gcp-iam",
+      "display_name": "Google Cloud IAM credentials",
+      "category": "cloud_secret_storage",
+      "docs_url": "https://cloud.google.com/iam/docs/create-short-lived-credentials-direct",
+      "provenance_url": "https://cloud.google.com/iam/docs/create-short-lived-credentials-direct",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "project",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "service_account",
+          "secret": false,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["credential.lease"]
+    },
+    {
+      "id": "azure-access-token",
+      "display_name": "Azure access token",
+      "category": "cloud_secret_storage",
+      "docs_url": "https://learn.microsoft.com/cli/azure/account#az-account-get-access-token",
+      "provenance_url": "https://learn.microsoft.com/cli/azure/account#az-account-get-access-token",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "tenant_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "resource",
+          "secret": false,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["credential.lease"]
+    },
+    {
+      "id": "github-app",
+      "display_name": "GitHub App installation token",
+      "category": "developer",
+      "docs_url": "https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app",
+      "provenance_url": "https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "app_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "installation_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "private_key",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["credential.lease"]
+    },
+    {
+      "id": "custom-command",
+      "display_name": "Custom command lease",
+      "category": "custom",
+      "docs_url": "https://fnox.jdx.dev/providers/overview.html",
+      "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "command",
+          "secret": false,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["credential.lease"]
+    },
+    {
+      "id": "docker",
+      "display_name": "Docker registry",
+      "category": "developer",
+      "docs_url": "https://docs.docker.com/reference/cli/docker/login/",
+      "provenance_url": "https://docs.docker.com/reference/cli/docker/login/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "registry",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "username",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["registry.login"]
+    },
+    {
+      "id": "kubernetes",
+      "display_name": "Kubernetes",
+      "category": "developer",
+      "docs_url": "https://kubernetes.io/docs/reference/access-authn-authz/authentication/",
+      "provenance_url": "https://kubernetes.io/docs/reference/access-authn-authz/authentication/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "server",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "token",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["cluster.access"]
+    },
+    {
+      "id": "webcrypto",
+      "display_name": "WebCrypto (this device)",
+      "category": "encryption",
+      "docs_url": "https://developer.mozilla.org/docs/Web/API/Web_Crypto_API",
+      "provenance_url": "https://developer.mozilla.org/docs/Web/API/Web_Crypto_API",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["key.wrap", "key.unwrap", "aead.seal"]
+    },
+    {
+      "id": "git",
+      "display_name": "Git (any remote)",
+      "category": "backup_recovery",
+      "docs_url": "https://git-scm.com/docs/gitcredentials",
+      "provenance_url": "https://git-scm.com/docs/gitcredentials",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "remote_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "auth_mode",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "username",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "token",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "password",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "ssh_private_key",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "ssh_passphrase",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["git.fetch", "git.push"]
+    },
+    {
+      "id": "vault-self",
+      "display_name": "This vault (authenticator codes)",
+      "category": "password_managers",
+      "docs_url": "https://datatracker.ietf.org/doc/html/rfc6238",
+      "provenance_url": "https://datatracker.ietf.org/doc/html/rfc6238",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["otp.generate"]
     }
   ],
-  "revision": "2026-09-20.1",
+  "revision": "2026-09-24.1",
   "schema_version": 1
 }
