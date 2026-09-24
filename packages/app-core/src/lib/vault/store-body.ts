@@ -55,6 +55,9 @@ export async function loadVaultBody(
       ...(body.itemTypes !== undefined
         ? { itemTypes: body.itemTypes }
         : undefined),
+      ...(body.tombstones !== undefined
+        ? { tombstones: body.tombstones }
+        : undefined),
       rev,
     };
   } catch (error) {

@@ -224,6 +224,14 @@ export type VaultBody = {
    * backwards is one restored from an older copy, not the vault as last left.
    */
   rev?: number | undefined;
+  /** Purged items and deleted folders, so a merge cannot bring them back (ADR 0140). */
+  tombstones?: VaultTombstones | undefined;
+};
+
+/** Id → ISO time of the purge or delete. Ids only: a tombstone names nothing. */
+export type VaultTombstones = {
+  items?: Readonly<Record<string, string>>;
+  folders?: Readonly<Record<string, string>>;
 };
 
 /**
@@ -273,46 +281,6 @@ export function createTypedItem(
     typeId: definition.metadata.id,
     values: { ...values },
   };
-}
-
-/** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
-export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
-  const items = new Map(left.items.map((item) => [item.id, item]));
-  for (const incoming of right.items) {
-    const current = items.get(incoming.id);
-    if (!current || itemVersion(incoming) > itemVersion(current)) {
-      items.set(incoming.id, incoming);
-    }
-  }
-  const folders = new Map(left.folders.map((folder) => [folder.id, folder]));
-  for (const incoming of right.folders) {
-    const current = folders.get(incoming.id);
-    if (!current || JSON.stringify(incoming) > JSON.stringify(current)) {
-      folders.set(incoming.id, incoming);
-    }
-  }
-  // Installed definitions merge by type id. A definition is inert data and an
-  // id belongs to one publisher (ADR 0087 §7), so taking the incoming text on
-  // a conflict cannot change what any existing item means.
-  const itemTypes = { ...left.itemTypes };
-  for (const [id, text] of Object.entries(right.itemTypes ?? {})) {
-    if (text !== undefined) itemTypes[id] = text;
-  }
-  return {
-    v: 1,
-    items: [...items.values()],
-    folders: [...folders.values()],
-    ...(Object.keys(itemTypes).length > 0 ? { itemTypes } : undefined),
-    rev: Math.max(left.rev ?? 0, right.rev ?? 0),
-  };
-}
-
-function itemVersion(item: VaultItem): string {
-  const changedAt =
-    item.deletedAt && item.deletedAt > item.updatedAt
-      ? item.deletedAt
-      : item.updatedAt;
-  return `${changedAt}\0${JSON.stringify(item)}`;
 }
 
 /** True only when OpenSesame has complete signing material for the passkey. */
