@@ -81,6 +81,13 @@ describe("wallet budget activity", () => {
 
   it("logs a budget that was actually created", async () => {
     createBudget({ name: "Groceries", ceiling: 250n });
-    expect(await walletEvents()).toEqual(["Wallet budget updated"]);
+    // The activity write is fire-and-forget; wait for it rather than for a
+    // fixed delay, which a loaded runner can outlast.
+    await vi.waitFor(
+      async () => {
+        expect(await walletEvents()).toEqual(["Wallet budget updated"]);
+      },
+      { timeout: 5000, interval: 50 },
+    );
   });
 });
