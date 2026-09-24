@@ -22,6 +22,17 @@ pub const MAX_OPTIONS: usize = 32;
 pub const MAX_LABEL_CHARS: usize = 120;
 pub const MAX_SUMMARY_CHARS: usize = 400;
 
+/// An optional key that, when present, must hold a value. `"help": null` is
+/// refused rather than read as absent, as the TypeScript parser refuses it:
+/// a definition valid on one plane must be valid on the other.
+fn present<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(deserializer).map(Some)
+}
+
 /// Ceremonies the platform implements because no data description can express
 /// them. Only a platform-published definition may name one (ADR 0087 §6).
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -63,20 +74,44 @@ pub struct FieldDefinition {
     #[serde(rename = "type")]
     pub field_type: FieldTypeId,
     pub label: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub help: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub required: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub placeholder: Option<String>,
     /// `select` only; the complete closed option list.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub options: Option<Vec<String>>,
     /// Scalar shapes only; the field holds an ordered list of values.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub multiple: Option<bool>,
     /// Prefilled in a new item. Refused outright on a concealed field type.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub default: Option<String>,
 }
 
@@ -141,7 +176,11 @@ pub struct ItemTypeSpec {
     /// Fields added to the search haystack. Never concealed ones.
     pub search: Vec<String>,
     /// Platform-published definitions only.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub handler: Option<HandlerId>,
 }
 

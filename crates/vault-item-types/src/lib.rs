@@ -16,6 +16,7 @@ mod errors;
 pub mod native;
 pub mod registry;
 pub mod schema;
+mod slugs;
 pub mod validate;
 
 pub use catalogue::{FieldPart, FieldShape, FieldTypeId, FIELD_TYPE_IDS};

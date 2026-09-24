@@ -21,7 +21,9 @@ what a type is.
   gate.
 - **Builds on:** [`opensesame-sealed-store`](../sealed-store) (`Entry`).
 - The TypeScript twin is [`@opensesame/vault-item-types`](../../packages/vault-item-types);
-  `tests/conformance.rs` mirrors its `validate.test.ts` and `native.test.ts`, so
+  both run the same rejection table and projection cases from
+  [`spec/conformance/item-type-cases.json`](../../spec/conformance/item-type-cases.json)
+  (`tests/conformance.rs` here, `src/conformance.test.ts` there; ADR 0139), so
   a definition valid on one plane is valid on the other.
 - Installing or uninstalling a type is a data write, never a build. Uninstalling
   never touches items: an item whose type is missing is a presentation gap, not

@@ -45,6 +45,14 @@ JSON, so an edit without regenerating cannot merge. Optional types in
 SHA-256-pinned in `.opensesame/marketplace.json`
 (`node scripts/release/pin-marketplace.mjs`).
 
+The rejection table and the native-projection cases are data, shared with
+`crates/vault-item-types`: add a row to
+[`spec/conformance/item-type-cases.json`](../../spec/conformance/item-type-cases.json)
+and `src/conformance.test.ts` here and `tests/conformance.rs` there both run
+it (ADR 0139). Only what cannot be a row — the size cap, malformed text, loops
+over the whole corpus — stays as code in `validate.test.ts` and
+`native.test.ts`.
+
 ## Related
 
 - [ADR 0087](../../docs/adr/0087-vault-item-type-plugins.md) — vault item type plugins

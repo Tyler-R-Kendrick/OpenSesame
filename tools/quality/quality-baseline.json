@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 480,
-    "violations": 757,
-    "oversizedLines": 241810
+    "files": 478,
+    "violations": 755,
+    "oversizedLines": 240839
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1040,10 +1040,7 @@
       "max-lines": 444
     },
     "crates/vault-item-types/src/validate.rs": {
-      "max-lines": 474
-    },
-    "crates/vault-item-types/tests/conformance.rs": {
-      "max-lines": 532
+      "max-lines": 443
     },
     "examples/rp-alpha/src/RpApp.tsx": {
       "max-lines-per-function": 1
@@ -1519,9 +1516,6 @@
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,
       "max-statements": 1
-    },
-    "packages/vault-item-types/src/validate.test.ts": {
-      "max-lines": 408
     },
     "packages/vault-item-types/src/validate.ts": {
       "complexity": 2,
