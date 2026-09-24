@@ -12,7 +12,8 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 
 - **Used by:** [`apps/ceremonies`](../../apps/ceremonies),
   [`apps/console`](../../apps/console), [`apps/mobile-mfa`](../../apps/mobile-mfa),
-  [`packages/app-core`](../app-core) (Pages' device approval) and
+  [`packages/app-core`](../app-core) (Pages' device approval, claims,
+  interaction approval and authorization-request review) and
   [`packages/qr`](../qr).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (interaction types and
   `FORBIDDEN_URL_PARAMS`).
@@ -20,7 +21,10 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
   reference, and the reference authorizes nothing. The builder refuses to emit
   anything else and the parser refuses anything but the canonical shape.
 - The interaction client echoes the request digest it was shown and never
-  hands over a proof.
+  hands over a proof. The approval model freezes the first digest shown,
+  refuses a changed or missing one before any call, begins an activation
+  naming that digest and the verb, and approves naming only the activation it
+  began (ADR 0084).
 - Approving a device grants a short-lived client session; it does not transfer
   ownership. That is the claim ceremony, kept apart by ADR 0009.
 - Origin, fetch and bearer storage are parameters; each app keeps its own JSX.
@@ -36,7 +40,13 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 | Ceremony routes (`ceremony-routes.ts`, generated from `spec/config/ceremony-routes.json`) | `CEREMONY_ROUTES`, `ceremonyPath`, `matchCeremonyPath`, `ceremonyRoutePrefix`, `LEGACY_LINKS`, `invokeKind`, `isAuthenticatorInvocationKind` |
 | Authenticator hand-off (`authenticator-invocation.ts`) | `parseAuthenticatorInvocation`, `AuthenticatorInvocationError` |
 | Interaction links (`interaction-url.ts`) | `buildInteractionUrl`, `parseInteractionUrl`, `parseLegacyInteractionLink`, `isInteractionRef`, `assertNoForbiddenParams`, `InteractionLinkError` |
-| Interaction client (`interaction-client.ts`) | `createInteractionClient`, `InteractionError` |
+| Interaction client (`interaction-client.ts`, errors in `interaction-error.ts`) | `createInteractionClient` (an optional `resolveFetch` keeps the link's resolve free of a session), `InteractionError` (`.declared` keeps the body's code as a key, never as text) |
+| Interaction approval (`interaction-approval.ts`) — the one ceremony model, from mobile MFA (ADR 0140 plan step 5): load → review → activate → decide → outcome, over an injected client and `InteractionAuthenticator` port | `createInteractionApproval`, `InteractionStepUpError`, `STEP_UP_WORDS` |
+| Authorization-request review (`approval-review.ts`) — from the ceremonies app (ADR 0140 plan step 6): load → review → decide or report → outcome over an injected client and the same `InteractionAuthenticator` port; freezes the digest and the policy digest shown, refuses a challenge minted under another policy before any passkey, settles naming only the activation it began | `createApprovalReview` |
+| Authorization-request client (`authorization-request-client.ts`) — list, read, requirement, activation begin/complete, approve/deny, report; views keep only the fields they name | `createAuthorizationRequestClient`, `readAuthorizationRequest` |
+| Approval words and copy (`approval-words.ts`, `approval-copy.ts`) — refusals worded by the body's error code, then the status; reason codes, risk classes and channels as sentences | `approvalRefusal`, `approvalWords`, `ApprovalError`, `requirementSentences`, `riskSentence`, `channelLabel`, `channelName`, `assuranceSummary`, `needsCeremony`, `describeDetail`, `APPROVAL_WORDS` |
+| Interaction outcomes (`interaction-outcome.ts`) — endings, the approval view, and refusals worded by the body's error code, then the status | `OUTCOME_TEXT`, `OUTCOME_MARK`, `OUTCOME_IS_REFUSAL`, `outcomeOfStatus`, `chooseMechanism`, `viewOf`, `interactionRefusal`, `INTERACTION_WORDS` |
+| Interaction arrival (`interaction-arrival.ts`) — what an address opened on, and the address to put in its place | `readInteractionArrival` |
 | Summary (`interaction-summary.ts`) | `renderInteractionSummary` |
 | Device approval (`device.ts`) — the one implementation (ADR 0140 D3), worded by the body's error code, then the status | `approveDevice`, `deviceApprovalWords`, `CeremonyRequestError` |
 | Claim bearer (`claim-stash.ts`) | `createClaimStash` over an injected `StashStorage`; optional stricter reading (`maxAgeMs`, `acceptToken`) |

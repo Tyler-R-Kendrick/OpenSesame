@@ -18,14 +18,14 @@
   "totals": {
     "files": 476,
     "violations": 752,
-    "oversizedLines": 240177
+    "oversizedLines": 239918
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
     },
     "apps/ceremonies/src/lib/approvals.ts": {
-      "max-lines": 556
+      "max-lines": 402
     },
     "apps/ceremonies/src/pages/ApprovalReview.tsx": {
       "complexity": 1,
@@ -910,7 +910,7 @@
       "max-lines": 1868
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
-      "max-lines": 517,
+      "max-lines": 412,
       "max-lines-per-function": 1
     },
     "packages/ceremony-kit/src/interaction-url.ts": {

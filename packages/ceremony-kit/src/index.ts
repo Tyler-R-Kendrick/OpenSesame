@@ -89,10 +89,90 @@ export {
   type InteractionActivationResult,
   type InteractionClient,
   type InteractionClientOptions,
+} from "./interaction-client.js";
+export {
+  INTERACTION_ERROR_WORDS,
   InteractionError,
   type InteractionErrorCode,
-} from "./interaction-client.js";
+} from "./interaction-error.js";
+export {
+  type ApprovalView,
+  chooseMechanism,
+  INTERACTION_WORDS,
+  interactionRefusal,
+  type InteractionRefusal,
+  type InteractionRefusalKind,
+  type Mechanism,
+  type Outcome,
+  OUTCOME_IS_REFUSAL,
+  OUTCOME_MARK,
+  OUTCOME_TEXT,
+  outcomeOfErrorCode,
+  outcomeOfStatus,
+  viewOf,
+} from "./interaction-outcome.js";
+export {
+  createInteractionApproval,
+  type InteractionApproval,
+  type InteractionApprovalDeps,
+  type InteractionAssertion,
+  type InteractionAuthenticator,
+  type InteractionPhase,
+  type InteractionStep,
+  InteractionStepUpError,
+  STEP_UP_WORDS,
+  type StepUpFailure,
+} from "./interaction-approval.js";
+export {
+  type InteractionArrival,
+  type InteractionArrivalRead,
+  readInteractionArrival,
+} from "./interaction-arrival.js";
 export {
   renderInteractionSummary,
   type RenderedInteractionSummary,
 } from "./interaction-summary.js";
+export {
+  APPROVAL_WORDS,
+  type ApprovalAssurance,
+  arrivedViaSentence,
+  assuranceSummary,
+  type AuthorizationDetailView,
+  CHANNEL_NAMES,
+  channelKindOf,
+  channelLabel,
+  channelName,
+  describeDetail,
+  needsCeremony,
+  requirementSentence,
+  requirementSentences,
+  riskSentence,
+} from "./approval-copy.js";
+export {
+  ApprovalError,
+  type ApprovalRefusal,
+  type ApprovalRefusalKind,
+  approvalRefusal,
+  approvalWords,
+  COMPARISON_MISMATCH,
+} from "./approval-words.js";
+export {
+  type ApprovalActivationChallenge,
+  type ApprovalRequirement,
+  type ApprovalVerb,
+  type AuthorizationRequestClient,
+  type AuthorizationRequestClientOptions,
+  type AuthorizationRequestView,
+  createAuthorizationRequestClient,
+  readAuthorizationRequest,
+  type SettleInput,
+} from "./authorization-request-client.js";
+export {
+  type ApprovalEnding,
+  type ApprovalPhase,
+  type ApprovalReview,
+  type ApprovalReviewDeps,
+  type ApprovalStep,
+  createApprovalReview,
+  type DecisionInput,
+} from "./approval-review.js";
