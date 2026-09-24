@@ -1832,6 +1832,12 @@ body {
      section's gutter it reads as a word that did not fit; running under the
      edge it reads as a row with more in it — which is what it is. */
   .section :is(.access-tabs, .identity-tabs, .set__nav) {
+    /* Restated at this specificity: each section's sheet loads after this
+       one and sets \`flex-wrap: wrap\` on its own strip, which beat the
+       shared rule above — Access wrapped onto two rows on a phone while
+       Identity scrolled. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
     /* \`.set__nav\` caps itself at 100%, which undid the right-hand bleed and
        cut the strip — and its selected tab — at the gutter. */
     max-width: none;
@@ -1840,6 +1846,20 @@ body {
     padding-left: calc(1rem + env(safe-area-inset-left));
     padding-right: calc(1rem + env(safe-area-inset-right));
     scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
+  }
+
+  /* A strip with more past its edge fades there, so a cut tab reads as a
+     row that scrolls rather than a word that did not fit. The fade lies
+     over the strip's own gutter, so a strip that fits shows none of it. */
+  .section :is(.access-tabs, .identity-tabs, .set__nav),
+  .page-index {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 1rem,
+      #000 calc(100% - 1rem),
+      transparent
+    );
   }
 
   /* CommandBar keeps the strip drawn; gutters follow the safe area. */

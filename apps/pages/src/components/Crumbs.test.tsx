@@ -58,12 +58,11 @@ describe("Crumbs", () => {
     expect(screen.queryByRole("link", { name: "Work SSH" })).toBeNull();
   });
 
-  it("navigates settings and connection rest paths", () => {
+  it("leaves a settings tab to its tab strip, and paths a connection", () => {
+    // "Settings › Capabilities" only repeated the selected tab, and drawing
+    // it on sub-tabs alone moved the title between siblings.
     const { unmount } = renderAt("/settings/connections");
-    expect(
-      screen.getByRole("link", { name: "Settings" }).getAttribute("href"),
-    ).toBe("/settings");
-    expect(screen.getAllByText("Capabilities").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
     unmount();
 
     renderAt("/connections/github/conn_1");
