@@ -5,6 +5,7 @@ import {
   listAudienceTemplates,
 } from "@opensesame/os-domain/authority-templates";
 import { useId, useState } from "react";
+import { StatusMark } from "../../components/StatusMark.js";
 
 function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return "—";
@@ -13,9 +14,13 @@ function formatDuration(ms: number | undefined): string {
   return `${Math.round(hours / 24)}d`;
 }
 
+/** A claim's support is a status: a glyph whose sentence is its name. */
 function SupportStatus({ status }: { status: string }) {
   return (
-    <span className="access-policy-badge">{status.replaceAll("_", " ")}</span>
+    <StatusMark
+      tone={status === "unsupported" ? "idle" : "warn"}
+      label={status.replaceAll("_", " ")}
+    />
   );
 }
 

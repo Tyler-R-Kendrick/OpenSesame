@@ -18,6 +18,7 @@ import {
 } from "@opensesame/app-core/lib/history-backups.js";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { StatusMark } from "../../components/StatusMark.js";
 import { BackupEnableSwitch } from "../connections/BackupEnableSwitch.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 
@@ -102,6 +103,15 @@ export function FeatureBindingTile({
             <span className="conn-tile__name">{provider.displayName}</span>
             {remote ? <span className="conn-tile__kind">{remote}</span> : null}
           </span>
+          {/* On with nowhere to go: GitHub is the history default, so its
+              switch read "on" for a guest who had named no repository and
+              was backing nothing up. */}
+          {enabled && !remote ? (
+            <StatusMark
+              tone="warn"
+              label="No repository yet — nothing is backed up"
+            />
+          ) : null}
         </Link>
         {showSwitch ? (
           <BackupEnableSwitch

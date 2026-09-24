@@ -25,7 +25,7 @@ import { pageIsLoopback } from "@opensesame/app-core/lib/settings.js";
 import { useState } from "react";
 import { type FieldFill, FieldShell } from "./FieldShell.js";
 import { FormCommit } from "./FormCommit.js";
-import { IconConnection, IconRefresh, IconSecret } from "./Icons.js";
+import { IconConnection, IconDownload, IconSecret } from "./Icons.js";
 import { type StatusMessage, StatusNote } from "./StatusNote.js";
 
 export const connectorDirectoryFormDependencies = {
@@ -169,6 +169,7 @@ export function ConnectorDirectoryForm({
         mono
         autoComplete="off"
         lead={<IconSecret size={17} />}
+        placeholder="Optional"
         value={key}
         disabled={busy}
         onValueChange={(next) => {
@@ -187,7 +188,7 @@ export function ConnectorDirectoryForm({
           disabled={busy || !normalizeDirectoryEndpoint(endpoint)}
           busy={busy}
           onClick={() => sync(endpoint, key)}
-          icon={<IconRefresh size={18} />}
+          icon={<IconDownload size={18} />}
         />
       </div>
       <StatusNote message={flash} />

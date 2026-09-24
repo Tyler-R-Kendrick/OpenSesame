@@ -19,8 +19,10 @@ it("lists audience templates and shows honest support statuses", async () => {
   // Choosing a template is the whole action: no second button re-selects it.
   expect(screen.queryByRole("button", { name: /defaults/i })).toBeNull();
   expect(select.value).toBe("raid");
+  // Support is a status glyph whose name is the sentence, not a word pill.
   expect(
-    screen.getAllByText(/unsupported|configuration required/i).length,
+    screen.getAllByRole("img", { name: /unsupported|configuration required/i })
+      .length,
   ).toBeGreaterThan(0);
   expect(screen.queryByText(/\benforced\b/i)).toBeNull();
 });

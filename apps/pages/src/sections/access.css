@@ -1084,3 +1084,19 @@
   margin: 0 0 0.6rem;
   max-width: 62ch;
 }
+
+/* One application's policy: its name, its id, then its settings — spaced as
+   a record, so the settings' disclosure does not butt against the id chip. */
+.access-policy {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+}
+
+.access-policy + .access-policy {
+  border-top: 1px solid var(--line);
+}
+
+.access-policy > :is(h3, p) {
+  margin: 0;
+}

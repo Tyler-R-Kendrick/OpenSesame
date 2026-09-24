@@ -118,6 +118,9 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
             }
           />
         ) : null}
+        {sessions.length === 0 && !draft ? (
+          <p className="hint">No vault share sessions.</p>
+        ) : null}
         <ul className="identity-rows">
           {sessions.map((session) => (
             <SessionRow
