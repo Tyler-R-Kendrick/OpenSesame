@@ -3606,7 +3606,9 @@ body {
   /* The type suffix is the same choice one level up — `.login` after a name —
      so it takes the same shape. Left as a dashed rule it would have detached
      from its own word the moment the box grew to a key. */
-  .editor__ext {
+  /* Only the picker becomes a chip: a type the route or the item fixed is a
+     label, and boxed like the picker it read as a key that did nothing. */
+  select.editor__ext {
     min-height: 2.75rem;
     /* The sentence chips draw their own caret and pay for the room; this one
        keeps the platform's, so it only owes it a hair of clearance. */
@@ -3614,11 +3616,6 @@ body {
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background-color: var(--surface-2);
-  }
-
-  select.editor__ext {
-    border-bottom-style: solid;
-    border-bottom-color: var(--line);
   }
 
   select.editor__ext:hover {

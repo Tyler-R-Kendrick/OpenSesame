@@ -315,7 +315,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
             <div className="field">
               <label htmlFor="password">Password</label>
-              <div className="editor__inline">
+              <div className="editor__inline editor__inline--adorned">
                 <input
                   id="password"
                   type={reveal ? "text" : "password"}
@@ -379,7 +379,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           <div className="editor__grid">
             <div className="field">
               <label htmlFor="secret-value">Secret value</label>
-              <div className="editor__inline">
+              <div className="editor__inline editor__inline--adorned">
                 <input
                   id="secret-value"
                   type={reveal ? "text" : "password"}

@@ -134,12 +134,57 @@
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.75rem;
   padding: 0.3rem 0.75rem;
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   font-size: 0.75rem;
+}
+
+/* The page's path, as the strip's label: one line, the page itself
+   ellipsised before the keys are pushed off the strip. */
+.vtree__crumbs {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+}
+
+.vtree__crumbs .crumbs__list {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.vtree__crumbs .crumbs__item {
+  min-width: 0;
+}
+
+.vtree__crumbs .crumbs__item:last-child {
+  overflow: hidden;
+}
+
+.vtree__crumbs .crumbs__item:last-child > :last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vtree__pathbar > .vtree__keys {
+  flex: none;
+}
+
+/* The shell's row carries the path only where the list is a screen away. */
+@media (min-width: 901px) {
+  .crumbs--vault {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .vtree__crumbs {
+    display: none;
+  }
 }
 
 .vtree__dim {
@@ -768,6 +813,10 @@
   background: transparent;
 }
 
+span.editor__ext {
+  align-self: center;
+}
+
 select.editor__ext {
   cursor: pointer;
   border-bottom: 1.5px dashed var(--line-strong);
@@ -782,9 +831,12 @@ select.editor__ext:hover {
   margin: -0.35rem 0 0;
 }
 
+/* A group's + ends its label column, so it stands beside the rows it adds
+   to (and on a phone, above their × keys) instead of a column away. */
 .editor__grouplabel {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.3rem;
 }
 
@@ -808,6 +860,29 @@ select.editor__ext:hover {
 .editor__inline select {
   flex: 1;
   min-width: 0;
+}
+
+/* A concealed field's keys sit inside its rule. Beside it they ended the
+   password's underline a key short of the username's above it, so a form
+   of equal fields read as ragged. */
+.editor__inline--adorned {
+  gap: 0;
+  max-width: var(--field-max);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.editor__inline--adorned > input {
+  max-width: none;
+  border-bottom: 0;
+}
+
+.editor__inline--adorned > input:focus-visible {
+  box-shadow: none;
+}
+
+.editor__inline--adorned:focus-within {
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
 }
 
 .editor__uri {
@@ -1049,10 +1124,12 @@ select.editor__ext:hover {
     grid-row: 2;
   }
 
+  /* The × ends the address it removes; centred across the address and its
+     rule it sat on neither. */
   .editor__uri > :last-child,
   .editor__ceiling > :last-child {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1;
   }
 
   .editor__uri > select {
@@ -1063,6 +1140,18 @@ select.editor__ext:hover {
 
   .vault__rows {
     padding-bottom: 5rem;
+  }
+
+  /* A phone's editor runs past the screen, and its save sat under the last
+     field — a scroll away while the name was being typed. It stays at the
+     pane's foot, over the fields it seals. */
+  .editor__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding-block: 0.5rem;
+    border-top: 1px solid var(--line);
+    background: var(--canvas);
   }
 }
 
