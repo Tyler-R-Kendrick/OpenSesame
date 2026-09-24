@@ -51,6 +51,8 @@ export {
   approveDevice,
   type ApproveDeviceInput,
   CeremonyRequestError,
+  type DeviceApproval,
+  deviceApprovalWords,
 } from "./device.js";
 export {
   assertNoForbiddenParams,

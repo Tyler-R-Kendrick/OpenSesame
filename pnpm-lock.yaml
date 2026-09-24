@@ -712,6 +712,9 @@ importers:
       '@opensesame/capability-registry':
         specifier: workspace:*
         version: link:../capability-registry
+      '@opensesame/ceremony-kit':
+        specifier: workspace:*
+        version: link:../ceremony-kit
       '@opensesame/contracts':
         specifier: workspace:*
         version: link:../contracts

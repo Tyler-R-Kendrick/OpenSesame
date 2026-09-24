@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 477,
-    "violations": 753,
-    "oversizedLines": 240827
+    "files": 476,
+    "violations": 752,
+    "oversizedLines": 240306
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1071,11 +1071,8 @@
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
     },
-    "packages/app-core/src/lib/directory.test.ts": {
-      "max-lines": 488
-    },
     "packages/app-core/src/lib/directory.ts": {
-      "max-lines": 489
+      "max-lines": 456
     },
     "packages/app-core/src/lib/federation.test.ts": {
       "max-lines": 1418
