@@ -21,6 +21,7 @@ pub const CAPABILITIES: &[&str] = &[
     "host.ceremonies.read",
     "host.delegations.read",
     "host.delegations.write",
+    "host.delegations.claim",
     "host.sessions.join",
     "host.relay.read",
     "host.relay.decide",
@@ -35,8 +36,9 @@ const ROUTES: &[(&str, &str, &str)] = &[
     ("GET", "delegations", "host.delegations.read"),
     ("GET", "delegations/offers", "host.delegations.read"),
     ("POST", "delegations", "host.delegations.write"),
-    ("POST", "delegations/present", "host.delegations.write"),
-    ("POST", "delegations/claim", "host.delegations.write"),
+    // Looking up and accepting an invite: what a join grant may do (ADR 0136).
+    ("POST", "delegations/present", "host.delegations.claim"),
+    ("POST", "delegations/claim", "host.delegations.claim"),
     ("DELETE", "delegations/{id}", "host.delegations.write"),
     (
         "DELETE",

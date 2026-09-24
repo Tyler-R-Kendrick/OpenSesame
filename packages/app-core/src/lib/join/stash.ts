@@ -26,8 +26,12 @@ import { type JoinOffer, readOffer } from "./wire.js";
 const KEY = "join.pending.v2";
 /** The removed ceremony's entry: bearer and code together. Never read, only erased. */
 const LEGACY_KEY = "join.invite.v1";
-/** Past the offer's expiry — or this, when it states none. */
-const MAX_AGE_MS = 30 * 60 * 1000;
+/**
+ * Kept as long as the offer lives — a shorter life would bring the double
+ * present back for anybody slow to get the code — or, when the offer states
+ * no expiry, for the Host's own ceiling on an offer (24 hours).
+ */
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export type PendingJoin = Readonly<{
   endpoint: string;
@@ -49,12 +53,16 @@ function wireOffer(offer: JoinOffer) {
     manifest_digest: offer.manifestDigest,
     expires_at:
       offer.expiresAt === null ? null : new Date(offer.expiresAt).toISOString(),
+    // What was shown is what is kept; the count of the rest rides along.
     items: offer.items.map((item) => ({
       id: item.id,
       display_name: item.displayName,
       provider_id: item.providerId,
-      actions: [...item.actions],
-      resources: [...item.resources],
+      actions: [...item.actions.shown],
+      resources: [...item.resources.shown],
+      more_actions: item.actions.more,
+      more_resources: item.resources.more,
+      expires_in_seconds: item.lifetime,
       required: item.required,
       dependencies: [...item.dependencies],
     })),

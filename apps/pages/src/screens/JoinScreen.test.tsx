@@ -1,136 +1,55 @@
 /** @vitest-environment jsdom */
+/**
+ * The join ceremony's invite road (ADR 0136): what each rung asks, what it
+ * sends, and what it never does — spend an invite twice or where it cannot
+ * be finished, send an offer's bearer to an endpoint it was not looked up
+ * at, accept an optional item nobody chose, or keep authority after closing.
+ */
 import { JoinError } from "@opensesame/app-core/lib/join/client.js";
-import type { JoinOffer } from "@opensesame/app-core/lib/join/wire.js";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { JoinScreen } from "./JoinScreen.js";
+import { JoinScreen, joinScreenDependencies } from "./JoinScreen.js";
+import {
+  ENDPOINT,
+  OFFER,
+  OPTIONAL_ONLY,
+  OTHER,
+  TOKEN,
+  approveAndVerify,
+  fakes,
+  go,
+  installFakes,
+  lookUp,
+  renderInvite,
+  restoreFakes,
+  store,
+  typeCode,
+} from "./join/join-harness.js";
 import { joinCeremonyDependencies } from "./join/useJoinCeremony.js";
 
-/**
- * The join ceremony (ADR 0136): what each rung asks, what it sends, and what
- * it never does — spend an invite where it cannot be finished, accept an
- * optional item nobody chose, or keep authority after it closes.
- */
-
-const TOKEN = `osc_dlg_dlgo_${"a".repeat(32)}.${"B".repeat(43)}`;
-const ENDPOINT = "https://vault.example.org";
-const original = { ...joinCeremonyDependencies };
-
-const OFFER: JoinOffer = {
-  id: "dlgo_1",
-  manifestDigest: "sha256:ab",
-  expiresAt: Date.now() + 10 * 60_000,
-  items: [
-    {
-      id: "req",
-      displayName: "GitHub · acme",
-      providerId: "github",
-      actions: ["read"],
-      resources: ["repo:acme/app"],
-      required: true,
-      dependencies: [],
-    },
-    {
-      id: "opt",
-      displayName: "Slack · #ops",
-      providerId: "slack",
-      actions: ["post"],
-      resources: [],
-      required: false,
-      dependencies: [],
-    },
-  ],
-};
-
-let stash: ReturnType<typeof original.readPendingJoin> = null;
-const fakes = {
-  presentInvite: vi.fn(async () => OFFER),
-  beginApproval: vi.fn(async () => ({
-    pairingId: "p1",
-    userCode: "WXYZ-1234",
-    verificationUri: `${ENDPOINT}/pair`,
-    expiresAt: Date.now() + 60_000,
-    interval: 0,
-  })),
-  pollApproval: vi.fn(async () => true),
-  verifyAt: vi.fn<typeof original.verifyAt>(async () => undefined),
-  claimInvite: vi.fn(async () => 1),
-  listOpenSessions: vi.fn(async () => [
-    { id: "session:1", displayName: "Design review" },
-  ]),
-  askToJoin: vi.fn(async () => ({ id: "r1", decision: "pending" as const })),
-  endJoinAuthority: vi.fn(),
-  completeSetup: vi.fn(async () => undefined),
-};
-
-beforeEach(() => {
-  stash = null;
-  for (const fake of Object.values(fakes)) fake.mockClear();
-  fakes.pollApproval.mockImplementation(async () => true);
-  Object.assign(joinCeremonyDependencies, fakes, {
-    joinAvailable: () => true,
-    configuredEndpoint: () => ENDPOINT,
-    readPendingJoin: () => stash,
-    writePendingJoin: (next: typeof stash) => {
-      stash = next;
-    },
-    clearPendingJoin: () => {
-      stash = null;
-    },
-    loadSetup: () => null,
-  });
-});
-
-afterEach(() => {
-  cleanup();
-  Object.assign(joinCeremonyDependencies, original);
-});
-
-/** Where → approval (the operator approves at once) → verify → the offer. */
-async function approveAndVerify() {
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Ask for approval" }),
-  );
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Verify with a passkey" }),
-  );
-  await screen.findByRole("heading", { name: "What you would get" });
-  expect(fakes.verifyAt.mock.calls[0]?.[0]).toBe(ENDPOINT);
-}
-
-function go(): HTMLButtonElement {
-  const found = document.querySelector<HTMLButtonElement>(".go");
-  if (!found) throw new Error("the ceremony has no commit");
-  return found;
-}
+beforeEach(installFakes);
+afterEach(restoreFakes);
 
 describe("the invite road", () => {
-  it("walks approval, verify, look-up, choice and code, and ends its authority", async () => {
+  it("walks approval, verify, look-up and choice, and ends its authority", async () => {
     const onDone = vi.fn();
-    render(
-      <JoinScreen
-        captured={{ kind: "invite", invite: { token: TOKEN, endpoint: null } }}
-        configured={ENDPOINT}
-        onDone={onDone}
-      />,
-    );
+    renderInvite(onDone);
     expect(
       screen.getByRole("heading", { name: "Join a session" }),
     ).toBeTruthy();
-    expect(document.activeElement).toBe(go());
+    // The bearer is masked, like any secret.
+    expect(screen.getByLabelText<HTMLInputElement>("Invite").type).toBe(
+      "password",
+    );
+    // The code is asked before approval's clock starts.
+    expect(go().disabled).toBe(true);
+    typeCode("bcdf ghjk");
     await approveAndVerify();
     // Nothing was spent before this browser was approved and verified.
     expect(fakes.presentInvite).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
-    await screen.findByRole("checkbox", { name: /GitHub/ });
+    await lookUp();
     expect(fakes.presentInvite).toHaveBeenCalledWith(ENDPOINT, TOKEN);
+    expect(store.marked.has(TOKEN)).toBe(true);
     const required = screen.getByRole<HTMLInputElement>("checkbox", {
       name: /GitHub/,
     });
@@ -141,13 +60,10 @@ describe("the invite road", () => {
     expect(required.disabled).toBe(true);
     // Least privilege: what the owner offered optionally starts off.
     expect(optional.checked).toBe(false);
+    // Nothing offered is shortened without saying so.
+    expect(screen.getByText(/read \+3 more/)).toBeTruthy();
+    expect(screen.getByText(/for 60 min/)).toBeTruthy();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue with these" }),
-    );
-    fireEvent.change(await screen.findByLabelText("Code"), {
-      target: { value: "bcdf ghjk" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Join" }));
     await screen.findByRole("heading", { name: "Joined" });
     expect(fakes.claimInvite).toHaveBeenCalledWith(ENDPOINT, {
@@ -158,23 +74,35 @@ describe("the invite road", () => {
     expect(fakes.completeSetup).toHaveBeenCalledWith(
       expect.objectContaining({ joined: true }),
     );
-    expect(stash).toBeNull();
+    expect(store.stash).toBeNull();
     expect(fakes.endJoinAuthority).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("names the account the operator is approving", async () => {
+    joinScreenDependencies.currentSession = () => ({
+      principalId: "prn_abc123",
+      accessToken: "t",
+      issuerOrigin: "https://id.example.org",
+    });
+    renderInvite();
+    typeCode();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fakes.pollApproval.mockImplementation(() => new Promise(() => {}));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Ask for approval" }),
+    );
+    await screen.findByText("WXYZ-1234");
+    expect(screen.getByText("prn_abc123")).toBeTruthy();
   });
 
   it("keeps the keyboard somewhere useful while the operator decides", async () => {
     // Approval never arrives: the commit waits, disabled, and the rung has
     // nothing to fill in — the keyboard must not fall to <body>.
     fakes.pollApproval.mockImplementation(() => new Promise(() => {}));
-    render(
-      <JoinScreen
-        captured={{ kind: "invite", invite: { token: TOKEN, endpoint: null } }}
-        configured={ENDPOINT}
-        onDone={() => {}}
-      />,
-    );
+    renderInvite();
+    typeCode();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "Ask for approval" }),
@@ -189,20 +117,107 @@ describe("the invite road", () => {
   });
 
   it("resumes a looked-up offer instead of presenting it again", async () => {
-    stash = { endpoint: ENDPOINT, token: TOKEN, offer: OFFER };
-    render(
-      <JoinScreen
-        captured={{ kind: "invite", invite: { token: TOKEN, endpoint: null } }}
-        configured={ENDPOINT}
-        onDone={() => {}}
-      />,
-    );
+    store.stash = { endpoint: ENDPOINT, token: TOKEN, offer: OFFER };
+    renderInvite();
+    typeCode();
     await approveAndVerify();
     expect(screen.getByRole("checkbox", { name: /GitHub/ })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Continue with these" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Join" })).toBeTruthy();
     expect(fakes.presentInvite).not.toHaveBeenCalled();
+  });
+
+  it("never sends a held offer's bearer to an endpoint it was not looked up at", async () => {
+    store.stash = { endpoint: ENDPOINT, token: TOKEN, offer: OFFER };
+    renderInvite();
+    typeCode();
+    fireEvent.change(screen.getByLabelText("Endpoint"), {
+      target: { value: "https://elsewhere.example" },
+    });
+    await approveAndVerify("https://elsewhere.example");
+    // The offer is let go of in memory: nothing to join yet.
+    expect(screen.queryByRole("checkbox", { name: /GitHub/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
+    await screen.findByRole("img", {
+      name: /already looked up at another endpoint/,
+    });
+    expect(fakes.presentInvite).not.toHaveBeenCalled();
+    expect(fakes.claimInvite).not.toHaveBeenCalled();
+  });
+
+  it("does not claim a held offer for a different invite", async () => {
+    store.stash = { endpoint: ENDPOINT, token: TOKEN, offer: OFFER };
+    renderInvite();
+    typeCode();
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: OTHER },
+    });
+    await approveAndVerify();
+    await lookUp();
+    // The new invite is the one looked up, and the one that would be claimed.
+    expect(fakes.presentInvite).toHaveBeenCalledWith(ENDPOINT, OTHER);
+  });
+
+  it("refuses to present an invite this device already sent to be looked up", async () => {
+    store.marked.add(TOKEN);
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
+    await screen.findByRole("img", { name: /already opened on this device/ });
+    expect(fakes.presentInvite).not.toHaveBeenCalled();
+  });
+
+  it("keeps the marker when a lookup's answer was lost, and drops it when refused", async () => {
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    fakes.presentInvite.mockRejectedValueOnce(new JoinError("unreachable"));
+    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
+    await screen.findByRole("img", { name: "The endpoint did not answer." });
+    expect(store.marked.has(TOKEN)).toBe(true);
+    store.marked.clear();
+    fakes.presentInvite.mockRejectedValueOnce(new JoinError("verify_failed"));
+    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
+    await screen.findByRole("img", {
+      name: "Verification was refused or expired.",
+    });
+    expect(store.marked.has(TOKEN)).toBe(false);
+  });
+
+  it("will not join with nothing chosen", async () => {
+    fakes.presentInvite.mockImplementation(async () => OPTIONAL_ONLY);
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
+    const slack = await screen.findByRole("checkbox", { name: /Slack/ });
+    expect(go().disabled).toBe(true);
+    fireEvent.click(slack);
+    expect(go().disabled).toBe(false);
+  });
+
+  it("hands the keyboard to the code when it did not match", async () => {
+    fakes.claimInvite.mockRejectedValueOnce(new JoinError("code_mismatch"));
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    await lookUp();
+    fireEvent.click(screen.getByRole("button", { name: "Join" }));
+    await screen.findByRole("img", { name: /did not match/ });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText("Code")),
+    );
+  });
+
+  it("forgets a dead offer so it does not come back", async () => {
+    fakes.claimInvite.mockRejectedValueOnce(new JoinError("invite_spent"));
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    await lookUp();
+    fireEvent.click(screen.getByRole("button", { name: "Join" }));
+    await screen.findByRole("img", { name: /can no longer be used/ });
+    expect(store.stash).toBeNull();
   });
 
   it("flags an endpoint that is not this deployment's own", () => {
@@ -240,13 +255,8 @@ describe("the invite road", () => {
 
   it("spends nothing where a join cannot be finished", () => {
     joinCeremonyDependencies.joinAvailable = () => false;
-    render(
-      <JoinScreen
-        captured={{ kind: "invite", invite: { token: TOKEN, endpoint: null } }}
-        configured={ENDPOINT}
-        onDone={() => {}}
-      />,
-    );
+    renderInvite();
+    typeCode();
     expect(
       screen.getByRole("img", { name: /This address cannot finish a join/ }),
     ).toBeTruthy();
@@ -256,74 +266,27 @@ describe("the invite road", () => {
 
   it("closing ends the authority but keeps the looked-up offer", async () => {
     const onDone = vi.fn();
-    render(
-      <JoinScreen
-        captured={{ kind: "invite", invite: { token: TOKEN, endpoint: null } }}
-        configured={ENDPOINT}
-        onDone={onDone}
-      />,
-    );
+    renderInvite(onDone);
+    typeCode();
     await approveAndVerify();
-    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
-    await screen.findByRole("checkbox", { name: /GitHub/ });
+    await lookUp();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onDone).toHaveBeenCalled();
     expect(fakes.endJoinAuthority).toHaveBeenCalled();
-    expect(stash?.token).toBe(TOKEN);
-  });
-});
-
-describe("the open road", () => {
-  it("asks into a listed session with a note, and says it is waiting", async () => {
-    render(
-      <JoinScreen captured={null} configured={ENDPOINT} onDone={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Open session/ }));
-    expect(screen.queryByLabelText("Invite")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Ask for approval" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Verify with a passkey" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Design review/ }),
-    );
-    fireEvent.change(screen.getByLabelText("Note for the operator"), {
-      target: { value: "from design" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Ask to join" }));
-    await screen.findByRole("heading", { name: "Asked" });
-    expect(fakes.askToJoin).toHaveBeenCalledWith(
-      ENDPOINT,
-      "session:1",
-      "from design",
-    );
-    expect(screen.getByText("waiting on the operator")).toBeTruthy();
+    expect(store.stash?.token).toBe(TOKEN);
   });
 
-  it("marks a failure beside the field it belongs to", async () => {
-    fakes.askToJoin.mockRejectedValueOnce(new JoinError("already_asked"));
-    render(
-      <JoinScreen captured={null} configured={ENDPOINT} onDone={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Open session/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Ask for approval" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Verify with a passkey" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Design review/ }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Ask to join" }));
+  it("cannot be closed while a lookup is in flight", async () => {
+    fakes.presentInvite.mockImplementation(() => new Promise(() => {}));
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
     await waitFor(() =>
       expect(
-        screen.getByRole("img", { name: "Your request is already waiting." }),
-      ).toBeTruthy(),
+        screen.getByRole<HTMLButtonElement>("button", { name: "Close" })
+          .disabled,
+      ).toBe(true),
     );
   });
 });

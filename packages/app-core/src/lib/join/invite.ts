@@ -17,6 +17,7 @@
  */
 
 import { maybePage } from "../../ports.js";
+import { dismissNotice, setStatusNotice } from "../notices.js";
 import { normalizeApiBase } from "../urls.js";
 
 /** `osc_dlg_<offer id>.<random>` — the only bearer the join road spends. */
@@ -28,8 +29,13 @@ const CODE_ALPHABET = /^[BCDFGHJKLMNPQRSTVWXZ]{8}$/;
 const SESSION_ID =
   /^(?:session:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
-/** A join request's note: the Host's own bound (ADR 0079 §7). */
+/** A join request's note: the Host's own bound, in characters (ADR 0079 §7). */
 export const NOTE_MAX = 280;
+
+/** Characters as the Host counts them (`chars().count()`), not UTF-16 units. */
+export function noteLength(note: string): number {
+  return [...note.trim()].length;
+}
 
 export type Invite = Readonly<{
   token: string;
@@ -99,11 +105,13 @@ export function normalizeSessionId(raw: string): string | null {
 
 let captured: CapturedInvite | null = null;
 
-function scrubbed(search: URLSearchParams): string {
-  search.delete("token");
-  search.delete("endpoint");
-  const rest = search.toString();
-  return rest ? `?${rest}` : "";
+/** `?…` or `#…` with the invite's own parameters taken out, nothing else. */
+function without(raw: string, mark: "?" | "#"): string {
+  const params = new URLSearchParams(raw.replace(/^[?#]/, ""));
+  params.delete("token");
+  params.delete("endpoint");
+  const rest = params.toString();
+  return rest ? `${mark}${rest}` : "";
 }
 
 /**
@@ -111,28 +119,29 @@ function scrubbed(search: URLSearchParams): string {
  *
  * The bearer leaves history immediately — a reload, a bookmark or a shared
  * screen must not carry it — and is held in memory until the unlock screen
- * asks for it. Only an invite bearer is touched: a drop link's `osc_clm_`
- * fragment belongs to the claim route and is left exactly as it arrived.
+ * asks for it. Only an invite's own parameters are removed: a drop link's
+ * `osc_clm_` fragment belongs to the claim route and is left exactly as it
+ * arrived, and anything else in the address stays where it was.
  */
 export function captureInviteFromPage(): CapturedInvite | null {
   const page = maybePage();
   if (!page) return captured;
   const { pathname, search, hash } = page.location;
-  const query = new URLSearchParams(search);
-  const queried = query.get("token") ?? "";
+  const queried = new URLSearchParams(search).get("token") ?? "";
   if (queried.startsWith("osc_dlg_")) {
     captured = { kind: "leaked" };
-    page.replaceUrl(`${pathname}${scrubbed(query)}`);
+    page.replaceUrl(`${pathname}${without(search, "?")}${hash}`);
     return captured;
   }
   const invite = hash ? fromFragment(hash) : null;
   if (!invite) return captured;
   captured = { kind: "invite", invite };
-  page.replaceUrl(`${pathname}${search}`);
+  page.replaceUrl(`${pathname}${search}${without(hash, "#")}`);
   return captured;
 }
 
 const arrivals = new Set<() => void>();
+const WAITING_NOTICE = "join.invite-waiting";
 let watching = false;
 
 /**
@@ -148,6 +157,17 @@ export function watchInviteArrivals(): void {
   page.addEventListener("hashchange", () => {
     const before = captured;
     if (captureInviteFromPage() === before) return;
+    // Nobody on screen can open the ceremony (the vault is unlocked): say
+    // the invite is waiting rather than swallow it until the next lock.
+    if (arrivals.size === 0) {
+      setStatusNotice({
+        id: WAITING_NOTICE,
+        tone: "info",
+        title: "An invite is waiting",
+        body: "Lock the vault to join with it.",
+      });
+      return;
+    }
     for (const listener of arrivals) listener();
   });
 }
@@ -164,6 +184,7 @@ export function onInviteArrival(listener: () => void): () => void {
 export function takeCapturedInvite(): CapturedInvite | null {
   const taken = captured;
   captured = null;
+  if (taken) dismissNotice(WAITING_NOTICE);
   return taken;
 }
 

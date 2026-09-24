@@ -13,6 +13,7 @@ import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
+  isNumber,
   isString,
 } from "@opensesame/os-domain";
 
@@ -20,25 +21,36 @@ const MAX_ITEMS = 32;
 const MAX_LIST = 16;
 const MAX_SESSIONS = 50;
 const ID = /^[A-Za-z0-9_:.-]{1,128}$/;
-// Control characters and bidi overrides: text a person reads must say what
-// it says, in the order it says it.
+/**
+ * Characters that change how text reads without being text: C0/C1 controls,
+ * bidi marks and overrides, line/paragraph separators, zero-width joiners
+ * and spaces, invisible operators, the BOM and Unicode tag characters. Text a
+ * person reads must say what it says, in the order it says it.
+ */
 function unsafe(code: number): boolean {
   return (
     code < 0x20 ||
     (code >= 0x7f && code <= 0x9f) ||
-    code === 0x200e ||
-    code === 0x200f ||
-    (code >= 0x202a && code <= 0x202e) ||
-    (code >= 0x2066 && code <= 0x2069)
+    code === 0x061c ||
+    (code >= 0x200b && code <= 0x200f) ||
+    (code >= 0x2028 && code <= 0x202e) ||
+    (code >= 0x2060 && code <= 0x2069) ||
+    code === 0xfeff ||
+    (code >= 0xe0000 && code <= 0xe007f)
   );
 }
+
+/** A list shown in part, with how many entries it did not show. */
+export type Shown = Readonly<{ shown: readonly string[]; more: number }>;
 
 export type JoinOfferItem = Readonly<{
   id: string;
   displayName: string;
   providerId: string;
-  actions: readonly string[];
-  resources: readonly string[];
+  actions: Shown;
+  resources: Shown;
+  /** How long an accepted delegation lasts, in seconds, when stated. */
+  lifetime: number | null;
   required: boolean;
   dependencies: readonly string[];
 }>;
@@ -70,11 +82,13 @@ export function safeText(
   max: number,
 ): string {
   if (!isString(value)) return "";
-  const clean = [...value]
+  // Code points, not UTF-16 units: a cut never splits a surrogate pair.
+  const points = [...value]
     .filter((char) => !unsafe(char.codePointAt(0) ?? 0))
     .join("")
     .trim();
-  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+  const chars = [...points];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : points;
 }
 
 function id(value: BoundaryValue | undefined): string {
@@ -82,14 +96,25 @@ function id(value: BoundaryValue | undefined): string {
   return value;
 }
 
-function texts(value: BoundaryValue | undefined, max: number): string[] {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value) || value.length > MAX_LIST * 4)
-    throw new JoinWireError();
-  return value
-    .slice(0, MAX_LIST)
-    .map((entry) => safeText(entry, max))
-    .filter(Boolean);
+/**
+ * A list the person is consenting to. Never silently cut: past `MAX_LIST`
+ * the rest is counted and shown as "+N more", and no length makes an offer
+ * unreadable — it was already spent by being looked up.
+ */
+function texts(value: BoundaryValue | undefined, max: number): Shown {
+  if (value === undefined || value === null) return { shown: [], more: 0 };
+  if (!Array.isArray(value)) throw new JoinWireError();
+  const clean = value.map((entry) => safeText(entry, max)).filter(Boolean);
+  return {
+    shown: clean.slice(0, MAX_LIST),
+    more: Math.max(0, clean.length - MAX_LIST),
+  };
+}
+
+/** A count carried by the tab's own stash, so a resumed offer loses none. */
+function counted(list: Shown, carried: BoundaryValue | undefined): Shown {
+  const extra = isNumber(carried) && carried > 0 ? Math.floor(carried) : 0;
+  return { shown: list.shown, more: list.more + extra };
 }
 
 function ids(value: BoundaryValue | undefined): string[] {
@@ -108,8 +133,12 @@ function item(value: BoundaryValue): JoinOfferItem {
       safeText(value.provider_id, 80) ||
       "Unnamed connection",
     providerId: safeText(value.provider_id, 64),
-    actions: texts(value.actions, 64),
-    resources: texts(value.resources, 160),
+    actions: counted(texts(value.actions, 64), value.more_actions),
+    resources: counted(texts(value.resources, 160), value.more_resources),
+    lifetime:
+      isNumber(value.expires_in_seconds) && value.expires_in_seconds > 0
+        ? value.expires_in_seconds
+        : null,
     required: value.required === true,
     dependencies: ids(value.dependencies),
   };

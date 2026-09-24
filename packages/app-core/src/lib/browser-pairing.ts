@@ -40,7 +40,19 @@ export type PairingPrompt = {
   expiresAt: number;
   interval: number;
 };
+/**
+ * What a pairing asks the operator for: ciphertext sync, or — for the join
+ * ceremony (ADR 0136) — to join, which a passkey check widens to the join
+ * routes and nothing else.
+ */
+export type PairingCeiling = "sync" | "join";
+const CEILINGS = {
+  sync: ["host.sync.read", "host.sync.write"],
+  join: ["host.join"],
+} as const satisfies Readonly<Record<PairingCeiling, readonly string[]>>;
+
 type Pending = {
+  ceiling: PairingCeiling;
   hostApi: string;
   key: ProofKey;
   deviceCode: string;
@@ -106,6 +118,7 @@ async function pairingRequest(
 /** Explicit user action starts a single tab-owned pairing. Secrets never enter this public prompt. */
 export async function beginBrowserPairing(
   rawHost: string,
+  ceiling: PairingCeiling = "sync",
 ): Promise<PairingPrompt> {
   assertEligible();
   clearBrowserPairing();
@@ -118,7 +131,7 @@ export async function beginBrowserPairing(
     hostApi,
     "/api/v1/browser-pairings",
     key,
-    { capabilities: ["host.sync.read", "host.sync.write"] },
+    { capabilities: [...CEILINGS[ceiling]] },
     signal,
   );
   if (!response.ok) throw new BrowserPairingError("pairing_failed");
@@ -126,6 +139,7 @@ export async function beginBrowserPairing(
   const { prompt, deviceCode } = validatedPrompt(value, hostApi);
   if (epoch !== generation) throw new BrowserPairingError("pairing_expired");
   pending = {
+    ceiling,
     hostApi,
     key,
     deviceCode,
@@ -168,7 +182,7 @@ export async function pollBrowserPairing(): Promise<BrowserGrant | null> {
     clearBrowserPairing();
     throw new BrowserPairingError("pairing_failed");
   }
-  const validated = validatedToken(value);
+  const validated = validatedToken(value, CEILINGS[active.ceiling]);
   grant = {
     hostApi: active.hostApi,
     key: active.key,
@@ -316,7 +330,10 @@ function validatedPrompt(
   return { prompt, deviceCode: value.device_code };
 }
 
-function validatedToken(value: Awaited<ReturnType<typeof body>>) {
+function validatedToken(
+  value: Awaited<ReturnType<typeof body>>,
+  asked: readonly string[],
+) {
   if (
     value.token_type !== "DPoP" ||
     !isString(value.access_token) ||
@@ -332,12 +349,10 @@ function validatedToken(value: Awaited<ReturnType<typeof body>>) {
   )
     throw new BrowserPairingError("pairing_failed");
   const capabilities = value.scope.split(" ");
+  // The grant may be narrower than what was asked, never wider or other.
   if (
     !capabilities.length ||
-    capabilities.some(
-      (capability) =>
-        !["host.sync.read", "host.sync.write"].includes(capability),
-    )
+    capabilities.some((capability) => !asked.includes(capability))
   )
     throw new BrowserPairingError("pairing_failed");
   return {

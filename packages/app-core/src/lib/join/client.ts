@@ -39,6 +39,7 @@ import {
   isInviteToken,
   normalizeInviteCode,
   normalizeSessionId,
+  noteLength,
 } from "./invite.js";
 import {
   type JoinOffer,
@@ -59,6 +60,8 @@ export type JoinErrorCode =
   | "invite_unknown"
   | "invite_spent"
   | "invite_expired"
+  | "invite_elsewhere"
+  | "invite_presented"
   | "code_format"
   | "code_mismatch"
   | "claim_refused"
@@ -197,7 +200,9 @@ export async function beginApproval(endpoint: string): Promise<PairingPrompt> {
   requireAvailable();
   const base = resolveEndpoint(endpoint);
   try {
-    return await joinSeams.beginPairing(base);
+    // Paired to join: after the passkey check this grant reaches the join
+    // routes and nothing else a verified browser could (ADR 0136).
+    return await joinSeams.beginPairing(base, "join");
   } catch (error) {
     throw transport(error instanceof Error ? error : String(error));
   }
@@ -240,7 +245,11 @@ export async function verifyAt(
     );
   } catch (error) {
     if (error instanceof BrowserPairingError) throw transport(error);
-    throw new JoinError("verify_failed");
+    // A refused check (401) also ends the grant; say which one it was, so
+    // the person knows whether to verify again or ask for approval again.
+    throw new JoinError(
+      joinSeams.grant(base) ? "verify_failed" : "approval_expired",
+    );
   }
 }
 
@@ -324,7 +333,7 @@ export async function askToJoin(
   const sessionId = normalizeSessionId(rawSessionId);
   if (!sessionId) throw new JoinError("no_session");
   const note = rawNote.trim();
-  if (note.length > NOTE_MAX) throw new JoinError("note_too_long");
+  if (noteLength(note) > NOTE_MAX) throw new JoinError("note_too_long");
   const response = await authorized(
     base,
     `/api/v1/shared-sessions/${sessionId}/join-requests`,

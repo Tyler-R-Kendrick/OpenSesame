@@ -10,6 +10,7 @@ import type { JoinOffer } from "@opensesame/app-core/lib/join/wire.js";
 import {
   JOIN_TITLE,
   endpointMark,
+  joinDuration,
   joinErrorField,
   joinErrorText,
   joinExpiry,
@@ -24,7 +25,12 @@ import {
 import { StatusMark } from "../../components/StatusMark.js";
 import type { JoinCeremony } from "./useJoinCeremony.js";
 
-type Props = { join: JoinCeremony; configured: string };
+type Props = {
+  join: JoinCeremony;
+  configured: string;
+  /** The signed-in account's principal, for the operator to approve. */
+  account: string;
+};
 type Field = "endpoint" | "invite" | "code" | "session" | "note";
 
 function fieldMark(join: JoinCeremony, field: Field) {
@@ -81,22 +87,52 @@ function Where(props: Props) {
       </fieldset>
       <EndpointField {...props} />
       {join.road === "invite" ? (
-        <FieldShell
-          id="join-invite"
-          label="Invite"
-          type="text"
-          mono
-          lead={<IconSecret size={17} />}
-          placeholder="Link or osc_dlg_ token"
-          autoComplete="off"
-          value={join.inviteText}
-          disabled={join.busy}
-          status={fieldMark(join, "invite")}
-          onValueChange={join.setInviteText}
-        />
+        <>
+          {/* A bearer: masked like any secret, so a shared screen or a
+              recording never shows it (it already left the address bar). */}
+          <FieldShell
+            id="join-invite"
+            label="Invite"
+            type="password"
+            mono
+            lead={<IconSecret size={17} />}
+            placeholder="Link or osc_dlg_ token"
+            autoComplete="off"
+            value={join.inviteText}
+            disabled={join.busy}
+            status={fieldMark(join, "invite")}
+            onValueChange={join.setInviteText}
+          />
+          <CodeField join={join} />
+        </>
       ) : null}
     </>
   );
+}
+
+/** Asked up front, so nothing waits on it once approval's clock starts. */
+function CodeField({ join }: { join: JoinCeremony }) {
+  return (
+    <FieldShell
+      id="join-code"
+      label="Code"
+      type="text"
+      mono
+      lead={<IconLogin size={17} />}
+      placeholder="BCDF-GHJK"
+      autoComplete="one-time-code"
+      value={join.code}
+      disabled={join.busy}
+      status={fieldMark(join, "code")}
+      onValueChange={join.setCode}
+    />
+  );
+}
+
+/** "a, b, c +4 more": what was offered, never silently shortened. */
+function listed(list: JoinOffer["items"][number]["actions"]): string {
+  const text = list.shown.join(", ");
+  return list.more > 0 ? `${text} +${list.more} more` : text;
 }
 
 function Facts({ rows }: { rows: [string, string][] }) {
@@ -125,7 +161,11 @@ function Offer({ join, offer }: { join: JoinCeremony; offer: JoinOffer }) {
       <ul className="join__items" aria-label="Offered access">
         {offer.items.map((item) => {
           const fixed = locked.has(item.id);
-          const detail = [item.actions.join(", "), item.resources.join(", ")]
+          const detail = [
+            listed(item.actions),
+            listed(item.resources),
+            item.lifetime === null ? "" : `for ${joinDuration(item.lifetime)}`,
+          ]
             .filter(Boolean)
             .join(" · ");
           return (
@@ -151,31 +191,18 @@ function Offer({ join, offer }: { join: JoinCeremony; offer: JoinOffer }) {
   );
 }
 
-function Approve({ join }: { join: JoinCeremony }) {
+/**
+ * What the operator needs to approve this browser for the right person:
+ * the pairing code, and the account the passkey check will prove.
+ */
+function Approve({ join, account }: { join: JoinCeremony; account: string }) {
   return (
     <Facts
       rows={[
         ["Endpoint", join.endpoint],
         ["Read this to the operator", join.prompt?.userCode ?? "—"],
+        ["Your account", account || "sign in to show it"],
       ]}
-    />
-  );
-}
-
-function Accept({ join }: { join: JoinCeremony }) {
-  return (
-    <FieldShell
-      id="join-code"
-      label="Code"
-      type="text"
-      mono
-      lead={<IconLogin size={17} />}
-      placeholder="BCDF-GHJK"
-      autoComplete="one-time-code"
-      value={join.code}
-      disabled={join.busy}
-      status={fieldMark(join, "code")}
-      onValueChange={join.setCode}
     />
   );
 }
@@ -274,16 +301,20 @@ export function JoinStepBody(props: Props) {
         {join.step === "where" ? <Where {...props} /> : null}
         {join.step === "review" ? (
           join.offer ? (
-            <Offer join={join} offer={join.offer} />
+            <>
+              <Offer join={join} offer={join.offer} />
+              <CodeField join={join} />
+            </>
           ) : (
             <Facts rows={[["Endpoint", join.endpoint]]} />
           )
         ) : null}
-        {join.step === "approve" ? <Approve join={join} /> : null}
+        {join.step === "approve" ? (
+          <Approve join={join} account={props.account} />
+        ) : null}
         {join.step === "verify" ? (
           <Facts rows={[["Endpoint", join.endpoint]]} />
         ) : null}
-        {join.step === "accept" ? <Accept join={join} /> : null}
         {join.step === "ask" ? <Ask join={join} /> : null}
         {join.step === "done" ? <Done join={join} /> : null}
       </div>

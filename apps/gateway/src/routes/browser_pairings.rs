@@ -24,13 +24,9 @@ pub struct CreateRequest {
     capabilities: Vec<String>,
 }
 
-fn allowed_capabilities(capabilities: &[String]) -> bool {
-    !capabilities.is_empty()
-        && capabilities.len() <= 2
-        && capabilities
-            .iter()
-            .all(|cap| matches!(cap.as_str(), "host.sync.read" | "host.sync.write"))
-}
+#[path = "browser_pairings/ceiling.rs"]
+mod ceiling;
+use ceiling::{allowed_capabilities, verified_ceiling};
 
 pub async fn create(
     State(st): State<AppState>,
@@ -327,14 +323,8 @@ pub fn session_claims(grant: &BrowserGrant) -> Result<HostSessionClaims, Respons
         claims.assurance = Assurance::PhishingResistant;
         claims.amr = vec!["webauthn".into()];
         claims.local_session = false;
-        claims
-            .capability_ceiling
-            .extend(["host.agent.observe".into(), "host.agent.control".into()]);
-        claims.capability_ceiling.extend(
-            crate::middleware::browser_user_routes::CAPABILITIES
-                .iter()
-                .map(|value| (*value).to_owned()),
-        );
+        let added = verified_ceiling(&claims.capability_ceiling);
+        claims.capability_ceiling.extend(added);
     }
     Ok(claims)
 }

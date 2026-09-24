@@ -76,24 +76,28 @@ opens the ceremony, which says so and spends nothing.
 
 ### 2. Two roads, one ladder each
 
-- **Invite** — where (endpoint + link or token, checked locally, sent
-  nowhere) → approval → verify → the offer (looked up, then chosen item by
-  item) → the code → joined.
+- **Invite** — where (endpoint, the link or token, and the out-of-band code,
+  all checked locally and sent nowhere) → approval → verify → the offer
+  (looked up once, chosen item by item, then joined).
 - **Open session** — where (endpoint) → approval → verify → which session
-  (the endpoint's public listing, or an id) plus a note ≤ 280 characters →
-  asked.
+  (the endpoint's public listing, or an id) plus a note of at most 280
+  characters, counted as the Host counts them → asked.
 
-*Approval* is the endpoint's operator approving this browser (the existing
-browser pairing: a code the person reads to them, polled at the operator's
-interval). *Verify* is the person proving, by passkey in the Identity window,
-that they are who the operator approved (`browser.authenticate`). Together
-they are what "joining as an approved user" means on the Host.
+*Approval* is the endpoint's operator approving this browser: the existing
+browser pairing, under a new join-only ceiling (§4), with a code the person
+reads to the operator and the account the passkey step will prove shown
+beside it, so the operator approves the right principal. *Verify* is the
+person proving, by passkey in the Identity window, that they are who the
+operator approved (`browser.authenticate`). Together they are what "joining
+as an approved user" means on the Host.
 
 Because the Host answers a browser nothing before both, the invite is looked
 up — and its one presentation spent — only once this browser can go on to
 accept it. That trades ADR 0044's "see the manifest before an account" for
 "never spend an invite you cannot accept"; the manifest is still shown, and
-still chosen from, before anything is accepted.
+still chosen from, before anything is accepted. The approved grant lasts
+five minutes (the Host's bound), so the code is asked up front: nothing
+after approval waits on the person fetching it.
 
 "Open" means *anyone may ask*. Admission stays the operator's decision
 (ADR 0079 §7); the ceremony reports whatever the endpoint answers, so an
@@ -114,35 +118,72 @@ endpoint that ever admits on ask needs no change here.
 - **Bearer out of the address bar first.** `bootCore` captures an invite
   fragment and scrubs it before anything paints; a drop link's `osc_clm_`
   fragment is left alone.
-- **Present once.** The looked-up offer is kept for the tab
-  (`join.pending.v2`, `sessionStorage`), bounded by the offer's expiry and 30
-  minutes, and reused instead of presenting again. The code is never stored;
+- **Present once, from this device.** The looked-up offer is kept for the
+  tab (`join.pending.v2`, `sessionStorage`) until the offer ends (or the
+  Host's 24-hour ceiling), and reused instead of presenting again. A
+  device-wide marker (`join.presented.v1`, `localStorage`) holds a SHA-256
+  digest of each presented bearer — never the bearer — and refuses a second
+  present from any tab. It is written *before* the request leaves, so a
+  lookup whose answer was lost (a dropped connection, a closed screen) is
+  never retried into a burn; it is forgotten only when the Host provably
+  refused before reaching the offer, or the offer is dead. The ceremony
+  cannot be closed while a lookup is in flight. The code is never stored;
   the removed ceremony's `join.invite.v1` entry is erased on sight.
+- **An offer belongs to its endpoint and its invite.** Editing either lets
+  go of the offer in memory; a held offer for the same invite at another
+  endpoint is refused, not re-presented. Its bearer and code are only ever
+  sent to the endpoint it was looked up at.
 - **Least privilege.** Required items (and what they depend on) are locked
   on; optional items start off; turning one on brings its dependencies, off
   takes its dependents.
-- **Bounded reads.** 64 KiB and 8 s per answer, ≤ 32 items, clipped strings,
-  control and bidi-override characters stripped, identifiers held to the
-  Host's grammar, dangling dependencies refused whole. Text reaches the page
-  as text only.
+- **Least privilege, continued.** Joining with nothing chosen is never
+  sent — the Host would refuse it after counting the code.
+- **Bounded reads.** 64 KiB and 8 s per answer, ≤ 32 items, strings clipped
+  on characters (never inside a surrogate pair), control, bidi, zero-width,
+  separator, BOM and tag characters stripped, identifiers held to the Host's
+  grammar, dangling dependencies refused whole. Lists are never cut
+  silently: past sixteen entries the rest is shown as "+N more", and no
+  length makes a (spent) offer unreadable. Each item says how long its
+  delegation lasts. Text reaches the page as text only; the invite field is
+  masked like any secret.
 - **Authority is short and dropped.** The grant lives in memory (≤ 5 minutes
   by the Host's own bound). Finishing, closing, starting over, the screen
   unmounting and signing out all end it; signing out also forgets a pending
   offer. Joining leaves no standing grant.
-- **The setup record is written only after a join completes**, and never
-  overwrites an operator's existing record.
+- **The setup record is written only after a join completes** — a claim,
+  or an ask the endpoint answered with `admitted`; a pending ask retires
+  nothing — and never overwrites an operator's existing record.
+- **An invite arriving in an unlocked tab** (a link pasted into the address
+  bar) is still taken out of the address bar, and a notice says it is
+  waiting; the ceremony opens at the next lock.
 - **Design.** Setup's frame, `.go` commits, `StatusMark` failures beside the
   field they belong to; no error boxes, pills or Host in the copy.
 
 ### 4. The Host, narrowly
 
-The authenticated browser ceiling (`middleware/browser_user_routes.rs`) gains
-`host.sessions.join` for exactly two shapes: `GET shared-sessions` (the
-public listing; the handler still refuses anything but
-`visibility=public`) and `POST shared-sessions/{id}/join-requests`. Deciding,
-granting, the roster, events and opening a session stay off the map — a
-browser may ask in, never let itself in. The delegation routes were already
-on it.
+**A join-only pairing ceiling.** A browser that pairs to join asks for
+`host.join` alone. That ceiling reaches no route by itself, and passkey
+verification widens it to exactly `host.delegations.claim` (delegation
+present and claim) and `host.sessions.join` — never the connection, config,
+relay, task or agent authority a sync pairing gains on verification
+(`routes/browser_pairings/ceiling.rs`). The operator's approval prompt shows
+`host.join`, so what they are approving is legible.
+
+`middleware/browser_user_routes.rs` maps delegation present/claim to the new
+`host.delegations.claim` (which every other verified browser also keeps),
+and gains `host.sessions.join` for exactly two shapes: `GET shared-sessions`
+(the public listing; the handler still refuses anything but
+`visibility=public`) and `POST shared-sessions/{id}/join-requests`.
+Deciding, granting, the roster, events and opening a session stay off the
+map — a browser may ask in, never let itself in.
+
+**Refusals are readable.** The browser guard now answers a refusal with the
+CORS headers of the (already validated, pairable) origin, so the page can
+tell "verify again" from "offline" instead of seeing a network failure.
+
+**The operator's CLI approves again.** `opensesame` posted pairing decisions
+to `/pair/decision`, which the gateway never routed; it now posts to
+`/api/v1/browser-pairings/decision`, the route the gateway serves.
 
 ### 5. Parity
 
@@ -156,9 +197,18 @@ both are mapped to the `setup.join-session` support goal.
   own origin and endpoint. The public GitHub Pages demo still cannot, by
   design (it is a shared origin); the ceremony says so and spends nothing.
 - Joining needs a remote Identity service the endpoint trusts, for the
-  passkey step. Without one the verify step says so.
+  passkey step, and an operator who knows the joiner's principal (shown on
+  the Approval rung when the joiner is signed in). Without them the ladder
+  stops at the rung that needs them and says so.
+- **Approving a browser is not temporary on the Host.** The pairing decision
+  provisions the approved principal into the organization as a Member
+  (`provision_native_role`). The browser's own grant is short and dropped
+  by the ceremony, but the membership is the operator's to manage like any
+  other; on the open road the asker is a Member before they ask.
 - A returning device (front door retired) reaches join through an invite
   link; there is no quiet foot link (AGENTS.md §5).
+- The five-minute grant is the Host's; a person who pauses longer between
+  approval and joining is sent back to approval.
 - Follow-up, not decided here: whether an open session should admit on ask
   (as an observer, holding nothing) is a Host policy change and needs its own
   ADR.

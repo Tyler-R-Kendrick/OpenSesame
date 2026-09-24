@@ -58,7 +58,8 @@ async fn browser(state: &AppState, principal: &str, organization: &str, verified
             origin: ORIGIN,
             dpop_jkt: &jkt,
             audience: &state.resource,
-            capabilities_json: "[\"host.sync.read\",\"host.sync.write\"]",
+            // What the Pages join ceremony asks for (ADR 0136).
+            capabilities_json: "[\"host.join\"]",
             now,
         })
         .await
@@ -216,6 +217,58 @@ async fn an_approved_browser_nobody_verified_reaches_no_join_route() {
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{method} {uri}: {body}");
         assert_eq!(body["error"], "capability_denied", "{method} {uri}");
     }
+}
+
+#[tokio::test]
+async fn a_verified_join_grant_holds_nothing_but_the_join() {
+    let room = Room::new().await;
+    let verified = room.browser(true).await;
+    // Routes any other verified browser reaches: a join grant reaches none.
+    for (method, uri) in [
+        ("GET", "/api/v1/connections"),
+        ("POST", "/api/v1/connections"),
+        ("POST", "/api/v1/delegations"),
+        ("GET", "/api/v1/tasks"),
+        ("GET", "/api/v1/relay/requests/pending"),
+        ("POST", "/api/v1/sync/pull"),
+    ] {
+        let (status, body) = room.send(&verified, method, uri, Some(json!({}))).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{method} {uri}: {body}");
+        assert_eq!(body["error"], "capability_denied", "{method} {uri}");
+    }
+}
+
+#[tokio::test]
+async fn a_refusal_is_readable_by_the_paired_page() {
+    // Without CORS on the refusal the page sees a network failure and cannot
+    // tell "verify again" from "offline".
+    let room = Room::new().await;
+    let paired = room.browser(false).await;
+    let claims = opensesame_proof::DpopClaims {
+        jti: uuid::Uuid::new_v4().to_string(),
+        htm: "POST".into(),
+        htu: format!(
+            "{}/api/v1/delegations/claim",
+            room.state.resource.trim_end_matches('/')
+        ),
+        iat: chrono::Utc::now().timestamp(),
+        ath: Some(opensesame_proof::access_token_hash(&paired.token)),
+    };
+    let proof = opensesame_proof::sign_dpop_proof(&paired.jwk, &paired.key, &claims).unwrap();
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/v1/delegations/claim")
+        .header(header::ORIGIN, ORIGIN)
+        .header(header::AUTHORIZATION, format!("DPoP {}", paired.token))
+        .header("dpop", proof)
+        .body(Body::from("{}"))
+        .unwrap();
+    let response = room.router.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
+        ORIGIN
+    );
 }
 
 #[tokio::test]

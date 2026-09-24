@@ -11,6 +11,7 @@
  * the core (`@opensesame/app-core/lib/join/*`, `screens/join/join-model`).
  */
 
+import { currentSession } from "@opensesame/app-core/lib/identity.js";
 import type { CapturedInvite } from "@opensesame/app-core/lib/join/invite.js";
 import {
   JOIN_RAIL,
@@ -19,7 +20,7 @@ import {
   joinSteps,
   joinVerb,
 } from "@opensesame/app-core/screens/join/join-model.js";
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useRef } from "react";
 import {
   IconArrowRight,
   IconCheck,
@@ -28,12 +29,14 @@ import {
 } from "../components/Icons.js";
 import { StatusMark } from "../components/StatusMark.js";
 import { Wordmark } from "../components/Wordmark.js";
-import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { useSupportRoute } from "../tutorial/session.js";
 import { JoinStepBody } from "./join/JoinSteps.js";
 import { type JoinCeremony, useJoinCeremony } from "./join/useJoinCeremony.js";
+import { useJoinLanding } from "./join/useJoinLanding.js";
 import "./setup.css";
 import "./join/join.css";
+
+export const joinScreenDependencies = { currentSession };
 
 function blocked(join: JoinCeremony): boolean {
   if (join.busy || join.waiting || !join.available) return true;
@@ -41,10 +44,13 @@ function blocked(join: JoinCeremony): boolean {
     case "where":
       return (
         !join.endpoint.trim() ||
-        (join.road === "invite" && !join.inviteText.trim())
+        (join.road === "invite" &&
+          (!join.inviteText.trim() || !join.code.trim()))
       );
-    case "accept":
-      return !join.code.trim();
+    case "review":
+      // Joining with nothing chosen is refused by the endpoint after it has
+      // counted the code: never send it.
+      return join.offer !== null && (join.accepted === 0 || !join.code.trim());
     case "ask":
       return !join.sessionId.trim();
     default:
@@ -136,7 +142,7 @@ function JoinFoot({
               else void join.commit();
             }}
           >
-            {done || join.step === "accept" ? (
+            {done || (join.step === "review" && join.offer) ? (
               <IconCheck size={18} />
             ) : (
               <IconArrowRight size={18} />
@@ -168,29 +174,7 @@ export function JoinScreen({
   const goRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<HTMLElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-  const landed = useRef("");
-
-  // Every step owns its landing: the commit when it can be pressed, else the
-  // first thing to fill in. A press that disabled the commit and then failed
-  // leaves the keyboard nowhere, so an idle keyboard is landed again too.
-  useEffect(() => {
-    if (join.busy) return;
-    const at = `${join.road}:${join.step}`;
-    // A focused control that became disabled holds nothing (browsers apply
-    // focus fixup at different times), so it counts as idle too.
-    const held = document.activeElement;
-    const stranded =
-      keyboardIsIdle() || (held instanceof HTMLButtonElement && held.disabled);
-    if (landed.current === at && !stranded) return;
-    landed.current = at;
-    const go = goRef.current;
-    if (go && !go.disabled && landFocus(go)) return;
-    if (landFocus(firstControl(bodyRef.current))) return;
-    // A rung with nothing to fill in and a commit that waits (approval) still
-    // leaves the keyboard somewhere: the foot's Start over, else Close.
-    landFocus(firstControl(frameRef.current?.querySelector(".setup__foot"))) ||
-      landFocus(firstControl(frameRef.current));
-  }, [join.step, join.road, join.busy]);
+  useJoinLanding(join, { go: goRef, body: bodyRef, frame: frameRef });
 
   return (
     <div className="setup join">
@@ -202,6 +186,9 @@ export function JoinScreen({
             className="icon-btn setup__back"
             aria-label="Close"
             title="Close"
+            // Closing while a lookup is in flight would lose an answer the
+            // endpoint may already have spent the offer on.
+            disabled={join.busy}
             onClick={() => {
               join.abandon();
               onDone();
@@ -212,7 +199,11 @@ export function JoinScreen({
         </div>
         <JoinRail join={join} />
         <main className="setup__body" id="main" ref={bodyRef}>
-          <JoinStepBody join={join} configured={configured} />
+          <JoinStepBody
+            join={join}
+            configured={configured}
+            account={joinScreenDependencies.currentSession()?.principalId ?? ""}
+          />
         </main>
         <JoinFoot join={join} goRef={goRef} onDone={onDone} />
       </div>

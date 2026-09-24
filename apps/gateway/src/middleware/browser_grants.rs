@@ -242,7 +242,11 @@ pub async fn guard(State(st): State<AppState>, req: Request, next: Next) -> Resp
         return preflight(&st, &headers, &path, &origin).await;
     }
     if !(req.method() == Method::POST && pairing_path(req.uri().path())) {
-        if let Err(response) = authenticate(&st, &headers, &method, &path, &origin).await {
+        if let Err(mut response) = authenticate(&st, &headers, &method, &path, &origin).await {
+            // The origin is a pairable one (`request_origin`), so it may read
+            // why it was refused; without this a refusal reads as the network
+            // failing, and the page cannot tell "verify again" from "offline".
+            cors_headers(response.headers_mut(), &origin);
             return response;
         }
     }
