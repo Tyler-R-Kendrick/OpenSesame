@@ -39,7 +39,7 @@ binary; the name a process starts under picks the program
 |---|---|---|---|
 | [`pages`](pages) | `@opensesame/pages` | 5180 | **The OpenSesame app.** Installable offline PWA published to GitHub Pages: vault, connections, agents, access, identity, sites, settings. Complete with no backend. |
 | [`browser-extension`](browser-extension) | `@opensesame/browser-extension` | — | WXT browser extension: Host API, sync cursor, optional daemon. Never exposes a secret to a web page. |
-| [`authenticator-native`](authenticator-native) | `@opensesame/authenticator-native-contract` | — | Android authenticator: OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. |
+| [`android`](android) | `@opensesame/android` | — | **The Android app** (was `authenticator-native`, [ADR 0138](../docs/adr/0138-self-issued-identity-one-native-host.md)): OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. Its `ios/` sources are the matching Apple wallet extension. |
 
 The two MCP servers are packages served by the client CLI
 (`opensesame-id mcp host|client`): [`packages/mcp-host`](../packages/mcp-host)

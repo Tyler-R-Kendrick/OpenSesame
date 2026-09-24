@@ -11,7 +11,7 @@ The Android 14+ wallet entry points are under `android/`. Build with JDK 17 and
 Gradle 8.13 after configuring the production wallet-attestation backend:
 
 ```bash
-cd apps/authenticator-native/android
+cd apps/android/android
 gradle :app:assembleDebug -PopensesameWalletBackendUrl=https://identity.example
 ```
 

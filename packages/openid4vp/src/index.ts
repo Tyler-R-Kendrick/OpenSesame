@@ -1,7 +1,7 @@
 /**
  * `@opensesame/openid4vp` — the verifier half of OpenID4VP 1.0.
  *
- * OpenSesame already acts as a holder: `apps/authenticator-native` presents
+ * OpenSesame already acts as a holder: `apps/android` presents
  * credentials through Multipaz (ADR 0058). This package is the other end of
  * that conversation — the side that *asks* a wallet to prove something and
  * then binds the proof to an authorization decision. It is server-side, has no

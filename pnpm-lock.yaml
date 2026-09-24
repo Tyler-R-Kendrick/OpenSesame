@@ -121,7 +121,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  apps/authenticator-native: {}
+  apps/android: {}
 
   apps/browser-extension:
     dependencies:
