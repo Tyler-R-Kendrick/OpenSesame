@@ -197,6 +197,8 @@ Commands:
   vault verify <file>          Open a vault export or offline backup
                                (master password from the terminal only)
   vault ls <file>              List its items: path and kind, never values
+  mcp host|client              Serve the host- or client-facing MCP tools
+                               (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
 
 Global:
   --json          Machine-readable output (secrets redacted)

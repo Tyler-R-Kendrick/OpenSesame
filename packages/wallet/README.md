@@ -10,7 +10,7 @@ spending ledger.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) — wallet registration routes and service, `repos/durable-wallet-registration-store.ts`, and `create-wallet-native-mounts.ts`, which builds the launcher provider from the process environment.
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) — wallet registration routes and service, `repos/durable-wallet-registration-store.ts`, and `create-wallet-native-mounts.ts`, which builds the launcher provider from the process environment.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (`InteractionKind`), `jose` (Save-to-Wallet JWTs).
 - A provider is handed an already-minted `interactionRef` and its canonical URL — never a token, a session or the subject behind it.
 - `assertPassPayloadSafe` runs on every issue and every REST mutation, deny-first, over the serializer's own output. `WalletPayloadRejected` names the rule and path and never quotes a value.

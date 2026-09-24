@@ -7,7 +7,7 @@ another device. It prints that a token arrived, never the token itself.
 
 ## Where it fits
 
-- **Talks to:** the Identity API ([`apps/control-plane`](../../apps/control-plane)),
+- **Talks to:** the Identity API ([`packages/control-plane`](../../packages/control-plane)),
   `:8788` by default — `/.well-known/openid-configuration`, then the
   `device_authorization_endpoint` and `token_endpoint` it names.
 - **Builds on:** [`@opensesame/sdk-cli`](../../packages/sdk-cli)

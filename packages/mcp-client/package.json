@@ -1,0 +1,34 @@
+{
+  "name": "@opensesame/mcp-client",
+  "version": "0.1.0",
+  "description": "Agent-facing MCP server over stdio: Host API health, discovery and E2EE sync tools under a short-lived agent capability, with no secret-reading tool",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "opensesame-mcp-client": "./src/server.ts"
+  },
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/agent-client": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@opensesame/api-client": "workspace:*",
+    "@opensesame/observability": "workspace:*",
+    "@opensesame/os-domain": "workspace:*",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@opensesame/capability-registry": "workspace:*",
+    "@opensesame/testing": "workspace:*",
+    "@types/node": "22.15.29",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11"
+  }
+}

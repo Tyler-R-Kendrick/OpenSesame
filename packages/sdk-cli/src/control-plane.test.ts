@@ -38,7 +38,7 @@ describe("createControlPlaneClient", () => {
     ).not.toThrow();
   });
 
-  // The control plane mounts the product API under /v1 (apps/control-plane/src/app.ts),
+  // The control plane mounts the product API under /v1 (packages/control-plane/src/app.ts),
   // not /api/v1. Pin every path this client aims at: a prefix the server does not
   // mount turns each ceremony into a 404 that reads as a permissions problem.
   it("calls the control plane paths the server actually mounts", async () => {

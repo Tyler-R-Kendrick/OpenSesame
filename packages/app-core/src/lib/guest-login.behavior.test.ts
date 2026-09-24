@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * be asked to claim the session later.
  *
  * Given/When/Then without a second framework — same decision as
- * apps/control-plane ceremony journeys.
+ * packages/control-plane ceremony journeys.
  */
 
 import {

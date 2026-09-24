@@ -22,10 +22,11 @@ pnpm --filter @opensesame/cli build
 ## Configure
 
 ```bash
-export OPENSESAME_HOST_API=http://127.0.0.1:8787          # host CLI
-export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
-export OPENSESAME_ISSUER=http://127.0.0.1:8788          # client CLI
+# Both CLIs read the same names (spec/config/endpoints.json)
 export OPENSESAME_HOST_API=http://127.0.0.1:8787
+export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
+export OPENSESAME_IDENTITY_API=http://127.0.0.1:8788
+export OPENSESAME_ISSUER=http://127.0.0.1:8788          # OIDC issuer (client CLI)
 export OPENSESAME_ENV=development                       # or set OPENSESAME_CLAIM_PEPPER
 ```
 

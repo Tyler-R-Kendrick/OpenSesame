@@ -102,7 +102,7 @@ git status
    grep -n "engines\|packageManager" package.json
    cat rust-toolchain.toml
    grep -rn ":8787\|:8788" README.md PRODUCT.md CONTRIBUTING.md DESIGN.md 2>/dev/null
-   grep -rn ":8787\|:8788" crates/gateway/src apps/control-plane/src 2>/dev/null | head -5
+   grep -rn ":8787\|:8788" crates/gateway/src packages/control-plane/src 2>/dev/null | head -5
    ```
    A port or version claimed in prose must match what the code/config
    actually uses. If you cannot find where a claimed port is actually

@@ -12,7 +12,7 @@ feature.
 
 - **Used by:** [`opensesame-sealed-store`](../sealed-store) (re-exports the OTP
   functions for `pass`-style `otpauth://` trailers) and
-  [`apps/authenticator-native`](../../apps/authenticator-native), whose
+  [`apps/android`](../../apps/android), whose
   `scripts/build-core.sh` builds this crate with `--features ffi` and generates
   Kotlin and Swift bindings from it.
 - **Builds on:** no workspace crates — `hmac`, `sha1`, `sha2`, `url`, `serde`,
@@ -45,7 +45,7 @@ feature.
 ```bash
 cargo +1.88.0 test -p opensesame-authenticator-core
 cargo +1.88.0 build -p opensesame-authenticator-core --features ffi
-apps/authenticator-native/scripts/build-core.sh bindings   # regenerate Kotlin/Swift bindings
+apps/android/scripts/build-core.sh bindings   # regenerate Kotlin/Swift bindings
 ```
 
 ## Related

@@ -1,5 +1,5 @@
 description: >
-  Red-team corpus for the apps/mcp-host MCP surfaces (stdio tools: task_start,
+  Red-team corpus for the packages/mcp-host MCP surfaces (stdio tools: task_start,
   task_status, task_invoke, task_terminate, daemon_status, host_ready,
   operator_invoke_l1). See README.md for the auth setup and the audit docs
   this corpus is grounded in.
@@ -16,7 +16,7 @@ prompts:
 # to exactly one via `providers:`, so there is no accidental cross-product):
 #
 #   claude-live-mcp     Anthropic's real Messages API, wired to a live,
-#                        unmodified apps/mcp-host over stdio via promptfoo's
+#                        unmodified packages/mcp-host over stdio via promptfoo's
 #                        native MCP tool-calling integration
 #                        (config.mcp.enabled/server). Used only by
 #                        tests/prompt-injection.yaml, where what's under test
@@ -25,7 +25,7 @@ prompts:
 #                        README.md "Auth" section).
 #
 #   mcp-host-structural  Our own TypeScript harness (src/mcp-provider.ts) that
-#                        spawns the real apps/mcp-host over stdio directly and
+#                        spawns the real packages/mcp-host over stdio directly and
 #                        drives it with exact tool calls — no LLM involved.
 #                        Used by tests/confused-deputy.yaml,
 #                        tests/credential-exfiltration.yaml, and

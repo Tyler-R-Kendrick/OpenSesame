@@ -36,7 +36,7 @@ used, and no workflow was triggered.
 | `@opensesame/notification-adapters` | 10 files, 136 passed |
 | `@opensesame/database` | 18 files, 273 passed |
 | `@opensesame/control-plane` | 62 files, 825 passed |
-| `@opensesame/worker` | 12 files, 101 passed |
+| `@opensesame/identity-worker` | 12 files, 101 passed |
 | `@opensesame/auth-upstream` | 13 files, 82 passed |
 | `@opensesame/ceremonies` | 8 files, 49 passed |
 | `@opensesame/pages` | 170 files, 2353 passed |

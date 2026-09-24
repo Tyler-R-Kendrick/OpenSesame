@@ -266,6 +266,13 @@ export const LIB_RULES = [
     SIGNIN,
     "join a session: invite or open endpoint, before sign-in (ADR 0136)",
   ),
+  // Moves to `identity.ceremonies` when that capability lands (ADR 0140
+  // plan step 7); until then it sits beside join, the other bearer ceremony.
+  core(
+    `${L}claims/`,
+    SIGNIN,
+    "ownership claim: link, stash, present/read/complete (ADR 0140)",
+  ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),
   ),

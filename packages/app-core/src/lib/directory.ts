@@ -1,4 +1,9 @@
 import {
+  CeremonyRequestError,
+  type DeviceApproval,
+  approveDevice as approveDeviceRequest,
+} from "@opensesame/ceremony-kit";
+import {
   type BoundaryValue,
   type JsonObject,
   isNumber,
@@ -82,10 +87,7 @@ export type CreateOrganizationInput = {
 };
 
 /** The control plane's proxy answer wraps the Host's status; ok is all we show. */
-export type DeviceApproval = {
-  ok: boolean;
-  status: number;
-};
+export type { DeviceApproval };
 
 export class DirectoryError extends Error {
   constructor(
@@ -358,73 +360,38 @@ function createOrganizationDefault(
 }
 
 /**
- * The approve-a-device ceremony's known failure set, in plain words. The
- * control plane proxies to the Host with its operator token, so failures come
- * from either plane — the error code says which
- * (apps/control-plane/src/routes/device.ts).
- */
-function approveDeviceWords(error: DirectoryError): string {
-  if (error.code === "operator_token_unconfigured") {
-    return "Device approval is not enabled on this sign-in service.";
-  }
-  if (error.code === "host_api_unreachable") {
-    return "Approval could not be delivered. Try again when the service is reachable.";
-  }
-  if (error.code === "host_approval_failed" && error.status === 404) {
-    return "No device is waiting on that code — check the code the device shows and try again.";
-  }
-  if (error.code === "host_approval_failed") {
-    return "That code could not be approved — ask the device for a fresh one and try again.";
-  }
-  if (error.code === "invalid_request") {
-    return "Enter the user code exactly as the device shows it.";
-  }
-  if (error.code === "organization_id_required") {
-    return "You belong to several organizations — the operator approves devices for those.";
-  }
-  if (error.code === "organization_access_denied") {
-    return "You do not have access to the organization that device is joining.";
-  }
-  return error.message;
-}
-
-/**
  * `POST /v1/device/approve` — browsers never hold the operator token; the
  * control plane injects it and forwards `{user_code, principal, …}` to the
  * Host. Only the user code leaves this client.
  *
- * Deliberately not `@opensesame/ceremony-kit`'s `approveDevice`. That one keys
- * its wording on the HTTP status and discards the response body, which is
- * exactly the information this path needs: the control plane is a *proxy*, so
- * one status covers unrelated causes — `host_api_unreachable` (the Host is
- * down) and `host_approval_failed` (the Host said no) both arrive as 502,
- * `invalid_request` and `organization_id_required` both as 400 — and the
- * `{ok, status}` returned here is read out of that same discarded body.
- * Adopting the kit would collapse six actionable messages into three generic
- * ones and answer an organization refusal with "sign in first".
+ * One implementation (ADR 0140 D3): `@opensesame/ceremony-kit`'s
+ * `approveDevice` sends the request and words the failures the body's code
+ * names; this client supplies `identityFetch` (bearer, base, timeouts) and its
+ * own transport wording for a failure that names no code, so it reads like
+ * every other directory call.
  */
 async function approveDeviceDefault(userCode: string): Promise<DeviceApproval> {
   try {
-    return await call(
-      "/v1/device/approve",
-      { method: "POST", body: JSON.stringify({ user_code: userCode }) },
-      (body) => {
-        const raw = obj(body);
-        return {
-          ok: raw.ok === true,
-          status: isNumber(raw.status) ? raw.status : 200,
-        };
-      },
-    );
+    return await approveDeviceRequest({
+      baseUrl: "",
+      userCode,
+      fetchImpl: (input, init) => identityFetch(String(input), init),
+      fallbackWords: plainWords,
+    });
   } catch (error) {
-    if (error instanceof DirectoryError) {
+    if (error instanceof CeremonyRequestError) {
       throw new DirectoryError(
         error.status,
-        error.code,
-        approveDeviceWords(error),
+        error.code || "unknown_error",
+        error.message,
       );
     }
-    throw error;
+    if (error instanceof Error && !(error instanceof TypeError)) throw error;
+    throw new DirectoryError(
+      0,
+      "unreachable",
+      `Sign-in service unreachable at ${identityBase()}.`,
+    );
   }
 }
 

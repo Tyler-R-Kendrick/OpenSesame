@@ -8,8 +8,8 @@ own SQLite store in [`crates/storage`](../../crates/storage).
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) and
-  [`apps/worker`](../../apps/worker).
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) and
+  [`packages/identity-worker`](../../packages/identity-worker).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) for the domain types
   the repositories return, `drizzle-orm` and `postgres`.
 - Reads `DATABASE_URL` (declared in [`.env.schema`](../../.env.schema)). The

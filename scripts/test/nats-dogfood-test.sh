@@ -112,7 +112,7 @@ pnpm --filter @opensesame/pages exec vitest run \
   src/lib/taskbus.test.ts \
   src/lib/taskbus-panel.test.ts \
   src/sections/settings/TaskBusPanel.test.tsx
-pnpm --filter @opensesame/worker test
+pnpm --filter @opensesame/identity-worker test
 
 if command -v cargo-fuzz >/dev/null 2>&1; then
   echo "==> nats-dogfood: libFuzzer short pass (dogfood targets)"

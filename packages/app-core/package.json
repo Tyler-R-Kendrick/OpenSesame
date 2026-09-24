@@ -39,6 +39,7 @@
     "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/capability-composition": "workspace:*",
     "@opensesame/capability-registry": "workspace:*",
+    "@opensesame/ceremony-kit": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/guide-lang": "workspace:*",
     "@opensesame/os-domain": "workspace:*",

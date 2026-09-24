@@ -17,19 +17,57 @@
  */
 
 export {
+  type AuthenticatorInvocation,
+  AuthenticatorInvocationError,
+  parseAuthenticatorInvocation,
+} from "./authenticator-invocation.js";
+export {
+  AUTHENTICATOR_INVOCATION_KINDS,
+  type AuthenticatorInvocationKind,
+  CEREMONY_ROUTES,
+  type CeremonyRoute,
+  type CeremonyRouteId,
+  ceremonyPath,
+  ceremonyRoutePrefix,
+  type InvokeKind,
+  invokeKind,
+  isAuthenticatorInvocationKind,
+  LEGACY_LINKS,
+  type LegacyLinks,
+  type LegacyLinkShape,
+  matchCeremonyPath,
+} from "./ceremony-routes.js";
+export {
   parseUserCode,
   readFragmentToken,
   scrubFragment,
 } from "./deep-link.js";
 export {
   type ClaimStash,
+  type ClaimStashOptions,
   createClaimStash,
   type StashStorage,
 } from "./claim-stash.js";
 export {
+  type ClaimLink,
+  fragmentCarriesBearer,
+  isClaimToken,
+  readClaimLink,
+} from "./claim-link.js";
+export {
+  type ClaimRefusal,
+  type ClaimRefusalKind,
+  claimRefusal,
+  type DropRefusal,
+  type DropRefusalCode,
+  dropRefusal,
+} from "./claim-words.js";
+export {
   approveDevice,
   type ApproveDeviceInput,
   CeremonyRequestError,
+  type DeviceApproval,
+  deviceApprovalWords,
 } from "./device.js";
 export {
   assertNoForbiddenParams,

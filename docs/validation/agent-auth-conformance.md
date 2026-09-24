@@ -5,7 +5,7 @@ OpenSesame implementation and tests.
 
 | Requirement | Implementation | Test | Status |
 | --- | --- | --- | --- |
-| anonymous registration | `registerAnonymous` | `apps/control-plane/src/__tests__/agent-auth.test.ts` | enabled |
+| anonymous registration | `registerAnonymous` | `packages/control-plane/src/__tests__/agent-auth.test.ts` | enabled |
 | service_auth | `registerServiceAuth` | same | enabled |
 | identity_assertion / ID-JAG | `registerProviderAssertion` + `verifyProviderIdJag` | `AgentAuth provider ID-JAG` | enabled only with trusted providers |
 | identity_assertion unadvertised by default | `providerAssertionIsAdvertised` | `advertises only enabled AgentAuth capabilities` | default off |
