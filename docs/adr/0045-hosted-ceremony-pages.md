@@ -1,6 +1,6 @@
 # ADR 0045 — Hosted ceremony pages and delegated auth processors
 
-Status: Proposed
+Status: Proposed; decision 1 and the 2026-08-19 amendment superseded by [ADR 0140](0140-pages-hosts-every-ceremony.md)
 Date: 2026-08-19
 Amends: ADR 0044 (decision 10, claim-ceremony host)
 
