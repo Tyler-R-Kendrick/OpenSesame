@@ -243,7 +243,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
 | `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
 | `crates/agent-events` | Frozen `agent.*` vocabulary for sandboxed runs, and the `SecurityNotice` conversion that puts them on ADR 0080's feed — pure, value-blind (ADR 0081) |
-| `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
+| `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store, and `pages_vault`: the Rust reader of the vault Pages writes (vault format v1, checked against `spec/conformance/vault-vectors.json`), behind `opensesame vault verify\|ls` |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
