@@ -115,7 +115,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       return c.json(
         {
           error: "host_api_unreachable",
-          hint: "Is Host API up on OPENSESAME_HOST_API / OPENSESAME_SERVER?",
+          hint: "Is Host API up on OPENSESAME_HOST_API?",
         },
         502,
       );

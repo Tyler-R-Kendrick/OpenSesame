@@ -27,7 +27,7 @@ reading a secret is an explicit, human-only verb.
 
 ## Surface
 
-Global flags: `--server` (env `OPENSESAME_SERVER`, default
+Global flags: `--server` (env `OPENSESAME_HOST_API`, default
 `http://127.0.0.1:8787`), `--output` (default `json`).
 
 | Group | Verbs |

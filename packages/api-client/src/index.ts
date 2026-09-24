@@ -58,6 +58,7 @@ import {
 } from "@opensesame/contracts";
 import {
   type BoundaryValue,
+  ENDPOINTS,
   type JsonObject,
   isString,
   overlapCast,
@@ -818,10 +819,9 @@ export function createApiClient(options: ApiClientOptions) {
 
     /** Optional local daemon discovery — degrades cleanly if absent. */
     async probeDaemon(
-      daemonUrl = "http://127.0.0.1:18790",
+      daemonUrl = ENDPOINTS.daemon.default,
     ): Promise<DaemonProbe> {
-      // The daemon is a process on this machine by definition; probing anywhere
-      // else would announce this client to a stranger.
+      // Only ever probe this machine: anywhere else learns of this client.
       if (normalizeLoopbackBaseUrl(daemonUrl) === null) {
         return { available: false, url: daemonUrl };
       }

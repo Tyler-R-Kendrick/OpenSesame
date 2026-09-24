@@ -36,6 +36,7 @@ use opensesame_connector_host::providers::{
 };
 use opensesame_domain::DevDeliveryPolicy;
 use opensesame_env_spec::{parse_schema_file, resolve_for_delivery, schema_summary};
+use opensesame_host_core::endpoints::{self, HOST};
 use serde::Deserialize;
 use serde_json::json;
 use std::{
@@ -53,12 +54,7 @@ use sync_commands::{sync_cmd, SyncCmd};
     version
 )]
 struct Cli {
-    #[arg(
-        long,
-        env = "OPENSESAME_SERVER",
-        global = true,
-        default_value = "http://127.0.0.1:8787"
-    )]
+    #[arg(long, env = endpoints::env(HOST), global = true, default_value_t = endpoints::fallback(HOST))]
     server: String,
     #[arg(long, global = true, default_value = "json")]
     output: String,
@@ -845,7 +841,7 @@ enum PassAttachCmd {
     /// Replicate attachment ciphertext to a configured target.
     ///
     /// The Host API base URL comes from the global `--server`, so this verb
-    /// honours `OPENSESAME_SERVER` like every other authenticated command.
+    /// honours `OPENSESAME_HOST_API` like every other authenticated command.
     Sync {
         /// Copy ciphertext into this directory instead of using a connector.
         /// Point it at a mounted encrypted volume.

@@ -7,7 +7,7 @@
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { forAgent } from "@opensesame/observability";
-import { isString } from "@opensesame/os-domain";
+import { ENDPOINTS, endpointAddress, isString } from "@opensesame/os-domain";
 import { z } from "zod";
 import {
   createApiClient,
@@ -166,8 +166,8 @@ export function buildServer({ hostUrl }: ClientServerOptions): McpServer {
 
 export async function main(): Promise<void> {
   const hostUrl = requireBase(
-    process.env.OPENSESAME_HOST_API ?? "http://127.0.0.1:8787",
-    "OPENSESAME_HOST_API",
+    endpointAddress("host", process.env),
+    ENDPOINTS.host.env,
   );
   const server = buildServer({ hostUrl });
   const transport = new stdioTransportSeams.StdioServerTransport();

@@ -67,8 +67,10 @@ impl IdentityMappingClient {
         let Some(auth) = crate::identity_mapping_tls::resolve(mode, &lookup)? else {
             return Ok(None);
         };
-        let base_url = lookup("OPENSESAME_API_URL")
-            .or_else(|| lookup("OPENSESAME_IDENTITY_URL"))
+        let identity = &opensesame_host_core::endpoints::endpoint("identity").address;
+        let base_url = identity
+            .names()
+            .find_map(lookup)
             .ok_or_else(|| "mapping endpoint is required".to_owned())?;
         let private = lookup("OPENSESAME_MAPPING_PRIVATE_ENDPOINT");
         Self::configured(

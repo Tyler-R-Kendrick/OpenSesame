@@ -18,7 +18,7 @@ const TOUCHED_ENV = [
   "OPENSESAME_STATE_DIR",
   "XDG_RUNTIME_DIR",
   "OPENSESAME_ISSUER",
-  "OPENSESAME_API_URL",
+  "OPENSESAME_IDENTITY_API",
 ] as const;
 
 function captureStreams() {
@@ -692,9 +692,9 @@ describe("runCli — environment defaults", () => {
     expect(await runCli(["whoami"], { fetchImpl })).toBe(0);
   });
 
-  it("honours OPENSESAME_API_URL over the issuer as API base", async () => {
+  it("honours OPENSESAME_IDENTITY_API over the issuer as API base", async () => {
     process.env.OPENSESAME_ISSUER = ISSUER;
-    process.env.OPENSESAME_API_URL = "http://127.0.0.1:9999";
+    process.env.OPENSESAME_IDENTITY_API = "http://127.0.0.1:9999";
     await writeSession({
       accessToken: "at-1",
       issuer: ISSUER,

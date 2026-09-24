@@ -41,8 +41,8 @@ the operator token, and there is no tool that reads a secret.
 |---|---|
 | `OPENSESAME_MCP_TRANSPORT` | `stdio` (default) or `http` |
 | `OPENSESAME_MCP_HTTP_LISTEN`, `OPENSESAME_MCP_HTTP_TOKEN` | HTTP listener (default `127.0.0.1:18791`) and its bearer |
-| `OPENSESAME_SERVER` or `OPENSESAME_HOST_API` | Host API base (default `http://127.0.0.1:8787`) |
-| `OPENSESAME_DAEMON_URL` | Daemon base, loopback only (default `http://127.0.0.1:18790`) |
+| `OPENSESAME_HOST_API` | Host API base (default `http://127.0.0.1:8787`) |
+| `OPENSESAME_DAEMON_API` | Daemon base, loopback only (default `http://127.0.0.1:18790`) |
 | `OPENSESAME_TELEMETRY_KEY`, `OPENSESAME_TELEMETRY_HOST` | Optional tool-call telemetry; off unless the key is set |
 
 ## Develop

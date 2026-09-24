@@ -65,8 +65,8 @@ Common, un-prefixed:
 | `OPENSESAME_NATS_REQUIRE_TLS` | `1` refuses any plaintext server, including one learned from INFO on reconnect. | Unset on a networked deployment: the client will accept whatever the server offers. Set it. |
 | `OPENSESAME_NATS_TLS_FIRST` | `1` performs the TLS handshake before the INFO line where server and client both support it. | Server without `tls.handshake_first`: connect fails; do not remove the flag, fix the server. |
 
-The Host's existing knobs keep their meaning: `OPENSESAME_API_URL` /
-`OPENSESAME_IDENTITY_URL`, `OPENSESAME_MAPPING_PRIVATE_ENDPOINT`,
+The Host's existing knobs keep their meaning: `OPENSESAME_IDENTITY_API` /
+`OPENSESAME_IDENTITY_API`, `OPENSESAME_MAPPING_PRIVATE_ENDPOINT`,
 `OPENSESAME_MAPPING_RESOLVE_TOKEN` (only under `shared_secret`),
 `OPENSESAME_NATS_CALLOUT_SECRET` (only under `shared_secret`),
 `OPENSESAME_NATS_CALLOUT_ISSUERS`, `NATS_URL`, `OPENSESAME_TASKBUS`.
@@ -162,7 +162,7 @@ runs no provider probe before the caller is admitted.
 Host:
 
 ```bash
-export OPENSESAME_API_URL=https://identity.example/
+export OPENSESAME_IDENTITY_API=https://identity.example/
 export OPENSESAME_MAPPING_AUTH=mtls
 export OPENSESAME_MAPPING_TLS_IDENTITY_SOURCE=pem
 export OPENSESAME_MAPPING_TLS_CERT_FILE=/etc/opensesame/host.chain.pem

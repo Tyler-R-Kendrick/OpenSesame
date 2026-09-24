@@ -16,7 +16,11 @@ pub fn constant_time_eq(a: &str, b: &str) -> bool {
 #[derive(Parser, Debug, Clone)]
 #[command(name = "opensesame-gateway")]
 pub struct Args {
-    #[arg(long, env = "OPENSESAME_LISTEN", default_value = "127.0.0.1:8787")]
+    #[arg(
+        long,
+        env = opensesame_host_core::endpoints::listen_env(opensesame_host_core::endpoints::HOST),
+        default_value = opensesame_host_core::endpoints::endpoint(opensesame_host_core::endpoints::HOST).listen.default.as_str()
+    )]
     pub listen: SocketAddr,
     #[arg(
         long,
@@ -210,16 +214,18 @@ impl StartupSecurity {
         use opensesame_host_core::deployment_mode::{classify, from_env};
         crate::browser_pairing_proof::pairable_origins()?;
         let mut endpoints = vec![args.resource.clone(), args.issuer.clone()];
+        let services = opensesame_host_core::endpoints::all()
+            .filter(|(id, _)| *id != opensesame_host_core::endpoints::DAEMON)
+            .flat_map(|(_, endpoint)| endpoint.address.names());
         for name in [
             "OPENSESAME_PUBLIC_URL",
-            "OPENSESAME_HOST_API",
-            "OPENSESAME_IDENTITY_URL",
-            "OPENSESAME_API_URL",
-            "OPENSESAME_SERVER",
             "OPENSESAME_CALLBACK_BASE",
             "OPENSESAME_A2H_ATTACH_BASE",
             "OPENSESAME_HOST_AUTHORIZATION_ISSUER",
-        ] {
+        ]
+        .into_iter()
+        .chain(services)
+        {
             if let Ok(value) = env::var(name) {
                 endpoints.push(value);
             }

@@ -151,8 +151,8 @@ describe("mcp-host tools", () => {
     expect(() => requireTaskRunId()).toThrow("task_context_required");
   });
 
-  it("task_start calls Host API when OPENSESAME_SERVER set", async () => {
-    process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
+  it("task_start calls Host API when OPENSESAME_HOST_API set", async () => {
+    process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
     const token = `agent-capability:${randomBytes(32).toString("hex")}`;
     mockAgentHeaders(token);
     const calls: Array<{ url: string; auth?: string | null }> = [];
@@ -196,7 +196,7 @@ describe("mcp-host tools", () => {
     expect(calls[0]?.url).toBe("http://127.0.0.1:8787/api/v1/tasks");
     expect(calls[0]?.auth).toBe(`Bearer ${token}`);
     expect(body.task_run_id).toBe("task-1");
-    Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
+    Reflect.deleteProperty(process.env, "OPENSESAME_HOST_API");
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
@@ -261,9 +261,9 @@ describe("mcp-host tools", () => {
     expect(calls).toEqual([
       { url: "http://127.0.0.1:18790/health/live", auth: null },
     ]);
-    process.env.OPENSESAME_DAEMON_URL = "https://daemon.example.test";
+    process.env.OPENSESAME_DAEMON_API = "https://daemon.example.test";
     expect(() => daemonBase()).toThrow("loopback");
-    Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_URL");
+    Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_API");
   });
 
   it("task context tracks active run", () => {
@@ -322,7 +322,7 @@ describe("mcp-host tools", () => {
   });
 
   it("chaos: Host partition fails closed and host_ready maps it to toolError", async () => {
-    process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
+    process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
     process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
     setFetchForTests(async () => {
       throw new Error("ECONNREFUSED");
@@ -332,7 +332,7 @@ describe("mcp-host tools", () => {
       'const res = await hostFetch("/health/ready")',
       'toolError("host_unavailable"',
     ]);
-    Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
+    Reflect.deleteProperty(process.env, "OPENSESAME_HOST_API");
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 

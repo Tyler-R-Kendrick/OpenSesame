@@ -39,7 +39,7 @@ The library entry exports `runCli`, `parseArgs` and `helpText`.
 | Variable | Default |
 |---|---|
 | `OPENSESAME_ISSUER` | `http://127.0.0.1:8788` |
-| `OPENSESAME_API_URL` | the issuer |
+| `OPENSESAME_IDENTITY_API` | the issuer |
 | `OPENSESAME_HOST_API` | `http://127.0.0.1:8787` |
 | `OPENSESAME_CLAIM_TOKEN` | none; used by `claim poll` |
 | `OPENSESAME_STATE_DIR` | then `XDG_RUNTIME_DIR`, then `~/.config/opensesame`; holds `identity-session.json` |

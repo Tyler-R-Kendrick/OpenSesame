@@ -22,8 +22,8 @@ pnpm --filter @opensesame/cli build
 ## Configure
 
 ```bash
-export OPENSESAME_SERVER=http://127.0.0.1:8787          # host CLI
-export OPENSESAME_DAEMON_URL=http://127.0.0.1:18790
+export OPENSESAME_HOST_API=http://127.0.0.1:8787          # host CLI
+export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
 export OPENSESAME_ISSUER=http://127.0.0.1:8788          # client CLI
 export OPENSESAME_HOST_API=http://127.0.0.1:8787
 export OPENSESAME_ENV=development                       # or set OPENSESAME_CLAIM_PEPPER

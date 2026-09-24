@@ -3,7 +3,7 @@
 The Host resolves an exact upstream issuer and subject using the separately
 deployed Identity service. Email is never a join key.
 
-Set `OPENSESAME_API_URL` (or `OPENSESAME_IDENTITY_URL`) to the canonical Identity
+Set `OPENSESAME_IDENTITY_API` to the canonical Identity
 origin and provide a dedicated `OPENSESAME_MAPPING_RESOLVE_TOKEN`. The NATS
 callout secret is not a fallback. The credential must authorize only mapping
 resolution on Identity; it is not a browser or operator credential.

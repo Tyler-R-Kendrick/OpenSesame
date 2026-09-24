@@ -9,7 +9,7 @@
  * — it can't be re-templated per test case the way our own custom provider's
  * `vars.mockRoutes` can (see src/mock-upstream.ts) — so instead of pointing
  * mcp-host at a per-test override URL, this stub simply listens on the exact
- * default ports mcp-host assumes when OPENSESAME_SERVER / OPENSESAME_DAEMON_URL
+ * default ports mcp-host assumes when OPENSESAME_HOST_API / OPENSESAME_DAEMON_API
  * are unset (127.0.0.1:8787 and 127.0.0.1:18790 — see
  * apps/mcp-host/src/host-api.ts), and each of the four prompt-injection test
  * cases steers the model toward the one tool whose route carries that case's
