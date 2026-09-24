@@ -27,7 +27,9 @@ const ROUTES: &str = concat!(
     include_str!("shared_sessions.rs"),
     include_str!("access_domains.rs"),
     include_str!("grant_offers.rs"),
-    include_str!("authority_grants.rs")
+    include_str!("authority_grants.rs"),
+    include_str!("wire_connections.rs"),
+    include_str!("est_server.rs")
 );
 
 /// Routes deliberately absent from the public `OpenAPI` spec, as
