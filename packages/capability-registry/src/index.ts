@@ -22,7 +22,6 @@ import {
   INTERACTION_APPROVAL,
   INTERACTION_REQUESTER_CHANNEL,
   IN_PAGE_GUIDANCE_ONLY,
-  ITEM_TYPE_HUMAN_CEREMONY,
   MODEL_PLANE_REDIRECT,
   NEVER_AGENT_SECRET,
   OPS_PLANE,
@@ -30,6 +29,7 @@ import {
 } from "./exclusions.js";
 import { generalAuthorityCapabilities } from "./general-authority.js";
 import { identityManagementCapabilities } from "./identity-management.js";
+import { itemTypeCapabilities } from "./item-types.js";
 import { sharedSessionCapabilities } from "./shared-sessions.js";
 /**
  * Agent-surface capability registry (ADR 0065).
@@ -1740,38 +1740,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: NEVER_AGENT_SECRET,
     },
   },
-  {
-    id: "vault.item_types.list",
-    title: "List the item types registered on this device",
-    plane: "client_local",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: "vault-core/item-types.ts:itemTypeRegistry",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: { webmcp: ITEM_TYPE_HUMAN_CEREMONY },
-  },
-  {
-    id: "vault.item_types.install",
-    title: "Install or remove a vault item type definition",
-    plane: "client_local",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: ITEM_TYPE_HUMAN_CEREMONY,
-      mcp_client: ITEM_TYPE_HUMAN_CEREMONY,
-      webmcp: ITEM_TYPE_HUMAN_CEREMONY,
-    },
-  },
+  ...itemTypeCapabilities,
   {
     id: "vault.export",
     title: "Export/backup the vault (plaintext-capable)",
