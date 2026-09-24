@@ -3892,3 +3892,12 @@ button.vault-row__body:hover:not(:disabled) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The row a deep link names (lib/hash-target.ts): marked where it sits,
+   in the accent's wash and line, so a rail entry or a shared link shows
+   which of the rows it meant. */
+[data-hash-target] {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  scroll-margin-top: 1rem;
+}

@@ -16,6 +16,7 @@ import { LocalResourcesPanel } from "./access/LocalResourcesPanel.js";
 import { LocalSharePanel } from "./access/LocalSharePanel.js";
 import { SessionsPanel } from "./access/SessionsPanel.js";
 import "./access.css";
+import { useHashTarget } from "../lib/hash-target.js";
 
 /**
  * Access — the local PAM plane. Six tabs, one mounted at a time; every
@@ -28,6 +29,7 @@ export function AccessSection() {
   const { tomb } = useVault();
   const location = useLocation();
   const tab = accessViewFromLocation(location.pathname, location.search);
+  useHashTarget();
 
   return (
     <div className="section__inner">

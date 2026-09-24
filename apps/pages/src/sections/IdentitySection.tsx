@@ -114,6 +114,7 @@ import {
 } from "@opensesame/app-core/sections/identity-section-model.js";
 import { useIdentitySession } from "../bindings/identity.js";
 import { FormCommit } from "../components/FormCommit.js";
+import { useHashTarget } from "../lib/hash-target.js";
 /**
  * Browser-local identity management, with optional hosted Identity
  * surfaces. Provider registration is an explicit ceremony, not an entry gate.
@@ -206,6 +207,7 @@ export function IdentitySection() {
   const session = useIdentitySession();
   const views = useEnabledIdentityViews();
   const [tab, setTab] = useSectionView(views, views[0] ?? "service-accounts");
+  useHashTarget();
   const [providers, setProviders] = useState<IdpRecord[]>(() =>
     listIdpRegistrations(),
   );

@@ -35,6 +35,7 @@ import "./connections.css";
 
 import { useIdentitySession } from "../bindings/identity.js";
 import { useVercelConnectConfigured } from "../bindings/vercel-connect.js";
+import { useHashTarget } from "../lib/hash-target.js";
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash, search } = useLocation();
@@ -63,6 +64,7 @@ export function ConnectionsSection() {
     }
   }, [hash, providerId, providers, connections]);
   usePublishConnections(providers, connections);
+  useHashTarget();
   const [catalogError, setCatalogError] = useState<LoadFailure | null>(null);
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
   const [loading, setLoading] = useState(false);
