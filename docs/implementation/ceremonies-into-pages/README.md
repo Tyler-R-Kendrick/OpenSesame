@@ -40,7 +40,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | Inbox | Access › Requests rows (`plane: "hosted"`) | as above | `access.authority` |
 | Authenticator hand-off | `/invoke/:kind` | ceremony-kit `authenticator-invocation.ts` | `identity.ceremonies` |
 | Notification routing | Settings › Notifications | app-core `lib/notification-routing/` + a `VirtualFileProvider` | `notifications.routing` (optional) |
-| Account factors | Settings › Security rows | app-core `lib/account-factors.ts` | `identity.federation` |
+| Account factors | Settings › Security rows | app-core `lib/account-factors.ts` — needs an Identity API factor listing first: neither app lists factors and `/v1/mfa/*` has no list route (step 6 found none) | `identity.federation` |
 | Organization sign-in | Identity › Organizations (new files) | app-core `lib/org-signin.ts` | `enterprise.directory-provisioning` |
 | `/guest`, `/delegate` | aliases | — | `identity.ceremonies` |
 
