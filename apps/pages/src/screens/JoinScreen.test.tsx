@@ -72,6 +72,7 @@ const fakes = {
 beforeEach(() => {
   stash = null;
   for (const fake of Object.values(fakes)) fake.mockClear();
+  fakes.pollApproval.mockImplementation(async () => true);
   Object.assign(joinCeremonyDependencies, fakes, {
     joinAvailable: () => true,
     configuredEndpoint: () => ENDPOINT,
@@ -161,6 +162,30 @@ describe("the invite road", () => {
     expect(fakes.endJoinAuthority).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("keeps the keyboard somewhere useful while the operator decides", async () => {
+    // Approval never arrives: the commit waits, disabled, and the rung has
+    // nothing to fill in — the keyboard must not fall to <body>.
+    fakes.pollApproval.mockImplementation(() => new Promise(() => {}));
+    render(
+      <JoinScreen
+        captured={{ kind: "invite", invite: { token: TOKEN, endpoint: null } }}
+        configured={ENDPOINT}
+        onDone={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Ask for approval" }),
+    );
+    await screen.findByText("WXYZ-1234");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Start over" }),
+      ),
+    );
+    expect(go().disabled).toBe(true);
   });
 
   it("resumes a looked-up offer instead of presenting it again", async () => {

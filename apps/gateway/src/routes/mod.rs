@@ -42,7 +42,7 @@ mod secret_configs;
 mod security;
 mod session;
 mod session_coordination;
-mod shared_sessions;
+pub(crate) mod shared_sessions;
 mod sync;
 mod sync_blobs;
 mod sync_page;

@@ -316,3 +316,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "browser_join_tests.rs"]
+mod browser_join_tests;

@@ -167,7 +167,7 @@ export function JoinScreen({
   const join = useJoinCeremony(captured);
   const goRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<HTMLElement>(null);
-
+  const frameRef = useRef<HTMLDivElement>(null);
   const landed = useRef("");
 
   // Every step owns its landing: the commit when it can be pressed, else the
@@ -176,16 +176,25 @@ export function JoinScreen({
   useEffect(() => {
     if (join.busy) return;
     const at = `${join.road}:${join.step}`;
-    if (landed.current === at && !keyboardIsIdle()) return;
+    // A focused control that became disabled holds nothing (browsers apply
+    // focus fixup at different times), so it counts as idle too.
+    const held = document.activeElement;
+    const stranded =
+      keyboardIsIdle() || (held instanceof HTMLButtonElement && held.disabled);
+    if (landed.current === at && !stranded) return;
     landed.current = at;
     const go = goRef.current;
     if (go && !go.disabled && landFocus(go)) return;
-    landFocus(firstControl(bodyRef.current));
+    if (landFocus(firstControl(bodyRef.current))) return;
+    // A rung with nothing to fill in and a commit that waits (approval) still
+    // leaves the keyboard somewhere: the foot's Start over, else Close.
+    landFocus(firstControl(frameRef.current?.querySelector(".setup__foot"))) ||
+      landFocus(firstControl(frameRef.current));
   }, [join.step, join.road, join.busy]);
 
   return (
     <div className="setup join">
-      <div className="setup__frame">
+      <div className="setup__frame" ref={frameRef}>
         <div className="setup__bar">
           <Wordmark className="setup__wordmark" />
           <button
