@@ -24,7 +24,10 @@ it.each([0, 1])(
       mkdirSync(join(root, "scripts/lib"), { recursive: true });
       copyFileSync(
         fileURLToPath(
-          new URL("../../../../scripts/lib/audit-directory.sh", import.meta.url),
+          new URL(
+            "../../../../scripts/lib/audit-directory.sh",
+            import.meta.url,
+          ),
         ),
         join(root, "scripts/lib/audit-directory.sh"),
       );

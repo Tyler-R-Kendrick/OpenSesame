@@ -20,7 +20,9 @@ describe("Rust fuzz tooling", () => {
     "requires a current fuzz lockfile in %s",
     (path) => {
       const source = readFileSync(join(root, path), "utf8");
-      expect(source).toContain("--manifest-path tests/fuzz/cargo/Cargo.toml --locked");
+      expect(source).toContain(
+        "--manifest-path tests/fuzz/cargo/Cargo.toml --locked",
+      );
     },
   );
 });

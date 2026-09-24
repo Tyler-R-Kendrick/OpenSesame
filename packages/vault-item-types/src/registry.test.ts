@@ -69,7 +69,11 @@ describe("the built-in corpus", () => {
     const dir = join(
       dirname(fileURLToPath(import.meta.url)),
       "..",
-      "definitions",
+      "..",
+      "..",
+      "marketplace",
+      "item-types",
+      "builtin",
     );
     const onDisk = new Map(
       readdirSync(dir)

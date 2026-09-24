@@ -198,6 +198,9 @@ const WORD_VERB =
 
 const BUTTON_BASELINE = join(
   dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "tools",
+  "quality",
   "design-button-baseline.json",
 );
 
