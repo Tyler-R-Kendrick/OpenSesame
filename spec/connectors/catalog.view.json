@@ -2995,7 +2995,7 @@
           "secret": true
         }
       ],
-      "display_name": "age Encryption",
+      "display_name": "age",
       "docs_url": "https://fnox.jdx.dev/providers/age.html",
       "egress": {
         "authorities": [],
@@ -4594,7 +4594,7 @@
           "secret": true
         }
       ],
-      "display_name": "Privacy",
+      "display_name": "Privacy.com",
       "docs_url": "https://privacy.com/developer/docs",
       "egress": {
         "authorities": [

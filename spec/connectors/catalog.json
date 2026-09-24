@@ -1801,7 +1801,7 @@
     },
     {
       "id": "age",
-      "display_name": "age Encryption",
+      "display_name": "age",
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/age.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
@@ -3099,7 +3099,7 @@
         "value_prefix": "api-key "
       },
       "category": "wallet",
-      "display_name": "Privacy",
+      "display_name": "Privacy.com",
       "docs_url": "https://privacy.com/developer/docs",
       "egress": {
         "authorities": ["api.privacy.com"],
