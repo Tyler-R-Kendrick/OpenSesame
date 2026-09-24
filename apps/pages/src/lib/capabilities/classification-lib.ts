@@ -195,6 +195,7 @@ const FEDERATION_FILES = [
   // four Identity-API calls as seams this capability installs.
   "orgs-directory",
   "directory",
+  "oauth-client-admin",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",

@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
-import { contributeIdentityViews } from "./identity/identity-views.js";
+import { contributeIdentityForTests } from "./identity/identity-test-support.js";
 import { expectProseBudget, makeClient } from "./identity/test-fixtures.js";
 import {
   ByoError,
@@ -79,7 +79,7 @@ describe("IdentitySection", () => {
   let revokeIdentityViews: (() => void) | null = null;
   let undeclareTutorial: (() => void) | null = null;
   beforeEach(async () => {
-    revokeIdentityViews = contributeIdentityViews(IDENTITY_VIEWS);
+    revokeIdentityViews = contributeIdentityForTests(IDENTITY_VIEWS);
     undeclareTutorial = await declareTutorialForTest("identity.federation", {
       targets: IDENTITY_TARGETS,
       goals: IDENTITY_GOALS,

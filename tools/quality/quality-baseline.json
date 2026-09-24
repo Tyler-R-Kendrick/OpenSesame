@@ -18,7 +18,7 @@
   "totals": {
     "files": 480,
     "violations": 757,
-    "oversizedLines": 241813
+    "oversizedLines": 241811
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -532,7 +532,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2225,
+      "max-lines": 2223,
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {

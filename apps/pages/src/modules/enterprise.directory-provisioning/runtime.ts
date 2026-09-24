@@ -12,12 +12,15 @@
  * on each change, only when an Identity API is configured. Every directory
  * change needs it; nothing here is local.
  *
- * Side effects: none at import. The panels read on mount.
+ * Side effects: none at import. The panels read on mount, and reach the
+ * section through `directory-panel-slot.ts` only once this activates.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { contributeDirectoryPanels } from "../../sections/identity/directory-panel-slot.js";
+import { DIRECTORY_PANELS } from "../../sections/identity/directory-panels.js";
 import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
 import { createActivation } from "../activation.js";
 import { registerIdentityViewPaths } from "../identity-view-paths.js";
@@ -57,6 +60,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
+    // The panels behind those tabs are this module's code; the section
+    // draws them from the slot, never by import (ADR 0140).
+    activation.onDispose(contributeDirectoryPanels(DIRECTORY_PANELS));
     // People, Agents and Organization are this capability's tabs, so their
     // destinations are its contributions too: with the Identity API
     // capability excluded, `/identity?view=people` is not a place to go.
