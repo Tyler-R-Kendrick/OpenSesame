@@ -240,6 +240,9 @@ export function IconSupport(props: IconProps) {
 export function IconHelp(props: IconProps) {
   return (
     <Svg {...props}>
+      {/* Circled, so the mark reads as help at 15px; bare, it was a 4px
+          question mark beside full-size glyphs. */}
+      <circle cx="12" cy="12" r="9" />
       <path d="M9.05 9.1a3 3 0 1 1 4.15 2.8c-.7.4-1.15.95-1.15 1.75" />
       <path d="M12 17.15h.01" />
     </Svg>

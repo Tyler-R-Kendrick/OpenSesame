@@ -1831,12 +1831,22 @@ body {
     display: none;
   }
 
+  /* The top space is content, not padding: a sticky strip sticks inside its
+     scroller's padding, so with 18px of it the jump strip stopped 18px down
+     and the cards scrolled past visibly above it. */
   .section {
-    padding: 1.15rem 1rem 2rem;
+    --section-top: 1.15rem;
+    padding: 0 1rem 2rem;
     padding-left: calc(1rem + env(safe-area-inset-left));
     padding-right: calc(1rem + env(safe-area-inset-right));
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .section::before {
+    content: "";
+    display: block;
+    height: var(--section-top);
   }
 
   /* Every strip that scrolls sideways on a phone, in one place. They differ
@@ -1902,12 +1912,6 @@ body {
       #000 calc(100% - 1rem),
       transparent
     );
-  }
-
-  /* CommandBar keeps the strip drawn; gutters follow the safe area. */
-  .statusline {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
   }
 }
 
@@ -2150,7 +2154,8 @@ body {
   }
 
   .section {
-    padding-block: 0.75rem 1.25rem;
+    --section-top: 0.75rem;
+    padding-block: 0 1.25rem;
   }
 }
 
