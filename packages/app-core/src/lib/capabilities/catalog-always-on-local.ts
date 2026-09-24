@@ -1,5 +1,5 @@
 /**
- * Always-on descriptors — the browser-local functions (ADR 0140). Each runs
+ * Always-on descriptors — the browser-local functions (ADR 0142). Each runs
  * entirely in this browser on the static front end: no Host, no Identity
  * API, no automatic call until a person binds something. The default
  * installation always had them in reach (a git history remote defaults to

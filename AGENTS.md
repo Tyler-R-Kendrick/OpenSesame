@@ -389,7 +389,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0140).
+  0001–0142).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -604,12 +604,12 @@ Do not add new top-level directories or loose root files — find the group.
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
   Most functions are **always-on** (`alwaysOn` in
-  `catalog-always-on.ts` and `catalog-always-on-local.ts`, ADR 0135/0140):
+  `catalog-always-on.ts` and `catalog-always-on-local.ts`, ADR 0135/0142):
   core tier, never a switch, code still loaded as a module after boot.
   Anything that runs entirely in the browser-local default install
   (browser-local IAM, SIOP, the site broker, git backup) is always on, not an
   opt-in the page reports as "deselected" — and an operator's verified policy
-  may still withdraw an always-on capability that owns a module (ADR 0140). Settings › Capabilities is **one
+  may still withdraw an always-on capability that owns a module (ADR 0142). Settings › Capabilities is **one
   list of sections** (`FEATURES` in
   `packages/app-core/src/lib/capabilities/features.ts`), every one drawn as a
   `conn-group` subheader plus its tiles; a section with optional capabilities

@@ -61,7 +61,7 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
     // The panels behind those tabs are this module's code; the section
-    // draws them from the slot, never by import (ADR 0140).
+    // draws them from the slot, never by import (ADR 0142).
     activation.onDispose(contributeDirectoryPanels(DIRECTORY_PANELS));
     // People, Agents and Organization are this capability's tabs, so their
     // destinations are its contributions too: with the Identity API

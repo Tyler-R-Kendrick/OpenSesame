@@ -28,7 +28,7 @@ const HISTORY_ROADS = new Set(
 /**
  * A git history road is drawn under Backups whatever its catalog category:
  * the one catalog (ADR 0139) files password-store under local storage, as
- * Fnox does, but here it is configured beside the forges (ADR 0140).
+ * Fnox does, but here it is configured beside the forges (ADR 0142).
  */
 function placed(provider: Provider): Provider {
   return HISTORY_ROADS.has(provider.id)

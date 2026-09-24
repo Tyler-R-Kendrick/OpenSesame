@@ -58,7 +58,7 @@ function stubPush() {
   return putContents;
 }
 
-describe("git backup's calls hold inside the operator's policy (ADR 0140)", () => {
+describe("git backup's calls hold inside the operator's policy (ADR 0142)", () => {
   afterEach(() => {
     stopVaultBackupObserver();
     clearLocalBackupTarget();

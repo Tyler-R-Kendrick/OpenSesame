@@ -1,7 +1,7 @@
 /**
  * The Identity tabs whose panels are the directory's, drawn from the slot
  * `enterprise.directory-provisioning` fills (`directory-panel-slot.ts`), so
- * the always-on section imports none of that code (ADR 0140).
+ * the always-on section imports none of that code (ADR 0142).
  */
 
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";

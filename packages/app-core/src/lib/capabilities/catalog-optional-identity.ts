@@ -2,7 +2,7 @@
  * Optional descriptors — the enterprise directory and certificate authority,
  * the two that need a server someone runs (the Identity API, the Host). This
  * device as an identity host (browser-local IAM, SIOP, the site broker) is
- * always on (`catalog-always-on-local.ts`, ADR 0140).
+ * always on (`catalog-always-on-local.ts`, ADR 0142).
  */
 
 import { type AuthoredDescriptor, optional } from "./descriptor.js";

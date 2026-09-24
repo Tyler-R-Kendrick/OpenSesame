@@ -47,7 +47,7 @@ function planUnder(prohibited: string[]): EffectivePlan {
   });
 }
 
-describe("an operator withdraws a browser-local capability (ADR 0140)", () => {
+describe("an operator withdraws a browser-local capability (ADR 0142)", () => {
   it("runs all four by default", () => {
     const plan = planUnder([]);
     for (const id of [

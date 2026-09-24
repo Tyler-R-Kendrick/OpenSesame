@@ -1,5 +1,5 @@
 /**
- * What git backup may do on the network now (ADR 0140).
+ * What git backup may do on the network now (ADR 0142).
  *
  * Git backup is always on by default, and always on is not a way round the
  * operator's policy (ADR 0135 §1):

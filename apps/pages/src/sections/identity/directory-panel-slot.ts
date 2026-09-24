@@ -2,7 +2,7 @@
  * The directory's panels, as `enterprise.directory-provisioning` hands them
  * to the Identity section.
  *
- * The section is `identity.local-iam`'s and always on (ADR 0140); People,
+ * The section is `identity.local-iam`'s and always on (ADR 0142); People,
  * Agents and the directory's device approval are the directory's, and an
  * installation without it must not carry their code. So the section never
  * imports them: the directory's runtime puts them here in `activate` and

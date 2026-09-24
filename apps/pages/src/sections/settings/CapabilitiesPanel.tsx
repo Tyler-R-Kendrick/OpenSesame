@@ -65,7 +65,7 @@ function RestartNotice({ change }: { change: CapabilityChange }) {
 
 /**
  * Always-on capabilities this plan does not run: an operator withdrew them
- * (ADR 0140), or they need one that was. Named here, and marked on the
+ * (ADR 0142), or they need one that was. Named here, and marked on the
  * section they back, rather than drawn as though they ran.
  */
 function WithdrawnNotice({ change }: { change: CapabilityChange }) {

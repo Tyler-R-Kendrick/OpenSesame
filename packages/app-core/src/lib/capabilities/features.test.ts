@@ -109,7 +109,7 @@ describe("FEATURES", () => {
     expect(featureById("ai").models).toBe(true);
   });
 
-  it("draws no switch where the function is always on (ADR 0140)", () => {
+  it("draws no switch where the function is always on (ADR 0142)", () => {
     for (const id of [
       "identity",
       "encryption",

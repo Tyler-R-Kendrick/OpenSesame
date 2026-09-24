@@ -1,4 +1,4 @@
-# ADR 0140 — Settings › Capabilities: one list, honest defaults
+# ADR 0142 — Settings › Capabilities: one list, honest defaults
 
 - Status: Accepted
 - Date: 2026-09-24

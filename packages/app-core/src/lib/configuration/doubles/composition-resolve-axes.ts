@@ -98,7 +98,7 @@ function optionalAxes(entry: CapabilityDescriptor, input: DoubleInput): Axes {
 export function axesOf(entry: CapabilityDescriptor, input: DoubleInput): Axes {
   if (entry.tier !== "core") return optionalAxes(entry, input);
   // As the resolver: an always-on capability (one with a module) that the
-  // policy prohibits is withdrawn (ADR 0140). The double does not cascade
+  // policy prohibits is withdrawn (ADR 0142). The double does not cascade
   // to dependents; the resolver's own tests pin that.
   if (
     entry.moduleIds.length > 0 &&

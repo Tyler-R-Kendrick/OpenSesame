@@ -1,7 +1,7 @@
 /**
  * Optional descriptors — sharing. Default off; each is chosen, reviewed and
  * accepted before its module is fetched. Git backup is always on
- * (`catalog-always-on-local.ts`, ADR 0140).
+ * (`catalog-always-on-local.ts`, ADR 0142).
  */
 
 import { type AuthoredDescriptor, optional } from "./descriptor.js";

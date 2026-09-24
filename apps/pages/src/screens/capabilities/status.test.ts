@@ -18,7 +18,7 @@ function core(approved: boolean): CapabilityState {
   };
 }
 
-describe("capabilityStatus of an always-on capability (ADR 0140)", () => {
+describe("capabilityStatus of an always-on capability (ADR 0142)", () => {
   it("reads always on while it runs", () => {
     expect(capabilityStatus(core(true), undefined)).toEqual({
       tone: "ok",

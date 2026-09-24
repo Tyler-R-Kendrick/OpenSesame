@@ -43,7 +43,7 @@ describe("enterprise.directory-provisioning runtime", () => {
   });
 
   it("hands the Identity section its panels and takes them back", async () => {
-    // The section is always on and never imports these (ADR 0140).
+    // The section is always on and never imports these (ADR 0142).
     expect(currentDirectoryPanels()).toBeNull();
     const handle = await runtime.capabilityRuntime.activate(
       createTestContext().ctx,

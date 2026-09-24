@@ -1,7 +1,7 @@
 /**
  * The Identity API's hosted applications, edited from the Applications tab:
  * rename, redirect URIs and scopes, and the claims a sign-in would release.
- * Operator identity providers own these calls (always on, ADR 0140), so the
+ * Operator identity providers own these calls (always on, ADR 0142), so the
  * always-on Identity section reaches them without carrying the directory's
  * people and agents (`identity-management.ts`).
  */

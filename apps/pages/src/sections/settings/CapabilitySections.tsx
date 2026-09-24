@@ -8,7 +8,7 @@
  * A section with more than one optional capability also lists each as a
  * tile with its own switch, beside its providers — so no second list of
  * capabilities is needed anywhere on the page. A section with none is a
- * function every installation has (ADR 0140): the same subheader, no switch.
+ * function every installation has (ADR 0142): the same subheader, no switch.
  *
  * Nothing collapses: a section's providers are drawn whether or not its
  * switch is on, because a connector is configured by reference and binding

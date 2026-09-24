@@ -1,6 +1,6 @@
 # ADR 0135 — Always-on capabilities and feature rollups
 
-- Status: Accepted (amended by [ADR 0140](0140-capabilities-page-one-list-honest-defaults.md): §2–§3)
+- Status: Accepted (amended by [ADR 0142](0142-capabilities-page-one-list-honest-defaults.md): §2–§3)
 - Date: 2026-09-23
 - Amends: [ADR 0130](0130-operator-controlled-capability-composition.md)
   (operator-controlled capability composition)
