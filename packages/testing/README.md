@@ -32,10 +32,9 @@ pnpm --filter @opensesame/testing typecheck
 pnpm test:security                                # the same, from the root
 ```
 
-The package's own suite also holds two repository checks that are not about
+The package's own suite also holds one repository check that is not about
 these helpers: `fuzz-toolchain.test.ts` (nightly-pinned `cargo fuzz` in the
-fuzz scripts) and `eve-deepsec.pact.test.ts` (source oracles over
-[`tools/eve-deepsec`](../../tools/eve-deepsec)).
+fuzz scripts).
 
 ## Related
 

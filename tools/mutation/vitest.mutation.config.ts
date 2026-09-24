@@ -13,7 +13,6 @@ export default defineConfig({
       "packages/**/src/**/*.{test,spec}.{ts,tsx}",
       "packages/**/tests/**/*.test.ts",
     ],
-    exclude: ["tools/eve-deepsec/**"],
     // Match apps/control-plane/vitest.config.ts so related Identity suites
     // can boot under Stryker without a shell export.
     env: {

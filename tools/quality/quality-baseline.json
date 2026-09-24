@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 483,
-    "violations": 765,
-    "oversizedLines": 243270
+    "files": 482,
+    "violations": 760,
+    "oversizedLines": 242790
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1450,12 +1450,6 @@
     },
     "packages/policy/src/__tests__/authority-additivity.test.ts": {
       "max-lines": 491
-    },
-    "packages/recovery-graph/src/index.ts": {
-      "complexity": 2,
-      "max-lines": 480,
-      "max-lines-per-function": 1,
-      "max-statements": 1
     },
     "packages/sdk-browser/src/client.test.ts": {
       "max-lines": 552

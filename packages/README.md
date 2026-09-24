@@ -59,8 +59,6 @@ Building blocks of the Identity API in [`apps/control-plane`](../apps/control-pl
 | [`telemetry`](telemetry) | Product analytics with an allowlist of events; anything not listed is dropped. |
 | [`notification-adapters`](notification-adapters) | Slack, Teams, Telegram, WeChat, SMS, Web Push and webhook channels — provenance, rendering, delivery ([ADR 0084](../docs/adr/0084-external-authorization-notifications.md)). |
 | [`webhooks`](webhooks) | Standard Webhooks signing and verification. |
-| [`identity-atproto`](identity-atproto) · [`identity-nostr`](identity-nostr) | Experimental alternate-identity adapters, disabled by default. |
-| [`recovery-graph`](recovery-graph) | Recovery-path graph model and validation. |
 
 ## SDKs and protocols
 

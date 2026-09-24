@@ -222,8 +222,8 @@ operator seeds or xkey private keys in committed env files.
 Preferred project contract is committed `.env.schema` (not a custom vault env YAML).
 
 ```bash
-# Install bridge once
-cd packages/env-spec-bridge && npm install && npm run build
+# Install the bridge's dependency once (it is a pnpm workspace member)
+pnpm install
 
 # Schema check — metadata only, never secret plaintext
 cargo run -p opensesame-cli -- dev check --schema tests/fixtures/demo.env.schema

@@ -67,7 +67,6 @@ Do not add a suite that only documents the happy path.
 | os-domain | terminal claims stay terminal | malformed claim tokens parse as null | concurrent complete does not mutate the original session | fixtures have no secret fields |
 | agent-protocols | concurrent renders are deterministic | secret-shaped config refused | poisoned field yields no partial doc | `assertSafeConfig` before interpolate |
 | telemetry | allowlisted events only | forbidden values dropped not redacted | concurrent secret tracks never leak | sanitize before capture |
-| identity-atproto / nostr | DID/pubkey format required | garbage DID/pubkey refused while disabled | concurrent verify never succeeds | factory disabled unless flag is exactly `true` |
 | Pages PWA / console / mobile-mfa | loopback operator pin; b64url round-trip | remote operator headers empty; empty QR refused | claim stash stays in sessionStorage; QR encode stable | no `getSecret`; stash JSON only |
 | mock-upstream-idp | loopback listen | PKCE required | authorization code is single-use | `codes.delete` before PKCE verify |
 | example RPs / agent / headless | pairwise `sub` differs by sector | claimToken / `device_code` never printed | poll/device partition fails closed | mock `DO_NOT_PRINT` device_code |
@@ -80,7 +79,6 @@ Do not add a suite that only documents the happy path.
 | Host redaction | `token_type` kept across shapes | substring `token` does not redact `token_type` | concurrent redact never leaks values | redacted JSON has no secret values |
 | Browser-native SIOP / hosted SIOP bridge (ADR 0117) | `packages/siop-v2/src/request.property.test.ts` (fast-check); thumbprint binding | `packages/siop-v2/src/security.adversarial.test.ts`; `checkThenSetAdmitsDoubleClaim` in `siop-bridge.pact.test.ts` | exclusive `/v1/siop/link` claim on one `challengeId` (`assertExclusiveClaim`) | `siop-bridge.pact.test.ts` source-order oracles; link JSON has no secret fields / no raw `id_token`; Pages `pnpm --filter @opensesame/pages verify:siop`; Identity `pnpm --filter @opensesame/control-plane verify:siop` |
 | Connection env sync | vercel/railway only | doppler/infisical/craft-bar ids refused | interleaved checks stay fail-closed | https host pin before `send()` |
-| eve-deepsec (out of workspace) | GLM 5.2 pinned to blackbox | `deepsec process/sandbox` refused before spawn | missing install fails closed | README keeps the app out of `pnpm-workspace.yaml` |
 
 Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `apps/gateway/src/main.rs` (`pact_coverage`),
@@ -101,7 +99,6 @@ Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `packages/os-domain/src/__tests__/pact.test.ts`,
 `packages/agent-protocols/src/pact.test.ts`,
 `packages/telemetry/src/__tests__/pact.test.ts`,
-`packages/identity-atproto/src/__tests__/pact.test.ts`,
 `tests/redteam/src/pact.test.ts`,
 `tests/redteam/src/structural.pact.test.ts`,
 `tests/visual-contract/src/compare.pact.test.ts`,

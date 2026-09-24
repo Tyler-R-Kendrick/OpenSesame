@@ -10,7 +10,6 @@ but never ship in it.
 | [`mutation/`](mutation) | Stryker configurations and the Vitest configs they drive, scoped to high-value files. | `pnpm test:mutation:ts`, `pnpm test:mutation:duress` |
 | [`security/`](security) | Security-scanner configuration and its proof of life: the ast-grep rule set, negative controls showing the ast-grep and gitleaks gates can still fail, and the checklist PR security reviews apply. | `pnpm audit:ast-grep`, [`ops/routines/pr-security-review.md`](../ops/routines/pr-security-review.md) |
 | [`mock-upstream-idp/`](mock-upstream-idp) | A deterministic OIDC provider on `:9090` that auto-approves a seeded user, so the Identity plane can be developed and tested without a real IdP. | `pnpm dev`, `pnpm --filter @opensesame/pages dev`, red-team and control-plane tests |
-| [`eve-deepsec/`](eve-deepsec) | An [eve](https://eve.dev/) agent that runs the deepsec pattern scan and triages hits. Outside the pnpm workspace (it needs Node 24 and Zod 4). Config lives in [`.deepsec/`](../.deepsec). | `pnpm eve:deepsec` |
 
 Configuration a tool looks up by a fixed name stays at the repository root:
 `biome.json`, `oxlint.config.ts`, `clippy.toml`, `deny.toml`,

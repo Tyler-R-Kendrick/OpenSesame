@@ -29,7 +29,6 @@
     ".deepsec/**",
     ".tools/**",
     ".turbo/**",
-    "tools/eve-deepsec/**",
     "artifacts/**",
     "coverage/**",
     "tests/visual-contract/output/**",

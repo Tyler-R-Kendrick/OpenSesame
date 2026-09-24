@@ -292,7 +292,6 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/sdk-browser` / `sdk-server` / `sdk-cli` | Client SDKs |
 | `packages/agent-protocols` | Agent-facing protocol adapters |
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
-| `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
 | `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |

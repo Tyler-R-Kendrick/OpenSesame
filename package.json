@@ -61,7 +61,6 @@
     "audit:semgrep": "bash ./scripts/audit/semgrep-gate.sh",
     "audit:deepsec": "bash ./scripts/audit/deepsec-gate.sh",
     "audit:daemon-deps": "bash ./scripts/audit/daemon-deps-gate.sh",
-    "eve:deepsec": "pnpm --dir tools/eve-deepsec exec eve dev",
     "audit:fuzz": "bash ./scripts/fuzz/fuzz-pr-gate.sh",
     "audit:fuzz:batch": "bash ./scripts/fuzz/fuzz-batch.sh",
     "audit:kani": "bash ./scripts/audit/kani-gate.sh",
