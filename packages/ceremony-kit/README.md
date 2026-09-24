@@ -11,8 +11,9 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 ## Where it fits
 
 - **Used by:** [`apps/ceremonies`](../../apps/ceremonies),
-  [`apps/console`](../../apps/console), [`apps/mobile-mfa`](../../apps/mobile-mfa)
-  and [`packages/qr`](../qr).
+  [`apps/console`](../../apps/console), [`apps/mobile-mfa`](../../apps/mobile-mfa),
+  [`packages/app-core`](../app-core) (Pages' device approval) and
+  [`packages/qr`](../qr).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (interaction types and
   `FORBIDDEN_URL_PARAMS`).
 - An interaction link carries exactly one thing, an opaque interaction
@@ -23,15 +24,21 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 - Approving a device grants a short-lived client session; it does not transfer
   ownership. That is the claim ceremony, kept apart by ADR 0009.
 - Origin, fetch and bearer storage are parameters; each app keeps its own JSX.
+- Every ceremony path comes from `spec/config/ceremony-routes.json`
+  (ADR 0139, ADR 0140 §3): `pnpm --filter @opensesame/ceremony-kit
+  generate:routes` rewrites `src/ceremony-routes.generated.ts`, and
+  `ceremony-routes.test.ts` fails when the two disagree.
 
 ## Surface
 
 | Area | Exports |
 |---|---|
+| Ceremony routes (`ceremony-routes.ts`, generated from `spec/config/ceremony-routes.json`) | `CEREMONY_ROUTES`, `ceremonyPath`, `matchCeremonyPath`, `ceremonyRoutePrefix`, `LEGACY_LINKS`, `invokeKind`, `isAuthenticatorInvocationKind` |
+| Authenticator hand-off (`authenticator-invocation.ts`) | `parseAuthenticatorInvocation`, `AuthenticatorInvocationError` |
 | Interaction links (`interaction-url.ts`) | `buildInteractionUrl`, `parseInteractionUrl`, `parseLegacyInteractionLink`, `isInteractionRef`, `assertNoForbiddenParams`, `InteractionLinkError` |
 | Interaction client (`interaction-client.ts`) | `createInteractionClient`, `InteractionError` |
 | Summary (`interaction-summary.ts`) | `renderInteractionSummary` |
-| Device approval (`device.ts`) | `approveDevice`, `CeremonyRequestError` |
+| Device approval (`device.ts`) — the one implementation (ADR 0140 D3), worded by the body's error code, then the status | `approveDevice`, `deviceApprovalWords`, `CeremonyRequestError` |
 | Claim bearer (`claim-stash.ts`) | `createClaimStash` over an injected `StashStorage` |
 | Deep links (`deep-link.ts`) | `readFragmentToken`, `scrubFragment`, `parseUserCode` |
 

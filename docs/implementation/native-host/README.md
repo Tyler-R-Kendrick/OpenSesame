@@ -198,9 +198,10 @@ before/after evidence for the moved screens (`skills/visual-evidence`).
 - Split `packages/control-plane` along the gap table below: what is self-issued
   or host-side is already covered by phases 1–4; what is hosted-only becomes
   packages under `packages/hosted-identity/`.
-- `apps/ceremonies` and `apps/mobile-mfa` merge into one hosted ceremony
-  build (ADR 0045 keeps it off the Pages origin); the TypeScript worker's
-  outbox loop runs inside the hosted deployment.
+- `apps/ceremonies`, `apps/mobile-mfa` and `apps/console` become Pages routes
+  ([ADR 0140](../../adr/0140-pages-hosts-every-ceremony.md),
+  [plan](../ceremonies-into-pages/README.md)); the TypeScript worker's outbox
+  loop runs inside the hosted identity deployment.
 - `ops/hosted-identity/`: the deployment recipe (container and database),
   documented as optional in `docs/operators/`.
 - Delete `packages/control-plane`, `packages/identity-worker`, `apps/ceremonies`,

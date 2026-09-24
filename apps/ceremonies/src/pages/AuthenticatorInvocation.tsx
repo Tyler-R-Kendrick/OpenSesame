@@ -1,9 +1,10 @@
-import { useMemo } from "react";
-import { Link, useLocation, useParams } from "react-router";
 import {
   type AuthenticatorInvocationKind,
+  isAuthenticatorInvocationKind,
   parseAuthenticatorInvocation,
-} from "../lib/authenticator-link.js";
+} from "@opensesame/ceremony-kit";
+import { useMemo } from "react";
+import { Link, useLocation, useParams } from "react-router";
 
 const LABEL = {
   mfa: "Approve with OpenSesame",
@@ -11,17 +12,11 @@ const LABEL = {
   oid4vci: "Add a credential to OpenSesame",
 } satisfies Record<AuthenticatorInvocationKind, string>;
 
-function isKind(
-  value: string | undefined,
-): value is AuthenticatorInvocationKind {
-  return value === "mfa" || value === "oid4vp" || value === "oid4vci";
-}
-
 export function AuthenticatorInvocation() {
   const { kind: rawKind } = useParams();
   const { search } = useLocation();
   const parsed = useMemo(() => {
-    if (!isKind(rawKind))
+    if (!isAuthenticatorInvocationKind(rawKind))
       return { error: "Unknown authenticator request." } as const;
     try {
       return {

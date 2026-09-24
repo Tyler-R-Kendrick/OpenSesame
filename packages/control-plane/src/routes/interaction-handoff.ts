@@ -35,6 +35,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { AppContext } from "../context.js";
 import {
   admitRequester,
+  interactionPath,
   resetRequesterAdmission,
   resolveContinuation,
 } from "../interactions/rendezvous.js";
@@ -198,12 +199,11 @@ function terminalError(status: InteractionStatus): ErrorName {
  * The forbidden-parameter sweep looks vacuous — this builder appends no query
  * at all — and it is not. `publicUrl` is operator-configured, and a deployment
  * whose public URL carried `?token=…` would otherwise print that token into
- * every QR code, wallet pass and terminal this service hands out. Refusing at
- * the point of construction is the only place that catches it, because after
- * this function the string is just a URL somebody displays.
+ * every QR code, wallet pass and terminal this service hands out. Refusing
+ * here is the only place that catches it: afterwards it is just a URL.
  */
 function interactionUrl(publicUrl: string, ref: string): string {
-  const url = new URL(`/i/${encodeURIComponent(ref)}`, publicUrl);
+  const url = new URL(interactionPath(ref), publicUrl);
   const named = [
     ...url.searchParams.keys(),
     ...new URLSearchParams(url.hash.replace(/^#/, "")).keys(),
