@@ -19,45 +19,60 @@ export const MAX_TOMBSTONES = 10_000;
 /** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
 export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
   const tombstones = mergeTombstones(left.tombstones, right.tombstones);
-  const items = new Map(left.items.map((item) => [item.id, item]));
-  for (const incoming of right.items) {
-    const current = items.get(incoming.id);
-    if (!current || itemVersion(incoming) > itemVersion(current)) {
-      items.set(incoming.id, incoming);
-    }
-  }
-  const folders = new Map(left.folders.map((folder) => [folder.id, folder]));
-  for (const incoming of right.folders) {
-    const current = folders.get(incoming.id);
-    if (!current || JSON.stringify(incoming) > JSON.stringify(current)) {
-      folders.set(incoming.id, incoming);
-    }
-  }
   const deadFolders = tombstones?.folders ?? {};
   const deadItems = tombstones?.items ?? {};
-  // Installed definitions merge by type id. A definition is inert data and an
-  // id belongs to one publisher (ADR 0087 §7), so taking the incoming text on
-  // a conflict cannot change what any existing item means.
-  const itemTypes = { ...left.itemTypes };
-  for (const [id, text] of Object.entries(right.itemTypes ?? {})) {
-    if (text !== undefined) itemTypes[id] = text;
-  }
+  const itemTypes = mergeItemTypes(left, right);
   return {
     v: 1,
-    items: [...items.values()]
+    items: newest(left.items, right.items, itemVersion)
       .filter((item) => !purgedSince(deadItems[item.id], item))
-      .map((item) =>
-        item.folderId !== null && deadFolders[item.folderId] !== undefined
-          ? { ...item, folderId: null }
-          : item,
-      ),
-    folders: [...folders.values()].filter(
-      (folder: Folder) => deadFolders[folder.id] === undefined,
-    ),
+      .map((item) => rehomed(item, deadFolders)),
+    folders: newest(left.folders, right.folders, (folder) =>
+      JSON.stringify(folder),
+    ).filter((folder) => deadFolders[folder.id] === undefined),
     ...(Object.keys(itemTypes).length > 0 ? { itemTypes } : undefined),
     ...(tombstones ? { tombstones } : undefined),
     rev: Math.max(left.rev ?? 0, right.rev ?? 0),
   };
+}
+
+/** Union by id; on a clash the larger version wins, so either order agrees. */
+function newest<T extends { id: string }>(
+  left: readonly T[],
+  right: readonly T[],
+  version: (value: T) => string,
+): T[] {
+  const byId = new Map(left.map((value) => [value.id, value]));
+  for (const incoming of right) {
+    const current = byId.get(incoming.id);
+    if (!current || version(incoming) > version(current)) {
+      byId.set(incoming.id, incoming);
+    }
+  }
+  return [...byId.values()];
+}
+
+/**
+ * Installed definitions merge by type id. A definition is inert data and an
+ * id belongs to one publisher (ADR 0087 §7), so taking the incoming text on a
+ * conflict cannot change what any existing item means.
+ */
+function mergeItemTypes(left: VaultBody, right: VaultBody) {
+  const itemTypes = { ...left.itemTypes };
+  for (const [id, text] of Object.entries(right.itemTypes ?? {})) {
+    if (text !== undefined) itemTypes[id] = text;
+  }
+  return itemTypes;
+}
+
+/** An item whose folder was deleted anywhere moves to the root everywhere. */
+function rehomed(
+  item: VaultItem,
+  deadFolders: Readonly<Record<string, string>>,
+): VaultItem {
+  return item.folderId !== null && deadFolders[item.folderId] !== undefined
+    ? { ...item, folderId: null }
+    : item;
 }
 
 /** True when both bodies hold the same vault, whatever their write counters say. */

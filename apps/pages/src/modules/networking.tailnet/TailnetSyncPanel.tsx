@@ -55,19 +55,123 @@ function hostOf(url: string): string {
   }
 }
 
-export function TailnetSyncPanel() {
-  const state = useSyncExternalStore(subscribeTailnetSync, tailnetSyncState);
+type Run = (task: () => Promise<unknown>) => void;
+
+function DriveRow({
+  state,
+  busy,
+  run,
+}: {
+  state: TailnetSyncState & { drive: { label: string; url: string } };
+  busy: boolean;
+  run: Run;
+}) {
+  const { drive } = state;
+  return (
+    <div className="vault-row">
+      <div className="vault-row__body">
+        <span className="vault-row__mark" aria-hidden="true">
+          <IconConnection size={18} />
+        </span>
+        <span className="vault-row__text">
+          <span className="vault-row__name">
+            {drive.label || hostOf(drive.url)}
+          </span>
+          <span className="vault-row__meta">{hostOf(drive.url)}</span>
+        </span>
+      </div>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Sync now"
+        title="Sync now"
+        disabled={busy || state.phase === "syncing"}
+        onClick={() => run(syncTailnetNow)}
+      >
+        <IconRefresh size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Stop syncing this vault"
+        title="Stop syncing this vault"
+        disabled={busy}
+        onClick={() => run(forgetTailnetDrive)}
+      >
+        <IconX size={16} />
+      </button>
+    </div>
+  );
+}
+
+function PairForm({
+  busy,
+  run,
+  onEdit,
+}: {
+  busy: boolean;
+  run: Run;
+  onEdit: () => void;
+}) {
   const { status, guest } = useVault();
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<StatusMessage | null>(null);
+  const canPair = guest || status === "unlocked" || status === "empty";
+  const action = guest
+    ? "Set this device up from the drive"
+    : "Pair with this drive";
 
   useEffect(() => {
     const linked = takeLinkedCode();
     if (linked) setCode(linked);
   }, []);
 
-  function run(task: () => Promise<unknown>): void {
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        const pasted = code;
+        run(async () => {
+          await pairTailnetDrive(pasted);
+          setCode("");
+        });
+      }}
+    >
+      <label htmlFor="tailnet-sync-code">Pairing code</label>
+      <div className="field-inline">
+        <input
+          id="tailnet-sync-code"
+          type="text"
+          value={code}
+          placeholder="opensesame-drive:v1:…"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          disabled={busy || !canPair}
+          onChange={(event) => {
+            setCode(event.target.value);
+            onEdit();
+          }}
+        />
+        <button
+          type="submit"
+          className="icon-btn"
+          disabled={busy || !canPair || code.trim().length === 0}
+          aria-label={action}
+          title={action}
+        >
+          <IconConnection size={16} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function TailnetSyncPanel() {
+  const state = useSyncExternalStore(subscribeTailnetSync, tailnetSyncState);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<StatusMessage | null>(null);
+
+  const run: Run = (task) => {
     setMessage(null);
     setBusy(true);
     void task()
@@ -78,11 +182,10 @@ export function TailnetSyncPanel() {
         }),
       )
       .finally(() => setBusy(false));
-  }
+  };
 
-  const drive = state.drive;
-  const status_ = drive ? mark(state) : null;
-  const canPair = guest || status === "unlocked" || status === "empty";
+  const { drive } = state;
+  const standing = drive ? mark(state) : null;
 
   return (
     <section className="panel" id="tailnet-sync">
@@ -90,91 +193,15 @@ export function TailnetSyncPanel() {
         <div>
           <h2>Tailnet sync</h2>
         </div>
-        {status_ ? (
-          <StatusMark tone={status_.tone} label={status_.label} />
+        {standing ? (
+          <StatusMark tone={standing.tone} label={standing.label} />
         ) : null}
       </div>
       <div className="panel__body">
         {drive ? (
-          <div className="vault-row">
-            <div className="vault-row__body">
-              <span className="vault-row__mark" aria-hidden="true">
-                <IconConnection size={18} />
-              </span>
-              <span className="vault-row__text">
-                <span className="vault-row__name">
-                  {drive.label || hostOf(drive.url)}
-                </span>
-                <span className="vault-row__meta">{hostOf(drive.url)}</span>
-              </span>
-            </div>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Sync now"
-              title="Sync now"
-              disabled={busy || state.phase === "syncing"}
-              onClick={() => run(syncTailnetNow)}
-            >
-              <IconRefresh size={16} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Stop syncing this vault"
-              title="Stop syncing this vault"
-              disabled={busy}
-              onClick={() => run(forgetTailnetDrive)}
-            >
-              <IconX size={16} />
-            </button>
-          </div>
+          <DriveRow state={{ ...state, drive }} busy={busy} run={run} />
         ) : (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              const pasted = code;
-              run(async () => {
-                await pairTailnetDrive(pasted);
-                setCode("");
-              });
-            }}
-          >
-            <label htmlFor="tailnet-sync-code">Pairing code</label>
-            <div className="field-inline">
-              <input
-                id="tailnet-sync-code"
-                type="text"
-                value={code}
-                placeholder="opensesame-drive:v1:…"
-                autoComplete="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                disabled={busy || !canPair}
-                onChange={(event) => {
-                  setCode(event.target.value);
-                  setMessage(null);
-                }}
-              />
-              <button
-                type="submit"
-                className="icon-btn"
-                disabled={busy || !canPair || code.trim().length === 0}
-                aria-label={
-                  guest
-                    ? "Set this device up from the drive"
-                    : "Pair with this drive"
-                }
-                title={
-                  guest
-                    ? "Set this device up from the drive"
-                    : "Pair with this drive"
-                }
-              >
-                <IconConnection size={16} />
-              </button>
-            </div>
-          </form>
+          <PairForm busy={busy} run={run} onEdit={() => setMessage(null)} />
         )}
         <StatusNote message={message} onDismiss={() => setMessage(null)} />
       </div>
