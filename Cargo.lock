@@ -3549,6 +3549,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-bitwarden-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "aws-lc-rs",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "hex",
+ "hyper-util",
+ "jsonwebtoken",
+ "opensesame-provider-bitwarden",
+ "opensesame-storage",
+ "pbkdf2 0.12.2",
+ "rand 0.8.7",
+ "rcgen 0.14.9",
+ "reqwest",
+ "rustls",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "opensesame-breach-intel"
 version = "0.1.0"
 dependencies = [
@@ -3896,6 +3929,7 @@ dependencies = [
  "opensesame-agent-events",
  "opensesame-audit",
  "opensesame-authz",
+ "opensesame-bitwarden-server",
  "opensesame-breach-intel",
  "opensesame-broker",
  "opensesame-ceremony",
@@ -4733,6 +4767,8 @@ checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
 dependencies = [
  "digest 0.10.7",
  "hmac 0.12.1",
+ "password-hash",
+ "sha2 0.10.9",
 ]
 
 [[package]]

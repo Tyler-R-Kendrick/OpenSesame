@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "crates/provider-bitwarden",
+  "crates/bitwarden-server",
   "crates/kdbx-bridge",
   "crates/core",
   "crates/host-core",
