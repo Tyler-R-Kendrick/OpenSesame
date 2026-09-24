@@ -316,10 +316,13 @@ it("keeps nested catalog groups collapsed until they are opened", () => {
   expect(catalogLeaves().length).toBeGreaterThan(0);
 });
 
-it("distinguishes a loading catalog from an empty catalog", () => {
+it("reads the catalog itself before the page has published one, and says so when it is empty", () => {
+  // Off /connections the page publishes nothing; the rail used to sit on
+  // "Loading connectors…" there forever. It reads the bundled catalog.
   const view = setup(null);
   openCatalog();
-  expect(screen.getByText("Loading connectors…")).toBeTruthy();
+  expect(screen.queryByText("Loading connectors…")).toBeNull();
+  expect(catalogGroup().getAllByRole("treeitem").length).toBeGreaterThan(0);
   view.unmount();
   setup([]);
   openCatalog();
@@ -343,3 +346,15 @@ function catalogLeaves() {
     .getAllByRole("treeitem")
     .filter((row) => row.getAttribute("aria-level") === "4");
 }
+
+it("keeps every catalog group past the first page, with its whole count", () => {
+  // Thirteen developer tools fill the first page of twelve; the rail used to
+  // drop the CRM group behind "Load 2 more" as if it did not exist.
+  setup([
+    ...providers.slice(0, 13),
+    { ...template, id: "crm-1", displayName: "Pipeline", category: "crm" },
+  ]);
+  openCatalog();
+  const crm = catalogGroup().getByRole("treeitem", { name: "CRM" });
+  expect(crm.querySelector(".railtree__count")?.textContent).toBe("1");
+});

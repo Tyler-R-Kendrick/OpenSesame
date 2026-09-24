@@ -15,7 +15,7 @@ import {
   catalogPageSections,
   connectionsPageSources,
 } from "../sections/connections/page-tree.js";
-import { useConnectionsNavigation } from "./ConnectionsNavigation.js";
+import { useRailConnections } from "./ConnectionsNavigation.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 import { SectionRow, type SectionTreeProps, TreeRow } from "./RailRows.js";
 import "./connections-tree.css";
@@ -46,7 +46,7 @@ export function ConnectionsTreeEntries({ pathname }: { pathname: string }) {
   const { hash } = useLocation();
   const current =
     pathname + (hash || (pathname === "/connections" ? "#connected" : ""));
-  const { providers, connections } = useConnectionsNavigation();
+  const { providers, connections } = useRailConnections();
   const sources = connectionsPageSources(providers, connections);
   const catalog = sources.find((section) => section.id === "catalog");
   const outline = pageToTree(
@@ -103,7 +103,20 @@ function CatalogEntries({
   const navigate = useNavigate();
   const sections = catalogPageSections(providers ?? []);
   const matches = pageTreeLeaves(pageToTree(sections));
-  const visible = pageToTree(limitPageTree(sections, limit));
+  // Paging trims leaves, never groups: a group past the page keeps its row
+  // and its whole count, so the rail names every category the page shows
+  // (it used to stop at "Developer tools 3" with Productivity…CRM gone).
+  const limited = limitPageTree(sections, limit);
+  const visible = pageToTree(
+    sections.map((section) => ({
+      ...(limited.find((shown) => shown.id === section.id) ?? {
+        ...section,
+        items: [],
+      }),
+      keepEmpty: true,
+      count: section.items?.length,
+    })),
+  );
   const more = nextPageCount(matches.length, limit);
 
   return (
