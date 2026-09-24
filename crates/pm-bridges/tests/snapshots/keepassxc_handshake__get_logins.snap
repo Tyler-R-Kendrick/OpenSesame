@@ -1,5 +1,5 @@
 ---
-source: apps/cli/tests/keepassxc_handshake.rs
+source: crates/pm-bridges/tests/keepassxc_handshake.rs
 expression: logins
 ---
 {
