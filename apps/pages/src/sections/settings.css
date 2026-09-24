@@ -512,3 +512,9 @@
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
+
+/* A select at the end of a switch row: as wide as its longest choice. */
+.sw__select {
+  width: auto;
+  max-width: 100%;
+}

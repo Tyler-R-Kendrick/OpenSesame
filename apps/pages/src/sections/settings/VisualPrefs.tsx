@@ -91,10 +91,17 @@ function LockingPrefs(props: VisualPrefsProps) {
         </div>
       </div>
       <div className="panel__body">
-        <p className="sent">
-          Lock the vault{" "}
+        {/* Rows like the switches under them — a name, then its control at
+            the row's end. As one sentence with two selects in it, a phone
+            broke it into boxed pills on lines of their own. */}
+        <div className="sw">
+          <label className="sw__name" htmlFor="settings-auto-lock">
+            Lock the vault
+          </label>
           <select
+            id="settings-auto-lock"
             ref={autoLockRef}
+            className="sw__select"
             aria-label="Lock after inactivity"
             value={prefs.autoLockMinutes}
             onChange={(event) =>
@@ -107,8 +114,14 @@ function LockingPrefs(props: VisualPrefsProps) {
               </option>
             ))}
           </select>
-          . Copied secrets stay in the clipboard{" "}
+        </div>
+        <div className="sw">
+          <label className="sw__name" htmlFor="settings-clipboard">
+            Keep copied secrets
+          </label>
           <select
+            id="settings-clipboard"
+            className="sw__select"
             aria-label="Clear copied secrets after"
             value={prefs.clipboardClearSeconds}
             onChange={(event) =>
@@ -124,8 +137,7 @@ function LockingPrefs(props: VisualPrefsProps) {
               </option>
             ))}
           </select>
-          .
-        </p>
+        </div>
         <div className="sw">
           <span className="sw__name">
             Lock when this tab goes to the background
