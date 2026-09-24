@@ -8,12 +8,17 @@ Source of truth: the format kernel `@opensesame/vault-core`
 `offline-backup-format.ts`, `vault-file.ts`), and in the app core
 `packages/app-core/src/lib/vault/unlock-methods.ts`, `seal-rebind.ts`,
 `store.ts` (`exportSealed`, `importSealed`), `lib/vault-backup-sync.ts`,
-`lib/vfs.ts`.
-Pinned by: `packages/vault-core/src/fixtures/vault-vectors.json`
-([ADR 0133](../adr/0133-shared-app-core.md) §7).
+`lib/vfs.ts`. The native reader is `crates/human-vault` `src/pages_vault/`
+(`opensesame vault verify|ls`).
+Pinned by: `spec/conformance/vault-vectors.json`
+([ADR 0133](../adr/0133-shared-app-core.md) §7,
+[ADR 0139](../adr/0139-one-definition-every-target.md)), opened by
+`packages/vault-core` (`vault-file.test.ts`), `packages/app-core`
+(`vault-vectors.test.ts`, the bare-isolate proof) and the Rust reader
+(`crates/human-vault/tests/pages_vault_vectors.rs`).
 
 This is the contract every reader of a Pages vault must meet: the PWA, the
-shared app core, the TS CLI and, later, Android. If this document and the
+shared app core, the TS CLI, the native binary and, later, Android. If this document and the
 vectors disagree, the vectors win, and this document has a bug.
 
 ## 1. Encodings
@@ -140,7 +145,9 @@ Written by `VaultStore.exportSealed`. Read by `VaultStore.importSealed`.
 ```
 
 - **Tomb for the binding:** `tomb` when it is a non-empty string; otherwise
-  the importing vault's own tomb.
+  the importing vault's own tomb. A reader that opens a file on its own (the
+  native `opensesame vault`) has no importing vault, so it refuses an export
+  that names no tomb.
 - **Rejected:**
   - `format` is not `opensesame-vault-export`;
   - `header` or `body` is missing;

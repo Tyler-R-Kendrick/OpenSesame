@@ -1,6 +1,6 @@
 /**
  * Golden vault vectors must open unchanged (ADR 0133 §7). The fixture was
- * emitted by `scripts/emit-vault-vectors.mjs` before the shared-core move; a
+ * emitted by `apps/pages/scripts/emit-vault-vectors.mjs` before the shared-core move; a
  * failure here is a format break, never a reason to regenerate it.
  */
 import { overlapCast } from "@opensesame/os-domain";
@@ -16,8 +16,10 @@ import {
   readVaultFile,
   unwrapRawVaultKeyFromPassword,
 } from "@opensesame/vault-core";
-import fixture from "@opensesame/vault-core/fixtures/vault-vectors.json";
 import { describe, expect, it } from "vitest";
+import fixture from "../../../../../spec/conformance/vault-vectors.json" with {
+  type: "json",
+};
 import { VaultStore } from "./store.js";
 import {
   listPasskeyUnlockRecords,

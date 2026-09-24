@@ -15,7 +15,8 @@ reading a secret is an explicit, human-only verb.
   (login flows), [`connector-host`](../../crates/connector-host),
   [`storage`](../../crates/storage), [`ceremony`](../../crates/ceremony),
   [`env-spec`](../../crates/env-spec), [`kdbx-bridge`](../../crates/kdbx-bridge),
-  [`provider-bitwarden`](../../crates/provider-bitwarden) and
+  [`provider-bitwarden`](../../crates/provider-bitwarden),
+  [`vault-item-types`](../../crates/vault-item-types) (item extensions in `vault ls`) and
   [`pm-bridges`](../../crates/pm-bridges) (all `opensesame-*` crates).
 - `invoke` takes a `ConnectionRef` (`conn://…`) or logical name, never a
   `SecretRef` ([ADR 0005](../../docs/adr/0005-authority-handle-connectionref.md)).
@@ -43,6 +44,7 @@ Global flags: `--server` (env `OPENSESAME_HOST_API`, default
 | Daemon | `daemon install`, `start`, `status`, `logs`, `stop` |
 | Lifecycle and security | `lifecycle`, `rotate`, `ceremony`, `cert`, `security` |
 | Vault KDF | `vault-inspect`, `vault-migrate` |
+| Pages vault files | `vault verify <file>`, `vault ls <file>` — open an export or offline backup the Pages PWA wrote with the Rust reader ([`human-vault`](../../crates/human-vault) `pages_vault`); the master password from a terminal only, names, kinds and paths only (parity with `opensesame-id vault`) |
 | Shell | `completion` |
 
 Source is one module per verb group under `src/` (`store.rs` and
@@ -59,7 +61,11 @@ cargo +1.88.0 run -p opensesame-cli -- pass --help
 ```
 
 `tests/attach_journey.rs` and `tests/protect_rotation_journey.rs` drive the
-real binary against a temporary store. A new verb needs a
+real binary against a temporary store. `tests/vault_file_cli.rs` drives
+`vault verify|ls` down its refusal paths (no terminal, no password flag or
+variable, envelopes section 7 refuses); `src/vault_file_tests.rs` opens the
+golden vectors in `spec/conformance/vault-vectors.json` through the same
+reader. A new verb needs a
 [`capability-registry`](../../packages/capability-registry) entry.
 
 ## Related

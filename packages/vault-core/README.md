@@ -40,9 +40,10 @@ pnpm --filter @opensesame/vault-core typecheck
 pnpm quality:app-core
 ```
 
-`src/fixtures/vault-vectors.json` holds the golden vectors (synthetic data).
-They are read by this package's tests, by `app-core` (including the bare-isolate
-test) and by the CLI's tests. Never regenerate them to make a test pass: a
+[`spec/conformance/vault-vectors.json`](../../spec/conformance/vault-vectors.json)
+holds the golden vectors (synthetic data, ADR 0139). They are read by this
+package's tests, by `app-core` (including the bare-isolate test), by the CLI's
+tests and by the Rust reader in `crates/human-vault` (`pages_vault`). Never regenerate them to make a test pass: a
 vector that stops opening is a format break.
 
 ## Related
