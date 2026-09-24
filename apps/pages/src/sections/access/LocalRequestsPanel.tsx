@@ -10,7 +10,13 @@ import {
   revokeLocalAccessRequest,
 } from "@opensesame/app-core/lib/local-access-requests.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import {
+  IconArrowRight,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconX,
+} from "../../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
 import { RequestApproval } from "./RequestApproval.js";
@@ -189,7 +195,6 @@ function RequestRows({
   const rows = data.requests.filter((row) => visibleIds.has(row.id));
   return (
     <>
-      <p className="hint">Requests: {rows.length || "-"}</p>
       <ul className="access-local-records">
         {rows.map((row) => (
           <li key={row.id}>
@@ -208,18 +213,18 @@ function RequestRows({
             </p>
             <button
               type="button"
-              className="btn btn--sm"
+              className="icon-btn icon-btn--sm"
               disabled={disabled}
+              aria-label="Review request"
+              title="Review request"
               onClick={(event) => select(row, event.currentTarget)}
             >
-              Review request
+              <IconArrowRight size={16} />
             </button>
           </li>
         ))}
       </ul>
-      {!rows.length ? (
-        <p>No local requests. Create one for a registered application.</p>
-      ) : null}
+      {!rows.length ? <p className="hint">No local requests.</p> : null}
     </>
   );
 }
@@ -246,6 +251,13 @@ function RequestDecision({
   const name = (value: string) =>
     directory.entries.find((entry) => entry.id === value)?.name ?? value;
   const active = row.status === "pending" || row.status === "approved";
+  const removeLabel = removing
+    ? active
+      ? "Confirm withdrawal"
+      : "Confirm history removal"
+    : active
+      ? "Withdraw request"
+      : "Remove request history";
   async function remove() {
     if (!removing) {
       setRemoving(true);
@@ -285,17 +297,23 @@ function RequestDecision({
         />
       ) : null}
       <div className="actions">
-        <button type="button" className="btn" onClick={() => void remove()}>
-          {removing
-            ? active
-              ? "Confirm withdrawal"
-              : "Confirm history removal"
-            : active
-              ? "Withdraw request"
-              : "Remove request history"}
+        <button
+          type="button"
+          className="icon-btn icon-btn--danger"
+          aria-label={removeLabel}
+          title={removeLabel}
+          onClick={() => void remove()}
+        >
+          <IconTrash size={16} />
         </button>
-        <button type="button" className="btn" onClick={close}>
-          Close request
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Close request"
+          title="Close request"
+          onClick={close}
+        >
+          <IconX size={16} />
         </button>
       </div>
     </fieldset>

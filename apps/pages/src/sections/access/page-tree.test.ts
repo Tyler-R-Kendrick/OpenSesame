@@ -45,7 +45,7 @@ describe("access page tree", () => {
       "Grants",
       "Local requests",
       "Requests",
-      "Local sessions & grants",
+      "Local sessions",
       "Audience templates",
       "Vault share sessions",
       "Host shared sessions",

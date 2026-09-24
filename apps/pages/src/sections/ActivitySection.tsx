@@ -35,8 +35,8 @@ function EventRow({ event }: { event: ActivityEvent }) {
 }
 
 export function ActivitySection() {
-  const { status, guest, tomb } = useVault();
-  const unlocked = status === "unlocked" && !guest && Boolean(tomb);
+  const { status, tomb } = useVault();
+  const unlocked = status === "unlocked" && Boolean(tomb);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [busy, setBusy] = useState(false);
 

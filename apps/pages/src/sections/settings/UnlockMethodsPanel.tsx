@@ -73,6 +73,11 @@ function UnlockMethodsBody() {
   );
   const secondStepRef = useGuideTarget<HTMLElement>("settings.second-step");
   const recoveryRef = useGuideTarget<HTMLElement>("settings.recovery");
+  // The one place a master password is set or changed (AGENTS.md: never a
+  // second password form).
+  const passwordRef = useGuideTarget<HTMLButtonElement>(
+    "settings.master-password",
+  );
 
   useEffect(() => {
     setWebauthnHost(checkWebauthnHost());
@@ -128,6 +133,7 @@ function UnlockMethodsBody() {
         action={
           on ? (
             <button
+              ref={kind === "password" ? passwordRef : undefined}
               type="button"
               className="icon-btn icon-btn--sm"
               disabled={busy}
@@ -143,6 +149,7 @@ function UnlockMethodsBody() {
             </button>
           ) : (
             <button
+              ref={kind === "password" ? passwordRef : undefined}
               type="button"
               className="icon-btn icon-btn--sm"
               disabled={busy}

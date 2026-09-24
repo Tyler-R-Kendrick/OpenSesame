@@ -51,7 +51,7 @@ export function AccessSection() {
       {tab === "grants" ? (
         <>
           <AccessBookPanel key={tomb} epoch={0} />
-          <LocalAuthorityPanel key={tomb} tomb={tomb} grantsOnly />
+          <LocalAuthorityPanel key={tomb} tomb={tomb} records="grant" />
           <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
         </>
       ) : null}

@@ -7,6 +7,7 @@ import {
   listRequestApprovers,
 } from "@opensesame/app-core/sections/access/request-approval-model.js";
 import { useId, useState } from "react";
+import { IconCheck, IconX } from "../../components/Icons.js";
 
 export function RequestApproval({
   tomb,
@@ -77,19 +78,23 @@ export function RequestApproval({
       <div className="actions">
         <button
           type="button"
-          className="btn btn--primary"
+          className="icon-btn"
           disabled={!principalId}
+          aria-label="Approve with passkey"
+          title="Approve with passkey"
           onClick={() => void decide("approve")}
         >
-          Approve with passkey
+          <IconCheck size={16} />
         </button>
         <button
           type="button"
-          className="btn"
+          className="icon-btn icon-btn--danger"
           disabled={!principalId}
+          aria-label="Deny with passkey"
+          title="Deny with passkey"
           onClick={() => void decide("deny")}
         >
-          Deny with passkey
+          <IconX size={16} />
         </button>
       </div>
     </>

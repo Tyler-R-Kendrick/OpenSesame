@@ -104,25 +104,7 @@ export function LocalAuthorityTemplates() {
             ))}
           </select>
         </label>
-        {selected ? (
-          <>
-            <TemplateDetail template={selected} />
-            <div className="found__do">
-              <button
-                type="button"
-                className="btn btn--primary"
-                aria-live="polite"
-                onClick={() => setSelectedId(selected.id)}
-              >
-                Use {selected.label} defaults
-              </button>
-            </div>
-            <output className="hint">
-              Selected: {selected.id} — defaults only; enforcement follows wired
-              adapters, not this label.
-            </output>
-          </>
-        ) : null}
+        {selected ? <TemplateDetail template={selected} /> : null}
       </div>
     </section>
   );

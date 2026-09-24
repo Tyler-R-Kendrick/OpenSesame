@@ -68,7 +68,7 @@ export function accessPageSources({
       ...(host ? [panel("requests", "host-requests", "Requests")] : []),
     ]),
     tab("sessions", [
-      panel("sessions", "local-sessions", "Local sessions & grants"),
+      panel("sessions", "local-sessions", "Local sessions"),
       panel("sessions", "local-authority-templates", "Audience templates"),
       panel("sessions", "vault-share-sessions", "Vault share sessions"),
       ...(host

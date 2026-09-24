@@ -5,7 +5,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconPlus, IconRefresh, IconX } from "../../components/Icons.js";
+import {
+  IconArrowRight,
+  IconPlus,
+  IconRefresh,
+  IconX,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
@@ -174,29 +179,35 @@ function SessionRow({
           {session.status === "stopped" ? (
             <button
               type="button"
-              className="btn btn--sm btn--primary"
+              className="icon-btn icon-btn--sm"
               disabled={busy}
+              aria-label="Start session"
+              title="Start session"
               onClick={onStart}
             >
-              Start
+              <IconArrowRight size={16} />
             </button>
           ) : (
             <button
               type="button"
-              className="btn btn--sm btn--danger"
+              className="icon-btn icon-btn--sm icon-btn--danger"
               disabled={busy}
+              aria-label="Stop session"
+              title="Stop session"
               onClick={onStop}
             >
-              Stop
+              <IconX size={16} />
             </button>
           )}
           <button
             type="button"
-            className="btn btn--sm"
+            className="icon-btn icon-btn--sm"
             disabled={busy}
+            aria-label="Restart session"
+            title="Restart session"
             onClick={onRestart}
           >
-            Restart
+            <IconRefresh size={16} />
           </button>
         </div>
       </div>

@@ -132,11 +132,6 @@ export const SECTION_RULES = [
   ),
   core("src/sections/settings-section-nav-model", SETTINGS, "tab view-model"),
   core("src/sections/SettingsDangerPanel", SETTINGS, "Danger"),
-  core(
-    "src/sections/SettingsMasterPasswordPanel",
-    "vault.local-unlock",
-    "master password",
-  ),
   core("src/sections/settings.css", SETTINGS, "stylesheet"),
   core(
     "src/sections/settings/",

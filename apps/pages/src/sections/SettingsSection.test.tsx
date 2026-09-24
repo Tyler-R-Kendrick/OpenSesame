@@ -239,80 +239,14 @@ describe("SettingsSection", () => {
     expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
   });
 
-  it("shows the security category with unlock methods and master password", async () => {
+  it("shows the security category with one password form: the unlock methods", () => {
     renderSettings("#security");
     expect(screen.getByTestId("unlock-methods-panel")).toBeTruthy();
+    // AGENTS.md: never a second PIN or password form.
     expect(
-      screen.getByRole("heading", { name: "Master password" }),
-    ).toBeTruthy();
-  });
-
-  it("changes the master password and clears the form", async () => {
-    renderSettings("#security");
-    await userEvent.type(screen.getByLabelText("Current"), "old-password-1");
-    await userEvent.type(
-      screen.getByLabelText("New password"),
-      "new-password-12",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Change master password/i }),
-    );
-    expect(store.changeMasterPassword).toHaveBeenCalledWith(
-      "old-password-1",
-      "new-password-12",
-    );
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Master password changed/,
-    );
-  });
-
-  it("surfaces master password change failures", async () => {
-    store.changeMasterPassword.mockRejectedValue(new Error("wrong current"));
-    renderSettings("#security");
-    await userEvent.type(screen.getByLabelText("Current"), "old-password-1");
-    await userEvent.type(
-      screen.getByLabelText("New password"),
-      "new-password-12",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Change master password/i }),
-    );
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /wrong current/,
-    );
-  });
-
-  it("disables re-key when there is no password wrap or it is too weak", async () => {
-    vault.current.header = null;
-    renderSettings("#security");
-    expect(screen.getByText(/no master-password unlock/)).toBeTruthy();
-    const button = screen.getByRole<HTMLButtonElement>("button", {
-      name: /Change master password/i,
-    });
-    expect(button.disabled).toBe(true);
-  });
-
-  it("shows the live strength read-out for the new password", async () => {
-    renderSettings("#security");
-    await userEvent.type(
-      screen.getByLabelText("New password"),
-      "new-password-12",
-    );
-    expect(screen.getByText("Strong")).toBeTruthy();
-    expect(screen.getByText("60 bits")).toBeTruthy();
-  });
-
-  it("suggests a password, revealing it rather than asking for a confirm", async () => {
-    renderSettings("#security");
-    const field = screen.getByLabelText<HTMLInputElement>("New password");
-    expect(field.type).toBe("password");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Suggest a strong password/i }),
-    );
-    const revealed = screen.getByLabelText<HTMLInputElement>("New password");
-    expect(revealed.type).toBe("text");
-    expect(revealed.value.length).toBeGreaterThan(11);
-    expect(screen.queryByLabelText("Confirm")).toBeNull();
+      screen.queryByRole("heading", { name: "Master password" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("New password")).toBeNull();
   });
 
   it("opens Capabilities from the old Connections and Backups paths", () => {

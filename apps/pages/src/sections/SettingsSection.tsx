@@ -13,7 +13,6 @@ import { categoryFromHash } from "@opensesame/app-core/sections/settings-section
 import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
-import { SettingsMasterPasswordPanel } from "./SettingsMasterPasswordPanel.js";
 import {
   CategoryLink,
   SECURITY_FRAGMENT_REDIRECT,
@@ -196,7 +195,6 @@ function SecurityPanels({
       <Suspense fallback={null}>
         <TransportPanel />
       </Suspense>
-      <SettingsMasterPasswordPanel />
     </>
   );
 }

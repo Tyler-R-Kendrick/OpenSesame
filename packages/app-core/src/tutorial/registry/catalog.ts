@@ -153,7 +153,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.master-password",
     description:
-      "Submits a master-password change. The vault key itself is unchanged, so no item is re-encrypted.",
+      "The master password's row under Unlock methods: it opens the sheet that sets or changes it. The vault key itself is unchanged, so no item is re-encrypted.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: null,

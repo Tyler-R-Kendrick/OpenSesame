@@ -61,7 +61,7 @@ type WireFile = { version: 1; events: ActivityEvent[] };
 const listeners = new Set<() => void>();
 
 export const activitySeams = {
-  /** Active unlocked tomb, or null when locked / guest. */
+  /** Active unlocked tomb (a guest's included), or null when locked. */
   activeTomb: (): string | null => null,
 };
 
@@ -173,8 +173,8 @@ export async function recordActivityEvent(
 }
 
 /**
- * Fire-and-forget append against the unlocked vault. No-ops when locked,
- * guest, or the write fails — activity must never block a primary action.
+ * Fire-and-forget append against the unlocked vault. No-ops when locked
+ * or the write fails — activity must never block a primary action.
  */
 
 export function noteConnectionCreated(connectionId: string): void {
