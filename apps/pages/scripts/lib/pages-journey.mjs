@@ -1,6 +1,10 @@
 /** Shared password-seal and chrome helpers for experience Playwright walks. */
 
-import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
+import {
+  ALWAYS_ON_TITLES,
+  awaitCapabilitySections,
+  capabilityOffSwitch,
+} from "./always-on.mjs";
 export const PASSWORD = "correct horse battery staple 2026";
 
 export async function waitOpen(page) {
@@ -63,8 +67,8 @@ export async function openSection(page, label) {
 }
 
 /**
- * Choose capabilities the way a person does — Settings › Capabilities, Add,
- * Apply. A device that has approved nothing has no rail row for the sections
+ * Choose capabilities the way a person does — Settings › Capabilities, the
+ * capability's switch, Apply. A device that has approved nothing has no rail row for the sections
  * those capabilities contribute (ADR 0130), so a walk that needs one says
  * which it needs instead of pretending the row is there.
  */
@@ -73,8 +77,8 @@ export async function addCapabilities(page, titles) {
   for (const title of titles) {
     // Always on (ADR 0135): in every plan, with no row to add it from.
     if (ALWAYS_ON_TITLES.has(title)) continue;
-    await openAdvanced(page);
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    await awaitCapabilitySections(page);
+    const add = capabilityOffSwitch(page, title);
     await add.waitFor({ timeout: 15000 });
     await add.click();
     const review = page.getByTestId("capability-review");

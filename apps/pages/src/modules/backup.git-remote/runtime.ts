@@ -5,10 +5,11 @@
  * generic git / password-store, ADR 0090), and the repository picker on a
  * connector's settings page.
  *
- * The Backups feature on Settings › Capabilities: switching it on selects
- * this capability, and while it is approved that page draws the
- * backup/recovery tiles (the git providers). Contributed: the backup
- * observer as a background job. Its guide target
+ * Always on (ADR 0138): it runs entirely in the browser, and a git history
+ * remote already defaults to GitHub, so the default installation has it.
+ * Settings › Capabilities draws its tiles (the git providers) under Backups,
+ * each with its own enable switch. Contributed: the backup observer as a
+ * background job, held off by a plan that denies external services. Its guide target
  * `settings.backup` and goal are authored in the registry's connections
  * files and contributed by `connectors.external`, which this capability
  * depends on (catalog), so they are declared whenever this category mounts. The per-connector pages (`GithubInstallationPanel`,
@@ -37,6 +38,7 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
@@ -61,6 +63,17 @@ export const CAPABILITY = "backup.git-remote";
  */
 export const BACKUP_OBSERVER_JOB = "vault-backup-observer";
 
+/**
+ * Always on is not a way round the operator's network envelope (ADR 0135
+ * §1): the observer's pushes are this capability's automatic external
+ * calls, so a plan that does not allow external services — the Family
+ * preset, a managed policy, or no plan yet — keeps it from starting.
+ */
+export const gitRemoteRuntimeSeams = {
+  externalServicesDenied: () =>
+    compositionStore.getSnapshot().plan?.network.externalServices !== "allow",
+};
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -71,6 +84,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {
         if (signal.aborted) return;
+        if (gitRemoteRuntimeSeams.externalServicesDenied()) return;
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
           once: true,

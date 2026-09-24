@@ -32,7 +32,7 @@ import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
-import { useGuestRowShown } from "./settings/CapabilityFeatures.js";
+import { useGuestRowShown } from "./settings/CapabilitySwitch.js";
 import { useInstallPanelShown } from "./settings/InstallPanel.js";
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>

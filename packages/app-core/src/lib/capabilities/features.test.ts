@@ -11,10 +11,11 @@ import {
 } from "./catalog.js";
 import {
   FEATURES,
-  PROVIDER_GROUPS,
   featureById,
   featureOf,
   featureState,
+  isSwitchable,
+  switchCapability,
   switchFeature,
 } from "./features.js";
 
@@ -53,13 +54,15 @@ describe("FEATURES", () => {
     for (const id of coreCapabilityIds()) expect(featureOf(id)).toBeNull();
   });
 
-  it("gives every connector family one home: a feature or an always-on group", () => {
-    const homes = [
-      ...FEATURES.flatMap((feature) => feature.providerCategories),
-      ...PROVIDER_GROUPS.map((group) => group.category),
-    ];
+  it("gives every connector family exactly one section", () => {
+    const homes = FEATURES.flatMap((feature) => feature.providerCategories);
     expect(new Set(homes).size).toBe(homes.length);
     expect([...homes].sort()).toEqual([...FEATURE_BINDING_CATEGORIES].sort());
+  });
+
+  it("names every section once", () => {
+    const titles = FEATURES.map((feature) => feature.title);
+    expect(new Set(titles).size).toBe(titles.length);
   });
 
   it("puts the git providers under Backups and the models under AI", () => {
@@ -67,6 +70,27 @@ describe("FEATURES", () => {
       "backup_recovery",
     ]);
     expect(featureById("ai").models).toBe(true);
+  });
+
+  it("draws no switch where the function is always on (ADR 0138)", () => {
+    for (const id of [
+      "identity",
+      "encryption",
+      "backups",
+      "password-managers",
+      "cloud-secret-storage",
+      "local-storage",
+    ] as const) {
+      expect(isSwitchable(featureById(id)), id).toBe(false);
+    }
+    for (const id of [
+      "backup.git-remote",
+      "identity.local-iam",
+      "identity.siop",
+      "identity.site-broker",
+    ]) {
+      expect(coreCapabilityIds(), id).toContain(id);
+    }
   });
 });
 
@@ -94,14 +118,14 @@ describe("featureState", () => {
 describe("switchFeature", () => {
   it("adds every capability behind a feature and keeps the other roots", () => {
     const next = switchFeature(
-      { roots: ["backup.git-remote"], alternatives: {} },
+      { roots: ["wallet.spending"], alternatives: {} },
       featureById("sharing"),
       true,
-      planWith(["backup.git-remote"]),
+      planWith(["wallet.spending"]),
       CAPABILITY_CATALOG,
     );
     expect(next.roots).toEqual([
-      "backup.git-remote",
+      "wallet.spending",
       "sharing.drops",
       "sharing.household",
     ]);
@@ -192,5 +216,32 @@ describe("switchFeature", () => {
       CAPABILITY_CATALOG,
     );
     expect(next.roots).toEqual(["wallet.spending"]);
+  });
+});
+
+describe("switchCapability", () => {
+  it("adds one capability of a section and answers the slot it needs", () => {
+    const next = switchCapability(
+      { roots: [], alternatives: {} },
+      featureById("sharing"),
+      "sharing.household",
+      true,
+      planWith([]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.roots).toEqual(["sharing.household"]);
+    expect(next.alternatives).toEqual({ transport: "sharing.drops" });
+  });
+
+  it("removes only that capability and keeps its section's others", () => {
+    const next = switchCapability(
+      { roots: ["support.local-ai", "support.remote-ai"], alternatives: {} },
+      featureById("ai"),
+      "support.remote-ai",
+      false,
+      planWith(["support.local-ai", "support.remote-ai"]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.roots).toEqual(["support.local-ai"]);
   });
 });

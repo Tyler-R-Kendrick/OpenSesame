@@ -1,6 +1,7 @@
 /**
- * Optional descriptors — sharing and git backup. Default off; each is
- * chosen, reviewed and accepted before its module is fetched.
+ * Optional descriptors — sharing. Default off; each is chosen, reviewed and
+ * accepted before its module is fetched. Git backup is always on
+ * (`catalog-always-on-local.ts`, ADR 0138).
  */
 
 import { type AuthoredDescriptor, optional } from "./descriptor.js";
@@ -39,32 +40,6 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       alternatives: [{ slot: "transport", oneOf: ["sharing.drops"] }],
       keyAccess: "item-plaintext",
       offlineLimits: "Sharing waits until the chosen transport is reachable.",
-    },
-  ),
-  optional(
-    "backup.git-remote",
-    "Git remote backup",
-    "Push encrypted vault snapshots to a private repository through the GitHub App or a forge git remote, and sync them back.",
-    {
-      dependencies: ["connectors.external"],
-      operationIds: [
-        "backup.status",
-        "backup.target.set",
-        "sync_targets.read",
-        "sync_targets.trigger",
-      ],
-      egress: [
-        {
-          class: "external-service",
-          purpose:
-            "the bound git remote or the GitHub App relay, after every vault mutation",
-          automatic: true,
-        },
-      ],
-      keyAccess: "provider-bearer",
-      requiresService: true,
-      offlineLimits:
-        "Snapshots queue locally and push when the remote is reachable.",
     },
   ),
 ];

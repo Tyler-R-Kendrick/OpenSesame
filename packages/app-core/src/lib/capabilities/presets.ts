@@ -45,14 +45,13 @@ const DENY: NetworkPolicy = {
 };
 
 /**
- * Functions that run on this device with no connector, enterprise, agent,
- * remote-AI or telemetry surface. Personal and Family offer only these.
+ * Optional functions that run on this device with no connector, enterprise,
+ * agent, remote-AI or telemetry surface. Personal and Family offer only
+ * these. Browser-local IAM, SIOP, the site broker and git backup are always
+ * on (ADR 0138), so no preset names them.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
   "sharing.drops",
-  "identity.local-iam",
-  "identity.siop",
-  "identity.site-broker",
   "support.local-ai",
 ];
 
@@ -105,7 +104,7 @@ export const PRESETS: readonly Preset[] = [
       "A self-hosted Host and Identity API at home. Everything is offered; enterprise and agent tools wait to be chosen.",
     required: [],
     optional: everyOptional(),
-    defaultSelected: ["identity.local-iam"],
+    defaultSelected: [],
     network: ALLOW,
   },
   {

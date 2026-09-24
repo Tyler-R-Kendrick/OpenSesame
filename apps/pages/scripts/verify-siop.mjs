@@ -200,12 +200,9 @@ try {
     siopFixture,
   );
   await installPasskeyCredentials(page, credentials);
-  // `/siop` belongs to a capability, and an installation that has not chosen
-  // it has no such route to land on (ADR 0130) — the request answers with the
-  // shell's fallback and no consent heading is ever drawn. A fixture cannot
-  // write the choice, because a consent receipt binds exposure digests, so it
-  // goes through the real Add and Apply. `identity.local-iam` arrives with it
-  // as a dependency, which is what hosts the local applications this seeds.
+  // `/siop` and the local applications this seeds belong to Self-issued
+  // OpenID and browser-local IAM, which are always on (ADR 0138): the walk
+  // asks for them and `chooseCapabilities` finds nothing to switch.
   await chooseCapabilities(
     context,
     1280,

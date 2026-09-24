@@ -26,39 +26,25 @@ vi.mock(
 
 installPanelFixture();
 
-describe("Advanced — one row per optional capability", () => {
-  it("shows each optional capability with its lifecycle, and actions only on running ones", () => {
+describe("switches — the reviewed change, from a section or a tile", () => {
+  it("shows a running capability as on, and no always-on one as a switch", () => {
     renderPanel();
-    const panel = screen.getByTestId("capabilities-panel");
-    expect(panel.textContent).toContain("Agent tools (WebMCP)");
-    expect(panel.textContent).toContain("active");
     expect(
-      screen.getByRole("button", { name: "Disable Agent tools (WebMCP) now" }),
-    ).toBeTruthy();
-    // Always-on capabilities are not configurations: no row at all.
+      screen
+        .getByRole("switch", { name: "Agent tools (WebMCP)" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(screen.queryByRole("switch", { name: "Passwords" })).toBeNull();
+    // The page draws one list; there is no second one to disagree with it.
     expect(
-      screen.getByRole("list", { name: "Optional capabilities" }).textContent,
-    ).not.toContain("Passwords");
-    expect(
-      screen.queryByRole("button", { name: "Disable Shared drops now" }),
+      screen.queryByRole("list", { name: "Optional capabilities" }),
     ).toBeNull();
   });
 
-  it("Disable now goes straight to the store's emergency disable", async () => {
+  it("switching a capability off reviews, then commits with the root removed", async () => {
     renderPanel();
     fireEvent.click(
-      screen.getByRole("button", { name: "Disable Agent tools (WebMCP) now" }),
-    );
-    await waitFor(() => expect(double.disabled).toEqual(["agents.webmcp"]));
-    expect(double.commits).toHaveLength(0);
-  });
-
-  it("Retire safely reviews, then commits with the root removed", async () => {
-    renderPanel();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Retire Agent tools (WebMCP) safely",
-      }),
+      screen.getByRole("switch", { name: "Agent tools (WebMCP)" }),
     );
     expect(screen.getByTestId("capability-review").textContent).toContain(
       "Agent tools (WebMCP)",
@@ -71,12 +57,9 @@ describe("Advanced — one row per optional capability", () => {
     expect(double.disabled).toHaveLength(0);
   });
 
-  it("Add reviews, then commits with the root added — a choice is not one-way", async () => {
+  it("switching a capability on reviews, then commits with the root added — a choice is not one-way", async () => {
     renderPanel();
-    // Not running here, and this installation may have it: the row offers a
-    // way in. Before this, setup was the only place to choose, and setup
-    // lives before sign-in.
-    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Shared drops" }));
     expect(screen.getByTestId("capability-review").textContent).toContain(
       "Shared drops",
     );
@@ -98,13 +81,11 @@ describe("Advanced — one row per optional capability", () => {
     // chosen one capability could never choose a second.
     capabilitiesPanelSeams.now = () => "2026-09-10T00:00:00.000Z";
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Shared drops" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
     fireEvent.click(
-      screen.getByRole("button", {
-        name: "Retire Agent tools (WebMCP) safely",
-      }),
+      screen.getByRole("switch", { name: "Agent tools (WebMCP)" }),
     );
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(2));
@@ -114,13 +95,6 @@ describe("Advanced — one row per optional capability", () => {
     expect(double.commits[1]?.receipt.selectionRevision).toEqual(
       double.commits[1]?.draft.revision,
     );
-  });
-
-  it("offers no way in for a capability already running, or one this distribution lacks", () => {
-    renderPanel();
-    expect(
-      screen.queryByRole("button", { name: "Add Agent tools (WebMCP)" }),
-    ).toBeNull();
   });
 
   it("says a reload is owed while an unloaded module is still evaluated here", () => {
@@ -137,20 +111,20 @@ describe("Advanced — one row per optional capability", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Reload now" }));
     expect(capabilitiesPanelSeams.reload).toHaveBeenCalled();
-    expect(screen.getByTestId("capabilities-panel").textContent).toContain(
-      "restart required",
-    );
   });
 
-  it("switches Visual / Source / Effective", () => {
+  it("switches Visual / Source / Effective, and Source holds both documents for the operator", () => {
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Effective" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Effective" }));
     expect(screen.getByLabelText("Effective plan").textContent).toContain(
       "approvedCapabilities",
     );
-    fireEvent.click(screen.getAllByRole("button", { name: "Source" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Source" }));
     expect(
       screen.getByTestId("capability-source-installation-selection"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("capability-source-instance-policy"),
     ).toBeTruthy();
   });
 });
@@ -181,26 +155,5 @@ describe("SURFACE-06 — a member never sees policy controls", () => {
     expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
     expect(screen.queryByTestId("purpose-card-personal")).toBeNull();
     expect(screen.queryByRole("button", { name: /Personal/ })).toBeNull();
-  });
-});
-
-describe("Advanced", () => {
-  it("stays open across a review, so the row just changed is still in view", async () => {
-    renderPanel();
-    const details = () =>
-      screen.getByTestId("capabilities-advanced") as HTMLDetailsElement;
-    expect(details().open).toBe(false);
-    details().open = true;
-    fireEvent(details(), new Event("toggle"));
-    fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
-    fireEvent.click(screen.getByTestId("capability-apply"));
-    await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(details().open).toBe(true);
-    // And when the plan change remounts the panel.
-    cleanup();
-    renderPanel();
-    expect(details().open).toBe(true);
-    details().open = false;
-    fireEvent(details(), new Event("toggle"));
   });
 });

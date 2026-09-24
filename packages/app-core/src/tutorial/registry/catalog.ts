@@ -58,7 +58,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.backup",
     description:
-      "The Backups feature on Settings › Capabilities: switch it on, then choose the git provider the encrypted vault backs up to.",
+      "Backups on Settings › Capabilities: choose the git provider the encrypted vault backs up to and switch it on.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "backup.target.set",

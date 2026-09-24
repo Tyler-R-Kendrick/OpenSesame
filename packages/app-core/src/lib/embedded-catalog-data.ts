@@ -16,7 +16,17 @@ export const CATEGORY = new Map<ProviderCategory, readonly string[]>([
   ["identity", ["better-auth", "workos", "auth0"]],
   [
     "backup_recovery",
-    ["github", "gitlab", "bitbucket", "codeberg", "origin", "git"],
+    // password-store is a git history road (`HISTORY_BACKUP_GROUPS`), so it
+    // is configured beside the forges rather than under Local storage.
+    [
+      "github",
+      "gitlab",
+      "bitbucket",
+      "codeberg",
+      "origin",
+      "git",
+      "password-store",
+    ],
   ],
   [
     "encryption",
@@ -73,7 +83,7 @@ export const CATEGORY = new Map<ProviderCategory, readonly string[]>([
       "encrypted-remote",
     ],
   ],
-  ["local_storage", ["keychain", "keepass", "password-store", "plain"]],
+  ["local_storage", ["keychain", "keepass", "plain"]],
   ["certificates", ["letsencrypt", "zerossl", "cloudflare-origin-ca"]],
   ["developer", ["vercel"]],
   ["productivity", ["linear"]],

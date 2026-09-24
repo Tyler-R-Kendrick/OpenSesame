@@ -65,6 +65,11 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         "vault.certificate-records",
         "vault.interop-formats",
         "vault.passkey-records",
+        // Browser-local, always on (ADR 0138).
+        "backup.git-remote",
+        "identity.local-iam",
+        "identity.siop",
+        "identity.site-broker",
       ].sort(),
     );
   });

@@ -1,0 +1,153 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [
+            ".capspanel__row",
+            "[role=switch]",
+            ".conn-group",
+            ".capadvanced"
+          ]
+        },
+        {
+          "report": ".capfeature strong, .conn-group__label, .capadvanced > summary"
+        },
+        {
+          "measure": "#feature-guests [role=switch], #feature-directory [role=switch]"
+        },
+        {
+          "measure": "#feature-identity .conn-tile"
+        },
+        {
+          "shot": "390-top"
+        },
+        {
+          "reveal": "Backups"
+        },
+        {
+          "shot": "390-backups"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [
+            ".capspanel__row",
+            "[role=switch]",
+            ".conn-group",
+            ".capadvanced"
+          ]
+        },
+        {
+          "report": ".railtree__row"
+        },
+        {
+          "shot": "1280-top"
+        },
+        {
+          "reveal": "Backups"
+        },
+        {
+          "shot": "1280-backups"
+        },
+        {
+          "reveal": "Sharing"
+        },
+        {
+          "measure": "#feature-sharing .conn-tile, #feature-ai .conn-tile"
+        },
+        {
+          "shot": "1280-sharing-ai"
+        },
+        {
+          "openDetails": "capabilities-advanced"
+        },
+        {
+          "reveal": "Instance policy"
+        },
+        {
+          "count": [".capspanel__row"]
+        },
+        {
+          "shot": "1280-bottom"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-top",
+      "width": 390,
+      "title": "Settings › Capabilities — 390 × 844",
+      "caption": "Before: bordered feature cards in one style and provider subheaders in another. After: every section is the same subheader, and the switch sits on it.",
+      "before": "9 feature cards (.capspanel__row), 5 provider groups, 1 Advanced disclosure; 39 card rows on the page",
+      "after": "0 card rows, 16 sections all .conn-group, 0 disclosures; switch key 44×44 @330, tiles end at 374 (same right edge)"
+    },
+    {
+      "shot": "390-backups",
+      "width": 390,
+      "title": "Backups — 390 × 844",
+      "caption": "Before: Backups was an off switch hiding the git providers, while password-store's backup switch sat under Local storage. After: Backups is always on, with its providers drawn and password-store among them. GitHub reads on because the history default is GitHub.",
+      "before": "Backups off, 0 git tiles; password-store under Local storage",
+      "after": "7 git tiles, each with its own switch; Local storage: Keychain, KeePass"
+    },
+    {
+      "shot": "1280-top",
+      "width": 1280,
+      "title": "Top of the page and the rail — 1280 × 900",
+      "caption": "Browser-local IAM is always on, so the Identity section is on the rail of a fresh device. Servers is gone: its identity-hosting members are always on, and its server-backed ones became Directory and Certificate authority.",
+      "before": "rail: vault, connections, access, activity, settings; 10 switches",
+      "after": "rail: vault, connections, access, identity, activity, settings; 21 switches"
+    },
+    {
+      "shot": "1280-backups",
+      "width": 1280,
+      "title": "Storage sections — 1280 × 900",
+      "caption": "The same view one step down. Before, this was the switched feature rows. After, Backups, Password managers, Cloud secret storage and Local storage share one style, and each connector family appears exactly once.",
+      "before": "feature cards: Backups … Telemetry",
+      "after": "Backups (7 tiles), Password managers, Cloud secret storage, Local storage"
+    },
+    {
+      "shot": "1280-sharing-ai",
+      "width": 1280,
+      "title": "Sharing and AI — 1280 × 900",
+      "caption": "A section with several optional capabilities has one switch on its subheader, plus a tile with its own switch for each capability. That replaces the Advanced list, which repeated them.",
+      "before": "Sharing and AI as cards; their capabilities listed again under Advanced",
+      "after": "Sharing: 2 capability tiles; AI: 3 capability tiles, the model picks and 6 harness tiles, with no nested Models heading"
+    },
+    {
+      "shot": "1280-bottom",
+      "width": 1280,
+      "title": "End of the page — 1280 × 900",
+      "caption": "Before, Advanced listed the 15 optional capabilities, then the instance policy listed them a third time as NOT_SELECTED under its own second Visual/Source/Effective toggle. After, the instance policy is one more section: the purpose presets only. Its YAML is in the page's single Source view.",
+      "before": "Advanced: 15 rows + 15 policy rows, 2 view toggles",
+      "after": "Instance policy: 5 preset cards, 1 view toggle for the page"
+    }
+  ]
+}

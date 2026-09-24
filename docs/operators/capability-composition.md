@@ -40,25 +40,33 @@ Two more identifiers you will see in emitted files and never have to author:
   may fetch. Only compile-time-known modules exist.
 - **asset id** — a path in `dist/`. The build writes the mapping.
 
-The catalog has **17 core** capabilities and **15 optional** ones. Core is
+The catalog has **21 core** capabilities and **11 optional** ones. Core is
 always present and cannot be prohibited. Seven are statically linked:
 `shell.navigation`, `vault.passwords`, `vault.local-unlock`,
 `backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
-`install.pwa`. Ten are **always-on** (ADR 0135): core in every plan, but their
-code still arrives as a module after boot — `vault.passkey-records`,
-`vault.certificate-records`, `vault.interop-formats`, `backup.cloud-secrets`,
-`connectors.external`, `access.authority`, `identity.federation`,
-`identity.ambient-sso`, `activity.log`, `support.guided-help`. None of them is
-ever a switch, and none may be named in a policy or a selection; an older
-document that still names one is read as if it did not.
+`install.pwa`. Fourteen are **always-on** (ADR 0135, ADR 0138): core in every
+plan, but their code still arrives as a module after boot —
+`vault.passkey-records`, `vault.certificate-records`, `vault.interop-formats`,
+`backup.cloud-secrets`, `connectors.external`, `access.authority`,
+`identity.federation`, `identity.ambient-sso`, `activity.log`,
+`support.guided-help`, and the four browser-local functions
+`identity.local-iam`, `identity.siop`, `identity.site-broker` and
+`backup.git-remote`. None of them is ever a switch, and none may be named in a
+policy or a selection; an older document that still names one is read as if
+it did not. Git backup's observer — its one automatic external call — stays
+off while the plan denies external services, as ambient SSO's boot does.
 
-The fifteen optional capabilities are grouped into **features**
-(`packages/app-core/src/lib/capabilities/features.ts`): AI, Backups, Payments,
-Servers, Sharing, Networking, Notifications and Telemetry. Settings ›
-Capabilities shows one switch per feature, with that feature's providers
-configured under it while it is on, the providers of always-on functions
-below them, and the individual capabilities only under **Advanced**. The same
-page carries **Allow guests**, which is on unless an operator turns it off.
+Settings › Capabilities is one list of **sections**
+(`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
+way: a subheader and the tiles configured under it. In order: Guests,
+Identity providers, Directory, Encryption, Certificate authority, Backups,
+Password managers, Cloud secret storage, Local storage, Sharing, Payments,
+AI, Networking, Notifications, Telemetry, and — for the operator — Instance
+policy. A section with optional capabilities carries one switch on its
+subheader over all of them; a section with more than one (Sharing, AI) also
+lists each as a tile with its own switch. A section of an always-on function
+has no switch. Every optional capability and every connector family has
+exactly one section. **Guests** is on unless an operator turns it off.
 
 ## 2. The five scopes, and which one wins
 
@@ -117,18 +125,18 @@ A preset is a starting point, authored as data in
 `presetToInstancePolicy()` projects a preset onto an instance policy and records
 every optional capability the preset does **not** offer in `prohibited`.
 
-The five "local functions" — optional capabilities that run on this device
+The two "local functions" — optional capabilities that run on this device
 with no connector, enterprise, agent, remote-AI or telemetry surface — are
-`sharing.drops`, `identity.local-iam`, `identity.siop`,
-`identity.site-broker` and `support.local-ai`.
+`sharing.drops` and `support.local-ai`. Browser-local IAM, SIOP, the site
+broker and git backup are always on (ADR 0138), so no preset names them.
 
 | Preset | Required | Offered | Pre-ticked | External services |
 |---|---|---|---|---|
-| **Personal** | none | the 5 local functions | nothing | allow |
-| **Family** | none | the 5 local functions + `sharing.household` | `sharing.household`, `sharing.drops` | **deny** |
-| **Homelab** | none | all 15 optional | `identity.local-iam` | allow |
-| **Organization** | none (sign-in providers and access are always on) | all 15 optional | nothing | allow |
-| **Custom** | none | all 15 optional | nothing | allow |
+| **Personal** | none | the 2 local functions | nothing | allow |
+| **Family** | none | the 2 local functions + `sharing.household` | `sharing.household`, `sharing.drops` | **deny** |
+| **Homelab** | none | all 11 optional | nothing | allow |
+| **Organization** | none (sign-in providers and access are always on) | all 11 optional | nothing | allow |
+| **Custom** | none | all 11 optional | nothing | allow |
 
 Personal and Family never offer and never pre-select the
 `enterprise.*`, `agents.*` or `telemetry.*` families, nor `support.remote-ai`.
@@ -447,11 +455,13 @@ Match the reason code to the scope that refused it:
 
 ### Stopping something right now
 
-Settings › Capabilities offers **Disable now** — the store's emergency disable.
-It blocks in memory first and aborts the lease before it asks storage, so the
-capability stops being reachable even if the durable write then fails (and the
-outcome tells you which happened). **Retire safely** is the ordinary reviewed
-commit with the root removed.
+Settings › Capabilities turns a capability off with its switch: the ordinary
+reviewed commit with the root removed. The store's emergency disable
+(`compositionStore.emergencyDisable`) is not on that page any more (ADR 0138
+§3) — a second key per capability beside its switch was the page saying the
+same thing twice. It still blocks in memory first and aborts the lease before
+it asks storage, so the capability stops being reachable even if the durable
+write then fails (and the outcome tells you which happened).
 
 A commit is refused rather than guessed when Web Locks are unavailable, when
 another context has committed a newer generation, when the durable write fails,

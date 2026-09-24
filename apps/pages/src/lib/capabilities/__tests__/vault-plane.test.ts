@@ -281,7 +281,7 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
     // And nothing a tomb holds can turn a prohibited capability on, because
     // no field in that document says "on".
     for (const plan of [base, narrowed, foreign])
-      expect(approved(plan, "backup.git-remote")).toBe(false);
+      expect(approved(plan, "support.remote-ai")).toBe(false);
   });
 });
 

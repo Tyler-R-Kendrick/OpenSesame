@@ -1,7 +1,7 @@
-// Always-on capabilities (ADR 0135), by the title Settings › Capabilities
-// would have shown them under. They are in every plan and have no row, no
-// Add key and no setup card, so a walk that asks for one has nothing to do.
-// Mirrors `catalog-always-on.ts`; `always-on.test.mjs` holds the two equal.
+// Always-on capabilities (ADR 0135, 0138), by their catalog title. They are
+// in every plan and have no switch and no setup card, so a walk that asks
+// for one has nothing to do. Mirrors `catalog-always-on.ts` and
+// `catalog-always-on-local.ts`; `always-on.test.mjs` holds them equal.
 
 export const ALWAYS_ON_TITLES = new Set([
   "Passkey records",
@@ -14,18 +14,44 @@ export const ALWAYS_ON_TITLES = new Set([
   "Ambient single sign-on",
   "Activity log",
   "Guided help",
+  // Browser-local (ADR 0138).
+  "Browser-local IAM",
+  "Self-issued OpenID",
+  "Sign-in broker for sites",
+  "Git remote backup",
 ]);
 
 /**
- * Open Settings › Capabilities › Advanced, where the per-capability rows
- * live. A no-op when it is already open; waits for the panel to render.
+ * The switch Settings › Capabilities offers for one optional capability, by
+ * its catalog title: a tile's switch in a section with several, or the
+ * section's own subheader switch where the capability is its only one. Both
+ * carry `data-capability-title`, so a walk never needs to know which.
  */
-export async function openAdvanced(page) {
-  const details = page.getByTestId("capabilities-advanced");
+export function capabilitySwitch(page, title) {
+  return page.locator(
+    `[role="switch"][data-capability-title=${JSON.stringify(title)}]`,
+  );
+}
+
+/** The switch, only while it is off — the way in a walk presses. */
+export function capabilityOffSwitch(page, title) {
+  return page.locator(
+    `[role="switch"][aria-checked="false"][data-capability-title=${JSON.stringify(title)}]`,
+  );
+}
+
+/** The switch, only while it is on — the capability is running. */
+export function capabilityOnSwitch(page, title) {
+  return page.locator(
+    `[role="switch"][aria-checked="true"][data-capability-title=${JSON.stringify(title)}]`,
+  );
+}
+
+/** Wait for Settings › Capabilities to draw its sections. */
+export async function awaitCapabilitySections(page) {
   // The panel may still be arriving; a silent return here would leave the
-  // rows hidden and the walk failing somewhere that looks unrelated.
-  await details.waitFor({ state: "attached", timeout: 15000 });
-  if (await details.evaluate((node) => node.open)) return;
-  await details.locator("summary").click();
-  await page.waitForTimeout(300);
+  // switches missing and the walk failing somewhere that looks unrelated.
+  await page
+    .locator(".capsections")
+    .waitFor({ state: "attached", timeout: 15000 });
 }

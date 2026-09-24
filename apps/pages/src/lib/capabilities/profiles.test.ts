@@ -102,11 +102,11 @@ const EXPECTED: Record<string, string[]> = {
   "minimal-local": [],
   "family-local": [],
   "family-sharing-selected": ["sharing.drops", "sharing.household"],
-  "single-provider-selected": ["backup.git-remote"],
+  // Git backup is always on (ADR 0138): the provider path needs nothing optional.
+  "single-provider-selected": [],
   "enterprise-selected": [
     "enterprise.ca-administration",
     "enterprise.directory-provisioning",
-    "identity.local-iam",
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
   "managed-prohibited": ["sharing.drops"],
@@ -167,7 +167,7 @@ describe("capability profiles", () => {
     });
   }
 
-  it("family profiles keep git backup, enterprise, agents, remote AI and telemetry unapproved", () => {
+  it("family profiles keep enterprise, agents, remote AI and telemetry unapproved", () => {
     for (const name of ["family-local", "family-sharing-selected"]) {
       const plan = resolve(name);
       for (const id of [
@@ -177,12 +177,14 @@ describe("capability profiles", () => {
         "agents.webmcp",
         "support.remote-ai",
         "telemetry.external",
-        "backup.git-remote",
       ]) {
         expect(plan.capabilities[id]?.approved, `${name}: ${id}`).toBe(false);
         expect(plan.capabilities[id]?.permitted, `${name}: ${id}`).toBe(false);
       }
       expect(plan.network.externalServices).toBe("deny");
+      // Always on, and held inside the deny by its runtime rather than by
+      // the plan (ADR 0138): the observer pushes nothing while it holds.
+      expect(plan.capabilities["backup.git-remote"]?.approved).toBe(true);
     }
   });
 
@@ -205,7 +207,7 @@ describe("capability profiles", () => {
 
   it("managed-prohibited refuses the prohibited root and says why", () => {
     const state =
-      resolve("managed-prohibited").capabilities["backup.git-remote"];
+      resolve("managed-prohibited").capabilities["support.remote-ai"];
     expect(state?.approved).toBe(false);
     expect(state?.reasons).toContain("PROHIBITED_BY_INSTANCE");
   });
@@ -243,7 +245,9 @@ describe("capability profiles", () => {
 
   it("managed-missing-required refuses joining and approves nothing optional", () => {
     const plan = resolve("managed-missing-required");
-    expect(plan.consent.requiredNotAccepted).toEqual(["identity.local-iam"]);
+    expect(plan.consent.requiredNotAccepted).toEqual([
+      "enterprise.directory-provisioning",
+    ]);
     expect(approvedOptional(plan)).toEqual([]);
   });
 

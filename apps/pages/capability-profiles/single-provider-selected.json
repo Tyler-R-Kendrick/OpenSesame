@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "single-provider-selected",
-  "notes": "The one implemented provider path: GitHub through the GitHub App over the Vercel Connect relay (lib/vercel-connect*.ts, lib/github-app-*.ts, lib/backup.ts, sections/connections/GithubBackupRepo*). backup.git-remote, nothing else optional; the connectors it depends on are always on.",
+  "notes": "The one implemented provider path: GitHub through the GitHub App over the Vercel Connect relay (lib/vercel-connect*.ts, lib/github-app-*.ts, lib/backup.ts, sections/connections/GithubBackupRepo*). backup.git-remote and the connectors it depends on are always on (ADR 0138), so the path needs nothing optional selected.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -14,14 +14,11 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": ["backup.git-remote"],
+      "optional": [],
       "prohibited": [
         "agents.webmcp",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
-        "identity.local-iam",
-        "identity.siop",
-        "identity.site-broker",
         "networking.tailnet",
         "notifications.web-push",
         "sharing.drops",
@@ -49,7 +46,7 @@
     "basePolicyRevision": "3",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["backup.git-remote"],
+    "selectedOptional": [],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",
