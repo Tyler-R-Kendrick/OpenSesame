@@ -19,6 +19,9 @@ export * from "./interaction-links.js";
 export * from "./interaction.js";
 export * from "./authorization-details.js";
 export * from "./trust.js";
+// Channel capability is one closed record (ADR 0084), and the browser reads
+// it too: a settings screen and an approval review name channels with it.
+export * from "./notifications.js";
 export {
   canonicalize,
   digestManifest,

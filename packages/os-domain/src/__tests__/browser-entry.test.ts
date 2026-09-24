@@ -47,6 +47,21 @@ describe("the browser entry", () => {
     ).toThrow();
   });
 
+  it("carries the one channel capability record (ADR 0084)", () => {
+    // Absent, a settings screen would read every channel as unknown, and a
+    // capability it could not look up would have to come from a server.
+    expect(browser.CHANNEL_CAPABILITIES).toEqual(node.CHANNEL_CAPABILITIES);
+    expect([...browser.NOTIFICATION_CHANNEL_KINDS]).toEqual([
+      ...node.NOTIFICATION_CHANNEL_KINDS,
+    ]);
+    expect([...browser.NOTIFICATION_CLASSES]).toEqual([
+      ...node.NOTIFICATION_CLASSES,
+    ]);
+    expect(
+      browser.channelCapabilities("telegram").canSatisfyPhishingResistance,
+    ).toBe(false);
+  });
+
   it("pulls no node:crypto helper into a browser bundle", () => {
     // The reference MAC and the request digest are server-side by design:
     // minting either needs a deployment pepper, and a pepper in a bundle is
