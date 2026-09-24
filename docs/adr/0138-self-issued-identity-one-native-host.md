@@ -168,7 +168,8 @@ Everything else becomes a library or disappears:
 | `mcp-host`, `mcp-client` | `@opensesame/mcp` and the host's MCP module (§5). |
 | `pwa` | Removed; Pages superseded it and nothing depends on it. |
 | `console` | Its screens move into Pages (device approval and sign-in exist already; task access and organization settings become Access and Identity sections). |
-| `control-plane`, `worker` (TS), `ceremonies`, `mobile-mfa` | Packages assembled into the optional hosted identity deployment (§1) under `ops/`, on its own origin as ADR 0045 requires. |
+| `control-plane`, `worker` (TS) | Packages assembled into the optional hosted identity deployment (§1). |
+| `ceremonies`, `mobile-mfa` | Pages routes over ceremony-kit and app-core, then deleted ([ADR 0140](0140-pages-hosts-every-ceremony.md) amends this row). |
 | `packages/cli` (`opensesame-id`) | Its vault verbs move into `opensesame` over the Rust vault reader, checked against vault-core's golden vectors. |
 
 ## Consequences

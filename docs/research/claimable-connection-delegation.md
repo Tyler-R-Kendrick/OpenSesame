@@ -22,8 +22,8 @@ receipted, and without any underlying token ever moving.**
 | Sealed connector credentials, AAD-bound to `(connection_id, organization_id)` | `crates/connection-broker/src/crypto.rs` (XChaCha20-Poly1305, AAD `opensesame:connection:v1:{cid}:{oid}`), `crates/storage/migrations/0002_connections.sql` | Built |
 | ConnectionRef agent surface, "no token crosses the API boundary" | `crates/domain/src/authority.rs:97` (`ConnectionRef`), `crates/connection-broker/src/model.rs:227` (`ConnectionView.connection_ref`), ADR 0005/0032 | Built |
 | Grant attenuation + delegation chains | `crates/domain/src/grant.rs:78` (`validate_attenuation`: refuses cross-org, depth ≠ parent+1, lifetime/action/resource/audience/budget/export widening), `crates/domain/src/delegation_chain.rs` (contiguity, cycle, `beneficiary[i] == issuer[i+1]`), `crates/grants/src/lib.rs:3` (`delegate()`) | Built, Rust domain only |
-| Claim-session ceremony (peppered tokens, user codes, CAS state machine, idempotent complete) | `packages/claims/src/engine.ts`, `packages/os-domain/src/crypto/claim-token.ts`, `apps/control-plane/src/routes/claims.ts`; Rust twin `crates/claims/src/lib.rs` | Built |
-| Guest/anon principals with later claim | `apps/control-plane/src/routes/principals.ts:70` (`POST /v1/principals/provisional`, `pst_` bearer, quota-fenced), identity linking preserves the principal id | Built |
+| Claim-session ceremony (peppered tokens, user codes, CAS state machine, idempotent complete) | `packages/claims/src/engine.ts`, `packages/os-domain/src/crypto/claim-token.ts`, `packages/control-plane/src/routes/claims.ts`; Rust twin `crates/claims/src/lib.rs` | Built |
+| Guest/anon principals with later claim | `packages/control-plane/src/routes/principals.ts:70` (`POST /v1/principals/provisional`, `pst_` bearer, quota-fenced), identity linking preserves the principal id | Built |
 | Device-flow claim codes (RFC 8628), twice | `packages/oauth-provider` + `packages/device-auth`; gateway `crates/gateway/src/routes/device.rs` | Built |
 | Task-scoped authority: ceilings, ratchet, frozen intents | `crates/domain/src/task.rs`, `crates/broker/src/frozen.rs` (`assert_grant_covers_frozen_intent`), ADR 0018/0019/0020/0021/0027 | Built |
 | Signed invocation receipts carrying `delegation_chain` | `crates/domain/src/receipt.rs:18`, `assert_no_secret_leak` | Built (chain always empty today) |
@@ -59,7 +59,7 @@ receipted, and without any underlying token ever moving.**
    `resource.type_ = "connector_operation"` only. Delegate-awareness
    belongs in an authorization that actually runs.
 3. **Identity-plane claims/provisional stores are in-process `Map`s**
-   (`apps/control-plane/src/state.ts`); the Postgres claim repos exist
+   (`packages/control-plane/src/state.ts`); the Postgres claim repos exist
    (`packages/database/src/repos/postgres.ts:426`) but are not the running
    path. A share link that dies on process restart is not shippable.
 4. **Audit allowlist would silently drop delegation metadata**
@@ -68,7 +68,7 @@ receipted, and without any underlying token ever moving.**
 5. **`docs/architecture/claims.md` overstates completion atomicity** — completion is
    documented as "applies ownership, writes audit + outbox atomically"
    but the route performs separate non-transactional writes and emits no
-   outbox event (`apps/control-plane/src/routes/claims.ts:388-441`).
+   outbox event (`packages/control-plane/src/routes/claims.ts:388-441`).
    Delegation projection to the identity plane needs that outbox event to
    exist.
 

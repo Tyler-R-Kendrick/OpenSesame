@@ -173,14 +173,14 @@ fi
 rust_step it-mtls-interop opensesame-mtls-interop false "interop (openssl/curl oracles)" -- --ignored
 
 # ---- 4. Identity real-TLS + browser -----------------------------------------
-if [[ -d apps/control-plane/src/transport ]]; then
+if [[ -d packages/control-plane/src/transport ]]; then
   req=false; is_required ts:control-plane-transport-live && req=true
   step --id it-identity-tls --claim ts:control-plane-transport-live --runner vitest --required "${req}" --timeout $((STEP_TIMEOUT + 60)) \
-    --profile "identity receiver (node tls, mtls_required)" --target vitest --paths apps/control-plane/src/transport \
+    --profile "identity receiver (node tls, mtls_required)" --target vitest --paths packages/control-plane/src/transport \
     --expected "Identity accepts a bound client certificate and rejects a missing/unbound one over real TLS" -- \
     "${BOUNDED[@]}" pnpm --filter @opensesame/control-plane exec vitest run src/transport
 else
-  step --id it-identity-tls --claim ts:control-plane-transport-live --runner vitest --required false --skip "apps/control-plane/src/transport not present"
+  step --id it-identity-tls --claim ts:control-plane-transport-live --runner vitest --required false --skip "packages/control-plane/src/transport not present"
 fi
 step --id it-browser --claim AT-BROWSER-UX --scenarios AT-BROWSER-EXTERNAL,AT-BROWSER-UX,AT-STATIC-EMPTY --runner marker --required true --timeout $((STEP_TIMEOUT + 60)) \
   --profile "browser (chromium)" --target "${PLAYWRIGHT_CHROMIUM}" --paths scripts/mtls/mtls-browser-test.mjs \

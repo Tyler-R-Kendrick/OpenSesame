@@ -21,7 +21,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:endpoints": "node scripts/emit-endpoints.mjs && biome format --write src/endpoints.generated.ts"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

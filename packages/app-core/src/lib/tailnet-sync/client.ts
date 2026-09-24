@@ -1,5 +1,5 @@
 /**
- * The drive's wire protocol (ADR 0140): one ciphertext snapshot per slot,
+ * The drive's wire protocol (ADR 0143): one ciphertext snapshot per slot,
  * replaced by compare-and-set on a generation counter the drive keeps.
  *
  *   GET  {url}/v1/vault-drive/slots/{slot}/snapshot

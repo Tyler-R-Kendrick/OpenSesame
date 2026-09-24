@@ -4,7 +4,7 @@
 //! clients with no credential handling of their own; this route is what they
 //! call. It forwards to the gateway's `POST /api/v1/connections/{id}/mint`
 //! via `operator_forward` — the operator token never leaves the loopback
-//! fence (`remote_host_api` denies a non-local `OPENSESAME_SERVER`) — and
+//! fence (`remote_host_api` denies a non-local `OPENSESAME_HOST_API`) — and
 //! passes the gateway's status and body through untouched.
 //!
 //! Auth is `require_operator` exactly like `/v1/discover`: over the UDS the
@@ -93,7 +93,7 @@ pub async fn mint_via_daemon(
             StatusCode::BAD_GATEWAY,
             Json(json!({
                 "error": "host_api_unreachable",
-                "hint": "is Host API up on OPENSESAME_SERVER?"
+                "hint": "is Host API up on OPENSESAME_HOST_API?"
             })),
         )
             .into_response(),

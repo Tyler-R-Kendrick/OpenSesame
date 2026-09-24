@@ -10,7 +10,7 @@ a client session; ownership transfer is the separate claim flow in
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane)
+- **Used by:** [`packages/control-plane`](../../packages/control-plane)
   (`src/routes/authorization-requests.ts` and `src/routes/claims.ts`).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), which owns the
   session type and its transitions (`maybeExpireDeviceAuth`,

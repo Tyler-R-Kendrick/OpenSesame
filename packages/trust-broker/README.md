@@ -9,7 +9,7 @@ through it.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) (`routes/authorization-requests.ts`, `routes/notification-callbacks.ts`).
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) (`routes/authorization-requests.ts`, `routes/notification-callbacks.ts`).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) — `evaluateDirectSettlement`, `evaluateActivation`, `channelAuthenticationCeiling`, `normalizeApprovalPolicy` and the assurance types all live there.
 - `evaluateApprovalCeremony` requires all three of: the channel may carry a decision (settlement), the person met the bar (assurance), and the proof is bound to this transaction and unspent (activation). None stands in for another, and absent evidence is a refusal.
 - A channel is credited with its capability ceiling, never with what a provider callback asserts about itself; only an in-app activation supplies its own authentication facts.

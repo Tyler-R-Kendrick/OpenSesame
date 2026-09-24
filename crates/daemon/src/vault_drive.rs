@@ -1,4 +1,4 @@
-//! The tailnet vault drive (ADR 0140): Enpass's Wi-Fi Sync Server, reached over
+//! The tailnet vault drive (ADR 0143): Enpass's Wi-Fi Sync Server, reached over
 //! Tailscale instead of the local Wi-Fi, and dumber still.
 //!
 //! A slot holds one opaque snapshot and a generation counter. Devices read it

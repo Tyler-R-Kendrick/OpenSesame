@@ -37,7 +37,11 @@ import {
   openDrop as openDropFormat,
   sealDrop as sealDropFormat,
 } from "@opensesame/vault-core";
-import { DropTransportError, dropSeams } from "./drop-transport.js";
+import {
+  DropTransportError,
+  type DropTransportErrorCode,
+  dropSeams,
+} from "./drop-transport.js";
 
 export {
   DROP_CHUNK_BYTES,
@@ -62,15 +66,17 @@ export type DropSession = {
   expiresAt: string;
 };
 
+/**
+ * Sealing and opening refusals from the format (`payload_too_large` …
+ * `tampered`), and the transport's — which, on opening, say why the claim
+ * plane refused (`invalid_code`, `already_opened`, `expired`, `invalid`).
+ */
 export type DropErrorCode =
   | "payload_too_large"
   | "invalid_manifest"
   | "invalid_key"
   | "tampered"
-  | "unreachable"
-  | "refused"
-  | "corrupt"
-  | "limit_exceeded";
+  | DropTransportErrorCode;
 
 export class DropError extends Error {
   constructor(

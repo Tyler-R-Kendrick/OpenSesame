@@ -91,7 +91,7 @@ Each is a stacked pull request applying the same rule:
 |---|---|---|
 | Capabilities and surfaces | `packages/capability-registry` → language-neutral, every surface mapped or excluded with an ADR (no `null`), extension and Android surfaces, reverse checks from each CLI's command tree and the WebMCP tools | both CLIs, MCP servers, WebMCP, Pages catalog, agent card |
 | Behaviour cases | `spec/conformance/`: one-time passwords (`otp-cases.json`), the password generator (`password-policy.json`), item-type validation and native projection (`item-type-cases.json`) | Rust and TypeScript load the same file; the password policy is also the generators' runtime source of alphabets and defaults |
-| Endpoint configuration | `spec/config/endpoints.json`: one name and one default per endpoint | `.env.schema`, clap `env =` names, Pages settings, the extension |
+| Endpoint configuration | `spec/config/endpoints.json`: one variable (`OPENSESAME_HOST_API`, `OPENSESAME_IDENTITY_API`, `OPENSESAME_DAEMON_API`), its aliases and one default per endpoint | clap `env =` names and defaults (`opensesame_host_core::endpoints`), every TypeScript reader (`@opensesame/os-domain` `endpointAddress`), Pages runtime config and loopback suggestions, the extension; a test fails on an alias read anywhere else |
 | Vault format | `docs/architecture/vault-format-v1.md` + `vault-vectors.json` | a Rust reader and writer checked against the same vectors, so the native binary opens the vault Pages writes |
 
 ## Consequences

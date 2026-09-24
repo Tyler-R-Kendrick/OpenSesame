@@ -4,6 +4,7 @@ use crate::daemon_toolbar::ToolbarCmd;
 #[path = "daemon_drive.rs"]
 mod daemon_drive;
 use clap::Subcommand;
+use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;
 use std::{
     env,
@@ -14,11 +15,7 @@ use std::{
 /// Flags shared by every `opensesame daemon` verb.
 #[derive(clap::Args, Debug)]
 pub struct DaemonArgs {
-    #[arg(
-        long,
-        env = "OPENSESAME_DAEMON_URL",
-        default_value = "http://127.0.0.1:18790"
-    )]
+    #[arg(long, env = endpoints::env(DAEMON), default_value_t = endpoints::fallback(DAEMON))]
     url: String,
     /// The daemon's operator token. Every route but /health is operator-gated,
     /// so without this the daemon answers 401 and nothing is approved. Prefer
@@ -50,7 +47,7 @@ enum DaemonCmd {
     Logs,
     /// SIGTERM via pidfile.
     Stop,
-    /// This machine's tailnet vault drive (ADR 0140).
+    /// This machine's tailnet vault drive (ADR 0143).
     #[command(subcommand)]
     Drive(daemon_drive::DriveCmd),
     #[command(flatten)]
@@ -85,8 +82,8 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
                     "status": "ok",
                     "command": "opensesame daemon run",
                     "hint": "the daemon is this binary; run it as a login item or with `opensesame daemon start`",
-                    "listen_default": "127.0.0.1:18790",
-                    "env": ["OPENSESAME_DAEMON_LISTEN", "OPENSESAME_AGENT_LISTEN", "OPENSESAME_DAEMON_PIDFILE"]
+                    "listen_default": endpoints::endpoint(DAEMON).listen.default,
+                    "env": [endpoints::listen_env(DAEMON), "OPENSESAME_DAEMON_PIDFILE"]
                 })
             );
         }

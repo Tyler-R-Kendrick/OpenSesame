@@ -2,7 +2,7 @@
 
 Keep one vault in step across a laptop, a phone and anything else on your
 tailnet, with no vendor cloud in the path
-([ADR 0140](../adr/0140-tailnet-vault-sync.md); the model is Enpass's, see
+([ADR 0143](../adr/0143-tailnet-vault-sync.md); the model is Enpass's, see
 [docs/research/competitors/enpass.md](../research/competitors/enpass.md)).
 
 One machine runs the `opensesame` daemon and acts as the **drive**: it stores

@@ -22,6 +22,11 @@ import {
  */
 
 import {
+  type DropRefusalCode,
+  dropRefusal,
+  readClaimLink,
+} from "@opensesame/ceremony-kit";
+import {
   DropFormatError,
   type DropManifest,
   type DropPayload,
@@ -36,13 +41,7 @@ export type {
   DropTextPayload,
 } from "@opensesame/vault-core";
 
-export type DropAcceptanceErrorCode =
-  | "invalid_code"
-  | "already_opened"
-  | "expired"
-  | "invalid"
-  | "unreachable"
-  | "tampered";
+export type DropAcceptanceErrorCode = DropRefusalCode | "tampered";
 
 export class DropAcceptanceError extends Error {
   constructor(
@@ -54,15 +53,15 @@ export class DropAcceptanceError extends Error {
   }
 }
 
-/** The drop fragment carries token *and* key; a bare token is a normal claim. */
+/**
+ * The drop fragment carries token *and* key; a bare token is a normal claim.
+ * The dispatch is ceremony-kit's `readClaimLink`, the one Pages makes too.
+ */
 export function readDropFragment(
   hash: string,
 ): { token: string; key: string } | null {
-  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
-  const params = new URLSearchParams(raw);
-  const token = params.get("token");
-  const key = params.get("key");
-  return token && key ? { token, key } : null;
+  const link = readClaimLink(hash);
+  return link?.kind === "drop" ? { token: link.token, key: link.key } : null;
 }
 
 /* -------------------------------------------------------------- opening */
@@ -135,43 +134,11 @@ export async function presentDrop(
     );
   }
   const body: BoundaryValue = await res.json().catch(() => null);
-  const code = obj(body).error;
   if (!res.ok) {
-    if (code === "invalid_user_code") {
-      throw new DropAcceptanceError(
-        "invalid_code",
-        "That code did not match this drop. Check it with the sender and try again.",
-      );
-    }
-    if (code === "too_many_attempts") {
-      throw new DropAcceptanceError(
-        "invalid_code",
-        "Too many wrong codes. Ask the sender for a fresh drop.",
-      );
-    }
-    if (res.status === 410 || code === "EXPIRED") {
-      throw new DropAcceptanceError(
-        "expired",
-        "This drop expired before it was opened.",
-      );
-    }
-    // The single-use CAS refused a second presentation.
-    if (res.status === 422 || res.status === 409) {
-      throw new DropAcceptanceError(
-        "already_opened",
-        "This drop was already opened.",
-      );
-    }
-    if (res.status === 401 || res.status === 404) {
-      throw new DropAcceptanceError(
-        "invalid",
-        "This drop link is not valid. Ask the sender for a fresh one.",
-      );
-    }
-    throw new DropAcceptanceError(
-      "unreachable",
-      `Opening the drop failed (${res.status}).`,
-    );
+    // One wording for every surface that opens a drop: ceremony-kit's.
+    const code = obj(body).error;
+    const refused = dropRefusal(isString(code) ? code : "", res.status);
+    throw new DropAcceptanceError(refused.code, refused.words);
   }
   if (!isJsonObject(body) || body.targetManifest === undefined) {
     throw new DropAcceptanceError(

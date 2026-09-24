@@ -1,14 +1,14 @@
 # Confused-deputy / scope-widening via tool params.
 #
-# These assert that apps/mcp-host's own structural fences hold — not that a
+# These assert that packages/mcp-host's own structural fences hold — not that a
 # model chooses not to ask for too much. Grounded in
 # docs/security/audits/2026-08-08-mcp-resource-scope.md ("a resource is not an
 # origin" / the ceiling check belongs server-side) and the task_invoke_l1
-# design note in apps/mcp-host/src/tools.ts: "Operation, resource, and
+# design note in packages/mcp-host/src/tools.ts: "Operation, resource, and
 # arguments are whatever was frozen: letting the model restate them here
 # would execute one call while presenting another call's digest."
 #
-# All of these call the real, unmodified apps/mcp-host over stdio via
+# All of these call the real, unmodified packages/mcp-host over stdio via
 # src/mcp-provider.ts (provider "mcp-host-structural") — no LLM involved, no
 # model credentials needed.
 

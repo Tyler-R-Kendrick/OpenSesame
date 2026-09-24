@@ -267,7 +267,7 @@ describe("device approval", () => {
     expect(init.method).toBe("POST");
     expect(init.credentials).toBe("include");
     // No `principal`. The Identity API documents the field as ignored
-    // (apps/control-plane/src/openapi.ts), so the free-text box that used to
+    // (packages/control-plane/src/openapi.ts), so the free-text box that used to
     // fill it was telling the human it decided something it never did.
     expect(JSON.parse(overlapCast(init.body))).toEqual({
       user_code: "ABCD-EFGH",

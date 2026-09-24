@@ -12,7 +12,7 @@
 | RFC 9068 JWT Access Token Profile | Final | When JWT AT used | `crates/authn` |
 | RFC 9396 RAR | Final | authorization_details when supported | grants compiler |
 | RFC 9449 DPoP | Final | Browser/CLI proof-of-possession baseline; unchanged by ADR 0132, never stripped in favor of a certificate | `packages/oauth-provider`, `crates/gateway/src/middleware/auth.rs`, `crates/authn`, credential-agent |
-| RFC 8705 mTLS client auth + certificate-bound tokens | Final | Client authentication (`tls_client_auth`) for explicitly registered certificate-capable clients, and `cnf.x5t#S256` access-token binding, on Identity's optional TLS listener; resource-side check in Identity's protected routes and in Host caller resolution, bound to the originating leaf (never the ingress's, never a JWK thumbprint). Public PKCE/DPoP clients unaffected. No self-service trust-root registration (ADR 0132 §7–8) | `packages/oauth-provider`, `apps/control-plane/src/transport`, `crates/gateway/src/middleware/auth.rs` |
+| RFC 8705 mTLS client auth + certificate-bound tokens | Final | Client authentication (`tls_client_auth`) for explicitly registered certificate-capable clients, and `cnf.x5t#S256` access-token binding, on Identity's optional TLS listener; resource-side check in Identity's protected routes and in Host caller resolution, bound to the originating leaf (never the ingress's, never a JWK thumbprint). Public PKCE/DPoP clients unaffected. No self-service trust-root registration (ADR 0132 §7–8) | `packages/oauth-provider`, `packages/control-plane/src/transport`, `crates/gateway/src/middleware/auth.rs` |
 | RFC 9470 Step-up | Final | Structured challenge | gateway PEP |
 | RFC 9440 Client-Cert HTTP fields | Final | Origin accepts `Client-Cert` (singleton) and `Client-Cert-Chain` (list, may span physical headers) only on a `trusted_ingress` listener from a peer bound with purpose `trusted_ingress`; bounded decode; caller-supplied fields stripped at the edge; evidence labelled `trusted_ingress_assertion` and request-local. Reference ingress is Caddy (ADR 0132 §8) | `crates/ingress-evidence`, `packages/ingress-evidence`, `ops/ingress/` |
 | RFC 9525 Service identity | Final | DNS reference identity for `webpki_dns` profiles: lowercase exact match, no wildcard selectors; SPIFFE profiles substitute the URI-SAN reference identity and keep chain and signature validation | `crates/transport-security` (rustls/webpki), `crates/domain/src/transport/selector.rs` |
@@ -37,12 +37,12 @@
 | RFC 7292 PKCS#12 | Final | Password-encrypted build; multi-entry parse for import | `crates/pki-core` |
 | PKCS#11 v2.40 | Final | **Absent — unsupported.** ADR 0071 design; no `cryptoki` dependency and neither `crates/hsm-client` nor `crates/pkcs11-provider` exists. No HSM or KMS signer implements TLS signing; transport identities are software custody only (ADR 0132 §2) | — |
 | ACME | Final | Superseded by the two RFC 8555 rows above | `crates/gateway/src/cert_issuers` |
-| OpenAPI 3.1 | Final | Host contract + generated Identity contract | `spec/openapi/host-api.yaml`, `apps/control-plane/openapi.json` |
+| OpenAPI 3.1 | Final | Host contract + generated Identity contract | `spec/openapi/host-api.yaml`, `packages/control-plane/openapi.json` |
 | CloudEvents | Final | Lifecycle events | `api/events` |
 | WASI Component Model / WIT | Final | Connector boundary | `spec/wit/` |
 | MCP authorization (2026-07-28) | Ecosystem | Adapter over PRM | gateway MCP surface |
-| auth.md | Ecosystem | Generated from typed config; AgentAuth adapter (ADR 0092) | `apps/control-plane`, `packages/agent-protocols` |
-| RFC 7523 JWT bearer | Final | AgentAuth service-assertion exchange | `apps/control-plane` `/oauth2/token` |
+| auth.md | Ecosystem | Generated from typed config; AgentAuth adapter (ADR 0092) | `packages/control-plane`, `packages/agent-protocols` |
+| RFC 7523 JWT bearer | Final | AgentAuth service-assertion exchange | `packages/control-plane` `/oauth2/token` |
 | draft-ietf-oauth-identity-assertion-authz-grant-04 | IETF draft | Sealed behind feature flag; not advertised | `packages/agent-protocols` |
 | A2A Agent Card | Ecosystem | Namespaced metadata | gateway |
 | AT Protocol OAuth / DID | Ecosystem | Connector + identity adapter | connectors/atproto |

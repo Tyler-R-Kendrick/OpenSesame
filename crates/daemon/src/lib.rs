@@ -1,6 +1,6 @@
 //! `OpenSesame` host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA.
 //! Evolved from credential-agent. Never dumps refresh tokens or `WebAuthn` material.
-//! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
+//! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`, `spec/config/endpoints.json`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
 //! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on TCP;
 //! over the Unix socket the kernel-attested peer UID authenticates instead
 //! (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default same-user). With `--features
@@ -90,7 +90,7 @@ struct App {
     token_source_factory: TokenSourceFactory,
     /// Optional duress peer receiver state (default off / None).
     duress_peer: Option<duress_receiver::DuressReceiverState>,
-    /// The tailnet vault drive (ADR 0140); `None` when no state dir resolves.
+    /// The tailnet vault drive (ADR 0143); `None` when no state dir resolves.
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
 }
 
@@ -189,7 +189,7 @@ fn require_operator(st: &App, headers: &HeaderMap, uds_peer: &UdsPeer) -> Result
 /// A forward that carries the operator token, refused when the target is not on
 /// this machine.
 ///
-/// The token is a shared secret for this host. `OPENSESAME_SERVER` is
+/// The token is a shared secret for this host. `OPENSESAME_HOST_API` is
 /// configuration, so a remote value would hand it to whoever answers there —
 /// over cleartext, at that. Deny the forward instead: nothing about being unable
 /// to reach a remote Host API justifies giving away the local secret.
@@ -212,7 +212,7 @@ fn operator_forward_method(
             Json(json!({
                 "error": "remote_host_api",
                 "hint": "the operator token is local to this machine; \
-                         point OPENSESAME_SERVER at loopback to forward"
+                         point OPENSESAME_HOST_API at loopback to forward"
             })),
         )
             .into_response());
@@ -283,16 +283,12 @@ fn discover_response(mut report: discovery::DiscoveryReport) -> Response {
 /// Fails when the listen address or socket is refused by policy, cannot be
 /// bound, or the daemon's startup security checks do not pass.
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    let listen = env::var("OPENSESAME_DAEMON_LISTEN")
-        .or_else(|_| env::var("OPENSESAME_AGENT_LISTEN"))
-        .unwrap_or_else(|_| args.listen.clone());
+    let listen = args.listen.clone();
     let sock = args
         .sock
         .clone()
         .or_else(|| env::var("OPENSESAME_AGENT_SOCK").ok());
 
-    let mut args = args;
-    args.listen.clone_from(&listen);
     let (state, hsts) = build_state(&args)?;
     let app = secured_router(state.clone(), hsts)?;
 
@@ -661,7 +657,7 @@ async fn approve_device(
         }
         Err(e) => Json(json!({
             "error": e.to_string(),
-            "hint": "is Host API up on OPENSESAME_SERVER?"
+            "hint": "is Host API up on OPENSESAME_HOST_API?"
         }))
         .into_response(),
     }
@@ -714,7 +710,7 @@ async fn approve_claim(
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({
                 "error": "remote_identity_api",
-                "hint": "point OPENSESAME_ISSUER at loopback to complete claims"
+                "hint": "point OPENSESAME_IDENTITY_API at loopback to complete claims"
             })),
         )
             .into_response();

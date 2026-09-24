@@ -1,5 +1,5 @@
 /**
- * Merging two sealed whole-vault snapshots once both are open (ADR 0140).
+ * Merging two sealed whole-vault snapshots once both are open (ADR 0143).
  *
  * The merge is what makes a dumb drive safe to sync through: it runs on the
  * device, it is deterministic (either argument order converges on the same

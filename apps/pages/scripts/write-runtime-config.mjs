@@ -8,14 +8,23 @@
  * the app is complete without a backend (ADR 0090). `PAGES_CONNECT_CALLBACK_BASE=/`
  * means the relay is served by this same deployment (`apps/pages/api`).
  */
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// The service endpoints and their variable names are defined once
+// (spec/config/endpoints.json, ADR 0139); the rest are Pages' own.
+const { endpoints } = JSON.parse(
+  readFileSync(
+    new URL("../../../spec/config/endpoints.json", import.meta.url),
+    "utf8",
+  ),
+);
+
 const KEYS = {
-  identityApi: "PAGES_IDENTITY_API",
-  hostApi: "PAGES_HOST_API",
-  daemonApi: "PAGES_DAEMON_API",
+  ...Object.fromEntries(
+    Object.values(endpoints).map((e) => [e.setting, e.pagesRuntimeKey]),
+  ),
   mfaAppUrl: "PAGES_MFA_APP_URL",
   supportAgentUrl: "PAGES_SUPPORT_AGENT_URL",
   connectCallbackBase: "PAGES_CONNECT_CALLBACK_BASE",

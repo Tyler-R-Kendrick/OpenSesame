@@ -1,5 +1,5 @@
 /**
- * What a device hands a tailnet drive (ADR 0140): the vault's sealed body and
+ * What a device hands a tailnet drive (ADR 0143): the vault's sealed body and
  * a portable copy of its header, and nothing else.
  *
  * The drive is dumb storage in the Enpass sense — it keeps the newest snapshot

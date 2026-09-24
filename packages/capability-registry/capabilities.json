@@ -3173,11 +3173,11 @@
     "excluded": {
       "pwa": {
         "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
-        "adr": "0140-tailnet-vault-sync.md"
+        "adr": "0143-tailnet-vault-sync.md"
       },
       "webmcp": {
         "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
-        "adr": "0140-tailnet-vault-sync.md"
+        "adr": "0143-tailnet-vault-sync.md"
       },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
@@ -3204,15 +3204,15 @@
     "excluded": {
       "webmcp": {
         "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
-        "adr": "0140-tailnet-vault-sync.md"
+        "adr": "0143-tailnet-vault-sync.md"
       },
       "mcp_host": {
         "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
-        "adr": "0140-tailnet-vault-sync.md"
+        "adr": "0143-tailnet-vault-sync.md"
       },
       "mcp_client": {
         "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
-        "adr": "0140-tailnet-vault-sync.md"
+        "adr": "0143-tailnet-vault-sync.md"
       }
     }
   },
@@ -4218,6 +4218,84 @@
       "webmcp": {
         "reason": "the shared core's offline read path is exposed to the CLI for a person verifying their own backup, not to a page's agent tools",
         "adr": "0133-shared-app-core.md"
+      }
+    }
+  },
+  {
+    "id": "vault.file.native.verify",
+    "title": "Verify a Pages vault export or offline backup with the native binary",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame vault verify",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "the shared core's offline read path is exposed to the CLI for a person verifying their own backup, not to a page's agent tools",
+        "adr": "0133-shared-app-core.md"
+      },
+      "pwa": {
+        "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+        "adr": "0139-one-definition-every-target.md"
+      },
+      "extension": {
+        "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+        "adr": "0139-one-definition-every-target.md"
+      },
+      "android": {
+        "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+        "adr": "0139-one-definition-every-target.md"
+      }
+    }
+  },
+  {
+    "id": "vault.file.native.list",
+    "title": "List a Pages vault file's items by path and kind with the native binary",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame vault ls",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "a vault file opens only with its master password typed at a terminal; agents hold ConnectionRefs, never vault passwords",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "the shared core's offline read path is exposed to the CLI for a person verifying their own backup, not to a page's agent tools",
+        "adr": "0133-shared-app-core.md"
+      },
+      "pwa": {
+        "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+        "adr": "0139-one-definition-every-target.md"
+      },
+      "extension": {
+        "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+        "adr": "0139-one-definition-every-target.md"
+      },
+      "android": {
+        "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
+        "adr": "0139-one-definition-every-target.md"
       }
     }
   },

@@ -4,7 +4,7 @@ import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
 
 /**
  * Getting a vault off one device: the server-side backup posture (ADR 0039)
- * and tailnet vault sync (ADR 0140), where the daemon keeps one sealed
+ * and tailnet vault sync (ADR 0143), where the daemon keeps one sealed
  * snapshot per slot and each device merges it under its own key.
  */
 

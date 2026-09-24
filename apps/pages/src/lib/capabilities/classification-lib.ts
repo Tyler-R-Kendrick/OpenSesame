@@ -264,12 +264,19 @@ export const LIB_RULES = [
   optional(
     `${L}tailnet-sync/`,
     "networking.tailnet",
-    "tailnet vault sync: drive client, merge pass, adoption (ADR 0140)",
+    "tailnet vault sync: drive client, merge pass, adoption (ADR 0143)",
   ),
   core(
     `${L}join/`,
     SIGNIN,
     "join a session: invite or open endpoint, before sign-in (ADR 0136)",
+  ),
+  // Moves to `identity.ceremonies` when that capability lands (ADR 0140
+  // plan step 7); until then it sits beside join, the other bearer ceremony.
+  core(
+    `${L}claims/`,
+    SIGNIN,
+    "ownership claim: link, stash, present/read/complete (ADR 0140)",
   ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),

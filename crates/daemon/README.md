@@ -11,7 +11,7 @@ tokens or WebAuthn material.
 
 - **Used by:** [`apps/cli`](../../apps/cli) (`opensesame daemon run|start|status|logs|stop|info|approve-device|approve-claim`),
   [`crates/credential-helpers`](../credential-helpers)
-  (`POST /v1/mint` over the socket), [`apps/mcp-host`](../../apps/mcp-host) and
+  (`POST /v1/mint` over the socket), [`packages/mcp-host`](../../packages/mcp-host) and
   [`apps/browser-extension`](../../apps/browser-extension) (health probe).
 - **Builds on:** [`opensesame-host-core`](../../crates/host-core) (listen policy,
   `DEFAULT_LISTEN`), [`opensesame-connection-detect`](../../crates/connection-detect)
@@ -28,7 +28,7 @@ tokens or WebAuthn material.
 ## Surface
 
 Flags (each also an env var): `--listen` (`OPENSESAME_DAEMON_LISTEN`),
-`--sock` (`OPENSESAME_AGENT_SOCK`), `--host-api` (`OPENSESAME_SERVER`,
+`--sock` (`OPENSESAME_AGENT_SOCK`), `--host-api` (`OPENSESAME_HOST_API`,
 default `http://127.0.0.1:8787`), `--identity-api` (`OPENSESAME_ISSUER`,
 default `http://127.0.0.1:8788`), `--allowed-uids`. Cargo feature
 `tailscale` (default off) adds a read-only tailnet listener.
@@ -40,7 +40,7 @@ default `http://127.0.0.1:8788`), `--allowed-uids`. Cargo feature
 | Discovery and promotion | `/v1/discover` (rate-limited), `/v1/promote` |
 | Brokered calls | `/v1/invoke_through`, `/v1/mint` (forwards to the gateway's connection mint) |
 | Toolbar | `/v1/toolbar/status`, `/v1/toolbar/approve_device`, `/v1/toolbar/approve_claim`, `/v1/operator/invoke_l1` |
-| Vault drive (ADR 0140) | `/v1/vault-drive/slots` (operator: open, list), `/v1/vault-drive/slots/{slot}` (operator: close), `/v1/vault-drive/slots/{slot}/snapshot` (slot key: read, compare-and-set replace; also on the tailnet listener) |
+| Vault drive (ADR 0143) | `/v1/vault-drive/slots` (operator: open, list), `/v1/vault-drive/slots/{slot}` (operator: close), `/v1/vault-drive/slots/{slot}/snapshot` (slot key: read, compare-and-set replace; also on the tailnet listener) |
 | Proxies | `/host/*` to the Host API, `/identity/*` to the Identity API |
 | Duress peer | `/v1/duress/peer/health`, `/v1/duress/peer/envelope` |
 

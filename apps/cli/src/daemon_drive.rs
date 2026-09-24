@@ -1,5 +1,5 @@
 //! `opensesame daemon drive create | ls | rm`: open, list and close the slots
-//! of this machine's tailnet vault drive (ADR 0140) — Enpass's Wi-Fi Sync
+//! of this machine's tailnet vault drive (ADR 0143) — Enpass's Wi-Fi Sync
 //! Server setup, over Tailscale. Operator verbs against a loopback daemon only.
 use clap::Subcommand;
 use serde_json::{json, Value};

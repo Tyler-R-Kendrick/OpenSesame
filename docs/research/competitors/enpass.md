@@ -1,7 +1,7 @@
 # Enpass — craft bar (vault sync without a vendor cloud)
 
 > Competitive reference for how OpenSesame's **on-device human vault** reaches
-> a person's other devices ([ADR 0140](../../adr/0140-tailnet-vault-sync.md),
+> a person's other devices ([ADR 0143](../../adr/0143-tailnet-vault-sync.md),
 > [PRODUCT.md](../../../PRODUCT.md)). Never brand marks; never position
 > OpenSesame as an Enpass replacement.
 
@@ -87,9 +87,9 @@ The desktop app can act as the drive:
 - Offline-first; sync is optional and per vault.
 - The Wi-Fi Sync Server keeps a household's vaults off every cloud.
 
-## Where OpenSesame stood, and what ADR 0140 changes
+## Where OpenSesame stood, and what ADR 0143 changes
 
-| Enpass capability | OpenSesame before | OpenSesame after ADR 0140 |
+| Enpass capability | OpenSesame before | OpenSesame after ADR 0143 |
 |-------------------|-------------------|---------------------------|
 | Sync a vault to the person's other devices | **Gap.** Pages had a push-only encrypted backup to a git remote; no pull, no restore | **Closed.** Tailnet drive: the `opensesame` daemon holds one sealed snapshot per slot; each device pulls, merges and pushes |
 | Client-side merge, conflicts resolved on the device | Library only: `mergeVaultBodies` and `VaultStore.mergeSnapshot` had no caller | **Closed.** `tailnet-sync/engine.ts` runs read → merge → compare-and-set write, retrying when another device wins the race |

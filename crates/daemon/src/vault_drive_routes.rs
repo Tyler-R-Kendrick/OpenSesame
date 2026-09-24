@@ -1,4 +1,4 @@
-//! HTTP face of the tailnet vault drive (ADR 0140).
+//! HTTP face of the tailnet vault drive (ADR 0143).
 //!
 //! Operator routes (open, list, close a slot) take the operator token or the
 //! Unix-socket peer check like every other mutating daemon route, and refuse

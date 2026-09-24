@@ -46,7 +46,7 @@ secrets and appears as a Host catalog provider (`bitwarden-sm`).
 
 - Human store is for **ceremonies on this device** (Pages/OPFS); it reaches
   the person's other devices through their own tailnet
-  ([ADR 0140](../../adr/0140-tailnet-vault-sync.md), [enpass.md](enpass.md)),
+  ([ADR 0143](../../adr/0143-tailnet-vault-sync.md), [enpass.md](enpass.md)),
   never through a vendor sync service.
 - Agents never browse or reveal vault items — ConnectionRef only.
 - Host connectors and sealed-store git history are first-class; Bitwarden PM

@@ -41,7 +41,7 @@ example `@opensesame/app-core/lib/vault/store.js`.
 | `src/browser/` | The browser host; the one place outside worker entries that touches browser globals |
 | `src/node/` | The Node host for the CLI; local storage is a `0600` file under `$OPENSESAME_STATE_DIR` (default `~/.local/state/opensesame`) |
 | `src/sandbox/` | The host for a bare V8 isolate such as Android's JavaScriptSandbox, plus `runtime-contract.ts`; proven by `bare-isolate.test.ts` |
-| `src/lib/` | The core: `vault/` (store, tombs, drops, backup, import/export), `capabilities/` (catalog, features, loader, leases), `ambient-auth/`, `join/`, `duress/`, `sops/`, `configuration/`, `command-bar/`, `item-type-marketplace/`, plus settings, identity, federation, connections, connector directory, local IAM and guest access modules |
+| `src/lib/` | The core: `vault/` (store, tombs, drops, backup, import/export), `capabilities/` (catalog, features, loader, leases), `ambient-auth/`, `join/`, `claims/` (the ownership-claim ceremony, ADR 0140), `duress/`, `sops/`, `configuration/`, `command-bar/`, `item-type-marketplace/`, plus settings, identity, federation, connections, connector directory, local IAM and guest access modules |
 | `src/sections/`, `src/screens/`, `src/components/`, `src/routes/` | View-models (`*-model.ts`) for the Pages sections and screens, and Settings as virtual files (`sections/settings/virtual-files.ts`) |
 | `src/tutorial/` | Support registries (`registry/`) and the on-device, AG-UI and provider agents (`agents/`) |
 | `src/webmcp/` | The WebMCP tool definitions and registration |

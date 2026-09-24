@@ -48,7 +48,7 @@ A few words carry specific meaning everywhere in these documents.
 | Term | Meaning |
 |---|---|
 | **Host** | The Rust authority service (`crates/gateway`, Host API on `:8787`). It holds connections, authorizes intents, performs calls and signs receipts. |
-| **Identity API** | The TypeScript OIDC issuer (`apps/control-plane`, `:8788`): principals, passkeys, claims, federation. Always separate from the Host. |
+| **Identity API** | The TypeScript OIDC issuer (`packages/control-plane`, `:8788`): principals, passkeys, claims, federation. Always separate from the Host. |
 | **Daemon** | The local host agent (`crates/daemon`, `:18790`) that issues short-lived session capabilities to devcontainers, WSL, the toolbar and credential helpers. |
 | **ConnectionRef** | A handle naming a connection. It carries no secret; presenting it lets the Host act, never the caller read. |
 | **Intent** | What a caller wants done with a ConnectionRef. The unit the Host authorizes and the receipt records. |

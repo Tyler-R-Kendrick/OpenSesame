@@ -44,7 +44,7 @@ Three planes, each answering one question:
 
 | Plane | Answers | Built as | Never does |
 |---|---|---|---|
-| **Identity** | *Who is this?* | TypeScript: Hono, oidc-provider, Better Auth (`apps/control-plane`) | Hold a third-party credential or perform an invocation. |
+| **Identity** | *Who is this?* | TypeScript: Hono, oidc-provider, Better Auth (`packages/control-plane`) | Hold a third-party credential or perform an invocation. |
 | **Host / authority** | *May they do this — and do it.* | Rust: Axum, SQLx, OpenFGA, OpenBao (`crates/gateway`, `crates/`) | Hand a credential to a caller. |
 | **Client** | *What does this person keep here?* | TypeScript + WebCrypto, Rust→Wasm (`apps/pages`, `packages/app-core`) | Depend on either backend to be useful. |
 

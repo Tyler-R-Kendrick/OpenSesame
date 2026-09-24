@@ -1,5 +1,5 @@
 /**
- * Keeps the open vault in step with its tailnet drive (ADR 0140): a pass on
+ * Keeps the open vault in step with its tailnet drive (ADR 0143): a pass on
  * unlock, a pass shortly after each change, and one a minute while the vault
  * stays open. Runs only while `networking.tailnet` is active, only for a
  * vault paired with a drive, and never for a guest.

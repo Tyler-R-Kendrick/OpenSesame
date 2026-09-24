@@ -11,8 +11,8 @@ Responses are parsed with the `@opensesame/contracts` schemas.
 - **Used by:** [`packages/app-core`](../app-core), [`packages/cli`](../cli),
   [`apps/console`](../../apps/console),
   [`apps/browser-extension`](../../apps/browser-extension),
-  [`apps/mcp-client`](../../apps/mcp-client) and
-  [`apps/mcp-host`](../../apps/mcp-host).
+  [`packages/mcp-client`](../../packages/mcp-client) and
+  [`packages/mcp-host`](../../packages/mcp-host).
 - **Builds on:** [`@opensesame/contracts`](../contracts) (response schemas),
   [`@opensesame/client-core`](../client-core) (sync blob and cursor types) and
   [`@opensesame/os-domain`](../os-domain).

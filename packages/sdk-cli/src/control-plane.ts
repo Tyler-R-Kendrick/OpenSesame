@@ -55,7 +55,7 @@ function parseRegistration(value: BoundaryValue): JsonObject {
   return value;
 }
 
-// The control plane mounts its product API under /v1 (apps/control-plane/src/app.ts).
+// The control plane mounts its product API under /v1 (packages/control-plane/src/app.ts).
 // Every path here must be one the server actually serves: a wrong prefix makes each
 // ceremony fail with a 404 that reads as a permissions problem.
 export function createControlPlaneClient(config: ControlPlaneClientConfig) {

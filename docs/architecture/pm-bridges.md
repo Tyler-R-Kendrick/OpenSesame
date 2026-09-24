@@ -115,7 +115,7 @@ failing any clause is agent-plane and yields no plaintext.
 | Surface | Plane | Yields plaintext? | (a) caller authn | (b) approval ceremony | (c) reachability |
 |---|---|---|---|---|---|
 | ConnectionRef + Intent invoke | **agent** | **No** — receipt only | Host session/grant | grant issuance | Host API |
-| MCP tools (`apps/mcp-host` / `mcp-client`) | **agent** | **No** — denylisted tool names | MCP session | — | MCP |
+| MCP tools (`packages/mcp-host` / `mcp-client`) | **agent** | **No** — denylisted tool names | MCP session | — | MCP |
 | WIT connector world | **agent** | **No** — `secrets.get` banned | Wasm host | — | in-process Wasm |
 | `opensesame pass show --reveal` | human | Yes | TTY / `--reveal` (`require_reveal`) | the human ran it | local process |
 | `pass import-kdbx` | human | n/a (writes in) | TTY | the human ran it | local process |

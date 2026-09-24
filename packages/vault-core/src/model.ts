@@ -224,7 +224,7 @@ export type VaultBody = {
    * backwards is one restored from an older copy, not the vault as last left.
    */
   rev?: number | undefined;
-  /** Purged items and deleted folders, so a merge cannot bring them back (ADR 0140). */
+  /** Purged items and deleted folders, so a merge cannot bring them back (ADR 0143). */
   tombstones?: VaultTombstones | undefined;
 };
 
