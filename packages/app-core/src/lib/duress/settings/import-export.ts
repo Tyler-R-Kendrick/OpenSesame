@@ -2,8 +2,11 @@
  * Export / import preview — enabled:true never arms.
  */
 
-import type { CompilerCatalog, PolicyDocument } from "@opensesame/contracts";
-import { PolicyDocumentSchema } from "@opensesame/contracts";
+import type {
+  CompilerCatalog,
+  PolicyDocument,
+} from "@opensesame/contracts/duress";
+import { PolicyDocumentSchema } from "@opensesame/contracts/duress";
 import { parse as parseYaml } from "yaml";
 import {
   type BoundaryValue,
