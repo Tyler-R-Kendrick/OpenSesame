@@ -21,8 +21,11 @@ import type {
   EffectAssurance,
   ExposureSummary,
   PolicyDocument,
-} from "@opensesame/contracts";
-import { compileDuressPolicy, dryRunDuressPolicy } from "@opensesame/contracts";
+} from "@opensesame/contracts/duress";
+import {
+  compileDuressPolicy,
+  dryRunDuressPolicy,
+} from "@opensesame/contracts/duress";
 import type { ArmingChecklist } from "./arming.js";
 
 export type ExposureLine = Readonly<{

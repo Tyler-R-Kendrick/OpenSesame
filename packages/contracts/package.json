@@ -8,6 +8,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./duress": {
+      "types": "./src/duress/index.ts",
+      "default": "./src/duress/index.ts"
     }
   },
   "scripts": {

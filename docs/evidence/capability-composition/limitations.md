@@ -161,3 +161,43 @@ Tracked in [`contract-test-matrix.json`](contract-test-matrix.json) with
 `"status": "pending"` and an owner area. A pending row is a claim nobody has
 demonstrated yet; it is not a claim that has been disproved, and it is also not
 evidence.
+
+## 8. The selective build's reachability number is a chunk measurement
+
+The reachability gate reports every optional-owned module that sits inside a
+chunk the entry statically reaches. That is the right thing to measure — a
+module in such a chunk *is* downloaded and evaluated — but it means the
+number does not fall one import at a time. It falls when a whole chunk
+leaves the static closure, and not before.
+
+Measured on this branch (`apps/pages/dist/capability-graph.json`, default
+selective build): **10 of 62 chunks** are statically reachable from the
+entry, and one of them holds **1062 modules**. Rollup names that chunk after
+whichever capability first imported it dynamically, but its contents are the
+shared optional library surface — so a single remaining static edge into it
+keeps roughly a thousand modules inside the closure and the reported number
+pinned near its current value.
+
+Three real cuts landed in this delivery, each of them a correct ownership
+statement rather than a number-chasing edit:
+
+- `lib/duress/settings/*` named `@opensesame/contracts` (a 27-module barrel)
+  where it wanted one corner; it names `@opensesame/contracts/duress` now.
+- `lib/orgs.ts` mixed the core sign-in vocabulary with four Identity-API
+  directory calls; the calls moved to `lib/orgs-directory.ts`, which
+  `identity.federation` installs into seams that otherwise refuse.
+- the duress corner of `@opensesame/contracts` is classified core
+  (`vault.local-unlock`, ADR 0131) instead of inheriting the package's
+  `connectors.external` rule.
+
+Together they took the report from 354 to 331 and removed nine static edges.
+That ratio is the point of this entry: the remaining work is not a list of
+imports to delete. It is that **a selective build shares one chunk across
+capabilities**, which ADR 0130 §6 explicitly permits — the device loads only
+its accepted graph, and exclusion is a promise only a hardened build makes.
+A hardened build does not emit the excluded modules at all, which is why the
+gate is enforcing there and a diagnostic here.
+
+Anyone continuing this should not start from the violation list. Start from
+`capability-graph.json`: find the chunks in the entry's static closure, and
+decide for each whether it should be there at all.

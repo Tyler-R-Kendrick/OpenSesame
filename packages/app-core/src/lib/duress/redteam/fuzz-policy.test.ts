@@ -6,8 +6,8 @@ import {
   PolicyDocumentSchema,
   PolicyProfileSchema,
   compileDuressPolicy,
-} from "@opensesame/contracts";
-import { defined } from "@opensesame/contracts";
+  defined,
+} from "@opensesame/contracts/duress";
 import { describe, expect, it } from "vitest";
 import {
   assertSafePeerOrigin,

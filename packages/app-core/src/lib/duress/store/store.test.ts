@@ -1,4 +1,4 @@
-import { EnrollmentManifestSchema } from "@opensesame/contracts";
+import { EnrollmentManifestSchema } from "@opensesame/contracts/duress";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../../kv.js";
 import {

@@ -5,14 +5,8 @@
  * included. SSO and SAML are both OIDC issuers (ADR 0016); SAML is brokered.
  */
 
-import { isString } from "@opensesame/os-domain";
 import { sessionStore } from "../ports.js";
-import {
-  IdentityError,
-  identityBase,
-  identityJson,
-  isRemoteIdentityConfigured,
-} from "./identity.js";
+import { IdentityError, identityBase } from "./identity.js";
 import { VfsError, readFile, writeFile } from "./vfs.js";
 
 /** Legacy sessionStorage key — migrated into the tomb on unlock, then deleted. */
@@ -160,78 +154,33 @@ function setActiveOrgProfileIdDefault(id: string): void {
   emit();
 }
 
-function normalizeSlug(slug: string): string {
-  return slug.trim().toLowerCase();
-}
-
-async function lookupOrgTenantDefault(slug: string): Promise<OrgTenant> {
-  const normalized = normalizeSlug(slug);
-  if (!ORG_SLUG_RE.test(normalized)) {
-    throw new IdentityError("Enter an organization slug like acme-corp.", 400);
-  }
-  if (!isRemoteIdentityConfigured()) {
-    throw new IdentityError("No sign-in service is connected.", 0);
-  }
-  return identityJson<OrgTenant>(
-    `/v1/organizations/tenants/${encodeURIComponent(normalized)}`,
-  );
-}
-
 /**
- * Home-realm discovery by email DOMAIN (never the address), against the
- * public `GET /v1/organizations/by-domain/:domain` twin of the login page's
- * realm router. Answers null for the uniform not-found — unknown, unverified,
- * and malformed domains are indistinguishable by design (anti-enumeration),
- * so "no organization uses that email domain" is all a caller can say.
+ * The four directory calls are the Identity API's, and an installation that
+ * did not take `identity.federation` has no directory to ask. Their defaults
+ * therefore refuse rather than reach for an endpoint — `orgs-directory.ts`
+ * holds the implementations and that capability's runtime installs them.
+ *
+ * ADR 0090's rule applies as written: a screen is gated on what it actually
+ * needs. The sign-in panel that routes an org method, the identifier field
+ * that recognises a slug, and the profile this tab is on are all core and
+ * stay here; only asking a service about a tenant is not.
  */
-async function lookupOrgByDomainDefault(
-  domain: string,
-): Promise<OrgTenant | null> {
-  if (!isRemoteIdentityConfigured()) {
-    throw new IdentityError("No sign-in service is connected.", 0);
-  }
-  try {
-    return await identityJson<OrgTenant>(
-      `/v1/organizations/by-domain/${encodeURIComponent(domain)}`,
-    );
-  } catch (caught) {
-    if (caught instanceof IdentityError && caught.status === 404) return null;
-    throw caught;
-  }
-}
-
-async function listOrgMembershipsDefault(): Promise<OrgMembership[]> {
-  // Device host answers from the local directory; remote Identity from its store.
-  const body = await identityJson<{ organizations: OrgMembership[] }>(
-    "/v1/organizations",
-  );
-  return Array.isArray(body?.organizations) ? body.organizations : [];
-}
-
-async function joinOrgTenantDefault(
-  slug: string,
-  method: OrgAuthMethodKind,
-  idToken: string,
-): Promise<OrgMembership> {
-  const normalized = normalizeSlug(slug);
-  const joined = await identityJson<OrgMembership>(
-    `/v1/organizations/tenants/${encodeURIComponent(normalized)}/join`,
-    {
-      method: "POST",
-      body: JSON.stringify({ method, idToken }),
-    },
-  );
-  if (isString(joined.id)) setActiveOrgProfileId(joined.id);
-  return joined;
+function noDirectory(): never {
+  throw new IdentityError("No organization directory is available.", 0);
 }
 
 export const orgSeams = {
   activeOrgProfileId: activeOrgProfileIdDefault,
   setActiveOrgProfileId: setActiveOrgProfileIdDefault,
-  lookupOrgTenant: lookupOrgTenantDefault,
-  lookupOrgByDomain: lookupOrgByDomainDefault,
-  listOrgMemberships: listOrgMembershipsDefault,
-  joinOrgTenant: joinOrgTenantDefault,
+  lookupOrgTenant: async (_slug: string): Promise<OrgTenant> => noDirectory(),
+  lookupOrgByDomain: async (_domain: string): Promise<OrgTenant | null> =>
+    noDirectory(),
+  listOrgMemberships: async (): Promise<OrgMembership[]> => noDirectory(),
+  joinOrgTenant: async (
+    _slug: string,
+    _method: OrgAuthMethodKind,
+    _idToken: string,
+  ): Promise<OrgMembership> => noDirectory(),
 };
 
 export async function lookupOrgTenant(slug: string): Promise<OrgTenant> {
