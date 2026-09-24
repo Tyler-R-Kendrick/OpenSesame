@@ -177,3 +177,51 @@ async fn an_unconfigured_drive_says_so() {
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(body["error"], "vault_drive_unconfigured");
 }
+
+#[tokio::test]
+async fn a_configured_browser_origin_may_call_the_device_routes_only() {
+    let origin = "https://tyler-r-kendrick.github.io";
+    let state = crate::tests::test_state("http://127.0.0.1:1");
+    let devices = device_routes_for(&[origin.to_string()]).with_state(state);
+    let preflight = Request::builder()
+        .method("OPTIONS")
+        .uri("/v1/vault-drive/slots/slot-0000aaaa/snapshot")
+        .header("origin", origin)
+        .header("access-control-request-method", "PUT")
+        .header(
+            "access-control-request-headers",
+            "authorization,content-type",
+        )
+        .body(Body::empty())
+        .unwrap();
+    let response = devices.clone().oneshot(preflight).await.unwrap();
+    assert!(response.status().is_success());
+    assert_eq!(response.headers()["access-control-allow-origin"], origin);
+    let stranger = Request::builder()
+        .method("OPTIONS")
+        .uri("/v1/vault-drive/slots/slot-0000aaaa/snapshot")
+        .header("origin", "https://evil.example")
+        .header("access-control-request-method", "PUT")
+        .body(Body::empty())
+        .unwrap();
+    let response = devices.oneshot(stranger).await.unwrap();
+    assert!(response
+        .headers()
+        .get("access-control-allow-origin")
+        .is_none());
+    // The operator routes carry no CORS at all.
+    let (operator_app, dir) = app("cors");
+    let preflight = Request::builder()
+        .method("OPTIONS")
+        .uri("/v1/vault-drive/slots")
+        .header("origin", origin)
+        .header("access-control-request-method", "POST")
+        .body(Body::empty())
+        .unwrap();
+    let response = operator_app.oneshot(preflight).await.unwrap();
+    assert!(response
+        .headers()
+        .get("access-control-allow-origin")
+        .is_none());
+    let _ = std::fs::remove_dir_all(dir);
+}

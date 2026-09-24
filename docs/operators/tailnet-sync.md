@@ -77,6 +77,20 @@ After that each device syncs on unlock, 1.5 s after a change, and once a
 minute while the vault is open. The panel's status glyph says when it was last
 in step, or why it failed.
 
+## Checking it end to end
+
+```bash
+cargo build -p opensesame-cli
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:tailnet-sync
+```
+
+Runs a real drive on loopback and two isolated browser devices: A seals and
+pairs, B adopts from the link and unlocks with A's password, B's edit reaches
+A. Chrome asks once before a public page reaches a tailnet or local address
+(Local Network Access); allow it on each device.
+
 ## What the drive sees
 
 | The drive holds | The drive never holds |

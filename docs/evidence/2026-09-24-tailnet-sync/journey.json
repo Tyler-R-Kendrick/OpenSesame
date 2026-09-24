@@ -1,0 +1,96 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Networking"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "settings/vaults#pair-drive=opensesame-drive:v1:eyJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0Iiwic2xvdCI6IjViMWMyZDNlLTBmNGEtNGI2Yy04ZDllLTBhMWIyYzNkNGU1ZiIsImtleSI6IlFtOW5kWE10WlhacFpHVnVZMlV0YTJWNUxXNXZkQzFoTFhKbFlXd3RiMjVsIiwibGFiZWwiOiJQZXJzb25hbCB2YXVsdCJ9"
+        },
+        {
+          "count": [
+            "#tailnet-sync",
+            "#tailnet-sync-code"
+          ]
+        },
+        {
+          "address": null
+        },
+        {
+          "scrollToOptional": "Tailnet sync"
+        },
+        {
+          "measure": "#tailnet-sync-code, #tailnet-sync .icon-btn"
+        },
+        {
+          "shot": "390-vaults-tailnet-sync"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Networking"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "settings/vaults#pair-drive=opensesame-drive:v1:eyJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0Iiwic2xvdCI6IjViMWMyZDNlLTBmNGEtNGI2Yy04ZDllLTBhMWIyYzNkNGU1ZiIsImtleSI6IlFtOW5kWE10WlhacFpHVnVZMlV0YTJWNUxXNXZkQzFoTFhKbFlXd3RiMjVsIiwibGFiZWwiOiJQZXJzb25hbCB2YXVsdCJ9"
+        },
+        {
+          "count": [
+            "#tailnet-sync",
+            "#tailnet-sync-code"
+          ]
+        },
+        {
+          "address": null
+        },
+        {
+          "scrollToOptional": "Tailnet sync"
+        },
+        {
+          "measure": "#tailnet-sync-code, #tailnet-sync .icon-btn"
+        },
+        {
+          "shot": "1280-vaults-tailnet-sync"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-vaults-tailnet-sync",
+      "width": 390,
+      "title": "Settings \u203a Vaults with Networking on \u2014 390 \u00d7 844",
+      "caption": "A guest opens the pairing link the CLI prints. The branch draws the Tailnet sync panel with the code filled in from the link, and drops the code from the address bar; the base has no panel.",
+      "before": "no #tailnet-sync panel",
+      "after": "panel present; code field and key measured below"
+    },
+    {
+      "shot": "1280-vaults-tailnet-sync",
+      "width": 1280,
+      "title": "Settings \u203a Vaults with Networking on \u2014 1280 \u00d7 900",
+      "caption": "Same walk at desktop width.",
+      "before": "no #tailnet-sync panel",
+      "after": "panel present"
+    }
+  ]
+}

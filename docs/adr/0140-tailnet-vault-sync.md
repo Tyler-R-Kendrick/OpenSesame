@@ -62,7 +62,8 @@ under its own key.**
    serves the device routes too — whois *and* the slot key. Operator routes
    (open, list, close a slot) take the operator token or the Unix-socket peer
    check, refuse any request carrying `Origin`, and are never on the tailnet
-   listener. Pages accepts a drive only at a `*.ts.net` name, a
+   listener. CORS in the daemon is route-scoped: only the two device routes carry
+   `OPENSESAME_CORS_ORIGINS`. Pages accepts a drive only at a `*.ts.net` name, a
    `100.64.0.0/10` address, a bare MagicDNS name, or loopback.
 3. **Pairing.** `opensesame daemon drive create` opens a slot and prints a
    pairing code (`opensesame-drive:v1:` + base64url of url, slot, key, label)

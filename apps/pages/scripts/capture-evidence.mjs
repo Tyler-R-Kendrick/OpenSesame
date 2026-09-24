@@ -96,6 +96,17 @@ async function press(locator) {
   else await locator.click();
 }
 
+/** Press what proposes a capability change, then Settings' own Apply. */
+async function applyCapability(page, control) {
+  await press(control);
+  await page.waitForTimeout(400);
+  await press(page.getByTestId("capability-apply"));
+  await page
+    .getByTestId("capability-review")
+    .waitFor({ state: "detached", timeout: 20_000 });
+  await page.waitForTimeout(600);
+}
+
 const STEPS = {
   /**
    * Seal a password vault on this device: the operator's own installation,
@@ -232,14 +243,18 @@ const STEPS = {
     await STEPS.tab(page, "settings");
     await STEPS.open(page, "Capabilities");
     const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
-    if (!(await add.count())) return;
-    await press(add.first());
-    await page.waitForTimeout(400);
-    await press(page.getByTestId("capability-apply"));
-    await page
-      .getByTestId("capability-review")
-      .waitFor({ state: "detached", timeout: 20_000 });
-    await page.waitForTimeout(600);
+    if (await add.count()) await applyCapability(page, add.first());
+  },
+  /** A whole feature, by its own switch — what a person actually turns on. */
+  async feature(page, title) {
+    await STEPS.tab(page, "settings");
+    await STEPS.open(page, "Capabilities");
+    const toggle = page.getByRole("switch", { name: title, exact: true });
+    if (!(await toggle.count()))
+      throw new Error(
+        `capture-evidence feature("${title}"): no switch matched`,
+      );
+    await applyCapability(page, toggle.first());
   },
   /** A new section loads with the app root, so a chosen one needs a reload. */
   async reload(page) {

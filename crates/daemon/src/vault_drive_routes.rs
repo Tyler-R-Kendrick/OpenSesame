@@ -223,13 +223,25 @@ pub(crate) async fn write_snapshot(
 }
 
 /// Device routes only — what the whois-gated tailnet listener also serves.
+///
+/// CORS is route-scoped in this codebase: these two are the only daemon
+/// routes a browser may call, so they alone carry the configured origins
+/// (`OPENSESAME_CORS_ORIGINS`). The operator routes carry none.
 pub(crate) fn device_routes() -> Router<App> {
-    Router::new().route(
-        "/v1/vault-drive/slots/{slot}/snapshot",
-        get(read_snapshot)
-            .put(write_snapshot)
-            .layer(DefaultBodyLimit::max(MAX_PUT_BYTES)),
-    )
+    device_routes_for(&opensesame_host_core::http_security::cors_origins_from_env())
+}
+
+pub(crate) fn device_routes_for(origins: &[String]) -> Router<App> {
+    Router::new()
+        .route(
+            "/v1/vault-drive/slots/{slot}/snapshot",
+            get(read_snapshot)
+                .put(write_snapshot)
+                .layer(DefaultBodyLimit::max(MAX_PUT_BYTES)),
+        )
+        .layer(opensesame_host_core::http_security::browser_cors_layer(
+            origins,
+        ))
 }
 
 /// Every drive route, for the main listener.

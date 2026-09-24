@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-24-tailnet-sync/`](2026-09-24-tailnet-sync/README.md) | Tailnet vault sync — a Settings › Vaults panel, and two devices in step |
 | [`2026-09-24-reviewer-findings/`](2026-09-24-reviewer-findings/README.md) | Reviewer findings fixed — before / after |
 | [`2026-09-24-join-a-session/`](2026-09-24-join-a-session/README.md) | Join a session, restored (ADR 0136) |
 | [`2026-09-23-layout-smells/`](2026-09-23-layout-smells/README.md) | Layout smells — keys with a home, fields with a measure, a phone that can find its way |
