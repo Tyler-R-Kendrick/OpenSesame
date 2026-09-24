@@ -3520,17 +3520,14 @@ dependencies = [
 name = "opensesame-authn"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "base64 0.22.1",
  "chrono",
  "opensesame-domain",
- "opensesame-redaction",
  "rand 0.8.7",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "thiserror 2.0.19",
- "tracing",
  "url",
 ]
 
@@ -3914,7 +3911,6 @@ dependencies = [
  "opensesame-a2h",
  "opensesame-agent-events",
  "opensesame-audit",
- "opensesame-authn",
  "opensesame-authz",
  "opensesame-breach-intel",
  "opensesame-broker",
@@ -4324,7 +4320,6 @@ dependencies = [
 name = "opensesame-redaction"
 version = "0.1.0"
 dependencies = [
- "once_cell",
  "regex",
  "serde_json",
 ]
@@ -4341,11 +4336,7 @@ dependencies = [
 name = "opensesame-rotation"
 version = "0.1.0"
 dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
  "serde",
- "serde_json",
  "shuttle",
  "thiserror 2.0.19",
 ]
@@ -4462,7 +4453,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
- "thiserror 2.0.19",
  "tokio",
  "tracing",
  "uuid",

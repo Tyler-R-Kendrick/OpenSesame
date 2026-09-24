@@ -4,11 +4,11 @@
  *
  * The JSON files are the single corpus: this package embeds them for the
  * client plane and `crates/vault-item-types` embeds the same files with
- * `include_str!` for the host plane (ADR 0078 §8). Generating a module rather
+ * `include_str!` for the host plane (ADR 0087). Generating a module rather
  * than importing JSON keeps the package loadable under both Node's ESM
  * resolver and Vite without an import attribute in either.
  *
- * `src/definitions.generated.test.ts` fails if this output has drifted, so
+ * `src/registry.test.ts` fails if this output has drifted, so
  * editing a definition without re-running this script cannot merge.
  */
 

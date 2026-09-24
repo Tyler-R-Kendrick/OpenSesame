@@ -7,7 +7,7 @@
  * native secret, and the built-in corpus itself.
  *
  * `crates/vault-item-types` mirrors the parser and the projection for the host
- * plane from the same `definitions/*.json`.
+ * plane from the same corpus, `marketplace/item-types/builtin/*.json`.
  */
 
 export * from "./catalogue.js";
