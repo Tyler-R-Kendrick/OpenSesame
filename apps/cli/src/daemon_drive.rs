@@ -17,7 +17,7 @@ pub enum DriveCmd {
         /// Where devices reach this daemon. Defaults to its Tailscale Serve URL.
         #[arg(long)]
         url: Option<String>,
-        /// The OpenSesame app the pairing link opens.
+        /// The web app the pairing link opens.
         #[arg(long, env = "OPENSESAME_PAGES_URL", default_value = DEFAULT_PAGES_URL)]
         pages_url: String,
         /// Print the code and link only, no QR.
