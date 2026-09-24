@@ -12,7 +12,6 @@ import {
   PERSONAL_PROJECT_ID,
   PROJECTS_KEY,
   createProject,
-  deleteProject,
   rehydrateProjects,
   setActiveProject,
 } from "../projects.js";
@@ -255,9 +254,6 @@ describe("VaultStore multi-method unlock", () => {
     expect(store.isUnlocked()).toBe(false);
     expect(store.getSnapshot().status).toBe("empty");
     await setActiveProject(PERSONAL_PROJECT_ID);
-    // A project registers when it is created, sealed or not (ADR 0143):
-    // this one stays on the device until it is deleted.
-    await deleteProject(project.id);
     kvDelete(PROJECTS_KEY);
     rehydrateProjects();
   });
@@ -327,7 +323,7 @@ describe("VaultStore multi-method unlock", () => {
     await store.saveItem(createItem("login", "Personal only"));
 
     // Sealed with this vault's key (the Manage panel's "share" road).
-    const shared = await createProject("Work");
+    const shared = await createProject("Shared");
     await setActiveProject(shared.id);
     await store.forkUnlockedIntoActiveScope();
     await store.saveItem(createItem("login", "Work only"));

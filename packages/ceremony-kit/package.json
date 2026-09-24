@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "UI-independent ceremony logic: canonical interaction links, the interaction client, display-safe summaries and device approval (ADR 0086)",
+  "description": "UI-independent ceremony logic: canonical interaction links, the interaction client and approval model, display-safe summaries and device approval (ADR 0086)",
   "exports": {
     ".": {
       "types": "./src/index.ts",
