@@ -20,7 +20,7 @@ import {
   type IncidentRecord,
   IncidentRecordSchema,
   type IncidentState,
-} from "@opensesame/contracts";
+} from "@opensesame/contracts/duress";
 import { duressSessionFence } from "../session/fence.js";
 import {
   type JournalWriteResult,

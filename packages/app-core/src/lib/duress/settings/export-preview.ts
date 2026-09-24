@@ -5,9 +5,9 @@
 import {
   type CompilerCatalog,
   compileDuressPolicy,
-} from "@opensesame/contracts";
-import type { PolicyDocument } from "@opensesame/contracts";
-import { PolicyDocumentSchema } from "@opensesame/contracts";
+} from "@opensesame/contracts/duress";
+import type { PolicyDocument } from "@opensesame/contracts/duress";
+import { PolicyDocumentSchema } from "@opensesame/contracts/duress";
 import {
   type BoundaryValue,
   type JsonObject,

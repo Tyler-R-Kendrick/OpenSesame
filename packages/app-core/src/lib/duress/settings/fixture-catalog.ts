@@ -3,7 +3,7 @@
  * Never use production vault refs in CI fixtures.
  */
 
-import type { CompilerCatalog } from "@opensesame/contracts";
+import type { CompilerCatalog } from "@opensesame/contracts/duress";
 
 export const SETTINGS_FIXTURE_CATALOG: CompilerCatalog = {
   ownerPrincipalRefs: ["owner-1"],

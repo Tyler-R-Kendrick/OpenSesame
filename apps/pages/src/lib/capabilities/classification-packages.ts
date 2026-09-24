@@ -95,6 +95,17 @@ export const PACKAGE_RULES = [
     "connectors.external",
     "Host connection schemas; also identity-management (enterprise)",
   ),
+  // The duress corner of that package is core, and the longer pattern wins.
+  // A duress code is an unlock method, so its policy documents, compiler and
+  // incident records belong to `vault.local-unlock` (ADR 0131) — the same
+  // rule `src/lib/duress/` already gets. Without this the core duress
+  // settings could not name a contract without dragging the connector
+  // schemas in behind it.
+  core(
+    `${NM}@opensesame/contracts/src/duress/`,
+    "vault.local-unlock",
+    "duress policy documents, compiler and incident records",
+  ),
   optional(
     `${NM}@opensesame/api-client`,
     "access.authority",
