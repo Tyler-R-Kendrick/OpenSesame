@@ -54,18 +54,18 @@ describe("parseTotp", () => {
     ).toThrow(/unsupported hash algorithm/);
   });
 
-  it("falls back to RFC defaults for out-of-range digits and periods", () => {
-    const weird = parseTotp(
-      "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=4&period=0",
-    );
-    expect(weird.digits).toBe(6);
-    expect(weird.period).toBe(30);
-
-    const notNumbers = parseTotp(
-      "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=lots&period=soon",
-    );
-    expect(notNumbers.digits).toBe(6);
-    expect(notNumbers.period).toBe(30);
+  it("refuses out-of-range digits and periods rather than guessing", () => {
+    expect(() =>
+      parseTotp("otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=4&period=0"),
+    ).toThrow(/digit count/);
+    expect(() =>
+      parseTotp(
+        "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=lots&period=soon",
+      ),
+    ).toThrow(/digit count/);
+    expect(() =>
+      parseTotp("otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&period=0"),
+    ).toThrow(/period/);
   });
 
   it("treats a bare seed as SHA-1, 6 digits, 30 seconds", () => {

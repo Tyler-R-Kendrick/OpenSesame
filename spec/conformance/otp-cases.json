@@ -1,0 +1,439 @@
+{
+  "$comment": "One-time password conformance cases (RFC 4226, RFC 6238, Key URI Format). Every OTP implementation reads this file: crates/authenticator-core (Rust) and packages/vault-core (TypeScript). An invalid parameter is refused, never replaced by a default: a code computed from different parameters than the issuer's is wrong, not degraded. ADR 0139.",
+  "parseTotp": [
+    {
+      "name": "bare seed, lowercase, spaced",
+      "input": "jbsw y3dp ehpk 3pxp",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "period": 30,
+        "algorithm": "SHA-1"
+      }
+    },
+    {
+      "name": "bare seed with trailing padding",
+      "input": "JBSWY3DPEHPK3PXP==",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "period": 30,
+        "algorithm": "SHA-1"
+      }
+    },
+    {
+      "name": "minimal otpauth URI",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "period": 30,
+        "algorithm": "SHA-1"
+      }
+    },
+    {
+      "name": "uppercase scheme and type",
+      "input": "OTPAUTH://TOTP/a?secret=JBSWY3DPEHPK3PXP",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "period": 30,
+        "algorithm": "SHA-1"
+      }
+    },
+    {
+      "name": "algorithm is case-insensitive",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&algorithm=sha256",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "period": 30,
+        "algorithm": "SHA-256"
+      }
+    },
+    {
+      "name": "hyphenated algorithm",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&algorithm=SHA-512",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "period": 30,
+        "algorithm": "SHA-512"
+      }
+    },
+    {
+      "name": "eight digits, sixty seconds",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=8&period=60",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 8,
+        "period": 60,
+        "algorithm": "SHA-1"
+      }
+    },
+    {
+      "name": "ten digits is the ceiling",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=10",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 10,
+        "period": 30,
+        "algorithm": "SHA-1"
+      }
+    },
+    {
+      "name": "five digits is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=5",
+      "error": true
+    },
+    {
+      "name": "eleven digits is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=11",
+      "error": true
+    },
+    {
+      "name": "fractional digits are refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=6.5",
+      "error": true
+    },
+    {
+      "name": "non-numeric digits are refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=lots",
+      "error": true
+    },
+    {
+      "name": "a zero period is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&period=0",
+      "error": true
+    },
+    {
+      "name": "a negative period is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&period=-30",
+      "error": true
+    },
+    {
+      "name": "a fractional period is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&period=30.5",
+      "error": true
+    },
+    {
+      "name": "a non-numeric period is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&period=soon",
+      "error": true
+    },
+    {
+      "name": "an unknown algorithm is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&algorithm=MD5",
+      "error": true
+    },
+    {
+      "name": "a URI without a secret is refused",
+      "input": "otpauth://totp/a?issuer=x",
+      "error": true
+    },
+    {
+      "name": "a repeated secret is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&secret=GEZDGNBV",
+      "error": true
+    },
+    {
+      "name": "a repeated digits parameter is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP&digits=6&digits=8",
+      "error": true
+    },
+    {
+      "name": "a secret outside base32 is refused",
+      "input": "otpauth://totp/a?secret=ABC1",
+      "error": true
+    },
+    {
+      "name": "padding inside a secret is refused",
+      "input": "JBSW=Y3DPEHPK3PXP",
+      "error": true
+    },
+    {
+      "name": "an empty secret is refused",
+      "input": "   ",
+      "error": true
+    },
+    {
+      "name": "credentials in the URI are refused",
+      "input": "otpauth://user:pw@totp/a?secret=JBSWY3DPEHPK3PXP",
+      "error": true
+    },
+    {
+      "name": "a fragment is refused",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP#x",
+      "error": true
+    },
+    {
+      "name": "an HOTP URI is not TOTP",
+      "input": "otpauth://hotp/a?secret=JBSWY3DPEHPK3PXP&counter=0",
+      "error": true
+    },
+    {
+      "name": "another scheme is refused",
+      "input": "https://totp/a?secret=JBSWY3DPEHPK3PXP",
+      "error": true
+    }
+  ],
+  "parseHotp": [
+    {
+      "name": "counter zero",
+      "input": "otpauth://hotp/a?secret=JBSWY3DPEHPK3PXP&counter=0",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 6,
+        "algorithm": "SHA-1",
+        "counter": 0
+      }
+    },
+    {
+      "name": "counter and digits",
+      "input": "otpauth://hotp/a?secret=JBSWY3DPEHPK3PXP&counter=5&digits=8",
+      "expect": {
+        "secretHex": "48656c6c6f21deadbeef",
+        "digits": 8,
+        "algorithm": "SHA-1",
+        "counter": 5
+      }
+    },
+    {
+      "name": "a missing counter is refused",
+      "input": "otpauth://hotp/a?secret=JBSWY3DPEHPK3PXP",
+      "error": true
+    },
+    {
+      "name": "a negative counter is refused",
+      "input": "otpauth://hotp/a?secret=JBSWY3DPEHPK3PXP&counter=-1",
+      "error": true
+    },
+    {
+      "name": "a non-numeric counter is refused",
+      "input": "otpauth://hotp/a?secret=JBSWY3DPEHPK3PXP&counter=abc",
+      "error": true
+    },
+    {
+      "name": "a TOTP URI is not HOTP",
+      "input": "otpauth://totp/a?secret=JBSWY3DPEHPK3PXP",
+      "error": true
+    },
+    {
+      "name": "a bare seed is not HOTP",
+      "input": "JBSWY3DPEHPK3PXP",
+      "error": true
+    }
+  ],
+  "codes": [
+    {
+      "name": "RFC 6238 SHA-1 T=59",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=8&algorithm=SHA1&period=30",
+      "atSeconds": 59,
+      "code": "94287082"
+    },
+    {
+      "name": "RFC 6238 SHA-256 T=59",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Example&digits=8&algorithm=SHA256&period=30",
+      "atSeconds": 59,
+      "code": "46119246"
+    },
+    {
+      "name": "RFC 6238 SHA-512 T=59",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA&issuer=Example&digits=8&algorithm=SHA512&period=30",
+      "atSeconds": 59,
+      "code": "90693936"
+    },
+    {
+      "name": "RFC 6238 SHA-1 T=1111111109",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=8&algorithm=SHA1&period=30",
+      "atSeconds": 1111111109,
+      "code": "07081804"
+    },
+    {
+      "name": "RFC 6238 SHA-256 T=1111111109",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Example&digits=8&algorithm=SHA256&period=30",
+      "atSeconds": 1111111109,
+      "code": "68084774"
+    },
+    {
+      "name": "RFC 6238 SHA-512 T=1111111109",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA&issuer=Example&digits=8&algorithm=SHA512&period=30",
+      "atSeconds": 1111111109,
+      "code": "25091201"
+    },
+    {
+      "name": "RFC 6238 SHA-1 T=1111111111",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=8&algorithm=SHA1&period=30",
+      "atSeconds": 1111111111,
+      "code": "14050471"
+    },
+    {
+      "name": "RFC 6238 SHA-256 T=1111111111",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Example&digits=8&algorithm=SHA256&period=30",
+      "atSeconds": 1111111111,
+      "code": "67062674"
+    },
+    {
+      "name": "RFC 6238 SHA-512 T=1111111111",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA&issuer=Example&digits=8&algorithm=SHA512&period=30",
+      "atSeconds": 1111111111,
+      "code": "99943326"
+    },
+    {
+      "name": "RFC 6238 SHA-1 T=1234567890",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=8&algorithm=SHA1&period=30",
+      "atSeconds": 1234567890,
+      "code": "89005924"
+    },
+    {
+      "name": "RFC 6238 SHA-256 T=1234567890",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Example&digits=8&algorithm=SHA256&period=30",
+      "atSeconds": 1234567890,
+      "code": "91819424"
+    },
+    {
+      "name": "RFC 6238 SHA-512 T=1234567890",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA&issuer=Example&digits=8&algorithm=SHA512&period=30",
+      "atSeconds": 1234567890,
+      "code": "93441116"
+    },
+    {
+      "name": "RFC 6238 SHA-1 T=2000000000",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=8&algorithm=SHA1&period=30",
+      "atSeconds": 2000000000,
+      "code": "69279037"
+    },
+    {
+      "name": "RFC 6238 SHA-256 T=2000000000",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Example&digits=8&algorithm=SHA256&period=30",
+      "atSeconds": 2000000000,
+      "code": "90698825"
+    },
+    {
+      "name": "RFC 6238 SHA-512 T=2000000000",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA&issuer=Example&digits=8&algorithm=SHA512&period=30",
+      "atSeconds": 2000000000,
+      "code": "38618901"
+    },
+    {
+      "name": "RFC 6238 SHA-1 T=20000000000",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=8&algorithm=SHA1&period=30",
+      "atSeconds": 20000000000,
+      "code": "65353130"
+    },
+    {
+      "name": "RFC 6238 SHA-256 T=20000000000",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Example&digits=8&algorithm=SHA256&period=30",
+      "atSeconds": 20000000000,
+      "code": "77737706"
+    },
+    {
+      "name": "RFC 6238 SHA-512 T=20000000000",
+      "kind": "totp",
+      "uri": "otpauth://totp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA&issuer=Example&digits=8&algorithm=SHA512&period=30",
+      "atSeconds": 20000000000,
+      "code": "47863826"
+    },
+    {
+      "name": "RFC 4226 counter 0",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 0,
+      "code": "755224"
+    },
+    {
+      "name": "RFC 4226 counter 1",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 1,
+      "code": "287082"
+    },
+    {
+      "name": "RFC 4226 counter 2",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 2,
+      "code": "359152"
+    },
+    {
+      "name": "RFC 4226 counter 3",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 3,
+      "code": "969429"
+    },
+    {
+      "name": "RFC 4226 counter 4",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 4,
+      "code": "338314"
+    },
+    {
+      "name": "RFC 4226 counter 5",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 5,
+      "code": "254676"
+    },
+    {
+      "name": "RFC 4226 counter 6",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 6,
+      "code": "287922"
+    },
+    {
+      "name": "RFC 4226 counter 7",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 7,
+      "code": "162583"
+    },
+    {
+      "name": "RFC 4226 counter 8",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 8,
+      "code": "399871"
+    },
+    {
+      "name": "RFC 4226 counter 9",
+      "kind": "hotp",
+      "uri": "otpauth://hotp/Example:alice@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&counter=0",
+      "counter": 9,
+      "code": "520489"
+    },
+    {
+      "name": "bare seed uses SHA-1, 6 digits, 30 s",
+      "kind": "totp",
+      "uri": "gezdgnbvgy3tqojqgezdgnbvgy3tqojq",
+      "atSeconds": 59,
+      "code": "287082"
+    },
+    {
+      "name": "a 60 s period halves the counter",
+      "kind": "totp",
+      "uri": "otpauth://totp/a?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&period=60",
+      "atSeconds": 119,
+      "code": "287082"
+    }
+  ]
+}

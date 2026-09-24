@@ -26,3 +26,6 @@ url = { workspace = true }
 name = "uniffi-bindgen"
 path = "src/bin/uniffi-bindgen.rs"
 required-features = ["bindgen"]
+
+[dev-dependencies]
+serde_json = { workspace = true }
