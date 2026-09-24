@@ -50,7 +50,7 @@ impl BoundaryOp {
     }
 }
 
-/// Epoch triple frozen into an incident / AccessContext (INV-09, INV-13).
+/// Epoch triple frozen into an incident / `AccessContext` (INV-09, INV-13).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EpochTriple {
     pub policy_epoch: u64,

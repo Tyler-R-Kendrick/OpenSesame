@@ -142,6 +142,11 @@ impl Db {
         Ok(true)
     }
 
+    /// Whether a grant's authority sidecar row exists in its organization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
     pub async fn authority_sidecar_present(
         &self,
         organization_id: &str,

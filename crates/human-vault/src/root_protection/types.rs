@@ -123,6 +123,9 @@ impl ProtectionRecord {
     }
 }
 
+/// Four independent enrollment flags, spelled as the manifest spells them;
+/// an enum set would change the wire format the Pages client writes.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticatedLegacyGates {

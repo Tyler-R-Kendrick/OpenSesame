@@ -34,10 +34,8 @@ fn canonicalize_value(value: &Value) -> Result<Value, ProtectionError> {
             keys.sort();
             let mut out = Map::new();
             for key in keys {
+                // Explicit nulls are kept; only absent keys are skipped.
                 if let Some(entry) = map.get(key) {
-                    if entry.is_null() {
-                        // Keep explicit nulls; skip only absent keys (already).
-                    }
                     out.insert(key.clone(), canonicalize_value(entry)?);
                 }
             }

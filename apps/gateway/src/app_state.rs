@@ -145,7 +145,9 @@ impl AppState {
 
 pub async fn build(args: Args) -> anyhow::Result<AppState> {
     let security = config::StartupSecurity::load(&args).map_err(anyhow::Error::msg)?;
-    build_with_security(args, security).await
+    // Boxed here, once: the state's construction is ~18 KiB of future, and
+    // every caller (the binary, each test fixture) would otherwise carry it.
+    Box::pin(build_with_security(args, security)).await
 }
 
 async fn build_with_security(
@@ -270,7 +272,7 @@ pub async fn build_test(args: Args) -> anyhow::Result<AppState> {
             uuid::Uuid::new_v4().simple()
         )
     };
-    let mut state = build_with_security(
+    let mut state = Box::pin(build_with_security(
         args,
         config::StartupSecurity {
             host_authorization: None,
@@ -283,7 +285,7 @@ pub async fn build_test(args: Args) -> anyhow::Result<AppState> {
             claim_pepper: secret(),
             receipt_signer: opensesame_audit::ReceiptSigner::generate(),
         },
-    )
+    ))
     .await?;
     if state.connection_organization.as_uuid().is_nil() {
         state.connection_organization = OrganizationId::new();
