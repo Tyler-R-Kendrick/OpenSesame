@@ -57,7 +57,11 @@ export async function walkJNav({ page, origin, base, check, snap }) {
   await unlockWithPassword(page);
   await openGeneral(page);
   const stored = await page.locator(KEYBINDINGS).inputValue();
-  check(stored.includes('"j": "item.edit"'), "remap survived unlock/reload");
+  // keybindings.yaml is written as YAML; the JSON typed above still reads.
+  check(
+    /^\s*"?j"?: "?item\.edit"?,?$/m.test(stored),
+    "remap survived unlock/reload",
+  );
   check(
     /pending-approvals|saved view/i.test(
       await page.locator("body").innerText(),
