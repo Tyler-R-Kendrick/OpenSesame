@@ -273,6 +273,12 @@ export const LIB_RULES = [
     SIGNIN,
     "ownership claim: link, stash, present/read/complete (ADR 0140)",
   ),
+  // Moves with `claims/` to `identity.ceremonies` (ADR 0140 plan step 7).
+  core(
+    `${L}interactions`,
+    SIGNIN,
+    "interaction approval: /i/<ref> link, resolve/read, activation, decide (ADR 0140)",
+  ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),
   ),
