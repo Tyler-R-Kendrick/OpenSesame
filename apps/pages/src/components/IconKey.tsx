@@ -11,6 +11,7 @@ export function IconKey({
   children,
   small = false,
   danger = false,
+  armed = false,
   keyRef,
   ...rest
 }: {
@@ -20,12 +21,14 @@ export function IconKey({
   children: ReactNode;
   small?: boolean;
   danger?: boolean;
+  /** A destructive key that one more press will fire. */
+  armed?: boolean;
   keyRef?: Ref<HTMLButtonElement>;
 } & Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   "aria-label" | "title" | "className" | "children"
 >) {
-  const className = `icon-btn${small ? " icon-btn--sm" : ""}${danger ? " icon-btn--danger" : ""}`;
+  const className = `icon-btn${small ? " icon-btn--sm" : ""}${danger ? " icon-btn--danger" : ""}${armed ? " is-armed" : ""}`;
   return (
     <button
       ref={keyRef}

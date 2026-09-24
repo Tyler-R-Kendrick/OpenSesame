@@ -76,4 +76,15 @@ describe("settingsPageTree", () => {
       "danger",
     ]);
   });
+
+  it("names General › Install only when the panel draws", () => {
+    const general = (install: boolean) =>
+      settingsPageTree({ install })
+        .find((node) => node.id === "general")
+        ?.children.map((node) => node.label);
+    // A rail entry for a panel that returned null opened General at its
+    // top with nothing to show for it.
+    expect(general(false)).toEqual([]);
+    expect(general(true)).toEqual(["Install"]);
+  });
 });

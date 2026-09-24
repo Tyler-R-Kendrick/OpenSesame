@@ -17,6 +17,8 @@ export type SettingsRailSnapshot = {
   showHidden?: boolean;
   /** The rail's current path: a hidden file is drawn while you stand in it. */
   current?: string;
+  /** General › Install draws (InstallPanel's own rule); unlisted when not. */
+  install?: boolean;
 };
 
 function panel(
@@ -52,7 +54,9 @@ function sectionsFor(
 ): PageTreeSource[] {
   switch (category) {
     case "general":
-      return [panel("general", "settings-install", "Install")];
+      return snapshot.install
+        ? [panel("general", "settings-install", "Install")]
+        : [];
     case "security":
       return [
         panel("security", "vault-key-protection", "Vault key protection"),

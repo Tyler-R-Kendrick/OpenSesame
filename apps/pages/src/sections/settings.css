@@ -122,6 +122,17 @@
   border-bottom-color: color-mix(in srgb, var(--err) 22%, var(--line));
 }
 
+.set__danger-target {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.set__danger-target strong {
+  color: var(--ink);
+}
+
 .cap-list {
   list-style: none;
   margin: 0;
