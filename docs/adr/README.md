@@ -179,3 +179,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0137](0137-open-sessions-admit-on-ask.md) | Open sessions may admit on ask, as observers | Accepted |
 | [0138](0138-self-issued-identity-one-native-host.md) | Self-issued identity by default, one native host, apps are packages | Proposed |
 | [0139](0139-one-definition-every-target.md) | One definition, every target | Accepted |
+| [0140](0140-nats-feature-usage.md) | Using NATS fully: delivery semantics, services, mixed-mode callout | Accepted |

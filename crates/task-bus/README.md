@@ -20,6 +20,19 @@ request/reply in the AUTH account (`ops/nats/secure-callout.conf`, bridge in
 `crates/nats-callout`). `opensesame.callout.>` is an unrelated reserved
 application prefix and is never that wire.
 
+## Delivery semantics (ADR 0140)
+
+| Call | Guarantee |
+|---|---|
+| `publish` | Idempotent on JetStream: `Nats-Msg-Id` = event `id`, `Nats-Expected-Stream: OPENSESAME_EVENTS`; a repeat inside the 2-minute duplicate window is stored once |
+| `drain(max)` | At most once — events arrive already acked. For wakes whose work re-reads an outbox. A payload that is not a `BusEvent` is terminated, never returned as an error |
+| `process(max, handler)` | At least once — the handler runs first; `Ok` is acked with server confirmation, `Err` is nak'd with `Redelivery::nak_delay`, an undecodable payload is terminated. Handlers must be idempotent |
+
+The stream is bounded (`StreamLimits`: 7 days, 1 GiB, 1 MiB per message,
+discard-old) and durables redeliver at most `Redelivery::max_deliver` (8)
+times. Provisioning is create-or-update, so re-running it converges a stream
+and durables an older release created.
+
 ## Transport profiles (ADR 0132)
 
 The client transport is resolved from the deployment plane
@@ -39,7 +52,9 @@ On any TLS profile the client sets `require_tls`, `ignore_discovered_servers`
 `UnavailableTaskBus` — never memory, never plaintext.
 
 Roles (`NatsRole`) are least privilege and map one-to-one onto the nkey users
-in `ops/nats/secure-client.conf`: `provisioner` (the one-time stream/consumer
+in `ops/nats/opensesame-roles.conf` (included by `secure-client.conf`, and by
+`secure-callout.conf` where they bypass the callout — mixed mode) plus the
+callout user: `provisioner` (the one-time stream/consumer
 creation), `host`, `publisher`, `consumer`, `backup`, `callout`. Only the
 provisioner may create; every runtime role that finds no durable fails with
 `not_provisioned`.
@@ -68,6 +83,7 @@ cargo +1.88.0 test -p opensesame-task-bus --features jetstream
 cargo +1.88.0 test -p opensesame-task-bus --no-default-features
 
 # Real-server suites (pinned nats-server 2.11.17 from scripts/mtls/mtls-fixtures.sh):
+# roles, routes, TLS topology, callout expiry, delivery semantics, mixed mode
 OPENSESAME_MTLS_FIXTURES=1 \
   cargo +1.88.0 test -p opensesame-task-bus --features live-tests -- --ignored
 ```
