@@ -26,7 +26,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | console `/` sign-in | OIDC, `/v1/federated/providers` | `SignInPanel` | covered |
 | console `/claim` | as ceremonies `/claim` | none | missing (second copy) |
 | console `/task-access` | Host task read | CLI / MCP | not moved (D4) |
-| console `/organization` | organizations, domains, SCIM tokens | Identity › Organizations (create, members) | partial |
+| console `/organization` | organizations, domains, SCIM tokens | Identity › Organizations (create, members); model: app-core `lib/org-signin.ts` (step 6) | partial: no panels (step 12) |
 
 ## Placement
 

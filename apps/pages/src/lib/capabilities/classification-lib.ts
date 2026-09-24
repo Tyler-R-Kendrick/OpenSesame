@@ -307,6 +307,13 @@ export const LIB_RULES = [
       "Identity API agent/user management",
     ),
   ),
+  // The plan's placement (ADR 0140 plan step 12): Identity › Organizations'
+  // sign-in panels, under the capability that already owns organizations.
+  optional(
+    `${L}org-signin`,
+    "enterprise.directory-provisioning",
+    "organization upstream, email domains and SCIM tokens (ADR 0140)",
+  ),
   // Duress (ADR 0131): a duress code is an unlock method, and the fence,
   // compartments and alerting it drives all hang off unlocking, so the whole
   // tree belongs to the core unlock capability.
