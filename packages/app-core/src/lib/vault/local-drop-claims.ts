@@ -33,10 +33,20 @@ const MAX_ATTEMPTS = 5;
 
 export class LocalDropClaimError extends Error {
   readonly code: "unreachable" | "refused";
-  constructor(code: "unreachable" | "refused", message: string) {
+  /**
+   * The Identity API's error code for the same refusal, so a drop opened on
+   * this device is read by the one wording (ceremony-kit `dropRefusal`).
+   */
+  readonly wire: string;
+  constructor(
+    code: "unreachable" | "refused",
+    message: string,
+    wire: string = code,
+  ) {
     super(message);
     this.name = "LocalDropClaimError";
     this.code = code;
+    this.wire = wire;
   }
 }
 
@@ -284,25 +294,20 @@ export async function presentLocalDropClaim(
   userCode: string,
 ): Promise<PresentedLocalDrop> {
   const pepper = await devicePepper();
+  const refuse = (wire: string, message: string) =>
+    new LocalDropClaimError("refused", message, wire);
+  const malformed = "This drop link's claim token is not well formed.";
   const parts = bearerToken.split(".");
   if (parts.length !== 2 || !parts[0]?.startsWith("osc_clm_")) {
-    throw new LocalDropClaimError(
-      "refused",
-      "This drop link's claim token is not well formed.",
-    );
+    throw refuse("invalid_token", malformed);
   }
   const claimId = parts[0].slice("osc_clm_".length);
-  if (!claimId) {
-    throw new LocalDropClaimError(
-      "refused",
-      "This drop link's claim token is not well formed.",
-    );
-  }
+  if (!claimId) throw refuse("invalid_token", malformed);
   const store = readStore();
   const raw = store.claims[claimId];
   if (!raw) {
-    throw new LocalDropClaimError(
-      "refused",
+    throw refuse(
+      "not_found",
       "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
     );
   }
@@ -310,24 +315,21 @@ export async function presentLocalDropClaim(
   if (record.state === "expired") {
     store.claims[claimId] = record;
     writeStore(store);
-    throw new LocalDropClaimError("refused", "This drop has expired.");
+    throw refuse("EXPIRED", "This drop has expired.");
   }
   if (record.state === "presented") {
-    throw new LocalDropClaimError(
-      "refused",
+    throw refuse(
+      "INVALID_TRANSITION",
       "This drop was already opened and cannot be opened again.",
     );
   }
   const tokenDigest = await sha256Url([pepper, "token", bearerToken]);
   if (!timingSafeEqual(tokenDigest, record.tokenDigest)) {
-    throw new LocalDropClaimError(
-      "refused",
-      "This drop's claim token was refused.",
-    );
+    throw refuse("invalid_token", "This drop's claim token was refused.");
   }
   if (record.attempts >= MAX_ATTEMPTS) {
-    throw new LocalDropClaimError(
-      "refused",
+    throw refuse(
+      "too_many_attempts",
       "Too many wrong codes for this drop. Seal a new one.",
     );
   }
@@ -345,10 +347,7 @@ export async function presentLocalDropClaim(
     };
     store.claims[claimId] = record;
     writeStore(store);
-    throw new LocalDropClaimError(
-      "refused",
-      "That code does not match this drop.",
-    );
+    throw refuse("invalid_user_code", "That code does not match this drop.");
   }
   record = {
     ...record,

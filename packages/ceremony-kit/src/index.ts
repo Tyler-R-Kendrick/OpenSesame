@@ -44,9 +44,24 @@ export {
 } from "./deep-link.js";
 export {
   type ClaimStash,
+  type ClaimStashOptions,
   createClaimStash,
   type StashStorage,
 } from "./claim-stash.js";
+export {
+  type ClaimLink,
+  fragmentCarriesBearer,
+  isClaimToken,
+  readClaimLink,
+} from "./claim-link.js";
+export {
+  type ClaimRefusal,
+  type ClaimRefusalKind,
+  claimRefusal,
+  type DropRefusal,
+  type DropRefusalCode,
+  dropRefusal,
+} from "./claim-words.js";
 export {
   approveDevice,
   type ApproveDeviceInput,
@@ -74,9 +89,45 @@ export {
   type InteractionActivationResult,
   type InteractionClient,
   type InteractionClientOptions,
+} from "./interaction-client.js";
+export {
+  INTERACTION_ERROR_WORDS,
   InteractionError,
   type InteractionErrorCode,
-} from "./interaction-client.js";
+} from "./interaction-error.js";
+export {
+  type ApprovalView,
+  chooseMechanism,
+  INTERACTION_WORDS,
+  interactionRefusal,
+  type InteractionRefusal,
+  type InteractionRefusalKind,
+  type Mechanism,
+  type Outcome,
+  OUTCOME_IS_REFUSAL,
+  OUTCOME_MARK,
+  OUTCOME_TEXT,
+  outcomeOfErrorCode,
+  outcomeOfStatus,
+  viewOf,
+} from "./interaction-outcome.js";
+export {
+  createInteractionApproval,
+  type InteractionApproval,
+  type InteractionApprovalDeps,
+  type InteractionAssertion,
+  type InteractionAuthenticator,
+  type InteractionPhase,
+  type InteractionStep,
+  InteractionStepUpError,
+  STEP_UP_WORDS,
+  type StepUpFailure,
+} from "./interaction-approval.js";
+export {
+  type InteractionArrival,
+  type InteractionArrivalRead,
+  readInteractionArrival,
+} from "./interaction-arrival.js";
 export {
   renderInteractionSummary,
   type RenderedInteractionSummary,
