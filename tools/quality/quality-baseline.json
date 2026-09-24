@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 478,
-    "violations": 755,
-    "oversizedLines": 240829
+    "files": 477,
+    "violations": 753,
+    "oversizedLines": 240827
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -26,9 +26,6 @@
     },
     "apps/ceremonies/src/lib/approvals.ts": {
       "max-lines": 556
-    },
-    "apps/ceremonies/src/lib/authenticator-link.ts": {
-      "complexity": 1
     },
     "apps/ceremonies/src/pages/ApprovalReview.tsx": {
       "complexity": 1,
@@ -1247,8 +1244,7 @@
       "max-lines-per-function": 1
     },
     "packages/ceremony-kit/src/interaction-url.ts": {
-      "complexity": 1,
-      "max-lines": 469
+      "max-lines": 467
     },
     "packages/claims/src/__tests__/engine-lifecycle.test.ts": {
       "max-lines": 457

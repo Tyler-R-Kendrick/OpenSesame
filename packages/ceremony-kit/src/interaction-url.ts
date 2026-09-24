@@ -1,4 +1,9 @@
 import { FORBIDDEN_URL_PARAMS, isString } from "@opensesame/os-domain";
+import {
+  LEGACY_LINKS,
+  ceremonyPath,
+  matchCeremonyPath,
+} from "./ceremony-routes.js";
 /**
  * The canonical cross-device interaction link (ADR 0086).
  *
@@ -252,7 +257,7 @@ export function isInteractionRef(ref: string): boolean {
  *
  * **Where it is not safe.** (1) It is not a "private addresses are fine" rule:
  * `10.0.0.5`, `192.168.1.10`, `169.254.169.254` and a tailnet name all cross a
- * wire and are refused here — see `apps/ceremonies/src/lib/authenticator-link.ts`,
+ * wire and are refused here — see `authenticator-invocation.ts`,
  * whose `privateHost()` refuses that whole range for the same reason from the
  * other direction. (2) `localhost` is a *name*, not an address, and a host
  * whose resolver or hosts file has been tampered with can point it anywhere;
@@ -333,7 +338,7 @@ export function buildInteractionUrl(baseUrl: string, ref: string): string {
   // `https://x` produce one spelling — an audit trail split across two
   // spellings of the same link is an audit trail that cannot be joined.
   const prefix = base.pathname.replace(/\/+$/, "");
-  const built = `${base.origin}${prefix}/i/${ref}`;
+  const built = `${base.origin}${prefix}${ceremonyPath("interaction", { ref })}`;
   assertNoForbiddenParams(built);
   return built;
 }
@@ -373,10 +378,7 @@ export function parseInteractionUrl(
   if (!isAcceptableTransport(parsed)) return null;
   if (parsed.username !== "" || parsed.password !== "") return null;
   if (parsed.search !== "" || parsed.hash !== "") return null;
-  const segments = parsed.pathname.split("/");
-  const ref = segments.pop();
-  const marker = segments.pop();
-  if (marker !== "i") return null;
+  const ref = matchCeremonyPath("interaction", parsed.pathname)?.ref;
   if (ref === undefined || !isInteractionRef(ref)) return null;
   // The origin is returned rather than the whole prefix because the origin is
   // the security-relevant half: it is what a surface compares against the host
@@ -396,7 +398,9 @@ export interface LegacyInteractionLink {
  * the *user* code, which is a short display artifact that authorizes nothing.
  * The exemption is one-way: `buildInteractionUrl` still refuses to emit
  * `?code=` in any spelling, so the ambiguity dies with the links already
- * printed instead of being carried into the canonical format.
+ * printed instead of being carried into the canonical format. Written here,
+ * not derived from the spec's legacy query list, so adding a name there can
+ * never quietly exempt it from the deny-list.
  */
 const LEGACY_EXEMPT: ReadonlySet<string> = new Set([
   normalizeParamName("code"),
@@ -412,7 +416,8 @@ const LEGACY_EXEMPT: ReadonlySet<string> = new Set([
  * `buildInteractionUrl` and read by `parseInteractionUrl` — do not extend
  * this function to make a new shape "work".
  *
- * The four shapes still in the wild:
+ * The four shapes still in the wild (`legacy` in
+ * `spec/config/ceremony-routes.json`):
  * - `https://…?user_code=…` — the ceremonies app's browser fallback
  * - `https://…?code=…` — mobile-MFA's alias for the same value
  * - `opensesame://invoke/mfa?user_code=…` — the authenticator deep link
@@ -440,22 +445,15 @@ export function parseLegacyInteractionLink(
     return null;
   }
   const route = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
-  switch (parsed.protocol) {
-    case "https:":
-    case "http:":
-      break;
-    case "opensesame:":
-      if (route !== "invoke/mfa") return null;
-      break;
-    case "opensesame-mfa:":
-      if (route !== "approve") return null;
-      break;
-    default:
-      return null;
-  }
-  const raw =
-    parsed.searchParams.get("user_code") ?? parsed.searchParams.get("code");
-  if (raw === null) return null;
+  const shape = LEGACY_LINKS.links.find(
+    (link) => `${link.scheme}:` === parsed.protocol,
+  );
+  if (shape === undefined) return null;
+  if (shape.route !== undefined && route !== shape.route) return null;
+  const raw = LEGACY_LINKS.query
+    .map((name) => parsed.searchParams.get(name))
+    .find((value) => value !== null);
+  if (raw === undefined || raw === null) return null;
   // Uppercase and trim exactly as `parseUserCode` does, so a code copied with
   // stray whitespace or typed in lower case still matches the one the device
   // is showing. The alphabet is then pinned: a legacy link is attacker-authored

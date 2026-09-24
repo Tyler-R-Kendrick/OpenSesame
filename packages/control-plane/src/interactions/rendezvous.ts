@@ -125,6 +125,18 @@ export function assertClientAppUrl(
 }
 
 /**
+ * The interaction route (`spec/config/ceremony-routes.json`, `interaction`;
+ * ADR 0140 §3). The Identity API's short link and the client app's launcher
+ * share it; `ceremony-routes.test.ts` holds it to the spec.
+ */
+export const INTERACTION_ROUTE = "/i";
+
+/** The path of a reference under {@link INTERACTION_ROUTE}. */
+export function interactionPath(ref: string): string {
+  return `${INTERACTION_ROUTE}/${encodeURIComponent(ref)}`;
+}
+
+/**
  * The canonical launcher URL for a reference under a client-app base.
  *
  * `URL` has already collapsed `.`/`..` and normalized the path before the
@@ -133,7 +145,7 @@ export function assertClientAppUrl(
  */
 function buildLauncherUrl(base: URL, ref: string): string {
   const prefix = base.pathname.replace(/\/+$/, "");
-  const built = new URL(`${base.origin}${prefix}/i/${encodeURIComponent(ref)}`);
+  const built = new URL(`${base.origin}${prefix}${interactionPath(ref)}`);
   assertNoForbiddenParams(built);
   return built.toString();
 }

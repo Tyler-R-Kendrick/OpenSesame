@@ -23,11 +23,17 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 - Approving a device grants a short-lived client session; it does not transfer
   ownership. That is the claim ceremony, kept apart by ADR 0009.
 - Origin, fetch and bearer storage are parameters; each app keeps its own JSX.
+- Every ceremony path comes from `spec/config/ceremony-routes.json`
+  (ADR 0139, ADR 0140 §3): `pnpm --filter @opensesame/ceremony-kit
+  generate:routes` rewrites `src/ceremony-routes.generated.ts`, and
+  `ceremony-routes.test.ts` fails when the two disagree.
 
 ## Surface
 
 | Area | Exports |
 |---|---|
+| Ceremony routes (`ceremony-routes.ts`, generated from `spec/config/ceremony-routes.json`) | `CEREMONY_ROUTES`, `ceremonyPath`, `matchCeremonyPath`, `ceremonyRoutePrefix`, `LEGACY_LINKS`, `invokeKind`, `isAuthenticatorInvocationKind` |
+| Authenticator hand-off (`authenticator-invocation.ts`) | `parseAuthenticatorInvocation`, `AuthenticatorInvocationError` |
 | Interaction links (`interaction-url.ts`) | `buildInteractionUrl`, `parseInteractionUrl`, `parseLegacyInteractionLink`, `isInteractionRef`, `assertNoForbiddenParams`, `InteractionLinkError` |
 | Interaction client (`interaction-client.ts`) | `createInteractionClient`, `InteractionError` |
 | Summary (`interaction-summary.ts`) | `renderInteractionSummary` |

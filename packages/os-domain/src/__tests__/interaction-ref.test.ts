@@ -92,6 +92,7 @@ describe("the forbidden-parameter deny list", () => {
       "client_secret",
       "claim_token",
       "vp_token",
+      "credential_offer",
       "password",
       "cvv",
       "pan",
