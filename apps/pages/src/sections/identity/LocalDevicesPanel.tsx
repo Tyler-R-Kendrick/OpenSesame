@@ -58,9 +58,6 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
         <h2>Devices</h2>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Browsers and installs that have unlocked this vault, not passkeys.
-        </p>
         {error ? (
           <p className="note note--err" role="alert">
             {error}

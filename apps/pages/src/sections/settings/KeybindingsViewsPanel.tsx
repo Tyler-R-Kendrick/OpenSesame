@@ -60,10 +60,6 @@ export function KeybindingsViewsPanel() {
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Bindings are inert action ids. Imported maps never run immediately.
-          Saved views are queries, not grants.
-        </p>
         <div className="keyed-field">
           <label htmlFor="keybindings-source">settings/keybindings.yaml</label>
           <textarea

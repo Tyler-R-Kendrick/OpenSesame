@@ -54,11 +54,6 @@ export function VaultsPanel() {
       <div className="panel__head">
         <div>
           <h2>Vaults on this device</h2>
-          <p className="hint">
-            {status === "unlocked"
-              ? "Names are read from the open vault; a locked one keeps its own. Switching locks this one unless the vault shares its key."
-              : "Names are sealed inside each vault until it is opened."}
-          </p>
         </div>
       </div>
       <div className="panel__body">

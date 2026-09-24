@@ -145,8 +145,8 @@ function LockingPrefs(props: VisualPrefsProps) {
             <span className="sw__name">Sign out of Identity too</span>
             <span className="sw__sub">
               {" "}
-              — strict. Auto-lock otherwise only drops the vault key and leaves
-              you signed in to Host and Identity.
+              — otherwise auto-lock drops only the vault key and you stay
+              signed in.
             </span>
           </span>
           <button

@@ -149,6 +149,26 @@ export async function listActivityEvents(
   return readAll(tomb);
 }
 
+/** How close together two identical events fold into the first. */
+const REPEAT_WINDOW_MS = 60_000;
+
+function repeats(
+  last: ActivityEvent | undefined,
+  next: ActivityEvent,
+): boolean {
+  if (!last) return false;
+  if (
+    last.type !== next.type ||
+    last.summary !== next.summary ||
+    last.outcome !== next.outcome ||
+    last.targetId !== next.targetId
+  ) {
+    return false;
+  }
+  const gap = Date.parse(next.occurredAt) - Date.parse(last.occurredAt);
+  return gap >= 0 && gap < REPEAT_WINDOW_MS;
+}
+
 export async function recordActivityEvent(
   tomb: string,
   input: RecordActivityInput,
@@ -166,6 +186,9 @@ export async function recordActivityEvent(
     metadata,
   };
   const current = await readAll(tomb);
+  // A burst of the same event (an invalidation fired once per store it
+  // touched, a ledger written on every render) is one line, not fifteen.
+  if (repeats(current[0], event)) return current;
   const next = [event, ...current].slice(0, MAX_EVENTS);
   await writeAll(tomb, next);
   notify();

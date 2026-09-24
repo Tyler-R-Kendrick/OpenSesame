@@ -311,17 +311,23 @@ export function readPersisted(): BudgetSnapshot | undefined {
 }
 
 export function writePersisted(snapshot: BudgetSnapshot): void {
-  emitActivity({
-    category: "wallet",
-    type: "wallet.budget.updated",
-    summary: "Wallet budget updated",
-    outcome: "succeeded",
-  });
+  const text = JSON.stringify(snapshotToPersisted(snapshot));
+  const previous = readWalletStorage(SPENDING_LEDGER_STORAGE_KEY);
+  // The ledger is written back whenever it is read into memory; only a
+  // write that changes what is stored is a budget update. An empty ledger
+  // saved over no ledger is not one either — Wallet would say "No budgets
+  // yet" beside an Activity log saying they were updated.
+  const empty = snapshot.nodes.size === 0 && snapshot.journal.length === 0;
+  if (text !== previous && !(previous === null && empty)) {
+    emitActivity({
+      category: "wallet",
+      type: "wallet.budget.updated",
+      summary: "Wallet budget updated",
+      outcome: "succeeded",
+    });
+  }
   try {
-    localStore().setItem(
-      walletStorageKey(SPENDING_LEDGER_STORAGE_KEY),
-      JSON.stringify(snapshotToPersisted(snapshot)),
-    );
+    localStore().setItem(walletStorageKey(SPENDING_LEDGER_STORAGE_KEY), text);
   } catch {
     // Quota / private mode — keep in-memory ledger; do not invent persistence.
   }
