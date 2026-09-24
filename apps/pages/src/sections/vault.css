@@ -684,14 +684,30 @@
 
 /* —— Editor ————————————————————————————————————————————————— */
 
-.editor {
-  display: grid;
-  gap: 1rem;
+/* A flow, not a grid: every block takes its own row, but the "+ field"
+   chips of absent fields sit side by side on one row instead of stacking
+   one full-width row each. */
+.editor,
+.editor__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 0.5rem;
 }
 
-.editor__optional {
-  justify-self: start;
-  align-self: start;
+.editor {
+  row-gap: 1rem;
+}
+
+.editor > *,
+.editor__grid > * {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.editor > .editor__optional,
+.editor__grid > .editor__optional {
+  flex: 0 0 auto;
 }
 
 /* The editor edits a file: name as the title, kind as the extension,
@@ -773,8 +789,7 @@ select.editor__ext:hover {
 }
 
 .editor__grid {
-  display: grid;
-  gap: 0.85rem;
+  row-gap: 0.85rem;
 }
 
 .editor__row {

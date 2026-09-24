@@ -241,12 +241,12 @@ describe("ItemEditor", () => {
       ),
     }).toEqual({
       actions: [
+        "Pin item",
         "Suggest names on device",
         "Add DNS names",
         "Add IP addresses",
         "Add notes",
         "Add custom field",
-        "Pin item",
         "Create certificate",
       ],
       guidance: [
@@ -633,7 +633,11 @@ describe("ItemEditor", () => {
     renderNew();
     await userEvent.selectOptions(screen.getByLabelText(/^Folder$/i), "fld_1");
     await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
-    expect(inputByLabel(/Pin to the top/).checked).toBe(true);
+    expect(
+      screen
+        .getByRole("button", { name: "Unpin item" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Filed");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());

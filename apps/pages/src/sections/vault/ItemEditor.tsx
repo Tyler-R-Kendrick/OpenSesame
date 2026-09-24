@@ -281,6 +281,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           typeId={draftTypeId}
           onTypeChange={onTypeChange}
           focusName
+          onPin={(favorite) => patch({ favorite })}
         />
         {mode === "new" ? (
           <DraftSuggestions

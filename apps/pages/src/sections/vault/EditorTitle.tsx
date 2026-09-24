@@ -1,4 +1,6 @@
 import type { Folder } from "@opensesame/vault-core";
+import { IconKey } from "../../components/IconKey.js";
+import { IconStar } from "../../components/Icons.js";
 import { isTouchPointer } from "../../lib/gestures.js";
 import { EditorFolder } from "./EditorFolder.js";
 import { EditorType } from "./EditorType.js";
@@ -13,8 +15,9 @@ export function EditorTitle({
   onTypeChange,
   placeholder = "Untitled",
   focusName = false,
+  onPin,
 }: {
-  value: { name: string; folderId: string | null };
+  value: { name: string; folderId: string | null; favorite?: boolean };
   folders: Folder[];
   onName: (name: string) => void;
   onFolder: (folderId: string | null) => void;
@@ -23,6 +26,8 @@ export function EditorTitle({
   onTypeChange?: (typeId: string) => void;
   placeholder?: string;
   focusName?: boolean;
+  /** Pin to the top of the list: a pressed star on the title, not a form row. */
+  onPin?: (pinned: boolean) => void;
 }) {
   return (
     <div className="editor__titlerow">
@@ -42,6 +47,16 @@ export function EditorTitle({
         autoFocus={focusName && !isTouchPointer()}
       />
       <EditorType typeId={typeId} onChange={onTypeChange} />
+      {onPin ? (
+        <IconKey
+          label={value.favorite ? "Unpin item" : "Pin item"}
+          small
+          aria-pressed={Boolean(value.favorite)}
+          onClick={() => onPin(!value.favorite)}
+        >
+          <IconStar size={16} filled={Boolean(value.favorite)} />
+        </IconKey>
+      ) : null}
     </div>
   );
 }

@@ -69,20 +69,23 @@ export function DraftSuggestions({ typeId, website, onApply }: Props) {
   }
   return (
     <div>
-      <button
-        className="icon-btn icon-btn--sm editor__optional"
-        aria-label={busy ? "Suggesting names" : "Suggest names on device"}
-        title={busy ? "Suggesting names" : "Suggest names on device"}
-        type="button"
-        disabled={busy}
-        onClick={() => void suggest()}
-      >
-        <IconRefresh size={15} />
-      </button>
-      <p className="hint">
-        Uses only the item type{origin ? ` and ${origin}` : ""}. No vault
-        contents. Your browser may download its model.
-      </p>
+      {/* What the model is given, then the key that asks it: one row, so
+          the key ends the sentence it acts on (DESIGN.md § Keys have a
+          home). */}
+      <div className="keyed-row">
+        <p className="hint editor__suggest-note">
+          Uses only the item type{origin ? ` and ${origin}` : ""}. No vault
+          contents. Your browser may download its model.
+        </p>
+        <IconKey
+          label={busy ? "Suggesting names" : "Suggest names on device"}
+          small
+          disabled={busy}
+          onClick={() => void suggest()}
+        >
+          <IconRefresh size={15} />
+        </IconKey>
+      </div>
       {message ? <output className="hint">{message}</output> : null}
       {labels ? (
         <div className="editor__inline">
