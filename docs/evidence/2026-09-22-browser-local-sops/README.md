@@ -45,7 +45,7 @@ upstream binary in both wire directions and both edit directions.
 | not-run | 0 |
 
 Per-case detail: [`traceability.md`](traceability.md), generated from the
-gates' own output by `node scripts/test/sops-evidence.mjs`. Machine-readable:
+gates' own output by `node scripts/sops-evidence.mjs`. Machine-readable:
 [`results.json`](results.json).
 
 **`passed` means a gate executed that obligation on this commit.** It does
@@ -69,7 +69,7 @@ pnpm verify:sops-conformance
 pnpm verify:sops-cloud-live
 
 # merge the three into results.json + traceability.md
-node scripts/test/sops-evidence.mjs
+node scripts/sops-evidence.mjs
 ```
 
 Measurements (not a gate, nothing thresholds on them):

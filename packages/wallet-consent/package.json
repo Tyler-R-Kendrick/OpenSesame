@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Wallet payment consent: approval intent, digest, digest-bound signature verification, material sealing and export redaction",
   "exports": {
     ".": {
       "types": "./src/index.ts",

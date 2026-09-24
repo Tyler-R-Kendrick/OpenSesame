@@ -1,4 +1,4 @@
-import { handleGithubAppCallback } from "../../src/github-app.mjs";
+import { handleGithubAppCallback } from "../../github-app.mjs";
 
 export default async function handler(req, res) {
   const proto =

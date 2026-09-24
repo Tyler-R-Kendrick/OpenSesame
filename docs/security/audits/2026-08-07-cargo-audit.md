@@ -2,7 +2,7 @@
 
 Branch: `chore/audit-cargo-audit-gate`
 
-Tool: **cargo-audit** (RustSec) via `pnpm run audit:cargo-audit` / `scripts/audit/cargo-audit-gate.sh`.
+Tool: **cargo-audit** (RustSec) via `pnpm run audit:cargo-audit` / `scripts/cargo-audit-gate.sh`.
 
 ## Scanners
 
@@ -18,7 +18,7 @@ Tool: **cargo-audit** (RustSec) via `pnpm run audit:cargo-audit` / `scripts/audi
 | Severity | Finding | Fix |
 |----------|---------|-----|
 | Medium (RUSTSEC-2023-0071) | Marvin Attack timing sidechannel in `rsa@0.9.10` — **no patched release** | Documented ignore in `.cargo/audit.toml` (same advisory already ignored in `osv-scanner.toml`). Not on JWT/DPoP path (`aws_lc_rs`). |
-| Process | `audit:cargo-audit` npm script existed without `scripts/audit/cargo-audit-gate.sh` | Added gate script (toolchain default `1.88.0` matching `rust-toolchain.toml`) |
+| Process | `audit:cargo-audit` npm script existed without `scripts/cargo-audit-gate.sh` | Added gate script (toolchain default `1.88.0` matching `rust-toolchain.toml`) |
 
 ## Residual (tracked)
 

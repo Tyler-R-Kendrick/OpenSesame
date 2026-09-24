@@ -5,7 +5,7 @@ import { IconAlert, IconCheck, IconChevronRight } from "./Icons.js";
 /**
  * The one shape every connection ceremony wears.
  *
- * `docs/design/canvases/settings-connectivity/Main.dc.html` draws all five connectors as
+ * `docs/design/settings-connectivity/Main.dc.html` draws all five connectors as
  * the same object: a card stating what was found with two supporting facts and
  * the primary action inside it, an `or` rule, then the alternatives as rows.
  * Building that shape five times by hand is how five ceremonies drift into five

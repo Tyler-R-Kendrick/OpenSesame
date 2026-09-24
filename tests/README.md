@@ -27,8 +27,8 @@ own `Cargo.lock`. Method and coverage: [docs/validation/fuzzing.md](../docs/vali
 | Unit and integration tests (Rust) | `src/**` `#[cfg(test)]` and each crate's `tests/` | `cargo +1.88.0 test --workspace --all-targets` |
 | PACT suites — property, adversarial, chaos, contract | `*.pact.test.ts`, per package | part of `pnpm test`; see [docs/validation/pact.md](../docs/validation/pact.md) |
 | Browser journeys on a real build | `apps/pages/scripts/verify-*.mjs` | `pnpm --filter @opensesame/pages verify:<journey>` |
-| Security gates | `scripts/audit/*-gate.sh` | `pnpm audit:*`, `pnpm test:security` |
-| Coverage and mutation | `scripts/quality/ts-coverage-gate.mjs`, [`tools/mutation/`](../tools/mutation) | `pnpm test:coverage`, `pnpm test:mutation` |
+| Security gates | `scripts/*-gate.sh` | `pnpm audit:*`, `pnpm test:security` |
+| Coverage and mutation | `scripts/ts-coverage-gate.mjs`, [`tools/mutation/`](../tools/mutation) | `pnpm test:coverage`, `pnpm test:mutation` |
 
 The full strategy — what each layer is for and what it may not be used to
 claim — is in [docs/validation/test-strategy.md](../docs/validation/test-strategy.md).

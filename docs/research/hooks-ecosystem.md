@@ -53,7 +53,7 @@ as contracts and enforcement:
   (`crates/storage/migrations/0014_custom_providers.sql`), identity providers are flat-env
   descriptors behind a single trust fence (ADR 0055).
 - **Default-off surfaces with mechanical gates**: per-surface cargo features
-  and `scripts/audit/daemon-deps-gate.sh` (ADR 0053); MCP servers with static tool
+  and `scripts/daemon-deps-gate.sh` (ADR 0053); MCP servers with static tool
   manifests and negative assertions (`assertsNoSecretTools`,
   `assertsNoMaterializeTool`).
 

@@ -1,7 +1,7 @@
 // Browser client-certificate capability (SW-INTEROP, IOP-BROWSER).
 //
 //   node apps/pages/scripts/verify-browser-cert.mjs
-//   (driven by scripts/mtls/mtls-browser-test.mjs, which builds dist/ first)
+//   (driven by scripts/mtls-browser-test.mjs, which builds dist/ first)
 //
 // WHAT A PASS HERE MEANS — read this before quoting the result.
 //

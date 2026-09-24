@@ -6,9 +6,9 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 
 | Tool | Why | How we use it |
 |------|-----|----------------|
-| **cve-lite** | OSV CVE scan + override hygiene (OA*/PD*) | `pnpm run audit:cve-lite` (`scripts/audit/cve-lite-gate.sh`) |
-| **OSV-Scanner** | Google OSV across Cargo + pnpm lockfiles (catches GHSA not yet in RustSec) | `pnpm run audit:osv` (`scripts/audit/osv-scanner-gate.sh`, `osv-scanner.toml`) |
-| **cargo-audit** | RustSec advisory scan of `Cargo.lock` (dedicated CLI) | `pnpm run audit:cargo-audit` (`scripts/audit/cargo-audit-gate.sh`) |
+| **cve-lite** | OSV CVE scan + override hygiene (OA*/PD*) | `pnpm run audit:cve-lite` (`scripts/cve-lite-gate.sh`) |
+| **OSV-Scanner** | Google OSV across Cargo + pnpm lockfiles (catches GHSA not yet in RustSec) | `pnpm run audit:osv` (`scripts/osv-scanner-gate.sh`, `osv-scanner.toml`) |
+| **cargo-audit** | RustSec advisory scan of `Cargo.lock` (dedicated CLI) | `pnpm run audit:cargo-audit` (`scripts/cargo-audit-gate.sh`) |
 | **ast-grep** | Structural SAST for XSS/crypto/injection antipatterns | `pnpm run audit:ast-grep` (`tools/security/ast-grep-rules.yml`) |
 | **cargo clippy** | Rust correctness / suspicious patterns (`-D warnings`) | `pnpm run audit:clippy` (matches CI) |
 | **gitleaks** | Secret scanning; catches accidental keys in source | `pnpm run audit:gitleaks` (`.gitleaks.toml` prunes `target`/`node_modules`) |
@@ -17,7 +17,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 | **Semgrep** | Static rules (`p/rust`, `p/typescript`) on source trees | `pnpm run audit:semgrep` (apps/crates/packages only) |
 | **Manual auth-path review** | Catches design bugs scanners miss | Bearer bypass, unauthenticated sync, prod fail-closed |
 | **cargo-fuzz / libFuzzer** | Persistent coverage-guided Rust fuzz | `pnpm audit:fuzz` / `pnpm audit:fuzz:batch` (`scripts/fuzz-*-gate.sh`) |
-| **Jazzer.js** | Coverage-guided TS parse/normalize fuzz | `pnpm test:fuzz` (`tests/fuzz/jazzer`, `scripts/fuzz/jazzer-gate.sh`) |
+| **Jazzer.js** | Coverage-guided TS parse/normalize fuzz | `pnpm test:fuzz` (`tests/fuzz/jazzer`, `scripts/jazzer-gate.sh`) |
 | **Kani** | Bounded proofs on capability/grant/rotation | `pnpm audit:kani` (not in `verify`) |
 | **Miri** | UB on selected lib tests | `pnpm audit:miri` (nightly; weekly routine) |
 | **Shuttle** | Schedule exploration of idempotency/replay | `pnpm audit:shuttle` (`concurrency-test` feature) |
@@ -50,11 +50,11 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 
 ## Findings applied from this pass
 
-0. **cargo-audit loop (2026-08-07)** — restored missing `scripts/audit/cargo-audit-gate.sh`; `RUSTSEC-2023-0071` (`rsa` via sqlx lockfile edge, no fixed release) ignored in `.cargo/audit.toml` (aligned with `osv-scanner.toml`). sqlx 0.9 / Rust 1.94 upgrade still tracked — see `audits/2026-08-07-cargo-audit.md`.
+0. **cargo-audit loop (2026-08-07)** — restored missing `scripts/cargo-audit-gate.sh`; `RUSTSEC-2023-0071` (`rsa` via sqlx lockfile edge, no fixed release) ignored in `.cargo/audit.toml` (aligned with `osv-scanner.toml`). sqlx 0.9 / Rust 1.94 upgrade still tracked — see `audits/2026-08-07-cargo-audit.md`.
 0c. **clippy/semgrep/ast-grep loop (2026-08-07)** — removed `new Function` crypto fallback in `@opensesame/api-client`; restored `pnpm verify` to Rust 1.88.0 — see `audits/2026-08-07-clippy-semgrep.md`.
 0d. **supply-chain / CI loop (2026-08-07)** — gitleaks/osv/cargo-audit/deny/pnpm-audit CLEAN; wired those gates (+ ast-grep, semgrep) into CI `security` job — see `audits/2026-08-07-supply-chain-ci.md`.
 
-    **Correction (2026-08-10):** the "CI `security` job" described above does not exist in this repository and never has — `git ls-files .github` returns nothing at commit `0608ccc` (the base of the `claude/ai-subscriptions-optimization-1gtbyx` branch), and no `.github/` directory has ever been committed to this tree. The gates themselves (gitleaks/osv/cargo-audit/deny/pnpm-audit/ast-grep/semgrep) are real and still CLEAN as scripted; only the "wired into CI" framing was inaccurate — they were, and remain, local scripts (`scripts/*-gate.sh`) invoked by developers/agents, not by any CI job. As of this build-out the repo's posture is now **explicit and permanent: zero GitHub Actions**. The same gates run instead through: (1) local git hooks under `.githooks/` (installed via `scripts/dev/setup-hooks.sh`, see `CONTRIBUTING.md`'s "Local gates (no CI)" section) on `pre-commit`/`pre-push`; and (2) scheduled Claude Code cloud sessions ("Routines") for the deeper recurring work — dependency triage, security audits, docs-drift checks — documented in `docs/contributing/agent-routines.md`. See also `docs/contributing/ai-automation-roadmap.md`'s "Amendment — no-GitHub-Actions posture (2026-08)" section, which supersedes that roadmap's original CI-workflow recommendation.
+    **Correction (2026-08-10):** the "CI `security` job" described above does not exist in this repository and never has — `git ls-files .github` returns nothing at commit `0608ccc` (the base of the `claude/ai-subscriptions-optimization-1gtbyx` branch), and no `.github/` directory has ever been committed to this tree. The gates themselves (gitleaks/osv/cargo-audit/deny/pnpm-audit/ast-grep/semgrep) are real and still CLEAN as scripted; only the "wired into CI" framing was inaccurate — they were, and remain, local scripts (`scripts/*-gate.sh`) invoked by developers/agents, not by any CI job. As of this build-out the repo's posture is now **explicit and permanent: zero GitHub Actions**. The same gates run instead through: (1) local git hooks under `.githooks/` (installed via `scripts/setup-hooks.sh`, see `CONTRIBUTING.md`'s "Local gates (no CI)" section) on `pre-commit`/`pre-push`; and (2) scheduled Claude Code cloud sessions ("Routines") for the deeper recurring work — dependency triage, security audits, docs-drift checks — documented in `docs/contributing/agent-routines.md`. See also `docs/contributing/ai-automation-roadmap.md`'s "Amendment — no-GitHub-Actions posture (2026-08)" section, which supersedes that roadmap's original CI-workflow recommendation.
 
 0e. **ast-grep after UX (#23)** — extension popup `innerHTML` → `textContent` — see `audits/2026-08-07-ast-grep-popup.md`.
 0f. **Pages PWA (#25)** — removed `localStorage` for settings/outbox; OPFS + session-only operator token — see `audits/2026-08-07-pages-localstorage.md`.

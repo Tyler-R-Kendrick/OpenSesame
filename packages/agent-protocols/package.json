@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Agent-facing protocol adapters: auth.md and agent-card rendering, service identity assertions, provider ID-JAG verification and the agent auth client",
   "exports": {
     ".": {
       "types": "./src/index.ts",

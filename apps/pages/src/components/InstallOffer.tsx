@@ -12,7 +12,7 @@
  * card as a `.btn--primary` beside the facts that justify it — never as the
  * screen's terminal commit, which belongs to the ceremony.
  *
- * Drawn in `docs/design/canvases/pwa-install/`.
+ * Drawn in `docs/design/pwa-install/`.
  */
 
 import { pagesPublicBase } from "@opensesame/app-core/lib/site-broker.js";

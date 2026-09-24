@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/example-headless",
   "version": "0.1.0",
-  "description": "Example RFC 8628 device login from a machine with no browser, through @opensesame/sdk-cli",
   "private": true,
   "type": "module",
   "bin": {

@@ -27,7 +27,7 @@ This repo is already AI-native in authoring: `.agents/skills/` + `skills/` agent
 Verified at commit `0608ccc` (the base of this branch); reproduce each claim with the command shown.
 
 - `docs/security/tooling-evaluation.md` (finding 0d) says gates were "wired into CI `security` job" — but there is **no `.github/` directory in the repo** (`git ls-files .github` returns nothing). The CI wiring either never landed or was lost.
-- `PRODUCT.md` references `scripts/release/deploy-pages.sh`, which does not exist (`git ls-files scripts/release/deploy-pages.sh` returns nothing).
+- `PRODUCT.md` references `scripts/deploy-pages.sh`, which does not exist (`git ls-files scripts/deploy-pages.sh` returns nothing).
 - `skills/` and `.agents/skills/` are duplicate trees (`diff -r skills .agents/skills`); there is **no root `CLAUDE.md`/`AGENTS.md`** (`git ls-files CLAUDE.md AGENTS.md` returns nothing) pointing agents at them, so most tools never load them.
 
 ## 2. Highest-leverage gaps (priority order)
@@ -111,11 +111,11 @@ The P0 recommendation above ("Add `.github/workflows/ci.yml`" and `security.yml`
 
 What actually runs instead, as of this build-out:
 
-- **Local git hooks** — `pre-commit` and `pre-push` hooks under `.githooks/`, installed via `scripts/dev/setup-hooks.sh` (`git config core.hooksPath .githooks`). These run the same gate scripts this roadmap's P0 wanted in CI (`scripts/*-gate.sh`, `pnpm verify`) — see `CONTRIBUTING.md`'s "Local gates (no CI)" section for the full list and how to opt in. They run on the contributor's or agent's own machine at commit/push time, not on GitHub's infrastructure.
+- **Local git hooks** — `pre-commit` and `pre-push` hooks under `.githooks/`, installed via `scripts/setup-hooks.sh` (`git config core.hooksPath .githooks`). These run the same gate scripts this roadmap's P0 wanted in CI (`scripts/*-gate.sh`, `pnpm verify`) — see `CONTRIBUTING.md`'s "Local gates (no CI)" section for the full list and how to opt in. They run on the contributor's or agent's own machine at commit/push time, not on GitHub's infrastructure.
 - **Scheduled Claude Code cloud Routines** — for the deeper, recurring work this roadmap originally slated for nightly/weekly CI jobs (dependency triage, security-gate audits, docs-drift checks against commit reality), see `docs/contributing/agent-routines.md`. Routines are Claude Code sessions on a cron-style schedule; they are not GitHub Actions and do not consume Actions minutes.
 - **promptfoo red-team suite** (`tests/redteam`) — runs either as a local script or inside a scheduled Claude session, authenticating via the `apiKeyRequired: false` session-auth path documented in that package's README. It is never invoked from a GitHub Actions workflow.
 - **CodeRabbit** remains the PR reviewer. It was already installed pre-build-out, is free-tier, and runs on its own infrastructure (a GitHub App webhook integration, not an Actions workflow) — no change needed here.
 - **Copilot-based recommendations are dropped entirely.** The original roadmap's Week 1/Week 2 plan (`request_copilot_review`, `assign_copilot_to_issue`, a Copilot second-review action on auth paths — see §2's Linear/delegation section and the rollout table) assumed a paid Copilot seat wired into Actions-adjacent tooling. That's out of scope under the current policy and is not part of this repo's plan going forward.
-- **GitHub Pages deploys** run via `scripts/release/deploy-pages.sh` — a local/agent-session script that builds `apps/pages` and publishes it to the `gh-pages` branch through a temporary `git worktree` push, exactly as `PRODUCT.md`'s constraint describes. It has no Actions dependency either.
+- **GitHub Pages deploys** run via `scripts/deploy-pages.sh` — a local/agent-session script that builds `apps/pages` and publishes it to the `gh-pages` branch through a temporary `git worktree` push, exactly as `PRODUCT.md`'s constraint describes. It has no Actions dependency either.
 
 Net effect on the priority table in §2: read every "P0 — CI as the substrate" action item as "P0 — local hooks + scheduled Routines as the substrate." The verification goal (agent output lands behind an automated gate before merge, not instead of one) is unchanged; only the execution venue moved from GitHub-hosted runners to developer machines and Claude Code cloud sessions.

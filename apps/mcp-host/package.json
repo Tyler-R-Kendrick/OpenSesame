@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/mcp-host",
   "version": "0.1.0",
-  "description": "Host-facing MCP server over stdio or loopback HTTP: task, intent, sync and health tools under a short-lived agent capability, with no secret-reading tool",
   "private": true,
   "type": "module",
   "bin": {

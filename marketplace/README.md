@@ -29,7 +29,7 @@ definition — field types, concealed fields, subtitles, search — is in
 1. Add the definition to `item-types/optional/`. It must not name a handler,
    reuse a built-in id, or claim an extension another type already uses.
 2. List its path in `.opensesame/marketplace.json`.
-3. Pin it: `node scripts/release/pin-marketplace.mjs`.
+3. Pin it: `node scripts/pin-marketplace.mjs`.
 4. Check it: `pnpm --filter @opensesame/app-core exec vitest run
    src/lib/item-type-marketplace/default-marketplace.test.ts`. That verifies
    every pin, that every definition parses as a community type, and that none

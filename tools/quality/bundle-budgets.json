@@ -1,6 +1,6 @@
 {
   "$comment": [
-    "Shipped-bundle budgets in KiB -- see scripts/quality/bundle-budget-gate.mjs.",
+    "Shipped-bundle budgets in KiB -- see scripts/bundle-budget-gate.mjs.",
     "Unlike tools/quality/quality-baseline.json these are NOT auto-recorded: a bundle may",
     "legitimately grow when a feature lands, so raising a number must be a",
     "deliberate line in a diff with a reason, not a regenerated file.",

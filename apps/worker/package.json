@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/worker",
   "version": "0.1.0",
-  "description": "Identity-plane cleanup worker: drains the outbox onto the TaskBus, fans out webhooks and notifications, and prunes expired issuer rows",
   "private": true,
   "type": "module",
   "exports": {

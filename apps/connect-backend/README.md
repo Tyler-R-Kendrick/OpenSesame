@@ -4,14 +4,6 @@ Connect callback relay and management proxy for Vercel Connect. The
 callback path holds no provider tokens or sessions. Management routes hold
 the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
-## Layout
-
-| Path | What it holds |
-|------|---------------|
-| `src/` | The relay itself: the callback, management and GitHub App handlers, the `return_to` allowlist, the forge host guard and the pinned fetch. `src/server.mjs` serves all of them on `:8789` for local use. |
-| `api/` | Vercel serverless routes, one file per route. Each is a thin adapter over a handler in `src/`. |
-| `test/` | `node --test` suites (`pnpm --filter @opensesame/connect-backend test`). |
-
 ## What it does
 
 When a Connect authorization is started with a `callbackUrl` pointing here,
@@ -70,7 +62,7 @@ must be a bare `https://host[:port]` origin — no userinfo, path, query or
 fragment — whose name is neither an IP literal nor a DNS answer in a
 loopback, private, link-local, CGNAT, metadata or other non-public range.
 The request then connects only to the addresses that check vetted
-(`src/pinned-fetch.mjs` answers the socket's lookup from that list, while SNI,
+(`pinned-fetch.mjs` answers the socket's lookup from that list, while SNI,
 certificate verification and `Host` keep the name), so a resolver that
 answers differently the second time (DNS rebinding) cannot steer it to a
 private address. Forge requests never follow redirects. An operator can pin
@@ -86,7 +78,7 @@ export OPENSESAME_CONNECT_MANAGE_KEY=… # ≥ 32 chars; unset → mutations ref
 export VERCEL_TEAM_ID=…               # optional
 export VERCEL_PROJECT_ID=…            # optional
 export OPENSESAME_CONNECT_APP_ORIGINS=http://localhost:5180
-node apps/connect-backend/src/server.mjs        # :8789
+node apps/connect-backend/server.mjs        # :8789
 ```
 
 Pages talks to this relay for managed connectors (GitHub included). Set
@@ -104,7 +96,7 @@ deployment should create, authorize or revoke connectors at all.
 ## Local HTTPS for providers that demand it
 
 ```bash
-node scripts/dev/connect-dev-proxy.mjs          # :8443
+node scripts/connect-dev-proxy.mjs          # :8443
 ```
 
 Terminates TLS for `<lan-ip>.nip.io` (self-signed, generated into the

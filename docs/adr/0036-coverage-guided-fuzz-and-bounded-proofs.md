@@ -21,14 +21,14 @@ adoption or a critical-infrastructure argument the project cannot yet make.
    implement `Arbitrary`; parsers may take bounded bytes.
 2. **ClusterFuzzLite’s project contract** (`tests/fuzz/clusterfuzzlite/` Dockerfile,
    `build.sh`, `project.yaml`) is in-tree. PR-style and batch runs are
-   `scripts/fuzz/fuzz-pr-gate.sh` and `scripts/fuzz/fuzz-batch.sh` plus
+   `scripts/fuzz-pr-gate.sh` and `scripts/fuzz-batch.sh` plus
    `ops/routines/nightly-fuzz-batch.md`. No GitHub Actions workflows.
 3. **Jazzer.js** targets live in `tests/fuzz/jazzer` and run via
-   `scripts/fuzz/jazzer-gate.sh` / `pnpm test:fuzz`. Same crash-triage convention
+   `scripts/jazzer-gate.sh` / `pnpm test:fuzz`. Same crash-triage convention
    as Rust. No Actions job.
 4. **Kani** proofs sit next to the functions they check (`#[cfg(kani)]`).
    They are not part of `pnpm verify`.
-5. **Miri** runs periodically (`scripts/audit/miri-gate.sh`) on crates without
+5. **Miri** runs periodically (`scripts/miri-gate.sh`) on crates without
    Wasmtime/sqlx/reqwest FFI.
 6. **Shuttle** explores grant/idempotency/replay/rotation schedules behind
    the `concurrency-test` feature. Turmoil is deferred until a host graph

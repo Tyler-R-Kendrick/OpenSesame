@@ -8,7 +8,7 @@
 
 **105 tests, 0 failures** across domain/authn/authz/broker/storage/crypto/claims/connector-host/rotation/audit/redaction.
 
-Run: `./scripts/test/battle-test.sh`
+Run: `./scripts/battle-test.sh`
 
 ## Bugs found under fire (runtime-proven)
 

@@ -15,12 +15,12 @@ does not run — why, so the absence is a decision rather than an oversight.
 | Characterization / snapshot | `insta` snapshots in Rust (`src/snapshots/`), Vitest snapshots in TS (`__snapshots__/`) | with the unit tests |
 | Behaviour (BDD) | `*.behavior.test.ts` — Given/When/Then journeys | with the unit tests |
 | Integration | `test:integration` targets | `pnpm test:integration` |
-| End-to-end | Playwright specs; `scripts/test/battle-test.sh`; `scripts/test/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify` |
+| End-to-end | Playwright specs; `scripts/battle-test.sh`; `scripts/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify` |
 | Fuzz | `cargo-fuzz` targets; Jazzer.js | `pnpm audit:fuzz`, `pnpm test:fuzz` |
 | Mutation | Stryker (TS), `cargo-mutants` (Rust) | `pnpm test:mutation` |
 | Model checking | Kani proofs, Miri, Shuttle | `pnpm audit:kani`, `audit:miri`, `audit:shuttle` |
 | Security scanning | Semgrep, ast-grep, gitleaks, OSV, cargo-audit, CVE-lite | `pnpm audit:*` |
-| Coverage measurement | `scripts/quality/ts-coverage-gate.mjs`, `cargo llvm-cov` | `pnpm test:coverage` |
+| Coverage measurement | `scripts/ts-coverage-gate.mjs`, `cargo llvm-cov` | `pnpm test:coverage` |
 
 The PACT naming convention (`property:`, `adversarial:`, `chaos:`,
 `contract:`) is load-bearing: it tells a reader which failure a case is about,
@@ -30,7 +30,7 @@ and it makes the adversarial cases — the ones asserting that something is
 ## What the numbers mean, and what they do not
 
 `pnpm test:coverage` runs a ratchet: a TypeScript gate
-(`scripts/quality/ts-coverage-gate.mjs`) and a Rust one (`cargo llvm-cov` with
+(`scripts/ts-coverage-gate.mjs`) and a Rust one (`cargo llvm-cov` with
 `--fail-under-lines`). The thresholds exist to stop coverage sliding
 backwards, which is the one thing a number is genuinely good for.
 

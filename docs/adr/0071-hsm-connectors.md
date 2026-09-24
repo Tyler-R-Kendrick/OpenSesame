@@ -47,7 +47,7 @@ memory-unsafe rather than merely wrong.
 
 The client lives in the **gateway** and nowhere near the daemon. `cryptoki`
 loads a vendor shared object and is a substantial native surface; ADR 0048 §5's
-daemon dependency budget stands, and `scripts/audit/daemon-deps-gate.sh` keeps it out
+daemon dependency budget stands, and `scripts/daemon-deps-gate.sh` keeps it out
 of every daemon-adjacent tree.
 
 Gate: `cargo +1.88.0 build -p opensesame-hsm-client`

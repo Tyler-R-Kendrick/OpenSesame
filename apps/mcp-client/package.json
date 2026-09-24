@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/mcp-client",
   "version": "0.1.0",
-  "description": "Agent-facing MCP server over stdio: Host API health, discovery and E2EE sync tools under a short-lived agent capability, with no secret-reading tool",
   "private": true,
   "type": "module",
   "bin": {

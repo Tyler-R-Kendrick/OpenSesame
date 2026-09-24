@@ -1,6 +1,6 @@
 /**
  * The app-core boundary (ADR 0133). Pure functions over a file map so they
- * can be tested without a checkout; scripts/quality/app-core-boundary.mjs walks
+ * can be tested without a checkout; scripts/app-core-boundary.mjs walks
  * packages/app-core/src and prints the report.
  *
  * The shared core runs in a browser tab, a CLI and a bare isolate, so it may

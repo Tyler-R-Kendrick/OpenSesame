@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Structured logging with deep redaction, and the last-mile secret guard for model-visible output",
   "exports": {
     ".": {
       "types": "./src/index.ts",

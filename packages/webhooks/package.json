@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Standard Webhooks signing and verification, and a public-only HTTPS sender",
   "exports": {
     ".": {
       "types": "./src/index.ts",

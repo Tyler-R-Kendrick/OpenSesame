@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import {
   handleGithubAppCreateRepo,
   handleGithubAppInstallationRepos,
-} from "../src/github-app-repos.mjs";
+} from "../github-app-repos.mjs";
 
 describe("github app installation repos", () => {
   it("lists private repositories for an installation", async () => {

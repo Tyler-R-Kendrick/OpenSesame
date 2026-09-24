@@ -15,7 +15,7 @@ servers such as the mock IdP are in [`tools/`](../tools/README.md).
 | [`cli`](cli) | `opensesame` | — | **Host CLI.** Login, daemon control, connections, certificates, and the `pass`-compatible sealed store. |
 | [`credential-helpers`](credential-helpers) | `git-credential-opensesame`, … | — | git, Docker, AWS and kubectl credential helpers — thin clients of the daemon's mint path ([ADR 0049](../docs/adr/0049-derived-short-lived-materialization.md)). |
 | [`pm-bridges`](pm-bridges) | per-feature | — | Local-IPC bridges that let KeePassXC-protocol, browserpass, gopass and Secret Service clients use the sealed store. All off by default ([ADR 0053](../docs/adr/0053-pm-bridge-binaries.md)). |
-| [`callback-edge`](callback-edge) | `opensesame-callback-edge` | — | Narrow ingress for signed provider callbacks (default `127.0.0.1:8791`): verifies and de-duplicates, can neither read a vault nor start work. Nothing yet consumes what it accepts, and its OAuth callback route answers 503. |
+| [`callback-edge`](callback-edge) | `opensesame-callback-edge` | — | Narrow ingress for signed provider callbacks; it can neither read a vault nor start work. |
 | [`toolbar`](toolbar) | `opensesame-toolbar` | — | Minimal operator toolbar: health, status, approvals — through the daemon only. |
 | [`worker`](worker) | `opensesame-worker` | — | Background worker: the Rust workload connector host plus the TypeScript cleanup, notification and TaskBus loop. |
 
@@ -35,7 +35,7 @@ servers such as the mock IdP are in [`tools/`](../tools/README.md).
 | [`pages`](pages) | `@opensesame/pages` | 5180 | **The OpenSesame app.** Installable offline PWA published to GitHub Pages: vault, connections, agents, access, identity, sites, settings. Complete with no backend. |
 | [`pwa`](pwa) | `@opensesame/pwa` | — | Minimal client PWA against the Host API and client-core sync. |
 | [`browser-extension`](browser-extension) | `@opensesame/browser-extension` | — | WXT browser extension: Host API, sync cursor, optional daemon. Never exposes a secret to a web page. |
-| [`mcp-host`](mcp-host) | `@opensesame/mcp-host` | stdio / HTTP | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. |
+| [`mcp-host`](mcp-host) | `@opensesame/mcp-host` | stdio / HTTP | Operator MCP server over the Host API and daemon. |
 | [`mcp-client`](mcp-client) | `@opensesame/mcp-client` | stdio | Agent MCP server over a narrowly scoped, short-lived Host capability. |
 | [`authenticator-native`](authenticator-native) | `@opensesame/authenticator-native-contract` | — | Android authenticator: OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. |
 | [`connect-backend`](connect-backend) | `@opensesame/connect-backend` | — | Relay for Connect OAuth callbacks and GitHub App manifests, for deployments that host one. |

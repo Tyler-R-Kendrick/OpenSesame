@@ -21,7 +21,7 @@
  * has no equivalent and no way for a page to open its install UI at all, and
  * the shape of both may change. Nothing outside this file touches either.
  *
- * Designed in `docs/design/canvases/pwa-install/`; the placement decision is
+ * Designed in `docs/design/pwa-install/`; the placement decision is
  * ADR 0085.
  */
 

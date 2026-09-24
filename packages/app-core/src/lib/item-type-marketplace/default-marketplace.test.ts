@@ -3,7 +3,7 @@
  * device will check when it reads it: the index parses, every pin matches the
  * committed bytes, every definition parses as a community type, and nothing
  * in it collides with a built-in or with itself. Re-pin after an edit with
- * `node scripts/release/pin-marketplace.mjs`.
+ * `node scripts/pin-marketplace.mjs`.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

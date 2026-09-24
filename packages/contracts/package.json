@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Zod wire schemas shared by the Identity and Host APIs and their clients, plus the duress policy compiler",
   "sideEffects": false,
   "exports": {
     ".": {

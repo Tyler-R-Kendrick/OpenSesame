@@ -1,0 +1,19 @@
+# Rust packages scripts/mtls-test.sh MUST find in `cargo metadata` — one per line.
+# A listed package that is missing fails the fast suite (never a skip).
+# The coordinator marks a crate required by adding it here (CONTRACT §2).
+opensesame-domain
+opensesame-transport-security
+opensesame-spiffe-source
+opensesame-ingress-evidence
+opensesame-nats-callout
+# TypeScript suites (ts:<id>) present today; the fast suite runs these whole.
+ts:os-domain
+ts:contracts
+ts:oauth-provider
+# Uncomment as each owner lands its suite (a listed-but-missing suite is red):
+# opensesame-mtls-interop
+# ts:ingress-evidence
+# ts:control-plane-transport
+# ts:core-transport
+# ts:pages-transport
+# ts:control-plane-transport-live

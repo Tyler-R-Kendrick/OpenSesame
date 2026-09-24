@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Resource-server SDK: access-token and ID-token verification, RFC 7662 introspection and Hono middleware",
   "exports": {
     ".": {
       "types": "./src/index.ts",

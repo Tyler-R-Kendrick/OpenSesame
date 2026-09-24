@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Self-Issued OpenID Provider v2 (ID1) utilities: request parsing, ES256 Self-Issued ID Tokens and fragment responses",
   "exports": {
     ".": {
       "types": "./src/index.ts",

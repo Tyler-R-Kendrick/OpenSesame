@@ -11,7 +11,7 @@ The npm dependency closure recorded in `pnpm-lock.yaml`, and the
 `pnpm audit` cannot reach npm's advisory endpoint from the sandboxed build
 environment, and the GitHub Dependabot alerts API is refused by the same
 proxy. Neither blocks the answer: `pnpm audit:osv`
-(`scripts/audit/osv-scanner-gate.sh`) downloads osv-scanner and queries OSV
+(`scripts/osv-scanner-gate.sh`) downloads osv-scanner and queries OSV
 directly, which is the advisory corpus the GitHub Advisory Database feeds
 into. Use it as the source of truth here rather than the alert count on the
 repository page — it scans both lockfiles and is reproducible offline of

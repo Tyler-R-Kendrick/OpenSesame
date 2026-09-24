@@ -11,7 +11,7 @@ pnpm -r --filter '@opensesame/*' test
 pnpm --filter @opensesame/control-plane test
 pnpm generate:openapi
 pnpm generate:sbom
-./scripts/test/battle-test.sh
+./scripts/battle-test.sh
 ```
 
 ## Outcomes

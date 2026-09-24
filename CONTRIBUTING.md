@@ -58,7 +58,7 @@ the source SHA and hashes of the HTML and runtime configuration, then verifies
 those bytes over HTTPS. Check a release by hand with:
 
 ```bash
-node scripts/release/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ <full-sha>
+node scripts/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ <full-sha>
 ```
 
 ## Ground rules

@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/example-rp-beta",
   "version": "0.1.0",
-  "description": "Example React relying party (client rp-beta), the second half of the pairwise-subject demo with rp-alpha",
   "private": true,
   "type": "module",
   "scripts": {

@@ -7,7 +7,7 @@ import {
   createPinnedFetch,
   pinnedLookup,
   pinnedRequestOptions,
-} from "../src/pinned-fetch.mjs";
+} from "../pinned-fetch.mjs";
 
 const VETTED = [{ address: "93.184.216.34", family: 4 }];
 

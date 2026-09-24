@@ -70,7 +70,7 @@ acceptance checks, and commit.
   - `skills/` and `.agents/skills/` are **byte-identical duplicate trees**, each
     holding four skills: `opensesame-apis`, `opensesame-chrome-extension`,
     `opensesame-clis`, `opensesame-mcps` (one `SKILL.md` each).
-  - `PRODUCT.md` references `scripts/release/deploy-pages.sh`, which **does not exist**.
+  - `PRODUCT.md` references `scripts/deploy-pages.sh`, which **does not exist**.
   - `docs/security/tooling-evaluation.md` finding 0d claims gates were "wired
     into CI `security` job" — untrue at this commit.
   - **No `.claude/` directory exists.**
@@ -129,24 +129,24 @@ quoted in AGENTS.md exists in `package.json`/`CONTRIBUTING.md`/`scripts/`.
 
 ## WP2 — Local verification substrate (replaces CI; owns root package.json)
 
-**OWNS:** `.githooks/**`, `scripts/dev/setup-hooks.sh`, root `package.json`,
+**OWNS:** `.githooks/**`, `scripts/setup-hooks.sh`, root `package.json`,
 `CONTRIBUTING.md`
 
 No Actions allowed, so the gate substrate is git hooks + documented commands:
 
 1. `.githooks/pre-commit` (POSIX sh, executable): run
    `pnpm biome check --no-errors-on-unmatched --files-ignore-unknown=true`
-   against staged files only, then `bash scripts/audit/gitleaks-gate.sh` if the
+   against staged files only, then `bash scripts/gitleaks-gate.sh` if the
    `gitleaks` binary is on PATH (skip with a notice otherwise). Fail fast,
    print remediation hints.
 2. `.githooks/pre-push`: honor `OPENSESAME_PREPUSH` env — `off` (skip),
    `fast` (default: `pnpm typecheck && pnpm test`), `full` (`pnpm verify`).
    Print which mode ran and how to change it.
-3. `scripts/dev/setup-hooks.sh`: idempotent; `git config core.hooksPath .githooks`
+3. `scripts/setup-hooks.sh`: idempotent; `git config core.hooksPath .githooks`
    plus chmod +x; safe to re-run.
 4. Root `package.json` edits (exclusive to this package — exact keys):
-   - `"setup:hooks": "bash scripts/dev/setup-hooks.sh"`
-   - append `&& bash scripts/dev/setup-hooks.sh` to the existing `bootstrap` script
+   - `"setup:hooks": "bash scripts/setup-hooks.sh"`
+   - append `&& bash scripts/setup-hooks.sh` to the existing `bootstrap` script
    - `"test:redteam": "pnpm --filter @opensesame/redteam redteam"` (package
      created by WP6)
    - `"test:visual": "pnpm --filter @opensesame/visual-contract test:visual"`
@@ -156,7 +156,7 @@ No Actions allowed, so the gate substrate is git hooks + documented commands:
    runs no GitHub Actions; verification is local plus scheduled agent sessions
    (`docs/contributing/agent-routines.md`) and CodeRabbit PR review.
 
-**Verify:** `bash scripts/dev/setup-hooks.sh` twice (idempotent); a commit with a
+**Verify:** `bash scripts/setup-hooks.sh` twice (idempotent); a commit with a
 Biome-dirty staged file is rejected; `OPENSESAME_PREPUSH=off git push --dry-run`
 skips; `node -e "JSON.parse(require('fs').readFileSync('package.json'))"`.
 
@@ -206,10 +206,10 @@ checklist items each carry a source citation.
 
 ## WP4 — Drift fixes + no-Actions amendment
 
-**OWNS:** `scripts/release/deploy-pages.sh`, `docs/security/tooling-evaluation.md`
+**OWNS:** `scripts/deploy-pages.sh`, `docs/security/tooling-evaluation.md`
 (append-only), `docs/contributing/ai-automation-roadmap.md` (append-only)
 
-1. `scripts/release/deploy-pages.sh` (bash, executable, `set -euo pipefail`): build and
+1. `scripts/deploy-pages.sh` (bash, executable, `set -euo pipefail`): build and
    publish `apps/pages` to GitHub Pages **without Actions**: require a clean
    working tree; `pnpm --filter @opensesame/pages build`; honor
    `PAGES_BASE_PATH` (default `/OpenSesame/`) passed to the build as the Vite
@@ -220,7 +220,7 @@ checklist items each carry a source citation.
 2. Append a dated correction note to `docs/security/tooling-evaluation.md`
    under finding 0d: at commit `0608ccc` no `.github/` existed; the repo policy
    is now explicitly **no GitHub Actions** — gates run via local git hooks
-   (`scripts/dev/setup-hooks.sh`) and scheduled agent sessions
+   (`scripts/setup-hooks.sh`) and scheduled agent sessions
    (`docs/contributing/agent-routines.md`).
 3. Append an `## Amendment — no-GitHub-Actions posture (2026-08)` section to
    `docs/contributing/ai-automation-roadmap.md`: supersede the P0 "GitHub Actions CI"
@@ -229,8 +229,8 @@ checklist items each carry a source citation.
    promptfoo runs locally or inside scheduled Claude sessions via the
    documented session-auth path.
 
-**Verify:** `bash -n scripts/release/deploy-pages.sh`; `shellcheck` if available;
-`scripts/release/deploy-pages.sh --dry-run` succeeds after `pnpm install` (build runs,
+**Verify:** `bash -n scripts/deploy-pages.sh`; `shellcheck` if available;
+`scripts/deploy-pages.sh --dry-run` succeeds after `pnpm install` (build runs,
 no push); both docs still render as valid Markdown (no broken headings).
 
 ## WP5 — Privacy-bounded telemetry (PostHog, off by default)
@@ -426,8 +426,8 @@ prompt is authoritative for both).
    construction; the only expected merge friction is `pnpm-lock.yaml`
    (regenerate with `pnpm install` after merging rather than hand-merging).
 2. After merging: `pnpm install`, then `pnpm lint:fix && pnpm lint`,
-   `pnpm typecheck`, `pnpm test`, `bash scripts/dev/setup-hooks.sh`,
-   `scripts/release/deploy-pages.sh --dry-run`, and each package's verify step that
+   `pnpm typecheck`, `pnpm test`, `bash scripts/setup-hooks.sh`,
+   `scripts/deploy-pages.sh --dry-run`, and each package's verify step that
    wasn't already run.
 3. Confirm the hard rules held: `git status --porcelain .github` shows nothing
    (directory must not exist), `git grep -l "copilot" -- ':!docs/contributing/ai-automation-roadmap.md'`

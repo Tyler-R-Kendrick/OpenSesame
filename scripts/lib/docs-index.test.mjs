@@ -6,8 +6,6 @@ import {
   MARKER,
   adrRow,
   auditRow,
-  evidenceOrder,
-  evidenceRow,
   renderIndex,
   status,
   title,
@@ -47,25 +45,6 @@ describe("docs index", () => {
     ]);
   });
 
-  it("lists evidence newest first, programmes after the dated changes", () => {
-    const names = [
-      "wallet",
-      "2026-09-13-a",
-      "general-authority",
-      "2026-09-24-b",
-    ];
-    expect(names.sort(evidenceOrder)).toEqual([
-      "2026-09-24-b",
-      "2026-09-13-a",
-      "general-authority",
-      "wallet",
-    ]);
-    expect(evidenceRow("wallet", "# Wallet — evidence\n")).toEqual([
-      "[`wallet/`](wallet/README.md)",
-      "Wallet — evidence",
-    ]);
-  });
-
   it("keeps the hand-written preamble and replaces only the table", () => {
     const first = renderIndex("# Title\n\nIntro.\n", ["A"], [["1"]]);
     expect(first).toBe(
@@ -79,7 +58,7 @@ describe("docs index", () => {
     expect(() =>
       execFileSync(
         "node",
-        [join(root, "scripts", "quality", "docs-index.mjs"), "--check"],
+        [join(root, "scripts", "docs-index.mjs"), "--check"],
         {
           stdio: "pipe",
         },

@@ -2,7 +2,7 @@
  * Test-only access to the checked-in upstream fixtures.
  *
  * Under `test/` deliberately: it reads fixture files with `node:fs`, and
- * `scripts/mtls/mtls-static-imports.mjs` (AT-STATIC-IMPORTS) treats everything
+ * `scripts/mtls-static-imports.mjs` (AT-STATIC-IMPORTS) treats everything
  * else under `src/` as a shipped source that may not import a native
  * module. Nothing the browser loads imports this file.
  */

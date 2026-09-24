@@ -251,5 +251,5 @@ For the implementation pass. Only `crates/session-observe` exists today.
 | Registry entries | `packages/capability-registry`, with the routes |
 
 `crates/session-observe` must not become a daemon dependency —
-`scripts/audit/daemon-deps-gate.sh` audits that tree, and ADR 0053 §2's rule is that
+`scripts/daemon-deps-gate.sh` audits that tree, and ADR 0053 §2's rule is that
 the daemon depends on none of this.

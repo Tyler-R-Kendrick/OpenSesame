@@ -19,7 +19,7 @@ for that gate.
    - Pages UI, no backend (ADR 0090): `pnpm --filter @opensesame/pages dev:web`
      (`http://localhost:5180` — localhost, not `127.0.0.1`, for passkeys).
    - Pages plus Host/Identity/mock IdPs: `pnpm --filter @opensesame/pages dev`
-     (`scripts/dev/pages-dev.sh`).
+     (`scripts/pages-dev.sh`).
    - Other Vite surfaces: that package's `dev` script, same attach rule.
 2. Open the same origin in a browser/debug session the agent can read
    (console, pageerror, failed requests, runtime overlay).

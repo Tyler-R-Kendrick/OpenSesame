@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Identity-plane authorization policy: provisional-principal PEP, approval-mechanism assurance table, AgentAuth scopes and OpenFGA tuple mapping",
   "exports": {
     ".": {
       "types": "./src/index.ts",

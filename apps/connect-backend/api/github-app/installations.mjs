@@ -1,7 +1,7 @@
 import {
   handleGithubAppConvertOptions,
   handleGithubAppInstallations,
-} from "../../src/github-app.mjs";
+} from "../../github-app.mjs";
 
 export default async function handler(req, res) {
   const origin = req.headers.origin ?? "";

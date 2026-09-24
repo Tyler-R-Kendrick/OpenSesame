@@ -46,7 +46,7 @@ before it was handed over. Verify each is present, then treat it as done:
   `characterize_associated_data_is_cleartext_today` pins the cleartext AD with
   distinctive sentinels. When §3.3 lands, invert that characterization test
   into an absence assertion rather than deleting it.
-- **`scripts/fuzz/jazzer-gate.sh`** distinguishes a coverage-guided pass from the
+- **`scripts/jazzer-gate.sh`** distinguishes a coverage-guided pass from the
   random-input fallback and honors `JAZZER_REQUIRE_NATIVE=1`.
 - **The vendored anti-slop suites** under `tools/oxlint/anti-slop` now run via
   `packages/testing/src/anti-slop-rules.test.ts`.
@@ -57,7 +57,7 @@ before it was handed over. Verify each is present, then treat it as done:
   (`cargo +1.88.0 …`), Biome lint (2-space indent), Vitest for TS, Turbo.
 - Verification: there is NO CI. Local gates only. Full gate:
   `pnpm verify` (changed-file lint + typecheck + all TS tests + integration +
-  `cargo +1.88.0 test --workspace --all-targets` + `./scripts/test/battle-test.sh`).
+  `cargo +1.88.0 test --workspace --all-targets` + `./scripts/battle-test.sh`).
   Crypto/auth-touching changes additionally run `pnpm audit:ast-grep`,
   `pnpm audit:semgrep`, `pnpm audit:clippy`; new npm deps run
   `pnpm audit:osv` and `pnpm audit:cve-lite`.

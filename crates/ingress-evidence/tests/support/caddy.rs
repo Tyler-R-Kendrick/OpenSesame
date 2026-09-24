@@ -1,6 +1,6 @@
 //! Runs the pinned reference ingress (`ops/ingress/Caddyfile`) as a child
 //! process against a disposable PKI. The binary comes from
-//! `scripts/mtls/mtls-fixtures.sh path caddy`, which fetches and sha256-verifies it.
+//! `scripts/mtls-fixtures.sh path caddy`, which fetches and sha256-verifies it.
 
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -27,10 +27,10 @@ pub fn repo_root() -> PathBuf {
 
 pub fn caddy_binary() -> PathBuf {
     let output = Command::new("bash")
-        .arg(repo_root().join("scripts/mtls/mtls-fixtures.sh"))
+        .arg(repo_root().join("scripts/mtls-fixtures.sh"))
         .args(["path", "caddy"])
         .output()
-        .expect("run scripts/mtls/mtls-fixtures.sh");
+        .expect("run scripts/mtls-fixtures.sh");
     assert!(
         output.status.success(),
         "mtls-fixtures.sh path caddy failed: {}",

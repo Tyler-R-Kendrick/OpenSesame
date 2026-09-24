@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Shared test utilities: sentinel secret values and PACT helpers",
   "exports": {
     ".": {
       "types": "./src/index.ts",

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "OpenID4VP 1.0 verifier: request construction and digest-bound SD-JWT VC presentation verification",
   "exports": {
     ".": {
       "types": "./src/index.ts",

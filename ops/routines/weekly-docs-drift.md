@@ -41,7 +41,7 @@ This exact class of bug has already been found once by a human/agent pass —
 **"a doc references a thing that used to exist, or was planned but never
 landed, or has since been renamed/removed"**:
 
-- `PRODUCT.md` referenced `scripts/release/deploy-pages.sh`, which does not exist in
+- `PRODUCT.md` referenced `scripts/deploy-pages.sh`, which does not exist in
   `scripts/` (confirm this is still true when you run — if a later change
   added the script, that specific item is resolved and you should look for
   the *next* instance of this pattern instead).
@@ -51,7 +51,7 @@ landed, or has since been renamed/removed"**:
   `pnpm test`, `cargo test`, gating the merge queue) and `deploy-pages.yml`.
   Treat any doc that attributes a gate to CI which those two workflows do not
   actually run as this same class of drift — reword it to name what really
-  runs it (local git hooks via `scripts/dev/setup-hooks.sh` / `.githooks/`, these
+  runs it (local git hooks via `scripts/setup-hooks.sh` / `.githooks/`, these
   Routines, or CodeRabbit). Docs asserting the repo has *no* CI or no
   `.github/` directory are now themselves drift.
 
@@ -125,7 +125,7 @@ git add <corrected docs>
 git commit -m "fix(docs): correct stale reference(s) found by weekly drift check
 
 <one line per correction, e.g.:
-- PRODUCT.md: scripts/release/deploy-pages.sh no longer exists; reworded to describe gh-based deploy
+- PRODUCT.md: scripts/deploy-pages.sh no longer exists; reworded to describe gh-based deploy
 - docs/security/tooling-evaluation.md: removed stale GitHub Actions CI claim>"
 git push -u origin HEAD
 gh pr create --title "fix(docs): correct stale reference(s)" \

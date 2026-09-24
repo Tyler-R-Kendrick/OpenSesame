@@ -1,6 +1,6 @@
 //! A real SPIRE server + agent in tempdirs on loopback, killed on drop.
 //!
-//! Binaries come from `scripts/mtls/mtls-fixtures.sh path spire-server|spire-agent`
+//! Binaries come from `scripts/mtls-fixtures.sh path spire-server|spire-agent`
 //! (SW-TESTOPS; v1.12.6 linux-amd64 musl, archive sha256
 //! `b1919bf6917f7ae74212d8008dcfe92b0f7238d6cb50efdd15f1a1205aebf538`).
 
@@ -39,7 +39,7 @@ fn repo_root() -> PathBuf {
 
 /// Resolve a SPIRE binary through the shared, sha256-pinned fixture script.
 pub fn binary(tool: &str) -> Result<PathBuf, String> {
-    let script = repo_root().join("scripts/mtls/mtls-fixtures.sh");
+    let script = repo_root().join("scripts/mtls-fixtures.sh");
     let out = Command::new("bash")
         .arg(&script)
         .arg("path")

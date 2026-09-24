@@ -7,7 +7,7 @@
   (the ways-in allowlist), [ADR 0113](0113-vault-self-authenticator-second-step.md)
   (the mfa tab's authenticator road)
 - Supersedes: the "one screen, one question, no stepper" note in
-  `docs/design/canvases/first-run-setup/`
+  `docs/design/first-run-setup/`
 - Supplemented by: [ADR 0115](0115-front-door-and-connector-directory.md)
   (the `connectors` tab, first of four, and the front door that opens the
   ceremony)

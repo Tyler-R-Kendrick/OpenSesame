@@ -17,7 +17,7 @@ selector)` names a credential and a place, there is no `read_field_value`, and
 redaction happens at capture rather than at render.
 
 Choosing who runs that model is an offer on the post-setup board
-(`docs/design/canvases/setup-next-steps/`), and the board is skippable by construction:
+(`docs/design/setup-next-steps/`), and the board is skippable by construction:
 nothing on it is a step, and doing nothing and pressing the commit is a
 complete path. Skipping it meant the ceremony was off — OpenSesame would open
 the right settings page and hand the job back to the person.

@@ -4,7 +4,7 @@
 
 - Rust 1.88 (`rust-toolchain.toml`)
 - Optional: Docker/Podman for Compose profile
-- Or user-space OpenFGA/OpenBao via `./scripts/dev/start-native-deps.sh` (no root)
+- Or user-space OpenFGA/OpenBao via `./scripts/start-native-deps.sh` (no root)
 
 ## Run gateway
 
@@ -15,13 +15,13 @@ cargo run -p opensesame-gateway -- --listen 127.0.0.1:8787
 With live providers:
 
 ```bash
-./scripts/dev/start-native-deps.sh
+./scripts/start-native-deps.sh
 source .tools/run/env.sh
 cargo run -p opensesame-gateway -- \
   --listen 127.0.0.1:18787
 ```
 
-Full live drill: `./scripts/test/live-stack-test.sh`
+Full live drill: `./scripts/live-stack-test.sh`
 
 Health:
 
@@ -132,7 +132,7 @@ For the OpenSesame PWA the broker URL arrives at deploy time rather than build
 time, so a static deploy is repointed without a rebuild:
 
 ```bash
-PAGES_IDENTITY_API=https://<broker> scripts/release/deploy-pages.sh
+PAGES_IDENTITY_API=https://<broker> scripts/deploy-pages.sh
 ```
 
 Without it the deploy ships an empty `os-runtime-config.json` and the vault says it is

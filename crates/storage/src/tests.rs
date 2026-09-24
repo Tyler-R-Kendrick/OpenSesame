@@ -1,7 +1,7 @@
 //! Storage integration tests.
 //!
 //! Split out of `lib.rs` under the 400-line module budget (see
-//! scripts/quality/quality-gate.mjs). `use super::*` keeps every name resolving
+//! scripts/quality-gate.mjs). `use super::*` keeps every name resolving
 //! exactly as it did when this module was inline.
 
 use super::*;

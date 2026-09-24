@@ -214,7 +214,7 @@ construction, not the scanner:
 - **Dependency profile:** `connection-detect` is serde + serde_json +
   thiserror + std; the daemon must not gain the credential-exchange
   surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) —
-  enforced by `scripts/audit/daemon-deps-gate.sh` (`pnpm audit:daemon-deps`).
+  enforced by `scripts/daemon-deps-gate.sh` (`pnpm audit:daemon-deps`).
 
 Test anchors: `crates/connection-detect` (canary/no-value-escape
 properties), `apps/daemon` promote/invoke-through canary tests, fuzz

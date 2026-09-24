@@ -70,23 +70,23 @@ pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
 pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
 pnpm test:security       # @opensesame/testing test:security
-pnpm test:task-access    # scripts/test/task-security-battle-test.sh
+pnpm test:task-access    # scripts/task-security-battle-test.sh
 pnpm test:redteam        # @opensesame/redteam structural pact suite
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
-pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
-pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
-pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
-pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
-                          #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
-pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates against the
+pnpm test:nats-dogfood   # scripts/nats-dogfood-test.sh (spins up real nats-server)
+pnpm test:live-stack     # scripts/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
+pnpm test:mtls           # scripts/mtls-test.sh — native transport-security + TS contract suites, no fixtures
+pnpm test:mtls:integration # scripts/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
+                          #   fixtures (scripts/mtls-fixtures.sh); fails, never skips, when a fixture is absent
+pnpm test:mtls:browser   # scripts/mtls-browser-test.mjs — Playwright clientCertificates against the
                           #   ingress reference, plus the static app with no certificate
-pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
+pnpm test:mtls:fixtures  # scripts/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:all            # typecheck + test + test:integration
 
 # Test-depth suites (none of these are in `pnpm verify`)
 pnpm test:coverage       # TS (v8, 94/88/94/95 floors + 50% per-pkg lines) + Rust (llvm-cov) — docs/validation/test-coverage.md
-pnpm test:coverage:ts    # scripts/quality/ts-coverage-gate.mjs; floors ratchet, never lower
+pnpm test:coverage:ts    # scripts/ts-coverage-gate.mjs; floors ratchet, never lower
 pnpm test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
 pnpm test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files
 pnpm test:mutation:ts    # stryker run → artifacts/mutation/typescript.json
@@ -99,9 +99,9 @@ pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
 pnpm verify              # changed-file lint + anti-slop lint/plugin tests
                           #   + rustfmt/full-feature Clippy + test:all
                           #   + cargo +1.88.0 test --workspace --all-targets
-                          #   + ./scripts/test/battle-test.sh — full local gate
+                          #   + ./scripts/battle-test.sh — full local gate
 
-# Security/audit gates (each backed by scripts/audit/*-gate.sh)
+# Security/audit gates (each backed by scripts/*-gate.sh)
 pnpm audit:cve-lite
 pnpm audit:ast-grep
 pnpm audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
@@ -112,9 +112,9 @@ pnpm audit:semgrep
 pnpm audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
 pnpm audit:fuzz             # cargo-fuzz short pass (not in verify)
 pnpm audit:fuzz:batch       # cargo-fuzz long batch over all targets (not in verify)
-pnpm audit:kani             # bounded proofs (scripts/audit/kani-gate.sh)
-pnpm audit:miri             # UB checks (scripts/audit/miri-gate.sh)
-pnpm audit:shuttle          # concurrency model checks (scripts/audit/shuttle-gate.sh)
+pnpm audit:kani             # bounded proofs (scripts/kani-gate.sh)
+pnpm audit:miri             # UB checks (scripts/miri-gate.sh)
+pnpm audit:shuttle          # concurrency model checks (scripts/shuttle-gate.sh)
 pnpm test:fuzz              # Jazzer.js short pass (not in verify)
 ```
 
@@ -220,9 +220,7 @@ embedded by both planes, `item-types/optional/` is indexed by
 `.opensesame/marketplace.json`), `spec/` (WIT, Host OpenAPI, OpenFGA model,
 connector manifests), `tests/` (cross-cutting suites and shared fixtures),
 `tools/` (lint plugins, quality ledgers in `tools/quality/`, mutation configs,
-scanner rules, the mock IdP), `scripts/` (what `pnpm` tasks run, one folder
-per purpose: `quality/`, `audit/`, `fuzz/`, `test/`, `mtls/`, `release/`,
-`dev/`, `wallet/`, shared logic in `lib/`), `ops/`
+scanner rules, the mock IdP), `scripts/` (what `pnpm` tasks run), `ops/`
 (compose, ingress, NATS, governance, routines), `skills/`, `docs/`. Each has a
 `README.md`; `docs/getting-started/repository-tour.md` says where things go.
 Do not add new top-level directories or loose root files — find the group.
@@ -260,7 +258,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
-| `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no binary yet) — per-surface cargo features, all default off (ADR 0052/0053) |
+| `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass, Secret Service) — per-surface cargo features, all default off (ADR 0052/0053) |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
 | `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
@@ -277,7 +275,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
-| `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
+| `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |
@@ -388,7 +386,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0139).
+  0001–0137).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -643,7 +641,7 @@ Do not add new top-level directories or loose root files — find the group.
   pill. Do not render an in-page error box (`note`, `conn-flash`, or a
   paragraph banner). Do not add explainer or caption prose. Pages copy never
   names a Host, and a browser-local connector action never asks the person to
-  pair one. `pnpm lint:design` (`scripts/quality/design-lint.mjs`) rejects word-verb
+  pair one. `pnpm lint:design` (`scripts/design-lint.mjs`) rejects word-verb
   buttons, status pills, and explainer captions; `impeccable detect`
   enforces the same design file. Both run in `.githooks/pre-commit`. The
   word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
@@ -668,10 +666,10 @@ Do not add new top-level directories or loose root files — find the group.
 - `docs/security/tooling-evaluation.md` — evaluation of the audit gate
   tooling.
 - Gate scripts (invoked via the `pnpm audit:*` scripts in §3):
-  `scripts/audit/cve-lite-gate.sh`, `scripts/audit/ast-grep-security-gate.sh`,
-  `scripts/audit/clippy-gate.sh`, `scripts/audit/osv-scanner-gate.sh`,
-  `scripts/audit/cargo-audit-gate.sh`, `scripts/audit/gitleaks-gate.sh`,
-  `scripts/audit/semgrep-gate.sh`, `scripts/audit/daemon-deps-gate.sh`.
+  `scripts/cve-lite-gate.sh`, `scripts/ast-grep-security-gate.sh`,
+  `scripts/clippy-gate.sh`, `scripts/osv-scanner-gate.sh`,
+  `scripts/cargo-audit-gate.sh`, `scripts/gitleaks-gate.sh`,
+  `scripts/semgrep-gate.sh`, `scripts/daemon-deps-gate.sh`.
 
 ### Codex Security checker
 
@@ -864,7 +862,7 @@ anything security-sensitive lands):
 ```bash
 pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
               #   + cargo +1.88.0 test --workspace --all-targets
-              #   + ./scripts/test/battle-test.sh
+              #   + ./scripts/battle-test.sh
 ```
 
 CI lives in `.github/workflows/`:
@@ -882,7 +880,7 @@ CI lives in `.github/workflows/`:
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check
   prove the live HTML/runtime configuration matches the exact source SHA.
-  `scripts/release/deploy-pages.sh` remains as the
+  `scripts/deploy-pages.sh` remains as the
   manual/local fallback publisher.
 
 CI is the merge gate, not the whole story: the heavier suites

@@ -167,4 +167,4 @@ attenuation (repo + permission subset, ≤ 1 h) that
   `docs/archive/prompts/one-shot-connector-auth-broker-prompt.md` ("do not
   add `/connections/{id}/token` for agents").
 - Full analysis, API sketches, schema, threat table, and phasing:
-  `docs/research/claimable-connection-delegation.md`.
+  `docs/implementation/claimable-connection-delegation.md`.

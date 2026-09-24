@@ -76,7 +76,7 @@ Finish OpenSesame's Doppler capability parity (ADR 0041, `docs/research/competit
 
 Toolchain and commands: root `AGENTS.md` §2–§3. Verify gate: `pnpm verify`
 (changed-file lint + typecheck + test + integration +
-`cargo +1.88.0 test --workspace --all-targets` + `./scripts/test/battle-test.sh`).
+`cargo +1.88.0 test --workspace --all-targets` + `./scripts/battle-test.sh`).
 
 **Sync engine (exists, hollow):**
 - `crates/connection-broker/src/sync_target.rs` — `SyncTargetView`,
@@ -756,7 +756,7 @@ PR description.
 ```bash
 pnpm verify                       # lint + typecheck + test + integration
                                   # + cargo +1.88.0 test --workspace --all-targets
-                                  # + ./scripts/test/battle-test.sh
+                                  # + ./scripts/battle-test.sh
 pnpm audit:clippy && pnpm audit:ast-grep && pnpm audit:semgrep && pnpm audit:gitleaks
 pnpm audit:cargo-audit            # new deps (crypto_box behind feature flag)
 pnpm test:security && pnpm test:redteam

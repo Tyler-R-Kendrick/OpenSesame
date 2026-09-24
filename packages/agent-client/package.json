@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Agent-side exchange of an approved launch handle for a short-lived agent capability, over the daemon socket or the Host (ADR 0099)",
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
   },

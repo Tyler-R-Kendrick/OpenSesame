@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/ceremonies",
   "version": "0.1.0",
-  "description": "Hosted ceremony pages: one complete, shareable ceremony per route, deep-linked from claims, device codes, approvals and authenticator hand-offs",
   "private": true,
   "type": "module",
   "scripts": {

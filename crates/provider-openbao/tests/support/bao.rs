@@ -4,7 +4,7 @@
 //! Everything is disposable and loopback-only: a fresh CA per run, a
 //! `tempfile` directory that takes the file storage backend and the PEMs with
 //! it, and a port the kernel chose. The server is started from the pinned,
-//! sha256-verified `bao` binary `scripts/mtls/mtls-fixtures.sh` fetches — never a
+//! sha256-verified `bao` binary `scripts/mtls-fixtures.sh` fetches — never a
 //! system install and never `sudo`.
 //!
 //! The listener is configured exactly as `OpenBao`'s own documentation requires
@@ -59,10 +59,10 @@ fn repo_root() -> PathBuf {
 fn bao_binary() -> PathBuf {
     let root = repo_root();
     let out = Command::new("bash")
-        .arg(root.join("scripts/mtls/mtls-fixtures.sh"))
+        .arg(root.join("scripts/mtls-fixtures.sh"))
         .args(["path", "openbao"])
         .output()
-        .expect("scripts/mtls/mtls-fixtures.sh path openbao");
+        .expect("scripts/mtls-fixtures.sh path openbao");
     assert!(
         out.status.success(),
         "mtls-fixtures.sh failed: {}",

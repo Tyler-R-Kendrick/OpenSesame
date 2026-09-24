@@ -3,14 +3,14 @@ import { createHmac, generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { isNonPublicAddress } from "../src/forge-host-guard.mjs";
-import { handleGitBackupPut } from "../src/git-backup-put.mjs";
+import { isNonPublicAddress } from "../forge-host-guard.mjs";
+import { handleGitBackupPut } from "../git-backup-put.mjs";
 import {
   clearGithubAppWebhookPending,
   handleGithubAppWebhook,
   handleGithubAppWebhookPending,
-} from "../src/github-app-contents.mjs";
-import { pinnedLookup } from "../src/pinned-fetch.mjs";
+} from "../github-app-contents.mjs";
+import { pinnedLookup } from "../pinned-fetch.mjs";
 
 const ORIGIN = "http://localhost:5180";
 // Node runs test files in parallel; this file keeps a queue of its own.

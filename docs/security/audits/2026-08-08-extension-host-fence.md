@@ -27,5 +27,5 @@ network reach to loopback; this closes the config path that pointed elsewhere.
 pnpm --filter @opensesame/api-client test
 pnpm --filter @opensesame/api-client typecheck
 pnpm --filter @opensesame/browser-extension build
-./scripts/test/battle-test.sh
+./scripts/battle-test.sh
 ```

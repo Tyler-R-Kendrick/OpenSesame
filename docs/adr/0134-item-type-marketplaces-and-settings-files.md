@@ -68,7 +68,7 @@ everything else (ADR 0065 §4):
 `github:tyler-r-kendrick/OpenSesame#main`. This repository publishes the
 index and five types that are not built-ins: vehicle, email account,
 backup codes, gift card and combination lock. They live in
-`marketplace/item-types/`. `node scripts/release/pin-marketplace.mjs` re-pins
+`marketplace/item-types/`. `node scripts/pin-marketplace.mjs` re-pins
 them. The default-marketplace test fails if a pin goes stale, if a
 definition stops parsing as a community type, or if a type collides with
 a built-in's id or extension.

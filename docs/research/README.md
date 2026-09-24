@@ -11,5 +11,3 @@ names the ADR it fed.
 | [Hooks ecosystem](hooks-ecosystem.md) | [ADR 0065](../adr/0065-connector-hook-architecture.md) — hooks as an extension mechanism. |
 | [AI-native product tutorials](ai-native-product-tutorials.md) | [ADR 0088](../adr/0088-ai-native-contextual-support.md) — in-product support. |
 | [Android native integration](android-native-integration.md) | [ADR 0133](../adr/0133-shared-app-core.md) — Android as a native surface. |
-| [Claimable connection delegation](claimable-connection-delegation.md) | [ADR 0044](../adr/0044-claimable-connection-delegation.md) — what exists, what standards and peers offer, and a phased plan. |
-| [Modularity and refactoring](modularity-refactor-strategy.md) | An evaluation, not yet a decision: where the codebase's complexity comes from, and the refactoring strategy that would follow. |

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Notification channel adapters (Slack, Teams, Telegram, WeChat, SMS, Web Push, webhook): rendering, delivery, callback provenance (ADR 0084)",
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
   },

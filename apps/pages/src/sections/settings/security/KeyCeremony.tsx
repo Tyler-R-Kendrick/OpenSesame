@@ -34,7 +34,7 @@ const ENROLL_PASSKEY_PARAM = "enroll-passkey";
  * The card for one key (CeremonyShell): what it guards, when it is asked
  * for, the fields, and the one action inside the card. The same card is
  * step 1 of the authenticator ceremony on a keyless vault, so the PIN form
- * exists exactly once (docs/design/canvases/auth-flow/AddKey.dc.html).
+ * exists exactly once (docs/design/auth-flow/AddKey.dc.html).
  */
 export function KeyCard({
   kind,

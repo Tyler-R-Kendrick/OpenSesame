@@ -1,7 +1,6 @@
 {
   "name": "@opensesame/browser-extension",
   "version": "0.1.0",
-  "description": "WXT browser extension that reports Host API health, daemon reachability and a sync cursor, and never exposes a secret to a web page",
   "private": true,
   "scripts": {
     "dev": "wxt",

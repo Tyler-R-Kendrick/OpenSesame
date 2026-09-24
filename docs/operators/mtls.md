@@ -527,24 +527,24 @@ Error codes (`TransportError::code()`), stable and non-secret:
 ## Commands
 
 ```bash
-pnpm test:mtls               # scripts/mtls/mtls-test.sh — fast native + TS suites, no fixtures;
-                             #   includes scripts/mtls/mtls-static-imports.mjs (no native TLS in the bundle)
-pnpm test:mtls:integration   # scripts/mtls/mtls-integration-test.sh — real nats-server, OpenBao,
+pnpm test:mtls               # scripts/mtls-test.sh — fast native + TS suites, no fixtures;
+                             #   includes scripts/mtls-static-imports.mjs (no native TLS in the bundle)
+pnpm test:mtls:integration   # scripts/mtls-integration-test.sh — real nats-server, OpenBao,
                              #   SPIRE and the Caddy ingress from pinned fixtures
-pnpm test:mtls:browser       # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates
+pnpm test:mtls:browser       # scripts/mtls-browser-test.mjs — Playwright clientCertificates
                              #   against the ingress reference, plus the static app with none;
                              #   PLAYWRIGHT_CHROMIUM must point at a real Chromium binary
                              #   (a missing browser is red, never skipped)
-pnpm test:mtls:fixtures      # scripts/mtls/mtls-fixtures.sh fetch all && verify — pinned binaries to
+pnpm test:mtls:fixtures      # scripts/mtls-fixtures.sh fetch all && verify — pinned binaries to
                              #   .cache/mtls-fixtures/<tool>-<version>/, archive and binary sha256
                              #   checked before use; linux-amd64 and linux-arm64 (exit 3 elsewhere)
-bash scripts/mtls/mtls-fixtures.sh path <tool>   # nats-server | nats-server-2.10 | openbao | spire-server
+bash scripts/mtls-fixtures.sh path <tool>   # nats-server | nats-server-2.10 | openbao | spire-server
                                             #   | spire-agent | caddy — prints the verified binary path
 ```
 
 Test material (CAs, leaves, keys) is generated per run in a temporary
 directory and deleted; no private key is committed. A crate or suite named in
-`scripts/mtls/mtls-required-packages.txt` that is missing, selects zero tests, or
+`scripts/mtls-required-packages.txt` that is missing, selects zero tests, or
 leaves every test ignored turns the run red; a fixture that cannot be fetched,
 verified or started does the same. Nothing skips to green. Each run writes a
 sanitized manifest and logs under `artifacts/mtls/runs/<suite>-<timestamp>-<pid>/`

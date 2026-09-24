@@ -19,7 +19,7 @@ the command that produced it. Anything that could not run says why.
 | Size of the change | 635 files, about 76 900 insertions, measured against the merged base |
 | Toolchain | rustc/cargo 1.88.0, Node 22.22.2, pnpm 9.15.0 |
 | Relevant resolved libraries | rustls 0.23.43 (ring provider), tokio-rustls 0.26.4, rustls-webpki 0.103.13, async-nats 0.50.0, nkeys 0.4.5, spiffe 0.16.1, sfv 0.15.0, oidc-provider 9.11.2, structured-headers 2.1.0 |
-| Pinned disposable servers | nats-server 2.11.17, OpenBao 2.3.2, SPIRE 1.12.6, Caddy 2.11.4 — all fetched and sha256-verified by `scripts/mtls/mtls-fixtures.sh`; pinned for linux-amd64 and linux-arm64 (the arm64 set added 2026-09-23, cross-checked against the same upstream checksum files except OpenBao's, which publishes only a cosign signature) |
+| Pinned disposable servers | nats-server 2.11.17, OpenBao 2.3.2, SPIRE 1.12.6, Caddy 2.11.4 — all fetched and sha256-verified by `scripts/mtls-fixtures.sh`; pinned for linux-amd64 and linux-arm64 (the arm64 set added 2026-09-23, cross-checked against the same upstream checksum files except OpenBao's, which publishes only a cosign signature) |
 
 Every fixture binary is pinned by version and by hash of both the archive and
 the extracted binary. One exception is recorded honestly: OpenBao publishes no
@@ -35,7 +35,7 @@ application keeps working with none of this present. It does.
 |---|---|
 | An empty device with no endpoints configured completes guest, vault and settings journeys with no network setup prompt | `pnpm --filter @opensesame/pages verify:transport`, 63 checks, exit 0; fails on any loopback request |
 | A remote target with broken TLS degrades only that target | same harness, the bad-remote journey: exactly one status request and one verify request leave the tab, only the observed row degrades |
-| No native TLS, filesystem, workload-socket or process adapter reaches the shipped bundle | `scripts/mtls/mtls-static-imports.mjs`, 69 chunks scanned plus the transitive dependency graph, exit 0 |
+| No native TLS, filesystem, workload-socket or process adapter reaches the shipped bundle | `scripts/mtls-static-imports.mjs`, 69 chunks scanned plus the transitive dependency graph, exit 0 |
 | Touch, keyboard, local sign-in and self-issued identity journeys unchanged | `verify:mobile`, `verify:keyboard`, `verify:local-iam`, `verify:siop`, all exit 0 |
 | A browser operation needing a vault-controlled TLS identity | returns a typed unsupported outcome; no key export, no silent proxy |
 

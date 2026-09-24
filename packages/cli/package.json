@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The Client CLI, opensesame-id: Identity sign-in, claims, Host probes, and vault verify / vault ls over exports",
   "bin": {
     "opensesame-id": "./src/bin.ts",
     "opensesame-identity": "./src/bin.ts"

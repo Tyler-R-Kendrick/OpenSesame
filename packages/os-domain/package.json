@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The canonical OpenSesame domain model: types and pure state machines, with no framework imports",
   "exports": {
     ".": {
       "types": "./src/index.ts",

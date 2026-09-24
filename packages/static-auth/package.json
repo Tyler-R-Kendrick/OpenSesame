@@ -3,7 +3,6 @@
   "version": "1.0.2",
   "private": true,
   "type": "module",
-  "description": "Sign-in for static sites with no backend: hosted-identity, loopback and browser-local profiles",
   "exports": { ".": "./src/index.ts" },
   "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
   "dependencies": {

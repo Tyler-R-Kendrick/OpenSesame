@@ -10,7 +10,7 @@ pnpm -r --filter '@opensesame/*' test
 pnpm --filter @opensesame/control-plane test
 pnpm generate:openapi
 pnpm generate:sbom
-./scripts/test/battle-test.sh
+./scripts/battle-test.sh
 ```
 
 ## Automated results
@@ -28,7 +28,7 @@ All listed `@opensesame/*` Vitest suites **PASS**, including:
 | testing | sentinel leak guards |
 | identity-atproto / identity-nostr | disabled-by-default adapters |
 
-Authority: `./scripts/test/battle-test.sh` → **ALL BATTLE TESTS PASSED**.
+Authority: `./scripts/battle-test.sh` → **ALL BATTLE TESTS PASSED**.
 
 ## Live smoke (control-plane :8788 + mock IdP :9090)
 

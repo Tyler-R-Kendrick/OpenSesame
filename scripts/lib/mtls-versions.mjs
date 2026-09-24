@@ -2,7 +2,7 @@
  * Resolved toolchain / library / fixture versions for the mTLS manifest.
  *
  * Everything here is read from the checkout (lockfiles, the fixture pins in
- * scripts/mtls/mtls-fixtures.sh) or from `<tool> --version`; nothing is guessed.
+ * scripts/mtls-fixtures.sh) or from `<tool> --version`; nothing is guessed.
  * A tool that is not installed is reported as `null`, never as a version.
  */
 import { execFileSync } from "node:child_process";
@@ -78,7 +78,7 @@ export function pnpmLockVersions(lockText, name) {
 export function fixtureVersions(root) {
   const table = run(
     "bash",
-    [join(root, "scripts/mtls/mtls-fixtures.sh"), "list"],
+    [join(root, "scripts/mtls-fixtures.sh"), "list"],
     root,
   );
   const out = {};

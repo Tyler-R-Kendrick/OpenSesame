@@ -6,7 +6,7 @@ CI is deliberately thin. `.github/workflows/ci.yml` runs lint, typecheck,
 nothing else belongs in Actions. The deeper verification comes from three
 layers, described in `CONTRIBUTING.md` under "Gates":
 
-1. **Local git hooks** (`.githooks/` + `scripts/dev/setup-hooks.sh`) — run on
+1. **Local git hooks** (`.githooks/` + `scripts/setup-hooks.sh`) — run on
    every commit and push, on the contributor's own machine.
 2. **CodeRabbit** — already installed as a GitHub App, reviews every pull
    request's diff for style and correctness on its own infrastructure, not

@@ -72,7 +72,7 @@ async function readCapped(response: Response, max: number): Promise<string> {
   const reader = body.getReader();
   // `ignoreBOM` keeps a byte-order mark in the text, so re-encoding it gives
   // back the exact bytes served: the SHA-256 a pin is checked against is the
-  // one `scripts/release/pin-marketplace.mjs` wrote over the file on disk.
+  // one `scripts/pin-marketplace.mjs` wrote over the file on disk.
   const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
   let out = "";
   let bytes = 0;

@@ -67,7 +67,7 @@ variables. Compose wires `NATS_URL=nats://nats:4222` on gateway/worker.
 cargo +1.88.0 test -p opensesame-task-bus --features jetstream
 cargo +1.88.0 test -p opensesame-task-bus --no-default-features
 
-# Real-server suites (pinned nats-server 2.11.17 from scripts/mtls/mtls-fixtures.sh):
+# Real-server suites (pinned nats-server 2.11.17 from scripts/mtls-fixtures.sh):
 OPENSESAME_MTLS_FIXTURES=1 \
   cargo +1.88.0 test -p opensesame-task-bus --features live-tests -- --ignored
 ```

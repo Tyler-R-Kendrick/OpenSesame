@@ -23,7 +23,7 @@ Tool: **Google OSV-Scanner v2.5.0** (`pnpm run audit:osv`). Not used in prior lo
 ## Follow-ups closed in this loop
 
 1. **DPoP validation config** — `Validation::new(header.alg)` with `validate_exp`/`validate_nbf` off and cleared `required_spec_claims` (proofs use custom `iat` checks).
-2. **Gate** — `scripts/audit/osv-scanner-gate.sh` + `pnpm run audit:osv` (auto-downloads pinned binary into `.tools/bin`).
+2. **Gate** — `scripts/osv-scanner-gate.sh` + `pnpm run audit:osv` (auto-downloads pinned binary into `.tools/bin`).
 3. **Tooling matrix** — OSV-Scanner added under “Use now” in `tooling-evaluation.md`.
 
 ## Residual (tracked)

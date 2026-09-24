@@ -1,6 +1,6 @@
 {
   "$comment": [
-    "Structural-complexity debt ledger -- see scripts/quality/quality-gate.mjs.",
+    "Structural-complexity debt ledger -- see scripts/quality-gate.mjs.",
     "These numbers may only ever go DOWN. Regenerate with:",
     "  pnpm quality:gate --update",
     "Do not hand-edit, and do not raise a number to make the gate pass.",
@@ -72,13 +72,13 @@
     "apps/cli/src/store.rs": {
       "max-lines": 950
     },
-    "apps/connect-backend/src/github-app.mjs": {
+    "apps/connect-backend/github-app.mjs": {
       "complexity": 3,
       "max-depth": 2,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/connect-backend/src/server.mjs": {
+    "apps/connect-backend/server.mjs": {
       "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1

@@ -10,8 +10,8 @@ Scope: `packages/oauth-provider`
 | cve-lite (overrides) | CLEAN (1 PD002 monorepo false positive) |
 | semgrep (ERROR+) | CLEAN |
 | ast-grep | CLEAN |
-| `scripts/test/task-security-battle-test.sh` | OK |
-| `scripts/test/battle-test.sh` | ALL PASSED |
+| `scripts/task-security-battle-test.sh` | OK |
+| `scripts/battle-test.sh` | ALL PASSED |
 | Residual review | provider config accepted any resource indicator; production silently ran on ephemeral keys + memory state |
 
 ## Findings fixed
