@@ -82,4 +82,4 @@ This bridge is not that facade.
 - Account takeover via self-asserted email in a SIOP token is closed by
   construction.
 - RPs that need pure self-issued trust verify SIOP themselves (see
-  `examples/siop-rp`); they need not use this bridge.
+  `apps/example-siop-rp`); they need not use this bridge.
