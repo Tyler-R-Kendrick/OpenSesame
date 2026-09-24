@@ -20,10 +20,10 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use opensesame_domain::{
-    Admission, JoinDecision, JoinRequest, JoinRequestId, SessionAdmission, SessionMembership,
-    SessionMode, SessionVisibility,
+    Admission, JoinDecision, JoinRequest, JoinRequestId, PrincipalId, SessionAdmission,
+    SessionGrant, SessionId, SessionMembership, SessionMode, SessionVisibility,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -208,59 +208,9 @@ pub async fn decide_join_request(
 
     let now = Utc::now();
     let seated = waiting.requester_principal_id;
-    let (decision, minted) = match (body.decision.as_str(), body.mode.as_deref()) {
-        ("refused", None) => {
-            if body.grant.is_some() {
-                return bad_request("decision_shape", "a refusal mints no grant");
-            }
-            (JoinDecision::Refused, None)
-        }
-        ("refused", Some(_)) => {
-            return bad_request("decision_shape", "a refusal seats nobody");
-        }
-        ("admitted", Some("observer")) => {
-            if body.grant.is_some() {
-                return bad_request(
-                    "decision_shape",
-                    "an observer is seated holding nothing; admit them as a participant to grant",
-                );
-            }
-            (
-                JoinDecision::Admitted {
-                    admission: Admission::Observer,
-                },
-                None,
-            )
-        }
-        ("admitted", Some("participant")) => {
-            let Some(spec) = body.grant.as_ref() else {
-                return bad_request(
-                    "decision_shape",
-                    "admitting a participant needs the grant it mints",
-                );
-            };
-            if spec.subject_principal_id.is_some() {
-                return bad_request(
-                    "decision_shape",
-                    "an admission grants the requester; naming another subject is refused",
-                );
-            }
-            // The requester is the subject, structurally: `grant_from` takes it
-            // as a parameter, so there is no body field that could disagree.
-            match grant_from(spec, session.id, seated, principal, now) {
-                Ok(grant) => (
-                    JoinDecision::Admitted {
-                        admission: Admission::Participant { grant_id: grant.id },
-                    },
-                    Some(grant),
-                ),
-                Err(resp) => return resp,
-            }
-        }
-        ("admitted", _) => {
-            return bad_request("decision_shape", "admit as observer or participant");
-        }
-        _ => return bad_request("decision_shape", "admitted or refused"),
+    let (decision, minted) = match decision_from(&body, session.id, seated, principal, now) {
+        Ok(shape) => shape,
+        Err(resp) => return resp,
     };
 
     // The seat is written before the decision, and only for an admission. A
@@ -328,6 +278,55 @@ pub async fn decide_join_request(
             .into_response()
         }
         Err(error) => unavailable(&error),
+    }
+}
+
+/// The decision a body states, and the grant it mints — or the refusal. A
+/// body that disagrees with itself is refused rather than resolved: see the
+/// module note.
+#[allow(clippy::result_large_err)] // axum's Response is the refusal, as in every handler here
+fn decision_from(
+    body: &DecideRequest,
+    session_id: SessionId,
+    seated: PrincipalId,
+    principal: PrincipalId,
+    now: DateTime<Utc>,
+) -> Result<(JoinDecision, Option<SessionGrant>), Response> {
+    let shape = |detail: &str| Err(bad_request("decision_shape", detail));
+    match (body.decision.as_str(), body.mode.as_deref()) {
+        ("refused", None) if body.grant.is_some() => shape("a refusal mints no grant"),
+        ("refused", None) => Ok((JoinDecision::Refused, None)),
+        ("refused", Some(_)) => shape("a refusal seats nobody"),
+        ("admitted", Some("observer")) if body.grant.is_some() => {
+            shape("an observer is seated holding nothing; admit them as a participant to grant")
+        }
+        ("admitted", Some("observer")) => Ok((
+            JoinDecision::Admitted {
+                admission: Admission::Observer,
+            },
+            None,
+        )),
+        ("admitted", Some("participant")) => {
+            let Some(spec) = body.grant.as_ref() else {
+                return shape("admitting a participant needs the grant it mints");
+            };
+            if spec.subject_principal_id.is_some() {
+                return shape(
+                    "an admission grants the requester; naming another subject is refused",
+                );
+            }
+            // The requester is the subject, structurally: `grant_from` takes
+            // it as a parameter, so there is no body field that could disagree.
+            let grant = grant_from(spec, session_id, seated, principal, now)?;
+            Ok((
+                JoinDecision::Admitted {
+                    admission: Admission::Participant { grant_id: grant.id },
+                },
+                Some(grant),
+            ))
+        }
+        ("admitted", _) => shape("admit as observer or participant"),
+        _ => shape("admitted or refused"),
     }
 }
 
