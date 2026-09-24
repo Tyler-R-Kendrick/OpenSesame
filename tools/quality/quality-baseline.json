@@ -18,7 +18,7 @@
   "totals": {
     "files": 480,
     "violations": 757,
-    "oversizedLines": 241833
+    "oversizedLines": 241813
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1243,7 +1243,7 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 1888
+      "max-lines": 1868
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 517,

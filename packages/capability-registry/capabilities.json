@@ -489,7 +489,8 @@
       "pwa": null,
       "mcp_host": "host_ready",
       "mcp_client": "host_health",
-      "webmcp": null
+      "webmcp": null,
+      "extension": "message:opensesame.health"
     },
     "excluded": {
       "pwa": {
@@ -733,6 +734,164 @@
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
       }
+    }
+  },
+  {
+    "id": "host.auth.doctor",
+    "title": "Diagnose the local sign-in state",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame auth doctor",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "leases.acquire",
+    "title": "Acquire or revoke a short-lived credential lease",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame lease",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "connections.import",
+    "title": "Import non-secret connection configuration",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame import",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "files.crypto",
+    "title": "Encrypt or decrypt a file without plaintext in argv or stdout",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame crypto",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "config_files.print",
+    "title": "Print the native project configuration files",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame config-files",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "env_spec.init",
+    "title": "Start a project's .env.schema",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame init",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "env_spec.dev",
+    "title": "Resolve and run a project's environment",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame dev",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "pm_bridges.install",
+    "title": "Install a password-manager bridge for a browser",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame bridge install",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      }
+    }
+  },
+  {
+    "id": "sync.cursor.read",
+    "title": "Read this device's sync cursor",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": "message:opensesame.sync_cursor"
     }
   },
   {
@@ -3236,7 +3395,7 @@
     "plane": "identity",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame-id logout",
+      "cli": "opensesame logout",
       "pwa": "lib/session-exit.ts:signOut",
       "mcp_host": null,
       "mcp_client": null,

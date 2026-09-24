@@ -87,6 +87,52 @@ fn registry_cli_surfaces_exist_in_clap_sources() {
     );
 }
 
+/// Verbs that are shell mechanics or another interface over capabilities the
+/// registry already holds, rather than capabilities of their own.
+const INTERFACE_VERBS: &[&str] = &["help", "completion", "tui"];
+
+/// The other direction: every top-level `opensesame` verb is a registry
+/// capability, so a verb cannot ship on the CLI without the registry — and
+/// with it every other target's column — knowing (ADR 0139).
+#[test]
+fn every_cli_verb_is_a_registry_capability() {
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_opensesame"))
+        .arg("--help")
+        .output()
+        .expect("opensesame --help runs");
+    let help = String::from_utf8(help.stdout).expect("help is UTF-8");
+    let verbs: Vec<&str> = help
+        .lines()
+        .skip_while(|line| !line.starts_with("Commands:"))
+        .skip(1)
+        .take_while(|line| line.starts_with("  "))
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    assert!(
+        verbs.len() > 20,
+        "no commands in `opensesame --help`:\n{help}"
+    );
+
+    let capabilities: serde_json::Value =
+        serde_json::from_str(CAPABILITIES_JSON).expect("capabilities.json parses");
+    let registered: std::collections::BTreeSet<&str> = capabilities
+        .as_array()
+        .expect("registry is an array")
+        .iter()
+        .filter_map(|capability| capability["surfaces"]["cli"].as_str())
+        .filter_map(|cli| cli.strip_prefix("opensesame "))
+        .filter_map(|rest| rest.split_whitespace().next())
+        .collect();
+    let unregistered: Vec<&str> = verbs
+        .into_iter()
+        .filter(|verb| !registered.contains(verb) && !INTERFACE_VERBS.contains(verb))
+        .collect();
+    assert!(
+        unregistered.is_empty(),
+        "`opensesame` verbs with no packages/capability-registry entry: {unregistered:?}"
+    );
+}
+
 #[test]
 fn word_matching_rejects_substrings() {
     assert!(has_word("connectcmd::ls {", "ls"));
