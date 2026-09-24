@@ -35,16 +35,18 @@ export type CoreSettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
 /** Every category id this code knows how to name; contributed ones included. */
 export type SettingsCategory = CoreSettingsCategory | "connections";
 
-export const SETTINGS_CATEGORY_LABEL: Readonly<
-  Record<SettingsCategory, string>
-> = {
+export const SETTINGS_CATEGORY_LABEL = {
   general: "General",
   connections: "Connections",
   security: "Security",
   vaults: "Vaults",
   capabilities: "Capabilities",
   danger: "Danger",
-};
+} as const satisfies Readonly<Record<SettingsCategory, string>>;
+
+const SETTINGS_LABEL_BY_ID = new Map<string, string>(
+  Object.entries(SETTINGS_CATEGORY_LABEL),
+);
 
 /** Core categories plus every registered `settings-category`, in order. */
 export function settingsCategories(): readonly string[] {
@@ -56,9 +58,8 @@ export function settingsCategories(): readonly string[] {
 
 /** The label a category is drawn with: authored here, or its contribution's. */
 export function settingsCategoryLabel(category: string): string {
-  if (category in SETTINGS_CATEGORY_LABEL) {
-    return SETTINGS_CATEGORY_LABEL[category as SettingsCategory];
-  }
+  const authored = SETTINGS_LABEL_BY_ID.get(category);
+  if (authored !== undefined) return authored;
   return (
     contributionsSnapshot("settings-category").find(
       (entry) => entry.id === category,
@@ -233,7 +234,7 @@ export function crumbsFor(
   // A section that is not in the plan has no path to spell out: the row is
   // its name and nothing under it links anywhere.
   if (section === undefined) return current(capitalize(segment));
-  const build = SECTION_CRUMBS[segment];
+  const build = SECTION_CRUMBS.get(segment);
   return build ? build(parts, ctx) : current(section.label);
 }
 
@@ -246,13 +247,14 @@ function current(label: string): Crumb[] {
  * by the section's segment. A registered section without one is a single
  * current crumb carrying its contributed label.
  */
-const SECTION_CRUMBS: Readonly<
-  Record<string, (parts: string[], ctx: CrumbContext) => Crumb[]>
-> = {
-  connections: (parts, ctx) => connectionsCrumbs(parts, ctx),
-  access: (parts) => accessCrumbs(parts),
-  wallet: (parts) => walletCrumbs(parts),
-};
+const SECTION_CRUMBS = new Map<
+  string,
+  (parts: string[], ctx: CrumbContext) => Crumb[]
+>([
+  ["connections", (parts, ctx) => connectionsCrumbs(parts, ctx)],
+  ["access", (parts) => accessCrumbs(parts)],
+  ["wallet", (parts) => walletCrumbs(parts)],
+]);
 
 function accessCrumbs(parts: string[]): Crumb[] {
   if (parts[1] === "new") {

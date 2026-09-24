@@ -17,7 +17,7 @@ export function EmptyTip({
 }) {
   // A keyboard tip with a touch counterpart says that one on a phone; hidden
   // outright, it left a phone's empty state a bare "Nothing here".
-  const touch = keys && typeof children === "string" ? TOUCH[children] : null;
+  const touch = keys ? TOUCH.get(String(children)) : undefined;
   if (touch) {
     return (
       <p className="empty__tip" role="note">
@@ -49,9 +49,9 @@ export const emptyTips = {
 } as const;
 
 /** What a keyboard tip says where the pointer is a finger. */
-const TOUCH: Readonly<Record<string, string>> = {
-  [emptyTips.navigate]: "Tap a row to open it.",
-  [emptyTips.vaultMove]: "Tap an item to open it.",
-  [emptyTips.vaultEmpty]: "The + above adds the first item.",
-  [emptyTips.rail]: "The menu key at the top opens every section.",
-};
+const TOUCH = new Map<string, string>([
+  [emptyTips.navigate, "Tap a row to open it."],
+  [emptyTips.vaultMove, "Tap an item to open it."],
+  [emptyTips.vaultEmpty, "The + above adds the first item."],
+  [emptyTips.rail, "The menu key at the top opens every section."],
+]);

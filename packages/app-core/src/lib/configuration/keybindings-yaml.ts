@@ -1,3 +1,4 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { parse, stringify } from "yaml";
 
 /**
@@ -9,10 +10,11 @@ export function keybindingsToYaml(bindings: Readonly<Record<string, string>>) {
   return stringify(bindings, { lineWidth: 0 });
 }
 
-/** The typed text as data, or `null` when it is not YAML at all. */
-export function readKeybindingsYaml(text: string): unknown {
+/** The typed text as boundary data, or `null` when it is not YAML at all. */
+export function readKeybindingsYaml(text: string): BoundaryValue | null {
   try {
-    return parse(text) ?? {};
+    const parsed: BoundaryValue = parse(text) ?? {};
+    return parsed;
   } catch {
     return null;
   }

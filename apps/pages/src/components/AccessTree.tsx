@@ -5,8 +5,8 @@ import {
   useIdentityConfigured,
 } from "../lib/use-configured.js";
 import { useVault } from "../lib/vault/hooks.js";
-import { useShareLeaves } from "../sections/access/share-leaves.js";
 import { accessPageTree } from "../sections/access/page-tree.js";
+import { useShareLeaves } from "../sections/access/share-leaves.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
 import { SectionRow, type SectionTreeProps } from "./RailRows.js";
 

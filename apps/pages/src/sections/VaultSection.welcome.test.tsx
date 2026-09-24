@@ -9,9 +9,8 @@ import { makeLogin } from "./vault/section-items.test-support.js";
 
 registerLegacyItemKinds();
 
-const vault: { current: { items: ReturnType<typeof makeLogin>[] } } = {
-  current: { items: [] },
-};
+const items: ReturnType<typeof makeLogin>[] = [];
+const vault = { current: { items } };
 const original = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 
