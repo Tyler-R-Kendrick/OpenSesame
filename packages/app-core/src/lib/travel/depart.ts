@@ -37,6 +37,12 @@ export type TravelDeps = Readonly<{
   duressActive: () => Promise<boolean>;
   /** A vault of the owner's is open — not a guest session, not locked. */
   ownerPresent: () => boolean;
+  /**
+   * Projects whose vault still sits under the pre-tomb keys. The vault list
+   * reports them as empty, so a plan could neither send them off nor keep
+   * them; they are refused until opened once (which moves them).
+   */
+  legacyVaults: () => Promise<readonly string[]>;
   /** Drop departed vaults from the projects list and the active pointer. */
   forgetVaults: (ids: readonly string[]) => Promise<void>;
   /** Pick up vaults that came home (hydrate headers, rebuild the list). */
@@ -44,13 +50,18 @@ export type TravelDeps = Readonly<{
   now: () => Date;
 }>;
 
-export type DepartureRefusal =
+/** What stops travel in either direction, checked at every step that writes. */
+export type TravelGateRefusal =
   | "owner_not_present"
+  | "duress_active"
+  | "storage_not_durable";
+
+export type DepartureRefusal =
+  | TravelGateRefusal
+  | "vault_needs_opening"
   | "unknown_vault"
   | "open_vault_departs"
   | "nothing_departs"
-  | "duress_active"
-  | "storage_not_durable"
   | "vault_has_no_files"
   | "self_check_failed";
 
@@ -89,7 +100,10 @@ export type DepartureReceipt = Readonly<{
 
 export type CompleteOutcome =
   | { ok: true; receipt: DepartureReceipt }
-  | { ok: false; code: "not_acknowledged" | "changed_since_packed" };
+  | {
+      ok: false;
+      code: TravelGateRefusal | "not_acknowledged" | "changed_since_packed";
+    };
 
 export async function fingerprintFiles(
   vaults: readonly Pick<TravelVault, "id" | "files">[],
@@ -132,18 +146,12 @@ function kindOf(vault: TravelVaultInfo): "personal" | "project" {
   return vault.kind === "personal" ? "personal" : "project";
 }
 
-async function gate(
+export async function travelGate(
   deps: TravelDeps,
-): Promise<{ ok: false; code: DepartureRefusal; ids: [] } | null> {
-  if (!deps.ownerPresent()) {
-    return { ok: false, code: "owner_not_present", ids: [] };
-  }
-  if (await deps.duressActive()) {
-    return { ok: false, code: "duress_active", ids: [] };
-  }
-  if (!deps.storage.durable()) {
-    return { ok: false, code: "storage_not_durable", ids: [] };
-  }
+): Promise<TravelGateRefusal | null> {
+  if (!deps.ownerPresent()) return "owner_not_present";
+  if (await deps.duressActive()) return "duress_active";
+  if (!deps.storage.durable()) return "storage_not_durable";
   return null;
 }
 
@@ -152,8 +160,12 @@ export async function packDeparture(
   deps: TravelDeps,
   input: { safe: readonly string[] },
 ): Promise<PackOutcome> {
-  const refused = await gate(deps);
-  if (refused) return refused;
+  const refused = await travelGate(deps);
+  if (refused) return { ok: false, code: refused, ids: [] };
+  const legacy = await deps.legacyVaults();
+  if (legacy.length > 0) {
+    return { ok: false, code: "vault_needs_opening", ids: legacy };
+  }
   const vaults = deps.vaults();
   const planned = planTravel({ vaults, safe: input.safe });
   if (!planned.ok) return planned;
@@ -228,9 +240,12 @@ export async function completeDeparture(
   pkg: DeparturePackage,
   ack: { bundleSaved: boolean; codeRecorded: boolean },
 ): Promise<CompleteOutcome> {
-  if (!ack.bundleSaved || !ack.codeRecorded || !deps.ownerPresent()) {
+  if (!ack.bundleSaved || !ack.codeRecorded) {
     return { ok: false, code: "not_acknowledged" };
   }
+  // The device may have changed since packing: a duress incident, a lock.
+  const refused = await travelGate(deps);
+  if (refused) return { ok: false, code: refused };
   const ids = pkg.plan.departing;
   const current = await readVaultFiles(deps.storage, ids);
   const now = await fingerprintFiles(

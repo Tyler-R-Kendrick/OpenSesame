@@ -60,18 +60,31 @@ export function travelRefusalText(code: string): string {
   }
 }
 
-export function TravelNotice({
-  tone,
-  text,
-}: {
-  tone: StatusTone;
-  text: string;
-}) {
+/** Something the panel has to say: a refusal, or what just happened. */
+export type TravelNotice = { tone: StatusTone; text: string; meta?: string };
+
+/** A refusal is a mark in the panel head, never a paragraph in its body. */
+export function TravelStatus({ notice }: { notice: TravelNotice }) {
   return (
-    <p className="travel__notice" role={tone === "err" ? "alert" : "status"}>
-      <StatusMark tone={tone} label={text} />
-      <span>{text}</span>
-    </p>
+    <span
+      className="travel__status"
+      role={notice.tone === "err" ? "alert" : undefined}
+    >
+      <StatusMark tone={notice.tone} label={notice.text} />
+    </span>
+  );
+}
+
+/** What departure or return did, as a record the list keeps on its top row. */
+export function TravelReceipt({ notice }: { notice: TravelNotice }) {
+  return (
+    <ul className="travel__list" aria-label="What just happened">
+      <TravelRow
+        name={notice.text}
+        meta={notice.meta}
+        side={<StatusMark tone={notice.tone} label={notice.text} />}
+      />
+    </ul>
   );
 }
 
@@ -100,13 +113,14 @@ export function TravelRow({
 }
 
 function saveBundle(pkg: DeparturePackage): void {
-  const blob = new Blob([pkg.bundleJson], { type: "application/json" });
+  const blob = new Blob([pkg.bundleJson], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = pkg.bundleFileName;
   link.click();
-  URL.revokeObjectURL(url);
+  // Revoking synchronously can cancel the download in some engines.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function PackedView({
@@ -203,8 +217,16 @@ export function PackedView({
   );
 }
 
-export function departedText(receipt: DepartureReceipt): string {
-  return `${plural(receipt.departed.length, "vault")} left this device · ${plural(receipt.removedFiles, "file")} removed`;
+export function departedNotice(receipt: DepartureReceipt): TravelNotice {
+  const removed = `${plural(receipt.removedFiles, "file")} removed`;
+  const text = `${plural(receipt.departed.length, "vault")} left this device`;
+  return receipt.completion === "applied_local"
+    ? { tone: "ok", text, meta: removed }
+    : {
+        tone: "warn",
+        text,
+        meta: `${removed} · ${receipt.leftovers.length} could not be`,
+      };
 }
 
 export function ReturnForm({
@@ -239,7 +261,7 @@ export function ReturnForm({
           meta="travel bundle"
           side={
             <label
-              className="icon-btn icon-btn--sm"
+              className="icon-btn icon-btn--sm travel__file"
               title="Choose the travel bundle"
             >
               <IconUpload size={16} />
@@ -291,7 +313,7 @@ export function ReturnForm({
 const STATUS = {
   comes_home: { tone: "ok", label: "Comes home" },
   already_home: { tone: "idle", label: "Already home" },
-  occupied: { tone: "warn", label: "Another vault is here; left alone" },
+  occupied: { tone: "warn", label: "Already here, not the same; left alone" },
 } satisfies Record<ReturnStatus, { tone: StatusTone; label: string }>;
 
 export function ReturnPreviewView({
@@ -350,10 +372,19 @@ export function ReturnPreviewView({
   );
 }
 
-export function returnedText(receipt: ReturnReceipt): string {
-  const parts = [`${plural(receipt.restored.length, "vault")} came home`];
-  if (receipt.occupied.length > 0) {
-    parts.push(`${plural(receipt.occupied.length, "vault")} left alone`);
-  }
-  return parts.join(" · ");
+export function returnedNotice(receipt: ReturnReceipt): TravelNotice {
+  const text = `${plural(receipt.restored.length, "vault")} came home`;
+  const aside = [
+    receipt.alreadyHome.length > 0
+      ? `${plural(receipt.alreadyHome.length, "vault")} already here`
+      : "",
+    receipt.occupied.length > 0
+      ? `${plural(receipt.occupied.length, "vault")} left alone`
+      : "",
+  ].filter(Boolean);
+  return {
+    tone: receipt.occupied.length > 0 ? "warn" : "ok",
+    text,
+    meta: aside.join(" · ") || undefined,
+  };
 }

@@ -43,7 +43,11 @@ stays home by default. Planning (`lib/travel/plan.ts`) is pure and refuses to:
 - name a vault the device does not have (`unknown_vault`);
 - run a departure in which nothing leaves (`nothing_departs`).
 
-The guest road and never-sealed vaults take part in neither list.
+The guest road and never-sealed vaults take part in neither list. A project
+whose vault still sits under the pre-tomb legacy keys reads as empty in the
+vault list, so a plan could neither send it off nor keep it: departure
+refuses (`vault_needs_opening`) until it has been opened once, which moves it
+into its tomb.
 
 ### 2. A vault leaves whole, in a bundle under a return code
 
@@ -77,8 +81,11 @@ bytes read (a SHA-256 fingerprint).
 the bundle is saved somewhere other than this device, and the code is
 recorded somewhere they will not carry. It then re-reads the files. If a
 vault changed after it was packed, it refuses with `changed_since_packed`.
-Otherwise it deletes the files, unregisters the tombs, drops the vaults from
-the project list and the active pointer, and lists the device again. The
+It checks the owner, duress and storage gates again, since any of them can
+change while the packed step is on screen. Only then does it delete the files,
+unregister the tombs, lock any departed tomb whose key is still in memory, drop
+the vaults from the project list and the active pointer, and list the device
+again. The
 **receipt** reports what is actually gone. Its `leftovers` field names any
 file that survived.
 
@@ -106,18 +113,27 @@ remembered. So a vault deleted or departed while its sibling was locked came
 back as a ghost row, name included. `hydrateProjectsFromVfs` now builds the
 list from the vaults actually on the device: registered tombs, the active
 pointer, and vaults still under pre-tomb legacy keys. Names come from the
-sealed view. A stale sibling's name is **scrubbed** from the sealed view the
-next time that tomb is unlocked. The open tomb's view is rewritten at
-departure.
+sealed view, in the order it recorded them. A stale sibling's name is
+**scrubbed** from the sealed view the next time that tomb is unlocked. The
+open tomb's view is rewritten at departure. For this to hold, a project
+registers its tomb when it is created, not when its first header lands, so a
+project nobody has sealed yet is listed as "not sealed yet" rather than
+dropped.
 
 ### 6. Return puts back exactly what left, and nothing else
 
-`openReturn` opens the bundle and previews each vault as `comes_home`,
-`already_home` or `occupied`. `completeReturn` restores what comes home: it
-writes every file byte for byte, removes stray files of that tomb, and
-registers the tomb again. It never overwrites a different vault sealed on
-the road under the same id (`occupied`, usually a personal vault the
-traveller sealed on the trip). Returning the same bundle twice is harmless.
+`openReturn` opens the bundle and previews each vault. A vault comes home
+(`comes_home`) only when the device has no header under its id. If the
+device already has a vault there, nothing is written: it is `already_home`
+when every file matches the bundle, and `occupied` otherwise. That covers a
+personal vault sealed on the trip, and a vault that came home and has been
+used since, so an old bundle opened a second time can never put stale data
+back. A bundle vault with no header is refused as `bundle_malformed`.
+
+`completeReturn` does not trust the preview. It checks the gates again and
+recomputes every status from the device. Then it writes each returning
+vault's files byte for byte, removes that tomb's stray files, and registers
+the tomb.
 
 A bundle is **hostile input**. Every file it carries must sit in the
 namespace of the vault it claims (`foreign_file` otherwise). A bundle can put

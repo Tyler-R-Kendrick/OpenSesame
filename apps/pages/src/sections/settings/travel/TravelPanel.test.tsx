@@ -73,7 +73,9 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     render(<TravelPanel />);
     expect(screen.getByRole("heading", { name: "Travel" })).toBeTruthy();
     expect(screen.queryByRole("switch")).toBeNull();
-    expect(screen.getByText("Open one of your own vaults first")).toBeTruthy();
+    expect(
+      screen.getByRole("img", { name: "Open one of your own vaults first" }),
+    ).toBeTruthy();
   });
 
   it("carries the open vault and sends the rest home, only once both halves are elsewhere", async () => {
@@ -111,7 +113,8 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
       }),
     );
     fireEvent.click(depart);
-    await screen.findByText("1 vault left this device · 4 files removed");
+    await screen.findByText("1 vault left this device");
+    expect(screen.getByText("4 files removed")).toBeTruthy();
     await waitFor(() => expect(origin.tombs.has(WORK)).toBe(false));
     expect(origin.tombs.has("personal")).toBe(true);
   });

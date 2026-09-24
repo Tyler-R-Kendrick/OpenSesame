@@ -29,6 +29,7 @@ import {
   PERSONAL_PROJECT_ID,
   type PagesProject,
   type ProjectsState,
+  onDeviceView,
   personalProject,
   sanitize,
   withKnownNames,
@@ -44,6 +45,7 @@ import {
   deletePlaintextFile,
   listTombs,
   readFile,
+  registerTomb,
   tombUnlocked,
   unregisterTomb,
   writeFile,
@@ -101,9 +103,8 @@ function readBootActiveId(): string {
 /**
  * The pre-unlock view: tomb names from the plaintext registry (display names
  * are sealed — ids stand in until unlock), active pointer from the boot
- * record. The personal tomb always exists and comes first. The boot pointer
- * is kept even when its tomb has no material yet (a project created moments
- * ago registers only when its first header lands).
+ * record. The personal tomb always exists and comes first; a project
+ * registers its tomb when it is created, sealed or not.
  */
 function bootView(extra: readonly string[] = []): ProjectsState {
   const activeId = readBootActiveId();
@@ -190,11 +191,9 @@ export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
   try {
     const bytes = await readFile(tomb, PROJECTS_CONFIG_PATH);
     const sealed = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
-    // The vaults are the ones on this device (the boot view's set, plus any
-    // still under pre-tomb keys), named from the sealed view. A sibling that
-    // left while this tomb was locked (deleted, or departed for travel, ADR
-    // 0143) is scrubbed from the view.
-    cached = withKnownNames(bootView(await legacyVaults(sealed)), sealed);
+    // The vaults on this device, in the sealed view's order; a sibling that
+    // left while this was locked (deleted, travel ADR 0143) is scrubbed.
+    cached = onDeviceView(bootView(await legacyVaults(sealed)), sealed);
     const present = new Set(cached.projects.map((project) => project.id));
     if (sealed.projects.some((project) => !present.has(project.id))) {
       await writeFile(
@@ -361,6 +360,7 @@ async function createProjectDefault(name: string): Promise<PagesProject> {
     name: project.name,
     createdAt: project.createdAt,
   });
+  await registerTomb(project.id); // on the device from now, sealed or not
   await writeState({
     ...state,
     projects: [...state.projects, project],

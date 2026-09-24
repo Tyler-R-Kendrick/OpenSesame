@@ -100,3 +100,21 @@ export function withKnownNames(
     }),
   };
 }
+
+/**
+ * The list after unlock: the vaults on this device (`boot`), in the order
+ * the sealed view recorded them, then any it never knew, named where it can.
+ */
+export function onDeviceView(
+  boot: ProjectsState,
+  sealed: ProjectsState,
+): ProjectsState {
+  const present = new Set(boot.projects.map((project) => project.id));
+  const kept = sealed.projects.filter((project) => present.has(project.id));
+  const known = new Set(kept.map((project) => project.id));
+  const rest = withKnownNames(
+    { ...boot, projects: boot.projects.filter((p) => !known.has(p.id)) },
+    sealed,
+  );
+  return { ...boot, projects: [...kept, ...rest.projects] };
+}

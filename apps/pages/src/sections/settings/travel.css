@@ -56,13 +56,25 @@
   user-select: all;
 }
 
-.travel__notice {
-  display: flex;
+.travel__status {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
+}
+
+/* The native control stays in the key's box, invisible and pressable: left
+   visible, the browser's own button renders over the row. */
+.travel__file {
+  position: relative;
+  overflow: hidden;
+}
+
+.travel__file input[type="file"] {
+  position: absolute;
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  opacity: 0;
+  cursor: pointer;
 }
 
 .travel__ack {

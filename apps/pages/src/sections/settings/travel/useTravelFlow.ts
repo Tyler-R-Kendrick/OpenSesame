@@ -17,8 +17,9 @@ import { useDeviceVaults } from "../../../bindings/vaults.js";
 import type { StatusTone } from "../../../components/StatusMark.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import {
-  departedText,
-  returnedText,
+  type TravelNotice,
+  departedNotice,
+  returnedNotice,
   travelRefusalText,
 } from "./TravelViews.js";
 
@@ -28,7 +29,7 @@ export type TravelMode =
   | { kind: "return" }
   | { kind: "preview"; opened: OpenedReturn };
 
-type Notice = { tone: StatusTone; text: string } | null;
+type Notice = TravelNotice | null;
 
 const NO_ACK = { bundleSaved: false, codeRecorded: false };
 
@@ -108,14 +109,7 @@ function departureSteps(state: TravelState, openId: string | undefined) {
       if (!outcome.ok) return state.refuse(outcome.code);
       const { receipt } = outcome;
       state.setSafe(new Set());
-      state.reset(
-        receipt.completion === "applied_local"
-          ? { tone: "ok", text: departedText(receipt) }
-          : {
-              tone: "warn",
-              text: `${departedText(receipt)} · ${receipt.leftovers.length} could not be removed`,
-            },
-      );
+      state.reset(departedNotice(receipt));
     });
 
   const toggleSafe = (id: string) => {
@@ -145,8 +139,9 @@ function returnSteps(state: TravelState) {
 
   const bringHome = (opened: OpenedReturn) =>
     state.run(async () => {
-      const receipt = await returnFromTravel(opened);
-      state.reset({ tone: "ok", text: returnedText(receipt) });
+      const outcome = await returnFromTravel(opened);
+      if (!outcome.ok) return state.refuse(outcome.code);
+      state.reset(returnedNotice(outcome.receipt));
     });
 
   const chooseBundle = (file: File) =>

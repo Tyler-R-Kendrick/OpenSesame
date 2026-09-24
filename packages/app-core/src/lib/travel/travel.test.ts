@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { kvFileName } from "../kv.js";
-import {
-  TravelBundleError,
-  openTravelBundle,
-  sealTravelBundle,
-} from "./bundle-format.js";
+import { openTravelBundle } from "./bundle-format.js";
 import { completeDeparture, packDeparture } from "./depart.js";
 import { planTravel } from "./plan.js";
 import {
@@ -12,45 +8,16 @@ import {
   mintReturnSecret,
   parseReturnCode,
 } from "./return-code.js";
-import { completeReturn, openReturn } from "./return.js";
 import { filesOfVault, tombOwning, vaultNamespace } from "./storage.js";
 import {
-  type FakeOrigin,
-  fakeOrigin,
-  putVault,
+  ACK,
+  PRJ_TRIP,
+  PRJ_WORK,
+  depart,
+  packedDevice,
   tombFile,
   vault,
 } from "./travel.test-support.js";
-
-const PRJ_WORK = "prj_1a2b3c4d-0000-4000-8000-00000000work";
-const PRJ_TRIP = "prj_9f8e7d6c-0000-4000-8000-00000000trip";
-const ACK = { bundleSaved: true, codeRecorded: true };
-
-/** personal + Work stay home, Trip travels and is the open vault. */
-function packedDevice(): FakeOrigin {
-  const origin = fakeOrigin();
-  putVault(origin, "personal");
-  putVault(origin, PRJ_WORK);
-  putVault(origin, PRJ_TRIP);
-  origin.files.set(kvFileName("vault.attempts.v1"), '{"count":0}');
-  origin.files.set(kvFileName(`project.${PRJ_WORK}.vault.attempts.v1`), "{}");
-  origin.files.set(kvFileName("guest-access.v1"), '{"allow":true}');
-  origin.vaults = [
-    vault("personal"),
-    vault(PRJ_WORK, "locked", "Work"),
-    vault(PRJ_TRIP, "open", "Trip"),
-    { ...vault("guest", "empty"), kind: "guest" },
-  ];
-  return origin;
-}
-
-async function depart(origin: FakeOrigin, safe: string[]) {
-  const packed = await packDeparture(origin.deps, { safe });
-  if (!packed.ok) throw new Error(`refused: ${packed.code}`);
-  const done = await completeDeparture(origin.deps, packed.pkg, ACK);
-  if (!done.ok) throw new Error(`refused: ${done.code}`);
-  return { pkg: packed.pkg, receipt: done.receipt };
-}
 
 describe("the return code", () => {
   it("round-trips, forgiving case, dashes and look-alike digits", async () => {
@@ -216,6 +183,28 @@ describe("departure", () => {
     expect(origin.tombs.has(PRJ_WORK)).toBe(true);
   });
 
+  it("refuses while a vault still sits under the pre-tomb keys", async () => {
+    const origin = packedDevice();
+    origin.legacy = ["prj_legacy"];
+    expect(await packDeparture(origin.deps, { safe: [PRJ_TRIP] })).toEqual({
+      ok: false,
+      code: "vault_needs_opening",
+      ids: ["prj_legacy"],
+    });
+  });
+
+  it("checks the gates again before removing anything", async () => {
+    const origin = packedDevice();
+    const packed = await packDeparture(origin.deps, { safe: [PRJ_TRIP] });
+    if (!packed.ok) throw new Error(packed.code);
+    origin.duress = true;
+    expect(await completeDeparture(origin.deps, packed.pkg, ACK)).toEqual({
+      ok: false,
+      code: "duress_active",
+    });
+    expect(origin.tombs.has(PRJ_WORK)).toBe(true);
+  });
+
   it("refuses under duress, to a guest, and where nothing is durable", async () => {
     const origin = packedDevice();
     origin.owner = false;
@@ -238,129 +227,5 @@ describe("departure", () => {
       code: "storage_not_durable",
       ids: [],
     });
-  });
-});
-
-describe("return", () => {
-  it("puts every file back and registers the tombs", async () => {
-    const origin = packedDevice();
-    const before = new Map(origin.files);
-    const { pkg } = await depart(origin, [PRJ_TRIP]);
-    const opened = await openReturn(origin.deps, {
-      bundleJson: pkg.bundleJson,
-      returnCode: pkg.returnCode,
-    });
-    if (!opened.ok) throw new Error(opened.code);
-    expect(opened.opened.preview.vaults).toEqual([
-      {
-        id: "personal",
-        kind: "personal",
-        name: null,
-        files: 5,
-        status: "comes_home",
-      },
-      {
-        id: PRJ_WORK,
-        kind: "project",
-        name: "Work",
-        files: 5,
-        status: "comes_home",
-      },
-    ]);
-    const receipt = await completeReturn(origin.deps, opened.opened);
-    expect(receipt).toEqual({
-      restored: ["personal", PRJ_WORK],
-      alreadyHome: [],
-      occupied: [],
-      writtenFiles: 10,
-    });
-    expect(new Map(origin.files)).toEqual(before);
-    expect([...origin.tombs].sort()).toEqual(
-      ["personal", PRJ_TRIP, PRJ_WORK].sort(),
-    );
-    expect(origin.welcomed).toEqual([["personal", PRJ_WORK]]);
-
-    const again = await openReturn(origin.deps, {
-      bundleJson: pkg.bundleJson,
-      returnCode: pkg.returnCode,
-    });
-    if (!again.ok) throw new Error(again.code);
-    expect(again.opened.preview.vaults.map((v) => v.status)).toEqual([
-      "already_home",
-      "already_home",
-    ]);
-  });
-
-  it("leaves a vault sealed on the road alone", async () => {
-    const origin = packedDevice();
-    const { pkg } = await depart(origin, [PRJ_TRIP]);
-    putVault(origin, "personal", '{"ivB64":"road","ctB64":"road"}');
-    origin.files.set(
-      tombFile("personal", "header"),
-      '{"v":1,"createdAt":"road"}',
-    );
-    const opened = await openReturn(origin.deps, {
-      bundleJson: pkg.bundleJson,
-      returnCode: pkg.returnCode,
-    });
-    if (!opened.ok) throw new Error(opened.code);
-    const receipt = await completeReturn(origin.deps, opened.opened);
-    expect(receipt.occupied).toEqual(["personal"]);
-    expect(receipt.restored).toEqual([PRJ_WORK]);
-    expect(origin.files.get(tombFile("personal", "body"))).toContain("road");
-  });
-
-  it("tells a wrong code from a typo, and a stranger's file from a vault's", async () => {
-    const origin = packedDevice();
-    const { pkg } = await depart(origin, [PRJ_TRIP]);
-    const wrong = await formatReturnCode(mintReturnSecret());
-    expect(
-      await openReturn(origin.deps, {
-        bundleJson: pkg.bundleJson,
-        returnCode: wrong,
-      }),
-    ).toMatchObject({ ok: false, code: "code_mismatch" });
-    expect(
-      await openReturn(origin.deps, {
-        bundleJson: pkg.bundleJson,
-        returnCode: "ABCD",
-      }),
-    ).toMatchObject({ ok: false, code: "code_malformed" });
-    expect(
-      await openReturn(origin.deps, {
-        bundleJson: "{}",
-        returnCode: pkg.returnCode,
-      }),
-    ).toMatchObject({ ok: false, code: "bundle_malformed" });
-
-    // A bundle someone else wrote, carrying the device's guest switch.
-    const secret = mintReturnSecret();
-    const hostile = await sealTravelBundle(
-      {
-        v: 1,
-        bundleId: "trv_hostile",
-        departedAt: "2026-09-24T00:00:00.000Z",
-        vaults: [
-          {
-            id: PRJ_WORK,
-            kind: "project",
-            name: null,
-            files: [{ file: kvFileName("guest-access.v1"), text: "{}" }],
-          },
-        ],
-      },
-      secret,
-    );
-    const refused = await openReturn(origin.deps, {
-      bundleJson: hostile,
-      returnCode: await formatReturnCode(secret),
-    });
-    expect(refused).toMatchObject({ ok: false, code: "foreign_file" });
-    expect(origin.files.get(kvFileName("guest-access.v1"))).toBe(
-      '{"allow":true}',
-    );
-    await expect(
-      openTravelBundle(hostile, secret, vaultNamespace([])),
-    ).rejects.toBeInstanceOf(TravelBundleError);
   });
 });

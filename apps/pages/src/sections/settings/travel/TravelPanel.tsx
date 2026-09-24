@@ -14,8 +14,9 @@ import {
   PackedView,
   ReturnForm,
   ReturnPreviewView,
-  TravelNotice,
+  TravelReceipt,
   TravelRow,
+  TravelStatus,
   travelRefusalText,
 } from "./TravelViews.js";
 import { useTravelFlow } from "./useTravelFlow.js";
@@ -73,8 +74,17 @@ export function TravelPanel() {
         <div>
           <h2 id="travel-title">Travel</h2>
         </div>
-        {owner && mode.kind === "plan" ? (
-          <div className="actions">
+        <div className="actions">
+          {!owner ? (
+            <TravelStatus
+              notice={{
+                tone: "idle",
+                text: travelRefusalText("owner_not_present"),
+              }}
+            />
+          ) : null}
+          {notice?.tone === "err" ? <TravelStatus notice={notice} /> : null}
+          {owner && mode.kind === "plan" ? (
             <button
               type="button"
               className="icon-btn"
@@ -85,17 +95,14 @@ export function TravelPanel() {
             >
               <IconDownload size={16} />
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
       <div className="panel__body travel">
-        {notice ? <TravelNotice tone={notice.tone} text={notice.text} /> : null}
-        {!owner ? (
-          <TravelNotice
-            tone="idle"
-            text={travelRefusalText("owner_not_present")}
-          />
-        ) : mode.kind === "plan" ? (
+        {notice && notice.tone !== "err" ? (
+          <TravelReceipt notice={notice} />
+        ) : null}
+        {!owner ? null : mode.kind === "plan" ? (
           <form
             className="travel"
             aria-label="Pack for travel"

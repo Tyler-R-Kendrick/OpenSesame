@@ -4,7 +4,12 @@
  */
 
 import { kvFileName } from "../kv.js";
-import type { TravelDeps, TravelVaultInfo } from "./depart.js";
+import {
+  type TravelDeps,
+  type TravelVaultInfo,
+  completeDeparture,
+  packDeparture,
+} from "./depart.js";
 import type { TravelStorage } from "./storage.js";
 
 type FakeState = {
@@ -15,6 +20,7 @@ type FakeState = {
   durable: boolean;
   duress: boolean;
   owner: boolean;
+  legacy: string[];
   vaults: TravelVaultInfo[];
 };
 
@@ -49,6 +55,7 @@ export function fakeOrigin(): FakeOrigin {
     durable: true,
     duress: false,
     owner: true,
+    legacy: [],
     vaults: [],
   };
   const storage: TravelStorage = {
@@ -77,6 +84,7 @@ export function fakeOrigin(): FakeOrigin {
     vaults: () => origin.vaults,
     duressActive: async () => origin.duress,
     ownerPresent: () => origin.owner,
+    legacyVaults: async () => origin.legacy,
     forgetVaults: async (ids) => {
       origin.vaults = origin.vaults.filter((vault) => !ids.includes(vault.id));
     },
@@ -100,4 +108,34 @@ export function vault(
     label: name ?? id,
     name,
   };
+}
+
+export const PRJ_WORK = "prj_1a2b3c4d-0000-4000-8000-00000000work";
+export const PRJ_TRIP = "prj_9f8e7d6c-0000-4000-8000-00000000trip";
+export const ACK = { bundleSaved: true, codeRecorded: true };
+
+/** personal + Work stay home, Trip travels and is the open vault. */
+export function packedDevice(): FakeOrigin {
+  const origin = fakeOrigin();
+  putVault(origin, "personal");
+  putVault(origin, PRJ_WORK);
+  putVault(origin, PRJ_TRIP);
+  origin.files.set(kvFileName("vault.attempts.v1"), '{"count":0}');
+  origin.files.set(kvFileName(`project.${PRJ_WORK}.vault.attempts.v1`), "{}");
+  origin.files.set(kvFileName("guest-access.v1"), '{"allow":true}');
+  origin.vaults = [
+    vault("personal"),
+    vault(PRJ_WORK, "locked", "Work"),
+    vault(PRJ_TRIP, "open", "Trip"),
+    { ...vault("guest", "empty"), kind: "guest" },
+  ];
+  return origin;
+}
+
+export async function depart(origin: FakeOrigin, safe: string[]) {
+  const packed = await packDeparture(origin.deps, { safe });
+  if (!packed.ok) throw new Error(`refused: ${packed.code}`);
+  const done = await completeDeparture(origin.deps, packed.pkg, ACK);
+  if (!done.ok) throw new Error(`refused: ${done.code}`);
+  return { pkg: packed.pkg, receipt: done.receipt };
 }

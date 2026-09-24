@@ -4,15 +4,18 @@
  * a return code the traveller does not carry, and come back from both.
  */
 
-import { kvHydrate } from "../kv.js";
+import { kvGet, kvHydrate } from "../kv.js";
 import {
   forgetDepartedProjects,
+  listProjects,
   projectScopedKeys,
   refreshProjectsView,
+  scopedKey,
 } from "../projects.js";
 import { vaultStore } from "../vault/store.js";
-import { tombStorageKeys } from "../vault/tomb-migration.js";
+import { LEGACY_HEADER_KEY, tombStorageKeys } from "../vault/tomb-migration.js";
 import { listDeviceVaults } from "../vaults.js";
+import { listTombs, lockTomb } from "../vfs.js";
 import {
   type CompleteOutcome,
   type DeparturePackage,
@@ -22,9 +25,9 @@ import {
   packDeparture,
 } from "./depart.js";
 import {
+  type CompleteReturnOutcome,
   type OpenReturnOutcome,
   type OpenedReturn,
-  type ReturnReceipt,
   completeReturn,
   openReturn,
 } from "./return.js";
@@ -37,11 +40,13 @@ export type {
   DepartureReceipt,
   DepartureRefusal,
   PackOutcome,
+  TravelGateRefusal,
   TravelDeps,
   TravelVaultInfo,
 } from "./depart.js";
 export type { TravelPlan, TravelPlanRefusal } from "./plan.js";
 export type {
+  CompleteReturnOutcome,
   OpenReturnOutcome,
   OpenedReturn,
   ReturnPreview,
@@ -72,7 +77,21 @@ const defaultDeps: TravelDeps = {
     const snapshot = vaultStore.getSnapshot();
     return snapshot.status === "unlocked" && !snapshot.guest;
   },
-  forgetVaults: forgetDepartedProjects,
+  async legacyVaults() {
+    const tombs = new Set(listTombs());
+    const candidates = listProjects()
+      .map((project) => project.id)
+      .filter((id) => !tombs.has(id));
+    const keys = candidates.map((id) => scopedKey(LEGACY_HEADER_KEY, id));
+    await kvHydrate(keys);
+    return candidates.filter((_, i) => kvGet(keys[i] ?? "") !== null);
+  },
+  async forgetVaults(ids) {
+    // A sibling opened with the shared key earlier in the session keeps its
+    // key in memory; a vault that left the device must not.
+    for (const id of ids) lockTomb(id);
+    await forgetDepartedProjects(ids);
+  },
   async welcomeVaults(ids) {
     await kvHydrate(
       ids.flatMap((id) => [...tombStorageKeys(id), ...projectScopedKeys(id)]),
@@ -108,6 +127,8 @@ export function openTravelReturn(input: {
 }
 
 /** Bring the vaults home. */
-export function returnFromTravel(opened: OpenedReturn): Promise<ReturnReceipt> {
+export function returnFromTravel(
+  opened: OpenedReturn,
+): Promise<CompleteReturnOutcome> {
   return completeReturn(travelSeams.deps, opened);
 }

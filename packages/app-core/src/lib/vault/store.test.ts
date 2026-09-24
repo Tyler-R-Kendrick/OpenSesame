@@ -12,6 +12,7 @@ import {
   PERSONAL_PROJECT_ID,
   PROJECTS_KEY,
   createProject,
+  deleteProject,
   rehydrateProjects,
   setActiveProject,
 } from "../projects.js";
@@ -254,6 +255,9 @@ describe("VaultStore multi-method unlock", () => {
     expect(store.isUnlocked()).toBe(false);
     expect(store.getSnapshot().status).toBe("empty");
     await setActiveProject(PERSONAL_PROJECT_ID);
+    // A project registers when it is created, sealed or not (ADR 0143):
+    // this one stays on the device until it is deleted.
+    await deleteProject(project.id);
     kvDelete(PROJECTS_KEY);
     rehydrateProjects();
   });
