@@ -284,6 +284,21 @@ export const LIB_RULES = [
     SIGNIN,
     "interaction approval: /i/<ref> link, resolve/read, activation, decide (ADR 0140)",
   ),
+  // Moves with `claims/` to `identity.ceremonies` (ADR 0140 plan step 7); the
+  // hosted inbox rows it builds are Access › Requests' (plan step 9).
+  core(
+    `${L}approvals`,
+    SIGNIN,
+    "authorization-request review and hosted inbox rows (ADR 0084, ADR 0140)",
+  ),
+  // Core until `notifications.routing` exists (ADR 0140 plan step 11), which
+  // takes it with the Settings › Notifications file provider; no capability
+  // of the Notifications feature owns channel routing yet.
+  core(
+    `${L}notification-routing/`,
+    "settings.core",
+    "notification routing document, channel words, Identity API routes (ADR 0084)",
+  ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),
   ),
@@ -296,6 +311,13 @@ export const LIB_RULES = [
       "enterprise.directory-provisioning",
       "Identity API agent/user management",
     ),
+  ),
+  // The plan's placement (ADR 0140 plan step 12): Identity › Organizations'
+  // sign-in panels, under the capability that already owns organizations.
+  optional(
+    `${L}org-signin`,
+    "enterprise.directory-provisioning",
+    "organization upstream, email domains and SCIM tokens (ADR 0140)",
   ),
   // Duress (ADR 0131): a duress code is an unlock method, and the fence,
   // compartments and alerting it drives all hang off unlocking, so the whole
