@@ -28,7 +28,12 @@ pub struct FrozenInvokeInput {
 /// Every scoped grant field must cover the frozen intent (ADR 0027).
 ///
 /// `None` on the grant is unscoped; `Some` requires the intent to name the same
-/// value. # Errors when any scoped field does not cover the intent.
+/// value.
+///
+/// # Errors
+///
+/// [`DomainError::OrganizationMismatch`] for another organization's intent;
+/// [`DomainError::AuthorizationDenied`] naming the first scoped field it misses.
 pub fn assert_grant_covers_frozen_intent(
     grant: &Grant,
     intent: &FrozenIntentV2,
@@ -44,30 +49,20 @@ pub fn assert_grant_covers_frozen_intent(
     if grant.beneficiary_principal_id != intent.principal_id {
         return denied("beneficiary principal");
     }
-    if let Some(project) = grant.project_id {
-        if intent.project_id != Some(project) {
-            return denied("project");
-        }
+    if grant.project_id.is_some() && intent.project_id != grant.project_id {
+        return denied("project");
     }
-    if let Some(actor) = grant.actor_id {
-        if intent.actor_id != actor {
-            return denied("actor");
-        }
+    if grant.actor_id.is_some_and(|actor| intent.actor_id != actor) {
+        return denied("actor");
     }
-    if let Some(instance) = grant.actor_instance_id {
-        if intent.actor_instance_id != Some(instance) {
-            return denied("actor instance");
-        }
+    if grant.actor_instance_id.is_some() && intent.actor_instance_id != grant.actor_instance_id {
+        return denied("actor instance");
     }
-    if let Some(client) = grant.client_id {
-        if intent.client_id != Some(client) {
-            return denied("client");
-        }
+    if grant.client_id.is_some() && intent.client_id != grant.client_id {
+        return denied("client");
     }
-    if let Some(connection) = grant.connection_id {
-        if intent.connection_id != Some(connection) {
-            return denied("connection");
-        }
+    if grant.connection_id.is_some() && intent.connection_id != grant.connection_id {
+        return denied("connection");
     }
     Ok(())
 }

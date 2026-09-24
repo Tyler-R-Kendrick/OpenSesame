@@ -196,6 +196,7 @@ impl CalloutEvidenceVerifier {
 
     /// True when no issuer is configured, so no token can ever verify.
     #[must_use]
+    #[cfg_attr(not(test), allow(dead_code))] // Test-exercised; no production caller asks yet.
     pub fn is_empty(&self) -> bool {
         self.issuers.is_empty()
     }
@@ -206,17 +207,9 @@ impl CalloutEvidenceVerifier {
     /// # Errors
     ///
     /// The JWKS document when a key is unusable.
+    #[cfg_attr(not(test), allow(dead_code))] // Test seeding; the inline-pin operator path is not wired yet.
     pub fn preload(&self, issuer: &str, jwks_json: &str) -> Result<(), EvidenceError> {
-        let keys = parse_keys(jwks_json.as_bytes())?;
-        if let Ok(mut cache) = self.cache.lock() {
-            cache.insert(
-                issuer.to_owned(),
-                Cached {
-                    keys,
-                    fetched_at: Instant::now(),
-                },
-            );
-        }
+        self.remember(issuer, parse_keys(jwks_json.as_bytes())?);
         Ok(())
     }
 
@@ -275,28 +268,30 @@ impl CalloutEvidenceVerifier {
         Ok(claims)
     }
 
+    fn remember(&self, issuer: &str, keys: BTreeMap<String, DecodingKey>) {
+        let fetched_at = Instant::now();
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.insert(issuer.to_owned(), Cached { keys, fetched_at });
+        }
+    }
+
+    /// The cached key set for `issuer`, while it is younger than the TTL.
+    fn fresh_cached(&self, issuer: &str) -> Option<BTreeMap<String, DecodingKey>> {
+        let cache = self.cache.lock().ok()?;
+        let entry = cache.get(issuer)?;
+        (entry.fetched_at.elapsed() < CACHE_TTL).then(|| entry.keys.clone())
+    }
+
     async fn keys_for(
         &self,
         issuer: &IssuerKeys,
     ) -> Result<BTreeMap<String, DecodingKey>, EvidenceError> {
-        if let Ok(cache) = self.cache.lock() {
-            if let Some(entry) = cache.get(&issuer.issuer) {
-                if entry.fetched_at.elapsed() < CACHE_TTL {
-                    return Ok(entry.keys.clone());
-                }
-            }
+        if let Some(keys) = self.fresh_cached(&issuer.issuer) {
+            return Ok(keys);
         }
         let body = fetch(&issuer.jwks_url, self.allow_private_endpoint).await?;
         let keys = parse_keys(&body)?;
-        if let Ok(mut cache) = self.cache.lock() {
-            cache.insert(
-                issuer.issuer.clone(),
-                Cached {
-                    keys: keys.clone(),
-                    fetched_at: Instant::now(),
-                },
-            );
-        }
+        self.remember(&issuer.issuer, keys.clone());
         Ok(keys)
     }
 }

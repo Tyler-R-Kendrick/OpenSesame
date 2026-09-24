@@ -137,7 +137,9 @@ pub fn open_root_capsule(
         .and_then(Value::as_u64)
         .ok_or(ProtectionError::UnsupportedVersion(0))?;
     if v != 1 {
-        return Err(ProtectionError::UnsupportedVersion(v as u32));
+        return Err(ProtectionError::UnsupportedVersion(
+            u32::try_from(v).unwrap_or(u32::MAX),
+        ));
     }
     let domain = value
         .get("domain")
@@ -185,8 +187,8 @@ pub fn open_root_capsule(
     let root = STANDARD
         .decode(root_b64)
         .map_err(|_| ProtectionError::InvalidKeyLength)?;
-    let key: [u8; 32] = root
+    let root_key: [u8; 32] = root
         .try_into()
         .map_err(|_| ProtectionError::InvalidKeyLength)?;
-    Ok(key)
+    Ok(root_key)
 }

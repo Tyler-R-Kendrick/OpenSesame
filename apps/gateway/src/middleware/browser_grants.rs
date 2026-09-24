@@ -27,6 +27,8 @@ fn required_capability(method: &str, path: &str) -> Option<&'static str> {
         ) => Some("host.sync.read"),
         ("POST", "/api/v1/sync/push" | "/api/v1/sync/blobs/push") => Some("host.sync.write"),
         ("GET", "/api/v1/session" | "/api/v1/whoami" | "/api/v1/browser-clients") => Some(""),
+        // Only a join grant renews (ADR 0136 §2); the route re-checks it.
+        ("POST", "/api/v1/browser-pairings/renew") => Some("host.join"),
         ("DELETE", path)
             if path
                 .strip_prefix("/api/v1/browser-clients/")
@@ -242,7 +244,11 @@ pub async fn guard(State(st): State<AppState>, req: Request, next: Next) -> Resp
         return preflight(&st, &headers, &path, &origin).await;
     }
     if !(req.method() == Method::POST && pairing_path(req.uri().path())) {
-        if let Err(response) = authenticate(&st, &headers, &method, &path, &origin).await {
+        if let Err(mut response) = authenticate(&st, &headers, &method, &path, &origin).await {
+            // The origin is a pairable one (`request_origin`), so it may read
+            // why it was refused; without this a refusal reads as the network
+            // failing, and the page cannot tell "verify again" from "offline".
+            cors_headers(response.headers_mut(), &origin);
             return response;
         }
     }

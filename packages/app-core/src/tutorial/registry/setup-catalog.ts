@@ -72,7 +72,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "setup.join",
     description:
-      "Opens the join road from an invite link: a claim invite or a request into a public session. Not a front-door road.",
+      "The front door's Join a session road: accept an invite (a link and a code) or ask into an open session at an endpoint. An invite link opens it by itself.",
     role: "action",
     routes: ["/unlock"],
     capabilityId: "setup.first_run",

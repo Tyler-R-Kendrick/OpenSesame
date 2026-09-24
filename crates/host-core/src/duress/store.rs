@@ -39,8 +39,7 @@ impl DuressAuthorityStore {
     }
 
     pub fn put_quarantine(&mut self, record: QuarantineRecord) {
-        self.quarantines
-            .insert(record.peer_ref.clone(), record);
+        self.quarantines.insert(record.peer_ref.clone(), record);
     }
 
     #[must_use]
@@ -50,14 +49,11 @@ impl DuressAuthorityStore {
 
     #[must_use]
     pub fn is_peer_quarantined(&self, peer_ref: &str) -> bool {
-        self.quarantines
-            .get(peer_ref)
-            .is_some_and(|q| q.active)
+        self.quarantines.get(peer_ref).is_some_and(|q| q.active)
     }
 
     pub fn set_incident_state(&mut self, incident_id: &str, state: IncidentState) {
-        self.incident_states
-            .insert(incident_id.to_string(), state);
+        self.incident_states.insert(incident_id.to_string(), state);
     }
 
     #[must_use]

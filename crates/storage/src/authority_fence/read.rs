@@ -9,6 +9,10 @@ use opensesame_lifecycle::{
 };
 use sqlx::{Row as _, SqlitePool};
 
+/// The highest invalidation sequence recorded — the fence's high-water mark.
+///
+/// # Errors
+///
 /// Returns an error when the query fails.
 pub async fn fence_high_water(pool: &SqlitePool) -> anyhow::Result<u64> {
     let mark: i64 =

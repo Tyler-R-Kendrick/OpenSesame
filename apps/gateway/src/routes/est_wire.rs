@@ -142,11 +142,9 @@ fn bootstrap_ok(
     let anchors: Vec<&[u8]> = bundle
         .anchors()
         .iter()
-        .map(|anchor| anchor.as_ref())
+        .map(std::convert::AsRef::as_ref)
         .collect();
-    Ok(wanted
-        .iter()
-        .all(|der| anchors.iter().any(|anchor| *anchor == der.as_slice())))
+    Ok(wanted.iter().all(|der| anchors.contains(&der.as_slice())))
 }
 
 /// HTTP Basic password check against the sealed passphrase, constant time.

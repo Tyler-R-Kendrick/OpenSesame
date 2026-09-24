@@ -64,14 +64,12 @@ pub struct NatsCalloutRequest {
     pub issuer: String,
     /// Authenticated upstream subject — never an email join key.
     pub subject: String,
-    /// The one-time user nkey from the signed request.
-    pub user_nkey: String,
-    /// The server id from the signed request.
-    pub server_id: String,
     /// Present only so an email-only identity can be refused explicitly.
     pub email: Option<String>,
     pub join_by_email: bool,
     /// Always empty: CONNECT-supplied memberships are self-asserted.
+    #[cfg_attr(not(test), allow(dead_code))]
+    // Never read by design; tests prove a filled one cannot widen a grant.
     pub project_ids: Vec<String>,
 }
 
@@ -153,8 +151,8 @@ pub fn decide_nats_callout(
     let eval = CalloutEval {
         issuer_allowed,
         email_join_attempted: email_join,
-        issuer: req.issuer.clone(),
-        subject: req.subject.clone(),
+        issuer: req.issuer,
+        subject: req.subject,
         mapped_principal_id,
         provisional,
         // CONNECT-body project_ids are self-asserted. Until Identity mapping
@@ -274,8 +272,6 @@ async fn decide_identity(
     let req = NatsCalloutRequest {
         issuer: identity.issuer,
         subject: identity.subject,
-        user_nkey: verified.user_nkey.clone(),
-        server_id: verified.server_id.clone(),
         email: identity.email,
         join_by_email: identity.join_by_email,
         project_ids: vec![],
@@ -299,7 +295,7 @@ async fn decide_identity(
             }
         }
     };
-    Ok(decide_nats_callout(&cfg, req, mapped).bind(to, enforcement))
+    Ok(decide_nats_callout(cfg, req, mapped).bind(to, enforcement))
 }
 
 /// The end user, once authenticated.
@@ -388,9 +384,5 @@ async fn record(st: &AppState, key: &str, resp: &NatsCalloutResponse) -> Option<
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::items_after_statements,
-    reason = "the callout tests define scenario-local mapper fixtures beside their use"
-)]
 #[path = "nats_callout_tests.rs"]
 mod tests;

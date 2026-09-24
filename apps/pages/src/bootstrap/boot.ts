@@ -15,6 +15,10 @@ import {
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import {
+  captureInviteFromPage,
+  watchInviteArrivals,
+} from "@opensesame/app-core/lib/join/invite.js";
 import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
 import { lastVaultIsGuest } from "@opensesame/app-core/lib/last-vault.js";
 import {
@@ -46,6 +50,10 @@ export const bootSeams = {
 };
 
 export async function bootCore(): Promise<CoreBoot> {
+  // An invite's bearer leaves the address bar before anything else runs or
+  // paints: history, a bookmark or a shared screen must never carry it.
+  captureInviteFromPage();
+  watchInviteArrivals();
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked

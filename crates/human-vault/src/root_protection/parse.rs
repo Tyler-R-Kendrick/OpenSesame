@@ -9,66 +9,87 @@ use super::limits::{
 };
 use super::types::RootProtectionManifest;
 
-fn detect_duplicate_json_keys(raw: &str) -> Result<(), ProtectionError> {
-    let mut stack: Vec<std::collections::HashSet<String>> = Vec::new();
-    let mut in_string = false;
-    let mut escape = false;
-    let mut pending_key = false;
-    let mut key_buf = String::new();
-    for ch in raw.chars() {
-        if in_string {
-            if escape {
-                escape = false;
-                if pending_key {
-                    key_buf.push(ch);
-                }
-                continue;
-            }
-            if ch == '\\' {
-                escape = true;
-                continue;
-            }
-            if ch == '"' {
-                in_string = false;
-                continue;
-            }
-            if pending_key {
-                key_buf.push(ch);
-            }
-            continue;
+/// One pass over raw JSON text, tracking object keys per nesting level so a
+/// duplicate key — which `serde_json` would silently resolve to the last
+/// value — is refused before parsing.
+#[derive(Default)]
+struct KeyScan {
+    stack: Vec<std::collections::HashSet<String>>,
+    in_string: bool,
+    escape: bool,
+    pending_key: bool,
+    key_buf: String,
+}
+
+impl KeyScan {
+    /// A character inside a string: escapes, the closing quote, or key text.
+    fn string_char(&mut self, ch: char) {
+        if self.escape {
+            self.escape = false;
+        } else if ch == '\\' {
+            self.escape = true;
+            return;
+        } else if ch == '"' {
+            self.in_string = false;
+            return;
         }
+        if self.pending_key {
+            self.key_buf.push(ch);
+        }
+    }
+
+    /// A character outside any string: structure, and the end of a key.
+    fn structural_char(&mut self, ch: char) -> Result<(), ProtectionError> {
         match ch {
             '"' => {
-                in_string = true;
-                if !stack.is_empty() && !pending_key {
-                    key_buf.clear();
-                    pending_key = true;
+                self.in_string = true;
+                if !self.stack.is_empty() && !self.pending_key {
+                    self.key_buf.clear();
+                    self.pending_key = true;
                 }
             }
             '{' => {
-                stack.push(std::collections::HashSet::new());
-                pending_key = false;
+                self.stack.push(std::collections::HashSet::new());
+                self.pending_key = false;
             }
             '}' => {
-                stack.pop();
-                pending_key = false;
+                self.stack.pop();
+                self.pending_key = false;
             }
-            ':' if pending_key => {
-                if let Some(top) = stack.last_mut() {
-                    if !top.insert(key_buf.clone()) {
-                        return Err(ProtectionError::MalformedEncoding(format!(
-                            "duplicate JSON key {key_buf}"
-                        )));
-                    }
-                }
-                pending_key = false;
-                key_buf.clear();
-            }
+            ':' if self.pending_key => self.close_key()?,
             ',' => {
-                pending_key = false;
-                key_buf.clear();
+                self.pending_key = false;
+                self.key_buf.clear();
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn close_key(&mut self) -> Result<(), ProtectionError> {
+        let fresh = self
+            .stack
+            .last_mut()
+            .is_none_or(|top| top.insert(self.key_buf.clone()));
+        if !fresh {
+            return Err(ProtectionError::MalformedEncoding(format!(
+                "duplicate JSON key {}",
+                self.key_buf
+            )));
+        }
+        self.pending_key = false;
+        self.key_buf.clear();
+        Ok(())
+    }
+}
+
+fn detect_duplicate_json_keys(raw: &str) -> Result<(), ProtectionError> {
+    let mut scan = KeyScan::default();
+    for ch in raw.chars() {
+        if scan.in_string {
+            scan.string_char(ch);
+        } else {
+            scan.structural_char(ch)?;
         }
     }
     Ok(())
@@ -79,7 +100,9 @@ fn detect_duplicate_json_keys(raw: &str) -> Result<(), ProtectionError> {
 /// # Errors
 ///
 /// Returns typed failures for size, duplicates, unknown versions, or shape.
-pub fn parse_root_protection_manifest(input: &str) -> Result<RootProtectionManifest, ProtectionError> {
+pub fn parse_root_protection_manifest(
+    input: &str,
+) -> Result<RootProtectionManifest, ProtectionError> {
     if input.len() > MAX_MANIFEST_ENCODED_BYTES {
         return Err(ProtectionError::OversizedManifest);
     }
@@ -96,7 +119,9 @@ pub fn parse_root_protection_manifest(input: &str) -> Result<RootProtectionManif
         .and_then(Value::as_u64)
         .ok_or_else(|| ProtectionError::MalformedEncoding("schemaVersion".into()))?;
     if schema_version != u64::from(MANIFEST_SCHEMA_VERSION) {
-        return Err(ProtectionError::UnsupportedVersion(schema_version as u32));
+        return Err(ProtectionError::UnsupportedVersion(
+            u32::try_from(schema_version).unwrap_or(u32::MAX),
+        ));
     }
     if obj.contains_key("criticalExtensions") {
         return Err(ProtectionError::UnknownCriticalField);

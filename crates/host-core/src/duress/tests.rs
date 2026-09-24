@@ -19,11 +19,11 @@ fn hold_delay_never_auto_unlocks() {
     .expect("accept");
     assert!(hold.capabilities_held());
 
-    let mut held = store.hold("i1").unwrap().clone();
-    held.observe_clock(10_000);
-    assert_eq!(held.phase, HoldPhase::DelayElapsed);
-    assert!(held.capabilities_held());
-    assert!(admits_recovery_attempt(&held));
+    let mut observed = store.hold("i1").unwrap().clone();
+    observed.observe_clock(10_000);
+    assert_eq!(observed.phase, HoldPhase::DelayElapsed);
+    assert!(observed.capabilities_held());
+    assert!(admits_recovery_attempt(&observed));
 }
 
 #[test]

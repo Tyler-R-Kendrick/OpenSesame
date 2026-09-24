@@ -27,6 +27,7 @@ import { landFocus } from "../lib/focus.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
+import { JoinRoadButton } from "./join/JoinRoad.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -36,12 +37,15 @@ import "./door.css";
 export function FrontDoor({
   providers,
   onOpenSetup,
+  onOpenJoin,
   onUseLocalOnly,
 }: {
   providers: FederatedProviderSummary[];
   /** The operator ceremony — every tab of it optional (ADR 0114). `join`
    *  lands on a managed instance's required roots to accept. */
   onOpenSetup: (join?: boolean) => void;
+  /** Join a session (ADR 0136); absent where a join cannot be finished. */
+  onOpenJoin?: () => void;
   /** Seal a local vault with no account at all. */
   onUseLocalOnly: () => void;
 }) {
@@ -94,6 +98,7 @@ export function FrontDoor({
               a few optional steps
             </span>
           </button>
+          <JoinRoadButton onOpen={onOpenJoin} />
         </fieldset>
 
         <div className="door__theme">

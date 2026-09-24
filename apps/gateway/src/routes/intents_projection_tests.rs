@@ -1,4 +1,4 @@
-//! AT-FGA-STALE: delayed OpenFGA projection cannot authorize dispatch.
+//! AT-FGA-STALE: delayed `OpenFGA` projection cannot authorize dispatch.
 
 use super::*;
 use crate::app_state::test_demo_state;
@@ -37,7 +37,7 @@ fn sample_grant(id: GrantId, org: OrganizationId, connection_id: ConnectionId) -
             authentication_max_age_seconds: None,
             allowed_networks: vec![],
             parameter_rules_digest: None,
-            budgets: Default::default(),
+            budgets: std::collections::BTreeMap::default(),
             maximum_delegation_depth: 1,
             offline_use: OfflineUse::Forbidden,
             raw_credential_export: false,

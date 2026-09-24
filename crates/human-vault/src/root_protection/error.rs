@@ -60,8 +60,9 @@ impl From<crate::VaultCryptoError> for ProtectionError {
                 Self::InvalidKeyLength
             }
             crate::VaultCryptoError::UnsupportedVersion(v) => Self::UnsupportedVersion(v),
-            crate::VaultCryptoError::Aead | crate::VaultCryptoError::AdMismatch => Self::Crypto,
-            crate::VaultCryptoError::Kdf => Self::Crypto,
+            crate::VaultCryptoError::Aead
+            | crate::VaultCryptoError::AdMismatch
+            | crate::VaultCryptoError::Kdf => Self::Crypto,
         }
     }
 }

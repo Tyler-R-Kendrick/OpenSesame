@@ -14,7 +14,7 @@ use opensesame_storage::Db;
 
 use authority_support::{entry, issue, seed_grant, seed_realm};
 
-fn scope<'a>(organization_id: &'a str) -> BudgetScope<'a> {
+fn scope(organization_id: &str) -> BudgetScope<'_> {
     BudgetScope {
         organization_id,
         scope_kind: "root_grant",

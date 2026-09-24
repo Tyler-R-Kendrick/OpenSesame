@@ -30,7 +30,8 @@ pub use key_file::{
     write_key_file, write_synced, KeyFileContents,
 };
 pub use legacy::{
-    looks_like_legacy_password_wrapper, parse_legacy_password_wrapper, unlock_legacy_password_wrapper,
+    looks_like_legacy_password_wrapper, parse_legacy_password_wrapper,
+    unlock_legacy_password_wrapper,
 };
 pub use limits::*;
 pub use ops::{
@@ -46,6 +47,6 @@ pub use rotation::{
     prepare_root_rotation, CapsuleSealer, PreparedRotation, ReissuedRecovery, RotationEdit,
 };
 pub use types::{
-    AuthenticatedLegacyGates, ProofStatus, ProtectionPurpose, ProtectionRecord,
-    ProtectorSummary, RootProtectionManifest, VerificationEvidence,
+    AuthenticatedLegacyGates, ProofStatus, ProtectionPurpose, ProtectionRecord, ProtectorSummary,
+    RootProtectionManifest, VerificationEvidence,
 };

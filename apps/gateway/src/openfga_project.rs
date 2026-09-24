@@ -1,4 +1,4 @@
-//! GA-F-04 — live OpenFGA projection under the authority writer lease.
+//! GA-F-04 — live `OpenFGA` projection under the authority writer lease.
 
 use opensesame_domain::GrantId;
 use opensesame_provider_openfga::grant_to_openfga_tuples;
@@ -11,9 +11,9 @@ const OPENFGA_STORE: &str = "openfga";
 const WRITER_ID: &str = "gateway:openfga-projector";
 const LEASE_SECONDS: i64 = 30;
 
-/// Project one grant's relationship tuples to OpenFGA when configured.
+/// Project one grant's relationship tuples to `OpenFGA` when configured.
 ///
-/// No-ops when OpenFGA is unset. Mapping refusals leave the projection
+/// No-ops when `OpenFGA` is unset. Mapping refusals leave the projection
 /// unmarked so auth stays fail-closed on freshness. Lease loss or write
 /// failure returns an error.
 pub async fn project_grant_live(

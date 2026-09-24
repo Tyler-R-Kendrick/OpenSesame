@@ -1,7 +1,11 @@
 //! Exact-origin / path allow-list for the optional peer receiver.
+//!
+//! Nothing outside the tests calls these guards yet: they are the SSRF checks
+//! an outbound peer delivery must pass once one is wired (PEER-to-HOST.md).
 
 use std::net::Ipv4Addr;
 
+#[cfg_attr(not(test), allow(dead_code))] // Test-exercised guard awaiting an outbound peer caller.
 pub fn is_allowed_peer_path(path: &str) -> bool {
     matches!(
         path,
@@ -9,6 +13,7 @@ pub fn is_allowed_peer_path(path: &str) -> bool {
     ) && !path.contains("..")
 }
 
+#[cfg_attr(not(test), allow(dead_code))] // Test-exercised guard awaiting an outbound peer caller.
 pub fn assert_safe_peer_origin(origin: &str) -> Result<(), &'static str> {
     if origin.len() < 8 || origin.len() > 512 {
         return Err("unapproved_route");
@@ -31,21 +36,16 @@ pub fn assert_safe_peer_origin(origin: &str) -> Result<(), &'static str> {
     }
     let loopback = host == "localhost" || host == "127.0.0.1" || host == "::1";
     match url.scheme.as_str() {
-        "https" => {
-            if !loopback {
-                if let Ok(ip) = host.parse::<Ipv4Addr>() {
-                    if is_blocked_v4(ip) {
-                        return Err("unapproved_route");
-                    }
-                }
-            }
-            Ok(())
+        "https" if !loopback && host.parse::<Ipv4Addr>().is_ok_and(is_blocked_v4) => {
+            Err("unapproved_route")
         }
+        "https" => Ok(()),
         "http" if loopback => Ok(()),
         _ => Err("unapproved_route"),
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))] // Only reached through assert_safe_peer_origin.
 fn is_blocked_v4(ip: Ipv4Addr) -> bool {
     let o = ip.octets();
     o[0] == 0
@@ -57,6 +57,7 @@ fn is_blocked_v4(ip: Ipv4Addr) -> bool {
         || o[0] >= 224
 }
 
+#[cfg_attr(not(test), allow(dead_code))] // Only reached through assert_safe_peer_origin.
 struct ParsedUrl {
     scheme: String,
     host: String,
@@ -65,6 +66,7 @@ struct ParsedUrl {
 }
 
 /// Minimal URL parse — avoids adding a `url` crate dependency to the daemon.
+#[cfg_attr(not(test), allow(dead_code))] // Only reached through assert_safe_peer_origin.
 fn url_parse(raw: &str) -> Option<ParsedUrl> {
     let (scheme, rest) = raw.split_once("://")?;
     if rest.contains('#') {
@@ -88,8 +90,7 @@ fn url_parse(raw: &str) -> Option<ParsedUrl> {
     };
     let host = hostport
         .rsplit_once(':')
-        .map(|(h, _)| h)
-        .unwrap_or(hostport)
+        .map_or(hostport, |(h, _)| h)
         .trim_matches(|c| c == '[' || c == ']')
         .to_string();
     Some(ParsedUrl {

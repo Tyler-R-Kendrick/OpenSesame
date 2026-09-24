@@ -43,7 +43,7 @@ pub(super) fn authorize_invocation(
         connection_policy_id: &resolved.connection_policy_id,
         lineage: resolved.lineage.as_ref(),
     };
-    let descriptor = descriptor_for_invoke(invoke_level).map_err(deny_authz)?;
+    let descriptor = descriptor_for_invoke(invoke_level).map_err(|error| deny_authz(&error))?;
     match authorize_authority_use_enforced(&st.broker.policy, &authority_use, &descriptor) {
         Ok(decision) if decision.allowed => Ok(()),
         Ok(_) => Err((
@@ -51,11 +51,11 @@ pub(super) fn authorize_invocation(
             Json(json!({"error":"authority_denied","type":"about:blank"})),
         )
             .into_response()),
-        Err(error) => Err(deny_authz(error)),
+        Err(error) => Err(deny_authz(&error)),
     }
 }
 
-fn deny_authz(error: impl ToString) -> Response {
+fn deny_authz(error: &impl ToString) -> Response {
     let message = opensesame_redaction::redact_text(&error.to_string());
     (
         StatusCode::FORBIDDEN,

@@ -56,7 +56,7 @@ impl Db {
     ///
     /// Returns an error when the insert or its outbox event cannot commit.
     pub async fn create_access_domain(&self, new: &NewAccessDomain<'_>) -> anyhow::Result<bool> {
-        let now = Utc::now().to_rfc3339();
+        let stamp = Utc::now().to_rfc3339();
         let mut tx = self.pool().begin().await?;
         let depth = match new.parent_id {
             None => 0,
@@ -87,8 +87,8 @@ impl Db {
         .bind(new.parent_id)
         .bind(new.project_id)
         .bind(depth)
-        .bind(&now)
-        .bind(&now)
+        .bind(&stamp)
+        .bind(&stamp)
         .execute(&mut *tx)
         .await?;
         generation_tx(
@@ -96,10 +96,10 @@ impl Db {
             new.organization_id,
             REALM,
             new.organization_id,
-            &now,
+            &stamp,
         )
         .await?;
-        generation_tx(&mut tx, new.organization_id, DOMAIN, new.id, &now).await?;
+        generation_tx(&mut tx, new.organization_id, DOMAIN, new.id, &stamp).await?;
         append_outbox_tx(
             &mut tx,
             "authority.domain.created",
