@@ -44,9 +44,24 @@ export {
 } from "./deep-link.js";
 export {
   type ClaimStash,
+  type ClaimStashOptions,
   createClaimStash,
   type StashStorage,
 } from "./claim-stash.js";
+export {
+  type ClaimLink,
+  fragmentCarriesBearer,
+  isClaimToken,
+  readClaimLink,
+} from "./claim-link.js";
+export {
+  type ClaimRefusal,
+  type ClaimRefusalKind,
+  claimRefusal,
+  type DropRefusal,
+  type DropRefusalCode,
+  dropRefusal,
+} from "./claim-words.js";
 export {
   approveDevice,
   type ApproveDeviceInput,

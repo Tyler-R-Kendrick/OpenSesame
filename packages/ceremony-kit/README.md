@@ -39,7 +39,9 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 | Interaction client (`interaction-client.ts`) | `createInteractionClient`, `InteractionError` |
 | Summary (`interaction-summary.ts`) | `renderInteractionSummary` |
 | Device approval (`device.ts`) — the one implementation (ADR 0140 D3), worded by the body's error code, then the status | `approveDevice`, `deviceApprovalWords`, `CeremonyRequestError` |
-| Claim bearer (`claim-stash.ts`) | `createClaimStash` over an injected `StashStorage` |
+| Claim bearer (`claim-stash.ts`) | `createClaimStash` over an injected `StashStorage`; optional stricter reading (`maxAgeMs`, `acceptToken`) |
+| Claim link (`claim-link.ts`) — claim or drop, dispatched once | `readClaimLink`, `isClaimToken`, `fragmentCarriesBearer` |
+| Claim and drop refusals (`claim-words.ts`) — worded by the body's error code, then the status | `claimRefusal`, `dropRefusal` |
 | Deep links (`deep-link.ts`) | `readFragmentToken`, `scrubFragment`, `parseUserCode` |
 
 ## Develop
