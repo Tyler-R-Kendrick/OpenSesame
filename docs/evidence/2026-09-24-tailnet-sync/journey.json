@@ -18,10 +18,7 @@
           "visit": "settings/vaults#pair-drive=opensesame-drive:v1:eyJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0Iiwic2xvdCI6IjViMWMyZDNlLTBmNGEtNGI2Yy04ZDllLTBhMWIyYzNkNGU1ZiIsImtleSI6IlFtOW5kWE10WlhacFpHVnVZMlV0YTJWNUxXNXZkQzFoTFhKbFlXd3RiMjVsIiwibGFiZWwiOiJQZXJzb25hbCB2YXVsdCJ9"
         },
         {
-          "count": [
-            "#tailnet-sync",
-            "#tailnet-sync-code"
-          ]
+          "count": ["#tailnet-sync", "#tailnet-sync-code"]
         },
         {
           "address": null
@@ -55,10 +52,7 @@
           "visit": "settings/vaults#pair-drive=opensesame-drive:v1:eyJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0Iiwic2xvdCI6IjViMWMyZDNlLTBmNGEtNGI2Yy04ZDllLTBhMWIyYzNkNGU1ZiIsImtleSI6IlFtOW5kWE10WlhacFpHVnVZMlV0YTJWNUxXNXZkQzFoTFhKbFlXd3RiMjVsIiwibGFiZWwiOiJQZXJzb25hbCB2YXVsdCJ9"
         },
         {
-          "count": [
-            "#tailnet-sync",
-            "#tailnet-sync-code"
-          ]
+          "count": ["#tailnet-sync", "#tailnet-sync-code"]
         },
         {
           "address": null
