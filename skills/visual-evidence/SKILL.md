@@ -107,7 +107,9 @@ every screen the app has.
 }
 ```
 
-Steps are `guest`, `tab`, `press`, `open`, `escape` and `shot`. Add a verb to
+Steps are `guest`, `tab`, `press`, `open`, `visit` (an address under the base, a
+link's fragment included), `escape` and `shot`. `EVIDENCE_ORIGIN` serves the build
+from another origin — evidence of a dedicated deployment. Add a verb to
 `STEPS` in the script when a journey needs one; keep them named after what a
 person does, not after the DOM.
 

@@ -76,6 +76,8 @@ export const CAPABILITY_TUTORIALS = {
   "pwa.status": "host.health.check",
   "app.install": "app.install",
   "setup.first_run": "setup.first-run",
+  "delegations.claim": "setup.join-session",
+  "shared_sessions.join_request": "setup.join-session",
   "connectors.directory.sync": "access.connectors",
   "connectors.bind": "access.connectors",
 } satisfies Readonly<Record<string, GuideGoalId>>;

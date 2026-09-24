@@ -56,7 +56,10 @@ const shots = path.join(
   "opensesame-evidence",
   path.basename(journeyPath, ".json"),
 );
-const origin = "https://tyler-r-kendrick.github.io";
+// The production origin, unless a journey is evidence of what a dedicated
+// deployment shows (a build stamped `dedicated_origin` for that origin).
+const origin =
+  process.env.EVIDENCE_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = fileURLToPath(new URL("../dist", import.meta.url));
 
@@ -217,6 +220,20 @@ const STEPS = {
       node.scrollIntoView({ block: "start", behavior: "instant" });
     });
     await page.waitForTimeout(600);
+  },
+  /**
+   * Arrive at an address under the base, the way a person opens a link —
+   * an invite's fragment included.
+   */
+  async visit(page, address) {
+    // A cold load: a fragment-only change is a same-document navigation.
+    await page.goto("about:blank");
+    await page.goto(`${origin}${base}${address}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(5200);
+  },
+  /** Print the address bar, so a sheet can show what a link left in it. */
+  async address(page) {
+    console.log(`  address: ${page.url()}`);
   },
   async escape(page) {
     await page.keyboard.press("Escape");

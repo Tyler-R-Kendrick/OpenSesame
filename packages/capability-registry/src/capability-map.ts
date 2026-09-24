@@ -71,6 +71,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "delegations.revoke": "access.authority",
     "delegations.offers.revoke": "access.authority",
     "delegations.claim": "access.authority",
+    "shared_sessions.join_request": "access.authority",
     "relay.inbox": "access.authority",
     "relay.decide": "access.authority",
     "agent_identities.read": "access.authority",

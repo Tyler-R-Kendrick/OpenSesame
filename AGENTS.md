@@ -255,6 +255,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
+| `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (browser pairing) → passkey verify → look up once → per-item consent → claim/ask. The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
@@ -372,7 +373,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0135).
+  0001–0136).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -383,9 +384,12 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)): the
   wordmark at hero scale, the `Set up your own` road made large, and the
   whole sign-in panel beneath it on the same card — offers beside sign-in,
-  never a gate before it. Join is invite-link only (an invite opens join
-  by itself); once the ceremony is answered or skipped, setup lives behind
-  unlock (Settings), not as quiet foot links. `setupRequired` does not
+  never a gate before it. **Join a session** is the door's second road on a
+  deployment that can finish a join (dedicated or loopback origin), and an
+  invite link opens it by itself anywhere
+  ([ADR 0136](docs/adr/0136-join-a-session-restored.md)); once the ceremony
+  is answered, skipped or joined, setup lives behind unlock (Settings), not
+  as quiet foot links. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may

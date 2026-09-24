@@ -58,10 +58,17 @@ function stateValue() {
     .replace(/\//g, "_");
 }
 
+/** Where the challenge and the verification go: the configured endpoint, unless a ceremony names its own. */
+export type AuthorizationFetch = (
+  path: string,
+  init?: RequestInit,
+) => Promise<Response>;
+
 /** Call directly from a user gesture. The Identity-origin window owns WebAuthn. */
 export async function authorizeHost(
   request: HostAuthorizationRequest,
   cancellation: AbortSignal,
+  via: AuthorizationFetch = hostAuthorizationSeams.hostFetch,
 ): Promise<string | null> {
   const base = hostAuthorizationSeams.identityBase().trim();
   if (!base) {
@@ -92,20 +99,18 @@ export async function authorizeHost(
       state,
       request,
       lifetime,
+      via,
     );
     lifetime.throwIfAborted();
     const result = await read(
-      await hostAuthorizationSeams.hostFetch(
-        "/api/v1/host-authorizations/verify",
-        {
-          method: "POST",
-          signal: lifetime,
-          body: JSON.stringify({
-            challenge_id: assertion.challengeId,
-            assertion: assertion.value,
-          }),
-        },
-      ),
+      await via("/api/v1/host-authorizations/verify", {
+        method: "POST",
+        signal: lifetime,
+        body: JSON.stringify({
+          challenge_id: assertion.challengeId,
+          assertion: assertion.value,
+        }),
+      }),
     );
     lifetime.throwIfAborted();
     if (
@@ -138,6 +143,7 @@ function exchange(
   state: string,
   request: HostAuthorizationRequest,
   signal: AbortSignal,
+  via: AuthorizationFetch,
 ): Promise<{ challengeId: string; value: string }> {
   return new Promise((resolve, reject) => {
     let started = false;
@@ -156,7 +162,7 @@ function exchange(
     };
     const start = async () => {
       const challenge = await read(
-        await hostAuthorizationSeams.hostFetch("/api/v1/host-authorizations", {
+        await via("/api/v1/host-authorizations", {
           method: "POST",
           signal,
           body: JSON.stringify(request),

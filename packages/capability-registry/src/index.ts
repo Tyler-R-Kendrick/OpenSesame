@@ -516,7 +516,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "lib/join/client.ts:claimInvite",
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_open_delegation_claim",

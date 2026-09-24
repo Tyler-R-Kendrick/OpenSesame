@@ -1,3 +1,4 @@
+import type { CapturedInvite } from "@opensesame/app-core/lib/join/invite.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -9,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setupScreenDependencies } from "./SetupScreen.js";
 import { UnlockScreen } from "./UnlockScreen.js";
+import { joinRoadDependencies } from "./join/JoinRoad.js";
 import {
   ANSWERED,
   completeSetup,
@@ -218,5 +220,69 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     };
     render(<UnlockScreen />);
     expect(screen.queryByText(/No way in is configured/)).toBeNull();
+  });
+});
+
+describe("UnlockScreen — joining a session (ADR 0136)", () => {
+  const original = { ...joinRoadDependencies };
+  afterEach(() => {
+    cleanup();
+    Object.assign(joinRoadDependencies, original);
+  });
+
+  function fresh() {
+    v.state = {
+      status: "empty",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingSecondStep: false,
+    };
+  }
+
+  it("offers the join road beside setup where a join can be finished", () => {
+    fresh();
+    joinRoadDependencies.joinAvailable = () => true;
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Join a session" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(
+      screen.getByRole("heading", { level: 1, name: "open-sesame" }),
+    ).toBeTruthy();
+    expect(completeSetup).not.toHaveBeenCalled();
+  });
+
+  it("opens the join ceremony by itself when an invite link arrived", () => {
+    // Locked, with a vault: an invite still opens join, because the link is
+    // the request (ADR 0090 §2) — not a front-door road only.
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingSecondStep: false,
+    };
+    const captured: CapturedInvite = {
+      kind: "invite",
+      invite: { token: `osc_dlg_x.${"a".repeat(43)}`, endpoint: null },
+    };
+    let held: CapturedInvite | null = captured;
+    joinRoadDependencies.takeCapturedInvite = () => {
+      const taken = held;
+      held = null;
+      return taken;
+    };
+    render(<UnlockScreen />);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Join a session" }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>("Invite").value).toBe(
+      captured.invite.token,
+    );
   });
 });

@@ -134,6 +134,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "receipts.read",
         "relay.decide",
         "relay.inbox",
+        "shared_sessions.join_request",
         "tasks.inspect",
         "tasks.list",
         "tasks.terminate",
@@ -145,7 +146,8 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       egress: [
         {
           class: "external-service",
-          purpose: "the configured Host API and Identity API",
+          purpose:
+            "the configured Host API and Identity API, or the endpoint a join ceremony names",
           automatic: false,
         },
         {

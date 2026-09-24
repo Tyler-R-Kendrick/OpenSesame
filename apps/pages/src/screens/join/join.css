@@ -1,0 +1,80 @@
+/* The join ceremony wears setup's frame (setup.css); this is only what an
+   offer's items and an outcome mark need beyond it. */
+
+.join__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.join__choice {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 0.6rem;
+  row-gap: 0.15rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.join__choice:has(input:disabled) {
+  cursor: default;
+}
+
+.join__choice input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.join__name {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.join__detail {
+  grid-column: 2 / -1;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.join__sessions {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.join__outcome {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.25rem;
+}
+
+@media (pointer: coarse) {
+  .join__choice {
+    min-height: 44px;
+  }
+
+  .join__choice input {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+}
+
+/* The road and session choices are fieldsets for their name; they keep the
+   grid their class draws and none of a fieldset's own frame. */
+.join__group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
