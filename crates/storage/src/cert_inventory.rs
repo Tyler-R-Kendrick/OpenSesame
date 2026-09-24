@@ -28,6 +28,77 @@ impl Db {
         Ok(row.as_ref().map(stored_managed_certificate))
     }
 
+    /// Looks an inventory row up by its certificate fingerprint — the handle
+    /// an EST re-enrollment presents ("the certificate being replaced").
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
+    pub async fn get_certificate_by_fingerprint(
+        &self,
+        organization_id: &str,
+        fingerprint_sha256: &str,
+    ) -> anyhow::Result<Option<StoredManagedCertificate>> {
+        let row = sqlx::query(
+            "SELECT * FROM issued_certificates WHERE organization_id = ? AND fingerprint_sha256 = ?",
+        )
+        .bind(organization_id)
+        .bind(fingerprint_sha256)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(stored_managed_certificate))
+    }
+
+    /// Inserts an inventory row directly — the EST enrollment path, which has
+    /// no sealed delivery object (its response *is* the delivery) and no key
+    /// in custody. Every other path goes through the issuance-request
+    /// completion that files a sealed key beside the certificate.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the insert fails.
+    pub async fn insert_certificate_row(
+        &self,
+        certificate: &StoredManagedCertificate,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            "INSERT INTO issued_certificates (id, organization_id, authority_id, request_id, certificate_digest, serial_number, common_name, san_json, not_before, expires_at, status, application_id, profile_id, source, enrollment_method, metadata_json, key_algorithm, signature_algorithm, fingerprint_sha256, chain_pem, renewed_from_id, renewed_by_id, auto_renew_enabled, renew_before_seconds, revocation_reason, revoked_at, version, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&certificate.id)
+        .bind(&certificate.organization_id)
+        .bind(&certificate.authority_id)
+        .bind(&certificate.request_id)
+        .bind(&certificate.certificate_digest)
+        .bind(&certificate.serial_number)
+        .bind(&certificate.common_name)
+        .bind(&certificate.san_json)
+        .bind(&certificate.not_before)
+        .bind(&certificate.expires_at)
+        .bind(&certificate.status)
+        .bind(&certificate.application_id)
+        .bind(&certificate.profile_id)
+        .bind(&certificate.source)
+        .bind(&certificate.enrollment_method)
+        .bind(&certificate.metadata_json)
+        .bind(&certificate.key_algorithm)
+        .bind(&certificate.signature_algorithm)
+        .bind(&certificate.fingerprint_sha256)
+        .bind(&certificate.chain_pem)
+        .bind(&certificate.renewed_from_id)
+        .bind(&certificate.renewed_by_id)
+        .bind(i64::from(certificate.auto_renew_enabled))
+        .bind(certificate.renew_before_seconds)
+        .bind(certificate.revocation_reason)
+        .bind(&certificate.revoked_at)
+        .bind(certificate.version)
+        .bind(&certificate.created_at)
+        .bind(&certificate.updated_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     /// Inventory search. Every predicate is a bound parameter; no caller value
     /// is ever interpolated into the SQL text.
     ///

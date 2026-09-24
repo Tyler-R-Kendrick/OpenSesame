@@ -49,6 +49,7 @@ pub mod error;
 pub mod keys;
 pub mod leaf;
 mod params;
+pub mod pkcs7;
 pub mod policy;
 pub mod revocation;
 pub mod signer;
