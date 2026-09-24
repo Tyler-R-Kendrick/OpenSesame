@@ -80,7 +80,6 @@ impl MappingAuth {
     }
 
     /// Attach the bearer, or nothing at all under `mtls`.
-    #[must_use]
     pub fn apply_request(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match self {
             Self::Bearer(token) => request.bearer_auth(token),

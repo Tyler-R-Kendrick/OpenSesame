@@ -100,7 +100,9 @@ fn detect_duplicate_json_keys(raw: &str) -> Result<(), ProtectionError> {
 /// # Errors
 ///
 /// Returns typed failures for size, duplicates, unknown versions, or shape.
-pub fn parse_root_protection_manifest(input: &str) -> Result<RootProtectionManifest, ProtectionError> {
+pub fn parse_root_protection_manifest(
+    input: &str,
+) -> Result<RootProtectionManifest, ProtectionError> {
     if input.len() > MAX_MANIFEST_ENCODED_BYTES {
         return Err(ProtectionError::OversizedManifest);
     }

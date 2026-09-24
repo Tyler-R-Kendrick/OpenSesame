@@ -55,12 +55,15 @@ fn a_pinned_server_verifies_and_an_unpinned_one_does_not() {
     );
 }
 
+/// A named edit that makes a posted summary disagree with its signature.
+type Tamper = (&'static str, Box<dyn Fn(&mut HostDecisionRequest)>);
+
 #[test]
 fn a_posted_summary_that_disagrees_with_the_signature_is_refused() {
     let parties = Parties::generate();
     let subject = parties.account.public_key();
     let (good, now) = body_for(&parties, |_| {});
-    let tamper: Vec<(&str, Box<dyn Fn(&mut HostDecisionRequest)>)> = vec![
+    let tamper: Vec<Tamper> = vec![
         (
             "digest",
             Box::new(|b: &mut HostDecisionRequest| b.request_digest = "0".repeat(64)),

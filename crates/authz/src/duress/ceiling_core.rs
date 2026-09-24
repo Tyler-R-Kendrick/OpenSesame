@@ -37,9 +37,9 @@ impl BoundaryOp {
         match op {
             AuthorityOperation::Authorize => Some(Self::Authorize),
             AuthorityOperation::Mint => Some(Self::Mint),
-            AuthorityOperation::Lease | AuthorityOperation::Exchange | AuthorityOperation::Rotate => {
-                Some(Self::Renew)
-            }
+            AuthorityOperation::Lease
+            | AuthorityOperation::Exchange
+            | AuthorityOperation::Rotate => Some(Self::Renew),
             AuthorityOperation::Invoke => Some(Self::Invoke),
             AuthorityOperation::Sign => Some(Self::Sign),
             AuthorityOperation::Resolve => Some(Self::KeyRelease),

@@ -160,21 +160,21 @@ mod tests {
         db.set_authority_budget(&scope, 3).await.unwrap();
 
         let db = Arc::new(db);
+        let handles: Vec<_> = (0..12)
+            .map(|index| tokio::spawn(reserve_dispatch(Arc::clone(&db), index)))
+            .collect();
         let mut accepted = 0;
-        let mut handles = Vec::new();
-        for index in 0..12 {
-            let db = Arc::clone(&db);
-            handles.push(tokio::spawn(async move {
-                db.reserve_invoke_budgets("org:dispatch", "grant:root", &format!("inv:{index}"))
-                    .await
-                    .unwrap()
-            }));
-        }
         for handle in handles {
-            if matches!(handle.await.unwrap(), InvokeBudgetOutcome::Reserved { .. }) {
-                accepted += 1;
-            }
+            let outcome = handle.await.unwrap();
+            accepted += usize::from(matches!(outcome, InvokeBudgetOutcome::Reserved { .. }));
         }
         assert_eq!(accepted, 3);
+    }
+
+    /// One concurrent dispatch's reservation against `grant:root`.
+    async fn reserve_dispatch(db: Arc<Db>, index: usize) -> InvokeBudgetOutcome {
+        db.reserve_invoke_budgets("org:dispatch", "grant:root", &format!("inv:{index}"))
+            .await
+            .unwrap()
     }
 }

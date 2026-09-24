@@ -26,4 +26,3 @@ pub(crate) fn is_local_session_path(path: &str) -> bool {
         .as_deref()
         == Some(&["api".into(), "v1".into(), "session".into(), "local".into()])
 }
-

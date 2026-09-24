@@ -89,6 +89,9 @@ fn authorize_realm(
 }
 
 const RESERVED_ISSUE_ACTIONS: &[&str] = &["credential.export", "policy.edit"];
+// INV-GA-04 / contracts: maximum_delegation_depth ≤ 2; remaining budget
+// cannot advertise more depth than the product ceiling.
+const MAX_DELEGATION_DEPTH_REMAINING: i64 = 2;
 
 fn entries_include_reserved(entries: &[PermissionEntry]) -> bool {
     entries.iter().any(|entry| {
@@ -193,9 +196,6 @@ async fn issue(
         )
             .into_response();
     }
-    // INV-GA-04 / contracts: maximum_delegation_depth ≤ 2; remaining budget
-    // cannot advertise more depth than the product ceiling.
-    const MAX_DELEGATION_DEPTH_REMAINING: i64 = 2;
     if body.delegation_depth_remaining < 0
         || body.delegation_depth_remaining > MAX_DELEGATION_DEPTH_REMAINING
     {

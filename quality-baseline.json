@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 487,
-    "violations": 773,
-    "oversizedLines": 245931
+    "files": 485,
+    "violations": 771,
+    "oversizedLines": 245026
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -400,7 +400,7 @@
       "max-lines": 801
     },
     "apps/daemon/src/main.rs": {
-      "max-lines": 1622
+      "max-lines": 1608
     },
     "apps/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -451,7 +451,7 @@
       "max-lines": 900
     },
     "apps/gateway/src/routes/backup.rs": {
-      "max-lines": 556
+      "max-lines": 551
     },
     "apps/gateway/src/routes/certmgr_ca.rs": {
       "max-lines": 3491
@@ -472,7 +472,7 @@
       "max-lines": 1688
     },
     "apps/gateway/src/routes/intents.rs": {
-      "max-lines": 533
+      "max-lines": 530
     },
     "apps/gateway/src/routes/kv_facade.rs": {
       "max-lines": 758
@@ -877,7 +877,7 @@
       "max-lines": 452
     },
     "crates/broker/src/frozen.rs": {
-      "max-lines": 625
+      "max-lines": 620
     },
     "crates/ceremony/src/capture.rs": {
       "max-lines": 506
@@ -987,9 +987,6 @@
     "crates/kdbx-bridge/tests/roundtrip.rs": {
       "max-lines": 510
     },
-    "crates/lifecycle/src/evaluate.rs": {
-      "max-lines": 445
-    },
     "crates/pki-core/src/bundle.rs": {
       "max-lines": 560
     },
@@ -1029,9 +1026,6 @@
     "crates/provider-bitwarden/tests/common/mod.rs": {
       "max-lines": 485
     },
-    "crates/provider-openfga/src/lib.rs": {
-      "max-lines": 432
-    },
     "crates/rotation-web/src/extension.rs": {
       "max-lines": 459
     },
@@ -1045,7 +1039,7 @@
       "max-lines": 432
     },
     "crates/sealed-store/src/store.rs": {
-      "max-lines": 628
+      "max-lines": 627
     },
     "crates/security-events/src/notice.rs": {
       "max-lines": 406

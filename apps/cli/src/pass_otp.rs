@@ -63,15 +63,26 @@ pub fn run(cmd: PassOtpCmd) -> anyhow::Result<()> {
         PassOtpCmd::Code { name, path, tomb } => {
             store::cmd_otp_code(&name, path.as_deref(), tomb.as_deref())
         }
-        PassOtpCmd::Insert { name, force, echo, path, tomb } => {
-            store::cmd_otp_insert(name, force, echo, path.as_deref(), tomb.as_deref())
-        }
-        PassOtpCmd::Append { name, force, echo, path, tomb } => {
-            store::cmd_otp_append(&name, force, echo, path.as_deref(), tomb.as_deref())
-        }
-        PassOtpCmd::Uri { name, reveal, path, tomb } => {
-            store::cmd_otp_uri(&name, reveal, path.as_deref(), tomb.as_deref())
-        }
+        PassOtpCmd::Insert {
+            name,
+            force,
+            echo,
+            path,
+            tomb,
+        } => store::cmd_otp_insert(name, force, echo, path.as_deref(), tomb.as_deref()),
+        PassOtpCmd::Append {
+            name,
+            force,
+            echo,
+            path,
+            tomb,
+        } => store::cmd_otp_append(&name, force, echo, path.as_deref(), tomb.as_deref()),
+        PassOtpCmd::Uri {
+            name,
+            reveal,
+            path,
+            tomb,
+        } => store::cmd_otp_uri(&name, reveal, path.as_deref(), tomb.as_deref()),
         PassOtpCmd::Validate {} => cmd_otp_validate(),
     }
 }

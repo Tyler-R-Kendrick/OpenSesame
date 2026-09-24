@@ -229,11 +229,11 @@ async fn reenable_queues_a_fresh_sync() {
 
 #[tokio::test]
 async fn resync_publishes_backup_wake_on_taskbus() {
-    let _guard = crate::app_state::test_env::lock();
     use opensesame_task_bus::{InMemoryTaskBus, TaskBus};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
+    let _guard = crate::app_state::test_env::lock();
     std::env::set_var("OPENSESAME_TASKBUS", "memory");
     let mut state = state().await;
     let mem = Arc::new(InMemoryTaskBus::default());

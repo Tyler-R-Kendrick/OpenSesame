@@ -89,8 +89,7 @@ async fn spend_authority_budget(
             organization_id: organization_id.to_string(),
             keys,
         })),
-        Ok(InvokeBudgetOutcome::Exhausted) => Err(budget_exhausted()),
-        Err(_) => Err(budget_exhausted()),
+        Ok(InvokeBudgetOutcome::Exhausted) | Err(_) => Err(budget_exhausted()),
     }
 }
 

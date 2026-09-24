@@ -140,7 +140,7 @@ async fn create(
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| AccessDomainId::new().to_string());
     let org = organization.to_string();
-    let created = match st
+    let Ok(created) = st
         .db
         .create_access_domain(&NewAccessDomain {
             id: &id,
@@ -149,17 +149,15 @@ async fn create(
             project_id: body.project_id.as_deref(),
         })
         .await
-    {
-        Ok(created) => created,
-        Err(_) => return unavailable(),
+    else {
+        return unavailable();
     };
     if !created {
         return refused();
     }
     match st.db.access_domain(&org, &id).await {
         Ok(Some(domain)) => (StatusCode::CREATED, Json(domain_json(&domain))).into_response(),
-        Ok(None) => unavailable(),
-        Err(_) => unavailable(),
+        Ok(None) | Err(_) => unavailable(),
     }
 }
 
@@ -190,7 +188,7 @@ async fn reparent(
         Err(response) => return response,
     };
     let org = organization.to_string();
-    let moved = match st
+    let Ok(moved) = st
         .db
         .reparent_access_domain(&DomainReparent {
             organization_id: &org,
@@ -199,17 +197,15 @@ async fn reparent(
             new_parent_id: body.parent_id.as_deref(),
         })
         .await
-    {
-        Ok(moved) => moved,
-        Err(_) => return unavailable(),
+    else {
+        return unavailable();
     };
     if !moved {
         return refused();
     }
     match st.db.access_domain(&org, &id).await {
         Ok(Some(domain)) => Json(domain_json(&domain)).into_response(),
-        Ok(None) => unavailable(),
-        Err(_) => unavailable(),
+        Ok(None) | Err(_) => unavailable(),
     }
 }
 
@@ -224,21 +220,19 @@ async fn terminate(
         Err(response) => return response,
     };
     let org = organization.to_string();
-    let terminated = match st
+    let Ok(terminated) = st
         .db
         .terminate_access_domain(&org, &id, body.expected_revision)
         .await
-    {
-        Ok(terminated) => terminated,
-        Err(_) => return unavailable(),
+    else {
+        return unavailable();
     };
     if !terminated {
         return refused();
     }
     match st.db.access_domain(&org, &id).await {
         Ok(Some(domain)) => Json(domain_json(&domain)).into_response(),
-        Ok(None) => unavailable(),
-        Err(_) => unavailable(),
+        Ok(None) | Err(_) => unavailable(),
     }
 }
 
