@@ -81,6 +81,14 @@ describe("wallet budget activity", () => {
 
   it("logs a budget that was actually created", async () => {
     createBudget({ name: "Groceries", ceiling: 250n });
-    expect(await walletEvents()).toEqual(["Wallet budget updated"]);
+    // The sealed activity write is asynchronous and a loaded CI runner can
+    // take longer than the settle above, so wait for the event rather than
+    // for a fixed time (it failed on CI with `[]`).
+    await vi.waitFor(
+      async () => {
+        expect(await walletEvents()).toEqual(["Wallet budget updated"]);
+      },
+      { timeout: 5000, interval: 50 },
+    );
   });
 });
