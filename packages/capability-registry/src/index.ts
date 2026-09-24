@@ -152,8 +152,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: "route:/identity",
       mcp_host: null,
       mcp_client: "whoami",
-      webmcp: "opensesame_status",
+      webmcp: null,
     },
+    excluded: { webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "host.login",
@@ -200,8 +201,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: "task_list",
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
+    excluded: { webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "tasks.inspect",
@@ -213,8 +215,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: "task_status",
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
+    excluded: { webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "tasks.terminate",
@@ -226,8 +229,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: "task_terminate",
       mcp_client: null,
-      webmcp: "opensesame_task_terminate",
+      webmcp: null,
     },
+    excluded: { webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "tasks.intent.freeze",
@@ -265,11 +269,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: "route:/access",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "receipts.verify",
@@ -301,11 +303,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "delegations.offers.list",
@@ -317,11 +317,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "delegations.narrow",
@@ -333,11 +331,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_delegation_narrow",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "delegations.revoke",
@@ -349,11 +345,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_delegation_revoke",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "delegations.offers.revoke",
@@ -365,11 +359,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_delegation_revoke",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "delegations.offers.mint",
@@ -399,9 +391,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: "lib/join/client.ts:claimInvite",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_open_delegation_claim",
+      webmcp: null,
     },
-    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "relay.inbox",
@@ -413,11 +405,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
+    excluded: { mcp_host: SCOPED_AGENT_ONLY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "relay.decide",
@@ -429,9 +419,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_open_relay_approval",
+      webmcp: null,
     },
-    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY, webmcp: PAGES_HAS_NO_HOST },
   },
   {
     id: "agent_identities.read",
@@ -443,12 +433,16 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: "route:/access",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_access_read",
+      webmcp: null,
     },
     // The gateway only exposes POST /api/v1/agent-identities (claim start);
     // there is no list/read route yet, so an MCP tool here could never
     // succeed. Map it once the gateway grows the read endpoint.
-    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
+    excluded: {
+      mcp_host: DEFERRED,
+      mcp_client: DEFERRED,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
   },
 
   // ── Host plane: providers, connections, integrations ──────────────────
@@ -459,13 +453,14 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame provider list",
-      pwa: "lib/connections.ts:listProviders",
+      pwa: "lib/embedded-catalog.ts:getBundledProviders",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_connections_read",
+      webmcp: null,
     },
     excluded: {
       mcp_host: SCOPED_AGENT_ONLY,
+      webmcp: DEFERRED,
     },
   },
   {
@@ -663,9 +658,9 @@ export const CAPABILITIES: readonly Capability[] = [
       pwa: "lib/connections.ts:listIntegrations",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_connections_read",
+      webmcp: null,
     },
-    excluded: { mcp_client: SCOPED_AGENT_ONLY },
+    excluded: { mcp_client: SCOPED_AGENT_ONLY, webmcp: DEFERRED },
   },
 
   // ── Host plane: certs, configs, sync, rotation, backup ────────────────

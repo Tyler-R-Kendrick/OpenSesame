@@ -538,7 +538,13 @@
       "pwa": "route:/identity",
       "mcp_host": null,
       "mcp_client": "whoami",
-      "webmcp": "opensesame_status"
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      }
     }
   },
   {
@@ -758,7 +764,13 @@
       "pwa": null,
       "mcp_host": "task_list",
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      }
     }
   },
   {
@@ -771,7 +783,13 @@
       "pwa": null,
       "mcp_host": "task_status",
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      }
     }
   },
   {
@@ -784,7 +802,13 @@
       "pwa": null,
       "mcp_host": "task_terminate",
       "mcp_client": null,
-      "webmcp": "opensesame_task_terminate"
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      }
     }
   },
   {
@@ -823,12 +847,16 @@
       "pwa": "route:/access",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1350,12 +1378,16 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1369,12 +1401,16 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1388,12 +1424,16 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_delegation_narrow"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1407,12 +1447,16 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_delegation_revoke"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1426,12 +1470,16 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_delegation_revoke"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1472,7 +1520,7 @@
       "pwa": "lib/join/client.ts:claimInvite",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_open_delegation_claim"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
@@ -1482,6 +1530,10 @@
       "mcp_client": {
         "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
         "adr": "0065-agent-surface-parity.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1495,12 +1547,16 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1514,7 +1570,7 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_open_relay_approval"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
@@ -1524,6 +1580,10 @@
       "mcp_client": {
         "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
         "adr": "0065-agent-surface-parity.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1537,7 +1597,7 @@
       "pwa": "route:/access",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_access_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
@@ -1547,6 +1607,10 @@
       "mcp_client": {
         "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
         "adr": "0065-agent-surface-parity.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -1557,15 +1621,19 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame provider list",
-      "pwa": "lib/connections.ts:listProviders",
+      "pwa": "lib/embedded-catalog.ts:getBundledProviders",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_connections_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
       }
     }
   },
@@ -1824,12 +1892,16 @@
       "pwa": "lib/connections.ts:listIntegrations",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_connections_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_client": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
       }
     }
   },

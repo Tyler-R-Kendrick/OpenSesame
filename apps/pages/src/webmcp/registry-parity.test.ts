@@ -75,7 +75,7 @@ const ROOTS = {
 } as const;
 
 describe("WebMCP registry parity (ADR 0065)", () => {
-  it.skip("implements exactly the registry-derived pages catalog", () => {
+  it("implements exactly the registry-derived pages catalog", () => {
     const implemented = new Set(WEBMCP_TOOLS.map((tool) => tool.name));
     expect(implemented).toEqual(new Set(webmcpPagesCatalog()));
     expect(WEBMCP_TOOLS.length).toBe(implemented.size);
@@ -146,7 +146,7 @@ describe("WebMCP registry parity (ADR 0065)", () => {
     }
   });
 
-  it.skip("each pages capability is carried by the tool the registry names", () => {
+  it("each pages capability is carried by the tool the registry names", () => {
     const byName = new Map(WEBMCP_TOOLS.map((tool) => [tool.name, tool]));
     for (const capability of CAPABILITIES) {
       const name = capability.surfaces.webmcp;
