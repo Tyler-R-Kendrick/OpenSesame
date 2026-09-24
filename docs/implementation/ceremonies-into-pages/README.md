@@ -17,7 +17,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | ceremonies `/delegate#token=osc_dlg_` | Host delegations present/claim | Join (`lib/join/invite.ts`) | covered by Join (D5) |
 | ceremonies `/inbox` | `GET /v1/authorization-requests?status=pending`, approve/deny | Access › Requests (local only); model: app-core `lib/approvals.ts` hosted rows (step 6) | partial: no rows rendered (step 9) |
 | ceremonies `/approve/:ref` | request, requirement, activation, decision, report | model: ceremony-kit `approval-review.ts`, app-core `lib/approvals.ts` (step 6) | partial: no route (step 9); refusals worded by code (step 6) |
-| ceremonies `/notifications` | channels, bindings, preferences | none | missing |
+| ceremonies `/notifications` | channels, bindings, preferences | model: app-core `lib/notification-routing/` (step 6) | partial: no provider, no panel (step 11) |
 | ceremonies `/invoke/:kind` + `.well-known` | — (parser) | none | missing |
 | mobile-mfa `/i/<ref>` | interaction resolve/read/activation/approve/deny, WebAuthn | model: ceremony-kit `interaction-approval.ts`, app-core `lib/interactions.ts` (step 5) | partial: no route (step 9); refusals worded by code (step 5) |
 | mobile-mfa legacy links (`?user_code=`, `?code=`, `opensesame://invoke/mfa`, `opensesame-mfa://approve`) | `/v1/device/approve` | device approval; read by ceremony-kit `readInteractionArrival` (step 5) | partial: no adapter (step 7) |
@@ -39,7 +39,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | Approval review | `/approve/:ref` | ceremony-kit `authorization-request-client.ts`, `approval-review.ts`, `approval-copy.ts`, `approval-words.ts`; app-core `lib/approvals.ts` | `identity.ceremonies` |
 | Inbox | Access › Requests rows (`plane: "hosted"`) | as above | `access.authority` |
 | Authenticator hand-off | `/invoke/:kind` | ceremony-kit `authenticator-invocation.ts` | `identity.ceremonies` |
-| Notification routing | Settings › Notifications | app-core `lib/notification-routing.ts` + a `VirtualFileProvider` | `notifications.routing` (optional) |
+| Notification routing | Settings › Notifications | app-core `lib/notification-routing/` + a `VirtualFileProvider` | `notifications.routing` (optional) |
 | Account factors | Settings › Security rows | app-core `lib/account-factors.ts` | `identity.federation` |
 | Organization sign-in | Identity › Organizations (new files) | app-core `lib/org-signin.ts` | `enterprise.directory-provisioning` |
 | `/guest`, `/delegate` | aliases | — | `identity.ceremonies` |

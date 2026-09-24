@@ -286,6 +286,14 @@ export const LIB_RULES = [
     SIGNIN,
     "authorization-request review and hosted inbox rows (ADR 0084, ADR 0140)",
   ),
+  // Core until `notifications.routing` exists (ADR 0140 plan step 11), which
+  // takes it with the Settings › Notifications file provider; no capability
+  // of the Notifications feature owns channel routing yet.
+  core(
+    `${L}notification-routing/`,
+    "settings.core",
+    "notification routing document, channel words, Identity API routes (ADR 0084)",
+  ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),
   ),
