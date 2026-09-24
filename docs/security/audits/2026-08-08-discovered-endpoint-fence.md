@@ -3,7 +3,7 @@
 Date: 2026-08-08
 Scanners: cve-lite, osv-scanner, gitleaks, semgrep, ast-grep — all clean. This is a
 fresh-eyes review of the JWKS discovery added in
-`audit-2026-08-08-resource-server-sdk.md`, four ticks ago, which turned out to be
+`2026-08-08-resource-server-sdk.md`, four ticks ago, which turned out to be
 one instance of a pattern in three packages.
 
 ## Finding

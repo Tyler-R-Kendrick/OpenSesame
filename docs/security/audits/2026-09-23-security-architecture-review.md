@@ -156,7 +156,7 @@ Passes three and four reviewed the areas the first passes left thin (host-side
 duress and root protection, wallet and OAuth internals, the relay) and the
 earlier fixes themselves. Each item below has a regression test beside the
 fix; the sealed-store root-protection work also has its own record in
-`audit-2026-09-23-sealed-store-root-protection.md`.
+`2026-09-23-sealed-store-root-protection.md`.
 
 31. **Medium — `pass protect root-rotate` destroyed the store**, and
     rewrap/remove did not revoke (the old key file in git history still

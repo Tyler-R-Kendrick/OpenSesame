@@ -39,7 +39,7 @@ first.
    - Minimize the input (`cargo fuzz tmin <target> <crash>`).
    - Copy it to `tests/fuzz/cargo/regressions/<target>/`.
    - Fix the product code if the oracle is right.
-   - Write `docs/security/audit-YYYY-MM-DD-fuzz-<target>.md`.
+   - Write `docs/security/audits/YYYY-MM-DD-fuzz-<target>.md`.
    - Open a PR (`fix(fuzz): …`).
 4. Optionally grow `tests/fuzz/cargo/corpus/` and include only small, reviewable new
    seeds in that PR. Do not commit megabytes of unreviewed corpus.

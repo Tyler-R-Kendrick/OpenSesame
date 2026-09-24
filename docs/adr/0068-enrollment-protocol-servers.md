@@ -9,7 +9,7 @@ Supersedes in part:
 § "ACME profile", **only** its refusal of arbitrary ACME directory URLs, and
 only under the constraints of §5 below. Its refusals of upstream HTTP-01 and
 TLS-ALPN-01 are restated and **kept** (§6).
-Plan: [docs/archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 

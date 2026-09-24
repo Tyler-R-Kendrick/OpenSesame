@@ -3,7 +3,7 @@
 Date: 2026-08-08
 Scanners: cve-lite, osv-scanner, cargo-audit, gitleaks, semgrep, ast-grep, clippy —
 all clean. This is a fresh-eyes review of the chain added in
-`audit-2026-08-08-audit-chain.md`, three ticks ago.
+`2026-08-08-audit-chain.md`, three ticks ago.
 
 ## Findings
 

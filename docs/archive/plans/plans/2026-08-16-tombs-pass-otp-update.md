@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust 1.88 (`sealed-store`, `opensesame-cli`), clap, existing `human-vault` crypto; Pages TypeScript (`totp.ts`, `store-sync.ts`, ItemDetail); Vitest + `cargo +1.88.0 test`.
 
-**Spec:** [docs/archive/superpowers/specs/2026-08-16-tombs-pass-otp-update-design.md](../specs/2026-08-16-tombs-pass-otp-update-design.md)
+**Spec:** [docs/archive/plans/specs/2026-08-16-tombs-pass-otp-update-design.md](../specs/2026-08-16-tombs-pass-otp-update-design.md)
 
 ## Global Constraints
 

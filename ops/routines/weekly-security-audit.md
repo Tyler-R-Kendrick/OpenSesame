@@ -10,7 +10,7 @@ You are Claude Code, working alone in a fresh clone of
 `https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust (`crates/*`, Rust `apps/*`) + TypeScript (`apps/*`,
 `packages/*`) credential-broker / auth system. There is an existing,
-extensive audit series at `docs/security/audit-2026-08-*.md` (roughly 90
+extensive audit series at `docs/security/audits/2026-08-*.md` (roughly 90
 files as of writing) — each one documents a single pass over one surface,
 looking for real bugs and fixing the small, low-risk ones on the spot. You
 are running the next pass in that same series.
@@ -57,7 +57,7 @@ installing one.
 ## Step 1 — pick the surface
 
 ```bash
-ls docs/security/audit-*.md | sort
+ls docs/security/audits/*.md | sort
 ls apps packages crates
 ```
 
@@ -127,7 +127,7 @@ run `cargo` commands against a TypeScript-only pick, and vice versa.)
 
 ## Step 4 — write the doc
 
-Create `docs/security/audit-YYYY-MM-DD-<topic>.md` where `YYYY-MM-DD` is
+Create `docs/security/audits/YYYY-MM-DD-<topic>.md` where `YYYY-MM-DD` is
 **today's actual date** (check it — do not guess or reuse a date from an
 example) and `<topic>` is a short kebab-case name for the surface/bug class,
 matching the existing naming convention exactly (lowercase, hyphens, no
@@ -156,13 +156,13 @@ changing code — do not guess at a fix for something you are not sure about.
 
 ```bash
 git checkout -b audit/<topic>-<date>
-git add docs/security/audit-<date>-<topic>.md <any fixed source files>
+git add docs/security/audits/<date>-<topic>.md <any fixed source files>
 git commit -m "fix(<scope>): <plain-language summary of what changed>
 
-See docs/security/audit-<date>-<topic>.md"
+See docs/security/audits/<date>-<topic>.md"
 git push -u origin HEAD
 gh pr create --title "fix(<scope>): <plain-language summary>" \
-  --body "Weekly security audit pass. Findings + verification: docs/security/audit-<date>-<topic>.md"
+  --body "Weekly security audit pass. Findings + verification: docs/security/audits/<date>-<topic>.md"
 ```
 
 If the pass found nothing worth fixing (a clean surface), still commit and
@@ -171,6 +171,6 @@ deliverable, not a no-op.
 
 ## Deliverable
 
-A new `docs/security/audit-YYYY-MM-DD-<topic>.md` (using the real run date),
+A new `docs/security/audits/YYYY-MM-DD-<topic>.md` (using the real run date),
 plus a PR with any minimal, surgical fixes for real low-risk findings.
 Anything requiring judgment is described in the doc, not fixed blind.

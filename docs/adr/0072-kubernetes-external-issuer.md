@@ -6,7 +6,7 @@ Supplements: ADR 0017 (host/client topology), ADR 0048 §5 (dependency budget),
 ADR 0065 ([agent-surface parity](0065-agent-surface-parity.md)),
 ADR 0066 (Certificate Manager domain model),
 ADR 0068 (enrollment protocol servers)
-Plan: [docs/archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 

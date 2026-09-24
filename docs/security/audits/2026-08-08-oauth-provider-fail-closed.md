@@ -62,7 +62,7 @@ silently skipped.
 ## Follow-up
 
 ~~`apps/control-plane/src/create-app.ts` still constructs the provider without a
-`jwks` or adapter~~ — closed in `audit-2026-08-08-issuer-persistence-and-worker.md`:
+`jwks` or adapter~~ — closed in `2026-08-08-issuer-persistence-and-worker.md`:
 `createPostgresOidcStore` backs the adapter and the control plane wires it whenever
 a database is configured. Signing keys already came from `OPENSESAME_JWKS_JSON`
 with production refusing an ephemeral keypair.

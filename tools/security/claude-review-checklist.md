@@ -2,7 +2,7 @@
 
 Distilled from `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,
 `docs/security/identity-threat-model.md`, `docs/security/key-hierarchy.md`, and the
-concrete bug classes recorded across `docs/security/audit-2026-08-0{7,8}-*.md`. This is
+concrete bug classes recorded across `docs/security/audits/2026-08-0{7,8}-*.md`. This is
 the artifact `ops/routines/pr-security-review.md` applies line by line against a PR
 diff, and the same lens `ops/routines/weekly-security-audit.md` should hold up to
 whatever surface it picks that week.

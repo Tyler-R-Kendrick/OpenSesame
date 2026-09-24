@@ -32,4 +32,4 @@ pass-tomb).
 ## Related
 
 - [ADR 0037](0037-git-sealed-store.md)
-- [Design](../archive/superpowers/specs/2026-08-16-tombs-pass-otp-update-design.md)
+- [Design](../archive/plans/specs/2026-08-16-tombs-pass-otp-update-design.md)

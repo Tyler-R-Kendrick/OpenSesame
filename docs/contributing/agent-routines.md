@@ -50,7 +50,7 @@ to run, the same way this document restates context for you.
 | File | Cadence | Deliverable |
 |---|---|---|
 | `ops/routines/nightly-dependency-triage.md` | Nightly | Fix PR (`fix(deps): ...`) or a dated note in `docs/security/tooling-evaluation.md` |
-| `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audit-YYYY-MM-DD-<topic>.md` + PR with any small fixes |
+| `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audits/YYYY-MM-DD-<topic>.md` + PR with any small fixes |
 | `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never an Actions workflow |
 | `ops/routines/weekly-docs-drift.md` | Weekly | Fix PR (`fix(docs): ...`) correcting stale references |
 | `ops/routines/pr-security-review.md` | On demand | One structured review comment on a named PR |

@@ -82,7 +82,7 @@ destinations remain **independent** of root protection (C01) — do not conflate
 `git_remote` backup targets with KMS/age root protectors.
 
 Related prior agent prompt (different problem):
-`docs/archive/prompts/agents/spa-multi-forge-vault-backup-prompt.md`.
+`docs/archive/prompts/spa-multi-forge-vault-backup-prompt.md`.
 
 ### Execution rules (non-negotiable)
 

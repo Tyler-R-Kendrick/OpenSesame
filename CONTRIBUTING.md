@@ -1,103 +1,77 @@
-# Contributing
+# Contributing to OpenSesame
 
-## Prerequisites
-- Node.js ≥ 22 (CI uses 22; Node 24+ preferred locally)
-- pnpm 9 via Corepack
-- Rust 1.88 for the authority plane
-- Optional: Docker for Compose / Testcontainers
+Thanks for helping. This page is the checklist; the reasoning behind each item
+is in [docs/contributing](docs/contributing/README.md), and the rules that gate
+a merge are in [`AGENTS.md`](AGENTS.md) — read §5 before your first change.
 
-## Workflow
+## Set up
+
+Node 22+, pnpm 9 via Corepack, Rust 1.88 (pinned by `rust-toolchain.toml`).
+
 ```bash
+corepack enable
 pnpm install
-pnpm --filter @opensesame/control-plane test
-pnpm -r --filter '@opensesame/*' test
-cargo +1.88.0 test --workspace --lib
+pnpm setup:hooks      # git uses .githooks/: lint, Clippy, design lint, gitleaks
 ```
 
-Identity CLI binary is `opensesame-id` (Rust authority CLI remains `opensesame`).
+[Getting started](docs/getting-started/README.md) covers running each plane;
+the [repository tour](docs/getting-started/repository-tour.md) covers where
+code goes.
 
-Agents asked to run the app locally must attach a Vite HMR debug session and
-watch real console/page/network errors (`AGENTS.md` §5,
-`skills/local-debug-session/SKILL.md`). `pnpm --filter @opensesame/pages dev:web`
-serves Pages on `http://localhost:5180`.
+## Before you push
 
-## Gates
-CI is deliberately thin: `.github/workflows/ci.yml` runs `pnpm lint`,
-`pnpm typecheck`, `pnpm test` and `cargo test --workspace --all-targets` on every
-pull request. The default-branch policy requires up-to-date `TypeScript`,
-`Bundle budgets`, and `Rust` checks, resolved review threads, and a pull request.
-This personal-account repository does not support a merge queue; use squash
-auto-merge after review. Apply/verify protection using `ops/github/governance.mjs`.
-A merge to
-`main` then publishes `apps/pages` through `.github/workflows/deploy-pages.yml`.
-The existing TypeScript job checks introduced commit signatures first: unsigned
-commits cannot satisfy the default-branch ruleset, even if compilation passes.
-Use `git commit -S` with a signing key already registered to your GitHub account;
-do not disable the signature rule to unblock a release.
-
-Publication is complete only when the Deploy Pages workflow's live check passes.
-It stamps `release.json` with the exact source SHA and hashes of the HTML and
-runtime configuration, then verifies those bytes over HTTPS after deployment.
-Check a release explicitly with
-`node scripts/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ FULL_SHA`.
-A stale/missing marker, stale HTML/configuration, or HTTP failure fails publication
-after bounded propagation retries. This checks deployment freshness, not code
-security or the state of an already-open browser's service-worker cache.
-
-Everything heavier stays local:
-
-- Local git hooks (below), run on every commit and push.
-- `pnpm verify`, runnable locally or on demand, for the full gate suite.
-- Opt-in deeper gates (not in `verify`): `pnpm audit:fuzz`, `pnpm test:fuzz`,
-  `pnpm audit:kani`, `pnpm audit:miri`, `pnpm audit:shuttle`. See
-  `docs/validation/fuzzing.md`.
-- Scheduled Claude Code cloud sessions that run audits and report findings on a
-  cadence — see `docs/contributing/agent-routines.md` for the configured routines.
-- [CodeRabbit](https://coderabbit.ai), already installed as a GitHub App, which
-  reviews pull requests on its own infrastructure (not billed against Actions minutes).
-
-### One-time setup
-After cloning, run once:
 ```bash
-pnpm setup:hooks
+pnpm lint && pnpm quality && pnpm typecheck && pnpm test
+cargo +1.88.0 test --workspace --all-targets     # when Rust changed
 ```
-This points git's `core.hooksPath` at the repo's tracked `.githooks/` directory and
-makes the hook scripts executable. `pnpm bootstrap` now runs this automatically, so a
-fresh clone that runs `pnpm bootstrap` does not need a separate step.
 
-### What the hooks do
-- **`pre-commit`** — runs `biome check` and anti-slop against staged files,
-  runs the full Rust formatting and Clippy gate when Rust or Cargo configuration
-  is staged, then
-  the gitleaks secret scan (`scripts/gitleaks-gate.sh`) if the
-  `gitleaks` binary is available on `PATH`; otherwise it prints a one-line notice and
-  continues. On failure it prints remediation hints (e.g. run `pnpm lint:fix` and
-  re-stage).
-- **`pnpm lint:anti-slop`** — Oxlint with the vendored anti-slop plugin
-  (`tools/oxlint/anti-slop/`, config `oxlint.config.ts`). It is part of
-  `pnpm lint:all`, both hooks, and `pnpm verify`; nested configs and unused
-  disable directives fail the gate. `pnpm test:anti-slop` runs every plugin
-  RuleTester case and verifies the installer assets match the vendored copy.
-- **`pnpm audit:clippy`** — checks `rustfmt` and runs Rust 1.88 Clippy across
-  every workspace target and feature. Warnings, the full pedantic group, and
-  the complexity thresholds in `clippy.toml` fail the gate. Prefer fixing the
-  shared responsibility; use a narrow `#[expect(clippy::lint, reason = "...")]`
-  only when a cohesive declarative table or test matrix is clearer unsplit.
-- **`pre-push`** — runs a verification pass sized by the `OPENSESAME_PREPUSH`
-  environment variable:
-  - `off` — skip entirely.
-  - `fast` (default when unset) — `pnpm typecheck && pnpm test`.
-  - `full` — `pnpm verify` (the complete local gate, including Rust formatting,
-    Clippy, and Rust tests).
+`pnpm verify` runs everything, including the security audits and the battle
+test; run it before anything security-sensitive lands. The pre-push hook runs
+typecheck and tests by default (`OPENSESAME_PREPUSH=off|fast|full`).
 
-  Set your preferred mode with `export OPENSESAME_PREPUSH=off|fast|full` (e.g. in your
-  shell profile) to change it from the default.
+Browser gates run against a fresh Pages build and are required when you touch
+what they cover — boot, sign-in, the shell, controls, keyboard handling, touch
+layout: `pnpm --filter @opensesame/pages verify:<keyboard|mobile|static|auth|local-iam>`.
 
-## Design rules
-- Domain package (`@opensesame/os-domain`) must not import Better Auth, oidc-provider, Hono, Drizzle, or React.
-- Prefer mature libraries over NIH protocol code (ADR 0008).
-- Do not add Clerk/Marketplace auth as core (ADR 0004).
-- Record consequential decisions as ADRs under `docs/adr/`.
+## Your pull request
 
-## Configuration
-Copy from `.env.schema` guidance; never commit live secrets. Development signing keys and claim peppers must be generated outside Git.
+- **Commits are signed** (`git commit -S`). CI rejects unsigned commits and the
+  default-branch ruleset will not merge them.
+- **A user-visible change carries before/after evidence** from two real
+  builds, committed under `docs/evidence/<yyyy-mm-dd>-<topic>/` and linked
+  from the PR ([how](skills/visual-evidence/SKILL.md)).
+- **A consequential decision gets an ADR** in `docs/adr/`, then
+  `pnpm docs:index`.
+- **A new user-facing capability gets a `packages/capability-registry` entry**
+  mapping it to every agent surface, or an ADR-cited exclusion.
+- **Ratchets only tighten.** If `pnpm quality` says something improved, commit
+  the updated baseline; never raise a recorded number.
+
+Merges are squash-only, up to date with `main`, with review threads resolved.
+There is no merge queue; use auto-merge after review.
+
+## After merge
+
+`main` deploys `apps/pages` to GitHub Pages. Publication is complete only when
+the Deploy Pages workflow's live check passes: it stamps `release.json` with
+the source SHA and hashes of the HTML and runtime configuration, then verifies
+those bytes over HTTPS. Check a release by hand with:
+
+```bash
+node scripts/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ <full-sha>
+```
+
+## Ground rules
+
+- `@opensesame/os-domain` imports no Better Auth, oidc-provider, Hono, Drizzle
+  or React.
+- Prefer a mature library to protocol code of our own
+  ([ADR 0008](docs/adr/0008-better-auth-oidc-provider.md)).
+- The Identity and Host APIs stay separate
+  ([ADR 0017](docs/adr/0017-host-client-product-topology.md)).
+- No agent-facing API returns a secret
+  ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
+- Never remove the guest road from sign-in or unlock (`AGENTS.md` §5).
+- Configuration follows [`.env.schema`](.env.schema). Never commit a live
+  secret; development keys and peppers are generated outside git.
+- No `sudo`.

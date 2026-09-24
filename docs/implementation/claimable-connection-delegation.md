@@ -457,7 +457,7 @@ the child grant (authority, server-side).
 Threat-model rows to add to `docs/security/threat-model.md` when
 implementing: "Delegation offer replay", "Delegate widens via
 re-delegation", "Claim-page phishing", each pointing at the tests below.
-A dated `docs/security/audit-…` file is *not* pre-created — that series
+A dated `docs/security/audits/…` file is *not* pre-created — that series
 records found-and-fixed vulnerabilities, not designs.
 
 ---

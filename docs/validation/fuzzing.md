@@ -42,7 +42,7 @@ Override duration with `FUZZ_SECONDS`. Override the Miri nightly with
 - `tests/fuzz/clusterfuzzlite/` — Dockerfile / `build.sh` / `project.yaml`
 - `tests/fuzz/jazzer/` — Jazzer.js targets + oracle unit tests
 
-`fuzz/` is listed in the root workspace `exclude`. It is its own workspace
+`tests/fuzz/cargo/` is listed in the root workspace `exclude`. It is its own workspace
 so libFuzzer rustflags stay off the product crates.
 
 ## Security oracles
@@ -68,7 +68,7 @@ A crash is a panic, sanitizer hit, or failed `assert!`.
 2. Minimize: `cargo +nightly fuzz tmin <target> <crash>`
 3. Copy the minimized input to `tests/fuzz/cargo/regressions/<target>/`
 4. Fix the product code (not the harness, unless the oracle was wrong)
-5. Write `docs/security/audit-YYYY-MM-DD-fuzz-<target>.md`
+5. Write `docs/security/audits/YYYY-MM-DD-fuzz-<target>.md`
 6. Re-run the target for at least 60s
 
 TypeScript follows the same steps with `tests/fuzz/jazzer/artifacts/`.

@@ -8,7 +8,7 @@ ADR 0039 (outbox and the backup actor),
 ADR 0052-cert ([automatic certificate authority selection](0052-automatic-certificate-authority-selection.md)),
 ADR 0065 ([agent-surface parity](0065-agent-surface-parity.md),
 [connector/hook architecture](0065-connector-hook-architecture.md))
-Plan: [docs/archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 

@@ -17,7 +17,7 @@ Product license: **MIT** (see `LICENSE`).
 | Authority | OpenBao as provider | provider crate | MPL-2.0 | Dynamic secrets/PKI/SSH/transit |
 | Bundled IdP | Keycloak | Compose profile | Apache-2.0 | OIDC/SAML/LDAP/passkeys/device flow |
 | Workload ID | SPIFFE/SPIRE | provider | Apache-2.0 | Secretless preferred |
-| WASM | Wasmtime Component Model | WIT in `wit/` | Apache-2.0 | No secrets.get; authorized-http/sign |
+| WASM | Wasmtime Component Model | WIT in `spec/wit/` | Apache-2.0 | No secrets.get; authorized-http/sign |
 | Developer config contract | **`@env-spec` / `.env.schema`** via `@env-spec/parser` | pin in `packages/env-spec-bridge` | MIT | Schema/value separation; anti-NIH |
 | Prior art (study) | SUDP arXiv:2604.24920 | research | — | Custodian execution; not a wire protocol fork |
 | Prior art (peer) | Varlock credential proxy / sandbox | docs | MIT | Placeholder+placement; do not fork MITM as primary |

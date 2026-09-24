@@ -57,7 +57,7 @@ describes: a syntactically valid but unregistered route is a *validation*
 failure, while an unusable route is a *parse* failure caught before the
 vocabulary is consulted at all.
 
-**Residual gap.** The parser has no coverage-guided fuzz target in `fuzz/` or
+**Residual gap.** The parser has no coverage-guided fuzz target in `tests/fuzz/cargo/` or
 `tests/fuzz/jazzer/`; fast-check is property testing with generators we wrote.
 Unicode is asserted at the specific hazards, not exhaustively. Nothing here is
 in the `tools/mutation/stryker.config.json` mutation slice, so a surviving mutant in the

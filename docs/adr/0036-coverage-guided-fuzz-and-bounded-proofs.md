@@ -6,7 +6,7 @@ Accepted
 ## Context
 The authority plane already has unit tests, battle tests, `proptest` on
 capability algebra, and a local static-analysis gate suite. The remaining
-honest gap (`docs/validation/battle-test-critique.md`) was persistent
+honest gap (`docs/archive/2026-08-07-baseline/battle-test-critique.md`) was persistent
 coverage-guided fuzzing, bounded model checks, UB detection, and
 schedule/network exploration.
 

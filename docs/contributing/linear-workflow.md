@@ -17,7 +17,7 @@ real Linear credentials) follows these steps by hand.
      §4 triage rule).
    - `needs-human-triage` — ambiguous or architecturally significant; a human
      must scope it before it is delegate-eligible.
-   - `security` — for issues sourced from `docs/security/audit-*.md` (§2).
+   - `security` — for issues sourced from `docs/security/audits/*.md` (§2).
 
 ## 2. Seed the initial backlog from real repo gaps
 
@@ -25,17 +25,17 @@ Do not start the team's backlog empty or with invented placeholder issues.
 The repository already documents its own known gaps in three places — pull
 concrete items from each and file them as Linear issues before anything else:
 
-- **`docs/validation/testing-evidence.md`**, the `## Residual (documented, not blocking
+- **`docs/archive/2026-08-07-baseline/summary.md`**, the `## Residual (documented, not blocking
   mandatory local suite)` section — items intentionally deferred from the
   mandatory local test suite.
 - **`docs/archive/brief-implementation-status.md`**, the `## Feature gates (remain
   disabled by default)` section — features shipped but deliberately gated
   off.
-- **`docs/security/audit-*.md`** follow-ups — grep the audit corpus for
+- **`docs/security/audits/*.md`** follow-ups — grep the audit corpus for
   open items:
 
   ```bash
-  grep -il -E "follow-up|follow up|residual|tracked|TODO|not yet|future work" docs/security/audit-*.md
+  grep -il -E "follow-up|follow up|residual|tracked|TODO|not yet|future work" docs/security/audits/*.md
   ```
 
   Then read the hits' "Not fixed here" / "Residual review" sections — most
@@ -47,15 +47,15 @@ Paste these in verbatim as the first backlog issues; each cites its repo
 source so a reader can verify the gap still exists before working it:
 
 1. **Playwright passkey virtual-authenticator full browser matrix is not run
-   in the mandatory local suite.** (`docs/validation/testing-evidence.md`, Residual)
+   in the mandatory local suite.** (`docs/archive/2026-08-07-baseline/summary.md`, Residual)
 2. **Testcontainers-backed Postgres tests are skipped when Docker Engine is
-   unavailable on the host.** (`docs/validation/testing-evidence.md`, Residual)
+   unavailable on the host.** (`docs/archive/2026-08-07-baseline/summary.md`, Residual)
 3. **Live Google/GitHub/Entra IdP integration is untested beyond templates —
-   only the mock IdP is exercised in CI/local runs.** (`docs/validation/testing-evidence.md`,
+   only the mock IdP is exercised in CI/local runs.** (`docs/archive/2026-08-07-baseline/summary.md`,
    Residual)
 4. **ATProto and Nostr identity adapters exist but ship disabled by
    default; they have no live-network test coverage.**
-   (`docs/validation/testing-evidence.md`, Residual; also `docs/archive/brief-implementation-status.md`,
+   (`docs/archive/2026-08-07-baseline/summary.md`, Residual; also `docs/archive/brief-implementation-status.md`,
    Feature gates)
 5. **Origin-profile clients, Dynamic Client Registration, and Client ID
    Metadata Documents are implemented but remain disabled by default** —
@@ -150,7 +150,7 @@ Suggested simple triage rule for the OpenSesame team:
   packages it touches, and no open product/architecture question.
 - Anything **ambiguous or architecturally significant** — a design decision,
   a cross-package contract change, anything touching the security posture
-  documented in `docs/security/audit-*.md` — stays with
+  documented in `docs/security/audits/*.md` — stays with
   `needs-human-triage` and is scoped by a human first. Only relabel it
   `agent-ready` (dropping `needs-human-triage`) once that scoping is done.
 

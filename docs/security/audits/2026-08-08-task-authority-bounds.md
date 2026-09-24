@@ -19,7 +19,7 @@ a model gets a clear local refusal rather than a 400 from the far end.
 ## Not fixed
 
 ~~`start_task` still takes `organization_id` from the body~~ — closed in
-`audit-2026-08-08-authority-bounds.md`: the organization must be one the caller holds
+`2026-08-08-authority-bounds.md`: the organization must be one the caller holds
 authority in (the bootstrap organization in this deployment), or the call is `403
 organization_mismatch`.
 

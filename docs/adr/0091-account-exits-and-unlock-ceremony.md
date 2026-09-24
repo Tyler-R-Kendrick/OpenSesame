@@ -5,7 +5,7 @@
 - Supplements: [ADR 0033](0033-federated-identity-admission.md) (identity before
   sealing; federation never decrypts the vault), [ADR 0034](0034-origin-brokered-static-site-signin.md)
   and [ADR 0052](0052-federated-first-sign-in-surfaces.md) (the shoo.dev leg),
-  [ADR 0078](0078-external-idp-as-identity-service.md) (setup's allowlist is the
+  [ADR 0078](0078-external-idp-is-the-identity-service.md) (setup's allowlist is the
   sign-in screen), [ADR 0089](0089-device-vault-switching.md) (several vaults on
   one device)
 

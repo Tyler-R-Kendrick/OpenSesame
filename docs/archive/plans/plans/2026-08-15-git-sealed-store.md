@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust 1.88, clap 4, `age` crate, Sequoia (or `gpg` fallback), existing `human-vault` crypto, Vitest for Pages, cargo test for Rust.
 
-**Spec:** `docs/archive/superpowers/specs/2026-08-15-git-sealed-store-design.md`
+**Spec:** `docs/archive/plans/specs/2026-08-15-git-sealed-store-design.md`
 
 ## Global Constraints
 

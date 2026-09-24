@@ -213,6 +213,18 @@ mutation broadcasts an outbox event; the gateway's backup actor persists a
 full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 4. Layout map
 
+Top level: `apps/` (deployables), `crates/` (Rust libraries), `packages/`
+(TypeScript libraries), `examples/` (runnable integrations on public SDKs
+only), `marketplace/` (vault item-type definitions: `item-types/builtin/` is
+embedded by both planes, `item-types/optional/` is indexed by
+`.opensesame/marketplace.json`), `spec/` (WIT, Host OpenAPI, OpenFGA model,
+connector manifests), `tests/` (cross-cutting suites and shared fixtures),
+`tools/` (lint plugins, quality ledgers in `tools/quality/`, mutation configs,
+scanner rules, the mock IdP), `scripts/` (what `pnpm` tasks run), `ops/`
+(compose, ingress, NATS, governance, routines), `skills/`, `docs/`. Each has a
+`README.md`; `docs/getting-started/repository-tour.md` says where things go.
+Do not add new top-level directories or loose root files — find the group.
+
 | Path | Role |
 |------|------|
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
@@ -248,7 +260,6 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
 | `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass, Secret Service) — per-surface cargo features, all default off (ADR 0052/0053) |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
-| `apps/credential-agent` | Legacy credential agent (`opensesame-credential-agent`) |
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
 | `apps/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
@@ -260,8 +271,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Background worker |
 | `apps/browser-extension` | WXT browser extension |
-| `examples/rp-alpha` / `examples/rp-beta` | Example relying-party apps |
-| `examples/agent` / `examples/headless` | Example agent / headless client |
+| `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`src/fixtures/vault-vectors.json`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
@@ -287,11 +297,14 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
 | `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
-| `packages/config` | Shared tsconfig |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
-| `wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
-| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs; competitor references under `docs/research/competitors/`; ecosystem research under `docs/research/` |
+| `spec/wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
+| `spec/openapi/host-api.yaml`, `spec/openfga/`, `spec/connectors/` | Host OpenAPI, OpenFGA model + baseline tuples, connector parity table and reference manifest |
+| `crates/storage/migrations/` | Host SQL migrations, embedded by `crates/storage` |
+| `tests/fuzz/{cargo,jazzer,clusterfuzzlite}`, `tests/redteam`, `tests/visual-contract`, `tests/fixtures` | Fuzzing, MCP red team, visual regression, shared fixtures |
+| `tools/quality/`, `tools/mutation/`, `tools/security/` | Ratchet ledgers and budgets, Stryker configs, ast-grep rules and negative controls |
+| `docs/` | Start at `docs/README.md`. `getting-started/`, `architecture/`, `adr/` (index generated by `pnpm docs:index`), `operators/`, `reference/`, `design/`, `security/` (audits in `security/audits/`), `validation/`, `evidence/`, `implementation/`, `research/` (competitors in `research/competitors/`), `contributing/`, `archive/` |
 
 ## 5. Design rules that gate merges
 
@@ -642,9 +655,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,
   `docs/security/identity-threat-model.md`,
   `docs/security/key-hierarchy.md` — architecture-level security docs.
-- `docs/security/audit-YYYY-MM-DD-<topic>.md` — a running series of
+- `docs/security/audits/YYYY-MM-DD-<topic>.md` — a running series of
   point-in-time audit docs, each documenting a specific vulnerability that
-  was found and fixed. Add a new dated file rather than editing history.
+  was found and fixed. Add a new dated file rather than editing history, then
+  `pnpm docs:index` (the index is checked by `pnpm quality`).
 - `docs/security/tooling-evaluation.md` — evaluation of the audit gate
   tooling.
 - Gate scripts (invoked via the `pnpm audit:*` scripts in §3):

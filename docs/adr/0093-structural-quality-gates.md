@@ -2,7 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-03
-Supplements: ADR 0048 ([daemon dependency budget](0048-daemon-runtime-and-dependency-budget.md)),
+Supplements: ADR 0048 ([daemon dependency budget](0048-capability-moded-connector-discovery.md)),
 ADR 0065 ([agent surface parity](0065-agent-surface-parity.md))
 
 ## Context

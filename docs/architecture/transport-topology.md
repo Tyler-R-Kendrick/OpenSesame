@@ -1,32 +1,11 @@
-# Architecture Overview
+# Transport topology
 
-```
-Clients (CLI, extension, SDK, MCP, PWA, toolbar)
-        │  HTTPS / DPoP / local daemon (UDS) / optional mTLS (ADR 0132)
-        ▼
-┌───────────────────────┐     ┌──────────────────────────┐
-│ Identity API (:8788)  │     │ Host API gateway (:8787) │
-│ control-plane (TS)    │     │ uses host-core (Rust)    │
-└───────────────────────┘     └────────────┬─────────────┘
-                                           │
-                              Policy PEP + Broker (host-core)
-                                   ┌───────┴───────┐
-                                   ▼               ▼
-                            E2EE client-core   Authority adapters
-                            (local sync)       (OpenBao / OpenFGA / WASM)
-```
+How the Host, Identity API, worker, NATS and upstreams reach one another, and
+what each hop's authentication proves
+([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md)). The system
+as a whole is described in the [architecture overview](README.md).
 
-**APIs stay separate** (ADR 0017). Polyglot cores share WIT contracts.
-
-- Host/client topology: `docs/architecture/host-client-topology.md`
-- Identity plane: `docs/architecture/identity-plane.md`
-- Availability classes A0–A3: ADR 0003
-- ConnectionRef over SecretRef: ADR 0005
-- In-product contextual support and GuideLang: `docs/architecture/ai-contextual-support.md`, ADR 0087
-
-## Transport security (ADR 0132)
-
-The planes above talk to each other over hops that are each declared, never
+The planes talk to each other over hops that are each declared, never
 inferred. A hop is one of `existing_local` (loopback, Unix socket with kernel
 peer credentials, operator token — the profile every single-host deployment
 runs), `server_tls`, `mtls_required`, or `trusted_ingress`. None is a fallback

@@ -3,7 +3,7 @@
 Date: 2026-08-08
 Scanners: cve-lite, osv-scanner, gitleaks, semgrep, ast-grep, clippy, cargo-deny —
 all clean. This came from following up an open item in
-`audit-2026-08-08-issuer-persistence-and-worker.md` and reading
+`2026-08-08-issuer-persistence-and-worker.md` and reading
 `apps/worker/src/main.ts` again.
 
 ## Findings

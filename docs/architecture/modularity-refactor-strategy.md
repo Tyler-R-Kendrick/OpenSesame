@@ -294,7 +294,7 @@ derivation lands later.
 
 ### 2.5 WIT — an IDL used as documentation
 
-**Now:** `wit/` holds seven worlds, 324 lines. Exactly one —
+**Now:** `spec/wit/` holds seven worlds, 324 lines. Exactly one —
 `spec/wit/connector` — is used for binding generation, via
 `wasmtime::component::bindgen!` in `crates/connector-host/src/wasm.rs:40`.
 

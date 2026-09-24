@@ -73,7 +73,7 @@ before it was handed over. Verify each is present, then treat it as done:
   not to copy. Record the numbers you allocated in the PR body, and
   cross-reference by filename rather than number wherever practical.
   Found-and-fixed security issues get a
-  dated `docs/security/audit-2026-08-22-<topic>.md` (append a new file; never
+  dated `docs/security/audits/2026-08-22-<topic>.md` (append a new file; never
   edit history).
 - `packages/os-domain` must NOT import Better Auth, oidc-provider, Hono,
   Drizzle, or React.
@@ -644,14 +644,14 @@ no own suite), `pnpm audit:clippy`.
 
 **M2 — Metadata docs: ADR-BLINDED-STORE + dated audit doc.**
 Owns: `docs/adr/<next+1>-blinded-sealed-store-layout.md` (new),
-`docs/security/audit-2026-08-22-sealed-store-metadata.md` (new).
+`docs/security/audits/2026-08-22-sealed-store-metadata.md` (new).
 ADR-BLINDED-STORE records §3.3/§3.4 (motivation: the LastPass plaintext-metadata
 lesson; the decision; the v1 compatibility story; the gpg/age limitation;
 alternatives considered: per-entry random ids + mandatory index — rejected
 for losing deterministic idempotent writes; encrypting only filenames —
 rejected because cleartext `AssociatedData.item_id` inside `.osseal` files
 would still leak names). The audit doc follows the house style of the
-existing `docs/security/audit-2026-08-08-*.md` files: what leaked (commit
+existing `docs/security/audits/2026-08-08-*.md` files: what leaked (commit
 messages, paths, envelope AD; concrete examples), impact (backup-repo
 readers learn every folder/item name + change cadence), the fix, and the
 operator note that EXISTING repos retain leaked names in history — scrubbing
@@ -799,7 +799,7 @@ drizzle file decision (§1), and the final git/PR workflow.
 | `import/qr-image.ts[.test]`, `ImportPanel.tsx` | T4 |
 | `apps/control-plane/src/routes/mfa.ts` (+tests) | T5 |
 | `crates/sealed-store/**`, `apps/cli/**` | M1 |
-| `docs/adr/*-blinded-sealed-store-layout.md`, `docs/security/audit-2026-08-22-sealed-store-metadata.md` | M2 |
+| `docs/adr/*-blinded-sealed-store-layout.md`, `docs/security/audits/2026-08-22-sealed-store-metadata.md` | M2 |
 | `apps/gateway/src/backup.rs` | M3 |
 | `packages/audit/**`, `apps/worker/src/rotation.ts`, `store_path` producers | M4 |
 | `packages/app-core/src/lib/vault/store-sync.ts[.test]` | M5 |

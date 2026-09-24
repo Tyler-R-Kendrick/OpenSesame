@@ -1,7 +1,7 @@
 # Tomb — craft bar (volume encryption ideas)
 
 > Competitive / ecosystem reference for OpenSesame multi-tomb sealed stores
-> ([spec](../../archive/superpowers/specs/2026-08-16-tombs-pass-otp-update-design.md)).
+> ([spec](../../archive/plans/specs/2026-08-16-tombs-pass-otp-update-design.md)).
 
 **Stance: adjacent / inspiration** — not a Host plane competitor. Linux
 [Tomb](https://dyne.org/tomb/) (dm-crypt/LUKS) motivates **key/volume

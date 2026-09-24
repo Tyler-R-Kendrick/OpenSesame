@@ -8,7 +8,7 @@ which names `SignerRef`), ADR 0017 (host/client topology),
 ADR 0048 §5 (dependency budget), ADR 0053 (default-off feature-gated surfaces),
 ADR 0065 ([agent-surface parity](0065-agent-surface-parity.md)),
 ADR 0066 (Certificate Manager domain model), ADR 0071 (HSM connectors)
-Plan: [docs/archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/superpowers/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
+Plan: [docs/archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md](../archive/plans/plans/2026-08-30-infisical-cert-manager-parity-swarm.md)
 
 ## Context
 

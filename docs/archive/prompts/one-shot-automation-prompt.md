@@ -80,7 +80,7 @@ acceptance checks, and commit.
     `vault-unlock-mobile.png`.
   - Key docs: `docs/adr/0001–0031`, `docs/security/security-boundaries.md`,
     `docs/security/threat-model.md`, `docs/security/identity-threat-model.md`,
-    `docs/validation/testing-evidence.md`, `docs/archive/brief-implementation-status.md`,
+    `docs/archive/2026-08-07-baseline/summary.md`, `docs/archive/brief-implementation-status.md`,
     `docs/contributing/ai-automation-roadmap.md` (a planning doc this build-out implements).
   - PR review is already handled by CodeRabbit (installed GitHub App).
   - The identity plane requires `OPENSESAME_ENV=development` or
@@ -180,7 +180,7 @@ Rust).
    fix PR for actionable advisories, or append a dated note to
    `docs/security/tooling-evaluation.md` for accepted risks.
 2. `ops/routines/weekly-security-audit.md` — pick the least-recently-audited
-   surface (derive from `docs/security/audit-*.md` filenames), attack it in the
+   surface (derive from `docs/security/audits/*.md` filenames), attack it in the
    style of the existing audits (read 3 of them first), write the audit doc,
    and PR minimal fixes.
 3. `ops/routines/weekly-docs-drift.md` — cross-check README/PRODUCT/
@@ -191,7 +191,7 @@ Rust).
    the diff; post findings as a single review.
 5. `tools/security/claude-review-checklist.md` — distill
    `docs/security/security-boundaries.md`, the threat models, and the bug
-   classes visible in `docs/security/audit-2026-08-0*.md` into ~20–30 concrete,
+   classes visible in `docs/security/audits/2026-08-0*.md` into ~20–30 concrete,
    diff-checkable items (listen/bind fences, production fail-closed paths,
    token/proof-key custody, DPoP binding and nonce handling, CSRF fences,
    sealed-store integrity, log redaction, SSRF host parsing, quota bounds).
@@ -398,8 +398,8 @@ Repo work cannot create SaaS resources; write precise operator runbooks:
 
 1. `linear-workflow.md`: create an "OpenSesame" Linear team; seed the backlog
    from the repo's own gap lists — the "Residual" section of
-   `docs/validation/testing-evidence.md`, `docs/archive/brief-implementation-status.md`, and
-   follow-ups named inside `docs/security/audit-*.md` (tell the operator to
+   `docs/archive/2026-08-07-baseline/summary.md`, `docs/archive/brief-implementation-status.md`, and
+   follow-ups named inside `docs/security/audits/*.md` (tell the operator to
    grep for "follow-up"/"residual"/"tracked"); use Linear's git-branch-name
    convention to tie PRs to issues; delegate issues to the Claude Linear agent
    integration (covered by the existing Claude subscription — **no Copilot**);

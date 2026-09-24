@@ -1,6 +1,6 @@
 # Testing evidence
 
-See also `docs/validation/identity-testing-evidence.md`.
+See also `docs/archive/2026-08-07-baseline/identity-plane-evidence.md`.
 The current cross-language coverage and test-type matrix is in
 `docs/validation/test-coverage.md`.
 

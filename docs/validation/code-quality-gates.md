@@ -147,7 +147,7 @@ Checks `packages/app-core` and `packages/vault-core` (ADR 0133). Every rule
 is a hard failure except the lazy-cycle ledger, which only shrinks.
 
 - **Boundary.** No relative import leaves the package (the repository's
-  `connectors/` and `fixtures/` excepted), no React value import (a
+  `spec/` and `tests/fixtures/` excepted), no React value import (a
   type-only one is allowed and counted), no `import.meta.env` (read
   `env()`), no Vite `virtual:` module, no self-import by package name, and
   `node:*` only under `src/node/**` and in tests.
