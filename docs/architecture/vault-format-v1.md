@@ -9,8 +9,9 @@ Source of truth: the format kernel `@opensesame/vault-core`
 `packages/app-core/src/lib/vault/unlock-methods.ts`, `seal-rebind.ts`,
 `store.ts` (`exportSealed`, `importSealed`), `lib/vault-backup-sync.ts`,
 `lib/vfs.ts`.
-Pinned by: `packages/vault-core/src/fixtures/vault-vectors.json`
-([ADR 0133](../adr/0133-shared-app-core.md) §7).
+Pinned by: `spec/conformance/vault-vectors.json`
+([ADR 0133](../adr/0133-shared-app-core.md) §7,
+[ADR 0139](../adr/0139-one-definition-every-target.md)).
 
 This is the contract every reader of a Pages vault must meet: the PWA, the
 shared app core, the TS CLI and, later, Android. If this document and the

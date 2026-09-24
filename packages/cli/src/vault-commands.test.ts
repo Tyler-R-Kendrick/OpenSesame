@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -32,9 +31,7 @@ type Fixture = { password: string; vectors: Record<string, Vector> };
 const fixture: Fixture = overlapCast(
   JSON.parse(
     readFileSync(
-      createRequire(import.meta.url).resolve(
-        "@opensesame/vault-core/fixtures/vault-vectors.json",
-      ),
+      new URL("../../../spec/conformance/vault-vectors.json", import.meta.url),
       "utf8",
     ),
   ),

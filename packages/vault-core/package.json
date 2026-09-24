@@ -12,8 +12,7 @@
     "./*.js": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"
-    },
-    "./*.json": "./src/*.json"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
