@@ -5,6 +5,7 @@
  * `dropSeams` from here).
  */
 
+import { type DropRefusalCode, dropRefusal } from "@opensesame/ceremony-kit";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -36,12 +37,20 @@ export type DropTransportPresented = {
   targetManifest: JsonObject;
 };
 
+/**
+ * What went wrong. Creating and polling a drop fail as `refused`; opening one
+ * says why, in ceremony-kit's recipient terms (`DropRefusalCode`): a wrong
+ * code, already opened, expired, or a link that is not valid.
+ */
+export type DropTransportErrorCode =
+  | DropRefusalCode
+  | "refused"
+  | "limit_exceeded"
+  | "corrupt";
+
 export class DropTransportError extends Error {
-  readonly code: "unreachable" | "refused" | "limit_exceeded" | "corrupt";
-  constructor(
-    code: "unreachable" | "refused" | "limit_exceeded" | "corrupt",
-    message: string,
-  ) {
+  readonly code: DropTransportErrorCode;
+  constructor(code: DropTransportErrorCode, message: string) {
     super(message);
     this.name = "DropTransportError";
     this.code = code;
@@ -182,15 +191,15 @@ async function presentClaimDefault(
     );
   }
   if (!res.ok) {
+    // The body's code says why, in the one wording every surface that opens
+    // a drop shares (ceremony-kit); a wrong code must read as "try again".
     const detail = obj(await res.json().catch(() => null));
-    throw new DropTransportError(
-      "refused",
-      isString(detail.hint)
-        ? detail.hint
-        : res.status === 401
-          ? "That code or link was refused."
-          : `The Identity plane answered ${res.status} — the drop was not opened.`,
+    const refused = dropRefusal(
+      isString(detail.error) ? detail.error : "",
+      res.status,
+      isString(detail.hint) ? detail.hint : null,
     );
+    throw new DropTransportError(refused.code, refused.words);
   }
   const body = obj(await res.json());
   const manifest = body.targetManifest;
