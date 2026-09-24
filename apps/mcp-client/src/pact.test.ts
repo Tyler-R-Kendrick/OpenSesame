@@ -28,7 +28,7 @@ describe("PACT — mcp-client tools", () => {
       "function requireBase",
       "normalizeHttpBaseUrl(raw)",
       "throw new Error",
-      "OPENSESAME_HOST_API",
+      'endpointAddress("host", process.env)',
     ]);
   });
 

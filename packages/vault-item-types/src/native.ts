@@ -36,6 +36,8 @@ export type NativeReadback = {
 };
 
 const TRAILER_KEY = /^[a-z][a-z0-9_-]*$/;
+/** `split_line` refuses a head that is not ASCII, its part included. */
+const NON_ASCII = /[\u0080-\u{10FFFF}]/u;
 
 type TrailerLine = {
   readonly key: string;
@@ -59,7 +61,7 @@ function splitTrailerLine(line: string): TrailerLine | null {
   const dot = head.indexOf(".");
   const key = dot === -1 ? head : head.slice(0, dot);
   const part = dot === -1 ? undefined : head.slice(dot + 1);
-  if (!TRAILER_KEY.test(key)) return null;
+  if (!TRAILER_KEY.test(key) || NON_ASCII.test(head)) return null;
   const rest = line.slice(colon + 1);
   return { key, part, raw: rest.startsWith(" ") ? rest.slice(1) : rest };
 }
@@ -193,7 +195,9 @@ export function fromNativeEntry(
     (mapping) => byId.get(mapping.field)?.type === "totp",
   );
 
-  for (const line of entry.trailer.split("\n")) {
+  // A line ends at `\n` or `\r\n`, as Rust's `str::lines` reads it, so a
+  // trailer saved with CRLF reads back without a carriage return per value.
+  for (const line of entry.trailer.split(/\r?\n/)) {
     if (line.trim() === "") continue;
     if (line.trim().toLowerCase().startsWith("otpauth://")) {
       if (totpField !== undefined) values[totpField.field] = line.trim();

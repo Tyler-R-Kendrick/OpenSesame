@@ -237,9 +237,9 @@ cargo run -p opensesame-cli -- dev --agent run --schema tests/fixtures/demo.env.
 
 OpenSesame is a **resolver/broker**, not exclusive shell magic — mise/direnv/devcontainers can activate the same schema by calling `opensesame dev resolve` or the env-spec bridge.
 
-The host daemon (`opensesame-daemon`, `OPENSESAME_DAEMON_URL`, default
+The host daemon (`opensesame-daemon`, `OPENSESAME_DAEMON_API`, default
 `127.0.0.1:18790`) issues short-lived session capabilities into
 WSL/devcontainers; containers never receive refresh tokens or WebAuthn
 material. The legacy `opensesame-credential-agent` binary that used to do this
-has been removed; `OPENSESAME_AGENT_LISTEN` remains an alias for
+has been removed; `OPENSESAME_DAEMON_LISTEN` remains an alias for
 `OPENSESAME_DAEMON_LISTEN`.

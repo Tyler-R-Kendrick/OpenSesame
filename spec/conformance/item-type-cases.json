@@ -1,0 +1,982 @@
+{
+  "$comment": "Vault item-type conformance cases (ADR 0087 section 8, ADR 0139). Both parsers and both native projections read this file: crates/vault-item-types (tests/conformance.rs) and packages/vault-item-types (src/conformance.test.ts). A definition valid on one plane must be valid on the other, a rejection on one a rejection on the other, and a projection must write and read back the same pass entry, or `opensesame pass` and the PWA disagree about what a stored item is. definitionCases: `set` is an ordered list of [JSON Pointer, value] pairs applied to a fresh copy of `draft` (a pointer may create a missing object key, and a final `-` appends to an array, as RFC 6901 spells it); `trust` is community unless it says platform; then exactly one of `codes` (every code must be refused with), `codesAnyOf` (at least one; used only where the host plane's serde refuses a closed enum as `syntax` and the TypeScript parser names the rule), or `valid: true`. projectionCases: with `values`, the type's projection must equal `entry` (and `rendered`, when given) and its readback is checked; without `values`, `entry` is the input read back. `readback.values` is exactly the fields read back (strings, lists, or record parts; the secret field always reads back, empty or not); `readback.extra` is exactly the unclaimed trailer keys kept.",
+  "draft": {
+    "apiVersion": "opensesame.dev/v1alpha1",
+    "kind": "VaultItemType",
+    "metadata": {
+      "id": "example-type",
+      "version": "1.0.0",
+      "publisher": "https://example.test"
+    },
+    "spec": {
+      "title": "Example",
+      "plural": "Examples",
+      "extension": ".ex",
+      "summary": "An example type used by the rejection table.",
+      "categories": ["other"],
+      "sections": [
+        {
+          "id": "main",
+          "title": "Main",
+          "fields": [
+            {
+              "id": "label",
+              "type": "string",
+              "label": "Label"
+            },
+            {
+              "id": "token",
+              "type": "concealed",
+              "label": "Token"
+            }
+          ]
+        }
+      ],
+      "native": {
+        "secret": "token",
+        "trailer": [
+          {
+            "key": "label",
+            "field": "label"
+          }
+        ]
+      },
+      "cxf": {
+        "credential": "custom-fields"
+      },
+      "subtitle": ["label"],
+      "search": ["label"]
+    }
+  },
+  "definitionCases": [
+    {
+      "name": "the baseline draft",
+      "set": [],
+      "valid": true
+    },
+    {
+      "name": "an unknown top-level field",
+      "set": [["/componentUrl", "https://example.test/x.wasm"]],
+      "codes": ["unknown-field"]
+    },
+    {
+      "name": "an unknown field-level key",
+      "set": [["/spec/sections/0/fields/0/pattern", "^.*$"]],
+      "codes": ["unknown-field"]
+    },
+    {
+      "name": "a foreign apiVersion",
+      "set": [["/apiVersion", "v2"]],
+      "codes": ["api-version"]
+    },
+    {
+      "name": "a foreign kind",
+      "set": [["/kind", "ConnectorDefinition"]],
+      "codes": ["kind"]
+    },
+    {
+      "name": "a type id that is not a slug",
+      "set": [["/metadata/id", "Bank Account"]],
+      "codes": ["id"]
+    },
+    {
+      "name": "a version that is not MAJOR.MINOR.PATCH",
+      "set": [["/metadata/version", "1.0"]],
+      "codes": ["version"]
+    },
+    {
+      "name": "a publisher that is not https",
+      "set": [["/metadata/publisher", "http://example.test"]],
+      "codes": ["publisher"]
+    },
+    {
+      "name": "a field type outside the catalogue",
+      "set": [["/spec/sections/0/fields/0/type", "rich-text"]],
+      "codesAnyOf": ["field-type", "syntax"]
+    },
+    {
+      "name": "duplicate field ids across sections",
+      "set": [
+        [
+          "/spec/sections",
+          [
+            {
+              "id": "one",
+              "title": "One",
+              "fields": [
+                {
+                  "id": "label",
+                  "type": "string",
+                  "label": "A"
+                }
+              ]
+            },
+            {
+              "id": "two",
+              "title": "Two",
+              "fields": [
+                {
+                  "id": "label",
+                  "type": "string",
+                  "label": "B"
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          "/spec/native",
+          {
+            "secret": null,
+            "trailer": []
+          }
+        ]
+      ],
+      "codes": ["duplicate-field"]
+    },
+    {
+      "name": "a default on a concealed field",
+      "set": [["/spec/sections/0/fields/1/default", "hunter2"]],
+      "codes": ["concealed-default"]
+    },
+    {
+      "name": "a default on a field that is not concealed",
+      "set": [["/spec/sections/0/fields/0/default", "Untitled"]],
+      "valid": true
+    },
+    {
+      "name": "a concealed field in the subtitle",
+      "set": [["/spec/subtitle", ["token"]]],
+      "codes": ["concealed-preview"]
+    },
+    {
+      "name": "a concealed field in the search haystack",
+      "set": [["/spec/search", ["token"]]],
+      "codes": ["concealed-preview"]
+    },
+    {
+      "name": "a preview naming a field that does not exist",
+      "set": [["/spec/subtitle", ["nope"]]],
+      "codes": ["concealed-preview"]
+    },
+    {
+      "name": "a native secret that is not a declared field",
+      "set": [
+        [
+          "/spec/native",
+          {
+            "secret": "missing",
+            "trailer": []
+          }
+        ]
+      ],
+      "codes": ["native-secret"]
+    },
+    {
+      "name": "a record-shaped field as the native secret",
+      "set": [
+        [
+          "/spec/sections",
+          [
+            {
+              "id": "main",
+              "title": "Main",
+              "fields": [
+                {
+                  "id": "who",
+                  "type": "person-name",
+                  "label": "Name"
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          "/spec/native",
+          {
+            "secret": "who",
+            "trailer": []
+          }
+        ],
+        ["/spec/subtitle", []],
+        ["/spec/search", []]
+      ],
+      "codes": ["native-secret"]
+    },
+    {
+      "name": "a repeating field as the native secret",
+      "set": [
+        [
+          "/spec/sections",
+          [
+            {
+              "id": "main",
+              "title": "Main",
+              "fields": [
+                {
+                  "id": "keys",
+                  "type": "concealed",
+                  "label": "Key",
+                  "multiple": true
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          "/spec/native",
+          {
+            "secret": "keys",
+            "trailer": []
+          }
+        ],
+        ["/spec/subtitle", []],
+        ["/spec/search", []]
+      ],
+      "codes": ["native-secret"]
+    },
+    {
+      "name": "the secret field repeated in the trailer",
+      "set": [
+        [
+          "/spec/native",
+          {
+            "secret": "token",
+            "trailer": [
+              {
+                "key": "token",
+                "field": "token"
+              }
+            ]
+          }
+        ]
+      ],
+      "codes": ["trailer"]
+    },
+    {
+      "name": "duplicate trailer keys",
+      "set": [
+        [
+          "/spec/native",
+          {
+            "secret": "token",
+            "trailer": [
+              {
+                "key": "label",
+                "field": "label"
+              },
+              {
+                "key": "label",
+                "field": "label"
+              }
+            ]
+          }
+        ]
+      ],
+      "codes": ["trailer"]
+    },
+    {
+      "name": "a select with no options",
+      "set": [["/spec/sections/0/fields/0/type", "select"]],
+      "codes": ["options"]
+    },
+    {
+      "name": "options on a field that is not a select",
+      "set": [["/spec/sections/0/fields/0/options", ["a", "b"]]],
+      "codes": ["options"]
+    },
+    {
+      "name": "a repeating record-shaped field",
+      "set": [
+        [
+          "/spec/sections/0/fields/0",
+          {
+            "id": "who",
+            "type": "person-name",
+            "label": "Name",
+            "multiple": true
+          }
+        ],
+        [
+          "/spec/native",
+          {
+            "secret": "token",
+            "trailer": []
+          }
+        ],
+        ["/spec/subtitle", []],
+        ["/spec/search", []]
+      ],
+      "codes": ["multiple"]
+    },
+    {
+      "name": "a repeating record-shaped field beside a native secret that is gone",
+      "set": [
+        [
+          "/spec/sections",
+          [
+            {
+              "id": "main",
+              "title": "Main",
+              "fields": [
+                {
+                  "id": "who",
+                  "type": "person-name",
+                  "label": "Name",
+                  "multiple": true
+                },
+                {
+                  "id": "label",
+                  "type": "string",
+                  "label": "Label"
+                }
+              ]
+            }
+          ]
+        ]
+      ],
+      "codes": ["multiple", "native-secret"]
+    },
+    {
+      "name": "a CXF mapping outside the credential list",
+      "set": [
+        [
+          "/spec/cxf",
+          {
+            "credential": "bank-account"
+          }
+        ]
+      ],
+      "codesAnyOf": ["cxf", "syntax"]
+    },
+    {
+      "name": "a community definition that names a ceremony handler",
+      "set": [["/spec/handler", "certificate"]],
+      "codes": ["handler"]
+    },
+    {
+      "name": "a platform handler claimed by a community publisher",
+      "set": [["/spec/handler", "certificate"]],
+      "trust": "platform",
+      "codes": ["handler"]
+    },
+    {
+      "name": "a handler on a platform-published definition",
+      "set": [
+        ["/metadata/publisher", "https://opensesame.dev"],
+        ["/spec/handler", "certificate"]
+      ],
+      "trust": "platform",
+      "valid": true
+    },
+    {
+      "name": "an unknown handler even from the platform",
+      "set": [
+        ["/metadata/publisher", "https://opensesame.dev"],
+        ["/spec/handler", "exfiltrate"]
+      ],
+      "trust": "platform",
+      "codesAnyOf": ["handler", "syntax"]
+    },
+    {
+      "name": "a section id longer than the cap",
+      "set": [
+        [
+          "/spec/sections/0/id",
+          "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+        ]
+      ],
+      "codes": ["sections"]
+    },
+    {
+      "name": "an extension with no leading dot",
+      "set": [["/spec/extension", "bank"]],
+      "codes": ["extension"]
+    },
+    {
+      "name": "an extension that is a path",
+      "set": [["/spec/extension", "./etc/passwd"]],
+      "codes": ["extension"]
+    },
+    {
+      "name": "a type id of one character",
+      "set": [["/metadata/id", "a"]],
+      "codes": ["id"]
+    },
+    {
+      "name": "a type id longer than 48 characters",
+      "set": [
+        ["/metadata/id", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+      ],
+      "codes": ["id"]
+    },
+    {
+      "name": "a pre-release version",
+      "set": [["/metadata/version", "1.0.0-beta"]],
+      "codes": ["version"]
+    },
+    {
+      "name": "a version longer than the text cap",
+      "set": [
+        [
+          "/metadata/version",
+          "1.0.1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+        ]
+      ],
+      "codes": ["text"]
+    },
+    {
+      "name": "a publisher longer than the text cap",
+      "set": [
+        [
+          "/metadata/publisher",
+          "https://example.test/pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+        ]
+      ],
+      "codes": ["text"]
+    },
+    {
+      "name": "an empty title",
+      "set": [["/spec/title", "   "]],
+      "codes": ["text"]
+    },
+    {
+      "name": "a summary longer than 400 characters",
+      "set": [
+        [
+          "/spec/summary",
+          "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+        ]
+      ],
+      "codes": ["text"]
+    },
+    {
+      "name": "a label longer than 120 characters",
+      "set": [
+        [
+          "/spec/sections/0/fields/0/label",
+          "lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"
+        ]
+      ],
+      "codes": ["text"]
+    },
+    {
+      "name": "a category that is not a slug",
+      "set": [["/spec/categories", ["Other"]]],
+      "codes": ["text"]
+    },
+    {
+      "name": "an extension with capitals",
+      "set": [["/spec/extension", ".EX"]],
+      "codes": ["extension"]
+    },
+    {
+      "name": "an extension longer than 12 characters",
+      "set": [["/spec/extension", ".eeeeeeeeeeeee"]],
+      "codes": ["extension"]
+    },
+    {
+      "name": "a field id that is not an identifier",
+      "set": [["/spec/sections/0/fields/0/id", "1label"]],
+      "codes": ["field-id"]
+    },
+    {
+      "name": "duplicate section ids",
+      "set": [
+        [
+          "/spec/sections/-",
+          {
+            "id": "main",
+            "title": "More",
+            "fields": [
+              {
+                "id": "more",
+                "type": "string",
+                "label": "More"
+              }
+            ]
+          }
+        ]
+      ],
+      "codes": ["sections"]
+    },
+    {
+      "name": "a section with no fields",
+      "set": [
+        [
+          "/spec/sections/-",
+          {
+            "id": "empty",
+            "title": "Empty",
+            "fields": []
+          }
+        ]
+      ],
+      "codes": ["sections"]
+    },
+    {
+      "name": "duplicate select options",
+      "set": [
+        ["/spec/sections/0/fields/0/type", "select"],
+        ["/spec/sections/0/fields/0/options", ["a", "a"]]
+      ],
+      "codes": ["options"]
+    },
+    {
+      "name": "an empty option list on a select",
+      "set": [
+        ["/spec/sections/0/fields/0/type", "select"],
+        ["/spec/sections/0/fields/0/options", []]
+      ],
+      "codes": ["options"]
+    },
+    {
+      "name": "a select with its options",
+      "set": [
+        ["/spec/sections/0/fields/0/type", "select"],
+        ["/spec/sections/0/fields/0/options", ["a", "b"]]
+      ],
+      "valid": true
+    },
+    {
+      "name": "a trailer key that is not a slug",
+      "set": [["/spec/native/trailer/0/key", "Label"]],
+      "codes": ["trailer"]
+    },
+    {
+      "name": "a trailer mapping naming no field",
+      "set": [["/spec/native/trailer/0/field", "nope"]],
+      "codes": ["trailer"]
+    },
+    {
+      "name": "a secret of null projects an empty first line",
+      "set": [["/spec/native/secret", null]],
+      "valid": true
+    },
+    {
+      "name": "empty help text",
+      "set": [["/spec/sections/0/fields/0/help", ""]],
+      "codes": ["text"]
+    },
+    {
+      "name": "help text longer than the cap",
+      "set": [
+        [
+          "/spec/sections/0/fields/0/help",
+          "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
+        ]
+      ],
+      "codes": ["text"]
+    },
+    {
+      "name": "an empty placeholder",
+      "set": [["/spec/sections/0/fields/0/placeholder", " "]],
+      "codes": ["text"]
+    },
+    {
+      "name": "an empty default",
+      "set": [["/spec/sections/0/fields/0/default", ""]],
+      "codes": ["text"]
+    },
+    {
+      "name": "a default longer than the cap",
+      "set": [
+        [
+          "/spec/sections/0/fields/0/default",
+          "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        ]
+      ],
+      "codes": ["text"]
+    },
+    {
+      "name": "help, a placeholder, required and multiple on a scalar field",
+      "set": [
+        ["/spec/sections/0/fields/0/help", "Shown under the field"],
+        ["/spec/sections/0/fields/0/placeholder", "e.g. Work"],
+        ["/spec/sections/0/fields/0/required", true],
+        ["/spec/sections/0/fields/0/multiple", false]
+      ],
+      "valid": true
+    },
+    {
+      "name": "a flag that is not a boolean",
+      "set": [["/spec/sections/0/fields/0/required", "yes"]],
+      "codesAnyOf": ["text", "syntax"]
+    },
+    {
+      "name": "an explicit null help",
+      "set": [["/spec/sections/0/fields/0/help", null]],
+      "codesAnyOf": ["text", "syntax"]
+    },
+    {
+      "name": "an explicit null flag",
+      "set": [["/spec/sections/0/fields/0/multiple", null]],
+      "codesAnyOf": ["text", "syntax"]
+    },
+    {
+      "name": "an explicit null option list",
+      "set": [["/spec/sections/0/fields/0/options", null]],
+      "codesAnyOf": ["options", "syntax"]
+    },
+    {
+      "name": "an explicit null default",
+      "set": [["/spec/sections/0/fields/0/default", null]],
+      "codesAnyOf": ["text", "syntax"]
+    },
+    {
+      "name": "an explicit null handler",
+      "set": [["/spec/handler", null]],
+      "codesAnyOf": ["handler", "syntax"]
+    }
+  ],
+  "projectionCases": [
+    {
+      "name": "a login projects onto a pass entry",
+      "type": "login",
+      "values": {
+        "username": "ada",
+        "password": "correct horse",
+        "totp": "",
+        "uris": ["https://example.test"]
+      },
+      "entry": {
+        "secret": "correct horse",
+        "trailer": "login: ada\nurl: https://example.test\n"
+      },
+      "rendered": "correct horse\nlogin: ada\nurl: https://example.test\n",
+      "readback": {
+        "values": {
+          "username": "ada",
+          "password": "correct horse",
+          "uris": ["https://example.test"]
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a TOTP seed is written as a bare otpauth line where pass-otp looks",
+      "type": "login",
+      "values": {
+        "username": "ada",
+        "password": "pw",
+        "totp": "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+        "uris": []
+      },
+      "entry": {
+        "secret": "pw",
+        "trailer": "login: ada\notpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n"
+      },
+      "readback": {
+        "values": {
+          "username": "ada",
+          "password": "pw",
+          "totp": "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a repeating field repeats its key once per value",
+      "type": "login",
+      "values": {
+        "username": "",
+        "password": "",
+        "totp": "",
+        "uris": ["https://a.test", "https://b.test"]
+      },
+      "entry": {
+        "secret": "",
+        "trailer": "url: https://a.test\nurl: https://b.test\n"
+      },
+      "readback": {
+        "values": {
+          "password": "",
+          "uris": ["https://a.test", "https://b.test"]
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a type with no secret projects an empty first line",
+      "type": "note",
+      "values": {
+        "notes": "remember the milk"
+      },
+      "entry": {
+        "secret": "",
+        "trailer": "notes: remember the milk\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "remember the milk"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a multi-line value stays on one trailer line",
+      "type": "note",
+      "values": {
+        "notes": "first\nsecond\\third"
+      },
+      "entry": {
+        "secret": "",
+        "trailer": "notes: first\\nsecond\\\\third\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "first\nsecond\\third"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a value never breaks line one",
+      "type": "secret",
+      "values": {
+        "value": "a\nb",
+        "connectionRef": "",
+        "grantees": []
+      },
+      "entry": {
+        "secret": "a\\nb",
+        "trailer": ""
+      },
+      "readback": {
+        "values": {
+          "value": "a\nb"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a record field round-trips part by part",
+      "type": "bank-account",
+      "values": {
+        "bank": "Example Savings",
+        "accountHolder": {
+          "first": "Ada",
+          "middle": "",
+          "last": "Lovelace"
+        },
+        "accountType": "checking",
+        "accountNumber": "0001234567",
+        "routingNumber": "110000000",
+        "iban": "",
+        "swift": "EXMPGB2L",
+        "pin": "4321",
+        "branchPhone": "+44 20 7946 0000",
+        "branchAddress": {
+          "street1": "1 Example Street",
+          "street2": "",
+          "city": "London",
+          "state": "",
+          "postalCode": "EC1A 1AA",
+          "country": "GB"
+        },
+        "onlineBanking": "https://bank.example.test"
+      },
+      "entry": {
+        "secret": "0001234567",
+        "trailer": "bank: Example Savings\naccount_holder.first: Ada\naccount_holder.last: Lovelace\naccount_type: checking\nrouting_number: 110000000\nswift: EXMPGB2L\npin: 4321\nbranch_phone: +44 20 7946 0000\nbranch_address.street1: 1 Example Street\nbranch_address.city: London\nbranch_address.postalCode: EC1A 1AA\nbranch_address.country: GB\nurl: https://bank.example.test\n"
+      },
+      "readback": {
+        "values": {
+          "bank": "Example Savings",
+          "accountHolder": {
+            "first": "Ada",
+            "last": "Lovelace"
+          },
+          "accountType": "checking",
+          "accountNumber": "0001234567",
+          "routingNumber": "110000000",
+          "swift": "EXMPGB2L",
+          "pin": "4321",
+          "branchPhone": "+44 20 7946 0000",
+          "onlineBanking": "https://bank.example.test",
+          "branchAddress": {
+            "street1": "1 Example Street",
+            "city": "London",
+            "postalCode": "EC1A 1AA",
+            "country": "GB"
+          }
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a readback keeps trailer keys the definition does not claim",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "notes: hello\nlegacy_key: kept\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "hello"
+        },
+        "extra": {
+          "legacy_key": "kept"
+        }
+      }
+    },
+    {
+      "name": "an unclaimed trailer key carrying a dot survives",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "notes: hello\nlegacy.sub.key: kept\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "hello"
+        },
+        "extra": {
+          "legacy.sub.key": "kept"
+        }
+      }
+    },
+    {
+      "name": "a key whose part is empty survives",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "odd.: kept\n"
+      },
+      "readback": {
+        "values": {},
+        "extra": {
+          "odd.": "kept"
+        }
+      }
+    },
+    {
+      "name": "a line whose key is not a slug is dropped",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "Notes: shouted\n"
+      },
+      "readback": {
+        "values": {},
+        "extra": {}
+      }
+    },
+    {
+      "name": "a drop's bearer token never reaches an entry",
+      "type": "drop",
+      "values": {
+        "state": "pending",
+        "claimId": "clm_1",
+        "bearerToken": "bearer-secret-value",
+        "expiresAt": "2030-01-01"
+      },
+      "entry": {
+        "secret": "",
+        "trailer": "state: pending\nclaim_id: clm_1\nexpires_at: 2030-01-01\n"
+      },
+      "readback": {
+        "values": {
+          "state": "pending",
+          "claimId": "clm_1",
+          "expiresAt": "2030-01-01"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a CRLF trailer reads back without its carriage returns",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "notes: hello\r\nlegacy_key: kept\r\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "hello"
+        },
+        "extra": {
+          "legacy_key": "kept"
+        }
+      }
+    },
+    {
+      "name": "a line whose key head is not ASCII is dropped",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "notes.é: claimed\nlegacy.ü: unclaimed\n"
+      },
+      "readback": {
+        "values": {},
+        "extra": {}
+      }
+    },
+    {
+      "name": "an unknown part of a record field is kept as an unclaimed key",
+      "type": "bank-account",
+      "entry": {
+        "secret": "",
+        "trailer": "account_holder.first: Ada\naccount_holder.nickname: Countess\n"
+      },
+      "readback": {
+        "values": {
+          "accountNumber": "",
+          "accountHolder": {
+            "first": "Ada"
+          }
+        },
+        "extra": {
+          "account_holder.nickname": "Countess"
+        }
+      }
+    },
+    {
+      "name": "a value keeps a colon, and an unrecognised escape is left alone",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "notes: a: b \\q\\\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "a: b \\q\\"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a carriage return in a value is escaped",
+      "type": "note",
+      "values": {
+        "notes": "a\r\nb"
+      },
+      "entry": {
+        "secret": "",
+        "trailer": "notes: a\\r\\nb\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "a\r\nb"
+        },
+        "extra": {}
+      }
+    },
+    {
+      "name": "a bare otpauth line with no TOTP field is kept as otpauth",
+      "type": "note",
+      "entry": {
+        "secret": "",
+        "trailer": "notes: hi\notpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n"
+      },
+      "readback": {
+        "values": {
+          "notes": "hi"
+        },
+        "extra": {
+          "otpauth": "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        }
+      }
+    }
+  ]
+}

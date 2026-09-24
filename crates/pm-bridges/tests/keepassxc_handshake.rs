@@ -23,8 +23,6 @@ use std::os::unix::net::UnixStream;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Value};
-
 use opensesame_pm_bridges::conflict::{probe_unix_socket, SocketState};
 use opensesame_pm_bridges::keepassxc::crypto::{
     client_box, generate_client_keys, random_nonce_b64, ClientSecretKey, SessionBox,
@@ -36,6 +34,8 @@ use opensesame_pm_bridges::keepassxc::{Session, SessionConfig};
 use opensesame_pm_bridges::pairing::{PairingWindow, WindowState};
 use opensesame_pm_bridges::store::{entry_uuid, StoreAccess};
 use opensesame_pm_bridges::{now_unix, testing};
+use opensesame_sealed_store::default_password_length as default_len;
+use serde_json::{json, Value};
 use support::Fixture;
 
 /// `OPENSESAME_BRIDGES_DIR` is process-global; one server at a time.
@@ -447,7 +447,7 @@ fn verify_totp(client: &mut Client, uuid: &str) {
 fn verify_generated_password_and_groups(client: &mut Client) {
     let (_outer, generated) = client.bare_action("generate-password");
     let generated = generated.expect("generate-password reply");
-    assert_eq!(generated["password"].as_str().unwrap().len(), 24);
+    assert_eq!(generated["password"].as_str().unwrap().len(), default_len());
     insta::assert_json_snapshot!("generate_password", generated, {
         ".password" => "[generated]",
         ".nonce" => "[nonce]",

@@ -1,263 +1,209 @@
-//! Conformance for the shared definition corpus (ADR 0087 §8).
+//! Conformance for the shared definition corpus (ADR 0087 §8, ADR 0139).
 //!
-//! The rows here mirror `packages/vault-item-types/src/validate.test.ts` and
-//! `native.test.ts`. A definition valid on one plane must be valid on the
-//! other, and a rejection on one must be a rejection on the other — otherwise
-//! `opensesame pass` and the PWA disagree about what a stored item is.
+//! The rejection table and the native-projection cases are data, in
+//! `spec/conformance/item-type-cases.json`, and
+//! `packages/vault-item-types/src/conformance.test.ts` runs the same rows. A
+//! definition valid on one plane must be valid on the other, and a rejection
+//! on one must be a rejection on the other — otherwise `opensesame pass` and
+//! the PWA disagree about what a stored item is. What stays here as code is
+//! what cannot be a row: the size cap, malformed text, and the loops over the
+//! whole built-in corpus.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use opensesame_sealed_store::Entry;
 use opensesame_vault_item_types::{
-    from_entry, parse_definition, to_entry, ErrorCode, FieldValue, FieldValues, ItemTypeRegistry,
-    Trust, BUILTIN_DEFINITIONS, LEGACY_TYPE_IDS, PLATFORM_PUBLISHER,
+    from_entry, parse_definition, to_entry, ErrorCode, FieldValue, FieldValues, ItemTypeDefinition,
+    ItemTypeRegistry, Trust, BUILTIN_DEFINITIONS, LEGACY_TYPE_IDS, PLATFORM_PUBLISHER,
 };
+use serde_json::Value;
 
-fn draft() -> serde_json::Value {
-    serde_json::json!({
-        "apiVersion": "opensesame.dev/v1alpha1",
-        "kind": "VaultItemType",
-        "metadata": {
-            "id": "example-type",
-            "version": "1.0.0",
-            "publisher": "https://example.test"
-        },
-        "spec": {
-            "title": "Example",
-            "plural": "Examples",
-            "extension": ".ex",
-            "summary": "An example type used by the rejection table.",
-            "categories": ["other"],
-            "sections": [{
-                "id": "main",
-                "title": "Main",
-                "fields": [
-                    { "id": "label", "type": "string", "label": "Label" },
-                    { "id": "token", "type": "concealed", "label": "Token" }
-                ]
-            }],
-            "native": {
-                "secret": "token",
-                "trailer": [{ "key": "label", "field": "label" }]
-            },
-            "cxf": { "credential": "custom-fields" },
-            "subtitle": ["label"],
-            "search": ["label"]
-        }
-    })
+fn cases() -> Value {
+    serde_json::from_str(include_str!(
+        "../../../spec/conformance/item-type-cases.json"
+    ))
+    .expect("item-type-cases.json parses")
 }
 
-fn refuse(mutate: impl FnOnce(&mut serde_json::Value)) -> Vec<ErrorCode> {
-    let mut value = draft();
-    mutate(&mut value);
-    match parse_definition(&value.to_string(), Trust::Community) {
+fn list<'a>(value: &'a Value, what: &str) -> &'a Vec<Value> {
+    value
+        .as_array()
+        .unwrap_or_else(|| panic!("{what} is a list"))
+}
+
+fn text<'a>(value: &'a Value, what: &str) -> &'a str {
+    value
+        .as_str()
+        .unwrap_or_else(|| panic!("{what} is a string"))
+}
+
+/// Write `value` at a JSON Pointer (RFC 6901), creating a missing object key;
+/// a final `-` appends to an array.
+fn set_pointer(target: &mut Value, pointer: &str, value: Value) {
+    let mut tokens: Vec<String> = pointer
+        .split('/')
+        .skip(1)
+        .map(|token| token.replace("~1", "/").replace("~0", "~"))
+        .collect();
+    let last = tokens.pop().expect("a pointer names a location");
+    let mut node = target;
+    for token in &tokens {
+        node = match node {
+            Value::Array(items) => &mut items[token.parse::<usize>().expect("an array index")],
+            Value::Object(map) => map
+                .get_mut(token.as_str())
+                .unwrap_or_else(|| panic!("`{pointer}` walks through a missing `{token}`")),
+            _ => panic!("`{pointer}` walks through a scalar at `{token}`"),
+        };
+    }
+    match node {
+        Value::Array(items) if last == "-" => items.push(value),
+        Value::Array(items) => items[last.parse::<usize>().expect("an array index")] = value,
+        Value::Object(map) => {
+            map.insert(last, value);
+        }
+        _ => panic!("`{pointer}` ends inside a scalar"),
+    }
+}
+
+/// The case's draft, with every `[pointer, value]` pair applied in order.
+fn draft_for(draft: &Value, case: &Value, name: &str) -> Value {
+    let mut value = draft.clone();
+    for pair in list(&case["set"], name) {
+        let pair = list(pair, name);
+        set_pointer(&mut value, text(&pair[0], name), pair[1].clone());
+    }
+    value
+}
+
+fn refused_codes(draft: &Value, trust: Trust) -> Vec<&'static str> {
+    match parse_definition(&draft.to_string(), trust) {
         Ok(_) => Vec::new(),
-        Err(errors) => errors.codes(),
+        Err(errors) => errors.codes().into_iter().map(ErrorCode::as_str).collect(),
+    }
+}
+
+/// Whether the refusal matches the case; the reason it does not, if not.
+fn check_definition(case: &Value, name: &str, refused: &[&str]) -> Result<(), String> {
+    let expectations = ["codes", "codesAnyOf", "valid"]
+        .iter()
+        .filter(|key| case.get(**key).is_some())
+        .count();
+    assert_eq!(expectations, 1, "`{name}` states exactly one expectation");
+    let matched = if case["valid"] == true {
+        refused.is_empty()
+    } else if let Some(codes) = case.get("codes") {
+        list(codes, name)
+            .iter()
+            .all(|code| refused.contains(&text(code, name)))
+    } else {
+        list(&case["codesAnyOf"], name)
+            .iter()
+            .any(|code| refused.contains(&text(code, name)))
+    };
+    if matched {
+        Ok(())
+    } else {
+        Err(format!("`{name}`: refused with {refused:?}"))
     }
 }
 
 #[test]
-fn the_baseline_draft_parses() {
-    let parsed = parse_definition(&draft().to_string(), Trust::Community)
-        .expect("the baseline draft is valid");
-    assert_eq!(parsed.metadata.id, "example-type");
-    assert_eq!(parsed.spec.native.secret.as_deref(), Some("token"));
+fn definitions_match_the_shared_cases() {
+    let all = cases();
+    let failures: Vec<String> = list(&all["definitionCases"], "definitionCases")
+        .iter()
+        .filter_map(|case| {
+            let name = text(&case["name"], "name");
+            let trust = if case["trust"] == "platform" {
+                Trust::Platform
+            } else {
+                Trust::Community
+            };
+            let refused = refused_codes(&draft_for(&all["draft"], case, name), trust);
+            check_definition(case, name, &refused).err()
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-#[test]
-fn refuses_an_unknown_field_anywhere() {
-    assert!(refuse(|value| {
-        value["componentUrl"] = serde_json::json!("https://example.test/x.wasm");
-    })
-    .contains(&ErrorCode::UnknownField));
-    assert!(refuse(|value| {
-        value["spec"]["sections"][0]["fields"][0]["pattern"] = serde_json::json!("^.*$");
-    })
-    .contains(&ErrorCode::UnknownField));
+fn field_values(value: &Value, name: &str) -> FieldValues {
+    serde_json::from_value(value.clone()).unwrap_or_else(|e| panic!("`{name}` values: {e}"))
 }
 
-#[test]
-fn refuses_a_foreign_api_version_or_kind() {
-    assert!(refuse(|v| v["apiVersion"] = serde_json::json!("v2")).contains(&ErrorCode::ApiVersion));
-    assert!(
-        refuse(|v| v["kind"] = serde_json::json!("ConnectorDefinition")).contains(&ErrorCode::Kind)
+/// Project `values`, check the entry against the case, and hand it back.
+fn projected(definition: &ItemTypeDefinition, case: &Value, name: &str) -> Entry {
+    let expected = &case["entry"];
+    let entry = to_entry(definition, &field_values(&case["values"], name));
+    assert_eq!(entry.secret, expected["secret"], "`{name}` line one");
+    assert_eq!(entry.trailer, expected["trailer"], "`{name}` trailer");
+    if let Some(rendered) = case.get("rendered") {
+        assert_eq!(entry.render(), *rendered, "`{name}` rendered");
+    }
+    if entry
+        .trailer
+        .lines()
+        .any(|line| line.starts_with("otpauth://"))
+    {
+        assert!(
+            Entry::parse(&entry.render()).otp.is_some(),
+            "`{name}`: a projected TOTP seed must be visible to pass-otp"
+        );
+    }
+    entry
+}
+
+fn check_readback(definition: &ItemTypeDefinition, entry: &Entry, case: &Value, name: &str) {
+    let Some(expected) = case.get("readback") else {
+        return;
+    };
+    let back = from_entry(definition, entry);
+    assert_eq!(
+        back.values,
+        field_values(&expected["values"], name),
+        "`{name}` reads back"
     );
+    if let Some(extra) = expected.get("extra") {
+        let extra: BTreeMap<String, String> =
+            serde_json::from_value(extra.clone()).unwrap_or_else(|e| panic!("`{name}`: {e}"));
+        assert_eq!(back.extra, extra, "`{name}` keeps unclaimed keys");
+    }
 }
 
 #[test]
-fn refuses_bad_metadata() {
-    assert!(
-        refuse(|v| v["metadata"]["id"] = serde_json::json!("Bank Account"))
-            .contains(&ErrorCode::Id)
-    );
-    assert!(
-        refuse(|v| v["metadata"]["version"] = serde_json::json!("1.0"))
-            .contains(&ErrorCode::Version)
-    );
-    assert!(
-        refuse(|v| v["metadata"]["publisher"] = serde_json::json!("http://example.test"))
-            .contains(&ErrorCode::Publisher)
-    );
-}
-
-#[test]
-fn refuses_a_field_type_outside_the_catalogue() {
-    let codes =
-        refuse(|v| v["spec"]["sections"][0]["fields"][0]["type"] = serde_json::json!("rich-text"));
-    assert!(codes.contains(&ErrorCode::Syntax) || codes.contains(&ErrorCode::UnknownField));
-}
-
-#[test]
-fn refuses_duplicate_field_ids_across_sections() {
-    let codes = refuse(|value| {
-        value["spec"]["sections"] = serde_json::json!([
-            { "id": "one", "title": "One",
-              "fields": [{ "id": "label", "type": "string", "label": "A" }] },
-            { "id": "two", "title": "Two",
-              "fields": [{ "id": "label", "type": "string", "label": "B" }] }
-        ]);
-        value["spec"]["native"] = serde_json::json!({ "secret": null, "trailer": [] });
-    });
-    assert!(codes.contains(&ErrorCode::DuplicateField));
-}
-
-#[test]
-fn refuses_a_default_on_a_concealed_field_and_allows_one_elsewhere() {
-    assert!(refuse(|value| {
-        value["spec"]["sections"][0]["fields"][1]["default"] = serde_json::json!("hunter2");
-    })
-    .contains(&ErrorCode::ConcealedDefault));
-    assert!(refuse(|value| {
-        value["spec"]["sections"][0]["fields"][0]["default"] = serde_json::json!("Untitled");
-    })
-    .is_empty());
-}
-
-#[test]
-fn refuses_a_concealed_field_in_any_preview_surface() {
-    assert!(
-        refuse(|v| v["spec"]["subtitle"] = serde_json::json!(["token"]))
-            .contains(&ErrorCode::ConcealedPreview)
-    );
-    assert!(
-        refuse(|v| v["spec"]["search"] = serde_json::json!(["token"]))
-            .contains(&ErrorCode::ConcealedPreview)
-    );
-    assert!(
-        refuse(|v| v["spec"]["subtitle"] = serde_json::json!(["nope"]))
-            .contains(&ErrorCode::ConcealedPreview)
-    );
-}
-
-#[test]
-fn refuses_a_native_secret_that_cannot_hold_line_one() {
-    assert!(refuse(
-        |v| v["spec"]["native"] = serde_json::json!({"secret": "missing", "trailer": []})
-    )
-    .contains(&ErrorCode::NativeSecret));
-    assert!(refuse(|value| {
-        value["spec"]["sections"] = serde_json::json!([{
-            "id": "main", "title": "Main",
-            "fields": [{ "id": "who", "type": "person-name", "label": "Name" }]
-        }]);
-        value["spec"]["native"] = serde_json::json!({ "secret": "who", "trailer": [] });
-        value["spec"]["subtitle"] = serde_json::json!([]);
-        value["spec"]["search"] = serde_json::json!([]);
-    })
-    .contains(&ErrorCode::NativeSecret));
-    assert!(refuse(|value| {
-        value["spec"]["sections"] = serde_json::json!([{
-            "id": "main", "title": "Main",
-            "fields": [{ "id": "keys", "type": "concealed", "label": "Key", "multiple": true }]
-        }]);
-        value["spec"]["native"] = serde_json::json!({ "secret": "keys", "trailer": [] });
-        value["spec"]["subtitle"] = serde_json::json!([]);
-        value["spec"]["search"] = serde_json::json!([]);
-    })
-    .contains(&ErrorCode::NativeSecret));
-}
-
-#[test]
-fn refuses_a_broken_trailer() {
-    assert!(refuse(|value| {
-        value["spec"]["native"] = serde_json::json!({
-            "secret": "token",
-            "trailer": [{ "key": "token", "field": "token" }]
-        });
-    })
-    .contains(&ErrorCode::Trailer));
-    assert!(refuse(|value| {
-        value["spec"]["native"] = serde_json::json!({
-            "secret": "token",
-            "trailer": [
-                { "key": "label", "field": "label" },
-                { "key": "label", "field": "label" }
-            ]
-        });
-    })
-    .contains(&ErrorCode::Trailer));
-}
-
-#[test]
-fn refuses_bad_select_options_and_repeating_records() {
-    assert!(refuse(|value| {
-        value["spec"]["sections"][0]["fields"][0]["type"] = serde_json::json!("select");
-    })
-    .contains(&ErrorCode::Options));
-    assert!(refuse(|value| {
-        value["spec"]["sections"][0]["fields"][0]["options"] = serde_json::json!(["a", "b"]);
-    })
-    .contains(&ErrorCode::Options));
-    assert!(refuse(|value| {
-        value["spec"]["sections"][0]["fields"][0] = serde_json::json!({
-            "id": "who", "type": "person-name", "label": "Name", "multiple": true
-        });
-        value["spec"]["subtitle"] = serde_json::json!([]);
-        value["spec"]["search"] = serde_json::json!([]);
-        value["spec"]["native"] = serde_json::json!({ "secret": "token", "trailer": [] });
-    })
-    .contains(&ErrorCode::Multiple));
-}
-
-#[test]
-fn refuses_an_extension_that_is_not_a_short_leading_dot_slug() {
-    assert!(
-        refuse(|v| v["spec"]["extension"] = serde_json::json!("bank"))
-            .contains(&ErrorCode::Extension)
-    );
-    assert!(
-        refuse(|v| v["spec"]["extension"] = serde_json::json!("./etc/passwd"))
-            .contains(&ErrorCode::Extension)
-    );
-}
-
-#[test]
-fn only_a_platform_definition_may_name_a_handler() {
-    assert!(
-        refuse(|v| v["spec"]["handler"] = serde_json::json!("certificate"))
-            .contains(&ErrorCode::Handler)
-    );
-
-    let mut community_publisher = draft();
-    community_publisher["spec"]["handler"] = serde_json::json!("certificate");
-    let errors = parse_definition(&community_publisher.to_string(), Trust::Platform)
-        .expect_err("a community publisher cannot claim a handler even at platform trust");
-    assert!(errors.has(ErrorCode::Handler));
-
-    let mut platform = draft();
-    platform["metadata"]["publisher"] = serde_json::json!(PLATFORM_PUBLISHER);
-    platform["spec"]["handler"] = serde_json::json!("certificate");
-    let parsed = parse_definition(&platform.to_string(), Trust::Platform)
-        .expect("the platform may name a handler it implements");
-    assert!(parsed.spec.handler.is_some());
+fn projections_match_the_shared_cases() {
+    let registry = ItemTypeRegistry::with_builtins();
+    for case in list(&cases()["projectionCases"], "projectionCases") {
+        let name = text(&case["name"], "name");
+        let id = text(&case["type"], name);
+        let definition = registry
+            .get(id)
+            .unwrap_or_else(|| panic!("`{name}`: `{id}` is built in"));
+        let entry = if case.get("values").is_some() {
+            projected(definition, case, name)
+        } else {
+            Entry {
+                secret: text(&case["entry"]["secret"], name).to_owned(),
+                trailer: text(&case["entry"]["trailer"], name).to_owned(),
+                otp: None,
+            }
+        };
+        check_readback(definition, &entry, case, name);
+    }
 }
 
 #[test]
 fn refuses_a_definition_larger_than_the_cap() {
-    let mut value = draft();
+    let mut value = cases()["draft"].clone();
     value["spec"]["summary"] = serde_json::json!("x".repeat(80 * 1024));
     let errors = parse_definition(&value.to_string(), Trust::Community).expect_err("too large");
     assert_eq!(errors.codes(), vec![ErrorCode::TooLarge]);
+}
+
+#[test]
+fn refuses_malformed_json() {
+    let errors = parse_definition("{", Trust::Community).expect_err("malformed");
+    assert_eq!(errors.codes(), vec![ErrorCode::Syntax]);
 }
 
 #[test]
@@ -312,7 +258,7 @@ fn no_built_in_leaks_a_concealed_field_into_a_preview() {
     }
 }
 
-fn text_values(definition: &opensesame_vault_item_types::ItemTypeDefinition) -> FieldValues {
+fn text_values(definition: &ItemTypeDefinition) -> FieldValues {
     let mut values: FieldValues = BTreeMap::new();
     for field in definition.fields() {
         if field.repeats() {
@@ -350,183 +296,4 @@ fn the_native_projection_round_trips_for_every_built_in_type() {
             definition.metadata.id
         );
     }
-}
-
-#[test]
-fn a_login_projects_onto_a_pass_entry() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let login = registry.get("login").expect("login is built in");
-    let mut values: FieldValues = BTreeMap::new();
-    values.insert("username".into(), FieldValue::Text("ada".into()));
-    values.insert("password".into(), FieldValue::Text("correct horse".into()));
-    values.insert(
-        "uris".into(),
-        FieldValue::List(vec!["https://example.test".into()]),
-    );
-    let entry = to_entry(login, &values);
-    assert_eq!(entry.secret, "correct horse");
-    assert_eq!(entry.trailer, "login: ada\nurl: https://example.test\n");
-    assert_eq!(
-        entry.render(),
-        "correct horse\nlogin: ada\nurl: https://example.test\n"
-    );
-}
-
-#[test]
-fn a_totp_seed_is_written_where_pass_otp_looks_for_it() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let login = registry.get("login").expect("login is built in");
-    let uri = "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow -- RFC fixture
-    let mut values: FieldValues = BTreeMap::new();
-    values.insert("password".into(), FieldValue::Text("pw".into()));
-    values.insert("totp".into(), FieldValue::Text(uri.into()));
-    let entry = to_entry(login, &values);
-    let reparsed = Entry::parse(&entry.render());
-    assert!(
-        reparsed.otp.is_some(),
-        "a projected TOTP seed must be visible to pass-otp"
-    );
-    let back = from_entry(login, &entry);
-    assert_eq!(back.values.get("totp"), Some(&FieldValue::Text(uri.into())));
-}
-
-#[test]
-fn a_readback_keeps_trailer_keys_the_definition_does_not_claim() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let note = registry.get("note").expect("note is built in");
-    let back = from_entry(
-        note,
-        &Entry {
-            secret: String::new(),
-            trailer: "notes: hello\nlegacy_key: kept\n".into(),
-            otp: None,
-        },
-    );
-    assert_eq!(
-        back.values.get("notes"),
-        Some(&FieldValue::Text("hello".into()))
-    );
-    assert_eq!(
-        back.extra.get("legacy_key").map(String::as_str),
-        Some("kept")
-    );
-}
-
-#[test]
-fn a_multi_line_value_stays_on_one_trailer_line() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let note = registry.get("note").expect("note is built in");
-    let mut values: FieldValues = BTreeMap::new();
-    values.insert(
-        "notes".into(),
-        FieldValue::Text("first\nsecond\\third".into()),
-    );
-    let entry = to_entry(note, &values);
-    assert_eq!(entry.trailer.lines().count(), 1);
-    assert_eq!(
-        from_entry(note, &entry).values.get("notes"),
-        Some(&FieldValue::Text("first\nsecond\\third".into()))
-    );
-}
-
-#[test]
-fn a_record_field_round_trips_part_by_part() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let bank = registry
-        .get("bank-account")
-        .expect("bank-account is built in");
-    let mut parts = BTreeMap::new();
-    parts.insert("first".to_owned(), "Ada".to_owned());
-    parts.insert("last".to_owned(), "Lovelace".to_owned());
-    let mut values: FieldValues = BTreeMap::new();
-    values.insert("accountHolder".into(), FieldValue::Parts(parts.clone()));
-    values.insert(
-        "accountNumber".into(),
-        FieldValue::Text("0001234567".into()),
-    );
-    let readback = from_entry(bank, &to_entry(bank, &values));
-    assert_eq!(
-        readback.values.get("accountHolder"),
-        Some(&FieldValue::Parts(parts))
-    );
-    assert_eq!(
-        readback.values.get("accountNumber"),
-        Some(&FieldValue::Text("0001234567".into()))
-    );
-}
-
-#[test]
-fn an_unclaimed_trailer_key_carrying_a_dot_survives() {
-    // The same three rows as `native.test.ts`'s parity block. The client and
-    // the host read the same file; they have to keep the same things.
-    let registry = ItemTypeRegistry::with_builtins();
-    let note = registry.get("note").expect("note is built in");
-    let back = from_entry(
-        note,
-        &Entry {
-            secret: String::new(),
-            trailer: "notes: hello\nlegacy.sub.key: kept\n".into(),
-            otp: None,
-        },
-    );
-    assert_eq!(
-        back.values.get("notes"),
-        Some(&FieldValue::Text("hello".into()))
-    );
-    assert_eq!(
-        back.extra.get("legacy.sub.key").map(String::as_str),
-        Some("kept")
-    );
-}
-
-#[test]
-fn a_key_with_an_empty_part_survives_and_a_shouted_key_does_not() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let note = registry.get("note").expect("note is built in");
-    let kept = from_entry(
-        note,
-        &Entry {
-            secret: String::new(),
-            trailer: "odd.: kept\n".into(),
-            otp: None,
-        },
-    );
-    assert_eq!(kept.extra.get("odd.").map(String::as_str), Some("kept"));
-
-    let dropped = from_entry(
-        note,
-        &Entry {
-            secret: String::new(),
-            trailer: "Notes: shouted\n".into(),
-            otp: None,
-        },
-    );
-    assert!(dropped.extra.is_empty());
-}
-
-#[test]
-fn a_drops_bearer_token_never_reaches_an_entry() {
-    let registry = ItemTypeRegistry::with_builtins();
-    let drop = registry.get("drop").expect("drop is built in");
-    let mut values: FieldValues = BTreeMap::new();
-    values.insert("state".into(), FieldValue::Text("pending".into()));
-    values.insert("claimId".into(), FieldValue::Text("clm_1".into()));
-    values.insert(
-        "bearerToken".into(),
-        FieldValue::Text("bearer-secret-value".into()),
-    );
-    let entry = to_entry(drop, &values);
-    // A drop's payload lives in its claim, not the vault.
-    assert!(!entry.render().contains("bearer-secret-value"));
-    assert!(entry.secret.is_empty());
-}
-
-#[test]
-fn refuses_a_section_id_longer_than_the_cap() {
-    // The TypeScript regex caps this at 48; the host must agree, or a
-    // definition is valid on one plane and refused on the other.
-    let codes = refuse(|value| {
-        value["spec"]["sections"][0]["id"] = serde_json::json!("s".repeat(64));
-    });
-    assert!(codes.contains(&ErrorCode::Sections));
 }

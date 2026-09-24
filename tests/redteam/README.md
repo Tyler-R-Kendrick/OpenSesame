@@ -35,7 +35,7 @@ documented in this repo's audit history:
 | Malformed / oversized inputs against the zod schemas | [`tests/malformed-input.yaml`](tests/malformed-input.yaml) | The `capabilities`/`ttl_seconds` bounds declared in [`apps/mcp-host/src/tools.ts`](../../apps/mcp-host/src/tools.ts). |
 
 See also [`docs/security/audits/2026-08-08-mcp-endpoint-fences.md`](../../docs/security/audits/2026-08-08-mcp-endpoint-fences.md)
-for the loopback/https fencing on `OPENSESAME_SERVER` / `OPENSESAME_DAEMON_URL`
+for the loopback/https fencing on `OPENSESAME_HOST_API` / `OPENSESAME_DAEMON_API`
 that all four classes' spawned `apps/mcp-host` processes rely on.
 
 Every test case calls the **real, unmodified** `apps/mcp-host` over stdio —

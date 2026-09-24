@@ -1,6 +1,3 @@
-pub const DEFAULT_LISTEN: &str = "127.0.0.1:18790";
-pub const ENV_LISTEN: &str = "OPENSESAME_AGENT_LISTEN";
-pub const ENV_LISTEN_ALIAS: &str = "OPENSESAME_DAEMON_LISTEN";
 /// When `1`, skip TCP and serve Unix socket only (`OPENSESAME_AGENT_SOCK` required).
 pub const ENV_UDS_ONLY: &str = "OPENSESAME_DAEMON_UDS_ONLY";
 /// When `1`, allow non-loopback TCP binds (explicit operator override).

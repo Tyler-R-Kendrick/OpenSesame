@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
-import type { NotificationChannelKind } from "@opensesame/os-domain";
+import {
+  type NotificationChannelKind,
+  configuredEndpoint,
+  endpointAddress,
+  endpointListen,
+} from "@opensesame/os-domain";
 import {
   type AgentAuthTrustedProvider,
   loadAgentAuthFromEnv,
@@ -226,15 +231,14 @@ export { parseChannelKinds } from "./config-channels.js";
 export function loadConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): ControlPlaneConfig {
-  const port = Number(env.OPENSESAME_CONTROL_PLANE_PORT ?? env.PORT ?? "8788");
+  const port = Number(endpointListen("identity", env));
   const host = env.OPENSESAME_CONTROL_PLANE_HOST ?? "127.0.0.1";
   const publicUrl = env.OPENSESAME_PUBLIC_URL ?? `http://${host}:${port}`;
   const issuer = env.OPENSESAME_ISSUER ?? publicUrl;
   const endpoints = [
     publicUrl,
     issuer,
-    env.OPENSESAME_HOST_API,
-    env.OPENSESAME_SERVER,
+    configuredEndpoint("host", env),
     env.OPENSESAME_CALLBACK_BASE,
   ].filter((value): value is string => value !== undefined);
   const deployment = resolveDeploymentMode(
@@ -289,11 +293,7 @@ export function loadConfig(
     bootstrapPersonalOrganization: !isProduction && allowDevDefaults,
     isProduction,
     corsOrigins: corsOriginsFromEnv(env),
-    hostApiUrl: (
-      env.OPENSESAME_HOST_API ??
-      env.OPENSESAME_SERVER ??
-      "http://127.0.0.1:8787"
-    ).replace(/\/$/, ""),
+    hostApiUrl: endpointAddress("host", env).replace(/\/$/, ""),
     operatorToken: env.OPENSESAME_OPERATOR_TOKEN ?? "",
     mappingResolveToken: env.OPENSESAME_MAPPING_RESOLVE_TOKEN ?? "",
     transport: loadTransportConfig(env),

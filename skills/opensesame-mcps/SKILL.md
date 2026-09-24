@@ -26,8 +26,8 @@ pnpm install
 
 ```bash
 export OPENSESAME_HOST_API=http://127.0.0.1:8787     # client server
-export OPENSESAME_SERVER=http://127.0.0.1:8787       # host server (preferred)
-export OPENSESAME_DAEMON_URL=http://127.0.0.1:18790
+export OPENSESAME_HOST_API=http://127.0.0.1:8787       # host server (preferred)
+export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
 export OPENSESAME_ACCESS_TOKEN=...                    # per-call, fail-closed
 export OPENSESAME_ISSUER=http://127.0.0.1:8788        # identity claims (client)
 export OPENSESAME_IDENTITY_TOKEN=...                  # present_claim only

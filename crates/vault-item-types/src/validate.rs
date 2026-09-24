@@ -6,7 +6,7 @@
 //! renders without a reveal gesture, that the native projection points at a
 //! field that can hold line one, and that only the platform names a ceremony
 //! handler. `packages/vault-item-types/src/validate.ts` carries the same
-//! table; `tests/conformance.rs` holds the two together.
+//! table; `spec/conformance/item-type-cases.json` holds the two together.
 
 use std::collections::BTreeSet;
 
@@ -16,6 +16,7 @@ use crate::schema::{
     MAX_DEFINITION_BYTES, MAX_FIELDS, MAX_LABEL_CHARS, MAX_OPTIONS, MAX_SECTIONS,
     MAX_SUMMARY_CHARS, PLATFORM_PUBLISHER,
 };
+use crate::slugs::{is_extension, is_identifier, is_lower_slug, is_semver, is_trailer_key};
 
 /// Whether the caller is loading the platform's own embedded corpus or an
 /// install from anywhere else. Only the former may name a ceremony handler.
@@ -37,59 +38,6 @@ impl Refusals {
             message: message.into(),
         });
     }
-}
-
-fn is_lower_slug(value: &str, min_len: usize) -> bool {
-    let mut chars = value.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    value.len() >= min_len
-        && first.is_ascii_lowercase()
-        && value
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-}
-
-fn is_identifier(value: &str) -> bool {
-    let mut chars = value.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    value.len() <= 48
-        && first.is_ascii_alphabetic()
-        && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-fn is_trailer_key(value: &str) -> bool {
-    let mut chars = value.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    value.len() <= 32
-        && first.is_ascii_lowercase()
-        && value
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
-}
-
-fn is_semver(value: &str) -> bool {
-    let parts: Vec<&str> = value.split('.').collect();
-    parts.len() == 3
-        && parts
-            .iter()
-            .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()))
-}
-
-fn is_extension(value: &str) -> bool {
-    let Some(rest) = value.strip_prefix('.') else {
-        return false;
-    };
-    !rest.is_empty()
-        && rest.len() <= 12
-        && rest
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
 }
 
 fn check_text(refusals: &mut Refusals, value: &str, path: &str, max: usize) {
@@ -134,6 +82,20 @@ fn check_metadata(refusals: &mut Refusals, definition: &ItemTypeDefinition) {
             "version must be MAJOR.MINOR.PATCH",
         );
     }
+    // A version or publisher is text as well, as the TypeScript parser reads
+    // it: non-empty and within the label cap.
+    check_text(
+        refusals,
+        &metadata.version,
+        "metadata.version",
+        MAX_LABEL_CHARS,
+    );
+    check_text(
+        refusals,
+        &metadata.publisher,
+        "metadata.publisher",
+        MAX_LABEL_CHARS,
+    );
     if !metadata.publisher.starts_with("https://") {
         refusals.add(
             ErrorCode::Publisher,
@@ -157,6 +119,11 @@ fn check_field(refusals: &mut Refusals, field: &FieldDefinition, path: &str) {
         &format!("{path}.label"),
         MAX_LABEL_CHARS,
     );
+    for (key, value) in [("help", &field.help), ("placeholder", &field.placeholder)] {
+        if let Some(value) = value {
+            check_text(refusals, value, &format!("{path}.{key}"), MAX_LABEL_CHARS);
+        }
+    }
 
     if field.repeats() && field.field_type.shape() == FieldShape::Record {
         refusals.add(
@@ -169,16 +136,18 @@ fn check_field(refusals: &mut Refusals, field: &FieldDefinition, path: &str) {
 
     // A definition is shared and synced. A default on a concealed field would
     // put a secret into the shared artefact, so it is refused outright rather
-    // than stripped (ADR 0087 §5).
-    if field.default.is_some() && field.field_type.concealed() {
-        refusals.add(
+    // than stripped (ADR 0087 §5). Any other default is text like a label.
+    match &field.default {
+        Some(_) if field.field_type.concealed() => refusals.add(
             ErrorCode::ConcealedDefault,
             &format!("{path}.default"),
             format!(
                 "`{}` is concealed and cannot carry a default",
                 field.field_type.as_str()
             ),
-        );
+        ),
+        Some(value) => check_text(refusals, value, &format!("{path}.default"), MAX_LABEL_CHARS),
+        None => {}
     }
 }
 

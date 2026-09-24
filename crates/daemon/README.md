@@ -28,7 +28,7 @@ tokens or WebAuthn material.
 ## Surface
 
 Flags (each also an env var): `--listen` (`OPENSESAME_DAEMON_LISTEN`),
-`--sock` (`OPENSESAME_AGENT_SOCK`), `--host-api` (`OPENSESAME_SERVER`,
+`--sock` (`OPENSESAME_AGENT_SOCK`), `--host-api` (`OPENSESAME_HOST_API`,
 default `http://127.0.0.1:8787`), `--identity-api` (`OPENSESAME_ISSUER`,
 default `http://127.0.0.1:8788`), `--allowed-uids`. Cargo feature
 `tailscale` (default off) adds a read-only tailnet listener.

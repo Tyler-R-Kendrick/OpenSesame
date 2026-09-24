@@ -5,9 +5,11 @@
  */
 import { type JsonValue, isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
+import fixture from "../../../spec/conformance/vault-vectors.json" with {
+  type: "json",
+};
 import { VaultCorruptError, WrongPasswordError } from "./crypto.js";
 import { unwrapRawVaultKeyFromPassword } from "./crypto.js";
-import fixture from "./fixtures/vault-vectors.json" with { type: "json" };
 import { openVaultBody, openVaultFile, readVaultFile } from "./vault-file.js";
 
 const vectors = Object.entries(fixture.vectors);

@@ -40,7 +40,9 @@ pub use attachment::{
 };
 pub use entry::Entry;
 pub use envelope::{open_osseal, seal_osseal, OpenedOsseal, OSSEAL_MAGIC};
-pub use generate::generate_password;
+pub use generate::{
+    default_password_length, generate_characters, generate_password, CharOptions, NoCharacterClass,
+};
 pub use git::{
     auto_commit, auto_push_enabled, ensure_git_repo, git_passthrough, push_backup, remote_url,
     set_auto_push, set_remote, GIT_TOKEN_ENV,

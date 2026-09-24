@@ -1,3 +1,4 @@
+import { ENDPOINTS, variableNames } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   hostApiBase,
@@ -6,13 +7,12 @@ import {
   resetFetchForTests,
 } from "./host-api.js";
 
-const ENV_KEYS = [
-  "OPENSESAME_SERVER",
-  "OPENSESAME_HOST_API",
+const ENV_KEYS: readonly string[] = [
+  ...variableNames(ENDPOINTS.host),
   "OPENSESAME_OPERATOR_TOKEN",
   "OPENSESAME_ACCESS_TOKEN",
   "OPENSESAME_HOST_AUDIENCE",
-] as const;
+];
 
 describe("host-api fences not covered by the tool suite", () => {
   const saved = new Map<string, string | undefined>();
@@ -69,18 +69,17 @@ describe("host-api fences not covered by the tool suite", () => {
     );
   });
 
-  it("prefers OPENSESAME_SERVER, then OPENSESAME_HOST_API, then the loopback default", () => {
+  it("reads the Host API from the shared endpoint definition", () => {
     stash();
-    // biome-ignore lint/performance/noDelete: must actually unset, `= undefined` stringifies
-    delete process.env.OPENSESAME_SERVER;
-    // biome-ignore lint/performance/noDelete: must actually unset, `= undefined` stringifies
-    delete process.env.OPENSESAME_HOST_API;
-    expect(hostApiBase()).toBe("http://127.0.0.1:8787");
+    for (const name of variableNames(ENDPOINTS.host)) {
+      Reflect.deleteProperty(process.env, name);
+    }
+    expect(hostApiBase()).toBe(ENDPOINTS.host.default);
 
-    process.env.OPENSESAME_HOST_API = "http://127.0.0.1:9999";
+    process.env[ENDPOINTS.host.aliases[0] ?? ""] = "http://127.0.0.1:9999";
     expect(hostApiBase()).toBe("http://127.0.0.1:9999");
 
-    process.env.OPENSESAME_SERVER = "https://api.example.test";
+    process.env.OPENSESAME_HOST_API = "https://api.example.test";
     expect(hostApiBase()).toBe("https://api.example.test");
   });
 });

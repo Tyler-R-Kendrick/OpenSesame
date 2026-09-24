@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 480,
-    "violations": 757,
-    "oversizedLines": 241811
+    "files": 478,
+    "violations": 755,
+    "oversizedLines": 240700
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -64,7 +64,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 2640
+      "max-lines": 2507
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -794,7 +794,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1580
+      "max-lines": 1576
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -947,7 +947,7 @@
       "max-lines": 553
     },
     "crates/pm-bridges/src/keepassxc/actions.rs": {
-      "max-lines": 649
+      "max-lines": 646
     },
     "crates/pm-bridges/src/manifest.rs": {
       "max-lines": 458
@@ -1040,10 +1040,7 @@
       "max-lines": 444
     },
     "crates/vault-item-types/src/validate.rs": {
-      "max-lines": 474
-    },
-    "crates/vault-item-types/tests/conformance.rs": {
-      "max-lines": 532
+      "max-lines": 443
     },
     "examples/rp-alpha/src/RpApp.tsx": {
       "max-lines-per-function": 1
@@ -1270,7 +1267,7 @@
     },
     "packages/cli/src/run.ts": {
       "complexity": 1,
-      "max-lines": 489,
+      "max-lines": 487,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1519,9 +1516,6 @@
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,
       "max-statements": 1
-    },
-    "packages/vault-item-types/src/validate.test.ts": {
-      "max-lines": 408
     },
     "packages/vault-item-types/src/validate.ts": {
       "complexity": 2,

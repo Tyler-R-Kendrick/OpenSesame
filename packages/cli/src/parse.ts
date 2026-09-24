@@ -1,3 +1,4 @@
+import { endpointAddress } from "@opensesame/os-domain";
 import { z } from "zod";
 
 export const GlobalFlagsSchema = z.object({
@@ -143,18 +144,14 @@ export function parseArgs(argv: string[]): ParsedCommand {
   if (cmd === "host" && args[0] === "health") {
     args.shift();
     const hostUrl =
-      takeOption(args, "--host") ??
-      process.env.OPENSESAME_HOST_API ??
-      "http://127.0.0.1:8787";
+      takeOption(args, "--host") ?? endpointAddress("host", process.env);
     return { name: "host-health", hostUrl, flags };
   }
 
   if (cmd === "host" && args[0] === "discover") {
     args.shift();
     const hostUrl =
-      takeOption(args, "--host") ??
-      process.env.OPENSESAME_HOST_API ??
-      "http://127.0.0.1:8787";
+      takeOption(args, "--host") ?? endpointAddress("host", process.env);
     return { name: "host-discover", hostUrl, flags };
   }
 
