@@ -553,7 +553,7 @@ enum PassCmd {
     /// Generate and insert a password.
     Generate {
         name: String,
-        #[arg(long, default_value_t = 32)]
+        #[arg(long, default_value_t = opensesame_sealed_store::default_password_length())]
         length: usize,
         #[arg(long)]
         no_symbols: bool,
@@ -698,7 +698,7 @@ enum PassCmd {
     Update {
         #[arg(required = true)]
         names: Vec<String>,
-        #[arg(short = 'l', long, default_value_t = 32)]
+        #[arg(short = 'l', long, default_value_t = opensesame_sealed_store::default_password_length())]
         length: usize,
         #[arg(short = 'a', long)]
         auto_length: bool,
@@ -723,7 +723,7 @@ enum PassCmd {
     Rotate {
         #[arg(required = true)]
         names: Vec<String>,
-        #[arg(short = 'l', long, default_value_t = 32)]
+        #[arg(short = 'l', long, default_value_t = opensesame_sealed_store::default_password_length())]
         length: usize,
         #[arg(short = 'a', long)]
         auto_length: bool,

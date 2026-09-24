@@ -18,7 +18,7 @@
   "totals": {
     "files": 480,
     "violations": 757,
-    "oversizedLines": 241813
+    "oversizedLines": 241810
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -947,7 +947,7 @@
       "max-lines": 553
     },
     "crates/pm-bridges/src/keepassxc/actions.rs": {
-      "max-lines": 649
+      "max-lines": 646
     },
     "crates/pm-bridges/src/manifest.rs": {
       "max-lines": 458

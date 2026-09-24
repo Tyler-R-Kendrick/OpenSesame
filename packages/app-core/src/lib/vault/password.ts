@@ -1,11 +1,17 @@
 import { overlapCast } from "@opensesame/os-domain";
 /** Password generation and strength estimation. All randomness from crypto.getRandomValues. */
+// The alphabets and defaults are the ones every target uses (ADR 0139).
+import policy from "../../../../../spec/conformance/password-policy.json" with {
+  type: "json",
+};
 
-const LOWER = "abcdefghijklmnopqrstuvwxyz";
-const UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const DIGITS = "0123456789";
-const SYMBOLS = "!@#$%^&*()-_=+[]{};:,.?";
-const AMBIGUOUS = "il1Lo0O";
+const {
+  lower: LOWER,
+  upper: UPPER,
+  digits: DIGITS,
+  symbols: SYMBOLS,
+} = policy.classes;
+const AMBIGUOUS = policy.ambiguous;
 
 export type CharOptions = {
   mode: "characters";
@@ -29,12 +35,7 @@ export type GeneratorOptions = CharOptions | PassphraseOptions;
 
 export const defaultCharOptions: CharOptions = {
   mode: "characters",
-  length: 20,
-  lower: true,
-  upper: true,
-  digits: true,
-  symbols: true,
-  avoidAmbiguous: true,
+  ...policy.defaults,
 };
 
 export const defaultPassphraseOptions: PassphraseOptions = {
@@ -75,22 +76,25 @@ function shuffle<T>(input: T[]): T[] {
   return out;
 }
 
-export function generateCharacters(options: CharOptions): string {
+/** The selected classes, each without the ambiguous characters if asked. */
+function characterPools(options: CharOptions): string[] {
   const pools: string[] = [];
   if (options.lower) pools.push(LOWER);
   if (options.upper) pools.push(UPPER);
   if (options.digits) pools.push(DIGITS);
   if (options.symbols) pools.push(SYMBOLS);
-  if (pools.length === 0) {
-    throw new Error("Choose at least one character set.");
-  }
-
   const filter = (pool: string) =>
     options.avoidAmbiguous
       ? [...pool].filter((c) => !AMBIGUOUS.includes(c)).join("")
       : pool;
+  return pools.map(filter).filter((pool) => pool.length > 0);
+}
 
-  const filtered = pools.map(filter).filter((pool) => pool.length > 0);
+export function generateCharacters(options: CharOptions): string {
+  const filtered = characterPools(options);
+  if (filtered.length === 0) {
+    throw new Error("Choose at least one character set.");
+  }
   const combined = filtered.join("");
   const length = Math.max(options.length, filtered.length);
 
@@ -396,11 +400,7 @@ export function generatorEntropyBits(options: GeneratorOptions): number {
       Math.max(3, Math.min(options.words, 12)) * Math.log2(WORDS.length);
     return Math.round(base + (options.includeNumber ? Math.log2(10) : 0));
   }
-  let alphabet = 0;
-  if (options.lower) alphabet += options.avoidAmbiguous ? 24 : 26;
-  if (options.upper) alphabet += options.avoidAmbiguous ? 24 : 26;
-  if (options.digits) alphabet += options.avoidAmbiguous ? 8 : 10;
-  if (options.symbols) alphabet += SYMBOLS.length;
+  const alphabet = characterPools(options).join("").length;
   if (alphabet === 0) return 0;
   return Math.round(options.length * Math.log2(alphabet));
 }

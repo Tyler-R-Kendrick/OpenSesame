@@ -33,13 +33,10 @@ use crate::keepassxc::proto::{
 use crate::pairing::{Association, PairingWindow};
 use crate::store::{entry_uuid, host_of, StoreAccess, StoreMatch};
 use crate::{now_unix, BridgeError};
-use opensesame_sealed_store::{generate_password, Entry};
+use opensesame_sealed_store::{default_password_length, generate_password, Entry};
 
 /// Group the bridge files entries created by `set-login` under.
 pub const DEFAULT_GROUP: &str = "keepassxc-browser";
-
-/// Length of a `generate-password` result.
-pub const GENERATED_PASSWORD_LEN: usize = 24;
 
 /// Knobs a transport supplies when building a [`Session`].
 pub struct SessionConfig {
@@ -226,7 +223,7 @@ impl Session {
                 self.require_association(client_id, inner)?;
                 Ok(json!({
                     "version": PROTOCOL_VERSION,
-                    "password": generate_password(GENERATED_PASSWORD_LEN, true),
+                    "password": generate_password(default_password_length(), true),
                     "success": "true",
                 }))
             }
