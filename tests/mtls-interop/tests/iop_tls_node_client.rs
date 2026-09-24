@@ -1,7 +1,7 @@
 //! IOP-TLS, the other direction of the first pair: **Node's OpenSSL as the
 //! client, the shipped Rust `SecureListener` as the server.**
 //!
-//! `apps/control-plane` is the runtime that will really dial the Host in a
+//! `packages/control-plane` is the runtime that will really dial the Host in a
 //! deployment, so this is not an academic pairing: it is the Identity plane's
 //! TLS stack against the Host plane's. A refusal that both rustls and Node
 //! agree on — with certificates neither of them minted — is a property of the

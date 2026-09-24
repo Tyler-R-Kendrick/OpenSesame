@@ -1,5 +1,5 @@
 {
-  "name": "@opensesame/authenticator-native-contract",
+  "name": "@opensesame/android",
   "version": "0.1.0",
   "private": true,
   "type": "module",

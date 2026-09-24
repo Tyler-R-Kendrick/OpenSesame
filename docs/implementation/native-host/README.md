@@ -22,7 +22,7 @@ the same tests the original did.
 | Helper minting | The daemon requires the operator token even on the socket; the helpers send none, so `/v1/mint` answers 401. | `crates/daemon/src/lib.rs` (`require_operator`), `crates/credential-helpers/src/lib.rs` |
 | Dependency budget | The gate checks depth one; the full tree reaches `sqlx` and `chacha20poly1305` through `host-core`. | `scripts/audit/daemon-deps-gate.sh`, `cargo tree -p opensesame-daemon` |
 | Rust identity primitives | DPoP, JWK thumbprints, PKCE, device flow, discovery parsing, X.509. No OIDC provider, no ID-token minting, no SIOP, no WebAuthn relying party. | `crates/proof`, `crates/authn`, `crates/pki-core` |
-| MCP | Two stdio servers with duplicated sync tools and two audiences; 13 of 189 capabilities reach MCP. Pages has 24 WebMCP tools on a transport-neutral spec the servers do not use. | `apps/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
+| MCP | Two stdio servers with duplicated sync tools and two audiences; 13 of 189 capabilities reach MCP. Pages has 24 WebMCP tools on a transport-neutral spec the servers do not use. | `packages/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
 | Desktop | None. The toolbar is `opensesame daemon info / approve-device / approve-claim`. | `apps/cli/src/daemon_toolbar.rs` |
 
 ## Target
@@ -42,7 +42,7 @@ crates/
   credential-helpers/ pm-bridges/   libraries behind argv[0] entry points
 packages/
   mcp/                the TypeScript MCP adapter over the same catalog
-  hosted-identity/*   what apps/control-plane, ceremonies, mobile-mfa and the TS worker become
+  hosted-identity/*   what packages/control-plane, ceremonies, mobile-mfa and the TS worker become
 ops/
   hosted-identity/    the optional hosted deployment recipe (own origin, ADR 0045)
 ```
@@ -172,9 +172,9 @@ host.
   `agent-client`, the CLI's `--audience` parser, the OpenAPI spec and the
   storage tests change together.
 - Registry: one `mcp` surface replaces `mcp_host` and `mcp_client`; parity
-  tests, `tests/redteam` (which spawns `apps/mcp-host` by path) and
-  `apps/cli/tests/capability_parity.rs` follow. Delete `apps/mcp-host` and
-  `apps/mcp-client`.
+  tests, `tests/redteam` (which spawns `packages/mcp-host` by path) and
+  `apps/cli/tests/capability_parity.rs` follow. Delete `packages/mcp-host` and
+  `packages/mcp-client`.
 
 **Exit:** the registry parity suites; `pnpm test:redteam` against
 `opensesame mcp serve`; `pnpm --filter @opensesame/pages verify:webmcp`.
@@ -195,7 +195,7 @@ before/after evidence for the moved screens (`skills/visual-evidence`).
 
 ### Phase 7 — The hosted identity service becomes optional packaging
 
-- Split `apps/control-plane` along the gap table below: what is self-issued
+- Split `packages/control-plane` along the gap table below: what is self-issued
   or host-side is already covered by phases 1–4; what is hosted-only becomes
   packages under `packages/hosted-identity/`.
 - `apps/ceremonies` and `apps/mobile-mfa` merge into one hosted ceremony
@@ -203,7 +203,7 @@ before/after evidence for the moved screens (`skills/visual-evidence`).
   outbox loop runs inside the hosted deployment.
 - `ops/hosted-identity/`: the deployment recipe (container and database),
   documented as optional in `docs/operators/`.
-- Delete `apps/control-plane`, `apps/worker`, `apps/ceremonies`,
+- Delete `packages/control-plane`, `packages/identity-worker`, `apps/ceremonies`,
   `apps/mobile-mfa`; `pnpm dev` no longer starts an Identity API.
 
 **Exit:** the control-plane's test suite runs green against the hosted

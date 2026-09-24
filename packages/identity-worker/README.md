@@ -1,4 +1,4 @@
-# @opensesame/worker
+# @opensesame/identity-worker
 
 The Identity-plane background loop: it drains the outbox onto the TaskBus,
 fans out webhooks and notifications, and prunes the issuer's expired rows.
@@ -32,10 +32,10 @@ The Host plane's workload connector host is a different thing, served by
 ## Develop
 
 ```bash
-pnpm --filter @opensesame/worker dev          # tsx watch src/main.ts
-pnpm --filter @opensesame/worker start
-pnpm --filter @opensesame/worker typecheck
-pnpm --filter @opensesame/worker test         # vitest, src/**/*.test.ts
+pnpm --filter @opensesame/identity-worker dev          # tsx watch src/main.ts
+pnpm --filter @opensesame/identity-worker start
+pnpm --filter @opensesame/identity-worker typecheck
+pnpm --filter @opensesame/identity-worker test         # vitest, src/**/*.test.ts
 pnpm test:nats-dogfood                        # real nats-server
 ```
 

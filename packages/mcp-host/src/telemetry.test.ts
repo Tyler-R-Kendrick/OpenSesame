@@ -78,7 +78,7 @@ describe("wrapServerWithTelemetry", () => {
     // `= undefined` would stringify to "undefined" (process.env coerces all
     // values to strings), which is truthy and would defeat the unset checks
     // this suite relies on — an actual delete is required, matching the same
-    // pattern already used throughout apps/mcp-host/src/tools.test.ts.
+    // pattern already used throughout packages/mcp-host/src/tools.test.ts.
     // biome-ignore lint/performance/noDelete: see comment above
     delete process.env.OPENSESAME_TELEMETRY_KEY;
   });

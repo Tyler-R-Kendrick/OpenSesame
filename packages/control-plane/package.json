@@ -18,7 +18,7 @@
     "test": "vitest run --maxWorkers=4 --testTimeout=15000",
     "verify:siop": "vitest run src/__tests__/siop-bridge.pact.test.ts src/__tests__/siop-link.test.ts src/services/siop-verify.test.ts src/services/siop-verify-challenge.test.ts",
     "test:authentication-browser": "vitest run --config vitest.authentication.config.ts",
-    "generate:openapi": "tsx src/generate-openapi.ts && pnpm --workspace-root exec biome format --write apps/control-plane/openapi.json"
+    "generate:openapi": "tsx src/generate-openapi.ts && pnpm --workspace-root exec biome format --write packages/control-plane/openapi.json"
   },
   "dependencies": {
     "@hono/node-server": "2.1.0",

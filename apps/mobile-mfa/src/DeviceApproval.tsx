@@ -11,7 +11,7 @@ import { identityBase } from "./identity.js";
  * `@opensesame/ceremony-kit`'s. This app used to carry its own copy that hit
  * the same URL with a weaker mapping — no 404 branch, one sentence covering
  * both 401 and 403 — plus a `principal` field the Identity API documents as
- * ignored (`apps/control-plane/src/openapi.ts`). A field the server discards is
+ * ignored (`packages/control-plane/src/openapi.ts`). A field the server discards is
  * worse than no field: it tells the person filling it in that it decides
  * something.
  *

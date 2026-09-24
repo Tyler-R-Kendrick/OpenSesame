@@ -2,7 +2,7 @@
  * promptfoo custom provider: the "provider under test" for the three
  * deterministic red-team classes (confused-deputy, credential-exfiltration,
  * malformed-input). No LLM is involved here on purpose — these classes assert
- * on the real, unmodified `apps/mcp-host` server's own behavior (its zod
+ * on the real, unmodified `packages/mcp-host` server's own behavior (its zod
  * schemas, its `forAgent`/`scrubLocalSecrets` fence, its refusal to let a
  * caller restate an already-frozen intent), not on a model's judgment. See
  * `docs/security/audits/2026-08-08-mcp-agent-boundary.md`,
@@ -13,9 +13,9 @@
  * Each `callApi()` invocation:
  *   1. optionally starts a private, ephemeral stub Host API / daemon
  *      (`mock-upstream.ts`) on an OS-assigned port, primed with the response
- *      bodies the test case wants `apps/mcp-host` to receive;
- *   2. spawns the real `apps/mcp-host` server over stdio, mirroring
- *      `apps/mcp-host/src/transports/stdio.ts` from the client side via the
+ *      bodies the test case wants `packages/mcp-host` to receive;
+ *   2. spawns the real `packages/mcp-host` server over stdio, mirroring
+ *      `packages/mcp-host/src/transports/stdio.ts` from the client side via the
  *      MCP SDK's `StdioClientTransport` (the same package/version mcp-host
  *      itself depends on: @modelcontextprotocol/sdk 1.30.0);
  *   3. makes the sequence of tool calls the test case specifies;
@@ -42,8 +42,8 @@ import {
 } from "./mock-upstream.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// tests/redteam/src -> tests/redteam -> packages -> repo root -> apps/mcp-host
-const MCP_HOST_DIR = path.resolve(__dirname, "../../../apps/mcp-host");
+// tests/redteam/src -> tests/redteam -> packages -> repo root -> packages/mcp-host
+const MCP_HOST_DIR = path.resolve(__dirname, "../../../packages/mcp-host");
 const SERVER_ENTRY = "src/server.ts";
 
 const CONNECT_TIMEOUT_MS = 10_000;

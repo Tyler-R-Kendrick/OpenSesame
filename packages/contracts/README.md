@@ -1,7 +1,7 @@
 # @opensesame/contracts
 
 Zod request and response schemas for the wire, shared by the servers and their
-clients. The Identity API (`apps/control-plane`) and its clients read the
+clients. The Identity API (`packages/control-plane`) and its clients read the
 principal, project, agent, claim, OAuth-client, interaction and notification
 schemas; the Host API client reads the connection, secret-config, sync-target,
 TaskBus and transport-security schemas. It also holds the duress policy
@@ -9,7 +9,7 @@ compiler and its YAML/JSON import and export.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane),
+- **Used by:** [`packages/control-plane`](../../packages/control-plane),
   [`packages/api-client`](../api-client), [`packages/app-core`](../app-core),
   [`apps/pages`](../../apps/pages), [`examples/agent`](../../examples/agent),
   [`tests/redteam`](../../tests/redteam) and the Jazzer.js targets in

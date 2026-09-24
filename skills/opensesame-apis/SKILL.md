@@ -8,7 +8,7 @@ description: Install, configure, initialize, and use OpenSesame Host and Identit
 | API | Port | App |
 |-----|------|-----|
 | Host / Authority | **8787** | `crates/gateway` |
-| Identity | **8788** | `apps/control-plane` |
+| Identity | **8788** | `packages/control-plane` |
 | Daemon (local) | **18790** | `crates/daemon` |
 
 ## Install

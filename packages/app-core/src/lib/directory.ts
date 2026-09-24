@@ -361,7 +361,7 @@ function createOrganizationDefault(
  * The approve-a-device ceremony's known failure set, in plain words. The
  * control plane proxies to the Host with its operator token, so failures come
  * from either plane — the error code says which
- * (apps/control-plane/src/routes/device.ts).
+ * (packages/control-plane/src/routes/device.ts).
  */
 function approveDeviceWords(error: DirectoryError): string {
   if (error.code === "operator_token_unconfigured") {

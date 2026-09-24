@@ -1,7 +1,7 @@
 //! IOP-TLS, the second pair: **the shipped Node listener, dialled by a Rust
 //! client.**
 //!
-//! The server is `apps/control-plane/src/transport/listener.ts` running under
+//! The server is `packages/control-plane/src/transport/listener.ts` running under
 //! `tsx` in its own process — the same `createTransportListener`,
 //! `loadTransportMaterial` and `admitService` a deployment boots. The client
 //! is the production outbound path,
@@ -73,7 +73,7 @@ fn client(anchors: &std::path::Path, leaf: Option<&Leaf>, port: u16) -> Result<r
 
 /// The production Rust client against the production Node listener.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "boots apps/control-plane under tsx; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
+#[ignore = "boots packages/control-plane under tsx; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
 async fn a_rust_client_against_the_identity_node_listener_separates_transport_from_authorization(
 ) -> Result<()> {
     if !fixtures_enabled() {
@@ -179,7 +179,7 @@ async fn a_rust_client_against_the_identity_node_listener_separates_transport_fr
 
     record(
         "IOP-TLS-IDENTITY-LISTENER",
-        "node 22 https listener (apps/control-plane) <- rustls reqwest client",
+        "node 22 https listener (packages/control-plane) <- rustls reqwest client",
         "200 allowed / 403 peer_disallowed / 403 peer_not_bound / 3 handshake refusals",
     );
     Ok(())
@@ -189,7 +189,7 @@ async fn a_rust_client_against_the_identity_node_listener_separates_transport_fr
 /// evidence is absent, so admission refuses. An accepted TLS session is not
 /// an authenticated peer (AT-EVIDENCE-POSITIVE, Identity half).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "boots apps/control-plane under tsx; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
+#[ignore = "boots packages/control-plane under tsx; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
 async fn identity_server_tls_completes_the_handshake_and_still_admits_nobody() -> Result<()> {
     if !fixtures_enabled() {
         eprintln!("skipped: set OPENSESAME_MTLS_FIXTURES=1");

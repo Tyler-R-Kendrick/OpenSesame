@@ -8,7 +8,7 @@ the agent registration, claim, token and revoke routes.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) (serves the
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) (serves the
   documents and verifies assertions) and [`examples/agent`](../../examples/agent)
   (the client side).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) for JSON guards and

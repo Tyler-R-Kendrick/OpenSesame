@@ -55,7 +55,7 @@ Deployments: self-host (Docker/Node), Cloudflare Workers, or OOMOL hosted.
 | Provider / Action | Catalog provider + invoke ops |
 | Connection alias | ConnectionRef / connection id |
 | Runtime token | Host session / grant — never export provider secret |
-| MCP surface | `apps/mcp-host` / `apps/mcp-client` |
+| MCP surface | `packages/mcp-host` / `packages/mcp-client` |
 | OAuth callback | Host authorize + consent |
 
 Related: [nango.md](nango.md), [vercel-connect.md](vercel-connect.md),

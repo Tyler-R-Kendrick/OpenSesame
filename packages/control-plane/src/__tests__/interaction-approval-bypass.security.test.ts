@@ -10,7 +10,7 @@ import { seedOwnedCeremony } from "./seed-ceremony-subject.js";
  * approval bypass (ADR 0086, findings F01/F02, threats T-01..T-03).
  *
  * Finding F01: `decideRoute("approved")` in
- * `apps/control-plane/src/routes/interaction-handoff.ts` settles a privileged
+ * `packages/control-plane/src/routes/interaction-handoff.ts` settles a privileged
  * interaction on a *digest echo alone*. It mints an `ApprovalProof` with
  * `mechanism: "session_reauth"`, copies `assurance` off the approver's
  * principal record, and stamps `verifiedAt: now`. It never verifies an

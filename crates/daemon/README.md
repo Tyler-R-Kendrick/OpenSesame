@@ -11,7 +11,7 @@ tokens or WebAuthn material.
 
 - **Used by:** [`apps/cli`](../../apps/cli) (`opensesame daemon run|start|status|logs|stop|info|approve-device|approve-claim`),
   [`crates/credential-helpers`](../credential-helpers)
-  (`POST /v1/mint` over the socket), [`apps/mcp-host`](../../apps/mcp-host) and
+  (`POST /v1/mint` over the socket), [`packages/mcp-host`](../../packages/mcp-host) and
   [`apps/browser-extension`](../../apps/browser-extension) (health probe).
 - **Builds on:** [`opensesame-host-core`](../../crates/host-core) (listen policy,
   `DEFAULT_LISTEN`), [`opensesame-connection-detect`](../../crates/connection-detect)
