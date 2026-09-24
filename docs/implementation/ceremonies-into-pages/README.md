@@ -10,8 +10,8 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | App › flow | API | Pages / app-core before | Status |
 |---|---|---|---|
 | ceremonies `/` index | — | `screens/FrontDoor.tsx` | covered; route dropped |
-| ceremonies `/claim#token=osc_clm_` (ownership claim, guest path) | `POST /v1/claims/present`, `GET /v1/claims/:id`, `POST /v1/claims/:id/complete`, `POST /v1/principals/provisional` | none (`queue.ts` has an unused `claim_complete` kind) | missing |
-| ceremonies `/claim#token&key` (drop) | `POST /v1/claims/present` | `screens/DropClaimScreen.tsx`, `app-core/lib/vault/drop.ts` | partial: optional capability, fragment not scrubbed, errors collapsed to "refused" |
+| ceremonies `/claim#token=osc_clm_` (ownership claim, guest path) | `POST /v1/claims/present`, `GET /v1/claims/:id`, `POST /v1/claims/:id/complete`, `POST /v1/principals/provisional` | model: `app-core/lib/claims/` (step 4) | partial: no route (step 8) |
+| ceremonies `/claim#token&key` (drop) | `POST /v1/claims/present` | `screens/DropClaimScreen.tsx`, `app-core/lib/vault/drop.ts` | partial: optional capability, fragment not scrubbed on arrival (step 8); refusals worded by code (step 4) |
 | ceremonies `/guest` | provisional principal | `guest-auth.ts` `continueAsGuest` | covered (D12) |
 | ceremonies `/device?user_code=`, console `/device` | `POST /v1/device/approve` | `DevicesPanel` via `app-core/lib/directory.ts` | partial: no deep link, optional enterprise capability, three implementations |
 | ceremonies `/delegate#token=osc_dlg_` | Host delegations present/claim | Join (`lib/join/invite.ts`) | covered by Join (D5) |
