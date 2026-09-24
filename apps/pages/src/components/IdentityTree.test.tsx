@@ -147,10 +147,14 @@ it("updates every identity subtree when directory or providers change", async ()
     },
   ]);
   notifyLocalIamChange();
-  await waitFor(() => expect(countOf("People")).toBe("1"));
-  expect(countOf("Agents")).toBe("2");
-  expect(countOf("Applications")).toBe("1");
-  expect(countOf("Organizations")).toBe("1");
-  expect(countOf("Providers")).toBe("1");
-  expect(countOf("Devices")).toBe("1");
+  // Each subtree re-renders on its own (devices after an async list), so
+  // wait for all of them rather than the first.
+  await waitFor(() => {
+    expect(countOf("People")).toBe("1");
+    expect(countOf("Agents")).toBe("2");
+    expect(countOf("Applications")).toBe("1");
+    expect(countOf("Organizations")).toBe("1");
+    expect(countOf("Providers")).toBe("1");
+    expect(countOf("Devices")).toBe("1");
+  });
 });
