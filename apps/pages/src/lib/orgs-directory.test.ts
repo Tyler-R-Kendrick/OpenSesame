@@ -1,8 +1,5 @@
-/** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
-import { installOrgDirectory } from "./orgs-directory.js";
 import {
   activeOrgProfileId,
   discardOrgProfile,
@@ -10,6 +7,9 @@ import {
   listOrgMemberships,
   lookupOrgTenant,
 } from "@opensesame/app-core/lib/orgs.js";
+/** @vitest-environment jsdom */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installOrgDirectory } from "./orgs-directory.js";
 
 const originalIdentityJson = identitySeams.identityJson;
 const originalIdentityBase = identitySeams.identityBase;

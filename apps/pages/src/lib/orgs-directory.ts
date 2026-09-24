@@ -10,7 +10,6 @@
  * Egress: the configured Identity API only, through `identityJson`.
  */
 
-import { isString } from "@opensesame/os-domain";
 import {
   IdentityError,
   identityJson,
@@ -24,6 +23,7 @@ import {
   orgSeams,
   setActiveOrgProfileId,
 } from "@opensesame/app-core/lib/orgs.js";
+import { isString } from "@opensesame/os-domain";
 
 export function normalizeSlug(slug: string): string {
   return slug.trim().toLowerCase();
