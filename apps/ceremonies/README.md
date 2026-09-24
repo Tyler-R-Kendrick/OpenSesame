@@ -13,7 +13,7 @@ claimed.
   [`@opensesame/ceremony-kit`](../../packages/ceremony-kit) builds the canonical
   interaction URLs, and [`apps/mobile-mfa`](../mobile-mfa) links here. The
   Identity API allows this origin through CORS
-  (`apps/control-plane/src/__tests__/ceremonies-cors.test.ts`).
+  (`packages/control-plane/src/__tests__/ceremonies-cors.test.ts`).
 - **Builds on:** [`@opensesame/ceremony-kit`](../../packages/ceremony-kit)
   (deep-link parsing, shared with Pages and the console),
   [`@opensesame/sdk-browser`](../../packages/sdk-browser),

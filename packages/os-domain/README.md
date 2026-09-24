@@ -11,7 +11,7 @@ Better Auth user ids.
 ## Where it fits
 
 - **Used by:** nearly every TypeScript package and app in the workspace
-  (Identity, Client and SDK packages, `apps/control-plane`, `apps/pages`, the
+  (Identity, Client and SDK packages, `packages/control-plane`, `apps/pages`, the
   MCP servers, the examples and the test suites).
 - **Builds on:** nothing. It has no runtime dependencies.
 - It **must not** import Better Auth, oidc-provider, Hono, Drizzle or React

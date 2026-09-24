@@ -1,6 +1,6 @@
 /**
  * Union of the per-app secret-name denylists
- * (apps/mcp-host assertsNoSecretTools + apps/mcp-client
+ * (packages/mcp-host assertsNoSecretTools + packages/mcp-client
  * assertsNoMaterializeTool), applied to every agent catalog including WebMCP.
  */
 export const AGENT_SECRET_NAME_PATTERN =

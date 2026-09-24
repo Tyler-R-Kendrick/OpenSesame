@@ -11,7 +11,7 @@ crate).
 | [`fuzz/cargo/`](fuzz/cargo) | cargo-fuzz (Rust) | Parsers and state machines survive arbitrary input: tokens, manifests, KDBX, NATS callouts, certificate requests. Seeds in `corpus/`, crashers kept in `regressions/`. | `pnpm audit:fuzz` (short) · `pnpm audit:fuzz:batch` |
 | [`fuzz/jazzer/`](fuzz/jazzer) | Jazzer.js (TypeScript) | The same for the Identity plane: contracts, agent-auth tokens, audit redaction, claim engine. | `pnpm test:fuzz` · `pnpm test:fuzz:batch` |
 | [`fuzz/clusterfuzzlite/`](fuzz/clusterfuzzlite) | OSS-Fuzz builder | Builds every cargo-fuzz target for ClusterFuzzLite. Not wired to CI. | — |
-| [`redteam/`](redteam) | promptfoo | The MCP servers under prompt injection, confused-deputy, exfiltration and malformed-input attacks, against the real `apps/mcp-host`. | `pnpm test:redteam` |
+| [`redteam/`](redteam) | promptfoo | The MCP servers under prompt injection, confused-deputy, exfiltration and malformed-input attacks, against the real `packages/mcp-host`. | `pnpm test:redteam` |
 | [`visual-contract/`](visual-contract) | Playwright + pixelmatch | The Pages app still matches its design baselines in `.impeccable/screenshots`. | `pnpm test:visual` |
 | [`mtls-interop/`](mtls-interop) | Rust integration crate | Optional mTLS interoperates across runtimes: Rust ↔ Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, a Caddy ingress. Ignored unless `OPENSESAME_MTLS_FIXTURES=1`. | `pnpm test:mtls:integration` |
 

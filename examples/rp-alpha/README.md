@@ -8,7 +8,7 @@ sector, to see one person arrive at two sites with two unlinkable subjects.
 
 ## Where it fits
 
-- **Talks to:** the Identity API ([`apps/control-plane`](../../apps/control-plane)),
+- **Talks to:** the Identity API ([`packages/control-plane`](../../packages/control-plane)),
   `http://127.0.0.1:8788` unless `VITE_OPENSESAME_ISSUER` says otherwise.
 - **Builds on:** [`@opensesame/sdk-browser`](../../packages/sdk-browser)
   (`createOpenSesame`: `signIn`, `handleRedirectCallback`, `getSession`,

@@ -40,7 +40,7 @@ as contracts and enforcement:
   `outbound.hosts`, per-operation `risk`/`sideEffect`/`approvalRecommended`.
 - The **outbox → claim-lease → deliver → compensate → dead-letter** saga
   (ADR 0039, implemented twice: `crates/gateway/src/backup.rs` and
-  `apps/worker`), and **signed digest-only webhooks** (ADR 0046 D12,
+  `packages/identity-worker`), and **signed digest-only webhooks** (ADR 0046 D12,
   `packages/webhooks`, Standard Webhooks HMAC): "the event is a doorbell,
   not the door."
 - ADR 0046 D11's **approval hook** — the closest existing hook security

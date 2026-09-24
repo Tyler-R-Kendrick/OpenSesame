@@ -39,6 +39,7 @@ export const FORBIDDEN_URL_PARAMS: readonly string[] = [
   "api_key",
   "apikey",
   "credential",
+  "credential_offer",
   "vp_token",
   "presentation",
   "assertion",

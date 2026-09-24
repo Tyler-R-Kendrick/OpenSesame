@@ -158,7 +158,7 @@ fn the_probe_advertises_no_authority_it_does_not_enforce() {
             BindingPurpose::NatsAuthBridge => "host: nats callout routes",
             // crates/worker/src/routes.rs (ServiceCaller::admit)
             BindingPurpose::WorkerClient => "worker: provider + readiness routes",
-            // apps/control-plane mapping-auth.ts, via routes/principals.ts
+            // packages/control-plane mapping-auth.ts, via routes/principals.ts
             BindingPurpose::IdentityMappingClient => "identity: principal mapping",
             // crates/ingress-evidence layer + BindingSetAdmission
             BindingPurpose::TrustedIngress => "host: forwarded-evidence layer",

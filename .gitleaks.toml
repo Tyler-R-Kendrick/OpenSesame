@@ -82,7 +82,7 @@ paths = [
 description = "Synthetic fixtures currently flagged by default rules"
 paths = [
   '''(^|/)apps/cli/src/certs\.rs$''',
-  '''(^|/)apps/control-plane/src/__tests__/oauth2-proxy-live\.test\.ts$''',
+  '''(^|/)packages/control-plane/src/__tests__/oauth2-proxy-live\.test\.ts$''',
   '''(^|/)apps/pages/index\.html$''',
   '''(^|/)crates/human-vault/tests/fixtures/root_protection_shared_vectors\.json$''',
   '''(^|/)docs/evidence/2026-09-21-duress/browser/capabilities\.json$''',

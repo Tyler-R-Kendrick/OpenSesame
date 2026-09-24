@@ -76,7 +76,7 @@ looks arbitrary, the ADR it cites explains it.
 | [0042](0042-nats-taskbus-auth-callout-and-xkeys.md) | NATS TaskBus, auth callout, and xkeys | Accepted |
 | [0043](0043-environment-branch-git-backup.md) | Environment branches for git-backed recoverability | Accepted |
 | [0044](0044-claimable-connection-delegation.md) | Claimable connection delegation (shareable connector auth) | Proposed |
-| [0045](0045-hosted-ceremony-pages.md) | Hosted ceremony pages and delegated auth processors | Proposed |
+| [0045](0045-hosted-ceremony-pages.md) | Hosted ceremony pages and delegated auth processors | Proposed (partly superseded) |
 | [0046](0046-relayed-execution-and-authorization-inbox.md) | Relayed execution and the authorization-request inbox | Proposed |
 | [0047](0047-daemon-connector-discovery.md) | Daemon connector discovery with consented promotion | Proposed |
 | [0048](0048-capability-moded-connector-discovery.md) | Capability-moded connector discovery | Accepted |
@@ -179,4 +179,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0137](0137-open-sessions-admit-on-ask.md) | Open sessions may admit on ask, as observers | Accepted |
 | [0138](0138-self-issued-identity-one-native-host.md) | Self-issued identity by default, one native host, apps are packages | Proposed |
 | [0139](0139-one-definition-every-target.md) | One definition, every target | Accepted |
+| [0140](0140-pages-hosts-every-ceremony.md) | Pages hosts every ceremony | Accepted |
 | [0142](0142-capabilities-page-one-list-honest-defaults.md) | Settings › Capabilities: one list, honest defaults | Accepted |

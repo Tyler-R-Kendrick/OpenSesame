@@ -81,7 +81,7 @@ tailscale serve --bg 8788      # https://<host>.<tailnet>.ts.net
 
 `https://tyler-r-kendrick.github.io` is on both planes' CORS allowlists by
 default, and stays there when `OPENSESAME_CORS_ORIGINS` is overridden — the
-Identity API (`apps/control-plane/src/config.ts`) and the Host API
+Identity API (`packages/control-plane/src/config.ts`) and the Host API
 (`crates/host-core`, `parse_cors_origins`) both append it. A browser console
 full of
 

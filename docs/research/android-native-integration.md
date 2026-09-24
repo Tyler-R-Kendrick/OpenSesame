@@ -77,7 +77,7 @@ design.
   the Rust `crates/client-core` / `crates/human-vault`.
 
 **Native Android.**
-- `apps/authenticator-native` exists: Kotlin/Compose on Multipaz 0.100.0,
+- `apps/android` exists: Kotlin/Compose on Multipaz 0.100.0,
   minSdk 29, targetSdk 36. It has App Links on `/invoke/`, OID4VP/OID4VCI
   schemes, and a `DigitalCredentialsActivity` that is a Credential Manager
   holder.
@@ -91,7 +91,7 @@ design.
   native side.
 
 **Identity plane.**
-- `apps/control-plane` reads `OPENSESAME_FEDCM_ENABLED` into
+- `packages/control-plane` reads `OPENSESAME_FEDCM_ENABLED` into
   `config-protocol-features.ts:35`, and nothing consumes it. There are no
   FedCM endpoints.
 - `packages/openid4vp` builds Digital Credentials API requests for the
@@ -226,7 +226,7 @@ live only in an APK. On Chrome 135+ the person must also switch Chrome to
 to the toggle (§2). Samsung Internet reportedly no longer delegates to
 third-party services (**unverified**: forum sources only).
 
-**Nothing in the repo does this today.** `apps/authenticator-native` is the
+**Nothing in the repo does this today.** `apps/android` is the
 natural home: one signing identity, one `assetlinks.json`, one Play listing.
 But ADR 0058 scoped provider behavior out, so extending it is an amendment.
 
@@ -299,7 +299,7 @@ and a route.
   URL capture, share target, shortcuts and push.
 - A TWA wraps the same Pages build in the APK. It gains the native services
   in §3–§4 and the `postMessage` channel, and it keeps a single source of UI.
-- The recommendation is a TWA inside `apps/authenticator-native`, with
+- The recommendation is a TWA inside `apps/android`, with
   Bubblewrap-generated scaffolding checked in, not a second native UI.
 
 **Every native road starts at the domain root.**

@@ -104,7 +104,7 @@ fn attested_peer_is_referenced_only_by_real_verifiers() {
         "crates/uds-authn/",
         "crates/ingress-evidence/",
         "crates/spiffe-source/",
-        "apps/control-plane/src/transport/",
+        "packages/control-plane/src/transport/",
         "packages/os-domain/src/transport-security/",
         "packages/os-domain/src/__tests__/transport-security",
         "packages/contracts/src/",

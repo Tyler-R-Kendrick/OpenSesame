@@ -29,10 +29,8 @@ binary; the name a process starts under picks the program
 
 | App | Package | Port | Purpose |
 |---|---|---|---|
-| [`control-plane`](control-plane) | `@opensesame/control-plane` | 8788 | **Identity API.** OIDC issuer (oidc-provider), Better Auth upstream sign-in, principals, passkeys, claims, device authorization, SCIM, notifications. Writes `openapi.json`. |
 | [`console`](console) | `@opensesame/console` | 5173 | Operator console for the Identity API. |
 | [`ceremonies`](ceremonies) | `@opensesame/ceremonies` | 5181 | Hosted ceremony pages — one complete, shareable ceremony per route ([ADR 0045](../docs/adr/0045-hosted-ceremony-pages.md)). |
-| [`worker`](worker) | `@opensesame/worker` | — | Identity-plane background loop: drains the outbox onto the TaskBus, fans out webhooks and notifications, prunes expired issuer rows. |
 | [`mobile-mfa`](mobile-mfa) | `@opensesame/mobile-mfa` | — | The phone half of a cross-device approval, and where its authenticators are enrolled. |
 
 ## Client plane
@@ -41,11 +39,12 @@ binary; the name a process starts under picks the program
 |---|---|---|---|
 | [`pages`](pages) | `@opensesame/pages` | 5180 | **The OpenSesame app.** Installable offline PWA published to GitHub Pages: vault, connections, agents, access, identity, sites, settings. Complete with no backend. |
 | [`browser-extension`](browser-extension) | `@opensesame/browser-extension` | — | WXT browser extension: Host API, sync cursor, optional daemon. Never exposes a secret to a web page. |
-| [`mcp-host`](mcp-host) | `@opensesame/mcp-host` | stdio / HTTP | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. |
-| [`mcp-client`](mcp-client) | `@opensesame/mcp-client` | stdio | Agent MCP server over a narrowly scoped, short-lived Host capability. |
-| [`authenticator-native`](authenticator-native) | `@opensesame/authenticator-native-contract` | — | Android authenticator: OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. |
+| [`android`](android) | `@opensesame/android` | — | **The Android app** (was `authenticator-native`, [ADR 0138](../docs/adr/0138-self-issued-identity-one-native-host.md)): OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. Its `ios/` sources are the matching Apple wallet extension. |
 
-Neither MCP server exposes `getSecret()` or materializes a credential
+The two MCP servers are packages served by the client CLI
+(`opensesame-id mcp host|client`): [`packages/mcp-host`](../packages/mcp-host)
+and [`packages/mcp-client`](../packages/mcp-client). Neither exposes
+`getSecret()` or materializes a credential
 ([ADR 0005](../docs/adr/0005-authority-handle-connectionref.md)).
 
 ## Running
