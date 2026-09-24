@@ -47,6 +47,22 @@ function fileName(key: string): string {
   return `opensesame-pages-${key.replace(/[^a-zA-Z0-9._-]/g, "_")}.json`;
 }
 
+/**
+ * The origin file a key is stored in. Travel mode (ADR 0140) moves a vault
+ * at this layer — every file of a tomb, including ones no module hydrated —
+ * so it needs the storage layer's own name for a key.
+ */
+export function kvFileName(key: string): string {
+  return fileName(key);
+}
+
+/** Drop every in-memory copy whose origin file is in `files` (already removed). */
+export function kvForgetFiles(files: ReadonlySet<string>): void {
+  for (const key of [...memory.keys()]) {
+    if (files.has(fileName(key))) memory.delete(key);
+  }
+}
+
 async function opfsRead(key: string): Promise<string | null> {
   try {
     const root = await opfsRoot();

@@ -24,7 +24,15 @@ import {
  * are private to this device until they are linked to a server project.
  */
 
-import { kvDeleteDurable, kvGet, kvSetDurable } from "./kv.js";
+import { kvDeleteDurable, kvGet, kvHydrate, kvSetDurable } from "./kv.js";
+import {
+  PERSONAL_PROJECT_ID,
+  type PagesProject,
+  type ProjectsState,
+  personalProject,
+  sanitize,
+  withKnownNames,
+} from "./projects-state.js";
 import {
   BODY_PATH,
   GUEST_TOMB,
@@ -48,22 +56,12 @@ import {
 export const PROJECTS_KEY = "projects.v1";
 /** Sealed VFS path (within a tomb) holding this tomb's projects view. */
 export const PROJECTS_CONFIG_PATH = "config/projects";
-export const PERSONAL_PROJECT_ID = "personal";
-
-export type PagesProjectKind = "personal" | "standard";
-
-export type PagesProject = {
-  id: string;
-  name: string;
-  kind: PagesProjectKind;
-  createdAt: string;
-};
-
-export type ProjectsState = {
-  v: 1;
-  projects: PagesProject[];
-  activeId: string;
-};
+export {
+  PERSONAL_PROJECT_ID,
+  type PagesProject,
+  type PagesProjectKind,
+  type ProjectsState,
+} from "./projects-state.js";
 
 type BootRecord = { v: 1; activeId: string };
 
@@ -84,58 +82,6 @@ const LEGACY_VAULT_KEYS = [
   "vault.body.v1",
   "vault.prefs.v1", // gitleaks:allow -- storage key, not a credential
 ] as const;
-
-function personalProject(): PagesProject {
-  return {
-    id: PERSONAL_PROJECT_ID,
-    name: "Personal",
-    kind: "personal",
-    createdAt: new Date(0).toISOString(),
-  };
-}
-
-function defaultState(): ProjectsState {
-  return { v: 1, projects: [personalProject()], activeId: PERSONAL_PROJECT_ID };
-}
-
-function sanitize(raw: BoundaryValue): ProjectsState {
-  if (!isJsonObject(raw)) return defaultState();
-  const candidate = raw;
-  const projects: PagesProject[] = [];
-  if (Array.isArray(candidate.projects)) {
-    for (const entry of candidate.projects) {
-      if (isJsonObject(entry) && isString(entry.id) && isString(entry.name)) {
-        const id = entry.id;
-        const name = entry.name;
-        // Guest is a session road (GUEST_TOMB), never a project in the list.
-        if (id === GUEST_TOMB) continue;
-        projects.push({
-          id,
-          name,
-          kind: id === PERSONAL_PROJECT_ID ? "personal" : "standard",
-          createdAt: isString(entry.createdAt)
-            ? entry.createdAt
-            : new Date(0).toISOString(),
-        });
-      }
-    }
-  }
-  // The personal project always exists and always comes first.
-  const withoutPersonal = projects.filter(
-    (project) => project.id !== PERSONAL_PROJECT_ID,
-  );
-  const state: ProjectsState = {
-    v: 1,
-    projects: [personalProject(), ...withoutPersonal],
-    activeId: isString(candidate.activeId)
-      ? candidate.activeId
-      : PERSONAL_PROJECT_ID,
-  };
-  if (!state.projects.some((project) => project.id === state.activeId)) {
-    state.activeId = PERSONAL_PROJECT_ID;
-  }
-  return state;
-}
 
 /** The plaintext boot pointer — just the active tomb name. */
 function readBootActiveId(): string {
@@ -159,9 +105,14 @@ function readBootActiveId(): string {
  * is kept even when its tomb has no material yet (a project created moments
  * ago registers only when its first header lands).
  */
-function bootView(): ProjectsState {
+function bootView(extra: readonly string[] = []): ProjectsState {
   const activeId = readBootActiveId();
-  const ids = new Set<string>([PERSONAL_PROJECT_ID, ...listTombs(), activeId]);
+  const ids = new Set<string>([
+    PERSONAL_PROJECT_ID,
+    ...listTombs(),
+    activeId,
+    ...extra,
+  ]);
   const projects: PagesProject[] = [personalProject()];
   for (const id of [...ids].sort()) {
     if (id === PERSONAL_PROJECT_ID || id === GUEST_TOMB) continue;
@@ -174,6 +125,21 @@ function bootView(): ProjectsState {
     });
   }
   return { v: 1, projects, activeId };
+}
+
+/**
+ * Projects a sealed view lists whose vault still sits under the legacy
+ * scoped keys — on this device, but not a registered tomb until phase B
+ * moves it on first activation.
+ */
+async function legacyVaults(view: ProjectsState): Promise<string[]> {
+  const tombs = new Set(listTombs());
+  const candidates = view.projects
+    .map((project) => project.id)
+    .filter((id) => !tombs.has(id));
+  const keys = candidates.map((id) => scopedKey(LEGACY_VAULT_KEYS[0], id));
+  await kvHydrate(keys);
+  return candidates.filter((_, i) => kvGet(keys[i] ?? "") !== null);
 }
 
 type Listener = () => void;
@@ -205,6 +171,15 @@ export function rehydrateProjects(): void {
   emit();
 }
 
+/** Re-read the list after tombs arrived or left underneath it (ADR 0140). */
+export async function refreshProjectsView(): Promise<void> {
+  if (activeTomb && tombUnlocked(activeTomb)) {
+    await hydrateProjectsFromVfs(activeTomb);
+  } else {
+    rehydrateProjects();
+  }
+}
+
 /**
  * Fill the projects view from the tomb's sealed config on unlock, after the
  * migration has moved any legacy plaintext record. Without a sealed copy the
@@ -214,7 +189,20 @@ export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
   activeTomb = tomb;
   try {
     const bytes = await readFile(tomb, PROJECTS_CONFIG_PATH);
-    cached = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
+    const sealed = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
+    // The vaults are the ones on this device (the boot view's set, plus any
+    // still under pre-tomb keys), named from the sealed view. A sibling that
+    // left while this tomb was locked (deleted, or departed for travel, ADR
+    // 0140) is scrubbed from the view.
+    cached = withKnownNames(bootView(await legacyVaults(sealed)), sealed);
+    const present = new Set(cached.projects.map((project) => project.id));
+    if (sealed.projects.some((project) => !present.has(project.id))) {
+      await writeFile(
+        tomb,
+        PROJECTS_CONFIG_PATH,
+        new TextEncoder().encode(JSON.stringify(cached)),
+      );
+    }
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") throw error;
     // No sealed copy yet — a tomb sealed moments ago from the vault switcher.
@@ -307,26 +295,6 @@ export async function carryProjectsViewInto(
   activeTomb = tomb;
   const merged = withKnownNames(bootView(), previous);
   await writeState({ ...merged, activeId: readBootActiveId() });
-}
-
-function withKnownNames(
-  next: ProjectsState,
-  previous: ProjectsState,
-): ProjectsState {
-  const known = new Map(
-    previous.projects
-      .filter((project) => project.name !== project.id)
-      .map((project) => [project.id, project] as const),
-  );
-  return {
-    ...next,
-    projects: next.projects.map((project) => {
-      const seen = known.get(project.id);
-      return seen && project.name === project.id
-        ? { ...project, name: seen.name, createdAt: seen.createdAt }
-        : project;
-    }),
-  };
 }
 
 export function listProjects(): PagesProject[] {
@@ -460,6 +428,30 @@ async function deleteProjectDefault(id: string): Promise<void> {
     v: 1,
     projects: state.projects.filter((project) => project.id !== id),
     activeId: state.activeId === id ? PERSONAL_PROJECT_ID : state.activeId,
+  });
+}
+
+/**
+ * Forget vaults that just left this device for travel (ADR 0140): their
+ * tombs are already gone, so only the list and the active pointer change.
+ * The open tomb's sealed view is rewritten without them; any other tomb's
+ * view is scrubbed the next time it is unlocked (`hydrateProjectsFromVfs`).
+ */
+export async function forgetDepartedProjects(
+  ids: readonly string[],
+): Promise<void> {
+  const departed = new Set(ids);
+  for (const id of departed) unsealedNames.delete(id);
+  const state = projectsState();
+  await writeState({
+    v: 1,
+    projects: state.projects.filter(
+      (project) =>
+        project.id === PERSONAL_PROJECT_ID || !departed.has(project.id),
+    ),
+    activeId: departed.has(state.activeId)
+      ? PERSONAL_PROJECT_ID
+      : state.activeId,
   });
 }
 
