@@ -32,7 +32,7 @@ agent/editor directories `.agents/`, `.claude/`, `.codex/`, `.cursor/`,
 | Plane | Language | Runs | Lives in |
 |---|---|---|---|
 | **Host / authority** — authorize, invoke, receipt | Rust | Host API `crates/gateway`, daemon `crates/daemon`, host CLI `apps/cli`, helpers `crates/credential-helpers`, bridges `crates/pm-bridges` | `crates/*` (54 libraries), facade `crates/host-core` |
-| **Identity** — who someone is | TypeScript | Identity API `apps/control-plane`, console `apps/console`, ceremonies `apps/ceremonies` | `packages/os-domain`, `oauth-provider`, `auth-upstream`, `claims`, `database`, `policy` |
+| **Identity** — who someone is | TypeScript | Identity API `packages/control-plane`, console `apps/console`, ceremonies `apps/ceremonies` | `packages/os-domain`, `oauth-provider`, `auth-upstream`, `claims`, `database`, `policy` |
 | **Client** — a person's device | TypeScript (+ Rust→Wasm) | Pages PWA `apps/pages`, extension `apps/browser-extension`, client CLI `packages/cli`, MCP servers `packages/mcp-*` (served by `opensesame-id mcp`) | `packages/app-core`, `packages/vault-core`, `packages/api-client`, `crates/client-core` |
 
 The contracts all three share live in [`spec/`](../../spec/README.md) (WIT
@@ -44,7 +44,7 @@ worlds, the Host OpenAPI, the OpenFGA model) and in `packages/os-domain` /
 | Looking for | Go to |
 |---|---|
 | A Host API route | `crates/gateway/src/routes/` |
-| An Identity API route | `apps/control-plane/src/routes/` |
+| An Identity API route | `packages/control-plane/src/routes/` |
 | A screen in the app | `apps/pages/src/screens/` and `apps/pages/src/sections/` (React); its logic in `packages/app-core/src/screens/` / `sections/` (`*-model.ts`) |
 | Vault encryption and the file format | `packages/vault-core` (browser), `crates/human-vault` (Host) |
 | The sealed `pass`-compatible store | `crates/sealed-store`, verbs in `apps/cli` |

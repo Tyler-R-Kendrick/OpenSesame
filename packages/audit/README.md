@@ -8,7 +8,7 @@ truncated to 256 characters.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane) (appends events
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) (appends events
   and builds its chained sink), [`packages/app-core`](../app-core) (imports
   only `@opensesame/audit/redact` for the browser-local activity log and
   local access audit) and the Jazzer.js fuzz targets in

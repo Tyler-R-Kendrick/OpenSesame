@@ -33,7 +33,7 @@ already been accepted or fixed.
   not in a fix diff, not in a PR body, not in a doc note.
 - **Respect ADR 0004, 0008, 0017** (`docs/adr/`): no Clerk/Marketplace auth as
   core, Better Auth upstream / oidc-provider downstream (no NIH protocol
-  code), and the Identity API (`apps/control-plane`, :8788) / Host API
+  code), and the Identity API (`packages/control-plane`, :8788) / Host API
   (`crates/gateway`, :8787) stay separate — no BFF merge. A dependency bump must
   not be an excuse to cross these lines.
 

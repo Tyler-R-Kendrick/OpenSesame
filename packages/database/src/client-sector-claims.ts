@@ -8,7 +8,7 @@ import * as schema from "./schema/index.js";
  *
  * `sectorKeyOf` is `pairwiseSectorKey` from `@opensesame/oauth-provider`
  * (`src/pairwise/sector.ts`), repeated here because this package must not
- * import the issuer. `apps/control-plane`'s sector-key parity test holds the
+ * import the issuer. `packages/control-plane`'s sector-key parity test holds the
  * two to one answer; migration 0029 derives the same key in SQL for rows that
  * predate the column.
  */

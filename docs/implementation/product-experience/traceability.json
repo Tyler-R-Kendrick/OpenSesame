@@ -35,8 +35,8 @@
     {
       "objective": "SCIM groups selector-remove",
       "workId": "DIR-GROUPS",
-      "entry": "apps/control-plane/src/routes/scim-groups.ts",
-      "tests": ["apps/control-plane/src/__tests__/scim-groups.test.ts"]
+      "entry": "packages/control-plane/src/routes/scim-groups.ts",
+      "tests": ["packages/control-plane/src/__tests__/scim-groups.test.ts"]
     }
   ]
 }

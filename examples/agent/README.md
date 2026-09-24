@@ -8,7 +8,7 @@ and an agent card for the same API.
 
 ## Where it fits
 
-- **Talks to:** the Identity API ([`apps/control-plane`](../../apps/control-plane)),
+- **Talks to:** the Identity API ([`packages/control-plane`](../../packages/control-plane)),
   `:8788` by default — `POST /v1/principals/provisional`, `POST /v1/agents`,
   `GET /v1/claims/{id}`.
 - **Builds on:** [`@opensesame/sdk-cli`](../../packages/sdk-cli)

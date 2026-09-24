@@ -101,11 +101,11 @@ confusion in either direction is refused:
 depends on the pinned nats-server build's behaviour. SW-NATS's live run is the
 evidence for that; this swarm did not re-run it.
 
-### 1.7 Identity provider plane (`apps/control-plane`)
+### 1.7 Identity provider plane (`packages/control-plane`)
 
 | Trusted field | Producer | Verifier | Scope | Freshness | If compromised |
 |---|---|---|---|---|---|
-| Peer evidence on the Identity TLS listener | Node's TLS stack (`socket.authorized === true` + `getPeerX509Certificate()`) | `apps/control-plane/src/transport/peer-evidence.ts::attestPeer`, recorded in a module-private `WeakMap` keyed by socket identity | That socket | `min(1 h, certificate remainder)` | As §1.4. |
+| Peer evidence on the Identity TLS listener | Node's TLS stack (`socket.authorized === true` + `getPeerX509Certificate()`) | `packages/control-plane/src/transport/peer-evidence.ts::attestPeer`, recorded in a module-private `WeakMap` keyed by socket identity | That socket | `min(1 h, certificate remainder)` | As §1.4. |
 | Mapping-resolve authorization | Administrator choice of `OPENSESAME_MAPPING_AUTH` | `mapping-auth.ts::authorizeMappingResolve` — either the shared secret or an `identity_mapping_client` binding listing `principals.mapping.resolve`. Never both, never a fallback | That one operation | Per request | The bound service identity is authorized for that operation and nothing else; it holds no session and every other route still answers 401. |
 | `cnf["x5t#S256"]` on a bearer token | The token issuer (oidc-provider) | `resource-binding.ts::evaluateCertificateBinding` against `bindingPeerOf(req)` — the *originating* client behind a trusted ingress, never the proxy leaf | Per request | Token lifetime | A token bound to certificate A presented on certificate B is refused, and one presented on the plain listener is refused for want of a peer. A different certificate carrying the same key has a different thumbprint and is also refused. |
 
@@ -168,7 +168,7 @@ choice for these profiles, not a claim that TLS resumption is unsafe.
 | Abuse case | Test |
 |---|---|
 | Attacker-controlled CN, email SAN, IP SAN, wildcard, trailing dot, oversized SAN | `crates/transport-security/tests/identity_adversarial.rs` |
-| Two SPIFFE SANs, percent-encoded/uppercase/dot-dot/query/fragment SPIFFE IDs, Unicode and NUL | same file; TS mirror in `apps/control-plane/src/transport/__tests__/peer-evidence_security.test.ts` |
+| Two SPIFFE SANs, percent-encoded/uppercase/dot-dot/query/fragment SPIFFE IDs, Unicode and NUL | same file; TS mirror in `packages/control-plane/src/transport/__tests__/peer-evidence_security.test.ts` |
 | CA offered as a leaf, `serverAuth`-only EKU, unknown critical extension | `identity_adversarial.rs` |
 | A SAN whose text equals a binding's service principal | `crates/transport-security/tests/binding_adversarial.rs` |
 | Forged `Client-Cert` direct to the origin or on a non-ingress listener | `crates/ingress-evidence/tests/layer.rs` |

@@ -4,7 +4,7 @@
 
 OpenSesame is a dual-plane authorization fabric: a Rust Host/authority plane
 (`crates/gateway` :8787, `crates/daemon`, `crates/*`) and a TypeScript Identity
-plane (`apps/control-plane` :8788, Better Auth + oidc-provider). Client
+plane (`packages/control-plane` :8788, Better Auth + oidc-provider). Client
 surfaces include Pages PWA (`apps/pages`), browser extension, CLIs, and MCP
 servers. Secrets stay sealed; agents use ConnectionRef + Intent, never raw
 `getSecret()`.

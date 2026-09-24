@@ -5,7 +5,7 @@ touching those routes.
 
 ## Today (Identity plane)
 
-1. **Create** (`apps/control-plane` `interaction-handoff`): RFC 9396
+1. **Create** (`packages/control-plane` `interaction-handoff`): RFC 9396
    `authorizationDetails` are validated (`assertAuthorizationDetails` —
    card-data deny-list). Binding message is server-derived. Digest is
    `canonicalRequestDigest` over kind, subject, opaque handles, details,

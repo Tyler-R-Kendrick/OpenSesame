@@ -42,7 +42,7 @@ crates/
   credential-helpers/ pm-bridges/   libraries behind argv[0] entry points
 packages/
   mcp/                the TypeScript MCP adapter over the same catalog
-  hosted-identity/*   what apps/control-plane, ceremonies, mobile-mfa and the TS worker become
+  hosted-identity/*   what packages/control-plane, ceremonies, mobile-mfa and the TS worker become
 ops/
   hosted-identity/    the optional hosted deployment recipe (own origin, ADR 0045)
 ```
@@ -195,7 +195,7 @@ before/after evidence for the moved screens (`skills/visual-evidence`).
 
 ### Phase 7 — The hosted identity service becomes optional packaging
 
-- Split `apps/control-plane` along the gap table below: what is self-issued
+- Split `packages/control-plane` along the gap table below: what is self-issued
   or host-side is already covered by phases 1–4; what is hosted-only becomes
   packages under `packages/hosted-identity/`.
 - `apps/ceremonies` and `apps/mobile-mfa` merge into one hosted ceremony
@@ -203,7 +203,7 @@ before/after evidence for the moved screens (`skills/visual-evidence`).
   outbox loop runs inside the hosted deployment.
 - `ops/hosted-identity/`: the deployment recipe (container and database),
   documented as optional in `docs/operators/`.
-- Delete `apps/control-plane`, `apps/worker`, `apps/ceremonies`,
+- Delete `packages/control-plane`, `packages/identity-worker`, `apps/ceremonies`,
   `apps/mobile-mfa`; `pnpm dev` no longer starts an Identity API.
 
 **Exit:** the control-plane's test suite runs green against the hosted

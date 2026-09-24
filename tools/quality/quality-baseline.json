@@ -90,296 +90,296 @@
     "apps/console/src/pages/TaskAccessPage.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/__tests__/api.test.ts": {
+    "packages/control-plane/src/__tests__/api.test.ts": {
       "max-lines": 2288
     },
-    "apps/control-plane/src/__tests__/approval-ceremony.test.ts": {
+    "packages/control-plane/src/__tests__/approval-ceremony.test.ts": {
       "max-lines": 1132
     },
-    "apps/control-plane/src/__tests__/auth-upstream.test.ts": {
+    "packages/control-plane/src/__tests__/auth-upstream.test.ts": {
       "max-lines": 644
     },
-    "apps/control-plane/src/__tests__/authentication-service.test.ts": {
+    "packages/control-plane/src/__tests__/authentication-service.test.ts": {
       "max-lines": 496
     },
-    "apps/control-plane/src/__tests__/byo-upstream.test.ts": {
+    "packages/control-plane/src/__tests__/byo-upstream.test.ts": {
       "max-lines": 991
     },
-    "apps/control-plane/src/__tests__/federated-interaction.test.ts": {
+    "packages/control-plane/src/__tests__/federated-interaction.test.ts": {
       "max-lines": 1612
     },
-    "apps/control-plane/src/__tests__/federated-leg.chaos.test.ts": {
+    "packages/control-plane/src/__tests__/federated-leg.chaos.test.ts": {
       "complexity": 1,
       "max-lines": 413
     },
-    "apps/control-plane/src/__tests__/federated-pending.fuzz.test.ts": {
+    "packages/control-plane/src/__tests__/federated-pending.fuzz.test.ts": {
       "complexity": 1
     },
-    "apps/control-plane/src/__tests__/federated-session.test.ts": {
+    "packages/control-plane/src/__tests__/federated-session.test.ts": {
       "max-lines": 422
     },
-    "apps/control-plane/src/__tests__/identity-link.units.test.ts": {
+    "packages/control-plane/src/__tests__/identity-link.units.test.ts": {
       "max-lines": 844
     },
-    "apps/control-plane/src/__tests__/infra-edge.test.ts": {
+    "packages/control-plane/src/__tests__/infra-edge.test.ts": {
       "max-lines": 408
     },
-    "apps/control-plane/src/__tests__/interaction-handoff.test.ts": {
+    "packages/control-plane/src/__tests__/interaction-handoff.test.ts": {
       "max-lines": 867
     },
-    "apps/control-plane/src/__tests__/ldap-bind.test.ts": {
+    "packages/control-plane/src/__tests__/ldap-bind.test.ts": {
       "max-lines": 785
     },
-    "apps/control-plane/src/__tests__/ldap-sync.test.ts": {
+    "packages/control-plane/src/__tests__/ldap-sync.test.ts": {
       "max-lines": 407
     },
-    "apps/control-plane/src/__tests__/notification-callbacks.test.ts": {
+    "packages/control-plane/src/__tests__/notification-callbacks.test.ts": {
       "max-lines": 699
     },
-    "apps/control-plane/src/__tests__/notification-channels.test.ts": {
+    "packages/control-plane/src/__tests__/notification-channels.test.ts": {
       "max-lines": 402
     },
-    "apps/control-plane/src/__tests__/oauth2-leg.test.ts": {
+    "packages/control-plane/src/__tests__/oauth2-leg.test.ts": {
       "max-lines": 489
     },
-    "apps/control-plane/src/__tests__/org-domains.test.ts": {
+    "packages/control-plane/src/__tests__/org-domains.test.ts": {
       "max-lines": 517
     },
-    "apps/control-plane/src/__tests__/org-signin-flow.test.ts": {
+    "packages/control-plane/src/__tests__/org-signin-flow.test.ts": {
       "max-lines": 561
     },
-    "apps/control-plane/src/__tests__/organizations-edge.test.ts": {
+    "packages/control-plane/src/__tests__/organizations-edge.test.ts": {
       "max-lines": 680
     },
-    "apps/control-plane/src/__tests__/organizations-tenant.test.ts": {
+    "packages/control-plane/src/__tests__/organizations-tenant.test.ts": {
       "max-lines": 413
     },
-    "apps/control-plane/src/__tests__/origin-claim-admin.test.ts": {
+    "packages/control-plane/src/__tests__/origin-claim-admin.test.ts": {
       "max-lines": 964
     },
-    "apps/control-plane/src/__tests__/origin-consent-ui.test.ts": {
+    "packages/control-plane/src/__tests__/origin-consent-ui.test.ts": {
       "max-lines": 668
     },
-    "apps/control-plane/src/__tests__/origin-profile-issuer.test.ts": {
+    "packages/control-plane/src/__tests__/origin-profile-issuer.test.ts": {
       "max-lines": 619
     },
-    "apps/control-plane/src/__tests__/pact-chaos.test.ts": {
+    "packages/control-plane/src/__tests__/pact-chaos.test.ts": {
       "complexity": 1
     },
-    "apps/control-plane/src/__tests__/principals-edge.test.ts": {
+    "packages/control-plane/src/__tests__/principals-edge.test.ts": {
       "max-lines": 474
     },
-    "apps/control-plane/src/__tests__/projects-edge.test.ts": {
+    "packages/control-plane/src/__tests__/projects-edge.test.ts": {
       "max-lines": 816
     },
-    "apps/control-plane/src/__tests__/registry.units.test.ts": {
+    "packages/control-plane/src/__tests__/registry.units.test.ts": {
       "max-lines": 1164
     },
-    "apps/control-plane/src/__tests__/saml-security.test.ts": {
+    "packages/control-plane/src/__tests__/saml-security.test.ts": {
       "max-lines": 463
     },
-    "apps/control-plane/src/__tests__/saml-sp.test.ts": {
+    "packages/control-plane/src/__tests__/saml-sp.test.ts": {
       "max-lines": 534
     },
-    "apps/control-plane/src/__tests__/scim.test.ts": {
+    "packages/control-plane/src/__tests__/scim.test.ts": {
       "max-lines": 627
     },
-    "apps/control-plane/src/app.ts": {
+    "packages/control-plane/src/app.ts": {
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/control-plane/src/config.ts": {
+    "packages/control-plane/src/config.ts": {
       "complexity": 2,
       "max-lines": 484,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
-    "apps/control-plane/src/create-app.ts": {
+    "packages/control-plane/src/create-app.ts": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/interactions/byo.ts": {
+    "packages/control-plane/src/interactions/byo.ts": {
       "max-lines": 436
     },
-    "apps/control-plane/src/interactions/federated.ts": {
+    "packages/control-plane/src/interactions/federated.ts": {
       "max-lines": 842
     },
-    "apps/control-plane/src/interactions/handlers.ts": {
+    "packages/control-plane/src/interactions/handlers.ts": {
       "complexity": 2,
       "max-lines": 607
     },
-    "apps/control-plane/src/interactions/ldap.ts": {
+    "packages/control-plane/src/interactions/ldap.ts": {
       "complexity": 1,
       "max-lines": 653,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/interactions/oauth2.ts": {
+    "packages/control-plane/src/interactions/oauth2.ts": {
       "complexity": 1,
       "max-lines": 474
     },
-    "apps/control-plane/src/interactions/registry.ts": {
+    "packages/control-plane/src/interactions/registry.ts": {
       "complexity": 2,
       "max-lines": 744
     },
-    "apps/control-plane/src/interactions/saml.ts": {
+    "packages/control-plane/src/interactions/saml.ts": {
       "complexity": 2,
       "max-lines": 1001,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
-    "apps/control-plane/src/openapi.ts": {
+    "packages/control-plane/src/openapi.ts": {
       "max-lines": 2787,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/agents.ts": {
+    "packages/control-plane/src/routes/agents.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/approval-ceremony.ts": {
+    "packages/control-plane/src/routes/approval-ceremony.ts": {
       "complexity": 1,
       "max-lines": 410,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/audit.ts": {
+    "packages/control-plane/src/routes/audit.ts": {
       "complexity": 1
     },
-    "apps/control-plane/src/routes/authentication-service.ts": {
+    "packages/control-plane/src/routes/authentication-service.ts": {
       "max-lines": 1144
     },
-    "apps/control-plane/src/routes/authorization-requests.ts": {
+    "packages/control-plane/src/routes/authorization-requests.ts": {
       "complexity": 3,
       "max-lines": 1396,
       "max-lines-per-function": 4,
       "max-statements": 1
     },
-    "apps/control-plane/src/routes/claims.ts": {
+    "packages/control-plane/src/routes/claims.ts": {
       "complexity": 1,
       "max-lines": 662,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/control-plane/src/routes/device.ts": {
+    "packages/control-plane/src/routes/device.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/interaction-activation.ts": {
+    "packages/control-plane/src/routes/interaction-activation.ts": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/interaction-handoff.ts": {
+    "packages/control-plane/src/routes/interaction-handoff.ts": {
       "complexity": 2,
       "max-lines": 1202,
       "max-lines-per-function": 4
     },
-    "apps/control-plane/src/routes/interactions-byo.ts": {
+    "packages/control-plane/src/routes/interactions-byo.ts": {
       "max-lines-per-function": 2
     },
-    "apps/control-plane/src/routes/interactions-email.ts": {
+    "packages/control-plane/src/routes/interactions-email.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/interactions-ldap.ts": {
+    "packages/control-plane/src/routes/interactions-ldap.ts": {
       "complexity": 1,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
-    "apps/control-plane/src/routes/interactions-saml.ts": {
+    "packages/control-plane/src/routes/interactions-saml.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/interactions.ts": {
+    "packages/control-plane/src/routes/interactions.ts": {
       "complexity": 1,
       "max-depth": 1,
       "max-lines": 770,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
-    "apps/control-plane/src/routes/mfa.ts": {
+    "packages/control-plane/src/routes/mfa.ts": {
       "max-lines": 658,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/notification-callbacks.ts": {
+    "packages/control-plane/src/routes/notification-callbacks.ts": {
       "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/control-plane/src/routes/notification-channels.ts": {
+    "packages/control-plane/src/routes/notification-channels.ts": {
       "complexity": 1,
       "max-lines": 746,
       "max-lines-per-function": 2
     },
-    "apps/control-plane/src/routes/openid4vci.ts": {
+    "packages/control-plane/src/routes/openid4vci.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/openid4vp.ts": {
+    "packages/control-plane/src/routes/openid4vp.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/org-assertion.ts": {
+    "packages/control-plane/src/routes/org-assertion.ts": {
       "complexity": 1
     },
-    "apps/control-plane/src/routes/org-domains.ts": {
+    "packages/control-plane/src/routes/org-domains.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/org-ldap.ts": {
+    "packages/control-plane/src/routes/org-ldap.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/organizations.ts": {
+    "packages/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
       "max-lines": 956
     },
-    "apps/control-plane/src/routes/principals.ts": {
+    "packages/control-plane/src/routes/principals.ts": {
       "complexity": 2,
       "max-lines": 738,
       "max-lines-per-function": 3
     },
-    "apps/control-plane/src/routes/projects.ts": {
+    "packages/control-plane/src/routes/projects.ts": {
       "complexity": 2,
       "max-lines": 751,
       "max-lines-per-function": 3
     },
-    "apps/control-plane/src/routes/scim.ts": {
+    "packages/control-plane/src/routes/scim.ts": {
       "max-lines": 575,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/siop-link.ts": {
+    "packages/control-plane/src/routes/siop-link.ts": {
       "complexity": 1
     },
-    "apps/control-plane/src/routes/wallet-registration.ts": {
+    "packages/control-plane/src/routes/wallet-registration.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/server.ts": {
+    "packages/control-plane/src/server.ts": {
       "complexity": 2,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
-    "apps/control-plane/src/services/agent-auth.ts": {
+    "packages/control-plane/src/services/agent-auth.ts": {
       "complexity": 1,
       "max-lines": 650
     },
-    "apps/control-plane/src/services/app-claim.ts": {
+    "packages/control-plane/src/services/app-claim.ts": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/services/better-auth-bridge.ts": {
+    "packages/control-plane/src/services/better-auth-bridge.ts": {
       "complexity": 1,
       "max-lines": 424,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/services/identity-link.ts": {
+    "packages/control-plane/src/services/identity-link.ts": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/services/mailer.ts": {
+    "packages/control-plane/src/services/mailer.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/services/siop-verify.ts": {
+    "packages/control-plane/src/services/siop-verify.ts": {
       "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/control-plane/src/services/wallet-registration.ts": {
+    "packages/control-plane/src/services/wallet-registration.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/state.ts": {
+    "packages/control-plane/src/state.ts": {
       "complexity": 1
     },
-    "apps/control-plane/src/ui/interaction-pages.ts": {
+    "packages/control-plane/src/ui/interaction-pages.ts": {
       "max-lines": 789
     },
     "packages/mcp-client/src/server.test.ts": {
@@ -678,22 +678,22 @@
     "apps/pages/src/tutorial/ui/support.test.tsx": {
       "max-lines": 642
     },
-    "apps/worker/src/__tests__/notifications.test.ts": {
+    "packages/identity-worker/src/__tests__/notifications.test.ts": {
       "max-lines": 1131
     },
-    "apps/worker/src/cleanup.ts": {
+    "packages/identity-worker/src/cleanup.ts": {
       "complexity": 1,
       "max-lines": 410,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/worker/src/notifications.ts": {
+    "packages/identity-worker/src/notifications.ts": {
       "complexity": 3,
       "max-lines": 1003,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
-    "apps/worker/src/rotation.ts": {
+    "packages/identity-worker/src/rotation.ts": {
       "complexity": 2,
       "max-depth": 2
     },

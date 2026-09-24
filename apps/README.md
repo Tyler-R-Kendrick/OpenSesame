@@ -29,10 +29,8 @@ binary; the name a process starts under picks the program
 
 | App | Package | Port | Purpose |
 |---|---|---|---|
-| [`control-plane`](control-plane) | `@opensesame/control-plane` | 8788 | **Identity API.** OIDC issuer (oidc-provider), Better Auth upstream sign-in, principals, passkeys, claims, device authorization, SCIM, notifications. Writes `openapi.json`. |
 | [`console`](console) | `@opensesame/console` | 5173 | Operator console for the Identity API. |
 | [`ceremonies`](ceremonies) | `@opensesame/ceremonies` | 5181 | Hosted ceremony pages — one complete, shareable ceremony per route ([ADR 0045](../docs/adr/0045-hosted-ceremony-pages.md)). |
-| [`worker`](worker) | `@opensesame/worker` | — | Identity-plane background loop: drains the outbox onto the TaskBus, fans out webhooks and notifications, prunes expired issuer rows. |
 | [`mobile-mfa`](mobile-mfa) | `@opensesame/mobile-mfa` | — | The phone half of a cross-device approval, and where its authenticators are enrolled. |
 
 ## Client plane

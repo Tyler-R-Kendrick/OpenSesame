@@ -2,7 +2,7 @@
 //!
 //! [`AttestedPeer`] is what a verifier that has *actually* authenticated a
 //! peer fills in. Its callers are enumerated by a source-contract test:
-//! `crates/transport-security` (rustls verifier), `apps/control-plane`'s
+//! `crates/transport-security` (rustls verifier), `packages/control-plane`'s
 //! transport receiver (Node `tls.TLSSocket` facts, via the TS mirror), and
 //! `crates/uds-authn` (kernel peer credentials). It cannot be deserialized, so
 //! no route, header, or manifest can produce one.

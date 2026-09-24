@@ -81,7 +81,7 @@ The connected project carries QuickDeployAI events. Create a dedicated OpenSesam
 
 ### P3 — Docs & DX retrieval
 
-- Publish the generated OpenAPI (`apps/control-plane/openapi.json`) and WIT contracts to a docs site; submit the TS SDK to Context7 indexing so external agents integrating against OpenSesame get correct usage — dogfooding the "agents as users" positioning.
+- Publish the generated OpenAPI (`packages/control-plane/openapi.json`) and WIT contracts to a docs site; submit the TS SDK to Context7 indexing so external agents integrating against OpenSesame get correct usage — dogfooding the "agents as users" positioning.
 - Keep Context7/Microsoft Docs MCPs in the default toolset for sessions touching Better Auth, oidc-provider, or WebAuthn — they change faster than model training data.
 
 ## 3. Sequenced plan

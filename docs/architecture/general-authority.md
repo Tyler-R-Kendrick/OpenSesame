@@ -68,7 +68,7 @@ Prospective, unbuilt, and listed only so two swarms do not pick the same file:
 | Domain | `packages/os-domain` — the record, the narrowing algebra, the invariant assertions |
 | Policy | `spec/openfga/model.fga` (additive delta), `packages/policy` |
 | Host | `crates/host-core` (evaluation), `crates/storage` (a new module, per ADR 0093), `crates/lifecycle` (expiry) |
-| Identity | `apps/control-plane`, `packages/database`, `packages/audit` |
+| Identity | `packages/control-plane`, `packages/database`, `packages/audit` |
 | Client | `packages/app-core/src/lib/local-share-grants.ts` and the Access surfaces |
 | Parity | `packages/capability-registry` plus the per-surface sweeps |
 

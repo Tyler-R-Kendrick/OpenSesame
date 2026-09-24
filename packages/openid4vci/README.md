@@ -9,7 +9,7 @@ authorization of any kind; runtime authority stays server-side.
 
 ## Where it fits
 
-- **Used by:** [`apps/control-plane`](../../apps/control-plane), which backs
+- **Used by:** [`packages/control-plane`](../../packages/control-plane), which backs
   the code and nonce stores durably in `src/repos/openid4vci-stores.ts`.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) and `jose`;
   [`@opensesame/openid4vp`](../openid4vp) is a dev dependency, so tests can

@@ -41,7 +41,7 @@ job.
    new files under `apps/pages/src/sections/`, `apps/pages/src/lib/` or
    `packages/app-core/src/lib/`. Anything a user can now do that no
    capability's `pwa` surface names?
-4. **New Identity API mounts**: `apps/control-plane/src/app.ts` mount table.
+4. **New Identity API mounts**: `packages/control-plane/src/app.ts` mount table.
 5. **Doc honesty**: `skills/opensesame-mcps/SKILL.md` tool lists still match
    `mcpHostCatalog()` / `mcpClientCatalog()`; ADR 0065 still describes the
    rules the tests actually enforce.

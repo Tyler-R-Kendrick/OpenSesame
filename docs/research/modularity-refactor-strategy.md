@@ -272,9 +272,9 @@ is low-risk because the registry is already authoritative in intent.
 
 ### 2.4 OpenAPI — a 2,738-line hand-written document
 
-**Now:** `apps/control-plane/src/openapi.ts` is a hand-authored OpenAPI 3.1
+**Now:** `packages/control-plane/src/openapi.ts` is a hand-authored OpenAPI 3.1
 document. It declares 77 paths. The route modules under
-`apps/control-plane/src/routes/` contain 703 method registrations.
+`packages/control-plane/src/routes/` contain 703 method registrations.
 
 The two numbers are not directly comparable — the 703 includes sub-app mounts
 and middleware, so the real route count is lower — but the gap is large and

@@ -102,7 +102,7 @@ describe("createOpenSesame", () => {
   });
 
   // The control plane mounts /v1/principals/provisional and answers in the
-  // product API's camelCase shape (apps/control-plane/src/routes/principals.ts).
+  // product API's camelCase shape (packages/control-plane/src/routes/principals.ts).
   // Pin both here: mocking a path or shape the server does not serve is how the
   // guest button ships broken while CI stays green.
   it("continueAnonymously stores session from control plane", async () => {
@@ -201,7 +201,7 @@ describe("createOpenSesame", () => {
     });
   });
 
-  // The control plane mounts these under /v1 (apps/control-plane/src/app.ts).
+  // The control plane mounts these under /v1 (packages/control-plane/src/app.ts).
   // Pin the paths here: a prefix that does not exist on the server makes every
   // claim ceremony fail with a 404 that looks like a permissions problem.
   it("calls the control plane paths the server actually mounts", async () => {

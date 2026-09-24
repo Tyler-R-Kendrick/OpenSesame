@@ -82,8 +82,8 @@ Do not add a suite that only documents the happy path.
 
 Reference call sites: `crates/gateway/src/github_webhook.rs`,
 `crates/gateway/src/lib.rs` (`pact_coverage`),
-`apps/control-plane/src/__tests__/pact-chaos.test.ts`,
-`apps/worker/src/__tests__/pact.test.ts`,
+`packages/control-plane/src/__tests__/pact-chaos.test.ts`,
+`packages/identity-worker/src/__tests__/pact.test.ts`,
 `crates/gateway/src/callback_ingress/mod.rs`,
 `crates/daemon/src/lib.rs`,
 `packages/app-core/src/lib/pact.test.ts`,
@@ -104,6 +104,6 @@ Reference call sites: `crates/gateway/src/github_webhook.rs`,
 `tests/visual-contract/src/compare.pact.test.ts`,
 `tests/visual-contract/tests/vault-visual-contract.spec.ts`,
 `packages/mcp-host/src/pact.test.ts`,
-`apps/control-plane/src/__tests__/siop-bridge.pact.test.ts`,
+`packages/control-plane/src/__tests__/siop-bridge.pact.test.ts`,
 `packages/siop-v2/src/request.property.test.ts`,
 `packages/siop-v2/src/security.adversarial.test.ts`.

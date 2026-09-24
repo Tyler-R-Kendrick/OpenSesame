@@ -20,7 +20,7 @@ disposed on consumption.
 - `openDrop(manifest, fragmentKey) → DropPayload` — decrypt + digest verify.
 - `createDropSession(manifest, ttlMs) → {claimId, bearerToken, userCode,
   verifyUrl}` — `POST /v1/claims` (verify the create shape in
-  `apps/control-plane/src/routes/claims.ts:165-269` FIRST; if manifest-only
+  `packages/control-plane/src/routes/claims.ts:165-269` FIRST; if manifest-only
   sessions are refused, STOP and report — the fallback route is an ADR 0062
   decision, don't improvise it).
 - `pollDrop(claimId)` — `GET /v1/claims/:id/poll` → state mapping

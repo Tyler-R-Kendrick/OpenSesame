@@ -91,7 +91,7 @@ design.
   native side.
 
 **Identity plane.**
-- `apps/control-plane` reads `OPENSESAME_FEDCM_ENABLED` into
+- `packages/control-plane` reads `OPENSESAME_FEDCM_ENABLED` into
   `config-protocol-features.ts:35`, and nothing consumes it. There are no
   FedCM endpoints.
 - `packages/openid4vp` builds Digital Credentials API requests for the

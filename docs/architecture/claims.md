@@ -25,4 +25,4 @@ Accepted subsets must preserve dependency closure; otherwise typed conflict.
 
 ## Worker
 
-Expired claims and provisional resources are cleaned by `@opensesame/worker` with injected clocks in tests.
+Expired claims and provisional resources are cleaned by `@opensesame/identity-worker` with injected clocks in tests.

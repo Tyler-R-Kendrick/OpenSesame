@@ -5,7 +5,7 @@
  * Certificates are minted by the system `openssl` CLI into a temporary
  * directory that the caller removes; nothing is committed and no system trust
  * store is touched. The endpoint is the Identity plane's real TLS listener
- * (`apps/control-plane/src/transport/listener.ts`) started through
+ * (`packages/control-plane/src/transport/listener.ts`) started through
  * `identity-listener.mts`, so a browser result here is a result about a
  * shipped endpoint rather than about a mock written for the occasion.
  *
@@ -184,7 +184,7 @@ export function writeBindings(dir, operation) {
  * or the harness is missing.
  */
 export async function startIdentityEndpoint({ repoRoot, pki, bindings, dir }) {
-  const tsx = resolve(repoRoot, "apps/control-plane/node_modules/.bin/tsx");
+  const tsx = resolve(repoRoot, "packages/control-plane/node_modules/.bin/tsx");
   const script = resolve(
     repoRoot,
     "tests/mtls-interop/harness/identity-listener.mts",

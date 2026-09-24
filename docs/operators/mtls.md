@@ -30,7 +30,7 @@ Every native TLS consumer reads the same variable names under its own prefix
 `OPENSESAME_CALLOUT_TLS` (auth bridge → Host client) and
 `OPENSESAME_CONNECTOR_TLS` (default upstream trust for a private HTTPS
 integration). The loader is `opensesame_transport_security::env`. Identity
-(Node, `apps/control-plane/src/transport/config.ts`) reads a smaller,
+(Node, `packages/control-plane/src/transport/config.ts`) reads a smaller,
 PEM-only set of `OPENSESAME_TLS_*` names described under
 [Host → Identity mapping](#host--identity-mapping).
 

@@ -5,7 +5,7 @@
  * Nothing is reimplemented here: `loadTransportConfig`,
  * `loadTransportMaterial`, `createTransportListener`, `peerOf`,
  * `parseServiceBindings` and `admitService` are the shipped
- * `apps/control-plane/src/transport` modules. This file only supplies a raw
+ * `packages/control-plane/src/transport` modules. This file only supplies a raw
  * dispatcher so the two outcomes are visible from the wire:
  *
  *   * the handshake completed and admission allowed the operation → `200`
@@ -27,7 +27,7 @@ import {
   loadTransportConfig,
   loadTransportMaterial,
   peerOf,
-} from "../../../apps/control-plane/src/transport/index.js";
+} from "../../../packages/control-plane/src/transport/index.js";
 
 const config = loadTransportConfig(process.env);
 if (!config.listener) {
