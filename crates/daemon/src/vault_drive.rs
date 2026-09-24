@@ -114,14 +114,21 @@ pub fn valid_slot(slot: &str) -> bool {
 }
 
 fn digest_hex(key: &str) -> String {
+    use std::fmt::Write as _;
     Sha256::digest(key.as_bytes())
         .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+        .fold(String::with_capacity(64), |mut hex, b| {
+            let _ = write!(hex, "{b:02x}");
+            hex
+        })
 }
 
 fn same(a: &str, b: &str) -> bool {
-    a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+    a.len() == b.len()
+        && a.bytes()
+            .zip(b.bytes())
+            .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+            == 0
 }
 
 fn now() -> String {
@@ -160,7 +167,9 @@ impl DriveStore {
     }
 
     fn guard(&self) -> std::sync::MutexGuard<'_, ()> {
-        self.lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+        self.lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     fn ensure_dir(&self) -> io::Result<()> {

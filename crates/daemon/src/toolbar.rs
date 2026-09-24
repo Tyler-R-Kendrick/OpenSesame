@@ -24,7 +24,11 @@ pub(crate) fn pairing_view(st: &App) -> Value {
     })
 }
 
-pub(crate) async fn toolbar_status(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
+pub(crate) async fn toolbar_status(
+    State(st): State<App>,
+    uds: UdsPeer,
+    headers: HeaderMap,
+) -> Response {
     if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }

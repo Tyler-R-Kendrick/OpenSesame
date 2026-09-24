@@ -8,9 +8,10 @@
  * only while this capability is in the plan; the connector page each tile
  * opens belongs to `connectors.external`.
  *
- * Contributed: the tailnet sync observer as a background job. It follows the
+ * Contributed: the tailnet sync observer as a background job — it follows the
  * vault store and, for a vault paired with a drive, runs a pass on unlock,
- * shortly after each change, and once a minute.
+ * shortly after each change, and once a minute — and the Tailnet sync panel
+ * under Settings › Vaults, where a vault is paired.
  *
  * Egress this module wraps: `GET` and `PUT` of one sealed snapshot at
  * `{drive}/v1/vault-drive/slots/{slot}/snapshot` on the tailnet drive a
@@ -24,6 +25,7 @@ import {
   stopTailnetSync,
 } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { createActivation } from "../activation.js";
+import { TailnetSyncPanel } from "./TailnetSyncPanel.js";
 
 export const CAPABILITY = "networking.tailnet";
 
@@ -45,6 +47,12 @@ export const capabilityRuntime: CapabilityRuntime = {
       },
     });
     activation.onDispose(stopTailnetSync);
+    activation.register("settings-panel", {
+      id: "tailnet-sync",
+      category: "vaults",
+      Panel: TailnetSyncPanel,
+      order: 10,
+    });
 
     return activation.handle();
   },

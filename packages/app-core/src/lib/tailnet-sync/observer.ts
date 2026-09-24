@@ -147,8 +147,9 @@ function onVaultChange(): void {
 /**
  * Pair this device with a drive from a pasted code. With a vault open, the
  * first pass must succeed before the pairing is kept — a drive holding another
- * vault is refused, not overwritten. With none, the vault is set up from the
- * drive and the pairing waits for it to be unlocked.
+ * vault is refused, not overwritten. With none (a new device, or a guest
+ * session, which never touches the personal tomb), the vault is set up from
+ * the drive and the pairing waits for it to be unlocked.
  */
 export async function pairTailnetDrive(
   code: string,
@@ -156,9 +157,10 @@ export async function pairTailnetDrive(
   const next = parsePairingCode(code);
   if (!next) throw new Error("That is not a drive pairing code.");
   const snap = vaultStore.getSnapshot();
-  if (snap.status === "empty") {
+  if (snap.status === "empty" || snap.guest) {
     await adoptFromDrive(next, tailnetSyncSeams.transport);
     holdPendingPairing(next);
+    if (snap.guest) vaultStore.lock({ recordLastVault: false });
     vaultStore.rehydrate();
     return "adopted";
   }

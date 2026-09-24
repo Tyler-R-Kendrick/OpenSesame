@@ -109,7 +109,10 @@ fn files_are_private_to_this_user() {
     store.write(&view.slot, &key, 0, b"{}").unwrap();
     let mode = |path: PathBuf| fs::metadata(path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode(dir.clone()), 0o700);
-    assert_eq!(mode(dir.join(format!("{}.snapshot.json", view.slot))), 0o600);
+    assert_eq!(
+        mode(dir.join(format!("{}.snapshot.json", view.slot))),
+        0o600
+    );
     assert_eq!(mode(dir.join(format!("{}.meta.json", view.slot))), 0o600);
     let _ = fs::remove_dir_all(dir);
 }

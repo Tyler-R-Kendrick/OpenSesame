@@ -30,11 +30,15 @@ pub enum DriveCmd {
     Rm { slot: String },
 }
 
-/// The link a phone camera can open: the code rides in the fragment, which a
-/// browser never sends to the server hosting the app.
+/// The link a phone camera can open, at Settings › Vaults where the pairing
+/// panel reads it: the code rides in the fragment, which a browser never sends
+/// to the server hosting the app.
 pub fn pairing_link(pages_url: &str, code: &str) -> String {
     let base = pages_url.split('#').next().unwrap_or(pages_url);
-    format!("{base}#pair-drive={code}")
+    format!(
+        "{}/settings/vaults#pair-drive={code}",
+        base.trim_end_matches('/')
+    )
 }
 
 fn operator(req: reqwest::RequestBuilder, token: Option<&str>) -> reqwest::RequestBuilder {
@@ -77,7 +81,10 @@ pub async fn run(base: &str, token: Option<&str>, cmd: DriveCmd) -> anyhow::Resu
             let created = send(operator(client.post(&slots).json(&body), token), "create").await?;
             let code = created["pairing_code"].as_str().unwrap_or_default();
             let link = pairing_link(&pages_url, code);
-            println!("slot   {}", created["slot"]["slot"].as_str().unwrap_or_default());
+            println!(
+                "slot   {}",
+                created["slot"]["slot"].as_str().unwrap_or_default()
+            );
             println!("drive  {}", created["url"].as_str().unwrap_or_default());
             println!("code   {code}");
             println!("link   {link}");
@@ -108,11 +115,11 @@ mod tests {
         let link = pairing_link("https://example.test/app/", "opensesame-drive:v1:abc");
         assert_eq!(
             link,
-            "https://example.test/app/#pair-drive=opensesame-drive:v1:abc"
+            "https://example.test/app/settings/vaults#pair-drive=opensesame-drive:v1:abc"
         );
         assert_eq!(
-            pairing_link("https://example.test/app/#old", "c"),
-            "https://example.test/app/#pair-drive=c"
+            pairing_link("https://example.test/app#old", "c"),
+            "https://example.test/app/settings/vaults#pair-drive=c"
         );
     }
 

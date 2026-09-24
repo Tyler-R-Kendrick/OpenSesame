@@ -20,7 +20,10 @@ async fn call(app: &Router, request: Request<Body>) -> (StatusCode, Value) {
     let response = app.clone().oneshot(request).await.unwrap();
     let status = response.status();
     let bytes = to_bytes(response.into_body(), 1 << 20).await.unwrap();
-    (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
 }
 
 fn operator(method: &str, uri: &str, body: &Value) -> Request<Body> {
@@ -127,10 +130,15 @@ async fn the_drive_refuses_what_is_not_a_vault_snapshot() {
 #[tokio::test]
 async fn a_browser_cannot_open_or_list_slots() {
     let (app, dir) = app("browser");
-    let mut request = operator("POST", "/v1/vault-drive/slots", &json!({ "url": "https://x.ts.net" }));
-    request
-        .headers_mut()
-        .insert("origin", "https://tyler-r-kendrick.github.io".parse().unwrap());
+    let mut request = operator(
+        "POST",
+        "/v1/vault-drive/slots",
+        &json!({ "url": "https://x.ts.net" }),
+    );
+    request.headers_mut().insert(
+        "origin",
+        "https://tyler-r-kendrick.github.io".parse().unwrap(),
+    );
     let (status, _) = call(&app, request).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     let (status, _) = call(

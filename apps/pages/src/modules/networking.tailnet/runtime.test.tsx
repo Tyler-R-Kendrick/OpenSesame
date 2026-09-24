@@ -23,11 +23,11 @@ describe("networking.tailnet runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("networking.tailnet");
   });
 
-  it("registers only the tailnet sync job", async () => {
+  it("registers the sync job and the Vaults panel", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "networking.tailnet",
-      kinds: ["background-job"],
-      count: 1,
+      kinds: ["background-job", "settings-panel"],
+      count: 2,
     });
   });
 
