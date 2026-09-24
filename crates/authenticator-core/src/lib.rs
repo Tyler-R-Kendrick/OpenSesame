@@ -14,8 +14,8 @@ use url::Url;
 
 mod otp;
 pub use otp::{
-    find_otpauth_in_trailer, hotp_code, parse_otpauth, sync_trailer_otp, totp_code,
-    validate_otpauth, OtpAlgorithm, OtpError, OtpKind, OtpUri,
+    find_otpauth_in_trailer, hotp_code, parse_hotp, parse_otpauth, parse_totp, sync_trailer_otp,
+    totp_code, validate_otpauth, OtpAlgorithm, OtpError, OtpKind, OtpUri,
 };
 
 const MAX_REQUEST_ID_LEN: usize = 128;

@@ -59,31 +59,79 @@ function normalizeAlgorithm(raw: string | null): TotpConfig["algorithm"] {
   }
 }
 
+/**
+ * A decimal parameter in `[min, max]`, or the default when absent. An invalid
+ * value is refused, never replaced: a code computed from other parameters than
+ * the issuer's is wrong (spec/conformance/otp-cases.json).
+ */
+function integerParam(
+  value: string | null,
+  fallback: number,
+  min: number,
+  max: number,
+  what: string,
+): number {
+  if (value === null) return fallback;
+  const n = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+  if (!Number.isSafeInteger(n) || n < min || n > max) {
+    throw new TotpParseError(`the ${what} is invalid`);
+  }
+  return n;
+}
+
+type OtpauthUri = {
+  params: (name: string) => string | null;
+  secret: Uint8Array;
+  digits: number;
+  algorithm: TotpConfig["algorithm"];
+};
+
+function parseOtpauth(raw: string, kind: "totp" | "hotp"): OtpauthUri {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    throw new TotpParseError("the otpauth URI is malformed");
+  }
+  if (url.protocol !== "otpauth:" || url.hostname.toLowerCase() !== kind) {
+    throw new TotpParseError(`the URI is not ${kind.toUpperCase()}`);
+  }
+  if (url.username || url.password || url.hash) {
+    throw new TotpParseError("credentials and fragments are forbidden");
+  }
+  const params = (name: string): string | null => {
+    const values = url.searchParams.getAll(name);
+    if (values.length > 1) throw new TotpParseError(`repeated ${name}`);
+    return values[0] ?? null;
+  };
+  const secret = params("secret");
+  if (!secret)
+    throw new TotpParseError("the otpauth URI has no secret parameter");
+  return {
+    params,
+    secret: decodeBase32(secret),
+    digits: integerParam(params("digits"), 6, 6, 10, "digit count"),
+    algorithm: normalizeAlgorithm(params("algorithm")),
+  };
+}
+
 function parseTotpDefault(raw: string): TotpConfig {
   const trimmed = raw.trim();
   if (!trimmed) throw new TotpParseError("the secret is empty");
 
-  if (/^otpauth:\/\//i.test(trimmed)) {
-    let url: URL;
-    try {
-      url = new URL(trimmed);
-    } catch {
-      throw new TotpParseError("the otpauth URI is malformed");
-    }
-    if (url.protocol !== "otpauth:" || url.hostname.toLowerCase() !== "totp") {
-      throw new TotpParseError("the URI is not TOTP");
-    }
-    const secret = url.searchParams.get("secret");
-    if (!secret)
-      throw new TotpParseError("the otpauth URI has no secret parameter");
-    const digits = Number(url.searchParams.get("digits") ?? 6);
-    const period = Number(url.searchParams.get("period") ?? 30);
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    const uri = parseOtpauth(trimmed, "totp");
     return {
-      secret: decodeBase32(secret),
-      digits:
-        Number.isFinite(digits) && digits >= 6 && digits <= 10 ? digits : 6,
-      period: Number.isFinite(period) && period > 0 ? period : 30,
-      algorithm: normalizeAlgorithm(url.searchParams.get("algorithm")),
+      secret: uri.secret,
+      digits: uri.digits,
+      period: integerParam(
+        uri.params("period"),
+        30,
+        1,
+        Number.MAX_SAFE_INTEGER,
+        "period",
+      ),
+      algorithm: uri.algorithm,
     };
   }
 
@@ -129,30 +177,21 @@ async function hmacOtpCode(
 
 /** Parse a counter-based RFC 4226 otpauth URI. */
 export function parseHotp(raw: string): HotpConfig {
-  const trimmed = raw.trim();
-  let url: URL;
-  try {
-    url = new URL(trimmed);
-  } catch {
-    throw new TotpParseError("the otpauth URI is malformed");
-  }
-  if (url.protocol !== "otpauth:" || url.hostname.toLowerCase() !== "hotp") {
-    throw new TotpParseError("the URI is not HOTP");
-  }
-  const secret = url.searchParams.get("secret");
-  if (!secret)
-    throw new TotpParseError("the otpauth URI has no secret parameter");
-  const digits = Number(url.searchParams.get("digits") ?? 6);
-  const counterRaw = url.searchParams.get("counter");
-  const counter = counterRaw === null ? Number.NaN : Number(counterRaw);
-  if (!Number.isSafeInteger(counter) || counter < 0) {
+  const uri = parseOtpauth(raw, "hotp");
+  const counterRaw = uri.params("counter");
+  if (counterRaw === null)
     throw new TotpParseError("the HOTP counter is missing or invalid");
-  }
   return {
-    secret: decodeBase32(secret),
-    digits: Number.isFinite(digits) && digits >= 6 && digits <= 10 ? digits : 6,
-    counter,
-    algorithm: normalizeAlgorithm(url.searchParams.get("algorithm")),
+    secret: uri.secret,
+    digits: uri.digits,
+    counter: integerParam(
+      counterRaw,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER,
+      "HOTP counter",
+    ),
+    algorithm: uri.algorithm,
   };
 }
 
