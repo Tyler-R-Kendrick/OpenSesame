@@ -113,10 +113,10 @@ function httpsOnly(value: BoundaryValue): string | undefined {
   }
 }
 
-export function routingClient(
-  transport: RoutingTransport = identityRoutingTransport,
-) {
-  async function call(path: string, init: RequestInit): Promise<JsonObject> {
+type Call = (path: string, init: RequestInit) => Promise<JsonObject>;
+
+function caller(transport: RoutingTransport): Call {
+  return async (path, init) => {
     let res: Response;
     try {
       res = await transport.fetch(path, {
@@ -131,13 +131,11 @@ export function routingClient(
     const read = isJsonObject(body) ? body : {};
     if (res.ok) return read;
     throw new RoutingError(res.status, isString(read.error) ? read.error : "");
-  }
-  const put = (body: string): RequestInit => ({
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body,
-  });
+  };
+}
 
+/** The listing, the preferences and the effective route. */
+function readsAndPreferences(call: Call) {
   return {
     async channels(): Promise<ChannelRow[]> {
       return readChannels(
@@ -160,10 +158,11 @@ export function routingClient(
     async savePreferences(
       document: NotificationRoutingDocument,
     ): Promise<void> {
-      await call(
-        "/v1/notification-preferences",
-        put(JSON.stringify(routingToWire(document))),
-      );
+      await call("/v1/notification-preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(routingToWire(document)),
+      });
     },
     async effectiveRoute(cls: NotificationClass): Promise<EffectiveRoute> {
       const query = new URLSearchParams({ class: cls });
@@ -173,6 +172,12 @@ export function routingClient(
         }),
       );
     },
+  };
+}
+
+/** A person's destinations: begin connecting one, or disconnect it. */
+function destinations(call: Call) {
+  return {
     /**
      * Begin connecting a destination. A channel with no provider subject to
      * bind, or no adapter here, is refused before any call.
@@ -220,6 +225,13 @@ export function routingClient(
       return `Disconnected. Nothing else will be delivered to that ${binding.name} destination.`;
     },
   };
+}
+
+export function routingClient(
+  transport: RoutingTransport = identityRoutingTransport,
+) {
+  const call = caller(transport);
+  return { ...readsAndPreferences(call), ...destinations(call) };
 }
 
 export type RoutingClient = ReturnType<typeof routingClient>;

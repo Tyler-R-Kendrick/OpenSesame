@@ -195,10 +195,10 @@ export function federatedRedirectUri(base: string): string {
   return `${base.replace(/\/$/, "")}/v1/federated/callback`;
 }
 
-export function orgSignInClient(
-  transport: OrgSignInTransport = identityOrgSignInTransport,
-) {
-  async function call(path: string, init: RequestInit): Promise<BoundaryValue> {
+type Call = (path: string, init: RequestInit) => Promise<BoundaryValue>;
+
+function caller(transport: OrgSignInTransport): Call {
+  return async (path, init) => {
     let res: Response;
     try {
       res = await transport.fetch(path, {
@@ -218,14 +218,19 @@ export function orgSignInClient(
     const read: JsonObject = isJsonObject(body) ? body : {};
     const detail = isString(read.message) ? read.message : null;
     throw new OrgSignInError(res.status, text(read.error), detail);
-  }
-  const at = (org: OrgSignInOrganization, tail = "") =>
-    `/v1/organizations/${encodeURIComponent(org.id)}${tail}`;
-  /** Every write is an owner's; a member is refused before any call. */
-  function owned(org: OrgSignInOrganization): void {
-    if (!org.owner) throw new OrgSignInError(403, "not_owner");
-  }
+  };
+}
 
+const at = (org: OrgSignInOrganization, tail = "") =>
+  `/v1/organizations/${encodeURIComponent(org.id)}${tail}`;
+
+/** Every write is an owner's; a member is refused before any call. */
+function owned(org: OrgSignInOrganization): void {
+  if (!org.owner) throw new OrgSignInError(403, "not_owner");
+}
+
+/** The session's organizations and an owner's upstream. */
+function upstreams(call: Call, transport: OrgSignInTransport) {
   return {
     redirectUri: () => federatedRedirectUri(transport.base()),
     async listOrganizations(): Promise<OrgSignInOrganization[]> {
@@ -246,6 +251,12 @@ export function orgSignInClient(
       });
       return "Organization sign-in saved.";
     },
+  };
+}
+
+/** Email domains: claim, verify, release. */
+function domains(call: Call) {
+  return {
     async listDomains(org: OrgSignInOrganization): Promise<EmailDomainRow[]> {
       owned(org);
       const body = await call(at(org, "/domains"), { method: "GET" });
@@ -289,6 +300,12 @@ export function orgSignInClient(
       await call(path, { method: "DELETE" });
       return `${domain} released.`;
     },
+  };
+}
+
+/** SCIM provisioning tokens: the plaintext once, then ids and dates. */
+function tokens(call: Call) {
+  return {
     async listTokens(org: OrgSignInOrganization): Promise<ScimTokenRow[]> {
       owned(org);
       const body = await call(at(org, "/scim/tokens"), { method: "GET" });
@@ -313,6 +330,17 @@ export function orgSignInClient(
       await call(path, { method: "DELETE" });
       return "Provisioning token revoked.";
     },
+  };
+}
+
+export function orgSignInClient(
+  transport: OrgSignInTransport = identityOrgSignInTransport,
+) {
+  const call = caller(transport);
+  return {
+    ...upstreams(call, transport),
+    ...domains(call),
+    ...tokens(call),
   };
 }
 
