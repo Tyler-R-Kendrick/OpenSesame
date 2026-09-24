@@ -1,0 +1,173 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "fill": {
+            "label": "Seal a new vault",
+            "text": "Work"
+          }
+        },
+        {
+          "press": "Create vault"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "count": [
+            ".travel__row",
+            "[role=switch][aria-label^='Safe for travel']"
+          ]
+        },
+        {
+          "shot": "390-travel-plan"
+        },
+        {
+          "pressOptional": "Pack the rest for travel"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "report": ".travel__code"
+        },
+        {
+          "shot": "390-travel-packed"
+        },
+        {
+          "checkOptional": "The bundle is saved somewhere other than this device"
+        },
+        {
+          "checkOptional": "The return code is written down, and it stays home"
+        },
+        {
+          "pressOptional": "Take them off this device"
+        },
+        {
+          "scrollToOptional": "Vaults on this device"
+        },
+        {
+          "report": ".travel__notice"
+        },
+        {
+          "count": [
+            ".vault-row"
+          ]
+        },
+        {
+          "shot": "390-travel-departed"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "fill": {
+            "label": "Seal a new vault",
+            "text": "Work"
+          }
+        },
+        {
+          "press": "Create vault"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "shot": "1280-travel-plan"
+        },
+        {
+          "pressOptional": "Pack the rest for travel"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "measure": ".travel__code"
+        },
+        {
+          "shot": "1280-travel-packed"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-travel-plan",
+      "width": 390,
+      "title": "Settings \u203a Vaults \u203a Travel, marking what travels \u2014 390 \u00d7 844",
+      "caption": "A password vault is sealed, then a second vault, Work, is sealed with the same key and opened. Settings \u203a Vaults, scrolled to Travel. The base has no Travel panel, so Item types comes straight after the vault form. On the branch, each sealed vault is a row with a 'Safe for travel' switch. The open vault is on and cannot be switched off. Every other vault stays home by default. The commit key is 'Pack the rest for travel'.",
+      "before": ".travel__row 0, Safe-for-travel switches 0",
+      "after": ".travel__row 2, Safe-for-travel switches 2 (Work: open \u00b7 travels, on and disabled; personal: stays home)"
+    },
+    {
+      "shot": "390-travel-packed",
+      "width": 390,
+      "title": "Packed: the bundle, the return code, two acknowledgements \u2014 390 \u00d7 844",
+      "caption": "After 'Pack the rest for travel'. So far nothing has been removed. The panel lists what leaves (personal, 6 files), the bundle to save (the file name carries no vault name or date), and the return code, shown once as text. It is never put on the clipboard. 'Take them off this device' stays disabled until both boxes are ticked. The base build has no such step.",
+      "before": ".travel__code: none",
+      "after": ".travel__code: 32 base32 chars in 8 groups (P6FR-OPNO-\u2026-7HPB); commit disabled until both acknowledgements"
+    },
+    {
+      "shot": "390-travel-departed",
+      "width": 390,
+      "title": "Departed: the receipt, and the vault list \u2014 390 \u00d7 844",
+      "caption": "Both boxes ticked, then 'Take them off this device'. The receipt is read back from the device. The personal tomb's files are gone, so the one vault list (ADR 0089) now shows personal as 'not sealed yet', the same as a fresh device. Only Work is left to mark. In the base, the same steps leave the device unchanged.",
+      "before": ".vault-row 3 (personal sealed, Work, guest); no receipt",
+      "after": "'1 vault left this device \u00b7 6 files removed'; .vault-row 3 (personal not sealed yet, Work open, guest)"
+    },
+    {
+      "shot": "1280-travel-plan",
+      "width": 1280,
+      "title": "Settings \u203a Vaults \u203a Travel \u2014 1280 \u00d7 800",
+      "caption": "Desktop, mouse context, same device state. The Travel panel sits between Vaults on this device and Item types. The panel head carries one key, 'Bring vaults home', which opens the return form (bundle file and return code).",
+      "before": "no Travel heading",
+      "after": "Travel panel: 2 rows, 2 switches, one head key"
+    },
+    {
+      "shot": "1280-travel-packed",
+      "width": 1280,
+      "title": "Packed \u2014 1280 \u00d7 800",
+      "caption": "The packed step at desktop width. The return code fits on one line.",
+      "before": ".travel__code: none",
+      "after": ".travel__code 960\u00d726 at (280, 218), one line"
+    }
+  ]
+}
