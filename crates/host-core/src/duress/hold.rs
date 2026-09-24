@@ -42,7 +42,7 @@ impl IndependentHold {
         )
     }
 
-    /// Observe client/host clock. Expiry moves Active → DelayElapsed only.
+    /// Observe client/host clock. Expiry moves `Active` → `DelayElapsed` only.
     pub fn observe_clock(&mut self, now_ms: u64) {
         if self.phase != HoldPhase::Active {
             return;

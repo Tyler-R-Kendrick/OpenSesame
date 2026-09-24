@@ -61,6 +61,7 @@ import { FrontDoor } from "./FrontDoor.js";
 import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
+import { useJoinRoad } from "./join/JoinRoad.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
@@ -91,12 +92,9 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * Sign-in is the first screen, and nothing gates it (ADR 0090): the broker
- * runs in the browser, guest seals a local vault, a local-only seal needs
- * nothing. Setup lives behind unlock; the front door's "Set up your own" is
- * the only pre-unlock setup path, and an invite link opens join directly. A
- * managed instance's required roots (`RequirementsGate`) sit beside sign-in,
- * never in front of it. The split keeps the early return above the hooks.
+ * Sign-in is the first screen, and nothing gates it (ADR 0090). The front
+ * door offers setup and joining beside it, an invite link opens join itself
+ * (ADR 0136), and a managed instance's required roots sit beside sign-in.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
@@ -109,14 +107,14 @@ export function UnlockScreen() {
     unlockScreenDependencies.deviceHasSeveralVaults(),
   );
   const providers = useFederatedProviders();
+  const join = useJoinRoad();
   // A locked screen is idle time: ask the service worker for a newer shell.
   useEffect(() => {
     void checkForAppUpdate();
   }, []);
-  // The front door (ADR 0115): no vault and no setup record opens on the
-  // roads made large, sign-in whole beneath them; the local-only seal and an
-  // answered or skipped ceremony retire it. Guest prepare leaves status
-  // empty (no wrap on disk) — that is Unlock, not the front door.
+  // The front door (ADR 0115): no vault and no setup record. The local-only
+  // seal, a join, and an answered or skipped ceremony retire it; guest
+  // prepare leaves status empty (no wrap on disk), which is Unlock.
   const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
   const frontDoor =
     status === "empty" &&
@@ -124,6 +122,7 @@ export function UnlockScreen() {
     !localOnlyPicked &&
     unlockScreenDependencies.loadSetup() === null;
 
+  if (join.screen) return join.screen;
   if (ceremony) {
     return (
       <SetupScreen
@@ -146,6 +145,7 @@ export function UnlockScreen() {
       <FrontDoor
         providers={providers}
         onOpenSetup={(join) => setCeremony({ step: undefined, join })}
+        onOpenJoin={join.open}
         onUseLocalOnly={() => setLocalOnlyPicked(true)}
       />
     );

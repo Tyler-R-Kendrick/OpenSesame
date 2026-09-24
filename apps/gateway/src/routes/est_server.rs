@@ -67,7 +67,9 @@ pub fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/certmgr/profiles/{id}/est-config",
-            get(get_config).put(put_config).layer(DefaultBodyLimit::max(MAX_CSR_BODY)),
+            get(get_config)
+                .put(put_config)
+                .layer(DefaultBodyLimit::max(MAX_CSR_BODY)),
         )
 }
 
@@ -206,10 +208,10 @@ pub async fn put_config(
         Ok(found) => found,
         Err(error) => return internal(error, "read est config"),
     };
-    let id = existing
-        .as_ref()
-        .map(|config| config.id.clone())
-        .unwrap_or_else(|| format!("est-config:{profile_id}"));
+    let id = existing.as_ref().map_or_else(
+        || format!("est-config:{profile_id}"),
+        |config| config.id.clone(),
+    );
     let sealed_passphrase = match body.passphrase.as_deref() {
         Some(passphrase) => {
             let blob = match seal_scoped(
@@ -337,15 +339,12 @@ async fn enroll(
         Ok(der) => der,
         Err(response) => return response,
     };
-    let facts = match opensesame_pki_core::csr::parse_csr_der(&csr_der) {
-        Ok(facts) => facts,
-        Err(_) => {
-            return refuse(
-                StatusCode::BAD_REQUEST,
-                "csr_invalid",
-                "the PKCS#10 request is malformed or fails proof of possession",
-            )
-        }
+    let Ok(facts) = opensesame_pki_core::csr::parse_csr_der(&csr_der) else {
+        return refuse(
+            StatusCode::BAD_REQUEST,
+            "csr_invalid",
+            "the PKCS#10 request is malformed or fails proof of possession",
+        );
     };
     let policy = match st
         .db

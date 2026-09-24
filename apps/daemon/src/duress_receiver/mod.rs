@@ -9,20 +9,22 @@
 mod origin;
 mod verify;
 
-pub use origin::{assert_safe_peer_origin, is_allowed_peer_path};
-pub use verify::{EnvelopeVerifyExpect, PeerEnvelopeView, ReplayCache, parse_verifying_key_b64, verify_envelope_view};
+pub use verify::{
+    parse_verifying_key_b64, verify_envelope_view, EnvelopeVerifyExpect, PeerEnvelopeView,
+    ReplayCache,
+};
 
 use axum::{
-    Json, Router,
     body::Bytes,
     extract::State,
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
+    Json, Router,
 };
+use p256::ecdsa::VerifyingKey;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use p256::ecdsa::VerifyingKey;
 use std::sync::{Arc, Mutex};
 
 const MAX_BODY: usize = 32_768;
@@ -60,6 +62,7 @@ impl DuressReceiverState {
 /// Bound router — only `/v1/duress/peer/{health,envelope}`.
 /// Prefer mounting via `main.rs` with `require_operator` instead of merging this
 /// router alone (unauthenticated merge is rejected by HOST security policy).
+#[allow(dead_code)] // Never mounted: main.rs serves these paths behind require_operator; kept pending a HOST decision (PEER-to-HOST.md).
 pub fn router(state: DuressReceiverState) -> Router {
     Router::new()
         .route("/v1/duress/peer/health", get(health))
@@ -67,14 +70,14 @@ pub fn router(state: DuressReceiverState) -> Router {
         .with_state(state)
 }
 
+#[allow(dead_code)] // Handler of the unmounted `router` above; main.rs calls receive_envelope_response directly.
 async fn receive_envelope_axum(
     State(st): State<DuressReceiverState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> axum::response::Response {
-    receive_envelope_response(st, headers, body).await
+    receive_envelope_response(&st, &headers, &body)
 }
-
 
 /// Health JSON after operator/UDS gate in the daemon.
 pub fn peer_health_response(peer: Option<&DuressReceiverState>) -> axum::response::Response {
@@ -93,6 +96,7 @@ pub fn peer_health_response(peer: Option<&DuressReceiverState>) -> axum::respons
     .into_response()
 }
 
+#[allow(dead_code)] // Handler of the unmounted `router` above; main.rs serves peer_health_response instead.
 async fn health(State(st): State<DuressReceiverState>) -> impl IntoResponse {
     Json(json!({
         "ok": true,
@@ -152,16 +156,24 @@ struct ReceiptBody {
 }
 
 /// Public entry used by the daemon after operator/UDS auth.
-pub async fn receive_envelope_response(
-    st: DuressReceiverState,
-    headers: HeaderMap,
-    body: Bytes,
+pub fn receive_envelope_response(
+    st: &DuressReceiverState,
+    headers: &HeaderMap,
+    body: &[u8],
 ) -> axum::response::Response {
     if body.len() > MAX_BODY {
-        return (StatusCode::PAYLOAD_TOO_LARGE, Json(json!({"ok": false, "code": "unsupported_factor"}))).into_response();
+        return (
+            StatusCode::PAYLOAD_TOO_LARGE,
+            Json(json!({"ok": false, "code": "unsupported_factor"})),
+        )
+            .into_response();
     }
     // Bound header: require peer marker; reject unexpected authn trampolines.
-    if headers.get("x-opensesame-duress-peer").and_then(|v| v.to_str().ok()) != Some("1") {
+    if headers
+        .get("x-opensesame-duress-peer")
+        .and_then(|v| v.to_str().ok())
+        != Some("1")
+    {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({"ok": false, "code": "unsupported_factor"})),
@@ -176,7 +188,7 @@ pub async fn receive_envelope_response(
             .into_response();
     }
 
-    let parsed: IncomingEnvelope = match serde_json::from_slice(&body) {
+    let parsed: IncomingEnvelope = match serde_json::from_slice(body) {
         Ok(v) => v,
         Err(_) => {
             return (
@@ -237,6 +249,7 @@ pub async fn receive_envelope_response(
 
 #[cfg(test)]
 mod tests {
+    use super::origin::{assert_safe_peer_origin, is_allowed_peer_path};
     use super::*;
 
     #[test]

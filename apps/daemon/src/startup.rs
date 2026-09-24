@@ -87,7 +87,8 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
 }
 
 /// Optional duress peer receiver (default off). Requires enrolled ECDSA verifying key.
-fn build_duress_peer_state() -> anyhow::Result<Option<crate::duress_receiver::DuressReceiverState>> {
+fn build_duress_peer_state() -> anyhow::Result<Option<crate::duress_receiver::DuressReceiverState>>
+{
     match env::var("OPENSESAME_DURESS_PEER_RECEIVER").as_deref() {
         Ok("1") => {
             let audience = env::var("OPENSESAME_DURESS_PEER_AUDIENCE")
@@ -103,8 +104,9 @@ fn build_duress_peer_state() -> anyhow::Result<Option<crate::duress_receiver::Du
                         "OPENSESAME_DURESS_PEER_RECEIVER=1 requires OPENSESAME_DURESS_PEER_PUBLIC_KEY_SPKI_B64"
                     )
                 })?;
-            let vk = crate::duress_receiver::parse_verifying_key_b64(&key_b64)
-                .map_err(|_| anyhow::anyhow!("invalid OPENSESAME_DURESS_PEER_PUBLIC_KEY_SPKI_B64"))?;
+            let vk = crate::duress_receiver::parse_verifying_key_b64(&key_b64).map_err(|_| {
+                anyhow::anyhow!("invalid OPENSESAME_DURESS_PEER_PUBLIC_KEY_SPKI_B64")
+            })?;
             let mut peer_state =
                 crate::duress_receiver::DuressReceiverState::new(audience, permitted)
                     .with_verifying_key(vk);
@@ -113,9 +115,7 @@ fn build_duress_peer_state() -> anyhow::Result<Option<crate::duress_receiver::Du
                     peer_state.tailscale_evidence = Some(evidence);
                 }
             }
-            tracing::info!(
-                "duress peer receiver enabled (operator-gated, ECDSA verify required)"
-            );
+            tracing::info!("duress peer receiver enabled (operator-gated, ECDSA verify required)");
             Ok(Some(peer_state))
         }
         _ => Ok(None),

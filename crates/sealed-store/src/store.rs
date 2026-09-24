@@ -7,7 +7,6 @@ use opensesame_human_vault::root_protection::{
 };
 use opensesame_human_vault::ItemDataKey;
 
-
 use crate::envelope::{open_osseal, seal_osseal};
 use crate::git::auto_commit;
 use crate::path::{

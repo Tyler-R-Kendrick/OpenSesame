@@ -1,6 +1,6 @@
-//! OpenFGA freshness fence on the invoke path (INV-CONSISTENCY).
+//! `OpenFGA` freshness fence on the invoke path (INV-CONSISTENCY).
 //!
-//! A projection is never the ledger. When OpenFGA is configured, the Host must
+//! A projection is never the ledger. When `OpenFGA` is configured, the Host must
 //! refuse to authorize from a stale or missing projection rather than treat
 //! "unknown" as fresh. Bootstrap grants without a generalized authority sidecar
 //! skip this fence — they never wrote a projection row to catch up to.
@@ -21,8 +21,8 @@ use super::intents::ResolvedInvocation;
 
 const OPENFGA_STORE: &str = "openfga";
 
-/// Authorize via OpenFGA only after the projection has caught up, or skip when
-/// OpenFGA is not configured. Bootstrap grants without a sidecar skip entirely.
+/// Authorize via `OpenFGA` only after the projection has caught up, or skip when
+/// `OpenFGA` is not configured. Bootstrap grants without a sidecar skip entirely.
 pub(super) async fn authorize_openfga(
     st: &AppState,
     organization_id: &str,
@@ -38,15 +38,13 @@ pub(super) async fn authorize_openfga(
         return Ok(());
     };
     let connection = resolved.connection_id.to_string();
-    let tuple = match invoke_check_tuple(subject, operation, resource, Some(connection.as_str())) {
-        Ok(tuple) => tuple,
-        Err(_) => {
-            return Err((
-                StatusCode::FORBIDDEN,
-                Json(json!({"error": "openfga_unmapped", "type": "about:blank"})),
-            )
-                .into_response());
-        }
+    let Ok(tuple) = invoke_check_tuple(subject, operation, resource, Some(connection.as_str()))
+    else {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "openfga_unmapped", "type": "about:blank"})),
+        )
+            .into_response());
     };
     match openfga.check_tuple(&tuple).await {
         Ok(true) => Ok(()),
@@ -66,7 +64,7 @@ pub(super) async fn authorize_openfga(
     }
 }
 
-/// `Ok(false)` means no sidecar (legacy/bootstrap): skip OpenFGA.
+/// `Ok(false)` means no sidecar (legacy/bootstrap): skip `OpenFGA`.
 async fn require_projection_fresh(
     st: &AppState,
     organization_id: &str,

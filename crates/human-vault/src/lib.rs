@@ -16,8 +16,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 #[cfg(test)]
 mod chunk_tests;
 pub mod kdf_policy;
-pub mod root_protection;
 mod password_wrap;
+pub mod root_protection;
 #[cfg(not(target_arch = "wasm32"))]
 pub use password_wrap::migrate_password_wrapper_offline;
 pub use password_wrap::{

@@ -80,7 +80,7 @@ async fn activate(
     };
     let org = organization.to_string();
     let writer = who.actor_subject();
-    let outcome = match st
+    let Ok(outcome) = st
         .db
         .activate_grant_offer(&OfferActivation {
             offer_id: &offer_id,
@@ -93,9 +93,8 @@ async fn activate(
             idempotency_key: &body.idempotency_key,
         })
         .await
-    {
-        Ok(outcome) => outcome,
-        Err(_) => return unavailable(),
+    else {
+        return unavailable();
     };
     match outcome {
         ActivationOutcome::Bound => Json(json!({"status": "bound"})).into_response(),

@@ -219,9 +219,9 @@ async fn a_stranger_is_admitted_as_an_observer_and_no_grant_is_minted() {
     assert_eq!(body["grant"], Value::Null, "an observer was handed a key");
 
     // Admitted means in the room, which is what the seat says.
-    let (status, roster) = get(&router, &members(&id), &stranger).await;
-    assert_eq!(status, StatusCode::OK, "{roster}");
-    assert_eq!(roster["members"][0]["mode"], json!("observer"));
+    let (status, seats) = get(&router, &members(&id), &stranger).await;
+    assert_eq!(status, StatusCode::OK, "{seats}");
+    assert_eq!(seats["members"][0]["mode"], json!("observer"));
 }
 
 #[tokio::test]

@@ -14,8 +14,6 @@ struct LeftoverLogin {
 }
 
 async fn leftover_provider_login() -> LeftoverLogin {
-    let cookie = "pre-rotation-login".to_string();
-    let live = Arc::new(StdMutex::new(cookie.clone()));
     async fn session(State(live): State<Arc<StdMutex<String>>>, headers: HeaderMap) -> StatusCode {
         let want = live.lock().expect("leftover cookie").clone();
         let got = headers
@@ -28,6 +26,8 @@ async fn leftover_provider_login() -> LeftoverLogin {
             StatusCode::UNAUTHORIZED
         }
     }
+    let cookie = "pre-rotation-login".to_string();
+    let live = Arc::new(StdMutex::new(cookie.clone()));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("leftover login bind");

@@ -1,7 +1,7 @@
 //! Named AT-* adversarial acceptance regressions backed by storage fences.
 //!
 //! Thin wrappers over existing authority behavior so the adversarial matrix can
-//! name a test ID → file::test → cargo command without Discord/Blocky SaaS.
+//! name a test ID → `file::test` → cargo command without a hosted Discord or Blocky.
 
 mod authority_support;
 

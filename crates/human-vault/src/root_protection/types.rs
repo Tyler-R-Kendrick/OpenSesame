@@ -41,7 +41,11 @@ pub enum ProtectionRecord {
         wrapper: PasswordWrapper,
         #[serde(rename = "proofStatus")]
         proof_status: ProofStatus,
-        #[serde(rename = "lastEvidence", default, skip_serializing_if = "Option::is_none")]
+        #[serde(
+            rename = "lastEvidence",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
         last_evidence: Option<VerificationEvidence>,
     },
     #[serde(rename = "age-recipient")]
@@ -53,7 +57,11 @@ pub enum ProtectionRecord {
         capsule_age_b64: String,
         #[serde(rename = "proofStatus")]
         proof_status: ProofStatus,
-        #[serde(rename = "lastEvidence", default, skip_serializing_if = "Option::is_none")]
+        #[serde(
+            rename = "lastEvidence",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
         last_evidence: Option<VerificationEvidence>,
     },
     #[serde(rename = "yubikey-piv-age")]
@@ -61,13 +69,21 @@ pub enum ProtectionRecord {
         #[serde(rename = "protectorId")]
         protector_id: String,
         recipient: String,
-        #[serde(rename = "serialHint", default, skip_serializing_if = "Option::is_none")]
+        #[serde(
+            rename = "serialHint",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
         serial_hint: Option<String>,
         #[serde(rename = "capsuleAgeB64")]
         capsule_age_b64: String,
         #[serde(rename = "proofStatus")]
         proof_status: ProofStatus,
-        #[serde(rename = "lastEvidence", default, skip_serializing_if = "Option::is_none")]
+        #[serde(
+            rename = "lastEvidence",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
         last_evidence: Option<VerificationEvidence>,
     },
     #[serde(rename = "recovery-key")]
@@ -79,7 +95,11 @@ pub enum ProtectionRecord {
         fingerprint_b64: String,
         #[serde(rename = "proofStatus")]
         proof_status: ProofStatus,
-        #[serde(rename = "lastEvidence", default, skip_serializing_if = "Option::is_none")]
+        #[serde(
+            rename = "lastEvidence",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
         last_evidence: Option<VerificationEvidence>,
     },
 }
@@ -123,6 +143,9 @@ impl ProtectionRecord {
     }
 }
 
+/// Four independent enrollment flags, spelled as the manifest spells them;
+/// an enum set would change the wire format the Pages client writes.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticatedLegacyGates {

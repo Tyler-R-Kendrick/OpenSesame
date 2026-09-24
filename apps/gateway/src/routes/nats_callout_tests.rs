@@ -36,8 +36,6 @@ fn identity(issuer: &str, subject: &str) -> NatsCalloutRequest {
     NatsCalloutRequest {
         issuer: issuer.into(),
         subject: subject.into(),
-        user_nkey: "UTEST".into(),
-        server_id: "NTEST".into(),
         email: None,
         join_by_email: false,
         project_ids: vec![],

@@ -400,10 +400,10 @@ async fn discovery_advertises_a_name_and_nothing_else() {
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0]["id"], json!(public));
     assert_eq!(listed[0]["display_name"], json!("Incident 4471"));
-    // A name and an id. Not who runs it, not what is in it (ADR 0079 §7).
+    // A name, an id, how an ask is answered (ADR 0137). Not who runs it.
     assert_eq!(
         listed[0].as_object().unwrap().len(),
-        2,
+        3,
         "the discovery record grew a field: {}",
         listed[0]
     );

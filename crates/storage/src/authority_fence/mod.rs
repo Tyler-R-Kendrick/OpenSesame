@@ -31,13 +31,13 @@
 //!
 //! # Scope — no quorum is implied
 //!
-//! This is one SQLite database with one writer at a time. Within a host, the
+//! This is one `SQLite` database with one writer at a time. Within a host, the
 //! `sequence` column is a total order and the fence is linearizable. That is
 //! the whole claim. It is **not** a consensus protocol, and nothing here may
 //! be read as one: two hosts pointed at two databases have two independent
 //! fences, and a deployment that needs one authority decision across hosts
 //! needs a store that actually provides consensus. Inferring a quorum from
-//! SQLite would be inventing a guarantee the storage engine does not offer.
+//! `SQLite` would be inventing a guarantee the storage engine does not offer.
 //!
 //! # Freshness
 //!

@@ -1,4 +1,4 @@
-//! GA-V-33b — AuthorityGrant expiry reaches the lifecycle feed via gateway scan.
+//! GA-V-33b — `AuthorityGrant` expiry reaches the lifecycle feed via gateway scan.
 //!
 //! Issues a generalized authority sidecar with a past `expires_at`, runs
 //! `scan_organization`, and asserts the expired watermark was claimed. This is

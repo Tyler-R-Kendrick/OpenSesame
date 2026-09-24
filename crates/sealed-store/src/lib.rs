@@ -20,12 +20,12 @@ mod otp {
 }
 mod object_store;
 mod path;
+mod piv_age;
 mod recipients;
 mod root;
 mod root_protection;
 mod rotation;
 mod rotation_walk;
-mod piv_age;
 mod sops_interop;
 mod store;
 mod store_lock;
@@ -55,22 +55,24 @@ pub use opensesame_authenticator_core::{
     find_otpauth_in_trailer, hotp_code, parse_otpauth, sync_trailer_otp, totp_code,
     validate_otpauth, OtpAlgorithm, OtpError, OtpKind, OtpUri,
 };
+pub use opensesame_human_vault::root_protection::{
+    ProofStatus, ProtectionError, ProtectorSummary, ReissuedRecovery, RootProtectionManifest,
+    RotationEdit, KEY_FILE_NAME, MANIFEST_SCHEMA_VERSION,
+};
 pub use path::{logical_to_relative, relative_to_logical};
+pub use piv_age::{
+    discover_piv_age, refuse_destructive_ykman, PivAgeDiscovery, PivAgeError, PivAgeRuntime,
+};
 pub use recipients::Recipients;
 pub use root::{resolve_store_dir, StoreError, StoreRoot};
-pub use store::{init_store, init_store_key, list_names, unlock_store_key, FormatHint};
 pub use root_protection::{
     protect_add_store_age_recipient, protect_add_store_recovery, protect_list_store,
     protect_remove_store, protect_rewrap_store_password, protect_test_store_password,
     protect_test_store_recovery,
 };
 pub use rotation::{rotate_store_root, RotationOutcome, ROTATION_STAGING_DIR};
-pub use piv_age::{discover_piv_age, refuse_destructive_ykman, PivAgeDiscovery, PivAgeError, PivAgeRuntime};
 pub use sops_interop::{resolve_sops_bin, sops_decrypt, sops_encrypt, SopsError, SopsFormat};
-pub use opensesame_human_vault::root_protection::{
-    ProofStatus, ProtectionError, ProtectorSummary, ReissuedRecovery, RootProtectionManifest,
-    RotationEdit, KEY_FILE_NAME, MANIFEST_SCHEMA_VERSION,
-};
+pub use store::{init_store, init_store_key, list_names, unlock_store_key, FormatHint};
 pub use tomb_registry::{
     default_tombs_config_path, ensure_personal_project_tomb, load_tomb_registry,
     personal_project_tomb_name, resolve_project_tomb_name, resolve_tomb_paths, save_tomb_registry,

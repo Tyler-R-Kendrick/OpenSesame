@@ -154,21 +154,19 @@ mod pact_coverage {
         );
     }
 
-    /// INV-BUDGET: OpenFGA and intent building can refuse, and a refusal
+    /// INV-BUDGET: `OpenFGA` and intent building can refuse, and a refusal
     /// after the hold would leave a reservation nothing ever releases.
     #[test]
     fn invoke_authorizes_fully_before_holding_budget() {
         // The file opens with a test-only import, so read from the handler on.
         let src = include_str!("routes/intents.rs");
-        let handler = &src[src
-            .find("let resolved = match resolve_invocation(")
-            .unwrap()..];
+        let handler = &src[src.find("let resolved = resolve_invocation(").unwrap()..];
         opensesame_host_core::pact::assert_source_order(
             handler,
             &[
                 "authorize_invocation(&st",
                 "intents_projection::authorize_openfga(",
-                "let intent = match build_intent(",
+                "let intent = build_intent(",
                 "intents_budget::spend_invoke_budgets(",
                 "intents_queue::dispatch_or_hold(",
             ],
@@ -247,7 +245,7 @@ mod pact_coverage {
             include_str!("routes/nats_callout.rs"),
             &[
                 "identity mapping resolve failed",
-                "decide_nats_callout(&cfg, req, mapped)",
+                "decide_nats_callout(cfg, req, mapped)",
             ],
         );
     }

@@ -66,7 +66,11 @@ fn shared_canonicalize_matches_ts_fixture() {
     // Round-trip through unsorted object equivalent.
     let unsorted = serde_json::json!({"b":2,"a":1,"nested":{"z":true,"y":null}});
     let bytes = canonicalize_to_bytes(&unsorted).unwrap();
-    let got = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let got = bytes.iter().fold(String::new(), |mut hex, b| {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{b:02x}");
+        hex
+    });
     assert_eq!(got, v.canonicalize_utf8_hex);
     let _ = value;
 }

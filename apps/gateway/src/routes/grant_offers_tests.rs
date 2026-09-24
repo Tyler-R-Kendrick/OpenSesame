@@ -71,6 +71,72 @@ async fn seed_grant(db: &opensesame_storage::Db, organization_id: &str, grant_id
     .unwrap();
 }
 
+/// An envelope grant, a delegated person grant under it, and offer `offer:one`
+/// whose envelope it is: everything an activation needs to bind.
+async fn seed_offer(db: &opensesame_storage::Db, org: &str) {
+    seed_grant(db, org, "grant:envelope").await;
+    seed_grant(db, org, "grant:person").await;
+    let entry = || PermissionEntry {
+        resource_selector: "resource:A".into(),
+        provider_operation_id: "connection.invoke:connection:alpha".into(),
+        action_set_json: "[\"read\"]".into(),
+        parameter_constraints_json: "{}".into(),
+        audience_set_json: "[]".into(),
+        manifest_digest: "digest:manifest".into(),
+    };
+    let envelope_issue = AuthorityIssue {
+        grant_id: "grant:envelope",
+        organization_id: org,
+        domain_id: "adom:offer-home",
+        parent_grant_id: None,
+        issuance_basis: "root",
+        lineage_digest: "digest:lineage",
+        policy_digest: "digest:policy",
+        role_revision: None,
+        offer_id: None,
+        delegation_depth_remaining: 1,
+        not_before: Utc::now() - Duration::minutes(1),
+        expires_at: Utc::now() + Duration::hours(1),
+        evidence_id: None,
+    };
+    assert!(db
+        .issue_authority(&envelope_issue, &[entry()])
+        .await
+        .unwrap());
+    let person_issue = AuthorityIssue {
+        grant_id: "grant:person",
+        organization_id: org,
+        domain_id: "adom:offer-home",
+        parent_grant_id: Some("grant:envelope"),
+        issuance_basis: "delegation",
+        lineage_digest: "digest:lineage",
+        policy_digest: "digest:policy",
+        role_revision: None,
+        offer_id: None,
+        delegation_depth_remaining: 0,
+        not_before: envelope_issue.not_before + Duration::seconds(1),
+        expires_at: envelope_issue.expires_at - Duration::seconds(1),
+        evidence_id: None,
+    };
+    assert!(db.issue_authority(&person_issue, &[entry()]).await.unwrap());
+    assert!(db
+        .create_grant_offer(&NewGrantOffer {
+            id: "offer:one",
+            organization_id: org,
+            domain_id: "adom:offer-home",
+            cohort_id: "cohort:raid",
+            cohort_revision: 3,
+            membership_binding: "snapshot",
+            roster_digest: Some("sha256:reviewed-roster"),
+            trusted_writer: None,
+            permitted_principal_class: None,
+            envelope_grant_id: "grant:envelope",
+            max_activations: 2,
+        })
+        .await
+        .unwrap());
+}
+
 #[tokio::test]
 async fn grant_offer_activate_and_revoke() {
     let state = test_demo_state().await;
@@ -99,73 +165,7 @@ async fn grant_offer_activate_and_revoke() {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
-    seed_grant(&state.db, &org, "grant:envelope").await;
-    seed_grant(&state.db, &org, "grant:person").await;
-    let entry = || PermissionEntry {
-        resource_selector: "resource:A".into(),
-        provider_operation_id: "connection.invoke:connection:alpha".into(),
-        action_set_json: "[\"read\"]".into(),
-        parameter_constraints_json: "{}".into(),
-        audience_set_json: "[]".into(),
-        manifest_digest: "digest:manifest".into(),
-    };
-    let envelope_issue = AuthorityIssue {
-        grant_id: "grant:envelope",
-        organization_id: &org,
-        domain_id: "adom:offer-home",
-        parent_grant_id: None,
-        issuance_basis: "root",
-        lineage_digest: "digest:lineage",
-        policy_digest: "digest:policy",
-        role_revision: None,
-        offer_id: None,
-        delegation_depth_remaining: 1,
-        not_before: Utc::now() - Duration::minutes(1),
-        expires_at: Utc::now() + Duration::hours(1),
-        evidence_id: None,
-    };
-    assert!(state
-        .db
-        .issue_authority(&envelope_issue, &[entry()])
-        .await
-        .unwrap());
-    let person_issue = AuthorityIssue {
-        grant_id: "grant:person",
-        organization_id: &org,
-        domain_id: "adom:offer-home",
-        parent_grant_id: Some("grant:envelope"),
-        issuance_basis: "delegation",
-        lineage_digest: "digest:lineage",
-        policy_digest: "digest:policy",
-        role_revision: None,
-        offer_id: None,
-        delegation_depth_remaining: 0,
-        not_before: envelope_issue.not_before + Duration::seconds(1),
-        expires_at: envelope_issue.expires_at - Duration::seconds(1),
-        evidence_id: None,
-    };
-    assert!(state
-        .db
-        .issue_authority(&person_issue, &[entry()])
-        .await
-        .unwrap());
-    assert!(state
-        .db
-        .create_grant_offer(&NewGrantOffer {
-            id: "offer:one",
-            organization_id: &org,
-            domain_id: "adom:offer-home",
-            cohort_id: "cohort:raid",
-            cohort_revision: 3,
-            membership_binding: "snapshot",
-            roster_digest: Some("sha256:reviewed-roster"),
-            trusted_writer: None,
-            permitted_principal_class: None,
-            envelope_grant_id: "grant:envelope",
-            max_activations: 2,
-        })
-        .await
-        .unwrap());
+    seed_offer(&state.db, &org).await;
 
     let activate = format!("/api/v1/organizations/{organization}/grant-offers/offer:one/activate");
     let (status, body) = request(

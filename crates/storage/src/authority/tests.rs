@@ -93,7 +93,7 @@ fn entry(resource_selector: &str, action: &str) -> PermissionEntry {
     }
 }
 
-fn budget_scope<'a>(organization_id: &'a str) -> BudgetScope<'a> {
+fn budget_scope(organization_id: &str) -> BudgetScope<'_> {
     BudgetScope {
         organization_id,
         scope_kind: "root_grant",

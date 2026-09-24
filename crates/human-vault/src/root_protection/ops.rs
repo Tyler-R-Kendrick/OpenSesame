@@ -191,9 +191,9 @@ pub(crate) fn remove_record(
     manifest: &mut RootProtectionManifest,
     protector_id: &str,
 ) -> Result<(), ProtectionError> {
-    let target_is_password = manifest.records.iter().any(|r| {
-        matches!(r, ProtectionRecord::Password { protector_id: id, .. } if id == protector_id)
-    });
+    let target_is_password = manifest.records.iter().any(
+        |r| matches!(r, ProtectionRecord::Password { protector_id: id, .. } if id == protector_id),
+    );
     let password_count = manifest
         .records
         .iter()
@@ -210,8 +210,10 @@ pub(crate) fn remove_record(
         return Err(ProtectionError::ProtectorNotFound);
     }
     if manifest.preferred_protector_id.as_deref() == Some(protector_id) {
-        manifest.preferred_protector_id =
-            manifest.records.first().map(|r| r.protector_id().to_string());
+        manifest.preferred_protector_id = manifest
+            .records
+            .first()
+            .map(|r| r.protector_id().to_string());
     }
     Ok(())
 }
