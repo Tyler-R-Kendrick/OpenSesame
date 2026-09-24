@@ -70,9 +70,9 @@
       "shot": "390-join-where",
       "width": 390,
       "title": "Join a session, first rung — 390 × 844",
-      "caption": "Where: the endpoint (this deployment's own, prefilled) and the invite. The rail names the ladder: approval, verify, offer, code. Nothing leaves the page on this rung.",
+      "caption": "Where: the endpoint (this deployment's own, prefilled), the invite (masked, like any bearer) and the code — asked up front, before the operator's five-minute approval starts. The rail names the ladder: approval, verify, offer. Nothing leaves the page on this rung.",
       "before": "no join ceremony (front door unchanged)",
-      "after": "6-step rail, endpoint + invite fields, one .go"
+      "after": "5-step rail; endpoint, masked invite and code; one .go"
     },
     {
       "shot": "1280-join-where",
@@ -86,7 +86,7 @@
       "shot": "390-join-open",
       "width": 390,
       "title": "The open-session road — 390 × 844",
-      "caption": "Open session: only an endpoint; the invite field goes, and the rail becomes where, approval, verify, session.",
+      "caption": "Open session: only an endpoint; the invite and code fields go, and the rail becomes where, approval, verify, session.",
       "before": "no open-session road",
       "after": "5-step rail, endpoint only"
     },
