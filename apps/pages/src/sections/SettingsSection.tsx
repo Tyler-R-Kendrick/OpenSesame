@@ -82,11 +82,7 @@ export function SettingsSection({
   const tabs = useSettingsTabs();
   const category = settingsCategoryFromLocation(pathname, hash);
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
-  // Panels a capability draws inside a category the core already has, so
-  // Security can carry the ambient opt-in without this file importing it.
-  const contributedPanels = [...useContributions("settings-panel")]
-    .filter((panel) => panel.category === category)
-    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  const contributedPanels = useCategoryPanels(category);
   // A directory's files are the same page spelled as files: its
   // `config.yaml` and whatever else it keeps, opened by `?file=` (the rail,
   // the command bar, a row's open key) and drawn here in place of the form.

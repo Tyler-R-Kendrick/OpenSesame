@@ -1878,6 +1878,8 @@ body {
     flex: none;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
     min-height: 2.75rem;
     padding: 0 0.75rem;
     border: 1px solid var(--line);
