@@ -19,8 +19,8 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | ceremonies `/approve/:ref` | request, requirement, activation, decision, report | none | missing |
 | ceremonies `/notifications` | channels, bindings, preferences | none | missing |
 | ceremonies `/invoke/:kind` + `.well-known` | — (parser) | none | missing |
-| mobile-mfa `/i/<ref>` | interaction resolve/read/activation/approve/deny, WebAuthn | none | missing |
-| mobile-mfa legacy links (`?user_code=`, `?code=`, `opensesame://invoke/mfa`, `opensesame-mfa://approve`) | `/v1/device/approve` | device approval, no adapter | partial |
+| mobile-mfa `/i/<ref>` | interaction resolve/read/activation/approve/deny, WebAuthn | model: ceremony-kit `interaction-approval.ts`, app-core `lib/interactions.ts` (step 5) | partial: no route (step 9); refusals worded by code (step 5) |
+| mobile-mfa legacy links (`?user_code=`, `?code=`, `opensesame://invoke/mfa`, `opensesame-mfa://approve`) | `/v1/device/approve` | device approval; read by ceremony-kit `readInteractionArrival` (step 5) | partial: no adapter (step 7) |
 | mobile-mfa enrolment | `/v1/mfa/passkey/*`, `/v1/mfa/totp/*` | vault authenticator only (ADR 0091) | missing (D10) |
 | mobile-mfa token field | — | Identity session | dropped (D13) |
 | console `/` sign-in | OIDC, `/v1/federated/providers` | `SignInPanel` | covered |
