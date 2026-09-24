@@ -78,7 +78,7 @@ sync request body cannot contain a URL, a hostname, a token, or a header. The
 attack "create a sync pointing at my server" requires first creating a
 connection to that server, which is an admin action, audited, and visible in the
 connection list. Redirects are responses, not chases — the same fence
-`BrokeredDns01` (`apps/gateway/src/cert_issuers/registry.rs`) already sits
+`BrokeredDns01` (`crates/gateway/src/cert_issuers/registry.rs`) already sits
 behind.
 
 **(b) Key material is unsealed only inside the sync actor pass, and never
@@ -151,7 +151,7 @@ Gate: `cargo +1.88.0 test -p opensesame-gateway`
 
 HTTP destinations, all broker-fenced, all with recorded-fixture contract tests
 asserting the exact push payload (forthcoming
-`apps/gateway/src/cert_syncs/`):
+`crates/gateway/src/cert_syncs/`):
 
 AWS Certificate Manager, AWS Elastic Load Balancing, AWS Secrets Manager,
 Azure Key Vault, GCP Certificate Manager, Cloudflare, Chef, Citrix NetScaler,

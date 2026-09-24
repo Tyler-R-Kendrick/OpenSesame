@@ -1,7 +1,7 @@
 # OpenFGA tuple backfill and rollback (GA-F-04)
 
 Status: dry-run harness in `@opensesame/policy` plus Host live apply on grant
-issue (`apps/gateway/src/openfga_project.rs`) behind `authority_writer_lease`.
+issue (`crates/gateway/src/openfga_project.rs`) behind `authority_writer_lease`.
 Not agent-reachable.
 
 Invariants: **INV-GA-03** (additive only — never revoke a baseline allow) and

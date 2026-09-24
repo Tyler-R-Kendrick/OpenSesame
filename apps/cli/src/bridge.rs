@@ -4,7 +4,7 @@
 //! # The seam
 //!
 //! [`BridgeCmd`] is deliberately **open for extension**: each new serving
-//! surface in `apps/pm-bridges` adds one variant here (and, if it needs more
+//! surface in `crates/pm-bridges` adds one variant here (and, if it needs more
 //! than install/uninstall, its own nested subcommand enum, as `keepassxc`
 //! does). Handlers live in this file and nowhere else, so the top-level
 //! command enum in `main.rs` only ever grows the single `Bridge` arm.
@@ -350,7 +350,7 @@ fn prompt_yes_no(prompt: &str) -> anyhow::Result<bool> {
 /// Run the bridge binary's UDS server as a child process.
 ///
 /// The CLI does not link the bridge core: the serving surfaces are behind
-/// cargo features in `apps/pm-bridges`, and keeping them out of the CLI is
+/// cargo features in `crates/pm-bridges`, and keeping them out of the CLI is
 /// what makes "default off" true at link time rather than only at runtime.
 fn serve(socket: Option<PathBuf>, takeover: bool, bin: Option<PathBuf>) -> anyhow::Result<()> {
     let socket = socket.unwrap_or_else(keepassxc_socket_path);

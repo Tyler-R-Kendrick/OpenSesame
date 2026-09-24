@@ -1,7 +1,7 @@
 //! Egress allowlist for broker-side rotation verification (ADR 0076).
 //!
 //! **This is deliberately a second table, not an addition to the daemon's.**
-//! `opensesame_invoke_through::EGRESS_RULES` is a static that `apps/daemon`
+//! `opensesame_invoke_through::EGRESS_RULES` is a static that `crates/daemon`
 //! links and serves from `POST /v1/invoke_through`; adding providers to it to
 //! satisfy the gateway would silently widen the daemon's egress surface for
 //! callers that never asked for it. ADR 0052 §7 states the rule directly —
@@ -86,7 +86,8 @@ mod tests {
     use super::*;
 
     fn catalog() -> serde_json::Value {
-        serde_json::from_str(include_str!("catalog.json")).expect("catalog parses")
+        serde_json::from_str(include_str!("../../../spec/connectors/catalog.json"))
+            .expect("catalog parses")
     }
 
     /// Every rule must name exactly the hosts its provider's catalog egress

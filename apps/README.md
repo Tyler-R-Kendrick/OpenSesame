@@ -6,18 +6,24 @@ and [`packages/`](../packages/README.md) (TypeScript). Integrations built only
 on the public SDKs are in [`examples/`](../examples/README.md); development
 servers such as the mock IdP are in [`tools/`](../tools/README.md).
 
-## Host / authority plane (Rust)
+## Native binary (Rust)
 
-| App | Binary | Port | Purpose |
+One binary, `opensesame`, built from [`cli`](cli). Every native role is a
+subcommand of it, and every helper a caller launches by a fixed name is a link
+to it ([ADR 0138](../docs/adr/0138-self-issued-identity-one-native-host.md)).
+
+| Role | Run as | Port | Library |
 |---|---|---|---|
-| [`gateway`](gateway) | `opensesame-gateway` | 8787 | **Host API.** ConnectionRef → authorize → invoke → receipt; sync blob store; certificates; backups; the operator transport routes. |
-| [`daemon`](daemon) | `opensesame-daemon` | 18790 | **Local host agent.** Short-lived session capabilities for devcontainers, WSL, the toolbar and credential helpers, over loopback or a Unix socket. |
-| [`cli`](cli) | `opensesame` | — | **Host CLI.** Login, daemon control, connections, certificates, and the `pass`-compatible sealed store. |
-| [`credential-helpers`](credential-helpers) | `git-credential-opensesame`, … | — | git, Docker, AWS and kubectl credential helpers — thin clients of the daemon's mint path ([ADR 0049](../docs/adr/0049-derived-short-lived-materialization.md)). |
-| [`pm-bridges`](pm-bridges) | per-feature | — | Local-IPC bridges that let KeePassXC-protocol, browserpass, gopass and Secret Service clients use the sealed store. All off by default ([ADR 0053](../docs/adr/0053-pm-bridge-binaries.md)). |
-| [`callback-edge`](callback-edge) | `opensesame-callback-edge` | — | Narrow ingress for signed provider callbacks (default `127.0.0.1:8791`): verifies and de-duplicates, can neither read a vault nor start work. Nothing yet consumes what it accepts, and its OAuth callback route answers 503. |
-| [`toolbar`](toolbar) | `opensesame-toolbar` | — | Minimal operator toolbar: health, status, approvals — through the daemon only. |
-| [`worker`](worker) | `opensesame-worker` | — | Background worker: the Rust workload connector host plus the TypeScript cleanup, notification and TaskBus loop. |
+| **Host API** — ConnectionRef → authorize → invoke → receipt; sync blob store; certificates; backups; signed provider callbacks | `opensesame host run` | 8787 | [`crates/gateway`](../crates/gateway) |
+| **Local host agent** — short-lived session capabilities for devcontainers, WSL and credential helpers, over loopback or a Unix socket; status and approvals through `opensesame daemon info / approve-device / approve-claim` | `opensesame daemon run` | 18790 | [`crates/daemon`](../crates/daemon) |
+| **Workload connector host** — readiness and provider listing behind a token or mTLS ([ADR 0132](../docs/adr/0132-optional-mtls-and-workload-identity.md)) | `opensesame worker run` | 8790 | [`crates/worker`](../crates/worker) |
+| **Credential helpers** — git, Docker, AWS and kubectl, thin clients of the daemon's mint path ([ADR 0049](../docs/adr/0049-derived-short-lived-materialization.md)) | `git-credential-opensesame`, `docker-credential-opensesame`, `opensesame-credential-process`, `opensesame-kube-exec` | — | [`crates/credential-helpers`](../crates/credential-helpers) |
+| **Password-manager bridges** — browserpass, gopass and keepassxc-protocol clients on the sealed store; cargo features, all off by default ([ADR 0053](../docs/adr/0053-pm-bridge-binaries.md)) | `opensesame-browserpass-host`, `opensesame-gopass-jsonapi`, `opensesame-keepassxc-bridge` | — | [`crates/pm-bridges`](../crates/pm-bridges) |
+| **CLI** — login, connections, certificates, the `pass`-compatible sealed store | `opensesame …` | — | — |
+
+`opensesame helpers link [--dir DIR]` creates the helper names as links to the
+binary; the name a process starts under picks the program
+([`cli/src/entry.rs`](cli/src/entry.rs)).
 
 ## Identity plane (TypeScript)
 
@@ -26,6 +32,7 @@ servers such as the mock IdP are in [`tools/`](../tools/README.md).
 | [`control-plane`](control-plane) | `@opensesame/control-plane` | 8788 | **Identity API.** OIDC issuer (oidc-provider), Better Auth upstream sign-in, principals, passkeys, claims, device authorization, SCIM, notifications. Writes `openapi.json`. |
 | [`console`](console) | `@opensesame/console` | 5173 | Operator console for the Identity API. |
 | [`ceremonies`](ceremonies) | `@opensesame/ceremonies` | 5181 | Hosted ceremony pages — one complete, shareable ceremony per route ([ADR 0045](../docs/adr/0045-hosted-ceremony-pages.md)). |
+| [`worker`](worker) | `@opensesame/worker` | — | Identity-plane background loop: drains the outbox onto the TaskBus, fans out webhooks and notifications, prunes expired issuer rows. |
 | [`mobile-mfa`](mobile-mfa) | `@opensesame/mobile-mfa` | — | The phone half of a cross-device approval, and where its authenticators are enrolled. |
 
 ## Client plane
@@ -37,7 +44,6 @@ servers such as the mock IdP are in [`tools/`](../tools/README.md).
 | [`mcp-host`](mcp-host) | `@opensesame/mcp-host` | stdio / HTTP | MCP server over the Host API and daemon: task, intent, sync and health tools under a short-lived agent capability; operator headers are refused. |
 | [`mcp-client`](mcp-client) | `@opensesame/mcp-client` | stdio | Agent MCP server over a narrowly scoped, short-lived Host capability. |
 | [`authenticator-native`](authenticator-native) | `@opensesame/authenticator-native-contract` | — | Android authenticator: OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. |
-| [`connect-backend`](connect-backend) | `@opensesame/connect-backend` | — | Relay for Connect OAuth callbacks and GitHub App manifests, for deployments that host one. |
 
 Neither MCP server exposes `getSecret()` or materializes a credential
 ([ADR 0005](../docs/adr/0005-authority-handle-connectionref.md)).
@@ -48,7 +54,7 @@ Neither MCP server exposes `getSecret()` or materializes a credential
 pnpm --filter @opensesame/pages dev:web                     # the app, no backend
 pnpm --filter @opensesame/pages dev                          # app + Host + Identity + mock IdP
 pnpm --filter @opensesame/control-plane start                # Identity API
-cargo run -p opensesame-gateway -- --listen 127.0.0.1:8787   # Host API
+cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787   # Host API
 cargo run -p opensesame-cli -- --help                        # host CLI
 ```
 

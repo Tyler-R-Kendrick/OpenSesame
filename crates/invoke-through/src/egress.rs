@@ -1,6 +1,6 @@
 //! Static egress allowlist for invoke-through (ADR 0032 §3, ADR 0048 D6/I8).
 //!
-//! **Derived from `crates/connection-broker/src/catalog.json`, not linked from
+//! **Derived from `spec/connectors/catalog.json`, not linked from
 //! it.** The daemon must not link the broker (ADR 0048 D5 — dependency
 //! quarantine), so the rows invoke-through serves are restated here as a
 //! minimal static table, one row per provider. A drift test below reads the
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn egress_table_tracks_the_broker_catalog() {
         let catalog: serde_json::Value =
-            serde_json::from_str(include_str!("../../connection-broker/src/catalog.json"))
+            serde_json::from_str(include_str!("../../../spec/connectors/catalog.json"))
                 .expect("catalog parses");
         let providers = catalog["providers"].as_array().expect("providers");
         for rule in EGRESS_RULES {

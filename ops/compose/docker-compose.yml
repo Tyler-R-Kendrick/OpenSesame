@@ -59,7 +59,8 @@ services:
   gateway:
     build:
       context: ../..
-      dockerfile: ops/compose/Dockerfile.gateway
+      dockerfile: ops/compose/Dockerfile
+    command: ["host", "run"]
     environment:
       OPENSESAME_LISTEN: "0.0.0.0:8787"
       OPENSESAME_ISSUER: "http://keycloak:8080/realms/opensesame"
@@ -70,21 +71,18 @@ services:
     ports: ["8787:8787"]
     depends_on: [postgres, openfga, keycloak, openbao, nats]
 
+  # Signed provider callbacks are Host API routes: set
+  # OPENSESAME_CALLBACK_MASTER_KEY and OPENSESAME_CALLBACK_ROUTES on `gateway`.
   worker:
     build:
       context: ../..
-      dockerfile: ops/compose/Dockerfile.worker
+      dockerfile: ops/compose/Dockerfile
+    command: ["worker", "run"]
     environment:
-      OPENSESAME_TASKBUS: nats
-      NATS_URL: nats://nats:4222
-    depends_on: [gateway, nats]
-
-  callback-edge:
-    build:
-      context: ../..
-      dockerfile: ops/compose/Dockerfile.callback-edge
-    ports: ["8791:8791"]
-    profiles: ["public-edge"]
+      # Comma-separated provider ids this workload may host; required.
+      OPENSESAME_WORKER_PROVIDERS: ""
+    depends_on: [gateway]
+    profiles: ["workload"]
 
 volumes:
   pgdata:

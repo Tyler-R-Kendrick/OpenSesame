@@ -11,7 +11,7 @@ digest that redeems nothing.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`src/routes/ceremonies.rs`),
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`src/routes/ceremonies.rs`),
   [`apps/cli`](../../apps/cli) (`src/ceremony.rs`) and
   [`opensesame-rotation-web`](../rotation-web) (`CeremonyTransport` capture
   verbs).
@@ -19,7 +19,7 @@ digest that redeems nothing.
 - A provider's own registration flow always wins for the part it covers.
   `tier::resolve` never sends registration to a browser when the provider
   publishes an endpoint for it (for GitHub, the App Manifest flow in
-  `apps/gateway/src/routes/github_app.rs`).
+  `crates/gateway/src/routes/github_app.rs`).
 - The agent names *which slot* and *where the value is*; it never receives the
   value, and a slot the recipe did not declare cannot be captured.
 - Refusals are reachable only through `refusal::Guard::admit`, so a step that
@@ -47,7 +47,7 @@ cargo +1.88.0 test -p opensesame-ceremony
 ```
 
 `tests/catalog_pact.rs` fails if `catalog.json` names a provider missing from
-[`crates/connection-broker/src/catalog.json`](../connection-broker/src/catalog.json).
+[`spec/connectors/catalog.json`](../../spec/connectors/catalog.json).
 `tests/github_ceremony.rs` walks the GitHub ceremony end to end.
 
 ## Related

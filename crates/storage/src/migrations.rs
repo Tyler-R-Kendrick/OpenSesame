@@ -1,10 +1,7 @@
 /// Embedded schema versions, applied in order, once each. Appending is the only
 /// permitted edit: an applied version is never rewritten.
 pub(super) const MIGRATIONS: &[(&str, &str)] = &[
-    (
-        "0001_init",
-        include_str!("../migrations/0001_init.sql"),
-    ),
+    ("0001_init", include_str!("../migrations/0001_init.sql")),
     (
         "0002_connections",
         include_str!("../migrations/0002_connections.sql"),

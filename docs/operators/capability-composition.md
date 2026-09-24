@@ -44,7 +44,7 @@ The catalog has **21 core** capabilities and **11 optional** ones. Core is
 always present and cannot be prohibited. Seven are statically linked:
 `shell.navigation`, `vault.passwords`, `vault.local-unlock`,
 `backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
-`install.pwa`. Fourteen are **always-on** (ADR 0135, ADR 0139): core in every
+`install.pwa`. Fourteen are **always-on** (ADR 0135, ADR 0140): core in every
 plan, but their code still arrives as a module after boot —
 `vault.passkey-records`, `vault.certificate-records`, `vault.interop-formats`,
 `backup.cloud-secrets`, `connectors.external`, `access.authority`,
@@ -143,7 +143,7 @@ every optional capability the preset does **not** offer in `prohibited`.
 The two "local functions" — optional capabilities that run on this device
 with no connector, enterprise, agent, remote-AI or telemetry surface — are
 `sharing.drops` and `support.local-ai`. Browser-local IAM, SIOP, the site
-broker and git backup are always on (ADR 0139), so no preset names them.
+broker and git backup are always on (ADR 0140), so no preset names them.
 
 | Preset | Required | Offered | Pre-ticked | External services |
 |---|---|---|---|---|
@@ -472,7 +472,7 @@ Match the reason code to the scope that refused it:
 
 Settings › Capabilities turns a capability off with its switch: the ordinary
 reviewed commit with the root removed. The store's emergency disable
-(`compositionStore.emergencyDisable`) is not on that page any more (ADR 0139
+(`compositionStore.emergencyDisable`) is not on that page any more (ADR 0140
 §3) — a second key per capability beside its switch was the page saying the
 same thing twice. It still blocks in memory first and aborts the lease before
 it asks storage, so the capability stops being reachable even if the durable

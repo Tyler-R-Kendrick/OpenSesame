@@ -8,7 +8,6 @@ import {
   ListConnectionsResponseSchema,
   ListEventsResponseSchema,
   ListProvidersResponseSchema,
-  ProviderSchema,
   RevokeResponseSchema,
 } from "@opensesame/contracts";
 import {
@@ -32,6 +31,7 @@ import {
   mergeLocalGitConnections,
   revokeLocalGitConnection,
 } from "./connections-local-git.js";
+import { providerFromView } from "./connector-catalog.js";
 import {
   type LocalGithubApp,
   buildGithubAppRegistration,
@@ -247,31 +247,6 @@ function toEgress(raw: {
   };
 }
 
-function toProvider(value: BoundaryValue): Provider {
-  const raw = ProviderSchema.parse(value);
-  return {
-    id: raw.id,
-    displayName: raw.display_name,
-    category: raw.category,
-    docsUrl: raw.docs_url,
-    authKind: raw.auth_kind,
-    supportsRefresh: raw.supports_refresh,
-    configured: raw.configured,
-    autoConfigurable: raw.auto_configurable,
-    missingConfig: raw.missing_config,
-    callbackUrl: raw.callback_url,
-    scopes: raw.scopes,
-    egress: toEgress(raw.egress),
-    operations: raw.operations,
-    configurationFields: raw.connection_configuration_fields.map((field) => ({
-      ...field,
-      label: field.name
-        .replaceAll("_", " ")
-        .replace(/^./, (letter) => letter.toUpperCase()),
-    })),
-  };
-}
-
 function toBinding(value: BoundaryValue): Binding {
   const raw = BindingSchema.parse(value);
   return {
@@ -386,7 +361,7 @@ function createCustomProviderDefault(body: {
         auth,
       }),
     },
-    toProvider,
+    providerFromView,
   );
 }
 
@@ -456,7 +431,7 @@ function submitGithubAppManifestDefault(
 
 function listProvidersDefault(): Promise<Provider[]> {
   return call("/providers", {}, (body) =>
-    ListProvidersResponseSchema.parse(body).providers.map(toProvider),
+    ListProvidersResponseSchema.parse(body).providers.map(providerFromView),
   );
 }
 

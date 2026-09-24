@@ -9,7 +9,7 @@ what it needs, so you can stop at the first one that covers your task.
 |---|---|---|
 | Node.js | 22 or newer | Everything TypeScript |
 | pnpm | 9.15 — `corepack enable` picks the pinned version | Workspace installs and scripts |
-| Rust | 1.88 — `rust-toolchain.toml` pins it | The Host plane (`apps/gateway`, `apps/daemon`, `apps/cli`, `crates/`) |
+| Rust | 1.88 — `rust-toolchain.toml` pins it | The Host plane (`crates/gateway`, `crates/daemon`, `apps/cli`, `crates/`) |
 | PostgreSQL | any supported release | Only for `pnpm bootstrap` / `pnpm db:migrate`; the Identity API runs in memory without it |
 | Docker | optional | The Compose stacks in [`ops/compose`](../../ops/compose) |
 | Chromium | optional | Browser gates (`verify:*`); Playwright finds `PLAYWRIGHT_CHROMIUM` |
@@ -66,9 +66,9 @@ development the Identity API refuses to start without a real
 ### The Host plane alone
 
 ```bash
-cargo build -p opensesame-gateway -p opensesame-daemon -p opensesame-cli
-./target/debug/opensesame-gateway --listen 127.0.0.1:8787
-./target/debug/opensesame-daemon  --listen 127.0.0.1:18790
+cargo build -p opensesame-cli
+./target/debug/opensesame host run --listen 127.0.0.1:8787
+./target/debug/opensesame daemon run --listen 127.0.0.1:18790
 ./target/debug/opensesame daemon status
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
 ```

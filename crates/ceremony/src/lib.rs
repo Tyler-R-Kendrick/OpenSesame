@@ -6,7 +6,7 @@
 //! encodes is what *not* to automate.
 //!
 //! **The registration form is not the hard part.** For GitHub it is already
-//! solved: `apps/gateway/src/routes/github_app.rs` implements the App Manifest
+//! solved: `crates/gateway/src/routes/github_app.rs` implements the App Manifest
 //! flow, so nobody fills fifteen fields and nobody downloads a `.pem`. Driving
 //! a browser to fill a form a provider offers an endpoint for would be more
 //! fragile, more dangerous, and would discard a supported path. So

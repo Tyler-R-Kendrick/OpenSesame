@@ -7,7 +7,7 @@
  * disabled form. It is the purpose presets and nothing else: what each
  * capability's policy leaves it is already said where that capability's
  * switch is, and the policy document is the page's Source view, beside the
- * installation's selection (ADR 0139). Choosing a preset writes through
+ * installation's selection (ADR 0140). Choosing a preset writes through
  * `saveLocalInstancePolicy`, the one writer of `capabilities.policy.local.v1`.
  */
 

@@ -1,5 +1,5 @@
 /**
- * Operator withdrawal of always-on capabilities (ADR 0139): the one place
+ * Operator withdrawal of always-on capabilities (ADR 0140): the one place
  * the resolver lets a policy take core out of a plan.
  */
 import type { ResolveInput } from "./resolve-input.js";

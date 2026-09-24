@@ -9,7 +9,7 @@
 #   (this broke `opensesame-connection-broker`'s `rotation_verify` tests).
 #   Independently of that, rustls is never asked for a process-wide default
 #   here: every config in this crate is built with `builder_with_provider`.
-# * `x509-parser` 0.18 (not the 0.16 that `apps/gateway` and `pki-core` use):
+# * `x509-parser` 0.18 (not the 0.16 that `crates/gateway` and `pki-core` use):
 #   it is already in the lock through `rcgen` 0.14, and it is used only to
 #   *read* an already-verified leaf (SANs, EKU, validity); chain building,
 #   signatures and revocation are `rustls-webpki`'s job, so it contributes no
@@ -20,7 +20,7 @@
 # * `rustls-pemfile` is not in the lock and is not needed: `rustls-pki-types`'
 #   `PemObject` reads PEM.
 # * Never a dependency of `crates/core`, `crates/client-core`, or
-#   `apps/daemon` (a test in `tests/dependency_fence.rs` parses the manifests).
+#   `crates/daemon` (a test in `tests/dependency_fence.rs` parses the manifests).
 
 [package]
 name = "opensesame-transport-security"

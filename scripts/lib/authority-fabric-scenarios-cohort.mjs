@@ -169,7 +169,6 @@ export const cohortPlaneScenarios = Object.freeze([
     target: {
       kind: "cargo",
       crate: "opensesame-gateway",
-      bin: "opensesame-gateway",
       module: "routes::intents",
       test: "routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke",
     },

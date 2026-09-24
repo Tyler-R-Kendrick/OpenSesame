@@ -1,7 +1,7 @@
-//! IOP-TLS at the **real Host entry point**: the `opensesame-gateway`
+//! IOP-TLS at the **real Host entry point**: `opensesame host run`, the `opensesame`
 //! process, configured the way an operator would configure it.
 //!
-//! `apps/gateway/src/transport/boot.rs` is reachable only from `main`, so the
+//! `crates/gateway/src/transport/boot.rs` is reachable only from `main`, so the
 //! two facts that matter most about it cannot be shown by a unit test:
 //!
 //! 1. a configured `mtls_required` listener really authenticates the peer,
@@ -33,7 +33,7 @@ const BOUND_ID: &str = "spiffe://iop.test/opensesame/bridge";
 
 /// Both listeners of one real Host process, checked by a third-party client.
 #[test]
-#[ignore = "spawns the opensesame-gateway binary; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
+#[ignore = "spawns `opensesame host run`; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
 fn the_host_process_authenticates_on_the_secure_listener_and_still_serves_the_plain_one(
 ) -> Result<()> {
     if !fixtures_enabled() {
@@ -141,7 +141,7 @@ fn the_host_process_authenticates_on_the_secure_listener_and_still_serves_the_pl
 
     record(
         "IOP-TLS-HOST-PROCESS",
-        "opensesame-gateway process <- openssl s_client + curl",
+        "opensesame host run process <- openssl s_client + curl",
         "plain 200 / tls anonymous refused / foreign root refused / verified 200",
     );
     Ok(())
@@ -151,7 +151,7 @@ fn the_host_process_authenticates_on_the_secure_listener_and_still_serves_the_pl
 /// `mtls_required` listener whose key does not match its certificate must
 /// stop the whole Host, not fall back to the plain listener.
 #[test]
-#[ignore = "spawns the opensesame-gateway binary; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
+#[ignore = "spawns `opensesame host run`; set OPENSESAME_MTLS_FIXTURES=1 and run with --ignored"]
 fn a_broken_mtls_required_host_refuses_to_serve_at_all() -> Result<()> {
     if !fixtures_enabled() {
         eprintln!("skipped: set OPENSESAME_MTLS_FIXTURES=1");
@@ -192,7 +192,7 @@ fn a_broken_mtls_required_host_refuses_to_serve_at_all() -> Result<()> {
 
     record(
         "IOP-TLS-HOST-NODOWNGRADE",
-        "opensesame-gateway process",
+        "opensesame host run process",
         "mismatched key: process exits, neither listener open",
     );
     Ok(())

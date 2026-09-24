@@ -4,9 +4,9 @@ OpenSesame splits into **host** (machine-local privileged control) and **client*
 
 | Surface | Port | Role |
 |---------|------|------|
-| Host API (`apps/gateway`) | 8787 | ConnectionRef invoke, sync blob store, authority |
+| Host API (`crates/gateway`) | 8787 | ConnectionRef invoke, sync blob store, authority |
 | Identity API (`apps/control-plane`) | 8788 | OIDC issuer, principals, claims, passkeys |
-| Daemon (`apps/daemon`) | 18790 | Local session capabilities for WSL/devcontainers/toolbar |
+| Daemon (`crates/daemon`) | 18790 | Local session capabilities for WSL/devcontainers/toolbar |
 | Mock upstream IdP | 9090 | Local OIDC for identity tests |
 
 ## Dependency graph

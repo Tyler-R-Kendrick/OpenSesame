@@ -143,7 +143,7 @@ policy on screen at a time.
   `listDelegations()`, `revokeDelegation(id)`, `narrowDelegation(id, input)`,
   `mintOffer(input)`, `listMyOffers()`, `revokeOffer(id)` — wire shapes from
   `crates/connection-broker/src/delegation.rs` (`MintOfferRequest`,
-  `OfferView`, `DelegationView`) and `apps/gateway/src/routes/delegations.rs`.
+  `OfferView`, `DelegationView`) and `crates/gateway/src/routes/delegations.rs`.
   Read them before binding.
 - Secret targets come from the unlocked vault (`useVault` items of kind
   `secret`): name, `connectionRef`, `ceiling`, `grantees`. Locked vault →

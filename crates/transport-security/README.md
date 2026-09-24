@@ -10,7 +10,7 @@ checking off.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway),
+- **Used by:** [`crates/gateway`](../../crates/gateway),
   [`apps/worker`](../../apps/worker),
   [`opensesame-connection-broker`](../connection-broker),
   [`opensesame-ingress-evidence`](../ingress-evidence),
@@ -24,7 +24,7 @@ checking off.
 - **Builds on:** [`opensesame-domain`](../domain) (`TransportPolicy`, service
   bindings, `VerifiedPeer`, error codes).
 - Native only. It is never a dependency of `crates/core`, `crates/client-core`
-  or `apps/daemon`; [`tests/dependency_fence.rs`](tests/dependency_fence.rs)
+  or `crates/daemon`; [`tests/dependency_fence.rs`](tests/dependency_fence.rs)
   parses the workspace manifests to keep it that way.
 - One rustls provider (`ring`), and every config is built with
   `builder_with_provider`; the crate never sets a process-wide default.

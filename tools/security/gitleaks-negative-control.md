@@ -82,7 +82,7 @@ Every value was decoded and read before being listed:
 
 | Where | Value | Verdict |
 | --- | --- | --- |
-| `apps/cli/src/bridge.rs`, `apps/pm-bridges/src/pairing.rs` | `id_key` base64-decodes to `12345678901234567890123456789012` | counting string |
+| `apps/cli/src/bridge.rs`, `crates/pm-bridges/src/pairing.rs` | `id_key` base64-decodes to `12345678901234567890123456789012` | counting string |
 | `crates/provider-bitwarden/tests/vectors/crypto_vectors.json` | master password `correct horse battery staple`; wrapped key decodes to `ZZZZZZZZZZZZZZZZ` | published KDF vectors |
 | `crates/provider-bitwarden/tests/common/mod.rs` | a type-7 COSE EncString | synthetic migration fixture |
 | `apps/pages/.../cxf.test.ts`, `cxf.characterization.test.ts` | `-----BEGIN OPENSSH PRIVATE KEY-----` with no body; a key decoding to `private-key-this-vault-refuses` | header lines only |

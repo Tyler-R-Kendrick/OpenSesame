@@ -10,7 +10,7 @@ runner supplies capture and sealing.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway)
+- **Used by:** [`crates/gateway`](../../crates/gateway)
   (`src/routes/agent_runs.rs`), [`opensesame-a2h`](../a2h) and
   [`opensesame-rotation-web`](../rotation-web).
 - **Builds on:** no workspace crates (`serde`, `thiserror`).

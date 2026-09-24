@@ -53,9 +53,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: access authority (local PAM + Host plane) -------------
     "authority.portal.templates.manage": "access.authority",
     "authority.portal.templates.read": "access.authority",
-    "tasks.list": "access.authority",
-    "tasks.inspect": "access.authority",
-    "tasks.terminate": "access.authority",
     "receipts.read": "access.authority",
     // Transport security is deployment-plane operator work (ADR 0132): the
     // Pages surface only reads status and capability, references a
@@ -64,15 +61,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "transport.verify.run": "access.authority",
     "transport.identity.reference": "access.authority",
     "transport.capabilities.discover": "access.authority",
-    "delegations.list": "access.authority",
-    "delegations.offers.list": "access.authority",
-    "delegations.narrow": "access.authority",
-    "delegations.revoke": "access.authority",
-    "delegations.offers.revoke": "access.authority",
     "delegations.claim": "access.authority",
     "shared_sessions.join_request": "access.authority",
-    "relay.inbox": "access.authority",
-    "relay.decide": "access.authority",
     "agent_identities.read": "access.authority",
     "identity.local.requests.manage": "access.authority",
     "identity.local.policy.manage": "access.authority",

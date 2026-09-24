@@ -13,7 +13,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:catalog": "node scripts/emit-connector-catalog.mjs && biome format --write src/lib/connector-catalog.generated.ts"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

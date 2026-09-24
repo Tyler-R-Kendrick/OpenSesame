@@ -9,7 +9,7 @@
  * configured under it, and the optional capabilities — if any — its one
  * switch adds and removes. A feature with no optional capability is a
  * function every installation has; its section draws the same way and
- * simply carries no switch (ADR 0139).
+ * simply carries no switch (ADR 0140).
  *
  * Every optional capability has exactly one home, and so does every
  * connector family: two sections never configure the same thing.
@@ -54,7 +54,7 @@ export type Feature = Readonly<{
   models?: true;
   /**
    * The always-on capabilities this section's providers work through. An
-   * operator may withdraw one (ADR 0139); the section then says so.
+   * operator may withdraw one (ADR 0140); the section then says so.
    */
   backedBy?: readonly CapabilityId[];
 }>;
@@ -71,7 +71,7 @@ const section = (
  * In page order, by topic: who signs in, what protects keys, where secrets
  * live, then what this installation does with others and with models.
  * Browser-local IAM, SIOP, the site broker and git backup are always on
- * (ADR 0139), so Identity providers and Backups carry no switch.
+ * (ADR 0140), so Identity providers and Backups carry no switch.
  */
 export const FEATURES: readonly Feature[] = [
   section(
@@ -300,7 +300,7 @@ export function neededBy(
 
 /**
  * Always-on capabilities this plan does not run: an operator withdrew them
- * (ADR 0139), or they need one that was. The page names them rather than
+ * (ADR 0140), or they need one that was. The page names them rather than
  * drawing their sections as though they ran.
  */
 export function withdrawnAlwaysOn(plan: EffectivePlan | null): CapabilityId[] {

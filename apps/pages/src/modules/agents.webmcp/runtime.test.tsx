@@ -75,7 +75,7 @@ describe("agents.webmcp runtime", () => {
       expect.arrayContaining([
         "app.status",
         "app.navigate",
-        "identity.health.pages",
+        "host.health.pages",
       ]),
     );
     for (const name of [

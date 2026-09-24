@@ -1,0 +1,8 @@
+---
+source: apps/cli/tests/gopass_golden.rs
+expression: "run.responses[0]"
+---
+{
+  "password": "hunter2",
+  "username": "alice"
+}

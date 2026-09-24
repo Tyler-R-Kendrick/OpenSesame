@@ -24,7 +24,7 @@ receipted, and without any underlying token ever moving.**
 | Grant attenuation + delegation chains | `crates/domain/src/grant.rs:78` (`validate_attenuation`: refuses cross-org, depth ≠ parent+1, lifetime/action/resource/audience/budget/export widening), `crates/domain/src/delegation_chain.rs` (contiguity, cycle, `beneficiary[i] == issuer[i+1]`), `crates/grants/src/lib.rs:3` (`delegate()`) | Built, Rust domain only |
 | Claim-session ceremony (peppered tokens, user codes, CAS state machine, idempotent complete) | `packages/claims/src/engine.ts`, `packages/os-domain/src/crypto/claim-token.ts`, `apps/control-plane/src/routes/claims.ts`; Rust twin `crates/claims/src/lib.rs` | Built |
 | Guest/anon principals with later claim | `apps/control-plane/src/routes/principals.ts:70` (`POST /v1/principals/provisional`, `pst_` bearer, quota-fenced), identity linking preserves the principal id | Built |
-| Device-flow claim codes (RFC 8628), twice | `packages/oauth-provider` + `packages/device-auth`; gateway `apps/gateway/src/routes/device.rs` | Built |
+| Device-flow claim codes (RFC 8628), twice | `packages/oauth-provider` + `packages/device-auth`; gateway `crates/gateway/src/routes/device.rs` | Built |
 | Task-scoped authority: ceilings, ratchet, frozen intents | `crates/domain/src/task.rs`, `crates/broker/src/frozen.rs` (`assert_grant_covers_frozen_intent`), ADR 0018/0019/0020/0021/0027 | Built |
 | Signed invocation receipts carrying `delegation_chain` | `crates/domain/src/receipt.rs:18`, `assert_no_secret_leak` | Built (chain always empty today) |
 | Hash-chained audit trail with redaction allowlist | `packages/audit/src/chain.ts`, `packages/audit/src/redact.ts` | Built |
@@ -48,7 +48,7 @@ receipted, and without any underlying token ever moving.**
 ### 1.3 Gaps that are prerequisites, not part of the feature itself
 
 1. **The gateway invoke path ignores the submitted ref.**
-   `apps/gateway/src/routes/intents.rs:88` binds the body's
+   `crates/gateway/src/routes/intents.rs:88` binds the body's
    `connection_ref` to `_requested_ref` and executes against the
    hard-coded `demo-conn` (`:186`; also `routes/tasks.rs:518`).
    Delegation is meaningless until an arbitrary `conn://` URI resolves to
@@ -80,7 +80,7 @@ receipted, and without any underlying token ever moving.**
 |---|---|---|
 | Delegation vs impersonation; `act` chains; `may_act` pre-authorization | RFC 8693 | Semantics only: subject = owner, actor = claimant, recorded in grant lineage + receipts. No wire endpoint (matches `docs/reference/protocol-profiles.md` and the one-shot broker prompt: "Do not add `POST /connections/{id}/token` for agents") |
 | Approver ≠ claimant as a first-class flow; grant-as-stateful-resource with continuation; structured access descriptors | GNAP (RFC 9635) | The offer/claim shape: an offer is a stateful resource the claimant polls, the owner (a different person) approves |
-| Claim codes: low-entropy human channel + high-entropy machine channel, `authorization_pending`/`slow_down`, single-grant expiry | RFC 8628 | Inverted: the *owner* mints, the *claimant* redeems. We already run this state machine in `packages/device-auth` and `apps/gateway/src/routes/device.rs` |
+| Claim codes: low-entropy human channel + high-entropy machine channel, `authorization_pending`/`slow_down`, single-grant expiry | RFC 8628 | Inverted: the *owner* mints, the *claimant* redeems. We already run this state machine in `packages/device-auth` and `crates/gateway/src/routes/device.rs` |
 | Single-use wrapped delivery; first-redeemer-wins; failed redemption = interception alarm ("malfeasance detection") | Vault cubbyhole response wrapping | Claim-spend semantics: a second `present` revokes the offer and notifies the owner |
 | Offline attenuation, monotonic narrowing, audience binding per hop | Macaroons / Biscuit / UCAN | Not the token format (our handles are deliberately non-capability: "knowledge is not authorization", `authority.rs:84`) — but the *invariants*: append-only narrowing (`validate_attenuation`), per-hop audience (`proof_key_jkt` binding), ancestor revocation (parent grant revocation kills the chain) |
 | Server-side attenuation-on-mint: repo-list × permission-subset × ≤ 1 h | GitHub App installation tokens | Optional provider-level narrowing for GitHub connections that are App-backed (`installation.rs` already mints these for backup) |
@@ -322,7 +322,7 @@ host. Receipts populate `delegation_chain: [parent_grant_id, child_grant_id]`
 
 For a GitHub connection whose owner grant is
 `actions: [repository.read, pull_request.create]`,
-`resources: [repo:acme/*]` (per `crates/connection-broker/src/catalog.json`
+`resources: [repo:acme/*]` (per `spec/connectors/catalog.json`
 operations and the bootstrap demo grant):
 
 | Dimension | Default for a delegate | Owner may widen up to |

@@ -65,7 +65,7 @@ const navigateTool: PagesWebMcpTool = {
 
 const healthTool: PagesWebMcpTool = {
   name: "opensesame_health",
-  capabilityIds: ["identity.health.pages"],
+  capabilityIds: ["host.health.pages"],
   scope: "boot",
   readOnly: true,
   description:

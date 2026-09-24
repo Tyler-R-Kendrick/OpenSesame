@@ -11,10 +11,10 @@ Research: [docs/research/hooks-ecosystem.md](../research/hooks-ecosystem.md)
 ## Context
 
 OpenSesame's brokered capabilities are first-party and hardcoded. The
-backup actor speaks only GitHub (`apps/gateway/src/backup.rs`), attachment
-replication speaks only Dropbox (`apps/gateway/src/routes/attachments.rs`),
+backup actor speaks only GitHub (`crates/gateway/src/backup.rs`), attachment
+replication speaks only Dropbox (`crates/gateway/src/routes/attachments.rs`),
 certificate issuance is three providers behind closed `match` arms
-(`apps/gateway/src/routes/certs.rs`), identity providers come from four
+(`crates/gateway/src/routes/certs.rs`), identity providers come from four
 built-ins plus flat env config, and the cloud-secret-storage catalog rows
 (`doppler`, `vault`, …) are `configuration`-mode placeholders the broker
 refuses to execute. A user who wants a provider we did not ship has no path
@@ -30,7 +30,7 @@ and a stubbed `wasm_guest` module; a wasmtime workspace pin sat unused
 (activated by this ADR on the 36 LTS line — the 33 line it originally
 named carries RUSTSEC advisories including a critical sandbox escape,
 which `pnpm audit:cargo-audit` now guards); `spec/connectors/mock/connector.yaml` specifies a manifest nobody
-parses; and `apps/gateway/src/routes/intents.rs` carries the literal
+parses; and `crates/gateway/src/routes/intents.rs` carries the literal
 comment "When per-provider components land, this becomes the lookup."
 
 The ecosystem research (linked above) surveyed nine hook ecosystems and
@@ -85,7 +85,7 @@ A community extension enters at the lowest tier that can express it:
 ### 3. The Wasm runtime: Shopify-Functions posture, default off
 
 `crates/connector-host` gains a real component runtime behind a cargo
-feature `wasm-connectors`, **default off**, with `apps/gateway` exposing a
+feature `wasm-connectors`, **default off**, with `crates/gateway` exposing a
 pass-through feature. Rules, each load-bearing:
 
 - Guests are components of the `opensesame:connector/connector@1.0.0`
@@ -134,7 +134,7 @@ parser) plus the manifest rejection-table unit tests.
 ### 5. Provider→connector binding replaces the hardcoded lookup
 
 `HostRuntime` maps `provider_id → connector_id` (`bind_provider`);
-`apps/gateway/src/routes/intents.rs`'s `component_for_provider()` is
+`crates/gateway/src/routes/intents.rs`'s `component_for_provider()` is
 deleted in favor of the runtime lookup, preserving today's mock fallback
 byte-for-byte when nothing is registered. Boot-time loading
 (`with_manifest_dir`) scans an operator-configured directory
@@ -160,7 +160,7 @@ Gate: gateway route tests assert unknown providers still fail closed.
   prerequisite recorded in §8, not silently implied.
 - **Certificates — trust semantics are platform-owned.** Issuer rows are
   Tier 1 descriptors in a registry
-  (`apps/gateway/src/cert_issuers/registry.rs`); DNS-01 provisioners may be
+  (`crates/gateway/src/cert_issuers/registry.rs`); DNS-01 provisioners may be
   brokered catalog operations (`BrokeredDns01` over `authorized_json`). But
   `IssuerKind`, its `trust()` mapping to `TrustClass`, and private-CA key
   custody (`certificate_authorities.sealed_*`) never come from a manifest:
@@ -209,7 +209,7 @@ Recorded so each item's status is a decision, not an oversight.
 **Landed after the initial change:**
 
 - **OCI component pull by pinned digest** —
-  `apps/gateway/src/oci_component.rs`. A connector entry without a local
+  `crates/gateway/src/oci_component.rs`. A connector entry without a local
   `component.wasm` fetches its component as a single digest-addressed blob
   GET; the registry is untrusted transport and the local sha256 (plus the
   operator pin re-verified in `WasmConnector::load`) is the integrity

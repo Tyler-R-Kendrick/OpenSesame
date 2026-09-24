@@ -1,6 +1,6 @@
 /**
  * OpenAPI-shaped contract for Host operator TaskBus routes.
- * Kept in sync with `apps/gateway` handlers and Zod schemas in `./taskbus.ts`.
+ * Kept in sync with `crates/gateway` handlers and Zod schemas in `./taskbus.ts`.
  */
 export const taskBusOpenApi = {
   openapi: "3.0.3",

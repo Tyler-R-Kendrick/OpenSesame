@@ -97,7 +97,7 @@ Each machine runs one OpenSesame process, `opensesame daemon run`. It serves:
 - the **MCP** endpoint (§5) and, for the desktop app, the Pages build on a
   loopback origin.
 
-`apps/gateway` and `apps/daemon` become library crates this process links;
+`crates/gateway` and `crates/daemon` become library crates this process links;
 the gateway binary remains as `opensesame daemon run --shared` for a team
 host.
 
@@ -154,7 +154,7 @@ The agent audience collapses to one value, `urn:opensesame:agent:mcp`. ADR
 | `android` (was `authenticator-native`) | The mobile app; later embeds app-core through the sandbox host. |
 | `browser-extension` | Runs in the browser's process; rebuilt on app-core. |
 | `cli` | The `opensesame` binary: every CLI verb, `daemon run`, `mcp serve`, and argv[0] entry points for `docker-credential-opensesame`, `git-credential-opensesame` and the password-manager native-messaging hosts. |
-| `connect-backend` | Serverless functions for OAuth and GitHub App callbacks a static page cannot receive. |
+| `pages` `api/` + `server/` | The app's own serverless functions for OAuth and GitHub App callbacks a static page cannot receive; one deployment with the app (was `apps/connect-backend`). |
 
 Everything else becomes a library or disappears:
 

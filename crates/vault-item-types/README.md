@@ -12,7 +12,7 @@ what a type is.
 ## Where it fits
 
 - **Used by:** no workspace crate or app depends on it today; `apps/cli`,
-  `apps/pm-bridges` and `kdbx-bridge` read `sealed_store::Entry` directly and do
+  `crates/pm-bridges` and `kdbx-bridge` read `sealed_store::Entry` directly and do
   not link this crate. It is exercised by its own tests
   ([`tests/conformance.rs`](tests/conformance.rs),
   [`tests/registry.rs`](tests/registry.rs)) and by the fuzz crate

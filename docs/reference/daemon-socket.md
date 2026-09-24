@@ -1,6 +1,6 @@
 # Daemon local socket contract
 
-Canonical binary: `opensesame-daemon` (`apps/daemon`).
+Canonical binary: `opensesame-daemon` (`crates/daemon`).
 
 The legacy `opensesame-credential-agent` binary has been removed; the daemon is
 the only local host agent.
@@ -20,7 +20,7 @@ the only local host agent.
 | Never | refresh token dump, WebAuthn material, secrets |
 
 Host CLI: `opensesame daemon install|start|status|stop|logs`
-Toolbar: `opensesame-toolbar health|status|approve-device|approve-claim`
+Toolbar: `opensesame daemon status|info|approve-device|approve-claim`
 Every daemon route but `/health` is operator-gated, so the toolbar sends
 `X-OpenSesame-Operator` from `OPENSESAME_OPERATOR_TOKEN` (`--operator-token`).
 Without it the daemon answers 401 and nothing is approved.

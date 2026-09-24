@@ -123,7 +123,7 @@ them do that.
 They earn their place where an unnoticed change is dangerous rather than
 merely wrong:
 
-- `apps/daemon` discovery report — the contract is that a provider is named
+- `crates/daemon` discovery report — the contract is that a provider is named
   and its credential never is, and the cheapest way to break it is to add a
   helpful-looking field.
 - `packages/audit` redaction — what reaches an append-only trail. A key that

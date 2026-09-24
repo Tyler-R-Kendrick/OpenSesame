@@ -8,7 +8,7 @@ conformance.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (`src/routes/aauth.rs`,
+- **Used by:** [`crates/gateway`](../../crates/gateway) (`src/routes/aauth.rs`,
   under `/experimental/aauth/v1/*`) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`aauth_parse`). Both enable the
   `experimental-aauth` feature.

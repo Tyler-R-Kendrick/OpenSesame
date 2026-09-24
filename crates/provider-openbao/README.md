@@ -9,7 +9,7 @@ certificate (`auth/cert`).
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (app state, credential
+- **Used by:** [`crates/gateway`](../../crates/gateway) (app state, credential
   connections, health, the KV facade, transport revocation) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`openbao_response`).
 - **Builds on:** [`opensesame-domain`](../domain) and

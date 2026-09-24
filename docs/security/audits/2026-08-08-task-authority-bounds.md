@@ -2,7 +2,7 @@
 
 Scanners clean (cve-lite, semgrep, ast-grep, gitleaks, cargo-audit). Read
 `apps/mcp-host` (tools, host API fences, task context) and the Host API task routes it
-drives in `apps/gateway/src/routes/tasks.rs`.
+drives in `crates/gateway/src/routes/tasks.rs`.
 
 ## Findings
 

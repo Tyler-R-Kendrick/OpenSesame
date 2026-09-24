@@ -10,7 +10,7 @@ bundle. Everywhere else the fields are stripped.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway),
+- **Used by:** [`crates/gateway`](../../crates/gateway),
   [`tests/mtls-interop`](../../tests/mtls-interop) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`transport_ingress_fields`).
 - **Builds on:** [`opensesame-domain`](../domain) (transport contracts,

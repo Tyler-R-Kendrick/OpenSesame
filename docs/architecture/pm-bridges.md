@@ -32,7 +32,7 @@ which reads the sealed store in-process. No daemon, no gateway, no network.
              │
              ▼
    ┌─────────────────────────────────────────────┐
-   │ apps/pm-bridges  (one [[bin]] per surface)  │
+   │ crates/pm-bridges  (one [[bin]] per surface)  │
    │   keepassxc_bridge  browserpass_host        │
    │   gopass_jsonapi    secret_service*         │
    │  ── all default-off behind a cargo feature  │
@@ -54,7 +54,7 @@ is a server-API surface rather than local IPC and therefore lives on the
 gateway:
 
 ```
- ESO / Terraform / bao CLI ── HTTPS + X-Vault-Token ──► apps/gateway
+ ESO / Terraform / bao CLI ── HTTPS + X-Vault-Token ──► crates/gateway
                                                           │ default OFF
                                                           │ (kv_facade_enabled)
                                                           ▼
@@ -140,7 +140,7 @@ the same value by running `opensesame pass show --reveal`.
 
 ## Why the daemon is absent from both diagrams
 
-Deliberately. `apps/daemon` depends on none of `apps/pm-bridges`,
+Deliberately. `crates/daemon` depends on none of `crates/pm-bridges`,
 `crates/kdbx-bridge`, `crates/provider-bitwarden`, or
 `crates/provider-passbolt`, so none of their dependencies —
 `crypto_box`, `zbus`/`oo7`, `rpgp`, `reqwest`, `keepass` — enter its tree.

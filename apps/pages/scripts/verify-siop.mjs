@@ -201,7 +201,7 @@ try {
   );
   await installPasskeyCredentials(page, credentials);
   // `/siop` and the local applications this seeds belong to Self-issued
-  // OpenID and browser-local IAM, which are always on (ADR 0139): the walk
+  // OpenID and browser-local IAM, which are always on (ADR 0140): the walk
   // asks for them and `chooseCapabilities` finds nothing to switch.
   await chooseCapabilities(
     context,

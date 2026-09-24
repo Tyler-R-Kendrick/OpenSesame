@@ -18,3 +18,11 @@ it.skip("takes the deployed base and forgets it", () => {
   applyConnectCallbackBase(undefined);
   expect(connectCallbackBase()).toBe("");
 });
+
+it("resolves `/` to the page's own origin, where the app serves the relay", () => {
+  applyConnectCallbackBase("/");
+  expect(connectCallbackBase("https://opensesame.example")).toBe(
+    "https://opensesame.example",
+  );
+  expect(connectCallbackBase("")).toBe("");
+});

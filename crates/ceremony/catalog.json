@@ -16,7 +16,7 @@
     "user has not named, and it cannot prove the result works.",
     "",
     "Every id here must name a provider in",
-    "crates/connection-broker/src/catalog.json \u2014 enforced by a test, so a",
+    "spec/connectors/catalog.json \u2014 enforced by a test, so a",
     "ceremony entry cannot outlive the provider it is for.",
     "",
     "Absence is meaningful: a provider with no entry resolves to C3 and gets the",
@@ -27,7 +27,7 @@
     {
       "provider_id": "github",
       "native_registration": true,
-      "native_registration_note": "GitHub App Manifest flow, already implemented in apps/gateway/src/routes/github_app.rs",
+      "native_registration_note": "GitHub App Manifest flow, already implemented in crates/gateway/src/routes/github_app.rs",
       "recipe": false,
       "agentic_allowed": false,
       "declares": [

@@ -9,7 +9,7 @@ HTTP Message Signatures subset.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) and the fuzz crate
+- **Used by:** [`crates/gateway`](../../crates/gateway) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`jwt_jwk`, `uri_normalize`,
   `replay_cache`).
 - **Builds on:** [`opensesame-domain`](../domain); `jsonwebtoken` for JWS.

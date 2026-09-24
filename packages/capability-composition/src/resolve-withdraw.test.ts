@@ -113,7 +113,7 @@ function resolved(overrides: Partial<ResolveInput>) {
   return resolveComposition(input({ ...overrides, receipt }));
 }
 
-describe("an operator may withdraw an always-on capability (ADR 0139)", () => {
+describe("an operator may withdraw an always-on capability (ADR 0140)", () => {
   it("runs every always-on capability while nothing is prohibited", () => {
     const plan = resolved({ instancePolicy: policy([]) });
     expect(plan.approvedCapabilities).toEqual([

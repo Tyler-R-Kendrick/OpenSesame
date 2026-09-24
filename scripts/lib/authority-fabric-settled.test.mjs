@@ -23,7 +23,6 @@ const PINS = [
     tier: "integration",
     kind: "cargo",
     crate: "opensesame-gateway",
-    bin: "opensesame-gateway",
     testIncludes: "authority_grant_expiry_reaches_lifecycle_feed_via_scan",
   },
   {

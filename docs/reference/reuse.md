@@ -37,7 +37,7 @@ Product license: **MIT** (see `LICENSE`).
 | 1Password (clients / server / Connect) | Proprietary — serving its clients is impossible and not attempted; consume via `op` CLI, Connect REST (ops plane), and `.1pux` import — see [docs/research/competitors/1password.md](../research/competitors/1password.md) |
 | `keepass` crate (Rust KDBX) | **Permissive dependency allowed** (MIT), pinned. Upstream KDBX4 *write* is experimental → writer constrained to KDBX 4.0 / AES-256 or ChaCha20 / Argon2id + cross-implementation conformance fixture |
 | kdbxweb + hash-wasm (Pages KDBX) | **Permissive dependencies allowed** (MIT). hash-wasm supplies Argon2 to kdbxweb via `CryptoEngine.setArgon2Impl`; both lazily imported |
-| `crypto_box` (RustCrypto NaCl box) | **Permissive dependency allowed** (MIT OR Apache-2.0) — keepassxc-protocol transport crypto, in `apps/pm-bridges` only |
+| `crypto_box` (RustCrypto NaCl box) | **Permissive dependency allowed** (MIT OR Apache-2.0) — keepassxc-protocol transport crypto, in `crates/pm-bridges` only |
 | rpgp | **Permissive dependency allowed** (MIT OR Apache-2.0) — OpenPGP for the Passbolt consume-client |
 | oo7 (Secret Service) | **MIT — fork/derive or depend, with `NOTICE` attribution** |
 | rbw (Rust Bitwarden client) | **MIT — fork/derive with `NOTICE` attribution.** In maintenance mode: use as verified protocol knowledge, do **not** take it as a dependency |

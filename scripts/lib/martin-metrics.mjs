@@ -56,7 +56,7 @@ export function couplings(components) {
  * ADP check: every dependency cycle in the component graph.
  *
  * Cycles are found as strongly connected components (Tarjan, O(V+E)) rather
- * than by enumerating paths -- on a wide DAG like `apps/gateway`, which
+ * than by enumerating paths -- on a wide DAG like `crates/gateway`, which
  * depends on some forty crates that also depend on each other, path
  * enumeration is exponential while the answer is almost always "no cycles".
  * Each SCC of more than one node, and each self-edge, is one ADP violation;

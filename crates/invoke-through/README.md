@@ -9,7 +9,7 @@ else.
 
 ## Where it fits
 
-- **Used by:** [`apps/daemon`](../../apps/daemon) (`src/invoke_through.rs`) and
+- **Used by:** [`crates/daemon`](../../crates/daemon) (`src/invoke_through.rs`) and
   [`opensesame-connection-broker`](../connection-broker) (transport pool and
   rotation egress).
 - **Builds on:** no workspace crates at runtime. `opensesame-transport-security`

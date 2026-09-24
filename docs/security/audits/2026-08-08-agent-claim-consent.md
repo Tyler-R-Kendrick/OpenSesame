@@ -18,7 +18,7 @@ Scanners: cargo-audit, cve-lite, ast-grep, clippy, semgrep, gitleaks, osv-scanne
   lock before either) cannot drift.
 - The per-claim attempt counter is pruned alongside expired claim sessions in `create_identity`, so it
   cannot outgrow the claim map.
-- `apps/daemon` now requires `user_code` for both approval paths (Host API agent-claim and the Identity API
+- `crates/daemon` now requires `user_code` for both approval paths (Host API agent-claim and the Identity API
   fallback) instead of only the fallback.
 
 ## Verification

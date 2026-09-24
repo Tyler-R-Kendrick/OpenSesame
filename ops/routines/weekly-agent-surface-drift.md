@@ -31,7 +31,7 @@ job.
 
 ## What to sweep (diff the last week: `git log --since="8 days ago"`)
 
-1. **New Host API routes**: `apps/gateway/src/routes/mod.rs` and handler
+1. **New Host API routes**: `crates/gateway/src/routes/mod.rs` and handler
    modules. Any new `/api/v1/...` route group that no capability in
    `packages/capability-registry/src/index.ts` covers?
 2. **New CLI verbs**: clap enums in `apps/cli/src/*.rs`, grammar in

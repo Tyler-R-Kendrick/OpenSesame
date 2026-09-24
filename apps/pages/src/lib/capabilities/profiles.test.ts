@@ -105,7 +105,7 @@ const EXPECTED = {
   "minimal-local": [],
   "family-local": [],
   "family-sharing-selected": ["sharing.drops", "sharing.household"],
-  // Git backup is always on (ADR 0139): the provider path needs nothing optional.
+  // Git backup is always on (ADR 0140): the provider path needs nothing optional.
   "single-provider-selected": [],
   "enterprise-selected": [
     "enterprise.ca-administration",
@@ -186,7 +186,7 @@ describe("capability profiles", () => {
       }
       expect(plan.network.externalServices).toBe("deny");
       // Always on, and held inside the deny by its runtime rather than by
-      // the plan (ADR 0139): the observer pushes nothing while it holds.
+      // the plan (ADR 0140): the observer pushes nothing while it holds.
       expect(plan.capabilities["backup.git-remote"]?.approved).toBe(true);
     }
   });

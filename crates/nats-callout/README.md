@@ -10,7 +10,7 @@ re-verifies everything else from the raw request JWT the bridge forwards.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (the decision route in
+- **Used by:** [`crates/gateway`](../../crates/gateway) (the decision route in
   `src/routes/nats_callout.rs`) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`transport_callout_envelope`).
   The bridge binary is its own deployable.
@@ -22,7 +22,7 @@ re-verifies everything else from the raw request JWT the bridge forwards.
 - `client_tls.certs` in a request is never evidence. The `xkv1` envelope uses
   `nkeys`' implementation, not [`opensesame-xkeys`](../xkeys), because it has to
   match the server's wire format.
-- Never a dependency of `crates/core`, `crates/client-core` or `apps/daemon`.
+- Never a dependency of `crates/core`, `crates/client-core` or `crates/daemon`.
 
 ## Surface
 

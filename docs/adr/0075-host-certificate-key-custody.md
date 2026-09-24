@@ -14,7 +14,7 @@ ADR 0074 gave every deadline in the authority plane a detector and a published
 hook, and put `OpenSesame`'s own rotation on that feed. It could not do the same
 for certificates, and the reason was structural rather than a matter of effort.
 
-Every issuance path in `apps/gateway/src/routes/certs.rs` ends by returning the
+Every issuance path in `crates/gateway/src/routes/certs.rs` ends by returning the
 new private key **to the caller**, in a sealed, time-boxed delivery they
 acknowledge at `/certs/deliveries/{request_id}/ack`. The custody model is "the
 host holds this for ten minutes until the requester collects it". A background

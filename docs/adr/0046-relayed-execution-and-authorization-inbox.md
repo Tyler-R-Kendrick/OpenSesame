@@ -205,7 +205,7 @@ producer), `approval_id` on `InvocationReceipt` (`receipt.rs:37`, always
   substantial change to the most security-sensitive path in the system and
   lands behind the inbox slice, not with it.
 - **Relay execution is gated on two prerequisites that are still open**
-  (ADR 0044 §1.3): `apps/gateway/src/routes/intents.rs:88` discards the
+  (ADR 0044 §1.3): `crates/gateway/src/routes/intents.rs:88` discards the
   submitted `connection_ref` in favor of a hard-coded `demo-conn`, and
   `authorize_authority_use` (`crates/authz/src/authority_use.rs:36`) —
   the real ADR 0005 fence — never runs on the invoke path. Until both are

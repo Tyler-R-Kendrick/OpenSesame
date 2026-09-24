@@ -101,6 +101,7 @@ const CONNECTOR_FILES = [
   "connections",
   "connections-integrations",
   "connections-local-git",
+  "connector-catalog",
   "connector-directory",
   "nango-directory",
   "embedded-catalog",

@@ -6,7 +6,7 @@
 //! it belongs to"; this is what makes "alongside" mean something after the
 //! review that put them there.
 //!
-//! Read from `crates/connection-broker/src/catalog.json` by path rather than
+//! Read from `spec/connectors/catalog.json` by path rather than
 //! by depending on the crate: `opensesame-ceremony` is pure and stays that way,
 //! and a dev-only file read in a test is not a dependency of the shipped
 //! vocabulary.
@@ -17,10 +17,7 @@ use std::path::PathBuf;
 use opensesame_ceremony::Catalog;
 
 fn connection_catalog_providers() -> BTreeSet<String> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("crates/")
-        .join("connection-broker/src/catalog.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/connectors/catalog.json");
     let raw = std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
     let parsed: serde_json::Value =
@@ -42,7 +39,7 @@ fn every_ceremony_names_a_provider_the_connection_catalog_knows() {
         assert!(
             known.contains(&entry.provider_id),
             "ceremony catalog names `{}`, which is not a provider in \
-             crates/connection-broker/src/catalog.json",
+             spec/connectors/catalog.json",
             entry.provider_id,
         );
     }

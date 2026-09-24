@@ -9,8 +9,8 @@ across one module per responsibility.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway),
-  [`apps/cli`](../../apps/cli), [`apps/callback-edge`](../../apps/callback-edge),
+- **Used by:** [`crates/gateway`](../../crates/gateway),
+  [`apps/cli`](../../apps/cli),
   [`opensesame-broker`](../broker), [`opensesame-connection-broker`](../connection-broker)
   (dev-dependency), the fuzz crate [`tests/fuzz/cargo`](../../tests/fuzz/cargo)
   (`certmgr_filter_parse`), and the authority-fabric gate

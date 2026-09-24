@@ -7,11 +7,13 @@ import {
   type AgentSurface,
   CAPABILITIES,
   INTERACTION_SETTLEMENT_PATTERN,
+  SURFACES,
   assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
   exclusionsFor,
   mcpClientCatalog,
   mcpHostCatalog,
+  surfaceGaps,
   webmcpCatalog,
   webmcpPagesCatalog,
 } from "./index.js";
@@ -48,7 +50,7 @@ describe("capability registry shape", () => {
 
   it("every exclusion cites an ADR file that exists", () => {
     for (const capability of CAPABILITIES) {
-      for (const surface of AGENT_SURFACES) {
+      for (const surface of SURFACES) {
         const exclusion = capability.excluded?.[surface];
         if (!exclusion) {
           continue;
@@ -61,6 +63,18 @@ describe("capability registry shape", () => {
         ).toBe(true);
       }
     }
+  });
+});
+
+describe("every target, one registry (ADR 0139)", () => {
+  it("every surface is mapped, excluded, or a gap the ledger records", () => {
+    const ledger = JSON.parse(
+      readFileSync(join(here, "..", "surface-gaps.json"), "utf8"),
+    );
+    expect(
+      ledger,
+      "surface-gaps.json is stale: run `pnpm --filter @opensesame/capability-registry generate` and review the diff",
+    ).toEqual(surfaceGaps());
   });
 });
 

@@ -301,7 +301,7 @@ mod tests {
             "linux-host",
             SubjectSurface::BrokeredInvocation,
             AdapterStatus::Implemented {
-                module: "apps/gateway",
+                module: "crates/gateway",
             },
         )
         .unsupported(Dimension::Expiry, absent())

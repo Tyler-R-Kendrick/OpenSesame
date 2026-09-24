@@ -11,7 +11,7 @@ and sync targets, and the connector transport.
 
 ## Where it fits
 
-- **Used by:** [`apps/gateway`](../../apps/gateway) (connection, provider,
+- **Used by:** [`crates/gateway`](../../crates/gateway) (connection, provider,
   integration, sync, backup and certificate routes) and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`broker_seal`,
   `github_webhook_hmac`, and `connector_manifest` for `Catalog::parse`).
@@ -37,7 +37,7 @@ and sync targets, and the connector transport.
 
 | Area | Modules |
 |---|---|
-| Catalogue and config | `catalog` (+ [`src/catalog.json`](src/catalog.json)), `config`, `custom_provider`, `configuration`, `integration`, `scope_ceiling` |
+| Catalogue and config | `catalog` (loads [`spec/connectors/catalog.json`](../../spec/connectors/catalog.json), the one integration catalog; `tests/catalog_view.rs` writes its Host API view),  `config`, `custom_provider`, `configuration`, `integration`, `scope_ceiling` |
 | Acquire and hold | `flow` (PKCE), `token`, `crypto` (`seal` / `open`, `SealedBlob`), `store`, `store_backup` |
 | Use | `egress`, `transport*` (connector transport and client pools, ADR 0132) |
 | Rotate | `rotation`, `rotation_verify`, `rotation_egress` |
@@ -59,8 +59,8 @@ cargo +1.88.0 test -p opensesame-connection-broker
 
 Unit suites live in `src/tests/`; `tests/connector_transport_mtls.rs` runs a
 real mTLS listener from `opensesame-transport-security`'s `testkit`. Every id in
-[`crates/ceremony/catalog.json`](../ceremony/catalog.json) must exist in this
-crate's `catalog.json` (`opensesame-ceremony`'s `catalog_pact` test).
+[`crates/ceremony/catalog.json`](../ceremony/catalog.json) must exist in
+`spec/connectors/catalog.json` (`opensesame-ceremony`'s `catalog_pact` test).
 
 ## Related
 

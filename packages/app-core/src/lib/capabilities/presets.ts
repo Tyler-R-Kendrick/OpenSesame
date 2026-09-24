@@ -48,7 +48,7 @@ const DENY: NetworkPolicy = {
  * Optional functions that run on this device with no connector, enterprise,
  * agent, remote-AI or telemetry surface. Personal and Family offer only
  * these. Browser-local IAM, SIOP, the site broker and git backup are always
- * on (ADR 0139), so no preset names them.
+ * on (ADR 0140), so no preset names them.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
   "sharing.drops",

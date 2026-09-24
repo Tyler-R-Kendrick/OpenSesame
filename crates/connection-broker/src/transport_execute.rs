@@ -308,7 +308,7 @@ pub const INVOKE_ORDER: &[&str] = &[
 ];
 
 /// The ordering above, read back out of this file's own source. The same
-/// oracle `apps/gateway` uses for the ADR 0076 rotation pact, kept local so
+/// oracle `crates/gateway` uses for the ADR 0076 rotation pact, kept local so
 /// the broker gains no dependency for it.
 ///
 /// # Panics

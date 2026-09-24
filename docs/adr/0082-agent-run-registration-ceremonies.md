@@ -27,7 +27,7 @@ no API, no way through but a human — and it invites the same answer. That
 answer is mostly wrong here, and the reason is worth stating before any design.
 
 **The registration form is not the hard part, and for GitHub it is already
-solved.** `apps/gateway/src/routes/github_app.rs` implements GitHub's App
+solved.** `crates/gateway/src/routes/github_app.rs` implements GitHub's App
 Manifest flow: `build_manifest` posts a preconfigured manifest,
 `convert_manifest_code` exchanges the one-time code, and the response carries
 the app id, the private key and the webhook secret. `github_webhook.rs` then
@@ -177,7 +177,7 @@ ADR 0052 §11's silent failure with a longer fuse.
 ### 7. Ceremony recipes are catalog data
 
 Unlike rotation's long tail of consumer sites, there are dozens of providers and
-`crates/connection-broker/src/catalog.json` already enumerates them. A ceremony
+`spec/connectors/catalog.json` already enumerates them. A ceremony
 recipe is therefore catalog data: checked in, reviewed, signed, versioned
 alongside the provider it belongs to.
 

@@ -642,9 +642,8 @@ async fn credential_generation_migration_backfills_baseline_rows() {
         .execute(&pool)
         .await
         .unwrap();
-    for statement in split_statements(include_str!(
-        "../migrations/0005_credential_generation.sql"
-    )) {
+    for statement in split_statements(include_str!("../migrations/0005_credential_generation.sql"))
+    {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
     let version = sqlx::query("SELECT version FROM connection_credentials")
@@ -711,9 +710,7 @@ async fn provider_connections_are_added_to_an_already_migrated_database() {
         .execute(&pool)
         .await
         .is_err());
-    for statement in split_statements(include_str!(
-        "../migrations/0007_provider_connections.sql"
-    )) {
+    for statement in split_statements(include_str!("../migrations/0007_provider_connections.sql")) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
     sqlx::query("SELECT 1 FROM provider_connections LIMIT 0")
@@ -936,9 +933,7 @@ async fn backup_outbox_migration_applies_to_an_already_migrated_database() {
     for statement in split_statements(include_str!("../migrations/0008_backup_outbox.sql")) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
-    for statement in split_statements(include_str!(
-        "../migrations/0015_backup_target_kinds.sql"
-    )) {
+    for statement in split_statements(include_str!("../migrations/0015_backup_target_kinds.sql")) {
         sqlx::query(&statement).execute(&pool).await.unwrap();
     }
     sqlx::query("SELECT attempts FROM outbox_events LIMIT 0")

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 481,
-    "violations": 758,
-    "oversizedLines": 242761
+    "files": 480,
+    "violations": 757,
+    "oversizedLines": 241813
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -64,24 +64,13 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 2806
+      "max-lines": 2640
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
     },
     "apps/cli/src/store.rs": {
       "max-lines": 950
-    },
-    "apps/connect-backend/src/github-app.mjs": {
-      "complexity": 3,
-      "max-depth": 2,
-      "max-lines-per-function": 1,
-      "max-statements": 1
-    },
-    "apps/connect-backend/src/server.mjs": {
-      "complexity": 1,
-      "max-lines-per-function": 1,
-      "max-statements": 1
     },
     "apps/console/src/pages/ClaimPage.test.tsx": {
       "max-lines": 450
@@ -393,120 +382,6 @@
     "apps/control-plane/src/ui/interaction-pages.ts": {
       "max-lines": 789
     },
-    "apps/daemon/src/cli_probe.rs": {
-      "max-lines": 700
-    },
-    "apps/daemon/src/invoke_through.rs": {
-      "max-lines": 801
-    },
-    "apps/daemon/src/main.rs": {
-      "max-lines": 1608
-    },
-    "apps/daemon/src/promote.rs": {
-      "max-lines": 1338
-    },
-    "apps/daemon/src/runner.rs": {
-      "max-lines": 476
-    },
-    "apps/daemon/src/tailscale.rs": {
-      "max-lines": 439
-    },
-    "apps/gateway/src/backup.rs": {
-      "max-lines": 754
-    },
-    "apps/gateway/src/cert_issuers/acme.rs": {
-      "max-lines": 739
-    },
-    "apps/gateway/src/cert_issuers/model.rs": {
-      "max-lines": 721
-    },
-    "apps/gateway/src/cert_issuers/registry.rs": {
-      "max-lines": 493
-    },
-    "apps/gateway/src/lifecycle/responders.rs": {
-      "max-lines": 517
-    },
-    "apps/gateway/src/lifecycle/scanner.rs": {
-      "max-lines": 638
-    },
-    "apps/gateway/src/lifecycle/subjects.rs": {
-      "max-lines": 713
-    },
-    "apps/gateway/src/managed_certs.rs": {
-      "max-lines": 637
-    },
-    "apps/gateway/src/routes/agent_runs.rs": {
-      "max-lines": 966
-    },
-    "apps/gateway/src/routes/agents.rs": {
-      "max-lines": 440
-    },
-    "apps/gateway/src/routes/attachments.rs": {
-      "max-lines": 900
-    },
-    "apps/gateway/src/routes/backup.rs": {
-      "max-lines": 551
-    },
-    "apps/gateway/src/routes/certmgr_ca.rs": {
-      "max-lines": 3491
-    },
-    "apps/gateway/src/routes/certmgr_policy.rs": {
-      "max-lines": 1673
-    },
-    "apps/gateway/src/routes/certmgr_profile.rs": {
-      "max-lines": 1426
-    },
-    "apps/gateway/src/routes/certs.rs": {
-      "max-lines": 1739
-    },
-    "apps/gateway/src/routes/connections.rs": {
-      "max-lines": 1126
-    },
-    "apps/gateway/src/routes/connections/tests.rs": {
-      "max-lines": 1688
-    },
-    "apps/gateway/src/routes/intents.rs": {
-      "max-lines": 530
-    },
-    "apps/gateway/src/routes/kv_facade.rs": {
-      "max-lines": 758
-    },
-    "apps/gateway/src/routes/kv_facade/tests.rs": {
-      "max-lines": 747
-    },
-    "apps/gateway/src/routes/lifecycle.rs": {
-      "max-lines": 1639
-    },
-    "apps/gateway/src/routes/mod.rs": {
-      "max-lines": 413
-    },
-    "apps/gateway/src/routes/relay.rs": {
-      "max-lines": 955
-    },
-    "apps/gateway/src/routes/rotation.rs": {
-      "max-lines": 645
-    },
-    "apps/gateway/src/routes/security.rs": {
-      "max-lines": 838
-    },
-    "apps/gateway/src/routes/shared_sessions.rs": {
-      "max-lines": 750
-    },
-    "apps/gateway/src/routes/shared_sessions/tests.rs": {
-      "max-lines": 1169
-    },
-    "apps/gateway/src/routes/tasks.rs": {
-      "max-lines": 979
-    },
-    "apps/gateway/src/security/delivery.rs": {
-      "max-lines": 691
-    },
-    "apps/gateway/src/security/hooks.rs": {
-      "max-lines": 550
-    },
-    "apps/gateway/src/sync_actor.rs": {
-      "max-lines": 580
-    },
     "apps/mcp-client/src/server.test.ts": {
       "max-lines": 450
     },
@@ -538,6 +413,17 @@
       "max-lines-per-function": 1
     },
     "apps/pages/scripts/lib/j-app-recipe-journey.mjs": {
+      "max-statements": 1
+    },
+    "apps/pages/server/github-app.mjs": {
+      "complexity": 3,
+      "max-depth": 2,
+      "max-lines-per-function": 1,
+      "max-statements": 1
+    },
+    "apps/pages/server/server.mjs": {
+      "complexity": 1,
+      "max-lines-per-function": 1,
       "max-statements": 1
     },
     "apps/pages/src/components/AccountSwitcher.tsx": {
@@ -792,21 +678,6 @@
     "apps/pages/src/tutorial/ui/support.test.tsx": {
       "max-lines": 642
     },
-    "apps/pm-bridges/src/keepassxc/actions.rs": {
-      "max-lines": 649
-    },
-    "apps/pm-bridges/src/manifest.rs": {
-      "max-lines": 458
-    },
-    "apps/pm-bridges/src/pairing.rs": {
-      "max-lines": 646
-    },
-    "apps/pm-bridges/src/store.rs": {
-      "max-lines": 439
-    },
-    "apps/pm-bridges/tests/keepassxc_handshake.rs": {
-      "max-lines": 656
-    },
     "apps/worker/src/__tests__/notifications.test.ts": {
       "max-lines": 1131
     },
@@ -845,7 +716,7 @@
       "max-lines": 506
     },
     "crates/connection-broker/src/catalog.rs": {
-      "max-lines": 1041
+      "max-lines": 821
     },
     "crates/connection-broker/src/config.rs": {
       "max-lines": 676
@@ -916,6 +787,24 @@
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
     },
+    "crates/daemon/src/cli_probe.rs": {
+      "max-lines": 700
+    },
+    "crates/daemon/src/invoke_through.rs": {
+      "max-lines": 801
+    },
+    "crates/daemon/src/lib.rs": {
+      "max-lines": 1580
+    },
+    "crates/daemon/src/promote.rs": {
+      "max-lines": 1338
+    },
+    "crates/daemon/src/runner.rs": {
+      "max-lines": 476
+    },
+    "crates/daemon/src/tailscale.rs": {
+      "max-lines": 439
+    },
     "crates/domain/src/authority.rs": {
       "max-lines": 1008
     },
@@ -931,8 +820,101 @@
     "crates/enforcement/src/conformance.rs": {
       "max-lines": 413
     },
-    "crates/env-spec/src/lib.rs": {
-      "max-lines": 458
+    "crates/gateway/src/backup.rs": {
+      "max-lines": 754
+    },
+    "crates/gateway/src/cert_issuers/acme.rs": {
+      "max-lines": 739
+    },
+    "crates/gateway/src/cert_issuers/model.rs": {
+      "max-lines": 721
+    },
+    "crates/gateway/src/cert_issuers/registry.rs": {
+      "max-lines": 493
+    },
+    "crates/gateway/src/lifecycle/responders.rs": {
+      "max-lines": 517
+    },
+    "crates/gateway/src/lifecycle/scanner.rs": {
+      "max-lines": 638
+    },
+    "crates/gateway/src/lifecycle/subjects.rs": {
+      "max-lines": 713
+    },
+    "crates/gateway/src/managed_certs.rs": {
+      "max-lines": 637
+    },
+    "crates/gateway/src/routes/agent_runs.rs": {
+      "max-lines": 966
+    },
+    "crates/gateway/src/routes/agents.rs": {
+      "max-lines": 440
+    },
+    "crates/gateway/src/routes/attachments.rs": {
+      "max-lines": 900
+    },
+    "crates/gateway/src/routes/backup.rs": {
+      "max-lines": 551
+    },
+    "crates/gateway/src/routes/certmgr_ca.rs": {
+      "max-lines": 3491
+    },
+    "crates/gateway/src/routes/certmgr_policy.rs": {
+      "max-lines": 1673
+    },
+    "crates/gateway/src/routes/certmgr_profile.rs": {
+      "max-lines": 1426
+    },
+    "crates/gateway/src/routes/certs.rs": {
+      "max-lines": 1739
+    },
+    "crates/gateway/src/routes/connections.rs": {
+      "max-lines": 1126
+    },
+    "crates/gateway/src/routes/connections/tests.rs": {
+      "max-lines": 1688
+    },
+    "crates/gateway/src/routes/intents.rs": {
+      "max-lines": 530
+    },
+    "crates/gateway/src/routes/kv_facade.rs": {
+      "max-lines": 758
+    },
+    "crates/gateway/src/routes/kv_facade/tests.rs": {
+      "max-lines": 747
+    },
+    "crates/gateway/src/routes/lifecycle.rs": {
+      "max-lines": 1639
+    },
+    "crates/gateway/src/routes/mod.rs": {
+      "max-lines": 413
+    },
+    "crates/gateway/src/routes/relay.rs": {
+      "max-lines": 955
+    },
+    "crates/gateway/src/routes/rotation.rs": {
+      "max-lines": 645
+    },
+    "crates/gateway/src/routes/security.rs": {
+      "max-lines": 838
+    },
+    "crates/gateway/src/routes/shared_sessions.rs": {
+      "max-lines": 750
+    },
+    "crates/gateway/src/routes/shared_sessions/tests.rs": {
+      "max-lines": 1169
+    },
+    "crates/gateway/src/routes/tasks.rs": {
+      "max-lines": 979
+    },
+    "crates/gateway/src/security/delivery.rs": {
+      "max-lines": 691
+    },
+    "crates/gateway/src/security/hooks.rs": {
+      "max-lines": 550
+    },
+    "crates/gateway/src/sync_actor.rs": {
+      "max-lines": 580
     },
     "crates/human-vault/src/lib.rs": {
       "max-lines": 792
@@ -963,6 +945,21 @@
     },
     "crates/pki-core/src/x509.rs": {
       "max-lines": 553
+    },
+    "crates/pm-bridges/src/keepassxc/actions.rs": {
+      "max-lines": 649
+    },
+    "crates/pm-bridges/src/manifest.rs": {
+      "max-lines": 458
+    },
+    "crates/pm-bridges/src/pairing.rs": {
+      "max-lines": 646
+    },
+    "crates/pm-bridges/src/store.rs": {
+      "max-lines": 439
+    },
+    "crates/pm-bridges/tests/keepassxc_handshake.rs": {
+      "max-lines": 656
     },
     "crates/proof/src/http_message_signature.rs": {
       "max-lines": 438
@@ -1016,7 +1013,7 @@
       "max-lines": 661
     },
     "crates/storage/src/tests.rs": {
-      "max-lines": 3001
+      "max-lines": 2996
     },
     "crates/storage/tests/session_coordination_store.rs": {
       "max-lines": 530
@@ -1075,7 +1072,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/connections.ts": {
-      "max-lines": 889
+      "max-lines": 864
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
@@ -1246,7 +1243,7 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 1914
+      "max-lines": 1868
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 517,

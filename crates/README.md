@@ -107,6 +107,19 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`protocol-aauth`](protocol-aauth) | Experimental AAuth draft adapter (feature-gated, off by default). |
 | [`authenticator-core`](authenticator-core) | Shared policy and OTP core for native authenticator providers. |
 
+## Native roles
+
+The libraries behind the roles of the one `opensesame` binary
+([`apps/cli`](../apps/cli)). None of them builds an executable of its own.
+
+| Crate | Purpose |
+|---|---|
+| [`gateway`](gateway) | The Host API, served by `opensesame host run`: routes, background actors, transports, signed provider callbacks. |
+| [`daemon`](daemon) | The local host agent, served by `opensesame daemon run`. Its own dependency closure is budgeted ([ADR 0048](../docs/adr/0048-capability-moded-connector-discovery.md) §5, `pnpm audit:daemon-deps`). |
+| [`worker`](worker) | The workload connector host, served by `opensesame worker run` ([ADR 0132](../docs/adr/0132-optional-mtls-and-workload-identity.md)). |
+| [`credential-helpers`](credential-helpers) | git, Docker, AWS and kubectl credential helpers — `opensesame` answers as each under its link name ([ADR 0049](../docs/adr/0049-derived-short-lived-materialization.md)). |
+| [`pm-bridges`](pm-bridges) | browserpass, gopass and keepassxc-protocol bridges, each a cargo feature of `opensesame`, all off by default ([ADR 0053](../docs/adr/0053-pm-bridge-binaries.md)). |
+
 ## Adding a crate
 
 Create `crates/<name>/` with `name = "opensesame-<name>"`,
