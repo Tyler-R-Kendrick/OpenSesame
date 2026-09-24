@@ -20,7 +20,13 @@ import {
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import { type FormEvent, useEffect, useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconCheck, IconLock, IconRefresh } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import {
+  IconCheck,
+  IconLock,
+  IconRefresh,
+  IconSecret,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -211,23 +217,6 @@ export function AgeKeysPanel() {
           <h2>Age keys</h2>
         </div>
         <div className="actions">
-          {active ? (
-            <StatusMark tone="ok" label="File encryption" />
-          ) : (
-            <span>{connectorLabel(binding.providerId)}</span>
-          )}
-          {active ? null : (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
-              disabled={!tomb || busy}
-              aria-label="Use age on this device"
-              title="Use age on this device"
-              onClick={useAge}
-            >
-              <IconLock size={16} />
-            </button>
-          )}
           <button
             type="button"
             className="icon-btn icon-btn--sm"
@@ -242,6 +231,27 @@ export function AgeKeysPanel() {
       </div>
       <div className="panel__body">
         {flash ? <StatusNote message={flash} /> : null}
+        {/* Which key seals files here, and the key that makes it age — a
+            row of its own. In the panel head, the connector's name, its
+            glyph and three keys wrapped on a phone and left the ✓ alone. */}
+        <div className="keyed-row">
+          <span className="label">Encryption</span>
+          <span className="age-keys__using">
+            {active ? "age" : connectorLabel(binding.providerId)}
+          </span>
+          {active ? (
+            <StatusMark tone="ok" label="age seals files on this device" />
+          ) : (
+            <IconKey
+              label="Use age on this device"
+              small
+              disabled={!tomb || busy}
+              onClick={useAge}
+            >
+              <IconLock size={16} />
+            </IconKey>
+          )}
+        </div>
         {!tomb ? (
           <p className="hint">
             Unlock a vault to configure the age key inventory.
@@ -305,8 +315,9 @@ export function AgeKeysPanel() {
             label="Import identity"
             type="password"
             autoComplete="off"
-            lead={<IconLock size={17} />}
+            lead={<IconSecret size={17} />}
             mono
+            placeholder="AGE-SECRET-KEY-1…"
             value={importIdentity}
             disabled={!tomb || busy}
             onValueChange={setImportIdentity}
@@ -319,7 +330,7 @@ export function AgeKeysPanel() {
                 aria-label="Seal identity"
                 title="Seal identity"
               >
-                <IconLock size={16} />
+                <IconCheck size={16} />
               </button>
             }
           />

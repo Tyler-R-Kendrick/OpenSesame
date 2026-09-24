@@ -228,12 +228,12 @@ function UnlockMethodsBody() {
               puts the header on disk like any other vault, and the note would
               then be claiming something that is no longer so. */}
           {guest && enrolled.length === 0 ? (
-            <output className="note">
-              <span>
-                You are a guest. Until this vault has a key it is not kept on
-                this device. Start with a {webauthnHost.ok ? "passkey" : "PIN"}.
-              </span>
-            </output>
+            // A line in the list's own voice, not a boxed note pressed
+            // against the first row (DESIGN.md: no in-page note box).
+            <p className="hint">
+              You are a guest. Until this vault has a key it is not kept on this
+              device. Start with a {webauthnHost.ok ? "passkey" : "PIN"}.
+            </p>
           ) : null}
           {keyRow(
             "passkey",
@@ -367,7 +367,12 @@ function MethodRow({
         <div className="sw__name">
           {methodIcon(kind)}
           {label}
-          <StatusMark tone={on ? "ok" : "idle"} label={state} />
+          {/* A mark for what is set or what cannot be; "off" is the row's
+              + key already. The idle glyph is a lock, so an off PIN drew a
+              lock badge beside its own lock icon. */}
+          {on || state !== "Off" ? (
+            <StatusMark tone={on ? "ok" : "idle"} label={state} />
+          ) : null}
         </div>
         <p className="sw__sub">{sub}</p>
       </div>

@@ -5,7 +5,12 @@ import {
   selectProtectionView,
 } from "@opensesame/app-core/lib/vault/protection/protection-view.js";
 import { type Ref, useMemo, useState } from "react";
-import { IconAlert, IconPlus } from "../../components/Icons.js";
+import {
+  IconAlert,
+  IconCheck,
+  IconLock,
+  IconPlus,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -71,12 +76,21 @@ function VaultKeyProtectionBody({
         </div>
       </div>
       <div className="panel__body">
-        <fieldset className="vkp__policy">
-          <legend className="sr-only">Protection policy</legend>
-          <StatusMark tone="ok" label="Any enrolled method can unlock alone" />
-          <StatusMark tone="idle" label="Remove does not erase backups" />
-          <StatusMark tone="warn" label="Cloud adds independent authority" />
-        </fieldset>
+        {/* The policy is three facts, so it is said: three glyphs with their
+            sentences only in tooltips were a row nobody could read. */}
+        <ul className="vkp__policy" aria-label="Protection policy">
+          <li className="vkp__fact vkp__fact--ok">
+            <IconCheck size={14} />
+            Any enrolled method can unlock alone
+          </li>
+          <li className="vkp__fact">
+            <IconLock size={14} />
+            Removing one does not erase backups
+          </li>
+          <li className="vkp__fact vkp__fact--warn">
+            <IconAlert size={14} />A cloud method adds an independent authority
+          </li>
+        </ul>
 
         {view.methods.length === 0 && !view.setupIntent ? (
           <div className="sw sw--method">

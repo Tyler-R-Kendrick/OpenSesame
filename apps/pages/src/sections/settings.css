@@ -502,3 +502,13 @@
   color: var(--ink);
   border-bottom-color: var(--ink);
 }
+
+/* Age keys › Encryption: the key that seals files here, then its key. */
+.age-keys__using {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}

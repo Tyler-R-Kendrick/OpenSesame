@@ -38,11 +38,14 @@ function RefField({
   id,
   label,
   value,
+  placeholder,
   onCommit,
 }: {
   id: string;
   label: string;
   value: string;
+  /** Said inside an empty field, which otherwise drew as a bare underline. */
+  placeholder: string;
   onCommit: (next: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
@@ -61,6 +64,7 @@ function RefField({
           type="text"
           autoComplete="off"
           spellCheck={false}
+          placeholder={placeholder}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={commit}
@@ -140,6 +144,7 @@ function TargetField({
         <RefField
           id="transport-target-name"
           label="Target name"
+          placeholder="e.g. office-gateway"
           value=""
           onCommit={(name) => {
             if (!name) return;
@@ -214,6 +219,7 @@ export function TransportTargetForm({
       <RefField
         id="transport-identity"
         label="Identity"
+        placeholder="A certificate's name — none"
         value={settings.identityRef?.name ?? ""}
         onCommit={(name) =>
           update({ identityRef: name ? { name } : undefined })
@@ -222,6 +228,7 @@ export function TransportTargetForm({
       <RefField
         id="transport-trust"
         label="Trust"
+        placeholder="A trust bundle's name — none"
         value={settings.trustRef?.name ?? ""}
         onCommit={(name) => update({ trustRef: name ? { name } : undefined })}
       />

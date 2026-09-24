@@ -1,9 +1,31 @@
 .vkp__policy {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  padding: 0.55rem 0.6rem;
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0 0 0.75rem;
+  list-style: none;
   border-bottom: 1px solid var(--line);
+}
+
+.vkp__fact {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.vkp__fact > svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.vkp__fact--ok > svg {
+  color: var(--ok);
+}
+
+.vkp__fact--warn > svg {
+  color: var(--warn);
 }
 
 .vkp__verified {
