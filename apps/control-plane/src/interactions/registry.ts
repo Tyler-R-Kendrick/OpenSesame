@@ -135,7 +135,7 @@ type BuiltInProvider = {
 
 /**
  * Shipped defaults. Endpoint constants for GitHub mirror the values the Host
- * plane's connector catalog uses (`crates/connection-broker/src/catalog.json`)
+ * plane's connector catalog uses (`spec/connectors/catalog.json`)
  * — copied deliberately rather than imported, because the two planes do not
  * share code (ADR 0017).
  */

@@ -322,7 +322,7 @@ host. Receipts populate `delegation_chain: [parent_grant_id, child_grant_id]`
 
 For a GitHub connection whose owner grant is
 `actions: [repository.read, pull_request.create]`,
-`resources: [repo:acme/*]` (per `crates/connection-broker/src/catalog.json`
+`resources: [repo:acme/*]` (per `spec/connectors/catalog.json`
 operations and the bootstrap demo grant):
 
 | Dimension | Default for a delegate | Owner may widen up to |

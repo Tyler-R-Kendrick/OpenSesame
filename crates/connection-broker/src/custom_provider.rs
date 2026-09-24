@@ -210,6 +210,7 @@ pub fn derive_provider(request: &CreateCustomProvider) -> Result<Provider> {
 
     let path = base.path().trim_end_matches('/');
     Ok(Provider {
+        aliases: Vec::new(),
         attachment_upload: None,
         // A user-defined provider never declares a verification endpoint. The
         // rotation egress allowlist is a compile-time table keyed by provider

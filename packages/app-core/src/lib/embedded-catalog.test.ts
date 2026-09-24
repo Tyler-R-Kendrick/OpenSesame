@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BUNDLED_REVISION,
   bundledProviders,
   decodeEmbeddedProviders,
   getBundledProviders,
@@ -109,7 +110,7 @@ describe("embedded connector catalog", () => {
     expect(
       decodeEmbeddedProviders(
         JSON.stringify({
-          revision: "2026-09-21.3",
+          revision: BUNDLED_REVISION,
           providers: bundledProviders,
         }),
       ),
