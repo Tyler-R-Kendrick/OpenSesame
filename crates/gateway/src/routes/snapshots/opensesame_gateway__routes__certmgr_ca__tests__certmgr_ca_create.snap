@@ -1,5 +1,5 @@
 ---
-source: apps/gateway/src/routes/certmgr_ca.rs
+source: crates/gateway/src/routes/certmgr_ca.rs
 expression: created
 ---
 {
