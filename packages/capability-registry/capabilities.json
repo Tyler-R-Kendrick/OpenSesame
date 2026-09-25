@@ -3911,6 +3911,37 @@
     }
   },
   {
+    "id": "identity.authenticator.invoke",
+    "title": "Hand an authenticator request to the native app",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/invoke/:kind",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
+        "adr": "0140-pages-hosts-every-ceremony.md"
+      },
+      "mcp_host": {
+        "reason": "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
+        "adr": "0140-pages-hosts-every-ceremony.md"
+      },
+      "mcp_client": {
+        "reason": "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
+        "adr": "0140-pages-hosts-every-ceremony.md"
+      },
+      "webmcp": {
+        "reason": "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
+        "adr": "0140-pages-hosts-every-ceremony.md"
+      }
+    }
+  },
+  {
     "id": "connectors.directory.sync",
     "title": "Sync authorized connectors from a Nango-compatible directory",
     "plane": "client_local",

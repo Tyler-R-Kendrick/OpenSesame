@@ -1,4 +1,4 @@
-import { AUTH_CEREMONY } from "./exclusions.js";
+import { AUTHENTICATOR_HANDOFF, AUTH_CEREMONY } from "./exclusions.js";
 import type { Capability } from "./index.js";
 export const identityManagementCapabilities: readonly Capability[] = [
   {
@@ -369,6 +369,28 @@ export const identityManagementCapabilities: readonly Capability[] = [
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,
+    },
+  },
+  // An authenticator hand-off link (ADR 0140 plan step 10): an MFA user code
+  // or request id, or a wallet protocol's request URI, handed to the native
+  // app — and a user code to `/device` when the app is not there.
+  {
+    id: "identity.authenticator.invoke",
+    title: "Hand an authenticator request to the native app",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/invoke/:kind",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: AUTHENTICATOR_HANDOFF,
+      mcp_host: AUTHENTICATOR_HANDOFF,
+      mcp_client: AUTHENTICATOR_HANDOFF,
+      webmcp: AUTHENTICATOR_HANDOFF,
     },
   },
 ];

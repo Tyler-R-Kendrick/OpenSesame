@@ -131,6 +131,14 @@ export {
   readInteractionArrival,
 } from "./interaction-arrival.js";
 export {
+  INVOCATION_LABELS,
+  INVOCATION_WORDS,
+  type InvocationArrival,
+  type InvocationArrivalRead,
+  invocationKindAt,
+  readInvocationArrival,
+} from "./invocation-link.js";
+export {
   type ApprovalArrival,
   type ApprovalArrivalRead,
   approvalRefAt,

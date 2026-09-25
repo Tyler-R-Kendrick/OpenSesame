@@ -16,6 +16,10 @@ import {
   peekInteractionArrival,
   resetInteractionArrivalForTests,
 } from "@opensesame/app-core/lib/interactions-link.js";
+import {
+  peekInvocationArrival,
+  resetInvocationArrivalForTests,
+} from "@opensesame/app-core/lib/invoke-link.js";
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 /** @vitest-environment jsdom */
@@ -301,6 +305,22 @@ describe("pre-unlock boot path", () => {
     expect(location.href).not.toContain("leaked");
     expect(peekApprovalArrival()).toEqual({ kind: "refused" });
     resetApprovalArrivalForTests();
+    history.replaceState(null, "", "/");
+  });
+
+  it("takes an /invoke/<kind> link's handle out before the first paint", async () => {
+    history.replaceState(null, "", "/invoke/mfa?user_code=abcd-1234");
+    await boot();
+    expect(`${location.pathname}${location.search}${location.hash}`).toBe(
+      "/invoke/mfa",
+    );
+    const held = peekInvocationArrival().arrival;
+    expect(held.kind === "handoff" && held.invocation.handle).toBe("ABCD-1234");
+    history.replaceState(null, "", "/invoke/mfa?access_token=leaked");
+    await boot();
+    expect(location.href).not.toContain("leaked");
+    expect(peekInvocationArrival().arrival.kind).toBe("refused");
+    resetInvocationArrivalForTests();
     history.replaceState(null, "", "/");
   });
 });

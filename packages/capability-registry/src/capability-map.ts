@@ -57,6 +57,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.approval.activation": "identity.ceremonies",
     "identity.approval.comparison": "identity.ceremonies",
     "identity.approval.report": "identity.ceremonies",
+    // `/invoke/:kind`, the authenticator hand-off (plan step 10).
+    "identity.authenticator.invoke": "identity.ceremonies",
 
     // --- core: settings and install -------------------------------------
     "setup.first_run": "settings.core",

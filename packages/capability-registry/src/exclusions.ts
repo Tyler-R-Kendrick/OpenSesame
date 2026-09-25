@@ -23,6 +23,7 @@ export const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
 export const ADR_INTERACTION_LAYER = "0086-wallet-native-interaction-layer.md";
 export const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
 export const ADR_PAGES_WITHOUT_HOST = "0128-pages-without-host.md";
+export const ADR_PAGES_CEREMONIES = "0140-pages-hosts-every-ceremony.md";
 export const ADR_TAILNET_SYNC = "0144-tailnet-vault-sync.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
@@ -160,4 +161,16 @@ export const DEVICE_VAULT_CEREMONY: CapabilityExclusion = {
   reason:
     "picking, sealing or deleting a vault on a device is a human ceremony at the unlock boundary; an agent holds a ConnectionRef into one open vault and never chooses which tomb is open",
   adr: ADR_DEVICE_VAULTS,
+};
+
+/**
+ * `/invoke/:kind` is where an app link lands when the native authenticator
+ * did not catch it: a browser page with a key that opens the app. There is
+ * no terminal or tool equivalent to hand a request to, and a request handle
+ * a tool could forward would let an agent start someone's authenticator.
+ */
+export const AUTHENTICATOR_HANDOFF: CapabilityExclusion = {
+  reason:
+    "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
+  adr: ADR_PAGES_CEREMONIES,
 };

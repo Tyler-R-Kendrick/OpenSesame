@@ -19,6 +19,10 @@ import {
 
 export type AuthenticatorInvocation = {
   kind: AuthenticatorInvocationKind;
+  /** The query name the handle arrived under (`user_code`, `request_uri`…). */
+  handleName: string;
+  /** The handle as handed on: a user code upper-cased, a URI normalised. */
+  handle: string;
   appUrl: string;
   browserFallback: string | null;
   requestHost: string | null;
@@ -189,6 +193,8 @@ export function parseAuthenticatorInvocation(
     const uri = requestUri(raw);
     return {
       kind,
+      handleName: name,
+      handle: uri.href,
       appUrl: appUrl(uri.href),
       browserFallback: null,
       requestHost: uri.host,
@@ -199,6 +205,8 @@ export function parseAuthenticatorInvocation(
   const value = name === "user_code" ? checked.toUpperCase() : checked;
   return {
     kind,
+    handleName: name,
+    handle: value,
     appUrl: appUrl(value),
     browserFallback: fallbackFor(kind, name, value),
     requestHost: null,

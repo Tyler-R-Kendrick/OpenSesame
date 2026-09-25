@@ -5,6 +5,7 @@
  */
 import { approvalSteps } from "./capture-approval-steps.mjs";
 import { ceremonySteps } from "./capture-ceremony-steps.mjs";
+import { invokeSteps } from "./capture-invoke-steps.mjs";
 import { menuSteps } from "./capture-menu-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 
@@ -13,6 +14,7 @@ export function extraSteps({ press }) {
     ...menuSteps({ press }),
     ...ceremonySteps({ press }),
     ...approvalSteps(),
+    ...invokeSteps(),
     ...placeSteps(),
     /**
      * Pick a labelled radio when this build has it — a connector's

@@ -66,6 +66,8 @@ export const CAPABILITY_TUTORIALS = {
   "identity.approval.comparison": "identity.approval.review",
   "identity.approval.report": "identity.approval.review",
   "identity.approval.requests": "identity.approval.review",
+  // The hand-off's browser fallback is the device approval (`/device`).
+  "identity.authenticator.invoke": "identity.device.approve",
   "vault.items.search": "vault.item.create",
   "vault.items.read_meta": "vault.item.create",
   "vault.items.write_meta": "vault.item.create",
