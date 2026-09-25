@@ -12,6 +12,14 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
     capabilityId: "transport.status.view",
   },
   {
+    id: "settings.tailnet-sync",
+    description:
+      "The Tailnet sync panel under Vaults, while Networking is on: pair this vault with a drive on the tailnet by its code, see whether it is in step, sync now, or stop. The drive holds only the sealed vault.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "vault.drive.sync",
+  },
+  {
     id: "settings.changelog",
     description:
       "The in-app changelog of what this build shipped. It is a record, not a backup.",

@@ -265,6 +265,16 @@ export const LIB_RULES = [
     optional(p, ACCESS, "local PAM records and Host plane"),
   ),
   core(
+    `${L}pairing-link`,
+    SHELL,
+    "boot takes a drive pairing code out of the address bar (ADR 0144)",
+  ),
+  optional(
+    `${L}tailnet-sync/`,
+    "networking.tailnet",
+    "tailnet vault sync: drive client, merge pass, adoption (ADR 0144)",
+  ),
+  core(
     `${L}join/`,
     SIGNIN,
     "join a session: invite or open endpoint, before sign-in (ADR 0136)",

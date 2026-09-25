@@ -18,7 +18,7 @@
   "totals": {
     "files": 475,
     "violations": 751,
-    "oversizedLines": 239907
+    "oversizedLines": 239803
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -461,7 +461,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1576
+      "max-lines": 1539
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -862,7 +862,7 @@
       "max-lines": 525
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1711
+      "max-lines": 1708
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 587
@@ -904,7 +904,7 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 1868
+      "max-lines": 1836
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 412,
@@ -1501,7 +1501,7 @@
     },
     "packages/vault-core/src/model.ts": {
       "complexity": 1,
-      "max-lines": 549
+      "max-lines": 517
     },
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,

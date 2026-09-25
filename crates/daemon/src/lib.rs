@@ -46,6 +46,9 @@ mod startup;
 mod tailnet;
 mod tailscale;
 mod token_source;
+mod toolbar;
+mod vault_drive;
+mod vault_drive_routes;
 use startup::{build_state, secured_router};
 
 use peer_auth::UdsConnectInfo;
@@ -87,6 +90,8 @@ struct App {
     token_source_factory: TokenSourceFactory,
     /// Optional duress peer receiver state (default off / None).
     duress_peer: Option<duress_receiver::DuressReceiverState>,
+    /// The tailnet vault drive (ADR 0144); `None` when no state dir resolves.
+    vault_drive: Option<Arc<vault_drive::DriveStore>>,
 }
 
 /// How the daemon turns a provider id into its credential source.
@@ -456,20 +461,6 @@ async fn daemon_health() -> Json<Value> {
     Json(json!({"status":"ok"}))
 }
 
-fn pairing_view(st: &App) -> Value {
-    let ts = tailscale::info();
-    let public = ts.https_url.as_deref().and_then(|url| {
-        let trimmed = url.trim_end_matches('/');
-        (!trimmed.is_empty()).then_some(trimmed)
-    });
-    json!({
-        "host_api": public.map_or_else(|| st.host_api.clone(), |url| format!("{url}/host")),
-        "identity_api": public.map_or_else(|| st.identity_api.clone(), |url| format!("{url}/identity")),
-        "tailscale_url": public,
-        "tailscale_serve": ts.serve_enabled,
-    })
-}
-
 async fn proxy_host(State(st): State<App>, req: Request) -> Response {
     let base = st.host_api.clone();
     proxy_loopback(&st, &base, "/host", req).await
@@ -585,7 +576,7 @@ fn router(state: App) -> Router {
             "/v1/mint",
             post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
         )
-        .route("/v1/toolbar/status", get(toolbar_status))
+        .route("/v1/toolbar/status", get(toolbar::toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
         .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
@@ -595,6 +586,7 @@ fn router(state: App) -> Router {
         .route("/identity/{*path}", any(proxy_identity))
         .route("/v1/duress/peer/health", get(duress_peer_health))
         .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
+        .merge(vault_drive_routes::routes())
         .with_state(state)
 }
 
@@ -627,36 +619,6 @@ async fn discover(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Re
         Ok(report) => discover_response(report),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
-}
-
-async fn toolbar_status(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
-    if let Err(resp) = require_operator(&st, &headers, &uds) {
-        return resp;
-    }
-    let sessions = match st.sessions.lock() {
-        Ok(guard) => guard.len(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-    let caps = match st.capabilities.lock() {
-        Ok(guard) => guard.len(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-    let mut body = pairing_view(&st);
-    if let Some(obj) = body.as_object_mut() {
-        obj.insert("daemon".into(), json!("ok"));
-        obj.insert("sessions".into(), json!(sessions));
-        obj.insert("capabilities".into(), json!(caps));
-        obj.insert("materialize".into(), json!("denied_by_default"));
-        obj.insert(
-            "approvals".into(),
-            json!(["approve_device", "approve_claim"]),
-        );
-        obj.insert(
-            "auth".into(),
-            json!("operator_token_required_for_mutations"),
-        );
-    }
-    Json(body).into_response()
 }
 
 async fn approve_device(
@@ -1068,6 +1030,7 @@ mod tests {
             invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
             token_source_factory: Arc::new(|_| None),
             duress_peer: None,
+            vault_drive: None,
         }
     }
 

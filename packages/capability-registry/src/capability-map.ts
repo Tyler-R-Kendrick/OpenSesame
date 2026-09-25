@@ -102,6 +102,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "sync_targets.read": "backup.git-remote",
     "sync_targets.trigger": "backup.git-remote",
 
+    // --- optional: tailnet networking -----------------------------------
+    "vault.drive.sync": "networking.tailnet",
+
     // --- optional: browser-local IAM ------------------------------------
     "identity.local.agent.keys.manage": "identity.local-iam",
     "identity.local.application.authorize": "identity.local-iam",

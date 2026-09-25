@@ -30,7 +30,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { capabilityOffSwitch } from "./lib/always-on.mjs";
+import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
@@ -96,6 +96,12 @@ async function press(locator) {
   const touch = await locator.page().evaluate(() => "ontouchstart" in window);
   if (touch) await locator.tap();
   else await locator.click();
+}
+
+/** Open a Settings page by name, the way a journey's own steps would. */
+async function openSettings(page, name) {
+  await STEPS.tab(page, "settings");
+  await STEPS.open(page, name);
 }
 
 const STEPS = {
@@ -237,23 +243,7 @@ const STEPS = {
     });
     await page.waitForTimeout(600);
   },
-  /**
-   * Switch an optional capability on, through Settings › Capabilities' own
-   * switch and Apply (ADR 0130). An always-on one has no switch: skipped.
-   */
-  async enable(page, title) {
-    await STEPS.tab(page, "settings");
-    await STEPS.open(page, "Capabilities");
-    const add = capabilityOffSwitch(page, title);
-    if (!(await add.count())) return;
-    await press(add.first());
-    await page.waitForTimeout(400);
-    await press(page.getByTestId("capability-apply"));
-    await page
-      .getByTestId("capability-review")
-      .waitFor({ state: "detached", timeout: 20_000 });
-    await page.waitForTimeout(600);
-  },
+  ...capabilitySteps({ press, openSettings }),
   /** A new section loads with the app root, so a chosen one needs a reload. */
   async reload(page) {
     await page.reload({ waitUntil: "networkidle" });

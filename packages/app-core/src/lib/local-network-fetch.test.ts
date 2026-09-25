@@ -44,6 +44,21 @@ describe("local-network-fetch", () => {
     ).rejects.toMatchObject({ name: "SecurityError" });
     expect(fetcher).not.toHaveBeenCalled();
   });
+  it("lets a ciphertext drive through the demo fence, never an operator header", async () => {
+    localNetworkFetchSeams.eligible = () => false;
+    const fetcher = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    await localNetworkFetch("https://desk.tail1.ts.net/v1/vault-drive", {
+      ciphertextDrive: true,
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+    await expect(
+      localNetworkFetch("https://desk.tail1.ts.net/v1/vault-drive", {
+        ciphertextDrive: true,
+        headers: { "X-OpenSesame-Operator": "test-only" },
+      }),
+    ).rejects.toMatchObject({ name: "SecurityError" });
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

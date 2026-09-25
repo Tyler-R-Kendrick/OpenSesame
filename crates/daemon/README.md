@@ -40,6 +40,7 @@ default `http://127.0.0.1:8788`), `--allowed-uids`. Cargo feature
 | Discovery and promotion | `/v1/discover` (rate-limited), `/v1/promote` |
 | Brokered calls | `/v1/invoke_through`, `/v1/mint` (forwards to the gateway's connection mint) |
 | Toolbar | `/v1/toolbar/status`, `/v1/toolbar/approve_device`, `/v1/toolbar/approve_claim`, `/v1/operator/invoke_l1` |
+| Vault drive (ADR 0144) | `/v1/vault-drive/slots` (operator: open, list), `/v1/vault-drive/slots/{slot}` (operator: close), `/v1/vault-drive/slots/{slot}/snapshot` (slot key: read, compare-and-set replace; also on the tailnet listener) |
 | Proxies | `/host/*` to the Host API, `/identity/*` to the Identity API |
 | Duress peer | `/v1/duress/peer/health`, `/v1/duress/peer/envelope` |
 

@@ -31,7 +31,8 @@
     "verify:duress:browser": "node scripts/verify-duress-browser.mjs",
     "build:profile": "node scripts/build-profile.mjs",
     "verify:capability-graph": "node scripts/verify-capability-graph.mjs",
-    "verify:mutations": "node scripts/verify-mutations.mjs"
+    "verify:mutations": "node scripts/verify-mutations.mjs",
+    "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",

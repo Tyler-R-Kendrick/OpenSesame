@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mergeVaultBodies } from "./merge.js";
 import {
   KIND_LABEL,
   KIND_PLURAL,
@@ -12,7 +13,6 @@ import {
   isForeignPasskey,
   isVaultCustodied,
   itemSubtitle,
-  mergeVaultBodies,
   newGrant,
   newId,
   newUri,

@@ -17,11 +17,13 @@ import {
   mergeVaultBodies,
   mintVaultKey,
   rewrapVaultKey,
+  sameVaultContent,
   sealJson,
   syncInstalledTypes,
   uninstallItemType,
   unwrapRawVaultKeyFromPassword,
   vaultSealBinding,
+  withTombstone,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
 import {
@@ -73,6 +75,13 @@ import {
   writePlaintextFile,
   writeSealedFile,
 } from "../vfs.js";
+import {
+  adoptMerged,
+  recordItemTypes,
+  renameFolder,
+  restoreItem,
+  toggleFavorite,
+} from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
 import { writeItem } from "./item-path.js";
 import { emitVaultLock } from "./lock-events.js";
@@ -113,6 +122,12 @@ import {
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
+import {
+  type DriveSnapshotInput,
+  type SealedSnapshot,
+  type SnapshotMerge,
+  openSnapshotBody,
+} from "./store-merge.js";
 import {
   discardTombCaches,
   hydrateAndMigrateTombOnUnlock,
@@ -1238,56 +1253,37 @@ export class VaultStore {
     noteVaultBodyPersisted();
   }
 
-  /** Merge a complete newer snapshot while both bodies are authenticated. */
-  async mergeSnapshot(input: {
-    headerJson: string;
-    bodyJson: string;
-    epoch: number;
-  }): Promise<void> {
+  /**
+   * Merge another device's sealed snapshot of this vault (ADR 0144). Reports
+   * whether this device changed and whether the snapshot is now behind it.
+   */
+  async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {
     const { vaultKey, header } = this.#requireUnlocked();
-    let remoteHeader: VaultHeader;
-    let sealed: SealedBlob;
-    try {
-      remoteHeader = overlapCast(JSON.parse(input.headerJson));
-      sealed = overlapCast(JSON.parse(input.bodyJson));
-    } catch {
-      throw new VaultCorruptError("Vault snapshot is not valid JSON");
+    await this.flushPendingWrites();
+    const incoming = await openSnapshotBody(vaultKey, header, input);
+    let merged = mergeVaultBodies(this.#body, incoming);
+    const localChanged = !sameVaultContent(merged, this.#body);
+    if (localChanged) {
+      // Merged again inside the write chain, so an edit that landed meanwhile
+      // is part of what gets sealed rather than overwritten by it.
+      await this.#mutate((body) => {
+        merged = mergeVaultBodies(body, incoming);
+        adoptMerged(body, merged);
+      });
+      // A type installed on another device arrives with this merge; rebuilding
+      // the registry here is what makes it live without a re-unlock (ADR 0087 §7).
+      syncInstalledTypes(this.#body.itemTypes);
     }
-    if (
-      remoteHeader.v !== 1 ||
-      remoteHeader.createdAt !== header.createdAt ||
-      !sealed.ivB64 ||
-      !sealed.ctB64
-    ) {
-      throw new VaultCorruptError("Vault snapshot belongs to another vault");
-    }
-    const opened = await openJsonForRebind<VaultBody>(
-      vaultKey,
-      sealed,
-      vaultSealBinding(this.#scope.tomb, BODY_PATH),
-    );
-    const incoming = opened.value;
-    if (
-      incoming.v !== 1 ||
-      !Array.isArray(incoming.items) ||
-      !Array.isArray(incoming.folders)
-    ) {
-      throw new VaultCorruptError("Vault body is malformed");
-    }
-    if ((incoming.rev ?? 0) !== input.epoch) {
-      throw new VaultCorruptError("Vault epoch does not match its body");
-    }
-    const merged = mergeVaultBodies(this.#body, incoming);
-    await this.#mutate((body) => {
-      body.items = merged.items;
-      body.folders = merged.folders;
-      body.rev = merged.rev;
-      if (merged.itemTypes !== undefined) body.itemTypes = merged.itemTypes;
-    });
-    // A type installed on another device arrives with this merge; rebuilding
-    // the registry here is what makes it live without a re-unlock, which is
-    // the whole of ADR 0087 §7's sync story.
-    syncInstalledTypes(this.#body.itemTypes);
+    return { localChanged, remoteBehind: !sameVaultContent(merged, incoming) };
+  }
+
+  /** This vault's header and sealed body as stored, once pending writes land. */
+  async sealedSnapshot(): Promise<SealedSnapshot> {
+    const { header } = this.#requireUnlocked();
+    await this.flushPendingWrites();
+    const body = readSealedFile(this.#scope.tomb, BODY_PATH);
+    if (!body) throw new Error("There is nothing stored to sync yet.");
+    return { tomb: this.#scope.tomb, header, body, rev: this.#body.rev ?? 0 };
   }
 
   /**
@@ -1330,6 +1326,7 @@ export class VaultStore {
           ? { itemTypes: this.#body.itemTypes }
           : undefined),
         ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : undefined),
+        tombstones: this.#body.tombstones,
       };
       change(this.#body);
       try {
@@ -1352,9 +1349,10 @@ export class VaultStore {
   async installItemTypeDefinition(text: string): Promise<InstallResult> {
     const result = installItemType(text);
     if (!result.ok) return result;
+    const added = [result.definition.metadata.id];
     try {
       await this.#mutate((body) => {
-        body.itemTypes = installedDefinitions();
+        recordItemTypes(body, installedDefinitions(), { added });
       });
     } catch (error) {
       // `#mutate` rolls the body back on a failed seal, but the registry is
@@ -1371,7 +1369,7 @@ export class VaultStore {
     if (!uninstallItemType(id)) return false;
     try {
       await this.#mutate((body) => {
-        body.itemTypes = installedDefinitions();
+        recordItemTypes(body, installedDefinitions(), { removed: [id] });
       });
     } catch (error) {
       syncInstalledTypes(this.#body.itemTypes);
@@ -1412,31 +1410,30 @@ export class VaultStore {
   }
 
   async restoreItem(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.map((item) =>
-        item.id === id ? { ...item, deletedAt: null } : item,
-      );
-    });
+    await this.#mutate((body) => restoreItem(body, id));
   }
 
   async purgeItem(id: string): Promise<void> {
     await this.#mutate((body) => {
       body.items = body.items.filter((item) => item.id !== id);
+      body.tombstones = withTombstone(body.tombstones, "items", [id]);
     });
   }
 
   async emptyTrash(): Promise<void> {
     await this.#mutate((body) => {
+      const gone = body.items.filter((item) => item.deletedAt !== null);
       body.items = body.items.filter((item) => item.deletedAt === null);
+      body.tombstones = withTombstone(
+        body.tombstones,
+        "items",
+        gone.map((item) => item.id),
+      );
     });
   }
 
   async toggleFavorite(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.map((item) =>
-        item.id === id ? { ...item, favorite: !item.favorite } : item,
-      );
-    });
+    await this.#mutate((body) => toggleFavorite(body, id));
   }
 
   async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
@@ -1513,16 +1510,13 @@ export class VaultStore {
   }
 
   async renameFolder(id: string, name: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.folders = body.folders.map((folder) =>
-        folder.id === id ? { ...folder, name: name.trim() } : folder,
-      );
-    });
+    await this.#mutate((body) => renameFolder(body, id, name));
   }
 
   async deleteFolder(id: string): Promise<void> {
     await this.#mutate((body) => {
       body.folders = body.folders.filter((folder) => folder.id !== id);
+      body.tombstones = withTombstone(body.tombstones, "folders", [id]);
       body.items = body.items.map((item) =>
         item.folderId === id ? { ...item, folderId: null } : item,
       );
@@ -1602,7 +1596,10 @@ export class VaultStore {
     await this.#mutate((body) => {
       body.items = [...body.items, ...merged];
       body.folders = [...body.folders, ...mergedFolders];
-      body.itemTypes = { ...incomingTypes, ...body.itemTypes };
+      const added = Object.keys(incomingTypes).filter(
+        (id) => body.itemTypes?.[id] === undefined,
+      );
+      recordItemTypes(body, { ...incomingTypes, ...body.itemTypes }, { added });
     });
     syncInstalledTypes(this.#body.itemTypes);
     return merged.length;
