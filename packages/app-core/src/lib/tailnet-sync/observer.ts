@@ -5,6 +5,7 @@
  * vault paired with a drive, and never for a guest.
  */
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
+import { PERSONAL_TOMB } from "../vfs.js";
 import { adoptFromDrive } from "./adopt.js";
 import {
   holdPendingPairing,
@@ -50,6 +51,8 @@ export const tailnetSyncSeams: TailnetSyncSeams = {
 let state: TailnetSyncState = OFF;
 const listeners = new Set<() => void>();
 let pairing: DrivePairing | null = null;
+/** The tomb `pairing` was read from; a pass for any other vault does nothing. */
+let pairedTomb: string | null = null;
 let inflight: Promise<void> | null = null;
 let again = false;
 let started = false;
@@ -82,10 +85,11 @@ function describe(drive: DrivePairing | null) {
 }
 
 async function pass(): Promise<void> {
-  if (!pairing || !syncable()) return;
+  const drive = pairing;
+  if (!drive || !syncable() || vaultStore.activeTomb() !== pairedTomb) return;
   set({ phase: "syncing" });
   try {
-    await syncOnce(vaultStore, pairing, tailnetSyncSeams.transport);
+    await syncOnce(vaultStore, drive, tailnetSyncSeams.transport);
     set({ phase: "idle", lastSyncedAt: tailnetSyncSeams.now(), error: null });
   } catch (error) {
     set({
@@ -112,19 +116,29 @@ export async function syncTailnetNow(): Promise<void> {
   return inflight;
 }
 
-/** Read (or seal) this vault's pairing after an unlock; clear it after a lock. */
+/**
+ * Read (or seal) this vault's pairing after an unlock; clear it after a lock.
+ * The old vault's pairing is dropped before anything is awaited, and a read
+ * that finishes after the vault changed again is discarded — the newer
+ * change's own load owns the result.
+ */
 async function loadPairing(): Promise<void> {
+  pairing = null;
+  pairedTomb = null;
   if (!syncable()) {
-    pairing = null;
     set(OFF);
     return;
   }
+  const key = vaultKey();
   const tomb = vaultStore.activeTomb();
-  const held = takePendingPairing();
+  const held = takePendingPairing(tomb);
   if (held) await writeDriveConfig(tomb, held);
-  pairing = held ?? (await readDriveConfig(tomb));
-  set({ ...OFF, phase: pairing ? "idle" : "off", drive: describe(pairing) });
-  if (pairing) void syncTailnetNow();
+  const loaded = held ?? (await readDriveConfig(tomb));
+  if (vaultKey() !== key) return;
+  pairing = loaded;
+  pairedTomb = loaded ? tomb : null;
+  set({ ...OFF, phase: loaded ? "idle" : "off", drive: describe(loaded) });
+  if (loaded) void syncTailnetNow();
 }
 
 function vaultKey(): string {
@@ -162,15 +176,19 @@ export async function pairTailnetDrive(
   const snap = vaultStore.getSnapshot();
   if (snap.status === "empty" || snap.guest) {
     await adoptFromDrive(next, tailnetSyncSeams.transport);
-    holdPendingPairing(next);
+    holdPendingPairing(next, PERSONAL_TOMB);
     if (snap.guest) vaultStore.lock({ recordLastVault: false });
     vaultStore.rehydrate();
     return "adopted";
   }
   if (!syncable()) throw new Error("Unlock the vault to pair it with a drive.");
+  const tomb = vaultStore.activeTomb();
   await syncOnce(vaultStore, next, tailnetSyncSeams.transport);
-  await writeDriveConfig(vaultStore.activeTomb(), next);
+  if (vaultStore.activeTomb() !== tomb)
+    throw new Error("The vault changed while pairing; pair it again.");
+  await writeDriveConfig(tomb, next);
   pairing = next;
+  pairedTomb = tomb;
   set({
     phase: "idle",
     drive: describe(next),
@@ -185,6 +203,7 @@ export async function forgetTailnetDrive(): Promise<void> {
   if (!syncable()) return;
   await writeDriveConfig(vaultStore.activeTomb(), null);
   pairing = null;
+  pairedTomb = null;
   set(OFF);
 }
 
@@ -210,6 +229,7 @@ export function stopTailnetSync(): void {
   debounce = null;
   interval = null;
   pairing = null;
+  pairedTomb = null;
   state = OFF;
   for (const listener of listeners) listener();
 }

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TailnetSyncState } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { captureLinkedPairing } from "../../lib/pairing-link.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { TailnetSyncPanel, tailnetPanelSeams } from "./TailnetSyncPanel.js";
 
@@ -88,18 +89,19 @@ describe("TailnetSyncPanel", () => {
     );
   });
 
-  it("takes a code from a pairing link and drops it from the address bar", () => {
+  it("fills in the code boot took from a pairing link", () => {
     window.history.replaceState(
       null,
       "",
       "/settings/vaults#pair-drive=opensesame-drive:v1:xyz",
     );
+    captureLinkedPairing();
+    expect(window.location.hash).toBe("");
+    expect(window.location.pathname).toBe("/settings/vaults");
     render(<TailnetSyncPanel />);
     expect(screen.getByLabelText<HTMLInputElement>("Pairing code").value).toBe(
       "opensesame-drive:v1:xyz",
     );
-    expect(window.location.hash).toBe("");
-    expect(window.location.pathname).toBe("/settings/vaults");
   });
 
   it("offers a guest to set the device up from the drive", () => {

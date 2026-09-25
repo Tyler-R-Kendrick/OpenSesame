@@ -8,7 +8,9 @@ import type {
 import { typedSearchText, typedSubtitle } from "./item-types.js";
 
 import type { LoginUri, UriMatch } from "./login-uri.js";
+import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { LoginUri, UriMatch } from "./login-uri.js";
+export type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 /**
  * Legacy kinds retain named fields; plugins use `typed`, `typeId` and `values`.
  * `itemTypeId()` bridges both shapes without rewriting existing vaults (ADR 0087).
@@ -206,6 +208,8 @@ export type Folder = {
   id: string;
   name: string;
   createdAt: string;
+  /** Last rename, so a merge can tell which of two names is newer (ADR 0144). */
+  updatedAt?: string | undefined;
 };
 
 export type VaultBody = {
@@ -218,20 +222,16 @@ export type VaultBody = {
    * work offline, and need no server.
    */
   itemTypes?: InstalledItemTypes;
+  /** When each of `itemTypes` was installed, so an uninstall elsewhere can lose to it. */
+  itemTypesAt?: ItemTypeInstallTimes | undefined;
   /**
    * Writes so far. Sealed with the body, so it cannot be edited without the vault
    * key, and compared against the header on unlock: a body that has gone
    * backwards is one restored from an older copy, not the vault as last left.
    */
   rev?: number | undefined;
-  /** Purged items and deleted folders, so a merge cannot bring them back (ADR 0144). */
+  /** Purged items, deleted folders and uninstalled types, so a merge cannot bring them back (ADR 0144). */
   tombstones?: VaultTombstones | undefined;
-};
-
-/** Id → ISO time of the purge or delete. Ids only: a tombstone names nothing. */
-export type VaultTombstones = {
-  items?: Readonly<Record<string, string>>;
-  folders?: Readonly<Record<string, string>>;
 };
 
 /**

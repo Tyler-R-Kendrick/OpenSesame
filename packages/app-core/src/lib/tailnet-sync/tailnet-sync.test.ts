@@ -13,6 +13,7 @@ import {
   vfsFlush,
 } from "../vfs.js";
 import { adoptSnapshot } from "./adopt.js";
+import { holdPendingPairing, takePendingPairing } from "./config.js";
 import { PAIRING, memoryDrive } from "./drive.fixture.js";
 import { syncOnce } from "./engine.js";
 import {
@@ -78,12 +79,37 @@ describe("pairing codes", () => {
     expect(isTailnetOrLoopback("https://desk.example.com")).toBe(false);
   });
 
+  it("accepts Tailscale's IPv6 range and refuses every other IPv6 host", () => {
+    expect(isTailnetOrLoopback("https://[fd7a:115c:a1e0::5]:8443")).toBe(true);
+    expect(isTailnetOrLoopback("https://[::1]:18790")).toBe(true);
+    // Bracketed and dotless, like a MagicDNS name, but on the open internet.
+    expect(isTailnetOrLoopback("https://[2606:4700::1111]")).toBe(false);
+    expect(isTailnetOrLoopback("https://[fd7a:115d::1]")).toBe(false);
+    const code = formatPairingCode({
+      url: "https://[2606:4700::1111]",
+      slot: "slot-0000aaaa",
+      key: "k".repeat(43),
+      label: "",
+    });
+    expect(parsePairingCode(code)).toBeNull();
+  });
+
   it("refuses a short key and anything that is not a code", () => {
     expect(
       parsePairingCode(formatPairingCode({ ...PAIRING, key: "x" })),
     ).toBeNull();
     expect(parsePairingCode("hello")).toBeNull();
     expect(parsePairingCode("opensesame-drive:v1:!!!")).toBeNull();
+  });
+});
+
+describe("a pairing held for an adopted vault", () => {
+  it("is taken only by the tomb it was adopted into", () => {
+    holdPendingPairing(PAIRING, "personal");
+    // A project vault opening first neither takes it nor clears it.
+    expect(takePendingPairing("project-4f2a")).toBeNull();
+    expect(takePendingPairing("personal")).toEqual(PAIRING);
+    expect(takePendingPairing("personal")).toBeNull();
   });
 });
 

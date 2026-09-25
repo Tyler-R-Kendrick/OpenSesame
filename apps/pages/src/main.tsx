@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
+import { captureLinkedPairing } from "./lib/pairing-link.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
 // their stylesheets stay in the first bundle, ahead of styles.css: a
 // stylesheet that arrives with a lazy chunk lands after the shared rules and
@@ -49,6 +50,10 @@ if (framed()) {
 // OPFS. Miss that event and there is no second chance until the next load, so
 // the listener goes on before anything asynchronous.
 armInstall();
+
+// A drive pairing link carries a slot key in its fragment; it leaves the
+// address bar before anything renders, whatever is enabled (ADR 0144).
+captureLinkedPairing();
 
 // The shared core never imports UI (ADR 0133); the shell says how to load the
 // duress settings panel when the duress runtime warms its capabilities.

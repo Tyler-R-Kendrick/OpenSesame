@@ -110,9 +110,55 @@ fn files_are_private_to_this_user() {
     let mode = |path: PathBuf| fs::metadata(path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode(dir.clone()), 0o700);
     assert_eq!(
-        mode(dir.join(format!("{}.snapshot.json", view.slot))),
+        mode(dir.join(format!("{}.1.snapshot.json", view.slot))),
         0o600
     );
     assert_eq!(mode(dir.join(format!("{}.meta.json", view.slot))), 0o600);
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_write_that_never_reached_its_metadata_is_invisible_and_overwritten() {
+    let (store, dir) = temp_store("crash");
+    let (view, key) = store.create("x").unwrap();
+    store.write(&view.slot, &key, 0, b"{\"first\":1}").unwrap();
+    // A crash after the next generation's file landed but before the metadata
+    // naming it did: readers must still get generation 1, whole.
+    fs::write(dir.join(format!("{}.2.snapshot.json", view.slot)), b"torn").unwrap();
+    assert_eq!(
+        store.read(&view.slot, &key).unwrap(),
+        (1, Some(b"{\"first\":1}".to_vec()))
+    );
+    assert_eq!(
+        store.write(&view.slot, &key, 1, b"{\"second\":2}").unwrap(),
+        2
+    );
+    assert_eq!(
+        store.read(&view.slot, &key).unwrap(),
+        (2, Some(b"{\"second\":2}".to_vec()))
+    );
+    // The superseded generation's file is gone; only the live one remains.
+    assert!(!dir.join(format!("{}.1.snapshot.json", view.slot)).exists());
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn concurrent_creates_never_open_more_than_max_slots() {
+    let (store, dir) = temp_store("full");
+    for _ in 0..MAX_SLOTS - 1 {
+        store.create("x").unwrap();
+    }
+    let opened = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..8)
+            .map(|_| scope.spawn(|| store.create("race").is_ok()))
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .filter(|ok| *ok)
+            .count()
+    });
+    assert_eq!(opened, 1);
+    assert_eq!(store.list().unwrap().len(), MAX_SLOTS);
     let _ = fs::remove_dir_all(dir);
 }

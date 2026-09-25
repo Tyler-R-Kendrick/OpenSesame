@@ -53,7 +53,10 @@ under its own key.**
    drive keeps only a SHA-256. The drive checks that a snapshot says it is one
    and nothing more; it never holds a vault key. Slots live in
    `$OPENSESAME_VAULT_DRIVE_DIR` (default the user's state directory), `0700`
-   directory, `0600` files, written whole and renamed into place.
+   directory, `0600` files, written whole and renamed into place. Each
+   generation's snapshot is its own file and the slot's metadata names it, so
+   that rename is the one commit point: a crash before it leaves the previous
+   generation whole. Slots are counted under the same lock that opens one.
 2. **Who reaches it.** Browsers reach the daemon through Tailscale Serve
    (`https://<machine>.<tailnet>.ts.net`), which answers only inside the
    tailnet and carries a publicly trusted certificate, so there is no
@@ -64,11 +67,17 @@ under its own key.**
    check, refuse any request carrying `Origin`, and are never on the tailnet
    listener. CORS in the daemon is route-scoped: only the two device routes carry
    `OPENSESAME_CORS_ORIGINS`. Pages accepts a drive only at a `*.ts.net` name, a
-   `100.64.0.0/10` address, a bare MagicDNS name, or loopback.
+   `100.64.0.0/10` or `fd7a:115c:a1e0::/48` address, a bare MagicDNS name, or
+   loopback — each shape matched whole, so no public IPv6 address passes as a
+   dotless name.
 3. **Pairing.** `opensesame daemon drive create` opens a slot and prints a
    pairing code (`opensesame-drive:v1:` + base64url of url, slot, key, label)
    and a QR of a link that carries the code in the fragment, which a browser
-   never sends to the server hosting the app. The key is shown once.
+   never sends to the server hosting the app. The key is shown once. Pages
+   takes the code out of the address bar at boot (`apps/pages/src/lib/pairing-link.ts`),
+   whether or not Networking is on or a vault is open, and holds it in memory
+   only; the pairing an adopted vault waits for is bound to the tomb it was
+   adopted into, and a pass runs only for the tomb its pairing was read from.
 4. **The merge.** One pass (`packages/app-core/src/lib/tailnet-sync/engine.ts`):
    read the drive; merge its body into the open vault; if the drive lacks
    anything this device holds, write the sealed body back naming the
@@ -81,7 +90,13 @@ under its own key.**
    an item whose tombstone is at or after its last change — an edit made after
    the purge on a device that had not heard of it survives — and drops a
    tombstoned folder, moving its items to the root on both sides. Ids and
-   times only, capped at 10,000 per kind, oldest forgotten first.
+   times only, capped at 10,000 per kind, oldest forgotten first. An uninstalled
+   item type leaves one too, and each installed type records when it was
+   installed (`VaultBody.itemTypesAt`), so an install after an uninstall wins.
+   Every edit the merge ranks carries its time: restoring from the trash and
+   favouriting stamp the item's `updatedAt`, and a folder rename stamps the
+   folder's new `updatedAt` — without it the copy that happened to sort higher
+   would win, and a sync would quietly undo the edit.
 6. **What leaves the device.** The sealed body and a *portable* header: the
    master-password wrap (600k-round PBKDF2 behind the password policy) and
    passkey PRF wraps (nothing to guess), plus the second-step records that
@@ -127,8 +142,9 @@ and nothing else in Pages speaks to a daemon.
 - `packages/app-core/src/lib/tailnet-sync/two-devices.test.ts` runs two
   `VaultStore`s with separate storage against one compare-and-set drive:
   setup from the drive, edits on both sides, a purge and a replayed older
-  snapshot, a folder delete, and a lost race all converge, and the drive never
-  holds a name, a note or the PIN wrap.
+  snapshot, a folder delete, a lost race, a restore from the trash, an
+  unfavourite, a folder rename and an item type uninstall all converge, and
+  the drive never holds a name, a note or the PIN wrap.
 - `pnpm --filter @opensesame/pages verify:tailnet-sync` does it for real: the
   `opensesame` daemon as the drive and two isolated browsers.
 
@@ -142,8 +158,8 @@ and nothing else in Pages speaks to a daemon.
 - Pairing is a copy of a code or a scan of a QR; there is no certificate to
   verify, because Serve's is real.
 - Attachments stored outside the body, project vaults (tombs other than
-  `personal`), a master-password change (each device keeps its own header),
-  and uninstalled item types (no tombstone yet) do not sync in this version;
+  `personal`) and a master-password change (each device keeps its own
+  header) do not sync in this version;
   the Enpass research lists them as the remaining gaps.
 - The client CLI (`opensesame-id`) does not sync; the gap is recorded in the
   capability registry's surface ledger.

@@ -111,3 +111,61 @@ describe("sameVaultContent", () => {
     ).toBe(false);
   });
 });
+
+describe("mergeVaultBodies edits that carry no item content", () => {
+  it("keeps the later folder rename, whichever name sorts higher", () => {
+    const folder = { id: "f", name: "Work", createdAt: T0 };
+    const renamed = body({
+      folders: [{ ...folder, name: "Alpha", updatedAt: T1 }],
+    });
+    const stale = body({ folders: [folder] });
+    for (const merged of [
+      mergeVaultBodies(renamed, stale),
+      mergeVaultBodies(stale, renamed),
+    ]) {
+      expect(merged.folders.map((f) => f.name)).toEqual(["Alpha"]);
+    }
+  });
+
+  it("keeps an item type uninstalled against a device that still has it", () => {
+    const installed = body({
+      itemTypes: { t: "{}" },
+      itemTypesAt: { t: T0 },
+    });
+    const uninstalled = body({
+      tombstones: withTombstone(undefined, "itemTypes", ["t"], T1),
+    });
+    for (const merged of [
+      mergeVaultBodies(installed, uninstalled),
+      mergeVaultBodies(uninstalled, installed),
+    ]) {
+      expect(merged.itemTypes).toBeUndefined();
+      expect(merged.itemTypesAt).toBeUndefined();
+      expect(merged.tombstones?.itemTypes).toEqual({ t: T1 });
+    }
+  });
+
+  it("lets an install made after the uninstall survive it", () => {
+    const reinstalled = body({
+      itemTypes: { t: '{"v":2}' },
+      itemTypesAt: { t: T2 },
+    });
+    const uninstalled = body({
+      itemTypes: {},
+      tombstones: withTombstone(undefined, "itemTypes", ["t"], T1),
+    });
+    const merged = mergeVaultBodies(uninstalled, reinstalled);
+    expect(merged.itemTypes).toEqual({ t: '{"v":2}' });
+    expect(merged.itemTypesAt).toEqual({ t: T2 });
+    expect(
+      sameVaultContent(merged, mergeVaultBodies(reinstalled, uninstalled)),
+    ).toBe(true);
+  });
+
+  it("takes the later install's text on a clash, in either order", () => {
+    const older = body({ itemTypes: { t: '{"z":1}' }, itemTypesAt: { t: T0 } });
+    const newer = body({ itemTypes: { t: '{"a":1}' }, itemTypesAt: { t: T1 } });
+    expect(mergeVaultBodies(older, newer).itemTypes).toEqual({ t: '{"a":1}' });
+    expect(mergeVaultBodies(newer, older).itemTypes).toEqual({ t: '{"a":1}' });
+  });
+});

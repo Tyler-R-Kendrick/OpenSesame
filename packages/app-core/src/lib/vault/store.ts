@@ -75,6 +75,13 @@ import {
   writePlaintextFile,
   writeSealedFile,
 } from "../vfs.js";
+import {
+  adoptMerged,
+  recordItemTypes,
+  renameFolder,
+  restoreItem,
+  toggleFavorite,
+} from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
 import { writeItem } from "./item-path.js";
 import { emitVaultLock } from "./lock-events.js";
@@ -1261,7 +1268,7 @@ export class VaultStore {
       // is part of what gets sealed rather than overwritten by it.
       await this.#mutate((body) => {
         merged = mergeVaultBodies(body, incoming);
-        Object.assign(body, { ...merged, rev: body.rev });
+        adoptMerged(body, merged);
       });
       // A type installed on another device arrives with this merge; rebuilding
       // the registry here is what makes it live without a re-unlock (ADR 0087 §7).
@@ -1342,9 +1349,10 @@ export class VaultStore {
   async installItemTypeDefinition(text: string): Promise<InstallResult> {
     const result = installItemType(text);
     if (!result.ok) return result;
+    const added = [result.definition.metadata.id];
     try {
       await this.#mutate((body) => {
-        body.itemTypes = installedDefinitions();
+        recordItemTypes(body, installedDefinitions(), { added });
       });
     } catch (error) {
       // `#mutate` rolls the body back on a failed seal, but the registry is
@@ -1361,7 +1369,7 @@ export class VaultStore {
     if (!uninstallItemType(id)) return false;
     try {
       await this.#mutate((body) => {
-        body.itemTypes = installedDefinitions();
+        recordItemTypes(body, installedDefinitions(), { removed: [id] });
       });
     } catch (error) {
       syncInstalledTypes(this.#body.itemTypes);
@@ -1402,11 +1410,7 @@ export class VaultStore {
   }
 
   async restoreItem(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.map((item) =>
-        item.id === id ? { ...item, deletedAt: null } : item,
-      );
-    });
+    await this.#mutate((body) => restoreItem(body, id));
   }
 
   async purgeItem(id: string): Promise<void> {
@@ -1429,11 +1433,7 @@ export class VaultStore {
   }
 
   async toggleFavorite(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.map((item) =>
-        item.id === id ? { ...item, favorite: !item.favorite } : item,
-      );
-    });
+    await this.#mutate((body) => toggleFavorite(body, id));
   }
 
   async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
@@ -1510,11 +1510,7 @@ export class VaultStore {
   }
 
   async renameFolder(id: string, name: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.folders = body.folders.map((folder) =>
-        folder.id === id ? { ...folder, name: name.trim() } : folder,
-      );
-    });
+    await this.#mutate((body) => renameFolder(body, id, name));
   }
 
   async deleteFolder(id: string): Promise<void> {
@@ -1600,7 +1596,10 @@ export class VaultStore {
     await this.#mutate((body) => {
       body.items = [...body.items, ...merged];
       body.folders = [...body.folders, ...mergedFolders];
-      body.itemTypes = { ...incomingTypes, ...body.itemTypes };
+      const added = Object.keys(incomingTypes).filter(
+        (id) => body.itemTypes?.[id] === undefined,
+      );
+      recordItemTypes(body, { ...incomingTypes, ...body.itemTypes }, { added });
     });
     syncInstalledTypes(this.#body.itemTypes);
     return merged.length;

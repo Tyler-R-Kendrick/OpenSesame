@@ -50,7 +50,8 @@ opensesame daemon drive create --label "Personal vault"
 This prints the slot id, the drive URL, a **pairing code**
 (`opensesame-drive:v1:…`), a **link**
 (`…/settings/vaults#pair-drive=…`) and a QR of the link. The code carries the
-slot's only key and is not shown again. Pass `--url` if Serve is not running
+slot's only key and is not shown again. Pages takes the code out of the
+address bar as soon as the link opens, so it is not left in history. Pass `--url` if Serve is not running
 yet, and `--pages-url` (or `OPENSESAME_PAGES_URL`) for your own Pages origin.
 
 ```bash

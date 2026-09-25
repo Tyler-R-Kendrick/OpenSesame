@@ -9,8 +9,9 @@
 //! snapshot — and the merge on each device makes a replay harmless.
 //!
 //! Only a SHA-256 of each access key is kept. Files are written whole and
-//! renamed into place, so a crash leaves the previous generation, never half
-//! of the next.
+//! renamed into place, and each generation's snapshot has its own file, so
+//! the slot's metadata rename is the one commit point: a crash before it
+//! leaves the previous generation whole, never new bytes under an old number.
 use base64::Engine as _;
 use rand_core::RngCore as _;
 use serde::{Deserialize, Serialize};
@@ -162,8 +163,8 @@ impl DriveStore {
         self.dir.join(format!("{slot}.meta.json"))
     }
 
-    fn snapshot_path(&self, slot: &str) -> PathBuf {
-        self.dir.join(format!("{slot}.snapshot.json"))
+    fn snapshot_path(&self, slot: &str, generation: u64) -> PathBuf {
+        self.dir.join(format!("{slot}.{generation}.snapshot.json"))
     }
 
     fn guard(&self) -> std::sync::MutexGuard<'_, ()> {
@@ -207,6 +208,11 @@ impl DriveStore {
     /// Every slot, newest first, without keys or contents.
     pub fn list(&self) -> io::Result<Vec<SlotView>> {
         let _guard = self.guard();
+        self.list_locked()
+    }
+
+    /// `list` for a caller already holding the lock.
+    fn list_locked(&self) -> io::Result<Vec<SlotView>> {
         let mut views = Vec::new();
         let entries = match fs::read_dir(&self.dir) {
             Ok(entries) => entries,
@@ -226,10 +232,11 @@ impl DriveStore {
     /// Open a slot; the access key is returned once and never stored.
     pub fn create(&self, label: &str) -> Result<(SlotView, String), DriveError> {
         let label: String = label.trim().chars().take(80).collect();
-        if self.list()?.len() >= MAX_SLOTS {
+        // Counted under the lock, so two creates at once cannot both fit.
+        let _guard = self.guard();
+        if self.list_locked()?.len() >= MAX_SLOTS {
             return Err(DriveError::Full);
         }
-        let _guard = self.guard();
         self.ensure_dir()?;
         let mut raw = [0u8; 32];
         rand_core::OsRng.fill_bytes(&mut raw);
@@ -250,11 +257,11 @@ impl DriveStore {
     /// Close a slot and discard its snapshot. False when there was none.
     pub fn remove(&self, slot: &str) -> io::Result<bool> {
         let _guard = self.guard();
-        if self.load(slot).is_none() {
+        let Some(meta) = self.load(slot) else {
             return Ok(false);
-        }
-        let _ = fs::remove_file(self.snapshot_path(slot));
+        };
         fs::remove_file(self.meta_path(slot))?;
+        let _ = fs::remove_file(self.snapshot_path(slot, meta.generation));
         Ok(true)
     }
 
@@ -265,7 +272,10 @@ impl DriveStore {
         if meta.generation == 0 {
             return Ok((0, None));
         }
-        Ok((meta.generation, Some(fs::read(self.snapshot_path(slot))?)))
+        Ok((
+            meta.generation,
+            Some(fs::read(self.snapshot_path(slot, meta.generation))?),
+        ))
     }
 
     /// Replace the snapshot if nobody else has since `expected`.
@@ -284,11 +294,17 @@ impl DriveStore {
         if meta.generation != expected {
             return Err(DriveError::Conflict(meta.generation));
         }
-        write_private(&self.snapshot_path(slot), snapshot)?;
+        let previous = meta.generation;
         meta.generation += 1;
+        // The next generation's file first, then the metadata that names it:
+        // until that rename lands, readers still get `previous` whole.
+        write_private(&self.snapshot_path(slot, meta.generation), snapshot)?;
         meta.bytes = snapshot.len() as u64;
         meta.updated_at = Some(now());
         self.save(&meta)?;
+        if previous > 0 {
+            let _ = fs::remove_file(self.snapshot_path(slot, previous));
+        }
         Ok(meta.generation)
     }
 }

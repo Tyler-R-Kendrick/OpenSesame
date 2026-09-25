@@ -261,6 +261,11 @@ export const LIB_RULES = [
   ...each(L, ACCESS_FILES, (p) =>
     optional(p, ACCESS, "local PAM records and Host plane"),
   ),
+  core(
+    `${L}pairing-link`,
+    SHELL,
+    "boot takes a drive pairing code out of the address bar (ADR 0144)",
+  ),
   optional(
     `${L}tailnet-sync/`,
     "networking.tailnet",

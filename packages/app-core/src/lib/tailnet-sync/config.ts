@@ -17,15 +17,20 @@ import {
 
 export const DRIVE_CONFIG_PATH = "config/tailnet-drive";
 
-let pending: DrivePairing | null = null;
+let pending: { pairing: DrivePairing; tomb: string } | null = null;
 
-export function holdPendingPairing(pairing: DrivePairing | null): void {
-  pending = pairing;
+/** Hold a pairing for the tomb it was adopted into, until that tomb opens. */
+export function holdPendingPairing(pairing: DrivePairing, tomb: string): void {
+  pending = { pairing, tomb };
 }
 
-/** The pairing waiting for a vault to open, handed over once. */
-export function takePendingPairing(): DrivePairing | null {
-  const held = pending;
+/**
+ * The pairing waiting for `tomb` to open, handed over once. A different vault
+ * opening first — a project, say — neither takes it nor clears it.
+ */
+export function takePendingPairing(tomb: string): DrivePairing | null {
+  if (pending?.tomb !== tomb) return null;
+  const held = pending.pairing;
   pending = null;
   return held;
 }

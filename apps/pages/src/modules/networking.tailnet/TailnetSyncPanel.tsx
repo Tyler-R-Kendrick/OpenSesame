@@ -4,8 +4,8 @@
  *
  * Contributed by `networking.tailnet`, so it exists only while Networking is
  * on. A pairing link (`…/settings/vaults#pair-drive=<code>`, printed by
- * `opensesame daemon drive create`) fills the code in and is then dropped
- * from the address bar, so it is not left in history. In a guest session the
+ * `opensesame daemon drive create`) fills the code in; boot has already
+ * taken it out of the address bar (`lib/pairing-link.ts`). In a guest session the
  * same code sets this device up from the drive instead: the vault is written
  * into this device's own place and the unlock screen asks for its password.
  */
@@ -22,10 +22,9 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { IconConnection, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
 import { type StatusMessage, StatusNote } from "../../components/StatusNote.js";
+import { takeLinkedPairing } from "../../lib/pairing-link.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
-
-const LINK_KEY = "pair-drive=";
 
 /**
  * The observer this panel reads and drives. A seam, so a test can stand in
@@ -49,15 +48,6 @@ export const tailnetPanelSeams: TailnetPanelSeams = {
 
 /** The panel head's glyph: a tone and the sentence it stands for. */
 type Standing = { tone: StatusTone; label: string };
-
-/** Take a pairing code out of the address bar, once, and leave no trace of it. */
-function takeLinkedCode(): string {
-  const { hash, pathname, search } = window.location;
-  const at = hash.indexOf(LINK_KEY);
-  if (at === -1) return "";
-  window.history.replaceState(window.history.state, "", pathname + search);
-  return decodeURIComponent(hash.slice(at + LINK_KEY.length));
-}
 
 function mark(state: TailnetSyncState): Standing {
   if (state.phase === "syncing") return { tone: "idle", label: "Syncing" };
@@ -145,7 +135,7 @@ function PairForm({
     : "Pair with this drive";
 
   useEffect(() => {
-    const linked = takeLinkedCode();
+    const linked = takeLinkedPairing();
     if (linked) setCode(linked);
   }, []);
 
