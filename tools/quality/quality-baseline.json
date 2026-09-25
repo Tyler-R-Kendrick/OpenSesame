@@ -904,7 +904,7 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 1836
+      "max-lines": 1782
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 412,
