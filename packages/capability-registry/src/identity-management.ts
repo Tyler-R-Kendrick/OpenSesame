@@ -1,3 +1,4 @@
+import { AUTH_CEREMONY } from "./exclusions.js";
 import type { Capability } from "./index.js";
 export const identityManagementCapabilities: readonly Capability[] = [
   {
@@ -326,6 +327,48 @@ export const identityManagementCapabilities: readonly Capability[] = [
         reason: "Directory provisioning requires the organization owner",
         adr: "0065-agent-surface-parity.md",
       },
+    },
+  },
+  // A claim link (ADR 0045, ADR 0140): the person holding it reviews what is
+  // claimed and consents with the code its creator read out. The bearer and
+  // the code are a human's; no agent surface may carry either.
+  {
+    id: "identity.claim.accept",
+    title: "Review and accept an ownership claim",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/claim",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
+  // A drop link (ADR 0062; ADR 0140 D2): the recipient opens it once, with
+  // the code the sender shared, and the payload is decrypted under the key
+  // the link carried. The bearer, code and key are a human's.
+  {
+    id: "identity.drop.open",
+    title: "Open a drop someone sent",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/claim",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
     },
   },
 ];

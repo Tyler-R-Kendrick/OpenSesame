@@ -17,6 +17,11 @@ import {
 } from "./ambient-auth/generation.js";
 import { cancelAllTransactions } from "./ambient-auth/transactions.js";
 import { readAuthOutcome } from "./auth-outcome.js";
+import {
+  captureClaimArrivalFromPage,
+  peekClaimArrival,
+} from "./claims/arrival.js";
+import { claimStash } from "./claims/stash.js";
 import { federationSeams } from "./federation.js";
 import { identitySeams } from "./identity.js";
 import { attachAccount, signOut, switchAccount } from "./session-exit.js";
@@ -98,6 +103,18 @@ describe("signOut", () => {
     expect(
       Number(localStorage.getItem("opensesame:ambient-auth:generation")),
     ).toBeGreaterThan(0);
+  });
+
+  it("forgets a claim link's arrival and its stashed bearer", () => {
+    history.replaceState(null, "", "/claim#token=osc_clm_pub.secret"); // gitleaks:allow -- synthetic claim-shaped test vector
+    captureClaimArrivalFromPage();
+    expect(claimStash.read()).not.toBeNull();
+
+    signOut();
+
+    expect(peekClaimArrival()).toEqual({ kind: "none" });
+    expect(claimStash.read()).toBeNull();
+    history.replaceState(null, "", "/");
   });
 
   it("locks an open vault — sign-out never leaves the key for the next person", async () => {

@@ -6,10 +6,11 @@
  * there and asks the person to confirm it against the device.
  *
  * The approval itself is Identity › Devices' form (`DeviceApproval`), not a
- * second copy. It needs a signed-in Identity session; without one, or with no
- * Identity API configured, the screen says so the way every Identity-plane
- * panel does, and the vault, the sign-in roads and the guest road are
- * untouched — the route sits behind unlock like any section.
+ * second copy. It needs a signed-in Identity session, never a vault (ADR 0140
+ * §2): the route opens before unlock, on a locked or empty device too, and
+ * without a session — or with no Identity API configured — it shows the
+ * Connect note every Identity-plane panel does. Where the shell's tray is
+ * not mounted, a refusal is the mark beside the code.
  */
 
 import {

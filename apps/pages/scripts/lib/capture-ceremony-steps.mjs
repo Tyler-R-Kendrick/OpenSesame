@@ -8,25 +8,94 @@
  * steps. A step that finds nothing to do on the base does nothing there.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
+/** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
+function journeyDropManifest(journey, journeyPath) {
+  if (!journey.dropManifest) return null;
+  const file = path.resolve(path.dirname(journeyPath), journey.dropManifest);
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
 /**
- * Answer the Identity API routes a device approval walks, at `origin`, for
- * one page. This environment has no Identity API, and a signed-in session is
- * what the screen is gated on; the README of any journey that uses this must
- * say that the Identity API was a stand-in. Only these routes answer:
+ * The stand-in a journey names (`identityStub`: its origin), installed on
+ * `page`. Each call it answers is printed as it answers it, so the capture
+ * log records what the page sent. A journey that names none installs nothing.
+ */
+export async function stubJourneyIdentity(page, journey, journeyPath, origin) {
+  if (!journey.identityStub) return;
+  await identityStub(page, {
+    origin: journey.identityStub,
+    pagesOrigin: origin,
+    calls: { push: (call) => console.log(`  identity: ${call}`) },
+    dropManifest: journeyDropManifest(journey, journeyPath),
+  });
+}
+
+/** The one ownership claim the stand-in serves (`answerClaims` below). */
+const EVIDENCE_CLAIM = {
+  id: "clm_evidence",
+  type: "resource_bundle",
+  state: "presented",
+  targetManifestDigest:
+    "sha256:3f7a9c1e0b5d4a2f8e6c7b9d0a1f2e3d4c5b6a7980f1e2d3c4b5a69788f0e1d2",
+  items: [{ id: "item-1" }, { id: "item-2" }],
+};
+
+function bodyOf(request) {
+  try {
+    return JSON.parse(request.postData() ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+/** Answer the claim routes; `null` when the call is not one of them. */
+function answerClaims(at, request, dropManifest) {
+  if (at === "POST /v1/claims/present") {
+    // A user code beside the bearer is a drop's single presentation.
+    if (bodyOf(request).userCode === undefined) return [200, EVIDENCE_CLAIM];
+    return dropManifest
+      ? [200, { targetManifest: dropManifest }]
+      : [404, { error: "not_found" }];
+  }
+  if (at === `GET /v1/claims/${EVIDENCE_CLAIM.id}`) {
+    return [200, EVIDENCE_CLAIM];
+  }
+  if (at === `POST /v1/claims/${EVIDENCE_CLAIM.id}/complete`) {
+    return [200, { ...EVIDENCE_CLAIM, state: "completed" }];
+  }
+  return null;
+}
+
+/**
+ * Answer the Identity API routes a ceremony walks, at `origin`, for one page.
+ * This environment has no Identity API, and a signed-in session is what the
+ * screens are gated on; the README of any journey that uses this must say
+ * that the Identity API was a stand-in. Only these routes answer:
  *
  * - `GET /v1/principals/me` → 401 (no cookie session to resume);
  * - `POST /v1/principals/provisional` → a provisional principal and bearer;
  * - `POST /v1/device/approve` → the proxy's `{ ok, status }`;
+ * - `POST /v1/claims/present`, `GET /v1/claims/clm_evidence`,
+ *   `POST /v1/claims/clm_evidence/complete` → one synthetic claim; a present
+ *   carrying a user code is a drop's, answered with `dropManifest` (a sealed
+ *   synthetic drop the journey names) when there is one;
  * - `GET /v1/health/live` → live.
  *
  * Anything else is a 404, so a call the journey did not expect shows up as
  * a failure rather than quietly succeeding.
  */
-export async function identityStub(page, { origin, pagesOrigin, calls }) {
+export async function identityStub(
+  page,
+  { origin, pagesOrigin, calls, dropManifest = null },
+) {
   const cors = {
     "access-control-allow-origin": pagesOrigin,
     "access-control-allow-credentials": "true",
-    "access-control-allow-headers": "authorization, content-type",
+    "access-control-allow-headers":
+      "authorization, content-type, accept, x-claim-token",
     "access-control-allow-methods": "GET, POST, OPTIONS",
   };
   await page.route(`${origin}/**`, (route) => {
@@ -57,28 +126,87 @@ export async function identityStub(page, { origin, pagesOrigin, calls }) {
     if (at === "POST /v1/device/approve")
       return json(200, { ok: true, status: 200 });
     if (at === "GET /v1/health/live") return json(200, { status: "live" });
+    const claim = answerClaims(at, request, dropManifest);
+    if (claim) return json(claim[0], claim[1]);
     return json(404, { error: "not_found" });
   });
 }
 
-/**
- * A journey through an Identity-plane ceremony names a stand-in API
- * (`journey.identityStub`): route it for this page and print each call it
- * answers, as it answers it, so the capture log records what the page sent.
- * No stand-in, no routing.
- */
-export async function journeyIdentityStub(page, journey, pagesOrigin) {
-  if (!journey.identityStub) return;
-  const calls = { push: (call) => console.log(`  identity: ${call}`) };
-  await identityStub(page, {
-    origin: journey.identityStub,
-    pagesOrigin,
-    calls,
-  });
+/** Verbs for how a link arrives: the address it paints with, the guest road. */
+function arrivalSteps({ press }) {
+  return {
+    /**
+     * Record the address at the moment the app first draws into `#root`, on
+     * every load of this page from now on. The mutation callback runs before
+     * that frame paints, so this is the address the first painted app had.
+     */
+    async watchFirstRender(page) {
+      await page.addInitScript(() => {
+        const seen = new MutationObserver(() => {
+          if (!document.getElementById("root")?.firstChild) return;
+          sessionStorage.setItem("evidence.first-render", location.href);
+          seen.disconnect();
+        });
+        seen.observe(document, { childList: true, subtree: true });
+      });
+    },
+    /** Print what `watchFirstRender` saw for the latest load. */
+    async firstRenderAddress(page) {
+      const href = await page.evaluate(() =>
+        sessionStorage.getItem("evidence.first-render"),
+      );
+      console.log(`  first render address: ${href ?? "none"}`);
+    },
+    /** Let time pass, for a claim about what still holds later (seconds). */
+    async wait(page, seconds) {
+      await page.waitForTimeout(seconds * 1000);
+    },
+    /**
+     * Take the guest road from whatever this build shows first: the
+     * capability review, the front door's Continue as guest, or the unlock
+     * screen's Unlock for a guest vault this page already made. A build that
+     * drew its route without a locked screen in front has nothing to press.
+     */
+    async guestOptional(page) {
+      const apply = page.getByTestId("capability-apply");
+      const road = [
+        apply,
+        page.getByRole("button", { name: "Continue as guest", exact: true }),
+        page.getByRole("button", { name: "Unlock", exact: true }),
+      ];
+      let pressed = null;
+      for (const key of road) {
+        const first = key.first();
+        if (await first.isVisible().catch(() => false)) {
+          pressed = first;
+          break;
+        }
+      }
+      if (!pressed) {
+        console.log("  guest: nothing in front of this route");
+        return;
+      }
+      await press(pressed);
+      await page.waitForTimeout(1500);
+      if (
+        await apply
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
+        await press(apply.first());
+        await page
+          .getByTestId("capability-review")
+          .waitFor({ state: "detached", timeout: 20_000 });
+      }
+      await page.waitForTimeout(1200);
+    },
+  };
 }
 
 export function ceremonySteps({ press }) {
   return {
+    ...arrivalSteps({ press }),
     /** Type into a labelled field and leave it, when this build has one. */
     async fillOptional(page, { label, text }) {
       const field = page.getByLabel(label, { exact: true }).first();

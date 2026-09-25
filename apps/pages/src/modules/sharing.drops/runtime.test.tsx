@@ -18,20 +18,18 @@ describe("sharing.drops runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the claim route and the drop item kind (LOAD-09)", async () => {
+  it("registers the drop item kind and nothing else (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.drops",
-      kinds: ["item-kind", "route"],
-      count: 2,
+      kinds: ["item-kind"],
+      count: 1,
     });
   });
 
-  it("serves /claim outside the unlock gate, unframed", async () => {
+  it("serves no route: opening a drop at /claim is identity.ceremonies' (ADR 0140 D2)", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(
-      t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate]),
-    ).toEqual([["claim", "/claim", false, "any"]]);
+    expect(t.entries("route")).toEqual([]);
     expect(
       t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
     ).toEqual([["drop", "Drop", "drops", 50]]);

@@ -227,11 +227,7 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
     "src/lib/secret-config-access",
   ),
   ...optional("vault.certificate-records", "src/lib/certs"),
-  ...optional(
-    "sharing.drops",
-    "src/screens/DropClaimScreen",
-    "src/sections/vault/Drop",
-  ),
+  ...optional("sharing.drops", "src/sections/vault/Drop"),
   ...optional(
     "enterprise.directory-provisioning",
     "src/lib/directory",

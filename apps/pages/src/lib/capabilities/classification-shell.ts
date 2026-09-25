@@ -242,11 +242,6 @@ export const SHELL_RULES = [
   ),
   optional("src/screens/broker", "identity.site-broker", "broker stylesheet"),
   optional(
-    "src/screens/DropClaimScreen",
-    "sharing.drops",
-    "Pages-hosted drop claim",
-  ),
-  optional(
     "src/screens/LocalAuthorize",
     "identity.local-iam",
     "local application sign-in",

@@ -31,7 +31,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
-import { journeyIdentityStub } from "./lib/capture-ceremony-steps.mjs";
+import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -342,7 +342,7 @@ async function capture(browser, into) {
         : phoneContext({ width: screen.width, height: screen.height }),
       remote,
     });
-    await journeyIdentityStub(page, journey, origin);
+    await stubJourneyIdentity(page, journey, journeyPath, origin);
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.

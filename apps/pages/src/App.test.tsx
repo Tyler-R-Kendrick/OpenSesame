@@ -107,6 +107,32 @@ describe("App", () => {
     expect(screen.getByText("unlock screen stub")).toBeTruthy();
   });
 
+  it("opens a framed ceremony route on its own page when locked, and in the shell when unlocked", () => {
+    const ceremony: RouteContribution = {
+      id: "claim",
+      path: "/claim",
+      element: () => <p>claim ceremony stub</p>,
+      framed: true,
+      order: 46,
+      gate: "any",
+    };
+    env.routes = [ceremony];
+    renderApp("/claim");
+    expect(screen.getByText("claim ceremony stub")).toBeTruthy();
+    expect(screen.queryByText("unlock screen stub")).toBeNull();
+    expect(screen.queryByTestId("app-shell")).toBeNull();
+    expect(screen.getByRole("main")).toBeTruthy();
+    cleanup();
+    // The front door stays in front of every other path (ADR 0090).
+    renderApp("/vault");
+    expect(screen.getByText("unlock screen stub")).toBeTruthy();
+    cleanup();
+    env.vaultStatus = "unlocked";
+    renderApp("/claim");
+    expect(screen.getByText("claim ceremony stub")).toBeTruthy();
+    expect(screen.getByTestId("app-shell")).toBeTruthy();
+  });
+
   it("withholds an optional popup route the plan did not contribute", () => {
     renderApp("/broker/authorize?client_id=x");
     expect(screen.getByText("unlock screen stub")).toBeTruthy();

@@ -44,7 +44,8 @@ function useSessionGuardsDefault(): void {
   const { prefs, status } = useVault();
 
   // Locking drops in-memory vault keys and clears secrets that left the vault
-  // (clipboard, staged claim tokens). Identity stays signed in unless the
+  // (clipboard, staged claim tokens; a claim link's stash is purged by the
+  // core, `bindClaimLockReset`). Identity stays signed in unless the
   // operator opted into "sign out on lock" — idle vault lock must not kick
   // them out of every plane.
   useEffect(

@@ -3,6 +3,10 @@ import {
   compositionStore,
   storeSeams,
 } from "@opensesame/app-core/lib/capabilities/store.js";
+import {
+  peekClaimArrival,
+  resetClaimArrivalForTests,
+} from "@opensesame/app-core/lib/claims/arrival.js";
 import { takeDeviceArrival } from "@opensesame/app-core/lib/device-link.js";
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
@@ -238,6 +242,26 @@ describe("pre-unlock boot path", () => {
     await boot();
     expect(location.search).toBe("?code=abc&state=xyz");
     expect(takeDeviceArrival()).toEqual({ kind: "none" });
+    history.replaceState(null, "", "/");
+  });
+
+  it("takes a claim or drop link out of the address before the first paint", async () => {
+    history.replaceState(null, "", "/claim#token=osc_clm_pub.secret&key=a2V5"); // gitleaks:allow -- synthetic claim-shaped test vector
+    await boot();
+    expect(`${location.pathname}${location.search}${location.hash}`).toBe(
+      "/claim",
+    );
+    expect(peekClaimArrival()).toEqual({
+      kind: "drop",
+      token: "osc_clm_pub.secret",
+      key: "a2V5",
+    });
+    resetClaimArrivalForTests();
+    // Another path's fragment is not the claim route's to read.
+    history.replaceState(null, "", "/join#token=osc_clm_pub.secret");
+    await boot();
+    expect(location.hash).toBe("#token=osc_clm_pub.secret");
+    expect(peekClaimArrival()).toEqual({ kind: "none" });
     history.replaceState(null, "", "/");
   });
 });
