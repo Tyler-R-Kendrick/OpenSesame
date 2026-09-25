@@ -28,13 +28,14 @@ re-verifies everything else from the raw request JWT the bridge forwards.
 
 | Item | Role |
 |---|---|
-| binary `opensesame-nats-auth-bridge` | Subscribes to `AUTH_SUBJECT` in queue group `QUEUE_GROUP`; environment-only configuration, a missing identity, trust bundle, seed or Host URL is a startup error |
+| binary `opensesame-nats-auth-bridge` | Serves `AUTH_SUBJECT` as the `opensesame-auth-callout` micro service in queue group `QUEUE_GROUP`; environment-only configuration, a missing identity, trust bundle, seed or Host URL is a startup error |
 | `jwt`: `decode_request`, `Expectations`, `VerifiedRequest` | Verify an `ed25519-nkey` request: signature, window, audience, key kinds |
 | `model`: `AuthorizationRequestClaims`, `ClientInfo`, `ClientTls`, `ConnectOpts`, `ServerId` | Request claims; secrets redacted in `Debug` |
 | `digest::RequestDigest`, `evidence::ExtractedEvidence` | Immutable request identity; what the request carries about the end user |
 | `host_client`: `HostDecisionRequest`, `HostDecisionResponse`, `HostEvidence`, `check_echo` | The Host decision contract and its mTLS HTTP client |
 | `response`: `ResponseSigner`, `UserGrant` | Signed response and user JWT |
 | `xkey`, `bridge::BridgeCore`, `config` | Sealed callouts, the request→decision→response core, the bridge's environment |
+| `service`: `serve`, `CalloutStats`, `SERVICE_NAME` | The NATS Services API registration: `$SRV.PING\|INFO\|STATS` discovery, allowed/denied/dropped stats, up to `MAX_IN_FLIGHT` concurrent decisions per instance (ADR 0145) |
 
 Configuration is read from `OPENSESAME_NATS_*`, `OPENSESAME_NATS_CALLOUT_*` and
 `OPENSESAME_CALLOUT_TLS_*`; the table is in [`src/config.rs`](src/config.rs).
@@ -45,7 +46,8 @@ Every secret is a file path, read once.
 ```bash
 cargo +1.88.0 test -p opensesame-nats-callout
 cargo +1.88.0 build -p opensesame-nats-callout --bin opensesame-nats-auth-bridge
-# Live tests against the pinned nats-server are #[ignore]d
+# Live tests against the pinned nats-server are #[ignore]d (callout, xkey,
+# and live_callout_service: discovery + load balancing across two bridges)
 pnpm test:mtls:fixtures
 OPENSESAME_MTLS_FIXTURES=1 cargo +1.88.0 test -p opensesame-nats-callout -- --ignored
 ```

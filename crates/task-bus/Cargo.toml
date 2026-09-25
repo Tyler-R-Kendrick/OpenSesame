@@ -41,7 +41,8 @@ opensesame-transport-security = { path = "../transport-security", optional = tru
 opensesame-domain = { path = "../domain", optional = true }
 tracing = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
-nkeys = { version = "0.4.5", optional = true }
+# `xkeys`: the live callout responder opens and seals `xkv1` envelopes.
+nkeys = { version = "0.4.5", optional = true, features = ["xkeys"] }
 tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]

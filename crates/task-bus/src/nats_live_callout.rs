@@ -109,6 +109,22 @@ fn answer(issuer: &nkeys::KeyPair, request: &Value, admit: bool) -> (String, Str
     )
 }
 
+/// Open an `xkv1` request sealed by the server named in `Nats-Server-Xkey`;
+/// returns the request JWT and the server's curve key to seal the reply to.
+fn unseal(msg: &async_nats::Message, xkey: &nkeys::XKey) -> (String, String) {
+    let server = msg
+        .headers
+        .as_ref()
+        .and_then(|h| h.get("Nats-Server-Xkey"))
+        .map(|v| v.as_str().to_owned())
+        .expect("secure-callout.conf seals every request (auth_callout.xkey)");
+    let sender = nkeys::XKey::from_public_key(&server).expect("server xkey");
+    let opened = xkey
+        .open(&msg.payload, &sender)
+        .expect("sealed to our xkey");
+    (String::from_utf8(opened).expect("utf8"), server)
+}
+
 /// Serve `$SYS.REQ.USER.AUTH` until the subscription ends: admit the
 /// expected nkey once, deny everything after (so the reconnect that
 /// follows the expiry is refused and stays refused).
@@ -116,25 +132,29 @@ async fn serve(
     mut requests: async_nats::Subscriber,
     client: async_nats::Client,
     issuer: nkeys::KeyPair,
+    xkey: nkeys::XKey,
     expected: String,
     served: Arc<AtomicUsize>,
 ) {
     while let Some(msg) = requests.next().await {
-        let request = decode_claims(std::str::from_utf8(&msg.payload).expect("utf8"));
+        let (jwt, server_xkey) = unseal(&msg, &xkey);
+        let request = decode_claims(&jwt);
         let presented = request["nats"]["connect_opts"]["nkey"]
             .as_str()
             .unwrap_or_default();
         let n = served.fetch_add(1, Ordering::SeqCst);
         let admit = presented == expected && n == 0;
         let (reply, _user) = answer(&issuer, &request, admit);
+        let recipient = nkeys::XKey::from_public_key(&server_xkey).expect("server xkey");
+        let sealed = xkey.seal(reply.as_bytes(), &recipient).expect("seal");
         let Some(to) = msg.reply else { continue };
-        let _ = client.publish(to, reply.into()).await;
+        let _ = client.publish(to, sealed.into()).await;
     }
 }
 
 /// Connect the callout responder (a static AUTH user) and serve auth
 /// requests in the background for the lifetime of the test.
-async fn start_responder(
+pub(crate) async fn start_responder(
     pki: &Pki,
     roles: &Roles,
     url: &str,
@@ -162,12 +182,19 @@ async fn start_responder(
         .subscribe("$SYS.REQ.USER.AUTH")
         .await
         .expect("subscribe auth requests");
-    tokio::spawn(serve(requests, responder, issuer, expected, admissions));
+    tokio::spawn(serve(
+        requests,
+        responder,
+        issuer,
+        roles.callout_xkey(),
+        expected,
+        admissions,
+    ));
 }
 
 /// A TLS-first client with a certificate and an nkey, admitted (or not) by
 /// the callout. Returns the connect result so the caller can report the log.
-async fn connect_as(
+pub(crate) async fn connect_as(
     pki: &Pki,
     url: &str,
     san: &str,

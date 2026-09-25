@@ -60,6 +60,7 @@ pub struct Stack {
     pub host: Arc<MockHost>,
     host_url: url::Url,
     account_seed: String,
+    bridge_seed: String,
     xkey_seed: Option<String>,
     envelopes: Arc<Mutex<Vec<RecordedEnvelope>>>,
     shutdown: tokio::sync::oneshot::Sender<()>,
@@ -129,19 +130,8 @@ impl Stack {
             false,
             xkey_from(options.bridge_xkey_seed.as_deref()),
         ));
-        let connect_options = async_nats::ConnectOptions::new()
-            .name("live-bridge")
-            .nkey(bridge_user.seed().expect("bridge seed"))
-            .require_tls(true)
-            .tls_client_config(
-                client_config(&pki.client_profile(pki::NATS_DNS, None)).expect("tls"),
-            )
-            .connection_timeout(Duration::from_secs(5))
-            .retry_on_initial_connect();
-        let nats_client = connect_options
-            .connect(nats.url())
-            .await
-            .expect("bridge connects to nats");
+        let bridge_seed = bridge_user.seed().expect("bridge seed");
+        let nats_client = auth_account_connect(&pki, &nats, &bridge_seed).await;
         let envelopes: Arc<Mutex<Vec<RecordedEnvelope>>> = Arc::new(Mutex::new(Vec::new()));
         let recorder = spawn_recorder(nats_client.clone(), Arc::clone(&envelopes));
         let bridge = tokio::spawn(async move {
@@ -155,6 +145,7 @@ impl Stack {
             host,
             host_url,
             account_seed,
+            bridge_seed,
             xkey_seed: options.bridge_xkey_seed,
             envelopes,
             shutdown,
@@ -232,6 +223,22 @@ impl Stack {
         build_core(&self.pki, &self.account_seed, &self.host_url, true, None)
     }
 
+    /// Another connection in the callout account as the bridge user (listed
+    /// in `auth_users`, so it bypasses the callout) — what an operator's
+    /// `nats micro` would use to discover the service.
+    pub async fn auth_account_client(&self) -> async_nats::Client {
+        auth_account_connect(&self.pki, &self.nats, &self.bridge_seed).await
+    }
+
+    /// One more bridge instance serving the same queue group.
+    pub async fn spawn_bridge(&self) -> tokio::task::JoinHandle<()> {
+        let client = self.auth_account_client().await;
+        let core = Arc::new(self.bridge_core());
+        tokio::spawn(async move {
+            let _ = run(client, core).await;
+        })
+    }
+
     /// Every callout request the recorder saw, oldest first.
     #[must_use]
     pub fn envelopes(&self) -> Vec<RecordedEnvelope> {
@@ -277,6 +284,23 @@ impl Stack {
         tokio::task::yield_now().await;
         self.nats.stop();
     }
+}
+
+async fn auth_account_connect(
+    pki: &pki::Pki,
+    nats: &server::NatsServer,
+    bridge_seed: &str,
+) -> async_nats::Client {
+    async_nats::ConnectOptions::new()
+        .name("live-bridge")
+        .nkey(bridge_seed.to_owned())
+        .require_tls(true)
+        .tls_client_config(client_config(&pki.client_profile(pki::NATS_DNS, None)).expect("tls"))
+        .connection_timeout(Duration::from_secs(5))
+        .retry_on_initial_connect()
+        .connect(nats.url())
+        .await
+        .expect("bridge connects to nats")
 }
 
 /// Count permission-violation events, waiting briefly for `want` of them.

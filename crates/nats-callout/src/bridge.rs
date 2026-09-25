@@ -10,14 +10,12 @@
 
 use std::sync::Arc;
 
-use futures::StreamExt as _;
-
 use crate::error::CalloutError;
 use crate::host_client::{check_echo, DecisionSource, HostDecisionRequest, HostDecisionResponse};
 use crate::jwt::{decode_request, Expectations, VerifiedRequest};
 use crate::response::{ResponseSigner, UserGrant};
 use crate::xkey::{is_sealed, CalloutXKey};
-use crate::{AUTH_SUBJECT, MAX_REQUEST_BYTES, QUEUE_GROUP, SERVER_XKEY_HEADER};
+use crate::MAX_REQUEST_BYTES;
 
 /// Everything the core needs, all immutable after start.
 pub struct BridgeCore {
@@ -45,6 +43,17 @@ impl std::fmt::Debug for BridgeCore {
             .field("callout_subject", &self.callout_subject)
             .finish_non_exhaustive()
     }
+}
+
+/// What became of one payload, for the service's statistics.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Verdict {
+    /// A signed allow was produced.
+    Allowed,
+    /// A signed deny was produced.
+    Denied,
+    /// Nothing was answered (unverifiable payload, or no reply could be built).
+    Dropped,
 }
 
 /// The outcome of one payload.
@@ -103,7 +112,11 @@ impl BridgeCore {
     }
 
     /// Ask the Host and turn its answer into a signed response.
-    async fn decide(&self, verified: &VerifiedRequest, now: i64) -> Result<String, CalloutError> {
+    async fn decide(
+        &self,
+        verified: &VerifiedRequest,
+        now: i64,
+    ) -> Result<(String, Verdict), CalloutError> {
         let req = HostDecisionRequest::from_verified(verified);
         let server_id = req.server.id.as_str();
         let user = req.user_nkey.as_str();
@@ -111,18 +124,18 @@ impl BridgeCore {
             Ok(resp) => resp,
             Err(err) => {
                 tracing::warn!(code = err.code(), digest = %req.request_digest, "Host decision failed; denying");
-                return self.signer.deny(server_id, user, err.code(), now);
+                return denied(self.signer.deny(server_id, user, err.code(), now));
             }
         };
         if let Err(err) = check_echo(&req, &resp) {
             tracing::warn!(code = err.code(), digest = %req.request_digest, "Host response did not echo the request; denying");
-            return self.signer.deny(server_id, user, err.code(), now);
+            return denied(self.signer.deny(server_id, user, err.code(), now));
         }
         if let Some(grant) = grant_from(&resp, user, &self.target_account) {
-            self.signer.allow(server_id, &grant, now)
+            Ok((self.signer.allow(server_id, &grant, now)?, Verdict::Allowed))
         } else {
             let code = resp.error.as_deref().unwrap_or("denied");
-            self.signer.deny(server_id, user, code, now)
+            denied(self.signer.deny(server_id, user, code, now))
         }
     }
 
@@ -133,25 +146,41 @@ impl BridgeCore {
         server_xkey_header: Option<&str>,
         now: i64,
     ) -> Outcome {
+        self.handle_with_verdict(payload, server_xkey_header, now)
+            .await
+            .0
+    }
+
+    /// [`Self::handle`], also saying whether the reply allows or denies.
+    pub async fn handle_with_verdict(
+        &self,
+        payload: &[u8],
+        server_xkey_header: Option<&str>,
+        now: i64,
+    ) -> (Outcome, Verdict) {
         let verified = match self.verify(payload, server_xkey_header, now) {
             Ok(v) => v,
             Err(err) => {
                 tracing::warn!(code = err.code(), "dropping unverifiable callout payload");
-                return Outcome::Dropped(err);
+                return (Outcome::Dropped(err), Verdict::Dropped);
             }
         };
-        let jwt = match self.decide(&verified, now).await {
-            Ok(jwt) => jwt,
-            Err(err) => return Outcome::Dropped(err),
+        let (jwt, verdict) = match self.decide(&verified, now).await {
+            Ok(decided) => decided,
+            Err(err) => return (Outcome::Dropped(err), Verdict::Dropped),
         };
         match (&self.xkey, verified.claims.nats.server_id.xkey.as_deref()) {
             (Some(xkey), Some(server_xkey)) => match xkey.seal(jwt.as_bytes(), server_xkey) {
-                Ok(sealed) => Outcome::Reply(sealed),
-                Err(err) => Outcome::Dropped(err),
+                Ok(sealed) => (Outcome::Reply(sealed), verdict),
+                Err(err) => (Outcome::Dropped(err), Verdict::Dropped),
             },
-            _ => Outcome::Reply(jwt.into_bytes()),
+            _ => (Outcome::Reply(jwt.into_bytes()), verdict),
         }
     }
+}
+
+fn denied(jwt: Result<String, CalloutError>) -> Result<(String, Verdict), CalloutError> {
+    jwt.map(|jwt| (jwt, Verdict::Denied))
 }
 
 /// An allow decision becomes a grant only when it is complete.
@@ -175,54 +204,18 @@ fn grant_from(
     })
 }
 
-/// Serve callouts on `client` until the subscription ends.
+/// Serve callouts on `client` until the endpoint ends: as the
+/// `opensesame-auth-callout` NATS micro service (discovery, statistics and
+/// queue-group load balancing — see [`crate::service`]), handling up to
+/// [`crate::service::MAX_IN_FLIGHT`] requests at once.
 ///
 /// # Errors
 ///
-/// `MalformedConfiguration` when the subscription cannot be made; a publish
-/// failure is logged and the loop continues (the server times the client
-/// out, which is a deny).
+/// `MalformedConfiguration` when the service or its endpoint cannot be
+/// registered; a reply that cannot be published is logged and the loop
+/// continues (the server times the client out, which is a deny).
 pub async fn run(client: async_nats::Client, core: Arc<BridgeCore>) -> Result<(), CalloutError> {
-    let mut sub = client
-        .queue_subscribe(AUTH_SUBJECT, QUEUE_GROUP.to_owned())
-        .await
-        .map_err(|e| crate::error::misconfigured(format!("subscribe {AUTH_SUBJECT}: {e}")))?;
-    tracing::info!(
-        subject = AUTH_SUBJECT,
-        queue = QUEUE_GROUP,
-        "auth bridge serving"
-    );
-    while let Some(message) = sub.next().await {
-        serve_one(&client, &core, message).await;
-    }
-    Ok(())
-}
-
-/// One callout message: verify, decide, answer. Split out of [`run`] so the
-/// loop stays a loop and this stays the protocol.
-async fn serve_one(client: &async_nats::Client, core: &BridgeCore, message: async_nats::Message) {
-    let Some(reply) = message.reply.clone() else {
-        tracing::warn!("callout without a reply subject ignored");
-        return;
-    };
-    let header = message
-        .headers
-        .as_ref()
-        .and_then(|h| h.get(SERVER_XKEY_HEADER))
-        .map(|v| v.as_str().to_owned());
-    let now = chrono::Utc::now().timestamp();
-    match core.handle(&message.payload, header.as_deref(), now).await {
-        Outcome::Reply(bytes) => publish(client, reply, bytes).await,
-        Outcome::Dropped(err) => tracing::warn!(code = err.code(), "callout dropped"),
-    }
-}
-
-/// Publish a reply. A failure is logged, never retried: the server times the
-/// client out, which is itself a deny.
-async fn publish(client: &async_nats::Client, reply: async_nats::Subject, bytes: Vec<u8>) {
-    if let Err(e) = client.publish(reply, bytes.into()).await {
-        tracing::warn!(error = %e, "callout reply publish failed");
-    }
+    crate::service::serve(client, core).await
 }
 
 #[cfg(test)]
