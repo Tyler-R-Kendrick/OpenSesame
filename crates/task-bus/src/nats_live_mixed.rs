@@ -8,6 +8,7 @@ use super::live_harness::{free_port, Pki, Roles, Server};
 use super::live_tests::{backup_config, config, event};
 use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 #[tokio::test]
 #[ignore = "requires OPENSESAME_MTLS_FIXTURES=1"]
@@ -81,6 +82,13 @@ async fn service_roles_bypass_the_callout_and_end_users_do_not() {
         "no service role may depend on the callout"
     );
 
+    observer_may_only_ask_srv(&pki, &roles, &server).await;
+    assert_eq!(
+        admissions.load(Ordering::SeqCst),
+        0,
+        "observer bypassed the callout"
+    );
+
     // An end user goes through the sealed callout and gets only what it
     // issued.
     let alice = Box::pin(connect_as(
@@ -114,4 +122,29 @@ async fn service_roles_bypass_the_callout_and_end_users_do_not() {
         "an unlisted nkey must go through the callout"
     );
     assert_eq!(admissions.load(Ordering::SeqCst), 2);
+}
+
+/// The discovery observer connects on its static nkey and may ask `$SRV`:
+/// with no micro service registered the request fails fast with "no
+/// responders" — a denied publish would time out instead.
+async fn observer_may_only_ask_srv(pki: &Pki, roles: &Roles, server: &Server) {
+    let observer = Box::pin(connect_as(
+        pki,
+        &server.url(),
+        "observer.nats.opensesame.test",
+        &roles.callout_observer.0,
+        Arc::new(BusHealth::default()),
+    ))
+    .await
+    .unwrap_or_else(|e| panic!("observer: {e}\n{}", server.log_text()));
+    let ping = tokio::time::timeout(
+        Duration::from_secs(5),
+        observer.request("$SRV.PING", "".into()),
+    )
+    .await
+    .expect("a permitted $SRV request is answered, not left to time out");
+    assert!(
+        matches!(&ping, Err(e) if e.kind() == async_nats::RequestErrorKind::NoResponders),
+        "{ping:?}"
+    );
 }

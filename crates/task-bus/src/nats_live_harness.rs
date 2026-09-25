@@ -304,6 +304,8 @@ pub(crate) struct Roles {
     pub consumer: (String, String),
     pub backup: (String, String),
     pub callout: (String, String),
+    /// Discovery-only user in the callout account (`$SRV.>` requests).
+    pub callout_observer: (String, String),
     /// Curve seed of the callout service (`auth_callout.xkey` names its
     /// public key in `secure-callout.conf`).
     pub callout_xkey: String,
@@ -319,6 +321,7 @@ impl Roles {
             consumer: user_nkey(),
             backup: user_nkey(),
             callout: user_nkey(),
+            callout_observer: user_nkey(),
             callout_xkey: nkeys::XKey::new().seed().expect("xkey seed"),
         }
     }
@@ -354,6 +357,10 @@ impl Roles {
             ("OPENSESAME_NATS_NKEY_CONSUMER", self.consumer.1.clone()),
             ("OPENSESAME_NATS_NKEY_BACKUP", self.backup.1.clone()),
             ("OPENSESAME_NATS_NKEY_CALLOUT", self.callout.1.clone()),
+            (
+                "OPENSESAME_NATS_NKEY_CALLOUT_OBSERVER",
+                self.callout_observer.1.clone(),
+            ),
             (
                 "OPENSESAME_NATS_CALLOUT_XKEY",
                 self.callout_xkey().public_key(),

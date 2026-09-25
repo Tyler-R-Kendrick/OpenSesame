@@ -37,6 +37,9 @@ pub struct ProcessReport {
     pub handled: usize,
     pub retried: usize,
     pub rejected: usize,
+    /// Of `retried`, failures on their last allowed delivery: the bus will
+    /// not deliver them again, so only their outbox can.
+    pub exhausted: usize,
 }
 
 impl ProcessReport {
@@ -57,25 +60,40 @@ impl ProcessReport {
 }
 
 /// The default `process` for a bus without per-message acknowledgement:
-/// drain, handle, and publish a failed event back so it is seen again.
+/// drain, handle, and publish a failed event back so it is seen again. It
+/// has no delay and no delivery bound, so it suits the in-memory bus of
+/// development and tests, not a production transport.
 ///
 /// # Errors
 ///
-/// When the drain fails, or a failed event cannot be put back.
+/// When the drain fails, or a failed event cannot be put back. Every other
+/// drained event is still handled first: one failed re-publish never drops
+/// the rest of the batch.
 pub async fn requeue_on_failure<B: TaskBus + ?Sized>(
     bus: &B,
     max: usize,
     handler: &dyn EventHandler,
 ) -> anyhow::Result<ProcessReport> {
     let mut report = ProcessReport::default();
+    let mut lost = Vec::new();
     for event in bus.drain(max).await? {
-        if handler.handle(&event).await.is_err() {
-            bus.publish(event).await?;
-            report.record(Disposition::Retry);
-        } else {
+        if handler.handle(&event).await.is_ok() {
             report.record(Disposition::Acked);
+            continue;
         }
+        let id = event.id.clone();
+        if let Err(error) = bus.publish(event).await {
+            tracing::error!(event_id = %id, %error, "failed TaskBus event could not be put back");
+            lost.push(id);
+        }
+        report.record(Disposition::Retry);
     }
+    anyhow::ensure!(
+        lost.is_empty(),
+        "{} failed event(s) could not be put back: {}",
+        lost.len(),
+        lost.join(", ")
+    );
     Ok(report)
 }
 
@@ -118,6 +136,50 @@ mod tests {
         let second = bus.process(10, &handler).await.unwrap();
         assert_eq!((second.handled, second.retried), (1, 0));
         assert_eq!(bus.process(10, &handler).await.unwrap().received(), 0);
+    }
+
+    /// Drains what it was given; refuses every publish.
+    struct NoRepublish(std::sync::Mutex<Vec<BusEvent>>);
+
+    #[async_trait]
+    impl TaskBus for NoRepublish {
+        async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+            anyhow::bail!("publish refused")
+        }
+        async fn drain(&self, max: usize) -> anyhow::Result<Vec<BusEvent>> {
+            let mut held = self.0.lock().unwrap();
+            let n = max.min(held.len());
+            Ok(held.drain(..n).collect())
+        }
+    }
+
+    /// Fails exactly the event with this id.
+    struct FailsOn(&'static str, AtomicUsize);
+
+    #[async_trait]
+    impl EventHandler for FailsOn {
+        async fn handle(&self, event: &BusEvent) -> anyhow::Result<()> {
+            self.1.fetch_add(1, Ordering::SeqCst);
+            anyhow::ensure!(event.id != self.0, "fails");
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_put_back_still_handles_the_rest_of_the_batch() {
+        let bus = NoRepublish(std::sync::Mutex::new(vec![
+            event("a"),
+            event("b"),
+            event("c"),
+        ]));
+        let handler = FailsOn("a", AtomicUsize::new(0));
+        let error = bus.process(10, &handler).await.unwrap_err();
+        assert_eq!(
+            handler.1.load(Ordering::SeqCst),
+            3,
+            "b and c were still handled"
+        );
+        assert!(error.to_string().contains('a'), "{error}");
     }
 
     #[tokio::test]

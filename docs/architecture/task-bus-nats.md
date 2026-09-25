@@ -72,7 +72,7 @@ flowchart TB
 | `BusEvent` | CloudEvents-shaped envelope (`id`, `specversion`, `source`, `type`, `time`, `data`) |
 | `TaskBus::publish` | Idempotent on JetStream: `Nats-Msg-Id` = event `id`, `Nats-Expected-Stream` |
 | `TaskBus::drain(max)` | At most once — events arrive already acked. For wakes whose work re-reads an outbox |
-| `TaskBus::process(max, handler)` | At least once — ack (server-confirmed) after the handler succeeds, nak with delay on failure, `+TERM` for a payload that is not a `BusEvent` |
+| `TaskBus::process(max, handler)` | At least once — ack (server-confirmed) after the handler succeeds, nak with a doubling delay on failure, `+TERM` for a payload that is not a `BusEvent`. The backup wake consumer runs on it |
 | `InMemoryTaskBus` | Default for unit tests; `process` re-publishes a failed event |
 | `NatsJetStreamTaskBus` | Production path when `NATS_URL` / `OPENSESAME_TASKBUS=nats` |
 
@@ -85,9 +85,11 @@ Subject / stream conventions (configurable):
 
 The stream is a bounded window, not a ledger (`StreamLimits`): file storage,
 limits retention, discard-old, 7 days, 1 GiB, 1 MiB per message, a two-minute
-duplicate window. Durables redeliver at most 8 times, 30 s apart unless a
-handler asks sooner (`Redelivery`). Provisioning is create-or-update, so
-running it again converges an existing stream and its durables.
+duplicate window. Durables redeliver at most 8 times: an unacknowledged
+message after its 30 s `ack_wait`, a failed one after a delay that doubles
+from 5 s to 5 min (`Redelivery`). Provisioning creates what is missing and
+fills in only the limits an older release left unbounded, never overriding
+what an operator tuned.
 
 ## Auth callout
 

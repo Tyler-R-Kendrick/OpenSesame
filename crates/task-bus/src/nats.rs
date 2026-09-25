@@ -14,8 +14,8 @@
 
 use crate::nats_connect::{connect_options, BusHealth, InjectedMaterial, NatsRole};
 use crate::nats_delivery::{
-    consumer_config, decode_or_terminate, publish_message, settle_batch, stream_config, Redelivery,
-    StreamLimits,
+    consumer_config, converge_consumer, converge_stream, decode_or_terminate, publish_message,
+    settle_batch, stream_config, Redelivery, StreamLimits,
 };
 use crate::nats_policy::NatsTransportView;
 use crate::nats_transport::NatsTransportSpec;
@@ -55,9 +55,10 @@ pub struct NatsJetStreamConfig {
     /// Transport policy + deployment references (never material).
     pub transport: NatsTransportSpec,
     pub role: NatsRole,
-    /// Create the stream/consumer when absent, or converge them to
-    /// `limits` / `redelivery`. Only the provisioning action and the legacy
-    /// plaintext loopback profile set this.
+    /// Create the stream/consumer when absent, or fill in the `limits` /
+    /// `redelivery` bounds an older release left unset (never overriding an
+    /// operator's). Only the provisioning action and the legacy plaintext
+    /// loopback profile set this.
     pub provision: bool,
     /// Retention the provisioning action gives the stream.
     pub limits: StreamLimits,
@@ -123,25 +124,7 @@ async fn open_session(
     let consumer = if !config.role.consumes() {
         None
     } else if config.provision {
-        // Create-or-update, so re-running provisioning converges an existing
-        // stream and durable to the current limits instead of keeping
-        // whatever an older release created.
-        js.create_or_update_stream(stream_config(
-            &config.stream_name,
-            config.stream_subjects(),
-            &config.limits,
-        ))
-        .await?;
-        let stream = js.get_stream(&config.stream_name).await?;
-        Some(
-            stream
-                .create_consumer(consumer_config(
-                    &config.consumer_name,
-                    config.subject_filter(),
-                    &config.redelivery,
-                ))
-                .await?,
-        )
+        Some(provision(&js, config).await?)
     } else {
         // `$JS.API.CONSUMER.INFO.<stream>.<consumer>` only: no stream info,
         // no create. Absent → not_provisioned, never a create.
@@ -173,6 +156,43 @@ async fn open_session(
         js,
         consumer,
     })
+}
+
+/// Create the stream and durable when missing. When they exist, fill in only
+/// what an older release left unbounded ([`converge_stream`],
+/// [`converge_consumer`]); what an operator tuned is never overwritten.
+async fn provision(
+    js: &jetstream::Context,
+    config: &NatsJetStreamConfig,
+) -> anyhow::Result<jetstream::consumer::Consumer<pull::Config>> {
+    let mut stream = js
+        .get_or_create_stream(stream_config(
+            &config.stream_name,
+            config.stream_subjects(),
+            &config.limits,
+        ))
+        .await?;
+    if let Some(next) = converge_stream(&stream.info().await?.config, &config.limits) {
+        tracing::info!(stream = %config.stream_name, "bounding a stream an older release left unlimited");
+        js.update_stream(next).await?;
+    }
+    let consumer = stream
+        .get_or_create_consumer(
+            &config.consumer_name,
+            consumer_config(
+                &config.consumer_name,
+                config.subject_filter(),
+                &config.redelivery,
+            ),
+        )
+        .await?;
+    match converge_consumer(&consumer.cached_info().config, &config.redelivery) {
+        Some(next) => {
+            tracing::info!(consumer = %config.consumer_name, "bounding redelivery a durable left unlimited");
+            Ok(stream.create_consumer(next).await?)
+        }
+        None => Ok(consumer),
+    }
 }
 
 impl NatsJetStreamTaskBus {

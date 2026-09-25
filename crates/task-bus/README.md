@@ -26,12 +26,13 @@ application prefix and is never that wire.
 |---|---|
 | `publish` | Idempotent on JetStream: `Nats-Msg-Id` = event `id`, `Nats-Expected-Stream: OPENSESAME_EVENTS`; a repeat inside the 2-minute duplicate window is stored once |
 | `drain(max)` | At most once — events arrive already acked. For wakes whose work re-reads an outbox. A payload that is not a `BusEvent` is terminated, never returned as an error |
-| `process(max, handler)` | At least once — the handler runs first; `Ok` is acked with server confirmation, `Err` is nak'd with `Redelivery::nak_delay`, an undecodable payload is terminated. Handlers must be idempotent |
+| `process(max, handler)` | At least once — the handler runs first; `Ok` is acked with server confirmation, `Err` is nak'd with a delay that doubles per delivery (`Redelivery::nak_delay` up to `max_nak_delay`), a failure on the last delivery is counted in `ProcessReport::exhausted`, an undecodable payload is terminated. Handlers must be idempotent |
 
 The stream is bounded (`StreamLimits`: 7 days, 1 GiB, 1 MiB per message,
 discard-old) and durables redeliver at most `Redelivery::max_deliver` (8)
-times. Provisioning is create-or-update, so re-running it converges a stream
-and durables an older release created.
+times. Provisioning creates what is missing and fills in only the limits an
+older release left unbounded; what an operator tuned (replicas, storage,
+larger limits) is never overwritten.
 
 ## Transport profiles (ADR 0132)
 

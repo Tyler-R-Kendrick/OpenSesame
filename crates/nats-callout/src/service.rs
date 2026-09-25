@@ -122,9 +122,12 @@ pub async fn serve(client: async_nats::Client, core: Arc<BridgeCore>) -> Result<
     endpoint
         .for_each_concurrent(MAX_IN_FLIGHT, |request| serve_one(&core, &stats, request))
         .await;
-    // Keep the service (and its discovery verbs) registered for as long as
-    // the endpoint serves.
-    drop(service);
+    // The endpoint has stopped serving, so stop answering discovery too:
+    // dropping a `Service` leaves its `$SRV` responder running, which would
+    // advertise an instance that no longer decides callouts.
+    if let Err(error) = service.stop().await {
+        tracing::warn!(%error, service = SERVICE_NAME, "stopping the micro service failed");
+    }
     Ok(())
 }
 
@@ -141,16 +144,23 @@ async fn serve_one(core: &BridgeCore, stats: &CalloutStats, request: async_nats:
     let (outcome, verdict) = core
         .handle_with_verdict(&request.message.payload, header.as_deref(), now)
         .await;
-    stats.record(verdict);
     match outcome {
         Outcome::Reply(bytes) => {
             // A failure is logged, never retried: the server times the client
-            // out, which is itself a deny.
-            if let Err(e) = request.respond(Ok(bytes.into())).await {
-                tracing::warn!(error = %e, "callout reply publish failed");
+            // out, which is itself a deny — so it counts as dropped, not as
+            // the decision that never arrived.
+            match request.respond(Ok(bytes.into())).await {
+                Ok(()) => stats.record(verdict),
+                Err(e) => {
+                    tracing::warn!(error = %e, "callout reply publish failed");
+                    stats.record(Verdict::Dropped);
+                }
             }
         }
-        Outcome::Dropped(err) => tracing::warn!(code = err.code(), "callout dropped"),
+        Outcome::Dropped(err) => {
+            tracing::warn!(code = err.code(), "callout dropped");
+            stats.record(verdict);
+        }
     }
 }
 

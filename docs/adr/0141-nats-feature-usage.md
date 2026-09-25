@@ -51,12 +51,20 @@ fully the features were used:
   of truth; a consumer that falls outside the window is caught up by the
   outbox tick, as before.
 - Durables have explicit redelivery bounds: `ack_wait` 30 s, `max_deliver` 8
-  (`Redelivery`). Provisioning is **create-or-update** for the stream and the
-  durables, so re-running it converges an existing deployment.
-- `TaskBus::process(max, handler)` is the at-least-once path: the handler
-  runs first; success is acked with server confirmation (`double_ack`), a
-  failure is nak'd with a delay, and an undecodable payload is terminated
-  (`+TERM`) rather than retried. `drain` keeps its at-most-once contract,
+  (`Redelivery`). Provisioning creates the stream and durables when they are
+  missing and otherwise **fills gaps without overriding**: a limit an older
+  release left unbounded (no age, byte or size cap; unlimited redelivery)
+  gets the default, and everything an operator set — replicas, storage,
+  larger limits, `max_ack_pending` — is kept.
+- `TaskBus::process(max, handler)` is the at-least-once path: each message's
+  `ack_wait` is restarted (`+WPI`) as its turn comes, the handler runs;
+  success is acked with server confirmation (`double_ack`), a failure is
+  nak'd with a delay that doubles per delivery (5 s up to 5 min, about ten
+  minutes across eight deliveries), and an undecodable payload is terminated
+  (`+TERM`) rather than retried. A failure on its last delivery is logged as
+  an error and counted in `ProcessReport::exhausted`: the server stops
+  redelivering it, so bounded redelivery is a retry budget, not a ledger —
+  work that must outlive a longer outage is re-published from its outbox. `drain` keeps its at-most-once contract,
   documented, for wakes whose real work re-reads an outbox — and it now
   terminates poison messages instead of failing the batch. Buses without
   per-message acks (memory) implement `process` by publishing a failed event
@@ -78,6 +86,13 @@ shared. This adds, without changing the protocol:
 
 `secure-callout.conf` lets the bridge subscribe `$SRV.>` and answer its
 requesters with `allow_responses` — to a requester's inbox and nowhere else.
+Operators read it as a separate **observer** user in the callout account
+(`OPENSESAME_NATS_NKEY_CALLOUT_OBSERVER`), which may only publish `$SRV.>`
+and subscribe its own `_INBOX.>`: reading stats never takes the bridge's
+key, which can answer callouts (ADR 0132 §8 binds that key narrowly). When
+the bridge's endpoint stops, it stops the service too, so discovery never
+lists an instance that no longer decides callouts; a reply that fails to
+publish is counted as dropped, not as the decision that never arrived.
 
 ### The callout profile is sealed and mixed (`ops/nats`)
 
@@ -109,14 +124,21 @@ requesters with `allow_responses` — to a requester's inbox and nowhere else.
 - Existing deployments pick up the stream limits and redelivery bounds the
   next time provisioning runs; nothing changes until then.
 - Operators can list bridges and read callout statistics with the stock
-  `nats micro` tooling from the callout account.
+  `nats micro` tooling, as the observer user.
 - A deployment of `secure-callout.conf` must now set
   `OPENSESAME_NATS_CALLOUT_XKEY` (and give the bridge
-  `OPENSESAME_NATS_CALLOUT_XKEY_SEED_FILE`) and the five role nkeys.
-- Remaining work: the rotation consumer still reads the shared
-  `opensesame-worker` durable with `drain`; moving it onto `process` and a
-  filtered durable of its own is a follow-up. The TS worker still speaks only
-  the plaintext loopback profile.
+  `OPENSESAME_NATS_CALLOUT_XKEY_SEED_FILE`), the observer nkey and the five
+  role nkeys. The server refuses to start while any is unset; a bridge
+  without the seed drops every sealed request with `xkey_required`.
+- The backup wake consumer runs on `process`. The rotation consumer still
+  reads the shared `opensesame-worker` durable with `drain`; moving it onto
+  `process` and a filtered durable of its own is a follow-up, because a
+  retried rotation must first be proven idempotent. The TS worker still
+  speaks only the plaintext loopback profile.
+- `Nats-Msg-Id` deduplicates a re-publish of the same event. The TS outbox
+  reuses the row id; Rust producers that build a fresh event per attempt
+  (backup wakes, security notices) get no deduplication, and their consumers
+  tolerate a duplicate.
 
 ## Verification
 

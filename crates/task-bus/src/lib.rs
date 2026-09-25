@@ -118,8 +118,11 @@ pub fn event_subject(prefix: &str, event_type: &str) -> String {
 #[async_trait]
 pub trait TaskBus: Send + Sync {
     /// Publish one event. On `JetStream` the event `id` is the
-    /// `Nats-Msg-Id`, so a retried publish inside the duplicate window is
-    /// stored once.
+    /// `Nats-Msg-Id`, so publishing the same event (same `id`) again inside
+    /// the duplicate window stores it once. That covers a retry only when
+    /// the producer reuses the id — an outbox row id does; a fresh
+    /// `BusEvent` per attempt does not, and its consumers must tolerate a
+    /// duplicate.
     async fn publish(&self, event: BusEvent) -> anyhow::Result<()>;
 
     /// Take up to `max` events, **already acknowledged** (at most once).
@@ -129,8 +132,11 @@ pub trait TaskBus: Send + Sync {
 
     /// Hand up to `max` events to `handler`, acknowledging each only after
     /// it succeeds (at least once). A failed event is delivered again later;
-    /// on `JetStream` after a delay and at most `max_deliver` times, and a
+    /// on `JetStream` after a doubling delay and at most `max_deliver` times
+    /// (then logged and counted in [`ProcessReport::exhausted`]), and a
     /// payload that is not a `BusEvent` is terminated rather than retried.
+    /// Bounded redelivery is not a ledger: work that must survive a longer
+    /// outage is re-published from its outbox.
     ///
     /// # Errors
     ///

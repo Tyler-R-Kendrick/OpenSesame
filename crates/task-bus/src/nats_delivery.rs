@@ -13,15 +13,25 @@
 //!   oldest first; a consumer that falls behind it is caught up by the
 //!   outbox tick, never by an unbounded log.
 //! - **Redelivery is bounded.** A consumer acks after its handler succeeds
-//!   ([`crate::TaskBus::process`], server-confirmed), naks with a delay when
-//!   it fails, and
-//!   terminates a payload that is not a `BusEvent` at all — a poison message
-//!   is never redelivered forever.
+//!   ([`crate::TaskBus::process`], server-confirmed), naks with a delay that
+//!   doubles per delivery when it fails (about ten minutes across the default
+//!   eight deliveries), and terminates a payload that is not a `BusEvent` at
+//!   all — a poison message is never redelivered forever. An event that
+//!   spends its last delivery is logged and counted as exhausted; the outbox
+//!   it came from stays the record (ADR 0010).
+//! - **Provisioning fills gaps, never overrides.** A stream or durable an
+//!   older release left unbounded gets the default limits; anything an
+//!   operator set (replicas, storage, larger limits) is kept.
 
 use crate::nats::NatsJetStreamConfig;
 use crate::process::{Disposition, EventHandler, ProcessReport};
 use crate::BusEvent;
-use async_nats::jetstream::{self, consumer::pull, message::PublishMessage, stream, AckKind};
+use async_nats::jetstream::{
+    self,
+    consumer::{self, pull, FromConsumer},
+    message::PublishMessage,
+    stream, AckKind,
+};
 use bytes::Bytes;
 use futures::StreamExt;
 use std::time::Duration;
@@ -59,8 +69,11 @@ pub struct Redelivery {
     /// Deliveries before the server stops trying (a `MAX_DELIVERIES`
     /// advisory is published instead).
     pub max_deliver: i64,
-    /// Delay requested when a handler fails (`-NAK` with delay).
+    /// Delay requested when a handler first fails (`-NAK` with delay); it
+    /// doubles with each further delivery, up to `max_nak_delay`.
     pub nak_delay: Duration,
+    /// Longest delay a failed delivery asks for.
+    pub max_nak_delay: Duration,
 }
 
 impl Default for Redelivery {
@@ -69,6 +82,7 @@ impl Default for Redelivery {
             ack_wait: Duration::from_secs(30),
             max_deliver: 8,
             nak_delay: Duration::from_secs(5),
+            max_nak_delay: Duration::from_secs(5 * 60),
         }
     }
 }
@@ -90,8 +104,44 @@ pub fn stream_config(name: &str, subjects: String, limits: &StreamLimits) -> str
     }
 }
 
-/// Durable pull consumer configuration the provisioning action creates or
-/// converges to.
+/// What provisioning changes on an existing stream: only the limits an older
+/// release left unbounded. Replicas, storage, subjects and any limit an
+/// operator set are kept. `None` when nothing needs changing.
+#[must_use]
+pub fn converge_stream(existing: &stream::Config, limits: &StreamLimits) -> Option<stream::Config> {
+    let mut next = existing.clone();
+    if next.max_age.is_zero() {
+        next.max_age = limits.max_age;
+    }
+    if next.max_bytes <= 0 {
+        next.max_bytes = limits.max_bytes;
+    }
+    if next.max_message_size <= 0 {
+        next.max_message_size = limits.max_message_size;
+    }
+    if next.duplicate_window.is_zero() {
+        next.duplicate_window = limits.duplicate_window;
+    }
+    (next != *existing).then_some(next)
+}
+
+/// What provisioning changes on an existing durable: a bound on redelivery
+/// when an older release left it unlimited, and nothing else. `None` when
+/// the durable is already bounded (by us or by an operator).
+#[must_use]
+pub fn converge_consumer(
+    existing: &consumer::Config,
+    redelivery: &Redelivery,
+) -> Option<pull::Config> {
+    if existing.max_deliver > 0 {
+        return None;
+    }
+    let mut next = pull::Config::try_from_consumer_config(existing.clone()).ok()?;
+    next.max_deliver = redelivery.max_deliver;
+    Some(next)
+}
+
+/// Durable pull consumer configuration the provisioning action creates.
 #[must_use]
 pub fn consumer_config(durable: &str, filter: String, redelivery: &Redelivery) -> pull::Config {
     pull::Config {
@@ -116,12 +166,24 @@ pub fn publish_message(event: &BusEvent, stream_name: &str) -> anyhow::Result<Pu
         .expected_stream(stream_name))
 }
 
-/// The acknowledgement a disposition sends.
+/// Delay before delivery `delivered + 1` of a failed message: `nak_delay`
+/// doubled per earlier delivery, capped at `max_nak_delay`.
 #[must_use]
-pub fn ack_kind(disposition: Disposition, redelivery: &Redelivery) -> AckKind {
+pub fn retry_delay(redelivery: &Redelivery, delivered: i64) -> Duration {
+    let doublings = u32::try_from(delivered.saturating_sub(1).clamp(0, 16)).unwrap_or(16);
+    redelivery
+        .nak_delay
+        .saturating_mul(1 << doublings)
+        .min(redelivery.max_nak_delay)
+}
+
+/// The acknowledgement a disposition sends for a message on its
+/// `delivered`th delivery.
+#[must_use]
+pub fn ack_kind(disposition: Disposition, redelivery: &Redelivery, delivered: i64) -> AckKind {
     match disposition {
         Disposition::Acked => AckKind::Ack,
-        Disposition::Retry => AckKind::Nak(Some(redelivery.nak_delay)),
+        Disposition::Retry => AckKind::Nak(Some(retry_delay(redelivery, delivered))),
         Disposition::Rejected => AckKind::Term,
     }
 }
@@ -150,27 +212,52 @@ pub(crate) async fn settle_batch(
             report.record(Disposition::Rejected);
             continue;
         };
-        let disposition = match handler.handle(&event).await {
-            Ok(()) => Disposition::Acked,
-            Err(error) => {
-                tracing::warn!(event_id = %event.id, event_type = %event.r#type, %error, "TaskBus handler failed; nak for redelivery");
-                Disposition::Retry
-            }
-        };
-        // A success is acked with server confirmation (`double_ack`): the
-        // event counts as handled only once the server has recorded it, so
-        // a crash after "handled" cannot redeliver it. A nak or term needs
-        // no confirmation — at worst the message is delivered again.
-        if disposition == Disposition::Acked {
-            msg.double_ack().await
-        } else {
-            msg.ack_with(ack_kind(disposition, &config.redelivery))
-                .await
-        }
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let (disposition, exhausted) =
+            settle_one(&msg, &event, &config.redelivery, handler).await?;
+        report.exhausted += usize::from(exhausted);
         report.record(disposition);
     }
     Ok(report)
+}
+
+/// Run `handler` on one decoded delivery and settle it. Returns the
+/// disposition and whether a failure spent the message's last delivery.
+async fn settle_one(
+    msg: &jetstream::Message,
+    event: &BusEvent,
+    redelivery: &Redelivery,
+    handler: &dyn EventHandler,
+) -> anyhow::Result<(Disposition, bool)> {
+    // Every message in the batch was delivered at once, so its ack_wait
+    // started then; restart it now so the ones handled last do not expire
+    // (and get delivered to someone else) while they wait.
+    msg.ack_with(AckKind::Progress)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let delivered = msg.info().map_or(1, |info| info.delivered);
+    let (disposition, exhausted) = match handler.handle(event).await {
+        Ok(()) => (Disposition::Acked, false),
+        Err(error) if delivered >= redelivery.max_deliver => {
+            tracing::error!(event_id = %event.id, event_type = %event.r#type, delivered, %error, "TaskBus handler failed on its last delivery; the server stops redelivering it (MAX_DELIVERIES advisory)");
+            (Disposition::Retry, true)
+        }
+        Err(error) => {
+            tracing::warn!(event_id = %event.id, event_type = %event.r#type, delivered, %error, "TaskBus handler failed; nak for redelivery");
+            (Disposition::Retry, false)
+        }
+    };
+    // A success is acked with server confirmation (`double_ack`): the event
+    // counts as handled only once the server has recorded it, so a crash
+    // after "handled" cannot redeliver it. A nak or term needs no
+    // confirmation — at worst the message is delivered again.
+    if disposition == Disposition::Acked {
+        msg.double_ack().await
+    } else {
+        msg.ack_with(ack_kind(disposition, redelivery, delivered))
+            .await
+    }
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok((disposition, exhausted))
 }
 
 /// Decode a delivery, or terminate it: a payload that is not a `BusEvent`
@@ -183,7 +270,7 @@ pub(crate) async fn decode_or_terminate(
         Ok(event) => Ok(Some(event)),
         Err(error) => {
             tracing::warn!(subject = %msg.subject, %error, "terminating undecodable TaskBus message");
-            msg.ack_with(ack_kind(Disposition::Rejected, redelivery))
+            msg.ack_with(ack_kind(Disposition::Rejected, redelivery, 1))
                 .await
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             Ok(None)
@@ -231,11 +318,75 @@ mod tests {
     #[test]
     fn dispositions_map_to_ack_nak_and_term() {
         let r = Redelivery::default();
-        assert!(matches!(ack_kind(Disposition::Acked, &r), AckKind::Ack));
+        assert!(matches!(ack_kind(Disposition::Acked, &r, 1), AckKind::Ack));
         assert!(matches!(
-            ack_kind(Disposition::Retry, &r),
+            ack_kind(Disposition::Retry, &r, 1),
             AckKind::Nak(Some(d)) if d == r.nak_delay
         ));
-        assert!(matches!(ack_kind(Disposition::Rejected, &r), AckKind::Term));
+        assert!(matches!(
+            ack_kind(Disposition::Rejected, &r, 1),
+            AckKind::Term
+        ));
+    }
+
+    #[test]
+    fn retry_delay_doubles_to_a_cap_and_spans_minutes_not_seconds() {
+        let r = Redelivery::default();
+        assert_eq!(retry_delay(&r, 1), Duration::from_secs(5));
+        assert_eq!(retry_delay(&r, 2), Duration::from_secs(10));
+        assert_eq!(retry_delay(&r, 4), Duration::from_secs(40));
+        assert_eq!(retry_delay(&r, 7), r.max_nak_delay);
+        assert_eq!(retry_delay(&r, i64::MAX), r.max_nak_delay);
+        assert_eq!(retry_delay(&r, 0), r.nak_delay);
+        let budget: Duration = (1..r.max_deliver).map(|d| retry_delay(&r, d)).sum();
+        assert!(budget >= Duration::from_secs(8 * 60), "{budget:?}");
+    }
+
+    #[test]
+    fn converging_a_stream_fills_unbounded_limits_and_keeps_the_rest() {
+        let limits = StreamLimits::default();
+        let legacy = stream::Config {
+            name: "S".into(),
+            subjects: vec!["opensesame.events.>".into()],
+            max_bytes: -1,
+            max_message_size: -1,
+            ..Default::default()
+        };
+        let next = converge_stream(&legacy, &limits).expect("legacy is converged");
+        assert_eq!(next.max_age, limits.max_age);
+        assert_eq!(next.max_bytes, limits.max_bytes);
+        assert_eq!(next.max_message_size, limits.max_message_size);
+
+        let tuned = stream::Config {
+            num_replicas: 3,
+            storage: stream::StorageType::Memory,
+            max_bytes: 8 * limits.max_bytes,
+            ..next.clone()
+        };
+        assert_eq!(
+            converge_stream(&tuned, &limits),
+            None,
+            "operator tuning is kept"
+        );
+        assert_eq!(converge_stream(&next, &limits), None, "idempotent");
+    }
+
+    #[test]
+    fn converging_a_durable_bounds_only_unlimited_redelivery() {
+        let r = Redelivery::default();
+        let legacy = consumer::Config {
+            durable_name: Some("d".into()),
+            max_deliver: -1,
+            max_ack_pending: 5000,
+            ..Default::default()
+        };
+        let next = converge_consumer(&legacy, &r).expect("legacy is bounded");
+        assert_eq!(next.max_deliver, r.max_deliver);
+        assert_eq!(next.max_ack_pending, 5000, "operator tuning is kept");
+        let tuned = consumer::Config {
+            max_deliver: 20,
+            ..legacy
+        };
+        assert!(converge_consumer(&tuned, &r).is_none());
     }
 }
