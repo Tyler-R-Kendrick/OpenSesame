@@ -51,6 +51,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-25-device-route/`](2026-09-25-device-route/README.md) | `/device` — approve a device sign-in from its link (ADR 0140 step 7) |
 | [`2026-09-25-claim-route/`](2026-09-25-claim-route/README.md) | `/claim` and `/device` open before unlock (ADR 0140 step 8, §2, D2, D7) |
 | [`2026-09-25-approval-routes/`](2026-09-25-approval-routes/README.md) | `/i/:ref`, `/approve/:ref` and Access › Requests' hosted rows (ADR 0140 step 9) |
+| [`2026-09-25-account-factors/`](2026-09-25-account-factors/README.md) | Account factors in Settings › Security (ADR 0140 D10, plan step 11b) |
 | [`2026-09-24-travel-mode/`](2026-09-24-travel-mode/README.md) | Travel mode — visual evidence |
 | [`2026-09-24-tailnet-sync/`](2026-09-24-tailnet-sync/README.md) | Tailnet vault sync — a Settings › Vaults panel, and two devices in step |
 | [`2026-09-24-reviewer-findings/`](2026-09-24-reviewer-findings/README.md) | Reviewer findings fixed — before / after |
