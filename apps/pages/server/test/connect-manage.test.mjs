@@ -275,7 +275,6 @@ describe("token proof", () => {
     assert.equal(outcome.status, 403);
     assert.equal(JSON.parse(outcome.body).error.code, "authorization_required");
   });
-
 });
 
 describe("token proof boundaries", () => {

@@ -55,6 +55,7 @@ export function ConnectPanels({
         </div>
         {connected ? (
           <ConnectorSettingsForm
+            key={connected.connectionId}
             plan={plan}
             connectorId={connected.connectionId}
             canManage={transport.canManage}
@@ -63,6 +64,7 @@ export function ConnectPanels({
           />
         ) : (
           <ConnectCreateForm
+            key={plan.id}
             plan={plan}
             canManage={transport.canManage}
             online={online}

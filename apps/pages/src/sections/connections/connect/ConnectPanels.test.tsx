@@ -123,6 +123,35 @@ describe("no connector page is blank", () => {
   });
 });
 
+describe("moving between connectors", () => {
+  it("starts each connector's form from its own plan", async () => {
+    const view = render(
+      <ConnectPanels
+        provider={provider("resend")}
+        connection={null}
+        online
+        onFlash={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("radio", { name: "OAuth" }));
+    view.rerender(
+      <ConnectPanels
+        provider={provider("okta")}
+        connection={null}
+        online
+        onFlash={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Name")).toHaveProperty("value", "Okta");
+    expect(screen.getByLabelText("UID")).toHaveProperty(
+      "value",
+      "okta/default",
+    );
+  });
+});
+
 describe("Resend", () => {
   it("prefills the OAuth server from what we know and lets Vercel register the client", async () => {
     draw("resend");

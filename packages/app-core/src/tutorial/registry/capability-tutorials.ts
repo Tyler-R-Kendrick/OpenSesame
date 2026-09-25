@@ -82,4 +82,7 @@ export const CAPABILITY_TUTORIALS = {
   "browser.grant.renew": "setup.join-session",
   "connectors.directory.sync": "access.connectors",
   "connectors.bind": "access.connectors",
+  "connectors.connect.configure": "connection.create",
+  "connectors.connect.authorize_user": "connection.create",
+  "connectors.connect.token_check": "connection.create",
 } satisfies Readonly<Record<string, GuideGoalId>>;

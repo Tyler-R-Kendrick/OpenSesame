@@ -6,32 +6,77 @@
       "height": 900,
       "desktop": true,
       "steps": [
-        { "guest": null },
-        { "visit": "connections/resend" },
-        { "count": ["main input", "main select", "button[aria-label='Create connector']", "main .panel"] },
-        { "report": "main h2" },
-        { "shot": "1280-resend" },
-        { "chooseOptional": "OAuth" },
-        { "scrollToOptional": "Create connector" },
-        { "count": ["main input", "main select"] },
-        { "shot": "1280-resend-oauth" },
-        { "visit": "connections/okta" },
-        { "scrollToOptional": "Create connector" },
-        { "count": ["main input", "main select"] },
-        { "shot": "1280-okta" }
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/resend"
+        },
+        {
+          "count": [
+            "main input",
+            "main select",
+            "button[aria-label='Create connector']",
+            "main .panel"
+          ]
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "shot": "1280-resend"
+        },
+        {
+          "chooseOptional": "OAuth"
+        },
+        {
+          "scrollToOptional": "Create connector"
+        },
+        {
+          "count": ["main input", "main select"]
+        },
+        {
+          "shot": "1280-resend-oauth"
+        },
+        {
+          "visit": "connections/okta"
+        },
+        {
+          "scrollToOptional": "Create connector"
+        },
+        {
+          "count": ["main input", "main select"]
+        },
+        {
+          "shot": "1280-okta"
+        }
       ]
     },
     {
       "width": 390,
       "height": 844,
       "steps": [
-        { "guest": null },
-        { "visit": "connections/linear" },
-        { "count": ["main input", "button[aria-label='Create connector']"] },
-        { "shot": "390-linear" },
-        { "chooseOptional": "OAuth" },
-        { "scrollToOptional": "Create connector" },
-        { "shot": "390-linear-oauth" }
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/linear"
+        },
+        {
+          "count": ["main input", "button[aria-label='Create connector']"]
+        },
+        {
+          "shot": "390-linear"
+        },
+        {
+          "chooseOptional": "OAuth"
+        },
+        {
+          "scrollToOptional": "Create connector"
+        },
+        {
+          "shot": "390-linear-oauth"
+        }
       ]
     }
   ],
@@ -39,42 +84,42 @@
     {
       "shot": "1280-resend",
       "width": 1280,
-      "title": "Resend connector page — 1280 × 900",
-      "caption": "Before: a single sentence about a missing relay; nothing to configure. After: where connectors live (seal a Vercel token or the relay's key), then the connector itself, filled in from what Resend publishes — its MCP server registers its own client.",
-      "before": "see README",
-      "after": "see README"
+      "title": "Resend connector page \u2014 1280 \u00d7 900",
+      "caption": "Before: a single sentence about a missing relay; nothing to configure. After: where connectors live (seal a Vercel token or the relay's key), then the connector itself, filled in from what Resend publishes \u2014 its MCP server registers its own client.",
+      "before": "1 panel (Connect), 1 input, 0 selects, no create key",
+      "after": "3 panels (Vercel Connect, Create connector, Access), 8 inputs, 3 selects, Create connector key"
     },
     {
       "shot": "1280-resend-oauth",
       "width": 1280,
-      "title": "Resend over OAuth — 1280 × 900",
+      "title": "Resend over OAuth \u2014 1280 \u00d7 900",
       "caption": "The OAuth server as Vercel's own connector settings lay it out, filled from Resend's discovery document: endpoints, client authentication, PKCE, scopes with their meaning.",
-      "before": "see README",
-      "after": "see README"
+      "before": "OAuth not offered: 1 input, 0 selects",
+      "after": "OAuth chosen: 18 inputs, 5 selects, endpoints from Resend's discovery"
     },
     {
       "shot": "1280-okta",
       "width": 1280,
-      "title": "Okta — per-account host — 1280 × 900",
+      "title": "Okta \u2014 per-account host \u2014 1280 \u00d7 900",
       "caption": "A preset that needs the customer's own host asks for it, and every endpoint follows.",
-      "before": "see README",
-      "after": "see README"
+      "before": "1 input, 0 selects",
+      "after": "23 inputs, 5 selects; endpoints wait on the Okta domain"
     },
     {
       "shot": "390-linear",
       "width": 390,
-      "title": "Linear on a phone — 390 × 844",
-      "caption": "Vercel's managed app, OAuth with your own client, Linear's MCP server, or an API key — each a choice on the page.",
-      "before": "see README",
-      "after": "see README"
+      "title": "Linear on a phone \u2014 390 \u00d7 844",
+      "caption": "Vercel's managed app, OAuth with your own client, Linear's MCP server, or an API key \u2014 each a choice on the page.",
+      "before": "1 input, no create key",
+      "after": "9 inputs, Create connector key, 4 methods"
     },
     {
       "shot": "390-linear-oauth",
       "width": 390,
-      "title": "Linear over OAuth on a phone — 390 × 844",
+      "title": "Linear over OAuth on a phone \u2014 390 \u00d7 844",
       "caption": "Client, OAuth server and scopes at phone width; every field keeps the 16px floor.",
-      "before": "see README",
-      "after": "see README"
+      "before": "no OAuth fields",
+      "after": "client, OAuth server and 6 scopes at 390px"
     }
   ]
 }
