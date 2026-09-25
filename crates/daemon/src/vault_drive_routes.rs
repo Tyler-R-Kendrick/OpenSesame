@@ -259,3 +259,7 @@ pub(crate) fn routes() -> Router<App> {
 #[cfg(test)]
 #[path = "vault_drive_routes_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "vault_drive_conformance_tests.rs"]
+mod conformance;

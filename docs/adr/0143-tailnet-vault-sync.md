@@ -118,6 +118,20 @@ the person paired, at the address in the pairing code. It never writes
 `settings.hostApi`, never sends an operator token, never calls a slot route,
 and nothing else in Pages speaks to a daemon.
 
+## Proof
+
+- `spec/conformance/vault-drive-protocol.json` records the protocol as
+  literal exchanges; the daemon replays them against its router and the Pages
+  client sends and reads them through its real client, so neither side can
+  drift alone.
+- `packages/app-core/src/lib/tailnet-sync/two-devices.test.ts` runs two
+  `VaultStore`s with separate storage against one compare-and-set drive:
+  setup from the drive, edits on both sides, a purge and a replayed older
+  snapshot, a folder delete, and a lost race all converge, and the drive never
+  holds a name, a note or the PIN wrap.
+- `pnpm --filter @opensesame/pages verify:tailnet-sync` does it for real: the
+  `opensesame` daemon as the drive and two isolated browsers.
+
 ## Consequences
 
 - A laptop and a phone on one tailnet keep one vault in step, including on

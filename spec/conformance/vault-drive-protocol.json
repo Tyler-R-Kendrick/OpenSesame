@@ -1,0 +1,129 @@
+{
+  "$comment": "The tailnet vault drive's wire protocol (ADR 0143), as literal exchanges. The daemon replays every exchange against its real router (crates/daemon/src/vault_drive_routes_tests.rs); the Pages client sends every request and reads every answer through its real client (packages/app-core/src/lib/tailnet-sync/protocol-conformance.test.ts). A request's key is 'slot' (the slot's own key) or 'wrong' (well formed, not the slot's); a snapshot value '$name' refers to snapshots[name]. Change a case here and both sides must follow.",
+  "version": 1,
+  "path": "/v1/vault-drive/slots/{slot}/snapshot",
+  "snapshotFormat": "opensesame-vault-drive-snapshot",
+  "limits": { "maxSnapshotBytes": 16777216, "maxSlots": 64 },
+  "pairing": {
+    "prefix": "opensesame-drive:v1:",
+    "url": "https://desk.tail4c2e.ts.net",
+    "slot": "5b1c2d3e-0f4a-4b6c-8d9e-0a1b2c3d4e5f",
+    "key": "Qm9ndXMtZXZpZGVuY2Uta2V5LW5vdC1hLXJlYWwtb25l",
+    "label": "Laptop",
+    "code": "opensesame-drive:v1:eyJrZXkiOiJRbTluZFhNdFpYWnBaR1Z1WTJVdGEyVjVMVzV2ZEMxaExYSmxZV3d0YjI1bCIsImxhYmVsIjoiTGFwdG9wIiwic2xvdCI6IjViMWMyZDNlLTBmNGEtNGI2Yy04ZDllLTBhMWIyYzNkNGU1ZiIsInVybCI6Imh0dHBzOi8vZGVzay50YWlsNGMyZS50cy5uZXQifQ"
+  },
+  "snapshots": {
+    "laptop": {
+      "format": "opensesame-vault-drive-snapshot",
+      "v": 1,
+      "tomb": "personal",
+      "header": {
+        "v": 1,
+        "createdAt": "2026-09-01T00:00:00.000Z",
+        "bodyRev": 3
+      },
+      "body": {
+        "ivB64": "bGFwdG9wLWl2LTEy",
+        "ctB64": "bGFwdG9wLWNpcGhlcnRleHQ"
+      },
+      "rev": 3
+    },
+    "phone": {
+      "format": "opensesame-vault-drive-snapshot",
+      "v": 1,
+      "tomb": "personal",
+      "header": {
+        "v": 1,
+        "createdAt": "2026-09-01T00:00:00.000Z",
+        "bodyRev": 4
+      },
+      "body": {
+        "ivB64": "cGhvbmUtaXYtMTIz",
+        "ctB64": "cGhvbmUtY2lwaGVydGV4dA"
+      },
+      "rev": 4
+    }
+  },
+  "exchanges": [
+    {
+      "name": "a new slot reads as generation 0 with no snapshot",
+      "request": { "method": "GET", "key": "slot" },
+      "response": {
+        "status": 200,
+        "body": { "generation": 0, "snapshot": null }
+      }
+    },
+    {
+      "name": "the first write names generation 0 and wins",
+      "request": {
+        "method": "PUT",
+        "key": "slot",
+        "body": { "expected_generation": 0, "snapshot": "$laptop" }
+      },
+      "response": { "status": 200, "body": { "generation": 1 } }
+    },
+    {
+      "name": "a write that read before the last one loses, and learns the generation that won",
+      "request": {
+        "method": "PUT",
+        "key": "slot",
+        "body": { "expected_generation": 0, "snapshot": "$phone" }
+      },
+      "response": {
+        "status": 409,
+        "body": { "error": "generation_mismatch", "generation": 1 }
+      }
+    },
+    {
+      "name": "a read returns the snapshot that won, whole",
+      "request": { "method": "GET", "key": "slot" },
+      "response": {
+        "status": 200,
+        "body": { "generation": 1, "snapshot": "$laptop" }
+      }
+    },
+    {
+      "name": "the loser writes again against the generation it now knows",
+      "request": {
+        "method": "PUT",
+        "key": "slot",
+        "body": { "expected_generation": 1, "snapshot": "$phone" }
+      },
+      "response": { "status": 200, "body": { "generation": 2 } }
+    },
+    {
+      "name": "a key that is not the slot's reads nothing",
+      "request": { "method": "GET", "key": "wrong" },
+      "response": { "status": 401, "body": { "error": "unauthorized" } }
+    },
+    {
+      "name": "a key that is not the slot's writes nothing",
+      "request": {
+        "method": "PUT",
+        "key": "wrong",
+        "body": { "expected_generation": 2, "snapshot": "$laptop" }
+      },
+      "response": { "status": 401, "body": { "error": "unauthorized" } }
+    },
+    {
+      "name": "the drive refuses anything that does not say it is a vault snapshot",
+      "request": {
+        "method": "PUT",
+        "key": "slot",
+        "body": {
+          "expected_generation": 2,
+          "snapshot": { "format": "something-else", "plaintext": "hunter2" }
+        }
+      },
+      "response": { "status": 400, "body": { "error": "not_a_vault_snapshot" } }
+    },
+    {
+      "name": "nothing a refused request sent was kept",
+      "request": { "method": "GET", "key": "slot" },
+      "response": {
+        "status": 200,
+        "body": { "generation": 2, "snapshot": "$phone" }
+      }
+    }
+  ]
+}
