@@ -19,17 +19,22 @@ mod nats;
 #[cfg(feature = "jetstream")]
 mod nats_connect;
 #[cfg(feature = "jetstream")]
+mod nats_delivery;
+#[cfg(feature = "jetstream")]
 mod nats_policy;
 #[cfg(feature = "jetstream")]
 mod nats_transport;
 #[cfg(feature = "jetstream")]
 mod nats_transport_env;
+mod process;
 
 pub use memory::{InMemoryTaskBus, UnavailableTaskBus};
 #[cfg(feature = "jetstream")]
 pub use nats::{NatsBusError, NatsJetStreamConfig, NatsJetStreamTaskBus};
 #[cfg(feature = "jetstream")]
 pub use nats_connect::{event_code, BusHealth, InjectedMaterial, NatsRole};
+#[cfg(feature = "jetstream")]
+pub use nats_delivery::{Redelivery, StreamLimits};
 #[cfg(feature = "jetstream")]
 pub use nats_policy::{
     IdentityRef, NatsAuth, NatsServerName, NatsTransport, NatsTransportPolicy, NatsTransportPublic,
@@ -39,6 +44,7 @@ pub use nats_policy::{
 pub use nats_transport::NatsTransportSpec;
 #[cfg(feature = "jetstream")]
 pub use nats_transport_env::url_hosts;
+pub use process::{EventHandler, ProcessReport};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -111,8 +117,38 @@ pub fn event_subject(prefix: &str, event_type: &str) -> String {
 
 #[async_trait]
 pub trait TaskBus: Send + Sync {
+    /// Publish one event. On `JetStream` the event `id` is the
+    /// `Nats-Msg-Id`, so publishing the same event (same `id`) again inside
+    /// the duplicate window stores it once. That covers a retry only when
+    /// the producer reuses the id — an outbox row id does; a fresh
+    /// `BusEvent` per attempt does not, and its consumers must tolerate a
+    /// duplicate.
     async fn publish(&self, event: BusEvent) -> anyhow::Result<()>;
+
+    /// Take up to `max` events, **already acknowledged** (at most once).
+    /// Right for wakes whose real work re-reads an outbox; use
+    /// [`TaskBus::process`] for work that must not be lost.
     async fn drain(&self, max: usize) -> anyhow::Result<Vec<BusEvent>>;
+
+    /// Hand up to `max` events to `handler`, acknowledging each only after
+    /// it succeeds (at least once). A failed event is delivered again later;
+    /// on `JetStream` after a doubling delay and at most `max_deliver` times
+    /// (then logged and counted in [`ProcessReport::exhausted`]), and a
+    /// payload that is not a `BusEvent` is terminated rather than retried.
+    /// Bounded redelivery is not a ledger: work that must survive a longer
+    /// outage is re-published from its outbox.
+    ///
+    /// # Errors
+    ///
+    /// When the bus cannot be read. Handler failures are counted, not
+    /// returned.
+    async fn process(
+        &self,
+        max: usize,
+        handler: &dyn EventHandler,
+    ) -> anyhow::Result<ProcessReport> {
+        process::requeue_on_failure(self, max, handler).await
+    }
 }
 
 /// Which adapter `from_env` should construct.
@@ -298,80 +334,5 @@ pub async fn create(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    fn sample_event(id: &str) -> BusEvent {
-        BusEvent::cloud_event(
-            id,
-            "opensesame/test",
-            "principal.created",
-            "2026-08-17T00:00:00Z",
-            json!({"principal_id": "prn_1"}),
-        )
-    }
-
-    #[tokio::test]
-    async fn in_memory_publish_drain_fifo() {
-        let bus = InMemoryTaskBus::default();
-        bus.publish(sample_event("1")).await.unwrap();
-        bus.publish(sample_event("2")).await.unwrap();
-        let batch = bus.drain(1).await.unwrap();
-        assert_eq!(batch.len(), 1);
-        assert_eq!(batch[0].id, "1");
-        let rest = bus.drain(10).await.unwrap();
-        assert_eq!(rest.len(), 1);
-        assert_eq!(rest[0].id, "2");
-        assert!(bus.drain(10).await.unwrap().is_empty());
-    }
-
-    #[test]
-    fn event_subject_joins_prefix_and_type() {
-        assert_eq!(
-            event_subject("opensesame.events", "credential.rotation.requested"),
-            "opensesame.events.credential.rotation.requested"
-        );
-        assert_eq!(
-            sample_event("x").subject(DEFAULT_SUBJECT_PREFIX),
-            "opensesame.events.principal.created"
-        );
-    }
-
-    #[test]
-    fn backend_from_env_matrix() {
-        let saved_taskbus = std::env::var_os("OPENSESAME_TASKBUS");
-        let saved_nats = std::env::var_os("NATS_URL");
-        let restore = || {
-            match &saved_taskbus {
-                Some(v) => std::env::set_var("OPENSESAME_TASKBUS", v),
-                None => std::env::remove_var("OPENSESAME_TASKBUS"),
-            }
-            match &saved_nats {
-                Some(v) => std::env::set_var("NATS_URL", v),
-                None => std::env::remove_var("NATS_URL"),
-            }
-        };
-
-        std::env::remove_var("OPENSESAME_TASKBUS");
-        std::env::remove_var("NATS_URL");
-        assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Memory);
-
-        std::env::set_var("NATS_URL", "nats://127.0.0.1:4222");
-        assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Nats);
-
-        std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Memory);
-
-        std::env::set_var("OPENSESAME_TASKBUS", "nats");
-        assert!(TaskBusBackend::from_env().is_ok());
-
-        std::env::remove_var("NATS_URL");
-        assert!(TaskBusBackend::from_env().is_err());
-
-        std::env::set_var("OPENSESAME_TASKBUS", "bogus");
-        assert!(TaskBusBackend::from_env().is_err());
-
-        restore();
-    }
-}
+#[path = "lib_tests.rs"]
+mod tests;

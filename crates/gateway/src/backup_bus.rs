@@ -1,18 +1,21 @@
 //! Backup `TaskBus` wakes (system subjects). Outbox remains `SoT`; bus accelerates.
 //!
 //! When the Host `TaskBus` backend is NATS, a dedicated durable consumer
-//! (`opensesame-backup`) drains `opensesame.events.system.>` and wakes the
-//! outbox actor. The actor's `SQLite` claim/lease remains the only claim path —
+//! (`opensesame-backup`) processes `opensesame.events.system.>` and wakes the
+//! outbox actor, acknowledging each wake once the actor has been woken. The actor's `SQLite` claim/lease remains the only claim path —
 //! `JetStream` never becomes a second ledger. Memory backend skips this consumer
 //! and relies on `backup_notify` + tick only (shared in-memory bus must not be
 //! drained here or it would steal sync/rotation events).
 
+use async_trait::async_trait;
 use opensesame_task_bus::{
-    backup_consumer_config, BusEvent, NatsJetStreamTaskBus, NatsRole, TaskBus, TaskBusBackend,
-    DEFAULT_SUBJECT_PREFIX, SYSTEM_SUBJECT_PREFIX,
+    backup_consumer_config, BusEvent, EventHandler, NatsJetStreamTaskBus, NatsRole, TaskBus,
+    TaskBusBackend, DEFAULT_SUBJECT_PREFIX, SYSTEM_SUBJECT_PREFIX,
 };
 use serde_json::json;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Notify;
 
 use crate::app_state::AppState;
 use crate::taskbus_config;
@@ -90,16 +93,28 @@ async fn connect_system_wake_bus(state: &AppState) -> Option<NatsJetStreamTaskBu
     }
 }
 
+/// Wakes the outbox actor. It never fails: a wake is only a hint, and the
+/// actor's `SQLite` claim/lease is the one path that does the work.
+struct WakeActor(Arc<Notify>);
+
+#[async_trait]
+impl EventHandler for WakeActor {
+    async fn handle(&self, _event: &BusEvent) -> anyhow::Result<()> {
+        self.0.notify_one();
+        Ok(())
+    }
+}
+
 async fn drain_system_wakes(state: &AppState, bus: &NatsJetStreamTaskBus) {
+    let wake = WakeActor(Arc::clone(&state.backup_notify));
     loop {
-        match bus.drain(32).await {
-            Ok(events) if !events.is_empty() => {
-                tracing::debug!(count = events.len(), "system TaskBus wakes received");
-                state.backup_notify.notify_one();
+        match bus.process(32, &wake).await {
+            Ok(report) if report.received() > 0 => {
+                tracing::debug!(count = report.received(), "system TaskBus wakes received");
             }
             Ok(_) => {}
             Err(error) => {
-                tracing::warn!(%error, "backup JetStream drain failed; retrying");
+                tracing::warn!(%error, "backup JetStream wake consumer failed; retrying");
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }
         }
@@ -131,6 +146,28 @@ mod tests {
         tokio::time::timeout(std::time::Duration::from_secs(2), notify.notified())
             .await
             .expect("backup_notify must fire despite bus failure");
+    }
+
+    #[tokio::test]
+    async fn a_processed_wake_wakes_the_actor_and_is_consumed() {
+        let bus = opensesame_task_bus::InMemoryTaskBus::default();
+        bus.publish(BusEvent::cloud_event(
+            "w1",
+            "test",
+            BACKUP_WAKE_TYPE,
+            "now",
+            json!({}),
+        ))
+        .await
+        .unwrap();
+        let notify = Arc::new(Notify::new());
+        let report = bus
+            .process(32, &WakeActor(Arc::clone(&notify)))
+            .await
+            .unwrap();
+        assert_eq!(report.handled, 1);
+        expect_notification(notify).await;
+        assert!(bus.drain(10).await.unwrap().is_empty());
     }
 
     #[test]

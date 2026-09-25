@@ -62,6 +62,7 @@ describe("NatsJetStreamTaskBus", () => {
     expect(publish).toHaveBeenCalledWith(
       "opensesame.events.principal.created",
       expect.any(Uint8Array),
+      { msgID: "e1", expect: { streamName: "OPENSESAME_EVENTS" } },
     );
   });
 });
