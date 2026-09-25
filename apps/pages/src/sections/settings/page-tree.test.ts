@@ -49,7 +49,7 @@ describe("settingsPageTree", () => {
     );
   });
 
-  it("mirrors vaults on this device under the Vaults tab only", () => {
+  it("mirrors vaults on this device under the Vaults tab only, then Travel", () => {
     const tabs = settingsPageTree({
       vaults: [
         { id: "personal", label: "personal" },
@@ -60,6 +60,7 @@ describe("settingsPageTree", () => {
     expect(vaults?.children.map((node) => node.label)).toEqual([
       "personal",
       "project · 4f2a",
+      "Travel",
     ]);
     const capabilities = tabs.find((node) => node.id === "capabilities");
     expect(capabilities?.children.map((node) => node.label)).not.toContain(

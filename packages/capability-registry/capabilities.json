@@ -4242,6 +4242,33 @@
     }
   },
   {
+    "id": "vaults.travel",
+    "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/travel/index.ts:packTravelDeparture",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      },
+      "mcp_client": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      },
+      "webmcp": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      }
+    }
+  },
+  {
     "id": "wallet.capabilities.read",
     "title": "Read Wallet capability and evidence inventory (never secrets)",
     "plane": "client_local",

@@ -205,6 +205,18 @@ const STEPS = {
     }
   },
   /**
+   * Tick a labelled checkbox when this build has it — an acknowledgement a
+   * person gives before a commit key enables. Absent in a base build is a
+   * legitimate difference, not a miss.
+   */
+  async checkOptional(page, name) {
+    const box = page.getByRole("checkbox", { name, exact: true }).first();
+    if ((await box.count()) && (await box.isEnabled())) {
+      await press(box);
+      await page.waitForTimeout(400);
+    }
+  },
+  /**
    * Print how many elements match each selector, so a sheet's before/after
    * numbers are read from the browser rather than from the diff.
    */
