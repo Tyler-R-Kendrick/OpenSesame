@@ -188,14 +188,16 @@ describe("Advanced", () => {
   it("stays open across a review, so the row just changed is still in view", async () => {
     renderPanel();
     const details = () =>
-      screen.getByTestId("capabilities-advanced") as HTMLDetailsElement;
+      screen.getByTestId<HTMLDetailsElement>("capabilities-advanced");
     expect(details().open).toBe(false);
     details().open = true;
     fireEvent(details(), new Event("toggle"));
     fireEvent.click(screen.getByRole("button", { name: "Add Shared drops" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(details().open).toBe(true);
+    // The double records the commit before it settles; until it does, the
+    // review stands in for the panel and Advanced is not rendered at all.
+    await waitFor(() => expect(details().open).toBe(true));
     // And when the plan change remounts the panel.
     cleanup();
     renderPanel();
