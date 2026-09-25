@@ -24,6 +24,7 @@ export * from "./machines/presentation.js";
 export { fixtures } from "./__tests__/fixtures.js";
 export * from "./trust.js";
 export * from "./notifications.js";
+export * from "./account-factors.js";
 export * from "./approval-ceremony.js";
 export * from "./presentation.js";
 export * from "./interaction-links.js";

@@ -18,7 +18,7 @@
   "totals": {
     "files": 475,
     "violations": 751,
-    "oversizedLines": 239803
+    "oversizedLines": 239794
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1078,7 +1078,7 @@
       "max-statements": 1
     },
     "packages/control-plane/src/openapi.ts": {
-      "max-lines": 2787,
+      "max-lines": 2778,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/agents.ts": {
