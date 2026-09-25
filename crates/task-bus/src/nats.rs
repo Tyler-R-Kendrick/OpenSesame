@@ -13,14 +13,18 @@
 //! [`NatsBusError::NotProvisioned`] when it is absent.
 
 use crate::nats_connect::{connect_options, BusHealth, InjectedMaterial, NatsRole};
+use crate::nats_delivery::{
+    consumer_config, converge_consumer, converge_stream, decode_or_terminate, publish_message,
+    settle_batch, stream_config, Redelivery, StreamLimits,
+};
 use crate::nats_policy::NatsTransportView;
 use crate::nats_transport::NatsTransportSpec;
+use crate::process::{EventHandler, ProcessReport};
 use crate::{
     BusEvent, TaskBus, DEFAULT_CONSUMER_NAME, DEFAULT_STREAM_NAME, DEFAULT_SUBJECT_PREFIX,
 };
-use async_nats::jetstream::{self, consumer::pull, stream};
+use async_nats::jetstream::{self, consumer::pull};
 use async_trait::async_trait;
-use bytes::Bytes;
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -51,9 +55,15 @@ pub struct NatsJetStreamConfig {
     /// Transport policy + deployment references (never material).
     pub transport: NatsTransportSpec,
     pub role: NatsRole,
-    /// Create the stream/consumer when absent. Only the provisioning action
-    /// and the legacy plaintext loopback profile set this.
+    /// Create the stream/consumer when absent, or fill in the `limits` /
+    /// `redelivery` bounds an older release left unset (never overriding an
+    /// operator's). Only the provisioning action and the legacy plaintext
+    /// loopback profile set this.
     pub provision: bool,
+    /// Retention the provisioning action gives the stream.
+    pub limits: StreamLimits,
+    /// Redelivery bounds for the durable consumer and failed handlers.
+    pub redelivery: Redelivery,
 }
 
 impl Default for NatsJetStreamConfig {
@@ -68,6 +78,8 @@ impl Default for NatsJetStreamConfig {
             transport: NatsTransportSpec::plaintext(),
             role: NatsRole::Host,
             provision: true,
+            limits: StreamLimits::default(),
+            redelivery: Redelivery::default(),
         }
     }
 }
@@ -112,26 +124,7 @@ async fn open_session(
     let consumer = if !config.role.consumes() {
         None
     } else if config.provision {
-        let stream = js
-            .get_or_create_stream(stream::Config {
-                name: config.stream_name.clone(),
-                subjects: vec![config.stream_subjects()],
-                ..Default::default()
-            })
-            .await?;
-        Some(
-            stream
-                .get_or_create_consumer(
-                    &config.consumer_name,
-                    pull::Config {
-                        durable_name: Some(config.consumer_name.clone()),
-                        filter_subject: config.subject_filter(),
-                        ack_policy: jetstream::consumer::AckPolicy::Explicit,
-                        ..Default::default()
-                    },
-                )
-                .await?,
-        )
+        Some(provision(&js, config).await?)
     } else {
         // `$JS.API.CONSUMER.INFO.<stream>.<consumer>` only: no stream info,
         // no create. Absent → not_provisioned, never a create.
@@ -163,6 +156,43 @@ async fn open_session(
         js,
         consumer,
     })
+}
+
+/// Create the stream and durable when missing. When they exist, fill in only
+/// what an older release left unbounded ([`converge_stream`],
+/// [`converge_consumer`]); what an operator tuned is never overwritten.
+async fn provision(
+    js: &jetstream::Context,
+    config: &NatsJetStreamConfig,
+) -> anyhow::Result<jetstream::consumer::Consumer<pull::Config>> {
+    let mut stream = js
+        .get_or_create_stream(stream_config(
+            &config.stream_name,
+            config.stream_subjects(),
+            &config.limits,
+        ))
+        .await?;
+    if let Some(next) = converge_stream(&stream.info().await?.config, &config.limits) {
+        tracing::info!(stream = %config.stream_name, "bounding a stream an older release left unlimited");
+        js.update_stream(next).await?;
+    }
+    let consumer = stream
+        .get_or_create_consumer(
+            &config.consumer_name,
+            consumer_config(
+                &config.consumer_name,
+                config.subject_filter(),
+                &config.redelivery,
+            ),
+        )
+        .await?;
+    match converge_consumer(&consumer.cached_info().config, &config.redelivery) {
+        Some(next) => {
+            tracing::info!(consumer = %config.consumer_name, "bounding redelivery a durable left unlimited");
+            Ok(stream.create_consumer(next).await?)
+        }
+        None => Ok(consumer),
+    }
 }
 
 impl NatsJetStreamTaskBus {
@@ -271,9 +301,12 @@ impl TaskBus for NatsJetStreamTaskBus {
             return Err(NatsBusError::RoleCannotPublish(self.config.role).into());
         }
         let subject = event.subject(&self.config.subject_prefix);
-        let payload = Bytes::from(serde_json::to_vec(&event)?);
+        let message = publish_message(&event, &self.config.stream_name)?;
         let session = self.session.read().await;
-        session.js.publish(subject, payload).await?.await?;
+        let ack = session.js.send_publish(subject, message).await?.await?;
+        if ack.duplicate {
+            tracing::debug!(event_id = %event.id, "TaskBus publish deduplicated by Nats-Msg-Id");
+        }
         Ok(())
     }
 
@@ -299,7 +332,9 @@ impl TaskBus for NatsJetStreamTaskBus {
             // Envelope validation only: the payload's own claims (a
             // `principal_id`, an `organization_id`) never widen what this
             // consumer may do — scope belongs to the caller's authority.
-            let event: BusEvent = serde_json::from_slice(&msg.payload)?;
+            let Some(event) = decode_or_terminate(&msg, &self.config.redelivery).await? else {
+                continue;
+            };
             msg.ack().await.map_err(|e| anyhow::anyhow!("{e}"))?;
             out.push(event);
             if out.len() >= max {
@@ -307,6 +342,19 @@ impl TaskBus for NatsJetStreamTaskBus {
             }
         }
         Ok(out)
+    }
+
+    async fn process(
+        &self,
+        max: usize,
+        handler: &dyn EventHandler,
+    ) -> anyhow::Result<ProcessReport> {
+        let session = self.session.read().await;
+        let consumer = session
+            .consumer
+            .as_ref()
+            .ok_or(NatsBusError::RoleCannotConsume(self.config.role))?;
+        settle_batch(consumer, max, &self.config, handler).await
     }
 }
 
@@ -336,4 +384,12 @@ mod live_routes;
 
 #[cfg(all(test, feature = "live-tests"))]
 #[path = "nats_live_callout.rs"]
-mod live_callout;
+pub(crate) mod live_callout;
+
+#[cfg(all(test, feature = "live-tests"))]
+#[path = "nats_live_mixed.rs"]
+mod live_mixed;
+
+#[cfg(all(test, feature = "live-tests"))]
+#[path = "nats_live_delivery.rs"]
+mod live_delivery;

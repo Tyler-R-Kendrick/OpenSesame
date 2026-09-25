@@ -183,3 +183,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0141](0141-bitwarden-compatible-server.md) | A Bitwarden-compatible server, with Argon2id and a replaceable hash | Accepted |
 | [0142](0142-capabilities-page-one-list-honest-defaults.md) | Settings › Capabilities: one list, honest defaults | Accepted |
 | [0143](0143-travel-mode.md) | Travel mode | Accepted |
+| [0145](0145-nats-feature-usage.md) | Using NATS fully: delivery semantics, services, mixed-mode callout | Accepted |

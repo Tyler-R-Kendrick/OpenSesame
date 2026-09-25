@@ -25,7 +25,9 @@
 //! - [`response`] — signed `authorization_response` / user JWT encoding.
 //! - [`xkey`] — the `xkv1` envelope when the server has an xkey.
 //! - [`host_client`] — the Host decision contract and its mTLS HTTP client.
-//! - [`bridge`] — the request→decision→response core and the NATS loop.
+//! - [`bridge`] — the request→decision→response core.
+//! - [`service`] — the NATS micro service that serves it (discovery, stats,
+//!   queue-group load balancing, bounded concurrency).
 //! - [`config`] — deployment-plane environment for the bridge binary.
 
 #![forbid(unsafe_code)]
@@ -41,6 +43,7 @@ pub mod host_client;
 pub mod jwt;
 pub mod model;
 pub mod response;
+pub mod service;
 pub mod xkey;
 
 pub use bridge::BridgeCore;

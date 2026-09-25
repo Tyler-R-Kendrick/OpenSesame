@@ -55,7 +55,7 @@ fn default_config_uses_worker_consumer_and_full_prefix() {
 fn production_adapter_uses_jetstream_not_core_pub_and_never_bare_connect() {
     let src = include_str!("nats.rs");
     let production = src.split("#[cfg(test)]").next().unwrap_or(src);
-    assert!(production.contains("session.js.publish"));
+    assert!(production.contains("session.js.send_publish"));
     assert!(!production.contains("async_nats::connect("));
     assert!(!production.contains("OPENSESAME_CONNECTION_KEY"));
     let connect = include_str!("nats_connect.rs");
