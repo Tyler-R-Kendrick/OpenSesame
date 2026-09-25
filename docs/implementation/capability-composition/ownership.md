@@ -137,6 +137,7 @@ fields, which the module supplies already-imported):
 - `webmcp-tool`: `WebMcpToolSpec` (already fenced by the core; the core filters by `approvedOperations` before registration)
 - `background-job`: `{ id, start(signal): void }`
 - `unlock-effect`: `{ id, run(ctx: { tomb: string; guest: boolean; signal: AbortSignal }): Promise<void> }`
+- `claim-opener`: `{ id, link: "drop", Opener: ComponentType<{ token, fragmentKey, onSettled }>, order }` — what the always-on `/claim` route draws for a link it does not open itself (ADR 0140)
 
 ### 4.3 Module entry contract (S11–S16)
 

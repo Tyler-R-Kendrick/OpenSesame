@@ -244,7 +244,7 @@ export const SHELL_RULES = [
   optional(
     "src/screens/DropClaimScreen",
     "sharing.drops",
-    "Pages-hosted drop claim",
+    "drop opener, handed to the /claim route as a claim-opener (ADR 0140)",
   ),
   optional(
     "src/screens/LocalAuthorize",

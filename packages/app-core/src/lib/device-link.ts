@@ -51,7 +51,7 @@ export function devicePath(base: string): string {
 }
 
 /** `pathname` relative to the deployment base, or `null` outside it. */
-function underBase(pathname: string, base: string): string | null {
+export function underBase(pathname: string, base: string): string | null {
   const prefix = base.replace(/\/+$/, "");
   if (
     prefix !== "" &&

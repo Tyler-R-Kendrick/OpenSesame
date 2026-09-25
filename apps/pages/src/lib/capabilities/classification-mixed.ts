@@ -28,7 +28,7 @@ export const MIXED_MODULES: readonly MixedModule[] = [
       },
       {
         capability: "sharing.drops",
-        what: "/claim route + DropClaimScreen → route contribution",
+        what: "DropClaimScreen → claim-opener contribution; /claim is identity.ceremonies' (ADR 0140)",
       },
       {
         capability: "support.guided-help",

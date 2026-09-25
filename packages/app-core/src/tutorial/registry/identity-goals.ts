@@ -188,6 +188,19 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+  {
+    // A claim is opened by its link (`/claim`, ADR 0140), never by a guide:
+    // the route is a ceremony, and entering one is the person's act.
+    id: "identity.claim.accept",
+    title: "Review and accept an ownership claim",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "identity.claim.accept"',
+      'say "Open the claim link you were sent. Its page shows what is being claimed and asks for the code the sender read out: holding the link alone is not consent."',
+      "end",
+    ].join("\n"),
+  },
 ];
 
 export const IDENTITY_HELP: readonly HelpTopic[] = [

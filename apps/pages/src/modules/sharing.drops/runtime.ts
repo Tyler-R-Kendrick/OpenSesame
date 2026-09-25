@@ -1,11 +1,15 @@
 /**
- * `sharing.drops` — one-time sealed drops (ADR 0062 / ADR 0118): the
- * `/claim` page, which opens on a locked device with no vault key (the
- * claim key travels in the URL fragment and the payload is sealed to it),
- * and the `drop` item kind in the vault.
+ * `sharing.drops` — one-time sealed drops (ADR 0062 / ADR 0118): the `drop`
+ * item kind in the vault, and the opener for a drop link.
+ *
+ * The `/claim` route is not this module's (ADR 0140 plan step 8): it is the
+ * always-on `identity.ceremonies` dispatcher, which takes the link out of the
+ * address at boot and, for a drop (`#token=…&key=…`), draws the opener this
+ * module hands it as a `claim-opener` contribution. On an installation
+ * without drops nothing here is loaded and the route says so.
  *
  * Egress this module wraps (existing transport, user-initiated by the
- * person pressing Open once / Share):
+ * person pressing Open drop / Share):
  *  - Identity API `/v1/claims`, `/v1/claims/{id}`, `/v1/claims/present` via
  *    `identityFetch` (`lib/vault/drop-transport.ts`) — or the device-native
  *    claim plane on this origin (`lib/vault/local-drop-claims.ts`, OPFS kv,
@@ -23,9 +27,9 @@ import { createActivation } from "../activation.js";
 export const CAPABILITY = "sharing.drops";
 
 /**
- * The claim plane's plaintext keys. `/claim` reads them synchronously on a
- * locked device, so they must be in the kv cache before the route renders —
- * and the core boot no longer pulls them for an installation without drops.
+ * The claim plane's plaintext keys. Opening a drop reads them synchronously,
+ * so they must be in the kv cache before the opener renders — and the core
+ * boot does not pull them for an installation without drops.
  */
 export const HYDRATE_KEYS: readonly string[] = LOCAL_DROP_CLAIM_KEYS;
 
@@ -37,15 +41,11 @@ export const capabilityRuntime: CapabilityRuntime = {
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
 
-    // `gate: "any"`: rendered whether or not the vault is unlocked, the way
-    // App.tsx served `/claim` outside the unlock gate. It holds no key.
-    activation.register("route", {
-      id: "claim",
-      path: "/claim",
-      element: DropClaimScreen,
-      framed: false,
+    activation.register("claim-opener", {
+      id: "drop",
+      link: "drop",
+      Opener: DropClaimScreen,
       order: 50,
-      gate: "any",
     });
     activation.register("item-kind", {
       kind: "drop",

@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 476,
-    "violations": 752,
+    "files": 475,
+    "violations": 751,
     "oversizedLines": 239917
   },
   "files": {
@@ -167,9 +167,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/screens/DropClaimScreen.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/SetupScreen.tsx": {

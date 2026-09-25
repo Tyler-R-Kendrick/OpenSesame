@@ -20,6 +20,7 @@
 
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import { storeAuthOutcome } from "./auth-outcome.js";
+import { forgetClaim } from "./claims/arrival.js";
 import { clearSession as clearFederationSession } from "./federation.js";
 import { forgetPendingLink } from "./guest-auth.js";
 import { endSession } from "./identity.js";
@@ -48,6 +49,8 @@ function signOutDefault(intent: SignOutIntent = "leave"): void {
   // A join half-done under this account is not the next person's to finish.
   clearPendingJoin();
   endJoinAuthority();
+  // Nor is a claim or drop a link brought: the arrival and the stashed bearer.
+  forgetClaim();
   storeAuthOutcome(
     intent === "switch"
       ? { kind: "signed_out", switching: true }

@@ -142,7 +142,6 @@ export const appRootSeams = {
     "/connections",
     "/wallet",
     "/activity",
-    "/claim",
     "/broker",
   ],
 };

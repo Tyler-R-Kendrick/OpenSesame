@@ -18,20 +18,24 @@ describe("sharing.drops runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the claim route and the drop item kind (LOAD-09)", async () => {
+  it("registers the drop opener and the drop item kind (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.drops",
-      kinds: ["item-kind", "route"],
+      kinds: ["claim-opener", "item-kind"],
       count: 2,
     });
   });
 
-  it("serves /claim outside the unlock gate, unframed", async () => {
+  it("serves no route: /claim is identity.ceremonies', which draws this opener", async () => {
+    const { DropClaimScreen } = await import(
+      "../../screens/DropClaimScreen.js"
+    );
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    expect(t.entries("route")).toEqual([]);
     expect(
-      t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate]),
-    ).toEqual([["claim", "/claim", false, "any"]]);
+      t.entries("claim-opener").map((o) => [o.id, o.link, o.Opener]),
+    ).toEqual([["drop", "drop", DropClaimScreen]]);
     expect(
       t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
     ).toEqual([["drop", "Drop", "drops", 50]]);

@@ -3768,6 +3768,33 @@
     }
   },
   {
+    "id": "identity.claim.accept",
+    "title": "Review and accept an ownership claim",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/claim",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
     "id": "connectors.directory.sync",
     "title": "Sync authorized connectors from a Nango-compatible directory",
     "plane": "client_local",
