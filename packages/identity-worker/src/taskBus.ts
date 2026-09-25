@@ -143,8 +143,14 @@ export class NatsJetStreamTaskBus implements TaskBus {
   async publish(event: BusEvent): Promise<void> {
     const subject = eventSubject(event.type);
     const payload = this.#codec.encode(JSON.stringify(event));
-    // JetStream publish — not core NATS PUB. Fails if stream does not capture subject.
-    await this.#js.publish(subject, payload);
+    // JetStream publish — not core NATS PUB. `msgID` is the outbox row id, so
+    // a drain that published and then failed to mark the row is stored once
+    // (the stream's duplicate window); `expect.streamName` turns a subject
+    // captured by any other stream into an error instead of a misroute.
+    await this.#js.publish(subject, payload, {
+      msgID: event.id,
+      expect: { streamName: STREAM_NAME },
+    });
   }
 
   async close(): Promise<void> {
