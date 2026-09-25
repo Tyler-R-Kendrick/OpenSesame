@@ -750,12 +750,6 @@ input[type="radio"] {
   min-width: 0;
 }
 
-.passkey-note__qr {
-  display: grid;
-  gap: 0.4rem;
-  justify-items: start;
-}
-
 .conn-pair__qr {
   display: grid;
   gap: 0.45rem;

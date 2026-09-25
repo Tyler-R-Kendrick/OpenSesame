@@ -89,7 +89,6 @@ const endpoints = {
   hostApi: "http://127.0.0.1:8787",
   identityApi: "http://127.0.0.1:8788",
   daemonApi: "http://127.0.0.1:18790",
-  mfaAppUrl: "",
   capabilityConnectors: { encryption: { providerId: "webcrypto" } },
 };
 let revokeTutorials: (() => void) | null = null;

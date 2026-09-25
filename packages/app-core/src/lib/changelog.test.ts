@@ -32,7 +32,6 @@ beforeEach(async () => {
     hostApi: "",
     identityApi: IDENTITY,
     daemonApi: "",
-    mfaAppUrl: "",
     capabilityConnectors: defaultCapabilityConnectors(),
   });
   stubFetch((url) => {

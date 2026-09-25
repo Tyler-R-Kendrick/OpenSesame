@@ -24,7 +24,6 @@ describe("runtime endpoint defaults", () => {
       hostApi: "http://127.0.0.1:18787",
       identityApi: "http://127.0.0.1:18788",
       daemonApi: "http://127.0.0.1:18790",
-      mfaAppUrl: "",
       capabilityConnectors: {
         ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
@@ -37,13 +36,23 @@ describe("runtime endpoint defaults", () => {
     expect(loadSettings().daemonApi).toBe("http://127.0.0.1:18790");
   });
 
-  it("persists a Mobile MFA handoff URL", async () => {
+  it("drops the retired Mobile MFA handoff URL from an older record (ADR 0140 D10)", async () => {
     const { loadSettings, saveSettings } = await import("./settings.js");
-    saveSettings({
-      ...loadSettings(),
-      mfaAppUrl: "http://127.0.0.1:5177",
-    });
-    expect(loadSettings().mfaAppUrl).toBe("http://127.0.0.1:5177");
+    const { kvGet, kvSet } = await import("./kv.js");
+    kvSet(
+      "settings.v1",
+      JSON.stringify({
+        hostApi: "",
+        identityApi: "https://id.example",
+        daemonApi: "",
+        mfaAppUrl: "http://127.0.0.1:5177",
+      }),
+    );
+    const settings = loadSettings();
+    expect(settings.identityApi).toBe("https://id.example");
+    expect("mfaAppUrl" in settings).toBe(false);
+    saveSettings(settings);
+    expect(kvGet("settings.v1")).not.toContain("mfaAppUrl");
   });
 
   it("persists active project id outside the vault", async () => {
@@ -87,7 +96,6 @@ describe("runtime endpoint defaults", () => {
           hostApi: "http://127.0.0.1:8787",
           identityApi: "http://127.0.0.1:18788",
           daemonApi: "http://127.0.0.1:18790",
-          mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
@@ -103,7 +111,6 @@ describe("runtime endpoint defaults", () => {
           hostApi: "http://127.0.0.1:8787",
           identityApi: "http://127.0.0.1:18788",
           daemonApi: "http://127.0.0.1:18790",
-          mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
@@ -119,7 +126,6 @@ describe("runtime endpoint defaults", () => {
           hostApi: "https://host.example",
           identityApi: "https://id.example",
           daemonApi: "http://127.0.0.1:18790",
-          mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
@@ -134,7 +140,6 @@ describe("runtime endpoint defaults", () => {
         hostApi: "https://box.tail123.ts.net/host",
         identityApi: "https://box.tail123.ts.net/identity",
         daemonApi: "https://box.tail123.ts.net",
-        mfaAppUrl: "",
         capabilityConnectors: {
           ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
@@ -147,7 +152,6 @@ describe("runtime endpoint defaults", () => {
         hostApi: "http://127.0.0.1:8787",
         identityApi: "http://127.0.0.1:18788",
         daemonApi: "http://127.0.0.1:18790",
-        mfaAppUrl: "",
         capabilityConnectors: {
           ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
@@ -182,7 +186,7 @@ describe("settings subscriptions and guards", () => {
   });
 
   it("assumes no local host on any origin (ADR 0090)", async () => {
-    // A loopback tab used to default Host/daemon/MFA to 127.0.0.1 endpoints
+    // A loopback tab used to default Host/daemon to 127.0.0.1 endpoints
     // nothing had said were running. A local host is configured — VITE_*,
     // os-runtime-config.json, Settings, a paired daemon — never assumed.
     const { loadSettings, settingsSeams } = await import("./settings.js");
@@ -190,7 +194,6 @@ describe("settings subscriptions and guards", () => {
     const settings = loadSettings();
     expect(settings.hostApi).toBe("");
     expect(settings.daemonApi).toBe("");
-    expect(settings.mfaAppUrl).toBe("");
     expect(settings.identityApi).toBe("");
   });
 
@@ -199,7 +202,6 @@ describe("settings subscriptions and guards", () => {
     const base = {
       hostApi: "",
       identityApi: "",
-      mfaAppUrl: "",
       capabilityConnectors: {
         ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
@@ -226,7 +228,6 @@ describe("settings subscriptions and guards", () => {
           hostApi: "",
           identityApi: "",
           daemonApi: "",
-          mfaAppUrl: "",
           capabilityConnectors: {
             ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },

@@ -72,13 +72,11 @@ function readEndpoints(body: Record<string, BoundaryValue>): RuntimeEndpoints {
   const hostApi = readEndpoint(body.hostApi);
   const identityApi = readEndpoint(body.identityApi);
   const daemonApi = readEndpoint(body.daemonApi);
-  const mfaAppUrl = readEndpoint(body.mfaAppUrl);
   const supportAgentUrl = readEndpoint(body.supportAgentUrl);
   const connectCallbackBase = readEndpoint(body.connectCallbackBase);
   if (hostApi) out.hostApi = hostApi;
   if (identityApi) out.identityApi = identityApi;
   if (daemonApi) out.daemonApi = daemonApi;
-  if (mfaAppUrl) out.mfaAppUrl = mfaAppUrl;
   if (supportAgentUrl) out.supportAgentUrl = supportAgentUrl;
   if (connectCallbackBase) out.connectCallbackBase = connectCallbackBase;
   return out;

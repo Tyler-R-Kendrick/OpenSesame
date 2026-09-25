@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 475,
-    "violations": 751,
-    "oversizedLines": 239794
+    "violations": 750,
+    "oversizedLines": 239723
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -765,7 +765,7 @@
       "complexity": 1
     },
     "packages/app-core/src/lib/identity-session.test.ts": {
-      "max-lines": 475
+      "max-lines": 473
     },
     "packages/app-core/src/lib/identity.ts": {
       "max-lines": 748
@@ -780,8 +780,7 @@
       "max-lines": 489
     },
     "packages/app-core/src/lib/settings.ts": {
-      "complexity": 1,
-      "max-lines": 516
+      "max-lines": 501
     },
     "packages/app-core/src/lib/siop-keys.ts": {
       "complexity": 1
