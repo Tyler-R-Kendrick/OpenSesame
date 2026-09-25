@@ -13,12 +13,8 @@
     "acceptedRequired": [],
     "selectedOptional": [
       "agents.webmcp",
-      "backup.git-remote",
       "enterprise.ca-administration",
       "enterprise.directory-provisioning",
-      "identity.local-iam",
-      "identity.siop",
-      "identity.site-broker",
       "networking.tailnet",
       "notifications.web-push",
       "sharing.drops",

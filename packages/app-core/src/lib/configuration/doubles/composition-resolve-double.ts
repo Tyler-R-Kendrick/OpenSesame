@@ -79,7 +79,7 @@ function approvalPass(
     const state = axes.get(entry.id);
     if (!state) continue;
     if (entry.tier === "core") {
-      pass.approved.add(entry.id);
+      if (state.permitted) pass.approved.add(entry.id);
       continue;
     }
     if (blocked(state, joinRefused)) continue;

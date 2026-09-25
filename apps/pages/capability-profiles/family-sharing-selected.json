@@ -14,17 +14,9 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": [
-        "identity.local-iam",
-        "identity.siop",
-        "identity.site-broker",
-        "sharing.drops",
-        "sharing.household",
-        "support.local-ai"
-      ],
+      "optional": ["sharing.drops", "sharing.household", "support.local-ai"],
       "prohibited": [
         "agents.webmcp",
-        "backup.git-remote",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
         "networking.tailnet",

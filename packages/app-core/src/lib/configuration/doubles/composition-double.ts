@@ -1,9 +1,9 @@
 /**
  * The composition store, doubled, with the §4.1 shape — test support only.
  *
- * `fakePortsModule()` is what `vi.mock` returns for
- * `lib/configuration/capabilities-ports`: the same names production code
- * imports, backed by an in-memory store over the fixture catalog. Every
+ * `fakePortsModule()` is what a suite installs behind `capabilityPorts` in
+ * `lib/configuration/capabilities-ports`: the same ports production code
+ * reads, backed by an in-memory store over the fixture catalog. Every
  * write is recorded so a suite can assert exactly what a surface committed —
  * and that Cancel committed nothing (CONSENT-02).
  */

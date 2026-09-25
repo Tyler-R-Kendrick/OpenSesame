@@ -104,7 +104,8 @@ export async function walkSetupCeremony(page, check, snap) {
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
   check(
-    rows === 15,
+    // ADR 0142: eleven optional capabilities; the browser-local four are core.
+    rows === 11,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

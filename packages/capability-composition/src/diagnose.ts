@@ -88,7 +88,15 @@ function checkIds(
             `\`${id}\` is not in the catalog and cannot activate`,
           ),
         );
-      } else if (d.tier === "core") {
+      } else if (
+        d.tier === "core" &&
+        // An always-on capability may be withdrawn (ADR 0142); only
+        // statically linked core, which cannot be, is misplaced there.
+        !(
+          source.path === "instancePolicy.capabilities.prohibited" &&
+          d.moduleIds.length > 0
+        )
+      ) {
         pushDiagnostic(
           diags,
           diagnostic(

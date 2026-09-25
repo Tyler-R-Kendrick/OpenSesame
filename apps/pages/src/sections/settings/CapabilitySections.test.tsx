@@ -1,9 +1,14 @@
+import {
+  FEATURES,
+  isSwitchable,
+} from "@opensesame/app-core/lib/capabilities/features.js";
 /** @vitest-environment jsdom */
 import { FIXTURE_MANAGED_POLICY } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
 import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import {
   guestsAllowed,
   setGuestsAllowed,
@@ -18,32 +23,41 @@ import {
   withReceipt,
 } from "./capabilities-panel.test-support.js";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
+installDoublePorts();
 
 installPanelFixture();
 
-describe("features — one switch per way of using the app", () => {
-  it("draws the features and no always-on capability as a switch", () => {
-    renderPanel();
-    const features = screen.getByRole("list", { name: "Features" });
-    for (const title of [
+describe("sections — one list, one style, a switch only where something is optional", () => {
+  it("draws every section once, as a subheader, never as a card row", () => {
+    const { container } = renderPanel();
+    const titles = [
+      ...container.querySelectorAll(".capsection .capsection__title"),
+    ].map((node) => node.textContent);
+    expect(titles).toEqual([
       "Guests",
-      "AI",
-      "Backups",
-      "Payments",
-      "Servers",
-      "Sharing",
-      "Networking",
-    ]) {
-      expect(features.textContent, title).toContain(title);
+      ...FEATURES.map((feature) => feature.title),
+      "Instance policy",
+    ]);
+    // No second list of capabilities, no card rows, nothing that collapses.
+    expect(container.querySelector(".capspanel__row")).toBeNull();
+    expect(container.querySelector("details")).toBeNull();
+    expect(screen.queryByText("Advanced")).toBeNull();
+    expect(
+      screen.queryByRole("list", { name: "Permitted catalog" }),
+    ).toBeNull();
+  });
+
+  it("puts the switch on the subheader of a section with optional capabilities, and none on an always-on one", () => {
+    const { container } = renderPanel();
+    for (const feature of FEATURES) {
+      const head = container.querySelector(
+        `#feature-${feature.id} > .capsection__head`,
+      );
+      expect(head, feature.id).not.toBeNull();
+      const switches = head?.querySelectorAll("[role=switch]").length ?? 0;
+      const marks = head?.querySelectorAll(".status-mark").length ?? 0;
+      if (isSwitchable(feature)) expect(switches + marks, feature.id).toBe(1);
+      else expect(switches + marks, feature.id).toBe(0);
     }
     expect(screen.queryByRole("switch", { name: "Passwords" })).toBeNull();
     expect(
@@ -51,7 +65,14 @@ describe("features — one switch per way of using the app", () => {
     ).toBeNull();
   });
 
-  it("switching a feature on reviews, then commits every capability behind it", async () => {
+  it("draws one Page toggle: the instance policy has no second one", () => {
+    renderPanel();
+    expect(
+      screen.getAllByRole("radiogroup", { name: "Capability view" }),
+    ).toHaveLength(1);
+  });
+
+  it("switching a section on reviews, then commits every capability behind it", async () => {
     renderPanel();
     const sharing = screen.getByRole("switch", { name: "Sharing" });
     expect(sharing.getAttribute("aria-checked")).toBe("false");
@@ -66,7 +87,7 @@ describe("features — one switch per way of using the app", () => {
     expect(selected).toContain("agents.webmcp");
   });
 
-  it("switching a running feature off removes it and keeps the rest", async () => {
+  it("switching a running section off removes it and keeps the rest", async () => {
     renderPanel();
     const ai = screen.getByRole("switch", { name: "AI" });
     expect(ai.getAttribute("aria-checked")).toBe("true");
@@ -78,7 +99,7 @@ describe("features — one switch per way of using the app", () => {
     );
   });
 
-  it("a partly-on feature switches off, and its own key completes it", async () => {
+  it("a partly-on section is completed from its tiles, and its switch turns it off", async () => {
     const selection = {
       ...PERSONAL_SELECTION,
       selectedOptional: ["sharing.drops"],
@@ -86,34 +107,35 @@ describe("features — one switch per way of using the app", () => {
     const exposure: Record<string, string> = {};
     for (const id of double.preview(selection).approvedCapabilities)
       exposure[id] = `sha256:fixture-${id}`;
-    resetDouble({
-      selection,
-      receipt: {
-        ...withReceipt(),
-        roots: selection.selectedOptional,
-        exposure,
-      },
-    });
+    const partly = () =>
+      resetDouble({
+        selection,
+        receipt: {
+          ...withReceipt(),
+          roots: selection.selectedOptional,
+          exposure,
+        },
+      });
+    partly();
     renderPanel();
-    const sharing = screen.getByRole("switch", { name: "Sharing" });
-    expect(sharing.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Turn on all of Sharing" }),
+    expect(
+      screen
+        .getByRole("switch", { name: "Sharing" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    const household = screen.getByRole("switch", { name: "Household sharing" });
+    expect(household.getAttribute("aria-checked")).toBe("false");
+    expect(household.getAttribute("data-capability-title")).toBe(
+      "Household sharing",
     );
+    fireEvent.click(household);
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).toContain(
       "sharing.household",
     );
     cleanup();
-    resetDouble({
-      selection,
-      receipt: {
-        ...withReceipt(),
-        roots: selection.selectedOptional,
-        exposure,
-      },
-    });
+    partly();
     renderPanel();
     fireEvent.click(screen.getByRole("switch", { name: "Sharing" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
@@ -123,41 +145,25 @@ describe("features — one switch per way of using the app", () => {
     );
   });
 
-  it("configures a feature's providers under it only while it is on", () => {
+  it("a one-capability section's subheader switch answers to that capability's title", () => {
     renderPanel();
-    // Backups is off: its git providers are not drawn.
-    expect(
-      screen.queryByRole("list", { name: "Backups providers" }),
-    ).toBeNull();
-    cleanup();
-    const selection = {
-      ...PERSONAL_SELECTION,
-      selectedOptional: ["backup.git-remote", "connectors.external"],
-    };
-    const exposure: Record<string, string> = {};
-    for (const id of double.preview(selection).approvedCapabilities)
-      exposure[id] = `sha256:fixture-${id}`;
-    resetDouble({
-      selection,
-      receipt: {
-        ...withReceipt(),
-        roots: selection.selectedOptional,
-        exposure,
-      },
-    });
+    const telemetry = screen.getByRole("switch", { name: "Telemetry" });
+    expect(telemetry.getAttribute("data-capability-title")).toBe(
+      "External telemetry",
+    );
+  });
+
+  it("draws a section's providers whether or not anything is switched on", () => {
     renderPanel();
     const tiles = screen.getByRole("list", { name: "Backups providers" });
     expect(tiles.textContent).toContain("GitHub");
     expect(tiles.textContent).toContain("GitLab");
-  });
-
-  it("configures the always-on providers with no switch", () => {
-    renderPanel();
-    const providers = screen.getByRole("region", { name: "Providers" });
-    expect(providers.textContent).toContain("Identity providers");
-    expect(providers.textContent).toContain("Password managers");
-    // A provider may carry its own enable switch (a backup road); a group
-    // never does.
+    // password-store is a git history road: it is a Backups tile, and Local
+    // storage no longer draws it a second time.
+    expect(tiles.textContent).toContain("password-store");
+    expect(
+      screen.getByRole("list", { name: "Local storage providers" }).textContent,
+    ).not.toContain("password-store");
     for (const group of ["Identity providers", "Password managers"]) {
       expect(screen.queryByRole("switch", { name: group })).toBeNull();
     }

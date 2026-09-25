@@ -24,7 +24,7 @@ import {
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
 import { IdentitySection } from "./IdentitySection.js";
-import { contributeIdentityViews } from "./identity/identity-views.js";
+import { contributeIdentityForTests } from "./identity/identity-test-support.js";
 
 import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
@@ -34,7 +34,7 @@ import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 let revokeIdentityViews: (() => void) | null = null;
 let undeclareTutorial: (() => void) | null = null;
 beforeEach(async () => {
-  revokeIdentityViews = contributeIdentityViews(IDENTITY_VIEWS);
+  revokeIdentityViews = contributeIdentityForTests(IDENTITY_VIEWS);
   undeclareTutorial = await declareTutorialForTest("identity.federation", {
     targets: IDENTITY_TARGETS,
     goals: IDENTITY_GOALS,

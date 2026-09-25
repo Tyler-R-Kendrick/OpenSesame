@@ -1,6 +1,7 @@
 /**
- * The seam module, doubled — what `vi.mock` returns for
- * `lib/configuration/capabilities-ports`. Test support only.
+ * The composition seam, doubled — what a suite installs behind
+ * `capabilityPorts` (`lib/configuration/capabilities-ports`). Test support
+ * only.
  */
 
 import type {
@@ -18,7 +19,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import type { ContributionEntry } from "../../capabilities/runtime-contract.js";
-import type { OutcomeView } from "../capabilities-ports.js";
+import type { CapabilityPorts, OutcomeView } from "../capabilities-ports.js";
 import type { CompositionDouble } from "./composition-double.js";
 import {
   FIXTURE_CATALOG,
@@ -149,8 +150,8 @@ export function contributionSourceDouble(double: CompositionDouble) {
   };
 }
 
-/** The module `vi.mock` hands to every importer of the seam. */
-export function fakePortsModule(double: CompositionDouble) {
+/** The ports every surface reads, over the double. */
+export function fakePortsModule(double: CompositionDouble): CapabilityPorts {
   return {
     compositionStore: double,
     contributionSource: contributionSourceDouble(double),

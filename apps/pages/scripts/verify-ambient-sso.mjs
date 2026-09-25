@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { isLinkCall } from "./lib/ambient-link-calls.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
@@ -326,11 +327,7 @@ async function fulfillToken(route, captured, privateKey) {
         await fulfillToken(route, captured, keys.privateKey);
         return "done";
       }
-      if (
-        /link-identities|federated-session|history|claimProvisional/i.test(
-          url.pathname,
-        )
-      ) {
+      if (isLinkCall(url, ORIGIN, BASE)) {
         counts.link += 1;
         await route.abort();
         return "done";

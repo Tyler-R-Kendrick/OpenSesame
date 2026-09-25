@@ -66,6 +66,11 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         "vault.certificate-records",
         "vault.interop-formats",
         "vault.passkey-records",
+        // Browser-local, always on (ADR 0142).
+        "backup.git-remote",
+        "identity.local-iam",
+        "identity.siop",
+        "identity.site-broker",
       ].sort(),
     );
   });
@@ -197,15 +202,11 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
   });
 
   it("descriptors are data: no functions anywhere", () => {
-    const walk = (value: unknown, path: string): void => {
-      expect(typeof value, path).not.toBe("function");
-      if (value && typeof value === "object") {
-        for (const [key, child] of Object.entries(value)) {
-          walk(child, `${path}.${key}`);
-        }
-      }
-    };
-    walk(CAPABILITY_CATALOG, "catalog");
+    // JSON drops a function (and anything else that is not data); a
+    // catalog that survives the round trip unchanged holds none.
+    expect(JSON.parse(JSON.stringify(CAPABILITY_CATALOG))).toStrictEqual(
+      CAPABILITY_CATALOG,
+    );
   });
 
   it("every exposure digest is sha256-prefixed and distinct per declared exposure", () => {

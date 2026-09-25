@@ -7,16 +7,29 @@
 // optional capability, and the moment a person adds one through Settings ›
 // Capabilities it is there. An absence alone proves nothing — a section can
 // vanish because it crashed — so each capability is checked both ways.
-// Always-on capabilities (ADR 0135) are the opposite claim: present with
-// nothing chosen, and never offered as a row.
+// Always-on capabilities (ADR 0135, 0142) are the opposite claim: present
+// with nothing chosen, and never offered a switch.
 
-import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
+import {
+  ALWAYS_ON_TITLES,
+  awaitCapabilitySections,
+  capabilityOffSwitch,
+  capabilitySwitch,
+} from "./always-on.mjs";
 
 /** Rail rows an installation that has approved nothing must not have. */
-const GATED_RAIL_ROWS = ["identity/", "wallet/"];
+const GATED_RAIL_ROWS = ["wallet/"];
 
-/** Rail rows of always-on capabilities (ADR 0135): there before any choice. */
-const ALWAYS_ON_RAIL_ROWS = ["connections/", "access/", "activity/"];
+/**
+ * Rail rows of always-on capabilities (ADR 0135): there before any choice.
+ * Identity is browser-local IAM's, always on since ADR 0142.
+ */
+const ALWAYS_ON_RAIL_ROWS = [
+  "identity/",
+  "connections/",
+  "access/",
+  "activity/",
+];
 
 /** A. Nothing optional is on the rail before anything is chosen. */
 export async function checkGatedSectionsAbsent(page, check) {
@@ -65,11 +78,14 @@ async function openCapabilities(page) {
  */
 export async function addCapability(page, check, snap, title, rail = null) {
   await openCapabilities(page);
-  await openAdvanced(page);
-  const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+  await awaitCapabilitySections(page);
+  const add = capabilityOffSwitch(page, title);
   if (ALWAYS_ON_TITLES.has(title)) {
-    // Always on: there is nothing to add, and no row offers to.
-    check((await add.count()) === 0, `${title} is always on, not an Add row`);
+    // Always on: there is nothing to add, and no switch offers to.
+    check(
+      (await capabilitySwitch(page, title).count()) === 0,
+      `${title} is always on, not a switch`,
+    );
     if (rail === null) return;
     const present = (
       await page.locator(".railtree__row").allTextContents()

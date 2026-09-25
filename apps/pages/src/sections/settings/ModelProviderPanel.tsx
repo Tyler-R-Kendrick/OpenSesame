@@ -50,8 +50,14 @@ function planeSentence(plane: ResolvedModelPlane): string {
 /**
  * Voice + inference role picks. Agent Harnesses configures hosted providers;
  * this panel only chooses which slug each role uses.
+ *
+ * `embedded`: drawn inside a section that already has its subheader (AI on
+ * Settings › Capabilities) — no second "Models" label that would read as a
+ * section of its own; the plane's mark moves into the tile.
  */
-export function ModelProviderPanel() {
+export function ModelProviderPanel({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
   const [record, setRecord] = useState<ModelProviderRecord>(NO_MODEL_PROVIDER);
   const [verdict, setVerdict] = useState<BrowserInferenceVerdict | null>(null);
   const [busy, setBusy] = useState(false);
@@ -110,34 +116,41 @@ export function ModelProviderPanel() {
   }, []);
 
   const plane = verdict ? resolveModelPlane(record, verdict) : null;
+  // No model is a choice the Inference select already shows, not an error:
+  // a red × by the heading read as a key that closed it.
+  const planeMark =
+    plane && plane.kind !== "none" ? (
+      <StatusMark tone="ok" label={planeSentence(plane)} />
+    ) : null;
 
+  const tile = (
+    <div className="conn-tile" id={embedded ? "model-provider" : undefined}>
+      <div className="conn-tile__body">
+        <ModelRoleSelects
+          record={record}
+          busy={busy}
+          voiceOptions={voiceOptions}
+          inferenceOptions={inferenceOptions}
+          onCommit={(next) => void commit(next)}
+        />
+        {embedded ? planeMark : null}
+        {flash ? (
+          <StatusMark
+            tone={flash.tone === "ok" ? "ok" : "err"}
+            label={flash.text}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+  if (embedded) return tile;
   return (
     <div className="conn-group" id="model-provider">
       <h3 className="conn-group__label">
         Models
-        {/* No model is a choice the Inference select already shows, not an
-            error: a red × by the heading read as a key that closed it. */}
-        {plane && plane.kind !== "none" ? (
-          <StatusMark tone="ok" label={planeSentence(plane)} />
-        ) : null}
+        {planeMark}
       </h3>
-      <div className="conn-tile">
-        <div className="conn-tile__body">
-          <ModelRoleSelects
-            record={record}
-            busy={busy}
-            voiceOptions={voiceOptions}
-            inferenceOptions={inferenceOptions}
-            onCommit={(next) => void commit(next)}
-          />
-          {flash ? (
-            <StatusMark
-              tone={flash.tone === "ok" ? "ok" : "err"}
-              label={flash.text}
-            />
-          ) : null}
-        </div>
-      </div>
+      {tile}
     </div>
   );
 }

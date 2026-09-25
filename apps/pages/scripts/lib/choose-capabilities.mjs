@@ -1,5 +1,10 @@
 import { expect } from "@playwright/test";
-import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
+import {
+  ALWAYS_ON_TITLES,
+  awaitCapabilitySections,
+  capabilityOffSwitch,
+  capabilityOnSwitch,
+} from "./always-on.mjs";
 
 const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
 
@@ -13,7 +18,7 @@ export async function unlockVault(page, password = "Cedar-lantern-47-river!") {
 
 /**
  * Choose capabilities on a seeded installation, by URL and through the real
- * Add and Apply.
+ * switch and Apply.
  *
  * The sections and the consent screen this suite drives belong to
  * capabilities, and a device that has not chosen one has no such route to
@@ -34,8 +39,8 @@ export async function chooseCapabilities(context, width, titles, base = BASE) {
     await page.goto(`${base}/settings/capabilities`);
     await unlockVault(page);
     await expect(page.getByTestId("capabilities-panel")).toBeVisible();
-    await openAdvanced(page);
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    await awaitCapabilitySections(page);
+    const add = capabilityOffSwitch(page, title);
     if ((await add.count()) > 0) {
       await add.click();
       const apply = page.getByTestId("capability-apply");
@@ -48,23 +53,17 @@ export async function chooseCapabilities(context, width, titles, base = BASE) {
     // Assert the postcondition, and say what the panel said when it fails:
     // a helper that skips silently reports success for a walk that then
     // fails somewhere else entirely, which is how this took a while to
-    // find. A row that still offers Add did not take; one that is running
-    // offers Disable instead.
-    const row = page.locator(".capspanel__row").filter({ hasText: title });
+    // find. A switch still off did not take; one that is running is on.
     const notice = page.locator(".capspanel__notice");
-    const state = `${await row.first().innerText()} — ${
-      (await notice.count()) ? await notice.first().innerText() : "no notice"
-    }`;
+    const state = (await notice.count())
+      ? await notice.first().innerText()
+      : "no notice";
     expect(
-      await page
-        .getByRole("button", { name: `Add ${title}`, exact: true })
-        .count(),
+      await capabilityOffSwitch(page, title).count(),
       `${title} was not taken: ${state}`,
     ).toBe(0);
     expect(
-      await page
-        .getByRole("button", { name: `Disable ${title} now`, exact: true })
-        .count(),
+      await capabilityOnSwitch(page, title).count(),
       `${title} is not running: ${state}`,
     ).toBe(1);
   }

@@ -39,11 +39,7 @@ import {
   MAX_CAPABILITY_DOCUMENT_BYTES,
   MAX_CAPABILITY_DOCUMENT_DEPTH,
 } from "./capabilities-keys.js";
-import {
-  parseInstallationSelection,
-  parseInstancePolicy,
-  parseVaultSelection,
-} from "./capabilities-ports.js";
+import { capabilityPorts } from "./capabilities-ports.js";
 import type { ConfigDiagnostic } from "./types.js";
 
 export type CapabilityDocumentResult<T> =
@@ -184,19 +180,19 @@ function through<T>(
 export function parseInstancePolicySource(
   source: string,
 ): CapabilityDocumentResult<InstanceCapabilityPolicy> {
-  return through(source, parseInstancePolicy);
+  return through(source, capabilityPorts.parseInstancePolicy);
 }
 
 export function parseInstallationSelectionSource(
   source: string,
 ): CapabilityDocumentResult<InstallationCapabilitySelection> {
-  return through(source, parseInstallationSelection);
+  return through(source, capabilityPorts.parseInstallationSelection);
 }
 
 export function parseVaultRestrictionSource(
   source: string,
 ): CapabilityDocumentResult<VaultCapabilitySelection> {
-  return through(source, parseVaultSelection);
+  return through(source, capabilityPorts.parseVaultSelection);
 }
 
 /** Recursively key-sorted copy, so two equal documents print alike. */

@@ -607,12 +607,18 @@ Do not add new top-level directories or loose root files — find the group.
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
   Most functions are **always-on** (`alwaysOn` in
-  `catalog-always-on.ts`, ADR 0135): core tier, never a switch, code still
-  loaded as a module after boot. An optional capability belongs to exactly
-  one **feature** in `packages/app-core/src/lib/capabilities/features.ts`
-  (AI, Backups, Payments, Servers, Sharing, Networking, Notifications,
-  Telemetry); Settings › Capabilities draws one switch per feature with its
-  providers under it, and the per-capability rows only under Advanced.
+  `catalog-always-on.ts` and `catalog-always-on-local.ts`, ADR 0135/0142):
+  core tier, never a switch, code still loaded as a module after boot.
+  Anything that runs entirely in the browser-local default install
+  (browser-local IAM, SIOP, the site broker, git backup) is always on, not an
+  opt-in the page reports as "deselected" — and an operator's verified policy
+  may still withdraw an always-on capability that owns a module (ADR 0142). Settings › Capabilities is **one
+  list of sections** (`FEATURES` in
+  `packages/app-core/src/lib/capabilities/features.ts`), every one drawn as a
+  `conn-group` subheader plus its tiles; a section with optional capabilities
+  carries its switch on the subheader (no card row, no collapsible, no
+  second per-capability list), and every optional capability and connector
+  family has exactly one section.
   Adding a feature is five things beside ADR 0065's registry entry: a
   descriptor in `packages/app-core/src/lib/capabilities/catalog-*.ts`, a module entry
   `apps/pages/src/modules/<capability-id>/runtime.ts` exporting

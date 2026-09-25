@@ -1,3 +1,4 @@
+import { backupEgressGate } from "./backup-egress-gate.js";
 /**
  * SPA backup observer: configure / enable / manual / vault mutation / webhook
  * nudges all route through one sync path when the bound target is enabled.
@@ -32,7 +33,13 @@ function statusKey(): string {
   return `${snap.tomb}:${snap.status}:${snap.items.length}:${snap.folders.length}`;
 }
 
+/** A push the device makes on its own, as opposed to one a person asked for. */
+const AUTOMATIC: ReadonlySet<BackupSyncReason> = new Set(["vault", "webhook"]);
+
 async function runSync(reason: BackupSyncReason): Promise<void> {
+  // Withdrawn by the operator: nothing, not even a sync asked for by hand.
+  if (!backupEgressGate.running()) return;
+  if (AUTOMATIC.has(reason) && !backupEgressGate.allowed()) return;
   const enabled = listLocalBackupTargets().filter((row) => row.enabled);
   if (enabled.length === 0) return;
   if (reason === "webhook" || reason === "vault" || reason === "configured") {
@@ -71,6 +78,7 @@ export function subscribeBackupSyncEvents(
 }
 
 async function pollWebhooks(): Promise<void> {
+  if (!backupEgressGate.allowed()) return;
   const count = await drainBackupWebhooks();
   if (count > 0) publishBackupSyncEvent("webhook");
 }
@@ -78,6 +86,11 @@ async function pollWebhooks(): Promise<void> {
 /** Idempotent — call once from the GitHub connector surface or app boot. */
 export function startVaultBackupObserver(): () => void {
   if (started) {
+    return () => undefined;
+  }
+  // Every caller — the capability's job, a Settings tile reading the status,
+  // a target being enabled — lands here, so the network envelope is held here.
+  if (!backupEgressGate.allowed()) {
     return () => undefined;
   }
   started = true;

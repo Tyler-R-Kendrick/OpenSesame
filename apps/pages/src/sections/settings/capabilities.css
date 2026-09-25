@@ -1,8 +1,8 @@
-/* Settings › Capabilities — the member view and the operator view. Rows
-   reuse the capability card geometry from the setup tab. */
+/* Settings › Capabilities — the page body, its Source and Effective views,
+   and the sections (drawn as the Connections catalogue's groups). */
 
-/* The member view is a \`<ul>\`: without this its cards sat 40px inside the
-   heading they belong to — the browser's list indent, on a list of cards. */
+/* The body is a grid with no list indent: a list inside it must not sit
+   40px inside the heading it belongs to. */
 .capspanel {
   display: grid;
   gap: 0.75rem;
@@ -10,41 +10,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.capspanel__row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 0.35rem 0.6rem;
-  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.capspanel__name {
-  display: grid;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.capspanel__name strong {
-  font-size: 0.9375rem;
-}
-
-.capspanel__name span {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.capspanel__side {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .capspanel__notice {
@@ -82,56 +47,51 @@
   min-width: 0;
 }
 
-/* Features: one row per way of using the app, providers under it while on. */
-.capfeatures {
+/* Sections: every one is the Connections catalogue's group — a subheader
+   and its tiles — so a section with a switch and one without read as the
+   same thing. The switch sits on the subheader; nothing collapses. */
+.capsections {
   display: grid;
-  gap: 0.5rem;
+  min-width: 0;
+}
+
+.capsection {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+/* The group label keeps its own margin; the section's gap spaces the rest. */
+.capsection > .conn-group__label {
+  margin-bottom: 0;
+}
+
+/* The heading is the label's text, in the label's type: a subheader, not a
+   title. The switch or mark after it sits at the far edge. */
+.capsection__title {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  min-width: 0;
+  font: inherit;
+  color: inherit;
 }
 
-.capfeature {
-  display: grid;
-  gap: 0.5rem;
-  min-width: 0;
+.capsection__head > :last-child:not(.capsection__title) {
+  margin-left: auto;
 }
 
-.capfeature__providers {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0 0 0.25rem 0.75rem;
-  border-left: 1px solid var(--line);
-  min-width: 0;
-}
-
-/* A feature whose categories hold no bundled provider drew its rule over
-   nothing — a 4px stub between Servers and Sharing. */
-.capfeature__providers:empty {
-  display: none;
-}
-
-.capproviders {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.capadvanced {
-  display: grid;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.capadvanced > summary {
-  cursor: pointer;
-  font-weight: 600;
-  min-height: 2.75rem;
-  display: flex;
+/* A mark only when it says what the switch cannot, then the switch. */
+.capsection__controls {
+  display: inline-flex;
   align-items: center;
+  gap: 0.4rem;
 }
 
-.capadvanced[open] > summary {
-  margin-bottom: 0.25rem;
+/* A capability tile is not a link: it carries its name and its switch. */
+.capsection__cap:hover {
+  background: none;
+}
+
+/* The instance policy follows the sections at the same 1.5rem rhythm the
+   groups keep between each other (the body's own gap is half of it). */
+.capsections + .capsection {
+  margin-top: 0.75rem;
 }

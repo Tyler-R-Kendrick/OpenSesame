@@ -32,8 +32,9 @@ import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
-import { useGuestRowShown } from "./settings/CapabilityFeatures.js";
+import { useGuestRowShown } from "./settings/CapabilitySwitch.js";
 import { useInstallPanelShown } from "./settings/InstallPanel.js";
+import { useDeviceOperator } from "./settings/useDeviceOperator.js";
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>
   import("./settings/transport/TransportPanel.js").then((module) => ({
@@ -158,9 +159,11 @@ export function SettingsSection({
 function SettingsPageIndex({ category }: { category: string }) {
   const install = useInstallPanelShown();
   const guests = useGuestRowShown();
+  const instancePolicy = useDeviceOperator();
   const entries =
-    settingsPageSources({ install, guests }).find((tab) => tab.id === category)
-      ?.sections ?? [];
+    settingsPageSources({ install, guests, instancePolicy }).find(
+      (tab) => tab.id === category,
+    )?.sections ?? [];
   return <PageIndex entries={entries} />;
 }
 

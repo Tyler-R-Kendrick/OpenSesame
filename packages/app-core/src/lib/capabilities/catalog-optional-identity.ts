@@ -1,7 +1,8 @@
 /**
- * Optional descriptors — the servers family: this device as an identity
- * host (browser-local IAM, SIOP, the site broker) and the enterprise
- * directory and certificate authority.
+ * Optional descriptors — the enterprise directory and certificate authority,
+ * the two that need a server someone runs (the Identity API, the Host). This
+ * device as an identity host (browser-local IAM, SIOP, the site broker) is
+ * always on (`catalog-always-on-local.ts`, ADR 0142).
  */
 
 import { type AuthoredDescriptor, optional } from "./descriptor.js";
@@ -13,61 +14,6 @@ const IDENTITY_API_EGRESS = {
 } as const;
 
 export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
-  optional(
-    "identity.local-iam",
-    "Browser-local IAM",
-    "This device as an identity host: the local directory of people, agents, devices and applications, local passkeys, application sign-in and grants.",
-    {
-      operationIds: [
-        "identity.local.agent.keys.manage",
-        "identity.local.application.authorize",
-        "identity.local.directory.manage",
-        "identity.local.passkeys.manage",
-      ],
-      egress: [
-        {
-          class: "user-mediated-navigation",
-          purpose: "the redirect back to a registered local application",
-          automatic: false,
-        },
-      ],
-      browserPermissions: ["webauthn"],
-      keyAccess: "protector-wrap",
-    },
-  ),
-  optional(
-    "identity.siop",
-    "Self-issued OpenID",
-    "Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.",
-    {
-      dependencies: ["identity.local-iam"],
-      operationIds: ["identity.local.siop.authorize"],
-      egress: [
-        {
-          class: "user-mediated-navigation",
-          purpose: "the fragment redirect back to the requesting application",
-          automatic: false,
-        },
-      ],
-      browserPermissions: ["webauthn"],
-    },
-  ),
-  optional(
-    "identity.site-broker",
-    "Sign-in broker for sites",
-    "Broker a brokered identity to approved relying sites over postMessage: the broker popup, the per-site consents and domain policy, and the static-auth SDK files this origin serves.",
-    {
-      egress: [
-        {
-          class: "user-mediated-navigation",
-          purpose: "postMessage delivery to a relying site's approved origin",
-          automatic: false,
-        },
-      ],
-      offlineLimits:
-        "A relying site can only be answered while the upstream broker is reachable.",
-    },
-  ),
   optional(
     "enterprise.directory-provisioning",
     "Directory provisioning",

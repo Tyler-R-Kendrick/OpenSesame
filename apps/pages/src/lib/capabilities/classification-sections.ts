@@ -88,7 +88,7 @@ export const SECTION_RULES = [
   ),
   ...each(
     "src/sections/identity/",
-    ["UsersPanel", "AgentsPanel", "DevicesPanel"],
+    ["UsersPanel", "AgentsPanel", "DevicesPanel", "directory-panels"],
     (p) =>
       optional(
         p,
