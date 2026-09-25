@@ -30,7 +30,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ceremonySteps, identityStub } from "./lib/capture-ceremony-steps.mjs";
+import * as ceremony from "./lib/capture-ceremony-steps.mjs";
 import { menuSteps } from "./lib/capture-menu-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -192,7 +192,7 @@ const STEPS = {
     }
   },
   ...menuSteps({ press }),
-  ...ceremonySteps({ press }),
+  ...ceremony.ceremonySteps({ press }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -353,15 +353,7 @@ async function capture(browser, into) {
         : phoneContext({ width: screen.width, height: screen.height }),
       remote,
     });
-    // A journey through an Identity-plane ceremony names a stand-in API.
-    const identityCalls = [];
-    if (journey.identityStub) {
-      await identityStub(page, {
-        origin: journey.identityStub,
-        pagesOrigin: origin,
-        calls: identityCalls,
-      });
-    }
+    await ceremony.journeyIdentityStub(page, journey, origin);
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.
@@ -376,7 +368,6 @@ async function capture(browser, into) {
       const [verb, argument] = Object.entries(step)[0];
       await STEPS[verb](page, argument);
     }
-    for (const call of identityCalls) console.log(`  identity: ${call}`);
     await context.close();
   }
 }

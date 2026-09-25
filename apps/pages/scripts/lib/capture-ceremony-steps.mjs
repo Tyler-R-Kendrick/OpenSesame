@@ -61,6 +61,22 @@ export async function identityStub(page, { origin, pagesOrigin, calls }) {
   });
 }
 
+/**
+ * A journey through an Identity-plane ceremony names a stand-in API
+ * (`journey.identityStub`): route it for this page and print each call it
+ * answers, as it answers it, so the capture log records what the page sent.
+ * No stand-in, no routing.
+ */
+export async function journeyIdentityStub(page, journey, pagesOrigin) {
+  if (!journey.identityStub) return;
+  const calls = { push: (call) => console.log(`  identity: ${call}`) };
+  await identityStub(page, {
+    origin: journey.identityStub,
+    pagesOrigin,
+    calls,
+  });
+}
+
 export function ceremonySteps({ press }) {
   return {
     /** Type into a labelled field and leave it, when this build has one. */
