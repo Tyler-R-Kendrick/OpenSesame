@@ -3,6 +3,7 @@ import {
   compositionStore,
   storeSeams,
 } from "@opensesame/app-core/lib/capabilities/store.js";
+import { takeDeviceArrival } from "@opensesame/app-core/lib/device-link.js";
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 /** @vitest-environment jsdom */
@@ -222,5 +223,21 @@ describe("pre-unlock boot path", () => {
     expect(snap.status).toBe("locked");
     expect(snap.header?.unlocks?.pin).toBeTruthy();
     expect(snap.header?.unlocks?.totp).toBeTruthy();
+  });
+
+  it("takes a device link out of the address before the first paint", async () => {
+    history.replaceState(null, "", "/?user_code=abcd-efgh&claim_id=clm_1");
+    await boot();
+    expect(`${location.pathname}${location.search}`).toBe("/device");
+    expect(takeDeviceArrival()).toEqual({
+      kind: "code",
+      userCode: "ABCD-EFGH",
+    });
+    // A sign-in callback's `?code=` is the router's, never a user code.
+    history.replaceState(null, "", "/?code=abc&state=xyz");
+    await boot();
+    expect(location.search).toBe("?code=abc&state=xyz");
+    expect(takeDeviceArrival()).toEqual({ kind: "none" });
+    history.replaceState(null, "", "/");
   });
 });

@@ -10,6 +10,7 @@ export const ALWAYS_ON_TITLES = new Set([
   "Cloud key services",
   "External connectors",
   "Access authority",
+  "Ceremonies",
   "Operator identity providers",
   "Ambient single sign-on",
   "Activity log",

@@ -1460,7 +1460,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "route:/identity",
+      pwa: "route:/device",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
