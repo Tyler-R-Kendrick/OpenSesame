@@ -1,6 +1,25 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 const ADR_CONNECTOR_DIRECTORY = "0115-front-door-and-connector-directory.md";
+const ADR_CONNECTOR_PLANS = "0146-connector-plans-and-user-token-proof.md";
+
+const CLIENT_REGISTRATION_IS_HUMAN: CapabilityExclusion = {
+  reason:
+    "creating or editing a connector registers an OAuth client or pastes a secret under the relay's management key; an agent surface that could do it could re-aim where people's tokens are minted",
+  adr: ADR_CONNECTOR_PLANS,
+};
+
+const CONSENT_IS_HUMAN: CapabilityExclusion = {
+  reason:
+    "authorizing a connector is the person's own consent at the provider, in their browser; an agent can ask for it through an interaction, never perform it",
+  adr: ADR_CONNECTOR_PLANS,
+};
+
+const PROOF_IS_OPERATOR_ONLY: CapabilityExclusion = {
+  reason:
+    "the proof spends the relay's management key to acquire a real token; it answers metadata only, and stays with the person who holds that key",
+  adr: ADR_CONNECTOR_PLANS,
+};
 
 const DIRECTORY_KEY_IS_A_CREDENTIAL: CapabilityExclusion = {
   reason:
@@ -49,4 +68,62 @@ export const connectorDirectoryCapabilities: readonly Capability[] = [
     },
     excluded: { webmcp: BINDING_IS_THE_PAM_DECISION },
   },
+];
+
+/**
+ * Connectors on Vercel Connect, built from their plans (ADR 0146): created
+ * with their whole OAuth / MCP / API-key configuration, authorized by a
+ * person for themselves, and proven by acquiring that person's token on the
+ * relay — which answers a fingerprint and the service's own verdict, never
+ * the token.
+ */
+export const connectPlanCapabilities: readonly Capability[] = [
+  {
+    id: "connectors.connect.configure",
+    title: "Create or edit a connector from its plan",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vercel-connect-manage.ts:createConfiguredConnector",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: CLIENT_REGISTRATION_IS_HUMAN },
+  },
+  {
+    id: "connectors.connect.authorize_user",
+    title: "Authorize a connector on behalf of the signed-in person",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vercel-connect-manage.ts:authorizeConnectorAs",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: CONSENT_IS_HUMAN },
+  },
+  {
+    id: "connectors.connect.token_check",
+    title: "Prove a person's connector token can be acquired",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vercel-connect-manage.ts:checkConnectorToken",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: PROOF_IS_OPERATOR_ONLY },
+  },
+];
+
+/** Every connector capability, directory and plans alike. */
+export const connectorCapabilities: readonly Capability[] = [
+  ...connectorDirectoryCapabilities,
+  ...connectPlanCapabilities,
 ];

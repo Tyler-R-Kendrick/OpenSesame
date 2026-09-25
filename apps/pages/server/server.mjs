@@ -25,6 +25,9 @@ const MANAGE_PATHS = new Set([
   "/api/connect/connectors",
   "/api/connect/authorize",
   "/api/connect/revoke",
+  "/api/connect/connector/read",
+  "/api/connect/connector/update",
+  "/api/connect/token-check",
 ]);
 
 const server = createServer((req, res) => {

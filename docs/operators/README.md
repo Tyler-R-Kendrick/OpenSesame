@@ -23,6 +23,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Browser-local IAM](browser-local-iam.md) | People, organizations and application sign-in kept inside the encrypted vault, with no service at all. |
 | [Ambient SSO](ambient-sso.md) | Opt-in automatic sign-in and the safe default account session. |
 | [Live provider verification](live-provider-verification.md) | Proving Google, Entra ID, GitHub and Apple sign-in against real providers. |
+| [Connectors on Vercel Connect](connect-connectors.md) | Creating a connector from its plan, authorizing as yourself, proving the user token, and granting access (ADR 0146). |
 | [Native SIOPv2 on Pages](siop-deployment.md) | Using the Pages vault as a Self-Issued OpenID Provider. |
 | [Host-to-Identity mapping](mapping-resolve.md) | How the Host resolves an upstream issuer and subject to a principal. |
 

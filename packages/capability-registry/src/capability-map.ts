@@ -95,6 +95,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "integrations.read": "connectors.external",
     "connectors.directory.sync": "connectors.external",
     "connectors.bind": "connectors.external",
+    "connectors.connect.configure": "connectors.external",
+    "connectors.connect.authorize_user": "connectors.external",
+    "connectors.connect.token_check": "connectors.external",
 
     // --- optional: git remote backup ------------------------------------
     "backup.status": "backup.git-remote",

@@ -3,7 +3,7 @@ import {
   accessPortalCapabilities,
 } from "./access-portal.js";
 import { backupSyncCapabilities } from "./backup-sync.js";
-import { connectorDirectoryCapabilities } from "./connectors.js";
+import { connectorCapabilities } from "./connectors.js";
 import { enrollmentCapabilities } from "./enrollment.js";
 import {
   ADR_AGENT_SURFACE_PARITY,
@@ -1381,7 +1381,7 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
   },
   ...identityManagementCapabilities,
-  ...connectorDirectoryCapabilities,
+  ...connectorCapabilities,
   {
     id: "identity.project.temporary",
     title: "Create a temporary project",

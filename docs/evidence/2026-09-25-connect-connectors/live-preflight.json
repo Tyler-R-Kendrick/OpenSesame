@@ -1,0 +1,1523 @@
+{
+  "ran_at": "2026-09-25T04:11:52.399Z",
+  "tally": {
+    "oauth:live": 44,
+    "oauth:needs_account_host": 6,
+    "oauth:live_unknown_client_404": 2,
+    "mcp:live": 98,
+    "mcp:no_oauth_metadata": 1,
+    "api-key:live": 66,
+    "api-key:needs_account_host": 3
+  },
+  "results": [
+    {
+      "service": "agentcard",
+      "kind": "oauth",
+      "authorize_status": 400,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "asana",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "auth0",
+      "kind": "oauth",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "bamboohr",
+      "kind": "oauth",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "beehiiv",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "bitbucket",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "box",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "calendly",
+      "kind": "oauth",
+      "authorize_status": 301,
+      "result": "live"
+    },
+    {
+      "service": "canva",
+      "kind": "oauth",
+      "authorize_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "clickup",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live"
+    },
+    {
+      "service": "codeberg",
+      "kind": "oauth",
+      "authorize_status": 303,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "convex",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live"
+    },
+    {
+      "service": "crowdin",
+      "kind": "oauth",
+      "authorize_status": 404,
+      "result": "live_unknown_client_404",
+      "token_status": 405
+    },
+    {
+      "service": "databricks",
+      "kind": "oauth",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "discord",
+      "kind": "oauth",
+      "authorize_status": 400,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "docusign",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "dropbox",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "figma",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "gitee",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "github",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "gitlab",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "google",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "harvest",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "hubspot",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live"
+    },
+    {
+      "service": "intercom",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "jira",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "linear",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "linkedin",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": "unavailable"
+    },
+    {
+      "service": "microsoft",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": "unavailable"
+    },
+    {
+      "service": "microsoft-teams",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": "unavailable"
+    },
+    {
+      "service": "monday",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "notion",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "okta",
+      "kind": "oauth",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "reddit",
+      "kind": "oauth",
+      "authorize_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "resend",
+      "kind": "oauth",
+      "authorize_status": 400,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "salesforce",
+      "kind": "oauth",
+      "authorize_status": 400,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "sanity",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "sentry",
+      "kind": "oauth",
+      "authorize_status": 400,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "shopify",
+      "kind": "oauth",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "slack",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live"
+    },
+    {
+      "service": "spotify",
+      "kind": "oauth",
+      "authorize_status": 303,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "twilio",
+      "kind": "oauth",
+      "authorize_status": 404,
+      "result": "live_unknown_client_404",
+      "token_status": 405,
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "twitch",
+      "kind": "oauth",
+      "authorize_status": 400,
+      "result": "live",
+      "discovery": "unavailable"
+    },
+    {
+      "service": "typeform",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "vercel",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "webflow",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "whoop",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": "unavailable"
+    },
+    {
+      "service": "workday",
+      "kind": "oauth",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "workos",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "x",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "zeplin",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live"
+    },
+    {
+      "service": "zoom",
+      "kind": "oauth",
+      "authorize_status": 302,
+      "result": "live",
+      "discovery": {
+        "authorization_endpoint_matches": true,
+        "token_endpoint_matches": true
+      }
+    },
+    {
+      "service": "adobe",
+      "kind": "mcp",
+      "url": "https://express-mcp-service.adobe.io/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "agentcard",
+      "kind": "mcp",
+      "url": "https://mcp.agentcard.sh/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "agentmail",
+      "kind": "mcp",
+      "url": "https://mcp.agentmail.to/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "airtable",
+      "kind": "mcp",
+      "url": "https://mcp.airtable.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "alchemy",
+      "kind": "mcp",
+      "url": "https://mcp.alchemy.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "amplitude",
+      "kind": "mcp",
+      "url": "https://mcp.amplitude.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "asana",
+      "kind": "mcp",
+      "url": "https://mcp.asana.com/v2/mcp",
+      "result": "live",
+      "registration": "manual"
+    },
+    {
+      "service": "attio",
+      "kind": "mcp",
+      "url": "https://mcp.attio.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "aweber",
+      "kind": "mcp",
+      "url": "https://mcp.aweber.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "axiom",
+      "kind": "mcp",
+      "url": "https://mcp.axiom.co/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "base44",
+      "kind": "mcp",
+      "url": "https://app.base44.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "beehiiv",
+      "kind": "mcp",
+      "url": "https://mcp.beehiiv.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "better-stack",
+      "kind": "mcp",
+      "url": "https://mcp.betterstack.com",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "biorender",
+      "kind": "mcp",
+      "url": "https://mcp.services.biorender.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "bitly",
+      "kind": "mcp",
+      "url": "https://api-ssl.bitly.com/v4/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "box",
+      "kind": "mcp",
+      "url": "https://mcp.box.com",
+      "result": "live",
+      "registration": "manual"
+    },
+    {
+      "service": "brand24",
+      "kind": "mcp",
+      "url": "https://mcp.brand24.com/v1/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "brex",
+      "kind": "mcp",
+      "url": "https://api.brex.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "candid",
+      "kind": "mcp",
+      "url": "https://mcp.candid.org/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "checkly",
+      "kind": "mcp",
+      "url": "https://api.checklyhq.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "clay",
+      "kind": "mcp",
+      "url": "https://api.clay.com/v3/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "clickhouse",
+      "kind": "mcp",
+      "url": "https://mcp.clickhouse.cloud/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "cloudflare",
+      "kind": "mcp",
+      "url": "https://mcp.cloudflare.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "cloudinary",
+      "kind": "mcp",
+      "url": "https://asset-management.mcp.cloudinary.com/sse",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "coda",
+      "kind": "mcp",
+      "url": "https://coda.io/apis/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "common-room",
+      "kind": "mcp",
+      "url": "https://mcp.commonroom.io/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "coupler-io",
+      "kind": "mcp",
+      "url": "https://mcp.coupler.io/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "crossbeam",
+      "kind": "mcp",
+      "url": "https://mcp.crossbeam.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "dex",
+      "kind": "mcp",
+      "url": "https://mcp.getdex.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "egnyte",
+      "kind": "mcp",
+      "url": "https://mcp-server.egnyte.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "embat",
+      "kind": "mcp",
+      "url": "https://tellme.embat.io/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "exa",
+      "kind": "mcp",
+      "url": "https://mcp.exa.ai/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "fathom",
+      "kind": "mcp",
+      "url": "https://api.fathom.ai/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "fireflies",
+      "kind": "mcp",
+      "url": "https://api.fireflies.ai/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "g2",
+      "kind": "mcp",
+      "url": "https://mcp.g2.com/mcp",
+      "result": "live",
+      "registration": "manual"
+    },
+    {
+      "service": "granola",
+      "kind": "mcp",
+      "url": "https://mcp.granola.ai/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "gusto",
+      "kind": "mcp",
+      "url": "https://mcp.api.gusto.com/anthropic",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "harmonic",
+      "kind": "mcp",
+      "url": "https://mcp.api.harmonic.ai",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "honeycomb",
+      "kind": "mcp",
+      "url": "https://mcp.honeycomb.io/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "hugging-face",
+      "kind": "mcp",
+      "url": "https://huggingface.co/mcp?login&gradio=none",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "indeed",
+      "kind": "mcp",
+      "url": "https://mcp.indeed.com/claude/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "intuit-mailchimp",
+      "kind": "mcp",
+      "url": "https://ai-inc.mailchimp.com/claude/mcp/v2",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "jira",
+      "kind": "mcp",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "jotform",
+      "kind": "mcp",
+      "url": "https://mcp.jotform.com/mcp-app",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "kernel",
+      "kind": "mcp",
+      "url": "https://mcp.onkernel.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "langsmith",
+      "kind": "mcp",
+      "url": "https://api.smith.langchain.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "linear",
+      "kind": "mcp",
+      "url": "https://mcp.linear.app/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "local-falcon",
+      "kind": "mcp",
+      "url": "https://mcp.localfalcon.com",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "logrocket",
+      "kind": "mcp",
+      "url": "https://mcp.logrocket.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "lovable",
+      "kind": "mcp",
+      "url": "https://api.lovable.dev/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "lucid",
+      "kind": "mcp",
+      "url": "https://mcp.lucid.app/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "make",
+      "kind": "mcp",
+      "url": "https://mcp.make.com",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "manufact",
+      "kind": "mcp",
+      "url": "https://mcp.manufact.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "mem0",
+      "kind": "mcp",
+      "url": "https://mcp.mem0.ai/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "miro",
+      "kind": "mcp",
+      "url": "https://mcp.miro.com/",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "mixpanel",
+      "kind": "mcp",
+      "url": "https://mcp.mixpanel.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "motherduck",
+      "kind": "mcp",
+      "url": "https://api.motherduck.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "netlify",
+      "kind": "mcp",
+      "url": "https://netlify-mcp.netlify.app/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "new-relic",
+      "kind": "mcp",
+      "url": "https://mcp.newrelic.com/mcp/",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "notion",
+      "kind": "mcp",
+      "url": "https://mcp.notion.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "oreilly",
+      "kind": "mcp",
+      "url": "https://api.oreilly.com/api/content-discovery/v1/mcp/",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "otter-ai",
+      "kind": "mcp",
+      "url": "https://mcp.otter.ai/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "pagerduty",
+      "kind": "mcp",
+      "url": "https://mcp.pagerduty.com/mcp",
+      "result": "live",
+      "registration": "manual"
+    },
+    {
+      "service": "paypal",
+      "kind": "mcp",
+      "url": "https://mcp.paypal.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "pendo",
+      "kind": "mcp",
+      "url": "https://app.pendo.io/mcp/v0/shttp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "planetscale",
+      "kind": "mcp",
+      "url": "https://mcp.pscale.dev/mcp/planetscale",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "posthog",
+      "kind": "mcp",
+      "url": "https://mcp.posthog.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "postman",
+      "kind": "mcp",
+      "url": "https://mcp.postman.com/minimal",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "pylon",
+      "kind": "mcp",
+      "url": "https://mcp.usepylon.com/",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "quartr",
+      "kind": "mcp",
+      "url": "https://mcp.quartr.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "quicknode",
+      "kind": "mcp",
+      "url": "https://mcp.quicknode.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "razorpay",
+      "kind": "mcp",
+      "url": "https://mcp.razorpay.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "read-ai",
+      "kind": "mcp",
+      "url": "https://api.read.ai/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "readwise",
+      "kind": "mcp",
+      "url": "https://mcp2.readwise.io/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "reclaim-ai",
+      "kind": "mcp",
+      "url": "https://mcp.reclaim.ai",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "resend",
+      "kind": "mcp",
+      "url": "https://mcp.resend.com",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "sanity",
+      "kind": "mcp",
+      "url": "https://mcp.sanity.io",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "sentry",
+      "kind": "mcp",
+      "url": "https://mcp.sentry.dev/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "serpstat",
+      "kind": "mcp",
+      "url": "https://mcp.serpstat.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "signnow",
+      "kind": "mcp",
+      "url": "https://mcp-server.signnow.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "similarweb",
+      "kind": "mcp",
+      "url": "https://mcp.similarweb.com",
+      "result": "no_oauth_metadata",
+      "registration": null
+    },
+    {
+      "service": "statsig",
+      "kind": "mcp",
+      "url": "https://api.statsig.com/v1/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "streak",
+      "kind": "mcp",
+      "url": "https://api.streak.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "stripe",
+      "kind": "mcp",
+      "url": "https://mcp.stripe.com",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "supabase",
+      "kind": "mcp",
+      "url": "https://mcp.supabase.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "superhuman-mail",
+      "kind": "mcp",
+      "url": "https://mcp.mail.superhuman.com/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "ticket-tailor",
+      "kind": "mcp",
+      "url": "https://mcp.tickettailor.ai/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "ticktick",
+      "kind": "mcp",
+      "url": "https://mcp.ticktick.com",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "todoist",
+      "kind": "mcp",
+      "url": "https://ai.todoist.net/mcp",
+      "result": "live",
+      "registration": "cimd"
+    },
+    {
+      "service": "vantage",
+      "kind": "mcp",
+      "url": "https://mcp.vantage.sh/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "vercel",
+      "kind": "mcp",
+      "url": "https://mcp.vercel.com",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "webflow",
+      "kind": "mcp",
+      "url": "https://mcp.webflow.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "whimsical",
+      "kind": "mcp",
+      "url": "https://mcp.whimsical.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "wix",
+      "kind": "mcp",
+      "url": "https://mcp.wix.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "xero",
+      "kind": "mcp",
+      "url": "https://mcp.xero.com/mcp",
+      "result": "live",
+      "registration": "manual"
+    },
+    {
+      "service": "zapier",
+      "kind": "mcp",
+      "url": "https://mcp.zapier.com/api/v1/connect",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "zernio",
+      "kind": "mcp",
+      "url": "https://mcp.zernio.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "zomato",
+      "kind": "mcp",
+      "url": "https://mcp-server.zomato.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "zoominfo",
+      "kind": "mcp",
+      "url": "https://mcp.zoominfo.com/mcp",
+      "result": "live",
+      "registration": "dcr"
+    },
+    {
+      "service": "agentmail",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "algolia",
+      "kind": "api-key",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "anthropic",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "assemblyai",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "bamboohr",
+      "kind": "api-key",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "beehiiv",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "brevo",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "buildkite",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "calendly",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "circleci",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "clerk",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "clickup",
+      "kind": "api-key",
+      "verify_status": 400,
+      "result": "live"
+    },
+    {
+      "service": "cloudflare-origin-ca",
+      "kind": "api-key",
+      "verify_status": 400,
+      "result": "live"
+    },
+    {
+      "service": "cohere",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "contentful",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "crowdin",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "datadog",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "deepgram",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "deepseek",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "digitalocean",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "doppler",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "dovetail",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "elevenlabs",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "exa",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "fathom",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "firecrawl",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "fireworks",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "gemini",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "gitlab",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "groq",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "huggingface",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "jev",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "kernel",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "launchdarkly",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "lemma",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "linear",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "lithic",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "mailgun",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "marqeta",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "messagebird",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "mistral",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "monday",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "n8n",
+      "kind": "api-key",
+      "result": "needs_account_host"
+    },
+    {
+      "service": "neon",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "newsapi",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "ngrok",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "notion",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "npm",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "openai",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "openrouter",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "perplexity",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "pinecone",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "postmark",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "privacy",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "railway",
+      "kind": "api-key",
+      "verify_status": 200,
+      "result": "live"
+    },
+    {
+      "service": "render",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "replicate",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "resend",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "sanity",
+      "kind": "api-key",
+      "verify_status": 200,
+      "result": "live"
+    },
+    {
+      "service": "segment",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "sendgrid",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "stability",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "stripe-issuing",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "telegram",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "tinybird",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "together",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "typeform",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "vercel",
+      "kind": "api-key",
+      "verify_status": 403,
+      "result": "live"
+    },
+    {
+      "service": "webflow",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    }
+  ]
+}

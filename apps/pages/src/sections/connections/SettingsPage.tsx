@@ -1,3 +1,4 @@
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
@@ -54,6 +55,16 @@ import {
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { YubikeyConnectPanel } from "./YubikeyConnectPanel.js";
+import { ConnectPanels } from "./connect/ConnectPanels.js";
+
+/**
+ * Connectors Vercel Connect carries get the plan-built pages (ADR 0146);
+ * GitHub keeps its App flow and the Git forges their backup form beside it.
+ */
+function connectOwned(providerId: string): "only" | "beside" | null {
+  if (providerId === "github" || !connectPlan(providerId)) return null;
+  return isGitBackupProvider(providerId) ? "beside" : "only";
+}
 
 /** One connector's page: authorize it, then decide who can use it and how. */
 export function ConnectorSettingsPage({
@@ -155,6 +166,7 @@ export function ConnectorSettingsPage({
   }
 
   const automatic = canConfigureAutomatically(provider);
+  const onConnect = connectOwned(provider.id);
   // GitHub App already on this device — no Connect chrome.
   const githubAppReady =
     provider.id === "github" &&
@@ -323,7 +335,7 @@ export function ConnectorSettingsPage({
             </details>
           ) : null}
         </section>
-      ) : githubAppReady ? null : (
+      ) : githubAppReady || onConnect === "only" ? null : (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <h2>Connect</h2>
@@ -364,6 +376,15 @@ export function ConnectorSettingsPage({
           )}
         </section>
       )}
+      {onConnect ? (
+        <ConnectPanels
+          provider={provider}
+          connection={connection}
+          online={online}
+          onFlash={onFlash}
+          onChanged={onChanged}
+        />
+      ) : null}
     </div>
   );
 }

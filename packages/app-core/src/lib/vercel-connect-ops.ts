@@ -41,11 +41,11 @@ export { isConnectConnector, usesConnect } from "./vercel-connect.js";
  * token, so the relay wants the operator's management key. It rides in the
  * header, from the sealed session record, and only on those three calls.
  */
-function relayMutation(body: JsonObject): RequestInit {
+export function relayMutation(body: JsonObject, method = "POST"): RequestInit {
   const headers = new Headers();
   const manageKey = vercelConnectSeams.auth()?.manageKey?.trim();
   if (manageKey) headers.set("authorization", `Bearer ${manageKey}`);
-  return { method: "POST", headers, body: JSON.stringify(body) };
+  return { method, headers, body: JSON.stringify(body) };
 }
 
 const TIMEOUT_MS = 8000;
@@ -55,7 +55,7 @@ type TeamQueryExtra = {
   projectId?: string;
 };
 
-function teamQuery(auth: VercelConnectAuth, extra: TeamQueryExtra = {}) {
+export function teamQuery(auth: VercelConnectAuth, extra: TeamQueryExtra = {}) {
   const params = new URLSearchParams();
   if (extra.limit) params.set("limit", extra.limit);
   if (extra.projectId) params.set("projectId", extra.projectId);
@@ -64,7 +64,7 @@ function teamQuery(auth: VercelConnectAuth, extra: TeamQueryExtra = {}) {
   return query ? `?${query}` : "";
 }
 
-async function connectFetch(
+export async function connectFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<BoundaryValue> {

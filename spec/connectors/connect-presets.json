@@ -1,0 +1,4780 @@
+{
+  "schema_version": 1,
+  "oauth": [
+    {
+      "service": "agentcard",
+      "server_url": "https://mcp.agentcard.sh/",
+      "discovery_url": "https://mcp.agentcard.sh/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://mcp.agentcard.sh/authorize",
+      "token_endpoint": "https://mcp.agentcard.sh/token",
+      "revocation_endpoint": "https://mcp.agentcard.sh/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "none",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": true,
+      "client_registration": "dcr",
+      "developer_console_url": null,
+      "docs_url": "https://docs.agentcard.sh/tools/mcp",
+      "verify": {
+        "method": "POST",
+        "url": "https://mcp.agentcard.sh/mcp",
+        "account_field": null
+      },
+      "probe_status": 400,
+      "confidence": "medium",
+      "sources": [
+        "https://mcp.agentcard.sh/.well-known/oauth-authorization-server",
+        "https://mcp.agentcard.sh/.well-known/oauth-protected-resource/mcp",
+        "https://docs.agentcard.sh/tools/mcp.md",
+        "https://docs.agentcard.sh/api-reference/overview.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "asana",
+      "server_url": "https://app.asana.com",
+      "discovery_url": "https://app.asana.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://app.asana.com/-/oauth_authorize",
+      "token_endpoint": "https://app.asana.com/-/oauth_token",
+      "revocation_endpoint": "https://app.asana.com/-/oauth_revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "users:read",
+          "description": "Read users",
+          "default": true
+        },
+        {
+          "name": "workspaces:read",
+          "description": "Read workspaces",
+          "default": false
+        },
+        {
+          "name": "projects:read",
+          "description": "Read projects",
+          "default": false
+        },
+        {
+          "name": "tasks:read",
+          "description": "Read tasks",
+          "default": false
+        },
+        {
+          "name": "tasks:write",
+          "description": "Create and edit tasks",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.asana.com/0/my-apps",
+      "docs_url": "https://developers.asana.com/docs/oauth",
+      "verify": {
+        "method": "GET",
+        "url": "https://app.asana.com/api/1.0/users/me",
+        "account_field": "data.name"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://app.asana.com/.well-known/oauth-authorization-server",
+        "https://developers.asana.com/docs/oauth-scopes"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "auth0",
+      "server_url": "https://{domain}/",
+      "discovery_url": "https://{domain}/.well-known/openid-configuration",
+      "authorization_endpoint": "https://{domain}/authorize",
+      "token_endpoint": "https://{domain}/oauth/token",
+      "revocation_endpoint": "https://{domain}/oauth/revoke",
+      "userinfo_endpoint": "https://{domain}/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Sign in and read the user id",
+          "default": true
+        },
+        {
+          "name": "profile",
+          "description": "Name, nickname and picture",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Issue a refresh token",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://manage.auth0.com/",
+      "docs_url": "https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow",
+      "verify": {
+        "method": "GET",
+        "url": "https://{domain}/userinfo",
+        "account_field": "email"
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "sources": [
+        "https://samples.auth0.com/.well-known/openid-configuration",
+        "https://auth0.com/docs/api/authentication"
+      ],
+      "template_params": [
+        {
+          "name": "domain",
+          "label": "Auth0 tenant domain",
+          "placeholder": "acme.us.auth0.com"
+        }
+      ]
+    },
+    {
+      "service": "bamboohr",
+      "server_url": "https://{domain}.bamboohr.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://{domain}.bamboohr.com/authorize.php?request=authorize",
+      "token_endpoint": "https://{domain}.bamboohr.com/token.php?request=token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "company:info",
+          "description": "Company name, domain and API base URL",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Issue a refresh token",
+          "default": true
+        },
+        {
+          "name": "openid",
+          "description": "OpenID Connect sign-in (id_token)",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "User email in the id_token",
+          "default": false
+        },
+        {
+          "name": "employee",
+          "description": "Read basic employee data",
+          "default": false
+        },
+        {
+          "name": "employee:job",
+          "description": "Read job information",
+          "default": false
+        },
+        {
+          "name": "employee:contact",
+          "description": "Read contact details",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://developers.bamboohr.com/",
+      "docs_url": "https://documentation.bamboohr.com/docs/getting-started",
+      "verify": {
+        "method": "GET",
+        "url": "https://{domain}.bamboohr.com/api/v1/meta/company",
+        "account_field": "name"
+      },
+      "probe_status": 302,
+      "confidence": "medium",
+      "sources": [
+        "https://documentation.bamboohr.com/docs/getting-started",
+        "https://documentation.bamboohr.com/reference/get-meta-company.md",
+        "https://documentation.bamboohr.com/llms.txt"
+      ],
+      "template_params": [
+        {
+          "name": "domain",
+          "label": "BambooHR company subdomain",
+          "placeholder": "acme"
+        }
+      ]
+    },
+    {
+      "service": "beehiiv",
+      "server_url": "https://app.beehiiv.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://app.beehiiv.com/oauth/authorize",
+      "token_endpoint": "https://app.beehiiv.com/oauth/token",
+      "revocation_endpoint": "https://app.beehiiv.com/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "identify:read",
+          "description": "Identify the authorizing user and workspace (default scope)",
+          "default": true
+        },
+        {
+          "name": "publications:read",
+          "description": "List publications",
+          "default": false
+        },
+        {
+          "name": "posts:read",
+          "description": "Read posts",
+          "default": false
+        },
+        {
+          "name": "posts:write",
+          "description": "Create and edit posts",
+          "default": false
+        },
+        {
+          "name": "subscriptions:read",
+          "description": "Read subscribers",
+          "default": false
+        },
+        {
+          "name": "subscriptions:write",
+          "description": "Create and update subscribers",
+          "default": false
+        },
+        {
+          "name": "webhooks:write",
+          "description": "Manage webhooks",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": null,
+      "docs_url": "https://developers.beehiiv.com/oauth2",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.beehiiv.com/v2/users/identify",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "medium",
+      "sources": [
+        "https://developers.beehiiv.com/oauth2.md",
+        "https://developers.beehiiv.com/oauth2/tokens/token.md",
+        "https://developers.beehiiv.com/oauth2/tokens/revoke.md",
+        "https://developers.beehiiv.com/api-reference/oauth-users/identify.md",
+        "https://mcp.beehiiv.com/.well-known/oauth-authorization-server"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "bitbucket",
+      "server_url": "https://bitbucket.org",
+      "discovery_url": null,
+      "authorization_endpoint": "https://bitbucket.org/site/oauth2/authorize",
+      "token_endpoint": "https://bitbucket.org/site/oauth2/access_token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "account",
+          "description": "Read your account",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "repository",
+          "description": "Read repositories",
+          "default": false
+        },
+        {
+          "name": "repository:write",
+          "description": "Push to repositories",
+          "default": false
+        },
+        {
+          "name": "pullrequest",
+          "description": "Read pull requests",
+          "default": false
+        },
+        {
+          "name": "issue",
+          "description": "Read issues",
+          "default": false
+        },
+        {
+          "name": "webhook",
+          "description": "Manage webhooks",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": null,
+      "docs_url": "https://developer.atlassian.com/cloud/bitbucket/oauth-2/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.bitbucket.org/2.0/user",
+        "account_field": "username"
+      },
+      "probe_status": 401,
+      "confidence": "medium",
+      "sources": [
+        "https://developer.atlassian.com/cloud/bitbucket/oauth-2/",
+        "https://support.atlassian.com/bitbucket-cloud/docs/use-oauth-on-bitbucket-cloud/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "box",
+      "server_url": "https://api.box.com",
+      "discovery_url": "https://account.box.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://account.box.com/api/oauth2/authorize",
+      "token_endpoint": "https://api.box.com/oauth2/token",
+      "revocation_endpoint": "https://api.box.com/oauth2/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "root_readonly",
+          "description": "Read all files and folders",
+          "default": true
+        },
+        {
+          "name": "root_readwrite",
+          "description": "Read and write all files and folders",
+          "default": false
+        },
+        {
+          "name": "manage_groups",
+          "description": "Manage groups",
+          "default": false
+        },
+        {
+          "name": "manage_webhook",
+          "description": "Manage webhooks",
+          "default": false
+        },
+        {
+          "name": "sign_requests.readwrite",
+          "description": "Box Sign requests",
+          "default": false
+        },
+        {
+          "name": "ai.readwrite",
+          "description": "Box AI",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.box.com/developers/console",
+      "docs_url": "https://developer.box.com/guides/authentication/oauth2/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.box.com/2.0/users/me",
+        "account_field": "login"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://account.box.com/.well-known/oauth-authorization-server"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "calendly",
+      "server_url": "https://auth.calendly.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://auth.calendly.com/oauth/authorize",
+      "token_endpoint": "https://auth.calendly.com/oauth/token",
+      "revocation_endpoint": "https://auth.calendly.com/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "users:read",
+          "description": "Read user information incl. /users/me",
+          "default": true
+        },
+        {
+          "name": "event_types:read",
+          "description": "Read event types and available times",
+          "default": false
+        },
+        {
+          "name": "scheduled_events:read",
+          "description": "Read scheduled events and invitees",
+          "default": false
+        },
+        {
+          "name": "availability:read",
+          "description": "Read availability schedules",
+          "default": false
+        },
+        {
+          "name": "organizations:read",
+          "description": "Read organization and memberships",
+          "default": false
+        },
+        {
+          "name": "webhooks:write",
+          "description": "Create and delete webhook subscriptions",
+          "default": false
+        },
+        {
+          "name": "scheduling_links:write",
+          "description": "Create single-use scheduling links",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://developer.calendly.com/console/apps",
+      "docs_url": "https://developer.calendly.com/docs/authentication/creating-an-oauth-app",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.calendly.com/users/me",
+        "account_field": "resource.email"
+      },
+      "probe_status": 301,
+      "confidence": "high",
+      "sources": [
+        "https://developer.calendly.com/docs/authentication/creating-an-oauth-app",
+        "https://developer.calendly.com/docs/authentication/scopes.md",
+        "https://developer.calendly.com/api-docs/calendly-o-auth/o-auth/post-oauth-refresh-token.md",
+        "https://developer.calendly.com/api-docs/calendly-o-auth/o-auth/post-oauth-revoke.md",
+        "https://calendly.com/.well-known/oauth-authorization-server"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "canva",
+      "server_url": "https://www.canva.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://www.canva.com/api/oauth/authorize",
+      "token_endpoint": "https://api.canva.com/rest/v1/oauth/token",
+      "revocation_endpoint": "https://api.canva.com/rest/v1/oauth/revoke",
+      "userinfo_endpoint": "https://api.canva.com/auth/v1/oidc/userinfo",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "profile:read",
+          "description": "Read the user's profile and account info",
+          "default": true
+        },
+        {
+          "name": "design:meta:read",
+          "description": "List designs and read metadata",
+          "default": false
+        },
+        {
+          "name": "design:content:read",
+          "description": "Read design contents / export",
+          "default": false
+        },
+        {
+          "name": "design:content:write",
+          "description": "Create designs",
+          "default": false
+        },
+        {
+          "name": "asset:read",
+          "description": "Read asset metadata",
+          "default": false
+        },
+        {
+          "name": "asset:write",
+          "description": "Upload and manage assets",
+          "default": false
+        },
+        {
+          "name": "folder:read",
+          "description": "Read folders and their contents",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://www.canva.com/developers/integrations/connect-api",
+      "docs_url": "https://www.canva.dev/docs/connect/authentication/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.canva.com/rest/v1/users/me/profile",
+        "account_field": "profile.display_name"
+      },
+      "probe_status": 403,
+      "confidence": "high",
+      "sources": [
+        "https://www.canva.com/.well-known/oauth-authorization-server",
+        "https://www.canva.com/.well-known/openid-configuration",
+        "https://www.canva.dev/docs/connect/authentication/",
+        "https://www.canva.dev/docs/connect/api-reference/authentication/generate-access-token/",
+        "https://www.canva.dev/docs/connect/api-reference/authentication/revoke-token/",
+        "https://www.canva.dev/docs/connect/appendix/scopes/",
+        "https://www.canva.dev/docs/connect/api-reference/users/users-profile/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "clickup",
+      "server_url": "https://api.clickup.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://app.clickup.com/api",
+      "token_endpoint": "https://api.clickup.com/api/v2/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.clickup.com/settings/apps",
+      "docs_url": "https://developer.clickup.com/docs/authentication",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.clickup.com/api/v2/user",
+        "account_field": "user.email"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://developer.clickup.com/docs/authentication",
+        "https://developer.clickup.com/reference/getaccesstoken",
+        "https://developer.clickup.com/reference/getauthorizeduser"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "codeberg",
+      "server_url": "https://codeberg.org",
+      "discovery_url": "https://codeberg.org/.well-known/openid-configuration",
+      "authorization_endpoint": "https://codeberg.org/login/oauth/authorize",
+      "token_endpoint": "https://codeberg.org/login/oauth/access_token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://codeberg.org/login/oauth/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": false
+        },
+        {
+          "name": "profile",
+          "description": "Name and username",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "read:user",
+          "description": "Read your user (Forgejo API)",
+          "default": true
+        },
+        {
+          "name": "read:repository",
+          "description": "Read repositories",
+          "default": false
+        },
+        {
+          "name": "write:repository",
+          "description": "Write repositories",
+          "default": false
+        },
+        {
+          "name": "read:organization",
+          "description": "Read organizations",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://codeberg.org/user/settings/applications",
+      "docs_url": "https://forgejo.org/docs/latest/user/oauth2-provider/",
+      "verify": {
+        "method": "GET",
+        "url": "https://codeberg.org/api/v1/user",
+        "account_field": "login"
+      },
+      "probe_status": 303,
+      "confidence": "medium",
+      "sources": [
+        "https://codeberg.org/.well-known/openid-configuration",
+        "https://forgejo.org/docs/latest/user/oauth2-provider/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "convex",
+      "server_url": "https://api.convex.dev",
+      "discovery_url": null,
+      "authorization_endpoint": "https://dashboard.convex.dev/oauth/authorize/team",
+      "token_endpoint": "https://api.convex.dev/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://dashboard.convex.dev/team/settings/applications/oauth-apps",
+      "docs_url": "https://docs.convex.dev/platform-apis/oauth-applications",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.convex.dev/v1/token_details",
+        "account_field": null
+      },
+      "probe_status": 200,
+      "confidence": "medium",
+      "sources": [
+        "https://docs.convex.dev/platform-apis/oauth-applications.md",
+        "https://docs.convex.dev/management-api/get-token-details"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "crowdin",
+      "server_url": "https://accounts.crowdin.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://accounts.crowdin.com/oauth/authorize",
+      "token_endpoint": "https://accounts.crowdin.com/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "user",
+          "description": "Read the authenticated user",
+          "default": true
+        },
+        {
+          "name": "project",
+          "description": "Full access to projects",
+          "default": true
+        },
+        {
+          "name": "project.source",
+          "description": "Project source files and strings",
+          "default": false
+        },
+        {
+          "name": "project.translation",
+          "description": "Project translations",
+          "default": false
+        },
+        {
+          "name": "tm",
+          "description": "Translation memories",
+          "default": false
+        },
+        {
+          "name": "glossary",
+          "description": "Glossaries",
+          "default": false
+        },
+        {
+          "name": "webhook",
+          "description": "Account webhooks",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://crowdin.com/settings",
+      "docs_url": "https://support.crowdin.com/developer/authorizing-oauth-apps/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.crowdin.com/api/v2/user",
+        "account_field": "data.username"
+      },
+      "probe_status": 404,
+      "confidence": "medium",
+      "sources": [
+        "https://support.crowdin.com/developer/authorizing-oauth-apps/",
+        "https://support.crowdin.com/developer/understanding-scopes/",
+        "https://support.crowdin.com/developer/creating-oauth-app/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "databricks",
+      "server_url": "https://{domain}",
+      "discovery_url": "https://{domain}/oidc/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://{domain}/oidc/v1/authorize",
+      "token_endpoint": "https://{domain}/oidc/v1/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "all-apis",
+          "description": "Call all Databricks REST APIs as the user",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Issue a refresh token",
+          "default": true
+        },
+        {
+          "name": "sql",
+          "description": "Databricks SQL only",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OpenID Connect sign-in",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email claim",
+          "default": false
+        },
+        {
+          "name": "profile",
+          "description": "Profile claims",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://accounts.cloud.databricks.com/",
+      "docs_url": "https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m",
+      "verify": {
+        "method": "GET",
+        "url": "https://{domain}/api/2.0/preview/scim/v2/Me",
+        "account_field": "userName"
+      },
+      "probe_status": 303,
+      "confidence": "high",
+      "sources": [
+        "https://community.cloud.databricks.com/oidc/.well-known/oauth-authorization-server",
+        "https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m",
+        "https://docs.databricks.com/aws/en/integrations/enable-disable-oauth"
+      ],
+      "template_params": [
+        {
+          "name": "domain",
+          "label": "Databricks workspace host",
+          "placeholder": "dbc-a1b2c3d4-e5f6.cloud.databricks.com"
+        }
+      ]
+    },
+    {
+      "service": "discord",
+      "server_url": "https://discord.com",
+      "discovery_url": "https://discord.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://discord.com/oauth2/authorize",
+      "token_endpoint": "https://discord.com/api/oauth2/token",
+      "revocation_endpoint": "https://discord.com/api/oauth2/token/revoke",
+      "userinfo_endpoint": "https://discord.com/api/oauth2/userinfo",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "identify",
+          "description": "Username and avatar",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "guilds",
+          "description": "List your servers",
+          "default": false
+        },
+        {
+          "name": "guilds.members.read",
+          "description": "Your member info in servers",
+          "default": false
+        },
+        {
+          "name": "connections",
+          "description": "Linked third-party accounts",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://discord.com/developers/applications",
+      "docs_url": "https://docs.discord.com/developers/topics/oauth2",
+      "verify": {
+        "method": "GET",
+        "url": "https://discord.com/api/users/@me",
+        "account_field": "username"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://discord.com/.well-known/openid-configuration",
+        "https://docs.discord.com/developers/topics/oauth2"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "docusign",
+      "server_url": "https://account.docusign.com/",
+      "discovery_url": "https://account.docusign.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://account.docusign.com/oauth/auth",
+      "token_endpoint": "https://account.docusign.com/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://account.docusign.com/oauth/userinfo",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "signature",
+          "description": "eSignature REST API access (required for most calls)",
+          "default": true
+        },
+        {
+          "name": "extended",
+          "description": "Extend refresh token lifetime on each use",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OpenID Connect sign-in",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "User email claim",
+          "default": false
+        },
+        {
+          "name": "organization_read",
+          "description": "Read organization (Admin API)",
+          "default": false
+        },
+        {
+          "name": "user_read",
+          "description": "Read users (Admin API)",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://admindemo.docusign.com/apps-and-keys",
+      "docs_url": "https://developers.docusign.com/platform/auth/confidential-authcode-get-token/",
+      "verify": {
+        "method": "GET",
+        "url": "https://account.docusign.com/oauth/userinfo",
+        "account_field": "email"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://account.docusign.com/.well-known/openid-configuration",
+        "https://account-d.docusign.com/.well-known/openid-configuration",
+        "https://developers.docusign.com/platform/auth/confidential-authcode-get-token/",
+        "https://developers.docusign.com/platform/auth/reference/scopes/",
+        "https://www.docusign.com/blog/developers/docusign-adds-support-pkce"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "dropbox",
+      "server_url": "https://www.dropbox.com",
+      "discovery_url": "https://www.dropbox.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://www.dropbox.com/oauth2/authorize",
+      "token_endpoint": "https://api.dropboxapi.com/oauth2/token",
+      "revocation_endpoint": "https://api.dropboxapi.com/2/auth/token/revoke",
+      "userinfo_endpoint": "https://api.dropboxapi.com/2/openid/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {
+        "token_access_type": "offline"
+      },
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "account_info.read",
+          "description": "Read basic account information",
+          "default": true
+        },
+        {
+          "name": "files.metadata.read",
+          "description": "List files and folders",
+          "default": false
+        },
+        {
+          "name": "files.content.read",
+          "description": "Download file contents",
+          "default": false
+        },
+        {
+          "name": "files.content.write",
+          "description": "Upload and edit files",
+          "default": false
+        },
+        {
+          "name": "sharing.read",
+          "description": "Read shared links and folders",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OpenID Connect sign-in",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email claim",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://www.dropbox.com/developers/apps",
+      "docs_url": "https://developers.dropbox.com/oauth-guide",
+      "verify": {
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/users/get_current_account",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://www.dropbox.com/.well-known/openid-configuration",
+        "https://developers.dropbox.com/oauth-guide",
+        "https://www.dropbox.com/developers/documentation/http/documentation"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "figma",
+      "server_url": "https://www.figma.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://www.figma.com/oauth",
+      "token_endpoint": "https://api.figma.com/v1/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://api.figma.com/v1/oauth/userinfo",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "current_user:read",
+          "description": "Read name, email and profile image",
+          "default": true
+        },
+        {
+          "name": "file_content:read",
+          "description": "Read file contents (nodes)",
+          "default": false
+        },
+        {
+          "name": "file_metadata:read",
+          "description": "Read file metadata",
+          "default": false
+        },
+        {
+          "name": "file_comments:read",
+          "description": "Read comments",
+          "default": false
+        },
+        {
+          "name": "file_comments:write",
+          "description": "Post and delete comments",
+          "default": false
+        },
+        {
+          "name": "projects:read",
+          "description": "List team projects and files",
+          "default": false
+        },
+        {
+          "name": "webhooks:write",
+          "description": "Create and manage webhooks",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://www.figma.com/developers/apps",
+      "docs_url": "https://developers.figma.com/docs/rest-api/oauth-apps/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.figma.com/v1/me",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://www.figma.com/.well-known/openid-configuration",
+        "https://developers.figma.com/docs/rest-api/oauth-apps/",
+        "https://developers.figma.com/docs/rest-api/scopes/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "gitee",
+      "server_url": "https://gitee.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://gitee.com/oauth/authorize",
+      "token_endpoint": "https://gitee.com/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "user_info",
+          "description": "Read user profile",
+          "default": true
+        },
+        {
+          "name": "emails",
+          "description": "Read email addresses",
+          "default": false
+        },
+        {
+          "name": "projects",
+          "description": "Access repositories",
+          "default": false
+        },
+        {
+          "name": "pull_requests",
+          "description": "Access pull requests",
+          "default": false
+        },
+        {
+          "name": "issues",
+          "description": "Access issues",
+          "default": false
+        },
+        {
+          "name": "notes",
+          "description": "Access comments",
+          "default": false
+        },
+        {
+          "name": "hook",
+          "description": "Manage webhooks",
+          "default": false
+        },
+        {
+          "name": "groups",
+          "description": "Access organizations",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://gitee.com/oauth/applications",
+      "docs_url": "https://gitee.com/api/v5/oauth_doc",
+      "verify": {
+        "method": "GET",
+        "url": "https://gitee.com/api/v5/user",
+        "account_field": "login"
+      },
+      "probe_status": 302,
+      "confidence": "medium",
+      "sources": [
+        "https://gitee.com/api/v5/oauth_doc",
+        "https://gitee.com/api/v5/swagger#/getV5User",
+        "https://github.com/bluelovers/gitee-api-token"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "github",
+      "server_url": "https://github.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://github.com/login/oauth/authorize",
+      "token_endpoint": "https://github.com/login/oauth/access_token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "read:user",
+          "description": "Read profile",
+          "default": true
+        },
+        {
+          "name": "user:email",
+          "description": "Email addresses",
+          "default": false
+        },
+        {
+          "name": "repo",
+          "description": "Full access to repositories",
+          "default": false
+        },
+        {
+          "name": "read:org",
+          "description": "Read org and team membership",
+          "default": false
+        },
+        {
+          "name": "gist",
+          "description": "Create gists",
+          "default": false
+        },
+        {
+          "name": "workflow",
+          "description": "Update Actions workflows",
+          "default": false
+        },
+        {
+          "name": "offline_access",
+          "description": "Expiring token plus refresh token",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://github.com/settings/applications/new",
+      "docs_url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.github.com/user",
+        "account_field": "login"
+      },
+      "probe_status": null,
+      "confidence": "high",
+      "sources": [
+        "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "gitlab",
+      "server_url": "https://gitlab.com",
+      "discovery_url": "https://gitlab.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://gitlab.com/oauth/authorize",
+      "token_endpoint": "https://gitlab.com/oauth/token",
+      "revocation_endpoint": "https://gitlab.com/oauth/revoke",
+      "userinfo_endpoint": "https://gitlab.com/oauth/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "read_user",
+          "description": "Read the authenticated user's profile",
+          "default": true
+        },
+        {
+          "name": "read_api",
+          "description": "Read-only API access",
+          "default": false
+        },
+        {
+          "name": "api",
+          "description": "Full read/write API access",
+          "default": false
+        },
+        {
+          "name": "read_repository",
+          "description": "Read repositories over Git/HTTP",
+          "default": false
+        },
+        {
+          "name": "write_repository",
+          "description": "Push to repositories",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OpenID Connect sign-in",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email claim",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://gitlab.com/-/user_settings/applications",
+      "docs_url": "https://docs.gitlab.com/api/oauth2/",
+      "verify": {
+        "method": "GET",
+        "url": "https://gitlab.com/api/v4/user",
+        "account_field": "username"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://gitlab.com/.well-known/openid-configuration",
+        "https://docs.gitlab.com/api/oauth2/",
+        "https://docs.gitlab.com/integration/oauth_provider/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "google",
+      "server_url": "https://accounts.google.com",
+      "discovery_url": "https://accounts.google.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+      "token_endpoint": "https://oauth2.googleapis.com/token",
+      "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
+      "userinfo_endpoint": "https://openidconnect.googleapis.com/v1/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true"
+      },
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Sign in with Google",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": true
+        },
+        {
+          "name": "profile",
+          "description": "Name and picture",
+          "default": false
+        },
+        {
+          "name": "https://www.googleapis.com/auth/drive.readonly",
+          "description": "Read Google Drive files",
+          "default": false
+        },
+        {
+          "name": "https://www.googleapis.com/auth/gmail.readonly",
+          "description": "Read Gmail messages",
+          "default": false
+        },
+        {
+          "name": "https://www.googleapis.com/auth/calendar.readonly",
+          "description": "Read calendars",
+          "default": false
+        },
+        {
+          "name": "https://www.googleapis.com/auth/spreadsheets",
+          "description": "Read and write Sheets",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://console.cloud.google.com/apis/credentials",
+      "docs_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "verify": {
+        "method": "GET",
+        "url": "https://openidconnect.googleapis.com/v1/userinfo",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://accounts.google.com/.well-known/openid-configuration",
+        "https://developers.google.com/identity/protocols/oauth2/web-server"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "harvest",
+      "server_url": "https://id.getharvest.com",
+      "discovery_url": "https://id.getharvest.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://id.getharvest.com/oauth2/authorize",
+      "token_endpoint": "https://id.getharvest.com/api/v2/oauth2/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "harvest:all",
+          "description": "All Harvest accounts the user can access",
+          "default": true
+        },
+        {
+          "name": "forecast:all",
+          "description": "All Forecast accounts the user can access",
+          "default": false
+        },
+        {
+          "name": "all",
+          "description": "All Harvest and Forecast accounts",
+          "default": false
+        },
+        {
+          "name": "harvest:{account_id}",
+          "description": "One specific Harvest account",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://id.getharvest.com/developers",
+      "docs_url": "https://help.getharvest.com/api-v2/authentication-api/authentication/authentication/",
+      "verify": {
+        "method": "GET",
+        "url": "https://id.getharvest.com/api/v2/accounts",
+        "account_field": "user.email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://id.getharvest.com/.well-known/oauth-authorization-server",
+        "https://help.getharvest.com/api-v2/authentication-api/authentication/authentication/"
+      ],
+      "template_params": [
+        {
+          "name": "account_id",
+          "label": "Account id",
+          "placeholder": ""
+        }
+      ]
+    },
+    {
+      "service": "hubspot",
+      "server_url": "https://app.hubspot.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://app.hubspot.com/oauth/authorize",
+      "token_endpoint": "https://api.hubapi.com/oauth/v3/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "oauth",
+          "description": "Required base scope for every app",
+          "default": true
+        },
+        {
+          "name": "crm.objects.contacts.read",
+          "description": "Read contacts",
+          "default": false
+        },
+        {
+          "name": "crm.objects.contacts.write",
+          "description": "Create and update contacts",
+          "default": false
+        },
+        {
+          "name": "crm.objects.companies.read",
+          "description": "Read companies",
+          "default": false
+        },
+        {
+          "name": "crm.objects.deals.read",
+          "description": "Read deals",
+          "default": false
+        },
+        {
+          "name": "crm.schemas.contacts.read",
+          "description": "Read contact properties",
+          "default": false
+        },
+        {
+          "name": "tickets",
+          "description": "Read and write tickets",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.hubspot.com/developer",
+      "docs_url": "https://developers.hubspot.com/docs/guides/apps/authentication/working-with-oauth",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.hubapi.com/account-info/v3/details",
+        "account_field": "portalId"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://app.hubspot.com/.well-known/oauth-authorization-server",
+        "https://developers.hubspot.com/docs/api-reference/auth-oauth-v1/guide",
+        "https://developers.hubspot.com/changelog/new-oauth-v3-api-endpoints-and-standardized-error-responses",
+        "https://developers.hubspot.com/docs/api-reference/auth-oauth-v3/public-token/post-oauth-v3-token-introspect",
+        "https://developers.hubspot.com/docs/api-reference/legacy/account/account-information/guide"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "intercom",
+      "server_url": "https://app.intercom.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://app.intercom.com/oauth",
+      "token_endpoint": "https://api.intercom.io/auth/eagle/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.intercom.com/a/apps/_/developer-hub",
+      "docs_url": "https://developers.intercom.com/docs/build-an-integration/learn-more/authentication/setting-up-oauth",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.intercom.io/me",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://developers.intercom.com/docs/build-an-integration/learn-more/authentication/setting-up-oauth",
+        "https://developers.intercom.com/docs/references/rest-api/api.intercom.io/admins/identifyadmin"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "jira",
+      "server_url": "https://auth.atlassian.com",
+      "discovery_url": "https://auth.atlassian.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://auth.atlassian.com/authorize",
+      "token_endpoint": "https://auth.atlassian.com/oauth/token",
+      "revocation_endpoint": "https://auth.atlassian.com/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {
+        "audience": "api.atlassian.com",
+        "prompt": "consent"
+      },
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "read:me",
+          "description": "Read the user's Atlassian profile (/me)",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Issue a refresh token",
+          "default": true
+        },
+        {
+          "name": "read:jira-work",
+          "description": "Read issues, projects and search",
+          "default": false
+        },
+        {
+          "name": "write:jira-work",
+          "description": "Create and edit issues and comments",
+          "default": false
+        },
+        {
+          "name": "read:jira-user",
+          "description": "Read user information",
+          "default": false
+        },
+        {
+          "name": "manage:jira-project",
+          "description": "Manage project settings",
+          "default": false
+        },
+        {
+          "name": "manage:jira-webhook",
+          "description": "Register webhooks",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://developer.atlassian.com/console/myapps/",
+      "docs_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.atlassian.com/me",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://auth.atlassian.com/.well-known/openid-configuration",
+        "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "linear",
+      "server_url": "https://api.linear.app",
+      "discovery_url": "https://api.linear.app/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://linear.app/oauth/authorize",
+      "token_endpoint": "https://api.linear.app/oauth/token",
+      "revocation_endpoint": "https://api.linear.app/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": ",",
+      "scopes": [
+        {
+          "name": "read",
+          "description": "Read access to the workspace (default)",
+          "default": true
+        },
+        {
+          "name": "write",
+          "description": "Write access to the workspace",
+          "default": false
+        },
+        {
+          "name": "issues:create",
+          "description": "Create issues and attachments",
+          "default": false
+        },
+        {
+          "name": "comments:create",
+          "description": "Create comments",
+          "default": false
+        },
+        {
+          "name": "timeSchedule:write",
+          "description": "Manage time schedules",
+          "default": false
+        },
+        {
+          "name": "admin",
+          "description": "Admin-level endpoints",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://linear.app/settings/api/applications/new",
+      "docs_url": "https://linear.app/developers/oauth-2-0-authentication",
+      "verify": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "account_field": "data.viewer.name",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"query\":\"{ viewer { id name email } }\"}"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://api.linear.app/.well-known/oauth-authorization-server",
+        "https://linear.app/developers/oauth-2-0-authentication"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "linkedin",
+      "server_url": "https://www.linkedin.com/oauth",
+      "discovery_url": "https://www.linkedin.com/oauth/.well-known/openid-configuration",
+      "authorization_endpoint": "https://www.linkedin.com/oauth/v2/authorization",
+      "token_endpoint": "https://www.linkedin.com/oauth/v2/accessToken",
+      "revocation_endpoint": "https://www.linkedin.com/oauth/v2/revoke",
+      "userinfo_endpoint": "https://api.linkedin.com/v2/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Sign in with LinkedIn (OIDC)",
+          "default": true
+        },
+        {
+          "name": "profile",
+          "description": "Name and photo",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Primary email address",
+          "default": true
+        },
+        {
+          "name": "w_member_social",
+          "description": "Post, comment and react as the member",
+          "default": false
+        }
+      ],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://www.linkedin.com/developers/apps",
+      "docs_url": "https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.linkedin.com/v2/userinfo",
+        "account_field": "email"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://www.linkedin.com/oauth/.well-known/openid-configuration",
+        "https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "microsoft",
+      "server_url": "https://login.microsoftonline.com/common/v2.0",
+      "discovery_url": "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+      "authorization_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://graph.microsoft.com/oidc/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "User.Read",
+          "description": "Sign in and read your profile",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Refresh token",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "Mail.Read",
+          "description": "Read mail",
+          "default": false
+        },
+        {
+          "name": "Calendars.Read",
+          "description": "Read calendars",
+          "default": false
+        },
+        {
+          "name": "Files.Read",
+          "description": "Read OneDrive files",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+      "docs_url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow",
+      "verify": {
+        "method": "GET",
+        "url": "https://graph.microsoft.com/v1.0/me",
+        "account_field": "userPrincipalName"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+        "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "microsoft-teams",
+      "server_url": "https://login.microsoftonline.com/common/v2.0",
+      "discovery_url": "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+      "authorization_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://graph.microsoft.com/oidc/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "User.Read",
+          "description": "Sign in and read your profile",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Refresh token",
+          "default": false
+        },
+        {
+          "name": "Team.ReadBasic.All",
+          "description": "List joined teams",
+          "default": false
+        },
+        {
+          "name": "Channel.ReadBasic.All",
+          "description": "List channels",
+          "default": false
+        },
+        {
+          "name": "ChannelMessage.Send",
+          "description": "Post channel messages",
+          "default": false
+        },
+        {
+          "name": "Chat.Read",
+          "description": "Read your chats",
+          "default": false
+        },
+        {
+          "name": "ChatMessage.Send",
+          "description": "Send chat messages",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+      "docs_url": "https://learn.microsoft.com/en-us/graph/teams-concept-overview",
+      "verify": {
+        "method": "GET",
+        "url": "https://graph.microsoft.com/v1.0/me",
+        "account_field": "userPrincipalName"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+        "https://learn.microsoft.com/en-us/graph/permissions-reference"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "monday",
+      "server_url": "https://auth.monday.com",
+      "discovery_url": "https://auth.monday.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://auth.monday.com/oauth2/authorize",
+      "token_endpoint": "https://auth.monday.com/oauth_ms/oauth/token",
+      "revocation_endpoint": "https://auth.monday.com/oauth_ms/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "me:read",
+          "description": "Read your own profile",
+          "default": true
+        },
+        {
+          "name": "boards:read",
+          "description": "Read boards and items",
+          "default": false
+        },
+        {
+          "name": "boards:write",
+          "description": "Create and update boards",
+          "default": false
+        },
+        {
+          "name": "items:read",
+          "description": "Read items",
+          "default": false
+        },
+        {
+          "name": "users:read",
+          "description": "Read account users",
+          "default": false
+        },
+        {
+          "name": "workspaces:read",
+          "description": "Read workspaces",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://monday.com/developers/apps",
+      "docs_url": "https://developer.monday.com/apps/docs/migrating-to-the-new-oauth-flow",
+      "verify": {
+        "method": "POST",
+        "url": "https://api.monday.com/v2",
+        "account_field": "data.me.name",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"query\":\"query { me { id name email } }\"}"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://auth.monday.com/.well-known/oauth-authorization-server",
+        "https://developer.monday.com/apps/docs/migrating-to-the-new-oauth-flow",
+        "https://developer.monday.com/apps/docs/oauth"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "notion",
+      "server_url": "https://api.notion.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://api.notion.com/v1/oauth/authorize",
+      "token_endpoint": "https://api.notion.com/v1/oauth/token",
+      "revocation_endpoint": "https://api.notion.com/v1/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "none",
+      "authorization_params": {
+        "owner": "user"
+      },
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://www.notion.so/profile/integrations",
+      "docs_url": "https://developers.notion.com/docs/authorization",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.notion.com/v1/users/me",
+        "account_field": "name",
+        "headers": {
+          "Notion-Version": "2022-06-28"
+        }
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://developers.notion.com/docs/authorization",
+        "https://developers.notion.com/reference/revoke-token"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "okta",
+      "server_url": "https://{domain}",
+      "discovery_url": "https://{domain}/.well-known/openid-configuration",
+      "authorization_endpoint": "https://{domain}/oauth2/v1/authorize",
+      "token_endpoint": "https://{domain}/oauth2/v1/token",
+      "revocation_endpoint": "https://{domain}/oauth2/v1/revoke",
+      "userinfo_endpoint": "https://{domain}/oauth2/v1/userinfo",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": false
+        },
+        {
+          "name": "profile",
+          "description": "Name and username",
+          "default": false
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "offline_access",
+          "description": "Refresh token",
+          "default": false
+        },
+        {
+          "name": "okta.users.read.self",
+          "description": "Read your own Okta user",
+          "default": true
+        },
+        {
+          "name": "okta.users.read",
+          "description": "Read users in the org",
+          "default": false
+        },
+        {
+          "name": "okta.groups.read",
+          "description": "Read groups",
+          "default": false
+        },
+        {
+          "name": "okta.apps.read",
+          "description": "Read app integrations",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://{domain}/admin/apps/active",
+      "docs_url": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/main/",
+      "verify": {
+        "method": "GET",
+        "url": "https://{domain}/api/v1/users/me",
+        "account_field": "profile.login"
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "sources": [
+        "https://okta.okta.com/.well-known/openid-configuration",
+        "https://developer.okta.com/docs/guides/implement-oauth-for-okta/main/"
+      ],
+      "template_params": [
+        {
+          "name": "domain",
+          "label": "Okta org domain",
+          "placeholder": "acme.okta.com"
+        }
+      ]
+    },
+    {
+      "service": "reddit",
+      "server_url": "https://www.reddit.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://www.reddit.com/api/v1/authorize",
+      "token_endpoint": "https://www.reddit.com/api/v1/access_token",
+      "revocation_endpoint": "https://www.reddit.com/api/v1/revoke_token",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "none",
+      "authorization_params": {
+        "duration": "permanent"
+      },
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "identity",
+          "description": "Username and account info",
+          "default": true
+        },
+        {
+          "name": "read",
+          "description": "Read posts and comments",
+          "default": false
+        },
+        {
+          "name": "history",
+          "description": "Voting and saved history",
+          "default": false
+        },
+        {
+          "name": "mysubreddits",
+          "description": "Subscribed subreddits",
+          "default": false
+        },
+        {
+          "name": "submit",
+          "description": "Submit links and comments",
+          "default": false
+        },
+        {
+          "name": "privatemessages",
+          "description": "Read and send messages",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://www.reddit.com/prefs/apps",
+      "docs_url": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+      "verify": {
+        "method": "GET",
+        "url": "https://oauth.reddit.com/api/v1/me",
+        "account_field": "name"
+      },
+      "probe_status": 403,
+      "confidence": "medium",
+      "sources": ["https://github.com/reddit-archive/reddit/wiki/OAuth2"],
+      "template_params": []
+    },
+    {
+      "service": "resend",
+      "server_url": "https://api.resend.com",
+      "discovery_url": "https://api.resend.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://api.resend.com/oauth/authorize",
+      "token_endpoint": "https://api.resend.com/oauth/token",
+      "revocation_endpoint": "https://api.resend.com/oauth/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "none",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "full_access",
+          "description": "All API routes",
+          "default": true
+        },
+        {
+          "name": "emails:send",
+          "description": "Send emails and broadcasts only",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "cimd",
+      "developer_console_url": null,
+      "docs_url": "https://resend.com/docs/guides/building-a-resend-oauth-client",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.resend.com/domains",
+        "account_field": null
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "sources": [
+        "https://api.resend.com/.well-known/oauth-authorization-server",
+        "https://resend.com/docs/guides/building-a-resend-oauth-client.md",
+        "https://mcp.resend.com/.well-known/oauth-protected-resource"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "salesforce",
+      "server_url": "https://login.salesforce.com",
+      "discovery_url": "https://login.salesforce.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://login.salesforce.com/services/oauth2/authorize",
+      "token_endpoint": "https://login.salesforce.com/services/oauth2/token",
+      "revocation_endpoint": "https://login.salesforce.com/services/oauth2/revoke",
+      "userinfo_endpoint": "https://login.salesforce.com/services/oauth2/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "id",
+          "description": "Identity URL and basic profile",
+          "default": true
+        },
+        {
+          "name": "api",
+          "description": "REST and Bulk API access",
+          "default": false
+        },
+        {
+          "name": "refresh_token",
+          "description": "Refresh token (offline access)",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OIDC ID token",
+          "default": false
+        },
+        {
+          "name": "web",
+          "description": "Web browser access",
+          "default": false
+        },
+        {
+          "name": "full",
+          "description": "Full access",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://login.salesforce.com/lightning/setup/NavigationMenus/home",
+      "docs_url": "https://help.salesforce.com/s/articleView?id=xcloud.remoteaccess_oauth_web_server_flow.htm",
+      "verify": {
+        "method": "GET",
+        "url": "https://login.salesforce.com/services/oauth2/userinfo",
+        "account_field": "preferred_username"
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "sources": [
+        "https://login.salesforce.com/.well-known/openid-configuration"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "sanity",
+      "server_url": "https://api.sanity.io",
+      "discovery_url": null,
+      "authorization_endpoint": "https://api.sanity.io/v2021-06-07/auth/oauth/authorize",
+      "token_endpoint": "https://api.sanity.io/v2021-06-07/auth/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": null,
+      "docs_url": "https://www.sanity.io/docs/oauth2",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.sanity.io/v2021-06-07/users/me",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "medium",
+      "sources": [
+        "https://www.sanity.io/docs/oauth2",
+        "https://mcp.sanity.io/.well-known/oauth-authorization-server"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "sentry",
+      "server_url": "https://sentry.io",
+      "discovery_url": "https://sentry.io/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://sentry.io/oauth/authorize/",
+      "token_endpoint": "https://sentry.io/oauth/token/",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "org:read",
+          "description": "Read organizations",
+          "default": true
+        },
+        {
+          "name": "project:read",
+          "description": "Read projects",
+          "default": false
+        },
+        {
+          "name": "event:read",
+          "description": "Read issues and events",
+          "default": false
+        },
+        {
+          "name": "team:read",
+          "description": "Read teams",
+          "default": false
+        },
+        {
+          "name": "member:read",
+          "description": "Read members",
+          "default": false
+        },
+        {
+          "name": "project:releases",
+          "description": "Manage releases",
+          "default": false
+        },
+        {
+          "name": "event:write",
+          "description": "Update issues",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://sentry.io/settings/account/api/applications/",
+      "docs_url": "https://docs.sentry.io/api/auth/",
+      "verify": {
+        "method": "GET",
+        "url": "https://sentry.io/api/0/organizations/",
+        "account_field": "0.slug"
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "sources": [
+        "https://sentry.io/.well-known/oauth-authorization-server",
+        "https://docs.sentry.io/api/auth/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "shopify",
+      "server_url": "https://{shop}",
+      "discovery_url": null,
+      "authorization_endpoint": "https://{shop}/admin/oauth/authorize",
+      "token_endpoint": "https://{shop}/admin/oauth/access_token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": ",",
+      "scopes": [
+        {
+          "name": "read_products",
+          "description": "Read products",
+          "default": true
+        },
+        {
+          "name": "write_products",
+          "description": "Edit products",
+          "default": false
+        },
+        {
+          "name": "read_orders",
+          "description": "Read orders",
+          "default": false
+        },
+        {
+          "name": "write_orders",
+          "description": "Edit orders",
+          "default": false
+        },
+        {
+          "name": "read_customers",
+          "description": "Read customers",
+          "default": false
+        },
+        {
+          "name": "read_inventory",
+          "description": "Read inventory",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://dev.shopify.com/dashboard",
+      "docs_url": "https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant",
+      "verify": {
+        "method": "GET",
+        "url": "https://{shop}/admin/oauth/access_scopes.json",
+        "account_field": null,
+        "header": "X-Shopify-Access-Token",
+        "scheme": null
+      },
+      "probe_status": 303,
+      "confidence": "high",
+      "sources": [
+        "https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant"
+      ],
+      "template_params": [
+        {
+          "name": "shop",
+          "label": "Shop domain",
+          "placeholder": "acme.myshopify.com"
+        }
+      ]
+    },
+    {
+      "service": "slack",
+      "server_url": "https://slack.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://slack.com/oauth/v2/authorize",
+      "token_endpoint": "https://slack.com/api/oauth.v2.access",
+      "revocation_endpoint": "https://slack.com/api/auth.revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {
+        "user_scope": "users:read"
+      },
+      "scope_separator": ",",
+      "scopes": [
+        {
+          "name": "users:read",
+          "description": "Bot: list workspace members",
+          "default": true
+        },
+        {
+          "name": "channels:read",
+          "description": "Bot: list public channels",
+          "default": false
+        },
+        {
+          "name": "channels:history",
+          "description": "Bot: read public channel messages",
+          "default": false
+        },
+        {
+          "name": "chat:write",
+          "description": "Bot: post messages",
+          "default": false
+        },
+        {
+          "name": "team:read",
+          "description": "Bot: workspace name and domain",
+          "default": false
+        },
+        {
+          "name": "groups:read",
+          "description": "Bot: list private channels",
+          "default": false
+        }
+      ],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://api.slack.com/apps",
+      "docs_url": "https://docs.slack.dev/authentication/installing-with-oauth",
+      "verify": {
+        "method": "POST",
+        "url": "https://slack.com/api/auth.test",
+        "account_field": "team"
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://docs.slack.dev/authentication/installing-with-oauth"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "spotify",
+      "server_url": "https://accounts.spotify.com",
+      "discovery_url": "https://accounts.spotify.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://accounts.spotify.com/authorize",
+      "token_endpoint": "https://accounts.spotify.com/api/token",
+      "revocation_endpoint": "https://accounts.spotify.com/oauth2/revoke/v1",
+      "userinfo_endpoint": "https://accounts.spotify.com/oidc/userinfo/v1",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "user-read-private",
+          "description": "Profile, country and subscription",
+          "default": true
+        },
+        {
+          "name": "user-read-email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "playlist-read-private",
+          "description": "Private playlists",
+          "default": false
+        },
+        {
+          "name": "user-library-read",
+          "description": "Saved tracks and albums",
+          "default": false
+        },
+        {
+          "name": "user-read-playback-state",
+          "description": "Current playback",
+          "default": false
+        },
+        {
+          "name": "user-modify-playback-state",
+          "description": "Control playback",
+          "default": false
+        },
+        {
+          "name": "user-top-read",
+          "description": "Top artists and tracks",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://developer.spotify.com/dashboard",
+      "docs_url": "https://developer.spotify.com/documentation/web-api/tutorials/code-flow",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.spotify.com/v1/me",
+        "account_field": "display_name"
+      },
+      "probe_status": 303,
+      "confidence": "high",
+      "sources": [
+        "https://accounts.spotify.com/.well-known/oauth-authorization-server",
+        "https://accounts.spotify.com/.well-known/openid-configuration"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "twilio",
+      "server_url": "https://oauth.twilio.com",
+      "discovery_url": "https://oauth.twilio.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://oauth.twilio.com/v2/authorize",
+      "token_endpoint": "https://oauth.twilio.com/v2/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "offline_access",
+          "description": "Refresh token; API permissions are chosen on the OAuth app",
+          "default": true
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://console.twilio.com/",
+      "docs_url": "https://www.twilio.com/docs/iam/oauth-apps/org-oauth-apps",
+      "verify": {
+        "method": "GET",
+        "url": "https://iam.twilio.com/scim/v2/Users",
+        "account_field": null
+      },
+      "probe_status": 400,
+      "confidence": "low",
+      "sources": [
+        "https://oauth.twilio.com/.well-known/oauth-authorization-server",
+        "https://www.twilio.com/docs/iam/oauth-apps/org-oauth-apps",
+        "https://www.twilio.com/docs/iam/oauth-apps/oauth-access-token",
+        "https://www.twilio.com/docs/iam/oauth-apps/account-oauth-apps"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "twitch",
+      "server_url": "https://id.twitch.tv/oauth2",
+      "discovery_url": "https://id.twitch.tv/oauth2/.well-known/openid-configuration",
+      "authorization_endpoint": "https://id.twitch.tv/oauth2/authorize",
+      "token_endpoint": "https://id.twitch.tv/oauth2/token",
+      "revocation_endpoint": "https://id.twitch.tv/oauth2/revoke",
+      "userinfo_endpoint": "https://id.twitch.tv/oauth2/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "OIDC; enables userinfo",
+          "default": true
+        },
+        {
+          "name": "user:read:email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "user:read:follows",
+          "description": "Followed channels",
+          "default": false
+        },
+        {
+          "name": "channel:read:subscriptions",
+          "description": "Channel subscribers",
+          "default": false
+        },
+        {
+          "name": "chat:read",
+          "description": "Read chat",
+          "default": false
+        },
+        {
+          "name": "chat:edit",
+          "description": "Send chat messages",
+          "default": false
+        },
+        {
+          "name": "moderator:read:followers",
+          "description": "Channel followers",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://dev.twitch.tv/console/apps",
+      "docs_url": "https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/",
+      "verify": {
+        "method": "GET",
+        "url": "https://id.twitch.tv/oauth2/userinfo",
+        "account_field": "preferred_username"
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "sources": [
+        "https://id.twitch.tv/oauth2/.well-known/openid-configuration"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "typeform",
+      "server_url": "https://api.typeform.com",
+      "discovery_url": "https://api.typeform.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://admin.typeform.com/oauth/authorize",
+      "token_endpoint": "https://api.typeform.com/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "accounts:read",
+          "description": "Account info",
+          "default": true
+        },
+        {
+          "name": "forms:read",
+          "description": "Read forms",
+          "default": false
+        },
+        {
+          "name": "forms:write",
+          "description": "Create and edit forms",
+          "default": false
+        },
+        {
+          "name": "responses:read",
+          "description": "Read responses",
+          "default": false
+        },
+        {
+          "name": "workspaces:read",
+          "description": "Read workspaces",
+          "default": false
+        },
+        {
+          "name": "webhooks:write",
+          "description": "Manage webhooks",
+          "default": false
+        },
+        {
+          "name": "offline",
+          "description": "Refresh token (discovery lists offline_access)",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://admin.typeform.com/",
+      "docs_url": "https://www.typeform.com/developers/get-started/applications/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.typeform.com/me",
+        "account_field": "alias"
+      },
+      "probe_status": 302,
+      "confidence": "medium",
+      "sources": [
+        "https://api.typeform.com/.well-known/oauth-authorization-server",
+        "https://www.typeform.com/developers/get-started/applications/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "vercel",
+      "server_url": "https://vercel.com",
+      "discovery_url": "https://vercel.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://vercel.com/oauth/authorize",
+      "token_endpoint": "https://api.vercel.com/login/oauth/token",
+      "revocation_endpoint": "https://api.vercel.com/login/oauth/token/revoke",
+      "userinfo_endpoint": "https://api.vercel.com/login/oauth/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "ID token",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": false
+        },
+        {
+          "name": "profile",
+          "description": "Name, username, avatar",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Refresh token",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://vercel.com/dashboard",
+      "docs_url": "https://vercel.com/docs/sign-in-with-vercel/authorization-server-api",
+      "verify": {
+        "method": "POST",
+        "url": "https://api.vercel.com/login/oauth/userinfo",
+        "account_field": "preferred_username"
+      },
+      "probe_status": 200,
+      "confidence": "medium",
+      "sources": [
+        "https://vercel.com/.well-known/openid-configuration",
+        "https://vercel.com/docs/sign-in-with-vercel/authorization-server-api",
+        "https://vercel.com/docs/sign-in-with-vercel/scopes-and-permissions"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "webflow",
+      "server_url": "https://webflow.com",
+      "discovery_url": null,
+      "authorization_endpoint": "https://webflow.com/oauth/authorize",
+      "token_endpoint": "https://api.webflow.com/oauth/access_token",
+      "revocation_endpoint": "https://webflow.com/oauth/revoke_authorization",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "authorized_user:read",
+          "description": "Who authorized the app",
+          "default": true
+        },
+        {
+          "name": "sites:read",
+          "description": "Read sites",
+          "default": false
+        },
+        {
+          "name": "sites:write",
+          "description": "Publish and edit sites",
+          "default": false
+        },
+        {
+          "name": "cms:read",
+          "description": "Read CMS collections",
+          "default": false
+        },
+        {
+          "name": "cms:write",
+          "description": "Edit CMS items",
+          "default": false
+        },
+        {
+          "name": "pages:read",
+          "description": "Read pages",
+          "default": false
+        },
+        {
+          "name": "forms:read",
+          "description": "Read form submissions",
+          "default": false
+        }
+      ],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://webflow.com/dashboard",
+      "docs_url": "https://developers.webflow.com/data/reference/oauth-app",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.webflow.com/v2/token/authorized_by",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": ["https://developers.webflow.com/data/reference/oauth-app"],
+      "template_params": []
+    },
+    {
+      "service": "whoop",
+      "server_url": "https://api.prod.whoop.com/oauth/",
+      "discovery_url": "https://api.prod.whoop.com/oauth/.well-known/openid-configuration",
+      "authorization_endpoint": "https://api.prod.whoop.com/oauth/oauth2/auth",
+      "token_endpoint": "https://api.prod.whoop.com/oauth/oauth2/token",
+      "revocation_endpoint": "https://api.prod.whoop.com/oauth/oauth2/revoke",
+      "userinfo_endpoint": "https://api.prod.whoop.com/oauth/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "read:profile",
+          "description": "Name and email",
+          "default": true
+        },
+        {
+          "name": "offline",
+          "description": "Refresh token",
+          "default": false
+        },
+        {
+          "name": "read:recovery",
+          "description": "Recovery scores",
+          "default": false
+        },
+        {
+          "name": "read:cycles",
+          "description": "Physiological cycles",
+          "default": false
+        },
+        {
+          "name": "read:sleep",
+          "description": "Sleep data",
+          "default": false
+        },
+        {
+          "name": "read:workout",
+          "description": "Workouts",
+          "default": false
+        },
+        {
+          "name": "read:body_measurement",
+          "description": "Height, weight, max HR",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://developer-dashboard.whoop.com",
+      "docs_url": "https://developer.whoop.com/docs/developing/oauth",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.prod.whoop.com/developer/v2/user/profile/basic",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://api.prod.whoop.com/oauth/.well-known/openid-configuration",
+        "https://developer.whoop.com/docs/developing/oauth",
+        "https://developer.whoop.com/api"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "workday",
+      "server_url": "https://{api_host}",
+      "discovery_url": null,
+      "authorization_endpoint": "https://{ui_host}/{tenant}/authorize",
+      "token_endpoint": "https://{api_host}/ccx/oauth2/{tenant}/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "Staffing",
+          "description": "Functional area set on the API client, not sent as scope",
+          "default": true
+        },
+        {
+          "name": "Contact Information",
+          "description": "Functional area",
+          "default": false
+        },
+        {
+          "name": "Public Data",
+          "description": "Functional area",
+          "default": false
+        },
+        {
+          "name": "Tenant Non-Configurable",
+          "description": "Functional area",
+          "default": false
+        },
+        {
+          "name": "Time Off and Leave",
+          "description": "Functional area",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": null,
+      "docs_url": "https://doc.workday.com/",
+      "verify": {
+        "method": "GET",
+        "url": "https://{api_host}/ccx/api/common/v1/{tenant}/workers/me",
+        "account_field": "descriptor"
+      },
+      "probe_status": 302,
+      "confidence": "low",
+      "sources": [
+        "https://docs.workato.com/connectors/workday-rest/connection-setup.html",
+        "https://help.merge.dev/articles/9891389-workday-how-do-i-link-using-oauth",
+        "https://rollout.com/integration-guides/workday/how-to-build-a-public-workday-integration-building-the-auth-flow"
+      ],
+      "template_params": [
+        {
+          "name": "ui_host",
+          "label": "Workday UI host",
+          "placeholder": "wd3.myworkday.com"
+        },
+        {
+          "name": "api_host",
+          "label": "Workday services host",
+          "placeholder": "wd3-services1.myworkday.com"
+        },
+        {
+          "name": "tenant",
+          "label": "Tenant name",
+          "placeholder": "acme"
+        }
+      ]
+    },
+    {
+      "service": "workos",
+      "server_url": "https://signin.workos.com",
+      "discovery_url": "https://signin.workos.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://signin.workos.com/oauth2/authorize",
+      "token_endpoint": "https://signin.workos.com/oauth2/token",
+      "revocation_endpoint": "https://signin.workos.com/oauth2/revoke",
+      "userinfo_endpoint": "https://signin.workos.com/oauth2/userinfo",
+      "token_endpoint_auth_method": "none",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Email address",
+          "default": true
+        },
+        {
+          "name": "profile",
+          "description": "Name",
+          "default": false
+        },
+        {
+          "name": "offline_access",
+          "description": "Refresh token",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "cimd",
+      "developer_console_url": null,
+      "docs_url": "https://workos.com/docs/authkit/connect/oauth",
+      "verify": {
+        "method": "GET",
+        "url": "https://signin.workos.com/oauth2/userinfo",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "medium",
+      "sources": [
+        "https://signin.workos.com/.well-known/oauth-authorization-server",
+        "https://signin.workos.com/.well-known/openid-configuration",
+        "https://mcp.workos.com/.well-known/oauth-protected-resource"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "x",
+      "server_url": "https://api.x.com",
+      "discovery_url": "https://api.x.com/.well-known/oauth-authorization-server",
+      "authorization_endpoint": "https://x.com/i/oauth2/authorize",
+      "token_endpoint": "https://api.x.com/2/oauth2/token",
+      "revocation_endpoint": "https://api.x.com/2/oauth2/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "users.read",
+          "description": "Read user profiles",
+          "default": true
+        },
+        {
+          "name": "tweet.read",
+          "description": "Read posts",
+          "default": true
+        },
+        {
+          "name": "offline.access",
+          "description": "Refresh token",
+          "default": false
+        },
+        {
+          "name": "tweet.write",
+          "description": "Post",
+          "default": false
+        },
+        {
+          "name": "follows.read",
+          "description": "Read follows",
+          "default": false
+        },
+        {
+          "name": "like.read",
+          "description": "Read likes",
+          "default": false
+        },
+        {
+          "name": "dm.read",
+          "description": "Read direct messages",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://developer.x.com/en/portal/dashboard",
+      "docs_url": "https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/authorization-code",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.x.com/2/users/me",
+        "account_field": "data.username"
+      },
+      "probe_status": 301,
+      "confidence": "high",
+      "sources": ["https://api.x.com/.well-known/oauth-authorization-server"],
+      "template_params": []
+    },
+    {
+      "service": "zeplin",
+      "server_url": "https://api.zeplin.dev",
+      "discovery_url": null,
+      "authorization_endpoint": "https://api.zeplin.dev/v1/oauth/authorize",
+      "token_endpoint": "https://api.zeplin.dev/v1/oauth/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.zeplin.io/profile/developer",
+      "docs_url": "https://docs.zeplin.dev/docs/authentication",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.zeplin.dev/v1/users/me",
+        "account_field": "username"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://docs.zeplin.dev/docs/authentication",
+        "https://docs.zeplin.dev/reference/oauthauthorize.md",
+        "https://docs.zeplin.dev/reference/oauthposttoken.md",
+        "https://docs.zeplin.dev/reference/getcurrentuser.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "zoom",
+      "server_url": "https://zoom.us",
+      "discovery_url": "https://zoom.us/.well-known/openid-configuration",
+      "authorization_endpoint": "https://zoom.us/oauth/authorize",
+      "token_endpoint": "https://zoom.us/oauth/token",
+      "revocation_endpoint": "https://zoom.us/oauth/revoke",
+      "userinfo_endpoint": "https://zoom.us/v1/userinfo",
+      "token_endpoint_auth_method": "client_secret_basic",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "user:read:user",
+          "description": "Read your profile",
+          "default": true
+        },
+        {
+          "name": "meeting:read:list_meetings",
+          "description": "List meetings",
+          "default": false
+        },
+        {
+          "name": "meeting:read:meeting",
+          "description": "Read a meeting",
+          "default": false
+        },
+        {
+          "name": "meeting:write:meeting",
+          "description": "Create meetings",
+          "default": false
+        },
+        {
+          "name": "cloud_recording:read:list_user_recordings",
+          "description": "List recordings",
+          "default": false
+        },
+        {
+          "name": "openid",
+          "description": "OIDC sign-in",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://marketplace.zoom.us/user/build",
+      "docs_url": "https://developers.zoom.us/docs/integrations/oauth/",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.zoom.us/v2/users/me",
+        "account_field": "email"
+      },
+      "probe_status": 302,
+      "confidence": "high",
+      "sources": [
+        "https://zoom.us/.well-known/openid-configuration",
+        "https://zoom.us/.well-known/oauth-authorization-server"
+      ],
+      "template_params": []
+    }
+  ],
+  "api_key": [
+    {
+      "service": "agentmail",
+      "key_url": "https://console.agentmail.to",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "am_",
+      "service_urls": ["https://api.agentmail.to"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.agentmail.to/v0/inboxes",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [AgentMail Console](https://console.agentmail.to), open **API Keys** in the left sidebar, click **Create New API Key**, name it, and copy it now (shown once). An org-level key can list inboxes; a pod- or inbox-scoped key limits access to that pod/inbox.",
+      "docs_url": "https://docs.agentmail.to/knowledge-base/getting-api-key",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Console root given; the API Keys page is a sidebar item with no documented deep link.",
+      "sources": [
+        "https://docs.agentmail.to/knowledge-base/getting-api-key",
+        "https://docs.agentmail.to/api-reference/inboxes/list"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "algolia",
+      "key_url": "https://dashboard.algolia.com/account/api-keys",
+      "header": "X-Algolia-API-Key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://{application_id}.algolia.net",
+        "https://{application_id}-dsn.algolia.net"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://{application_id}-dsn.algolia.net/1/indexes",
+        "account_field": null,
+        "headers": {
+          "X-Algolia-Application-Id": "{application_id}"
+        }
+      },
+      "instructions": "In the Algolia dashboard open **Settings → API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key.",
+      "docs_url": "https://www.algolia.com/doc/rest-api/search/",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Requests also need header X-Algolia-Application-Id: {application_id}; hosts are per-application. probe_status taken on latency-dsn.algolia.net without a key.",
+      "sources": [
+        "https://www.algolia.com/doc/rest-api/search/",
+        "https://www.algolia.com/doc/guides/security/api-keys/"
+      ],
+      "template_params": [
+        {
+          "name": "application_id",
+          "label": "Application ID",
+          "placeholder": "ABCDEF1234"
+        }
+      ]
+    },
+    {
+      "service": "anthropic",
+      "key_url": "https://platform.claude.com/settings/keys",
+      "header": "x-api-key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "sk-ant-",
+      "service_urls": ["https://api.anthropic.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.anthropic.com/v1/models",
+        "account_field": null,
+        "headers": {
+          "anthropic-version": "2023-06-01"
+        }
+      },
+      "instructions": "Open [Claude Console → API keys](https://platform.claude.com/settings/keys), click **Create Key**, pick the workspace, name it, and copy the key (shown once).",
+      "docs_url": "https://platform.claude.com/docs/en/api/overview",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Also send anthropic-version: 2023-06-01. Authorization: Bearer <key> is now also accepted; x-api-key is the long-standing header. Multi-workspace keys need anthropic-workspace-id.",
+      "sources": ["https://platform.claude.com/docs/en/api/overview"],
+      "template_params": []
+    },
+    {
+      "service": "assemblyai",
+      "key_url": "https://www.assemblyai.com/app/api-keys",
+      "header": "Authorization",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.assemblyai.com",
+        "https://api.eu.assemblyai.com"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.assemblyai.com/v2/transcript?limit=1",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [AssemblyAI dashboard → API Keys](https://www.assemblyai.com/app/api-keys), click **Create new API key** (or copy the default), and store it.",
+      "docs_url": "https://www.assemblyai.com/docs/api-reference/overview/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Raw key in Authorization (no Bearer). EU data residency uses api.eu.assemblyai.com.",
+      "sources": ["https://www.assemblyai.com/docs/api-reference/overview/"],
+      "template_params": []
+    },
+    {
+      "service": "bamboohr",
+      "key_url": "https://{company_domain}.bamboohr.com/settings/permissions/api.php",
+      "header": "Authorization",
+      "scheme": "Basic",
+      "basic": {
+        "username": "{key}",
+        "password": "x"
+      },
+      "key_prefix": null,
+      "service_urls": [
+        "https://{company_domain}.bamboohr.com/api/v1",
+        "https://api.bamboohr.com/api/gateway.php/{company_domain}/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://{company_domain}.bamboohr.com/api/v1/meta/fields",
+        "account_field": null,
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "Sign in to BambooHR, click your name/avatar and choose **API Keys** (or **Settings → Account → API Keys**), click **Add New Key**, name it and copy it (shown once). The key inherits your user's permissions.",
+      "docs_url": "https://documentation.bamboohr.com/docs/getting-started",
+      "probe_status": null,
+      "confidence": "medium",
+      "notes": "HTTP Basic: API key as username, any string (e.g. 'x') as password. {company_domain} is the subdomain of the login URL. Send Accept: application/json.",
+      "sources": [
+        "https://documentation.bamboohr.com/docs/getting-started",
+        "https://www.bamboohr.com/product-updates/admin-api-keys-settings"
+      ],
+      "template_params": [
+        {
+          "name": "company_domain",
+          "label": "Company subdomain",
+          "placeholder": "acme"
+        }
+      ]
+    },
+    {
+      "service": "beehiiv",
+      "key_url": "https://app.beehiiv.com/settings/workspace/api",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.beehiiv.com/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.beehiiv.com/v2/publications",
+        "account_field": "data.0.name"
+      },
+      "instructions": "In beehiiv go to **Settings → Workspace Settings → API** (Owner or Admin role required), click **Create New API Key**, optionally restrict it to one publication, and copy it (shown once).",
+      "docs_url": "https://developers.beehiiv.com/welcome/create-an-api-key",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://developers.beehiiv.com/welcome/create-an-api-key"],
+      "template_params": []
+    },
+    {
+      "service": "brevo",
+      "key_url": "https://app.brevo.com/settings/keys/api",
+      "header": "api-key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "xkeysib-",
+      "service_urls": ["https://api.brevo.com/v3"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.brevo.com/v3/account",
+        "account_field": "email"
+      },
+      "instructions": "In Brevo open your profile → **SMTP & API → API Keys**, click **Generate a new API key**, name it and copy it (shown once).",
+      "docs_url": "https://developers.brevo.com/docs/getting-started",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://developers.brevo.com/docs/getting-started"],
+      "template_params": []
+    },
+    {
+      "service": "buildkite",
+      "key_url": "https://buildkite.com/user/api-access-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "bkua_",
+      "service_urls": ["https://api.buildkite.com/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.buildkite.com/v2/access-token",
+        "account_field": "uuid"
+      },
+      "instructions": "In Buildkite open **Personal Settings → API Access Tokens**, click **New API Access Token**, pick the organization, tick only **read_user** (plus read scopes you need), and copy it (shown once).",
+      "docs_url": "https://buildkite.com/docs/apis/rest-api#authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "GET /v2/user (needs read_user) returns name/email.",
+      "sources": [
+        "https://buildkite.com/docs/apis/rest-api#authentication",
+        "https://buildkite.com/docs/apis/rest-api/access-token"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "calendly",
+      "key_url": "https://calendly.com/integrations/api_webhooks",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.calendly.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.calendly.com/users/me",
+        "account_field": "resource.name"
+      },
+      "instructions": "In Calendly open **Integrations & apps → API and webhooks**, click **Get a token now** / **Generate new token**, name it, and copy the personal access token (shown once).",
+      "docs_url": "https://developer.calendly.com/how-to-authenticate-with-personal-access-tokens",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://developer.calendly.com/how-to-authenticate-with-personal-access-tokens"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "circleci",
+      "key_url": "https://app.circleci.com/settings/user/tokens",
+      "header": "Circle-Token",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "CCIPAT_",
+      "service_urls": ["https://circleci.com/api/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://circleci.com/api/v2/me",
+        "account_field": "login"
+      },
+      "instructions": "In CircleCI open **User Settings → Personal API Tokens**, click **Create New Token**, name it and copy it (shown once).",
+      "docs_url": "https://circleci.com/docs/managing-api-tokens/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://circleci.com/docs/managing-api-tokens/",
+        "https://circleci.com/docs/api/v2/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "clerk",
+      "key_url": "https://dashboard.clerk.com/last-active?path=api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk_",
+      "service_urls": ["https://api.clerk.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.clerk.com/v1/instance",
+        "account_field": "id"
+      },
+      "instructions": "In the [Clerk Dashboard](https://dashboard.clerk.com) pick the application and instance (Development or Production), open **Configure → API Keys**, and copy the **Secret Key** (`sk_test_…` or `sk_live_…`).",
+      "docs_url": "https://clerk.com/docs/reference/backend-api",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Secret keys are sk_test_ (development) or sk_live_ (production). /v1/instance returns the current instance; /v1/users?limit=1 is an alternative.",
+      "sources": [
+        "https://clerk.com/docs/guides/secure/rotate-api-keys",
+        "https://clerk.com/docs/reference/backend-api"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "clickup",
+      "key_url": "https://app.clickup.com/settings/apps",
+      "header": "Authorization",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "pk_",
+      "service_urls": ["https://api.clickup.com/api/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.clickup.com/api/v2/user",
+        "account_field": "user.username"
+      },
+      "instructions": "In ClickUp click your avatar → **Settings → Apps**, then under **API Token** click **Generate** (or **Regenerate**) and copy the personal token.",
+      "docs_url": "https://developer.clickup.com/docs/authentication",
+      "probe_status": 400,
+      "confidence": "high",
+      "notes": "Raw token in Authorization (no Bearer). Unauthenticated probe returns 400; an invalid token returns 401.",
+      "sources": ["https://developer.clickup.com/docs/authentication"],
+      "template_params": []
+    },
+    {
+      "service": "cloudflare-origin-ca",
+      "key_url": "https://dash.cloudflare.com/profile/api-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.cloudflare.com/client/v4"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+        "account_field": "result.status"
+      },
+      "instructions": "Open [Cloudflare → My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens), click **Create Token → Custom token**, grant **Zone → SSL and Certificates → Edit** for the needed zones, and copy it. Legacy Origin CA keys are deprecated.",
+      "docs_url": "https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/",
+      "probe_status": 400,
+      "confidence": "medium",
+      "notes": "Origin CA keys (header X-Auth-User-Service-Key, prefix v1.0-) are deprecated and removed on 2026-09-30; this entry describes the replacement API token. Unauth probe gives 400 (bad header); verify returns result.status 'active' for a good token. Listing origin certs needs GET /certificates?zone_id=….",
+      "sources": [
+        "https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/",
+        "https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "cohere",
+      "key_url": "https://dashboard.cohere.com/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.cohere.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.cohere.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Cohere dashboard → API Keys](https://dashboard.cohere.com/api-keys), click **New Trial Key** or **New Production Key**, name it and copy it.",
+      "docs_url": "https://docs.cohere.com/reference/list-models",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://docs.cohere.com/reference/list-models"],
+      "template_params": []
+    },
+    {
+      "service": "contentful",
+      "key_url": "https://app.contentful.com/account/profile/cma_tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "CFPAT-",
+      "service_urls": ["https://api.contentful.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.contentful.com/users/me",
+        "account_field": "email"
+      },
+      "instructions": "In Contentful open your avatar → **Account settings → CMA tokens** (or Space settings → API keys → Content management tokens), click **Create personal access token**, set an expiry, and copy it (shown once).",
+      "docs_url": "https://www.contentful.com/developers/docs/references/authentication/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://www.contentful.com/developers/docs/references/authentication/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "crowdin",
+      "key_url": "https://crowdin.com/settings#api-key",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.crowdin.com/api/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.crowdin.com/api/v2/user",
+        "account_field": "data.username"
+      },
+      "instructions": "In Crowdin open **Account Settings → API**, click **New Token**, name it, tick only the scopes you need (e.g. read-only **Projects**), and copy the token (shown once).",
+      "docs_url": "https://support.crowdin.com/developer/authentication/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Crowdin Enterprise uses https://{organization}.api.crowdin.com/api/v2 instead.",
+      "sources": ["https://support.crowdin.com/developer/authentication/"],
+      "template_params": [
+        {
+          "name": "organization",
+          "label": "Organization",
+          "placeholder": ""
+        }
+      ]
+    },
+    {
+      "service": "datadog",
+      "key_url": "https://app.datadoghq.com/organization-settings/api-keys",
+      "header": "DD-API-KEY",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.datadoghq.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.datadoghq.com/api/v1/validate",
+        "account_field": null
+      },
+      "instructions": "In Datadog open **Organization Settings → API Keys**, click **New Key**, name it and copy it. Use the host for your site (e.g. api.datadoghq.eu, api.us5.datadoghq.com).",
+      "docs_url": "https://docs.datadoghq.com/api/latest/authentication/",
+      "probe_status": 403,
+      "confidence": "high",
+      "notes": "/api/v1/validate returns {\"valid\":true} with only DD-API-KEY. Most read endpoints also need DD-APPLICATION-KEY. Host differs by site (US1, US3, US5, EU, AP1, GOV).",
+      "sources": ["https://docs.datadoghq.com/api/latest/authentication/"],
+      "template_params": []
+    },
+    {
+      "service": "deepgram",
+      "key_url": "https://console.deepgram.com/",
+      "header": "Authorization",
+      "scheme": "Token",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.deepgram.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.deepgram.com/v1/projects",
+        "account_field": "projects.0.name"
+      },
+      "instructions": "Sign in to the [Deepgram Console](https://console.deepgram.com/), choose your project, open **API Keys**, click **Create a New API Key**, pick the **Member** role, and copy the key (shown once).",
+      "docs_url": "https://developers.deepgram.com/docs/create-additional-api-keys",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Header value is 'Token <key>'. Bearer is used only for short-lived JWTs.",
+      "sources": [
+        "https://developers.deepgram.com/reference/deepgram-api-overview",
+        "https://developers.deepgram.com/docs/create-additional-api-keys"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "deepseek",
+      "key_url": "https://platform.deepseek.com/api_keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk-",
+      "service_urls": ["https://api.deepseek.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.deepseek.com/user/balance",
+        "account_field": null
+      },
+      "instructions": "Open the [DeepSeek Platform → API keys](https://platform.deepseek.com/api_keys), click **Create new API key**, name it and copy it (shown once).",
+      "docs_url": "https://api-docs.deepseek.com/api/get-user-balance",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "GET https://api.deepseek.com/models is an equivalent check.",
+      "sources": [
+        "https://api-docs.deepseek.com/api/get-user-balance",
+        "https://api-docs.deepseek.com/api/list-models"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "digitalocean",
+      "key_url": "https://cloud.digitalocean.com/account/api/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "dop_v1_",
+      "service_urls": ["https://api.digitalocean.com/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.digitalocean.com/v2/account",
+        "account_field": "account.email"
+      },
+      "instructions": "In DigitalOcean open **API → Tokens**, click **Generate New Token**, name it, set an expiry, choose **Custom Scopes** with **account:read**, and copy it (shown once).",
+      "docs_url": "https://docs.digitalocean.com/reference/api/create-personal-access-token/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://docs.digitalocean.com/reference/api/create-personal-access-token/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "doppler",
+      "key_url": "https://dashboard.doppler.com/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "dp.",
+      "service_urls": ["https://api.doppler.com/v3"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.doppler.com/v3/me",
+        "account_field": "workplace.name"
+      },
+      "instructions": "In Doppler open **Settings → Tokens → Personal** and click **Generate** (or use a project's **Access → Service Tokens** with read access for one config). Copy the token (shown once).",
+      "docs_url": "https://docs.doppler.com/reference/api",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Prefixes: dp.pt. personal, dp.st. service, dp.sa. service account, dp.ct. CLI. /v3/me returns name, type and workplace. The Tokens page path includes the workplace id, so key_url is the dashboard root.",
+      "sources": [
+        "https://docs.doppler.com/reference/api",
+        "https://docs.doppler.com/reference/auth-me"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "dovetail",
+      "key_url": "https://dovetail.com/settings/user/account",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "api.",
+      "service_urls": ["https://dovetail.com/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://dovetail.com/api/v1/token/info",
+        "account_field": null
+      },
+      "instructions": "In Dovetail open **Settings → Account** (your personal settings), find **Personal API keys**, click **Create new key**, and copy it (shown once). Keys expire after 30 days.",
+      "docs_url": "https://developers.dovetail.com/docs/authorization",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://developers.dovetail.com/docs/authorization"],
+      "template_params": []
+    },
+    {
+      "service": "elevenlabs",
+      "key_url": "https://elevenlabs.io/app/settings/api-keys",
+      "header": "xi-api-key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "sk_",
+      "service_urls": ["https://api.elevenlabs.io"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.elevenlabs.io/v1/user",
+        "account_field": "subscription.tier"
+      },
+      "instructions": "In ElevenLabs open **Settings → API Keys** (Developers → API Keys), click **Create API Key**, restrict it and enable **User: Read** (plus whatever else you need), and copy it (shown once).",
+      "docs_url": "https://elevenlabs.io/docs/api-reference/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Restricted keys fail /v1/user without the User read permission. /v1/models answered 404 unauthenticated so it was not chosen.",
+      "sources": ["https://elevenlabs.io/docs/api-reference/authentication"],
+      "template_params": []
+    },
+    {
+      "service": "exa",
+      "key_url": "https://dashboard.exa.ai/api-keys",
+      "header": "x-api-key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.exa.ai"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.exa.ai/websets/v0/websets",
+        "account_field": null
+      },
+      "instructions": "Open the [Exa dashboard → API Keys](https://dashboard.exa.ai/api-keys), click **Create Key**, name it and copy it.",
+      "docs_url": "https://exa.ai/docs/reference/getting-started",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Authorization: Bearer <key> is also accepted. Search endpoints consume credits; listing websets does not. Team-management endpoints need a separate service key.",
+      "sources": [
+        "https://exa.ai/docs/reference/getting-started",
+        "https://exa.ai/docs/team-management-spec.yaml"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "fathom",
+      "key_url": "https://fathom.video/customize#api-access-header",
+      "header": "X-Api-Key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.fathom.ai/external/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.fathom.ai/external/v1/meetings",
+        "account_field": null
+      },
+      "instructions": "In Fathom open **Settings → API Access**, click **Generate API Key**, and copy it. The key can read only meetings you recorded or that were shared with you or your team.",
+      "docs_url": "https://developers.fathom.ai/quickstart",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://developers.fathom.ai/quickstart"],
+      "template_params": []
+    },
+    {
+      "service": "firecrawl",
+      "key_url": "https://www.firecrawl.dev/app/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "fc-",
+      "service_urls": ["https://api.firecrawl.dev"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.firecrawl.dev/v2/team/credit-usage",
+        "account_field": null
+      },
+      "instructions": "Sign in to [Firecrawl → API Keys](https://www.firecrawl.dev/app/api-keys), click **Create API key** (or copy the default key).",
+      "docs_url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "fireworks",
+      "key_url": "https://app.fireworks.ai/settings/users/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "fw_",
+      "service_urls": [
+        "https://api.fireworks.ai/inference/v1",
+        "https://api.fireworks.ai/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.fireworks.ai/inference/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open [Fireworks → Settings → API Keys](https://app.fireworks.ai/settings/users/api-keys), click **Create API Key**, name it and copy it (shown once).",
+      "docs_url": "https://docs.fireworks.ai/api-reference/introduction",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Unauthenticated probe of /inference/v1/models answered 401. Older keys may not carry the fw_ prefix.",
+      "sources": [
+        "https://docs.fireworks.ai/api-reference/introduction",
+        "https://docs.fireworks.ai/api-reference/create-api-key"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "gemini",
+      "key_url": "https://aistudio.google.com/app/apikey",
+      "header": "x-goog-api-key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "AIza",
+      "service_urls": ["https://generativelanguage.googleapis.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "account_field": null
+      },
+      "instructions": "Open [Google AI Studio → Get API key](https://aistudio.google.com/app/apikey), click **Create API key**, pick or create a Google Cloud project, and copy the key.",
+      "docs_url": "https://ai.google.dev/gemini-api/docs/api-key",
+      "probe_status": 403,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://ai.google.dev/gemini-api/docs/api-key"],
+      "template_params": []
+    },
+    {
+      "service": "gitlab",
+      "key_url": "https://gitlab.com/-/user_settings/personal_access_tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "glpat-",
+      "service_urls": ["https://gitlab.com/api/v4"],
+      "verify": {
+        "method": "GET",
+        "url": "https://gitlab.com/api/v4/user",
+        "account_field": "username"
+      },
+      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, click **Add new token**, set a name and expiry, tick only **read_user** (add **read_api** if needed), and copy the token (shown once).",
+      "docs_url": "https://docs.gitlab.com/user/profile/personal_access_tokens/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "PRIVATE-TOKEN: <token> header is equivalent to Authorization: Bearer. Self-managed instances use their own host.",
+      "sources": [
+        "https://docs.gitlab.com/user/profile/personal_access_tokens/",
+        "https://docs.gitlab.com/api/users/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "groq",
+      "key_url": "https://console.groq.com/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "gsk_",
+      "service_urls": ["https://api.groq.com/openai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.groq.com/openai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open [GroqCloud → API Keys](https://console.groq.com/keys), click **Create API Key**, name it and copy it (shown once).",
+      "docs_url": "https://console.groq.com/docs/api-reference",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://console.groq.com/docs/api-reference"],
+      "template_params": []
+    },
+    {
+      "service": "huggingface",
+      "key_url": "https://huggingface.co/settings/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "hf_",
+      "service_urls": [
+        "https://router.huggingface.co",
+        "https://huggingface.co/api"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://huggingface.co/api/whoami-v2",
+        "account_field": "name"
+      },
+      "instructions": "Open [Hugging Face → Access Tokens](https://huggingface.co/settings/tokens), click **Create new token**, choose **Fine-grained** and tick **Make calls to Inference Providers** (or **Read**), and copy it.",
+      "docs_url": "https://huggingface.co/docs/hub/security-tokens",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://huggingface.co/docs/hub/security-tokens",
+        "https://huggingface.co/docs/inference-providers/en/index"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "jev",
+      "key_url": "https://console.typesafe.ai/settings/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.typesafe.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.typesafe.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [TypeSafe console](https://console.typesafe.ai/settings/keys), open **Settings → API Keys**, click **Create key**, and copy it (shown once).",
+      "docs_url": "https://docs.typesafe.ai/api",
+      "probe_status": 403,
+      "confidence": "low",
+      "notes": "Official reference documents only POST /v1/systemone; GET /v1/models as a key check comes from third-party guides (unauth probe answered 403 'Must supply an API key'). TypeSafe paused new signups around 2026-09-22.",
+      "sources": [
+        "https://docs.typesafe.ai/api",
+        "https://flaviocopes.com/jev-api-key/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "kernel",
+      "key_url": "https://dashboard.onkernel.com/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk_",
+      "service_urls": ["https://api.onkernel.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.onkernel.com/browsers",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [Kernel dashboard](https://dashboard.onkernel.com/), open **API Keys**, click **Create API key** (optionally scoped to one project), and copy it (shown once).",
+      "docs_url": "https://www.kernel.sh/auth.md",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "auth.md suggests GET /org/api_keys?limit=1 as the harmless check; /browsers (list) works for project-scoped keys too.",
+      "sources": ["https://www.kernel.sh/auth.md"],
+      "template_params": []
+    },
+    {
+      "service": "launchdarkly",
+      "key_url": "https://app.launchdarkly.com/settings/authorization",
+      "header": "Authorization",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "api-",
+      "service_urls": ["https://app.launchdarkly.com/api/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://app.launchdarkly.com/api/v2/caller-identity",
+        "account_field": "tokenName"
+      },
+      "instructions": "In LaunchDarkly open **Organization settings → Authorization**, under **Access tokens** click **Create token**, name it, pick the **Reader** role, and copy it (shown once).",
+      "docs_url": "https://launchdarkly.com/docs/api",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Raw token in Authorization (no Bearer). caller-identity returns accountId, tokenName, tokenKind.",
+      "sources": [
+        "https://launchdarkly.com/docs/api",
+        "https://app.launchdarkly.com/api/v2/openapi.json"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "lemma",
+      "key_url": "https://getlemma.com/docs/api-reference/authentication",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "lm_key_",
+      "service_urls": ["https://api.getlemma.com/v0"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.getlemma.com/v0/entities",
+        "account_field": null
+      },
+      "instructions": "Lemma keys are not self-service: they are issued by the Lemma team during platform onboarding (contact contact@getlemma.com). Paste the key you were given.",
+      "docs_url": "https://getlemma.com/docs/api-reference/authentication",
+      "probe_status": 401,
+      "confidence": "low",
+      "notes": "No dashboard page exists, so key_url points at the auth docs. Prefix inferred from the docs' example (lm_key_…). List-entities path inferred from the reference index; /v0/accounts also answers 401.",
+      "sources": [
+        "https://getlemma.com/docs/api-reference/authentication",
+        "https://getlemma.com/docs/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "linear",
+      "key_url": "https://linear.app/settings/account/security",
+      "header": "Authorization",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "lin_api_",
+      "service_urls": ["https://api.linear.app"],
+      "verify": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "account_field": "data.viewer.name",
+        "body": "{\"query\":\"{ viewer { id name email } }\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "instructions": "In Linear open **Settings → Account → Security & access**, under **Personal API keys** click **New API key**, name it, choose **Read** access, and copy it (shown once).",
+      "docs_url": "https://linear.app/developers/graphql",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "GraphQL: POST with Content-Type: application/json and the read-only viewer query in verify.body. Personal keys go in Authorization raw (no Bearer).",
+      "sources": ["https://linear.app/developers/graphql"],
+      "template_params": []
+    },
+    {
+      "service": "lithic",
+      "key_url": "https://app.lithic.com/settings",
+      "header": "Authorization",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.lithic.com/v1",
+        "https://sandbox.lithic.com/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.lithic.com/v1/cards?page_size=1",
+        "account_field": null
+      },
+      "instructions": "Sign in to [Lithic](https://app.lithic.com/settings) and copy the API key from **Settings** (Sandbox key by default; a Production key appears once production is enabled).",
+      "docs_url": "https://docs.lithic.com/docs/api-basics",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Raw key in Authorization. Sandbox keys work only against https://sandbox.lithic.com/v1.",
+      "sources": [
+        "https://docs.lithic.com/docs/get-api-key.md",
+        "https://docs.lithic.com/docs/api-basics.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "mailgun",
+      "key_url": "https://app.mailgun.com/settings/api_security",
+      "header": "Authorization",
+      "scheme": "Basic",
+      "basic": {
+        "username": "api",
+        "password": "{key}"
+      },
+      "key_prefix": null,
+      "service_urls": ["https://api.mailgun.net", "https://api.eu.mailgun.net"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.mailgun.net/v3/domains",
+        "account_field": "items.0.name"
+      },
+      "instructions": "In Mailgun open **Settings → API Security**, click **Add new key**, name it, and copy the private API key (shown once). EU accounts use api.eu.mailgun.net.",
+      "docs_url": "https://documentation.mailgun.com/docs/mailgun/api-reference/authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "HTTP Basic with username 'api' and the API key as password.",
+      "sources": [
+        "https://documentation.mailgun.com/docs/mailgun/api-reference/authentication"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "marqeta",
+      "key_url": "https://app.marqeta.com/development",
+      "header": "Authorization",
+      "scheme": "Basic",
+      "basic": {
+        "username": "{key}",
+        "password": ""
+      },
+      "key_prefix": null,
+      "service_urls": [
+        "https://sandbox-api.marqeta.com/v3",
+        "https://api.marqeta.com/v3"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://sandbox-api.marqeta.com/v3/users?count=1",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [Marqeta developer dashboard](https://app.marqeta.com/development); your sandbox **Application token** and **Admin access token** are shown there. Production credentials come from Marqeta.",
+      "docs_url": "https://www.marqeta.com/docs/developer-guides/core-api-quick-start",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "HTTP Basic: application token as username, admin access token as password. Production hosts are program-specific.",
+      "sources": [
+        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "messagebird",
+      "key_url": "https://dashboard.messagebird.com/en/developers/access",
+      "header": "Authorization",
+      "scheme": "AccessKey",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://rest.messagebird.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://rest.messagebird.com/balance",
+        "account_field": null
+      },
+      "instructions": "In the MessageBird dashboard open **Developers → API access**, click **Add access key**, choose **Live** (or **Test**), and copy it.",
+      "docs_url": "https://developers.messagebird.com/api/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Header is 'Authorization: AccessKey <key>' — scheme 'AccessKey' is outside the Bearer/Basic/Token set. Test keys start with test_, live keys have no prefix. MessageBird is now Bird; this is the legacy REST API.",
+      "sources": ["https://developers.messagebird.com/api/"],
+      "template_params": []
+    },
+    {
+      "service": "mistral",
+      "key_url": "https://console.mistral.ai/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.mistral.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.mistral.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open [Mistral console → API Keys](https://console.mistral.ai/api-keys), click **Create new key**, pick the workspace, set an expiry, and copy it (shown once).",
+      "docs_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://docs.mistral.ai/admin/identity-access/api-keys"],
+      "template_params": []
+    },
+    {
+      "service": "monday",
+      "key_url": "https://monday.com/apps/manage/tokens",
+      "header": "Authorization",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.monday.com/v2"],
+      "verify": {
+        "method": "POST",
+        "url": "https://api.monday.com/v2",
+        "account_field": "data.me.name",
+        "body": "{\"query\":\"query { me { id name email } }\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "instructions": "In monday.com click your avatar → **Developers**, then **API token → Show** (admins: **Administration → Connections → Personal API token**) and copy the personal token.",
+      "docs_url": "https://developer.monday.com/api-reference/docs/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GraphQL POST, token raw in Authorization. The tokens page lives under your account subdomain (https://{account}.monday.com/apps/manage/tokens).",
+      "sources": [
+        "https://developer.monday.com/api-reference/docs/authentication"
+      ],
+      "template_params": [
+        {
+          "name": "account",
+          "label": "Account",
+          "placeholder": ""
+        }
+      ]
+    },
+    {
+      "service": "n8n",
+      "key_url": "https://{instance}.app.n8n.cloud/settings/api",
+      "header": "X-N8N-API-KEY",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "eyJ",
+      "service_urls": ["https://{instance}.app.n8n.cloud/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://{instance}.app.n8n.cloud/api/v1/workflows?limit=1",
+        "account_field": null
+      },
+      "instructions": "In your n8n instance open **Settings → n8n API**, click **Create an API key**, set a label and expiry (enterprise: pick only `workflow:list`/read scopes), and copy it. Not available on the free trial.",
+      "docs_url": "https://docs.n8n.io/connect/n8n-api/authentication",
+      "probe_status": null,
+      "confidence": "medium",
+      "notes": "Instance-specific host (n8n Cloud or self-hosted https://<host>/api/v1). Keys are JWTs.",
+      "sources": [
+        "https://docs.n8n.io/connect/n8n-api/authentication",
+        "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/n8n_api_key"
+      ],
+      "template_params": [
+        {
+          "name": "instance",
+          "label": "Instance",
+          "placeholder": "acme"
+        }
+      ]
+    },
+    {
+      "service": "neon",
+      "key_url": "https://console.neon.tech/app/settings/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "napi_",
+      "service_urls": ["https://console.neon.tech/api/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://console.neon.tech/api/v2/users/me",
+        "account_field": "email"
+      },
+      "instructions": "In the Neon Console open your avatar → **Account settings → API keys**, click **Create new API key**, name it and copy it (shown once).",
+      "docs_url": "https://neon.com/docs/manage/api-keys",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "/users/me works for personal keys; organization keys cannot call it (use GET /api/v2/projects?org_id=… instead).",
+      "sources": [
+        "https://api-docs.neon.tech/reference/getcurrentuserinfo",
+        "https://neon.com/docs/manage/api-keys"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "newsapi",
+      "key_url": "https://newsapi.org/account",
+      "header": "X-Api-Key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://newsapi.org/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://newsapi.org/v2/top-headlines/sources",
+        "account_field": null
+      },
+      "instructions": "Register at [newsapi.org](https://newsapi.org/register); your API key is shown on the [Account](https://newsapi.org/account) page.",
+      "docs_url": "https://newsapi.org/docs/authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://newsapi.org/docs/authentication"],
+      "template_params": []
+    },
+    {
+      "service": "ngrok",
+      "key_url": "https://dashboard.ngrok.com/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.ngrok.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.ngrok.com/api_keys",
+        "account_field": null,
+        "headers": {
+          "Ngrok-Version": "2"
+        }
+      },
+      "instructions": "Open [ngrok dashboard → API Keys](https://dashboard.ngrok.com/api-keys), click **New API Key**, add a description, and copy it (shown once). This is not the agent authtoken.",
+      "docs_url": "https://ngrok.com/docs/api/",
+      "probe_status": 403,
+      "confidence": "high",
+      "notes": "Also send Ngrok-Version: 2.",
+      "sources": ["https://ngrok.com/docs/api/"],
+      "template_params": []
+    },
+    {
+      "service": "notion",
+      "key_url": "https://www.notion.so/profile/integrations",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "ntn_",
+      "service_urls": ["https://api.notion.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.notion.com/v1/users/me",
+        "account_field": "name",
+        "headers": {
+          "Notion-Version": "2022-06-28"
+        }
+      },
+      "instructions": "Open [Notion → Integrations](https://www.notion.so/profile/integrations), click **New integration**, pick the workspace, choose **Internal**, enable **Read content** only, save, and copy the **Internal Integration Secret**. Share pages with it via ••• → Connections.",
+      "docs_url": "https://developers.notion.com/reference/authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Also send Notion-Version: 2022-06-28. Older secrets start with secret_.",
+      "sources": [
+        "https://developers.notion.com/reference/authentication",
+        "https://developers.notion.com/reference/get-self"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "npm",
+      "key_url": "https://www.npmjs.com/settings/~/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "npm_",
+      "service_urls": ["https://registry.npmjs.org"],
+      "verify": {
+        "method": "GET",
+        "url": "https://registry.npmjs.org/-/whoami",
+        "account_field": "username"
+      },
+      "instructions": "On npmjs.com click your avatar → **Access Tokens → Generate New Token → Granular Access Token**, set an expiry, choose **Read-only** for packages, and copy the token (shown once).",
+      "docs_url": "https://docs.npmjs.com/creating-and-viewing-access-tokens",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "key_url uses ~ for the signed-in user (https://www.npmjs.com/settings/<username>/tokens).",
+      "sources": ["https://docs.npmjs.com/creating-and-viewing-access-tokens"],
+      "template_params": []
+    },
+    {
+      "service": "openai",
+      "key_url": "https://platform.openai.com/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk-",
+      "service_urls": ["https://api.openai.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.openai.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open [OpenAI Platform → API keys](https://platform.openai.com/api-keys), click **Create new secret key**, pick the project, choose **Restricted** with **Models: Read** (plus what you need), and copy it (shown once).",
+      "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": [
+        "https://platform.openai.com/docs/api-reference/authentication"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "openrouter",
+      "key_url": "https://openrouter.ai/settings/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk-or-v1-",
+      "service_urls": ["https://openrouter.ai/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://openrouter.ai/api/v1/key",
+        "account_field": "data.label"
+      },
+      "instructions": "Open [OpenRouter → Keys](https://openrouter.ai/settings/keys), click **Create Key**, name it, optionally set a credit limit, and copy it (shown once).",
+      "docs_url": "https://openrouter.ai/docs/api-reference/authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://openrouter.ai/docs/api-reference/authentication"],
+      "template_params": []
+    },
+    {
+      "service": "perplexity",
+      "key_url": "https://console.perplexity.ai/project/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "pplx-",
+      "service_urls": ["https://api.perplexity.ai"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.perplexity.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Perplexity console → API keys](https://console.perplexity.ai/project/keys), click **Create API key**, name it and copy it (shown once). A funded credit balance is needed for paid calls.",
+      "docs_url": "https://docs.perplexity.ai/docs/admin/api-key-management",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/models is listed in the current reference index; GET /async/chat/completions (list) is an alternative read-only check.",
+      "sources": [
+        "https://docs.perplexity.ai/docs/admin/api-key-management.md",
+        "https://docs.perplexity.ai/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "pinecone",
+      "key_url": "https://app.pinecone.io/",
+      "header": "Api-Key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "pcsk_",
+      "service_urls": ["https://api.pinecone.io"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.pinecone.io/indexes",
+        "account_field": null,
+        "headers": {
+          "X-Pinecone-API-Version": "2025-04"
+        }
+      },
+      "instructions": "In the [Pinecone console](https://app.pinecone.io/) pick the project, open **API keys**, click **Create API key**, choose **ReadOnly** (or **All**) permissions, and copy it (shown once).",
+      "docs_url": "https://docs.pinecone.io/guides/projects/manage-api-keys",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Send X-Pinecone-API-Version (e.g. 2025-04). key_url is the console root; API keys live under the project.",
+      "sources": [
+        "https://docs.pinecone.io/guides/projects/manage-api-keys",
+        "https://docs.pinecone.io/reference/api/authentication"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "postmark",
+      "key_url": "https://account.postmarkapp.com/servers",
+      "header": "X-Postmark-Server-Token",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.postmarkapp.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.postmarkapp.com/server",
+        "account_field": "Name",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "In Postmark open **Servers**, pick the server, go to **API Tokens**, and copy the **Server API token** (or click **Generate another token**).",
+      "docs_url": "https://postmarkapp.com/developer/api/overview",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Send Accept: application/json. Account-level tokens use X-Postmark-Account-Token instead.",
+      "sources": [
+        "https://postmarkapp.com/developer/api/overview",
+        "https://postmarkapp.com/developer/api/server-api"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "privacy",
+      "key_url": "https://app.privacy.com/account",
+      "header": "Authorization",
+      "scheme": "api-key",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.privacy.com/v1",
+        "https://sandbox.privacy.com/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.privacy.com/v1/cards?page_size=1",
+        "account_field": null
+      },
+      "instructions": "Sign in to [Privacy.com](https://app.privacy.com/account), open **Account**, scroll to **API Key**, and copy (or regenerate) the key. Write access requires an Issuing key from api@privacy.com; reading cards does not.",
+      "docs_url": "https://developers.privacy.com/reference/get_cards-1",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Header is 'Authorization: api-key <key>' — scheme 'api-key' is outside the Bearer/Basic/Token set. No header → 403 (nginx); a bad key → 401. Sandbox: sandbox.privacy.com.",
+      "sources": [
+        "https://developers.privacy.com/reference/get_cards-1.md",
+        "https://developers.privacy.com/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "railway",
+      "key_url": "https://railway.com/account/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://backboard.railway.com/graphql/v2"],
+      "verify": {
+        "method": "POST",
+        "url": "https://backboard.railway.com/graphql/v2",
+        "account_field": "data.me.email",
+        "body": "{\"query\":\"query { me { name email } }\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "instructions": "Open [Railway → Account → Tokens](https://railway.com/account/tokens), create a token with **No workspace** selected (an account token), name it, and copy it.",
+      "docs_url": "https://docs.railway.com/reference/public-api",
+      "probe_status": 400,
+      "confidence": "high",
+      "notes": "A bad token returns HTTP 200 with errors[].message 'Not Authorized' and data null, so check the body. `me` works only with account tokens; workspace tokens need query { workspace(workspaceId:…) { name } }; project tokens use the Project-Access-Token header.",
+      "sources": ["https://docs.railway.com/reference/public-api"],
+      "template_params": []
+    },
+    {
+      "service": "render",
+      "key_url": "https://dashboard.render.com/u/settings#api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "rnd_",
+      "service_urls": ["https://api.render.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.render.com/v1/users",
+        "account_field": "email"
+      },
+      "instructions": "In the Render Dashboard open **Account Settings**, scroll to **API Keys**, click **Create API Key**, name it and copy it (shown once). Keys reach every workspace you belong to.",
+      "docs_url": "https://render.com/docs/api",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/owners (workspaces) is an alternative check.",
+      "sources": [
+        "https://render.com/docs/api",
+        "https://api-docs.render.com/reference/authentication"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "replicate",
+      "key_url": "https://replicate.com/account/api-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "r8_",
+      "service_urls": ["https://api.replicate.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.replicate.com/v1/account",
+        "account_field": "username"
+      },
+      "instructions": "Open [Replicate → API tokens](https://replicate.com/account/api-tokens), enter a name, click **Create token**, and copy it.",
+      "docs_url": "https://replicate.com/docs/reference/http#accounts.get",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://replicate.com/docs/reference/http"],
+      "template_params": []
+    },
+    {
+      "service": "resend",
+      "key_url": "https://resend.com/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "re_",
+      "service_urls": ["https://api.resend.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.resend.com/domains",
+        "account_field": "data.0.name"
+      },
+      "instructions": "Open [Resend → API Keys](https://resend.com/api-keys), click **Create API Key**, name it, choose **Full access** (a **Sending access** key cannot list domains), and copy it (shown once).",
+      "docs_url": "https://resend.com/docs/api-reference/domains/list-domains",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Sending-only keys return 401 restricted_api_key on /domains; they can only POST /emails.",
+      "sources": [
+        "https://resend.com/docs/api-reference/domains/list-domains",
+        "https://resend.com/docs/api-reference/api-keys/create-api-key"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "sanity",
+      "key_url": "https://www.sanity.io/manage",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk",
+      "service_urls": [
+        "https://api.sanity.io",
+        "https://{project_id}.api.sanity.io"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.sanity.io/v2021-06-07/users/me",
+        "account_field": "name"
+      },
+      "instructions": "At [sanity.io/manage](https://www.sanity.io/manage) pick the project, open **API → Tokens**, click **Add API token**, name it, choose **Viewer** permissions and an expiry, and copy it (shown once).",
+      "docs_url": "https://www.sanity.io/docs/content-lake/http-auth",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Without any token /users/me answers 200 {} (anonymous); an invalid token answers 401 'Session not found'. Treat an empty body as failure.",
+      "sources": ["https://www.sanity.io/docs/content-lake/http-auth"],
+      "template_params": [
+        {
+          "name": "project_id",
+          "label": "Project ID",
+          "placeholder": "abc123xy"
+        }
+      ]
+    },
+    {
+      "service": "segment",
+      "key_url": "https://app.segment.com/goto-my-workspace/settings/access-management/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sgp_",
+      "service_urls": [
+        "https://api.segmentapis.com",
+        "https://eu1.api.segmentapis.com"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.segmentapis.com/",
+        "account_field": "data.workspace.name"
+      },
+      "instructions": "In Segment open **Settings → Access Management → Tokens**, click **Create Token**, choose **Public API** (not Config API), grant **Workspace Member** with read-only access, and copy it.",
+      "docs_url": "https://docs.segmentapis.com/tag/Getting-Started",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "api.segment.io (tracking) takes a source write key via Basic and has no read-only check; this entry uses the Public API token instead. EU workspaces use eu1.api.segmentapis.com.",
+      "sources": ["https://docs.segmentapis.com/tag/Getting-Started"],
+      "template_params": []
+    },
+    {
+      "service": "sendgrid",
+      "key_url": "https://app.sendgrid.com/settings/api_keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "SG.",
+      "service_urls": ["https://api.sendgrid.com/v3"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.sendgrid.com/v3/scopes",
+        "account_field": null
+      },
+      "instructions": "In SendGrid open **Settings → API Keys**, click **Create API Key**, name it, choose **Restricted Access** and only the permissions you need, and copy it (shown once).",
+      "docs_url": "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "/v3/scopes works for any valid key regardless of its permissions.",
+      "sources": [
+        "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "stability",
+      "key_url": "https://platform.stability.ai/account/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk-",
+      "service_urls": ["https://api.stability.ai"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.stability.ai/v1/user/account",
+        "account_field": "email"
+      },
+      "instructions": "Sign in to [Stability AI → Account → API Keys](https://platform.stability.ai/account/keys), click **Create API Key** (or copy the existing one).",
+      "docs_url": "https://platform.stability.ai/docs/api-reference#tag/User/operation/userAccount",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": null,
+      "sources": ["https://platform.stability.ai/docs/api-reference"],
+      "template_params": []
+    },
+    {
+      "service": "stripe-issuing",
+      "key_url": "https://dashboard.stripe.com/apikeys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "rk_",
+      "service_urls": ["https://api.stripe.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.stripe.com/v1/issuing/cards?limit=1",
+        "account_field": null
+      },
+      "instructions": "In the Stripe Dashboard open **Developers → API keys**, click **Create restricted key**, set **Issuing Cards** and **Issuing Cardholders** to **Read**, leave the rest **None**, and copy it (`rk_live_…`/`rk_test_…`).",
+      "docs_url": "https://docs.stripe.com/issuing",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Secret keys (sk_) also work; restricted keys (rk_) are least privilege. Issuing must be enabled on the account.",
+      "sources": [
+        "https://docs.stripe.com/issuing",
+        "https://docs.stripe.com/keys"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "telegram",
+      "key_url": "https://t.me/BotFather",
+      "header": null,
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.telegram.org"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.telegram.org/bot{key}/getMe",
+        "account_field": "result.username"
+      },
+      "instructions": "Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, choose a name and a username ending in `bot`, and copy the token it replies with (`123456789:AA…`).",
+      "docs_url": "https://core.telegram.org/bots/api#authorizing-your-bot",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "The token goes in the URL path (bot<token>), not a header.",
+      "sources": [
+        "https://core.telegram.org/bots/api#authorizing-your-bot",
+        "https://core.telegram.org/bots/api#getme"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "tinybird",
+      "key_url": "https://cloud.tinybird.co/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "p.",
+      "service_urls": [
+        "https://api.tinybird.co",
+        "https://api.us-east.tinybird.co"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.tinybird.co/v0/sql?q=SELECT+1",
+        "account_field": null
+      },
+      "instructions": "In [Tinybird Cloud](https://cloud.tinybird.co) open your workspace → **Tokens**, click **Create Token**, give it read scope on a data source or pipe, and copy it. Use the API host of your workspace's region.",
+      "docs_url": "https://www.tinybird.co/docs/api-reference",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Host depends on region (e.g. api.us-east.aws.tinybird.co). key_url is approximate; tokens live under the workspace.",
+      "sources": [
+        "https://www.tinybird.co/docs/api-reference",
+        "https://www.tinybird.co/docs/api-reference/token-api"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "together",
+      "key_url": "https://api.together.ai/settings/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.together.xyz/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.together.xyz/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open [Together AI → Settings → API Keys](https://api.together.ai/settings/api-keys), click **Create API key** (or copy the default), and store it.",
+      "docs_url": "https://docs.together.ai/docs/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Newer keys may start with tgp_v1_; older keys have no fixed prefix, so key_prefix is null.",
+      "sources": ["https://docs.together.ai/docs/authentication"],
+      "template_params": []
+    },
+    {
+      "service": "typeform",
+      "key_url": "https://admin.typeform.com/user/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "tfp_",
+      "service_urls": [
+        "https://api.typeform.com",
+        "https://api.eu.typeform.com"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.typeform.com/me",
+        "account_field": "alias"
+      },
+      "instructions": "Open [Typeform → Personal tokens](https://admin.typeform.com/user/tokens), click **Generate a new token**, name it, select only **accounts:read**, and copy it (shown once).",
+      "docs_url": "https://www.typeform.com/developers/get-started/personal-access-token/",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "EU data-center accounts use api.eu.typeform.com.",
+      "sources": [
+        "https://www.typeform.com/developers/get-started/personal-access-token/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "vercel",
+      "key_url": "https://vercel.com/account/settings/tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.vercel.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.vercel.com/v2/user",
+        "account_field": "user.username"
+      },
+      "instructions": "Open [Vercel → Account Settings → Tokens](https://vercel.com/account/settings/tokens), enter a name, choose the scope (team) and an expiration, click **Create**, and copy the token (shown once).",
+      "docs_url": "https://vercel.com/docs/rest-api#authentication",
+      "probe_status": 403,
+      "confidence": "high",
+      "notes": "Team resources need ?teamId=… on requests.",
+      "sources": ["https://vercel.com/docs/rest-api#authentication"],
+      "template_params": []
+    },
+    {
+      "service": "webflow",
+      "key_url": "https://webflow.com/dashboard",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.webflow.com/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.webflow.com/v2/sites",
+        "account_field": "sites.0.displayName"
+      },
+      "instructions": "In Webflow open the site's **Site settings → Apps & integrations → API access**, click **Generate API token**, name it, set **Sites: Read-only** (add others as needed), and copy it (shown once).",
+      "docs_url": "https://developers.webflow.com/data/reference/authentication/site-token",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Site tokens are per site; key_url is the dashboard because the settings path contains the site slug.",
+      "sources": [
+        "https://developers.webflow.com/data/reference/authentication/site-token",
+        "https://developers.webflow.com/data/reference/sites/list"
+      ],
+      "template_params": []
+    }
+  ]
+}

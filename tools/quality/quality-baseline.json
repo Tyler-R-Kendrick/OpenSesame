@@ -207,7 +207,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 597
+      "max-lines": 555
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
