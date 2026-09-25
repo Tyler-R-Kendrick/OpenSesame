@@ -910,9 +910,9 @@ fn decode_receipt_for_organization(
         organization_id,
     })
 }
-
 pub mod a2h_replies;
 pub mod agent_capabilities;
+pub mod bitwarden;
 pub mod callback_replay;
 pub mod host_authorizations;
 mod migrations;

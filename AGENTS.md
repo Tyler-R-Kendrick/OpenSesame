@@ -78,6 +78,8 @@ pnpm test:redteam        # @opensesame/redteam structural pact suite
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
+pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI against the
+                          #   bitwarden-compat surface over HTTPS (ADR 0141); fails, never skips
 pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
@@ -262,6 +264,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `crates/credential-helpers` | git/docker/AWS/kubectl helpers — thin mint-path clients of the daemon, run as entry points of `opensesame` (ADR 0049) |
+| `crates/bitwarden-server` | Bitwarden-compatible server mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in, sync and edit a personal vault; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI as the oracle (ADR 0141) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
 | `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
