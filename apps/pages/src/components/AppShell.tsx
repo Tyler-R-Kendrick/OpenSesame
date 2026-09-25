@@ -40,20 +40,26 @@ import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js
  * screen that no longer exists (SURFACE-09). The shell returns to the vault
  * and lands the keyboard there, rather than on a blank pane or on `body`.
  * A cold load of an unregistered path is not this case: no section was ever
- * matched, and the router's own fallback answers it.
+ * matched, and the router's own fallback answers it. Nor is a navigation to
+ * a route that is not a rail section (`/device`, `/claim`, `/agents`): the
+ * path changed, the sections did not, and the router either renders the
+ * route or falls back itself. Only the same path losing its section counts —
+ * comparing the match alone sent every link from a section to such a route
+ * back to the vault.
  */
 function useDeniedRouteFallback(sections: readonly SectionRowModel[]) {
   const location = useLocation();
   const navigate = useNavigate();
-  const matchedBefore = useRef(false);
+  const last = useRef<{ path: string; matched: boolean } | null>(null);
   const landing = useRef(false);
   useEffect(() => {
     const matched = sectionForPath(location.pathname, sections) !== undefined;
-    if (matchedBefore.current && !matched) {
+    const before = last.current;
+    last.current = { path: location.pathname, matched };
+    if (before?.path === location.pathname && before.matched && !matched) {
       landing.current = true;
       navigate("/vault", { replace: true });
     }
-    matchedBefore.current = matched;
   }, [sections, location.pathname, navigate]);
   useEffect(() => {
     if (!landing.current || location.pathname !== "/vault") return;
