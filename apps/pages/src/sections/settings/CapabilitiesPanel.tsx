@@ -82,7 +82,7 @@ function WithdrawnNotice({ change }: { change: CapabilityChange }) {
   const label = `withdrawn by operator: ${titles}`;
   return (
     <p className="capspanel__notice" data-testid="capabilities-withdrawn">
-      <StatusMark tone="warn" label={label} />
+      <StatusMark tone="err" label={label} />
       <span>{label}</span>
     </p>
   );

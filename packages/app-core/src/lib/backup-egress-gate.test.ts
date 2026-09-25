@@ -6,7 +6,11 @@ import {
   clearLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
-import { getBackupStatus, setBackupTargetEnabled } from "./backup.js";
+import {
+  getBackupStatus,
+  resyncBackup,
+  setBackupTargetEnabled,
+} from "./backup.js";
 import {
   stopVaultBackupObserver,
   vaultBackupObserverSeams,
@@ -115,6 +119,38 @@ describe("git backup's calls hold inside the operator's policy (ADR 0142)", () =
     const interval = vi.spyOn(globalThis, "setInterval");
     await getBackupStatus("github");
     expect(interval).toHaveBeenCalledTimes(1);
+  });
+
+  it("a manual resync goes through the push's own check, not only runSync's", async () => {
+    enabledGithubTarget();
+    // The real push: only the envelope and the credentials are stood in for.
+    Object.assign(vaultBackupSyncSeams, {
+      sealedEnvelopeJson: () => "{}",
+      resolveCredentials: () => ({ appId: "1", pem: "pem" }),
+    });
+    const fetch = vi.fn(async (_url: RequestInfo | URL) =>
+      Response.json({ commitSha: "x" }, { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const relay = new URL(location.origin).origin;
+
+    plan(false, "allow");
+    await resyncBackup("github").catch(() => undefined);
+    expect(fetch).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    vi.stubGlobal("fetch", fetch);
+    plan(true, "allow", ["https://relay.example"]);
+    await resyncBackup("github").catch(() => undefined);
+    expect(fetch).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    vi.stubGlobal("fetch", fetch);
+    plan(true, "allow", [relay]);
+    await resyncBackup("github").catch(() => undefined);
+    expect(fetch.mock.calls.map(([url]) => String(url))).toContain(
+      `${relay}/api/github-app/put-contents`,
+    );
   });
 
   it("a non-empty allowedServiceOrigins is an allowlist for every backup call", () => {
