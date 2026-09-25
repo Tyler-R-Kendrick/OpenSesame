@@ -15,6 +15,7 @@ import {
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
 import {
   captureInviteFromPage,
   watchInviteArrivals,
@@ -54,6 +55,10 @@ export async function bootCore(): Promise<CoreBoot> {
   // paints: history, a bookmark or a shared screen must never carry it.
   captureInviteFromPage();
   watchInviteArrivals();
+  // A device link's user code, and the older shapes that now open `/device`,
+  // leave the address here too — before the router reads `?code=` as a
+  // sign-in callback (ADR 0140 plan step 7).
+  captureDeviceLinkFromPage();
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked

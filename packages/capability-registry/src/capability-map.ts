@@ -46,6 +46,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.switch_account": "identity.brokered-signin",
     "identity.whoami": "identity.brokered-signin",
 
+    // --- always-on: ceremonies a link opens (ADR 0140) --------------------
+    "identity.device.approve": "identity.ceremonies",
+
     // --- core: settings and install -------------------------------------
     "setup.first_run": "settings.core",
     "app.install": "install.pwa",
@@ -105,7 +108,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
 
     // --- optional: enterprise -------------------------------------------
     "identity.admin": "enterprise.directory-provisioning",
-    "identity.device.approve": "enterprise.directory-provisioning",
     "identity.agent.register": "enterprise.directory-provisioning",
     "identity.agent.manage": "enterprise.directory-provisioning",
     "identity.users.manage": "enterprise.directory-provisioning",

@@ -60,6 +60,7 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         "backup.cloud-secrets",
         "connectors.external",
         "identity.ambient-sso",
+        "identity.ceremonies",
         "identity.federation",
         "support.guided-help",
         "vault.certificate-records",

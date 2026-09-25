@@ -8,6 +8,7 @@ import { core, each, optional, shared } from "./classification-rule.js";
 const L = "src/lib/";
 const SHELL = "shell.navigation";
 const SIGNIN = "identity.brokered-signin";
+const CEREMONIES = "identity.ceremonies";
 const CONNECTORS = "connectors.external";
 const GIT = "backup.git-remote";
 const CLOUD = "backup.cloud-secrets";
@@ -266,25 +267,33 @@ export const LIB_RULES = [
     SIGNIN,
     "join a session: invite or open endpoint, before sign-in (ADR 0136)",
   ),
-  // Moves to `identity.ceremonies` when that capability lands (ADR 0140
-  // plan step 7); until then it sits beside join, the other bearer ceremony.
+  // The ceremonies a link opens on this origin (ADR 0140): always-on, so
+  // their models ship in every build beside the join road.
   core(
     `${L}claims/`,
-    SIGNIN,
+    CEREMONIES,
     "ownership claim: link, stash, present/read/complete (ADR 0140)",
   ),
-  // Moves with `claims/` to `identity.ceremonies` (ADR 0140 plan step 7).
   core(
     `${L}interactions`,
-    SIGNIN,
+    CEREMONIES,
     "interaction approval: /i/<ref> link, resolve/read, activation, decide (ADR 0140)",
   ),
-  // Moves with `claims/` to `identity.ceremonies` (ADR 0140 plan step 7); the
-  // hosted inbox rows it builds are Access › Requests' (plan step 9).
+  // The hosted inbox rows it builds are Access › Requests' (plan step 9).
   core(
     `${L}approvals`,
-    SIGNIN,
+    CEREMONIES,
     "authorization-request review and hosted inbox rows (ADR 0084, ADR 0140)",
+  ),
+  core(
+    `${L}device-link`,
+    CEREMONIES,
+    "/device?user_code= and the legacy links normalised to it, read at boot (ADR 0140)",
+  ),
+  core(
+    `${L}device-approval`,
+    CEREMONIES,
+    "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
   ),
   // Core until `notifications.routing` exists (ADR 0140 plan step 11), which
   // takes it with the Settings › Notifications file provider; no capability

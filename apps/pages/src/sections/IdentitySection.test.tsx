@@ -64,6 +64,9 @@ async function openTab(name: string) {
   await userEvent.click(screen.getByRole("tab", { name }));
 }
 
+/** A device approval answers with a mark; its words are the mark's name. */
+const mark = (name: string | RegExp) => screen.findByRole("img", { name });
+
 function firstButton(name: string): HTMLElement {
   const matches = screen.getAllByRole("button", { name });
   const found = matches[0];
@@ -704,7 +707,7 @@ describe("IdentitySection", () => {
     await waitFor(() =>
       expect(directory.approveDevice).toHaveBeenCalledWith("ABCD-EFGH"),
     );
-    expect(await screen.findByText("Device approved.")).toBeTruthy();
+    expect(await mark("Device approved")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Approve device/ })).toBeTruthy();
   });
 
@@ -724,9 +727,7 @@ describe("IdentitySection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Approve device/i }),
     );
-    expect(
-      await screen.findByText(/No device is waiting on that code/),
-    ).toBeTruthy();
+    expect(await mark(/No device is waiting on that code/)).toBeTruthy();
   });
 
   it("renders the unreachable one-liner when the Host is down", async () => {
@@ -745,7 +746,7 @@ describe("IdentitySection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Approve device/i }),
     );
-    expect(await screen.findByText(/could not be delivered/)).toBeTruthy();
+    expect(await mark(/could not be delivered/)).toBeTruthy();
   });
 
   it("renders the operator note when approval is unconfigured", async () => {
@@ -764,9 +765,7 @@ describe("IdentitySection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Approve device/i }),
     );
-    expect(
-      await screen.findByText(/operator sets OPENSESAME_OPERATOR_TOKEN/),
-    ).toBeTruthy();
+    expect(await mark(/operator sets OPENSESAME_OPERATOR_TOKEN/)).toBeTruthy();
   });
 
   it("shows a connect note in Devices when there is no session", async () => {

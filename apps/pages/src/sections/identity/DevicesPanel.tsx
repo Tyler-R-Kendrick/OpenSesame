@@ -1,12 +1,8 @@
-import { approveDevice } from "@opensesame/app-core/lib/directory.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
-import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useEffect, useRef, useState } from "react";
-import { FormCommit } from "../../components/FormCommit.js";
-import { IconAlert, IconCheck } from "../../components/Icons.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { ConnectIdentityNote } from "./ConnectIdentityNote.js";
+import { DeviceApproval } from "./DeviceApproval.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 
 export function DevicesPanel({
@@ -32,91 +28,17 @@ export function DevicesPanel({
   );
 }
 
+/** The same form the `/device` route draws (`DeviceApproval`), in a panel. */
 function ApproveDeviceCard({ online }: { online: boolean }) {
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Flash | null>(null);
-  const codeRef = useRef<HTMLInputElement | null>(null);
-
-  // The user code is the whole ceremony, so it leads the form.
-  useEffect(() => {
-    codeRef.current?.focus();
-  }, []);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const userCode = code.trim();
-    if (!userCode) return;
-    setBusy(true);
-    setResult(null);
-    try {
-      await approveDevice(userCode);
-      setResult({ tone: "ok", text: "Device approved." });
-      setCode("");
-      codeRef.current?.focus();
-    } catch (caught) {
-      setResult({
-        tone: "err",
-        text:
-          caught instanceof Error ? caught.message : "Something went wrong.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <section className="panel">
+    <section className="panel" aria-labelledby="identity-device-approve">
       <div className="panel__head">
         <div>
-          <h2>Approve a device</h2>
+          <h2 id="identity-device-approve">Approve a device</h2>
         </div>
       </div>
-
       <div className="panel__body">
-        <form
-          className="identity-claim"
-          onSubmit={(event) => void submit(event)}
-          noValidate
-        >
-          <div className="field">
-            <label className="label" htmlFor="identity-device-code">
-              User code
-            </label>
-            <input
-              id="identity-device-code"
-              ref={codeRef}
-              type="text"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="WORD-WORD"
-              value={code}
-              disabled={busy}
-              onChange={(event) => {
-                setCode(event.target.value);
-                setResult(null);
-              }}
-            />
-          </div>
-
-          {result ? (
-            <p
-              className={`note note--${result.tone}`}
-              role={result.tone === "err" ? "alert" : undefined}
-            >
-              {result.tone === "ok" ? <IconCheck /> : <IconAlert />}
-              {result.text}
-            </p>
-          ) : null}
-
-          <div className="actions actions--end">
-            <FormCommit
-              label={busy ? "Approving…" : "Approve device"}
-              disabled={busy || !online || !code.trim()}
-              busy={busy || undefined}
-            />
-          </div>
-        </form>
+        <DeviceApproval online={online} id="identity-device-code" />
       </div>
     </section>
   );

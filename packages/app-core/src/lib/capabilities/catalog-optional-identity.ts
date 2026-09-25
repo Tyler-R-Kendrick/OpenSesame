@@ -78,7 +78,6 @@ export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.admin",
         "identity.agent.manage",
         "identity.agent.register",
-        "identity.device.approve",
         "identity.users.manage",
       ],
       egress: [IDENTITY_API_EGRESS],
