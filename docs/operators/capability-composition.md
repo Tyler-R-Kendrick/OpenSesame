@@ -64,6 +64,13 @@ prohibited dependency. Statically linked core cannot be withdrawn, because it
 has no module to leave out. Settings › Capabilities says "withdrawn by
 operator" in a notice and on the section the capability backs.
 
+A policy a version-1 preset wrote (`presetProvenance.version: 1`) listed
+every optional id the preset did not offer, so it may name browser-local IAM,
+SIOP, the site broker or git backup in `prohibited` without anyone having
+chosen that. The store drops those four from such a policy when it reads it.
+To withdraw one of them, write it into a policy you author yourself, or apply
+a preset again (presets are version 2 now) and add it.
+
 Git backup's automatic calls are held while the plan does not allow external
 services, whichever surface starts them (`backup-egress-gate.ts`). They are
 the observer's start, its webhook poll and the push after a vault mutation. A

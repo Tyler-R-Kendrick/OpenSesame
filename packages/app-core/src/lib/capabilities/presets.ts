@@ -24,7 +24,8 @@ export type PresetId =
 
 export type Preset = Readonly<{
   id: PresetId;
-  version: 1;
+  /** 2 since ADR 0142: a version-1 projection may list now-core ids (`preset-residue.ts`). */
+  version: 2;
   title: string;
   summary: string;
   required: readonly CapabilityId[];
@@ -76,7 +77,7 @@ const everyOptional = (): CapabilityId[] => optionalCapabilityIds();
 export const PRESETS: readonly Preset[] = [
   {
     id: "personal",
-    version: 1,
+    version: 2,
     title: "Personal",
     summary:
       "One person's vault on their own devices. Only local features are offered; the always-on functions stay as they are.",
@@ -87,7 +88,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "family",
-    version: 1,
+    version: 2,
     title: "Family",
     summary:
       "A household sharing chosen items with each other. Local features and drops, and no automatic call to an external service.",
@@ -98,7 +99,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "homelab",
-    version: 1,
+    version: 2,
     title: "Homelab",
     summary:
       "A self-hosted Host and Identity API at home. Everything is offered; enterprise and agent tools wait to be chosen.",
@@ -109,7 +110,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "organization",
-    version: 1,
+    version: 2,
     title: "Organization",
     summary:
       "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise and agent tools are offered, not pre-selected.",
@@ -120,7 +121,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "custom",
-    version: 1,
+    version: 2,
     title: "Custom",
     summary: "Every optional capability offered, nothing pre-selected.",
     required: [],

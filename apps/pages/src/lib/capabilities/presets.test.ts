@@ -120,7 +120,7 @@ describe("MODULE_OWNERSHIP", () => {
 });
 
 describe("PRESETS", () => {
-  it("has the five ids, version 1, and only known capability ids", () => {
+  it("has the five ids, version 2 (ADR 0142), and only known capability ids", () => {
     expect(PRESETS.map((preset) => preset.id)).toEqual([
       "personal",
       "family",
@@ -129,7 +129,7 @@ describe("PRESETS", () => {
       "custom",
     ]);
     for (const preset of PRESETS) {
-      expect(preset.version).toBe(1);
+      expect(preset.version).toBe(2);
       for (const id of [
         ...preset.required,
         ...preset.optional,
@@ -220,7 +220,7 @@ describe("PRESETS", () => {
         ...policy.capabilities.prohibited,
       ]);
       expect([...all].sort()).toEqual([...optionalCapabilityIds()].sort());
-      expect(policy.presetProvenance).toEqual({ id: preset.id, version: 1 });
+      expect(policy.presetProvenance).toEqual({ id: preset.id, version: 2 });
       expect(policy.capabilities.default).toBe("deny");
     }
     expect(

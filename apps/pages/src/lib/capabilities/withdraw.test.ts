@@ -1,4 +1,5 @@
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
+import { withoutPresetResidue } from "@opensesame/app-core/lib/capabilities/preset-residue.js";
 import {
   type EffectivePlan,
   type InstanceCapabilityPolicy,
@@ -7,13 +8,19 @@ import {
 import { describe, expect, it } from "vitest";
 import { distributionFromOwnership } from "./ownership.js";
 
-function orgPolicy(prohibited: string[]): InstanceCapabilityPolicy {
+function orgPolicy(
+  prohibited: string[],
+  presetProvenance: InstanceCapabilityPolicy["presetProvenance"] = {
+    id: "organization",
+    version: 2,
+  },
+): InstanceCapabilityPolicy {
   return {
     schemaVersion: 1,
     kind: "InstanceCapabilityPolicy",
     instanceId: "inst-org",
     revision: "1",
-    presetProvenance: { id: "organization", version: 1 },
+    presetProvenance,
     capabilities: { default: "deny", required: [], optional: [], prohibited },
     network: { externalServices: "allow", allowedServiceOrigins: [] },
     updates: {
@@ -23,11 +30,14 @@ function orgPolicy(prohibited: string[]): InstanceCapabilityPolicy {
   };
 }
 
-function planUnder(prohibited: string[]): EffectivePlan {
+function planUnder(
+  prohibited: string[],
+  policy: InstanceCapabilityPolicy = orgPolicy(prohibited),
+): EffectivePlan {
   return resolveComposition({
     catalog: CAPABILITY_CATALOG,
     distribution: distributionFromOwnership("selective"),
-    instancePolicy: orgPolicy(prohibited),
+    instancePolicy: policy,
     provenance: "same-origin-deployment",
     policyValid: true,
     workspace: null,
@@ -73,5 +83,32 @@ describe("an operator withdraws a browser-local capability (ADR 0142)", () => {
     const plan = planUnder(["backup.git-remote", "vault.passwords"]);
     expect(plan.capabilities["backup.git-remote"]?.approved).toBe(false);
     expect(plan.capabilities["vault.passwords"]?.approved).toBe(true);
+  });
+});
+
+describe("a version-1 preset's refusals are not a withdrawal", () => {
+  // Main-era Personal projected every optional id it did not offer into
+  // `prohibited`, git backup and browser-local IAM among them.
+  const legacy = orgPolicy(["backup.git-remote", "identity.local-iam"], {
+    id: "personal",
+    version: 1,
+  });
+
+  it("read as written, it would take git backup away", () => {
+    expect(
+      planUnder([], legacy).capabilities["backup.git-remote"]?.approved,
+    ).toBe(false);
+  });
+
+  it("read as the store reads it, all four run", () => {
+    const plan = planUnder([], withoutPresetResidue(legacy));
+    expect(plan.capabilities["backup.git-remote"]?.approved).toBe(true);
+    expect(plan.capabilities["identity.local-iam"]?.approved).toBe(true);
+  });
+
+  it("a hand-written policy still withdraws them", () => {
+    const written = orgPolicy(["backup.git-remote"], null);
+    const plan = planUnder([], withoutPresetResidue(written));
+    expect(plan.capabilities["backup.git-remote"]?.approved).toBe(false);
   });
 });

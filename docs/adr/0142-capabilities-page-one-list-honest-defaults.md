@@ -69,7 +69,7 @@ backup call, automatic or not (`backupOriginAllowed`).
 
 **An operator may withdraw an always-on capability.** Always on is the
 default, not a mandate. The resolver (`withdrawnCore` in
-`resolve-axes.ts`) withdraws an always-on capability that a verified
+`resolve-withdraw.ts`) withdraws an always-on capability that a verified
 instance policy names in `prohibited`:
 - It is not approved, its module is not loaded, and its state reads
   `PROHIBITED_BY_INSTANCE`.
@@ -186,7 +186,12 @@ it is drawn.
 - The catalog has 21 core capabilities (7 static, 14 always-on) and 11
   optional ones.
 - A selection or policy that still names one of the four ids is tolerated,
-  as ADR 0135 already provides for core ids.
+  as ADR 0135 already provides for core ids. A version-1 preset projection
+  listed every optional id its preset did not offer in `prohibited`, these
+  four among them; nobody chose that, so the store drops them from such a
+  policy when it reads it (`preset-residue.ts`) instead of reading them as a
+  withdrawal. Presets are version 2 from here, and a hand-written or
+  version-2 policy that prohibits one of them still withdraws it.
 - Browser-local IAM hosts the Identity section in every build, so the
   section may import nothing optional. People, Agents and the directory's
   device approval reach it through a slot the directory's runtime fills in
