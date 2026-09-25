@@ -162,6 +162,10 @@ function arrivalSteps({ press }) {
       );
       console.log(`  first render address: ${href ?? "none"}`);
     },
+    /** Let time pass, for a claim about what still holds later (seconds). */
+    async wait(page, seconds) {
+      await page.waitForTimeout(seconds * 1000);
+    },
     /**
      * Take the guest road from whatever this build shows first: the
      * capability review, the front door's Continue as guest, or the unlock
