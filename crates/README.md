@@ -57,6 +57,7 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`provider-openbao`](provider-openbao) | OpenBao credential-authority adapter. |
 | [`provider-openfga`](provider-openfga) | OpenFGA remote PDP client. |
 | [`provider-bitwarden`](provider-bitwarden) | Bitwarden / Vaultwarden consume-client ([ADR 0052](../docs/adr/0052-password-manager-ecosystem-bridging.md)). |
+| [`bitwarden-server`](bitwarden-server) | Bitwarden-compatible server: Bitwarden clients against the Host, Argon2id, a replaceable server hash ([ADR 0141](../docs/adr/0141-bitwarden-compatible-server.md)). |
 | [`provider-static-mesh`](provider-static-mesh) | Static service discovery for tests and Headscale-style deployments. |
 | [`collab-adapter`](collab-adapter) | Projects an authority onto a collaboration platform's roles (Discord, bot token only). |
 | [`dns-enforcement`](dns-enforcement) | DNS-layer enforcement through Blocky, with an honest statement of its coverage. |

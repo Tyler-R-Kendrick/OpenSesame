@@ -7,6 +7,7 @@ mod app_state;
 mod backup;
 mod backup_bus;
 mod backup_target;
+mod bitwarden_compat;
 mod bootstrap;
 mod breach;
 mod browser_pairing_proof;
@@ -86,8 +87,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     tokio::spawn(breach::scanner::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let callbacks = callback_ingress::from_env(state.db.clone())?;
+    // ADR 0141: a Bitwarden client pointed at `<resource>/bitwarden`; off by default.
+    let bitwarden = bitwarden_compat::from_env(state.db.clone(), &args.resource)?;
     let app = opensesame_host_core::http_security::apply_http_security(
-        routes::router(state).merge(callbacks),
+        routes::router(state).merge(callbacks).merge(bitwarden),
         &config::cors_origins(),
         hsts,
     );

@@ -70,6 +70,7 @@
     "test:fuzz:batch": "FUZZ_SECONDS=${FUZZ_SECONDS:-300} bash ./scripts/fuzz/jazzer-gate.sh",
     "test:task-access": "bash ./scripts/test/task-security-battle-test.sh",
     "test:nats-dogfood": "bash ./scripts/test/nats-dogfood-test.sh",
+    "test:bitwarden-oracle": "bash ./scripts/test/bitwarden-oracle-test.sh",
     "test:live-stack": "bash ./scripts/test/live-stack-test.sh",
     "test:mtls": "bash ./scripts/mtls/mtls-test.sh",
     "test:mtls:integration": "bash ./scripts/mtls/mtls-integration-test.sh",
