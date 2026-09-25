@@ -22,7 +22,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { IconConnection, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
 import { type StatusMessage, StatusNote } from "../../components/StatusNote.js";
-import { takeLinkedPairing } from "../../lib/pairing-link.js";
+import {
+  subscribeLinkedPairing,
+  takeLinkedPairing,
+} from "../../lib/pairing-link.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
 
@@ -135,8 +138,12 @@ function PairForm({
     : "Pair with this drive";
 
   useEffect(() => {
-    const linked = takeLinkedPairing();
-    if (linked) setCode(linked);
+    const take = () => {
+      const linked = takeLinkedPairing();
+      if (linked) setCode(linked);
+    };
+    take();
+    return subscribeLinkedPairing(take);
   }, []);
 
   return (

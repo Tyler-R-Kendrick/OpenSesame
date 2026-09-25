@@ -1,5 +1,11 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import { captureLinkedPairing, takeLinkedPairing } from "./pairing-link.js";
+import {
+  captureLinkedPairing,
+  subscribeLinkedPairing,
+  takeLinkedPairing,
+  watchLinkedPairing,
+} from "./pairing-link.js";
 
 function address(hash: string) {
   const replaced: string[] = [];
@@ -38,5 +44,28 @@ describe("pairing link", () => {
     captureLinkedPairing(location, history);
     expect(replaced).toHaveLength(1);
     expect(takeLinkedPairing()).toBe("");
+  });
+
+  it("captures a link that arrives in a page already open, and says so", () => {
+    const events = new Map<string, () => void>();
+    const target = {
+      addEventListener: (type: string, listener: () => void) => {
+        events.set(type, listener);
+      },
+    };
+    const { location, history, replaced } = address("");
+    watchLinkedPairing(overlapCast(target), location, history);
+    let heard = 0;
+    const stop = subscribeLinkedPairing(() => {
+      heard += 1;
+    });
+    for (const type of ["hashchange", "popstate"]) {
+      location.hash = "#pair-drive=opensesame-drive%3Av1%3Alate";
+      events.get(type)?.();
+      expect(takeLinkedPairing()).toBe("opensesame-drive:v1:late");
+    }
+    stop();
+    expect(heard).toBe(2);
+    expect(replaced).toHaveLength(2);
   });
 });
