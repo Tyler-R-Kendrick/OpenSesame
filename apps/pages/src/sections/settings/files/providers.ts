@@ -1,13 +1,15 @@
 /**
  * Which virtual files each Settings category has beyond its own document
- * (`settings/<category>.yaml`). Vaults carries the item types; the other
- * categories are one document each.
+ * (`settings/<category>/config.yaml`). Vaults carries the item types; a
+ * category a capability contributes brings its own provider with it
+ * (Notifications, `notifications.routing`); the other categories are one
+ * document each.
  */
-import type { SettingsCategory } from "@opensesame/app-core/lib/crumbs.js";
 import { tombUnlocked } from "@opensesame/app-core/lib/vfs.js";
 import { itemTypeFiles } from "@opensesame/app-core/sections/settings/item-type-files.js";
 import type { VirtualFileProvider } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import { useMemo } from "react";
+import { useContributions } from "../../../bindings/contributions.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 import {
   notifySettingsFilesChanged,
@@ -59,9 +61,11 @@ export function useItemTypeFiles(): VirtualFileProvider {
   }, [store, tomb, status]);
 }
 
-export function useCategoryFiles(
-  category: SettingsCategory,
-): VirtualFileProvider | null {
+export function useCategoryFiles(category: string): VirtualFileProvider | null {
   const itemTypes = useItemTypeFiles();
-  return category === "vaults" ? itemTypes : null;
+  const contributed = useContributions("settings-category").find(
+    (entry) => entry.id === category,
+  )?.files;
+  if (category === "vaults") return itemTypes;
+  return contributed ?? null;
 }

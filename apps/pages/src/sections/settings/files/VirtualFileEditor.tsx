@@ -116,8 +116,8 @@ function HeadKeys({
         <span
           className="vfile__lock"
           role="img"
-          aria-label="Part of the build; read-only"
-          title="Part of the build; read-only"
+          aria-label={file.readOnlyLabel ?? "Part of the build; read-only"}
+          title={file.readOnlyLabel ?? "Part of the build; read-only"}
         >
           <IconLock size={14} />
         </span>
