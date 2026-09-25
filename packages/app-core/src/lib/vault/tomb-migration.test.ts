@@ -258,6 +258,9 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
         ],
       }),
     );
+    // Work's vault is still under the pre-tomb keys: on this device, not yet
+    // a registered tomb, and listed all the same.
+    kvSet("project.prj_work.vault.header.v1", '{"v":1}');
     await hydrateAndMigrateTombOnUnlock(PERSONAL_TOMB);
 
     const raw = kvGet(PROJECTS_KEY) ?? "{}";

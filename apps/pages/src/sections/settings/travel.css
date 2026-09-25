@@ -1,0 +1,85 @@
+/* Settings › Vaults › Travel (ADR 0143). */
+
+.travel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.travel__list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.travel__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.travel__name {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.travel__name strong {
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.travel__name span {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.travel__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.travel__code {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 1.0625rem;
+  letter-spacing: 0.06em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.travel__status {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The native control stays in the key's box, invisible and pressable: left
+   visible, the browser's own button renders over the row. */
+.travel__file {
+  position: relative;
+  overflow: hidden;
+}
+
+.travel__file input[type="file"] {
+  position: absolute;
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.travel__ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+}
