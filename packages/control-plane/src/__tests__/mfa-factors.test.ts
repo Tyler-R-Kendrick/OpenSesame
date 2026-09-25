@@ -216,3 +216,29 @@ describe("DELETE /v1/mfa/factors/:id", () => {
     }
   });
 });
+
+describe("POST /v1/mfa/passkey/register in a development build", () => {
+  it("verifies a browser's attestation rather than refusing it as a stub", async () => {
+    const { app } = createControlPlane({ config: DEV });
+    const token = await provisional(app);
+    const res = await app.request("/v1/mfa/passkey/register", {
+      method: "POST",
+      headers: auth(token, true),
+      body: JSON.stringify({
+        response: {
+          id: "cred_x",
+          rawId: "cred_x",
+          type: "public-key",
+          response: { clientDataJSON: "e30", attestationObject: "AA" },
+          clientExtensionResults: {},
+        },
+      }),
+    });
+    expect(res.status).toBe(401);
+    expect(overlapCast(await res.json()).error).toBe(
+      "registration_verification_failed",
+    );
+    const { text } = await list(app, token);
+    expect(overlapCast(JSON.parse(text)).factors).toEqual([]);
+  });
+});
