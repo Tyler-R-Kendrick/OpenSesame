@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-25-device-route/`](2026-09-25-device-route/README.md) | `/device` — approve a device sign-in from its link (ADR 0140 step 7) |
 | [`2026-09-24-reviewer-findings/`](2026-09-24-reviewer-findings/README.md) | Reviewer findings fixed — before / after |
 | [`2026-09-24-join-a-session/`](2026-09-24-join-a-session/README.md) | Join a session, restored (ADR 0136) |
 | [`2026-09-23-layout-smells/`](2026-09-23-layout-smells/README.md) | Layout smells — keys with a home, fields with a measure, a phone that can find its way |
